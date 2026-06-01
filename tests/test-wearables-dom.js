@@ -43,6 +43,33 @@ return (async function() {
   localStorage.removeItem('wearable-detail-range');
 
   // ═══════════════════════════════════════
+  // 0. Strip empty-card manual log delegate
+  // ═══════════════════════════════════════
+  console.log('%c 0. Strip Manual Delegate ', 'font-weight:bold;color:#f59e0b');
+  const priorSummary = window._labState.importedData.wearableSummary;
+  const stripHost = document.createElement('div');
+  try {
+    window._labState.importedData.wearableSummary = {
+      sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 } },
+      metrics: {
+        hrv_rmssd: { primarySource: 'oura', latest: 42, latestDate: '2026-04-22', baseline: 40, baselineP25: 36, baselineP75: 44, rolling: { d7: 42, d30: 40, d90: 40 }, trend30d: 'rising', weekly: [38, 40, 42] },
+      },
+    };
+    stripHost.innerHTML = window.renderWearableStrip();
+    document.body.prepend(stripHost);
+    const emptyWeightCard = stripHost.querySelector('.wearable-card-empty[data-empty-metric="weight"]');
+    assert('Strip renders empty manual card with delegated open action',
+      emptyWeightCard?.dataset?.wearableAction === 'open-manual-log');
+    emptyWeightCard?.click();
+    await waitFor(() => !!stripHost.querySelector('#wl-weight-val'));
+    assert('Delegated empty strip card opens the inline manual form',
+      !!stripHost.querySelector('#wl-weight-val'));
+  } finally {
+    stripHost.remove();
+    window._labState.importedData.wearableSummary = priorSummary;
+  }
+
+  // ═══════════════════════════════════════
   // A. Detail modal — HRV + activity_score
   // ═══════════════════════════════════════
   console.log('%c A. Detail Modal ', 'font-weight:bold;color:#f59e0b');

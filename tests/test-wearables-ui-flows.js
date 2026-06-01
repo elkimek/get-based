@@ -311,6 +311,46 @@ return (async function() {
       !!document.querySelector('.db-biometric-sync-btn'));
   }
 
+  // ═══════════════════════════════════════
+  // 9. Empty BP card cancel/reset inside Biometrics Overview
+  // ═══════════════════════════════════════
+  console.log('%c 9. Manual BP Card Reset ', 'font-weight:bold;color:#f59e0b');
+  localStorage.setItem(BIOMETRIC_SELECTION_KEY, JSON.stringify(['bp_systolic', 'rhr']));
+  const resetSummary = window._labState.importedData.wearableSummary;
+  if (resetSummary?.metrics) {
+    delete resetSummary.metrics.bp_systolic;
+    delete resetSummary.metrics.bp_diastolic;
+  }
+  if (window.navigate) window.navigate('dashboard');
+  await new Promise(r => setTimeout(r, 300));
+  const bpEmptyCard = document.querySelector('.db-biometric-overview-grid .wearable-card-empty[data-empty-metric="bp_systolic"]');
+  assert('Empty BP card renders inside Biometrics Overview',
+    !!bpEmptyCard);
+  bpEmptyCard?.click();
+  await new Promise(r => setTimeout(r, 200));
+  assert('Clicking empty BP card opens the inline BP form',
+    !!document.getElementById('wl-bp-sys') && !!document.getElementById('wl-bp-dia'));
+  document.getElementById('wl-bp-dia')?.click();
+  await new Promise(r => setTimeout(r, 50));
+  assert('Clicking inside BP fields does not rebuild or duplicate the form',
+    document.querySelectorAll('.db-biometric-overview-grid .wearable-log-form').length === 1 &&
+    !!document.getElementById('wl-bp-sys') &&
+    !!document.getElementById('wl-bp-dia'));
+  document.querySelector('.db-biometric-overview-grid .wearable-log-cancel')?.click();
+  await new Promise(r => setTimeout(r, 300));
+  assert('BP card cancel restores the empty card in Biometrics Overview',
+    !document.getElementById('wl-bp-sys') &&
+    !!document.querySelector('.db-biometric-overview-grid .wearable-card-empty[data-empty-metric="bp_systolic"]'));
+  document.querySelector('.db-biometric-overview-grid .wearable-card-empty[data-empty-metric="bp_systolic"]')?.click();
+  await new Promise(r => setTimeout(r, 200));
+  document.querySelector('.db-biometric-overview-grid .db-biometric-widget')?.click();
+  await new Promise(r => setTimeout(r, 400));
+  assert('Opening another biometric card closes any active BP inline form',
+    !document.getElementById('wl-bp-sys') &&
+    document.getElementById('modal-overlay')?.classList?.contains('show'));
+  if (window.closeModal) window.closeModal();
+  await new Promise(r => setTimeout(r, 200));
+
   // ─────────────────────────────────────────────────────────
   // Cleanup — delete IDB rows + restore live state
   // ─────────────────────────────────────────────────────────

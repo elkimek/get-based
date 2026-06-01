@@ -1,4 +1,4 @@
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
 import {
   adapterById,
@@ -23,6 +23,24 @@ const WEARABLE_DETAIL_RANGES = [
 ];
 const WEARABLE_ALL_HISTORY_START_DATE = '1970-01-01';
 const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
+
+export function wearableActionAttrs(action, attrs = {}) {
+  return [
+    `data-wearable-action="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-wearable-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
+
+function wearableFormAttrs(form, attrs = {}) {
+  return [
+    `data-wearable-form="${escapeAttr(form)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-wearable-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
 
 function getWearableDetailRange() {
   const stored = localStorage.getItem(WEARABLE_DETAIL_RANGE_KEY);
@@ -169,14 +187,14 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
   if (manualEntries.length === 0) {
     if (primarySource && primarySource !== 'manual') {
       return `<section class="wearable-manual-entries wearable-manual-entries-compact">
-        <button type="button" class="wearable-manual-add-btn" onclick="openManualAddFromDetail('${escapeHTML(metricId)}')">+ Add a manual reading</button>
+        <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add a manual reading</button>
         <div id="wearable-manual-add-slot"></div>
       </section>`;
     }
     return `<section class="wearable-manual-entries">
       <div class="wearable-manual-entries-head">
         <span class="wearable-manual-entries-title">Manual entries</span>
-        <button type="button" class="wearable-manual-add-btn" onclick="openManualAddFromDetail('${escapeHTML(metricId)}')">+ Add reading</button>
+        <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>
       </div>
       <div class="wearable-manual-entries-empty">No manual entries for this metric yet.</div>
       <div id="wearable-manual-add-slot"></div>
@@ -207,14 +225,14 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
       <span class="wearable-manual-entry-date">${escapeHTML(shortDate(e.date))}</span>
       <span class="wearable-manual-entry-val">${valueRead}${unit ? ` <span class="wearable-manual-entry-unit">${escapeHTML(unit)}</span>` : ''}</span>
       ${tagChips}
-      <button type="button" class="wearable-manual-entry-del" title="Delete this reading" aria-label="${escapeHTML(ariaText)}" onclick="deleteManualEntryFromDetail('${escapeHTML(metricId)}','${escapeHTML(e.date)}')">×</button>
+      <button type="button" class="wearable-manual-entry-del" title="Delete this reading" aria-label="${escapeHTML(ariaText)}" ${wearableActionAttrs('delete-detail-manual-entry', { metric: metricId, date: e.date })}>×</button>
       ${noteRow}
     </li>`;
   }).join('');
   return `<section class="wearable-manual-entries">
     <div class="wearable-manual-entries-head">
       <span class="wearable-manual-entries-title">Manual entries <span class="wearable-manual-entries-count">${manualEntries.length}</span></span>
-      <button type="button" class="wearable-manual-add-btn" onclick="openManualAddFromDetail('${escapeHTML(metricId)}')">+ Add reading</button>
+      <button type="button" class="wearable-manual-add-btn" ${wearableActionAttrs('open-detail-manual-add', { metric: metricId })}>+ Add reading</button>
     </div>
     <div id="wearable-manual-add-slot"></div>
     <ul class="wearable-manual-entries-list">${rows}</ul>
@@ -329,15 +347,15 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const connectedSources = state.importedData?.wearableSummary?.sources || {};
   const showSwapButton = Object.keys(connectedSources).length > 1 && !!adapter;
   const swapButton = showSwapButton
-    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" onclick="chooseWearableSource('${escapeHTML(metricId)}',event)" title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
+    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
     : '';
 
   const emfSleepHint = _buildEMFSleepHint(metricId, m);
   const rangePills = WEARABLE_DETAIL_RANGES.map(r =>
-    `<button type="button" class="ctx-btn-option${r.key === rangeKey ? ' active' : ''}" aria-pressed="${r.key === rangeKey}" onclick="setWearableDetailRange('${escapeHTML(metricId)}','${r.key}')">${escapeHTML(r.label)}</button>`
+    `<button type="button" class="ctx-btn-option${r.key === rangeKey ? ' active' : ''}" aria-pressed="${r.key === rangeKey}" ${wearableActionAttrs('set-detail-range', { metric: metricId, range: r.key })}>${escapeHTML(r.label)}</button>`
   ).join('');
 
-  return `<button class="modal-close" onclick="closeModal()">&times;</button>
+  return `<button class="modal-close" ${wearableActionAttrs('modal-close')}>&times;</button>
     <h3>${escapeHTML(canon.label)}${subLabel}</h3>
     <div class="modal-unit">
       ${escapeHTML(sourceName)}${deltaStr ? ` · ${deltaStr} vs baseline` : ''} · ${escapeHTML(trendWord)} 30d
@@ -368,8 +386,7 @@ function _buildEMFSleepHint(metricId, m) {
     const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
     if (ageDays < 120) return '';
   }
-  const openHandler = `event.preventDefault();window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
-  return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>`;
+  return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" ${wearableActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>`;
 }
 
 function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
@@ -511,24 +528,24 @@ export function openManualAddFromDetail(metricId, event) {
   if (!kind) return;
   if (kind === 'weight') {
     const weightUnit = state.unitSystem === 'US' ? 'lb' : 'kg';
-    slot.innerHTML = `<form class="wearable-manual-add-form" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','weight')">
+    slot.innerHTML = `<form class="wearable-manual-add-form" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'weight' })}>
       <input type="number" step="0.1" inputmode="decimal" class="wearable-log-input" id="wlad-val" placeholder="${weightUnit}" aria-label="Weight in ${weightUnit === 'lb' ? 'pounds' : 'kilograms'}" autofocus>
       ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
+      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
     </form>`;
   } else if (kind === 'rhr') {
-    slot.innerHTML = `<form class="wearable-manual-add-form" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','rhr')">
+    slot.innerHTML = `<form class="wearable-manual-add-form" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'rhr' })}>
       <input type="number" inputmode="numeric" class="wearable-log-input" id="wlad-val" placeholder="bpm" autofocus>
       ${_renderTagChips('rhr')}
       ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
+      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
     </form>`;
   } else if (kind === 'bp') {
-    slot.innerHTML = `<form class="wearable-manual-add-form wearable-manual-add-form-bp" onsubmit="event.preventDefault();saveManualEntryFromDetail('${escapeHTML(metricId)}','bp')">
+    slot.innerHTML = `<form class="wearable-manual-add-form wearable-manual-add-form-bp" ${wearableFormAttrs('detail-manual-add', { metric: metricId, kind: 'bp' })}>
       <span class="wearable-log-bp-row">
         <input type="number" inputmode="numeric" class="wearable-log-input wearable-log-bp" id="wlad-sys" placeholder="sys" autofocus>
         <span class="wearable-log-sep">/</span>
@@ -539,7 +556,7 @@ export function openManualAddFromDetail(metricId, event) {
       ${_renderNoteField('wlad-note')}
       <input type="date" class="wearable-log-date" id="wlad-date" value="${today}">
       <button type="submit" class="wearable-log-save">Save</button>
-      <button type="button" class="wearable-log-cancel" onclick="closeManualAddFromDetail()">✕</button>
+      <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
     </form>`;
   }
   slot.querySelector('input[type="number"]')?.focus?.();

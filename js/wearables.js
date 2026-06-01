@@ -15,7 +15,7 @@
 //                  weekly: number[]         // up to 12 weekly means (oldest → newest)
 //                } }
 
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
 import { ADAPTERS, adapterById, canonicalMetric, metricsForSources, isMetricValueMeaningful, isoDay } from './wearable-adapters.js';
 import { syncNow, listConnectedSources } from './wearables-connect.js';
@@ -37,9 +37,118 @@ import {
   openWearableDetail,
   saveManualEntryFromDetail,
   setWearableDetailRange,
+  wearableActionAttrs,
 } from './wearables-detail-modal.js';
 
 export { isWearableStripHidden, setWearableStripHidden, renderWearablesSettingsSection } from './wearables-settings-panel.js';
+
+let wearableDelegatesInstalled = false;
+
+function isWearableActionScope(actionEl) {
+  return !!actionEl.closest('.wearable-strip, #detail-modal, .db-biometric-overview-grid');
+}
+
+function handleWearableActionClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = target.closest('[data-wearable-action]');
+  if (!actionEl || !isWearableActionScope(actionEl)) return;
+
+  const action = actionEl.dataset.wearableAction || '';
+  const metricId = actionEl.dataset.wearableMetric || '';
+  let handled = true;
+
+  if (action === 'open-manual-log') {
+    if (actionEl.closest('.wearable-card-reorder-wrap')) return;
+    openManualLogForm(metricId, event, { delegated: true });
+  } else if (action === 'open-detail') {
+    if (actionEl.closest('.wearable-card-reorder-wrap')) return;
+    openWearableDetailFromDashboard(metricId);
+  } else if (action === 'choose-source') {
+    chooseWearableSource(metricId, event);
+  } else if (action === 'open-settings-wearables') {
+    window.openSettingsModal?.('wearables');
+  } else if (action === 'dismiss-stub') {
+    dismissWearableStub();
+  } else if (action === 'toggle-strip') {
+    toggleWearableStrip();
+  } else if (action === 'sync-now') {
+    syncWearableNow(actionEl);
+  } else if (action === 'toggle-reorder') {
+    toggleWearableReorder();
+  } else if (action === 'move-card') {
+    moveWearableCard(metricId, Number(actionEl.dataset.wearableDelta || 0));
+  } else if (action === 'manual-log-save') {
+    saveManualLog(actionEl.dataset.wearableKind || '', event);
+  } else if (action === 'manual-log-cancel') {
+    cancelManualLog(event);
+  } else if (action === 'modal-close') {
+    window.closeModal?.();
+  } else if (action === 'set-detail-range') {
+    setWearableDetailRange(metricId, actionEl.dataset.wearableRange || '');
+  } else if (action === 'open-detail-manual-add') {
+    openManualAddFromDetail(metricId, event);
+  } else if (action === 'delete-detail-manual-entry') {
+    deleteManualEntryFromDetail(metricId, actionEl.dataset.wearableDate || '');
+  } else if (action === 'close-detail-manual-add') {
+    closeManualAddFromDetail();
+  } else if (action === 'open-emf-assessment') {
+    window.closeModal?.();
+    setTimeout(() => window.openEMFAssessmentEditor?.(), 100);
+  } else {
+    handled = false;
+  }
+
+  if (handled) event.preventDefault();
+}
+
+function handleWearableActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  if (target.closest('input, textarea, select, button, a')) return;
+  const actionEl = target.closest('[data-wearable-action]');
+  if (!actionEl || !isWearableActionScope(actionEl)) return;
+  const action = actionEl.dataset.wearableAction || '';
+  if (action !== 'open-manual-log' && action !== 'open-detail') return;
+  event.preventDefault();
+  actionEl.click();
+}
+
+function handleWearableFormSubmit(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const form = target.closest('[data-wearable-form]');
+  if (!form || !form.closest('#detail-modal')) return;
+  if (form.dataset.wearableForm !== 'detail-manual-add') return;
+  event.preventDefault();
+  saveManualEntryFromDetail(form.dataset.wearableMetric || '', form.dataset.wearableKind || '');
+}
+
+function installWearableDelegates() {
+  if (wearableDelegatesInstalled || typeof document === 'undefined') return;
+  wearableDelegatesInstalled = true;
+  document.addEventListener('click', handleWearableActionClick);
+  document.addEventListener('keydown', handleWearableActionKeydown);
+  document.addEventListener('submit', handleWearableFormSubmit);
+}
+
+function rerenderCurrentView() {
+  if (window.navigate) window.navigate(state.currentView || 'dashboard');
+}
+
+function resetOpenManualLogForms({ exceptMetricId = '' } = {}) {
+  const openForms = Array.from(document.querySelectorAll('.wearable-card-empty .wearable-log-form'));
+  const shouldReset = openForms.some(form => form.closest('.wearable-card-empty')?.dataset.emptyMetric !== exceptMetricId);
+  if (!shouldReset) return false;
+  rerenderCurrentView();
+  return true;
+}
+
+function openWearableDetailFromDashboard(metricId, opts = {}) {
+  resetOpenManualLogForms();
+  return openWearableDetail(metricId, opts);
+}
 
 // ─────────────────────────────────────────────────────────
 // MOCK SUMMARY — remove once the real L2 pipeline ships
@@ -230,10 +339,13 @@ function sparklineSVG(series, baseline, worseWhen) {
 // optional pulse) on one card; bp_diastolic and rhr are folded into that
 // same card when BP is empty, so the user sees ONE "BP" affordance rather
 // than three.
-function renderEmptyManualCard(metricId, canon) {
+function renderEmptyManualCard(metricId, canon, opts = {}) {
   const subLabel = canon.sub ? ` <span class="wearable-metric-sub">${escapeHTML(canon.sub)}</span>` : '';
   const label = metricId === 'bp_systolic' ? 'Blood pressure' : canon.label;
-  return `<div class="wearable-card wearable-card-empty" data-empty-metric="${escapeHTML(metricId)}" onclick="openManualLogForm('${escapeHTML(metricId)}',event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openManualLogForm('${escapeHTML(metricId)}',event)}" role="button" tabindex="0" aria-label="Log ${escapeHTML(label.toLowerCase())} manually">
+  const actionAttrs = opts.interactive === false
+    ? 'aria-disabled="true"'
+    : `${wearableActionAttrs('open-manual-log', { metric: metricId })} role="button" tabindex="0"`;
+  return `<div class="wearable-card wearable-card-empty" data-empty-metric="${escapeAttr(metricId)}" ${actionAttrs} aria-label="Log ${escapeHTML(label.toLowerCase())} manually">
     <div class="wearable-card-top">
       <span class="wearable-metric-name">${escapeHTML(label)}${metricId === 'bp_systolic' ? '' : subLabel}</span>
     </div>
@@ -248,6 +360,7 @@ function renderEmptyManualCard(metricId, canon) {
 
 function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
   const pairedMetric = opts.pairedMetric || null;
+  const interactive = opts.interactive !== false;
   // Paired BP card: relabel "BP sys" → "Blood pressure", swap latest/baseline
   // for the "sys/dia" pair string. Trend/sparkline/delta stay sys-based —
   // sys is the more clinically actionable of the two and adding a dual-line
@@ -283,8 +396,8 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   // Without the override, the summary picker auto-picks by most-recent
   // non-null value, which can feel arbitrary when two sources report similar
   // freshness. The override is per-metric, persisted in importedData.
-  const sourceBadge = (showSourceBadge && adapter)
-    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn" onclick="event.stopPropagation();chooseWearableSource('${escapeHTML(metricId)}',event)" title="Click to switch source for this metric">via ${escapeHTML(adapter.displayName)}</button>` : '';
+  const sourceBadge = (interactive && showSourceBadge && adapter)
+    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Click to switch source for this metric">via ${escapeHTML(adapter.displayName)}</button>` : '';
   // Build a meaningful aria-label: value + unit + trend direction + metric
   // name so screen readers can read the card at a glance without entering it.
   const sysRead = formatValue(metric.latest, canon.unit);
@@ -309,7 +422,10 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
     ? `${deltaText.replace('↑', 'up').replace('↓', 'down').replace('→', 'flat at')} vs baseline, `
     : '';
   const ariaLabel = `${canonRead} ${valueRead}${canon.unit ? ' ' + canon.unit : ''}, ${deltaRead}${trendRead} — open detail`;
-  return `<div class="wearable-card" onclick="openWearableDetail('${escapeHTML(metricId)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWearableDetail('${escapeHTML(metricId)}')}" role="button" tabindex="0" aria-label="${escapeHTML(ariaLabel)}">
+  const actionAttrs = interactive
+    ? ` ${wearableActionAttrs('open-detail', { metric: metricId })} role="button" tabindex="0"`
+    : '';
+  return `<div class="wearable-card"${actionAttrs} aria-label="${escapeAttr(ariaLabel)}">
     <div class="wearable-card-top">
       <span class="wearable-metric-name">${escapeHTML(cardLabel)}${subLabel}</span>
       ${deltaText ? `<span class="wearable-delta ${deltaCls}">${deltaText}</span>` : ''}
@@ -344,8 +460,8 @@ function renderWearableStripStub() {
         <span class="wearable-strip-stub-brands">Oura · Withings · Fitbit · Polar · Apple Health</span>
       </div>
       <div class="wearable-strip-stub-actions">
-        <button class="wearable-strip-stub-cta" onclick="window.openSettingsModal('wearables')">Connect</button>
-        <button class="wearable-strip-stub-dismiss" title="Hide this hint" aria-label="Dismiss wearable hint" onclick="dismissWearableStub()">×</button>
+        <button class="wearable-strip-stub-cta" ${wearableActionAttrs('open-settings-wearables')}>Connect</button>
+        <button class="wearable-strip-stub-dismiss" title="Hide this hint" aria-label="Dismiss wearable hint" ${wearableActionAttrs('dismiss-stub')}>×</button>
       </div>
     </div>
   </section>`;
@@ -357,6 +473,7 @@ function dismissWearableStub() {
 }
 
 export function renderWearableStrip() {
+  installWearableDelegates();
   const wearablesHidden = isWearableStripHidden();
   let summary = getWearableSummary();
   // Wearables-off mode: drop the demo summary (no mock vendor cards) so
@@ -520,7 +637,7 @@ export function renderWearableStrip() {
     : `<span>Wearables: <span class="wearable-source-label">${escapeHTML(sourceLabel)}${coverageLabel}</span></span>`;
   const hasStaleSource = !manualOnly && sourceIds.some(s => s !== 'manual' && Date.now() - (summary.sources?.[s]?.lastSyncAt || 0) >= 12 * 60 * 60 * 1000);
   const lastSyncHTML = manualOnly ? '' : `<span class="wearable-strip-lastsync">last synced ${formatAgo(lastSyncAt)}</span>`;
-  const syncBtnHTML = manualOnly || !hasStaleSource ? '' : `<button type="button" class="wearable-strip-sync" aria-label="Sync stale wearables now" onclick="event.stopPropagation();syncWearableNow(this);return false">
+  const syncBtnHTML = manualOnly || !hasStaleSource ? '' : `<button type="button" class="wearable-strip-sync" aria-label="Sync stale wearables now" ${wearableActionAttrs('sync-now')}>
     <svg class="wearable-strip-sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
     <span>Sync stale data</span>
   </button>`;
@@ -528,25 +645,24 @@ export function renderWearableStrip() {
     ? (collapsed ? 'Expand biometrics strip' : 'Collapse biometrics strip')
     : (collapsed ? 'Expand wearables strip' : 'Collapse wearables strip');
 
-  // axe nested-interactive: parent is mouse-clickable but keyboard
-  // toggle lives on the chevron button below. The other action buttons
-  // (sync, reorder, demo-pill) keep stopPropagation so they don't trip
-  // the row-click collapse handler.
+  // axe nested-interactive: parent is mouse-clickable but keyboard toggle
+  // lives on the chevron button below. Nested buttons carry their own
+  // delegated actions, so the document handler only runs the closest action.
   let html = `<section class="wearable-strip" id="wearable-strip">
-    <div class="wearable-strip-header" onclick="toggleWearableStrip()" style="cursor:pointer">
+    <div class="wearable-strip-header" ${wearableActionAttrs('toggle-strip')} style="cursor:pointer">
       <div class="wearable-strip-title">
         <span class="wearable-strip-icon" aria-hidden="true">⌬</span>
         ${titleHTML}
-        ${!manualOnly && showDemoPill ? '<button type="button" class="wearable-strip-demo-pill" onclick="event.stopPropagation();window.openSettingsModal(\'wearables\')" title="This is a sample. Connect your own wearable to see real data here.">demo data — connect yours</button>' : ''}
+        ${!manualOnly && showDemoPill ? `<button type="button" class="wearable-strip-demo-pill" ${wearableActionAttrs('open-settings-wearables')} title="This is a sample. Connect your own wearable to see real data here.">demo data — connect yours</button>` : ''}
         ${reorderMode ? '<span class="wearable-strip-reorder-pill">⇄ Reorder mode — use ◀ ▶ on each card</span>' : ''}
       </div>
       <div class="wearable-strip-meta">
         ${lastSyncHTML}
         ${syncBtnHTML}
-        <button type="button" class="wearable-strip-reorder${reorderMode ? ' active' : ''}" aria-label="${reorderMode ? 'Done reordering' : 'Reorder cards'}" title="${reorderMode ? 'Done reordering' : 'Reorder cards'}" onclick="event.stopPropagation();toggleWearableReorder()">
+        <button type="button" class="wearable-strip-reorder${reorderMode ? ' active' : ''}" aria-label="${reorderMode ? 'Done reordering' : 'Reorder cards'}" title="${reorderMode ? 'Done reordering' : 'Reorder cards'}" ${wearableActionAttrs('toggle-reorder')}>
           ${reorderMode ? 'Done' : '⇄ Reorder'}
         </button>
-        <button type="button" class="wearable-collapse-arrow${collapsed ? ' collapsed' : ''}" aria-expanded="${!collapsed}" aria-label="${ariaLabel}" onclick="event.stopPropagation();toggleWearableStrip()">▾</button>
+        <button type="button" class="wearable-collapse-arrow${collapsed ? ' collapsed' : ''}" aria-expanded="${!collapsed}" aria-label="${ariaLabel}" ${wearableActionAttrs('toggle-strip')}>▾</button>
       </div>
     </div>
     <div class="wearable-card-grid${collapsed ? ' hidden' : ''}${reorderMode ? ' wearable-card-grid-reorder' : ''}">`;
@@ -561,7 +677,7 @@ export function renderWearableStrip() {
     if (!canon) continue;
     let cardHtml;
     if (empty) {
-      cardHtml = renderEmptyManualCard(metricId, canon);
+      cardHtml = renderEmptyManualCard(metricId, canon, { interactive: !reorderMode });
     } else {
       const metric = summary.metrics[metricId];
       if (!metric) continue;
@@ -573,16 +689,16 @@ export function renderWearableStrip() {
       // redundancy with the header.
       // BP card: pull the dia partner so renderCard can format "120/80".
       const pairedMetric = (metricId === 'bp_systolic') ? summary.metrics?.bp_diastolic : null;
-      cardHtml = renderCard(metricId, canon, metric, showSourceBadges, sourceMaxDate[metric.primarySource], { pairedMetric });
+      cardHtml = renderCard(metricId, canon, metric, showSourceBadges, sourceMaxDate[metric.primarySource], { pairedMetric, interactive: !reorderMode });
     }
     if (reorderMode) {
       const canLeft = i > 0;
       const canRight = i < finalOrder.length - 1;
       cardHtml = `<div class="wearable-card-reorder-wrap" data-reorder-metric="${escapeHTML(metricId)}">
-        ${cardHtml.replace(/ onclick="[^"]*"/, '').replace(/ onkeydown="[^"]*"/, '').replace(/ tabindex="0"/, '')}
+        ${cardHtml}
         <div class="wearable-reorder-arrows">
-          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} left" ${canLeft ? '' : 'disabled'} onclick="event.stopPropagation();moveWearableCard('${escapeHTML(metricId)}',-1)">◀</button>
-          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} right" ${canRight ? '' : 'disabled'} onclick="event.stopPropagation();moveWearableCard('${escapeHTML(metricId)}',1)">▶</button>
+          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} left" ${canLeft ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: -1 })}>◀</button>
+          <button type="button" class="wearable-reorder-arrow" aria-label="Move ${escapeHTML(canon.label)} right" ${canRight ? '' : 'disabled'} ${wearableActionAttrs('move-card', { metric: metricId, delta: 1 })}>▶</button>
         </div>
       </div>`;
     }
@@ -832,15 +948,20 @@ async function moveWearableCard(metricId, delta) {
 // ─────────────────────────────────────────────────────────
 
 
-function openManualLogForm(metricId, event) {
+function openManualLogForm(metricId, event, opts = {}) {
+  if (!opts.delegated && event?.target?.closest?.('[data-wearable-action]')) return;
   if (event) event.stopPropagation();
-  const card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
+  let card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
   if (!card) return;
   // Idempotent: clicks inside the form (e.g. tapping the dia field on the
-  // BP card) bubble to the card's onclick. Without this guard we'd rebuild
+  // BP card) bubble to the card's delegated action. Without this guard we'd rebuild
   // innerHTML and refocus the first input — yanking the cursor off whatever
   // the user actually clicked.
   if (card.querySelector('.wearable-log-form')) return;
+  if (resetOpenManualLogForms({ exceptMetricId: metricId })) {
+    card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
+    if (!card) return;
+  }
   const today = isoDay();
   if (metricId === 'weight') {
     card.innerHTML = `
@@ -850,8 +971,8 @@ function openManualLogForm(metricId, event) {
         ${_renderNoteField('wl-weight-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-weight-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" onclick="saveManualLog('weight',event)">Save</button>
-          <button type="button" class="wearable-log-cancel" onclick="cancelManualLog(event)" aria-label="Cancel">✕</button>
+          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'weight' })}>Save</button>
+          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
         </div>
       </div>`;
   } else if (metricId === 'bp_systolic') {
@@ -868,8 +989,8 @@ function openManualLogForm(metricId, event) {
         ${_renderNoteField('wl-bp-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-bp-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" onclick="saveManualLog('bp',event)">Save</button>
-          <button type="button" class="wearable-log-cancel" onclick="cancelManualLog(event)" aria-label="Cancel">✕</button>
+          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'bp' })}>Save</button>
+          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
         </div>
       </div>`;
   } else if (metricId === 'rhr') {
@@ -881,8 +1002,8 @@ function openManualLogForm(metricId, event) {
         ${_renderNoteField('wl-rhr-note')}
         <div class="wearable-log-row">
           <input type="date" class="wearable-log-date" id="wl-rhr-date" value="${today}" max="${today}" aria-label="Date">
-          <button type="button" class="wearable-log-save" onclick="saveManualLog('rhr',event)">Save</button>
-          <button type="button" class="wearable-log-cancel" onclick="cancelManualLog(event)" aria-label="Cancel">✕</button>
+          <button type="button" class="wearable-log-save" ${wearableActionAttrs('manual-log-save', { kind: 'rhr' })}>Save</button>
+          <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('manual-log-cancel')} aria-label="Cancel">✕</button>
         </div>
       </div>`;
   }
@@ -934,7 +1055,7 @@ async function saveManualLog(kind, event) {
       await logManualBP(profileId, { date, systolic: sys, diastolic: dia, pulse: isFinite(pulse) && pulse > 0 ? pulse : undefined, tags, note });
     }
     await refreshManualSummary(profileId);
-    if (window.navigate) window.navigate('dashboard');
+    rerenderCurrentView();
     showNotification?.('Saved', 'success');
   } catch (e) {
     showNotification?.('Could not save: ' + e.message, 'error');
@@ -943,9 +1064,11 @@ async function saveManualLog(kind, event) {
 
 function cancelManualLog(event) {
   if (event) event.stopPropagation();
-  // Re-render strip to restore the empty card.
-  if (window.navigate) window.navigate('dashboard');
+  // Re-render the current dashboard/body surface to restore the empty card.
+  rerenderCurrentView();
 }
+
+installWearableDelegates();
 
 Object.assign(window, {
   renderWearableStrip,
@@ -953,7 +1076,7 @@ Object.assign(window, {
   isWearableStripHidden,
   dismissWearableStub,
   toggleWearableStrip,
-  openWearableDetail,
+  openWearableDetail: openWearableDetailFromDashboard,
   setWearableDetailRange,
   _uninstallWearableModalFocusTrap,
   syncWearableNow,
