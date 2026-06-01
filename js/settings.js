@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
+import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { getAIProvider, setAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel, getOpenRouterKey, rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
@@ -10,6 +11,7 @@ import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } fro
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
+import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 
 let _providerPanelsLoad = null;
 
@@ -171,10 +173,12 @@ function renderThemeButton(t, currentTheme, ctx = 'settings') {
   const active = currentTheme === t.id ? ' active' : '';
   const isTweaks = ctx === 'tweaks';
   const className = isTweaks ? 'tweaks-theme-btn' : 'settings-theme-btn';
-  const handler = isTweaks ? 'selectTweaksTheme' : 'handleThemeChange';
+  const actionAttr = isTweaks
+    ? 'data-tweaks-action="select-theme"'
+    : 'data-settings-action="select-theme"';
   const labelClass = isTweaks ? '' : ' class="settings-theme-label"';
   return `
-    <button type="button" class="${className}${active}" data-theme-id="${id}" onclick="window.${handler}('${id}')">
+    <button type="button" class="${className}${active}" data-theme-id="${id}" ${actionAttr}>
       <span class="settings-theme-swatch settings-theme-swatch-${id}" aria-hidden="true"></span>
       <span${labelClass}>${label}</span>
     </button>
@@ -282,6 +286,205 @@ function scheduleThemeChange(themeId) {
 
 window.handleThemeChange = scheduleThemeChange;
 
+function closestWithin(event, selector, root) {
+  const target = event.target;
+  if (!(target instanceof Element)) return null;
+  const el = target.closest(selector);
+  return el && root.contains(el) ? el : null;
+}
+
+function toggleInputFromProxyClick(event, selector, root) {
+  const target = event.target;
+  if (!(target instanceof Element)) return null;
+  if (target.matches(selector)) return null;
+  const toggle = target.closest('.toggle-switch');
+  if (!toggle || !root.contains(toggle)) return null;
+  const input = toggle.querySelector(selector);
+  return input instanceof HTMLInputElement ? input : null;
+}
+
+function applySettingsToggle(actionEl) {
+  const action = actionEl.dataset.settingsAction;
+  if (action === 'set-product-recs') {
+    setProductRecsEnabled(actionEl instanceof HTMLInputElement && actionEl.checked);
+    window.navigate?.('dashboard');
+    return true;
+  }
+  if (action === 'set-debug-mode') {
+    setDebugMode(actionEl instanceof HTMLInputElement && actionEl.checked);
+    return true;
+  }
+  return false;
+}
+
+function isSettingsToggleAction(actionEl) {
+  return actionEl.dataset.settingsAction === 'set-product-recs'
+    || actionEl.dataset.settingsAction === 'set-debug-mode';
+}
+
+function applyTweaksToggle(actionEl) {
+  const action = actionEl.dataset.tweaksAction;
+  if (action === 'toggle-sunset') {
+    toggleTweaksSunsetMode(actionEl instanceof HTMLInputElement && actionEl.checked);
+    return true;
+  }
+  if (action === 'toggle-crt') {
+    toggleTweaksCrtEffects(actionEl instanceof HTMLInputElement && actionEl.checked);
+    return true;
+  }
+  return false;
+}
+
+function isTweaksToggleAction(actionEl) {
+  return actionEl.dataset.tweaksAction === 'toggle-sunset'
+    || actionEl.dataset.tweaksAction === 'toggle-crt';
+}
+
+function handleSettingsClick(event) {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+
+  const toggleInput = toggleInputFromProxyClick(event, '[data-settings-action]', modal);
+  if (toggleInput && isSettingsToggleAction(toggleInput)) {
+    event.preventDefault();
+    toggleInput.checked = !toggleInput.checked;
+    applySettingsToggle(toggleInput);
+    return;
+  }
+
+  const tabButton = closestWithin(event, '[data-settings-tab]', modal);
+  if (tabButton) {
+    event.preventDefault();
+    switchSettingsTab(tabButton.dataset.settingsTab || 'display');
+    return;
+  }
+
+  const actionEl = closestWithin(event, '[data-settings-action]', modal);
+  if (!actionEl) return;
+
+  const action = actionEl.dataset.settingsAction;
+  if (!action) return;
+
+  if (action === 'close') {
+    event.preventDefault();
+    closeSettingsModal();
+  } else if (action === 'select-theme') {
+    event.preventDefault();
+    scheduleThemeChange(actionEl.dataset.themeId || 'dark');
+  } else if (action === 'switch-unit') {
+    event.preventDefault();
+    switchUnitSystem(actionEl.dataset.unit || 'EU');
+    updateSettingsUI();
+  } else if (action === 'toggle-alt-units') {
+    event.preventDefault();
+    toggleAltUnits(actionEl.dataset.altUnits === 'on');
+    updateSettingsUI();
+  } else if (action === 'switch-range') {
+    event.preventDefault();
+    switchRangeMode(actionEl.dataset.range || 'optimal');
+    updateSettingsUI();
+  } else if (action === 'set-time-format') {
+    event.preventDefault();
+    setTimeFormat(actionEl.dataset.timefmt === '12h' ? '12h' : '24h');
+    updateSettingsUI();
+  } else if (action === 'open-tweaks') {
+    event.preventDefault();
+    closeSettingsModal();
+    setTimeout(() => openTweaksPanel(), 120);
+  } else if (action === 'start-guided-tour') {
+    event.preventDefault();
+    closeSettingsModal();
+    setTimeout(() => window.startGuidedTour?.(false), 300);
+  } else if (action === 'open-changelog') {
+    event.preventDefault();
+    closeSettingsModal();
+    setTimeout(() => window.openChangelog?.(true), 300);
+  }
+}
+
+function handleSettingsChange(event) {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+  const actionEl = closestWithin(event, '[data-settings-action]', modal);
+  if (!actionEl) return;
+
+  applySettingsToggle(actionEl);
+}
+
+function installSettingsDelegates(modal) {
+  if (!modal || modal.dataset.delegatedActions === '1') return;
+  modal.dataset.delegatedActions = '1';
+  modal.addEventListener('click', handleSettingsClick);
+  modal.addEventListener('change', handleSettingsChange);
+}
+
+function handleTweaksClick(event) {
+  const overlay = document.getElementById('tweaks-panel-overlay');
+  if (!overlay) return;
+
+  const toggleInput = toggleInputFromProxyClick(event, '[data-tweaks-action]', overlay);
+  if (toggleInput && isTweaksToggleAction(toggleInput)) {
+    event.preventDefault();
+    toggleInput.checked = !toggleInput.checked;
+    applyTweaksToggle(toggleInput);
+    return;
+  }
+
+  if (event.target === overlay) {
+    closeTweaksPanel();
+    return;
+  }
+
+  const actionEl = closestWithin(event, '[data-tweaks-action]', overlay);
+  if (!actionEl) return;
+
+  const action = actionEl.dataset.tweaksAction;
+  if (!action) return;
+
+  if (action === 'close') {
+    event.preventDefault();
+    closeTweaksPanel();
+  } else if (action === 'select-theme') {
+    event.preventDefault();
+    selectTweaksTheme(actionEl.dataset.themeId || 'dark');
+  } else if (action === 'select-accent') {
+    event.preventDefault();
+    selectTweaksAccent(actionEl.dataset.accentId || '');
+  } else if (action === 'reset-dashboard') {
+    event.preventDefault();
+    window.resetDashboardWidgets?.();
+    closeTweaksPanel();
+  } else if (action === 'clear-dashboard') {
+    event.preventDefault();
+    window.clearDashboardWidgets?.();
+    closeTweaksPanel();
+  } else if (action === 'organize-dashboard') {
+    event.preventDefault();
+    window.toggleDashboardOrganizeMode?.(true);
+    closeTweaksPanel();
+  } else if (action === 'send-feedback') {
+    event.preventDefault();
+    closeTweaksPanel();
+    window.openFeedbackModal?.();
+  }
+}
+
+function handleTweaksChange(event) {
+  const overlay = document.getElementById('tweaks-panel-overlay');
+  if (!overlay) return;
+  const actionEl = closestWithin(event, '[data-tweaks-action]', overlay);
+  if (!actionEl) return;
+
+  applyTweaksToggle(actionEl);
+}
+
+function installTweaksDelegates(overlay) {
+  if (!overlay || overlay.dataset.delegatedActions === '1') return;
+  overlay.dataset.delegatedActions = '1';
+  overlay.addEventListener('click', handleTweaksClick);
+  overlay.addEventListener('change', handleTweaksChange);
+}
+
 export function selectTweaksTheme(themeId) {
   if (themeChangeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(themeChangeFrame);
   if (themeChangeTimer) clearTimeout(themeChangeTimer);
@@ -364,19 +567,19 @@ export function openTweaksPanel() {
   const accentButtons = TWEAK_ACCENTS.map(a => {
     const swatch = accentSwatchSpec(a, currentTheme);
     return `
-    <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" onclick="window.selectTweaksAccent('${escapeAttr(a.id)}')" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
+    <button type="button" class="tweaks-accent-btn${currentAccent === a.id ? ' active' : ''}" data-accent-id="${escapeAttr(a.id)}" data-tweaks-action="select-accent" title="${escapeAttr(a.label)}" aria-label="${escapeAttr(a.label)}">
       <span class="tweaks-accent-swatch" style="--tweak-accent:${escapeAttr(swatch.color)};--tweak-gradient:${escapeAttr(swatch.gradient)}"></span>
     </button>`;
   }).join('');
   document.body.insertAdjacentHTML('beforeend', `
-    <div class="tweaks-overlay show" id="tweaks-panel-overlay" onclick="if(event.target===this)window.closeTweaksPanel()">
+    <div class="tweaks-overlay show" id="tweaks-panel-overlay">
       <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
         <div class="tweaks-head">
           <div>
             <div class="gb-modal-kicker">Controls</div>
             <div class="gb-modal-title">Tweaks</div>
           </div>
-          <button class="modal-close" aria-label="Close" onclick="window.closeTweaksPanel()">&times;</button>
+          <button class="modal-close" aria-label="Close" data-tweaks-action="close">&times;</button>
         </div>
         <div class="tweaks-body">
           <section class="tweaks-section">
@@ -395,7 +598,7 @@ export function openTweaksPanel() {
                 <div class="settings-copy-desc">Warm high-contrast palette for red blue-blocking glasses.</div>
               </div>
               <label class="toggle-switch" title="Use warm tokens that remain legible through red lenses">
-                <input type="checkbox" id="tweaks-sunset-mode" ${currentSunset ? 'checked' : ''} onchange="window.toggleTweaksSunsetMode(this.checked)">
+                <input type="checkbox" id="tweaks-sunset-mode" ${currentSunset ? 'checked' : ''} data-tweaks-action="toggle-sunset">
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -405,7 +608,7 @@ export function openTweaksPanel() {
                 <div class="settings-copy-desc">Scanlines and phosphor glow for Terminal, Synth Sunrise, and Neuromancer.</div>
               </div>
               <label class="toggle-switch" title="Apply CRT scanline effects to terminal-style themes">
-                <input type="checkbox" id="tweaks-crt-effects" ${currentCrtEffects ? 'checked' : ''}${currentCrtSupported ? '' : ' disabled'} onchange="window.toggleTweaksCrtEffects(this.checked)">
+                <input type="checkbox" id="tweaks-crt-effects" ${currentCrtEffects ? 'checked' : ''}${currentCrtSupported ? '' : ' disabled'} data-tweaks-action="toggle-crt">
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -413,10 +616,10 @@ export function openTweaksPanel() {
           <section class="tweaks-section">
             <div class="tweaks-section-title">Dashboard</div>
             <div class="tweaks-action-grid">
-              <button type="button" onclick="window.resetDashboardWidgets?.();window.closeTweaksPanel()">Reset layout</button>
-              <button type="button" onclick="window.clearDashboardWidgets?.();window.closeTweaksPanel()">Clear all widgets</button>
-              <button type="button" onclick="window.toggleDashboardOrganizeMode?.(true);window.closeTweaksPanel()">Organize widgets</button>
-              <button type="button" onclick="window.closeTweaksPanel();window.openFeedbackModal?.()">Send feedback</button>
+              <button type="button" data-tweaks-action="reset-dashboard">Reset layout</button>
+              <button type="button" data-tweaks-action="clear-dashboard">Clear all widgets</button>
+              <button type="button" data-tweaks-action="organize-dashboard">Organize widgets</button>
+              <button type="button" data-tweaks-action="send-feedback">Send feedback</button>
             </div>
           </section>
         </div>
@@ -427,6 +630,7 @@ export function openTweaksPanel() {
     _tweaksPriorBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
   }
+  installTweaksDelegates(document.getElementById('tweaks-panel-overlay'));
   updateTweaksUI();
   document.querySelector('#tweaks-panel button')?.focus();
 }
@@ -453,32 +657,32 @@ export function openSettingsModal(tab) {
         <div class="gb-modal-kicker">Controls</div>
         <div class="gb-modal-title">Settings</div>
       </div>
-      <button class="modal-close" aria-label="Close" onclick="closeSettingsModal()">&times;</button>
+      <button class="modal-close" aria-label="Close" data-settings-action="close">&times;</button>
     </div>
 
     <div class="settings-layout">
     <div class="settings-tabs-bar" role="tablist" aria-label="Settings sections">
-      <button role="tab" aria-selected="${_activeSettingsTab === 'display'}" aria-controls="settings-tab-display" tabindex="${_activeSettingsTab === 'display' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" onclick="switchSettingsTab('display')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'display'}" aria-controls="settings-tab-display" tabindex="${_activeSettingsTab === 'display' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" data-settings-tab="display">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         Display
       </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'ai'}" aria-controls="settings-tab-ai" tabindex="${_activeSettingsTab === 'ai' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" onclick="switchSettingsTab('ai')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'ai'}" aria-controls="settings-tab-ai" tabindex="${_activeSettingsTab === 'ai' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" data-settings-tab="ai">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
         AI
       </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" onclick="switchSettingsTab('privacy')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" data-settings-tab="privacy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         Privacy
       </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'data'}" aria-controls="settings-tab-data" tabindex="${_activeSettingsTab === 'data' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" onclick="switchSettingsTab('data')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'data'}" aria-controls="settings-tab-data" tabindex="${_activeSettingsTab === 'data' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" data-settings-tab="data">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         Data
       </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'wearables'}" aria-controls="settings-tab-wearables" tabindex="${_activeSettingsTab === 'wearables' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab="wearables" onclick="switchSettingsTab('wearables')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'wearables'}" aria-controls="settings-tab-wearables" tabindex="${_activeSettingsTab === 'wearables' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab="wearables" data-settings-tab="wearables">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><path d="M12 9v3l2 2"/><path d="M9 2h6M9 22h6"/></svg>
         Wearables
       </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'agent'}" aria-controls="settings-tab-agent" tabindex="${_activeSettingsTab === 'agent' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab="agent" onclick="switchSettingsTab('agent')">
+      <button role="tab" aria-selected="${_activeSettingsTab === 'agent'}" aria-controls="settings-tab-agent" tabindex="${_activeSettingsTab === 'agent' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab="agent" data-settings-tab="agent">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="4"/><path d="m10.5 11 7.5-7.5M17 6l3 3M14 9l3 3"/></svg>
         Agent Access
       </button>
@@ -491,30 +695,30 @@ export function openSettingsModal(tab) {
         <div class="settings-section">
           <label class="settings-label">Unit System</label>
           <div class="unit-toggle">
-            <button class="unit-toggle-btn${state.unitSystem === 'EU' ? ' active' : ''}" data-unit="EU" onclick="switchUnitSystem('EU');updateSettingsUI()">EU (SI)</button>
-            <button class="unit-toggle-btn${state.unitSystem === 'US' ? ' active' : ''}" data-unit="US" onclick="switchUnitSystem('US');updateSettingsUI()">US</button>
+            <button class="unit-toggle-btn${state.unitSystem === 'EU' ? ' active' : ''}" data-unit="EU" data-settings-action="switch-unit">EU (SI)</button>
+            <button class="unit-toggle-btn${state.unitSystem === 'US' ? ' active' : ''}" data-unit="US" data-settings-action="switch-unit">US</button>
           </div>
         </div>
         <div class="settings-section">
           <label class="settings-label" title="When on, the marker detail view also shows values in the alternate unit system (e.g. mg/dL alongside mmol/L). Useful for cross-checking against a lab report printed in the other system.">Alternate Units</label>
           <div class="unit-toggle">
-            <button class="unit-toggle-btn${!state.showAltUnits ? ' active' : ''}" data-alt-units="off" onclick="toggleAltUnits(false);updateSettingsUI()">Off</button>
-            <button class="unit-toggle-btn${state.showAltUnits ? ' active' : ''}" data-alt-units="on" onclick="toggleAltUnits(true);updateSettingsUI()">Show both</button>
+            <button class="unit-toggle-btn${!state.showAltUnits ? ' active' : ''}" data-alt-units="off" data-settings-action="toggle-alt-units">Off</button>
+            <button class="unit-toggle-btn${state.showAltUnits ? ' active' : ''}" data-alt-units="on" data-settings-action="toggle-alt-units">Show both</button>
           </div>
         </div>
         <div class="settings-section">
           <label class="settings-label">Range Display</label>
           <div class="range-toggle">
-            <button class="range-toggle-btn${state.rangeMode === 'optimal' ? ' active' : ''}" data-range="optimal" onclick="switchRangeMode('optimal');updateSettingsUI()">Optimal</button>
-            <button class="range-toggle-btn${state.rangeMode === 'reference' ? ' active' : ''}" data-range="reference" onclick="switchRangeMode('reference');updateSettingsUI()">Reference</button>
-            <button class="range-toggle-btn${state.rangeMode === 'both' ? ' active' : ''}" data-range="both" onclick="switchRangeMode('both');updateSettingsUI()">Both</button>
+            <button class="range-toggle-btn${state.rangeMode === 'optimal' ? ' active' : ''}" data-range="optimal" data-settings-action="switch-range">Optimal</button>
+            <button class="range-toggle-btn${state.rangeMode === 'reference' ? ' active' : ''}" data-range="reference" data-settings-action="switch-range">Reference</button>
+            <button class="range-toggle-btn${state.rangeMode === 'both' ? ' active' : ''}" data-range="both" data-settings-action="switch-range">Both</button>
           </div>
         </div>
         <div class="settings-section">
           <label class="settings-label">Time Format</label>
           <div class="unit-toggle">
-            <button class="time-toggle-btn${getTimeFormat() === '24h' ? ' active' : ''}" data-timefmt="24h" onclick="setTimeFormat('24h');updateSettingsUI()">24h</button>
-            <button class="time-toggle-btn${getTimeFormat() === '12h' ? ' active' : ''}" data-timefmt="12h" onclick="setTimeFormat('12h');updateSettingsUI()">12h (AM/PM)</button>
+            <button class="time-toggle-btn${getTimeFormat() === '24h' ? ' active' : ''}" data-timefmt="24h" data-settings-action="set-time-format">24h</button>
+            <button class="time-toggle-btn${getTimeFormat() === '12h' ? ' active' : ''}" data-timefmt="12h" data-settings-action="set-time-format">12h (AM/PM)</button>
           </div>
         </div>
         <div class="settings-section">
@@ -523,7 +727,7 @@ export function openSettingsModal(tab) {
               <div class="settings-copy-title">Appearance</div>
               <div class="settings-copy-desc">Themes, accent color, and dashboard layout live in the quick Tweaks panel.</div>
             </div>
-            <button type="button" class="import-btn import-btn-secondary settings-mini-btn" onclick="closeSettingsModal();setTimeout(()=>openTweaksPanel(),120)">Open Tweaks</button>
+            <button type="button" class="import-btn import-btn-secondary settings-mini-btn" data-settings-action="open-tweaks">Open Tweaks</button>
           </div>
         </div>
         <div class="settings-section">
@@ -533,7 +737,7 @@ export function openSettingsModal(tab) {
               <div class="settings-copy-desc">Supplement, food, and lifestyle guidance on markers</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="settings-product-recs" ${window.isProductRecsEnabled && window.isProductRecsEnabled() ? 'checked' : ''} onchange="setProductRecsEnabled(this.checked);if(window.navigate)window.navigate('dashboard')">
+              <input type="checkbox" id="settings-product-recs" ${isProductRecsEnabled() ? 'checked' : ''} data-settings-action="set-product-recs">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -545,7 +749,7 @@ export function openSettingsModal(tab) {
               <div class="settings-copy-desc">Adds detailed log output and reveals diagnostic UI in the sync popover. No data leaves your device.</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} onchange="setDebugMode(this.checked)">
+              <input type="checkbox" id="debug-mode-toggle" ${isDebugMode() ? 'checked' : ''} data-settings-action="set-debug-mode">
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -555,8 +759,8 @@ export function openSettingsModal(tab) {
       <div class="settings-group-title">Resources</div>
       <div class="settings-links-row">
         <a href="/docs" class="settings-link-btn">Documentation</a>
-        <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>startGuidedTour(false),300)">Guided Tour</button>
-        <button class="settings-link-btn" onclick="closeSettingsModal();setTimeout(()=>openChangelog(true),300)">What's New</button>
+        <button class="settings-link-btn" data-settings-action="start-guided-tour">Guided Tour</button>
+        <button class="settings-link-btn" data-settings-action="open-changelog">What's New</button>
       </div>
 
       <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(window.APP_VERSION || '')} · <span id="settings-commit-hash">···</span></div>
@@ -671,6 +875,7 @@ export function openSettingsModal(tab) {
     </div>
     </div>
     </div>`;
+  installSettingsDelegates(modal);
   overlay.classList.add('show');
   window.initSettingsOllamaCheck();
   window.initSettingsModelFetch();

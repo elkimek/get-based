@@ -244,15 +244,17 @@ console.log('\n-- source-shape pins (UI wiring) --');
   // toggleAltUnits fired from Settings → Display after the user closed the
   // detail modal doesn't re-open it on top of Settings.
   assert('closeModal clears state._activeDetailMarkerId',
-    /export function closeModal\(\)[\s\S]{0,1000}state\._activeDetailMarkerId = null/.test(markerDetail));
+    /export function closeModal\(\)[\s\S]{0,1600}state\._activeDetailMarkerId = null/.test(markerDetail));
 
   // Settings → Display has the Alternate Units row + both buttons
   assert('settings.js renders Alternate Units row in Display tab',
     /label class="settings-label"[^>]*>Alternate Units</.test(settings));
-  assert('settings.js Off button maps to toggleAltUnits(false)',
-    /data-alt-units="off"[^>]*onclick="toggleAltUnits\(false\)/.test(settings));
-  assert('settings.js Show-both button maps to toggleAltUnits(true)',
-    /data-alt-units="on"[^>]*onclick="toggleAltUnits\(true\)/.test(settings));
+  assert('settings.js Off button maps to delegated toggleAltUnits(false)',
+    /data-alt-units="off"[^>]*data-settings-action="toggle-alt-units"/.test(settings)
+      && /toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)/.test(settings));
+  assert('settings.js Show-both button maps to delegated toggleAltUnits(true)',
+    /data-alt-units="on"[^>]*data-settings-action="toggle-alt-units"/.test(settings)
+      && /toggleAltUnits\(actionEl\.dataset\.altUnits === 'on'\)/.test(settings));
   assert('settings.js updateSettingsUI refreshes alt-units active state',
     /unit-toggle-btn\[data-alt-units\][^)]*\)\.forEach[\s\S]{0,300}state\.showAltUnits/.test(settings));
   assert('settings.js unit-toggle scope is narrowed to [data-unit] (so alt-units buttons aren\'t deactivated)',
