@@ -84,6 +84,11 @@ assert('Chat key handlers are delegated',
     && shellSrc.includes("document.addEventListener('keydown', handleShellKeydown)")
     && shellSrc.includes('window.handleChatKeydown?.(event)')
     && shellSrc.includes('window.togglePersonalityBar?.()'));
+assert('Click delegate only prevents default for handled actions',
+  shellSrc.includes('const handled = shellAction')
+    && shellSrc.includes('if (handled) event.preventDefault();')
+    && shellSrc.includes('return false;')
+    && !shellSrc.includes('event.preventDefault();\n  if (shellAction)'));
 assert('Generic role-button key shim skips delegated chat key actions',
   appEventsSrc.includes("t.hasAttribute('data-chat-key-action')"));
 

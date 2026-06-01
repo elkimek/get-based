@@ -16,51 +16,74 @@ function clickFileInput(id) {
 function runShellAction(action) {
   if (action === 'toggle-mobile-sidebar') {
     window.toggleMobileSidebar?.();
+    return true;
   } else if (action === 'close-mobile-sidebar') {
     window.closeMobileSidebar?.();
+    return true;
   } else if (action === 'trigger-import') {
     clickFileInput('pdf-input');
+    return true;
   } else if (action === 'open-tweaks') {
     window.openTweaksPanel?.();
+    return true;
   } else if (action === 'open-settings') {
     window.openSettingsModal?.();
+    return true;
   } else if (action === 'open-ai-settings') {
     window.openSettingsModal?.('ai');
+    return true;
   } else if (action === 'open-feedback') {
     window.openFeedbackModal?.();
+    return true;
   } else if (action === 'import-status') {
     window.handleImportStatusClick?.();
+    return true;
   }
+  return false;
 }
 
 function runChatAction(action, actionEl) {
   if (action === 'toggle-panel') {
     window.toggleChatPanel?.();
+    return true;
   } else if (action === 'close-panel') {
     window.closeChatPanel?.();
+    return true;
   } else if (action === 'toggle-thread-rail') {
     window.toggleThreadRail?.();
+    return true;
   } else if (action === 'create-thread') {
     window.createNewThread?.();
+    return true;
   } else if (action === 'summarize-thread') {
     window.summarizeThread?.();
+    return true;
   } else if (action === 'clear-history') {
     window.clearChatHistory?.();
+    return true;
   } else if (action === 'toggle-fullscreen') {
     window.toggleChatFullscreen?.();
+    return true;
   } else if (action === 'toggle-personality') {
     window.togglePersonalityBar?.();
+    return true;
   } else if (action === 'set-personality') {
     window.setChatPersonality?.(actionEl.dataset.personality || 'default');
+    return true;
   } else if (action === 'attach-image') {
     clickFileInput('chat-image-input');
+    return true;
   } else if (action === 'toggle-hd') {
     window.toggleHDMode?.();
+    return true;
   } else if (action === 'start-discussion') {
     window.startDiscussion?.();
+    return true;
   } else if (action === 'send-message') {
     window.sendChatMessage?.();
+    return true;
   }
+  return false;
 }
 
 function handleShellClick(event) {
@@ -71,9 +94,10 @@ function handleShellClick(event) {
   const chatAction = actionEl.dataset.chatAction;
   if (!shellAction && !chatAction) return;
 
-  event.preventDefault();
-  if (shellAction) runShellAction(shellAction);
-  else runChatAction(chatAction, actionEl);
+  const handled = shellAction
+    ? runShellAction(shellAction)
+    : runChatAction(chatAction, actionEl);
+  if (handled) event.preventDefault();
 }
 
 function handleShellInput(event) {
