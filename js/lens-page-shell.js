@@ -10,17 +10,45 @@ let _shellDeps = {
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
 };
+let lensPageShellDelegatesInstalled = false;
 
 export function configureLensPageShell(deps = {}) {
   _shellDeps = { ..._shellDeps, ...deps };
+  installLensPageShellDelegates();
 }
 
-function inlineJsString(value) {
-  return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+export function lensPageActionAttrs(action, attrs = {}) {
+  return [
+    `data-lens-page-action="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-lens-page-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
 }
 
-export function inlineHandlerCall(fnName, ...args) {
-  return escapeAttr(`window.${fnName}(${args.map(inlineJsString).join(', ')})`);
+function handleLensPageShellClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = target.closest('[data-lens-page-action]');
+  if (!actionEl) return;
+  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page')) return;
+  event.preventDefault();
+
+  const action = actionEl.dataset.lensPageAction || '';
+  const id = actionEl.dataset.lensPageId || '';
+  if (action === 'move-widget') {
+    moveLensPageWidget(actionEl.dataset.lensPageRoute || '', id, actionEl.dataset.lensPageDirection || 0);
+  } else if (action === 'add-dashboard-widget') {
+    window.addDashboardWidgetFromLens?.(id);
+  } else if (action === 'remove-dashboard-widget') {
+    window.removeDashboardWidgetFromLens?.(id);
+  }
+}
+
+function installLensPageShellDelegates() {
+  if (lensPageShellDelegatesInstalled || typeof document === 'undefined') return;
+  lensPageShellDelegatesInstalled = true;
+  document.addEventListener('click', handleLensPageShellClick);
 }
 
 export function renderLensHeader(title, subtitle, actions = '') {
@@ -57,8 +85,8 @@ function orderLensPageWidgets(route, widgets) {
 
 function renderLensPageMoveControls(route, id, index, count) {
   if (!route || count < 2) return '';
-  return `<button type="button" class="dashboard-widget-tool" ${index <= 0 ? 'disabled' : ''} onclick="${inlineHandlerCall('moveLensPageWidget', route, id, '-1')}" aria-label="Move page section up">↑</button>
-    <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} onclick="${inlineHandlerCall('moveLensPageWidget', route, id, '1')}" aria-label="Move page section down">↓</button>`;
+  return `<button type="button" class="dashboard-widget-tool" ${index <= 0 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: -1 })} aria-label="Move page section up">↑</button>
+    <button type="button" class="dashboard-widget-tool" ${index >= count - 1 ? 'disabled' : ''} ${lensPageActionAttrs('move-widget', { route, id, direction: 1 })} aria-label="Move page section down">↓</button>`;
 }
 
 export function renderLensPageWidgets(route, widgets) {
@@ -99,8 +127,8 @@ function renderLensDashboardToggle(dashboardId) {
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
   const isVisible = !hidden.includes(dashboardId);
   const label = isVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
-  const action = isVisible ? 'removeDashboardWidgetFromLens' : 'addDashboardWidgetFromLens';
-  return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" onclick="${inlineHandlerCall(action, dashboardId)}">${label}</button>`;
+  const action = isVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget';
+  return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" ${lensPageActionAttrs(action, { id: dashboardId })}>${label}</button>`;
 }
 
 export function renderLensWidget(id, title, description, body, size = 'full', opts = {}) {
@@ -120,3 +148,5 @@ export function renderLensWidget(id, title, description, body, size = 'full', op
     <div class="dashboard-widget-body">${body || '<div class="dashboard-widget-empty">No data available yet.</div>'}</div>
   </section>`;
 }
+
+installLensPageShellDelegates();

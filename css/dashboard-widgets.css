@@ -80,6 +80,7 @@
   padding: 12px; border: 1px dashed var(--border); border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-card) 46%, transparent);
 }
+.dashboard-widgets.is-organizing { grid-auto-flow: row; }
 .dashboard-widgets.is-organizing .dashboard-widget:hover {
   border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
 }

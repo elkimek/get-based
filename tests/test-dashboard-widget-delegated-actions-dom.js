@@ -39,6 +39,8 @@ return (async function() {
 
     assert('delegated customize click enters organize mode',
       !!document.querySelector('.dashboard-widgets.is-organizing'));
+    assert('organize mode uses visual order matching widget order',
+      getComputedStyle(document.querySelector('.dashboard-widgets.is-organizing')).gridAutoFlow === 'row');
     assert('dashboard widget chrome has no inline handlers in organize mode',
       !document.querySelector('.dashboard-sticky-actions [onclick], .dashboard-organize-footer [onclick], .dashboard-widget-chrome [onclick], .dashboard-widget[ondragstart], .dashboard-widget[ondragover], .dashboard-widget[ondrop]'));
     assert('organize controls render move/hide data actions',

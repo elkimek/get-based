@@ -6,7 +6,7 @@ import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
 import { createDashboardViewComposition } from './dashboard-view-composition.js';
 import { createLensPageHandlers } from './lens-pages.js';
-import { inlineHandlerCall, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
+import { lensPageActionAttrs, renderLensHeader, renderLensPageWidgets, renderLensWidget, moveLensPageWidget } from './lens-page-shell.js';
 import { renderFocusCard, buildFocusContext, loadFocusCard, refreshFocusCard } from './focus-card.js';
 import { configureOnboardingView, renderOnboardingBanner, renderAIConnectionReminder, dismissAIReminder, openChatProviderQuiz, setOnboardingFocus, completeOnboardingSex, completeOnboardingProfile, dismissOnboarding } from './onboarding-view.js';
 import { renderCategoryGlyph } from './category-glyphs.js';
@@ -247,7 +247,7 @@ const lensPageHandlers = createLensPageHandlers({
   getGlobalRecommendationCandidates,
   renderRecommendationCard,
   renderRecommendationsEmpty,
-  inlineHandlerCall,
+  lensPageActionAttrs,
   renderLensHeader,
   renderLensPageWidgets,
   renderLensWidget,
