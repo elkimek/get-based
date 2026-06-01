@@ -109,7 +109,8 @@ assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'))
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
 const settingsSrc = read('js/settings.js');
 assert('provider button with data-provider="openrouter"', settingsSrc.includes('data-provider="openrouter"'));
-assert("switchAIProvider('openrouter') in onclick", settingsSrc.includes("switchAIProvider('openrouter')"));
+assert('OpenRouter provider button uses delegated settings action',
+  /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
 assert('settings has eager provider switch bridge', settingsSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsSrc.includes('setAIProvider(provider);'));
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));

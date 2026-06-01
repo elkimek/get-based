@@ -220,7 +220,8 @@ const panelRenderSrc = read('js/provider-panel-renderers.js');
 const providerModelControlsSrc = read('js/provider-model-controls.js');
 const providerUiSrc = panelsSrc + panelRenderSrc + providerModelControlsSrc;
 assert('settings.js has data-provider="custom" button', settingsSrc.includes('data-provider="custom"'));
-assert("settings.js wires switchAIProvider('custom')", settingsSrc.includes("switchAIProvider('custom')"));
+assert('settings.js wires custom provider through delegated action',
+  /<button[^>]*data-provider="custom"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
 assert('provider code imports getCustomApiUrl', providerUiSrc.includes('getCustomApiUrl'));
 assert('provider-panels imports setCustomApiUrl', panelsSrc.includes('setCustomApiUrl'));
 assert('provider code imports getCustomApiKey', providerUiSrc.includes('getCustomApiKey'));
