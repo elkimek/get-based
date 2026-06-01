@@ -6,6 +6,7 @@
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
+import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
 
 const uiDeps = {
   getSessions: () => [],
@@ -30,6 +31,14 @@ const uiDeps = {
   formatChannelUnit: () => '',
   tooShortForChannelVerdictMin: 2,
 };
+
+if (typeof document !== 'undefined') {
+  installSunSessionActionDelegates({
+    openSunSessionDetail,
+    deleteSunSession,
+    editSunSessionDuration,
+  });
+}
 
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
@@ -60,45 +69,43 @@ export function renderSunSessionRow(sess) {
     medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses, sess);
-  // Active-session controls: Pause/Resume + Sunscreen re-applied + Set
-  // ozone. Stop propagation so the row's open-detail click handler
-  // doesn't fire when these are tapped.
+  // Active-session controls own their delegated actions so tapping them
+  // does not fall through to the row-level open-detail action.
   let activeControls = '';
   if (isActive) {
     const isPaused = !!sess.paused;
-    const pauseLabel = isPaused ? '▶ Resume' : '⏸ Pause';
-    const pauseAction = isPaused ? `window.resumeSunSession('${escapeAttr(sess.id)}')` : `window.pauseSunSession('${escapeAttr(sess.id)}')`;
+    const pauseAction = isPaused ? 'resume-session' : 'pause-session';
     const isRotated = !!sess.bodyExposure?.rotatedSides;
     const flipBtn = isRotated
-      ? `<button class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
-      : `<button class="sun-session-ctl" onclick="event.stopPropagation();window.flipSidesMidSession('${escapeAttr(sess.id)}')" title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
-    activeControls = `<div class="sun-session-active-controls" onclick="event.stopPropagation()">
+      ? `<button type="button" class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
+      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
+    activeControls = `<div class="sun-session-active-controls" ${sunSessionActionAttrs('ignore')}>
       <div class="sun-session-ctl-primary">
-        <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.quickLogSunSession()" title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
-        <button class="sun-session-ctl" onclick="event.stopPropagation();${pauseAction}" title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}" aria-label="${isPaused ? 'Resume' : 'Pause'} session"><span aria-hidden="true">${isPaused ? '▶' : '⏸'}</span> <span class="sun-session-ctl-label">${isPaused ? 'Resume' : 'Pause'}</span></button>
+        <button type="button" class="sun-session-ctl sun-session-ctl-stop" ${sunSessionActionAttrs('quick-log-sun')} title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
+        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs(pauseAction, { id: sess.id })} title="${isPaused ? 'Resume dose accrual' : 'Pause dose accrual (shade break, indoors)'}" aria-label="${isPaused ? 'Resume' : 'Pause'} session"><span aria-hidden="true">${isPaused ? '▶' : '⏸'}</span> <span class="sun-session-ctl-label">${isPaused ? 'Resume' : 'Pause'}</span></button>
       </div>
       <div class="sun-session-ctl-secondary">
         ${flipBtn}
-        <button class="sun-session-ctl" onclick="event.stopPropagation();window.changeCoverageMidSession('${escapeAttr(sess.id)}')" title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span> <span class="sun-session-ctl-label">Coverage</span></button>
-        <button class="sun-session-ctl" onclick="event.stopPropagation();window.applySunscreenMidSession('${escapeAttr(sess.id)}')" title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF" aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
-        <button class="sun-session-ctl" onclick="event.stopPropagation();window.setOzoneOverrideMidSession()" title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span> <span class="sun-session-ctl-label">Ozone</span></button>
+        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('change-coverage', { id: sess.id })} title="Dressed or undressed — opens the body-region picker, commits the dose accrued so far, applies the new coverage from this moment forward" aria-label="Change coverage"><span aria-hidden="true">👕</span> <span class="sun-session-ctl-label">Coverage</span></button>
+        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('apply-sunscreen', { id: sess.id })} title="Reapplied sunscreen — commits current slice and starts a new one with the new SPF" aria-label="Reapply sunscreen"><span aria-hidden="true">🧴</span> <span class="sun-session-ctl-label">Sunscreen</span></button>
+        <button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('override-ozone')} title="Calibrate ozone column from a meter / weather station" aria-label="Override ozone"><span aria-hidden="true">🛰</span> <span class="sun-session-ctl-label">Ozone</span></button>
       </div>
     </div>`;
   }
   const pausedBadge = isActive && sess.paused ? `<span class="sun-session-paused" title="Dose accrual paused — elapsed time still ticks but channel + burn totals stay frozen.">⏸ paused</span>` : '';
   const forgotBanner = isActive && (Date.now() - sess.startedAt > 12 * 3600 * 1000)
-    ? `<div class="sun-session-forgot" onclick="event.stopPropagation();window._forgotStopPrompt && window._forgotStopPrompt('${escapeAttr(sess.id)}')" role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - sess.startedAt) / 3600000)}h. Tap to end it.</div>`
+    ? `<div class="sun-session-forgot" ${sunSessionActionAttrs('forgot-stop', { id: sess.id })} role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - sess.startedAt) / 3600000)}h. Tap to end it.</div>`
     : '';
-  // Click anywhere on the card (except the × delete) to open the detail
-  // modal. Each delete button stops propagation so it only deletes.
-  return `<div class="sun-session light-session-row light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" onclick="window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openSunSessionDetail && window.openSunSessionDetail('${escapeAttr(sess.id)}')}">
+  // Click anywhere on the card (except nested delegated controls) to open
+  // the detail modal. Specific controls declare their own data action.
+  return `<div class="sun-session light-session-row light-session-sun" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="Open ${start} session details" ${sunSessionActionAttrs('open-detail', { id: sess.id })}>
     <div class="sun-session-head">
       <span class="light-session-icon" aria-hidden="true">☀</span>
       <span class="sun-session-date">${start}</span>
       <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
       ${pausedBadge}
       ${medStr}
-      <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteSunSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+      <button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>
     </div>
     <div class="sun-session-meta">
       ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
@@ -115,7 +122,7 @@ export function renderSessionsList() {
   if (sessions.length === 0) {
     return `<div class="sun-empty">
       <p>No sun sessions logged yet.</p>
-      <button class="import-btn import-btn-primary" onclick="window.quickLogSunSession()">Log your first session</button>
+      <button type="button" class="import-btn import-btn-primary" ${sunSessionActionAttrs('quick-log-sun')}>Log your first session</button>
     </div>`;
   }
   let html = `<div class="sun-sessions-list">`;
@@ -193,7 +200,7 @@ export function openSunSessionDetail(id) {
     const pctOfTarget = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
     const unitText = uiDeps.formatChannelUnit(k, v, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
     const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+    return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" ${sunSessionActionAttrs('open-channel', { channel: k })} role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
       <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr(pctOfTarget + '% of typical-active-day target — calibrated to roughly 30-60 min of moderate-body-fraction midday exposure (skin channels) or 10-30 min eye-direct outdoor light (eye channels). Over 100% means you got more than typical, NOT more than safe — burn risk is the % MED chip, not this. Targets are dosing references, not exposure ceilings.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}%` : '')}</span>
@@ -311,7 +318,7 @@ export function openSunSessionDetail(id) {
   overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="sun" role="dialog" aria-label="Sun session details">
     <div class="modal-header">
       <h3>Sun session · ${escapeHTML(fmtTitleDate(start))}</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${typeof window !== 'undefined' && window.renderSessionAIDetail ? window.renderSessionAIDetail(sess) : ''}
@@ -371,8 +378,8 @@ export function openSunSessionDetail(id) {
       ` : ''}
 
       <div class="modal-actions" style="margin-top:18px">
-        ${sess.endedAt ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editSunSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
-        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteSunSession('${escapeAttr(sess.id)}')">Delete session</button>
+        ${sess.endedAt ? `<button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('edit-duration', { id: sess.id })} title="Override the session duration. Use when a re-end on a second device set it wrong, or you forgot to stop on time.">Edit duration</button>` : ''}
+        <button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${sunSessionActionAttrs('delete-session', { id: sess.id, closeModal: true })}>Delete session</button>
       </div>
     </div>
   </div>`;
@@ -473,7 +480,7 @@ export function renderChannelChips(doses, sess = null) {
   let html = `<div class="sun-channel-chips">`;
   for (const r of visible) html += chipFor(r);
   if (showAll) {
-    html += `<button class="sun-chip-more" onclick="this.parentElement.classList.toggle('sun-chips-expanded')">+ ${ranked.length - 3} more</button>`;
+    html += `<button type="button" class="sun-chip-more" ${sunSessionActionAttrs('toggle-chips')}>+ ${ranked.length - 3} more</button>`;
     for (const r of ranked.slice(3)) html += chipFor(r, ' sun-chip-extra');
   }
   html += `</div>`;
@@ -510,7 +517,7 @@ export function openDetailedSessionDialog() {
   overlay.innerHTML = `<div class="modal sun-detailed-modal" role="dialog" aria-label="Past session log">
     <div class="modal-header">
       <h3>Log a past session</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">For sessions that already happened. Tap each body region that was uncovered.${lastUsed ? ' Body regions, eyewear, and lens tint default to your last session.' : ''}</p>
@@ -573,8 +580,8 @@ export function openDetailedSessionDialog() {
       </label>
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
-        <button class="import-btn import-btn-primary" id="det-save">Save session</button>
+        <button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('close-modal')}>Cancel</button>
+        <button type="button" class="import-btn import-btn-primary" id="det-save">Save session</button>
       </div>
     </div>
   </div>`;
@@ -684,7 +691,7 @@ export function openDetailedSessionDialog() {
   });
 }
 
-// Delete from window for inline onclick
+// User-facing delete entry point shared by delegated UI actions.
 export async function deleteSunSession(id) {
   if (await showConfirmDialog('Delete this sun session?')) {
     await uiDeps.deleteSession(id);
@@ -692,7 +699,7 @@ export async function deleteSunSession(id) {
   }
 }
 
-// ─── Window-backed actions ─────────────────────────────────────────────
+// ─── Session actions ───────────────────────────────────────────────────
 
 // User-facing edit-duration entry point — prompts for a new minutes
 // value, validates the range, calls updateSession (which bumps

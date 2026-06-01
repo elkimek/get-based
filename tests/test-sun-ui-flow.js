@@ -118,6 +118,27 @@ return (async function() {
     main.querySelector('.light-channels-section') !== null);
   assert('Light page lists at least one session row',
     main.innerHTML.includes(id) || main.innerHTML.includes('30 min') || main.querySelector('.sun-session-row, .sun-sessions-list'));
+  const sunRows = Array.from(main.querySelectorAll('.light-session-sun'));
+  const sunRow = sunRows.find(row => row.dataset.id === id) || sunRows[0];
+  const rowDelete = sunRow?.querySelector('.sun-session-delete');
+  assert('Sun session row uses delegated open-detail action',
+    sunRow?.dataset.sunSessionAction === 'open-detail' &&
+      sunRow?.dataset.sunSessionId === id);
+  assert('Sun session delete uses delegated action',
+    rowDelete?.dataset.sunSessionAction === 'delete-session' &&
+      rowDelete?.dataset.sunSessionId === id);
+  assert('Sun session row and delete control have no inline event attributes',
+    !!sunRow &&
+      !sunRow.hasAttribute('onclick') &&
+      !sunRow.hasAttribute('onkeydown') &&
+      !!rowDelete &&
+      !rowDelete.hasAttribute('onclick'));
+  sunRow?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  await wait(80);
+  const delegatedDetailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
+  assert('Delegated sun session row click opens detail modal',
+    !!delegatedDetailOverlay);
+  delegatedDetailOverlay?.remove();
 
   // ─── 4. Session detail modal opens + has a working delete button ─────
   console.log('%c 4. Session detail modal ', 'font-weight:bold;color:#6366f1');
@@ -125,30 +146,57 @@ return (async function() {
   if (typeof window.openSunSessionDetail === 'function') {
     window.openSunSessionDetail(id);
     await wait(100);
-    const overlay = document.querySelector('.modal-overlay');
+    let overlay = document.querySelector('.modal-overlay');
     assert('Session detail modal mounts an overlay', !!overlay);
     if (overlay) {
-      // Modal has a Delete button
-      assert('Modal renders a Delete control',
-        /Delete/i.test(overlay.innerHTML),
-        'no "Delete" text found in modal');
-      // Backdrop click closes the modal — recent fix in 8885589
-      // Simulate the backdrop click; the click handler is on the overlay
-      // and only fires when clicked on itself (not bubbled from children).
-      const evt = new MouseEvent('mousedown', { bubbles: true });
-      // Spoof event.target === overlay
-      Object.defineProperty(evt, 'target', { writable: false, value: overlay });
-      overlay.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, target: overlay }));
-      // Some impls bind on click, not mousedown — try click too
-      overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const closeBtn = overlay.querySelector('.sun-detail-modal .modal-close');
+      const channelRow = overlay.querySelector('.sun-detail-channel-row-clickable');
+      const actionButtons = Array.from(overlay.querySelectorAll('.sun-detail-modal .modal-actions button'));
+      const editButton = actionButtons.find(btn => /Edit duration/i.test(btn.textContent || ''));
+      const deleteButton = actionButtons.find(btn => /Delete session/i.test(btn.textContent || ''));
+      assert('Session detail modal renders delegated controls',
+        closeBtn?.dataset.sunSessionAction === 'close-modal' &&
+          channelRow?.dataset.sunSessionAction === 'open-channel' &&
+          channelRow?.dataset.sunSessionChannel === channelRow?.dataset.channel &&
+          editButton?.dataset.sunSessionAction === 'edit-duration' &&
+          editButton?.dataset.sunSessionId === id &&
+          deleteButton?.dataset.sunSessionAction === 'delete-session' &&
+          deleteButton?.dataset.sunSessionId === id &&
+          deleteButton?.dataset.sunSessionCloseModal === 'true');
+      assert('Session detail delegated controls have no inline event attributes',
+        overlay.querySelectorAll('.sun-detail-modal .modal-close[onclick], .sun-detail-channel-row-clickable[onclick], .sun-detail-channel-row-clickable[onkeydown], .sun-detail-modal .modal-actions button[onclick]').length === 0);
+      closeBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       await wait(60);
-      // Modal still in DOM is OK — different impls keep the node and just
-      // remove .show. Just assert SOMETHING happened (still-mounted is fine
-      // as long as it's not blocking).
-      assert('Backdrop interaction did not throw',
-        true, 'no error firing backdrop events');
-      // Tear down explicitly so the next test gets a clean DOM
-      overlay.remove();
+      assert('Delegated detail close button removes the modal',
+        !document.body.contains(overlay));
+
+      window.openSunSessionDetail(id);
+      await wait(80);
+      overlay = document.querySelector('.modal-overlay');
+      assert('Session detail modal remounts after delegated close', !!overlay);
+      if (overlay) {
+        // Modal has a Delete button
+        assert('Modal renders a Delete control',
+          /Delete/i.test(overlay.innerHTML),
+          'no "Delete" text found in modal');
+        // Backdrop click closes the modal — recent fix in 8885589
+        // Simulate the backdrop click; the click handler is on the overlay
+        // and only fires when clicked on itself (not bubbled from children).
+        const evt = new MouseEvent('mousedown', { bubbles: true });
+        // Spoof event.target === overlay
+        Object.defineProperty(evt, 'target', { writable: false, value: overlay });
+        overlay.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, target: overlay }));
+        // Some impls bind on click, not mousedown — try click too
+        overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await wait(60);
+        // Modal still in DOM is OK — different impls keep the node and just
+        // remove .show. Just assert SOMETHING happened (still-mounted is fine
+        // as long as it's not blocking).
+        assert('Backdrop interaction did not throw',
+          true, 'no error firing backdrop events');
+        // Tear down explicitly so the next test gets a clean DOM
+        overlay.remove();
+      }
     }
   } else {
     assert('window.openSunSessionDetail exists (UI wired)', false,
