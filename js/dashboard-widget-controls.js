@@ -6,6 +6,7 @@ import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotif
 export function createDashboardWidgetControls(deps) {
   let organizeMode = false;
   let draggingWidgetId = null;
+  let dashboardWidgetDelegatesInstalled = false;
 
   const {
     state,
@@ -34,11 +35,29 @@ export function createDashboardWidgetControls(deps) {
     return organizeMode;
   }
 
+  function dashboardWidgetActionAttrs(action, attrs = {}) {
+    return [
+      `data-dashboard-widget-action="${escapeAttr(action)}"`,
+      ...Object.entries(attrs)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([name, value]) => `data-dashboard-widget-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+    ].join(' ');
+  }
+
+  function dashboardWidgetInputAttrs(action) {
+    return `data-dashboard-widget-input="${escapeAttr(action)}"`;
+  }
+
+  function dashboardWidgetDragAttrs(id) {
+    const safeId = escapeAttr(id);
+    return `data-dashboard-widget-drag-id="${safeId}" data-dashboard-widget-drop-id="${safeId}"`;
+  }
+
   function renderDashboardControlButtons({ includeReset = false } = {}) {
     const organizeLabel = organizeMode ? 'Done' : 'Customize';
-    return `<button class="dashboard-action-btn" type="button" onclick="window.toggleDashboardOrganizeMode()">${organizeLabel}</button>
-      <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" onclick="window.openDashboardWidgetPicker()">+ Add widget</button>
-      ${includeReset || organizeMode ? `<button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets()">Reset layout</button>` : ''}`;
+    return `<button class="dashboard-action-btn" type="button" ${dashboardWidgetActionAttrs('toggle-organize')}>${organizeLabel}</button>
+      <button class="dashboard-action-btn dashboard-action-btn-primary" type="button" ${dashboardWidgetActionAttrs('open-picker')}>+ Add widget</button>
+      ${includeReset || organizeMode ? `<button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('reset-widgets')}>Reset layout</button>` : ''}`;
   }
 
   function renderDashboardStickyControls() {
@@ -53,13 +72,13 @@ export function createDashboardWidgetControls(deps) {
     const canMoveDown = index < visibleEntries.length - 1;
     const removeLabel = def.customMarkerWidget ? 'Remove' : 'Hide';
     const controls = organizeMode ? `<div class="dashboard-widget-tools">
-        <button type="button" class="dashboard-widget-tool" ${canMoveUp ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', -1)" aria-label="Move ${escapeHTML(def.title)} up">↑</button>
-        <button type="button" class="dashboard-widget-tool" ${canMoveDown ? '' : 'disabled'} onclick="window.moveDashboardWidget('${def.id}', 1)" aria-label="Move ${escapeHTML(def.title)} down">↓</button>
-        <button type="button" class="dashboard-widget-tool" onclick="window.hideDashboardWidget('${def.id}')" aria-label="${removeLabel} ${escapeHTML(def.title)}">${removeLabel}</button>
+        <button type="button" class="dashboard-widget-tool" ${canMoveUp ? '' : 'disabled'} ${dashboardWidgetActionAttrs('move-widget', { id: def.id, direction: -1 })} aria-label="Move ${escapeHTML(def.title)} up">↑</button>
+        <button type="button" class="dashboard-widget-tool" ${canMoveDown ? '' : 'disabled'} ${dashboardWidgetActionAttrs('move-widget', { id: def.id, direction: 1 })} aria-label="Move ${escapeHTML(def.title)} down">↓</button>
+        <button type="button" class="dashboard-widget-tool" ${dashboardWidgetActionAttrs('hide-widget', { id: def.id })} aria-label="${removeLabel} ${escapeHTML(def.title)}">${removeLabel}</button>
       </div>` : '';
     return `<section class="dashboard-widget dashboard-widget-${def.size || 'full'}${organizeMode ? ' is-organizing' : ''}${body ? '' : ' is-empty'}"
         data-widget-id="${escapeAttr(def.id)}"
-        ${organizeMode ? `draggable="true" ondragstart="window.startDashboardWidgetDrag(event, '${def.id}')" ondragover="window.allowDashboardWidgetDrop(event)" ondrop="window.dropDashboardWidget(event, '${def.id}')"` : ''}>
+        ${organizeMode ? `draggable="true" ${dashboardWidgetDragAttrs(def.id)}` : ''}>
       <div class="dashboard-widget-chrome">
         <div class="dashboard-widget-handle" aria-hidden="true">⋮⋮</div>
         <div class="dashboard-widget-heading">
@@ -150,7 +169,7 @@ export function createDashboardWidgetControls(deps) {
 
   function renderDashboardMarkerWidgetOption(option) {
     const searchText = `${option.name} ${option.category} ${option.value} ${option.unit}`.toLowerCase();
-    return `<button type="button" class="dashboard-widget-picker-card dashboard-marker-widget-option" data-marker-search="${escapeAttr(searchText)}" onclick="window.addDashboardMarkerWidget('${option.id}')">
+    return `<button type="button" class="dashboard-widget-picker-card dashboard-marker-widget-option" data-marker-search="${escapeAttr(searchText)}" ${dashboardWidgetActionAttrs('add-marker-widget', { id: option.id })}>
       <span class="dashboard-widget-picker-title">${escapeHTML(option.name)}</span>
       <span class="dashboard-widget-picker-sub">${escapeHTML(option.category)} · ${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''}</span>
       <span class="dashboard-widget-picker-action">Add marker widget</span>
@@ -159,7 +178,7 @@ export function createDashboardWidgetControls(deps) {
 
   function renderDashboardBiometricWidgetOption(option) {
     const searchText = `${option.label} ${option.sub} ${option.value} ${option.unit} ${option.change}`.toLowerCase();
-    return `<button type="button" class="dashboard-widget-picker-card dashboard-biometric-widget-option" data-biometric-search="${escapeAttr(searchText)}" onclick="window.addDashboardBiometricMetric('${option.id}')">
+    return `<button type="button" class="dashboard-widget-picker-card dashboard-biometric-widget-option" data-biometric-search="${escapeAttr(searchText)}" ${dashboardWidgetActionAttrs('add-biometric-metric', { id: option.id })}>
       <span class="dashboard-widget-picker-title">${escapeHTML(option.label)}${option.sub ? ` <small>${escapeHTML(option.sub)}</small>` : ''}</span>
       <span class="dashboard-widget-picker-sub">${escapeHTML(option.value)}${option.unit ? ` ${escapeHTML(option.unit)}` : ''} · ${escapeHTML(option.change || 'latest')}</span>
       <span class="dashboard-widget-picker-action">Add to Biometrics Overview</span>
@@ -182,7 +201,7 @@ export function createDashboardWidgetControls(deps) {
       .filter(source => groups.has(source))
       .map(source => `<div class="dashboard-widget-picker-source">
         <div class="dashboard-widget-picker-label">${escapeHTML(source)}</div>
-        <div class="dashboard-widget-picker-grid">${groups.get(source).map(def => `<button type="button" class="dashboard-widget-picker-card" onclick="window.showDashboardWidget('${def.id}')">
+        <div class="dashboard-widget-picker-grid">${groups.get(source).map(def => `<button type="button" class="dashboard-widget-picker-card" ${dashboardWidgetActionAttrs('show-widget', { id: def.id })}>
           <span class="dashboard-widget-picker-title">${escapeHTML(def.title)}</span>
           <span class="dashboard-widget-picker-sub">${escapeHTML(def.description || '')}</span>
           <span class="dashboard-widget-picker-action">Add dashboard widget</span>
@@ -201,6 +220,99 @@ export function createDashboardWidgetControls(deps) {
     });
     const empty = document.getElementById(emptyId);
     if (empty) empty.hidden = visible > 0;
+  }
+
+  function handleDashboardWidgetAction(actionEl) {
+    const action = actionEl.dataset.dashboardWidgetAction || '';
+    const id = actionEl.dataset.dashboardWidgetId || '';
+    if (action === 'toggle-organize') {
+      toggleDashboardOrganizeMode();
+    } else if (action === 'open-picker') {
+      openDashboardWidgetPicker();
+    } else if (action === 'reset-widgets') {
+      resetDashboardWidgets();
+    } else if (action === 'move-widget') {
+      moveDashboardWidget(id, Number(actionEl.dataset.dashboardWidgetDirection || 0));
+    } else if (action === 'hide-widget') {
+      hideDashboardWidget(id);
+    } else if (action === 'show-widget') {
+      showDashboardWidget(id);
+    } else if (action === 'add-marker-widget') {
+      addDashboardMarkerWidget(id);
+    } else if (action === 'add-biometric-metric') {
+      addDashboardBiometricMetric(id);
+    } else if (action === 'close-picker') {
+      closeDashboardWidgetPicker();
+    } else if (action === 'customize-layout') {
+      toggleDashboardOrganizeMode(true);
+      closeDashboardWidgetPicker();
+    } else if (action === 'reset-layout') {
+      resetDashboardWidgets();
+      closeDashboardWidgetPicker();
+    } else if (action === 'connect-source') {
+      window.openSettingsModal?.('wearables');
+      closeDashboardWidgetPicker();
+    }
+  }
+
+  function handleDashboardWidgetClick(event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const overlay = target.closest('#dashboard-widget-picker-overlay[data-dashboard-widget-overlay]');
+    if (overlay && target === overlay) {
+      closeDashboardWidgetPicker();
+      return;
+    }
+    const actionEl = target.closest('[data-dashboard-widget-action]');
+    if (!actionEl) return;
+    event.preventDefault();
+    handleDashboardWidgetAction(actionEl);
+  }
+
+  function handleDashboardWidgetInput(event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const input = target.closest('[data-dashboard-widget-input]');
+    if (!input) return;
+    const action = input.dataset.dashboardWidgetInput || '';
+    if (action === 'filter-marker-picker') {
+      filterDashboardMarkerWidgetPicker(input.value);
+    } else if (action === 'filter-biometric-picker') {
+      filterDashboardBiometricWidgetPicker(input.value);
+    }
+  }
+
+  function handleDashboardWidgetDragStart(event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const dragEl = target.closest('[data-dashboard-widget-drag-id]');
+    if (!dragEl) return;
+    startDashboardWidgetDrag(event, dragEl.dataset.dashboardWidgetDragId || '', dragEl);
+  }
+
+  function handleDashboardWidgetDragOver(event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    if (!target.closest('[data-dashboard-widget-drop-id]')) return;
+    allowDashboardWidgetDrop(event);
+  }
+
+  function handleDashboardWidgetDrop(event) {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') return;
+    const dropEl = target.closest('[data-dashboard-widget-drop-id]');
+    if (!dropEl) return;
+    dropDashboardWidget(event, dropEl.dataset.dashboardWidgetDropId || '');
+  }
+
+  function installDashboardWidgetControlDelegates() {
+    if (dashboardWidgetDelegatesInstalled || typeof document === 'undefined') return;
+    dashboardWidgetDelegatesInstalled = true;
+    document.addEventListener('click', handleDashboardWidgetClick);
+    document.addEventListener('input', handleDashboardWidgetInput);
+    document.addEventListener('dragstart', handleDashboardWidgetDragStart);
+    document.addEventListener('dragover', handleDashboardWidgetDragOver);
+    document.addEventListener('drop', handleDashboardWidgetDrop);
   }
 
   function toggleDashboardOrganizeMode(force) {
@@ -338,9 +450,9 @@ export function createDashboardWidgetControls(deps) {
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
     const markerList = markerOptions.length ? markerOptions.map(renderDashboardMarkerWidgetOption).join('') : '';
-    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" onclick="if(event.target===this)window.closeDashboardWidgetPicker()">
+    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
       <div class="modal show dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
-        <button class="modal-close" aria-label="Close" onclick="window.closeDashboardWidgetPicker()">&times;</button>
+        <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
         <h3 id="dashboard-widget-picker-title">Add dashboard widget</h3>
         <div class="dashboard-widget-picker-section">
           <div class="dashboard-widget-picker-label">Lens and tool widgets</div>
@@ -348,19 +460,19 @@ export function createDashboardWidgetControls(deps) {
         </div>
         <div class="dashboard-widget-picker-section">
           <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Body / Biometrics Overview metrics</label>
-          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" oninput="window.filterDashboardBiometricWidgetPicker(this.value)">
+          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" ${dashboardWidgetInputAttrs('filter-biometric-picker')}>
           <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
           <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
         </div>
         <div class="dashboard-widget-picker-section">
           <label class="dashboard-widget-picker-label" for="dashboard-marker-widget-search">Labs / Single marker widgets</label>
-          <input id="dashboard-marker-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search markers" oninput="window.filterDashboardMarkerWidgetPicker(this.value)">
+          <input id="dashboard-marker-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search markers" ${dashboardWidgetInputAttrs('filter-marker-picker')}>
           <div class="dashboard-widget-picker-grid dashboard-marker-widget-grid">${markerList}</div>
           <div class="dashboard-widget-picker-empty" id="dashboard-marker-widget-empty" ${markerOptions.length ? 'hidden' : ''}>No available markers to add.</div>
         </div>
         <div class="dashboard-widget-picker-actions">
-          <button type="button" class="dashboard-action-btn" onclick="window.toggleDashboardOrganizeMode(true);window.closeDashboardWidgetPicker()">Customize layout</button>
-          <button type="button" class="dashboard-action-btn" onclick="window.resetDashboardWidgets();window.closeDashboardWidgetPicker()">Reset layout</button>
+          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('customize-layout')}>Customize layout</button>
+          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('reset-layout')}>Reset layout</button>
         </div>
       </div>
     </div>`);
@@ -371,18 +483,18 @@ export function createDashboardWidgetControls(deps) {
     const prefs = getDashboardWidgetPrefs();
     const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
-    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" onclick="if(event.target===this)window.closeDashboardWidgetPicker()">
+    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
       <div class="modal show dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">
-        <button class="modal-close" aria-label="Close" onclick="window.closeDashboardWidgetPicker()">&times;</button>
+        <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
         <h3 id="dashboard-biometric-picker-title">Add biometric metrics</h3>
         <div class="dashboard-widget-picker-section">
           <label class="dashboard-widget-picker-label" for="dashboard-biometric-widget-search">Manual and wearable metrics</label>
-          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" oninput="window.filterDashboardBiometricWidgetPicker(this.value)">
+          <input id="dashboard-biometric-widget-search" class="dashboard-widget-picker-search" type="search" placeholder="Search biometrics to add" ${dashboardWidgetInputAttrs('filter-biometric-picker')}>
           <div class="dashboard-widget-picker-grid dashboard-biometric-widget-grid">${biometricList}</div>
           <div class="dashboard-widget-picker-empty" id="dashboard-biometric-widget-empty" ${biometricOptions.length ? 'hidden' : ''}>All available biometrics are already in the overview.</div>
         </div>
         <div class="dashboard-widget-picker-actions">
-          <button type="button" class="dashboard-action-btn" onclick="window.openSettingsModal && window.openSettingsModal('wearables');window.closeDashboardWidgetPicker()">Connect source</button>
+          <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('connect-source')}>Connect source</button>
         </div>
       </div>
     </div>`);
@@ -393,10 +505,10 @@ export function createDashboardWidgetControls(deps) {
     document.getElementById('dashboard-widget-picker-overlay')?.remove();
   }
 
-  function startDashboardWidgetDrag(event, id) {
+  function startDashboardWidgetDrag(event, id, dragEl = event.currentTarget) {
     draggingWidgetId = id;
     event.dataTransfer?.setData('text/plain', id);
-    event.dataTransfer?.setDragImage?.(event.currentTarget, 20, 20);
+    event.dataTransfer?.setDragImage?.(dragEl, 20, 20);
   }
 
   function allowDashboardWidgetDrop(event) {
@@ -419,6 +531,8 @@ export function createDashboardWidgetControls(deps) {
     saveDashboardWidgetPrefs(prefs);
     rerenderDashboardFromWidgetChange();
   }
+
+  installDashboardWidgetControlDelegates();
 
   return {
     isOrganizeMode,
