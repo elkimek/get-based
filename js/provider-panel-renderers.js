@@ -47,8 +47,8 @@ function renderOpenRouterProviderPanel() {
     const isCustom = !cachedORModels.some(m => m.id === orModel);
     orModelHtml = `<div style="margin-top:12px" id="openrouter-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" onchange="onOpenRouterDropdownChange(this.value)">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
-      <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="openrouter-custom-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(orModel) : ''}" onkeydown="if(event.key==='Enter'){applyCustomOpenRouterModel(this.value)}"><span id="openrouter-model-health" style="font-size:14px;min-width:18px;text-align:center"></span></div>
+      <select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" data-provider-panel-change="openrouter-model">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="openrouter-custom-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(orModel) : ''}" data-provider-panel-key="openrouter-custom-model"><span id="openrouter-model-health" style="font-size:14px;min-width:18px;text-align:center"></span></div>
       <div id="openrouter-model-pricing" style="margin-top:4px">${renderModelPricingHint('openrouter', orModel)}</div>
     </div>`;
   } else {
@@ -56,16 +56,16 @@ function renderOpenRouterProviderPanel() {
   }
   return `<div class="ai-provider-panel">
     <div class="ai-provider-desc">API marketplace routing to 200+ models (Claude, GPT, Llama, Gemini, and more). Pay-per-use with a single key.</div>
-    ${currentKey ? '' : '<button class="or-oauth-btn" onclick="startOpenRouterOAuth()">Connect with OpenRouter</button><div class="or-oauth-divider"><span>or enter key manually</span></div>'}
+    ${currentKey ? '' : '<button class="or-oauth-btn" data-provider-panel-action="start-openrouter-oauth">Connect with OpenRouter</button><div class="or-oauth-divider"><span>or enter key manually</span></div>'}
     <div class="api-key-status" id="openrouter-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
     <input type="password" class="api-key-input" id="openrouter-key-input" placeholder="sk-or-..." value="${escapeAttr(currentKey)}">
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-openrouter-key-btn" onclick="handleSaveOpenRouterKey()">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveOpenRouterKey()">Remove Key</button>' : ''}
+      <button class="import-btn import-btn-primary" id="save-openrouter-key-btn" data-provider-panel-action="save-openrouter-key">Save & Validate</button>
+      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-openrouter-key">Remove Key</button>' : ''}
     </div>
-    ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" onclick="refreshOpenRouterBalance();return false" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
+    ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-openrouter-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
     ${orModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to OpenRouter. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a> &middot; <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" style="color:var(--accent)">Add credits</a></div>
   </div>`;
@@ -81,7 +81,7 @@ function renderRoutstrProviderPanel() {
     const opts = buildModelOptions('routstr', cachedRSModels, rsModel, function(m) { return m.name || m.id; });
     rsModelHtml = `<div style="margin-top:12px" id="routstr-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="routstr-model-select" style="margin-top:4px" onchange="setRoutstrModel(this.value);updateRoutstrModelPricing(this.value)">${opts}</select>
+      <select class="api-key-input" id="routstr-model-select" style="margin-top:4px" data-provider-panel-change="routstr-model">${opts}</select>
       <div id="routstr-model-pricing" style="margin-top:4px">${renderModelPricingHint('routstr', rsModel)}</div>
     </div>`;
   } else {
@@ -93,14 +93,14 @@ function renderRoutstrProviderPanel() {
   const walletHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
     <div style="${sectionLabel}">\u26a1 Wallet</div>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-      <div style="font-size:13px;font-weight:600;color:var(--text-primary)"><span id="routstr-wallet-balance">\u26a1 loading...</span> <a href="#" onclick="refreshCashuWalletBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none" title="Verify proofs against mint">\u21bb</a></div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary)"><span id="routstr-wallet-balance">\u26a1 loading...</span> <a href="#" data-provider-panel-action="refresh-cashu-wallet-balance" style="color:var(--accent);font-size:10px;text-decoration:none" title="Verify proofs against mint">\u21bb</a></div>
       <div id="routstr-wallet-actions" style="display:flex;gap:4px;flex-wrap:wrap">
         ${routstrWalletActionButtons(null)}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
       <div style="font-size:10px;color:var(--text-muted)">Mint: <span id="routstr-mint-label" style="font-family:var(--font-mono,monospace);opacity:0.8">loading...</span></div>
-      <button class="import-btn import-btn-secondary" style="${pillStyle};font-size:9px;padding:1px 6px" onclick="showRoutstrMintEdit()">Change</button>
+      <button class="import-btn import-btn-secondary" style="${pillStyle};font-size:9px;padding:1px 6px" data-provider-panel-action="show-routstr-mint-edit">Change</button>
     </div>
     <div id="routstr-mint-edit" style="display:none"></div>
     <div id="routstr-wallet-fund-area" style="display:none"></div>
@@ -138,7 +138,7 @@ function renderRoutstrProviderPanel() {
         ${nodeActionsHtml}
       </div>
     </div>
-    ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">Session: <span id="routstr-node-balance">\u26a1 loading...</span> <a href="#" onclick="refreshRoutstrBalance();return false" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
+    ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">Session: <span id="routstr-node-balance">\u26a1 loading...</span> <a href="#" data-provider-panel-action="refresh-routstr-balance" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
     <div id="routstr-node-picker" style="display:none"></div>
   </div>`;
 
@@ -164,11 +164,11 @@ function renderVeniceProviderPanel() {
     const opts = buildModelOptions('venice', displayModels, veniceModel, function(m) { return m.name || m.id; });
     veniceModelHtml = `<div style="margin-top:12px" id="venice-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="venice-model-select" style="margin-top:4px" onchange="onVeniceModelDropdownChange(this.value)">${opts}</select>
+      <select class="api-key-input" id="venice-model-select" style="margin-top:4px" data-provider-panel-change="venice-model">${opts}</select>
       <div id="venice-model-pricing" style="margin-top:4px">${renderModelPricingHint('venice', veniceModel)}</div>
     </div>
     ${hasE2EEModels ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
-      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="venice-e2ee-toggle" ${getVeniceE2EE() ? 'checked' : ''} onchange="toggleVeniceE2EE(this.checked)"><span class="toggle-slider"></span></label>
+      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="venice-e2ee-toggle" ${getVeniceE2EE() ? 'checked' : ''} data-provider-panel-change="venice-e2ee"><span class="toggle-slider"></span></label>
       <span style="font-size:13px">End-to-End Encryption</span>
     </div>
     <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;${isVeniceE2EEActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts encrypted in your browser, decrypted only inside a verified TEE. Web search and image attachments are disabled.</div>` : ''}`;
@@ -182,10 +182,10 @@ function renderVeniceProviderPanel() {
     </div>
     <input type="password" class="api-key-input" id="venice-key-input" placeholder="venice-..." value="${escapeAttr(currentKey)}">
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-venice-key-btn" onclick="handleSaveVeniceKey()">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveVeniceKey()">Remove Key</button>' : ''}
+      <button class="import-btn import-btn-primary" id="save-venice-key-btn" data-provider-panel-action="save-venice-key">Save & Validate</button>
+      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-venice-key">Remove Key</button>' : ''}
     </div>
-    ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" onclick="refreshVeniceBalance();return false" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
+    ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
     ${veniceModelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. No data is stored on their servers. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
   </div>`;
@@ -200,27 +200,27 @@ function renderPpqProviderPanel() {
     const opts = buildModelOptions('ppq', cachedPpqModels, ppqModel, function(m) { return m.name || m.id; });
     ppqModelHtml = `<div style="margin-top:12px" id="ppq-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="ppq-model-select" style="margin-top:4px" onchange="setPpqModel(this.value);updatePpqModelPricing(this.value)">${opts}</select>
+      <select class="api-key-input" id="ppq-model-select" style="margin-top:4px" data-provider-panel-change="ppq-model">${opts}</select>
       <div id="ppq-model-pricing" style="margin-top:4px">${renderModelPricingHint('ppq', ppqModel)}</div>
     </div>`;
   } else {
     ppqModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="ppq-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getPpqModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
   }
   const balanceHtml = currentKey ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <div style="font-size:12px;color:var(--text-muted)"><span id="ppq-balance">Balance: loading...</span> <a href="#" onclick="refreshPpqBalance();return false" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>
-      <button class="import-btn import-btn-secondary" id="ppq-topup-toggle" style="font-size:11px;padding:2px 10px" onclick="showPpqTopup()">Top Up</button>
+      <div style="font-size:12px;color:var(--text-muted)"><span id="ppq-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-ppq-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>
+      <button class="import-btn import-btn-secondary" id="ppq-topup-toggle" style="font-size:11px;padding:2px 10px" data-provider-panel-action="show-ppq-topup">Top Up</button>
     </div>
     <div id="ppq-topup-area" style="display:none"></div>` : '';
   return `<div class="ai-provider-panel">
     <div class="ai-provider-desc">Pay-per-query AI aggregator. 300+ models, no subscription, no KYC. Top up with crypto or <a href="https://www.bitrefill.com/gift-cards/ppq-us/" target="_blank" rel="noopener" style="color:var(--accent)">gift cards</a>.</div>
-    ${currentKey ? '' : '<button class="import-btn import-btn-primary" style="width:100%;margin-bottom:8px" onclick="handleCreatePpqAccount()">Create Account (instant, no signup)</button><div class="or-oauth-divider"><span>or enter existing key</span></div>'}
+    ${currentKey ? '' : '<button class="import-btn import-btn-primary" style="width:100%;margin-bottom:8px" data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button><div class="or-oauth-divider"><span>or enter existing key</span></div>'}
     <div class="api-key-status" id="ppq-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
     <input type="password" class="api-key-input" id="ppq-key-input" placeholder="sk-..." value="${escapeAttr(currentKey)}">
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-ppq-key-btn" onclick="handleSavePpqKey()">Save & Validate</button>
-      ${currentKey ? '<button class="import-btn import-btn-secondary" onclick="handleRemovePpqKey()">Remove Key</button>' : ''}
+      <button class="import-btn import-btn-primary" id="save-ppq-key-btn" data-provider-panel-action="save-ppq-key">Save & Validate</button>
+      ${currentKey ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-ppq-key">Remove Key</button>' : ''}
     </div>
     ${balanceHtml}
     ${ppqModelHtml}
@@ -242,14 +242,14 @@ function renderCustomProviderPanel() {
     const isCustom = cachedModels.length && !cachedModels.some(m => m.id === customModel) && customModel;
     modelHtml = `<div style="margin-top:12px" id="custom-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="custom-model-select" style="margin-top:4px" onchange="setCustomApiModel(this.value);updateCustomModelPricing(this.value)">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
-      <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="custom-manual-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(customModel) : ''}" onkeydown="if(event.key==='Enter'){applyCustomApiManualModel()}"></div>
+      <select class="api-key-input" id="custom-model-select" style="margin-top:4px" data-provider-panel-change="custom-model">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="custom-manual-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(customModel) : ''}" data-provider-panel-key="custom-manual-model"></div>
       <div id="custom-model-pricing" style="margin-top:4px">${renderModelPricingHint('custom', customModel)}</div>
     </div>`;
   } else if (connected) {
     modelHtml = `<div style="margin-top:12px" id="custom-model-area">
       <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <div style="margin-top:4px;display:flex;gap:8px;align-items:center"><input type="text" class="api-key-input" id="custom-manual-model" value="${escapeAttr(customModel)}" placeholder="e.g. gpt-4o" style="flex:1"><button class="import-btn import-btn-secondary" onclick="applyCustomApiManualModel()" style="white-space:nowrap">Apply</button></div>
+      <div style="margin-top:4px;display:flex;gap:8px;align-items:center"><input type="text" class="api-key-input" id="custom-manual-model" value="${escapeAttr(customModel)}" placeholder="e.g. gpt-4o" style="flex:1"><button class="import-btn import-btn-secondary" data-provider-panel-action="apply-custom-api-model" style="white-space:nowrap">Apply</button></div>
       <div id="custom-model-pricing" style="margin-top:4px">${renderModelPricingHint('custom', customModel)}</div>
     </div>`;
   }
@@ -268,8 +268,8 @@ function renderCustomProviderPanel() {
       <input type="password" class="api-key-input" id="custom-key-input" value="${escapeAttr(currentKey)}" placeholder="sk-..." style="margin-top:4px">
     </div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" onclick="handleSaveCustomApi()">Save & Validate</button>
-      ${connected ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveCustomApi()">Remove</button>' : ''}
+      <button class="import-btn import-btn-primary" data-provider-panel-action="save-custom-api">Save & Validate</button>
+      ${connected ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-custom-api">Remove</button>' : ''}
     </div>
     ${modelHtml}
     <div class="api-key-notice">Your key is stored locally and sent directly to the endpoint you configure.</div>
@@ -289,7 +289,7 @@ function renderLocalAIProviderPanel() {
       <label style="font-size:12px;color:var(--text-muted)">Server address</label>
       <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
         <input type="text" class="api-key-input" id="local-ai-url-input" value="${escapeAttr(config.url)}" placeholder="http://localhost:11434" style="flex:1">
-        <button class="import-btn import-btn-secondary" onclick="testOllamaConnection()" style="white-space:nowrap">Test</button>
+        <button class="import-btn import-btn-secondary" data-provider-panel-action="test-ollama-connection" style="white-space:nowrap">Test</button>
       </div>
     </div>
     <div style="margin-top:8px">
@@ -298,7 +298,7 @@ function renderLocalAIProviderPanel() {
     </div>
     <div id="local-ai-model-section" style="margin-top:8px;display:none">
       <label style="font-size:12px;color:var(--text-muted)">AI Model</label>
-      <select class="api-key-input" id="local-ai-model-select" style="margin-top:4px" onchange="setOllamaMainModel(this.value); refreshModelAdvisor()"></select>
+      <select class="api-key-input" id="local-ai-model-select" style="margin-top:4px" data-provider-panel-change="local-ai-model"></select>
       <div style="margin-top:4px">${renderModelPricingHint('ollama', '')}</div>
     </div>
     <div id="local-ai-advisor"></div>

@@ -366,7 +366,10 @@ assert('provider renderer has venice-e2ee-toggle', providerRenderSrc.includes('v
 assert('provider renderer has venice-e2ee-indicator', providerRenderSrc.includes('venice-e2ee-indicator'));
 assert('provider model controls has toggleVeniceE2EE', providerModelControlsSrc.includes('function toggleVeniceE2EE'));
 assert('provider model controls has Venice model change handler', providerModelControlsSrc.includes('function onVeniceModelDropdownChange'));
-assert('Venice model dropdown uses change handler', (providerSrc + providerRenderSrc + providerModelControlsSrc).includes('onchange="onVeniceModelDropdownChange(this.value)"'));
+assert('Venice model dropdown uses delegated change handler',
+  providerRenderSrc.includes('data-provider-panel-change="venice-model"') &&
+    providerModelControlsSrc.includes('data-provider-panel-change="venice-model"') &&
+    providerSrc.includes('onVeniceModelDropdownChange,'));
 const chatSrc = read('js/chat.js');
 const chatSendSrc = read('js/chat-send.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
