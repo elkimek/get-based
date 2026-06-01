@@ -1,0 +1,136 @@
+#!/usr/bin/env node
+
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
+// tests/ is intentionally omitted; this check covers app JS only, not test helpers.
+const SYNTAX_DIRS = ['js', 'api', 'scripts'];
+const APP_JS_DIR = path.join(ROOT, 'js');
+const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
+const WINDOW_REF_RE = /\bwindow\./g;
+// Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
+const LARGE_FILE_LINE_LIMIT = 800;
+
+let passed = 0;
+let failed = 0;
+
+function pass(message) {
+  passed++;
+  console.log(`  PASS: ${message}`);
+}
+
+function fail(message, detail = '') {
+  failed++;
+  console.log(`  FAIL: ${message}${detail ? ` — ${detail}` : ''}`);
+}
+
+function readBaseline() {
+  return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+}
+
+function walkFiles(dir, extensions = new Set(['.js'])) {
+  const files = [];
+  if (!fs.existsSync(dir)) return files;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...walkFiles(full, extensions));
+    else if (entry.isFile() && extensions.has(path.extname(entry.name))) files.push(full);
+  }
+  return files;
+}
+
+function repoRel(file) {
+  return path.relative(ROOT, file).replaceAll(path.sep, '/');
+}
+
+function countMatches(source, re) {
+  return (source.match(re) || []).length;
+}
+
+function collectAppMetrics() {
+  const files = walkFiles(APP_JS_DIR, new Set(['.js']));
+  let inlineEventAttributes = 0;
+  let windowReferences = 0;
+  const largeFiles = [];
+  let largestFile = { file: '', lines: 0 };
+
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    const lines = source.split('\n').length;
+    inlineEventAttributes += countMatches(source, INLINE_EVENT_RE);
+    windowReferences += countMatches(source, WINDOW_REF_RE);
+    if (lines >= LARGE_FILE_LINE_LIMIT) largeFiles.push({ file: repoRel(file), lines });
+    if (lines > largestFile.lines) largestFile = { file: repoRel(file), lines };
+  }
+
+  largeFiles.sort((a, b) => b.lines - a.lines);
+  return {
+    inlineEventAttributes,
+    windowReferences,
+    largeJsFilesOver800Lines: largeFiles.length,
+    largestFile,
+    largeFiles,
+  };
+}
+
+function collectSyntaxFiles() {
+  const files = [];
+  const exts = new Set(['.js', '.mjs']);
+  for (const dir of SYNTAX_DIRS) files.push(...walkFiles(path.join(ROOT, dir), exts));
+  for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
+    if (entry.isFile() && exts.has(path.extname(entry.name))) files.push(path.join(ROOT, entry.name));
+  }
+  return [...new Set(files)].sort();
+}
+
+function syntaxCheck(files) {
+  const errors = [];
+  for (const file of files) {
+    try {
+      execFileSync(process.execPath, ['--check', file], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      const output = `${err.stdout || ''}${err.stderr || ''}`.trim();
+      errors.push(`${repoRel(file)}${output ? `\n${output}` : ''}`);
+    }
+  }
+  if (errors.length) fail('all JS/MJS files parse with node --check', errors.slice(0, 5).join('\n\n'));
+  else pass(`all JS/MJS files parse with node --check (${files.length} files)`);
+}
+
+function compareBudget(name, actual, baseline) {
+  if (actual <= baseline) pass(`${name} stays within baseline (${actual}/${baseline})`);
+  else fail(`${name} stays within baseline`, `${actual} > ${baseline}`);
+}
+
+function main() {
+  console.log('=== Quality Guardrails ===\n');
+  const baseline = readBaseline();
+  const metrics = collectAppMetrics();
+
+  compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
+  compareBudget('window.* references in js/', metrics.windowReferences, baseline.windowReferences);
+  compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
+
+  if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
+    pass(`largest JS file stays below hard cap (${metrics.largestFile.lines}/${baseline.maxJsFileLines}: ${metrics.largestFile.file})`);
+  } else {
+    fail('largest JS file stays below hard cap',
+      `${metrics.largestFile.file} has ${metrics.largestFile.lines} lines > ${baseline.maxJsFileLines}`);
+  }
+
+  syntaxCheck(collectSyntaxFiles());
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
+  process.exit(failed > 0 ? 1 : 0);
+}
+
+main();
