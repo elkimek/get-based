@@ -10,6 +10,7 @@ import { closeSuggestionsOnClickOutside } from './context-cards.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
+import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import {
   configureMarkerDetailEditing,
   editRefRange,
@@ -46,6 +47,10 @@ export {
 const markerDetailDeps = {
   navigate: (category, data) => window.navigate?.(category, data),
   isDashboardQuickMarkerPinned: () => false,
+  toggleDashboardQuickMarkerPin: (id) => globalThis.toggleDashboardQuickMarkerPin?.(id),
+  renameMarker: (id) => globalThis.renameMarker?.(id),
+  revertMarkerName: (id) => globalThis.revertMarkerName?.(id),
+  askAIAboutMarker: (id) => globalThis.askAIAboutMarker?.(id),
   showEmojiPicker: () => {},
 };
 
@@ -59,6 +64,31 @@ configureMarkerDetailEditing({
   openManualEntryForm: (...args) => openManualEntryForm(...args),
   closeModal: () => closeModal(),
 });
+
+if (typeof document !== 'undefined') {
+  installMarkerDetailActionDelegates({
+    closeModal,
+    toggleDashboardQuickMarkerPin: (...args) => markerDetailDeps.toggleDashboardQuickMarkerPin(...args),
+    editRefRange,
+    revertRefRange,
+    renameMarker: (...args) => markerDetailDeps.renameMarker(...args),
+    revertMarkerName: (...args) => markerDetailDeps.revertMarkerName(...args),
+    editMarkerValue,
+    deleteMarkerValue,
+    revertMarkerValue,
+    editValueNote,
+    deleteValueNote,
+    showDetailModal,
+    openManualEntryForm,
+    askAIAboutMarker: (...args) => markerDetailDeps.askAIAboutMarker(...args),
+    toggleMarkerNoteEditor,
+    saveMarkerNote,
+    deleteMarkerNote,
+    deleteCustomMarker,
+    saveManualEntry,
+    saveAndAddAnotherManualEntry,
+  });
+}
 
 // Biological-age component inputs. Keep these in sync with the PhenoAge and
 // Bortz Age calculations in data.js so the detail modal can explain exactly
@@ -196,10 +226,9 @@ export async function fetchCustomMarkerDescription(markerId, markerName, unit) {
 }
 
 export function showDetailModal(id, opts = {}) {
-  // id is interpolated into multiple inline-onclick handlers in the modal
-  // body (Add Value, Save/Cancel/Delete note, Ask AI, Delete custom marker).
-  // Reject anything outside the strict allowlist so a poisoned customMarker
-  // key can't break out of the JS string context.
+  // id is interpolated into delegated data-action attributes throughout the
+  // modal body. Reject anything outside the strict allowlist so a poisoned
+  // customMarker key cannot break attribute context or state lookups.
   if (!safeMarkerId(id)) return;
   const data = getActiveData();
   const idx = id.indexOf('_');
@@ -318,10 +347,10 @@ export function showDetailModal(id, opts = {}) {
     const badgeLabel = source === 'manual' ? 'edited' : 'lab';
     const hasLabStash = type === 'optimal' ? 'labOptimalMin' in overrides : 'labRefMin' in overrides;
     const badgeTitle = source === 'manual' ? (hasLabStash ? 'Manually edited — click to revert to lab range' : 'Manually edited — click to revert to default') : 'Custom range from your lab — click to revert to default';
-    const editedBadge = isEdited ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="${badgeTitle}" title="${badgeTitle}" onclick="event.stopPropagation();revertRefRange('${id}','${type}')">${badgeLabel} \u00d7</span>` : '';
+    const editedBadge = isEdited ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="${badgeTitle}" title="${badgeTitle}" ${markerDetailActionAttrs('revert-ref-range', { id, type })}>${badgeLabel} \u00d7</span>` : '';
     const displayMin = min != null ? min : '–';
     const displayMax = max != null ? max : '–';
-    return ` &middot; ${type === 'optimal' ? '<span style="color:var(--green)">' : ''}${label}: <span class="ref-editable" role="button" tabindex="0" aria-label="Edit ${label} range" onclick="editRefRange('${id}','${type}',event)" title="Click to edit">${displayMin} \u2013 ${displayMax}</span>${editedBadge}${type === 'optimal' ? '</span>' : ''}`;
+    return ` &middot; ${type === 'optimal' ? '<span style="color:var(--green)">' : ''}${label}: <span class="ref-editable" role="button" tabindex="0" aria-label="Edit ${label} range" ${markerDetailActionAttrs('edit-ref-range', { id, type })} title="Click to edit">${displayMin} \u2013 ${displayMax}</span>${editedBadge}${type === 'optimal' ? '</span>' : ''}`;
   };
   const isCustom = !!state.importedData?.customMarkers?.[dotKey];
   const hasRef = marker.refMin != null || marker.refMax != null;
@@ -342,8 +371,8 @@ export function showDetailModal(id, opts = {}) {
   const rangeCardControls = rangeInfo ? rangeInfo.replace(/^ &middot; /, '') : '';
   const isRenamed = !!state.importedData?.markerLabels?.[dotKey];
   const renameLink = isRenamed
-    ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" onclick="event.stopPropagation();revertMarkerName('${id}')" style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`
-    : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" onclick="event.stopPropagation();renameMarker('${id}')" style="cursor:pointer;font-size:12px">rename</span>`;
+    ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert renamed marker to original" title="Renamed — click to revert to original" ${markerDetailActionAttrs('revert-marker-name', { id })} style="cursor:pointer">renamed ×</span> <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`
+    : ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename marker" title="Rename marker" ${markerDetailActionAttrs('rename-marker', { id })} style="cursor:pointer;font-size:12px">rename</span>`;
   // Dual-unit summary: render a secondary line under modal-unit when this marker
   // has a UNIT_CONVERSIONS entry AND the per-profile "show alt units" toggle is
   // on (Settings → Display). Mirrors the primary line's ranges in the other
@@ -387,10 +416,10 @@ export function showDetailModal(id, opts = {}) {
         ${altUnitInfo}
       </div>
       <div class="gb-detail-head-actions">
-        <button type="button" class="gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}" aria-pressed="${quickMarkerPinned ? 'true' : 'false'}" title="${escapeAttr(quickMarkerPinTitle)}" onclick="window.toggleDashboardQuickMarkerPin('${id}')">${escapeHTML(quickMarkerPinText)}</button>
+        <button type="button" class="gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}" aria-pressed="${quickMarkerPinned ? 'true' : 'false'}" title="${escapeAttr(quickMarkerPinTitle)}" ${markerDetailActionAttrs('quick-pin', { id })}>${escapeHTML(quickMarkerPinText)}</button>
         <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
       </div>
-      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
     </div>
     <div class="marker-description" id="marker-desc"></div>
     <div class="gb-detail-summary">
@@ -419,8 +448,9 @@ export function showDetailModal(id, opts = {}) {
     const phaseLabel = marker.phaseLabels && marker.phaseLabels[i];
     const phaseInfo = phaseLabel ? `<div class="mv-phase">${phaseLabel} \u2022 ${formatValue(ri.min)}\u2013${formatValue(ri.max)}</div>` : '';
     const rawDate = marker.singlePoint ? null : data.dates[i];
+    const actionDate = rawDate == null ? 'null' : rawDate;
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
-    const noteIcon = matchingNote ? `<button type="button" class="mv-note" onclick="event.stopPropagation();this.parentElement.parentElement.querySelector('.mv-note-text').classList.toggle('show')">Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
+    const noteIcon = matchingNote ? `<button type="button" class="mv-note" ${markerDetailActionAttrs('toggle-history-note')}>Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
     const mvKey = dotKey + ':' + rawDate;
     const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
     const src = srcEntry?.markerSources?.[dotKey];
@@ -429,10 +459,10 @@ export function showDetailModal(id, opts = {}) {
     const isManual = isManualSource || (manualVal !== undefined && manualVal !== null);
     const canRevert = manualVal !== undefined && manualVal !== null && manualVal !== true;
     const manualBadge = canRevert
-      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert manual value to imported value" title="Manual — click to revert to imported value" onclick="event.stopPropagation();revertMarkerValue('${id}','${rawDate}')">manual \u00d7</span>`
+      ? ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Revert manual value to imported value" title="Manual — click to revert to imported value" ${markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })}>manual \u00d7</span>`
       : isManual ? ' <span class="ref-edited-badge" title="Manually entered">manual</span>' : '';
-    const deleteBtn = `<button class="mv-delete" onclick="event.stopPropagation();deleteMarkerValue('${id}','${rawDate}')" title="Remove this value">&times;</button>`;
-    const editClick = rawDate ? ` onclick="event.stopPropagation();editMarkerValue('${id}','${rawDate}',${v},event)" title="Click to edit" style="cursor:pointer"` : '';
+    const deleteBtn = `<button class="mv-delete" ${markerDetailActionAttrs('delete-marker-value', { id, date: actionDate })} title="Remove this value">&times;</button>`;
+    const editAction = rawDate ? ` ${markerDetailActionAttrs('edit-marker-value', { id, date: actionDate, value: v })} role="button" tabindex="0" title="Click to edit" style="cursor:pointer"` : '';
     // Provenance: which file imported this value
     let sourceHtml = '';
     if (rawDate) {
@@ -454,14 +484,14 @@ export function showDetailModal(id, opts = {}) {
     const valueNote = rawDate ? state.importedData.markerValueNotes?.[mvKey] : null;
     const valueNoteHtml = rawDate
       ? (valueNote
-          ? `<div class="mv-value-note has-note"><span class="mv-value-note-text" role="button" tabindex="0" title="Click to edit note" onclick="event.stopPropagation();editValueNote('${id}','${rawDate}')">${escapeHTML(valueNote)}</span> <button class="mv-value-note-delete" title="Remove note" onclick="event.stopPropagation();deleteValueNote('${id}','${rawDate}')">&times;</button></div>`
-          : `<div class="mv-value-note add-note" role="button" tabindex="0" title="Add a note for this value" onclick="event.stopPropagation();editValueNote('${id}','${rawDate}')">+ note</div>`)
+          ? `<div class="mv-value-note has-note"><span class="mv-value-note-text" role="button" tabindex="0" title="Click to edit note" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>${escapeHTML(valueNote)}</span> <button class="mv-value-note-delete" title="Remove note" ${markerDetailActionAttrs('delete-value-note', { id, date: actionDate })}>&times;</button></div>`
+          : `<div class="mv-value-note add-note" role="button" tabindex="0" title="Add a note for this value" ${markerDetailActionAttrs('edit-value-note', { id, date: actionDate })}>+ note</div>`)
       : '';
     const altVal = (hasConv && state.showAltUnits) ? getAlternateUnit(dotKey, v, isUSMode) : null;
     const altLine = altVal ? `<div class="mv-alt" title="Same value, alternate unit">≈ ${formatValue(altVal.value)} ${escapeHTML(altVal.unit)}</div>` : '';
     html += `<div class="modal-value-card marker-history-row status-${s}">${deleteBtn}
       <div class="marker-history-date-row"><div class="mv-date">${dates[i]}${noteIcon}</div>${sourceHtml}</div>
-      <div class="marker-history-value-row"><div class="mv-value val-${s}"${editClick}>${formatValue(v)}${manualBadge}</div><div class="mv-status val-${s}">${sl}</div></div>
+      <div class="marker-history-value-row"><div class="mv-value val-${s}"${editAction}>${formatValue(v)}${manualBadge}</div><div class="mv-status val-${s}">${sl}</div></div>
       ${altLine}${phaseInfo}${valueNoteHtml}</div>`;
   }
   html += `</div>`;
@@ -475,9 +505,9 @@ export function showDetailModal(id, opts = {}) {
     const historyButtonLabel = showAllHistory
       ? `Show ${showCount} older ${showCount === 1 ? 'value' : 'values'}`
       : `View more history (${modalPoints.length} values)`;
-    html += `<button class="light-sessions-show-more marker-history-show-more" onclick="event.stopPropagation();showDetailModal('${id}', { showAllHistory: true, historyLimit: ${nextHistoryLimit}, scrollToHistory: true })">${historyButtonLabel}</button>`;
+    html += `<button class="light-sessions-show-more marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true })}>${historyButtonLabel}</button>`;
   } else if (showAllHistory && modalPoints.length > MARKER_HISTORY_DEFAULT_CAP) {
-    html += `<button class="light-sessions-show-more marker-history-show-more" onclick="event.stopPropagation();showDetailModal('${id}', { scrollToHistory: true })">Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
+    html += `<button class="light-sessions-show-more marker-history-show-more" ${markerDetailActionAttrs('show-detail-modal', { id, scrollToHistory: true })}>Show last ${MARKER_HISTORY_DEFAULT_CAP} values</button>`;
   }
   const nonNull = modalPoints;
   if (nonNull.length >= 2) {
@@ -646,20 +676,20 @@ export function showDetailModal(id, opts = {}) {
   const _inlineSNPs = (state.importedData.genetics?.snps && window._getRelevantSNPs) ? window._getRelevantSNPs(dotKey) : [];
   html += `<div class="gb-detail-actions">
     <div class="gb-detail-action-row">
-      <button class="manual-entry-btn" onclick="event.stopPropagation();openManualEntryForm('${id}')">+ Add Value Manually</button>
-      <button class="ask-ai-btn" onclick="event.stopPropagation();askAIAboutMarker('${id}')">Ask AI</button>
+      <button class="manual-entry-btn" ${markerDetailActionAttrs('open-manual-entry', { id })}>+ Add Value Manually</button>
+      <button class="ask-ai-btn" ${markerDetailActionAttrs('ask-ai', { id })}>Ask AI</button>
     </div>`;
   // Marker note
   const markerNote = state.importedData.markerNotes?.[dotKey] || '';
   html += `<div class="marker-note-section">
-    <div class="marker-note-header"><span class="marker-note-label">Note</span><button class="marker-note-edit-btn" onclick="event.stopPropagation();toggleMarkerNoteEditor('${dotKey}')">${markerNote ? 'Edit' : '+ Add note'}</button></div>
+    <div class="marker-note-header"><span class="marker-note-label">Note</span><button class="marker-note-edit-btn" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>${markerNote ? 'Edit' : '+ Add note'}</button></div>
     ${markerNote ? `<div class="marker-note-text">${escapeHTML(markerNote)}</div>` : ''}
     <div class="marker-note-editor" id="marker-note-editor" style="display:none">
       <textarea id="marker-note-input" placeholder="Your notes about this marker (e.g. why it's high, what to watch for, what you've learned...)" rows="3">${escapeHTML(markerNote)}</textarea>
       <div class="marker-note-actions">
-        <button class="import-btn import-btn-primary" onclick="event.stopPropagation();saveMarkerNote('${dotKey}','${id}')">Save</button>
-        <button class="import-btn import-btn-secondary" onclick="event.stopPropagation();toggleMarkerNoteEditor('${dotKey}')">Cancel</button>
-        ${markerNote ? `<button class="import-btn import-btn-secondary" style="color:var(--red)" onclick="event.stopPropagation();deleteMarkerNote('${dotKey}','${id}')">Delete</button>` : ''}
+        <button class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-marker-note', { dotKey, id })}>Save</button>
+        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('toggle-marker-note-editor', { dotKey })}>Cancel</button>
+        ${markerNote ? `<button class="import-btn import-btn-secondary" style="color:var(--red)" ${markerDetailActionAttrs('delete-marker-note', { dotKey, id })}>Delete</button>` : ''}
 	      </div>
 	    </div>
 	  </div>`;
@@ -670,7 +700,7 @@ export function showDetailModal(id, opts = {}) {
   html += `</div>`;
   // Show delete link for custom markers only
   if (state.importedData?.customMarkers?.[dotKey]) {
-    html += `<div style="text-align:center;margin-top:8px"><a href="#" style="color:var(--text-muted);font-size:0.8rem" onclick="event.preventDefault();event.stopPropagation();deleteCustomMarker('${id}')">Delete this marker</a></div>`;
+    html += `<div style="text-align:center;margin-top:8px"><a href="#" style="color:var(--text-muted);font-size:0.8rem" ${markerDetailActionAttrs('delete-custom-marker', { id })}>Delete this marker</a></div>`;
   }
   modal.innerHTML = html;
   overlay.classList.add("show");
@@ -782,7 +812,7 @@ export function openManualEntryForm(id, prefillDate) {
         <div class="gb-modal-kicker">${escapeHTML(data.categories[catKey]?.label || catKey)}</div>
         <div class="gb-modal-title">Add Value Manually</div>
       </div>
-      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
     </div>
     <div class="gb-form-body">
     <div class="modal-unit"><strong>${escapeHTML(marker.name)}</strong> \u00b7 ${escapeHTML(marker.unit)}${refText ? ' \u00b7 ' + refText : ''}</div>
@@ -800,9 +830,9 @@ export function openManualEntryForm(id, prefillDate) {
         <textarea id="me-note" rows="2" placeholder="Context for this value — e.g. fasted 14h, post-workout, different lab, retake of low value..."></textarea>
       </div>
       <div class="gb-form-actions">
-        <button class="import-btn import-btn-primary" onclick="saveManualEntry('${id}')">Save</button>
-        <button class="import-btn import-btn-secondary" onclick="saveAndAddAnotherManualEntry('${id}')" title="Save this value, then enter another marker for the same date">Save &amp; Add Another</button>
-        <button class="import-btn import-btn-secondary" onclick="showDetailModal('${id}')">Cancel</button>
+        <button class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-manual-entry', { id })}>Save</button>
+        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('save-and-add-manual-entry', { id })} title="Save this value, then enter another marker for the same date">Save &amp; Add Another</button>
+        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('show-detail-modal', { id })}>Cancel</button>
       </div>
     </div>
     </div>`;
@@ -837,7 +867,7 @@ export function openCreateMarkerModal() {
         <div class="gb-modal-kicker">Custom marker</div>
         <div class="gb-modal-title">Create New Biomarker</div>
       </div>
-      <button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
     </div>
     <div class="gb-form-body">
     <div class="manual-entry-form">
@@ -880,7 +910,7 @@ export function openCreateMarkerModal() {
       </div>
       <div class="gb-form-actions">
         <button class="import-btn import-btn-primary" onclick="saveCustomMarker()">Create</button>
-        <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('close-modal')}>Cancel</button>
       </div>
     </div>
     </div>`;

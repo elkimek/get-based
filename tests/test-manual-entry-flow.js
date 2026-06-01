@@ -97,7 +97,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
   assert('Clickable manual badge reverts to imported value when original exists',
     /manual \\u00d7/.test(markerDetailSrc) &&
     /Revert manual value to imported value/.test(markerDetailSrc) &&
-    /revertMarkerValue\('\$\{id\}','\$\{rawDate\}'\)/.test(markerDetailSrc));
+    markerDetailSrc.includes("markerDetailActionAttrs('revert-marker-value', { id, date: actionDate })"));
   assert('Manual badge reads mirrored insulin original before falling back to plain manual state',
     /function getManualValueForMarker\(dotKey, date\)[\s\S]{0,800}getInsulinMirrorMarkerKey\(dotKey\)/.test(markerDetailSrc) &&
     /map\[key\] != null && map\[key\] !== true/.test(markerDetailSrc) &&
@@ -116,8 +116,8 @@ console.log('=== Manual Entry Flow Tests ===\n');
     /if \(keepOpen\)\s*\{[\s\S]{0,200}markerDetailDeps\.navigate\(navCat\)/.test(markerDetailEditingSrc));
   assert('Save & Add Another button rendered in form actions',
     /Save\s*&amp;\s*Add Another|Save & Add Another/.test(markerDetailSrc));
-  assert('Save & Add Another button onclick calls saveAndAddAnotherManualEntry',
-    /onclick="saveAndAddAnotherManualEntry\('\$\{id\}'\)"/.test(markerDetailSrc));
+  assert('Save & Add Another button delegates to saveAndAddAnotherManualEntry',
+    markerDetailSrc.includes("markerDetailActionAttrs('save-and-add-manual-entry', { id })"));
 
   // ═══════════════════════════════════════
   // 5. Session-remembered last date
