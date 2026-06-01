@@ -510,6 +510,7 @@ const STALE_MS         = 12 * 60 * 60 * 1000;
 
 let _pollTimer = null;
 let _schedulerInstalled = false;
+let _staleSyncInFlight = null;
 
 async function maybeSyncStaleSources() {
   // Wait for the runtime-config fetch (or its 1.5s timeout) so a self-hoster's
@@ -531,14 +532,21 @@ async function maybeSyncStaleSources() {
   }
 }
 
+export function syncStaleWearablesNow() {
+  if (_staleSyncInFlight) return _staleSyncInFlight;
+  _staleSyncInFlight = maybeSyncStaleSources()
+    .finally(() => { _staleSyncInFlight = null; });
+  return _staleSyncInFlight;
+}
+
 export function initWearableScheduler() {
   if (_schedulerInstalled) return;
   _schedulerInstalled = true;
-  maybeSyncStaleSources();
+  syncStaleWearablesNow();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') maybeSyncStaleSources();
+    if (document.visibilityState === 'visible') syncStaleWearablesNow();
   });
-  _pollTimer = setInterval(maybeSyncStaleSources, POLL_INTERVAL_MS);
+  _pollTimer = setInterval(syncStaleWearablesNow, POLL_INTERVAL_MS);
   window.addEventListener('beforeunload', () => { if (_pollTimer) clearInterval(_pollTimer); });
 }
 
