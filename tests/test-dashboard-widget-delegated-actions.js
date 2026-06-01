@@ -9,7 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const controlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const compositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
+const renderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
 const dashboardWidgetsCss = fs.readFileSync(path.join(root, 'css/dashboard-widgets.css'), 'utf8');
+const biometricOverviewSrc = renderersSrc.slice(
+  renderersSrc.indexOf('function renderDashboardBiometricSyncStatus'),
+  renderersSrc.indexOf('function getDashboardGenomeImpact'),
+);
 
 let passed = 0;
 let failed = 0;
@@ -48,10 +53,24 @@ assert('dashboard widget controls render delegated drag/drop attributes',
 assert('dashboard widget controls install idempotent click/input/drag delegates',
   controlsSrc.includes('let dashboardWidgetDelegatesInstalled = false') &&
     controlsSrc.includes("document.addEventListener('click', handleDashboardWidgetClick)") &&
+    controlsSrc.includes("document.addEventListener('keydown', handleDashboardWidgetKeydown)") &&
     controlsSrc.includes("document.addEventListener('input', handleDashboardWidgetInput)") &&
     controlsSrc.includes("document.addEventListener('dragstart', handleDashboardWidgetDragStart)") &&
     controlsSrc.includes("document.addEventListener('dragover', handleDashboardWidgetDragOver)") &&
     controlsSrc.includes("document.addEventListener('drop', handleDashboardWidgetDrop)"));
+assert('dashboard biometric overview renders no inline event attributes',
+  !/\bon(?:click|keydown|submit|change|input)=/.test(biometricOverviewSrc));
+assert('dashboard biometric overview renders delegated widget actions',
+  renderersSrc.includes("import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js'") &&
+    biometricOverviewSrc.includes("dashboardWidgetActionAttrs('sync-biometric-now'") &&
+    biometricOverviewSrc.includes("dashboardWidgetActionAttrs('remove-biometric-metric'") &&
+    biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-manual-log'") &&
+    biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-detail'") &&
+    biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-picker'"));
+assert('dashboard widget click delegate lets nested wearable actions handle inline forms',
+  controlsSrc.includes("target.closest('[data-wearable-action]')") &&
+    controlsSrc.includes('actionEl.contains(wearableActionEl)') &&
+    controlsSrc.includes("actionEl.click();"));
 assert('dashboard widget picker backdrop stays target-only',
   controlsSrc.includes("target.closest('#dashboard-widget-picker-overlay[data-dashboard-widget-overlay]')") &&
     controlsSrc.includes('overlay && target === overlay'));
@@ -71,6 +90,11 @@ assert('dashboard organize mode disables dense grid packing',
   'customize-layout',
   'reset-layout',
   'connect-source',
+  'open-biometric-picker',
+  'sync-biometric-now',
+  'remove-biometric-metric',
+  'open-biometric-detail',
+  'open-biometric-manual-log',
 ].forEach(action => {
   assert(`dashboard widget action ${action} is handled`, controlsSrc.includes(`action === '${action}'`));
 });
