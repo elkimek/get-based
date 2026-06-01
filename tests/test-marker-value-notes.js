@@ -114,9 +114,9 @@ const state = (await import('../js/state.js')).state;
     /export async function editValueNote\(id, date\)/.test(markerDetailEditingSrc));
   assert('deleteValueNote handler exported',
     /export async function deleteValueNote\(id, date\)/.test(markerDetailEditingSrc));
-  assert('editValueNote bound to window for inline onclicks',
+  assert('editValueNote remains exported for delegated value-note actions',
     /editValueNote,\s*$/m.test(viewsSrc) || viewsSrc.includes('editValueNote,'));
-  assert('deleteValueNote bound to window for inline onclicks',
+  assert('deleteValueNote remains exported for delegated value-note actions',
     viewsSrc.includes('deleteValueNote,'));
   assert('editValueNote re-renders the detail modal on save',
     /editValueNote[\s\S]{0,1500}showDetailModal\(id\)/.test(markerDetailEditingSrc));
@@ -196,9 +196,9 @@ const state = (await import('../js/state.js')).state;
   assert('Empty card shows "+ note" hint',
     /mv-value-note add-note[\s\S]{0,200}\+ note/.test(markerDetailSrc));
   assert('Populated card has × delete button',
-    /mv-value-note-delete[\s\S]{0,400}deleteValueNote\('/.test(markerDetailSrc));
-  assert('Inline onclicks stopPropagation so cell-edit doesn\'t fire',
-    /event\.stopPropagation\(\);editValueNote\('/.test(markerDetailSrc));
+    /mv-value-note-delete[\s\S]{0,400}markerDetailActionAttrs\('delete-value-note'/.test(markerDetailSrc));
+  assert('Value-note actions use delegated click handling so cell-edit does not fire',
+    markerDetailSrc.includes("markerDetailActionAttrs('edit-value-note', { id, date: actionDate })"));
 
   // ═══════════════════════════════════════
   // 8. AI context emission — section:markerValueNotes

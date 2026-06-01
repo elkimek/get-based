@@ -616,12 +616,12 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /marker-history-row/.test(markerDetailSrc)
       && /gb-detail-actions/.test(markerDetailSrc)
       && !/&#128221;/.test(markerDetailSrc));
-    assert('marker-detail-modal.js: marker modal history defaults to last three with inline expansion',
+    assert('marker-detail-modal.js: marker modal history defaults to last three with delegated expansion',
       /MARKER_HISTORY_DEFAULT_CAP\s*=\s*3/.test(markerDetailSrc)
       && /MARKER_HISTORY_EXPANDED_CAP\s*=\s*40/.test(markerDetailSrc)
       && /modalPoints\.slice\(-MARKER_HISTORY_DEFAULT_CAP\)/.test(markerDetailSrc)
       && /modalPoints\.slice\(-expandedHistoryLimit\)/.test(markerDetailSrc)
-      && /historyLimit:\s*\$\{nextHistoryLimit\}/.test(markerDetailSrc)
+      && /markerDetailActionAttrs\('show-detail-modal', \{ id, showAllHistory: true, historyLimit: nextHistoryLimit, scrollToHistory: true \}\)/.test(markerDetailSrc)
       && /View more history \(\$\{modalPoints\.length\} values\)/.test(markerDetailSrc)
       && /Show \$\{showCount\} older/.test(markerDetailSrc)
       && /Show last \$\{MARKER_HISTORY_DEFAULT_CAP\} values/.test(markerDetailSrc));

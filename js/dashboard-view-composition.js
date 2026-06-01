@@ -91,7 +91,7 @@ export function createDashboardViewComposition({
     toggleDashboardQuickMarkerPin,
   } = dashboardWidgetRenderers;
 
-  configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, showEmojiPicker });
+  configureMarkerDetailModal({ navigate, isDashboardQuickMarkerPinned, toggleDashboardQuickMarkerPin, showEmojiPicker });
 
   function getDashboardMarkerWidgetDefinition(widgetId, ctx = null) {
     const markerId = dashboardMarkerIdFromWidgetId(widgetId);
