@@ -19,6 +19,122 @@ import {
   pushContextToGateway,
 } from './sync.js';
 
+let settingsSyncDelegatesInstalled = false;
+const SETTINGS_SYNC_STATE_ACTIONS = new Set([
+  'toggle-sync',
+  'setup-ack',
+  'restore-dialog-input',
+  'toggle-messenger',
+  'set-agent-wearable-series-days',
+]);
+
+function closestSettingsSyncAction(event, selector = '[data-sync-action],[data-sync-setup-action]') {
+  const target = event.target;
+  if (!(target instanceof Element)) return null;
+  const el = target.closest(selector);
+  if (!el) return null;
+  return el.closest('#sync-section, #messenger-section, #sync-setup-overlay, #sync-restore-overlay') ? el : null;
+}
+
+function nudgeSyncSetupDialog() {
+  const d = document.querySelector('#sync-setup-overlay .confirm-dialog');
+  if (!d) return;
+  d.classList.add('modal-nudge');
+  d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true });
+}
+
+async function handleSettingsSyncClick(event) {
+  const target = event.target;
+  if (target instanceof Element && target.id === 'sync-setup-overlay') {
+    nudgeSyncSetupDialog();
+    return;
+  }
+  if (target instanceof Element && target.id === 'sync-restore-overlay') {
+    closeRestoreMnemonicDialog();
+    return;
+  }
+
+  const actionEl = closestSettingsSyncAction(event);
+  if (!actionEl) return;
+
+  const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
+  if (!action) return;
+
+  if (SETTINGS_SYNC_STATE_ACTIONS.has(action)) return;
+
+  event.preventDefault();
+
+  if (action === 'apply-tombstone') {
+    await window.applyPendingTombstone?.(actionEl.dataset.tombId || '');
+    window.openSettingsModal?.('data');
+  } else if (action === 'reject-tombstone') {
+    await window.rejectPendingTombstone?.(actionEl.dataset.tombId || '');
+    window.openSettingsModal?.('data');
+  } else if (action === 'toggle-mnemonic') {
+    toggleMnemonicVisibility();
+  } else if (action === 'copy-mnemonic') {
+    copyMnemonic();
+  } else if (action === 'open-restore-dialog') {
+    openRestoreMnemonicDialog();
+  } else if (action === 'save-relay') {
+    saveSyncRelay();
+  } else if (action === 'setup-new') {
+    void syncSetupNew();
+  } else if (action === 'setup-restore') {
+    syncSetupRestore();
+  } else if (action === 'setup-do-restore') {
+    void syncSetupDoRestore();
+  } else if (action === 'setup-back') {
+    syncSetupBack();
+  } else if (action === 'setup-cancel') {
+    void closeSyncSetup();
+  } else if (action === 'setup-done') {
+    syncSetupDone();
+  } else if (action === 'close-restore-dialog') {
+    closeRestoreMnemonicDialog();
+  } else if (action === 'confirm-restore') {
+    void confirmRestoreMnemonic();
+  } else if (action === 'toggle-messenger-token') {
+    toggleMessengerToken();
+  } else if (action === 'copy-messenger-token') {
+    copyMessengerToken();
+  } else if (action === 'regenerate-messenger-token') {
+    regenerateMessengerToken();
+  }
+}
+
+function handleSettingsSyncChange(event) {
+  const actionEl = closestSettingsSyncAction(event);
+  if (!actionEl) return;
+  const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
+  if (!action) return;
+
+  if (action === 'toggle-sync' && actionEl instanceof HTMLInputElement) {
+    void toggleSync(actionEl.checked);
+  } else if (action === 'setup-ack' && actionEl instanceof HTMLInputElement) {
+    updateSyncSetupAck(actionEl);
+  } else if (action === 'toggle-messenger' && actionEl instanceof HTMLInputElement) {
+    toggleMessenger(actionEl.checked);
+  } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
+    window.setAgentWearableSeriesDays?.(actionEl.value === 'off' ? 0 : Number(actionEl.value));
+    window.pushContextToGateway?.();
+  }
+}
+
+function handleSettingsSyncInput(event) {
+  const actionEl = closestSettingsSyncAction(event, '[data-sync-action]');
+  if (!actionEl || actionEl.dataset.syncAction !== 'restore-dialog-input') return;
+  if (actionEl instanceof HTMLTextAreaElement) updateRestoreMnemonicDialogState(actionEl);
+}
+
+function installSettingsSyncDelegates() {
+  if (settingsSyncDelegatesInstalled || typeof document === 'undefined') return;
+  settingsSyncDelegatesInstalled = true;
+  document.addEventListener('click', handleSettingsSyncClick);
+  document.addEventListener('change', handleSettingsSyncChange);
+  document.addEventListener('input', handleSettingsSyncInput);
+}
+
 function renderPendingTombstones() {
   const pending = window.listPendingTombstones?.() || [];
   if (pending.length === 0) return '';
@@ -26,8 +142,8 @@ function renderPendingTombstones() {
     <div class="sync-tombstone-row" data-tomb-id="${escapeAttr(p.id)}">
       <span class="sync-tombstone-name">${escapeHTML(p.name)}</span>
       <span class="sync-tombstone-meta">${p.at ? `flagged ${new Date(p.at).toLocaleDateString()}` : ''}</span>
-      <button class="sync-tombstone-btn sync-tombstone-apply" onclick="window.applyPendingTombstone('${escapeAttr(p.id)}').then(() => window.openSettingsModal('data'))">Apply delete</button>
-      <button class="sync-tombstone-btn sync-tombstone-reject" onclick="window.rejectPendingTombstone('${escapeAttr(p.id)}').then(() => window.openSettingsModal('data'))">Restore</button>
+      <button class="sync-tombstone-btn sync-tombstone-apply" data-sync-action="apply-tombstone" data-tomb-id="${escapeAttr(p.id)}">Apply delete</button>
+      <button class="sync-tombstone-btn sync-tombstone-reject" data-sync-action="reject-tombstone" data-tomb-id="${escapeAttr(p.id)}">Restore</button>
     </div>`).join('');
   return `
     <div class="sync-tombstone-banner">
@@ -61,7 +177,7 @@ export function renderSyncSection() {
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">E2E encrypted via Evolu CRDT</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle cross-device sync">
-        <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleSync(this.checked)" style="display:none" ${blocker ? 'disabled' : ''}>
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-sync" style="display:none" ${blocker ? 'disabled' : ''}>
         <span class="chat-toggle-slider"></span>
       </label>
     </div>
@@ -75,8 +191,8 @@ export function renderSyncSection() {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Your mnemonic</label>
           <div style="display:flex;gap:6px">
-            <button id="sync-mnemonic-toggle" class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" onclick="toggleMnemonicVisibility()" aria-label="Show mnemonic">Show</button>
-            <button class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" onclick="copyMnemonic()" aria-label="Copy mnemonic">Copy</button>
+            <button id="sync-mnemonic-toggle" class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" data-sync-action="toggle-mnemonic" aria-label="Show mnemonic">Show</button>
+            <button class="import-btn import-btn-secondary" style="font-size:11px;padding:2px 10px" data-sync-action="copy-mnemonic" aria-label="Copy mnemonic">Copy</button>
           </div>
         </div>
         <div id="sync-mnemonic" data-masked="true" style="font-family:var(--font-mono, monospace);font-size:11.5px;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;border:1px solid var(--border);word-break:break-word;line-height:1.6;min-height:20px;user-select:none" aria-label="Mnemonic phrase">Loading...</div>
@@ -84,7 +200,7 @@ export function renderSyncSection() {
       </div>
 
       <div style="margin-bottom:16px">
-        <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%" onclick="openRestoreMnemonicDialog()">Restore from a different mnemonic…</button>
+        <button class="import-btn import-btn-secondary" style="font-size:12px;padding:5px 14px;width:100%" data-sync-action="open-restore-dialog">Restore from a different mnemonic…</button>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4">Replace this device's identity with a 24-word seed from another device. Your current data is overwritten.</div>
       </div>
 
@@ -94,7 +210,7 @@ export function renderSyncSection() {
           <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Relay server</label>
           <div style="display:flex;gap:8px">
             <input type="text" id="sync-relay-input" value="${escapeAttr(relay)}" style="flex:1;font-size:12px;border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:6px 10px;font-family:var(--font-mono, monospace)" placeholder="wss://...">
-            <button class="import-btn import-btn-secondary" style="font-size:12px;padding:4px 12px" onclick="saveSyncRelay()">Save</button>
+            <button class="import-btn import-btn-secondary" style="font-size:12px;padding:4px 12px" data-sync-action="save-relay">Save</button>
           </div>
         </div>
       </details>
@@ -167,11 +283,11 @@ export function showSyncSetupModal() {
     <h3 style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Set up sync</h3>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 20px;line-height:1.5">Your data is encrypted with a 24-word mnemonic. The relay server only sees ciphertext.</p>
     <div id="sync-setup-choices">
-      <button class="import-btn import-btn-primary" style="width:100%;padding:12px 16px;font-size:13px;margin-bottom:10px;text-align:left" onclick="syncSetupNew()">
+      <button class="import-btn import-btn-primary" style="width:100%;padding:12px 16px;font-size:13px;margin-bottom:10px;text-align:left" data-sync-setup-action="setup-new">
         <div style="font-weight:600">New setup</div>
         <div style="font-weight:400;opacity:0.8;margin-top:2px;font-size:12px">First time syncing — generate a new mnemonic</div>
       </button>
-      <button class="import-btn import-btn-secondary" style="width:100%;padding:12px 16px;font-size:13px;text-align:left" onclick="syncSetupRestore()">
+      <button class="import-btn import-btn-secondary" style="width:100%;padding:12px 16px;font-size:13px;text-align:left" data-sync-setup-action="setup-restore">
         <div style="font-weight:600">Join existing</div>
         <div style="font-weight:400;opacity:0.8;margin-top:2px;font-size:12px">I have a mnemonic from another device</div>
       </button>
@@ -180,16 +296,15 @@ export function showSyncSetupModal() {
     <div id="sync-setup-restore" style="display:none">
       <textarea id="sync-setup-restore-input" style="font-size:12px;width:100%;height:70px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box;margin-bottom:10px" placeholder="Paste your 24-word mnemonic here..."></textarea>
       <div style="display:flex;gap:8px">
-        <button class="import-btn import-btn-primary" style="flex:1;padding:8px 16px;font-size:13px" onclick="syncSetupDoRestore()">Restore</button>
-        <button class="import-btn import-btn-secondary" style="padding:8px 16px;font-size:13px" onclick="syncSetupBack()">Back</button>
+        <button class="import-btn import-btn-primary" style="flex:1;padding:8px 16px;font-size:13px" data-sync-setup-action="setup-do-restore">Restore</button>
+        <button class="import-btn import-btn-secondary" style="padding:8px 16px;font-size:13px" data-sync-setup-action="setup-back">Back</button>
       </div>
     </div>
     <div style="margin-top:16px;text-align:right">
-      <button class="confirm-btn confirm-btn-cancel" onclick="closeSyncSetup()">Cancel</button>
+      <button class="confirm-btn confirm-btn-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
     </div>
   </div>`;
   overlay.classList.add('show');
-  overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
 }
 
 async function closeSyncSetup() {
@@ -244,24 +359,23 @@ async function syncSetupNew() {
         Write these 24 words down and store them offline. You will need them to sync another device. Anyone with this mnemonic can access your synced data.
       </div>
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--text-primary);margin-bottom:14px">
-        <input type="checkbox" id="sync-setup-ack" style="margin-top:2px" onchange="document.getElementById('sync-setup-done-btn').disabled=!this.checked">
+        <input type="checkbox" id="sync-setup-ack" style="margin-top:2px" data-sync-setup-action="setup-ack">
         I have saved my mnemonic somewhere safe
       </label>
-      <button id="sync-setup-done-btn" class="import-btn import-btn-primary" style="width:100%;padding:8px 16px;font-size:13px;opacity:0.45;cursor:not-allowed" disabled onclick="syncSetupDone()">Done</button>
+      <button id="sync-setup-done-btn" class="import-btn import-btn-primary" style="width:100%;padding:8px 16px;font-size:13px;opacity:0.45;cursor:not-allowed" disabled data-sync-setup-action="setup-done">Done</button>
     `;
-    // Wire up disabled style toggle on checkbox
-    const ack = document.getElementById('sync-setup-ack');
-    const doneBtn = document.getElementById('sync-setup-done-btn');
-    if (ack && doneBtn) {
-      ack.onchange = () => {
-        doneBtn.disabled = !ack.checked;
-        doneBtn.style.opacity = ack.checked ? '1' : '0.45';
-        doneBtn.style.cursor = ack.checked ? 'pointer' : 'not-allowed';
-      };
-    }
+    updateSyncSetupAck();
   } finally {
     _syncSetupInProgress = false;
   }
+}
+
+function updateSyncSetupAck(ack = document.getElementById('sync-setup-ack')) {
+  const doneBtn = document.getElementById('sync-setup-done-btn');
+  if (!(ack instanceof HTMLInputElement) || !doneBtn) return;
+  doneBtn.disabled = !ack.checked;
+  doneBtn.style.opacity = ack.checked ? '1' : '0.45';
+  doneBtn.style.cursor = ack.checked ? 'pointer' : 'not-allowed';
 }
 
 function syncSetupDone() {
@@ -424,41 +538,41 @@ function openRestoreMnemonicDialog() {
   overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="sync-restore-title" style="max-width:480px">
     <h3 id="sync-restore-title" style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Restore from mnemonic</h3>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">Paste your 24-word seed from another device. This replaces your current sync identity — anything synced under the old identity will no longer reach this device.</p>
-    <textarea id="sync-restore-dialog-input" autofocus aria-label="24-word mnemonic" style="font-size:12px;width:100%;height:90px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box" placeholder="word word word word word word word word word word word word word word word word word word word word word word word word"></textarea>
+    <textarea id="sync-restore-dialog-input" autofocus aria-label="24-word mnemonic" data-sync-action="restore-dialog-input" style="font-size:12px;width:100%;height:90px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box" placeholder="word word word word word word word word word word word word word word word word word word word word word word word word"></textarea>
     <div id="sync-restore-dialog-msg" style="font-size:11px;color:var(--text-muted);margin-top:6px;min-height:14px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-      <button class="confirm-btn confirm-btn-cancel" onclick="closeRestoreMnemonicDialog()">Cancel</button>
-      <button id="sync-restore-dialog-go" class="import-btn import-btn-primary" style="padding:8px 16px;font-size:13px" onclick="confirmRestoreMnemonic()">Restore &amp; reload</button>
+      <button class="confirm-btn confirm-btn-cancel" data-sync-action="close-restore-dialog">Cancel</button>
+      <button id="sync-restore-dialog-go" class="import-btn import-btn-primary" style="padding:8px 16px;font-size:13px" data-sync-action="confirm-restore">Restore &amp; reload</button>
     </div>
   </div>`;
   overlay.classList.add('show');
   // Live word count + button enable so the user gets immediate feedback as
   // they paste — much friendlier than only finding out on submit.
   const input = document.getElementById('sync-restore-dialog-input');
-  const msg = document.getElementById('sync-restore-dialog-msg');
-  const btn = document.getElementById('sync-restore-dialog-go');
   if (input) {
     input.focus();
-    const update = () => {
-      const raw = (input.value || '').trim();
-      if (!raw) {
-        if (msg) { msg.textContent = ''; msg.style.color = 'var(--text-muted)'; }
-        if (btn) btn.disabled = true;
-        return;
-      }
-      const words = raw.split(/\s+/);
-      if (words.length === 24) {
-        if (msg) { msg.textContent = '✓ 24 words detected'; msg.style.color = 'var(--green, #22c55e)'; }
-        if (btn) btn.disabled = false;
-      } else {
-        if (msg) { msg.textContent = `${words.length} word${words.length === 1 ? '' : 's'} so far — need exactly 24`; msg.style.color = '#fbbf24'; }
-        if (btn) btn.disabled = true;
-      }
-    };
-    input.addEventListener('input', update);
-    update();
+    updateRestoreMnemonicDialogState(input);
   }
-  overlay.onclick = (e) => { if (e.target === overlay) closeRestoreMnemonicDialog(); };
+}
+
+function updateRestoreMnemonicDialogState(input = document.getElementById('sync-restore-dialog-input')) {
+  const msg = document.getElementById('sync-restore-dialog-msg');
+  const btn = document.getElementById('sync-restore-dialog-go');
+  if (!input) return;
+  const raw = (input.value || '').trim();
+  if (!raw) {
+    if (msg) { msg.textContent = ''; msg.style.color = 'var(--text-muted)'; }
+    if (btn) btn.disabled = true;
+    return;
+  }
+  const words = raw.split(/\s+/);
+  if (words.length === 24) {
+    if (msg) { msg.textContent = '✓ 24 words detected'; msg.style.color = 'var(--green, #22c55e)'; }
+    if (btn) btn.disabled = false;
+  } else {
+    if (msg) { msg.textContent = `${words.length} word${words.length === 1 ? '' : 's'} so far — need exactly 24`; msg.style.color = '#fbbf24'; }
+    if (btn) btn.disabled = true;
+  }
 }
 
 function closeRestoreMnemonicDialog() {
@@ -513,7 +627,7 @@ export function renderMessengerSection() {
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleMessenger(this.checked)" style="display:none">
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none">
         <span class="chat-toggle-slider"></span>
       </label>
     </div>
@@ -522,14 +636,14 @@ export function renderMessengerSection() {
         <div class="settings-token-head">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Read-only token</label>
           <div class="settings-token-actions">
-            <button id="messenger-token-toggle" class="import-btn import-btn-secondary settings-mini-btn" onclick="toggleMessengerToken()" aria-label="Show token">Show</button>
-            <button class="import-btn import-btn-secondary settings-mini-btn" onclick="copyMessengerToken()" aria-label="Copy token">Copy</button>
+            <button id="messenger-token-toggle" class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="toggle-messenger-token" aria-label="Show token">Show</button>
+            <button class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="copy-messenger-token" aria-label="Copy token">Copy</button>
           </div>
         </div>
         <div id="messenger-token" class="settings-token-box" data-masked="true" aria-label="Agent Access token">${'\u2022'.repeat(64)}</div>
         <div class="settings-copy-desc" style="margin-top:6px">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Paste this token into your agent's config.</div>
       </div>
-      <button class="import-btn import-btn-secondary settings-full-btn" onclick="regenerateMessengerToken()">Regenerate token</button>
+      <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token">Regenerate token</button>
       <div class="settings-divider">
         <div class="settings-action-row">
           <div class="settings-copy">
@@ -537,7 +651,7 @@ export function renderMessengerSection() {
             <div class="settings-copy-desc">Adds a pivoted daily-values matrix (HRV, RHR, sleep…) so agents can spot trends. ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days respectively (real-measured at 13 metrics); cached cleanly so the marginal cost per turn is small. Off by default — pick 7 days for cheap follow-ups, 30 for monthly reasoning, 90 for season-spanning analysis.</div>
           </div>
           <select id="agent-wearable-series-select"
-            onchange="window.setAgentWearableSeriesDays(this.value === 'off' ? 0 : Number(this.value)); window.pushContextToGateway && window.pushContextToGateway()"
+            data-sync-action="set-agent-wearable-series-days"
             aria-label="Wearable series window pushed to agent"
             class="settings-select">
             <option value="off"${(window.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
@@ -622,6 +736,8 @@ export function hydrateSettingsSyncPanel() {
   loadMnemonic();
   updateRelayStatus();
 }
+
+installSettingsSyncDelegates();
 
 Object.assign(window, {
   toggleSync,
