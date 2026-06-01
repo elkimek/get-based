@@ -651,12 +651,18 @@ assert('Skip link targets #main-content', indexSrc.includes('href="#main-content
 assert('Skip link CSS', cssSrc.includes('.skip-link'));
 
 const navSrc = read('js/nav.js');
+const appEventsSrc = read('js/app-event-listeners.js');
 assert('Nav items have tabindex', navSrc.includes('tabindex="0"'));
 assert('Nav items have role=button', navSrc.includes('role="button"'));
-assert('Nav items have keyboard handler', navSrc.includes('onkeydown'));
+assert('Nav items use delegated actions instead of inline handlers',
+  navSrc.includes('data-nav-action') &&
+    navSrc.includes('installNavActionDelegates') &&
+    !/\bon(?:click|input|keydown)=/.test(navSrc));
+assert('Nav role-button keyboard activation remains delegated globally',
+  appEventsSrc.includes('function handleRoleButtonKeydown') &&
+    appEventsSrc.includes('t.click()'));
 assert('Category labels escaped in sidebar', navSrc.includes('escapeHTML(label)') || navSrc.includes('escapeHTML(cat.label)'));
 
-const appEventsSrc = read('js/app-event-listeners.js');
 assert('Focus trap for modals', appEventsSrc.includes('e.key === "Tab"') && appEventsSrc.includes('focusable'));
 
 // ═══════════════════════════════════════
