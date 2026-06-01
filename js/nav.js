@@ -26,16 +26,84 @@ function _iconSvg(name) {
   return icons[name] || escapeHTML(String(name || ''));
 }
 
-// Render a compact sidebar entry for modules whose visibility depends on data.
-function _renderConditionalNavItem({ key, icon, label, navigate = 'dashboard', badge }) {
-  let onclick;
-  if (navigate.startsWith('fn:')) {
-    onclick = navigate.slice(3); // raw JS fragment
+let navDelegatesInstalled = false;
+
+function _navActionAttrs(action, attrs = {}) {
+  const extraAttrs = Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => ` data-nav-${name}="${escapeAttr(String(value))}"`)
+    .join('');
+  return `data-nav-action="${escapeAttr(action)}"${extraAttrs}`;
+}
+
+function _navNavigateAttrs(route) {
+  return _navActionAttrs('navigate', { route });
+}
+
+function _navActionScope(el) {
+  return !!el.closest('#sidebar-nav, #profile-selector');
+}
+
+function _findGroupHeader(groupName) {
+  return Array.from(document.querySelectorAll('.sidebar-group-header'))
+    .find(el => el.dataset.groupName === groupName) || null;
+}
+
+function _findGroupItems(groupName) {
+  return Array.from(document.querySelectorAll('.sidebar-group-items'))
+    .find(el => el.dataset.groupItems === groupName) || null;
+}
+
+function handleNavActionClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const actionEl = target?.closest('[data-nav-action]');
+  if (!actionEl || !_navActionScope(actionEl)) return;
+
+  const action = actionEl.dataset.navAction;
+  let handled = true;
+  if (action === 'navigate') {
+    window.navigate?.(actionEl.dataset.navRoute || actionEl.dataset.category || 'dashboard');
+  } else if (action === 'open-emf-assessment') {
+    window.openEMFAssessmentEditor?.();
+  } else if (action === 'open-light-assessment') {
+    window.openLightEnvironmentAssessment?.();
+  } else if (action === 'open-knowledge-base') {
+    window.openKnowledgeBaseModal?.();
+  } else if (action === 'open-custom-marker') {
+    window.openCreateMarkerModal?.();
+  } else if (action === 'toggle-group') {
+    toggleNavGroup(actionEl.dataset.navGroup || '');
+  } else if (action === 'toggle-group-ai') {
+    toggleGroupAIContext(actionEl.dataset.navGroup || '');
+  } else if (action === 'open-client-list') {
+    window.openClientList?.();
   } else {
-    onclick = `window.navigate('${navigate}')`;
+    handled = false;
   }
+
+  if (handled) event.preventDefault();
+}
+
+function handleNavInput(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target || !_navActionScope(target)) return;
+  if (target.getAttribute('data-nav-input-action') === 'filter-sidebar') {
+    filterSidebar();
+  }
+}
+
+export function installNavActionDelegates() {
+  if (navDelegatesInstalled || typeof document === 'undefined') return;
+  navDelegatesInstalled = true;
+  document.addEventListener('click', handleNavActionClick);
+  document.addEventListener('input', handleNavInput);
+}
+
+// Render a compact sidebar entry for modules whose visibility depends on data.
+function _renderConditionalNavItem({ key, icon, label, route = 'dashboard', action = 'navigate', badge }) {
   const badgeHtml = badge ? `<span class="nav-item-count nav-count">${escapeHTML(String(badge))}</span>` : '<span class="nav-item-dot"></span>';
-  return `<div class="nav-item" data-category="${key}" tabindex="0" role="button" onclick="${onclick}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+  const actionAttrs = action === 'navigate' ? _navNavigateAttrs(route) : _navActionAttrs(action);
+  return `<div class="nav-item" data-category="${escapeAttr(key)}" tabindex="0" role="button" ${actionAttrs}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg(icon)}</span>
     <span class="nav-item-label">${escapeHTML(label)}</span>
     ${badgeHtml}</div>`;
@@ -70,13 +138,14 @@ function _buildNavItem(key, cat) {
   if (cat.group && label.startsWith(cat.group + ': ')) {
     label = label.slice(cat.group.length + 2);
   }
-  return { withData, flagged, html: `<div class="nav-item" data-category="${key}" data-markers="${escapeHTML(markerNames)}" data-group="${escapeHTML(cat.group || '')}" tabindex="0" role="button" onclick="window.navigate('${key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('${key}')}">
+  return { withData, flagged, html: `<div class="nav-item" data-category="${escapeAttr(key)}" data-markers="${escapeAttr(markerNames)}" data-group="${escapeAttr(cat.group || '')}" tabindex="0" role="button" ${_navNavigateAttrs(key)}>
       <span class="nav-item-dot" aria-hidden="true"></span>
       <span class="nav-item-label">${escapeHTML(label)}</span>
       ${flagHtml}</div>` };
 }
 
 export function buildSidebar(data) {
+  installNavActionDelegates();
   if (!data) data = getActiveData();
   data = filterDatesByRange(data);
   const nav = document.getElementById("sidebar-nav");
@@ -91,15 +160,15 @@ export function buildSidebar(data) {
   })();
   let html = `<div class="sidebar-search-wrap">
     <span class="sidebar-search-icon" aria-hidden="true">${_iconSvg('search')}</span>
-    <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." oninput="filterSidebar()">
+    <input type="text" class="sidebar-search" id="sidebar-search" placeholder="Search markers..." data-nav-input-action="filter-sidebar">
   </div>`;
   html += `<div class="nav-section">Home</div>`;
-  html += `<div class="nav-item active is-active" data-category="dashboard" tabindex="0" role="button" onclick="window.navigate('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('dashboard')}">
+  html += `<div class="nav-item active is-active" data-category="dashboard" tabindex="0" role="button" ${_navNavigateAttrs('dashboard')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('dashboard')}</span>
     <span class="nav-item-label">Dashboard</span>
     <span class="nav-item-count">${counts}</span></div>`;
   html += `<div class="nav-section">Lenses</div>`;
-  html += `<div class="nav-item" data-category="labs" tabindex="0" role="button" onclick="window.navigate('labs')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('labs')}">
+  html += `<div class="nav-item" data-category="labs" tabindex="0" role="button" ${_navNavigateAttrs('labs')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('labs')}</span>
     <span class="nav-item-label">Labs</span>
     <span class="nav-item-count">${counts}</span></div>`;
@@ -114,14 +183,14 @@ export function buildSidebar(data) {
     if (genetics.snps && Object.keys(genetics.snps).length > 0) gParts.push(Object.keys(genetics.snps).length);
     if (genetics.mtdna) gParts.push(genetics.mtdna.haplogroup);
   }
-  html += `<div class="nav-item" data-category="genome" tabindex="0" role="button" onclick="window.navigate('genome')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('genome')}">
+  html += `<div class="nav-item" data-category="genome" tabindex="0" role="button" ${_navNavigateAttrs('genome')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('genome')}</span>
     <span class="nav-item-label">Genome</span>
     ${gParts.length ? `<span class="nav-item-count">${escapeHTML(gParts.join(' '))}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
 
   const wearableConn = state.importedData?.wearableConnections || {};
   const wearableCount = Object.keys(wearableConn).length;
-  html += `<div class="nav-item" data-category="body" tabindex="0" role="button" onclick="window.navigate('body')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('body')}">
+  html += `<div class="nav-item" data-category="body" tabindex="0" role="button" ${_navNavigateAttrs('body')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('body')}</span>
     <span class="nav-item-label">Body</span>
     ${wearableCount ? `<span class="nav-item-count">${wearableCount}</span>` : '<span class="nav-item-dot"></span>'}</div>`;
@@ -136,21 +205,21 @@ export function buildSidebar(data) {
     key: 'light',
     icon: 'light',
     label: 'Light',
-    navigate: 'light',
+    route: 'light',
     badge: weekCount > 0 ? (weekCount > 9 ? '9+' : weekCount) : null,
   });
 
-  html += `<div class="nav-item" data-category="insight" tabindex="0" role="button" onclick="window.navigate('insight')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('insight')}">
+  html += `<div class="nav-item" data-category="insight" tabindex="0" role="button" ${_navNavigateAttrs('insight')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('insight')}</span>
     <span class="nav-item-label">Insight</span>
     <span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" onclick="window.navigate('recommendations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('recommendations')}">
+  html += `<div class="nav-item" data-category="recommendations" tabindex="0" role="button" ${_navNavigateAttrs('recommendations')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('recommendations')}</span><span class="nav-item-label">Recommendations</span><span class="nav-item-dot"></span></div>`;
 
   html += `<div class="nav-section">Analysis tools</div>`;
-  html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" onclick="window.navigate('compare')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('compare')}">
+  html += `<div class="nav-item" data-category="compare" tabindex="0" role="button" ${_navNavigateAttrs('compare')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('compare')}</span><span class="nav-item-label">Compare dates</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" onclick="window.navigate('correlations')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.navigate('correlations')}">
+  html += `<div class="nav-item" data-category="correlations" tabindex="0" role="button" ${_navNavigateAttrs('correlations')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('correlations')}</span><span class="nav-item-label">Correlations</span><span class="nav-item-dot"></span></div>`;
   const emfAssessments = state.importedData?.emfAssessment?.assessments;
   const emfAssessmentCount = Array.isArray(emfAssessments) ? emfAssessments.length : 0;
@@ -158,7 +227,7 @@ export function buildSidebar(data) {
     key: 'emf',
     icon: 'emf',
     label: 'EMF assessment',
-    navigate: 'fn:window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()',
+    action: 'open-emf-assessment',
     badge: emfAssessmentCount > 0 ? emfAssessmentCount : null,
   });
   const lightRoomCount = Array.isArray(state.importedData?.lightEnvironment?.rooms) ? state.importedData.lightEnvironment.rooms.length : 0;
@@ -167,14 +236,14 @@ export function buildSidebar(data) {
     key: 'light-env-assessment',
     icon: 'light',
     label: 'Light assessment',
-    navigate: 'fn:window.openLightEnvironmentAssessment&&window.openLightEnvironmentAssessment()',
+    action: 'open-light-assessment',
     badge: lightRoomCount > 0 && lightAuditCount > 0 ? lightAuditCount : null,
   });
 
   html += `<div class="nav-section">Manage</div>`;
-  html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" onclick="window.openKnowledgeBaseModal&&window.openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+  html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" onclick="window.openCreateMarkerModal&&window.openCreateMarkerModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+  html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 
   // Separate categories into blood work (no group) and specialty groups
@@ -195,7 +264,7 @@ export function buildSidebar(data) {
   // Lab category shortcuts stay in the sidebar because they are the fastest
   // way to jump into a biomarker table, but the Labs lens itself is the
   // all-biomarker entry point.
-  html += `<div class="nav-section sidebar-title">Lab categories <button class="sidebar-add-marker" onclick="event.stopPropagation();openCreateMarkerModal()" title="Create custom biomarker">+</button></div>`;
+  html += `<div class="nav-section sidebar-title">Lab categories <button class="sidebar-add-marker" ${_navActionAttrs('open-custom-marker')} title="Create custom biomarker">+</button></div>`;
   for (const item of bloodWork) html += item.html;
 
   // Render specialty groups
@@ -211,15 +280,15 @@ export function buildSidebar(data) {
     // span, aria-hidden) AFTER the AI toggle — restores the original
     // [label flag] [AI] [arrow] visual order. Sighted users still see
     // the rotation cue; keyboard users use the toggle button.
-    html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" onclick="toggleNavGroup('${escapeAttr(groupName)}')">
-      <button class="sidebar-group-toggle" onclick="event.stopPropagation();toggleNavGroup('${escapeAttr(groupName)}')" aria-expanded="${!collapsed}" aria-label="${escapeAttr(groupName)} group">
+    html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" ${_navActionAttrs('toggle-group', { group: groupName })}>
+      <button class="sidebar-group-toggle" ${_navActionAttrs('toggle-group', { group: groupName })} aria-expanded="${!collapsed}" aria-label="${escapeAttr(groupName)} group">
         <span class="sidebar-group-label">${escapeHTML(groupName)}</span>
         ${flagHtml}
       </button>
-      <button class="sidebar-ai-toggle${aiOn ? ' active' : ''}" title="${aiOn ? 'Included in AI context' : 'Excluded from AI context — click to include'}" onclick="event.stopPropagation();toggleGroupAIContext('${escapeAttr(groupName)}')" aria-label="Toggle AI context for ${escapeHTML(groupName)}">AI</button>
+      <button class="sidebar-ai-toggle${aiOn ? ' active' : ''}" title="${aiOn ? 'Included in AI context' : 'Excluded from AI context — click to include'}" ${_navActionAttrs('toggle-group-ai', { group: groupName })} aria-label="Toggle AI context for ${escapeHTML(groupName)}">AI</button>
       <span class="sidebar-group-arrow" aria-hidden="true">\u25B8</span>
     </div>`;
-    html += `<div class="sidebar-group-items" data-group-items="${escapeHTML(groupName)}"${collapsed ? ' style="display:none"' : ''}>`;
+    html += `<div class="sidebar-group-items" data-group-items="${escapeAttr(groupName)}"${collapsed ? ' style="display:none"' : ''}>`;
     for (const item of group.items) html += item.html;
     html += `</div>`;
   }
@@ -235,7 +304,7 @@ function _getGroupCollapsed(groupName) {
 export function toggleGroupAIContext(groupName) {
   const isOn = window.isGroupInAIContext && window.isGroupInAIContext(groupName);
   window.setGroupInAIContext(groupName, !isOn);
-  const btn = document.querySelector(`.sidebar-group-header[data-group-name="${groupName}"] .sidebar-ai-toggle`);
+  const btn = _findGroupHeader(groupName)?.querySelector('.sidebar-ai-toggle');
   if (btn) {
     btn.classList.toggle('active', !isOn);
     btn.title = !isOn ? 'Included in AI context' : 'Excluded from AI context — click to include';
@@ -243,8 +312,8 @@ export function toggleGroupAIContext(groupName) {
 }
 
 export function toggleNavGroup(groupName) {
-  const header = document.querySelector(`.sidebar-group-header[data-group-name="${groupName}"]`);
-  const items = document.querySelector(`.sidebar-group-items[data-group-items="${groupName}"]`);
+  const header = _findGroupHeader(groupName);
+  const items = _findGroupItems(groupName);
   if (!header || !items) return;
   const isCollapsed = header.classList.toggle('collapsed');
   items.style.display = isCollapsed ? 'none' : '';
@@ -271,6 +340,7 @@ export function filterSidebar() {
       const collapsed = _getGroupCollapsed(gn);
       el.style.display = '';
       el.classList.toggle('collapsed', collapsed);
+      el.querySelector('.sidebar-group-toggle')?.setAttribute('aria-expanded', String(!collapsed));
     });
     groupItemContainers.forEach(el => {
       const gn = el.dataset.groupItems;
@@ -291,10 +361,14 @@ export function filterSidebar() {
   groupItemContainers.forEach(el => {
     const gn = el.dataset.groupItems;
     const visibleItems = el.querySelectorAll('.nav-item:not([style*="display: none"])');
-    const header = document.querySelector(`.sidebar-group-header[data-group-name="${gn}"]`);
+    const header = _findGroupHeader(gn);
     if (visibleItems.length > 0) {
       el.style.display = '';
-      if (header) { header.style.display = ''; header.classList.remove('collapsed'); }
+      if (header) {
+        header.style.display = '';
+        header.classList.remove('collapsed');
+        header.querySelector('.sidebar-group-toggle')?.setAttribute('aria-expanded', 'true');
+      }
     } else {
       el.style.display = 'none';
       if (header) header.style.display = 'none';
@@ -311,6 +385,7 @@ export function getAvatarColor(id) {
 }
 
 export function renderProfileButton() {
+  installNavActionDelegates();
   const container = document.getElementById('profile-selector');
   if (!container) return;
   const profiles = getProfiles();
@@ -319,7 +394,7 @@ export function renderProfileButton() {
   const dot = active.avatar
     ? `<img class="profile-compact-dot profile-compact-img" src="${escapeAttr(active.avatar)}" alt="">`
     : `<span class="profile-compact-dot" style="background:${getAvatarColor(active.id)}">${escapeHTML((active.name || '?')[0].toUpperCase())}</span>`;
-  container.innerHTML = `<button class="profile-compact-btn" onclick="openClientList()" title="Manage clients">
+  container.innerHTML = `<button class="profile-compact-btn" ${_navActionAttrs('open-client-list')} title="Manage clients">
     ${dot}
     <span class="profile-compact-name">${escapeHTML(active.name)}</span>
     <span class="profile-compact-arrow">\u25BC</span>
@@ -351,4 +426,4 @@ export function closeMobileSidebar() {
   document.body.style.overflow = '';
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar });
+Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });

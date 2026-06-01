@@ -235,7 +235,9 @@ globalThis.fetch = async (url, opts) => {
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));
   const recNavMarkup = navSrc.match(/data-category="recommendations"[\s\S]{0,500}/)?.[0] || '';
-  assert('Recommendations sidebar routes to dedicated page', recNavMarkup.includes("window.navigate('recommendations')"));
+  assert('Recommendations sidebar routes to dedicated page',
+    recNavMarkup.includes("_navNavigateAttrs('recommendations')") &&
+    navSrc.includes("return _navActionAttrs('navigate', { route })"));
   assert('Recommendations sidebar item does not open Settings', !recNavMarkup.includes('openSettingsModal'));
   assert('views.js exposes dedicated Recommendations page', viewsSrc.includes('export function showRecommendations') && viewsSrc.includes('openRecommendationDetail'));
   assert('views.js delegates recommendation actions to recommendation-actions.js',
