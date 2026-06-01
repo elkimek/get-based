@@ -288,11 +288,9 @@ function handleThreadActionClick(event) {
     switchToThread(threadId);
   } else if (action === 'rename') {
     event.preventDefault();
-    event.stopPropagation();
     renameThreadPrompt(threadId);
   } else if (action === 'delete') {
     event.preventDefault();
-    event.stopPropagation();
     deleteThread(threadId);
   }
 }

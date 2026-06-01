@@ -73,11 +73,12 @@ return (async function() {
   // 11. Search Filtering
   // ═══════════════════════════════════════════════
   console.group('%c11. Search Filtering', 'font-weight:bold');
-  st.chatThreads = [
+  const threadFixtures = [
     { id: 't_a', name: 'Thyroid Panel Discussion', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 5, personality: 'default' },
     { id: 't_b', name: 'Vitamin D Levels', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 3, personality: 'default' },
     { id: 't_c', name: 'Cholesterol Overview', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2, personality: 'default' }
   ];
+  st.chatThreads = threadFixtures.map(t => ({ ...t }));
   window.saveChatThreadIndex();
   window.renderThreadList();
   const allItems = document.querySelectorAll('.chat-thread-item');
@@ -111,6 +112,15 @@ return (async function() {
   assert('delegated rename button renames thread',
     await waitFor(() => st.chatThreads.find(t => t.id === 't_a')?.name === 'Renamed Thread'));
   st.chatThreads.find(t => t.id === 't_a').name = 'Thyroid Panel Discussion';
+  window.renderThreadList();
+  document.querySelector('.chat-thread-item[data-thread-id="t_c"] .chat-thread-item-action.delete')?.click();
+  const confirmOk = await waitFor(() => document.getElementById('confirm-ok'));
+  document.getElementById('confirm-ok')?.click();
+  let deleted = false;
+  if (confirmOk) deleted = await waitFor(() => !st.chatThreads.some(t => t.id === 't_c'));
+  assert('delegated delete button removes thread after confirmation',
+    deleted);
+  st.chatThreads = threadFixtures.map(t => ({ ...t }));
   window.renderThreadList();
 
   window.filterThreadList('thyroid');
