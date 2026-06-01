@@ -68,6 +68,21 @@ return (async function() {
       localStorage.getItem('labcharts-crt-effects') === 'true'
         && document.documentElement.dataset.crtEffects === 'on');
 
+    window.setTheme?.('dark');
+    window.setCrtEffectsEnabled?.(false);
+    window.openTweaksPanel();
+    await delay(50);
+    const disabledCrtInput = document.querySelector('#tweaks-crt-effects');
+    const disabledCrtToggle = document.querySelector('#tweaks-crt-effects + .toggle-slider');
+    assert('CRT toggle is disabled on unsupported themes',
+      disabledCrtInput?.disabled === true);
+    disabledCrtToggle?.click();
+    await delay(50);
+    assert('Disabled CRT slider click does not persist on state',
+      localStorage.getItem('labcharts-crt-effects') !== 'true'
+        && document.documentElement.dataset.crtEffects !== 'on'
+        && disabledCrtInput?.checked === false);
+
     window.closeTweaksPanel?.();
     window.closeSettingsModal?.();
   } finally {

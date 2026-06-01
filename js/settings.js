@@ -300,10 +300,13 @@ function toggleInputFromProxyClick(event, selector, root) {
   const toggle = target.closest('.toggle-switch');
   if (!toggle || !root.contains(toggle)) return null;
   const input = toggle.querySelector(selector);
-  return input instanceof HTMLInputElement ? input : null;
+  if (!(input instanceof HTMLInputElement) || input.disabled) return null;
+  return input;
 }
 
 function applySettingsToggle(actionEl) {
+  if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
+
   const action = actionEl.dataset.settingsAction;
   if (action === 'set-product-recs') {
     setProductRecsEnabled(actionEl instanceof HTMLInputElement && actionEl.checked);
@@ -323,6 +326,8 @@ function isSettingsToggleAction(actionEl) {
 }
 
 function applyTweaksToggle(actionEl) {
+  if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
+
   const action = actionEl.dataset.tweaksAction;
   if (action === 'toggle-sunset') {
     toggleTweaksSunsetMode(actionEl instanceof HTMLInputElement && actionEl.checked);
@@ -408,7 +413,9 @@ function handleSettingsChange(event) {
   const actionEl = closestWithin(event, '[data-settings-action]', modal);
   if (!actionEl) return;
 
-  applySettingsToggle(actionEl);
+  if (isSettingsToggleAction(actionEl)) {
+    applySettingsToggle(actionEl);
+  }
 }
 
 function installSettingsDelegates(modal) {
@@ -475,7 +482,9 @@ function handleTweaksChange(event) {
   const actionEl = closestWithin(event, '[data-tweaks-action]', overlay);
   if (!actionEl) return;
 
-  applyTweaksToggle(actionEl);
+  if (isTweaksToggleAction(actionEl)) {
+    applyTweaksToggle(actionEl);
+  }
 }
 
 function installTweaksDelegates(overlay) {
