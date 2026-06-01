@@ -33,6 +33,8 @@ console.log('=== Dashboard Widget Delegated Actions ===');
 
 assert('dashboard widget controls render no inline event attributes',
   !/\bon(?:click|input|dragstart|dragover|drop)=/.test(controlsSrc));
+assert('dashboard widget renderers render no inline event attributes',
+  !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(renderersSrc));
 assert('dashboard widget controls render delegated action attributes',
   controlsSrc.includes('function dashboardWidgetActionAttrs') &&
     controlsSrc.includes('data-dashboard-widget-action=') &&
@@ -67,6 +69,12 @@ assert('dashboard biometric overview renders delegated widget actions',
     biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-manual-log'") &&
     biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-detail'") &&
     biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-picker'"));
+assert('dashboard renderer body actions use the shared dashboard delegate contract',
+  renderersSrc.includes("dashboardWidgetActionAttrs('open-marker-detail'") &&
+    renderersSrc.includes("dashboardWidgetActionAttrs('navigate'") &&
+    renderersSrc.includes("dashboardWidgetActionAttrs('trigger-dna-picker'") &&
+    renderersSrc.includes("dashboardWidgetActionAttrs('open-note-editor'") &&
+    renderersSrc.includes("dashboardWidgetActionAttrs('delete-note'"));
 assert('dashboard widget click delegate lets nested wearable actions handle inline forms',
   controlsSrc.includes("target.closest('[data-wearable-action]')") &&
     controlsSrc.includes('actionEl.contains(wearableActionEl)') &&
@@ -95,6 +103,11 @@ assert('dashboard organize mode disables dense grid packing',
   'remove-biometric-metric',
   'open-biometric-detail',
   'open-biometric-manual-log',
+  'open-marker-detail',
+  'navigate',
+  'trigger-dna-picker',
+  'open-note-editor',
+  'delete-note',
 ].forEach(action => {
   assert(`dashboard widget action ${action} is handled`, controlsSrc.includes(`action === '${action}'`));
 });

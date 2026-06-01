@@ -3,6 +3,14 @@
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 
+const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
+  'open-biometric-manual-log',
+  'open-marker-detail',
+  'navigate',
+  'trigger-dna-picker',
+  'open-note-editor',
+]);
+
 export function dashboardWidgetActionAttrs(action, attrs = {}) {
   return [
     `data-dashboard-widget-action="${escapeAttr(action)}"`,
@@ -263,6 +271,24 @@ export function createDashboardWidgetControls(deps) {
       else window.openSettingsModal?.('wearables');
     } else if (action === 'open-biometric-manual-log') {
       window.openManualLogForm?.(id, event);
+    } else if (action === 'open-marker-detail') {
+      if (safeMarkerId(id)) window.showDetailModal?.(id);
+    } else if (action === 'navigate') {
+      const route = actionEl.dataset.dashboardWidgetRoute || '';
+      if (/^[a-zA-Z0-9_-]+$/.test(route)) window.navigate?.(route);
+    } else if (action === 'trigger-dna-picker') {
+      window.triggerDNAFilePicker?.();
+    } else if (action === 'open-note-editor') {
+      const rawIndex = actionEl.dataset.dashboardWidgetIndex;
+      if (rawIndex == null || rawIndex === '') {
+        window.openNoteEditor?.();
+      } else {
+        const index = Number(rawIndex);
+        if (Number.isInteger(index) && index >= 0) window.openNoteEditor?.(null, index);
+      }
+    } else if (action === 'delete-note') {
+      const index = Number(actionEl.dataset.dashboardWidgetIndex);
+      if (Number.isInteger(index) && index >= 0) window.deleteNote?.(index);
     }
   }
 
@@ -289,7 +315,7 @@ export function createDashboardWidgetControls(deps) {
     if (target.closest('input, textarea, select, button, a')) return;
     const actionEl = target.closest('[data-dashboard-widget-action]');
     if (!actionEl) return;
-    if ((actionEl.dataset.dashboardWidgetAction || '') !== 'open-biometric-manual-log') return;
+    if (!DASHBOARD_WIDGET_KEYBOARD_ACTIONS.has(actionEl.dataset.dashboardWidgetAction || '')) return;
     event.preventDefault();
     actionEl.click();
   }

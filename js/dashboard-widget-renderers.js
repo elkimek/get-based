@@ -13,6 +13,14 @@ import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiv
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
+function dashboardNavigateAttrs(route) {
+  return dashboardWidgetActionAttrs('navigate', { route });
+}
+
+function dashboardMarkerDetailAttrs(id) {
+  return dashboardWidgetActionAttrs('open-marker-detail', { id });
+}
+
 export function createDashboardWidgetRenderers(deps) {
   let _dashboardGenomeSnpLoadPromise = null;
 
@@ -71,7 +79,7 @@ export function createDashboardWidgetRenderers(deps) {
       <div class="sun-detail-ai sun-detail-ai-idle">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>Open Light &amp; Sun to review today's sun, devices, environment, and channel rhythm.</span>
-        <button class="sun-session-ai-refresh" onclick="window.navigate && window.navigate('light')">Open Light &amp; Sun</button>
+        <button type="button" class="sun-session-ai-refresh" ${dashboardNavigateAttrs('light')}>Open Light &amp; Sun</button>
       </div>
     </div>`;
     return heroHtml;
@@ -95,7 +103,7 @@ export function createDashboardWidgetRenderers(deps) {
     return `<div class="light-channels-section light-channels-section-dashboard">
       <p class="light-section-hint">${lead}</p>
       ${renderDashboardLightChannelPills()}
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-dashboard-open-btn" onclick="window.navigate && window.navigate('light')">Open Light &amp; Sun</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-dashboard-open-btn" ${dashboardNavigateAttrs('light')}>Open Light &amp; Sun</button>
     </div>`;
   }
 
@@ -160,7 +168,7 @@ export function createDashboardWidgetRenderers(deps) {
       || getDashboardMarkerByPath(ctx.data, 'ratios', 'bortzAge');
     const pct = Number.isFinite(value) ? Math.max(4, Math.min(100, (value / 70) * 100)) : 35;
     const tag = hit ? 'button' : 'div';
-    const open = hit ? ` type="button" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr((hit.marker?.name || 'Biological Age') + ': ' + display)}"` : '';
+    const open = hit ? ` type="button" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr((hit.marker?.name || 'Biological Age') + ': ' + display)}"` : '';
     return `<${tag} class="db-hero-bio"${open}>
       <div class="db-hero-bio-left">
         <div class="db-hero-bio-num">${escapeHTML(display)}</div>
@@ -422,7 +430,7 @@ export function createDashboardWidgetRenderers(deps) {
   function renderDashboardQuickMarkerTile(hit) {
     const scoreLabel = getDashboardPriorityLabel(hit, { pinned: hit.quickMarkerPinned });
     const reason = `${scoreLabel} · ${hit.priorityReason || 'latest tracked marker'}`;
-    return `<button type="button" class="db-stat-widget db-quick-marker-tile db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    return `<button type="button" class="db-stat-widget db-quick-marker-tile db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
       <div class="db-stat-head">
         <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
         <span>${escapeHTML(hit.marker.name)}</span>
@@ -447,7 +455,7 @@ export function createDashboardWidgetRenderers(deps) {
     const rangeText = range.min != null || range.max != null
       ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
       : 'Custom marker widget';
-    return `<button type="button" class="db-stat-widget db-single-marker-widget db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    return `<button type="button" class="db-stat-widget db-single-marker-widget db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
       <div class="db-stat-head">
         <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
         <span>${escapeHTML(hit.marker.name)}</span>
@@ -611,7 +619,7 @@ export function createDashboardWidgetRenderers(deps) {
       ? `Range ${range.min != null ? formatValue(range.min) : '—'}–${range.max != null ? formatValue(range.max) : '—'} ${hit.marker.unit || ''}`
       : 'No active range';
     const priorityText = `${getDashboardPriorityLabel(hit)} · ${hit.priorityReason || 'latest tracked marker'}`;
-    return `<button type="button" class="db-spotlight" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    return `<button type="button" class="db-spotlight" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
       <div class="db-spotlight-head">
         <div>
           <div class="db-spotlight-name">${escapeHTML(hit.marker.name)}</div>
@@ -628,7 +636,7 @@ export function createDashboardWidgetRenderers(deps) {
     const hit = getDashboardSpotlight(ctx);
     if (!hit) return '';
     const priorityText = `${getDashboardPriorityLabel(hit)} · ${hit.priorityReason || 'latest tracked marker'}`;
-    return `<button type="button" class="labs-priority-banner db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    return `<button type="button" class="labs-priority-banner db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
       <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
       <span class="labs-priority-copy">
         <span class="labs-priority-kicker">Current Priority</span>
@@ -645,7 +653,7 @@ export function createDashboardWidgetRenderers(deps) {
     const insights = getMobileDashboardInsights(ctx, markers);
     if (!insights.length) return '';
     return `<div class="db-insights-list">${insights.map(insight => {
-      const open = insight.id && safeMarkerId(insight.id) ? ` onclick="window.showDetailModal('${insight.id}')"` : '';
+      const open = insight.id && safeMarkerId(insight.id) ? ` ${dashboardMarkerDetailAttrs(insight.id)}` : '';
       return `<button type="button" class="db-insight db-insight-${escapeAttr(insight.tone)}"${open}>
         <span class="db-insight-tag">${escapeHTML(insight.eyebrow)}</span>
         <strong>${escapeHTML(insight.title)}</strong>
@@ -925,7 +933,7 @@ export function createDashboardWidgetRenderers(deps) {
       .filter(f => f.gene || f.variant || f.genotype)
       .sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
     if (!findings.length && !apoe && !genetics?.mtdna) {
-      return `<button type="button" class="db-genome-empty" onclick="window.triggerDNAFilePicker && window.triggerDNAFilePicker()">
+      return `<button type="button" class="db-genome-empty" ${dashboardWidgetActionAttrs('trigger-dna-picker')}>
         <strong>Add DNA data</strong>
         <span>Top variants will appear here alongside labs and body signals.</span>
       </button>`;
@@ -1027,7 +1035,7 @@ export function createDashboardWidgetRenderers(deps) {
   function renderDashboardCorrelationWidget(ctx) {
     const result = getDashboardCorrelationPairs(ctx);
     if (!result?.pairs?.length) {
-      return `<button type="button" class="db-correlation-empty" onclick="window.navigate('correlations')">
+      return `<button type="button" class="db-correlation-empty" ${dashboardNavigateAttrs('correlations')}>
         <strong>Pick markers to compare</strong>
         <span>Correlations need at least three shared dated values.</span>
       </button>`;
@@ -1035,12 +1043,12 @@ export function createDashboardWidgetRenderers(deps) {
     return `<div class="db-correlation-widget">
       <div class="db-correlation-head">
         <span>vs <strong>${escapeHTML(result.target.marker.name || 'target marker')}</strong></span>
-        <button type="button" onclick="window.navigate('correlations')">Open</button>
+        <button type="button" ${dashboardNavigateAttrs('correlations')}>Open</button>
       </div>
       <div class="db-correlation-grid">
         ${result.pairs.map(pair => {
           const directionClass = pair.r >= 0 ? 'db-correlation-cell-pos' : 'db-correlation-cell-neg';
-          return `<button type="button" class="db-correlation-cell ${directionClass}" onclick="window.showDetailModal('${pair.id}')">
+          return `<button type="button" class="db-correlation-cell ${directionClass}" ${dashboardMarkerDetailAttrs(pair.id)}>
             <span>${escapeHTML(pair.name)}</span>
             <strong>${pair.r.toFixed(2)}</strong>
             <small>${escapeHTML(pair.value)}${pair.unit ? ` ${escapeHTML(pair.unit)}` : ''}</small>
@@ -1066,7 +1074,7 @@ export function createDashboardWidgetRenderers(deps) {
       || getDashboardMarkerByPath(ctx.data, km.cat, km.key);
     if (!hit) return '';
     const reason = getDashboardKeyTrendReason(ctx, hit.id, hit);
-    return `<button type="button" class="db-key-trend-row db-status-${escapeAttr(hit.status)}" onclick="window.showDetailModal('${hit.id}')" aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
+    return `<button type="button" class="db-key-trend-row db-status-${escapeAttr(hit.status)}" ${dashboardMarkerDetailAttrs(hit.id)} aria-label="${escapeAttr(hit.marker.name + ': ' + formatValue(hit.value) + ' ' + (hit.marker.unit || ''))}">
       <span class="db-status-dot db-status-${escapeAttr(hit.status)}" aria-hidden="true"></span>
       <span class="db-key-trend-name-wrap">
         <span class="db-key-trend-name">${escapeHTML(hit.marker.name)}</span>
@@ -1105,7 +1113,7 @@ export function createDashboardWidgetRenderers(deps) {
         : alert.concern === 'past_low' ? 'Below range & falling'
         : alert.concern === 'approaching_high' ? 'Approaching upper limit'
         : 'Approaching lower limit';
-      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" onclick="window.showDetailModal && window.showDetailModal('${alert.id}')">
+      html += `<div class="trend-alert-card ${cls}" role="button" tabindex="0" aria-label="${escapeHTML(alert.name)} \u2014 ${label}" ${dashboardMarkerDetailAttrs(alert.id)}>
         <span class="trend-alert-arrow">${arrow}</span>
         <div class="trend-alert-info">
           <div class="trend-alert-name">${escapeHTML(alert.name)} <span class="trend-alert-cat">${escapeHTML(alert.category)}</span></div>
@@ -1117,7 +1125,7 @@ export function createDashboardWidgetRenderers(deps) {
     for (const f of criticalFlags) {
       const cls = f.status === "high" ? "alert-high" : "alert-low";
       const label = f.status === "high" ? "\u25B2 CRITICAL HIGH" : "\u25BC CRITICAL LOW";
-      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" onclick="window.navigate && window.navigate('${f.categoryKey}')">
+      html += `<div class="alert-card ${cls}" role="button" tabindex="0" aria-label="${label}: ${escapeHTML(f.name)} ${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}" ${dashboardNavigateAttrs(f.categoryKey)}>
         <span class="alert-indicator">${label}</span>
         <span class="alert-name">${escapeHTML(f.name)}</span>
         <span class="alert-value">${escapeHTML(String(f.value))} ${escapeHTML(f.unit)}</span>
@@ -1130,7 +1138,7 @@ export function createDashboardWidgetRenderers(deps) {
   function renderDashboardNotesWidget() {
     const hasNotes = state.importedData.notes && state.importedData.notes.length > 0;
     let html = `<div class="notes-section dashboard-notes-widget">`;
-    html += `<button class="add-note-btn" onclick="openNoteEditor()">+ Add Note</button>`;
+    html += `<button type="button" class="add-note-btn" ${dashboardWidgetActionAttrs('open-note-editor')}>+ Add Note</button>`;
     if (hasNotes) {
       const notes = state.importedData.notes
         .map((note, i) => ({ note, idx: i }))
@@ -1138,12 +1146,12 @@ export function createDashboardWidgetRenderers(deps) {
       for (const { note, idx } of notes) {
         const d = new Date(note.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const preview = escapeHTML(note.text.length > 200 ? note.text.slice(0, 200) + '...' : note.text);
-        html += `<div class="note-card" role="button" tabindex="0" aria-label="Note from ${d}" onclick="openNoteEditor(null, ${idx})">
+        html += `<div class="note-card" role="button" tabindex="0" aria-label="Note from ${d}" ${dashboardWidgetActionAttrs('open-note-editor', { index: idx })}>
           <div class="note-card-date">${d}</div>
           <div class="note-card-text">${preview}</div>
           <div class="note-card-actions">
-            <button class="note-card-action" onclick="event.stopPropagation();openNoteEditor(null, ${idx})">Edit</button>
-            <button class="note-card-action note-card-action-delete" onclick="event.stopPropagation();deleteNote(${idx})">Delete</button>
+            <button type="button" class="note-card-action" ${dashboardWidgetActionAttrs('open-note-editor', { index: idx })}>Edit</button>
+            <button type="button" class="note-card-action note-card-action-delete" ${dashboardWidgetActionAttrs('delete-note', { index: idx })}>Delete</button>
           </div>
         </div>`;
       }

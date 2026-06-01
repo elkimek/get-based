@@ -22,8 +22,30 @@ return (async function() {
   let originalBiometricSelection;
   let originalWearableSummary;
   let originalWearableConnections;
+  let originalShowDetailModal;
+  let originalNavigate;
+  let originalTriggerDNAFilePicker;
+  let originalOpenNoteEditor;
+  let originalDeleteNote;
+  let bodyActionHost;
+  let hadShowDetailModal = false;
+  let hadNavigate = false;
+  let hadTriggerDNAFilePicker = false;
+  let hadOpenNoteEditor = false;
+  let hadDeleteNote = false;
   let hadWearableSummary = false;
   let hadWearableConnections = false;
+
+  hadShowDetailModal = Object.prototype.hasOwnProperty.call(window, 'showDetailModal');
+  hadNavigate = Object.prototype.hasOwnProperty.call(window, 'navigate');
+  hadTriggerDNAFilePicker = Object.prototype.hasOwnProperty.call(window, 'triggerDNAFilePicker');
+  hadOpenNoteEditor = Object.prototype.hasOwnProperty.call(window, 'openNoteEditor');
+  hadDeleteNote = Object.prototype.hasOwnProperty.call(window, 'deleteNote');
+  originalShowDetailModal = window.showDetailModal;
+  originalNavigate = window.navigate;
+  originalTriggerDNAFilePicker = window.triggerDNAFilePicker;
+  originalOpenNoteEditor = window.openNoteEditor;
+  originalDeleteNote = window.deleteNote;
 
   try {
     if (!window.getActiveData?.()?.dates?.length) {
@@ -54,6 +76,16 @@ return (async function() {
     assert('organize controls render move/hide data actions',
       !!document.querySelector('.dashboard-widget-tool[data-dashboard-widget-action="move-widget"][data-dashboard-widget-direction]') &&
         !!document.querySelector('.dashboard-widget-tool[data-dashboard-widget-action="hide-widget"]'));
+    const rendererInlineHandler = document.querySelector([
+      '.dashboard-widget[data-widget-id="bio-age"] .db-hero-bio[onclick]',
+      '.dashboard-widget[data-widget-id="spotlight"] .db-spotlight[onclick]',
+      '.dashboard-widget[data-widget-id="quick-markers"] .db-quick-marker-tile[onclick]',
+      '.dashboard-widget[data-widget-id="key-trends"] .db-key-trend-row[onclick]',
+    ].join(', '));
+    assert('dashboard marker widget bodies have no inline handlers',
+      !rendererInlineHandler, rendererInlineHandler?.outerHTML || '');
+    assert('dashboard marker widget bodies render delegated detail actions',
+      !!document.querySelector('.dashboard-widget-body [data-dashboard-widget-action="open-marker-detail"][data-dashboard-widget-id]'));
 
     const addBtn = document.querySelector('.dashboard-sticky-actions [data-dashboard-widget-action="open-picker"]');
     addBtn?.click();
@@ -176,7 +208,48 @@ return (async function() {
     const selectedAfterRemove = JSON.parse(localStorage.getItem(biometricSelectionKey) || '[]');
     assert('Delegated remove-metric click updates biometric selection',
       !selectedAfterRemove.includes('rhr'));
+
+    const bodyActionCalls = [];
+    window.showDetailModal = id => bodyActionCalls.push(['detail', id]);
+    window.navigate = route => bodyActionCalls.push(['navigate', route]);
+    window.triggerDNAFilePicker = () => bodyActionCalls.push(['dna']);
+    window.openNoteEditor = (scope, index) => bodyActionCalls.push(['note', index]);
+    window.deleteNote = index => bodyActionCalls.push(['delete-note', index]);
+    bodyActionHost = document.createElement('div');
+    bodyActionHost.innerHTML = `
+      <button type="button" data-dashboard-widget-action="open-marker-detail" data-dashboard-widget-id="lipids_apoB">Marker</button>
+      <button type="button" data-dashboard-widget-action="navigate" data-dashboard-widget-route="light">Light</button>
+      <button type="button" data-dashboard-widget-action="trigger-dna-picker">DNA</button>
+      <div role="button" tabindex="0" data-dashboard-widget-action="open-note-editor" data-dashboard-widget-index="2">
+        Note
+        <button type="button" data-dashboard-widget-action="delete-note" data-dashboard-widget-index="2">Delete</button>
+      </div>
+    `;
+    document.body.appendChild(bodyActionHost);
+    bodyActionHost.querySelector('[data-dashboard-widget-action="open-marker-detail"]')?.click();
+    bodyActionHost.querySelector('[data-dashboard-widget-action="navigate"]')?.click();
+    bodyActionHost.querySelector('[data-dashboard-widget-action="trigger-dna-picker"]')?.click();
+    bodyActionHost.querySelector('[data-dashboard-widget-action="open-note-editor"]')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    bodyActionHost.querySelector('[data-dashboard-widget-action="delete-note"]')?.click();
+    await delay(50);
+    assert('Dashboard widget body delegate handles marker, navigation, DNA, and note actions',
+      bodyActionCalls.some(c => c[0] === 'detail' && c[1] === 'lipids_apoB') &&
+        bodyActionCalls.some(c => c[0] === 'navigate' && c[1] === 'light') &&
+        bodyActionCalls.some(c => c[0] === 'dna') &&
+        bodyActionCalls.some(c => c[0] === 'note' && c[1] === 2) &&
+        bodyActionCalls.some(c => c[0] === 'delete-note' && c[1] === 2));
   } finally {
+    if (bodyActionHost) bodyActionHost.remove();
+    if (hadShowDetailModal) window.showDetailModal = originalShowDetailModal;
+    else delete window.showDetailModal;
+    if (hadNavigate) window.navigate = originalNavigate;
+    else delete window.navigate;
+    if (hadTriggerDNAFilePicker) window.triggerDNAFilePicker = originalTriggerDNAFilePicker;
+    else delete window.triggerDNAFilePicker;
+    if (hadOpenNoteEditor) window.openNoteEditor = originalOpenNoteEditor;
+    else delete window.openNoteEditor;
+    if (hadDeleteNote) window.deleteNote = originalDeleteNote;
+    else delete window.deleteNote;
     if (typeof originalSyncWearableNow !== 'undefined') window.syncWearableNow = originalSyncWearableNow;
     if (typeof originalBiometricSelection === 'string') localStorage.setItem(biometricSelectionKey, originalBiometricSelection);
     else localStorage.removeItem(biometricSelectionKey);
