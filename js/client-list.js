@@ -12,6 +12,7 @@ let _statusFilter = 'active';
 let _tagFilter = '';
 let _editingId = null;
 let _pendingAvatar = undefined; // undefined = no change, null = remove, string = new dataURL
+let clientListDelegatesInstalled = false;
 
 const CL_ICONS = Object.freeze({
   archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
@@ -30,11 +31,28 @@ const CL_ICONS = Object.freeze({
   user: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
 });
 
-function _clMenuButton({ icon, label, onclick, danger = false }) {
-  return `<button type="button" class="cl-menu-item${danger ? ' cl-menu-danger' : ''}" onclick="${onclick}">${icon}<span>${label}</span></button>`;
+function _clActionAttrs(action, attrs = {}) {
+  return Object.entries({ 'data-cl-action': action, ...attrs })
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
+    .join(' ');
 }
 
-// Use imported escapeAttr for onclick="fn('${val}')" contexts
+function _clInputAttrs(action) {
+  return `data-cl-input-action="${escapeAttr(action)}"`;
+}
+
+function _clChangeAttrs(action) {
+  return `data-cl-change-action="${escapeAttr(action)}"`;
+}
+
+function _clKeyAttrs(action) {
+  return `data-cl-key-action="${escapeAttr(action)}"`;
+}
+
+function _clMenuButton({ icon, label, action, profileId, danger = false }) {
+  return `<button type="button" class="cl-menu-item${danger ? ' cl-menu-danger' : ''}" ${_clActionAttrs(action, { 'data-cl-profile-id': profileId })}>${icon}<span>${escapeHTML(label)}</span></button>`;
+}
 
 // ═══════════════════════════════════════════════
 // AVATAR HELPERS
@@ -146,33 +164,33 @@ function renderClientList() {
       </div>
     </div>
     <div class="cl-header-right">
-      <input type="file" id="cl-json-import" accept=".json" style="display:none" onchange="if(this.files[0]){closeClientList();window.importDataJSON(this.files[0]);this.value=''}">
+      <input type="file" id="cl-json-import" accept=".json" style="display:none" ${_clChangeAttrs('import-json')}>
       <div class="cl-tools-wrap">
-        <button type="button" class="cl-icon-btn cl-tools-btn" onclick="window._clToggleToolsMenu(event)" aria-label="More client actions" title="More actions">${CL_ICONS.more}</button>
+        <button type="button" class="cl-icon-btn cl-tools-btn" ${_clActionAttrs('toggle-tools-menu')} aria-label="More client actions" title="More actions">${CL_ICONS.more}</button>
         <div class="cl-tools-menu" id="cl-tools-menu">
-          <button type="button" class="cl-tools-item" onclick="window._clCloseMenus();document.getElementById('cl-json-import').click()">${CL_ICONS.import}<span>Import JSON</span></button>
-          <button type="button" class="cl-tools-item" onclick="window._clCloseMenus();window.exportAllDataJSON()">${CL_ICONS.export}<span>Export all</span></button>
-          <button type="button" class="cl-tools-item" onclick="closeClientList();window.loadDemoData('female')">${CL_ICONS.user}<span>Demo Sarah</span></button>
-          <button type="button" class="cl-tools-item" onclick="closeClientList();window.loadDemoData('male')">${CL_ICONS.user}<span>Demo Alex</span></button>
+          <button type="button" class="cl-tools-item" ${_clActionAttrs('trigger-json-import')}>${CL_ICONS.import}<span>Import JSON</span></button>
+          <button type="button" class="cl-tools-item" ${_clActionAttrs('export-all')}>${CL_ICONS.export}<span>Export all</span></button>
+          <button type="button" class="cl-tools-item" ${_clActionAttrs('load-demo', { 'data-cl-demo': 'female' })}>${CL_ICONS.user}<span>Demo Sarah</span></button>
+          <button type="button" class="cl-tools-item" ${_clActionAttrs('load-demo', { 'data-cl-demo': 'male' })}>${CL_ICONS.user}<span>Demo Alex</span></button>
         </div>
       </div>
-      <button type="button" class="cl-new-btn" onclick="openClientForm()" aria-label="New Client">${CL_ICONS.plus}<span>New Client</span></button>
-      <button type="button" class="modal-close cl-icon-btn" onclick="closeClientList()" aria-label="Close">${CL_ICONS.close}</button>
+      <button type="button" class="cl-new-btn" ${_clActionAttrs('open-form')} aria-label="New Client">${CL_ICONS.plus}<span>New Client</span></button>
+      <button type="button" class="modal-close cl-icon-btn" ${_clActionAttrs('close')} aria-label="Close">${CL_ICONS.close}</button>
     </div>
   </div>
   <div class="cl-toolbar">
     <label class="cl-search-wrap" for="cl-search">
       ${CL_ICONS.search}
-      <input type="text" class="cl-search" id="cl-search" placeholder="Search clients..." value="${escapeHTML(_search)}" oninput="window._clSearch(this.value)">
+      <input type="text" class="cl-search" id="cl-search" placeholder="Search clients..." value="${escapeHTML(_search)}" ${_clInputAttrs('search')}>
     </label>
     <div class="cl-filter-group">
-      <select class="cl-sort" aria-label="Sort clients" onchange="window._clSort(this.value)">
+      <select class="cl-sort" aria-label="Sort clients" ${_clChangeAttrs('sort')}>
         <option value="lastUpdated"${_sort === 'lastUpdated' ? ' selected' : ''}>Last Updated</option>
         <option value="az"${_sort === 'az' ? ' selected' : ''}>A \u2192 Z</option>
         <option value="za"${_sort === 'za' ? ' selected' : ''}>Z \u2192 A</option>
         <option value="created"${_sort === 'created' ? ' selected' : ''}>Created</option>
       </select>
-      <select class="cl-status-filter" aria-label="Filter client status" onchange="window._clStatusFilter(this.value)">
+      <select class="cl-status-filter" aria-label="Filter client status" ${_clChangeAttrs('status-filter')}>
         <option value="active"${_statusFilter === 'active' ? ' selected' : ''}>Active</option>
         <option value="flagged"${_statusFilter === 'flagged' ? ' selected' : ''}>Flagged</option>
         <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
@@ -186,10 +204,10 @@ function renderClientList() {
     html += `<div class="cl-tag-filters">`;
     for (const tag of allTags) {
       const active = _tagFilter === tag;
-      html += `<button class="cl-tag-chip${active ? ' active' : ''}" onclick="window._clTagFilter('${escapeAttr(tag)}')">${escapeHTML(tag)}</button>`;
+      html += `<button class="cl-tag-chip${active ? ' active' : ''}" ${_clActionAttrs('tag-filter', { 'data-cl-tag': tag })}>${escapeHTML(tag)}</button>`;
     }
     if (_tagFilter) {
-      html += `<button class="cl-tag-chip cl-tag-clear" onclick="window._clTagFilter('')">Clear</button>`;
+      html += `<button class="cl-tag-chip cl-tag-clear" ${_clActionAttrs('tag-filter', { 'data-cl-tag': '' })}>Clear</button>`;
     }
     html += `</div>`;
   }
@@ -237,7 +255,7 @@ function _renderClientRow(p, activeId) {
     tags = p.tags.map(t => `<span class="cl-row-tag">${escapeHTML(t)}</span>`).join('');
   }
 
-  return `<div class="cl-row${isActive ? ' cl-row-active' : ''}" data-id="${eid}" role="button" tabindex="0" onclick="window._clSelect('${eid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window._clSelect('${eid}')}">
+  return `<div class="cl-row${isActive ? ' cl-row-active' : ''}" data-id="${eid}" ${_clActionAttrs('select-profile', { 'data-cl-profile-id': p.id })} ${_clKeyAttrs('select-profile')} role="button" tabindex="0">
     ${_renderAvatarEl(p)}
     <div class="cl-row-info">
       <div class="cl-row-top">
@@ -248,9 +266,9 @@ function _renderClientRow(p, activeId) {
         <span class="cl-row-time">${escapeHTML(timeAgo)}</span>${notePreview ? `<span class="cl-row-sep">&middot;</span><span class="cl-row-note">${escapeHTML(notePreview)}</span>` : ''}
       </div>
     </div>
-    <div class="cl-row-actions" onclick="event.stopPropagation()">
-      <button type="button" class="cl-row-edit cl-icon-btn" onclick="openClientForm('${eid}')" title="Edit" aria-label="Edit ${label}">${CL_ICONS.edit}</button>
-      <button type="button" class="cl-row-menu-btn cl-icon-btn" onclick="window._clToggleMenu(event, '${eid}')" title="More" aria-label="More actions for ${label}">${CL_ICONS.more}</button>
+    <div class="cl-row-actions">
+      <button type="button" class="cl-row-edit cl-icon-btn" ${_clActionAttrs('edit-profile', { 'data-cl-profile-id': p.id })} title="Edit" aria-label="Edit ${label}">${CL_ICONS.edit}</button>
+      <button type="button" class="cl-row-menu-btn cl-icon-btn" ${_clActionAttrs('toggle-menu', { 'data-cl-profile-id': p.id })} title="More" aria-label="More actions for ${label}">${CL_ICONS.more}</button>
     </div>
   </div>`;
 }
@@ -310,27 +328,27 @@ export function openClientForm(profileId) {
 
   modal.innerHTML = `<div class="cl-header cl-form-header">
     <div class="cl-header-left">
-      <button type="button" class="cl-back-btn cl-icon-btn" onclick="window._clBackToList()" aria-label="Back to clients">${CL_ICONS.arrowLeft}</button>
+      <button type="button" class="cl-back-btn cl-icon-btn" ${_clActionAttrs('back-to-list')} aria-label="Back to clients">${CL_ICONS.arrowLeft}</button>
       <div>
         <h2 class="cl-title">${p ? 'Edit Client' : 'New Client'}</h2>
         <div class="cl-count">${p ? escapeHTML(p.name || 'Profile') : 'Create a local profile'}</div>
       </div>
     </div>
     <div class="cl-header-right">
-      <button type="button" class="modal-close cl-icon-btn" onclick="closeClientList()" aria-label="Close">${CL_ICONS.close}</button>
+      <button type="button" class="modal-close cl-icon-btn" ${_clActionAttrs('close')} aria-label="Close">${CL_ICONS.close}</button>
     </div>
   </div>
-  <form class="cl-form" onsubmit="window._clSaveForm(event)">
+  <form class="cl-form" data-cl-submit-action="save-form">
     <div class="cl-form-body">
       <section class="cl-form-section">
         <div class="cl-section-title">Profile</div>
         <div class="cl-form-row cl-avatar-row">
-          <div class="cl-avatar-picker" onclick="document.getElementById('cl-avatar-input').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('cl-avatar-input').click()}">
+          <div class="cl-avatar-picker" ${_clActionAttrs('choose-avatar')} ${_clKeyAttrs('choose-avatar')} role="button" tabindex="0">
             ${avatarPreview}
             <span class="cl-avatar-edit-icon">${CL_ICONS.camera}</span>
           </div>
-          <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" onchange="window._clAvatarChanged(this)">
-          ${avatar ? `<button type="button" class="cl-avatar-remove" onclick="window._clRemoveAvatar()">Remove photo</button>` : ''}
+          <input type="file" id="cl-avatar-input" accept="image/*" style="display:none" ${_clChangeAttrs('avatar-changed')}>
+          ${avatar ? `<button type="button" class="cl-avatar-remove" ${_clActionAttrs('remove-avatar')}>Remove photo</button>` : ''}
         </div>
         <div class="cl-form-row">
           <label class="cl-form-label" for="cl-name">Name <span class="cl-required">*</span></label>
@@ -340,8 +358,8 @@ export function openClientForm(profileId) {
           <div class="cl-form-row cl-form-col">
             <label class="cl-form-label">Sex</label>
             <div class="cl-sex-toggle" id="cl-sex-toggle">
-              <button type="button" class="sex-toggle-btn${sex === 'male' ? ' active' : ''}" data-sex="male" onclick="window._clSetSex('male')">Male</button>
-              <button type="button" class="sex-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex="female" onclick="window._clSetSex('female')">Female</button>
+              <button type="button" class="sex-toggle-btn${sex === 'male' ? ' active' : ''}" data-sex="male" ${_clActionAttrs('set-sex', { 'data-cl-sex': 'male' })}>Male</button>
+              <button type="button" class="sex-toggle-btn${sex === 'female' ? ' active' : ''}" data-sex="female" ${_clActionAttrs('set-sex', { 'data-cl-sex': 'female' })}>Female</button>
             </div>
           </div>
           <div class="cl-form-row cl-form-col">
@@ -357,7 +375,7 @@ export function openClientForm(profileId) {
           <label class="cl-form-label" for="cl-country">Location <span class="cl-label-detail">drives regional recommendations and affiliate URLs</span></label>
           <div class="cl-form-row-split">
             <div class="cl-form-col">
-              <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" oninput="window._clUpdateLat()" list="cl-country-list" autocomplete="country-name">
+              <input type="text" class="cl-form-input" id="cl-country" value="${escapeHTML(country)}" placeholder="Country (e.g. Slovakia)" ${_clInputAttrs('update-lat')} list="cl-country-list" autocomplete="country-name">
               <datalist id="cl-country-list">
                 <option value="Czech Republic"></option>
                 <option value="Slovakia"></option>
@@ -382,7 +400,7 @@ export function openClientForm(profileId) {
               </datalist>
             </div>
             <div class="cl-form-col">
-              <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" oninput="window._clUpdateLat()">
+              <input type="text" class="cl-form-input" id="cl-zip" value="${escapeHTML(zip)}" placeholder="ZIP / postal code" ${_clInputAttrs('update-lat')}>
             </div>
           </div>
           <div id="cl-lat-display" class="cl-lat-display"></div>
@@ -393,8 +411,8 @@ export function openClientForm(profileId) {
         <div class="cl-section-title">Health Metadata</div>
         <div class="cl-form-row-split">
           <div class="cl-form-row cl-form-col">
-            <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" onclick="window._clHeightUnitChanged();return false">${heightUnit}</a></label>
-            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" oninput="window._clUpdateBMI()">
+            <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" ${_clActionAttrs('height-unit')}>${heightUnit}</a></label>
+            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" ${_clInputAttrs('update-bmi')}>
             <input type="hidden" id="cl-height-unit" value="${heightUnit}">
           </div>
           ${p ? `<div class="cl-form-row cl-form-col">
@@ -404,13 +422,13 @@ export function openClientForm(profileId) {
         </div>
         <div class="cl-health-note">
           ${p
-            ? '<a href="#" class="cl-health-link" onclick="window._clGoToHealthMetrics(event)">Log weight, blood pressure and pulse on the dashboard</a>'
+            ? `<a href="#" class="cl-health-link" ${_clActionAttrs('health-metrics')}>Log weight, blood pressure and pulse on the dashboard</a>`
             : 'Log weight, blood pressure and pulse on the dashboard after creating the client.'}
         </div>
         <div class="cl-form-row">
           <label class="cl-form-label" for="cl-haplogroup">mtDNA Haplogroup <span class="cl-label-detail">maternal lineage</span></label>
           <div class="cl-haplogroup-row">
-            <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" onchange="window._clHaplogroupChanged()">
+            <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" ${_clChangeAttrs('haplogroup-changed')}>
               <option value="">Not set</option>
               ${window.HAPLOGROUP_LIST ? window.HAPLOGROUP_LIST.map(h => '<option value="' + h + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === h ? ' selected' : '') + '>' + h + '</option>').join('') : ''}
             </select>
@@ -424,8 +442,8 @@ export function openClientForm(profileId) {
         <div class="cl-form-row">
           <label class="cl-form-label">Tags</label>
           <div class="cl-tags-wrap" id="cl-tags-wrap">
-            ${tags.map(t => `<span class="cl-tag-pill">${escapeHTML(t)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)" aria-label="Remove tag">${CL_ICONS.close}</button></span>`).join('')}
-            <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" onkeydown="window._clTagKeydown(event)">
+            ${tags.map(t => `<span class="cl-tag-pill">${escapeHTML(t)}<button type="button" class="cl-tag-remove" ${_clActionAttrs('remove-tag')} aria-label="Remove tag">${CL_ICONS.close}</button></span>`).join('')}
+            <input type="text" class="cl-tag-input" id="cl-tag-input" placeholder="Add tag + Enter" ${_clKeyAttrs('tag-input')}>
           </div>
         </div>
         <div class="cl-form-row">
@@ -443,7 +461,7 @@ export function openClientForm(profileId) {
       </section>
     </div>
     <div class="cl-form-actions">
-      <button type="button" class="cl-form-cancel" onclick="window._clBackToList()">Cancel</button>
+      <button type="button" class="cl-form-cancel" ${_clActionAttrs('back-to-list')}>Cancel</button>
       <button type="submit" class="cl-form-save">${p ? 'Save Changes' : 'Create Client'}</button>
     </div>
   </form>`;
@@ -550,7 +568,7 @@ async function _clAvatarChanged(input) {
         btn.type = 'button';
         btn.className = 'cl-avatar-remove';
         btn.textContent = 'Remove photo';
-        btn.onclick = () => window._clRemoveAvatar();
+        btn.setAttribute('data-cl-action', 'remove-avatar');
         row.appendChild(btn);
       }
     }
@@ -658,7 +676,7 @@ function _clTagKeydown(e) {
   if (existing.includes(val.toLowerCase())) { input.value = ''; return; }
   const pill = document.createElement('span');
   pill.className = 'cl-tag-pill';
-  pill.innerHTML = `${escapeHTML(val)}<button type="button" class="cl-tag-remove" onclick="window._clRemoveTag(this)" aria-label="Remove tag">${CL_ICONS.close}</button>`;
+  pill.innerHTML = `${escapeHTML(val)}<button type="button" class="cl-tag-remove" ${_clActionAttrs('remove-tag')} aria-label="Remove tag">${CL_ICONS.close}</button>`;
   const wrap = document.getElementById('cl-tags-wrap');
   wrap.insertBefore(pill, input);
   input.value = '';
@@ -705,7 +723,7 @@ function _clToggleToolsMenu(e) {
   menu.classList.toggle('show', !open);
 }
 
-function _clToggleMenu(e, id) {
+function _clToggleMenu(e, id, buttonEl = null) {
   e.stopPropagation();
   const menu = document.getElementById('cl-active-menu');
   if (!menu) return;
@@ -719,25 +737,25 @@ function _clToggleMenu(e, id) {
   const p = profiles.find(pr => pr.id === id);
   if (!p) return;
   menu.dataset.profileId = id;
-  const eid = escapeAttr(id);
   menu.innerHTML =
-    _clMenuButton({ icon: CL_ICONS.edit, label: 'Edit', onclick: `window._clEdit('${eid}')` }) +
+    _clMenuButton({ icon: CL_ICONS.edit, label: 'Edit', action: 'edit-profile', profileId: id }) +
     (p.pinned
-      ? _clMenuButton({ icon: CL_ICONS.pin, label: 'Unpin', onclick: `window._clUnpin('${eid}')` })
-      : _clMenuButton({ icon: CL_ICONS.pin, label: 'Pin', onclick: `window._clPin('${eid}')` })) +
+      ? _clMenuButton({ icon: CL_ICONS.pin, label: 'Unpin', action: 'unpin-profile', profileId: id })
+      : _clMenuButton({ icon: CL_ICONS.pin, label: 'Pin', action: 'pin-profile', profileId: id })) +
     (p.status === 'flagged'
-      ? _clMenuButton({ icon: CL_ICONS.flag, label: 'Unflag', onclick: `window._clUnflag('${eid}')` })
-      : _clMenuButton({ icon: CL_ICONS.flag, label: 'Flag', onclick: `window._clFlag('${eid}')` })) +
+      ? _clMenuButton({ icon: CL_ICONS.flag, label: 'Unflag', action: 'unflag-profile', profileId: id })
+      : _clMenuButton({ icon: CL_ICONS.flag, label: 'Flag', action: 'flag-profile', profileId: id })) +
     `<div class="cl-menu-sep"></div>` +
-    _clMenuButton({ icon: CL_ICONS.export, label: 'Export', onclick: `window._clExport('${eid}')` }) +
-    _clMenuButton({ icon: CL_ICONS.export, label: 'Export with Chat', onclick: `window._clExportChat('${eid}')` }) +
+    _clMenuButton({ icon: CL_ICONS.export, label: 'Export', action: 'export-profile', profileId: id }) +
+    _clMenuButton({ icon: CL_ICONS.export, label: 'Export with Chat', action: 'export-profile-chat', profileId: id }) +
     `<div class="cl-menu-sep"></div>` +
     (p.status === 'archived'
-      ? _clMenuButton({ icon: CL_ICONS.archive, label: 'Unarchive', onclick: `window._clUnarchive('${eid}')` })
-      : _clMenuButton({ icon: CL_ICONS.archive, label: 'Archive', onclick: `window._clArchive('${eid}')` })) +
-    _clMenuButton({ icon: CL_ICONS.trash, label: 'Delete', onclick: `window._clDelete('${eid}')`, danger: true });
+      ? _clMenuButton({ icon: CL_ICONS.archive, label: 'Unarchive', action: 'unarchive-profile', profileId: id })
+      : _clMenuButton({ icon: CL_ICONS.archive, label: 'Archive', action: 'archive-profile', profileId: id })) +
+    _clMenuButton({ icon: CL_ICONS.trash, label: 'Delete', action: 'delete-profile', profileId: id, danger: true });
   // Position relative to the modal (absolute positioned child)
-  const btn = e.currentTarget;
+  const btn = buttonEl || e.currentTarget;
+  if (!(btn instanceof Element)) return;
   const modal = menu.parentElement;
   const modalRect = modal.getBoundingClientRect();
   const btnRect = btn.getBoundingClientRect();
@@ -777,10 +795,132 @@ function _clExport(id) { _closeMenus(); window.exportClientJSON(id); }
 function _clExportChat(id) { _closeMenus(); window.exportClientJSON(id, true); }
 function _clDelete(id) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
 
-// Close context menus on click outside
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.cl-row-menu-btn, .cl-row-menu, .cl-tools-wrap')) _closeMenus();
-});
+function _closestClientEl(event, selector) {
+  const target = event.target;
+  if (!(target instanceof Element)) return null;
+  const el = target.closest(selector);
+  if (!el || !el.closest('#client-list-modal')) return null;
+  return el;
+}
+
+function _clickFileInput(id) {
+  const input = document.getElementById(id);
+  if (input instanceof HTMLInputElement) input.click();
+}
+
+function _handleClientClick(event) {
+  const actionEl = _closestClientEl(event, '[data-cl-action]');
+  if (!actionEl) return;
+
+  const action = actionEl.dataset.clAction;
+  const id = actionEl.dataset.clProfileId || '';
+  if (action === 'select-profile' && event.target instanceof Element && event.target.closest('.cl-row-actions')) return;
+  let handled = true;
+
+  if (action === 'close') closeClientList();
+  else if (action === 'open-form') openClientForm();
+  else if (action === 'back-to-list') _clBackToList();
+  else if (action === 'select-profile') _clSelect(id);
+  else if (action === 'edit-profile') _clEdit(id);
+  else if (action === 'toggle-tools-menu') _clToggleToolsMenu(event);
+  else if (action === 'trigger-json-import') { _closeMenus(); _clickFileInput('cl-json-import'); }
+  else if (action === 'export-all') { _closeMenus(); window.exportAllDataJSON?.(); }
+  else if (action === 'load-demo') { closeClientList(); window.loadDemoData?.(actionEl.dataset.clDemo || 'female'); }
+  else if (action === 'tag-filter') _clTagFilter(actionEl.dataset.clTag || '');
+  else if (action === 'toggle-menu') _clToggleMenu(event, id, actionEl);
+  else if (action === 'choose-avatar') _clickFileInput('cl-avatar-input');
+  else if (action === 'remove-avatar') _clRemoveAvatar();
+  else if (action === 'set-sex') _clSetSex(actionEl.dataset.clSex || '');
+  else if (action === 'remove-tag') _clRemoveTag(actionEl);
+  else if (action === 'height-unit') _clHeightUnitChanged();
+  else if (action === 'health-metrics') _clGoToHealthMetrics(event);
+  else if (action === 'pin-profile') _clPin(id);
+  else if (action === 'unpin-profile') _clUnpin(id);
+  else if (action === 'flag-profile') _clFlag(id);
+  else if (action === 'unflag-profile') _clUnflag(id);
+  else if (action === 'archive-profile') _clArchive(id);
+  else if (action === 'unarchive-profile') _clUnarchive(id);
+  else if (action === 'export-profile') _clExport(id);
+  else if (action === 'export-profile-chat') _clExportChat(id);
+  else if (action === 'delete-profile') _clDelete(id);
+  else handled = false;
+
+  if (handled) event.preventDefault();
+}
+
+function _handleClientInput(event) {
+  const input = _closestClientEl(event, '[data-cl-input-action]');
+  if (!(input instanceof HTMLInputElement)) return;
+
+  const action = input.dataset.clInputAction;
+  if (action === 'search') _clSearch(input.value);
+  else if (action === 'update-lat') _clUpdateLat();
+  else if (action === 'update-bmi') _clUpdateBMI();
+}
+
+function _handleClientChange(event) {
+  const el = _closestClientEl(event, '[data-cl-change-action]');
+  if (!(el instanceof HTMLElement)) return;
+
+  const action = el.dataset.clChangeAction;
+  if (action === 'import-json' && el instanceof HTMLInputElement) {
+    const file = el.files?.[0];
+    if (!file) return;
+    closeClientList();
+    window.importDataJSON?.(file);
+    el.value = '';
+  } else if (action === 'sort' && el instanceof HTMLSelectElement) {
+    _clSort(el.value);
+  } else if (action === 'status-filter' && el instanceof HTMLSelectElement) {
+    _clStatusFilter(el.value);
+  } else if (action === 'avatar-changed' && el instanceof HTMLInputElement) {
+    _clAvatarChanged(el);
+  } else if (action === 'haplogroup-changed') {
+    _clHaplogroupChanged();
+  }
+}
+
+function _handleClientSubmit(event) {
+  const form = _closestClientEl(event, '[data-cl-submit-action]');
+  if (!(form instanceof HTMLFormElement)) return;
+  if (form.dataset.clSubmitAction === 'save-form') _clSaveForm(event);
+}
+
+function _handleClientKeydown(event) {
+  const el = _closestClientEl(event, '[data-cl-key-action]');
+  if (!el) return;
+  const action = el.dataset.clKeyAction;
+
+  if (action === 'tag-input') {
+    _clTagKeydown(event);
+    return;
+  }
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+
+  event.preventDefault();
+  if (action === 'select-profile') {
+    _clSelect(el.dataset.clProfileId || '');
+  } else if (action === 'choose-avatar') {
+    _clickFileInput('cl-avatar-input');
+  }
+}
+
+function _handleClientDocumentClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest('.cl-row-menu-btn, .cl-row-menu, .cl-tools-wrap')) _closeMenus();
+}
+
+function installClientListDelegates() {
+  if (clientListDelegatesInstalled || typeof document === 'undefined') return;
+  clientListDelegatesInstalled = true;
+  document.addEventListener('click', _handleClientClick);
+  document.addEventListener('input', _handleClientInput);
+  document.addEventListener('change', _handleClientChange);
+  document.addEventListener('submit', _handleClientSubmit);
+  document.addEventListener('keydown', _handleClientKeydown);
+  document.addEventListener('click', _handleClientDocumentClick);
+}
 
 function _clUpdateBMI() {
   const el = document.getElementById('cl-bmi-display');
@@ -849,6 +989,8 @@ function openProfileLocationEditor() {
     if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }, 80);
 }
+
+installClientListDelegates();
 
 Object.assign(window, {
   openClientList, closeClientList, openClientForm, openProfileLocationEditor,
