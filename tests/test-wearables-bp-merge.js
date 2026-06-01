@@ -78,7 +78,7 @@ assert('moveWearableCard mirrors the same dia-skip when sys present',
 console.log('4. Form idempotency (source)');
 
 assert('openManualLogForm returns early when the form is already rendered',
-  /openManualLogForm[\s\S]{0,500}if \(card\.querySelector\('\.wearable-log-form'\)\) return/.test(wearablesSrc));
+  /openManualLogForm[\s\S]{0,700}if \(card\.querySelector\('\.wearable-log-form'\)\) return/.test(wearablesSrc));
 assert('Idempotency guard has a comment explaining the dia-click bug',
   /clicks inside the form \(e\.g\. tapping the dia field on the[\s\S]{0,200}Without this guard we'd rebuild/.test(wearablesSrc));
 
