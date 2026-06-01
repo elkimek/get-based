@@ -14,6 +14,52 @@ import {
   renderSuggestion,
 } from './light-channel-view.js';
 
+function closestLightPageAction(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return null;
+  const actionEl = target.closest('[data-light-page-action]');
+  if (!actionEl) return null;
+  return event.currentTarget?.contains(actionEl) ? actionEl : null;
+}
+
+function handleLightPageActionClick(event) {
+  const actionEl = closestLightPageAction(event);
+  if (!actionEl) return;
+  const action = actionEl.dataset.lightPageAction;
+  if (!action) return;
+
+  if (typeof HTMLAnchorElement !== 'undefined' && actionEl instanceof HTMLAnchorElement) event.preventDefault();
+
+  if (action === 'open-channel') {
+    window._openChannelOnLightPage?.(actionEl.dataset.channel || '');
+  } else if (action === 'quick-log-device') {
+    window.quickLogDeviceSession?.();
+  } else if (action === 'open-add-device') {
+    window.openAddDeviceDialog?.();
+  } else if (action === 'quick-log-sun') {
+    window.quickLogSunSession?.();
+  } else if (action === 'open-detailed-session') {
+    window.openDetailedSessionDialog?.();
+  } else if (action === 'navigate-light') {
+    window.navigate?.('light');
+  } else if (action === 'request-precise-location') {
+    window.requestPreciseLocation?.();
+  } else if (action === 'open-light-environment') {
+    window.openLightEnvironmentAssessment?.();
+  } else if (action === 'expand-light-tools') {
+    _expandLightToolsSection();
+  }
+}
+
+let lightPageActionDelegatesInstalled = false;
+export function installLightPageActionDelegates(root = (typeof document !== 'undefined' ? document : null)) {
+  if (!root || lightPageActionDelegatesInstalled) return;
+  lightPageActionDelegatesInstalled = true;
+  root.addEventListener('click', handleLightPageActionClick);
+}
+
+if (typeof document !== 'undefined') installLightPageActionDelegates();
+
 // ═══════════════════════════════════════════════
 // LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
 // ═══════════════════════════════════════════════
@@ -33,7 +79,7 @@ export function renderDashboardLightChannelPills() {
       const t = tier(combinedTotals7d[k] || 0, k);
       const dc = _channelDayCount(k);
       const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week. Tap for details.`;
-      return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" onclick="window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
+      return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-light-page-action="open-channel" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
         <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
         <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
         ${_channelSparkline(k)}
@@ -60,33 +106,33 @@ export function renderLightSessionLogActions() {
     // Stop controls live in the pinned active-session card; this widget keeps
     // the remaining logging actions available without duplicating Stop.
     if (hasDevices) {
-      ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">Start device session</button>`;
+      ctaButtons = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-device">Start device session</button>`;
     } else {
-      ctaButtons = `<button class="dashboard-action-btn light-log-action" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">Add light device</button>`;
+      ctaButtons = `<button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-add-device">Add light device</button>`;
     }
   } else if (hasDevices) {
-    ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogSunSession()">Start sun session</button>
-      <button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">Start device session</button>`;
+    ctaButtons = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-device">Start device session</button>`;
   } else {
-    ctaButtons = `<button class="dashboard-action-btn dashboard-action-btn-primary light-log-action" onclick="window.quickLogSunSession()">Start sun session</button>
-      <button class="dashboard-action-btn light-log-action" onclick="window.openAddDeviceDialog && window.openAddDeviceDialog()">Add light device</button>`;
+    ctaButtons = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>
+      <button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-add-device">Add light device</button>`;
   }
   return `<div class="light-session-log-actions">
     <div class="light-quicklog-row">
       ${ctaButtons}
-      <button class="dashboard-action-btn light-log-action" onclick="window.openDetailedSessionDialog && window.openDetailedSessionDialog()">Log past session</button>
+      <button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-detailed-session">Log past session</button>
       ${totalSessions === 0 ? `<span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>No sessions yet</span>` : ''}
     </div>
   </div>`;
 }
 
-function renderLightWidgetPrompt(status, ctaLabel, ctaJs, hint, extraClass = '') {
-  return `<div class="light-widget-prompt ${extraClass}">
+function renderLightWidgetPrompt(status, ctaLabel, ctaAction, hint, extraClass = '') {
+  return `<div class="light-widget-prompt ${escapeAttr(extraClass)}">
     <div class="light-widget-prompt-copy">
       <strong>${escapeHTML(status)}</strong>
       <p>${escapeHTML(hint)}</p>
     </div>
-    <button class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" onclick="${escapeAttr(ctaJs)}">${escapeHTML(ctaLabel)}</button>
+    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" data-light-page-action="${escapeAttr(ctaAction)}">${escapeHTML(ctaLabel)}</button>
   </div>`;
 }
 
@@ -139,9 +185,9 @@ export function renderLightTodayStrip() {
     if (devicesArr.length === 1) {
       const d = devicesArr[0];
       const label = `🔴 ${d.brand || ''} ${d.model || ''}`.trim();
-      deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Log a session on your ${escapeHTML(d.brand || '')} ${escapeHTML(d.model || '')}">${escapeHTML(label)}</button>`;
+      deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Log a session on your ${escapeAttr(d.brand || '')} ${escapeAttr(d.model || '')}">${escapeHTML(label)}</button>`;
     } else {
-      deviceBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
+      deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
     }
   }
   // Onboarding CTA — graduated by what's already filled in:
@@ -162,9 +208,9 @@ export function renderLightTodayStrip() {
   const hasRooms = lightEnv && Array.isArray(lightEnv.rooms) && lightEnv.rooms.length > 0;
   let setupBtn = '';
   if (!hasSetup) {
-    setupBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Skin type, location, indoor light, photosensitive meds — 30 seconds. Drives every Light & Sun calculation.">🌞 Set up Light & Sun</button>`;
+    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Skin type, location, indoor light, photosensitive meds — 30 seconds. Drives every Light & Sun calculation.">🌞 Set up Light & Sun</button>`;
   } else if (!hasRooms) {
-    setupBtn = `<button class="light-today-cta light-today-cta-secondary" onclick="window.navigate && window.navigate('light')" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`;
+    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`;
   }
   // Keep the legacy roomBtn name so the template strings below don't change.
   const roomBtn = setupBtn;
@@ -175,14 +221,14 @@ export function renderLightTodayStrip() {
     // element every second via the [data-live-elapsed-for] selector.
     const elapsedMs = Date.now() - active.startedAt;
     const elapsed = _formatElapsedShort(elapsedMs);
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta light-today-cta-active" onclick="window.quickLogSunSession()" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
+    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta light-today-cta-active" data-light-page-action="quick-log-sun" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
   } else if (inSolarWindow) {
     const wlabel = solarWindowLabel();
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}${roomBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}${roomBtn}</div>`;
   } else if (hasDevices) {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()"><span aria-hidden="true">☀</span> Log sun</button>${deviceBtn}${roomBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun"><span aria-hidden="true">☀</span> Log sun</button>${deviceBtn}${roomBtn}</div>`;
   } else {
-    cta = `<div class="light-today-cta-group"><button class="light-today-cta" onclick="window.quickLogSunSession()">☀ Log a sun session</button>${roomBtn}</div>`;
+    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun">☀ Log a sun session</button>${roomBtn}</div>`;
   }
 
   // Burn-risk gauge — qualitative, plain English, no acronyms
@@ -253,7 +299,7 @@ export function renderLightTodayStrip() {
       <span class="light-today-title">Light Today</span>
       <span class="light-today-sub" title="${sunWeek} sun + ${devWeek} device · last 7 days">${weekTotal} light session${weekTotal !== 1 ? 's' : ''} this week</span>
       ${altChip}
-      <a href="#" class="light-today-link" onclick="event.preventDefault();window.navigate('light')">Open Light &amp; Sun →</a>
+      <a href="#" class="light-today-link" data-light-page-action="navigate-light">Open Light &amp; Sun →</a>
     </div>
     ${typeof window !== 'undefined' && window.renderLightTodayDashboardChip ? window.renderLightTodayDashboardChip() : ''}
     ${renderConditionsNow({ variant: 'compact' })}
@@ -637,30 +683,30 @@ export function showLight(_data) {
       const devices = (window.getDevices && window.getDevices()) || [];
       slot.outerHTML = devices.length > 0
         ? devHtml
-        : renderLightWidgetPrompt('No devices added', 'Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
+        : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
     }).catch(() => {});
   } else {
     const slot = document.getElementById(devicesSlotId);
     if (slot) {
-      slot.outerHTML = renderLightWidgetPrompt('No devices added', 'Add device', "window.openAddDeviceDialog && window.openAddDeviceDialog()", 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
+      slot.outerHTML = renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
     }
   }
   const envSlot = document.getElementById(environmentSlotId);
   if (envSlot) {
     envSlot.outerHTML = window.renderEnvironmentAssessmentSummary
       ? (window.renderEnvironmentAssessmentSummary() || '')
-      : renderLightWidgetPrompt('No rooms mapped', 'Open assessment', "window.openLightEnvironmentAssessment && window.openLightEnvironmentAssessment()", 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
+      : renderLightWidgetPrompt('No rooms mapped', 'Open assessment', 'open-light-environment', 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
   }
   const toolsSlot = document.getElementById(toolsSlotId);
   if (toolsSlot) {
     toolsSlot.outerHTML = window.renderLightTools
       ? (window.renderLightTools() || '')
-      : renderLightWidgetPrompt('No measurements yet', 'Open light tools', 'window._expandLightToolsSection && window._expandLightToolsSection()', 'Run lux, flicker, color temperature, glass, and sleep-darkness checks on this device. Camera frames stay local.', 'light-tools-section-collapsed');
+      : renderLightWidgetPrompt('No measurements yet', 'Open light tools', 'expand-light-tools', 'Run lux, flicker, color temperature, glass, and sleep-darkness checks on this device. Camera frames stay local.', 'light-tools-section-collapsed');
   }
 }
 
 // Expand the collapsed Light tools placeholder into the full 8-card grid.
-// Named function so the inline onclick can stay short and quote-safe.
+// Named function so delegated Light page actions can expand the placeholder.
 export function _expandLightToolsSection() {
   const collapsed = document.querySelector('.light-tools-section-collapsed');
   if (!collapsed || typeof window.renderLightTools !== 'function') return;
@@ -673,10 +719,10 @@ function getSunCoordsHint() {
   if (typeof window === 'undefined' || !window.getSunCoords) return '';
   const c = window.getSunCoords();
   if (!c) {
-    return `<p class="light-intro-hint">Tip: set your country in the profile editor for accurate sun calculations, or <a href="#" onclick="event.preventDefault();window.requestPreciseLocation && window.requestPreciseLocation()">share your precise location</a> once.</p>`;
+    return `<p class="light-intro-hint">Tip: set your country in the profile editor for accurate sun calculations, or <a href="#" data-light-page-action="request-precise-location">share your precise location</a> once.</p>`;
   }
   if (c.source === 'country-band') {
-    return `<p class="light-intro-hint">Calculations use your country (~${c.lat}° lat). <a href="#" onclick="event.preventDefault();window.requestPreciseLocation && window.requestPreciseLocation()">Use precise location</a> for sharper results.</p>`;
+    return `<p class="light-intro-hint">Calculations use your country (~${c.lat}° lat). <a href="#" data-light-page-action="request-precise-location">Use precise location</a> for sharper results.</p>`;
   }
   return '';
 }
