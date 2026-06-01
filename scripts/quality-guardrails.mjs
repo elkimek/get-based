@@ -7,10 +7,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
+// tests/ is intentionally omitted; this check covers app JS only, not test helpers.
 const SYNTAX_DIRS = ['js', 'api', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
 const WINDOW_REF_RE = /\bwindow\./g;
+// Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
 let passed = 0;
