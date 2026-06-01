@@ -36,6 +36,8 @@ const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderT
 
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
 
+assert('settings.js has no inline event attributes',
+  !inlineHandlerRe.test(src));
 assert('Display tab has no inline event attributes',
   displayBlock && !inlineHandlerRe.test(displayBlock));
 assert('Tweaks panel has no inline event attributes',
@@ -67,6 +69,28 @@ assert('Tweaks panel installs delegated change listener',
 });
 
 [
+  'toggle-ai-pause',
+  'switch-ai-provider',
+  'set-wearable-context',
+  'set-body-regions-context',
+  'toggle-privacy-configure',
+  'test-pii-ollama',
+  'set-pii-model',
+  'toggle-pii-local',
+  'toggle-pii-review',
+  'set-analytics',
+  'rename-imported-entry',
+  'remove-imported-entry',
+  'export-client',
+  'export-all-clients',
+  'export-report',
+  'clear-all-data',
+  'reset-profile-usage',
+].forEach(action => {
+  assert(`Settings action ${action} is rendered`, src.includes(`data-settings-action="${action}"`));
+});
+
+[
   'select-theme',
   'select-accent',
   'toggle-sunset',
@@ -79,6 +103,14 @@ assert('Tweaks panel installs delegated change listener',
   assert(`Tweaks action ${action} is rendered`, src.includes(`data-tweaks-action="${action}"`));
 });
 
+[
+  'set-meteo-mode',
+  'save-meteo-selfhost',
+  'toggle-meteo-rounding',
+].forEach(action => {
+  assert(`Sun data-source action ${action} is rendered`, src.includes(`data-sun-source-action="${action}"`));
+});
+
 assert('Settings tabs use data-settings-tab',
   /class="settings-tab-btn[\s\S]*data-settings-tab="display"/.test(src)
     && /class="settings-tab-btn[\s\S]*data-settings-tab="agent"/.test(src));
@@ -86,6 +118,18 @@ assert('Delegated settings handler switches tabs',
   /closestWithin\(event, '\[data-settings-tab\]', modal\)[\s\S]*switchSettingsTab/.test(src));
 assert('Delegated tweaks handler closes on backdrop click',
   /event\.target === overlay[\s\S]*closeTweaksPanel\(\)/.test(src));
+assert('Delegated settings handler switches AI providers',
+  /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
+assert('Delegated settings handler updates PII model selection',
+  /action === 'set-pii-model'[\s\S]*setOllamaPIIModel\(actionEl\.value\)/.test(src));
+assert('Sun data-source delegate is installed on document change',
+  /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(src));
+assert('Sun data-source delegate is scoped to its section',
+  /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(src));
+assert('Legacy Sun data-source window handlers are removed',
+  !src.includes('window._setMeteoMode')
+    && !src.includes('window._saveMeteoSelfhost')
+    && !src.includes('window._toggleMeteoRounding'));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
