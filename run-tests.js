@@ -76,6 +76,7 @@ const TEST_FILES = [
   // click) lives in test-dashboard-data-protection-dom.js below.
   'tests/test-dashboard-data-protection-dom.js',
   'tests/test-chat-panel-ux.js',
+  'tests/test-chat-empty-state-dom.js',
   // test-custom-api.js source-inspection + behavioral ported to Vitest
   // (batch 24). DOM-runtime sections (13/14 — Settings modal rendering,
   // Custom panel form fields, connected-state model dropdown) live in
