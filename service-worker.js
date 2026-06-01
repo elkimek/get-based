@@ -306,6 +306,7 @@ const APP_SHELL = [
   '/js/sun-session-model.js',
   '/js/sun-sessions-store.js',
   '/js/sun-session-ui.js',
+  '/js/sun-session-actions.js',
   '/js/sun-body-silhouette.js',
   '/js/sun-ai-analysis.js',
   '/js/sun-context.js',
