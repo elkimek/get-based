@@ -1009,10 +1009,13 @@ assert('Fitbit scopes include temperature + weight (for skin Δ + scale readings
 assert('Fitbit adapter scope list matches DEFAULT_FITBIT_SCOPES (no drift)',
   JSON.stringify([...fitbitReg.oauth.scopes].sort()) ===
   JSON.stringify([...fitbitAuth.DEFAULT_FITBIT_SCOPES].sort()));
-assert('Fitbit hosted /app route is registered before origin fallback',
-  fitbitReg.oauth.redirectUris.includes('https://app.getbased.health/app'));
-assert('Fitbit redirect picker keeps hosted /app instead of falling back to origin root',
-  fitbitAuth.pickRedirectUri(fitbitReg.oauth.redirectUris, { origin: 'https://app.getbased.health', pathname: '/app' }) === 'https://app.getbased.health/app');
+assert('Fitbit hosted redirect matches dev-console value exactly',
+  fitbitReg.oauth.redirectUris.includes('https://app.getbased.health'));
+assert('Fitbit redirect picker uses exact registered live-host URI without adding slash or /app',
+  fitbitAuth.pickRedirectUri(fitbitReg.oauth.redirectUris, { origin: 'https://app.getbased.health', pathname: '/app' }) === 'https://app.getbased.health');
+assert('Fitbit redirect registry does not include unregistered hosted /app or slash variants',
+  !fitbitReg.oauth.redirectUris.includes('https://app.getbased.health/app') &&
+  !fitbitReg.oauth.redirectUris.includes('https://app.getbased.health/'));
 
 const fbUrl = await fitbitAuth.buildAuthorizeUrl({
   clientId: 'fb-test-client', redirectUri: 'http://localhost:8000/app',
