@@ -143,6 +143,182 @@
    ingest UI) without horizontal cramping. */
 .kb-modal { max-width: 760px; }
 
+.report-builder-modal {
+  width: min(94vw, 840px);
+  max-width: 840px !important;
+  padding: 0;
+}
+.report-builder-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.report-builder-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+.report-builder-two-col {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.2fr);
+  align-items: start;
+}
+.report-builder-label {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.report-builder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.report-builder-select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.report-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.report-preset-btn,
+.report-mini-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.report-preset-btn {
+  display: flex;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+}
+.report-preset-btn:hover,
+.report-mini-btn:hover,
+.report-preset-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+}
+.report-preset-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.report-preset-meta,
+.report-category-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.report-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.report-builder-check,
+.report-category-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.report-builder-check input,
+.report-category-row input {
+  flex: 0 0 auto;
+}
+.report-builder-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.report-category-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.report-mini-btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+.report-category-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: min(32vh, 280px);
+  overflow: auto;
+  padding-right: 2px;
+}
+.report-category-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.report-category-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.report-builder-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .report-builder-modal {
+    width: min(96vw, 560px);
+    max-height: calc(100dvh - 24px);
+  }
+  .report-builder-two-col,
+  .report-preset-grid,
+  .report-section-grid,
+  .report-category-list {
+    grid-template-columns: 1fr;
+  }
+  .report-category-list {
+    max-height: min(36vh, 320px);
+  }
+  .report-builder-row-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .report-category-actions {
+    justify-content: flex-start;
+  }
+}
+
 .modal-nudge { animation: modal-nudge 0.3s ease; }
 @keyframes modal-nudge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015); box-shadow: 0 0 0 2px var(--accent); } }
 

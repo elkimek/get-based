@@ -97,6 +97,38 @@ return (async function() {
     'fixed print footer overlaps report content in generated PDFs');
   assert('PDF report footer avoids splitting across pages',
     exportSrc.includes('break-inside: avoid; page-break-inside: avoid;'));
+  assert('PDF report forces light document background',
+    exportSrc.includes(':root { color-scheme: light; }') &&
+      exportSrc.includes('html, body { background: #fff; }'));
+  assert('PDF report surfaces summary before detailed lab tables',
+    exportSrc.indexOf("if (reportIncludes(reportOptions, 'summary'))") <
+      exportSrc.indexOf('// Flagged Results') &&
+      exportSrc.indexOf('// Flagged Results') < exportSrc.indexOf('// Category tables'));
+  assert('PDF report date windows do not fall back to all lab dates',
+    exportSrc.includes('getReportCutoffDate(range)') &&
+      exportSrc.includes('return filterDataByDateIndices(rawData, indices, cutoffStr);') &&
+      !exportSrc.includes('if (indices.length === 0) return rawData;'));
+  assert('PDF report notes filter by selected window, not lab draw dates',
+    exportSrc.includes('getReportCutoffDate(options.dateRange)') &&
+      exportSrc.includes('note.date >= cutoffStr') &&
+      !exportSrc.includes('dateSet.has(note.date)'));
+  assert('PDF report formats profile context without raw JSON dumps',
+    exportSrc.includes('formatFamilyHistoryItem') &&
+      exportSrc.includes('humanizeContextKey') &&
+      !exportSrc.includes('JSON.stringify(i)'));
+  assert('PDF report gives profile context a designed card layout',
+    exportSrc.includes('class="profile-context"') &&
+      exportSrc.includes('class="context-card"') &&
+      exportSrc.includes('.context-grid') &&
+      exportSrc.includes('.context-facts'));
+  assert('Report builder opens as a first-class modal',
+    exportSrc.includes('export function openReportBuilder') &&
+      exportSrc.includes('report-builder-overlay') &&
+      exportSrc.includes("reportBuilderActionAttrs('export')"));
+  assert('PDF report accepts builder options',
+    exportSrc.includes('export function exportPDFReport(options = {})') &&
+      exportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
+      exportSrc.includes("reportIncludes(reportOptions, 'categories')"));
 
   // ═══════════════════════════════════════
   // 3. buildAllDataBundle — live call
@@ -497,6 +529,8 @@ return (async function() {
   console.log('%c 14. Window exports ', 'font-weight:bold;color:#f59e0b');
 
   assert('Window has exportPDFReport', typeof window.exportPDFReport === 'function');
+  assert('Window has openReportBuilder', typeof window.openReportBuilder === 'function');
+  assert('Window has closeReportBuilder', typeof window.closeReportBuilder === 'function');
   assert('Window has exportDataJSON', typeof window.exportDataJSON === 'function');
   assert('Window has exportClientJSON', typeof window.exportClientJSON === 'function');
   assert('Window has exportAllDataJSON', typeof window.exportAllDataJSON === 'function');
@@ -504,6 +538,84 @@ return (async function() {
   assert('Window has importDataJSON', typeof window.importDataJSON === 'function');
   assert('Window has clearAllData', typeof window.clearAllData === 'function');
   assert('Window has loadDemoData', typeof window.loadDemoData === 'function');
+
+  window.openReportBuilder();
+  await wait(20);
+  const reportBuilder = document.getElementById('report-builder-overlay');
+  assert('Report builder modal renders', !!reportBuilder);
+  assert('Report builder has presets, sections, date range, and categories',
+    !!reportBuilder?.querySelector('.report-preset-btn.active') &&
+      !!reportBuilder?.querySelector('#report-date-range') &&
+      reportBuilder.querySelectorAll('input[data-report-section]').length >= 4 &&
+      reportBuilder.querySelectorAll('input[data-report-category]').length >= 1);
+  assert('Report builder presets describe the export scope',
+    Array.from(reportBuilder.querySelectorAll('.report-preset-meta')).some(el => /Priority labs|All dates|notes/i.test(el.textContent || '')));
+  reportBuilder.querySelector('[data-report-action="clear-categories"]')?.click();
+  await wait(20);
+  reportBuilder.querySelector('[data-report-action="export"]')?.click();
+  await wait(20);
+  assert('Report builder requires lab categories for lab-derived sections',
+    !!document.getElementById('report-builder-overlay') &&
+      (document.getElementById('notification-container')?.textContent || '').includes('Choose at least one lab category'));
+  window.closeReportBuilder();
+  assert('Report builder closes cleanly', !document.getElementById('report-builder-overlay'));
+
+  {
+    const isoDate = d => d.toISOString().slice(0, 10);
+    const inWindow = new Date();
+    inWindow.setMonth(inWindow.getMonth() - 1);
+    const outsideWindow = new Date();
+    outsideWindow.setFullYear(outsideWindow.getFullYear() - 2);
+    const originalNotes = Array.isArray(S.importedData.notes) ? S.importedData.notes.slice() : [];
+    const originalDiagnoses = S.importedData.diagnoses;
+    const oldOpen = window.open;
+    const oldSetTimeout = window.setTimeout;
+    let capturedReport = '';
+    window.open = () => ({
+      document: {
+        write(markup) { capturedReport += markup; },
+        close() {}
+      },
+      print() {}
+    });
+    window.setTimeout = fn => { if (typeof fn === 'function') fn(); return 0; };
+    try {
+      S.importedData.notes = originalNotes.concat([
+        { date: isoDate(inWindow), text: 'Between-draw report note retained' },
+        { date: isoDate(outsideWindow), text: 'Old report note excluded' }
+      ]);
+      window.exportPDFReport({ preset: 'personal', dateRange: '1y', sections: ['notes'], categoryKeys: null });
+      assert('Report notes include in-window notes without matching lab draw',
+        capturedReport.includes('Between-draw report note retained') &&
+          !capturedReport.includes('Old report note excluded'));
+
+      capturedReport = '';
+      window.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
+      assert('Report date window with no matching lab draws stays empty',
+        capturedReport.includes('No dates') && !capturedReport.includes('<h2>Biochemistry</h2>'));
+
+      capturedReport = '';
+      S.importedData.diagnoses = {
+        conditions: ['CMT 2A (c.T626A,p.L209Q)'],
+        familyHistory: [
+          { relative: 'father', condition: 'Psoriasis', onsetAge: 18 },
+          { relative: 'sibling', condition: 'Epilepsy', onsetAge: 17 },
+          { relative: 'paternal_grandfather', condition: "Alzheimer's Disease", onsetAge: 70, note: 'died' }
+        ]
+      };
+      window.exportPDFReport({ preset: 'clinician', dateRange: 'all', sections: ['context'], categoryKeys: null });
+      assert('Report medical history formats family history as readable text',
+        capturedReport.includes('Father: Psoriasis (onset 18)') &&
+          capturedReport.includes('Paternal Grandfather: Alzheimer') &&
+          !capturedReport.includes('{"relative"') &&
+          !capturedReport.includes('familyHistory:'));
+    } finally {
+      S.importedData.notes = originalNotes;
+      S.importedData.diagnoses = originalDiagnoses;
+      window.open = oldOpen;
+      window.setTimeout = oldSetTimeout;
+    }
+  }
 
   // ═══════════════════════════════════════
   // 15. Demo round-trip — importDataJSON preserves Light & Sun stack

@@ -19,6 +19,7 @@ return (async function() {
   const origNavigate = window.navigate;
   const origOpenEMF = window.openEMFAssessmentEditor;
   const origOpenLightEnv = window.openLightEnvironmentAssessment;
+  const origOpenReportBuilder = window.openReportBuilder;
   const origOpenKB = window.openKnowledgeBaseModal;
   const origOpenCreateMarker = window.openCreateMarkerModal;
   const origOpenClientList = window.openClientList;
@@ -61,6 +62,7 @@ return (async function() {
     };
     window.openEMFAssessmentEditor = () => calls.push(['open-emf']);
     window.openLightEnvironmentAssessment = () => calls.push(['open-light-env']);
+    window.openReportBuilder = () => calls.push(['open-report-builder']);
     window.openKnowledgeBaseModal = () => calls.push(['open-kb']);
     window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
     window.openClientList = () => calls.push(['open-client-list']);
@@ -115,6 +117,7 @@ return (async function() {
 
     document.querySelector('#sidebar-nav .nav-item[data-category="emf"]')?.click();
     document.querySelector('#sidebar-nav .nav-item[data-category="light-env-assessment"]')?.click();
+    document.querySelector('#sidebar-nav .nav-item[data-category="reports"]')?.click();
     document.querySelector('#sidebar-nav .nav-item[data-category="knowledge"]')?.click();
     document.querySelector('#sidebar-nav .nav-item[data-category="custom-markers"]')?.click();
     document.querySelector('#sidebar-nav .sidebar-add-marker')?.click();
@@ -122,6 +125,7 @@ return (async function() {
     assert('delegated utility actions call their handlers',
       calls.some(c => c[0] === 'open-emf') &&
         calls.some(c => c[0] === 'open-light-env') &&
+        calls.some(c => c[0] === 'open-report-builder') &&
         calls.some(c => c[0] === 'open-kb') &&
         calls.filter(c => c[0] === 'open-custom-marker').length >= 2 &&
         calls.some(c => c[0] === 'open-client-list'));
@@ -132,6 +136,7 @@ return (async function() {
     window.navigate = origNavigate;
     window.openEMFAssessmentEditor = origOpenEMF;
     window.openLightEnvironmentAssessment = origOpenLightEnv;
+    window.openReportBuilder = origOpenReportBuilder;
     window.openKnowledgeBaseModal = origOpenKB;
     window.openCreateMarkerModal = origOpenCreateMarker;
     window.openClientList = origOpenClientList;

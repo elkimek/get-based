@@ -326,7 +326,7 @@ const expectedExports = [
   // views.js
   'navigate', 'showDashboard',
   // export.js
-  'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData',
+  'openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData',
   // settings.js
   'openSettingsModal', 'closeSettingsModal',
   // chat.js

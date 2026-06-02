@@ -1,8 +1,8 @@
 // export.js — PDF report, JSON export/import, clear all data
 
 import { state } from './state.js';
-import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend } from './utils.js';
-import { getActiveData, filterDatesByRange, saveImportedData } from './data.js';
+import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend, escapeHTML, escapeAttr } from './utils.js';
+import { getActiveData, saveImportedData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRange, getLatestValueIndex } from './marker-analysis.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
@@ -20,27 +20,213 @@ import { setLabEntryMarker } from './lab-entry.js';
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
 // ═══════════════════════════════════════════════
-export function exportPDFReport() {
-  const rawData = getActiveData();
-  const data = filterDatesByRange(rawData);
-  const profiles = getProfiles();
-  const profileName = (profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' }).name;
-  const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
-  const flags = getAllFlaggedMarkers(data);
-  const notes = (state.importedData.notes || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-  const supps = state.importedData.supplements || [];
+const REPORT_BUILDER_OVERLAY_ID = 'report-builder-overlay';
+const DEFAULT_REPORT_PRESET = 'clinician';
+
+const REPORT_SECTION_DEFS = [
+  { id: 'flagged', label: 'Flagged results' },
+  { id: 'categories', label: 'Lab tables' },
+  { id: 'summary', label: 'Healthcare summary' },
+  { id: 'trends', label: 'Notable trends' },
+  { id: 'supplements', label: 'Supplements and meds' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'genetics', label: 'Genetics' },
+  { id: 'context', label: 'Profile context' },
+];
+const REPORT_SECTION_IDS = REPORT_SECTION_DEFS.map(section => section.id);
+const REPORT_LAB_SECTION_IDS = ['flagged', 'categories', 'summary', 'trends'];
+
+const REPORT_PRESETS = {
+  clinician: {
+    label: 'Clinician summary',
+    subtitle: 'Priority labs, flags, trends',
+    sections: ['flagged', 'categories', 'summary', 'trends', 'supplements', 'context'],
+    categoryMode: 'priority',
+    dateRange: 'current',
+  },
+  full: {
+    label: 'Full lab report',
+    subtitle: 'All dates, all sections',
+    sections: REPORT_SECTION_IDS,
+    categoryMode: 'all',
+    dateRange: 'all',
+  },
+  personal: {
+    label: 'Personal snapshot',
+    subtitle: 'Labs, notes, context',
+    sections: ['flagged', 'categories', 'trends', 'supplements', 'notes', 'genetics', 'context'],
+    categoryMode: 'all',
+    dateRange: 'current',
+  },
+};
+
+const REPORT_DATE_RANGE_OPTIONS = [
+  { value: 'current', label: 'Current dashboard range' },
+  { value: '3m', label: 'Last 3 months' },
+  { value: '6m', label: 'Last 6 months' },
+  { value: '1y', label: 'Last year' },
+  { value: 'all', label: 'All dates' },
+];
+
+let reportBuilderDelegatesInstalled = false;
+
+function getReportPreset(presetId) {
+  return REPORT_PRESETS[presetId] || REPORT_PRESETS[DEFAULT_REPORT_PRESET];
+}
+
+function normalizeReportOptions(options = {}) {
+  const hasExplicitOptions = options && Object.keys(options).length > 0;
+  const fallbackPreset = hasExplicitOptions ? DEFAULT_REPORT_PRESET : 'full';
+  const presetId = REPORT_PRESETS[options.preset] ? options.preset : fallbackPreset;
+  const preset = getReportPreset(presetId);
+  const sectionInput = Array.isArray(options.sections) && options.sections.length > 0
+    ? options.sections
+    : preset.sections;
+  const sectionSet = new Set(sectionInput);
+  const dateRange = REPORT_DATE_RANGE_OPTIONS.some(option => option.value === options.dateRange)
+    ? options.dateRange
+    : (hasExplicitOptions ? preset.dateRange : 'current');
+  return {
+    preset: presetId,
+    presetLabel: options.presetLabel || preset.label,
+    dateRange,
+    sections: REPORT_SECTION_IDS.filter(id => sectionSet.has(id)),
+    categoryKeys: Array.isArray(options.categoryKeys) ? options.categoryKeys.filter(Boolean) : null,
+  };
+}
+
+function reportIncludes(options, sectionId) {
+  return options.sections.includes(sectionId);
+}
+
+function filterDataByDateIndices(data, indices, cutoffStr) {
+  const filtered = {
+    dates: indices.map(i => data.dates[i]),
+    dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates[i]),
+    ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
+    categories: {}
+  };
+  for (const [catKey, cat] of Object.entries(data.categories || {})) {
+    const filteredCat = { ...cat, markers: {} };
+    for (const [mKey, marker] of Object.entries(cat.markers || {})) {
+      if (marker.singlePoint || cat.singlePoint) {
+        const spDate = marker.singleDate || cat.singleDate;
+        if (spDate && cutoffStr && spDate < cutoffStr) {
+          filteredCat.markers[mKey] = { ...marker, values: [null], singleDate: null };
+        } else {
+          filteredCat.markers[mKey] = marker;
+        }
+      } else {
+        filteredCat.markers[mKey] = {
+          ...marker,
+          values: indices.map(i => marker.values?.[i] ?? null),
+          ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges[i]) }),
+          ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels[i]) }),
+        };
+      }
+    }
+    filtered.categories[catKey] = filteredCat;
+  }
+  return filtered;
+}
+
+function getReportCutoffDate(range) {
+  const effectiveRange = range === 'current' ? state.dateRangeFilter : range;
+  if (!effectiveRange || effectiveRange === 'all') return null;
+  const months = effectiveRange === '3m' ? 3 : effectiveRange === '6m' ? 6 : 12;
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - months);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+function filterDataByReportRange(rawData, range) {
+  if (!rawData || range === 'all') return rawData;
+  const cutoffStr = getReportCutoffDate(range);
+  if (!cutoffStr) return rawData;
+  const indices = [];
+  for (let i = 0; i < (rawData.dates || []).length; i++) {
+    if (rawData.dates[i] >= cutoffStr) indices.push(i);
+  }
+  return filterDataByDateIndices(rawData, indices, cutoffStr);
+}
+
+function filterReportCategories(data, categoryKeys) {
+  if (!Array.isArray(categoryKeys)) return data;
+  const allowed = new Set(categoryKeys);
+  const categories = {};
+  for (const [catKey, cat] of Object.entries(data.categories || {})) {
+    if (allowed.has(catKey)) categories[catKey] = cat;
+  }
+  return { ...data, categories };
+}
+
+function getReportNotes(data, options) {
+  const notes = (state.importedData.notes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const cutoffStr = getReportCutoffDate(options.dateRange);
+  if (!cutoffStr) return notes;
+  return notes.filter(note => !note.date || note.date >= cutoffStr);
+}
+
+function buildReportContextSections(data) {
   const contextSections = [];
+  const humanizeContextKey = key => String(key)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\b(Am|Uv|Emf|Bp|If|Rf|Hr|Dna)\b/g, match => match.toUpperCase());
+  const formatConditionItem = item => {
+    if (typeof item !== 'object' || item == null) return String(item);
+    const name = item.name || item.condition || item.text || '';
+    const details = [];
+    if (item.severity) details.push(item.severity);
+    if (item.since) details.push(`since ${item.since}`);
+    if (item.variant) details.push(item.variant);
+    if (item.genotype) details.push(item.genotype);
+    if (item.note) details.push(item.note);
+    return [name, details.length ? `(${details.join(', ')})` : ''].filter(Boolean).join(' ');
+  };
+  const formatFamilyHistoryItem = item => {
+    if (typeof item !== 'object' || item == null) return String(item);
+    const relative = item.relative ? humanizeContextKey(item.relative) : 'Family';
+    const details = [];
+    if (item.onsetAge != null && item.onsetAge !== '') details.push(`onset ${item.onsetAge}`);
+    if (item.note) details.push(item.note);
+    return `${relative}: ${item.condition || 'Condition not specified'}${details.length ? ` (${details.join(', ')})` : ''}`;
+  };
+  const formatObjectItem = item => {
+    if (typeof item !== 'object' || item == null) return String(item);
+    if (item.relative || item.condition) return formatFamilyHistoryItem(item);
+    if (item.name || item.severity || item.since) return formatConditionItem(item);
+    const parts = [];
+    for (const [key, value] of Object.entries(item)) {
+      if (value == null || value === '') continue;
+      parts.push(`${humanizeContextKey(key)}: ${formatContextValue(key, value)}`);
+    }
+    return parts.join('; ');
+  };
+  const formatContextValue = (key, value) => {
+    if (value == null || value === '') return '';
+    if (Array.isArray(value)) {
+      const items = value.map(item => {
+        if (key === 'familyHistory') return formatFamilyHistoryItem(item);
+        if (key === 'conditions') return formatConditionItem(item);
+        return typeof item === 'object' ? formatObjectItem(item) : String(item);
+      }).filter(Boolean);
+      return items.join('; ');
+    }
+    if (typeof value === 'object') return formatObjectItem(value);
+    return String(value);
+  };
   const fmtCtx = obj => {
     if (typeof obj === 'string') return obj;
     const parts = [];
     for (const [k, v] of Object.entries(obj)) {
       if (v == null || k === 'note') continue;
-      if (Array.isArray(v)) { if (v.length) parts.push(`${k}: ${v.map(i => typeof i === 'object' ? (i.name || JSON.stringify(i)) : i).join(', ')}`); }
-      else if (typeof v === 'object') parts.push(`${k}: ${JSON.stringify(v)}`);
-      else parts.push(`${k}: ${v}`);
+      const formatted = formatContextValue(k, v);
+      if (formatted) parts.push(`${humanizeContextKey(k)}: ${formatted}`);
     }
     if (obj.note) parts.push(`Note: ${obj.note}`);
-    return parts.join('. ');
+    return parts.join('\n');
   };
   if (state.importedData.diagnoses) contextSections.push({ title: 'Medical History', text: fmtCtx(state.importedData.diagnoses) });
   if (state.importedData.diet) contextSections.push({ title: 'Diet & Digestion', text: fmtCtx(state.importedData.diet) });
@@ -72,7 +258,7 @@ export function exportPDFReport() {
   }
   const pBio = state.importedData.biometrics;
   const pHeight = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null };
-  // Fallback to the wearable summary when legacy biometrics arrays are empty —
+  // Fallback to the wearable summary when legacy biometrics arrays are empty -
   // wearable-only users (manual via Edit Client retired in Phase 4 + OAuth
   // sources) carry weight/BP/pulse only inside wearableSummary.metrics.
   const wm = state.importedData?.wearableSummary?.metrics;
@@ -83,32 +269,50 @@ export function exportPDFReport() {
       const latest = [...pBio.weight].sort((a, b) => b.date.localeCompare(a.date))[0];
       bioText += `Latest weight: ${latest.value} ${latest.unit} (${latest.date})\n`;
     } else if (typeof wm?.weight?.latest === 'number') {
-      bioText += `Latest weight: ${wm.weight.latest} kg (${wm.weight.latestDate || '—'})\n`;
+      bioText += `Latest weight: ${wm.weight.latest} kg (${wm.weight.latestDate || '-'})\n`;
     }
     if (pBio?.bp?.length) {
       const latest = [...pBio.bp].sort((a, b) => b.date.localeCompare(a.date))[0];
       bioText += `Latest BP: ${latest.sys}/${latest.dia} mmHg (${latest.date})\n`;
     } else if (typeof wm?.bp_systolic?.latest === 'number' && typeof wm?.bp_diastolic?.latest === 'number') {
-      bioText += `Latest BP: ${wm.bp_systolic.latest}/${wm.bp_diastolic.latest} mmHg (${wm.bp_systolic.latestDate || '—'})\n`;
+      bioText += `Latest BP: ${wm.bp_systolic.latest}/${wm.bp_diastolic.latest} mmHg (${wm.bp_systolic.latestDate || '-'})\n`;
     }
     if (pBio?.pulse?.length) {
       const latest = [...pBio.pulse].sort((a, b) => b.date.localeCompare(a.date))[0];
       bioText += `Latest pulse: ${latest.value} bpm (${latest.date})\n`;
     } else if (typeof wm?.rhr?.latest === 'number') {
-      bioText += `Latest resting HR: ${wm.rhr.latest} bpm (${wm.rhr.latestDate || '—'})\n`;
+      bioText += `Latest resting HR: ${wm.rhr.latest} bpm (${wm.rhr.latestDate || '-'})\n`;
     }
     if (bioText) contextSections.push({ title: 'Biometrics', text: bioText.trim() });
   }
-
-  const html = buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections);
-  const win = window.open('', '_blank');
-  if (!win) { showNotification('Pop-up blocked — please allow pop-ups for this site', 'error'); return; }
-  win.document.write(html);
-  win.document.close();
-  setTimeout(() => win.print(), 600);
+  return contextSections.filter(section => String(section.text || '').trim());
 }
 
-export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections) {
+export function exportPDFReport(options = {}) {
+  const reportOptions = normalizeReportOptions(options);
+  const rawData = getActiveData();
+  let data = filterDataByReportRange(rawData, reportOptions.dateRange);
+  data = filterReportCategories(data, reportOptions.categoryKeys);
+  const profiles = getProfiles();
+  const profileName = (profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' }).name;
+  const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
+  const flags = getAllFlaggedMarkers(data);
+  const notes = getReportNotes(data, reportOptions);
+  const supps = state.importedData.supplements || [];
+  const contextSections = buildReportContextSections(data);
+
+  const html = buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, reportOptions);
+  const win = window.open('', '_blank');
+  if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
+  win.document.write(html);
+  win.document.close();
+  showNotification('Opening PDF preview...', 'info', 2000);
+  setTimeout(() => win.print(), 600);
+  return true;
+}
+
+export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
+  const reportOptions = normalizeReportOptions(options);
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const unitLabel = state.unitSystem === 'US' ? 'US (conventional)' : 'EU (SI)';
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -116,14 +320,18 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const dateRange = fullDateLabels.length > 0
     ? `${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}`
     : 'No dates';
+  const trendItems = buildTrendItems();
+  const reportStats = buildReportStats();
 
   let body = '';
 
   // Header
   body += `<div class="report-header">
-    <h1>getbased Report</h1>
+    <div class="report-brand">getbased</div>
+    <h1>Lab Report</h1>
     <div class="report-meta">
       <span><strong>Profile:</strong> ${esc(profileName)}</span>
+      <span><strong>Report:</strong> ${esc(reportOptions.presetLabel)}</span>
       <span><strong>Sex:</strong> ${sexLabel}</span>
       <span><strong>Units:</strong> ${unitLabel}</span>
       <span><strong>Date range:</strong> ${esc(dateRange)}</span>
@@ -131,8 +339,35 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     </div>
   </div>`;
 
+  body += `<div class="report-overview" aria-label="Report overview">
+    <div class="report-stat">
+      <span class="report-stat-label">Flagged</span>
+      <strong class="report-stat-value">${flags.length}</strong>
+      <span class="report-stat-note">out-of-range result${flags.length === 1 ? '' : 's'}</span>
+    </div>
+    <div class="report-stat">
+      <span class="report-stat-label">Markers</span>
+      <strong class="report-stat-value">${reportStats.totalWithData}</strong>
+      <span class="report-stat-note">${reportStats.totalInRange} in ${state.rangeMode === 'reference' ? 'reference' : 'optimal'} range</span>
+    </div>
+    <div class="report-stat">
+      <span class="report-stat-label">Collections</span>
+      <strong class="report-stat-value">${data.dates.length}</strong>
+      <span class="report-stat-note">${esc(dateRange)}</span>
+    </div>
+    <div class="report-stat">
+      <span class="report-stat-label">Categories</span>
+      <strong class="report-stat-value">${reportStats.categoryCount}</strong>
+      <span class="report-stat-note">with lab data</span>
+    </div>
+  </div>`;
+
+  if (reportIncludes(reportOptions, 'summary')) {
+    body += renderSummarySection();
+  }
+
   // Flagged Results
-  if (flags.length > 0) {
+  if (reportIncludes(reportOptions, 'flagged') && flags.length > 0) {
     body += `<h2>Flagged Results</h2><table><thead><tr><th>Biomarker</th><th>Value</th><th>Range</th><th>Status</th></tr></thead><tbody>`;
     for (const f of flags) {
       const cls = f.status === 'high' ? 'val-high' : 'val-low';
@@ -143,39 +378,45 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     body += `</tbody></table>`;
   }
 
+  if (reportIncludes(reportOptions, 'trends') && trendItems.length > 0) {
+    body += `<h2>Notable Trends</h2><ul class="report-list">${trendItems.join('')}</ul>`;
+  }
+
   // Category tables
-  for (const [catKey, cat] of Object.entries(data.categories)) {
-    const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(v => v !== null));
-    if (markersWithData.length === 0) continue;
-    const labels = cat.singleDate ? [cat.singleDateLabel || 'N/A'] : fullDateLabels;
-    body += `<h2>${cat.icon} ${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
-    if (cat.singleDate) {
-      body += `<th>${labels[0]}</th>`;
-    } else {
-      for (const l of labels) body += `<th>${l}</th>`;
-    }
-    body += `<th>Trend</th></tr></thead><tbody>`;
-    for (const [mKey, marker] of markersWithData) {
-      const r = getEffectiveRange(marker);
-      const trend = getTrend(marker.values, r.min, r.max);
-      let rangeStr = r.min != null && r.max != null ? `${formatValue(r.min)} \u2013 ${formatValue(r.max)}` : '\u2014';
-      if (state.rangeMode === 'both' && marker.optimalMin != null) {
-        rangeStr = `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}<br><span class="optimal">opt: ${formatValue(marker.optimalMin)} \u2013 ${formatValue(marker.optimalMax)}</span>`;
+  if (reportIncludes(reportOptions, 'categories')) {
+    for (const [catKey, cat] of Object.entries(data.categories)) {
+      const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(v => v !== null));
+      if (markersWithData.length === 0) continue;
+      const labels = cat.singleDate ? [cat.singleDateLabel || 'N/A'] : fullDateLabels;
+      body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
+      if (cat.singleDate) {
+        body += `<th>${labels[0]}</th>`;
+      } else {
+        for (const l of labels) body += `<th>${l}</th>`;
       }
-      body += `<tr><td>${esc(marker.name)}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
-      for (let i = 0; i < marker.values.length; i++) {
-        const v = marker.values[i];
-        const s = v !== null ? getStatus(v, r.min, r.max) : 'missing';
-        const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
-        body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}</td>`;
+      body += `<th>Trend</th></tr></thead><tbody>`;
+      for (const [mKey, marker] of markersWithData) {
+        const r = getEffectiveRange(marker);
+        const trend = getTrend(marker.values, r.min, r.max);
+        let rangeStr = r.min != null && r.max != null ? `${formatValue(r.min)} \u2013 ${formatValue(r.max)}` : '\u2014';
+        if (state.rangeMode === 'both' && marker.optimalMin != null) {
+          rangeStr = `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}<br><span class="optimal">opt: ${formatValue(marker.optimalMin)} \u2013 ${formatValue(marker.optimalMax)}</span>`;
+        }
+        body += `<tr><td>${esc(marker.name)}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
+        for (let i = 0; i < marker.values.length; i++) {
+          const v = marker.values[i];
+          const s = v !== null ? getStatus(v, r.min, r.max) : 'missing';
+          const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
+          body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}</td>`;
+        }
+        body += `<td>${trend.arrow}</td></tr>`;
       }
-      body += `<td>${trend.arrow}</td></tr>`;
+      body += `</tbody></table>`;
     }
-    body += `</tbody></table>`;
   }
 
   // Supplements
-  if (supps.length > 0) {
+  if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
     body += `<h2>Supplements & Medications</h2><table><thead><tr><th>Name</th><th>Dosage</th><th>Type</th><th>Period</th><th>Note</th></tr></thead><tbody>`;
     for (const s of supps) {
       const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
@@ -187,7 +428,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   // Notes
-  if (notes.length > 0) {
+  if (reportIncludes(reportOptions, 'notes') && notes.length > 0) {
     body += `<h2>Notes</h2>`;
     for (const n of notes) {
       body += `<div class="note-item"><strong>${fmtDate(n.date)}</strong>: ${esc(n.text)}</div>`;
@@ -197,7 +438,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   // Genetics
   const genetics = state.importedData.genetics;
   const snpTable = window._snpTableCache;
-  if (genetics && genetics.snps && snpTable) {
+  if (reportIncludes(reportOptions, 'genetics') && genetics && genetics.snps && snpTable) {
     const snpCount = Object.keys(genetics.snps).length;
     body += `<h2>Genetics</h2>`;
     body += `<p style="font-size:13px;color:#555;margin-bottom:12px"><strong>Source:</strong> ${esc(genetics.source)} &middot; <strong>SNPs:</strong> ${snpCount} &middot; <strong>Imported:</strong> ${genetics.importDate}${genetics.apoe ? ' &middot; <strong>APOE:</strong> ' + esc(genetics.apoe) : ''}</p>`;
@@ -234,7 +475,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     }
   }
   // mtDNA haplogroup
-  if (genetics?.mtdna) {
+  if (reportIncludes(reportOptions, 'genetics') && genetics?.mtdna) {
     const mt = genetics.mtdna;
     if (!genetics.snps || !snpTable) body += `<h2>Genetics</h2>`;
     body += `<div style="margin:12px 0;font-size:13px"><strong>mtDNA Haplogroup:</strong> ${esc(mt.haplogroup)}`;
@@ -244,75 +485,13 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   // Context sections
-  if (contextSections.length > 0) {
-    body += `<h2>Profile Context</h2>`;
+  if (reportIncludes(reportOptions, 'context') && contextSections.length > 0) {
+    body += `<section class="profile-context" aria-labelledby="profile-context-heading"><h2 id="profile-context-heading">Profile Context</h2><div class="context-grid">`;
     for (const s of contextSections) {
-      body += `<div class="context-item"><strong>${esc(s.title)}:</strong> ${esc(s.text)}</div>`;
+      body += `<article class="context-card"><h3>${esc(s.title)}</h3>${renderContextBody(s.text)}</article>`;
     }
+    body += `</div></section>`;
   }
-
-  // Summary for Healthcare Provider
-  body += `<h2>Summary for Healthcare Provider</h2>`;
-  body += `<p style="font-size:13px;color:#555;margin-bottom:12px">Generated from <strong>${data.dates.length}</strong> collection date${data.dates.length !== 1 ? 's' : ''}${fullDateLabels.length >= 2 ? ` spanning ${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}` : ''}.</p>`;
-
-  if (flags.length > 0) {
-    body += `<p style="font-size:14px;font-weight:700;margin:12px 0 6px">Out of Range (${flags.length}):</p><ul style="font-size:13px;margin:0 0 12px 20px">`;
-    for (const f of flags) {
-      const boundary = f.status === 'high' ? f.effectiveMax : f.effectiveMin;
-      const diff = f.status === 'high' ? f.rawValue - boundary : boundary - f.rawValue;
-      const pctBeyond = boundary !== 0 ? ((diff / boundary) * 100).toFixed(0) : '?';
-      body += `<li><strong>${esc(f.name)}</strong>: ${f.value} ${esc(f.unit)} \u2014 <span class="val-${f.status}">${f.status.toUpperCase()}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ref: ${formatValue(f.refMin)}\u2013${formatValue(f.refMax)}${f.optimalMin != null ? ', optimal: ' + formatValue(f.optimalMin) + '\u2013' + formatValue(f.optimalMax) : ''})</li>`;
-    }
-    body += `</ul>`;
-  } else {
-    body += `<p style="font-size:13px;color:#059669;margin-bottom:12px"><strong>No out-of-range results.</strong></p>`;
-  }
-
-  // Notable trends (>10% change between first and last value)
-  const trendItems = [];
-  for (const [catKey, cat] of Object.entries(data.categories)) {
-    for (const [mKey, marker] of Object.entries(cat.markers)) {
-      const nonNull = marker.values.map((v,i) => ({v,i})).filter(x => x.v !== null);
-      if (nonNull.length < 2) continue;
-      const first = nonNull[0], last = nonNull[nonNull.length - 1];
-      if (first.v === 0) continue;
-      const pctChange = ((last.v - first.v) / first.v) * 100;
-      if (Math.abs(pctChange) > 10) {
-        const dir = pctChange > 0 ? 'increased' : 'decreased';
-        const firstDate = fullDateLabels[first.i] || '';
-        const lastDate = fullDateLabels[last.i] || '';
-        trendItems.push(`<li><strong>${esc(marker.name)}</strong> ${dir} ${Math.abs(pctChange).toFixed(0)}% (${formatValue(first.v)} \u2192 ${formatValue(last.v)} ${esc(marker.unit)}, ${firstDate} to ${lastDate})</li>`);
-      }
-    }
-  }
-  if (trendItems.length > 0) {
-    body += `<p style="font-size:14px;font-weight:700;margin:12px 0 6px">Notable Trends (&gt;10% change):</p><ul style="font-size:13px;margin:0 0 12px 20px">${trendItems.join('')}</ul>`;
-  }
-
-  // Summary counts
-  let totalWithData = 0, totalInRange = 0;
-  for (const cat of Object.values(data.categories)) {
-    for (const m of Object.values(cat.markers)) {
-      const li = getLatestValueIndex(m.values);
-      if (li !== -1) {
-        totalWithData++;
-        const r = getEffectiveRange(m);
-        if (getStatus(m.values[li], r.min, r.max) === 'normal') totalInRange++;
-      }
-    }
-  }
-  body += `<p style="font-size:13px;margin-bottom:8px"><strong>Within ${state.rangeMode === 'reference' ? 'Reference' : 'Optimal'} Range:</strong> ${totalInRange} of ${totalWithData} markers with data</p>`;
-
-  if (supps.length > 0) {
-    const suppList = supps.map(s => `${esc(s.name)}${s.dosage ? ' (' + esc(s.dosage) + ')' : ''}`).join(', ');
-    body += `<p style="font-size:13px;margin-bottom:8px"><strong>Supplements/Medications:</strong> ${suppList}</p>`;
-  }
-
-  if (genetics && genetics.apoe) {
-    body += `<p style="font-size:13px;margin-bottom:8px"><strong>APOE:</strong> ${esc(genetics.apoe)}</p>`;
-  }
-
-  body += `<p style="font-size:11px;color:#888;font-style:italic;margin-top:12px">This summary was auto-generated by getbased. Values should be interpreted in clinical context.</p>`;
 
   // Footer
   body += `<div class="report-footer">
@@ -322,17 +501,132 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  function renderContextBody(text) {
+    const lines = String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
+    if (lines.length <= 1) return `<p class="context-text">${esc(lines[0] || '')}</p>`;
+    const rows = lines.map(line => {
+      const splitAt = line.indexOf(': ');
+      if (splitAt <= 0) return `<div class="context-row context-row-full"><dd>${esc(line)}</dd></div>`;
+      const key = line.slice(0, splitAt);
+      const value = line.slice(splitAt + 2);
+      return `<div class="context-row"><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`;
+    }).join('');
+    return `<dl class="context-facts">${rows}</dl>`;
+  }
+
+  function buildTrendItems() {
+    const items = [];
+    for (const cat of Object.values(data.categories)) {
+      for (const marker of Object.values(cat.markers)) {
+        const nonNull = marker.values.map((v,i) => ({v,i})).filter(x => x.v !== null);
+        if (nonNull.length < 2) continue;
+        const first = nonNull[0], last = nonNull[nonNull.length - 1];
+        if (first.v === 0) continue;
+        const pctChange = ((last.v - first.v) / first.v) * 100;
+        if (Math.abs(pctChange) > 10) {
+          const dir = pctChange > 0 ? 'increased' : 'decreased';
+          const firstDate = fullDateLabels[first.i] || '';
+          const lastDate = fullDateLabels[last.i] || '';
+          items.push(`<li><strong>${esc(marker.name)}</strong> ${dir} ${Math.abs(pctChange).toFixed(0)}% (${formatValue(first.v)} \u2192 ${formatValue(last.v)} ${esc(marker.unit)}, ${firstDate} to ${lastDate})</li>`);
+        }
+      }
+    }
+    return items;
+  }
+
+  function buildReportStats() {
+    let totalWithData = 0, totalInRange = 0, categoryCount = 0;
+    for (const cat of Object.values(data.categories)) {
+      let categoryHasData = false;
+      for (const marker of Object.values(cat.markers)) {
+        const li = getLatestValueIndex(marker.values);
+        if (li !== -1) {
+          categoryHasData = true;
+          totalWithData++;
+          const r = getEffectiveRange(marker);
+          if (getStatus(marker.values[li], r.min, r.max) === 'normal') totalInRange++;
+        }
+      }
+      if (categoryHasData) categoryCount++;
+    }
+    return { totalWithData, totalInRange, categoryCount };
+  }
+
+  function renderSummarySection() {
+    let summary = `<section class="report-summary" aria-labelledby="report-summary-heading">
+      <h2 id="report-summary-heading">Summary for Healthcare Provider</h2>
+      <p class="report-intro">Generated from <strong>${data.dates.length}</strong> collection date${data.dates.length !== 1 ? 's' : ''}${fullDateLabels.length >= 2 ? ` spanning ${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}` : ''}.</p>`;
+
+    const summaryFlags = flags.slice(0, 10);
+    if (summaryFlags.length > 0) {
+      summary += `<p class="report-subhead">Out of Range Highlights (${summaryFlags.length} of ${flags.length})</p><ul class="report-list">`;
+      for (const f of summaryFlags) {
+        const boundary = f.status === 'high' ? f.effectiveMax : f.effectiveMin;
+        const diff = f.status === 'high' ? f.rawValue - boundary : boundary - f.rawValue;
+        const pctBeyond = boundary !== 0 ? ((diff / boundary) * 100).toFixed(0) : '?';
+        summary += `<li><strong>${esc(f.name)}</strong>: ${f.value} ${esc(f.unit)} \u2014 <span class="val-${f.status}">${f.status.toUpperCase()}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ref: ${formatValue(f.refMin)}\u2013${formatValue(f.refMax)}${f.optimalMin != null ? ', optimal: ' + formatValue(f.optimalMin) + '\u2013' + formatValue(f.optimalMax) : ''})</li>`;
+      }
+      summary += `</ul>`;
+      if (flags.length > summaryFlags.length) {
+        summary += `<p class="report-note">See Flagged Results for the full list of ${flags.length} out-of-range markers.</p>`;
+      }
+    } else {
+      summary += `<p class="report-ok"><strong>No out-of-range results.</strong></p>`;
+    }
+
+    if (reportIncludes(reportOptions, 'trends') && trendItems.length > 0) {
+      const summaryTrends = trendItems.slice(0, 8);
+      summary += `<p class="report-subhead">Trend Highlights (&gt;10% change)</p><ul class="report-list">${summaryTrends.join('')}</ul>`;
+      if (trendItems.length > summaryTrends.length) {
+        summary += `<p class="report-note">See Notable Trends for the full list of ${trendItems.length} changes.</p>`;
+      }
+    }
+
+    summary += `<p class="report-copy"><strong>Within ${state.rangeMode === 'reference' ? 'Reference' : 'Optimal'} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data</p>`;
+
+    if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
+      const suppList = supps.map(s => `${esc(s.name)}${s.dosage ? ' (' + esc(s.dosage) + ')' : ''}`).join(', ');
+      summary += `<p class="report-copy"><strong>Supplements/Medications:</strong> ${suppList}</p>`;
+    }
+
+    if (reportIncludes(reportOptions, 'genetics') && genetics && genetics.apoe) {
+      summary += `<p class="report-copy"><strong>APOE:</strong> ${esc(genetics.apoe)}</p>`;
+    }
+
+    summary += `<p class="report-note">This summary was auto-generated by getbased. Values should be interpreted in clinical context.</p></section>`;
+    return summary;
+  }
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>getbased Report - ${esc(profileName)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; line-height: 1.5; padding: 32px; max-width: 1000px; margin: 0 auto; }
-  .report-header { border-bottom: 2px solid #333; padding-bottom: 16px; margin-bottom: 24px; }
-  .report-header h1 { font-size: 28px; font-weight: 700; }
-  .report-meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #555; margin-top: 8px; }
-  h2 { font-size: 18px; font-weight: 700; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #ddd; page-break-after: avoid; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
-  th { background: #f5f5f5; padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #ddd; }
-  td { padding: 6px 10px; border-bottom: 1px solid #eee; font-variant-numeric: tabular-nums; }
+  :root { color-scheme: light; }
+  html, body { background: #fff; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; line-height: 1.55; padding: 36px; max-width: 1100px; margin: 0 auto; }
+  .report-header { border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 18px; }
+  .report-brand { color: #4b5563; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .report-header h1 { font-size: 30px; font-weight: 750; letter-spacing: -0.01em; margin-top: 4px; }
+  .report-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 18px; font-size: 13px; color: #4b5563; margin-top: 10px; }
+  .report-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 24px; }
+  .report-stat { border: 1px solid #d8e0ea; background: #f8fafc; padding: 10px 12px; min-height: 88px; break-inside: avoid; page-break-inside: avoid; }
+  .report-stat-label { display: block; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .report-stat-value { display: block; color: #111827; font-size: 24px; line-height: 1.15; margin-top: 6px; }
+  .report-stat-note { display: block; color: #475569; font-size: 11px; line-height: 1.35; margin-top: 4px; }
+  .report-summary { border: 1px solid #d8e0ea; background: #fbfcfe; padding: 16px 18px; margin: 0 0 22px; break-inside: avoid; page-break-inside: avoid; }
+  h2 { color: #111827; font-size: 18px; font-weight: 750; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #d8e0ea; page-break-after: avoid; }
+  .report-summary h2 { margin-top: 0; }
+  .report-intro, .report-copy { color: #374151; font-size: 13px; margin-bottom: 10px; }
+  .report-subhead { color: #111827; font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+  .report-list { color: #374151; font-size: 13px; margin: 0 0 12px 20px; }
+  .report-list li { margin-bottom: 3px; }
+  .report-ok { color: #047857; font-size: 13px; margin-bottom: 12px; }
+  .report-note { color: #6b7280; font-size: 11px; font-style: italic; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 18px; border: 1px solid #e5e7eb; table-layout: auto; }
+  thead { display: table-header-group; }
+  th { background: #eef2f7; color: #374151; padding: 8px 9px; text-align: left; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 2px solid #d8e0ea; }
+  td { padding: 6px 9px; border-bottom: 1px solid #edf0f4; font-variant-numeric: tabular-nums; vertical-align: top; overflow-wrap: anywhere; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  th:first-child, td:first-child { font-weight: 600; }
   .val-normal { color: #059669; font-weight: 600; }
   .val-high { color: #dc2626; font-weight: 600; }
   .val-low { color: #d97706; font-weight: 600; }
@@ -340,17 +634,240 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .muted { color: #777; font-size: 11px; }
   .optimal { color: #059669; font-size: 10px; }
   .note-item { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
-  .context-item { padding: 6px 0; font-size: 13px; white-space: pre-line; }
+  .profile-context { margin-top: 28px; break-inside: avoid; page-break-inside: avoid; }
+  .context-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .context-card { border: 1px solid #d8e0ea; background: #fbfcfe; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; }
+  .context-card h3 { color: #111827; font-size: 13px; font-weight: 750; letter-spacing: 0; margin-bottom: 8px; }
+  .context-text { color: #374151; font-size: 12px; line-height: 1.55; max-width: 70ch; }
+  .context-facts { display: grid; gap: 5px; }
+  .context-row { display: grid; grid-template-columns: minmax(88px, 0.34fr) 1fr; gap: 8px; align-items: baseline; }
+  .context-row dt { color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .context-row dd { color: #273449; font-size: 12px; line-height: 1.45; }
+  .context-row-full { display: block; }
   .report-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; break-inside: avoid; page-break-inside: avoid; }
   .disclaimer { margin-top: 8px; font-style: italic; }
   @media print {
-    body { padding: 16px; }
+    @page { margin: 12mm; }
+    body { padding: 0; max-width: none; }
+    .report-overview { grid-template-columns: repeat(4, 1fr); }
     h2 { page-break-after: avoid; }
     table { page-break-inside: auto; }
+    th { font-size: 9px; padding: 6px 7px; }
+    td { font-size: 10px; padding: 5px 7px; }
     tr { page-break-inside: avoid; }
     .report-footer { break-inside: avoid; page-break-inside: avoid; }
   }
+  @media (max-width: 720px) {
+    body { padding: 20px; }
+    .report-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .context-grid { grid-template-columns: 1fr; }
+  }
 </style></head><body>${body}</body></html>`;
+}
+
+function reportBuilderActionAttrs(action, attrs = {}) {
+  const extraAttrs = Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => ` data-report-${name}="${escapeAttr(String(value))}"`)
+    .join('');
+  return `data-report-action="${escapeAttr(action)}"${extraAttrs}`;
+}
+
+function getReportCategoryOptions(data = getActiveData()) {
+  const flags = getAllFlaggedMarkers(data);
+  const flagCounts = new Map();
+  for (const flag of flags) {
+    flagCounts.set(flag.categoryKey, (flagCounts.get(flag.categoryKey) || 0) + 1);
+  }
+  return Object.entries(data.categories || {}).map(([key, cat]) => {
+    const markers = Object.values(cat.markers || {}).filter(marker => !marker.hidden);
+    const markerCount = markers.filter(marker => marker.values?.some(value => value !== null)).length;
+    if (markerCount === 0) return null;
+    return {
+      key,
+      label: cat.label || key,
+      icon: cat.icon || '',
+      markerCount,
+      flaggedCount: flagCounts.get(key) || 0,
+    };
+  }).filter(Boolean);
+}
+
+function getDefaultReportCategoryKeys(presetId, categoryOptions) {
+  const preset = getReportPreset(presetId);
+  if (preset.categoryMode === 'priority') {
+    const flagged = categoryOptions.filter(option => option.flaggedCount > 0);
+    if (flagged.length > 0) return flagged.map(option => option.key);
+  }
+  return categoryOptions.map(option => option.key);
+}
+
+function renderReportPresetButton(presetId, activePresetId) {
+  const preset = getReportPreset(presetId);
+  const isActive = presetId === activePresetId;
+  return `<button type="button" class="report-preset-btn${isActive ? ' active' : ''}" ${reportBuilderActionAttrs('set-preset', { preset: presetId })} aria-pressed="${isActive}">
+    <span class="report-preset-title">${escapeHTML(preset.label)}</span>
+    <span class="report-preset-meta">${escapeHTML(preset.subtitle)}</span>
+  </button>`;
+}
+
+function renderReportSectionChecks(preset) {
+  const selected = new Set(preset.sections);
+  return REPORT_SECTION_DEFS.map(section => `<label class="report-builder-check">
+    <input type="checkbox" data-report-section="${escapeAttr(section.id)}" ${selected.has(section.id) ? 'checked' : ''}>
+    <span>${escapeHTML(section.label)}</span>
+  </label>`).join('');
+}
+
+function renderReportCategoryChecks(categoryOptions, selectedCategoryKeys) {
+  const selected = new Set(selectedCategoryKeys);
+  if (categoryOptions.length === 0) {
+    return `<div class="report-builder-empty">No lab categories with data.</div>`;
+  }
+  return categoryOptions.map(option => {
+    const checked = selected.has(option.key);
+    const flagText = option.flaggedCount > 0 ? `${option.flaggedCount} flagged` : `${option.markerCount} markers`;
+    return `<label class="report-category-row">
+      <input type="checkbox" data-report-category="${escapeAttr(option.key)}" data-report-priority="${option.flaggedCount > 0 ? 'true' : 'false'}" ${checked ? 'checked' : ''}>
+      <span class="report-category-copy">
+        <span class="report-category-title">${escapeHTML(option.icon)} ${escapeHTML(option.label)}</span>
+        <span class="report-category-meta">${escapeHTML(flagText)}</span>
+      </span>
+    </label>`;
+  }).join('');
+}
+
+function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
+  const preset = getReportPreset(presetId);
+  const rawData = getActiveData();
+  const categoryOptions = getReportCategoryOptions(rawData);
+  const selectedCategoryKeys = getDefaultReportCategoryKeys(presetId, categoryOptions);
+  const presetButtons = Object.keys(REPORT_PRESETS)
+    .map(id => renderReportPresetButton(id, presetId))
+    .join('');
+  const dateOptions = REPORT_DATE_RANGE_OPTIONS.map(option =>
+    `<option value="${escapeAttr(option.value)}" ${preset.dateRange === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`
+  ).join('');
+
+  return `<div class="modal-overlay show" id="${REPORT_BUILDER_OVERLAY_ID}" data-report-builder-overlay data-report-preset="${escapeAttr(presetId)}">
+    <div class="modal show gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
+      <div class="gb-modal-head">
+        <div>
+          <div class="gb-modal-kicker">Export</div>
+          <div class="gb-modal-title" id="report-builder-title">Reports</div>
+        </div>
+        <button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button>
+      </div>
+      <div class="gb-form-body report-builder-body">
+        <div class="report-builder-section">
+          <div class="report-builder-label">Report type</div>
+          <div class="report-preset-grid">${presetButtons}</div>
+        </div>
+        <div class="report-builder-section report-builder-two-col">
+          <label class="report-builder-field" for="report-date-range">
+            <span class="report-builder-label">Date range</span>
+            <select id="report-date-range" class="report-builder-select">${dateOptions}</select>
+          </label>
+          <div class="report-builder-field">
+            <span class="report-builder-label">Sections</span>
+            <div class="report-section-grid">${renderReportSectionChecks(preset)}</div>
+          </div>
+        </div>
+        <div class="report-builder-section">
+          <div class="report-builder-row-head">
+            <div class="report-builder-label">Lab categories</div>
+            <div class="report-category-actions">
+              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('select-all-categories')}>All</button>
+              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('select-priority-categories')}>Priority</button>
+              <button type="button" class="report-mini-btn" ${reportBuilderActionAttrs('clear-categories')}>Clear</button>
+            </div>
+          </div>
+          <div class="report-category-list">${renderReportCategoryChecks(categoryOptions, selectedCategoryKeys)}</div>
+        </div>
+        <div class="gb-form-actions report-builder-actions">
+          <button type="button" class="import-btn import-btn-secondary" ${reportBuilderActionAttrs('close')}>Cancel</button>
+          <button type="button" class="import-btn" ${reportBuilderActionAttrs('export')}>Preview PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function collectReportBuilderOptions(overlay) {
+  return {
+    preset: overlay.dataset.reportPreset || DEFAULT_REPORT_PRESET,
+    dateRange: overlay.querySelector('#report-date-range')?.value || 'current',
+    sections: Array.from(overlay.querySelectorAll('input[data-report-section]:checked'))
+      .map(input => input.dataset.reportSection),
+    categoryKeys: Array.from(overlay.querySelectorAll('input[data-report-category]:checked'))
+      .map(input => input.dataset.reportCategory),
+  };
+}
+
+function setReportCategoryChecks(overlay, mode) {
+  const boxes = Array.from(overlay.querySelectorAll('input[data-report-category]'));
+  if (mode === 'clear') {
+    boxes.forEach(box => { box.checked = false; });
+    return;
+  }
+  if (mode === 'priority') {
+    const hasPriority = boxes.some(box => box.dataset.reportPriority === 'true');
+    boxes.forEach(box => { box.checked = hasPriority ? box.dataset.reportPriority === 'true' : true; });
+    return;
+  }
+  boxes.forEach(box => { box.checked = true; });
+}
+
+function handleReportBuilderClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const actionEl = target?.closest('[data-report-action]');
+  const overlay = actionEl?.closest(`#${REPORT_BUILDER_OVERLAY_ID}`);
+  if (!actionEl || !overlay) return;
+  const action = actionEl.dataset.reportAction;
+  if (action === 'close') {
+    closeReportBuilder();
+  } else if (action === 'set-preset') {
+    openReportBuilder(actionEl.dataset.reportPreset || DEFAULT_REPORT_PRESET);
+  } else if (action === 'select-all-categories') {
+    setReportCategoryChecks(overlay, 'all');
+  } else if (action === 'select-priority-categories') {
+    setReportCategoryChecks(overlay, 'priority');
+  } else if (action === 'clear-categories') {
+    setReportCategoryChecks(overlay, 'clear');
+  } else if (action === 'export') {
+    const options = collectReportBuilderOptions(overlay);
+    const hasCategories = overlay.querySelectorAll('input[data-report-category]').length > 0;
+    const hasLabSection = options.sections.some(section => REPORT_LAB_SECTION_IDS.includes(section));
+    if (options.sections.length === 0) {
+      showNotification('Choose at least one report section', 'error');
+    } else if (hasLabSection && hasCategories && options.categoryKeys.length === 0) {
+      showNotification('Choose at least one lab category or turn off lab sections', 'error');
+    } else if (exportPDFReport(options)) {
+      closeReportBuilder();
+    }
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
+function installReportBuilderDelegates() {
+  if (reportBuilderDelegatesInstalled || typeof document === 'undefined') return;
+  reportBuilderDelegatesInstalled = true;
+  document.addEventListener('click', handleReportBuilderClick);
+}
+
+export function openReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
+  if (typeof document === 'undefined') return;
+  const normalizedPresetId = REPORT_PRESETS[presetId] ? presetId : DEFAULT_REPORT_PRESET;
+  closeReportBuilder();
+  installReportBuilderDelegates();
+  document.body.insertAdjacentHTML('beforeend', renderReportBuilder(normalizedPresetId));
+  setTimeout(() => document.querySelector(`#${REPORT_BUILDER_OVERLAY_ID} .report-preset-btn.active`)?.focus(), 0);
+}
+
+export function closeReportBuilder() {
+  document.getElementById(REPORT_BUILDER_OVERLAY_ID)?.remove();
 }
 
 // ═══════════════════════════════════════════════
@@ -1276,4 +1793,4 @@ export async function loadDemoData(sex = 'male') {
   }
 }
 
-Object.assign(window, { exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });
+Object.assign(window, { openReportBuilder, closeReportBuilder, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });

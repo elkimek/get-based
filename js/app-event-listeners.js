@@ -41,6 +41,7 @@ function handleDocumentClick(e) {
   if (e.target.id === "modal-overlay") { window.closeModal(); return; }
   if (e.target.id === "light-env-assessment-overlay") { window.closeLightEnvironmentAssessment?.(); return; }
   if (e.target.id === "changelog-modal-overlay") { window.closeChangelog(); return; }
+  if (e.target.id === "report-builder-overlay") { window.closeReportBuilder?.(); return; }
   // Auto-save modals close on backdrop click.
   if (e.target.id === "settings-modal-overlay") { window.closeSettingsModal(); return; }
   // Work-in-progress modals nudge instead of closing.
@@ -109,6 +110,8 @@ function handleAppKeydown(e) {
     }
     const changelogOverlay = document.getElementById("changelog-modal-overlay");
     if (changelogOverlay && changelogOverlay.classList.contains("show")) { window.closeChangelog(); return; }
+    const reportBuilderOverlay = document.getElementById("report-builder-overlay");
+    if (reportBuilderOverlay && reportBuilderOverlay.classList.contains("show")) { window.closeReportBuilder?.(); return; }
     const clientListOverlay = document.getElementById("client-list-overlay");
     if (clientListOverlay && clientListOverlay.classList.contains("show")) { window.closeClientList(); return; }
     const feedbackOverlay = document.getElementById("feedback-modal-overlay");
@@ -137,7 +140,7 @@ function handleAppKeydown(e) {
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
+    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {

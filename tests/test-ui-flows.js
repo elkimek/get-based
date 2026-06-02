@@ -139,13 +139,18 @@ return (async function() {
   assert('Sidebar does not duplicate Labs with an All biomarkers category shortcut',
     !sidebar.querySelector('.nav-item[data-category="all"]') && !sidebarText.includes('All biomarkers'));
   assert('Sidebar separates analysis tools from management modals',
-    sidebarText.includes('Analysis tools') && sidebarText.includes('Manage') && sidebarText.includes('Knowledge Base'));
+    sidebarText.includes('Analysis tools') && sidebarText.includes('Manage') && sidebarText.includes('Reports') && sidebarText.includes('Knowledge Base'));
   const analysisIndex = sidebarText.indexOf('Analysis tools');
   const manageIndex = sidebarText.indexOf('Manage');
   const labCategoriesIndex = sidebarText.indexOf('Lab categories');
   assert('Sidebar places tools and management above Lab categories',
     analysisIndex > -1 && manageIndex > -1 && labCategoriesIndex > -1 &&
       analysisIndex < labCategoriesIndex && manageIndex < labCategoriesIndex);
+  const reportIndex = sidebarText.indexOf('Reports');
+  assert('Sidebar exposes Reports as a management action',
+    !!sidebar.querySelector('.nav-item[data-category="reports"]') &&
+      manageIndex > -1 && reportIndex > -1 && labCategoriesIndex > -1 &&
+      manageIndex < reportIndex && reportIndex < labCategoriesIndex);
   const emfIndex = sidebarText.indexOf('EMF assessment');
   assert('Sidebar exposes EMF assessment as an analysis tool',
     !!sidebar.querySelector('.nav-item[data-category="emf"]') &&
