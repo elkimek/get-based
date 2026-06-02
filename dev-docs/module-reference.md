@@ -610,6 +610,7 @@ Data export, import, and reset.
 
 **Key exports:**
 - `exportToJSON()` — exports v2 JSON for the current profile: `{ version: 2, exportedAt, entries, notes, diagnoses, diet, exercise, sleepRest, lightCircadian, stress, loveLife, environment, interpretiveLens, healthGoals, contextNotes, menstrualCycle, customMarkers, supplements }`
+- `buildClientExportObject(profileId, includeChat?)` — returns the reusable v2 single-profile export object used by JSON export and encrypted profile sharing. It includes profile metadata, labs, context, supplements, genetics, biometrics, marker notes, wearables summaries/preferences, and Light/Sun data, while excluding OAuth/wearable connection credentials and raw per-device wearable rows
 - `exportClientJSON(profileId)` — exports a single client's data (used from Client List ⋮ menu)
 - `exportAllDataJSON()` — exports a full database bundle with all profiles, chat threads, custom personalities, and settings
 - `buildAllDataBundle()` — builds the bundle object used by both `exportAllDataJSON()` and folder backup
@@ -618,6 +619,24 @@ Data export, import, and reset.
 - `clearAllData()` — confirms and wipes all imported data for the current profile
 
 **Window exports:** `exportToJSON`, `exportDataJSON`, `exportClientJSON`, `exportAllDataJSON`, `importFromJSON`, `exportToPDF`, `clearAllData`
+
+---
+
+### `profile-share.js`
+
+Encrypted single-profile share links. The module creates a profile export through `buildClientExportObject()`, encrypts it in the browser with a password, posts only the ciphertext envelope to `/api/share`, and imports shared profiles from `#share/{id}` deep links after local password decryption.
+
+**Key exports:**
+- `createProfileShare({ profileId, password, expiresDays })` — builds, encrypts, uploads, and records a managed share link for one profile
+- `encryptProfileShareEnvelope(exportObj, secret, options?)` / `decryptProfileShareEnvelope(envelope, secret)` — AES-256-GCM envelope helpers using PBKDF2-SHA256
+- `generateProfileSharePassword()` — generates a user-copyable random password
+- `buildProfileShareUrl(id)` / `parseProfileShareIdFromLocation(loc?)` — link construction and deep-link parsing
+- `openProfileShareModal(profileId?)` / `openSharedProfileImportModal(id)` — create/load modal entry points
+- `handleProfileShareDeepLink()` / `initProfileShareLinks()` — startup hash handling for shared links
+
+**Storage:** active links created in the current browser are tracked in localStorage under `getbased-profile-shares-v1`. Records store share metadata and the management token needed to stop sharing; they do not store the profile password or plaintext profile data.
+
+**Window exports:** `openProfileShareModal`, `closeProfileShareModal`, `openSharedProfileImportModal`, `createProfileShare`, `deleteProfileShareEnvelope`, `encryptProfileShareEnvelope`, `decryptProfileShareEnvelope`, `parseProfileShareIdFromLocation`, `buildProfileShareUrl`
 
 ---
 

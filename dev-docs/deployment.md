@@ -1,6 +1,6 @@
 # Deployment
 
-getbased is deployed on Vercel. The app is static — no server-side code, no API routes, no backend. Vercel serves the files directly and injects security headers.
+getbased is deployed on Vercel. The browser app is shipped as static files, and Vercel also runs small same-origin API routes from `api/` for features that need hosted infrastructure. Vercel serves the app files directly, executes those API routes, and injects security headers.
 
 ## Vercel configuration
 
@@ -23,9 +23,29 @@ getbased is deployed on Vercel. The app is static — no server-side code, no AP
 | Route | Destination |
 |---|---|
 | `/` | `index.html` — the application (served by Vercel filesystem default) |
+| `/api/share` | `api/share.js` — encrypted profile share envelope storage |
 | `/docs` | `dist-docs/index.html` — VitePress documentation |
 | `/docs/*` | `dist-docs/*` — VitePress documentation assets and pages |
 | Everything else | Served as-is from the filesystem (JS, CSS, images, manifest) |
+
+## API routes
+
+Vercel functions live in `api/`. They must stay same-origin, minimal, and avoid handling plaintext health data unless a feature explicitly requires it.
+
+### `/api/share`
+
+`api/share.js` stores password-protected profile share links. The browser builds a single-profile export, encrypts it locally with AES-GCM using a key derived from the user-provided password, and uploads only the encrypted envelope. The password is never sent to the route and is not embedded in the link.
+
+| Method | Purpose |
+|---|---|
+| `POST /api/share` | Store a new encrypted envelope and management-token hash |
+| `GET /api/share?id=...` | Return the encrypted envelope for a recipient to decrypt locally |
+| `DELETE /api/share?id=...` | Delete the hosted envelope when the creating browser supplies the management token |
+| `OPTIONS /api/share` | CORS preflight for allowed same-origin/app origins |
+
+Production requires `BLOB_READ_WRITE_TOKEN` in the Vercel project. The route uses a private Vercel Blob store under `profile-shares/v1/`, caps payload size, rejects shares longer than 30 days, and returns `no-store` JSON responses. The route never has the password or plaintext profile JSON.
+
+Local development mirrors the endpoint in `dev-server.js` with an in-memory store so the modal and deep-link flow can be smoke-tested without Blob credentials. That local store is process-local and disappears when the dev server restarts.
 
 ## Domain layout
 
@@ -48,6 +68,7 @@ The landing page is self-contained (all CSS/JS inline) and depends only on three
 |---|---|
 | `/` | Landing page from `../get-based-site/index.html` |
 | `/app` | App from `index.html` |
+| `/api/share` | In-memory encrypted profile share endpoint |
 | `/docs/*` | VitePress docs from `dist-docs/` |
 
 Without the sibling repo, `/` serves the app directly. Override the site path with `SITE_DIR=/path/to/site node dev-server.js`.

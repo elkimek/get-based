@@ -48,6 +48,7 @@ return (async function() {
   console.log('%c 2. Client export structure (source) ', 'font-weight:bold;color:#f59e0b');
 
   const exportSrc = await fetch('/js/export.js').then(r => r.text());
+  const modalSharedSrc = await fetch('/css/modal-shared.css').then(r => r.text());
 
   // exportClientJSON produces v2 client export with profile metadata
   assert('Client export sets version: 2', exportSrc.includes('version: 2, exportedAt:'));
@@ -97,6 +98,19 @@ return (async function() {
     'fixed print footer overlaps report content in generated PDFs');
   assert('PDF report footer avoids splitting across pages',
     exportSrc.includes('break-inside: avoid; page-break-inside: avoid;'));
+  assert('PDF print mode lets summary flow onto first page',
+    exportSrc.includes('.report-summary, .report-ai-summary, .profile-context { break-inside: auto; page-break-inside: auto; }') &&
+      exportSrc.includes('.report-summary, .report-ai-summary { padding: 12px 14px; margin-bottom: 16px; }'));
+  assert('PDF report header uses human-readable report labels',
+      exportSrc.includes('${esc(profileName)} lab report') &&
+      exportSrc.includes('report-deck') &&
+      exportSrc.includes('Needs Attention') &&
+      exportSrc.includes('Lab Dates') &&
+      exportSrc.includes('Lab Groups') &&
+      exportSrc.includes('DOB / Age') &&
+      exportSrc.includes('Blood pressure') &&
+      exportSrc.includes('Resting pulse') &&
+      !exportSrc.includes('Collections</span>'));
   assert('PDF report forces light document background',
     exportSrc.includes(':root { color-scheme: light; }') &&
       exportSrc.includes('html, body { background: #fff; }'));
@@ -124,11 +138,42 @@ return (async function() {
   assert('Report builder opens as a first-class modal',
     exportSrc.includes('export function openReportBuilder') &&
       exportSrc.includes('report-builder-overlay') &&
+      exportSrc.includes('report-builder-scroll') &&
       exportSrc.includes("reportBuilderActionAttrs('export')"));
+  assert('Report builder supports AI overview generation',
+    exportSrc.includes('export async function generateReportAISummary') &&
+      exportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&
+      exportSrc.includes('Patient picture:') &&
+      exportSrc.includes('Discussion focus:') &&
+      exportSrc.includes('Practitioner overview') &&
+      exportSrc.includes("reportBuilderActionAttrs('generate-ai-summary')") &&
+      exportSrc.includes('report-ai-summary-text') &&
+      exportSrc.includes('aria-label="Editable practitioner overview"') &&
+      !exportSrc.includes('class="report-ai-summary-text" readonly') &&
+      modalSharedSrc.includes('.report-ai-builder'));
+  assert('Report category picker renders text labels without legacy emojis',
+    exportSrc.includes('<span class="report-category-title">${escapeHTML(option.label)}</span>') &&
+      !exportSrc.includes('${escapeHTML(option.icon)} ${escapeHTML(option.label)}'));
+  assert('Report builder preview action uses primary modal styling',
+    exportSrc.includes('import-btn import-btn-primary report-builder-preview-btn') &&
+      modalSharedSrc.includes('.report-builder-scroll') &&
+      modalSharedSrc.includes('.report-builder-actions') &&
+      modalSharedSrc.includes('.report-builder-preview-btn'));
   assert('PDF report accepts builder options',
     exportSrc.includes('export function exportPDFReport(options = {})') &&
       exportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
-      exportSrc.includes("reportIncludes(reportOptions, 'categories')"));
+      exportSrc.includes("reportIncludes(reportOptions, 'categories')") &&
+      exportSrc.includes('aiSummary: normalizeReportAISummary(options.aiSummary)'));
+  assert('PDF preview opens without auto-printing',
+    !exportSrc.includes('setTimeout(() => win.print()') &&
+      exportSrc.includes('report-print-btn') &&
+      exportSrc.includes('onclick="window.print()"'));
+  assert('PDF report initializes genetics before summary render',
+    exportSrc.indexOf('const genetics = state.importedData.genetics;') >= 0 &&
+      exportSrc.indexOf('const genetics = state.importedData.genetics;') < exportSrc.indexOf('body += renderSummarySection();'));
+  assert('PDF lab tables drop all-empty date columns',
+    exportSrc.includes('hasReportValue') &&
+      exportSrc.includes('.filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])))'));
 
   // ═══════════════════════════════════════
   // 3. buildAllDataBundle — live call
@@ -568,18 +613,47 @@ return (async function() {
     outsideWindow.setFullYear(outsideWindow.getFullYear() - 2);
     const originalNotes = Array.isArray(S.importedData.notes) ? S.importedData.notes.slice() : [];
     const originalDiagnoses = S.importedData.diagnoses;
+    const originalSupplements = Array.isArray(S.importedData.supplements) ? S.importedData.supplements.slice() : [];
+    const originalGenetics = S.importedData.genetics;
+    const originalBiometrics = S.importedData.biometrics ? JSON.parse(JSON.stringify(S.importedData.biometrics)) : S.importedData.biometrics;
+    const originalProfileSex = S.profileSex;
+    const originalProfileDob = S.profileDob;
+    const originalProfiles = JSON.parse(JSON.stringify(window.getProfiles?.() || []));
+    const originalSnpTable = window._snpTableCache;
     const oldOpen = window.open;
     const oldSetTimeout = window.setTimeout;
     let capturedReport = '';
+    let printCalled = false;
     window.open = () => ({
       document: {
         write(markup) { capturedReport += markup; },
         close() {}
       },
-      print() {}
+      print() { printCalled = true; }
     });
     window.setTimeout = fn => { if (typeof fn === 'function') fn(); return 0; };
     try {
+      const profiles = window.getProfiles?.() || [];
+      let activeProfile = profiles.find(p => p.id === S.currentProfile);
+      if (!activeProfile) {
+        activeProfile = { id: S.currentProfile || 'default', name: 'Test Profile' };
+        profiles.push(activeProfile);
+      }
+      Object.assign(activeProfile, {
+        sex: 'male',
+        dob: '1980-01-02',
+        location: { country: 'CZ', zip: '11000' },
+        height: 180,
+        heightUnit: 'cm',
+      });
+      S.profileSex = 'male';
+      S.profileDob = '1980-01-02';
+      await window.saveProfiles?.(profiles);
+      S.importedData.biometrics = {
+        weight: [{ date: '2026-05-15', value: 82, unit: 'kg', source: 'manual' }],
+        bp: [{ date: '2026-05-15', sys: 118, dia: 76, source: 'manual' }],
+        pulse: [{ date: '2026-05-15', value: 61, source: 'manual' }],
+      };
       S.importedData.notes = originalNotes.concat([
         { date: isoDate(inWindow), text: 'Between-draw report note retained' },
         { date: isoDate(outsideWindow), text: 'Old report note excluded' }
@@ -588,11 +662,24 @@ return (async function() {
       assert('Report notes include in-window notes without matching lab draw',
         capturedReport.includes('Between-draw report note retained') &&
           !capturedReport.includes('Old report note excluded'));
+      assert('Report preview exposes print button without auto-printing',
+        capturedReport.includes('class="report-preview-toolbar"') &&
+          capturedReport.includes('Print / Save PDF') &&
+          !printCalled);
+      assert('Report header includes complete profile data when present',
+        capturedReport.includes('<dt>Sex</dt><dd>Male</dd>') &&
+          capturedReport.includes('<dt>DOB / Age</dt><dd>Jan 2, 1980') &&
+          capturedReport.includes('<dt>Location</dt><dd>CZ, 11000</dd>') &&
+          capturedReport.includes('<dt>Height</dt><dd>180 cm</dd>') &&
+          capturedReport.includes('<dt>Weight</dt><dd>82 kg (May 15, 2026)</dd>') &&
+          capturedReport.includes('<dt>BMI</dt><dd>25.3 (May 15, 2026)</dd>') &&
+          capturedReport.includes('<dt>Blood pressure</dt><dd>118/76 mmHg (May 15, 2026)</dd>') &&
+          capturedReport.includes('<dt>Resting pulse</dt><dd>61 bpm (May 15, 2026)</dd>'));
 
       capturedReport = '';
       window.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
       assert('Report date window with no matching lab draws stays empty',
-        capturedReport.includes('No dates') && !capturedReport.includes('<h2>Biochemistry</h2>'));
+        capturedReport.includes('No lab dates in selected range') && !capturedReport.includes('<h2>Biochemistry</h2>'));
 
       capturedReport = '';
       S.importedData.diagnoses = {
@@ -609,9 +696,82 @@ return (async function() {
           capturedReport.includes('Paternal Grandfather: Alzheimer') &&
           !capturedReport.includes('{"relative"') &&
           !capturedReport.includes('familyHistory:'));
+
+      capturedReport = '';
+      S.importedData.genetics = {
+        source: 'Unit test',
+        importDate: '2026-01-01',
+        apoe: 'E3/E4',
+        snps: {}
+      };
+      window._snpTableCache = {};
+      window.exportPDFReport({ preset: 'personal', dateRange: 'all', sections: ['summary', 'genetics'], categoryKeys: null });
+      assert('Report summary can include genetics without crashing',
+        capturedReport.includes('<strong>APOE:</strong> E3/E4'));
+
+      const exportMod = await import('/js/export.js');
+      S.importedData.genetics = null;
+      S.importedData.supplements = [{
+        name: 'Magnesium complex',
+        dosage: '2 capsules',
+        type: 'supplement',
+        startDate: '2026-01-01',
+        ingredients: [{ name: 'Magnesium', amount: '100 mg' }],
+        timesPerDay: 2
+      }];
+      const fixtureData = {
+        dates: ['2026-01-01', '2026-02-01', '2026-03-01'],
+        categories: {
+          vitamins: {
+            label: 'Vitamins',
+            markers: {
+              vitaminD: { name: 'Vitamin D', unit: 'ng/mL', refMin: 30, refMax: 100, values: [42, null, undefined] },
+              emptyMarker: { name: 'Empty marker', unit: 'mg/L', refMin: 0, refMax: 10, values: [null, null, undefined] }
+            }
+          }
+        }
+      };
+      const fixtureReport = exportMod.buildReportHTML('Fixture', 'Not specified', fixtureData, [], [], S.importedData.supplements, [], {
+        preset: 'full',
+        dateRange: 'all',
+        sections: ['summary', 'categories', 'supplements']
+      });
+      assert('Report category table omits all-empty date columns',
+        fixtureReport.includes('<th>Jan 1, 2026</th>') &&
+          !fixtureReport.includes('<th>Feb 1, 2026</th>') &&
+          !fixtureReport.includes('<th>Mar 1, 2026</th>') &&
+          !fixtureReport.includes('Empty marker'));
+      assert('Report supplement dosage includes ingredient daily total',
+        fixtureReport.includes('2 capsules') &&
+          fixtureReport.includes('Magnesium 100 mg x 2/day -&gt; 200 mg/day'));
+      const aiFixtureReport = exportMod.buildReportHTML('Fixture', 'Not specified', fixtureData, [], [], [], [], {
+        preset: 'full',
+        dateRange: 'all',
+        sections: ['summary'],
+        aiSummary: {
+          text: 'Patient picture:\nOverall picture is stable <script>alert(1)</script>\n\nDiscussion focus:\n- Review Vitamin D trend with clinician',
+          model: 'Unit model',
+          generatedAt: '2026-01-01T00:00:00.000Z'
+        }
+      });
+      assert('Report renders escaped practitioner overview near top',
+        aiFixtureReport.includes('<h2>Practitioner Overview</h2>') &&
+          aiFixtureReport.includes('<p class="report-ai-subhead">Patient picture</p>') &&
+          aiFixtureReport.includes('<p class="report-ai-subhead">Discussion focus</p>') &&
+          aiFixtureReport.includes('Overall picture is stable &lt;script&gt;alert(1)&lt;/script&gt;') &&
+          aiFixtureReport.includes('Review Vitamin D trend with clinician') &&
+          aiFixtureReport.includes('Unit model') &&
+          !aiFixtureReport.includes('stable <script>alert(1)</script>'));
     } finally {
       S.importedData.notes = originalNotes;
       S.importedData.diagnoses = originalDiagnoses;
+      S.importedData.supplements = originalSupplements;
+      S.importedData.genetics = originalGenetics;
+      S.importedData.biometrics = originalBiometrics;
+      S.profileSex = originalProfileSex;
+      S.profileDob = originalProfileDob;
+      await window.saveProfiles?.(originalProfiles);
+      window._snpTableCache = originalSnpTable;
       window.open = oldOpen;
       window.setTimeout = oldSetTimeout;
     }

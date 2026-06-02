@@ -185,6 +185,11 @@ assert('CHANGELOG has version field', changelogSrc.includes('version:'));
 assert('CHANGELOG has date field', changelogSrc.includes('date:'));
 assert('CHANGELOG has title field', changelogSrc.includes('title:'));
 assert('CHANGELOG has items array', changelogSrc.includes('items:'));
+assert('CHANGELOG records report feature overhaul',
+  changelogSrc.includes('Practitioner-ready report builder') &&
+    changelogSrc.includes('Report feature overhaul') &&
+    changelogSrc.includes('Editable Practitioner Overview') &&
+    changelogSrc.includes('Smoother report workflow'));
 
 // ═══════════════════════════════════════
 // 11. Window exports

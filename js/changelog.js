@@ -5,6 +5,22 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.8.355', date: '2026-06-02', title: 'Private profile sharing',
+    items: [
+      '<b>Password-protected profile links.</b> Share a profile with someone else while keeping the link and password separate. Recipients can open the link, enter the password, and import the shared profile as their own copy.',
+      '<b>Control active shares.</b> The Share Profile modal now shows links created on this device, with copy controls and a Stop sharing action for links you no longer want available.',
+      '<b>Easier access.</b> Share Profile is available from the top bar on larger screens and from the profile menu on mobile, with clearer confirmation before a link is created.',
+    ]
+  },
+  {
+    version: '1.8.354', date: '2026-06-02', title: 'Practitioner-ready report builder',
+    items: [
+      '<b>Report feature overhaul.</b> PDF reports now open in a cleaner preview with a readable patient header, compact clinical snapshot, selected lab categories, supplement dosing context, and a structure built for quick practitioner review.',
+      '<b>Editable Practitioner Overview.</b> Generate a one-minute overview from the selected report data, edit the text directly in the report builder, then include the final version in the PDF preview/export.',
+      '<b>Smoother report workflow.</b> The builder now follows the app\'s newer modal patterns, keeps long category lists usable, and gives the preview its own Print / Save PDF action.',
+    ]
+  },
+  {
     version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and recommendations',
     items: [
       '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Recommended Next Steps, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',

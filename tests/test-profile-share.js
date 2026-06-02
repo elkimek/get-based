@@ -1,0 +1,167 @@
+#!/usr/bin/env node
+// test-profile-share.js — encrypted single-profile share links
+
+import './_node-shim.js';
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf8');
+
+let pass = 0, fail = 0;
+function assert(name, condition, detail = '') {
+  if (condition) { pass++; console.log(`  PASS: ${name}`); }
+  else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
+}
+
+console.log('=== Profile Share Tests ===\n');
+
+const mod = await import('../js/profile-share.js');
+const profileShareSrc = read('js/profile-share.js');
+const exportSrc = read('js/export.js');
+const settingsSrc = read('js/settings.js');
+const appDataIoSrc = read('js/app-data-io-modules.js');
+const apiShareSrc = read('api/share.js');
+const devServerSrc = read('dev-server.js');
+const modalCss = read('css/modal-shared.css');
+const redesignCss = read('css/redesign-shell.css');
+const packageJson = JSON.parse(read('package.json'));
+
+console.log('1. Encrypted envelope behavior');
+try {
+  const sampleExport = {
+    version: 2,
+    exportedAt: '2026-06-02T12:00:00.000Z',
+    profile: { name: 'Private Patient', sex: 'female', dob: '1985-04-10' },
+    entries: [{ date: '2026-05-30', markers: { metabolic_glucose: 86 } }],
+    notes: [],
+    supplements: [],
+  };
+  const secret = 'correct-horse-1234';
+  const envelope = await mod.encryptProfileShareEnvelope(sampleExport, secret, {
+    iterations: 1000,
+    expiresDays: 1,
+  });
+  const serializedEnvelope = JSON.stringify(envelope);
+  assert('Envelope uses getbased profile-share schema', envelope.schema === 'getbased-profile-share' && envelope.version === 1);
+  assert('Envelope stores PBKDF2 + AES-GCM metadata', envelope.kdf?.name === 'PBKDF2' && envelope.kdf?.hash === 'SHA-256' && envelope.cipher?.name === 'AES-GCM');
+  assert('Envelope keeps profile name inside ciphertext', !serializedEnvelope.includes('Private Patient'));
+  assert('Envelope has base64url ciphertext', /^[A-Za-z0-9_-]+$/.test(envelope.ciphertext));
+  const decrypted = await mod.decryptProfileShareEnvelope(envelope, secret);
+  assert('Correct secret decrypts the v2 export', decrypted.profile.name === 'Private Patient' && decrypted.entries[0].markers.metabolic_glucose === 86);
+  let wrongFailed = false;
+  try { await mod.decryptProfileShareEnvelope(envelope, 'wrong-horse-1234'); } catch { wrongFailed = true; }
+  assert('Wrong secret fails to decrypt', wrongFailed);
+} catch (err) {
+  assert('Encrypted envelope round-trip', false, err.message);
+}
+
+console.log('2. Share link shape');
+try {
+  const id = 'abcdefghijklmnopqrstuvwx';
+  const url = mod.buildProfileShareUrl(id, { origin: 'https://getbased.health', pathname: '/app' });
+  assert('Share URL uses hash route', url === `https://getbased.health/app#share/${id}`, url);
+  assert('Share URL does not include a secret query parameter', !/[?&](password|secret|key)=/i.test(url));
+  const parsed = mod.parseProfileShareIdFromLocation({ hash: `#share/${id}`, href: url });
+  assert('Hash parser extracts share id', parsed === id);
+} catch (err) {
+  assert('Share link helpers', false, err.message);
+}
+
+console.log('3. App wiring and UI source');
+assert('profile-share module imports reusable export builder',
+  profileShareSrc.includes("import { buildClientExportObject, importDataJSON } from './export.js'"));
+assert('Profile share module is startup-loaded',
+  appDataIoSrc.includes("import './profile-share.js';"));
+assert('Settings Data tab exposes Share Profile action',
+  settingsSrc.includes("data-settings-action=\"share-profile\"") &&
+  settingsSrc.includes('window.openProfileShareModal?.()'));
+assert('Share modal has dedicated shared-modal styling',
+  modalCss.includes('#profile-share-overlay.modal-overlay') &&
+  modalCss.includes('.profile-share-modal') &&
+  modalCss.includes('.profile-share-input-row') &&
+  modalCss.includes('.profile-share-icon-btn') &&
+  modalCss.includes('.profile-share-consent') &&
+  modalCss.includes('.profile-share-active') &&
+  modalCss.includes('.profile-share-status[data-status="error"]'));
+assert('Share modal requires explicit encrypted upload consent',
+  profileShareSrc.includes('id="profile-share-consent" type="checkbox" required') &&
+  profileShareSrc.includes('The link finds a locked copy of the profile') &&
+  profileShareSrc.includes('The password is the only way to unlock it') &&
+  profileShareSrc.includes('Anyone with both the link and password can open it'));
+assert('Share modal lists and can stop links created on this device',
+  profileShareSrc.includes('const SHARE_RECORDS_KEY') &&
+  profileShareSrc.includes('function renderActiveShareList') &&
+  profileShareSrc.includes('Created on this device') &&
+  profileShareSrc.includes('data-profile-share-action="delete-link"') &&
+  profileShareSrc.includes('async function deleteProfileShareEnvelope') &&
+  profileShareSrc.includes('manageToken') &&
+  profileShareSrc.includes("method: 'DELETE'"));
+assert('Share profile has a top-level header action',
+  read('index.html').includes('data-shell-action="share-profile"') &&
+  read('js/shell-actions.js').includes("action === 'share-profile'") &&
+  read('js/shell-actions.js').includes('window.openProfileShareModal?.()'));
+assert('Mobile share path moves into client list menu',
+  read('js/client-list.js').includes("label: 'Share Profile', action: 'share-profile'") &&
+  read('js/client-list.js').includes('window.openProfileShareModal?.(id)') &&
+  /@media \(max-width: 768px\), \(pointer: coarse\)[\s\S]*\.header-share-btn\s*\{[\s\S]*display:\s*none/.test(redesignCss));
+assert('Share modal can target a selected profile id',
+  profileShareSrc.includes('openProfileShareModal(profileId = state.currentProfile)') &&
+  profileShareSrc.includes('data-profile-id="${escapeAttr(profileId || \'\')}"') &&
+  profileShareSrc.includes('createProfileShare({ profileId, password, expiresDays })'));
+assert('Share result uses icon copy buttons',
+  profileShareSrc.includes('const COPY_ICON') &&
+  profileShareSrc.includes('class="profile-share-icon-btn" data-profile-share-action="copy"') &&
+  profileShareSrc.includes('aria-label="Copy link"') &&
+  profileShareSrc.includes('aria-label="Copy password"'));
+assert('Window exports share helpers',
+  profileShareSrc.includes('openProfileShareModal') &&
+  profileShareSrc.includes('decryptProfileShareEnvelope') &&
+  profileShareSrc.includes('parseProfileShareIdFromLocation'));
+
+console.log('4. Export/import reuse and credential boundaries');
+assert('export.js exposes buildClientExportObject',
+  exportSrc.includes('export async function buildClientExportObject') &&
+  exportSrc.includes('Object.assign(window, { openReportBuilder') &&
+  exportSrc.includes('buildClientExportObject'));
+assert('exportClientJSON downloads the reusable export object',
+  exportSrc.includes('exportObj = await buildClientExportObject(profileId, includeChat)') &&
+  exportSrc.includes('new Blob([JSON.stringify(exportObj, null, 2)]'));
+assert('Single-profile export still excludes wearableConnections',
+  !/wearableConnections:\s*data\.wearableConnections/.test(exportSrc));
+assert('Shared profile import uses existing importDataJSON path',
+  profileShareSrc.includes("await importDataJSON(new File([json], 'getbased-shared-profile.json'"));
+
+console.log('5. Vercel Blob API safeguards');
+assert('Package includes @vercel/blob runtime dependency',
+  packageJson.dependencies?.['@vercel/blob']);
+assert('API uses private Vercel Blob storage',
+  apiShareSrc.includes("from '@vercel/blob'") &&
+  apiShareSrc.includes("access: 'private'") &&
+  apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));
+assert('API validates share ids, size, expiry, and crypto envelope',
+  apiShareSrc.includes('SHARE_ID_RE') &&
+  apiShareSrc.includes('MAX_SHARE_BYTES') &&
+  apiShareSrc.includes('MAX_TTL_MS') &&
+  apiShareSrc.includes("envelope.schema !== SHARE_SCHEMA") &&
+  apiShareSrc.includes("envelope.cipher?.name !== 'AES-GCM'"));
+assert('API requires local management token to stop new links',
+  apiShareSrc.includes('manageTokenHash') &&
+  apiShareSrc.includes('MANAGE_TOKEN_HASH_RE') &&
+  apiShareSrc.includes('x-profile-share-manage-token') &&
+  devServerSrc.includes('PROFILE_SHARE_MANAGE_TOKEN_HASH_RE') &&
+  devServerSrc.includes('This link can only be stopped from the browser that created it.'));
+assert('API never accepts or stores a password field',
+  !/body\.(password|passphrase|secret)|parsed\.(password|passphrase|secret)/.test(apiShareSrc));
+assert('Dev server mirrors /api/share without disk writes',
+  devServerSrc.includes("if (pathname === '/api/share')") &&
+  devServerSrc.includes('PROFILE_SHARE_DEV_STORE = new Map()'));
+
+if (fail) {
+  console.log(`\nProfile share tests: ${pass} passed, ${fail} failed`);
+  process.exit(1);
+} else {
+  console.log(`\nProfile share tests: ${pass} passed, 0 failed`);
+}

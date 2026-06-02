@@ -3,10 +3,13 @@
 import { state } from './state.js';
 import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend, escapeHTML, escapeAttr } from './utils.js';
 import { getActiveData, saveImportedData } from './data.js';
-import { getAllFlaggedMarkers, getEffectiveRange, getLatestValueIndex } from './marker-analysis.js';
-import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData } from './profile.js';
+import { getAllFlaggedMarkers, getEffectiveRange } from './marker-analysis.js';
+import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData, getProfileHeight } from './profile.js';
 import { getBloodDrawPhases } from './cycle.js';
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
+import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
+import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
+import { trackUsage } from './schema.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -22,6 +25,33 @@ import { setLabEntryMarker } from './lab-entry.js';
 // ═══════════════════════════════════════════════
 const REPORT_BUILDER_OVERLAY_ID = 'report-builder-overlay';
 const DEFAULT_REPORT_PRESET = 'clinician';
+const REPORT_AI_SUMMARY_MAX_CHARS = 2800;
+const REPORT_AI_CONTEXT_MARKER_LIMIT = 32;
+const REPORT_AI_CONTEXT_FLAG_LIMIT = 16;
+const REPORT_AI_CONTEXT_TREND_LIMIT = 12;
+const REPORT_AI_CONTEXT_CONTEXT_LIMIT = 10;
+
+const REPORT_AI_SUMMARY_PROMPT = `You write practitioner-facing patient overviews from structured user-owned health data.
+
+Goal: give a clinician or health practitioner the patient's picture in under 1 minute without making them read the full report.
+
+Return exactly these sections, using these headings:
+Patient picture:
+Key signals:
+Context affecting interpretation:
+Discussion focus:
+
+Rules:
+- Write 180-240 words total.
+- Patient picture must be a 2-3 sentence synthesis, not a list.
+- Key signals must use 3-5 bullets grouped by clinical theme when possible.
+- Context affecting interpretation must use 2-4 bullets covering relevant history, supplements/meds, goals, notes, genetics, or data gaps.
+- Discussion focus must use 2-3 bullets framed as verification or follow-up topics, not treatment instructions.
+- Use only the provided report facts.
+- Mention actual marker names and values only when they help the overview.
+- Prioritize patterns, severity, direction of travel, and missing context over exhaustively listing markers.
+- Do not diagnose, prescribe, or claim causality.
+- Avoid boilerplate disclaimers, generic wellness advice, and repeating every marker.`;
 
 const REPORT_SECTION_DEFS = [
   { id: 'flagged', label: 'Flagged results' },
@@ -92,11 +122,239 @@ function normalizeReportOptions(options = {}) {
     dateRange,
     sections: REPORT_SECTION_IDS.filter(id => sectionSet.has(id)),
     categoryKeys: Array.isArray(options.categoryKeys) ? options.categoryKeys.filter(Boolean) : null,
+    aiSummary: normalizeReportAISummary(options.aiSummary),
   };
 }
 
 function reportIncludes(options, sectionId) {
   return options.sections.includes(sectionId);
+}
+
+function cleanReportAISummaryText(text) {
+  let cleaned = String(text || '').replace(/\r\n?/g, '\n').trim();
+  cleaned = cleaned.replace(/^```(?:markdown|text)?\s*/i, '').replace(/```$/i, '').trim();
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  return cleaned.slice(0, REPORT_AI_SUMMARY_MAX_CHARS).trim();
+}
+
+function normalizeReportAISummary(summary) {
+  if (!summary) return null;
+  const input = typeof summary === 'string' ? { text: summary } : summary;
+  if (!input || typeof input !== 'object') return null;
+  const text = cleanReportAISummaryText(input.text || input.content || '');
+  if (!text) return null;
+  return {
+    text,
+    generatedAt: input.generatedAt || input.createdAt || '',
+    model: input.model || input.modelDisplay || '',
+    provider: input.provider || '',
+    modelId: input.modelId || '',
+  };
+}
+
+function formatReportDateLabel(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getLatestReportValueIndex(values = []) {
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i] !== null && values[i] !== undefined) return i;
+  }
+  return -1;
+}
+
+function formatReportRange(min, max) {
+  if (min != null && max != null) return `${formatValue(min)}-${formatValue(max)}`;
+  if (min != null) return `>${formatValue(min)}`;
+  if (max != null) return `<${formatValue(max)}`;
+  return 'not specified';
+}
+
+function getReportAgeLabel(dob) {
+  if (!dob) return '';
+  const birth = new Date(dob + 'T00:00:00');
+  if (Number.isNaN(birth.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDelta = today.getMonth() - birth.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 && age <= 130 ? `${age} years` : '';
+}
+
+function getReportHeaderProfile(profileName) {
+  const profile = getProfiles().find(p => p.id === state.currentProfile) || {};
+  return {
+    ...profile,
+    name: profile.name || profileName,
+    sex: profile.sex || state.profileSex || null,
+    dob: profile.dob || state.profileDob || null,
+  };
+}
+
+function formatReportLocationLabel(location) {
+  if (!location) return '';
+  if (typeof location === 'string') return location.trim();
+  if (typeof location !== 'object') return '';
+  if (location.label) return String(location.label).trim();
+  const parts = [];
+  const city = location.city || location.locality;
+  const region = location.region || location.state || location.province;
+  const country = location.country;
+  const zip = location.zip || location.postalCode || location.postcode;
+  for (const part of [city, region, country, zip]) {
+    const text = String(part || '').trim();
+    if (text && !parts.includes(text)) parts.push(text);
+  }
+  if (parts.length > 0) return parts.join(', ');
+  if (Number.isFinite(location.lat) && Number.isFinite(location.lon)) {
+    return `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`;
+  }
+  return '';
+}
+
+function getReportHeightInfo(profile) {
+  const stored = getProfileHeight(state.currentProfile);
+  const height = stored?.height ?? profile?.height ?? null;
+  if (height == null || height === '') return null;
+  const numericHeight = Number(height);
+  if (!Number.isFinite(numericHeight) || numericHeight <= 0) return null;
+  return {
+    height: numericHeight,
+    unit: stored?.unit || profile?.heightUnit || 'cm',
+  };
+}
+
+function getReportHeightMeters(heightInfo) {
+  if (!heightInfo?.height) return null;
+  const unit = String(heightInfo.unit || 'cm').toLowerCase();
+  if (unit === 'in' || unit === 'inch' || unit === 'inches') return heightInfo.height * 0.0254;
+  if (unit === 'm' || unit === 'meter' || unit === 'meters') return heightInfo.height;
+  return heightInfo.height / 100;
+}
+
+function formatReportHeightLabel(heightInfo) {
+  if (!heightInfo?.height) return '';
+  const unit = String(heightInfo.unit || 'cm').toLowerCase();
+  if (unit === 'in' || unit === 'inch' || unit === 'inches') {
+    const totalInches = Math.round(heightInfo.height);
+    const feet = Math.floor(totalInches / 12);
+    const inches = totalInches % 12;
+    return `${feet} ft ${inches} in`;
+  }
+  if (unit === 'm' || unit === 'meter' || unit === 'meters') return `${formatValue(heightInfo.height)} m`;
+  return `${formatValue(heightInfo.height)} cm`;
+}
+
+function getLatestReportCandidate(candidates) {
+  return candidates
+    .filter(item => item && item.value != null)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
+}
+
+function getLatestReportWeight() {
+  const candidates = [];
+  const biometrics = state.importedData.biometrics;
+  if (Array.isArray(biometrics?.weight)) {
+    for (const entry of biometrics.weight) {
+      if (Number.isFinite(Number(entry.value))) {
+        candidates.push({ value: Number(entry.value), unit: entry.unit || 'kg', date: entry.date || '', source: entry.source || 'manual' });
+      }
+    }
+  }
+  const wearableWeight = state.importedData?.wearableSummary?.metrics?.weight;
+  if (Number.isFinite(wearableWeight?.latest)) {
+    candidates.push({ value: wearableWeight.latest, unit: 'kg', date: wearableWeight.latestDate || '', source: wearableWeight.primarySource || 'wearable' });
+  }
+  return getLatestReportCandidate(candidates);
+}
+
+function getWeightKg(weight) {
+  if (!weight) return null;
+  const unit = String(weight.unit || 'kg').toLowerCase();
+  if (unit === 'lb' || unit === 'lbs' || unit === 'pound' || unit === 'pounds') return weight.value / 2.2046226218;
+  return weight.value;
+}
+
+function getLatestReportBloodPressure() {
+  const candidates = [];
+  const biometrics = state.importedData.biometrics;
+  if (Array.isArray(biometrics?.bp)) {
+    for (const entry of biometrics.bp) {
+      const sys = Number(entry.sys ?? entry.systolic);
+      const dia = Number(entry.dia ?? entry.diastolic);
+      if (Number.isFinite(sys) && Number.isFinite(dia)) {
+        candidates.push({ value: `${formatValue(sys)}/${formatValue(dia)} mmHg`, date: entry.date || '' });
+      }
+    }
+  }
+  const wm = state.importedData?.wearableSummary?.metrics;
+  if (Number.isFinite(wm?.bp_systolic?.latest) && Number.isFinite(wm?.bp_diastolic?.latest)) {
+    candidates.push({
+      value: `${formatValue(wm.bp_systolic.latest)}/${formatValue(wm.bp_diastolic.latest)} mmHg`,
+      date: wm.bp_systolic.latestDate || wm.bp_diastolic.latestDate || '',
+    });
+  }
+  return getLatestReportCandidate(candidates);
+}
+
+function getLatestReportRestingPulse() {
+  const candidates = [];
+  const biometrics = state.importedData.biometrics;
+  if (Array.isArray(biometrics?.pulse)) {
+    for (const entry of biometrics.pulse) {
+      if (Number.isFinite(Number(entry.value))) {
+        candidates.push({ value: `${formatValue(Number(entry.value))} bpm`, date: entry.date || '' });
+      }
+    }
+  }
+  const rhr = state.importedData?.wearableSummary?.metrics?.rhr;
+  if (Number.isFinite(rhr?.latest)) {
+    candidates.push({ value: `${formatValue(rhr.latest)} bpm`, date: rhr.latestDate || '' });
+  }
+  return getLatestReportCandidate(candidates);
+}
+
+function getLatestReportBodyFat() {
+  const bodyFat = state.importedData?.wearableSummary?.metrics?.body_fat_pct;
+  if (!Number.isFinite(bodyFat?.latest)) return null;
+  return { value: `${formatValue(bodyFat.latest)}%`, date: bodyFat.latestDate || '' };
+}
+
+function formatReportValueWithDate(value, date) {
+  if (!value) return '';
+  const dateLabel = formatReportDateLabel(date);
+  return dateLabel ? `${value} (${dateLabel})` : value;
+}
+
+function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexLabel, unitLabel }) {
+  const heightInfo = getReportHeightInfo(profile);
+  const latestWeight = getLatestReportWeight();
+  const weightKg = getWeightKg(latestWeight);
+  const heightMeters = getReportHeightMeters(heightInfo);
+  const bmi = weightKg && heightMeters ? weightKg / (heightMeters * heightMeters) : null;
+  const dob = profile?.dob || state.profileDob || '';
+  const dobLabel = formatReportDateLabel(dob);
+  const ageLabel = getReportAgeLabel(dob);
+  const dobAge = [dobLabel, ageLabel ? `(${ageLabel})` : ''].filter(Boolean).join(' ');
+  const latestBp = getLatestReportBloodPressure();
+  const latestPulse = getLatestReportRestingPulse();
+  const latestBodyFat = getLatestReportBodyFat();
+  const rows = [
+    { label: 'Report type', value: reportOptions.presetLabel },
+    { label: 'Date range', value: dateRange },
+    { label: 'Sex', value: sexLabel },
+    { label: 'DOB / Age', value: dobAge },
+    { label: 'Location', value: formatReportLocationLabel(profile?.location) },
+    { label: 'Height', value: formatReportHeightLabel(heightInfo) },
+    { label: 'Weight', value: latestWeight ? formatReportValueWithDate(`${formatValue(latestWeight.value)} ${latestWeight.unit || 'kg'}`, latestWeight.date) : '' },
+    { label: 'BMI', value: Number.isFinite(bmi) ? formatReportValueWithDate(bmi.toFixed(1), latestWeight?.date) : '' },
+    { label: 'Blood pressure', value: latestBp ? formatReportValueWithDate(latestBp.value, latestBp.date) : '' },
+    { label: 'Resting pulse', value: latestPulse ? formatReportValueWithDate(latestPulse.value, latestPulse.date) : '' },
+    { label: 'Body fat', value: latestBodyFat ? formatReportValueWithDate(latestBodyFat.value, latestBodyFat.date) : '' },
+    { label: 'Units', value: unitLabel },
+  ];
+  return rows.filter(row => row.value != null && String(row.value).trim());
 }
 
 function filterDataByDateIndices(data, indices, cutoffStr) {
@@ -264,7 +522,7 @@ function buildReportContextSections(data) {
   const wm = state.importedData?.wearableSummary?.metrics;
   if (pBio || pHeight?.height || wm) {
     let bioText = '';
-    if (pHeight?.height) bioText += `Height: ${pHeight.height} cm\n`;
+    if (pHeight?.height) bioText += `Height: ${formatReportHeightLabel({ height: pHeight.height, unit: pHeight.unit || 'cm' })}\n`;
     if (pBio?.weight?.length) {
       const latest = [...pBio.weight].sort((a, b) => b.date.localeCompare(a.date))[0];
       bioText += `Latest weight: ${latest.value} ${latest.unit} (${latest.date})\n`;
@@ -288,26 +546,223 @@ function buildReportContextSections(data) {
   return contextSections.filter(section => String(section.text || '').trim());
 }
 
-export function exportPDFReport(options = {}) {
+function buildPreparedReportPayload(options = {}) {
   const reportOptions = normalizeReportOptions(options);
   const rawData = getActiveData();
   let data = filterDataByReportRange(rawData, reportOptions.dateRange);
   data = filterReportCategories(data, reportOptions.categoryKeys);
   const profiles = getProfiles();
-  const profileName = (profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' }).name;
+  const profile = profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' };
+  const profileName = profile.name;
   const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
   const flags = getAllFlaggedMarkers(data);
   const notes = getReportNotes(data, reportOptions);
   const supps = state.importedData.supplements || [];
   const contextSections = buildReportContextSections(data);
 
-  const html = buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, reportOptions);
+  return { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections };
+}
+
+function buildReportAITrendLines(data, limit = REPORT_AI_CONTEXT_TREND_LIMIT) {
+  const items = [];
+  for (const cat of Object.values(data.categories || {})) {
+    for (const marker of Object.values(cat.markers || {})) {
+      const nonNull = (marker.values || []).map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined);
+      if (nonNull.length < 2) continue;
+      const first = nonNull[0];
+      const last = nonNull[nonNull.length - 1];
+      if (first.v === 0) continue;
+      const pctChange = ((last.v - first.v) / first.v) * 100;
+      if (Math.abs(pctChange) <= 10) continue;
+      const direction = pctChange > 0 ? 'increased' : 'decreased';
+      const firstDate = formatReportDateLabel(data.dates?.[first.i]) || data.dates?.[first.i] || 'first result';
+      const lastDate = formatReportDateLabel(data.dates?.[last.i]) || data.dates?.[last.i] || 'latest result';
+      items.push(`${marker.name} ${direction} ${Math.abs(pctChange).toFixed(0)}% (${formatValue(first.v)} to ${formatValue(last.v)} ${marker.unit || ''}, ${firstDate} to ${lastDate})`);
+    }
+  }
+  return items.slice(0, limit);
+}
+
+function buildReportAISummaryContext(payload) {
+  const { reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections } = payload;
+  const dateLabels = (data.dates || []).map(formatReportDateLabel).filter(Boolean);
+  const dateRange = dateLabels.length
+    ? `${dateLabels[0]} to ${dateLabels[dateLabels.length - 1]}`
+    : 'No lab dates in selected range';
+  const markerLines = [];
+  let totalWithData = 0;
+  let totalInRange = 0;
+
+  for (const cat of Object.values(data.categories || {})) {
+    for (const marker of Object.values(cat.markers || {})) {
+      const idx = getLatestReportValueIndex(marker.values || []);
+      if (idx === -1) continue;
+      const value = marker.values[idx];
+      const range = getEffectiveRange(marker);
+      const status = getStatus(value, range.min, range.max);
+      totalWithData++;
+      if (status === 'normal') totalInRange++;
+      const date = formatReportDateLabel(data.dates?.[idx]) || data.dates?.[idx] || 'latest';
+      const category = cat.label || 'Labs';
+      markerLines.push({
+        priority: status === 'normal' ? 1 : 0,
+        text: `${category}: ${marker.name} ${formatValue(value)} ${marker.unit || ''} (${status}; range ${formatReportRange(range.min, range.max)}; ${date})`
+      });
+    }
+  }
+
+  markerLines.sort((a, b) => a.priority - b.priority || a.text.localeCompare(b.text));
+
+  const lines = [
+    `Profile: ${profileName}`,
+    `Sex: ${sexLabel}`,
+    `Age: ${getReportAgeLabel(profile?.dob) || 'not specified'}`,
+    `Profile status: ${profile?.status || 'not specified'}`,
+    `Report type: ${reportOptions.presetLabel}`,
+    `Selected report window: ${dateRange}`,
+    `Range mode: ${state.rangeMode || 'optimal'}`,
+    `Lab dates in report: ${data.dates?.length || 0}`,
+    `Markers reviewed: ${totalWithData}`,
+    `Markers within selected range: ${totalInRange}`,
+    `Latest markers outside selected range: ${flags.length}`,
+  ];
+  if (Array.isArray(profile?.tags) && profile.tags.length > 0) {
+    lines.push(`Profile tags: ${profile.tags.slice(0, 8).join(', ')}`);
+  }
+  if (profile?.notes) {
+    lines.push(`Profile notes: ${String(profile.notes).replace(/\s+/g, ' ').slice(0, 280)}`);
+  }
+
+  if (flags.length > 0) {
+    lines.push('Latest out-of-range markers:');
+    for (const flag of flags.slice(0, REPORT_AI_CONTEXT_FLAG_LIMIT)) {
+      lines.push(`- ${flag.name}: ${flag.value} ${flag.unit || ''} ${flag.status} (range ${formatReportRange(flag.effectiveMin, flag.effectiveMax)})`);
+    }
+  }
+
+  if (markerLines.length > 0) {
+    lines.push('Representative latest lab results:');
+    for (const item of markerLines.slice(0, REPORT_AI_CONTEXT_MARKER_LIMIT)) {
+      lines.push(`- ${item.text}`);
+    }
+  }
+
+  const trendLines = buildReportAITrendLines(data);
+  if (trendLines.length > 0) {
+    lines.push('Notable trends:');
+    for (const item of trendLines) lines.push(`- ${item}`);
+  }
+
+  if (Array.isArray(supps) && supps.length > 0) {
+    lines.push('Supplements and medications:');
+    for (const supp of supps.slice(0, 12)) {
+      const dosage = [supp.dosage, supp.dose, supp.amount, supp.frequency].filter(Boolean).join(', ');
+      lines.push(`- ${supp.name || 'Unnamed'}${dosage ? ` (${dosage})` : ''}`);
+    }
+  }
+
+  if (notes.length > 0) {
+    lines.push('Recent report notes:');
+    for (const note of notes.slice(-5)) {
+      lines.push(`- ${note.date || 'undated'}: ${String(note.text || '').slice(0, 220)}`);
+    }
+  }
+
+  if (contextSections.length > 0) {
+    lines.push('Profile context:');
+    for (const section of contextSections.slice(0, REPORT_AI_CONTEXT_CONTEXT_LIMIT)) {
+      lines.push(`- ${section.title}: ${String(section.text || '').replace(/\s+/g, ' ').slice(0, 280)}`);
+    }
+  }
+
+  const genetics = state.importedData.genetics;
+  if (genetics?.apoe) lines.push(`Genetics: APOE ${genetics.apoe}`);
+
+  return lines.join('\n');
+}
+
+export async function generateReportAISummary(options = {}) {
+  if (!hasAIProvider()) {
+    showNotification('Connect an AI provider before generating a report summary', 'error');
+    return null;
+  }
+  if (isAIPaused()) {
+    showNotification('AI features are paused', 'info');
+    return null;
+  }
+
+  const payload = buildPreparedReportPayload(options);
+  const provider = getAIProvider();
+  const modelId = getActiveModelId(provider);
+  const modelDisplay = getActiveModelDisplay(provider);
+  const result = await callClaudeAPI({
+    system: REPORT_AI_SUMMARY_PROMPT,
+    messages: [{ role: 'user', content: buildReportAISummaryContext(payload) }],
+    maxTokens: 900,
+    forceNonStream: true,
+  }, provider);
+
+  const text = cleanReportAISummaryText(result?.text || '');
+  if (!text) throw new Error('AI returned an empty summary');
+  if (result?.usage) {
+    trackUsage(provider, modelId, result.usage.inputTokens || 0, result.usage.outputTokens || 0);
+  }
+  return {
+    text,
+    generatedAt: new Date().toISOString(),
+    provider,
+    modelId,
+    model: modelDisplay,
+  };
+}
+
+function renderReportAISummaryText(text) {
+  const lines = cleanReportAISummaryText(text).split('\n').map(line => line.trim()).filter(Boolean);
+  const chunks = [];
+  let list = [];
+  const flushList = () => {
+    if (list.length === 0) return;
+    chunks.push(`<ul class="report-list">${list.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul>`);
+    list = [];
+  };
+  for (const line of lines) {
+    const bullet = line.match(/^(?:[-*]|\u2022|\d+[.)])\s+(.+)$/);
+    if (bullet) {
+      list.push(bullet[1]);
+    } else if (/^[A-Za-z][A-Za-z /&-]{2,42}:$/.test(line)) {
+      flushList();
+      chunks.push(`<p class="report-ai-subhead">${escapeHTML(line.slice(0, -1))}</p>`);
+    } else {
+      flushList();
+      chunks.push(`<p>${escapeHTML(line)}</p>`);
+    }
+  }
+  flushList();
+  return chunks.join('') || '<p>No practitioner overview was generated.</p>';
+}
+
+function renderReportAISummarySection(summary) {
+  if (!summary?.text) return '';
+  const generatedDate = summary.generatedAt
+    ? new Date(summary.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '';
+  const meta = [summary.model, generatedDate ? `generated ${generatedDate}` : ''].filter(Boolean).join(' · ');
+  return `<section class="report-ai-summary">
+    <h2>Practitioner Overview</h2>
+    <div class="report-ai-summary-body">${renderReportAISummaryText(summary.text)}</div>
+    ${meta ? `<p class="report-ai-meta">${escapeHTML(meta)}</p>` : ''}
+    <p class="report-note">AI-generated from the selected report data. Review for accuracy before sharing.</p>
+  </section>`;
+}
+
+export function exportPDFReport(options = {}) {
+  const payload = buildPreparedReportPayload(options);
+  const html = buildReportHTML(payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.notes, payload.supps, payload.contextSections, payload.reportOptions);
   const win = window.open('', '_blank');
   if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
   win.document.write(html);
   win.document.close();
-  showNotification('Opening PDF preview...', 'info', 2000);
-  setTimeout(() => win.print(), 600);
+  showNotification('PDF preview opened. Use Print in the preview to save as PDF.', 'info', 2500);
   return true;
 }
 
@@ -319,48 +774,63 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const fullDateLabels = data.dates.map(d => fmtDate(d));
   const dateRange = fullDateLabels.length > 0
     ? `${fullDateLabels[0]} \u2013 ${fullDateLabels[fullDateLabels.length - 1]}`
-    : 'No dates';
+    : 'No lab dates in selected range';
+  const hasReportValue = value => value !== null && value !== undefined;
   const trendItems = buildTrendItems();
   const reportStats = buildReportStats();
+  const genetics = state.importedData.genetics;
+  const snpTable = window._snpTableCache;
+  const rangeModeLabel = getRangeModeLabel();
+  const rangeModeTitle = rangeModeLabel.charAt(0).toUpperCase() + rangeModeLabel.slice(1);
+  const headerDeck = buildHeaderDeck();
+  const headerProfile = getReportHeaderProfile(profileName);
+  const headerFacts = buildReportHeaderFacts({ profile: headerProfile, reportOptions, dateRange, sexLabel, unitLabel });
+  const headerMetaHTML = headerFacts.map(fact => `<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('');
 
   let body = '';
 
-  // Header
-  body += `<div class="report-header">
-    <div class="report-brand">getbased</div>
-    <h1>Lab Report</h1>
-    <div class="report-meta">
-      <span><strong>Profile:</strong> ${esc(profileName)}</span>
-      <span><strong>Report:</strong> ${esc(reportOptions.presetLabel)}</span>
-      <span><strong>Sex:</strong> ${sexLabel}</span>
-      <span><strong>Units:</strong> ${unitLabel}</span>
-      <span><strong>Date range:</strong> ${esc(dateRange)}</span>
-      <span><strong>Generated:</strong> ${now}</span>
-    </div>
+  body += `<div class="report-preview-toolbar" aria-label="Report preview actions">
+    <button type="button" class="report-print-btn" onclick="window.print()">Print / Save PDF</button>
   </div>`;
 
-  body += `<div class="report-overview" aria-label="Report overview">
+  // Header
+  body += `<header class="report-header">
+    <div class="report-head-top">
+      <div>
+        <div class="report-brand">getbased</div>
+        <div class="report-kicker">${esc(reportOptions.presetLabel)}</div>
+      </div>
+      <div class="report-generated"><span>Generated</span><strong>${now}</strong></div>
+    </div>
+    <h1>${esc(profileName)} lab report</h1>
+    <p class="report-deck">${esc(headerDeck)}</p>
+    <dl class="report-meta">${headerMetaHTML}</dl>
+  </header>`;
+
+  body += `<div class="report-overview" aria-label="Report snapshot">
     <div class="report-stat">
-      <span class="report-stat-label">Flagged</span>
+      <span class="report-stat-label">Needs Attention</span>
       <strong class="report-stat-value">${flags.length}</strong>
-      <span class="report-stat-note">out-of-range result${flags.length === 1 ? '' : 's'}</span>
+      <span class="report-stat-note">latest out-of-range marker${flags.length === 1 ? '' : 's'}</span>
     </div>
     <div class="report-stat">
-      <span class="report-stat-label">Markers</span>
+      <span class="report-stat-label">Markers Reviewed</span>
       <strong class="report-stat-value">${reportStats.totalWithData}</strong>
-      <span class="report-stat-note">${reportStats.totalInRange} in ${state.rangeMode === 'reference' ? 'reference' : 'optimal'} range</span>
+      <span class="report-stat-note">${reportStats.totalInRange} within ${rangeModeLabel} range</span>
     </div>
     <div class="report-stat">
-      <span class="report-stat-label">Collections</span>
+      <span class="report-stat-label">Lab Dates</span>
       <strong class="report-stat-value">${data.dates.length}</strong>
       <span class="report-stat-note">${esc(dateRange)}</span>
     </div>
     <div class="report-stat">
-      <span class="report-stat-label">Categories</span>
+      <span class="report-stat-label">Lab Groups</span>
       <strong class="report-stat-value">${reportStats.categoryCount}</strong>
       <span class="report-stat-note">with lab data</span>
     </div>
   </div>`;
+
+  body += renderReportAISummarySection(reportOptions.aiSummary);
 
   if (reportIncludes(reportOptions, 'summary')) {
     body += renderSummarySection();
@@ -385,26 +855,28 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   // Category tables
   if (reportIncludes(reportOptions, 'categories')) {
     for (const [catKey, cat] of Object.entries(data.categories)) {
-      const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(v => v !== null));
+      const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values && m.values.some(hasReportValue));
       if (markersWithData.length === 0) continue;
-      const labels = cat.singleDate ? [cat.singleDateLabel || 'N/A'] : fullDateLabels;
+      const dateColumns = cat.singleDate
+        ? [{ label: cat.singleDateLabel || 'N/A', index: 0 }]
+        : fullDateLabels
+            .map((label, index) => ({ label, index }))
+            .filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])));
+      if (dateColumns.length === 0) continue;
       body += `<h2>${esc(cat.label)}</h2><table><thead><tr><th>Biomarker</th><th>Unit</th><th>Reference</th>`;
-      if (cat.singleDate) {
-        body += `<th>${labels[0]}</th>`;
-      } else {
-        for (const l of labels) body += `<th>${l}</th>`;
-      }
+      for (const column of dateColumns) body += `<th>${esc(column.label)}</th>`;
       body += `<th>Trend</th></tr></thead><tbody>`;
       for (const [mKey, marker] of markersWithData) {
         const r = getEffectiveRange(marker);
-        const trend = getTrend(marker.values, r.min, r.max);
+        const trendValues = marker.values.map(v => hasReportValue(v) ? v : null);
+        const trend = getTrend(trendValues, r.min, r.max);
         let rangeStr = r.min != null && r.max != null ? `${formatValue(r.min)} \u2013 ${formatValue(r.max)}` : '\u2014';
         if (state.rangeMode === 'both' && marker.optimalMin != null) {
           rangeStr = `${formatValue(marker.refMin)} \u2013 ${formatValue(marker.refMax)}<br><span class="optimal">opt: ${formatValue(marker.optimalMin)} \u2013 ${formatValue(marker.optimalMax)}</span>`;
         }
         body += `<tr><td>${esc(marker.name)}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
-        for (let i = 0; i < marker.values.length; i++) {
-          const v = marker.values[i];
+        for (const column of dateColumns) {
+          const v = marker.values[column.index] ?? null;
           const s = v !== null ? getStatus(v, r.min, r.max) : 'missing';
           const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
           body += `<td class="val-${s}">${v !== null ? sPrefix + formatValue(v) : '\u2014'}</td>`;
@@ -421,7 +893,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     for (const s of supps) {
       const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
       const periodStr = pds.map(p => `${fmtDate(p.start)} \u2192 ${p.end ? fmtDate(p.end) : 'ongoing'}`).join('<br>');
-      body += `<tr><td>${esc(s.name)}</td><td>${esc(s.dosage || '\u2014')}</td><td>${s.type}</td>
+      body += `<tr><td>${esc(s.name)}</td><td>${formatSupplementDosage(s)}</td><td>${esc(s.type || '\u2014')}</td>
         <td>${periodStr}</td><td style="font-size:11px">${esc(s.note || '\u2014')}</td></tr>`;
     }
     body += `</tbody></table>`;
@@ -436,8 +908,6 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   // Genetics
-  const genetics = state.importedData.genetics;
-  const snpTable = window._snpTableCache;
   if (reportIncludes(reportOptions, 'genetics') && genetics && genetics.snps && snpTable) {
     const snpCount = Object.keys(genetics.snps).length;
     body += `<h2>Genetics</h2>`;
@@ -514,11 +984,68 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return `<dl class="context-facts">${rows}</dl>`;
   }
 
+  function getSupplementDosageParts(s) {
+    const parts = [];
+    if (s.dosage) parts.push(String(s.dosage));
+    if (s.dose) parts.push(String(s.dose));
+    if (s.amount) parts.push(String(s.amount));
+    if (s.frequency && !parts.some(part => part.toLowerCase().includes(String(s.frequency).toLowerCase()))) {
+      parts.push(String(s.frequency));
+    }
+    if (Array.isArray(s.ingredients) && s.ingredients.length > 0) {
+      const ingredientParts = s.ingredients.map(ing => {
+        const name = ing.name ? String(ing.name).trim() : '';
+        const amount = ing.amount ? String(ing.amount).trim() : '';
+        const base = [name, amount].filter(Boolean).join(' ').trim();
+        if (!base) return '';
+        const total = ingredientDailyTotal(ing, s);
+        const times = effectiveTimesPerDay(ing, s);
+        const timesStr = times && times > 1 ? ` x ${times}/day` : '';
+        const totalStr = total ? ` -> ${formatSupplementTotal(total)}` : '';
+        return `${base}${timesStr}${totalStr}`;
+      }).filter(Boolean);
+      if (ingredientParts.length > 0) parts.push(ingredientParts.join('; '));
+    }
+    if (s.timesPerDay && !parts.some(part => /\b\/day\b|\bx\s*\d/i.test(part))) {
+      parts.push(`${s.timesPerDay}x/day`);
+    }
+    return [...new Set(parts)];
+  }
+
+  function formatSupplementDosage(s) {
+    const parts = getSupplementDosageParts(s);
+    return parts.length > 0 ? parts.map(part => esc(part)).join('<br>') : '\u2014';
+  }
+
+  function formatSupplementSummary(s) {
+    const dosage = getSupplementDosageParts(s)[0];
+    return `${esc(s.name)}${dosage ? ' (' + esc(dosage) + ')' : ''}`;
+  }
+
+  function getRangeModeLabel() {
+    if (state.rangeMode === 'reference') return 'reference';
+    if (state.rangeMode === 'both') return 'reference/optimal';
+    return 'optimal';
+  }
+
+  function buildHeaderDeck() {
+    if (reportStats.totalWithData === 0) {
+      return 'No lab results are available for the selected report window. Non-lab sections are included only when selected and available.';
+    }
+    const labDateText = data.dates.length === 1 ? '1 lab date' : `${data.dates.length} lab dates`;
+    const markerText = reportStats.totalWithData === 1 ? '1 marker' : `${reportStats.totalWithData} markers`;
+    const groupText = reportStats.categoryCount === 1 ? '1 lab group' : `${reportStats.categoryCount} lab groups`;
+    const flagText = flags.length === 0
+      ? 'No latest markers are outside range.'
+      : `${flags.length} latest marker${flags.length === 1 ? ' is' : 's are'} outside range.`;
+    return `${labDateText} covering ${markerText} across ${groupText}. ${flagText}`;
+  }
+
   function buildTrendItems() {
     const items = [];
     for (const cat of Object.values(data.categories)) {
       for (const marker of Object.values(cat.markers)) {
-        const nonNull = marker.values.map((v,i) => ({v,i})).filter(x => x.v !== null);
+        const nonNull = marker.values.map((v,i) => ({v,i})).filter(x => hasReportValue(x.v));
         if (nonNull.length < 2) continue;
         const first = nonNull[0], last = nonNull[nonNull.length - 1];
         if (first.v === 0) continue;
@@ -534,12 +1061,19 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return items;
   }
 
+  function getLatestReportValueIndex(values = []) {
+    for (let i = values.length - 1; i >= 0; i--) {
+      if (hasReportValue(values[i])) return i;
+    }
+    return -1;
+  }
+
   function buildReportStats() {
     let totalWithData = 0, totalInRange = 0, categoryCount = 0;
     for (const cat of Object.values(data.categories)) {
       let categoryHasData = false;
       for (const marker of Object.values(cat.markers)) {
-        const li = getLatestValueIndex(marker.values);
+        const li = getLatestReportValueIndex(marker.values);
         if (li !== -1) {
           categoryHasData = true;
           totalWithData++;
@@ -582,10 +1116,10 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       }
     }
 
-    summary += `<p class="report-copy"><strong>Within ${state.rangeMode === 'reference' ? 'Reference' : 'Optimal'} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data</p>`;
+    summary += `<p class="report-copy"><strong>Within ${rangeModeTitle} Range:</strong> ${reportStats.totalInRange} of ${reportStats.totalWithData} markers with data</p>`;
 
     if (reportIncludes(reportOptions, 'supplements') && supps.length > 0) {
-      const suppList = supps.map(s => `${esc(s.name)}${s.dosage ? ' (' + esc(s.dosage) + ')' : ''}`).join(', ');
+      const suppList = supps.map(s => formatSupplementSummary(s)).join(', ');
       summary += `<p class="report-copy"><strong>Supplements/Medications:</strong> ${suppList}</p>`;
     }
 
@@ -603,15 +1137,33 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   :root { color-scheme: light; }
   html, body { background: #fff; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; line-height: 1.55; padding: 36px; max-width: 1100px; margin: 0 auto; }
-  .report-header { border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 18px; }
+  .report-preview-toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end; margin: -16px -16px 22px; padding: 12px 16px; background: rgba(255,255,255,0.96); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(10px); }
+  .report-print-btn { border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; padding: 8px 13px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .report-print-btn:hover { background: #374151; border-color: #374151; }
+  .report-header { border-bottom: 2px solid #111827; padding-bottom: 18px; margin-bottom: 18px; }
+  .report-head-top { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; margin-bottom: 10px; }
   .report-brand { color: #4b5563; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-  .report-header h1 { font-size: 30px; font-weight: 750; letter-spacing: -0.01em; margin-top: 4px; }
-  .report-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 18px; font-size: 13px; color: #4b5563; margin-top: 10px; }
+  .report-kicker { color: #64748b; font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .report-generated { color: #64748b; font-size: 11px; line-height: 1.3; text-align: right; }
+  .report-generated span { display: block; text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em; }
+  .report-generated strong { color: #111827; font-size: 13px; font-weight: 700; }
+  .report-header h1 { color: #111827; font-size: 32px; font-weight: 750; letter-spacing: 0; line-height: 1.1; margin-top: 4px; }
+  .report-deck { color: #374151; font-size: 14px; line-height: 1.5; max-width: 78ch; margin-top: 10px; }
+  .report-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin-top: 16px; }
+  .report-meta div { min-width: 0; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+  .report-meta dt { color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .report-meta dd { color: #111827; font-size: 13px; font-weight: 650; line-height: 1.35; margin-top: 2px; overflow-wrap: anywhere; }
   .report-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 24px; }
   .report-stat { border: 1px solid #d8e0ea; background: #f8fafc; padding: 10px 12px; min-height: 88px; break-inside: avoid; page-break-inside: avoid; }
   .report-stat-label { display: block; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
   .report-stat-value { display: block; color: #111827; font-size: 24px; line-height: 1.15; margin-top: 6px; }
   .report-stat-note { display: block; color: #475569; font-size: 11px; line-height: 1.35; margin-top: 4px; }
+  .report-ai-summary { border: 1px solid #cbd5e1; background: #f8fafc; padding: 16px 18px; margin: 0 0 22px; break-inside: avoid; page-break-inside: avoid; }
+  .report-ai-summary h2 { margin-top: 0; }
+  .report-ai-summary-body { color: #273449; font-size: 13px; line-height: 1.55; }
+  .report-ai-summary-body p { margin-bottom: 9px; }
+  .report-ai-subhead { color: #111827; font-size: 12px; font-weight: 750; letter-spacing: 0; margin: 12px 0 4px; text-transform: uppercase; }
+  .report-ai-meta { color: #64748b; font-size: 11px; font-weight: 650; margin-top: 10px; }
   .report-summary { border: 1px solid #d8e0ea; background: #fbfcfe; padding: 16px 18px; margin: 0 0 22px; break-inside: avoid; page-break-inside: avoid; }
   h2 { color: #111827; font-size: 18px; font-weight: 750; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #d8e0ea; page-break-after: avoid; }
   .report-summary h2 { margin-top: 0; }
@@ -649,7 +1201,18 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   @media print {
     @page { margin: 12mm; }
     body { padding: 0; max-width: none; }
-    .report-overview { grid-template-columns: repeat(4, 1fr); }
+    .report-preview-toolbar { display: none; }
+    .report-header { margin-bottom: 12px; padding-bottom: 12px; }
+    .report-head-top { margin-bottom: 6px; }
+    .report-header h1 { font-size: 26px; }
+    .report-deck { font-size: 12px; margin-top: 6px; }
+    .report-meta { gap: 6px 12px; margin-top: 10px; }
+    .report-meta div { padding-top: 5px; }
+    .report-overview { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .report-stat { min-height: 68px; padding: 8px 10px; }
+    .report-stat-value { font-size: 20px; margin-top: 4px; }
+    .report-summary, .report-ai-summary, .profile-context { break-inside: auto; page-break-inside: auto; }
+    .report-summary, .report-ai-summary { padding: 12px 14px; margin-bottom: 16px; }
     h2 { page-break-after: avoid; }
     table { page-break-inside: auto; }
     th { font-size: 9px; padding: 6px 7px; }
@@ -659,6 +1222,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
   @media (max-width: 720px) {
     body { padding: 20px; }
+    .report-preview-toolbar { margin: -8px -8px 18px; padding: 10px 8px; }
     .report-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .context-grid { grid-template-columns: 1fr; }
   }
@@ -686,7 +1250,6 @@ function getReportCategoryOptions(data = getActiveData()) {
     return {
       key,
       label: cat.label || key,
-      icon: cat.icon || '',
       markerCount,
       flaggedCount: flagCounts.get(key) || 0,
     };
@@ -730,7 +1293,7 @@ function renderReportCategoryChecks(categoryOptions, selectedCategoryKeys) {
     return `<label class="report-category-row">
       <input type="checkbox" data-report-category="${escapeAttr(option.key)}" data-report-priority="${option.flaggedCount > 0 ? 'true' : 'false'}" ${checked ? 'checked' : ''}>
       <span class="report-category-copy">
-        <span class="report-category-title">${escapeHTML(option.icon)} ${escapeHTML(option.label)}</span>
+        <span class="report-category-title">${escapeHTML(option.label)}</span>
         <span class="report-category-meta">${escapeHTML(flagText)}</span>
       </span>
     </label>`;
@@ -759,6 +1322,7 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
         <button type="button" class="modal-close" aria-label="Close" ${reportBuilderActionAttrs('close')}>&times;</button>
       </div>
       <div class="gb-form-body report-builder-body">
+        <div class="report-builder-scroll">
         <div class="report-builder-section">
           <div class="report-builder-label">Report type</div>
           <div class="report-preset-grid">${presetButtons}</div>
@@ -784,9 +1348,24 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
           </div>
           <div class="report-category-list">${renderReportCategoryChecks(categoryOptions, selectedCategoryKeys)}</div>
         </div>
+        <div class="report-builder-section report-ai-builder">
+          <div class="report-builder-row-head">
+            <div>
+              <div class="report-builder-label">Practitioner overview</div>
+              <div class="report-builder-help">Generate a one-minute clinical picture from the selected report data. Edit it before preview if needed.</div>
+            </div>
+            <div class="report-ai-actions">
+              <button type="button" class="report-mini-btn report-ai-generate-btn" ${reportBuilderActionAttrs('generate-ai-summary')}>Generate</button>
+              <button type="button" class="report-mini-btn report-ai-clear-btn" hidden ${reportBuilderActionAttrs('clear-ai-summary')}>Clear</button>
+            </div>
+          </div>
+          <div class="report-ai-status" data-report-ai-status>Not generated.</div>
+          <textarea id="report-ai-summary-text" class="report-ai-summary-text" aria-label="Editable practitioner overview" hidden></textarea>
+        </div>
+        </div>
         <div class="gb-form-actions report-builder-actions">
           <button type="button" class="import-btn import-btn-secondary" ${reportBuilderActionAttrs('close')}>Cancel</button>
-          <button type="button" class="import-btn" ${reportBuilderActionAttrs('export')}>Preview PDF</button>
+          <button type="button" class="import-btn import-btn-primary report-builder-preview-btn" ${reportBuilderActionAttrs('export')}>Preview PDF</button>
         </div>
       </div>
     </div>
@@ -794,7 +1373,8 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
 }
 
 function collectReportBuilderOptions(overlay) {
-  return {
+  const aiText = overlay.querySelector('#report-ai-summary-text')?.value?.trim() || '';
+  const options = {
     preset: overlay.dataset.reportPreset || DEFAULT_REPORT_PRESET,
     dateRange: overlay.querySelector('#report-date-range')?.value || 'current',
     sections: Array.from(overlay.querySelectorAll('input[data-report-section]:checked'))
@@ -802,6 +1382,17 @@ function collectReportBuilderOptions(overlay) {
     categoryKeys: Array.from(overlay.querySelectorAll('input[data-report-category]:checked'))
       .map(input => input.dataset.reportCategory),
   };
+  if (aiText) {
+    const aiEl = overlay.querySelector('#report-ai-summary-text');
+    options.aiSummary = {
+      text: aiText,
+      generatedAt: aiEl?.dataset.reportAiGeneratedAt || '',
+      model: aiEl?.dataset.reportAiModel || '',
+      provider: aiEl?.dataset.reportAiProvider || '',
+      modelId: aiEl?.dataset.reportAiModelId || '',
+    };
+  }
+  return options;
 }
 
 function setReportCategoryChecks(overlay, mode) {
@@ -818,22 +1409,90 @@ function setReportCategoryChecks(overlay, mode) {
   boxes.forEach(box => { box.checked = true; });
 }
 
-function handleReportBuilderClick(event) {
+function setReportBuilderAISummary(overlay, summary) {
+  const textEl = overlay.querySelector('#report-ai-summary-text');
+  const statusEl = overlay.querySelector('[data-report-ai-status]');
+  const clearBtn = overlay.querySelector('[data-report-action="clear-ai-summary"]');
+  if (!textEl || !statusEl) return;
+  if (!summary?.text) {
+    textEl.value = '';
+    textEl.hidden = true;
+    delete textEl.dataset.reportAiGeneratedAt;
+    delete textEl.dataset.reportAiModel;
+    delete textEl.dataset.reportAiProvider;
+    delete textEl.dataset.reportAiModelId;
+    statusEl.textContent = 'Not generated.';
+    if (clearBtn) clearBtn.hidden = true;
+    return;
+  }
+  textEl.value = summary.text;
+  textEl.hidden = false;
+  textEl.dataset.reportAiGeneratedAt = summary.generatedAt || '';
+  textEl.dataset.reportAiModel = summary.model || '';
+  textEl.dataset.reportAiProvider = summary.provider || '';
+  textEl.dataset.reportAiModelId = summary.modelId || '';
+  statusEl.textContent = `Generated${summary.model ? ` with ${summary.model}` : ''}. Editable before preview.`;
+  if (clearBtn) clearBtn.hidden = false;
+}
+
+function clearReportBuilderAISummaryForOptionChange(overlay) {
+  const textEl = overlay?.querySelector('#report-ai-summary-text');
+  if (!textEl?.value) return;
+  setReportBuilderAISummary(overlay, null);
+  const statusEl = overlay.querySelector('[data-report-ai-status]');
+  if (statusEl) statusEl.textContent = 'Report options changed. Generate again for a practitioner overview.';
+}
+
+async function generateReportBuilderAISummary(overlay, actionEl) {
+  const statusEl = overlay.querySelector('[data-report-ai-status]');
+  const previousText = actionEl.textContent;
+  actionEl.disabled = true;
+  actionEl.textContent = 'Generating...';
+  if (statusEl) statusEl.textContent = 'Generating practitioner overview...';
+  try {
+    const options = collectReportBuilderOptions(overlay);
+    delete options.aiSummary;
+    const summary = await generateReportAISummary(options);
+    if (summary) {
+      setReportBuilderAISummary(overlay, summary);
+      showNotification('Practitioner overview generated', 'info', 2200);
+    } else if (statusEl) {
+      statusEl.textContent = 'Not generated.';
+    }
+  } catch (e) {
+    const message = String(e?.message || e || 'Unknown error').slice(0, 180);
+    if (statusEl) statusEl.textContent = 'Generation failed. Try again or preview without the overview.';
+    showNotification('AI summary failed: ' + message, 'error');
+  } finally {
+    actionEl.disabled = false;
+    actionEl.textContent = previousText || 'Generate';
+  }
+}
+
+async function handleReportBuilderClick(event) {
   const target = event.target instanceof Element ? event.target : null;
   const actionEl = target?.closest('[data-report-action]');
   const overlay = actionEl?.closest(`#${REPORT_BUILDER_OVERLAY_ID}`);
   if (!actionEl || !overlay) return;
   const action = actionEl.dataset.reportAction;
+  event.preventDefault();
   if (action === 'close') {
     closeReportBuilder();
   } else if (action === 'set-preset') {
     openReportBuilder(actionEl.dataset.reportPreset || DEFAULT_REPORT_PRESET);
   } else if (action === 'select-all-categories') {
     setReportCategoryChecks(overlay, 'all');
+    clearReportBuilderAISummaryForOptionChange(overlay);
   } else if (action === 'select-priority-categories') {
     setReportCategoryChecks(overlay, 'priority');
+    clearReportBuilderAISummaryForOptionChange(overlay);
   } else if (action === 'clear-categories') {
     setReportCategoryChecks(overlay, 'clear');
+    clearReportBuilderAISummaryForOptionChange(overlay);
+  } else if (action === 'generate-ai-summary') {
+    await generateReportBuilderAISummary(overlay, actionEl);
+  } else if (action === 'clear-ai-summary') {
+    setReportBuilderAISummary(overlay, null);
   } else if (action === 'export') {
     const options = collectReportBuilderOptions(overlay);
     const hasCategories = overlay.querySelectorAll('input[data-report-category]').length > 0;
@@ -848,13 +1507,26 @@ function handleReportBuilderClick(event) {
   } else {
     return;
   }
-  event.preventDefault();
+}
+
+function handleReportBuilderChange(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const overlay = target?.closest(`#${REPORT_BUILDER_OVERLAY_ID}`);
+  if (!target || !overlay) return;
+  if (
+    target.matches('#report-date-range') ||
+    target.matches('input[data-report-section]') ||
+    target.matches('input[data-report-category]')
+  ) {
+    clearReportBuilderAISummaryForOptionChange(overlay);
+  }
 }
 
 function installReportBuilderDelegates() {
   if (reportBuilderDelegatesInstalled || typeof document === 'undefined') return;
   reportBuilderDelegatesInstalled = true;
   document.addEventListener('click', handleReportBuilderClick);
+  document.addEventListener('change', handleReportBuilderChange);
 }
 
 export function openReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
@@ -931,14 +1603,14 @@ export function exportDataJSON() {
   exportClientJSON(state.currentProfile);
 }
 
-export async function exportClientJSON(profileId, includeChat = false) {
+export async function buildClientExportObject(profileId, includeChat = false) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
-  if (!profile) { showNotification('Profile not found', 'error'); return; }
+  if (!profile) throw new Error('Profile not found');
   const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   let data;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
-  if (!data || !data.entries || data.entries.length === 0) { showNotification('No data to export for this client', 'error'); return; }
+  if (!data || !data.entries || data.entries.length === 0) throw new Error('No data to export for this client');
   const exportObj = {
     version: 2, exportedAt: new Date().toISOString(),
     profile: { name: profile.name, sex: profile.sex || null, dob: profile.dob || null, location: profile.location || null, tags: profile.tags || [], notes: profile.notes || '', status: profile.status || 'active', avatar: profile.avatar || null, pinned: profile.pinned || false, height: profile.height || null, heightUnit: profile.heightUnit || 'cm' },
@@ -988,17 +1660,29 @@ export async function exportClientJSON(profileId, includeChat = false) {
     const chat = await _exportChatData(profileId);
     if (chat) exportObj.chat = chat;
   }
+  return exportObj;
+}
+
+export async function exportClientJSON(profileId, includeChat = false) {
+  let exportObj;
+  try {
+    exportObj = await buildClientExportObject(profileId, includeChat);
+  } catch (err) {
+    showNotification(err?.message || 'Could not export this client', 'error');
+    return;
+  }
   const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const safeName = profile.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const profileName = exportObj.profile?.name || 'client';
+  const safeName = profileName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   a.download = `getbased-${safeName}-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showNotification(`Exported "${profile.name}"`, 'success');
+  showNotification(`Exported "${profileName}"`, 'success');
 }
 
 export async function buildAllDataBundle() {
@@ -1793,4 +2477,4 @@ export async function loadDemoData(sex = 'male') {
   }
 }
 
-Object.assign(window, { openReportBuilder, closeReportBuilder, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });
+Object.assign(window, { openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, buildClientExportObject, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });

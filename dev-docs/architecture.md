@@ -18,6 +18,7 @@ index.html          — HTML structure only; script/CSS includes; SEO meta tags
 styles.css          — Core CSS: tokens, base resets, shared components, responsive/touch rules
 css/app-shell.css   — App chrome: header, sidebar navigation, footer, mobile shell, profile and sync controls
 css/*.css           — Split shared/feature CSS for import/upload flow, EMF assessment, dashboard shell/widgets, category views, modal shell/utilities, context/profile cards, and high-churn surfaces such as settings, mobile dashboard, menstrual cycle, marker detail modal, client list, chat panel, wearables, Light/Sun, and redesign catch-up
+api/share.js        — Vercel Edge Function for encrypted profile share envelope storage
 manifest.json       — PWA manifest (installable as a native app)
 service-worker.js   — PWA cache strategies, API bypass rules
 data/
@@ -75,6 +76,7 @@ js/
   import-file-input.js — lazy file-picker import binding and import routing
   import-drop-zone.js — lazy import drop-zone binding shared by page shells
   export.js         — JSON export/import (single, per-client, database bundle), PDF report, clearAllData
+  profile-share.js  — Password-protected single-profile share links, active link management, deep-link import
   chat.js           — Chat public barrel and entry point
   chat-window-bindings.js — Chat callback wiring and legacy window exports
   chat-marker-prompts.js — Per-marker and selected-correlation AI prompt builders
@@ -185,7 +187,7 @@ Modules in a higher layer may import from lower layers. Modules in the same laye
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  L5 — Feature Modules                                               │
-│  pdf-import.js  export.js  chat.js  settings.js                     │
+│  pdf-import.js  export.js  profile-share.js  chat.js  settings.js    │
 │  feedback.js    nav.js                                              │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
@@ -235,4 +237,4 @@ Bundled locally under `vendor/`:
 | pdf.js | 4.10.38 (legacy ESM) | PDF text extraction; loaded lazily via `js/pdfjs-loader.js` with `isEvalSupported: false` pinned for defense-in-depth |
 | Inter, Outfit, JetBrains Mono | latest | Google Fonts (body, headings, data) |
 
-AI providers (OpenRouter, Routstr, PPQ, Venice, Local AI) are called directly from the browser — no backend proxy.
+AI providers (OpenRouter, Routstr, PPQ, Venice, Local AI) are called directly from the browser for normal chat/import flows. Same-origin API helpers under `api/` cover hosted infrastructure such as OAuth/runtime proxying and encrypted profile share envelope storage, but they must not receive AI prompts or plaintext profile data unless explicitly documented for a new feature.
