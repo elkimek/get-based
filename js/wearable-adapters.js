@@ -306,12 +306,10 @@ export const ADAPTERS = [
       // character-for-character.
       clientId: '23VBN8',
       redirectUris: [
-        'https://app.getbased.health/app',
-        'https://app.getbased.health/',
+        'https://app.getbased.health',
+        'http://localhost:8000/app',
         'https://getbased.health/app',
         'https://beta.getbased.health/',
-        'https://beta.getbased.health/app',
-        'http://localhost:8000/app',
       ],
       scopes: ['profile', 'activity', 'heartrate', 'sleep', 'oxygen_saturation', 'respiratory_rate', 'temperature', 'weight'],
       pkce: true,
