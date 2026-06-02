@@ -92,6 +92,11 @@ return (async function() {
   assert('Client export has profile dob', exportSrc.includes('dob: p.dob'));
   assert('Client export has profile tags', exportSrc.includes('tags: p.tags'));
   assert('Client export has profile height', exportSrc.includes('height: p.height'));
+  assert('PDF report print footer stays in document flow',
+    !/\.report-footer\s*\{[^}]*position:\s*fixed/i.test(exportSrc),
+    'fixed print footer overlaps report content in generated PDFs');
+  assert('PDF report footer avoids splitting across pages',
+    exportSrc.includes('break-inside: avoid; page-break-inside: avoid;'));
 
   // ═══════════════════════════════════════
   // 3. buildAllDataBundle — live call

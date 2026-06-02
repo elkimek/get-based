@@ -302,6 +302,7 @@ const settingsSrc = read('js/settings.js');
     }],
     customMarkers: {
       'custom.activeB12': { name: 'Active B12', unit: 'pmol/l' },
+      'custom.eosinophilsLegacy': { name: 'Eosinophils %', unit: '%' },
       'spadiaFA.epaC20_5': { name: 'EPA C20:5', unit: '%' },
       'biochemistry.alpUkatL': { name: 'ALP (ukat/l)', unit: 'µkat/l' }
     }
@@ -320,7 +321,10 @@ const settingsSrc = read('js/settings.js');
       { rawName: 'ALP (ukat/l)', value: 1.2, unit: 'µkat/l', matched: false, mappedKey: null, suggestedKey: 'biochemistry.alpUkatL' },
       { rawName: 'ALT [µkat/l]', value: 0.5, unit: 'µkat/l', matched: true, mappedKey: 'biochemistry.altUkatL', suggestedKey: null },
       { rawName: 'USED Leukocyty', value: 4, unit: '/µl', matched: true, mappedKey: 'hematology.wbc', suggestedKey: null },
-      { rawName: 'Unknown Marker', value: 42, unit: 'x', matched: true, mappedKey: 'custom.unknownMarker', suggestedKey: null }
+      { rawName: 'Unknown Marker', value: 42, unit: 'x', matched: true, mappedKey: 'custom.unknownMarker', suggestedKey: null },
+      { rawName: 'Lymphocytes %', value: 36.8, unit: '%', matched: true, mappedKey: 'differential.lymphocytes', suggestedKey: null },
+      { rawName: 'Monocytes_PERCENTAGE', value: 7.4, unit: 'PERCENTAGE', matched: true, mappedKey: 'differential.monocytes', suggestedKey: null },
+      { rawName: 'Eosinophils %', value: 4.1, unit: '%', matched: true, mappedKey: 'differential.eosinophils', suggestedKey: null }
     ];
     reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
     assert('Czech glucose reconciles to existing schema marker',
@@ -353,6 +357,12 @@ const settingsSrc = read('js/settings.js');
       && importMarkers[11].suggestedKey === 'urinalysis.leukocytesQualitative');
     assert('Unknown invalid mappedKey is demoted so it becomes a real custom marker',
       !importMarkers[12].matched && importMarkers[12].mappedKey === null && importMarkers[12].suggestedKey === 'custom.unknownMarker');
+    assert('Differential lymphocyte percent maps to percentage marker despite AI absolute key',
+      importMarkers[13].matched && importMarkers[13].mappedKey === 'differential.lymphocytesPct');
+    assert('Differential monocyte percentage label maps to percentage marker despite AI absolute key',
+      importMarkers[14].matched && importMarkers[14].mappedKey === 'differential.monocytesPct');
+    assert('Unsupported differential percent does not overwrite absolute-count or stale custom marker',
+      !importMarkers[15].matched && importMarkers[15].mappedKey === null && importMarkers[15].suggestedKey === 'differential.eosinophilsPct');
   } finally {
     state.importedData = originalImportedData;
   }

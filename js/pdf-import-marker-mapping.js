@@ -61,6 +61,57 @@ function _compactImportLabelVariants(value) {
   return [...new Set(variants)];
 }
 
+const DIFFERENTIAL_IMPORT_STEMS = new Map([
+  ['neutrofily', 'neutrophils'],
+  ['neutrophils', 'neutrophils'],
+  ['neutrophil', 'neutrophils'],
+  ['lymfocyty', 'lymphocytes'],
+  ['lymphocytes', 'lymphocytes'],
+  ['lymphocyte', 'lymphocytes'],
+  ['monocyty', 'monocytes'],
+  ['monocytes', 'monocytes'],
+  ['monocyte', 'monocytes'],
+  ['eosinofily', 'eosinophils'],
+  ['eosinophils', 'eosinophils'],
+  ['eosinophil', 'eosinophils'],
+  ['basofily', 'basophils'],
+  ['basophils', 'basophils'],
+  ['basophil', 'basophils'],
+]);
+
+function _stripDifferentialPercentSuffix(compactBase) {
+  return String(compactBase || '').replace(/(?:pct|percent|percentage)$/i, '');
+}
+
+function _differentialStemFromCompactBase(compactBase) {
+  return DIFFERENTIAL_IMPORT_STEMS.get(_stripDifferentialPercentSuffix(compactBase)) || null;
+}
+
+function _hasImportAbsoluteHint(rawName, unit) {
+  return /#|\babs\b|absolute/i.test(String(rawName || '')) || String(unit || '').includes('10^9');
+}
+
+function _hasImportPercentHint(rawName, unit, compactBase) {
+  const unitNorm = String(unit || '');
+  return /%|\bpct\b|percent|percentage/i.test(String(rawName || '')) ||
+    unitNorm === '%' ||
+    unitNorm === 'pct' ||
+    unitNorm === 'percent' ||
+    unitNorm === 'percentage' ||
+    /(?:pct|percent|percentage)$/i.test(String(compactBase || ''));
+}
+
+function _suggestDifferentialPercentImportKey(marker) {
+  const rawName = marker?.rawName || marker?.suggestedName || '';
+  const unit = normalizeUnitStr(marker?.unit || '');
+  const compactBase = _compactImportLabel(rawName).replace(/#/g, '');
+  const stem = _differentialStemFromCompactBase(compactBase);
+  if (!stem) return null;
+  if (_hasImportAbsoluteHint(rawName, unit)) return null;
+  if (!_hasImportPercentHint(rawName, unit, compactBase)) return null;
+  return `differential.${stem}Pct`;
+}
+
 export function _cleanImportedMarkerDisplayName(value) {
   const cleaned = _stripImportLabelUnits(_stripImportSpecimenPrefix(value))
     .trim()
@@ -274,7 +325,7 @@ function _buildStandardBloodNameLookup() {
   return lookup;
 }
 
-function _resolveStandardBloodImportKey(marker, refLookup) {
+function _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey = undefined) {
   const rawName = marker.rawName || marker.suggestedName || '';
   const specimen = _getImportSpecimen(rawName);
   const unit = normalizeUnitStr(marker.unit || '');
@@ -289,12 +340,23 @@ function _resolveStandardBloodImportKey(marker, refLookup) {
 
   if (unit === 'arb.j.' || unit.includes('/ul')) return null;
 
-  const hasAbsoluteHint = /#|\babs\b|absolute/i.test(String(rawName)) || unit.includes('10^9');
-  if (compactBase === 'neutrofily') return hasAbsoluteHint ? 'differential.neutrophils' : 'differential.neutrophilsPct';
-  if (compactBase === 'lymfocyty') return hasAbsoluteHint ? 'differential.lymphocytes' : 'differential.lymphocytesPct';
-  if (compactBase === 'monocyty') return hasAbsoluteHint ? 'differential.monocytes' : 'differential.monocytesPct';
-  if (compactBase === 'eosinofily') return hasAbsoluteHint ? 'differential.eosinophils' : null;
-  if (compactBase === 'basofily') return hasAbsoluteHint ? 'differential.basophils' : null;
+  const hasAbsoluteHint = _hasImportAbsoluteHint(rawName, unit);
+  const pctSuggestedKey = differentialPercentSuggestedKey === undefined
+    ? _suggestDifferentialPercentImportKey(marker)
+    : differentialPercentSuggestedKey;
+  if (pctSuggestedKey) {
+    return refLookup[pctSuggestedKey] ? pctSuggestedKey : null;
+  }
+  const differentialStem = _differentialStemFromCompactBase(compactBase);
+  if (differentialStem && hasAbsoluteHint) {
+    const absoluteKey = `differential.${differentialStem}`;
+    return refLookup[absoluteKey] ? absoluteKey : null;
+  }
+  if (compactBase === 'neutrofily' || compactBase === 'lymfocyty' || compactBase === 'monocyty') {
+    const pctKey = `differential.${differentialStem}Pct`;
+    return refLookup[pctKey] ? pctKey : null;
+  }
+  if (compactBase === 'eosinofily' || compactBase === 'basofily') return null;
 
   const lookup = _buildStandardBloodNameLookup();
   const labels = [marker.rawName, marker.suggestedName];
@@ -322,18 +384,25 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
   const existingNameLookup = options.existingNameLookup || _buildExistingCustomMarkerNameLookup(existingKeys);
   for (const marker of markers) {
     if (!marker) continue;
+    const differentialPercentSuggestedKey = testType === 'blood' ? _suggestDifferentialPercentImportKey(marker) : null;
     const mappedSpecimenBad = _isSpecimenIncompatibleImportKey(marker, marker.mappedKey, standardCats);
     const suggestedSpecimenBad = _isSpecimenIncompatibleImportKey(marker, marker.suggestedKey, standardCats);
-    const exactMappedKey = mappedSpecimenBad ? null : _knownImportKey(marker.mappedKey, testType, refLookup, existingKeys, standardCats);
-    const exactSuggestedKey = suggestedSpecimenBad ? null : _knownImportKey(marker.suggestedKey, testType, refLookup, existingKeys, standardCats);
+    const exactMappedKey = mappedSpecimenBad || differentialPercentSuggestedKey ? null : _knownImportKey(marker.mappedKey, testType, refLookup, existingKeys, standardCats);
+    const exactSuggestedKey = suggestedSpecimenBad || differentialPercentSuggestedKey ? null : _knownImportKey(marker.suggestedKey, testType, refLookup, existingKeys, standardCats);
     const exactKey = exactMappedKey || exactSuggestedKey;
-    const existingCustomKey = exactKey || _resolveExistingCustomImportKey(marker, existingNameLookup, testType, refLookup, existingKeys, standardCats);
-    const aliasKey = testType === 'blood' ? _resolveStandardBloodImportKey(marker, refLookup) : null;
+    const existingCustomKey = exactKey || (differentialPercentSuggestedKey ? null : _resolveExistingCustomImportKey(marker, existingNameLookup, testType, refLookup, existingKeys, standardCats));
+    const aliasKey = testType === 'blood' ? _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey) : null;
     const resolvedKey = aliasKey || existingCustomKey;
     if (resolvedKey) {
       marker.mappedKey = resolvedKey;
       marker.matched = true;
       marker.suggestedKey = null;
+    } else if (differentialPercentSuggestedKey) {
+      marker.mappedKey = null;
+      marker.matched = false;
+      marker.suggestedKey = differentialPercentSuggestedKey;
+      marker.suggestedName = marker.suggestedName || _cleanImportedMarkerDisplayName(marker.rawName);
+      marker.suggestedCategoryLabel = marker.suggestedCategoryLabel || 'WBC Differential';
     } else if (mappedSpecimenBad || suggestedSpecimenBad) {
       _demoteSpecimenIncompatibleImportKey(marker, marker.mappedKey || marker.suggestedKey, standardCats);
     } else if (marker.mappedKey && !_knownImportKey(marker.mappedKey, testType, refLookup, existingKeys, standardCats)) {
