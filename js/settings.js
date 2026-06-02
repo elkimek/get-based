@@ -456,9 +456,6 @@ function handleSettingsClick(event) {
   } else if (action === 'export-all-clients') {
     event.preventDefault();
     window.exportAllDataJSON?.();
-  } else if (action === 'export-report') {
-    event.preventDefault();
-    window.exportPDFReport?.();
   } else if (action === 'clear-all-data') {
     event.preventDefault();
     window.clearAllData?.();
@@ -1323,7 +1320,6 @@ export function renderDataEntriesSection() {
   html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="import-btn import-btn-secondary" data-settings-action="export-client">Export Client</button>
     <button class="import-btn import-btn-secondary" data-settings-action="export-all-clients" title="Full backup — all profiles, data, and chat history">Export All Clients</button>
-    <button class="import-btn import-btn-secondary" data-settings-action="export-report">Export Report</button>
     <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" data-settings-action="clear-all-data">Clear All Data</button></div>`;
   return html;
 }

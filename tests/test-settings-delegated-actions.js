@@ -83,7 +83,6 @@ assert('Tweaks panel installs delegated change listener',
   'remove-imported-entry',
   'export-client',
   'export-all-clients',
-  'export-report',
   'clear-all-data',
   'reset-profile-usage',
 ].forEach(action => {

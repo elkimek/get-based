@@ -20,6 +20,7 @@ function _iconSvg(name) {
     correlations: `<svg ${attrs}><path d="M3 17c3.5-8 7-8 10.5 0s7 8 10.5 0"></path></svg>`,
     recommendations: `<svg ${attrs}><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M4.93 4.93l2.83 2.83"></path><path d="M16.24 16.24l2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path><path d="M4.93 19.07l2.83-2.83"></path><path d="M16.24 7.76l2.83-2.83"></path></svg>`,
     knowledge: `<svg ${attrs}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"></path></svg>`,
+    report: `<svg ${attrs}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
     plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
     emf: `<svg ${attrs}><path d="M5 12.5a7 7 0 0 1 14 0"></path><path d="M8 12.5a4 4 0 0 1 8 0"></path><path d="M12 12.5v.01"></path><path d="M12 17v4"></path></svg>`,
   };
@@ -69,6 +70,8 @@ function handleNavActionClick(event) {
     window.openLightEnvironmentAssessment?.();
   } else if (action === 'open-knowledge-base') {
     window.openKnowledgeBaseModal?.();
+  } else if (action === 'open-report-builder') {
+    window.openReportBuilder?.();
   } else if (action === 'open-custom-marker') {
     window.openCreateMarkerModal?.();
   } else if (action === 'toggle-group') {
@@ -241,6 +244,8 @@ export function buildSidebar(data) {
   });
 
   html += `<div class="nav-section">Manage</div>`;
+  html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
@@ -351,7 +356,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'labs' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'labs' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';

@@ -133,9 +133,9 @@
     'registerRefreshCallback'
   ];
 
-  // export.js (6)
+  // export.js (8)
   const exportExports = [
-    'exportPDFReport','exportDataJSON','exportClientJSON','exportAllDataJSON','importDataJSON','clearAllData'
+    'openReportBuilder','closeReportBuilder','exportPDFReport','exportDataJSON','exportClientJSON','exportAllDataJSON','importDataJSON','clearAllData'
   ];
 
   // nav.js (5)
@@ -532,6 +532,8 @@
   // 18. EXPORT FUNCTIONS — exist
   // ═══════════════════════════════════════════════
   assert('exportPDFReport is function', typeof window.exportPDFReport === 'function');
+  assert('openReportBuilder is function', typeof window.openReportBuilder === 'function');
+  assert('closeReportBuilder is function', typeof window.closeReportBuilder === 'function');
   assert('exportDataJSON is function', typeof window.exportDataJSON === 'function');
   assert('exportClientJSON is function', typeof window.exportClientJSON === 'function');
   assert('exportAllDataJSON is function', typeof window.exportAllDataJSON === 'function');
