@@ -306,6 +306,7 @@ export const ADAPTERS = [
       // character-for-character.
       clientId: '23VBN8',
       redirectUris: [
+        'https://app.getbased.health/app',
         'https://app.getbased.health/',
         'https://getbased.health/app',
         'https://beta.getbased.health/',

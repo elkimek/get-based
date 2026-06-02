@@ -341,14 +341,14 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   .optimal { color: #059669; font-size: 10px; }
   .note-item { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
   .context-item { padding: 6px 0; font-size: 13px; white-space: pre-line; }
-  .report-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; }
+  .report-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #888; break-inside: avoid; page-break-inside: avoid; }
   .disclaimer { margin-top: 8px; font-style: italic; }
   @media print {
     body { padding: 16px; }
     h2 { page-break-after: avoid; }
     table { page-break-inside: auto; }
     tr { page-break-inside: avoid; }
-    .report-footer { position: fixed; bottom: 0; width: 100%; }
+    .report-footer { break-inside: avoid; page-break-inside: avoid; }
   }
 </style></head><body>${body}</body></html>`;
 }
