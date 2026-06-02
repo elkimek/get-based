@@ -3,6 +3,17 @@
 import { escapeAttr } from './utils.js';
 
 const lightEnvActionDelegateRoots = new WeakSet();
+const PROPAGATION_STOPPING_CLICK_ACTIONS = new Set([
+  'set-today-active',
+  'toggle-screen-expanded',
+  'delete-screen-confirm',
+  'toggle-room-expanded',
+  'delete-room-confirm',
+]);
+const PROPAGATION_STOPPING_KEYDOWN_ACTIONS = new Set([
+  'toggle-screen-expanded',
+  'toggle-room-expanded',
+]);
 
 function dataAttrName(name) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
@@ -12,6 +23,7 @@ export function lightEnvActionAttrs(action, attrs = {}) {
   return [
     `data-light-env-action="${escapeAttr(action)}"`,
     ...Object.entries(attrs)
+      // Boolean false means "absent but false"; parseActive reads absence as false.
       .filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== false)
       .map(([name, value]) => `data-light-env-${escapeAttr(dataAttrName(name))}="${escapeAttr(String(value))}"`),
   ].join(' ');
@@ -33,8 +45,23 @@ function roomId(actionEl) {
   return actionEl.dataset.lightEnvRoomId || null;
 }
 
+function actionName(actionEl) {
+  return actionEl.dataset.lightEnvAction || '';
+}
+
+function shouldHandleClick(actionEl) {
+  return actionEl && !actionEl.matches?.('input, select, textarea');
+}
+
+function shouldHandleRoleButtonKeydown(actionEl, event) {
+  return actionEl &&
+    (event.key === 'Enter' || event.key === ' ') &&
+    !event.target?.closest?.('button, a, input, textarea, select') &&
+    actionEl.getAttribute('role') === 'button';
+}
+
 function handleLightEnvAction(actionEl, event, actions) {
-  const action = actionEl.dataset.lightEnvAction || '';
+  const action = actionName(actionEl);
   const id = actionEl.dataset.lightEnvId || '';
   const key = actionEl.dataset.lightEnvKey || '';
   const kind = actionEl.dataset.lightEnvKind || '';
@@ -95,22 +122,37 @@ function handleLightEnvAction(actionEl, event, actions) {
   }
 }
 
+function handleLightEnvCapturedClick(event, actions) {
+  const actionEl = closestLightEnvAction(event);
+  if (!shouldHandleClick(actionEl)) return;
+  if (!PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;
+  event.preventDefault();
+  event.stopPropagation();
+  handleLightEnvAction(actionEl, event, actions);
+}
+
 function handleLightEnvClick(event, actions) {
   const actionEl = closestLightEnvAction(event);
-  if (!actionEl || actionEl.matches?.('input, select, textarea')) return;
+  if (!shouldHandleClick(actionEl)) return;
+  if (PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;
+  event.preventDefault();
+  handleLightEnvAction(actionEl, event, actions);
+}
+
+function handleLightEnvCapturedKeydown(event, actions) {
+  const actionEl = closestLightEnvAction(event);
+  if (!shouldHandleRoleButtonKeydown(actionEl, event)) return;
+  if (!PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl))) return;
   event.preventDefault();
   event.stopPropagation();
   handleLightEnvAction(actionEl, event, actions);
 }
 
 function handleLightEnvKeydown(event, actions) {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
   const actionEl = closestLightEnvAction(event);
-  if (!actionEl) return;
-  if (event.target?.closest?.('button, a, input, textarea, select')) return;
-  if (actionEl.getAttribute('role') !== 'button') return;
+  if (!shouldHandleRoleButtonKeydown(actionEl, event)) return;
+  if (PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl))) return;
   event.preventDefault();
-  event.stopPropagation();
   handleLightEnvAction(actionEl, event, actions);
 }
 
@@ -136,7 +178,9 @@ function handleLightEnvInput(event, actions) {
 export function installLightEnvActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
   if (!root || lightEnvActionDelegateRoots.has(root)) return;
   lightEnvActionDelegateRoots.add(root);
+  root.addEventListener('click', event => handleLightEnvCapturedClick(event, actions), true);
   root.addEventListener('click', event => handleLightEnvClick(event, actions));
+  root.addEventListener('keydown', event => handleLightEnvCapturedKeydown(event, actions), true);
   root.addEventListener('keydown', event => handleLightEnvKeydown(event, actions));
   root.addEventListener('change', event => handleLightEnvChange(event, actions));
   root.addEventListener('input', event => handleLightEnvInput(event, actions));

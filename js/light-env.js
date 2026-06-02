@@ -1152,6 +1152,9 @@ configureLightEnvAudits({
 });
 
 if (typeof document !== 'undefined') {
+  const saveLightAuditFromUI = typeof globalThis.saveLightAuditFromUI === 'function'
+    ? globalThis.saveLightAuditFromUI
+    : undefined;
   installLightEnvActionDelegates({
     addLightEnvRoom,
     addLightEnvRoomNamed,
@@ -1173,7 +1176,7 @@ if (typeof document !== 'undefined') {
     setLightEnvTodayActive,
     openLightEnvironmentAssessment,
     closeLightEnvironmentAssessment,
-    saveLightAuditFromUI: () => globalThis.saveLightAuditFromUI?.(),
+    saveLightAuditFromUI,
     openLightEnvTool,
   });
 }
