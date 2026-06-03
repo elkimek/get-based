@@ -1626,6 +1626,45 @@ async function _importChatData(profileId, chat) {
  * @property {Array<Object.<string, unknown>>} entries
  * @property {Array<Object.<string, unknown>>} notes
  * @property {Array<Object.<string, unknown>>} supplements
+ * @property {unknown} diagnoses
+ * @property {unknown} diet
+ * @property {unknown} exercise
+ * @property {unknown} sleepRest
+ * @property {unknown} lightCircadian
+ * @property {unknown} stress
+ * @property {unknown} loveLife
+ * @property {unknown} environment
+ * @property {string} interpretiveLens
+ * @property {string} contextNotes
+ * @property {Array<unknown>} healthGoals
+ * @property {Object.<string, unknown>} customMarkers
+ * @property {Object.<string, unknown>} refOverrides
+ * @property {unknown} categoryLabels
+ * @property {unknown} categoryIcons
+ * @property {unknown} markerLabels
+ * @property {unknown} menstrualCycle
+ * @property {unknown} emfAssessment
+ * @property {unknown} genetics
+ * @property {unknown} biometrics
+ * @property {Object.<string, unknown>} markerNotes
+ * @property {Object.<string, unknown>} markerValueNotes
+ * @property {Object.<string, unknown>} manualValues
+ * @property {Array<unknown>} changeHistory
+ * @property {Array<unknown>} chatSummaries
+ * @property {unknown} wearableSummary
+ * @property {unknown} wearableCardOrder
+ * @property {unknown} wearablePrimaryOverride
+ * @property {Array<unknown>} sunSessions
+ * @property {Array<unknown>} deviceSessions
+ * @property {Array<unknown>} lightDevices
+ * @property {Array<unknown>} lightAudits
+ * @property {Array<unknown>} lightMeasurements
+ * @property {unknown} lightEnvironment
+ * @property {unknown} sunDefaults
+ * @property {unknown} sunCorrelations
+ * @property {unknown} lifelightProfile
+ * @property {unknown} lightDailyVerdicts
+ * @property {unknown} channelMixAI
  * @property {unknown} [chat]
  */
 
@@ -2175,9 +2214,9 @@ export function importDataJSON(file) {
       if (window._demoLoadingProfileId === state.currentProfile) {
         delete window._demoLoadingProfileId;
       }
-      window.buildSidebar();
-      window.updateHeaderDates();
-      window.navigate('dashboard');
+      if (window.buildSidebar) window.buildSidebar();
+      if (window.updateHeaderDates) window.updateHeaderDates();
+      if (window.navigate) window.navigate('dashboard');
       const profileMsg = json.profile?.name ? ` into "${json.profile.name}"` : '';
       showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${profileMsg}`, 'success');
     } catch (err) {
@@ -2406,10 +2445,10 @@ export async function clearAllData() {
     localStorage.removeItem('labcharts-routstr-key');
     localStorage.removeItem('labcharts-routstr-model');
     localStorage.removeItem('labcharts-routstr-models');
-    window.buildSidebar();
-    window.updateHeaderDates();
-    window.renderProfileButton();
-    window.navigate('dashboard');
+    if (window.buildSidebar) window.buildSidebar();
+    if (window.updateHeaderDates) window.updateHeaderDates();
+    if (window.renderProfileButton) window.renderProfileButton();
+    if (window.navigate) window.navigate('dashboard');
     showNotification('All data cleared', 'info');
   }
 }
