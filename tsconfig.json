@@ -30,6 +30,7 @@
     "js/profile.js",
     "js/profile-share.js",
     "js/silhouette-paths.js",
+    "js/sync-delta-id.js",
     "js/sync-schema.js",
     "js/theme.js",
     "js/touch-tooltip.js",
