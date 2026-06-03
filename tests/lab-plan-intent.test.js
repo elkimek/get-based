@@ -115,4 +115,43 @@ describe('natural lab plan intent', () => {
       'vitamins.vitaminD',
     ]));
   });
+
+  it('does not turn markdown section headings or medical disclaimers into unmapped tests', () => {
+    const plan = buildLabPlanFromConversation(
+      'Based on my CMT2A and fatigue, what blood tests would you recommend next? Then create a lab order draft and compare Labshop vs Unilabs coverage.',
+      `**Important disclaimer:** I am not a doctor. Always consult your physician before ordering or interpreting any tests, especially with CMT2A.
+
+### Recommended next tests
+**Mitochondrial & fatigue markers:**
+- Lactate, pyruvate, lactate/pyruvate ratio
+- GDF15, FGF21
+
+**Neuropathy / axonal damage:**
+- Neurofilament light chain (NfL)
+
+**Nutrient + methylation panel:**
+- RBC magnesium, omega-3 index, homocysteine, active B12, MMA, folate, vitamin D, ceruloplasmin, copper, zinc, ferritin`
+    );
+
+    const keys = plan.markers.map(m => m.markerKey);
+    const labels = plan.markers.map(m => m.displayName);
+    expect(keys).toEqual(expect.arrayContaining([
+      'unmapped.lactate',
+      'unmapped.pyruvate',
+      'unmapped.gdf15',
+      'unmapped.fgf21',
+      'unmapped.neurofilament_light_chain_nfl',
+      'unmapped.rbc_magnesium',
+      'unmapped.omega_3_index',
+      'coagulation.homocysteine',
+      'vitamins.vitaminB12',
+      'vitamins.folate',
+      'vitamins.vitaminD',
+      'iron.ferritin',
+    ]));
+    expect(labels).not.toContain('Mitochondrial & fatigue markers:**');
+    expect(labels).not.toContain('Nutrient + methylation panel:**');
+    expect(labels).not.toContain('Ing or interpreting any');
+    expect(labels).not.toContain('Especially with CMT2A');
+  });
 });

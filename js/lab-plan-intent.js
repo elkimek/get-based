@@ -191,11 +191,29 @@ function extractMentionedMarkers(text, out) {
 
 function cleanCandidateName(candidate) {
   return String(candidate || '')
+    .replace(/^[\s:#>*_`~]+/, '')
+    .replace(/[\s*_`~]+$/g, '')
     .replace(/^[\s\-*•\d.)]+/, '')
     .replace(/^(next|then|also)\s*:\s*/i, '')
     .replace(/\b(panel|test|tests|marker|markers|studies|profile)\b$/i, '')
     .replace(/[.;:]+$/g, '')
+    .replace(/[\s*_`~]+$/g, '')
     .trim();
+}
+
+function splitCandidateList(text) {
+  return String(text || '')
+    .split(/,|;|\band\b|\+/i)
+    .map(cleanCandidateName)
+    .filter(Boolean);
+}
+
+function isCandidateHeading(line) {
+  const cleaned = cleanCandidateName(line);
+  if (!cleaned) return true;
+  if (/[:：]\s*$/.test(String(line || '').trim())) return true;
+  if (/\*\*\s*$/.test(String(line || '').trim())) return true;
+  return false;
 }
 
 function looksLikeNoise(candidate) {
@@ -236,18 +254,17 @@ function extractRecommendationCandidates(text, out) {
   const raw = String(text || '');
   const lines = raw.split(/\n+/).map(line => line.trim()).filter(Boolean);
   for (const line of lines) {
-    const bullet = line.match(/^[-*•\d.)\s]+(.+)$/);
-    if (bullet) addUnmappedCandidate(out, bullet[1]);
+    const bullet = line.match(/^\s*(?:[-•]|\d+[.)])\s+(.+)$/);
+    if (bullet && !isCandidateHeading(bullet[1])) {
+      splitCandidateList(bullet[1]).forEach(candidate => addUnmappedCandidate(out, candidate));
+    }
   }
 
-  const recommendationClauses = raw.match(/(?:recommend|consider|check|test|include|order|worth checking|worth testing)[^.!?]*[.!?]?/gi) || [];
-  for (const clause of recommendationClauses) {
-    const afterVerb = clause.replace(/^.*?(?:recommend|consider|check|test|include|order|worth checking|worth testing)\s*(?:checking|testing|for|a|an|the|:)?\s*/i, '');
-    afterVerb
-      .split(/,|;|\band\b|\+|\//i)
-      .map(cleanCandidateName)
-      .filter(Boolean)
-      .forEach(candidate => addUnmappedCandidate(out, candidate));
+  const recommendationVerb = /\b(?:recommend|consider|check|test|include|worth checking|worth testing)\b/i;
+  for (const line of lines) {
+    if (!recommendationVerb.test(line) || isCandidateHeading(line)) continue;
+    const afterVerb = line.replace(/^.*?\b(?:recommend|consider|check|test|include|worth checking|worth testing)\b\s*(?:checking|testing|next|for|a|an|the|:)?\s*/i, '');
+    splitCandidateList(afterVerb).forEach(candidate => addUnmappedCandidate(out, candidate));
   }
 }
 
