@@ -1,3 +1,4 @@
+// @ts-check
 // client-list.js — Client List modal for managing profiles
 
 import { state } from './state.js';
@@ -49,6 +50,33 @@ function _clChangeAttrs(action) {
 
 function _clKeyAttrs(action) {
   return `data-cl-key-action="${escapeAttr(action)}"`;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLInputElement | null}
+ */
+function _clInput(id) {
+  const el = document.getElementById(id);
+  return el instanceof HTMLInputElement ? el : null;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLTextAreaElement | null}
+ */
+function _clTextarea(id) {
+  const el = document.getElementById(id);
+  return el instanceof HTMLTextAreaElement ? el : null;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLSelectElement | null}
+ */
+function _clSelectElement(id) {
+  const el = document.getElementById(id);
+  return el instanceof HTMLSelectElement ? el : null;
 }
 
 function _clMenuButton({ icon, label, action, profileId, danger = false }) {
@@ -319,7 +347,8 @@ export function openClientForm(profileId) {
   const avatar = p ? (p.avatar || '') : '';
   const heightData = p ? getProfileHeight(p.id) : { height: null, unit: 'cm' };
   const heightUnit = heightData.unit || 'cm';
-  const heightDisplay = heightData.height ? (heightUnit === 'in' ? (heightData.height / 2.54).toFixed(1) : heightData.height) : '';
+  const heightValue = heightData.height == null || heightData.height === '' ? null : Number(heightData.height);
+  const heightDisplay = heightValue ? (heightUnit === 'in' ? (heightValue / 2.54).toFixed(1) : heightValue) : '';
 
   const avatarColor = getAvatarColor(p ? p.id : 'new');
   const avatarInitial = (name || '?')[0].toUpperCase();
@@ -486,16 +515,16 @@ function _clGoToHealthMetrics(event) {
 // ═══════════════════════════════════════════════
 function _clSaveForm(e) {
   e.preventDefault();
-  const name = (document.getElementById('cl-name')?.value || '').trim();
+  const name = (_clInput('cl-name')?.value || '').trim();
   if (!name) return;
   const sexBtn = document.querySelector('#cl-sex-toggle .sex-toggle-btn.active');
-  const sex = sexBtn ? sexBtn.dataset.sex : null;
-  const dob = document.getElementById('cl-dob')?.value || null;
-  const country = (document.getElementById('cl-country')?.value || '').trim();
-  const zip = (document.getElementById('cl-zip')?.value || '').trim();
-  const notes = (document.getElementById('cl-notes')?.value || '').trim();
+  const sex = sexBtn instanceof HTMLElement ? sexBtn.dataset.sex || null : null;
+  const dob = _clInput('cl-dob')?.value || null;
+  const country = (_clInput('cl-country')?.value || '').trim();
+  const zip = (_clInput('cl-zip')?.value || '').trim();
+  const notes = (_clTextarea('cl-notes')?.value || '').trim();
   const statusRadio = document.querySelector('input[name="cl-status"]:checked');
-  const status = statusRadio ? statusRadio.value : 'active';
+  const status = statusRadio instanceof HTMLInputElement ? statusRadio.value : 'active';
 
   // Collect tags from pills
   const tags = [];
@@ -505,8 +534,8 @@ function _clSaveForm(e) {
   });
 
   // Height — stored in cm
-  const heightRaw = parseFloat(document.getElementById('cl-height')?.value);
-  const heightUnit = document.getElementById('cl-height-unit')?.value || 'cm';
+  const heightRaw = parseFloat(_clInput('cl-height')?.value || '');
+  const heightUnit = _clInput('cl-height-unit')?.value || 'cm';
   const height = heightRaw ? (heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw) : null;
 
   // Build avatar update
@@ -537,7 +566,7 @@ function _clSaveForm(e) {
 }
 
 async function _clHaplogroupChanged() {
-  const sel = document.getElementById('cl-haplogroup');
+  const sel = _clSelectElement('cl-haplogroup');
   const label = document.getElementById('cl-hg-coupling');
   if (!sel) return;
   const hg = sel.value;
@@ -584,7 +613,7 @@ function _clRemoveAvatar() {
   const container = document.querySelector('.cl-avatar-picker');
   if (container) {
     const color = getAvatarColor(_editingId || 'new');
-    const nameInput = document.getElementById('cl-name');
+    const nameInput = _clInput('cl-name');
     const initial = ((nameInput?.value || '?')[0]).toUpperCase();
     container.innerHTML = `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${color}">${escapeHTML(initial)}</span><span class="cl-avatar-edit-icon">${CL_ICONS.camera}</span>`;
   }
@@ -594,7 +623,7 @@ function _clRemoveAvatar() {
 
 function _clSetSex(sex) {
   document.querySelectorAll('#cl-sex-toggle .sex-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sex === sex);
+    if (btn instanceof HTMLElement) btn.classList.toggle('active', btn.dataset.sex === sex);
   });
 }
 
@@ -606,8 +635,8 @@ function _clShowLat(el, lat, suffix) {
 
 var _clLatTimer = null;
 function _clUpdateLat() {
-  const country = (document.getElementById('cl-country')?.value || '').trim();
-  const zip = (document.getElementById('cl-zip')?.value || '').trim();
+  const country = (_clInput('cl-country')?.value || '').trim();
+  const zip = (_clInput('cl-zip')?.value || '').trim();
   const el = document.getElementById('cl-lat-display');
   if (!el) return;
   if (!country) { el.textContent = ''; return; }
@@ -707,7 +736,7 @@ function _clSearch(val) {
   // Restore focus + cursor position
   requestAnimationFrame(() => {
     const input = document.getElementById('cl-search');
-    if (input) { input.focus(); input.setSelectionRange(val.length, val.length); }
+    if (input instanceof HTMLInputElement) { input.focus(); input.setSelectionRange(val.length, val.length); }
   });
 }
 
@@ -936,8 +965,8 @@ function installClientListDelegates() {
 function _clUpdateBMI() {
   const el = document.getElementById('cl-bmi-display');
   if (!el) return;
-  const heightRaw = parseFloat(document.getElementById('cl-height')?.value);
-  const heightUnit = document.getElementById('cl-height-unit')?.value || 'cm';
+  const heightRaw = parseFloat(_clInput('cl-height')?.value || '');
+  const heightUnit = _clInput('cl-height-unit')?.value || 'cm';
   const heightCm = heightRaw ? (heightUnit === 'in' ? heightRaw * 2.54 : heightRaw) : null;
 
   // Weight now lives in the wearables summary (single source of truth after
@@ -961,8 +990,8 @@ function _clUpdateBMI() {
 }
 
 function _clHeightUnitChanged() {
-  const input = document.getElementById('cl-height');
-  const hidden = document.getElementById('cl-height-unit');
+  const input = _clInput('cl-height');
+  const hidden = _clInput('cl-height-unit');
   const toggle = document.getElementById('cl-height-unit-toggle');
   if (!input || !hidden || !toggle) return;
   const current = hidden.value;

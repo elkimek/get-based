@@ -11,6 +11,7 @@
     "strict": false
   },
   "include": [
+    "js/client-list.js",
     "js/export.js",
     "js/profile.js",
     "js/profile-share.js",
