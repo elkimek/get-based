@@ -1,3 +1,4 @@
+// @ts-check
 // Shared SSRF-style validation for user-supplied URLs that the browser
 // will fetch directly (mint URLs, Routstr nodes, self-host UV data, etc.).
 //
