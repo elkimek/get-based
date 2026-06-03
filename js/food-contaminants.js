@@ -1,3 +1,5 @@
+// @ts-check
+
 // food-contaminants.js — Keyword-based food contaminant warnings from public databases
 // Sources: EWG Dirty Dozen/Clean Fifteen (2025 data), PlasticList (2024)
 // Update annually when EWG publishes new rankings at ewg.org/foodnews
