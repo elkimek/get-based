@@ -132,6 +132,56 @@
   padding-top: 10px;
 }
 
+.lab-order-requested-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lab-order-requested-head strong {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
+.lab-order-marker-overflow {
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg-hover)) !important;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border)) !important;
+  color: var(--text-primary) !important;
+  font-weight: 700;
+}
+
+.lab-order-marker-details {
+  margin-top: 8px;
+}
+
+.lab-order-marker-details summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lab-order-marker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lab-order-marker-list span {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 7px;
+}
+
 .lab-provider-options {
   display: grid;
   gap: 10px;

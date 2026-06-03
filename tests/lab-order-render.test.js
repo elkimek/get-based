@@ -53,6 +53,28 @@ describe('lab order card rendering', () => {
     expect(html).not.toContain('cz.spadia');
   });
 
+  it('summarizes long requested-test lists instead of flooding the chat with pills', () => {
+    const requestedMarkers = Array.from({ length: 60 }, (_, index) => ({
+      markerKey: `demo.marker_${index + 1}`,
+      displayName: `Marker ${index + 1}`,
+    }));
+    const html = renderLabOrderCard({
+      id: 'draft-many-markers',
+      provider: 'provider_selection',
+      providerId: null,
+      status: 'provider_selection',
+      providerOptions: [{ providerId: 'cz.labshop', name: 'Labshop' }],
+      providerComparisons: [],
+      requestedMarkers,
+      safetyBoundary: 'Choose a lab first.',
+    }, 7);
+
+    expect(html).toContain('Show all 60 requested tests');
+    expect(html).toContain('+48 more');
+    expect(html).toContain('Marker 60');
+    expect((html.match(/lab-order-marker-overflow/g) || [])).toHaveLength(1);
+  });
+
   it('renders best single-lab and split-order recommendations in provider selection', () => {
     const html = renderLabOrderCard({
       id: 'draft-provider-recommendation',

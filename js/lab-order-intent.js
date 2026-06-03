@@ -18,6 +18,28 @@ const PROVIDER_SUMMARIES = {
   'cz.unilabs': 'Second lab option · request/catalog flow to confirm',
 };
 
+const PANEL_INTENTS = [
+  {
+    terms: ['complete metabolic panel', 'cmp', 'comprehensive metabolic panel'],
+    markers: [
+      ['biochemistry.glucose', 'Glucose'],
+      ['kidney.urea', 'Urea / BUN'],
+      ['kidney.creatinine', 'Creatinine'],
+      ['electrolytes.sodium', 'Sodium'],
+      ['electrolytes.potassium', 'Potassium'],
+      ['electrolytes.chloride', 'Chloride'],
+      ['electrolytes.co2', 'CO₂ / bicarbonate'],
+      ['minerals.calcium', 'Calcium'],
+      ['proteins.albumin', 'Albumin'],
+      ['proteins.totalProtein', 'Total protein'],
+      ['liver.alp', 'ALP'],
+      ['liver.alt', 'ALT'],
+      ['liver.ast', 'AST'],
+      ['liver.bilirubinTotal', 'Total bilirubin'],
+    ],
+  },
+];
+
 function providerFromText(lower) {
   if (lower.includes('labshop') || lower.includes('lab shop')) return 'cz.labshop';
   if (lower.includes('unilabs') || lower.includes('uni labs')) return 'cz.unilabs';
@@ -26,6 +48,17 @@ function providerFromText(lower) {
 
 function markerDisplayName(markerKey) {
   return getMarkerCrosswalk(markerKey)?.canonicalName || markerKey.split('.').pop() || markerKey;
+}
+
+function addPanelMarkers(raw, markerKeys, displayNameByKey) {
+  const normalized = raw.toLowerCase();
+  for (const panel of PANEL_INTENTS) {
+    if (!panel.terms.some(term => normalized.includes(term))) continue;
+    for (const [markerKey, displayName] of panel.markers) {
+      markerKeys.add(markerKey);
+      displayNameByKey.set(markerKey, displayName);
+    }
+  }
 }
 
 function buildProviderOptions(country = 'CZ') {
@@ -100,13 +133,15 @@ export function detectLabOrderIntent(text) {
   const lower = raw.toLowerCase();
   const hasOrderVerb = ORDER_TERMS.some(term => lower.includes(term));
   const markerKeys = new Set();
+  const displayNameByKey = new Map();
   for (const term of raw.split(/[^\p{L}\p{N}]+/u).filter(Boolean)) {
     resolveMarkerAliases(term).forEach(key => markerKeys.add(key));
   }
   resolveMarkerAliases(raw).forEach(key => markerKeys.add(key));
+  addPanelMarkers(raw, markerKeys, displayNameByKey);
   const markerIntents = [...markerKeys].map(markerKey => ({
     markerKey,
-    displayName: markerDisplayName(markerKey),
+    displayName: displayNameByKey.get(markerKey) || markerDisplayName(markerKey),
     reason: 'Requested by user for lab ordering',
     priority: 'core',
   }));

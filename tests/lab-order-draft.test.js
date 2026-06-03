@@ -61,6 +61,24 @@ describe('lab order draft uses architecture layers', () => {
     }));
   });
 
+  it('expands common panel names into many requested markers for visual/provider comparison testing', () => {
+    const draft = buildLabOrderDraft('Order complete metabolic panel');
+
+    expect(draft.status).toBe('provider_selection');
+    expect(draft.requestedMarkers).toHaveLength(14);
+    expect(draft.requestedMarkers.map(m => m.displayName)).toEqual(expect.arrayContaining([
+      'Glucose',
+      'Creatinine',
+      'Sodium',
+      'Potassium',
+      'Albumin',
+      'ALT',
+      'AST',
+      'Total bilirubin',
+    ]));
+    expect(draft.providerComparisons.every(row => row.requestedCount === 14)).toBe(true);
+  });
+
   it('selects Labshop from a provider-selection draft and shows provider offers/tests', () => {
     const draft = buildLabOrderDraft('Order B12 and folate tests for me');
     const selected = selectProviderForDraft(draft, 'cz.labshop');

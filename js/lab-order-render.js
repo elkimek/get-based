@@ -15,12 +15,40 @@ function providerLabel(draft) {
   return 'Lab';
 }
 
+function markerLabel(marker) {
+  return marker.displayName || marker.markerKey || marker;
+}
+
+function summarizeMarkerNames(markerKeys = [], markerNameByKey = new Map(), limit = 6) {
+  const names = markerKeys.map(markerKey => markerNameByKey.get(markerKey) || markerKey.split('.').pop() || markerKey);
+  const visible = names.slice(0, limit).join(', ');
+  const hidden = names.length - limit;
+  return hidden > 0 ? `${visible}, +${hidden} more` : visible;
+}
+
 function renderRequestedMarkers(draft) {
   const markers = Array.isArray(draft.requestedMarkers) ? draft.requestedMarkers : [];
   if (!markers.length) return '';
+  const visibleLimit = 12;
+  const visibleMarkers = markers.slice(0, visibleLimit);
+  const hiddenMarkers = markers.slice(visibleLimit);
+  const visibleHtml = visibleMarkers.map(m => `<span>${escapeHTML(markerLabel(m))}</span>`).join('');
+  const overflowHtml = hiddenMarkers.length
+    ? `<span class="lab-order-marker-overflow">+${escapeHTML(String(hiddenMarkers.length))} more</span>`
+    : '';
+  const allMarkersHtml = hiddenMarkers.length
+    ? `<details class="lab-order-marker-details">
+      <summary>Show all ${escapeHTML(String(markers.length))} requested tests</summary>
+      <div class="lab-order-marker-list">${markers.map(m => `<span>${escapeHTML(markerLabel(m))}</span>`).join('')}</div>
+    </details>`
+    : '';
   return `<div class="lab-order-requested">
-    <span>Requested tests</span>
-    <div class="lab-order-markers">${markers.map(m => `<span>${escapeHTML(m.displayName || m.markerKey || m)}</span>`).join('')}</div>
+    <div class="lab-order-requested-head">
+      <span>Requested tests</span>
+      <strong>${escapeHTML(String(markers.length))}</strong>
+    </div>
+    <div class="lab-order-markers">${visibleHtml}${overflowHtml}</div>
+    ${allMarkersHtml}
   </div>`;
 }
 
@@ -49,13 +77,14 @@ function renderProviderRecommendation(draft) {
 function renderProviderSelection(draft, msgIndex) {
   const options = Array.isArray(draft.providerOptions) ? draft.providerOptions : [];
   const comparisons = Array.isArray(draft.providerComparisons) ? draft.providerComparisons : [];
+  const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, markerLabel(m)]));
   const optionHtml = options.map(option => {
     const comparison = comparisons.find(c => c.providerId === option.providerId);
     const coverage = comparison
       ? `<span>Coverage: ${escapeHTML(String(comparison.coveredCount))}/${escapeHTML(String(comparison.requestedCount))} tests · ${escapeHTML(formatCzk(comparison.totalEstimateCzk))}</span>`
       : `<span>${escapeHTML(option.summary || 'Show tests')}</span>`;
     const missing = comparison?.missingMarkerKeys?.length
-      ? `<em>Missing: ${comparison.missingMarkerKeys.map(m => escapeHTML(m.split('.').pop() || m)).join(', ')}</em>`
+      ? `<em>Missing ${escapeHTML(String(comparison.missingMarkerKeys.length))}: ${escapeHTML(summarizeMarkerNames(comparison.missingMarkerKeys, markerNameByKey))}</em>`
       : '<em>Full requested coverage</em>';
     return `<button type="button" class="lab-provider-option-card" data-lab-order-action="select-provider" data-lab-provider-id="${escapeHTML(option.providerId)}" data-msg-index="${msgIndex}">
     <span class="lab-provider-option-main">
