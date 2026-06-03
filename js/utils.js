@@ -195,8 +195,8 @@ export function bindModalSyncRefresh({
     if (!preserveScroll) return null;
     if (typeof getScrollElement === 'function') return getScrollElement({ overlay, modal }) || null;
     if (scrollSelector) {
-      return overlay?.querySelector?.(scrollSelector)
-        || modal?.querySelector?.(scrollSelector)
+      return /** @type {HTMLElement | null} */ (overlay?.querySelector?.(scrollSelector))
+        || /** @type {HTMLElement | null} */ (modal?.querySelector?.(scrollSelector))
         || null;
     }
     return modal || overlay || null;
