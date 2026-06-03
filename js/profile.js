@@ -1,3 +1,4 @@
+// @ts-check
 // profile.js — Profile CRUD, sex/DOB, location, data migration
 
 import { state } from './state.js';
@@ -13,9 +14,94 @@ import {
   syncLabEntryInsulinMirror,
 } from './lab-entry.js';
 
+/**
+ * @typedef {{ country: string, zip: string }} ProfileLocation
+ * @typedef {{
+ *   id: string,
+ *   name: string,
+ *   sex: string | null,
+ *   dob: string | null,
+ *   location: ProfileLocation,
+ *   tags: string[],
+ *   notes: string,
+ *   status: string,
+ *   avatar: string | null,
+ *   height: number | string | null,
+ *   heightUnit: string,
+ *   createdAt: number,
+ *   lastUpdated: number,
+ *   pinned: boolean,
+ *   [key: string]: unknown
+ * }} ProfileRecord
+ * @typedef {{
+ *   sex?: string | null,
+ *   dob?: string | null,
+ *   location?: ProfileLocation,
+ *   tags?: string[],
+ *   notes?: string,
+ *   status?: string,
+ *   avatar?: string | null,
+ *   height?: number | string | null,
+ *   heightUnit?: string
+ * }} CreateProfileOptions
+ * @typedef {{
+ *   name?: string,
+ *   sex?: string | null,
+ *   dob?: string | null,
+ *   location?: ProfileLocation,
+ *   tags?: string[],
+ *   notes?: string,
+ *   status?: string,
+ *   avatar?: string | null,
+ *   height?: number | string | null,
+ *   heightUnit?: string,
+ *   pinned?: boolean
+ * }} ProfileMetaUpdates
+ * @typedef {{
+ *   entries: Array<Record<string, any>>,
+ *   notes: any[],
+ *   supplements: any[],
+ *   healthGoals: any[],
+ *   diagnoses: any,
+ *   diet: any,
+ *   exercise: any,
+ *   sleepRest: any,
+ *   lightCircadian: any,
+ *   stress: any,
+ *   loveLife: any,
+ *   environment: any,
+ *   interpretiveLens: string,
+ *   contextNotes: string,
+ *   menstrualCycle: any,
+ *   emfAssessment: any,
+ *   customMarkers: Record<string, any>,
+ *   markerNotes: Record<string, any>,
+ *   markerValueNotes: Record<string, any>,
+ *   markerLabels?: Record<string, any>,
+ *   refOverrides?: Record<string, any>,
+ *   changeHistory: any[],
+ *   genetics: any,
+ *   biometrics?: any,
+ *   manualValues?: Record<string, any>,
+ *   sunSessions?: any[],
+ *   deviceSessions?: any[],
+ *   lightDevices?: any[],
+ *   lightEnvironment?: any,
+ *   lightMeasurements?: any[],
+ *   lightAudits?: any[],
+ *   sunCorrelations?: any,
+ *   lifelightProfile?: any,
+ *   sunDefaults?: any,
+ *   [key: string]: any
+ * }} ProfileData
+ */
+
 // ═══════════════════════════════════════════════
 // PROFILE MANAGEMENT
 // ═══════════════════════════════════════════════
+/**
+ * @returns {ProfileRecord[]}
+ */
 export function getProfiles() {
   // Read from in-memory cache (populated at init via initProfilesCache)
   if (state.profiles) return state.profiles;
@@ -23,6 +109,9 @@ export function getProfiles() {
   catch(e) { return []; }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 export async function initProfilesCache() {
   const raw = await encryptedGetItem('labcharts-profiles');
   try { state.profiles = raw ? JSON.parse(raw) : []; }
@@ -31,6 +120,9 @@ export async function initProfilesCache() {
 }
 
 // Backfill new profile-level fields (tags, notes, status, timestamps, pinned)
+/**
+ * @param {ProfileRecord[]} profiles
+ */
 function migrateProfiles(profiles) {
   let changed = false;
   const now = Date.now();
@@ -47,6 +139,10 @@ function migrateProfiles(profiles) {
   if (changed) saveProfiles(profiles);
 }
 
+/**
+ * @param {ProfileRecord[]} profiles
+ * @returns {Promise<void>}
+ */
 export async function saveProfiles(profiles) {
   state.profiles = profiles;
   try {
@@ -61,18 +157,32 @@ export async function saveProfiles(profiles) {
   }
 }
 
+/**
+ * @returns {string}
+ */
 export function getActiveProfileId() {
   return localStorage.getItem('labcharts-active-profile') || 'default';
 }
 
+/**
+ * @param {string} id
+ */
 export function setActiveProfileId(id) {
   localStorage.setItem('labcharts-active-profile', id);
 }
 
+/**
+ * @param {string} profileId
+ * @param {string} suffix
+ * @returns {string}
+ */
 export function profileStorageKey(profileId, suffix) {
   return `labcharts-${profileId}-${suffix}`;
 }
 
+/**
+ * @returns {ProfileData}
+ */
 export function createDefaultProfileData() {
   return {
     entries: [],
@@ -92,6 +202,8 @@ export function createDefaultProfileData() {
     menstrualCycle: null,
     emfAssessment: null,
     customMarkers: {},
+    markerNotes: {},
+    markerValueNotes: {},
     changeHistory: [],
     genetics: null,
     biometrics: null,
@@ -108,6 +220,10 @@ export function createDefaultProfileData() {
   };
 }
 
+/**
+ * @param {string | null | undefined} value
+ * @returns {string}
+ */
 function _normalizeProfileMarkerLabel(value) {
   return String(value || '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -118,10 +234,18 @@ function _normalizeProfileMarkerLabel(value) {
     .toLowerCase();
 }
 
+/**
+ * @param {string | null | undefined} value
+ * @returns {string}
+ */
 function _stripProfileMarkerUnitSuffix(value) {
   return String(value || '').replace(/(?:u?katl|mmoll|umoll|nmoll|pmoll|mgl|ugl|ngl|gl|iul|ul|percent)$/i, '');
 }
 
+/**
+ * @param {string | null | undefined} value
+ * @returns {boolean}
+ */
 function _hasProfileMarkerUnitDecoration(value) {
   const raw = String(value || '');
   if (!raw) return false;
@@ -129,8 +253,15 @@ function _hasProfileMarkerUnitDecoration(value) {
   return /\s*[\(\[]\s*[^)\]]*(?:u?kat|mmol|umol|nmol|pmol|mol|mg|ug|ng|pg|g\s*\/\s*l|m\s*u|iu\s*\/\s*l|u\s*\/\s*l|10\s*\^?\s*\d+|arb\.?\s*j\.?|fl|%)[^)\]]*[\)\]]\s*/i.test(raw.replace(/[\u00b5\u03bc]/g, 'u'));
 }
 
+/**
+ * @returns {Map<string, string>}
+ */
 function _buildProfileStandardMarkerLookup() {
   const lookup = new Map();
+  /**
+   * @param {string} label
+   * @param {string} key
+   */
   const add = (label, key) => {
     const normalized = _normalizeProfileMarkerLabel(label);
     if (normalized && !lookup.has(normalized)) lookup.set(normalized, key);
@@ -148,6 +279,10 @@ function _buildProfileStandardMarkerLookup() {
   return lookup;
 }
 
+/**
+ * @param {ProfileData} data
+ * @returns {void}
+ */
 function _repairUnitSuffixedStandardMarkers(data) {
   if (!data.entries?.length) return;
   const lookup = _buildProfileStandardMarkerLookup();
@@ -197,6 +332,11 @@ function _repairUnitSuffixedStandardMarkers(data) {
   for (const key of toDelete) delete data.customMarkers[key];
 }
 
+/**
+ * @param {string} profileId
+ * @param {ProfileData | null} [importedData]
+ * @returns {void}
+ */
 function queueProfileSync(profileId, importedData = null) {
   if (!profileId) return;
   try {
@@ -207,6 +347,10 @@ function queueProfileSync(profileId, importedData = null) {
   import('./sync.js').then(m => m.onProfileSaved?.(profileId, importedData)).catch(() => {});
 }
 
+/**
+ * @param {ProfileData} data
+ * @returns {ProfileData}
+ */
 export function migrateProfileData(data) {
   // Migrate sleepCircadian → sleepRest (sleep fields go to sleepRest, circadian items to lightCircadian)
   if (data.sleepCircadian && !data.sleepRest) {
@@ -439,6 +583,10 @@ export function migrateProfileData(data) {
   return data;
 }
 
+/**
+ * @param {string} profileId
+ * @returns {Promise<void>}
+ */
 export async function loadProfile(profileId) {
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
@@ -538,6 +686,11 @@ export async function loadProfile(profileId) {
   }).catch(() => {});
 }
 
+/**
+ * @param {string} name
+ * @param {CreateProfileOptions} [opts]
+ * @returns {string}
+ */
 export function createProfile(name, opts = {}) {
   const profiles = getProfiles();
   const id = Date.now().toString(36);
@@ -562,12 +715,22 @@ export function createProfile(name, opts = {}) {
   return id;
 }
 
+/**
+ * @param {string} profileId
+ * @param {string} newName
+ * @returns {void}
+ */
 export function renameProfile(profileId, newName) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   if (p) { p.name = newName; p.lastUpdated = Date.now(); saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
+/**
+ * @param {string} profileId
+ * @param {ProfileMetaUpdates} updates
+ * @returns {void}
+ */
 export function updateProfileMeta(profileId, updates) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
@@ -581,6 +744,9 @@ export function updateProfileMeta(profileId, updates) {
   queueProfileSync(profileId);
 }
 
+/**
+ * @returns {string[]}
+ */
 export function getAllTags() {
   const tags = new Set();
   for (const p of getProfiles()) {
@@ -589,12 +755,21 @@ export function getAllTags() {
   return [...tags].sort();
 }
 
+/**
+ * @param {string} profileId
+ * @returns {void}
+ */
 export function touchProfileTimestamp(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   if (p) { p.lastUpdated = Date.now(); saveProfiles(profiles); }
 }
 
+/**
+ * @param {string} profileId
+ * @param {() => void} [onComplete]
+ * @returns {Promise<void>}
+ */
 export async function deleteProfile(profileId, onComplete) {
   const profiles = getProfiles();
   if (profiles.length <= 1) { showNotification("Cannot delete the last profile", "error"); return; }
@@ -652,6 +827,10 @@ export async function deleteProfile(profileId, onComplete) {
   }
 }
 
+/**
+ * @param {string} profileId
+ * @returns {Promise<void>}
+ */
 export async function switchProfile(profileId) {
   if (profileId === state.currentProfile) return;
   // loadProfile is async (encryptedGetItem awaits IDB / OPFS). Earlier
@@ -675,36 +854,64 @@ export async function switchProfile(profileId) {
   import('./sync.js').then(m => m.pushContextToGateway()).catch(() => {});
 }
 
+/**
+ * @param {string} profileId
+ * @returns {string | null}
+ */
 export function getProfileSex(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   return (p && p.sex) || null;
 }
 
+/**
+ * @param {string} profileId
+ * @param {string | null} sex
+ * @returns {void}
+ */
 export function setProfileSex(profileId, sex) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   if (p) { p.sex = sex; saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
+/**
+ * @param {string} profileId
+ * @returns {string | null}
+ */
 export function getProfileDob(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   return (p && p.dob) || null;
 }
 
+/**
+ * @param {string} profileId
+ * @param {string | null | undefined} dob
+ * @returns {void}
+ */
 export function setProfileDob(profileId, dob) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   if (p) { p.dob = dob || null; saveProfiles(profiles); queueProfileSync(profileId); }
 }
 
+/**
+ * @param {string} [profileId]
+ * @returns {ProfileLocation}
+ */
 export function getProfileLocation(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
   return (p && p.location) || { country: '', zip: '' };
 }
 
+/**
+ * @param {string} profileId
+ * @param {string} country
+ * @param {string} zip
+ * @returns {void}
+ */
 export function setProfileLocation(profileId, country, zip) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
@@ -715,12 +922,22 @@ export function setProfileLocation(profileId, country, zip) {
   }
 }
 
+/**
+ * @param {string} [profileId]
+ * @returns {{ height: number | string | null, unit: string }}
+ */
 export function getProfileHeight(profileId) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
   return { height: (p && p.height) || null, unit: (p && p.heightUnit) || 'cm' };
 }
 
+/**
+ * @param {string} profileId
+ * @param {number | string | null} height
+ * @param {string} [unit]
+ * @returns {void}
+ */
 export function setProfileHeight(profileId, height, unit) {
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === (profileId || state.currentProfile));
@@ -734,10 +951,27 @@ export function setProfileHeight(profileId, height, unit) {
 }
 
 // AI-powered latitude detection with hardcoded fallback
+/**
+ * @returns {Record<string, number>}
+ */
 export function getLocationCache() { try { return JSON.parse(localStorage.getItem('labcharts-location-cache') || '{}'); } catch(e) { return {}; } }
+/**
+ * @param {string} key
+ * @param {number} lat
+ * @returns {void}
+ */
 export function setLocationCache(key, lat) { var c = getLocationCache(); c[key] = lat; try { localStorage.setItem('labcharts-location-cache', JSON.stringify(c)); } catch(e) {} }
+/**
+ * @param {number} lat
+ * @returns {number}
+ */
 export function latitudeToBand(lat) { var a = Math.abs(lat); if (a < 25) return 0; if (a < 40) return 1; if (a < 50) return 2; if (a < 60) return 3; return 4; }
 
+/**
+ * @param {string} country
+ * @param {string} zip
+ * @returns {Promise<void>}
+ */
 export async function detectLatitudeWithAI(country, zip) {
   var cacheKey = (country + '|' + zip).toLowerCase();
   if (getLocationCache()[cacheKey] !== undefined) return;
@@ -763,6 +997,11 @@ export async function detectLatitudeWithAI(country, zip) {
   }
 }
 
+/**
+ * @param {string} [optCountry]
+ * @param {string} [optZip]
+ * @returns {string | null}
+ */
 export function getLatitudeFromLocation(optCountry, optZip) {
   const loc = getProfileLocation();
   const country = optCountry !== undefined ? optCountry : loc.country;
