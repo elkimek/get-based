@@ -23,6 +23,7 @@
     "js/pdfjs-loader.js",
     "js/profile.js",
     "js/profile-share.js",
+    "js/theme.js",
     "js/url-safety.js",
     "js/utils.js",
     "types/**/*.d.ts"
