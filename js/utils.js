@@ -1,3 +1,4 @@
+// @ts-check
 // utils.js — Pure utility functions, notifications, dialogs
 
 /// Encode all five HTML-special characters — &, <, >, ", '. Safe to use
@@ -9,6 +10,40 @@
 /// fields, etc. The regex below handles all five in one pass so every
 /// existing caller becomes safe without touching call sites.
 const _ESCAPE_HTML_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+/**
+ * @typedef {Object} DetachedModalSyncRefreshOptions
+ * @property {HTMLElement} [overlay]
+ * @property {string} [id]
+ * @property {(id?: string) => void} [opener]
+ * @property {(id?: string) => boolean} [exists]
+ * @property {string} [bodySelector]
+ * @property {string} [restoreSelector]
+ */
+
+/**
+ * @typedef {Object} ModalSyncRefreshContext
+ * @property {HTMLElement | null} overlay
+ * @property {HTMLElement | null} modal
+ * @property {string} [itemId]
+ * @property {number} [scrollTop]
+ */
+
+/**
+ * @typedef {Object} ModalSyncRefreshOptions
+ * @property {HTMLElement} [overlay]
+ * @property {string} [overlayId]
+ * @property {string} [overlaySelector]
+ * @property {string} [modalId]
+ * @property {string} [modalSelector]
+ * @property {string} [kind]
+ * @property {(context: ModalSyncRefreshContext) => void} [refresh]
+ * @property {(context: ModalSyncRefreshContext) => string} [getItemId]
+ * @property {string} [scrollSelector]
+ * @property {(context: ModalSyncRefreshContext) => HTMLElement | null | undefined} [getScrollElement]
+ * @property {boolean} [preserveScroll]
+ */
+
 export function escapeHTML(str) {
   if (str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, (c) => _ESCAPE_HTML_MAP[c]);
@@ -75,6 +110,9 @@ export function hasDirtyFormFields(root) {
   return false;
 }
 
+/**
+ * @param {DetachedModalSyncRefreshOptions} [options]
+ */
 export function bindDetachedModalSyncRefresh({
   overlay,
   id,
@@ -117,6 +155,10 @@ export function bindDetachedModalSyncRefresh({
   window.addEventListener('labcharts-sync-applied', onSync);
 }
 
+/**
+ * @param {ModalSyncRefreshOptions} [options]
+ * @returns {() => void}
+ */
 export function bindModalSyncRefresh({
   overlay: directOverlay,
   overlayId,
@@ -133,23 +175,28 @@ export function bindModalSyncRefresh({
   if (typeof window === 'undefined' || typeof document === 'undefined' || typeof refresh !== 'function') {
     return () => {};
   }
+  /** @returns {HTMLElement | null} */
   const findOverlay = () => {
     if (directOverlay) return directOverlay;
     if (overlayId) return document.getElementById(overlayId);
-    if (overlaySelector && typeof document.querySelector === 'function') return document.querySelector(overlaySelector);
+    if (overlaySelector && typeof document.querySelector === 'function') {
+      return /** @type {HTMLElement | null} */ (document.querySelector(overlaySelector));
+    }
     return null;
   };
+  /** @param {HTMLElement | null} overlay @returns {HTMLElement | null} */
   const findModal = (overlay) => {
     if (modalId) return document.getElementById(modalId);
-    if (modalSelector && overlay?.querySelector) return overlay.querySelector(modalSelector);
+    if (modalSelector && overlay?.querySelector) return /** @type {HTMLElement | null} */ (overlay.querySelector(modalSelector));
     return overlay || null;
   };
+  /** @param {{ overlay: HTMLElement | null, modal: HTMLElement | null }} context @returns {HTMLElement | null} */
   const resolveScrollElement = ({ overlay, modal }) => {
     if (!preserveScroll) return null;
     if (typeof getScrollElement === 'function') return getScrollElement({ overlay, modal }) || null;
     if (scrollSelector) {
-      return overlay?.querySelector?.(scrollSelector)
-        || modal?.querySelector?.(scrollSelector)
+      return /** @type {HTMLElement | null} */ (overlay?.querySelector?.(scrollSelector))
+        || /** @type {HTMLElement | null} */ (modal?.querySelector?.(scrollSelector))
         || null;
     }
     return modal || overlay || null;
@@ -272,6 +319,7 @@ export function formatDate(iso, style = 'short') {
   // around individually.
   const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
+  /** @type {Intl.DateTimeFormatOptions} */
   const opts = style === 'long'      ? { month: 'long',  day: 'numeric', year: 'numeric' }
              : style === 'monthYear' ? { month: 'short', year: 'numeric' }
              : style === 'spoken'    ? { month: 'long',  day: 'numeric' }
@@ -423,7 +471,7 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
       </div></div>`;
     overlay.classList.add('show');
 
-    const input = document.getElementById('prompt-dialog-input');
+    const input = /** @type {HTMLInputElement} */ (document.getElementById('prompt-dialog-input'));
     const ok = document.getElementById('prompt-ok');
     const cancel = document.getElementById('prompt-cancel');
 
