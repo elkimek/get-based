@@ -6,6 +6,7 @@ import { getMarkerCrosswalk, resolveMarkerAliases } from './lab-standards/marker
 
 const TEST_PLAN_PROMPTS = [
   'what should i test', 'what should i get tested', 'what to test', 'what labs',
+  'what blood tests', 'blood tests would you recommend', 'recommend next',
   'what markers', 'which markers', 'next blood draw', 'next labs', 'next lab',
   'check next', 'test next', 'get tested next', 'vyšetřit', 'vysetrit',
   'jaké testy', 'jake testy', 'co otestovat', 'krevní testy', 'krevni testy',
@@ -100,6 +101,19 @@ const PANEL_TRIGGERS = [
   { terms: ['uric acid'], panel: 'purineMetabolism' },
   { terms: ['vitamin d', '25 oh d', '25(oh)d'], panel: 'vitaminD' },
 ];
+
+const CANDIDATE_ALIAS_OVERRIDES = Object.freeze({
+  ferritin: ['iron.ferritin'],
+  'hs crp': ['inflammation.hsCRP'],
+  'hs-crp': ['inflammation.hsCRP'],
+  tsh: ['thyroid.tsh'],
+  'free t3': ['thyroid.freeT3'],
+  'free t4': ['thyroid.freeT4'],
+  testosterone: ['hormones.totalTestosterone'],
+  shbg: ['hormones.shbg'],
+  lh: ['hormones.lh'],
+  fsh: ['hormones.fsh'],
+});
 
 function normalize(text) {
   return String(text || '')
@@ -196,7 +210,16 @@ function looksLikeNoise(candidate) {
 function addUnmappedCandidate(out, name) {
   const displayName = titleCaseMarkerName(cleanCandidateName(name));
   if (looksLikeNoise(displayName)) return;
-  if (resolveMarkerAliases(displayName).length) return;
+  const overrideKeys = CANDIDATE_ALIAS_OVERRIDES[normalize(displayName)] || [];
+  const mappedKeys = overrideKeys.length ? overrideKeys : resolveMarkerAliases(displayName);
+  if (mappedKeys.length) {
+    mappedKeys.forEach(markerKey => addMarker(out, markerKey, {
+      displayName: markerDisplayName(markerKey),
+      reason: 'Recommended by the assistant.',
+      confidence: 'llm_recommended_mapped',
+    }));
+    return;
+  }
   const normalizedDisplay = normalize(displayName);
   if ([...out.values()].some(marker => normalize(marker.displayName) === normalizedDisplay)) return;
   const slug = slugifyMarkerName(displayName);

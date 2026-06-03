@@ -91,4 +91,28 @@ describe('natural lab plan intent', () => {
       expect.objectContaining({ markerKey: 'unmapped.mystery_biomarker_x', displayName: 'Mystery biomarker X', confidence: 'llm_recommended_unmapped' }),
     ]));
   });
+
+  it('recognizes the real dogfood prompt as a plan request', () => {
+    const plan = buildLabPlanFromConversation(
+      'Based on my CMT2A and fatigue, what blood tests would you recommend next? Then create a lab order draft and compare Labshop vs Unilabs/Spadia coverage.',
+      'Worth checking next: ceruloplasmin, RBC magnesium, omega-3 index, neurofilament light chain, GDF15, FGF21, lactate, pyruvate, CoQ10, copper, zinc, homocysteine, B12, folate, ferritin, hs-CRP, TSH, free T3, free T4, testosterone, SHBG, LH, FSH and vitamin D.'
+    );
+
+    expect(plan).not.toBeNull();
+    expect(plan.markers.map(m => m.markerKey)).toEqual(expect.arrayContaining([
+      'unmapped.ceruloplasmin',
+      'unmapped.neurofilament_light_chain',
+      'coagulation.homocysteine',
+      'vitamins.vitaminB12',
+      'vitamins.folate',
+      'iron.ferritin',
+      'inflammation.hsCRP',
+      'thyroid.tsh',
+      'hormones.totalTestosterone',
+      'hormones.shbg',
+      'hormones.lh',
+      'hormones.fsh',
+      'vitamins.vitaminD',
+    ]));
+  });
 });

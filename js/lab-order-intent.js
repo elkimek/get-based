@@ -13,6 +13,12 @@ const ORDER_TERMS = [
   'cart', 'košík', 'kosik', 'labshop', 'unilabs', 'samoplátce', 'samoplatce'
 ];
 
+const RECOMMENDATION_TERMS = [
+  'recommend', 'doporuč', 'doporuc', 'what blood tests', 'what tests',
+  'what should i test', 'what should i get tested', 'what labs', 'what markers',
+  'which markers', 'test next', 'check next', 'next blood draw', 'next labs'
+];
+
 const PROVIDER_SUMMARIES = {
   'cz.labshop': 'Cart handoff available · prices known for mapped panels',
   'cz.unilabs': 'Second lab option · request/catalog flow to confirm',
@@ -59,6 +65,13 @@ function addPanelMarkers(raw, markerKeys, displayNameByKey) {
       displayNameByKey.set(markerKey, displayName);
     }
   }
+}
+
+export function shouldDeferLabOrderDraftForRecommendation(text) {
+  const lower = String(text || '').toLowerCase();
+  const hasOrderVerb = ORDER_TERMS.some(term => lower.includes(term));
+  const asksForRecommendation = RECOMMENDATION_TERMS.some(term => lower.includes(term));
+  return hasOrderVerb && asksForRecommendation;
 }
 
 function buildProviderOptions(country = 'CZ') {
@@ -220,6 +233,7 @@ export function buildLabOrderDraftFromMarkers(markerIntents = [], options = {}) 
 }
 
 export function buildLabOrderDraft(userText) {
+  if (shouldDeferLabOrderDraftForRecommendation(userText)) return null;
   const intent = detectLabOrderIntent(userText);
   if (!intent.isOrderIntent) return null;
   return buildLabOrderDraftFromMarkers(intent.markerIntents, {
