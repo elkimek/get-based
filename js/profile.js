@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
 import { showNotification } from './utils.js';
-import { encryptedSetItem, encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { normalizeLightEnvironmentEveningFields } from './light-env-evening.js';
 import {
   deleteLabEntryMarker,
@@ -147,11 +147,7 @@ export async function saveProfiles(profiles) {
   state.profiles = profiles;
   try {
     const value = JSON.stringify(profiles);
-    if (getEncryptionEnabled()) {
-      await encryptedSetItem('labcharts-profiles', value);
-    } else {
-      localStorage.setItem('labcharts-profiles', value);
-    }
+    await encryptedSetItem('labcharts-profiles', value);
   } catch (e) {
     showNotification('Storage limit reached — could not save profile changes.', 'error');
   }
@@ -161,14 +157,22 @@ export async function saveProfiles(profiles) {
  * @returns {string}
  */
 export function getActiveProfileId() {
-  return localStorage.getItem('labcharts-active-profile') || 'default';
+  return _normalizeProfileId(localStorage.getItem('labcharts-active-profile')) || 'default';
 }
 
 /**
  * @param {string} id
  */
 export function setActiveProfileId(id) {
-  localStorage.setItem('labcharts-active-profile', id);
+  localStorage.setItem('labcharts-active-profile', _normalizeProfileId(id) || 'default');
+}
+
+/**
+ * @param {unknown} id
+ * @returns {string}
+ */
+function _normalizeProfileId(id) {
+  return String(id || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 128);
 }
 
 /**
