@@ -1,3 +1,4 @@
+// @ts-check
 // profile-share.js — encrypted single-profile share links
 
 import { state } from './state.js';
@@ -328,6 +329,14 @@ function getProfileShareRecords(profileId = state.currentProfile) {
   return readShareRecords().filter(record => record.profileId === profileId);
 }
 
+/**
+ * @typedef {Object} CreateProfileShareOptions
+ * @property {string=} profileId
+ * @property {string=} password
+ * @property {number|string=} expiresDays
+ */
+
+/** @param {CreateProfileShareOptions} [options] */
 export async function createProfileShare({ profileId = state.currentProfile, password, expiresDays = 7 } = {}) {
   const secret = validateSharePassword(password);
   const id = createProfileShareId();
@@ -547,7 +556,8 @@ function renderProfileShareShell({ title, kicker = 'Share Profile', body }) {
   `);
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   installProfileShareDelegates(overlay);
-  overlay?.querySelector('input, button, select')?.focus();
+  const firstControl = /** @type {HTMLElement | null} */ (overlay?.querySelector('input, button, select'));
+  firstControl?.focus();
 }
 
 export function openProfileShareModal(profileId = state.currentProfile) {
@@ -573,8 +583,10 @@ export function openSharedProfileImportModal(id) {
 async function handleCreateSubmit(form) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   const profileId = form.dataset.profileId || state.currentProfile;
-  const password = form.querySelector('#profile-share-password')?.value || '';
-  const expiresDays = form.querySelector('#profile-share-expires')?.value || 7;
+  const passwordInput = /** @type {HTMLInputElement | null} */ (form.querySelector('#profile-share-password'));
+  const expiresInput = /** @type {HTMLSelectElement | null} */ (form.querySelector('#profile-share-expires'));
+  const password = passwordInput?.value || '';
+  const expiresDays = expiresInput?.value || 7;
   try {
     setBusy(overlay, true, 'Creating...');
     setStatus('Encrypting profile and creating link...', 'info');
@@ -601,7 +613,8 @@ async function handleCreateSubmit(form) {
 async function handleLoadSubmit(form) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   const id = form.dataset.shareId || '';
-  const password = form.querySelector('#profile-share-load-password')?.value || '';
+  const passwordInput = /** @type {HTMLInputElement | null} */ (form.querySelector('#profile-share-load-password'));
+  const password = passwordInput?.value || '';
   try {
     setBusy(overlay, true, 'Loading...');
     setStatus('Fetching encrypted profile...', 'info');
@@ -671,11 +684,11 @@ function installProfileShareDelegates(overlay) {
       closeProfileShareModal();
     } else if (action === 'regenerate') {
       event.preventDefault();
-      const input = document.getElementById('profile-share-password');
+      const input = /** @type {HTMLInputElement | null} */ (document.getElementById('profile-share-password'));
       if (input) input.value = generateProfileSharePassword();
     } else if (action === 'copy') {
       event.preventDefault();
-      const target = document.getElementById(actionEl.dataset.copyTarget || '');
+      const target = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(actionEl.dataset.copyTarget || ''));
       copyText(actionEl.dataset.copyValue || target?.value || '', actionEl.dataset.copyLabel || 'Copied');
     } else if (action === 'delete-link') {
       event.preventDefault();

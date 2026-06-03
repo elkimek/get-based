@@ -8,12 +8,14 @@
     "dev-server": "node dev-server.js",
     "quality": "node scripts/quality-guardrails.mjs",
     "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
     "test:watch": "vitest"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "puppeteer": "^24.42.0",
+    "typescript": "^6.0.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.6"
   },
