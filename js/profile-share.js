@@ -10,6 +10,7 @@ export const PROFILE_SHARE_VERSION = 1;
 export const PROFILE_SHARE_KDF_ITERATIONS = 600000;
 export const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100000;
 export const PROFILE_SHARE_MAX_DAYS = 30;
+export const PROFILE_SHARE_MAX_DECOMPRESSED_BYTES = 37_500_000;
 export const PROFILE_SHARE_API = '/api/share';
 
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
@@ -97,13 +98,39 @@ async function compressJsonText(text) {
 }
 
 async function decompressJsonBytes(bytes, compression) {
-  if (!compression || compression === 'none') return TEXT_DECODER.decode(bytes);
+  if (!compression || compression === 'none') {
+    if (bytes.byteLength > PROFILE_SHARE_MAX_DECOMPRESSED_BYTES) throw new Error('Shared profile is too large to import.');
+    return TEXT_DECODER.decode(bytes);
+  }
   if (compression !== 'gzip') throw new Error('Unsupported share compression.');
-  if (typeof DecompressionStream !== 'function' || typeof Blob !== 'function' || typeof Response !== 'function') {
+  if (typeof DecompressionStream !== 'function' || typeof Blob !== 'function') {
     throw new Error('This browser cannot decompress the shared profile.');
   }
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  const decompressed = new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      totalBytes += chunk.byteLength;
+      if (totalBytes > PROFILE_SHARE_MAX_DECOMPRESSED_BYTES) {
+        try { await reader.cancel(); } catch {}
+        throw new Error('Shared profile is too large to import.');
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const decompressed = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    decompressed.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
   return TEXT_DECODER.decode(decompressed);
 }
 

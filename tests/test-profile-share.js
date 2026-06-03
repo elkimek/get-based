@@ -28,6 +28,7 @@ const devServerSrc = read('dev-server.js');
 const modalCss = read('css/modal-shared.css');
 const redesignCss = read('css/redesign-shell.css');
 const packageJson = JSON.parse(read('package.json'));
+const decompressJsonBytesSrc = /async function decompressJsonBytes[\s\S]*?\n}\n\nfunction clampExpiryDays/.exec(profileShareSrc)?.[0] || '';
 
 console.log('1. Encrypted envelope behavior');
 try {
@@ -64,6 +65,12 @@ try {
   let wrongFailed = false;
   try { await mod.decryptProfileShareEnvelope(envelope, 'wrong-horse-1234'); } catch { wrongFailed = true; }
   assert('Wrong secret fails to decrypt', wrongFailed);
+  assert('Shared profile decompression enforces an expanded-size cap',
+    mod.PROFILE_SHARE_MAX_DECOMPRESSED_BYTES === 37_500_000 &&
+    decompressJsonBytesSrc.includes('stream.getReader()') &&
+    decompressJsonBytesSrc.includes('totalBytes') &&
+    decompressJsonBytesSrc.includes('reader.cancel()') &&
+    !decompressJsonBytesSrc.includes('new Response(stream).arrayBuffer()'));
 } catch (err) {
   assert('Encrypted envelope round-trip', false, err.message);
 }
