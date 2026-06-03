@@ -51,6 +51,10 @@ assert('client-list can open share modal for selected profile',
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
   clientListSrc.includes("btn.setAttribute('data-cl-action', 'remove-avatar')") &&
     !clientListSrc.includes('.onclick'));
+assert('height display rounds cm to whole numbers and inches to one decimal',
+  clientListSrc.includes("unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm))") &&
+    clientListSrc.includes("next === 'in' ? '0.1' : '1'") &&
+    clientListSrc.includes("heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : Math.round(heightRaw)"));
 
 [
   'close',

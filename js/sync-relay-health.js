@@ -26,11 +26,12 @@ function _ownerStorageKey() {
 }
 
 export function trackPushBytes(bytes) {
-  if (!_appOwner()?.id || !Number.isFinite(bytes) || bytes <= 0) return;
+  const safeBytes = _coerceRelayBytes(bytes);
+  if (!_appOwner()?.id || safeBytes <= 0) return;
   try {
     const key = _ownerStorageKey();
     const cur = parseInt(localStorage.getItem(key) || '0', 10) || 0;
-    localStorage.setItem(key, String(cur + bytes));
+    localStorage.setItem(key, String(cur + safeBytes));
   } catch {}
   _maybeWarnQuotaThreshold();
 }
@@ -53,8 +54,14 @@ export function resetRelayQuotaEstimate() {
 }
 
 function _setRelayQuotaBytes(bytes) {
-  if (!_appOwner()?.id || !Number.isFinite(bytes) || bytes < 0) return;
-  try { localStorage.setItem(_ownerStorageKey(), String(Math.round(bytes))); } catch {}
+  const safeBytes = _coerceRelayBytes(bytes);
+  if (!_appOwner()?.id || safeBytes < 0) return;
+  try { localStorage.setItem(_ownerStorageKey(), String(safeBytes)); } catch {}
+}
+
+function _coerceRelayBytes(bytes) {
+  const value = Number(bytes);
+  return Number.isFinite(value) && value >= 0 ? Math.round(value) : -1;
 }
 
 // Mirrors the /self/* endpoints introduced in getbased-relay 1.2.0.
