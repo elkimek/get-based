@@ -7,6 +7,7 @@ declare const Buffer: {
 interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
+  APP_VERSION?: string;
   applyAccentOverride?: () => void;
   buildSidebar?: () => void;
   callClaudeAPI?: (request: {

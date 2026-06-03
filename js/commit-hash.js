@@ -1,3 +1,4 @@
+// @ts-check
 // commit-hash.js - Footer app version and commit hash hydration
 
 import { escapeHTML } from './utils.js';
