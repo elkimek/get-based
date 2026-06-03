@@ -38,6 +38,7 @@
     "js/touch-tooltip.js",
     "js/url-safety.js",
     "js/utils.js",
+    "js/wearables-formatters.js",
     "types/**/*.d.ts"
   ]
 }

@@ -1,3 +1,4 @@
+// @ts-check
 import { isoDay } from './wearable-adapters.js';
 
 // Single formatter used by the strip cards and detail modals so a number
@@ -17,6 +18,7 @@ export function shortDate(iso) {
   const d = new Date(iso + 'T00:00:00Z');
   if (isNaN(d.getTime())) return iso;
   const sameYear = d.getUTCFullYear() === Number(isoDay().slice(0, 4));
+  /** @type {Intl.DateTimeFormatOptions} */
   const fmt = sameYear
     ? { month: 'short', day: 'numeric', timeZone: 'UTC' }
     : { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' };
