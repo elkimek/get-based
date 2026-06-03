@@ -348,7 +348,7 @@ export function openClientForm(profileId) {
   const heightData = p ? getProfileHeight(p.id) : { height: null, unit: 'cm' };
   const heightUnit = heightData.unit || 'cm';
   const heightValue = heightData.height == null || heightData.height === '' ? null : Number(heightData.height);
-  const heightDisplay = heightValue ? (heightUnit === 'in' ? (heightValue / 2.54).toFixed(1) : Math.round(heightValue)) : '';
+  const heightDisplay = heightValue ? _clFormatHeightInput(heightValue, heightUnit) : '';
 
   const avatarColor = getAvatarColor(p ? p.id : 'new');
   const avatarInitial = (name || '?')[0].toUpperCase();
@@ -442,7 +442,7 @@ export function openClientForm(profileId) {
         <div class="cl-form-row-split">
           <div class="cl-form-row cl-form-col">
             <label class="cl-form-label" for="cl-height">Height <a href="#" class="cl-bio-unit-toggle" id="cl-height-unit-toggle" data-unit="${heightUnit}" ${_clActionAttrs('height-unit')}>${heightUnit}</a></label>
-            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="0.1" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" ${_clInputAttrs('update-bmi')}>
+            <input type="number" class="cl-form-input" id="cl-height" value="${escapeHTML(String(heightDisplay))}" step="${heightUnit === 'in' ? '0.1' : '1'}" placeholder="${heightUnit === 'in' ? 'inches' : 'cm'}" ${_clInputAttrs('update-bmi')}>
             <input type="hidden" id="cl-height-unit" value="${heightUnit}">
           </div>
           ${p ? `<div class="cl-form-row cl-form-col">
@@ -536,7 +536,7 @@ function _clSaveForm(e) {
   // Height — stored in cm
   const heightRaw = parseFloat(_clInput('cl-height')?.value || '');
   const heightUnit = _clInput('cl-height-unit')?.value || 'cm';
-  const height = heightRaw ? (heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw) : null;
+  const height = heightRaw ? (heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : Math.round(heightRaw)) : null;
 
   // Build avatar update
   const avatarUpdate = {};
@@ -989,6 +989,15 @@ function _clUpdateBMI() {
   }
 }
 
+/**
+ * @param {number} heightCm
+ * @param {string} unit
+ * @returns {string}
+ */
+function _clFormatHeightInput(heightCm, unit) {
+  return unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm));
+}
+
 function _clHeightUnitChanged() {
   const input = _clInput('cl-height');
   const hidden = _clInput('cl-height-unit');
@@ -998,9 +1007,11 @@ function _clHeightUnitChanged() {
   const next = current === 'cm' ? 'in' : 'cm';
   const val = parseFloat(input.value);
   if (val) {
-    input.value = next === 'in' ? (val / 2.54).toFixed(1) : (val * 2.54).toFixed(1);
+    const heightCm = current === 'in' ? val * 2.54 : val;
+    input.value = _clFormatHeightInput(heightCm, next);
   }
   input.placeholder = next === 'in' ? 'inches' : 'cm';
+  input.step = next === 'in' ? '0.1' : '1';
   hidden.value = next;
   toggle.textContent = next;
   toggle.dataset.unit = next;
