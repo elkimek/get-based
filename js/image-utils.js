@@ -1,3 +1,5 @@
+// @ts-check
+
 // image-utils.js — Shared image utilities for chat attachments and PDF image fallback
 // No app imports (no circular deps)
 
@@ -5,11 +7,22 @@
 // RESIZE IMAGE
 // ═══════════════════════════════════════════════
 /**
+ * @typedef {object} ResizedImage
+ * @property {string} base64
+ * @property {string} mediaType
+ * @property {number} width
+ * @property {number} height
+ * @property {number} origWidth
+ * @property {number} origHeight
+ * @property {string[]} quality_warnings
+ */
+
+/**
  * Resize an image file to fit within maxDim, return base64 JPEG.
  * @param {File} file
  * @param {number} maxDim - max long-side pixels (default 1024 for chat, 2048 for PDF)
  * @param {number} quality - JPEG quality 0-1
- * @returns {Promise<{base64: string, mediaType: string, width: number, height: number}>}
+ * @returns {Promise<ResizedImage>}
  */
 export function resizeImage(file, maxDim = 1024, quality = 0.85) {
   return new Promise((resolve, reject) => {
@@ -48,6 +61,12 @@ export function resizeImage(file, maxDim = 1024, quality = 0.85) {
 // ═══════════════════════════════════════════════
 // IMAGE QUALITY ANALYSIS
 // ═══════════════════════════════════════════════
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} width
+ * @param {number} height
+ * @returns {string[]}
+ */
 function analyzeImageQuality(ctx, width, height) {
   const warnings = [];
   // Sample a grid of pixels (max ~100k pixels for performance)
