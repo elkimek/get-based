@@ -30,6 +30,14 @@ export const UNILABS_PRODUCTS_BY_MARKER = Object.freeze({
     markerKey: 'coagulation.homocysteine',
     displayName: 'Homocysteine',
   },
+  'vitamins.holotranscobalamin': {
+    providerId: 'cz.unilabs',
+    providerProductId: '3543',
+    name: 'Aktivní vitamin B12',
+    priceCzk: 308,
+    markerKey: 'vitamins.holotranscobalamin',
+    displayName: 'Active B12',
+  },
 });
 
 export const UNILABS_BLOOD_DRAW_FEE_CZK = 81;

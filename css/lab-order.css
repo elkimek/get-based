@@ -153,7 +153,50 @@
   border-color: var(--accent);
 }
 
-.lab-provider-option span {
+.lab-provider-option span,
+.lab-provider-option em {
   color: var(--text-secondary);
   font-size: 12px;
+  font-style: normal;
+}
+
+.lab-provider-comparison,
+.lab-provider-recommendation {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--accent));
+  margin-top: 12px;
+  padding: 10px;
+}
+
+.lab-provider-comparison-row,
+.lab-provider-recommendation-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.lab-provider-comparison-row span,
+.lab-provider-recommendation-row span {
+  color: var(--text-secondary);
+}
+
+.lab-provider-comparison-row strong,
+.lab-provider-recommendation-row strong {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.lab-provider-recommendation-row.split {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.lab-provider-split-lines {
+  color: var(--text-secondary);
+  display: grid;
+  font-size: 12px;
+  gap: 4px;
+  margin-top: 4px;
 }

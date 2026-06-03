@@ -48,6 +48,50 @@ describe('lab order card rendering', () => {
     expect(html).not.toContain('cz.spadia');
   });
 
+  it('renders best single-lab and split-order recommendations in provider selection', () => {
+    const html = renderLabOrderCard({
+      id: 'draft-provider-recommendation',
+      provider: 'provider_selection',
+      providerId: null,
+      status: 'provider_selection',
+      providerOptions: [
+        { providerId: 'cz.labshop', name: 'Labshop', summary: 'Cart handoff available' },
+        { providerId: 'cz.unilabs', name: 'Unilabs.cz', summary: 'Request flow to confirm' },
+      ],
+      providerComparisons: [
+        { providerId: 'cz.unilabs', name: 'Unilabs.cz', coveredCount: 4, requestedCount: 4, totalEstimateCzk: 1541, missingMarkerKeys: [] },
+        { providerId: 'cz.labshop', name: 'Labshop', coveredCount: 2, requestedCount: 4, totalEstimateCzk: 500, missingMarkerKeys: ['coagulation.homocysteine', 'vitamins.holotranscobalamin'] },
+      ],
+      providerRecommendation: {
+        bestCoverage: { providerId: 'cz.unilabs', name: 'Unilabs.cz', coveredCount: 4, requestedCount: 4, totalEstimateCzk: 1541 },
+        cheapestComplete: { providerId: 'cz.unilabs', name: 'Unilabs.cz', totalEstimateCzk: 1541 },
+        cheapestSplit: {
+          complete: true,
+          totalEstimateCzk: 1460,
+          providerCount: 2,
+          providers: [
+            { providerId: 'cz.labshop', name: 'Labshop', markerKeys: ['vitamins.vitaminB12', 'vitamins.folate'], totalEstimateCzk: 500 },
+            { providerId: 'cz.unilabs', name: 'Unilabs.cz', markerKeys: ['coagulation.homocysteine', 'vitamins.holotranscobalamin'], totalEstimateCzk: 960 },
+          ],
+        },
+      },
+      products: [],
+      requestedMarkers: [
+        { markerKey: 'vitamins.vitaminB12', displayName: 'Vitamin B12' },
+        { markerKey: 'vitamins.folate', displayName: 'Folate' },
+        { markerKey: 'coagulation.homocysteine', displayName: 'Homocysteine' },
+        { markerKey: 'vitamins.holotranscobalamin', displayName: 'Active B12' },
+      ],
+      safetyBoundary: 'Choose a lab first.',
+    }, 7);
+
+    expect(html).toContain('Best coverage');
+    expect(html).toContain('Unilabs.cz · 4/4 tests · 1 541 Kč');
+    expect(html).toContain('Cheapest complete split');
+    expect(html).toContain('Labshop: Vitamin B12, Folate · 500 Kč');
+    expect(html).toContain('Unilabs.cz: Homocysteine, Active B12 · 960 Kč');
+  });
+
   it('renders selected Unilabs as a cart handoff with a Unilabs prepare button', () => {
     const html = renderLabOrderCard({
       id: 'draft-unilabs',

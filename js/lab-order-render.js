@@ -24,6 +24,27 @@ function renderRequestedMarkers(draft) {
   </div>`;
 }
 
+function renderProviderRecommendation(draft) {
+  const rec = draft.providerRecommendation;
+  if (!rec?.bestCoverage && !rec?.cheapestSplit) return '';
+  const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, m.displayName || m.markerKey]));
+  const best = rec.bestCoverage ? `<div class="lab-provider-recommendation-row">
+    <span>Best coverage</span>
+    <strong>${escapeHTML(rec.bestCoverage.name || rec.bestCoverage.providerId)} · ${escapeHTML(String(rec.bestCoverage.coveredCount))}/${escapeHTML(String(rec.bestCoverage.requestedCount))} tests · ${escapeHTML(formatCzk(rec.bestCoverage.totalEstimateCzk))}</strong>
+  </div>` : '';
+  const split = rec.cheapestSplit?.complete ? `<div class="lab-provider-recommendation-row split">
+    <span>Cheapest complete split</span>
+    <strong>${escapeHTML(formatCzk(rec.cheapestSplit.totalEstimateCzk))}</strong>
+    <div class="lab-provider-split-lines">
+      ${rec.cheapestSplit.providers.map(provider => `<div>${escapeHTML(provider.name || provider.providerId)}: ${escapeHTML((provider.markerKeys || []).map(markerKey => markerNameByKey.get(markerKey) || markerKey).join(', '))} · ${escapeHTML(formatCzk(provider.totalEstimateCzk))}</div>`).join('')}
+    </div>
+  </div>` : '';
+  return `<div class="lab-provider-recommendation">
+    ${best}
+    ${split}
+  </div>`;
+}
+
 function renderProviderSelection(draft, msgIndex) {
   const options = Array.isArray(draft.providerOptions) ? draft.providerOptions : [];
   const comparisons = Array.isArray(draft.providerComparisons) ? draft.providerComparisons : [];
@@ -58,6 +79,7 @@ function renderProviderSelection(draft, msgIndex) {
     </div>
     ${renderRequestedMarkers(draft)}
     ${comparisonHtml}
+    ${renderProviderRecommendation(draft)}
     <div class="lab-provider-options">${optionHtml}</div>
     <div class="lab-order-boundary">${escapeHTML(draft.safetyBoundary || 'Choose a lab first. Final booking/payment stays user-in-loop.')}</div>
   </div>`;

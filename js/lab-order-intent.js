@@ -6,6 +6,7 @@ import { getMarkerCrosswalk, resolveMarkerAliases } from './lab-standards/marker
 import { findLabshopOffersForMarkers } from './lab-providers/cz/labshop.js';
 import { findUnilabsOffersForMarkers } from './lab-providers/cz/unilabs.js';
 import { getProviderById, getProvidersForLocation } from './lab-providers/provider-registry.js';
+import { buildProviderCoverageMatrix, recommendLabOrderStrategy } from './lab-order-coverage.js';
 
 const ORDER_TERMS = [
   'order', 'objedn', 'koupit', 'buy', 'prepare', 'připrav', 'make cart',
@@ -42,57 +43,24 @@ function offersForProvider(providerId, markerIntents) {
   return [];
 }
 
-function coverageFromOffers(offers = [], markerIntents = []) {
-  const requestedKeys = markerIntents.map(intent => intent.markerKey).filter(Boolean);
-  const coveredKeys = new Set();
-  const coverageByMarker = {};
-  for (const offer of offers) {
-    for (const cover of offer.covers || []) {
-      if (!requestedKeys.includes(cover.markerKey)) continue;
-      coveredKeys.add(cover.markerKey);
-      coverageByMarker[cover.markerKey] = cover.coverage || offer.coverage || 'available';
-    }
-    for (const item of offer.items || []) {
-      if (!requestedKeys.includes(item.markerKey)) continue;
-      coveredKeys.add(item.markerKey);
-      coverageByMarker[item.markerKey] = offer.coverage || 'exact';
-    }
-  }
-  const missingMarkerKeys = requestedKeys.filter(markerKey => !coveredKeys.has(markerKey));
-  return {
-    requestedCount: requestedKeys.length,
-    coveredCount: coveredKeys.size,
-    coveragePercent: requestedKeys.length ? Math.round((coveredKeys.size / requestedKeys.length) * 100) : 0,
-    coveredMarkerKeys: [...coveredKeys],
-    missingMarkerKeys,
-    coverageByMarker,
-  };
-}
-
 function buildProviderComparisons(markerIntents = [], country = 'CZ') {
-  return getProvidersForLocation({ country }).map(provider => {
-    const offers = offersForProvider(provider.id, markerIntents);
-    const products = productsFromOffers(provider.id, offers, markerIntents);
-    const totalEstimateCzk = provider.id === 'cz.unilabs'
-      ? offers.reduce((sum, offer) => sum + (Number(offer.priceCzk) || 0), 0)
-      : products.reduce((sum, p) => sum + (Number(p.priceCzk) || 0), 0);
-    const coverage = coverageFromOffers(offers, markerIntents);
-    return {
-      providerId: provider.id,
-      name: provider.name,
-      summary: PROVIDER_SUMMARIES[provider.id] || 'Provider available',
-      capabilities: provider.capabilities || {},
-      requestedCount: coverage.requestedCount,
-      coveredCount: coverage.coveredCount,
-      coveragePercent: coverage.coveragePercent,
-      coveredMarkerKeys: coverage.coveredMarkerKeys,
-      missingMarkerKeys: coverage.missingMarkerKeys,
-      coverageByMarker: coverage.coverageByMarker,
-      totalEstimateCzk: products.some(p => p.priceCzk != null) || offers.some(o => o.priceCzk != null) ? totalEstimateCzk : null,
-      offerCount: offers.length,
-      products,
-    };
-  }).sort((a, b) => b.coveredCount - a.coveredCount || (a.totalEstimateCzk ?? Infinity) - (b.totalEstimateCzk ?? Infinity));
+  return buildProviderCoverageMatrix(markerIntents, { country }).providers.map(provider => ({
+    providerId: provider.providerId,
+    name: provider.name,
+    summary: PROVIDER_SUMMARIES[provider.providerId] || 'Provider available',
+    capabilities: provider.capabilities || {},
+    requestedCount: provider.requestedCount,
+    coveredCount: provider.coveredCount,
+    coveragePercent: provider.coveragePercent,
+    coveredMarkerKeys: provider.coveredMarkerKeys,
+    missingMarkerKeys: provider.missingMarkerKeys,
+    coverageByMarker: Object.fromEntries(Object.entries(provider.cells).map(([markerKey, cell]) => [markerKey, cell.coverage])),
+    cells: provider.cells,
+    mandatoryFeesCzk: provider.mandatoryFeesCzk,
+    totalEstimateCzk: provider.totalEstimateCzk,
+    offerCount: provider.offerCount,
+    products: productsFromOffers(provider.providerId, provider.offers, markerIntents),
+  }));
 }
 
 function productsFromOffers(providerId, offers, markerIntents) {
@@ -145,7 +113,9 @@ export function detectLabOrderIntent(text) {
   const providerId = providerFromText(lower);
   const offers = providerId ? offersForProvider(providerId, markerIntents) : [];
   const providerOptions = providerId ? [] : buildProviderOptions('CZ');
+  const coverageMatrix = providerId ? null : buildProviderCoverageMatrix(markerIntents, { country: 'CZ' });
   const providerComparisons = providerId ? [] : buildProviderComparisons(markerIntents, 'CZ');
+  const providerRecommendation = coverageMatrix ? recommendLabOrderStrategy(coverageMatrix) : null;
   const isOrderIntent = hasOrderVerb && markerIntents.length > 0 && (!providerId || offers.length > 0);
   return {
     isOrderIntent,
@@ -154,6 +124,7 @@ export function detectLabOrderIntent(text) {
     providerId,
     providerOptions,
     providerComparisons,
+    providerRecommendation,
     markerIntents,
     offers,
     matchedTerms: markerIntents.map(intent => intent.markerKey),
@@ -200,6 +171,7 @@ export function buildLabOrderDraft(userText) {
     nationalItems: [],
     providerOptions: intent.providerOptions,
     providerComparisons: intent.providerComparisons,
+    providerRecommendation: intent.providerRecommendation,
     offers: [],
     products: [],
     totalEstimateCzk: null,
