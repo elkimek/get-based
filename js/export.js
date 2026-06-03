@@ -184,12 +184,12 @@ function getReportAgeLabel(dob) {
 }
 
 function getReportHeaderProfile(profileName) {
-  const profile = getProfiles().find(p => p.id === state.currentProfile) || {};
+  const profile = getProfiles().find(p => p.id === state.currentProfile) || null;
   return {
-    ...profile,
-    name: profile.name || profileName,
-    sex: profile.sex || state.profileSex || null,
-    dob: profile.dob || state.profileDob || null,
+    ...(profile || {}),
+    name: profile?.name || profileName,
+    sex: profile?.sex || state.profileSex || null,
+    dob: profile?.dob || state.profileDob || null,
   };
 }
 
@@ -2431,7 +2431,7 @@ export async function clearAllData() {
     // Reset to single default profile
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
-    saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
+    saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
     state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
