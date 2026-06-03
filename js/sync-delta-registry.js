@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-registry.js - Per-row sync surface registry facade.
 
 export { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
