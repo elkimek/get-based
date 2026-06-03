@@ -490,6 +490,7 @@ const PROFILE_SHARE_DEV_STORE = new Map();
 const PROFILE_SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const PROFILE_SHARE_MAX_BYTES = 3_750_000;
 const PROFILE_SHARE_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100_000;
 const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
 function _sendProfileShareJSON(req, res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
@@ -503,6 +504,8 @@ function _validateProfileShareEnvelope(envelope) {
   if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error('Share expiry must be in the future.');
   if (expiresAt - now > PROFILE_SHARE_MAX_TTL_MS) throw new Error('Share expiry cannot exceed 30 days.');
   if (envelope.kdf?.name !== 'PBKDF2' || envelope.kdf?.hash !== 'SHA-256') throw new Error('Unsupported key derivation.');
+  const iterations = Number(envelope.kdf?.iterations);
+  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error(`PBKDF2 iterations must be at least ${PROFILE_SHARE_MIN_KDF_ITERATIONS}.`);
   if (envelope.cipher?.name !== 'AES-GCM') throw new Error('Unsupported cipher.');
   if (typeof envelope.ciphertext !== 'string' || envelope.ciphertext.length < 16) throw new Error('Encrypted profile payload is empty.');
   const sizeBytes = Buffer.byteLength(JSON.stringify(envelope));

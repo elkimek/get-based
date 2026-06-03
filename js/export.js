@@ -2477,4 +2477,4 @@ export async function loadDemoData(sex = 'male') {
   }
 }
 
-Object.assign(window, { openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, buildClientExportObject, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });
+Object.assign(window, { openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });

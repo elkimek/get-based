@@ -12,13 +12,17 @@ const SHARE_SCHEMA = 'getbased-profile-share';
 const SHARE_VERSION = 1;
 const MAX_SHARE_BYTES = 3_750_000;
 const MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MIN_KDF_ITERATIONS = 100_000;
 const MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
+const RATE_LIMIT_PREFIX = 'profile-share-rate/v1/';
+const POST_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const POST_RATE_LIMIT_MAX = 20;
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 
-function jsonResponse(req, status, body) {
+function jsonResponse(req, status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...JSON_HEADERS, ...corsHeaders(req) },
+    headers: { ...JSON_HEADERS, ...corsHeaders(req), ...extraHeaders },
   });
 }
 
@@ -38,7 +42,7 @@ function isAllowedOrigin(req, origin) {
     const requestUrl = new URL(req.url);
     const originUrl = new URL(origin);
     if (originUrl.origin === requestUrl.origin) return true;
-    if (['localhost', '127.0.0.1'].includes(originUrl.hostname)) return true;
+    if (process.env.NODE_ENV === 'development' && ['localhost', '127.0.0.1'].includes(originUrl.hostname)) return true;
     return [
       'getbased.health',
       'www.getbased.health',
@@ -56,6 +60,19 @@ function sharePath(id) {
 
 function validateId(id) {
   return SHARE_ID_RE.test(id || '') ? id : '';
+}
+
+function rateLimitPath(hash) {
+  return `${RATE_LIMIT_PREFIX}${hash}.json`;
+}
+
+function getClientRateSubject(req) {
+  const forwarded = req.headers.get('x-forwarded-for') || '';
+  const ip = forwarded.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || req.headers.get('cf-connecting-ip')
+    || 'unknown-client';
+  return String(ip).slice(0, 128);
 }
 
 async function sha256Hex(value) {
@@ -87,6 +104,10 @@ function normalizeEnvelope(envelope) {
   if (envelope.kdf?.name !== 'PBKDF2' || envelope.kdf?.hash !== 'SHA-256') {
     throw new Error('Unsupported key derivation.');
   }
+  const iterations = Number(envelope.kdf?.iterations);
+  if (!Number.isInteger(iterations) || iterations < MIN_KDF_ITERATIONS) {
+    throw new Error(`PBKDF2 iterations must be at least ${MIN_KDF_ITERATIONS}.`);
+  }
   if (envelope.cipher?.name !== 'AES-GCM') {
     throw new Error('Unsupported cipher.');
   }
@@ -114,9 +135,64 @@ async function parseRecord(path, options) {
   return JSON.parse(text);
 }
 
+async function enforcePostRateLimit(req, options) {
+  const now = Date.now();
+  const subjectHash = await sha256Hex(getClientRateSubject(req));
+  const path = rateLimitPath(subjectHash);
+  let existing = null;
+  try {
+    existing = await parseRecord(path, options);
+  } catch (err) {
+    if (!(err instanceof BlobNotFoundError)) throw err;
+  }
+  const resetAtMs = Date.parse(existing?.resetAt || '');
+  const windowActive = Number.isFinite(resetAtMs) && resetAtMs > now;
+  const count = windowActive ? Number(existing?.count || 0) : 0;
+  const resetAt = windowActive
+    ? new Date(resetAtMs).toISOString()
+    : new Date(now + POST_RATE_LIMIT_WINDOW_MS).toISOString();
+  if (count >= POST_RATE_LIMIT_MAX) {
+    return {
+      limited: true,
+      retryAfterSeconds: Math.max(1, Math.ceil(((windowActive ? resetAtMs : now) - now) / 1000)),
+    };
+  }
+  const record = {
+    count: count + 1,
+    resetAt,
+    updatedAt: new Date(now).toISOString(),
+  };
+  await put(path, JSON.stringify(record), {
+    ...options,
+    access: 'private',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: 'application/json',
+    cacheControlMaxAge: 60,
+  });
+  return { limited: false };
+}
+
 async function handlePost(req) {
   const options = blobOptions();
   if (!options) return jsonResponse(req, 503, { error: 'Profile sharing storage is not configured.' });
+  let rateLimit;
+  try {
+    rateLimit = await enforcePostRateLimit(req, options);
+  } catch (err) {
+    return jsonResponse(req, 503, { error: err?.message || 'Could not verify profile sharing rate limit.' });
+  }
+  if (rateLimit?.limited) {
+    return jsonResponse(
+      req,
+      429,
+      {
+        error: 'Too many profile share links created. Try again later.',
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      },
+      { 'Retry-After': String(rateLimit.retryAfterSeconds) },
+    );
+  }
   let body;
   try {
     body = await req.json();

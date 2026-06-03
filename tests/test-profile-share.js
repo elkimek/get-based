@@ -41,7 +41,7 @@ try {
   };
   const secret = 'correct-horse-1234';
   const envelope = await mod.encryptProfileShareEnvelope(sampleExport, secret, {
-    iterations: 1000,
+    iterations: mod.PROFILE_SHARE_MIN_KDF_ITERATIONS,
     expiresDays: 1,
   });
   const serializedEnvelope = JSON.stringify(envelope);
@@ -51,6 +51,16 @@ try {
   assert('Envelope has base64url ciphertext', /^[A-Za-z0-9_-]+$/.test(envelope.ciphertext));
   const decrypted = await mod.decryptProfileShareEnvelope(envelope, secret);
   assert('Correct secret decrypts the v2 export', decrypted.profile.name === 'Private Patient' && decrypted.entries[0].markers.metabolic_glucose === 86);
+  assert('Envelope enforces the profile-share KDF floor',
+    envelope.kdf?.iterations >= mod.PROFILE_SHARE_MIN_KDF_ITERATIONS);
+  let weakKdfFailed = false;
+  try {
+    await mod.decryptProfileShareEnvelope({
+      ...envelope,
+      kdf: { ...envelope.kdf, iterations: mod.PROFILE_SHARE_MIN_KDF_ITERATIONS - 1 },
+    }, secret);
+  } catch { weakKdfFailed = true; }
+  assert('Weak shared-profile KDF settings are rejected', weakKdfFailed);
   let wrongFailed = false;
   try { await mod.decryptProfileShareEnvelope(envelope, 'wrong-horse-1234'); } catch { wrongFailed = true; }
   assert('Wrong secret fails to decrypt', wrongFailed);
@@ -122,10 +132,11 @@ assert('Window exports share helpers',
   profileShareSrc.includes('parseProfileShareIdFromLocation'));
 
 console.log('4. Export/import reuse and credential boundaries');
-assert('export.js exposes buildClientExportObject',
+const exportWindowAssign = exportSrc.match(/Object\.assign\(window,\s*\{([^}]*)\}\)/);
+assert('buildClientExportObject stays module-only, not window-exposed',
   exportSrc.includes('export async function buildClientExportObject') &&
-  exportSrc.includes('Object.assign(window, { openReportBuilder') &&
-  exportSrc.includes('buildClientExportObject'));
+  exportWindowAssign &&
+  !exportWindowAssign[1].includes('buildClientExportObject'));
 assert('exportClientJSON downloads the reusable export object',
   exportSrc.includes('exportObj = await buildClientExportObject(profileId, includeChat)') &&
   exportSrc.includes('new Blob([JSON.stringify(exportObj, null, 2)]'));
@@ -145,12 +156,23 @@ assert('API validates share ids, size, expiry, and crypto envelope',
   apiShareSrc.includes('SHARE_ID_RE') &&
   apiShareSrc.includes('MAX_SHARE_BYTES') &&
   apiShareSrc.includes('MAX_TTL_MS') &&
+  apiShareSrc.includes('MIN_KDF_ITERATIONS') &&
   apiShareSrc.includes("envelope.schema !== SHARE_SCHEMA") &&
   apiShareSrc.includes("envelope.cipher?.name !== 'AES-GCM'"));
+assert('API rate limits unauthenticated share creation',
+  apiShareSrc.includes('RATE_LIMIT_PREFIX') &&
+  apiShareSrc.includes('POST_RATE_LIMIT_MAX') &&
+  apiShareSrc.includes('enforcePostRateLimit') &&
+  apiShareSrc.includes('status') &&
+  apiShareSrc.includes('429'));
+assert('API only allows localhost CORS in development',
+  apiShareSrc.includes("process.env.NODE_ENV === 'development'") &&
+  apiShareSrc.includes("['localhost', '127.0.0.1'].includes(originUrl.hostname)"));
 assert('API requires local management token to stop new links',
   apiShareSrc.includes('manageTokenHash') &&
   apiShareSrc.includes('MANAGE_TOKEN_HASH_RE') &&
   apiShareSrc.includes('x-profile-share-manage-token') &&
+  devServerSrc.includes('PROFILE_SHARE_MIN_KDF_ITERATIONS') &&
   devServerSrc.includes('PROFILE_SHARE_MANAGE_TOKEN_HASH_RE') &&
   devServerSrc.includes('This link can only be stopped from the browser that created it.'));
 assert('API never accepts or stores a password field',

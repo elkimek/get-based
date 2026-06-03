@@ -5,11 +5,12 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
-    version: '1.8.355', date: '2026-06-02', title: 'Private profile sharing',
+    version: '1.8.356', date: '2026-06-03', title: 'Private profile sharing',
     items: [
       '<b>Password-protected profile links.</b> Share a profile with someone else while keeping the link and password separate. Recipients can open the link, enter the password, and import the shared profile as their own copy.',
       '<b>Control active shares.</b> The Share Profile modal now shows links created on this device, with copy controls and a Stop sharing action for links you no longer want available.',
       '<b>Easier access.</b> Share Profile is available from the top bar on larger screens and from the profile menu on mobile, with clearer confirmation before a link is created.',
+      '<b>Hosted share safeguards.</b> The share endpoint now rejects weak key-derivation metadata, rate-limits anonymous link creation, and keeps localhost CORS limited to local development.',
     ]
   },
   {

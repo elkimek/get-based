@@ -610,7 +610,7 @@ Data export, import, and reset.
 
 **Key exports:**
 - `exportToJSON()` — exports v2 JSON for the current profile: `{ version: 2, exportedAt, entries, notes, diagnoses, diet, exercise, sleepRest, lightCircadian, stress, loveLife, environment, interpretiveLens, healthGoals, contextNotes, menstrualCycle, customMarkers, supplements }`
-- `buildClientExportObject(profileId, includeChat?)` — returns the reusable v2 single-profile export object used by JSON export and encrypted profile sharing. It includes profile metadata, labs, context, supplements, genetics, biometrics, marker notes, wearables summaries/preferences, and Light/Sun data, while excluding OAuth/wearable connection credentials and raw per-device wearable rows
+- `buildClientExportObject(profileId, includeChat?)` — module-only helper that returns the reusable v2 single-profile export object used by JSON export and encrypted profile sharing. It includes profile metadata, labs, context, supplements, genetics, biometrics, marker notes, wearables summaries/preferences, and Light/Sun data, while excluding OAuth/wearable connection credentials and raw per-device wearable rows
 - `exportClientJSON(profileId)` — exports a single client's data (used from Client List ⋮ menu)
 - `exportAllDataJSON()` — exports a full database bundle with all profiles, chat threads, custom personalities, and settings
 - `buildAllDataBundle()` — builds the bundle object used by both `exportAllDataJSON()` and folder backup
@@ -624,7 +624,7 @@ Data export, import, and reset.
 
 ### `profile-share.js`
 
-Encrypted single-profile share links. The module creates a profile export through `buildClientExportObject()`, encrypts it in the browser with a password, posts only the ciphertext envelope to `/api/share`, and imports shared profiles from `#share/{id}` deep links after local password decryption.
+Encrypted single-profile share links. The module creates a profile export through the module-only `buildClientExportObject()` helper, encrypts it in the browser with a password, posts only the ciphertext envelope to `/api/share`, and imports shared profiles from `#share/{id}` deep links after local password decryption. Shared envelopes require at least 100,000 PBKDF2-SHA256 iterations; the normal generated value is 600,000.
 
 **Key exports:**
 - `createProfileShare({ profileId, password, expiresDays })` — builds, encrypts, uploads, and records a managed share link for one profile

@@ -373,7 +373,7 @@ The encryption key is derived via PBKDF2 from a user passphrase + per-profile sa
 
 Profile sharing is opt-in and uses hosted storage only after the user confirms upload in the Share Profile modal. The browser creates a normal v2 single-profile export, strips credential surfaces through `buildClientExportObject()`, compresses it when supported, and encrypts it locally before upload. The share password never leaves the browser and is not stored in the share link.
 
-Production records are stored by `api/share.js` in private Vercel Blob objects under `profile-shares/v1/{id}.json`. Local development stores the same logical record in the `dev-server.js` in-memory map.
+Production records are stored by `api/share.js` in private Vercel Blob objects under `profile-shares/v1/{id}.json`. Production also stores small per-client rate-limit marker records under `profile-share-rate/v1/{sha256-client}.json` to add friction to anonymous share creation. Local development stores the same logical share record in the `dev-server.js` in-memory map.
 
 ```js
 {

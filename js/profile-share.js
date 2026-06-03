@@ -8,6 +8,7 @@ import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 export const PROFILE_SHARE_SCHEMA = 'getbased-profile-share';
 export const PROFILE_SHARE_VERSION = 1;
 export const PROFILE_SHARE_KDF_ITERATIONS = 600000;
+export const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100000;
 export const PROFILE_SHARE_MAX_DAYS = 30;
 export const PROFILE_SHARE_API = '/api/share';
 
@@ -162,7 +163,10 @@ export async function encryptProfileShareEnvelope(exportObj, secret, options = {
   const c = getCrypto();
   const salt = randomBytes(16);
   const iv = randomBytes(12);
-  const iterations = Number.isFinite(Number(options.iterations)) ? Number(options.iterations) : PROFILE_SHARE_KDF_ITERATIONS;
+  const requestedIterations = Number(options.iterations);
+  const iterations = Number.isFinite(requestedIterations)
+    ? Math.max(PROFILE_SHARE_MIN_KDF_ITERATIONS, Math.round(requestedIterations))
+    : PROFILE_SHARE_KDF_ITERATIONS;
   const expiresAt = options.expiresAt || isoDaysFromNow(options.expiresDays || 7);
   const { compression, bytes } = await compressJsonText(JSON.stringify(exportObj));
   const key = await deriveShareKey(shareSecret, salt, iterations);
@@ -204,7 +208,7 @@ export async function decryptProfileShareEnvelope(envelope, secret) {
   const iv = base64UrlToBytes(cipher.iv);
   const ciphertext = base64UrlToBytes(envelope.ciphertext);
   const iterations = Number(kdf.iterations);
-  if (!Number.isFinite(iterations) || iterations < 1000) throw new Error('Invalid shared profile encryption settings.');
+  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');
   const key = await deriveShareKey(shareSecret, salt, iterations);
   const plaintextBytes = new Uint8Array(await getCrypto().subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext));
   const jsonText = await decompressJsonBytes(plaintextBytes, envelope.compression);
