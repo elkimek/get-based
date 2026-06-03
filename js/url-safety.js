@@ -73,6 +73,17 @@ export function isValidExternalUrl(raw, { requireHttps = true, allowLocalhost = 
         return isValidExternalUrl(`${u.protocol}//${a}.${b}.${c}.${d}${u.pathname || ''}`, { requireHttps, allowLocalhost });
       }
     }
+    // 6to4 = 2002:WWXX:YYZZ::/48, with WWXX:YYZZ encoding an IPv4 address.
+    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(host);
+    if (sixToFour) {
+      const g0 = parseInt(sixToFour[1], 16);
+      const g1 = parseInt(sixToFour[2], 16);
+      const a = (g0 >> 8) & 0xff;
+      const b = g0 & 0xff;
+      const c = (g1 >> 8) & 0xff;
+      const d = g1 & 0xff;
+      return isValidExternalUrl(`${u.protocol}//${a}.${b}.${c}.${d}${u.pathname || ''}`, { requireHttps, allowLocalhost });
+    }
     if (!/^[23][0-9a-f]{3}:/.test(host)) return false;          // only globally-routable IPv6
   }
 

@@ -104,6 +104,8 @@ const {
   await expectSelfhostRejected('http://100.64.0.1/api', 'CGNAT 100.64.0.0/10');
   await expectSelfhostRejected('http://224.0.0.1/api', 'multicast 224.0.0.0/4');
   await expectSelfhostRejected('http://[fe80::1]/api', 'IPv6 link-local literal');
+  await expectSelfhostRejected('http://[2002:c0a8:0101::]/api', '6to4 IPv6 embeds RFC1918 192.168.1.1');
+  await expectSelfhostRejected('http://[2002:a9fe:a9fe::]/api', '6to4 IPv6 embeds link-local 169.254.169.254');
   await expectSelfhostRejected('ftp://example.com/api', 'non-http(s) protocol');
   await expectSelfhostRejected('not a url', 'unparseable URL');
 
