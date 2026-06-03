@@ -1,3 +1,4 @@
+// @ts-check
 // markdown.js — Markdown rendering for chat messages, focus card, EMF reports
 
 import { escapeHTML } from './utils.js';

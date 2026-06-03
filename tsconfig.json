@@ -13,6 +13,7 @@
   "include": [
     "js/client-list.js",
     "js/export.js",
+    "js/markdown.js",
     "js/profile.js",
     "js/profile-share.js",
     "js/utils.js",
