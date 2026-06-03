@@ -24,6 +24,7 @@
     "js/profile.js",
     "js/profile-share.js",
     "js/theme.js",
+    "js/touch-tooltip.js",
     "js/url-safety.js",
     "js/utils.js",
     "types/**/*.d.ts"

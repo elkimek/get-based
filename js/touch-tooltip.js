@@ -1,3 +1,4 @@
+// @ts-check
 // touch-tooltip.js — app-wide tooltip overlay for title/data tooltip text.
 //
 // The app historically used native `title` attributes for hundreds of small
