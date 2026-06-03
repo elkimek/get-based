@@ -23,6 +23,7 @@
     "js/import-loader.js",
     "js/lens-local-parsers.js",
     "js/lens-local-utils.js",
+    "js/lighting-hardware-caveats.js",
     "js/markdown.js",
     "js/pdfjs-loader.js",
     "js/profile.js",
