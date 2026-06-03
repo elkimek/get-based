@@ -1,15 +1,17 @@
+// @ts-check
 // import-file-input.js - file picker import binding and routing
 
 import { loadPdfImport } from './import-loader.js';
 
 let importInputBound = false;
 
+/** @param {Event & { target: HTMLInputElement }} e */
 export async function handleImportInputChange(e) {
   if (window.isImportRunning && window.isImportRunning()) {
     e.target.value = '';
     return;
   }
-  if (e.target.files.length === 0) return;
+  if (!e.target.files || e.target.files.length === 0) return;
 
   let importMod;
   try {
@@ -50,7 +52,12 @@ export async function handleImportInputChange(e) {
 export function bindImportFileInput() {
   if (importInputBound) return;
   importInputBound = true;
-  document.getElementById("pdf-input")?.addEventListener("change", handleImportInputChange);
+  document.getElementById("pdf-input")?.addEventListener("change", e => {
+    handleImportInputChange(/** @type {Event & { target: HTMLInputElement }} */ (e)).catch(err => {
+      console.error('[import-file-input] import handler failed:', err);
+      window.showNotification?.('Import failed - check the file and try again.', 'error');
+    });
+  });
   // Prevent browser from opening dropped files outside drop zone.
   document.addEventListener('dragover', e => e.preventDefault());
   document.addEventListener('drop', e => e.preventDefault());

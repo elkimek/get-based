@@ -18,6 +18,7 @@ interface Window {
   cashuRestoreWalletFromSeed?: (seed: string) => Promise<void> | void;
   cashuSetMintUrl?: (url: string) => Promise<void> | void;
   destroyAllCharts?: () => void;
+  detectDNAFile?: (header: string) => string | null;
   ensureActiveThread?: () => void;
   exportAllDataJSON?: () => Promise<void> | void;
   exportClientJSON?: (profileId: string, includeChat?: boolean) => Promise<void> | void;
@@ -25,8 +26,11 @@ interface Window {
   getProfileHeight?: (profileId: string) => { height?: number | string | null; unit?: string | null };
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
-  importDataJSON?: (file: File) => Promise<void> | void;
+  handleDNAFile: (file: File) => Promise<void> | void;
+  handleMtDNAFile?: (file: File) => Promise<void> | void;
+  importDataJSON: (file: File) => Promise<void> | void;
   isDebugMode?: () => boolean;
+  isImportRunning?: () => boolean;
   loadDemoData?: (sex?: string) => Promise<void> | void;
   loadChatHistory?: () => Promise<void> | void;
   loadChatPersonality?: () => void;

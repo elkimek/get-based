@@ -1,3 +1,4 @@
+// @ts-check
 // import-drop-zone.js — shared import drop-zone event binding
 
 import { loadPdfImport } from './import-loader.js';
