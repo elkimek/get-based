@@ -48,6 +48,7 @@ interface Window {
   nostrSetSelectedNode?: (url: string) => void;
   openClientList?: () => void;
   closeClientList?: () => void;
+  pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
   renderProfileButton?: () => void;
   renderThreadList?: () => void;
