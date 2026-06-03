@@ -12,6 +12,7 @@
   },
   "include": [
     "js/blob-storage.js",
+    "js/brand-assets.js",
     "js/category-glyphs.js",
     "js/client-list.js",
     "js/commit-hash.js",

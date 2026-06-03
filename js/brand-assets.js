@@ -1,3 +1,5 @@
+// @ts-check
+
 // brand-assets.js — Wearable vendor brand asset registry.
 //
 // Maps adapterId → { mode, brandColor?, mono, full?, signInLight?, signInDark? }
