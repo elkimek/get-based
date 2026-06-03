@@ -1,3 +1,4 @@
+// @ts-check
 // js/lens-local-parsers.js — main-thread document parsers for lens-local.
 //
 // Why main-thread: the worker is a module worker (type: 'module'), and the
@@ -13,10 +14,19 @@ import { getPdfDocument } from './pdfjs-loader.js';
 
 const SUPPORTED_TEXT_EXTS = new Set(['txt', 'md', 'markdown', 'rst', 'json', 'csv', 'log']);
 
-/// Turn a File (or File-like) into one or more { name, text } entries.
-/// Returns [] for unsupported types so callers can filter. ZIPs recurse:
-/// an entry's name is prefixed with the zip's name so the source filename
-/// the user sees in the doc list reflects the archive they dropped.
+/**
+ * @typedef {{ name: string, text: string }} ExtractedLensDocument
+ * @typedef {{ dir: boolean, name: string, async(type: 'blob'): Promise<Blob> }} ZipEntry
+ */
+
+/**
+ * Turn a File into one or more { name, text } entries.
+ * Returns [] for unsupported types so callers can filter. ZIPs recurse:
+ * an entry's name is prefixed with the zip's name so the source filename
+ * the user sees in the doc list reflects the archive they dropped.
+ * @param {File} file
+ * @returns {Promise<ExtractedLensDocument[]>}
+ */
 export async function extractFromFile(file) {
   const name = String(file.name || '');
   const ext = extOf(name);
@@ -31,6 +41,10 @@ export async function extractFromFile(file) {
   return [];
 }
 
+/**
+ * @param {string} name
+ * @returns {string}
+ */
 function extOf(name) {
   const i = name.lastIndexOf('.');
   return i === -1 ? '' : name.slice(i + 1).toLowerCase();
@@ -38,6 +52,10 @@ function extOf(name) {
 
 // ── PDF ──────────────────────────────────────────────────────────
 
+/**
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
 async function extractPdf(file) {
   const buffer = await file.arrayBuffer();
   const pdf = await getPdfDocument({ data: buffer });
@@ -49,13 +67,17 @@ async function extractPdf(file) {
     // — we lose line breaks and column structure — but it's good enough
     // for chunk-level retrieval and avoids false paragraph breaks that
     // a more literal reconstruction would introduce.
-    pages.push(content.items.map((i) => i.str).join(' '));
+    pages.push(content.items.map((i) => /** @type {{ str?: string }} */ (i).str).join(' '));
   }
   return pages.join('\n\n');
 }
 
 // ── DOCX ─────────────────────────────────────────────────────────
 
+/**
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
 async function extractDocx(file) {
   await loadScript('/vendor/mammoth.browser.min.js');
   const mammoth = window.mammoth;
@@ -69,6 +91,10 @@ async function extractDocx(file) {
 
 // ── ZIP ──────────────────────────────────────────────────────────
 
+/**
+ * @param {File} file
+ * @returns {Promise<ExtractedLensDocument[]>}
+ */
 async function extractZip(file) {
   await loadScript('/vendor/jszip.min.js');
   const JSZip = window.JSZip;
@@ -81,7 +107,7 @@ async function extractZip(file) {
   // recursion through extractFromFile; the name is prefixed with the
   // archive name so the doc list shows which .zip each chunk came from.
   const archiveName = String(file.name || 'archive.zip');
-  for (const entry of Object.values(zip.files)) {
+  for (const entry of /** @type {ZipEntry[]} */ (Object.values(zip.files))) {
     if (entry.dir) continue;
     const innerExt = extOf(entry.name);
     if (!SUPPORTED_TEXT_EXTS.has(innerExt) && !['pdf', 'docx'].includes(innerExt)) continue;
@@ -101,11 +127,16 @@ async function extractZip(file) {
 
 // ── Script loader ────────────────────────────────────────────────
 
+/** @type {Map<string, Promise<void>>} */
 const _scriptLoads = new Map(); // src → Promise
 
-/// Lazy-load a vendor script via <script src> and cache the Promise so
-/// concurrent callers share one fetch. No-ops if the script is already
-/// present on the page (e.g., pdf.js pre-loaded by the main app).
+/**
+ * Lazy-load a vendor script via <script src> and cache the Promise so
+ * concurrent callers share one fetch. No-ops if the script is already
+ * present on the page (e.g., pdf.js pre-loaded by the main app).
+ * @param {string} src
+ * @returns {Promise<void>}
+ */
 function loadScript(src) {
   if (_scriptLoads.has(src)) return _scriptLoads.get(src);
   // Already on the page? (Main app preloads pdf.js for the PDF-import
