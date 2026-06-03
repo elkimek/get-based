@@ -7,6 +7,7 @@ declare const Buffer: {
 interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
+  applyAccentOverride?: () => void;
   buildSidebar?: () => void;
   callClaudeAPI?: (request: {
     system?: string;
@@ -54,8 +55,11 @@ interface Window {
   closeClientList?: () => void;
   pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
+  refreshChartThemeColors?: (options?: { batchSize?: number }) => void;
+  refreshSettingsWearables?: () => void;
   renderProfileButton?: () => void;
   renderThreadList?: () => void;
+  scheduleChartThemeRefresh?: () => void;
   setManualHaplogroup?: (haplogroup: string) => Promise<void> | void;
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
@@ -64,4 +68,6 @@ interface Window {
   updateHeaderDates?: () => void;
   updateHeaderRangeToggle?: () => void;
   updatePersonalityBar?: () => void;
+  updateSettingsUI?: () => void;
+  updateTweaksUI?: () => void;
 }

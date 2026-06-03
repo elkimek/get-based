@@ -1,3 +1,4 @@
+// @ts-check
 // theme.js — Theme management, chart colors, time format
 
 const VALID_THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
@@ -74,7 +75,7 @@ export function getThemeColorScheme(theme = getTheme()) {
 function applyThemeChrome(theme = getTheme()) {
   if (typeof document === 'undefined') return;
   document.querySelectorAll('meta[name="theme-color"]').forEach(meta => {
-    meta.content = getThemeColor(theme);
+    if (meta instanceof HTMLMetaElement) meta.content = getThemeColor(theme);
   });
   document.documentElement.style.colorScheme = getThemeColorScheme(theme);
 }
