@@ -92,6 +92,30 @@ describe('lab order card rendering', () => {
     expect(html).toContain('Unilabs.cz: Homocysteine, Active B12 · 960 Kč');
   });
 
+  it('renders a change-lab button after a selected provider draft is cancelled', () => {
+    const html = renderLabOrderCard({
+      id: 'draft-cancelled-labshop',
+      provider: 'cz.labshop',
+      providerId: 'cz.labshop',
+      providerName: 'Labshop',
+      status: 'cancelled',
+      products: [{ providerProductId: '20036', name: 'Vitaminy B - Basic', priceCzk: 500, markers: ['Vitamin B12', 'Folate'] }],
+      providerOptions: [
+        { providerId: 'cz.labshop', name: 'Labshop' },
+        { providerId: 'cz.unilabs', name: 'Unilabs.cz' },
+      ],
+      totalEstimateCzk: 500,
+      safetyBoundary: 'final checkout/payment stays user-in-loop',
+      result: { ok: true, message: 'Order draft cancelled.' },
+    }, 9);
+
+    expect(html).toContain('Order draft cancelled.');
+    expect(html).toContain('Change lab');
+    expect(html).toContain('data-lab-order-action="change-provider"');
+    expect(html).toContain('type="button" class="lab-order-secondary"');
+    expect(html).not.toContain('Prepare Labshop cart');
+  });
+
   it('renders selected Unilabs as a cart handoff with a Unilabs prepare button', () => {
     const html = renderLabOrderCard({
       id: 'draft-unilabs',

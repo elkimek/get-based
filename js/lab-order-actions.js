@@ -91,6 +91,26 @@ async function selectProvider(msgIndex, providerId) {
   renderChatMessages();
 }
 
+async function changeProvider(msgIndex) {
+  const found = getDraftForMessage(msgIndex);
+  if (!found) return;
+  found.msg.labOrderDraft = {
+    ...found.draft,
+    provider: 'provider_selection',
+    providerId: null,
+    providerName: null,
+    status: 'provider_selection',
+    offers: [],
+    products: [],
+    totalEstimateCzk: null,
+    result: null,
+    safetyBoundary: 'Choose a lab first. getbased will show tests/offers for the selected lab and keep booking/payment user-in-loop.',
+  };
+  showNotification('Choose another lab', 'success');
+  await saveChatHistory();
+  renderChatMessages();
+}
+
 async function cancelOrder(msgIndex) {
   const found = getDraftForMessage(msgIndex);
   if (!found) return;
@@ -110,6 +130,7 @@ export function handleLabOrderClick(event) {
   if (action === 'select-provider') void selectProvider(msgIndex, btn.dataset.labProviderId);
   if (action === 'prepare-cart') void prepareCart(msgIndex);
   if (action === 'prepare-unilabs-cart') void prepareUnilabsCart(msgIndex);
+  if (action === 'change-provider') void changeProvider(msgIndex);
   if (action === 'cancel') void cancelOrder(msgIndex);
 }
 

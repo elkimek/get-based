@@ -121,12 +121,20 @@ export function renderLabOrderCard(draft, msgIndex) {
 
   const canPrepareLabshop = (draft.providerId === 'cz.labshop' || draft.provider === 'labshop' || draft.provider === 'cz.labshop') && (status === 'draft' || status === 'failed');
   const canPrepareUnilabs = (draft.providerId === 'cz.unilabs' || draft.provider === 'cz.unilabs') && (status === 'draft' || status === 'failed');
+  const canChangeProvider = Array.isArray(draft.providerOptions) && draft.providerOptions.length > 1;
+  const changeProviderButton = canChangeProvider
+    ? `<button type="button" class="lab-order-secondary" data-lab-order-action="change-provider" data-msg-index="${msgIndex}">Change lab</button>`
+    : '';
   const buttons = canPrepareLabshop ? `<div class="lab-order-actions">
     <button type="button" class="lab-order-primary" data-lab-order-action="prepare-cart" data-msg-index="${msgIndex}">Prepare Labshop cart</button>
+    ${changeProviderButton}
     <button type="button" class="lab-order-secondary" data-lab-order-action="cancel" data-msg-index="${msgIndex}">Cancel</button>
   </div>` : canPrepareUnilabs ? `<div class="lab-order-actions">
     <button type="button" class="lab-order-primary" data-lab-order-action="prepare-unilabs-cart" data-msg-index="${msgIndex}">Prepare Unilabs cart</button>
+    ${changeProviderButton}
     <button type="button" class="lab-order-secondary" data-lab-order-action="cancel" data-msg-index="${msgIndex}">Cancel</button>
+  </div>` : canChangeProvider ? `<div class="lab-order-actions">
+    ${changeProviderButton}
   </div>` : '';
 
   const totalHtml = draft.totalEstimateCzk != null
