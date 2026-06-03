@@ -11,6 +11,7 @@
     "strict": false
   },
   "include": [
+    "js/export.js",
     "js/profile-share.js",
     "types/**/*.d.ts"
   ]
