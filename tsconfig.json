@@ -12,6 +12,7 @@
   },
   "include": [
     "js/blob-storage.js",
+    "js/category-glyphs.js",
     "js/client-list.js",
     "js/export.js",
     "js/import-drop-zone.js",
