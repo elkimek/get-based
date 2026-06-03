@@ -1,7 +1,8 @@
+// @ts-check
 // export.js — PDF report, JSON export/import, clear all data
 
 import { state } from './state.js';
-import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend, escapeHTML, escapeAttr } from './utils.js';
+import { getStatus, formatValue, showNotification, showConfirmDialog, getTrend, escapeHTML, escapeAttr, isDebugMode } from './utils.js';
 import { getActiveData, saveImportedData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRange } from './marker-analysis.js';
 import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadProfile, saveProfiles, migrateProfileData, getProfileHeight } from './profile.js';
@@ -1535,7 +1536,10 @@ export function openReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
   closeReportBuilder();
   installReportBuilderDelegates();
   document.body.insertAdjacentHTML('beforeend', renderReportBuilder(normalizedPresetId));
-  setTimeout(() => document.querySelector(`#${REPORT_BUILDER_OVERLAY_ID} .report-preset-btn.active`)?.focus(), 0);
+  setTimeout(() => {
+    const activePreset = /** @type {HTMLElement | null} */ (document.querySelector(`#${REPORT_BUILDER_OVERLAY_ID} .report-preset-btn.active`));
+    activePreset?.focus();
+  }, 0);
 }
 
 export function closeReportBuilder() {
@@ -1599,10 +1603,46 @@ async function _importChatData(profileId, chat) {
 
 // ═══════════════════════════════════════════════
 // Legacy alias — calls exportClientJSON for the active profile
+/**
+ * @typedef {Object} ClientExportProfile
+ * @property {string} name
+ * @property {string | null} sex
+ * @property {string | null} dob
+ * @property {unknown} location
+ * @property {string[]} tags
+ * @property {string} notes
+ * @property {string} status
+ * @property {string | null} avatar
+ * @property {boolean} pinned
+ * @property {number | string | null} height
+ * @property {string} heightUnit
+ */
+
+/**
+ * @typedef {Object} ClientExportObject
+ * @property {number} version
+ * @property {string} exportedAt
+ * @property {ClientExportProfile} profile
+ * @property {Array<Object.<string, unknown>>} entries
+ * @property {Array<Object.<string, unknown>>} notes
+ * @property {Array<Object.<string, unknown>>} supplements
+ * @property {unknown} [chat]
+ */
+
+/** @returns {void} */
 export function exportDataJSON() {
   exportClientJSON(state.currentProfile);
 }
 
+/**
+ * Builds the JSON-safe client export object used by downloads and encrypted
+ * profile shares. Token-bearing wearable connection records are deliberately
+ * excluded from this shape.
+ *
+ * @param {string} profileId
+ * @param {boolean} [includeChat]
+ * @returns {Promise<ClientExportObject>}
+ */
 export async function buildClientExportObject(profileId, includeChat = false) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
@@ -1663,6 +1703,13 @@ export async function buildClientExportObject(profileId, includeChat = false) {
   return exportObj;
 }
 
+/**
+ * Downloads a single-profile JSON backup.
+ *
+ * @param {string} profileId
+ * @param {boolean} [includeChat]
+ * @returns {Promise<void>}
+ */
 export async function exportClientJSON(profileId, includeChat = false) {
   let exportObj;
   try {
@@ -1685,6 +1732,7 @@ export async function exportClientJSON(profileId, includeChat = false) {
   showNotification(`Exported "${profileName}"`, 'success');
 }
 
+/** @returns {Promise<string | null>} */
 export async function buildAllDataBundle() {
   const profiles = getProfiles();
   if (profiles.length === 0) return null;
@@ -1713,6 +1761,7 @@ export async function buildAllDataBundle() {
   return JSON.stringify(bundle, null, 2);
 }
 
+/** @returns {Promise<void>} */
 export async function exportAllDataJSON() {
   const json = await buildAllDataBundle();
   if (!json) { showNotification('No profiles to export', 'error'); return; }
@@ -1729,6 +1778,12 @@ export async function exportAllDataJSON() {
   showNotification(`Exported ${bundle.profiles.length} client${bundle.profiles.length !== 1 ? 's' : ''}`, 'success');
 }
 
+/**
+ * Imports a JSON file produced by the single-client or all-data export paths.
+ *
+ * @param {File} file
+ * @returns {Promise<void>}
+ */
 export function importDataJSON(file) {
   // Returns a Promise that resolves when the FileReader pipeline finishes
   // (success OR error). Existing fire-and-forget callers (`importDataJSON(file)`)
@@ -1739,7 +1794,7 @@ export function importDataJSON(file) {
     reader.onerror = () => resolve();
     reader.onload = async (e) => {
       try {
-        const json = JSON.parse(e.target.result);
+        const json = JSON.parse(/** @type {string} */ (reader.result));
       // Database bundle — multi-profile import
       if (json.type === 'database' && Array.isArray(json.profiles)) {
         await _importDatabaseBundle(json);
@@ -2338,7 +2393,7 @@ export async function clearAllData() {
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
     saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null };
+    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database
