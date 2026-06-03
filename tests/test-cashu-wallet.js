@@ -328,6 +328,8 @@ await expectMintRejection('https://[::ffff:7f00:1]/mint', 'IPv4-mapped IPv6 abbr
 await expectMintRejection('https://[::ffff:a9fe:a9fe]/mint', 'IPv4-mapped IPv6 → 169.254.169.254 (cloud metadata)');
 await expectMintRejection('https://[::ffff:a00:1]/mint', 'IPv4-mapped IPv6 abbreviated → 10.0.0.1 (RFC-1918 10/8)');
 await expectMintRejection('https://[::ffff:ac10:1]/mint', 'IPv4-mapped IPv6 abbreviated → 172.16.0.1 (RFC-1918 172.16/12)');
+await expectMintRejection('https://[2002:c0a8:0101::]/mint', '6to4 IPv6 embeds RFC1918 192.168.1.1');
+await expectMintRejection('https://[2002:7f00:0001::]/mint', '6to4 IPv6 embeds loopback 127.0.0.1');
 
 const origNode = discovery.getSelectedNodeUrl();
 function expectNodeRejection(url, label) {
