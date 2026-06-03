@@ -1,3 +1,4 @@
+// @ts-check
 // blob-storage.js — IndexedDB-backed key/value store for big blobs.
 //
 // localStorage's typical 5 MB cap is too small for the imported profile
