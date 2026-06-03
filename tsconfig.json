@@ -29,6 +29,7 @@
     "js/pdfjs-loader.js",
     "js/profile.js",
     "js/profile-share.js",
+    "js/silhouette-paths.js",
     "js/theme.js",
     "js/touch-tooltip.js",
     "js/url-safety.js",

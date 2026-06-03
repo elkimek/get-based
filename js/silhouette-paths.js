@@ -1,3 +1,4 @@
+// @ts-check
 // silhouette-paths.js — figure-study silhouettes for the sun-session picker.
 //
 // AESTHETIC: Pompeii fresco × Klimt golden line × app-modern.
