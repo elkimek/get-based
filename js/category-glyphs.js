@@ -1,3 +1,4 @@
+// @ts-check
 // category-glyphs.js - Coded glyph rendering for marker categories
 
 import { escapeHTML } from './utils.js';
