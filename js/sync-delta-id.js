@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-id.js - Per-row sync item identity helpers.
 
 // Stable hash for content-equality detection. djb2 is sufficient for
