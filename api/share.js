@@ -2,10 +2,10 @@
 // The browser encrypts before upload; this route stores and returns only
 // ciphertext envelopes using a private Vercel Blob store.
 
-import { BlobNotFoundError, BlobPreconditionFailedError, del, get, list, put } from '@vercel/blob';
-
 export const config = { runtime: 'edge' };
 
+const VERCEL_BLOB_API_URL = 'https://vercel.com/api/blob';
+const VERCEL_BLOB_API_VERSION = '12';
 const SHARE_PREFIX = 'profile-shares/v1/';
 const SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const SHARE_SCHEMA = 'getbased-profile-share';
@@ -18,6 +18,9 @@ const RATE_LIMIT_PREFIX = 'profile-share-rate/v1/';
 const POST_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const POST_RATE_LIMIT_MAX = 20;
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+
+class BlobNotFoundError extends Error {}
+class BlobPreconditionFailedError extends Error {}
 
 function jsonResponse(req, status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -62,6 +65,94 @@ function validateId(id) {
   return SHARE_ID_RE.test(id || '') ? id : '';
 }
 
+function parseStoreIdFromReadWriteToken(token) {
+  return String(token || '').split('_')[3] || '';
+}
+
+function blobUrl(path, options, access = 'private') {
+  return `https://${options.storeId}.${access}.blob.vercel-storage.com/${path}`;
+}
+
+async function parseBlobError(response) {
+  let code = '';
+  let message = '';
+  try {
+    const body = await response.json();
+    code = body?.error?.code || '';
+    message = body?.error?.message || '';
+  } catch {}
+  if (response.status === 404 || code === 'not_found') {
+    return new BlobNotFoundError(message || 'Blob not found.');
+  }
+  if (response.status === 412 || code === 'precondition_failed') {
+    return new BlobPreconditionFailedError(message || 'Blob precondition failed.');
+  }
+  return new Error(message || `Vercel Blob request failed (${response.status}).`);
+}
+
+async function blobApi(path, init, options) {
+  const response = await fetch(`${VERCEL_BLOB_API_URL}${path}`, {
+    ...init,
+    headers: {
+      'x-api-version': VERCEL_BLOB_API_VERSION,
+      'x-vercel-blob-store-id': options.storeId,
+      'authorization': `Bearer ${options.token}`,
+      ...(init.headers || {}),
+    },
+  });
+  if (!response.ok) throw await parseBlobError(response);
+  return response.status === 204 ? null : response.json();
+}
+
+async function get(path, options) {
+  const url = new URL(blobUrl(path, options));
+  url.searchParams.set('cache', '0');
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { 'authorization': `Bearer ${options.token}` },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw await parseBlobError(response);
+  return { stream: response.body };
+}
+
+async function put(path, body, options) {
+  const params = new URLSearchParams({ pathname: path });
+  return blobApi(`/?${params.toString()}`, {
+    method: 'PUT',
+    headers: {
+      'x-vercel-blob-access': options.access || 'private',
+      'x-add-random-suffix': options.addRandomSuffix ? '1' : '0',
+      'x-allow-overwrite': options.allowOverwrite ? '1' : '0',
+      ...(options.contentType ? { 'x-content-type': options.contentType } : {}),
+      ...(options.cacheControlMaxAge != null ? { 'x-cache-control-max-age': String(options.cacheControlMaxAge) } : {}),
+    },
+    body,
+  }, options);
+}
+
+async function list(options) {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.prefix) params.set('prefix', options.prefix);
+  if (options.cursor) params.set('cursor', options.cursor);
+  const body = await blobApi(`?${params.toString()}`, { method: 'GET' }, options);
+  return {
+    blobs: (body?.blobs || []).map(blob => ({ ...blob, uploadedAt: new Date(blob.uploadedAt) })),
+    cursor: body?.cursor,
+    hasMore: !!body?.hasMore,
+  };
+}
+
+async function del(pathOrPaths, options) {
+  const urls = Array.isArray(pathOrPaths) ? pathOrPaths : [pathOrPaths];
+  await blobApi('/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ urls }),
+  }, options);
+}
+
 function rateLimitSubjectPrefix(hash) {
   return `${RATE_LIMIT_PREFIX}${hash}/`;
 }
@@ -97,7 +188,9 @@ async function sha256Hex(value) {
 function blobOptions(extra = {}) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return null;
-  return { token, ...extra };
+  const storeId = parseStoreIdFromReadWriteToken(token);
+  if (!storeId) return null;
+  return { token, storeId, ...extra };
 }
 
 function normalizeEnvelope(envelope) {

@@ -148,8 +148,10 @@ assert('Shared profile import uses existing importDataJSON path',
 console.log('5. Vercel Blob API safeguards');
 assert('Package includes @vercel/blob runtime dependency',
   packageJson.dependencies?.['@vercel/blob']);
-assert('API uses private Vercel Blob storage',
-  apiShareSrc.includes("from '@vercel/blob'") &&
+assert('API uses private Vercel Blob storage through Edge-safe REST calls',
+  !apiShareSrc.includes("from '@vercel/blob'") &&
+  apiShareSrc.includes('VERCEL_BLOB_API_URL') &&
+  apiShareSrc.includes('parseStoreIdFromReadWriteToken') &&
   apiShareSrc.includes("access: 'private'") &&
   apiShareSrc.includes('BLOB_READ_WRITE_TOKEN'));
 assert('API validates share ids, size, expiry, and crypto envelope',
