@@ -103,7 +103,7 @@
 
 .lab-order-primary,
 .lab-order-secondary,
-.lab-provider-option {
+.lab-provider-option-card {
   border-radius: 999px;
   cursor: pointer;
   font: inherit;
@@ -134,29 +134,56 @@
 
 .lab-provider-options {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
-.lab-provider-option {
-  align-items: flex-start;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+.lab-provider-option-card {
+  align-items: stretch;
+  background: color-mix(in srgb, var(--bg-card) 94%, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 14px;
   color: var(--text-primary);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
   text-align: left;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
 }
 
-.lab-provider-option:hover {
+.lab-provider-option-card:hover {
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--accent));
   border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
-.lab-provider-option span,
-.lab-provider-option em {
+.lab-provider-option-main {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lab-provider-option-main strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.lab-provider-option-main span {
   color: var(--text-secondary);
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.lab-provider-option-meta {
+  color: var(--text-secondary);
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.lab-provider-option-meta em {
+  color: inherit;
   font-style: normal;
 }
 

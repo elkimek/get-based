@@ -32,8 +32,9 @@ function renderProviderRecommendation(draft) {
     <span>Best coverage</span>
     <strong>${escapeHTML(rec.bestCoverage.name || rec.bestCoverage.providerId)} · ${escapeHTML(String(rec.bestCoverage.coveredCount))}/${escapeHTML(String(rec.bestCoverage.requestedCount))} tests · ${escapeHTML(formatCzk(rec.bestCoverage.totalEstimateCzk))}</strong>
   </div>` : '';
+  const splitLabel = (rec.cheapestSplit?.providerCount || 0) > 1 ? 'Cheapest complete split' : 'Cheapest complete option';
   const split = rec.cheapestSplit?.complete ? `<div class="lab-provider-recommendation-row split">
-    <span>Cheapest complete split</span>
+    <span>${escapeHTML(splitLabel)}</span>
     <strong>${escapeHTML(formatCzk(rec.cheapestSplit.totalEstimateCzk))}</strong>
     <div class="lab-provider-split-lines">
       ${rec.cheapestSplit.providers.map(provider => `<div>${escapeHTML(provider.name || provider.providerId)}: ${escapeHTML((provider.markerKeys || []).map(markerKey => markerNameByKey.get(markerKey) || markerKey).join(', '))} · ${escapeHTML(formatCzk(provider.totalEstimateCzk))}</div>`).join('')}
@@ -56,10 +57,12 @@ function renderProviderSelection(draft, msgIndex) {
     const missing = comparison?.missingMarkerKeys?.length
       ? `<em>Missing: ${comparison.missingMarkerKeys.map(m => escapeHTML(m.split('.').pop() || m)).join(', ')}</em>`
       : '<em>Full requested coverage</em>';
-    return `<button type="button" class="lab-provider-option" data-lab-order-action="select-provider" data-lab-provider-id="${escapeHTML(option.providerId)}" data-msg-index="${msgIndex}">
-    <strong>${escapeHTML(option.name || option.providerId)}</strong>
-    ${coverage}
-    ${comparison ? missing : ''}
+    return `<button type="button" class="lab-provider-option-card" data-lab-order-action="select-provider" data-lab-provider-id="${escapeHTML(option.providerId)}" data-msg-index="${msgIndex}">
+    <span class="lab-provider-option-main">
+      <strong>${escapeHTML(option.name || option.providerId)}</strong>
+      ${coverage}
+    </span>
+    <span class="lab-provider-option-meta">${comparison ? missing : ''}</span>
   </button>`;
   }).join('');
   const comparisonHtml = comparisons.length ? `<div class="lab-provider-comparison">
@@ -75,7 +78,7 @@ function renderProviderSelection(draft, msgIndex) {
         <div class="lab-order-kicker">Lab order</div>
         <div class="lab-order-title">Choose lab</div>
       </div>
-      <span class="lab-order-status">Choose lab</span>
+      <span class="lab-order-status">Compare labs</span>
     </div>
     ${renderRequestedMarkers(draft)}
     ${comparisonHtml}

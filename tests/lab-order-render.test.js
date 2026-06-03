@@ -19,7 +19,7 @@ describe('lab order card rendering', () => {
     expect(html).toContain('data-msg-index="3"');
   });
 
-  it('renders provider selection buttons for Labshop and Unilabs before tests are shown', () => {
+  it('renders provider selection as a clear single-heading card with spacious lab options', () => {
     const html = renderLabOrderCard({
       id: 'draft-provider-choice',
       provider: 'provider_selection',
@@ -38,13 +38,18 @@ describe('lab order card rendering', () => {
       safetyBoundary: 'Choose a lab first.',
     }, 7);
 
-    expect(html).toContain('Choose lab');
+    expect((html.match(/Choose lab/g) || [])).toHaveLength(1);
+    expect(html).toContain('Compare labs');
+    expect(html).toContain('lab-provider-option-card');
+    expect(html).toContain('lab-provider-option-main');
+    expect(html).toContain('lab-provider-option-meta');
     expect(html).toContain('Coverage and price comparison');
     expect(html).toContain('2/2 tests · 500 Kč');
     expect(html).toContain('2/2 tests · 662 Kč');
     expect(html).toContain('data-lab-order-action="select-provider"');
     expect(html).toContain('data-lab-provider-id="cz.labshop"');
     expect(html).toContain('data-lab-provider-id="cz.unilabs"');
+    expect(html).not.toContain('lab-order-status">Choose lab');
     expect(html).not.toContain('cz.spadia');
   });
 
