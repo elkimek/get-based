@@ -1,3 +1,4 @@
+// @ts-check
 // sync-schema.js - Evolu schema and query setup for sync.
 
 export function createSyncSchema({
