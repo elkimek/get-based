@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest';
+
+import { renderLabOrderCard } from '../js/lab-order-render.js';
+
+describe('lab order card rendering', () => {
+  it('renders action buttons as non-submit buttons to avoid accidental form navigation', () => {
+    const html = renderLabOrderCard({
+      id: 'draft-1',
+      providerId: 'cz.labshop',
+      provider: 'cz.labshop',
+      status: 'draft',
+      products: [{ providerProductId: '20036', name: 'Vitaminy B - Basic', priceCzk: 500, markers: ['vitamins.vitaminB12'] }],
+      totalEstimateCzk: 500,
+      safetyBoundary: 'final checkout/payment stays user-in-loop',
+    }, 3);
+
+    expect(html).toContain('type="button" class="lab-order-primary"');
+    expect(html).toContain('type="button" class="lab-order-secondary"');
+    expect(html).toContain('data-msg-index="3"');
+  });
+
+  it('renders provider selection buttons for Labshop and Unilabs before tests are shown', () => {
+    const html = renderLabOrderCard({
+      id: 'draft-provider-choice',
+      provider: 'provider_selection',
+      providerId: null,
+      status: 'provider_selection',
+      providerOptions: [
+        { providerId: 'cz.labshop', name: 'Labshop', summary: 'Cart handoff available' },
+        { providerId: 'cz.unilabs', name: 'Unilabs.cz', summary: 'Request flow to confirm' },
+      ],
+      providerComparisons: [
+        { providerId: 'cz.labshop', name: 'Labshop', coveredCount: 2, requestedCount: 2, totalEstimateCzk: 500, missingMarkerKeys: [] },
+        { providerId: 'cz.unilabs', name: 'Unilabs.cz', coveredCount: 2, requestedCount: 2, totalEstimateCzk: 662, missingMarkerKeys: [] },
+      ],
+      products: [],
+      requestedMarkers: [{ displayName: 'Vitamin B12' }, { displayName: 'Folate' }],
+      safetyBoundary: 'Choose a lab first.',
+    }, 7);
+
+    expect(html).toContain('Choose lab');
+    expect(html).toContain('Coverage and price comparison');
+    expect(html).toContain('2/2 tests · 500 Kč');
+    expect(html).toContain('2/2 tests · 662 Kč');
+    expect(html).toContain('data-lab-order-action="select-provider"');
+    expect(html).toContain('data-lab-provider-id="cz.labshop"');
+    expect(html).toContain('data-lab-provider-id="cz.unilabs"');
+    expect(html).not.toContain('cz.spadia');
+  });
+
+  it('renders selected Unilabs as a cart handoff with a Unilabs prepare button', () => {
+    const html = renderLabOrderCard({
+      id: 'draft-unilabs',
+      provider: 'cz.unilabs',
+      providerId: 'cz.unilabs',
+      providerName: 'Unilabs.cz',
+      status: 'draft',
+      products: [{ providerProductId: '2885', name: 'Vitamín B12', priceCzk: 291, markers: ['Vitamin B12'] }],
+      totalEstimateCzk: 372,
+      safetyBoundary: 'Unilabs cart handoff only.',
+    }, 8);
+
+    expect(html).toContain('Unilabs.cz order preview');
+    expect(html).toContain('Vitamín B12');
+    expect(html).toContain('Vitamin B12');
+    expect(html).toContain('Prepare Unilabs cart');
+    expect(html).not.toContain('Prepare Labshop cart');
+  });
+});

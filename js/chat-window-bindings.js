@@ -30,6 +30,7 @@ import {
 import {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
 } from './chat-actions.js';
+import { bindLabOrderActions, handleLabOrderClick } from './lab-order-actions.js';
 import {
   closeChatPanel, configureChatPanel, getChatWebSearchEnabled,
   refreshWebSearchToggle, setChatWebSearchEnabled,
@@ -74,6 +75,7 @@ configureChatOnboarding({
   updateChatNudge,
 });
 configureChatPanel({ restoreDiscussionContinuePrompt });
+bindLabOrderActions(document);
 
 Object.assign(window, {
   _resumeAI,
@@ -139,6 +141,7 @@ Object.assign(window, {
   askAIAboutMarker,
   askAIAboutCorrelations,
   buildActionBar,
+  handleLabOrderClick,
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,

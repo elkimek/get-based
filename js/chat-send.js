@@ -35,6 +35,7 @@ import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
+import { buildLabOrderAssistantText, buildLabOrderDraft } from './lab-order-intent.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -143,10 +144,6 @@ export function setSendButtonMode(btn, mode) {
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
 export async function sendChatMessage() {
-  if (!hasAIProvider()) {
-    renderChatMessages(); // Re-render to show setup guide
-    return;
-  }
   // If currently streaming, abort and return (toggle behavior)
   if (_chatAbortController) {
     _chatAbortController.abort();
@@ -174,6 +171,8 @@ export async function sendChatMessage() {
 
   // Auto-name thread from first user message
   const isFirstMessage = state.chatHistory.length === 0;
+  const contextSnapshot = getContextSummary();
+  const labOrderDraft = !hasImages ? buildLabOrderDraft(text) : null;
 
   // Add user message — store tiny thumbnails for display, NOT full base64
   const userMsg = { role: 'user', content: text || '(image)' };
@@ -191,6 +190,28 @@ export async function sendChatMessage() {
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);
+  }
+
+  if (labOrderDraft) {
+    const personality = getActivePersonality();
+    state.chatHistory.push({
+      role: 'assistant',
+      content: buildLabOrderAssistantText(labOrderDraft),
+      context: contextSnapshot,
+      personalityName: personality.name,
+      personalityIcon: personality.icon,
+      provider: 'local',
+      modelDisplay: 'Labshop order preview',
+      labOrderDraft,
+    });
+    renderChatMessages();
+    await saveChatHistory();
+    return;
+  }
+
+  if (!hasAIProvider()) {
+    renderChatMessages(); // Re-render to show setup guide
+    return;
   }
 
   if (discussionState && !isFirstMessage) {
@@ -212,8 +233,7 @@ export async function sendChatMessage() {
   _chatAbortController = new AbortController();
   setSendButtonMode(sendBtn, 'streaming');
 
-  // Snapshot context areas before sending
-  const contextSnapshot = getContextSummary();
+  // Snapshot provider/model before sending
   const _msgProvider = getAIProvider();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);

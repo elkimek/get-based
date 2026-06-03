@@ -486,6 +486,118 @@ function corsHeaders(req) {
   return origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
 }
 
+function _readJsonBody(req, maxBytes = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    let bytes = 0;
+    req.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        reject(Object.assign(new Error('Body too large'), { status: 413 }));
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      try { resolve(JSON.parse(body || '{}')); }
+      catch (e) { reject(Object.assign(e, { status: 400 })); }
+    });
+    req.on('error', reject);
+  });
+}
+
+function _httpsRequestText(target, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const reqUrl = new URL(target);
+    const req = https.request(reqUrl, {
+      method: opts.method || 'GET',
+      timeout: opts.timeout || 15_000,
+      headers: opts.headers || {},
+    }, (resp) => {
+      const chunks = [];
+      resp.on('data', chunk => chunks.push(chunk));
+      resp.on('end', () => resolve({
+        status: resp.statusCode,
+        headers: resp.headers,
+        body: Buffer.concat(chunks).toString('utf8'),
+        url: target,
+      }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('Request timed out')));
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
+
+function _mergeSetCookie(cookieJar, setCookie) {
+  const values = Array.isArray(setCookie) ? setCookie : (setCookie ? [setCookie] : []);
+  for (const raw of values) {
+    const pair = String(raw).split(';')[0];
+    const [name] = pair.split('=');
+    if (name) cookieJar.set(name, pair);
+  }
+}
+function _cookieHeader(cookieJar) {
+  return Array.from(cookieJar.values()).join('; ');
+}
+function _stripHtml(text) {
+  return String(text || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+}
+async function _createUnilabsCartPreview(products) {
+  const allowed = new Map([
+    ['2885', { productId: '2885', name: 'Vitamín B12', priceCzk: 291 }],
+    ['2886', { productId: '2886', name: 'Kyselina listová (folát, vitamín B9)', priceCzk: 290 }],
+    ['3082', { productId: '3082', name: 'Homocystein', priceCzk: 571 }],
+    ['3543', { productId: '3543', name: 'Test na aktivní vitamín B12', priceCzk: 308 }],
+  ]);
+  const requested = Array.isArray(products) ? products : [];
+  const items = requested.map(p => allowed.get(String(p.productId || p.idProduct || p.id))).filter(Boolean);
+  if (!items.length) throw Object.assign(new Error('No allowlisted Unilabs products in request'), { status: 400 });
+  const base = 'https://cz.unilabs.online';
+  const cookies = new Map();
+  const commonHeaders = {
+    'User-Agent': 'Mozilla/5.0 getbased-dev/1.0',
+    'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.7',
+  };
+  const first = await _httpsRequestText(`${base}/sestavte-si-vlastni-vysetreni`, { headers: commonHeaders });
+  _mergeSetCookie(cookies, first.headers['set-cookie']);
+  let lastJson = null;
+  for (const item of items) {
+    const add = await _httpsRequestText(`${base}/sestavte-si-vlastni-vysetreni?productId=${encodeURIComponent(item.productId)}&do=AddProduct`, {
+      headers: {
+        ...commonHeaders,
+        Accept: 'application/json, text/javascript, */*; q=0.01',
+        Referer: `${base}/sestavte-si-vlastni-vysetreni`,
+        'X-Requested-With': 'XMLHttpRequest',
+        Cookie: _cookieHeader(cookies),
+      },
+    });
+    _mergeSetCookie(cookies, add.headers['set-cookie']);
+    if (add.status < 200 || add.status >= 300) throw new Error(`Unilabs AddProduct returned ${add.status}`);
+    lastJson = JSON.parse(add.body || '{}');
+  }
+  const snippets = lastJson?.snippets || {};
+  const summaryText = _stripHtml(snippets['snippet--configuratorProcess'] || snippets['snippet--selectedParameters'] || '');
+  const totalMatch = summaryText.match(/Mezisoučet:\s*([0-9\s]+)\s*Kč/) || summaryText.match(/Vybrané parametry\s*([0-9\s]+)\s*Kč/);
+  const totalCzk = totalMatch ? Number(totalMatch[1].replace(/\s/g, '')) : items.reduce((sum, item) => sum + item.priceCzk, 81);
+  return {
+    ok: true,
+    provider: 'unilabs',
+    preview: true,
+    items,
+    itemCount: items.length,
+    bloodDrawFeeCzk: 81,
+    totalCzk,
+    checkoutUrl: `${base}/sestavte-si-vlastni-vysetreni`,
+    cartUrl: `${base}/cart?step=1`,
+    boundary: 'checkout_handoff_required',
+    message: `Unilabs Online cart preview prepared (${totalCzk} Kč incl. blood draw fee). Continue on Unilabs to choose collection site/slot and handle identity/payment.`,
+    remoteSessionVerified: Boolean(summaryText && items.every(item => summaryText.includes(item.name.split(' (')[0]))),
+  };
+}
+
 const PROFILE_SHARE_DEV_STORE = new Map();
 const PROFILE_SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const PROFILE_SHARE_MAX_BYTES = 3_750_000;
@@ -658,6 +770,72 @@ const server = http.createServer((req, res) => {
   // encrypted records in memory only.
   if (pathname === '/api/share') {
     _handleProfileShareDev(req, res, url);
+    return;
+  }
+
+  // API: Labshop order preview. Stage-1 safety boundary: this dev endpoint
+  // returns the cart handoff shape the UI needs, but does not submit checkout
+  // or payment. Real cart creation can be wired behind this same contract.
+  if (pathname === '/api/labshop' && req.method === 'POST') {
+    const MAX_BODY_BYTES = 64 * 1024;
+    let body = '';
+    let bytes = 0;
+    req.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_BODY_BYTES) { res.writeHead(413); res.end('Body too large'); req.destroy(); return; }
+      body += chunk;
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        if (payload.action !== 'create_cart_preview') {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+          res.end(JSON.stringify({ ok: false, error: 'Unsupported Labshop action' }));
+          return;
+        }
+        const allowed = new Map([
+          ['20036', { idProduct: '20036', name: 'Vitaminy B - Basic', price: '500 Kč' }],
+        ]);
+        const requested = Array.isArray(payload.products) ? payload.products : [];
+        const items = requested.map(p => allowed.get(String(p.idProduct || p.productId || p.id))).filter(Boolean);
+        if (!items.length) {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+          res.end(JSON.stringify({ ok: false, error: 'No allowlisted Labshop products in request' }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+        res.end(JSON.stringify({
+          ok: true,
+          provider: 'labshop',
+          preview: true,
+          items,
+          itemCount: items.length,
+          checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
+          boundary: 'checkout_handoff_required',
+          message: 'Demo preview only: this does not fill your Labshop browser cart yet. Real cart handoff needs browser-side automation or a Labshop-supported cart/session transfer.',
+        }));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+        res.end(JSON.stringify({ ok: false, error: e.message || 'Invalid JSON' }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/unilabs' && req.method === 'POST') {
+    _readJsonBody(req).then(async (payload) => {
+      if (payload.action !== 'create_cart_preview') {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+        res.end(JSON.stringify({ ok: false, error: 'Unsupported Unilabs action' }));
+        return;
+      }
+      const result = await _createUnilabsCartPreview(payload.products);
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify(result));
+    }).catch((e) => {
+      res.writeHead(e.status || 500, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({ ok: false, error: e.message || 'Unilabs cart preview failed' }));
+    });
     return;
   }
 

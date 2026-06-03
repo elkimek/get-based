@@ -21,6 +21,7 @@ export {
 export {
   buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
 } from './chat-actions.js';
+export { handleLabOrderClick } from './lab-order-actions.js';
 export {
   closeChatPanel, getChatWebSearchEnabled, refreshWebSearchToggle,
   setChatWebSearchEnabled, toggleChatFullscreen,
