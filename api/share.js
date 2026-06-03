@@ -2,7 +2,7 @@
 // The browser encrypts before upload; this route stores and returns only
 // ciphertext envelopes using a private Vercel Blob store.
 
-import { BlobNotFoundError, del, get, put } from '@vercel/blob';
+import { BlobNotFoundError, BlobPreconditionFailedError, del, get, list, put } from '@vercel/blob';
 
 export const config = { runtime: 'edge' };
 
@@ -62,8 +62,22 @@ function validateId(id) {
   return SHARE_ID_RE.test(id || '') ? id : '';
 }
 
-function rateLimitPath(hash) {
-  return `${RATE_LIMIT_PREFIX}${hash}.json`;
+function rateLimitSubjectPrefix(hash) {
+  return `${RATE_LIMIT_PREFIX}${hash}/`;
+}
+
+function rateLimitWindowStart(now) {
+  return Math.floor(now / POST_RATE_LIMIT_WINDOW_MS) * POST_RATE_LIMIT_WINDOW_MS;
+}
+
+function rateLimitMarkerPath(hash, windowStart, slot) {
+  return `${rateLimitSubjectPrefix(hash)}${windowStart}/${slot}.json`;
+}
+
+function randomRateLimitSlotOffset() {
+  const bytes = new Uint32Array(1);
+  crypto.getRandomValues(bytes);
+  return bytes[0] % POST_RATE_LIMIT_MAX;
 }
 
 function getClientRateSubject(req) {
@@ -135,42 +149,64 @@ async function parseRecord(path, options) {
   return JSON.parse(text);
 }
 
+function isRateLimitSlotTaken(err) {
+  return err instanceof BlobPreconditionFailedError
+    || /precondition|already exists|overwrite/i.test(String(err?.message || ''));
+}
+
+async function cleanupExpiredRateLimitMarkers(subjectHash, currentWindowStart, options) {
+  const prefix = rateLimitSubjectPrefix(subjectHash);
+  let cursor;
+  const stale = [];
+  do {
+    const page = await list({ ...options, prefix, cursor, limit: 1000 });
+    for (const blob of page.blobs || []) {
+      const relative = String(blob.pathname || '').slice(prefix.length);
+      const windowStart = Number(relative.split('/')[0]);
+      if (Number.isFinite(windowStart) && windowStart < currentWindowStart) {
+        stale.push(blob.pathname);
+      }
+    }
+    cursor = page.hasMore ? page.cursor : null;
+  } while (cursor && stale.length < 1000);
+  if (stale.length) await del(stale, options);
+}
+
 async function enforcePostRateLimit(req, options) {
   const now = Date.now();
   const subjectHash = await sha256Hex(getClientRateSubject(req));
-  const path = rateLimitPath(subjectHash);
-  let existing = null;
-  try {
-    existing = await parseRecord(path, options);
-  } catch (err) {
-    if (!(err instanceof BlobNotFoundError)) throw err;
-  }
-  const resetAtMs = Date.parse(existing?.resetAt || '');
-  const windowActive = Number.isFinite(resetAtMs) && resetAtMs > now;
-  const count = windowActive ? Number(existing?.count || 0) : 0;
-  const resetAt = windowActive
-    ? new Date(resetAtMs).toISOString()
-    : new Date(now + POST_RATE_LIMIT_WINDOW_MS).toISOString();
-  if (count >= POST_RATE_LIMIT_MAX) {
-    return {
-      limited: true,
-      retryAfterSeconds: Math.max(1, Math.ceil(((windowActive ? resetAtMs : now) - now) / 1000)),
-    };
-  }
-  const record = {
-    count: count + 1,
+  const windowStart = rateLimitWindowStart(now);
+  const resetAtMs = windowStart + POST_RATE_LIMIT_WINDOW_MS;
+  const resetAt = new Date(resetAtMs).toISOString();
+  const marker = {
+    createdAt: new Date(now).toISOString(),
+    windowStart,
     resetAt,
     updatedAt: new Date(now).toISOString(),
   };
-  await put(path, JSON.stringify(record), {
-    ...options,
-    access: 'private',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: 'application/json',
-    cacheControlMaxAge: 60,
-  });
-  return { limited: false };
+  const offset = randomRateLimitSlotOffset();
+  for (let attempt = 0; attempt < POST_RATE_LIMIT_MAX; attempt++) {
+    const slot = (offset + attempt) % POST_RATE_LIMIT_MAX;
+    try {
+      await put(rateLimitMarkerPath(subjectHash, windowStart, slot), JSON.stringify(marker), {
+        ...options,
+        access: 'private',
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: 'application/json',
+        cacheControlMaxAge: 60,
+      });
+      cleanupExpiredRateLimitMarkers(subjectHash, windowStart, options).catch(() => {});
+      return { limited: false };
+    } catch (err) {
+      if (isRateLimitSlotTaken(err)) continue;
+      throw err;
+    }
+  }
+  return {
+    limited: true,
+    retryAfterSeconds: Math.max(1, Math.ceil((resetAtMs - now) / 1000)),
+  };
 }
 
 async function handlePost(req) {

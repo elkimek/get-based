@@ -162,7 +162,10 @@ assert('API validates share ids, size, expiry, and crypto envelope',
 assert('API rate limits unauthenticated share creation',
   apiShareSrc.includes('RATE_LIMIT_PREFIX') &&
   apiShareSrc.includes('POST_RATE_LIMIT_MAX') &&
+  apiShareSrc.includes('BlobPreconditionFailedError') &&
+  apiShareSrc.includes('rateLimitMarkerPath') &&
   apiShareSrc.includes('enforcePostRateLimit') &&
+  apiShareSrc.includes('allowOverwrite: false') &&
   apiShareSrc.includes('status') &&
   apiShareSrc.includes('429'));
 assert('API only allows localhost CORS in development',

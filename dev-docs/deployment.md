@@ -43,7 +43,7 @@ Vercel functions live in `api/`. They must stay same-origin, minimal, and avoid 
 | `DELETE /api/share?id=...` | Delete the hosted envelope when the creating browser supplies the management token |
 | `OPTIONS /api/share` | CORS preflight for allowed same-origin/app origins |
 
-Production requires `BLOB_READ_WRITE_TOKEN` in the Vercel project. The route uses a private Vercel Blob store under `profile-shares/v1/`, caps payload size, rejects shares longer than 30 days, rejects weak PBKDF2 iteration counts, rate-limits anonymous share creation with small private marker records under `profile-share-rate/v1/`, and returns `no-store` JSON responses. The route never has the password or plaintext profile JSON.
+Production requires `BLOB_READ_WRITE_TOKEN` in the Vercel project. The route uses a private Vercel Blob store under `profile-shares/v1/`, caps payload size, rejects shares longer than 30 days, rejects weak PBKDF2 iteration counts, rate-limits anonymous share creation with fixed hourly slot marker records under `profile-share-rate/v1/`, and returns `no-store` JSON responses. The route never has the password or plaintext profile JSON.
 
 Local development mirrors the endpoint in `dev-server.js` with an in-memory store so the modal and deep-link flow can be smoke-tested without Blob credentials. That local store is process-local and disappears when the dev server restarts.
 
