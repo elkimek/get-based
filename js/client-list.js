@@ -348,7 +348,7 @@ export function openClientForm(profileId) {
   const heightData = p ? getProfileHeight(p.id) : { height: null, unit: 'cm' };
   const heightUnit = heightData.unit || 'cm';
   const heightValue = heightData.height == null || heightData.height === '' ? null : Number(heightData.height);
-  const heightDisplay = heightValue ? (heightUnit === 'in' ? (heightValue / 2.54).toFixed(1) : heightValue.toFixed(1)) : '';
+  const heightDisplay = heightValue ? (heightUnit === 'in' ? (heightValue / 2.54).toFixed(1) : Math.round(heightValue)) : '';
 
   const avatarColor = getAvatarColor(p ? p.id : 'new');
   const avatarInitial = (name || '?')[0].toUpperCase();
