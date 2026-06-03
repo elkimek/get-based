@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderLabOrderCard, renderLabPlanCard } from '../js/lab-order-render.js';
+import { buildLabOrderCopyText, renderLabOrderCard, renderLabPlanCard } from '../js/lab-order-render.js';
 
 describe('lab order card rendering', () => {
   it('renders a natural lab plan as a soft conversion card before provider comparison', () => {
@@ -21,6 +21,26 @@ describe('lab order card rendering', () => {
     expect(html).toContain('data-lab-order-action="compare-labs-from-plan"');
     expect(html).toContain('data-lab-order-action="dismiss-lab-plan"');
     expect(html).toContain('type="button" class="lab-order-primary"');
+  });
+
+  it('builds clipboard text for selected lab order previews', () => {
+    const text = buildLabOrderCopyText({
+      id: 'draft-1',
+      providerId: 'cz.labshop',
+      provider: 'cz.labshop',
+      providerName: 'Labshop',
+      status: 'draft',
+      products: [{ providerProductId: '20036', name: 'Vitaminy B - Basic', priceCzk: 500, markers: ['Vitamin B12', 'Folate'] }],
+      totalEstimateCzk: 500,
+      safetyBoundary: 'final checkout/payment stays user-in-loop',
+    });
+
+    expect(text).toContain('Labshop order preview');
+    expect(text).toContain('Status: Draft');
+    expect(text).toContain('- Vitaminy B - Basic — 500 Kč');
+    expect(text).toContain('  Markers: Vitamin B12, Folate');
+    expect(text).toContain('Estimate: 500 Kč');
+    expect(text).toContain('final checkout/payment stays user-in-loop');
   });
 
   it('renders action buttons as non-submit buttons to avoid accidental form navigation', () => {

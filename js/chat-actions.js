@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { CHAT_ICON_COPY, CHAT_ICON_REFRESH, setIconButtonContent } from './chat-icons.js';
 import { saveChatHistory } from './chat-history.js';
+import { buildLabOrderCopyText, buildLabPlanCopyText } from './lab-order-render.js';
 
 export function buildActionBar(msgIndex) {
   const msg = state.chatHistory[msgIndex];
@@ -50,6 +51,16 @@ export function regenerateLastMessage() {
   sendChatMessage();
 }
 
+export function buildMessageCopyText(msg) {
+  if (!msg) return '';
+  const sections = [msg.content || ''];
+  const planText = buildLabPlanCopyText(msg.labPlanDraft);
+  const orderText = buildLabOrderCopyText(msg.labOrderDraft);
+  if (planText) sections.push(planText);
+  if (orderText) sections.push(orderText);
+  return sections.filter(Boolean).join('\n\n');
+}
+
 export function copyMessage(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg) return;
@@ -61,7 +72,7 @@ export function copyMessage(msgIndex) {
     }
     return;
   }
-  navigator.clipboard.writeText(msg.content).then(() => {
+  navigator.clipboard.writeText(buildMessageCopyText(msg)).then(() => {
     if (btn) {
       setIconButtonContent(btn, 'check', 'Copied');
       setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);

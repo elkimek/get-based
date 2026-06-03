@@ -11,8 +11,23 @@ function formatCzk(value) {
 function providerLabel(draft) {
   if (draft.providerName) return draft.providerName;
   if (draft.providerId === 'cz.unilabs') return 'Unilabs.cz';
-  if (draft.providerId === 'cz.labshop' || draft.provider === 'labshop') return 'Labshop';
+  if (draft.providerId === 'cz.labshop' || draft.provider === 'labshop' || draft.provider === 'cz.labshop') return 'Labshop';
   return 'Lab';
+}
+
+function statusLabel(status = 'draft') {
+  return {
+    draft: 'Draft',
+    provider_selection: 'Compare labs',
+    preparing: 'Preparing cart…',
+    cart_created: 'Cart prepared',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+  }[status] || status;
+}
+
+function joinCopySections(sections) {
+  return sections.filter(Boolean).join('\n');
 }
 
 function markerLabel(marker) {
@@ -149,6 +164,64 @@ export function renderLabPlanCard(plan, msgIndex) {
   </div>`;
 }
 
+export function buildLabPlanCopyText(plan) {
+  if (!plan || !Array.isArray(plan.markers) || !plan.markers.length) return '';
+  const lines = [
+    plan.title || 'Suggested lab plan',
+    '',
+    ...plan.markers.map(marker => {
+      const reason = marker.reason ? ` — ${marker.reason}` : '';
+      return `- ${markerLabel(marker)}${reason}`;
+    }),
+  ];
+  if (plan.safetyBoundary) lines.push('', plan.safetyBoundary);
+  return lines.join('\n');
+}
+
+export function buildLabOrderCopyText(draft) {
+  if (!draft) return '';
+  if (draft.status === 'provider_selection' || draft.provider === 'provider_selection') {
+    const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, markerLabel(m)]));
+    const lines = ['Lab order — compare labs'];
+    const markers = Array.isArray(draft.requestedMarkers) ? draft.requestedMarkers : [];
+    if (markers.length) {
+      lines.push('', `Requested tests (${markers.length}):`, ...markers.map(m => `- ${markerLabel(m)}`));
+    }
+    const comparisons = Array.isArray(draft.providerComparisons) ? draft.providerComparisons : [];
+    if (comparisons.length) {
+      lines.push('', 'Coverage and price comparison:');
+      for (const c of comparisons) {
+        lines.push(`- ${c.name || c.providerId}: ${c.coveredCount}/${c.requestedCount} tests — ${formatCzk(c.totalEstimateCzk)}`);
+        if (Array.isArray(c.missingMarkerKeys) && c.missingMarkerKeys.length) {
+          lines.push(`  Missing: ${c.missingMarkerKeys.map(markerKey => markerNameByKey.get(markerKey) || markerKey).join(', ')}`);
+        }
+      }
+    }
+    if (draft.safetyBoundary) lines.push('', draft.safetyBoundary);
+    return lines.join('\n');
+  }
+
+  const products = Array.isArray(draft.products) ? draft.products : [];
+  const lines = [
+    `${providerLabel(draft)} order preview`,
+    `Status: ${statusLabel(draft.status || 'draft')}`,
+  ];
+  if (products.length) {
+    lines.push('', 'Items:');
+    for (const product of products) {
+      lines.push(`- ${product.name || product.providerProductId || 'Lab product'} — ${formatCzk(product.priceCzk)}`);
+      if (Array.isArray(product.markers) && product.markers.length) {
+        lines.push(`  Markers: ${product.markers.join(', ')}`);
+      }
+    }
+  }
+  lines.push('', `Estimate: ${formatCzk(draft.totalEstimateCzk)}`);
+  if (draft.result?.message) lines.push('', draft.result.message);
+  if (draft.result?.checkoutUrl) lines.push(`Continue: ${draft.result.checkoutUrl}`);
+  if (draft.safetyBoundary) lines.push('', draft.safetyBoundary);
+  return joinCopySections(lines);
+}
+
 export function renderLabOrderCard(draft, msgIndex) {
   if (!draft) return '';
   if (draft.status === 'provider_selection' || draft.provider === 'provider_selection') {
@@ -157,13 +230,7 @@ export function renderLabOrderCard(draft, msgIndex) {
   if (draft.provider !== 'labshop' && draft.provider !== 'cz.labshop' && draft.providerId !== 'cz.labshop' && draft.provider !== 'cz.unilabs' && draft.providerId !== 'cz.unilabs') return '';
   const products = Array.isArray(draft.products) ? draft.products : [];
   const status = draft.status || 'draft';
-  const statusLabel = {
-    draft: 'Draft',
-    preparing: 'Preparing cart…',
-    cart_created: 'Cart prepared',
-    failed: 'Failed',
-    cancelled: 'Cancelled',
-  }[status] || status;
+  const label = statusLabel(status);
 
   const itemHtml = products.map((p) => {
     const markerHtml = Array.isArray(p.markers) && p.markers.length
@@ -211,7 +278,7 @@ export function renderLabOrderCard(draft, msgIndex) {
         <div class="lab-order-kicker">${escapeHTML(providerLabel(draft))} order preview</div>
         <div class="lab-order-title">Controlled handoff</div>
       </div>
-      <span class="lab-order-status">${escapeHTML(statusLabel)}</span>
+      <span class="lab-order-status">${escapeHTML(label)}</span>
     </div>
     <ul class="lab-order-items">${itemHtml}</ul>
     ${totalHtml}

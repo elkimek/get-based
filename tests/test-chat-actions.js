@@ -33,7 +33,7 @@ console.log('=== Chat Actions Tests ===\n');
 await import('../js/state.js');
 await import('../js/lab-context.js');
 await import('../js/chat.js');
-const { buildActionBar } = await import('../js/chat-actions.js');
+const { buildActionBar, buildMessageCopyText } = await import('../js/chat-actions.js');
 const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
@@ -239,6 +239,23 @@ if (hasState) {
   assert('Context item has checkmark', bar1.includes('✓'), 'has checkmark');
 
   assert('Second AI msg shows 2 areas', bar3.includes('2 areas'), 'shows 2 areas');
+
+  const copyText = buildMessageCopyText({
+    role: 'assistant',
+    content: 'I can prepare a Labshop order draft for this.',
+    labOrderDraft: {
+      providerId: 'cz.labshop',
+      provider: 'cz.labshop',
+      providerName: 'Labshop',
+      status: 'draft',
+      products: [{ name: 'Vitaminy B - Basic', priceCzk: 500, markers: ['Vitamin B12', 'Folate'] }],
+      totalEstimateCzk: 500,
+      safetyBoundary: 'No silent booking, checkout, or payment.',
+    },
+  });
+  assert('Copy text includes response message', copyText.includes('I can prepare a Labshop order draft'), copyText);
+  assert('Copy text includes rendered lab order item', copyText.includes('- Vitaminy B - Basic — 500 Kč'), copyText);
+  assert('Copy text includes lab order boundary', copyText.includes('No silent booking'), copyText);
 } else {
   console.warn('Skipping buildActionBar tests — _labState not available');
 }
