@@ -17,6 +17,7 @@
     "js/lens-local-parsers.js",
     "js/lens-local-utils.js",
     "js/markdown.js",
+    "js/pdfjs-loader.js",
     "js/profile.js",
     "js/profile-share.js",
     "js/url-safety.js",
