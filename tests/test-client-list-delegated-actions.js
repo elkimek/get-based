@@ -42,8 +42,12 @@ assert('client-list.js installs idempotent delegates',
 assert('client-list menu buttons are data-driven',
   clientListSrc.includes('function _clMenuButton') &&
     clientListSrc.includes("action: 'pin-profile'") &&
+    clientListSrc.includes("action: 'share-profile'") &&
     clientListSrc.includes("action: 'delete-profile'") &&
     !clientListSrc.includes('onclick:'));
+assert('client-list can open share modal for selected profile',
+  clientListSrc.includes('function _clShare(id)') &&
+    clientListSrc.includes('window.openProfileShareModal?.(id)'));
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
   clientListSrc.includes("btn.setAttribute('data-cl-action', 'remove-avatar')") &&
     !clientListSrc.includes('.onclick'));
@@ -72,6 +76,7 @@ assert('dynamic avatar and tag buttons avoid direct onclick assignment',
   'unflag-profile',
   'archive-profile',
   'unarchive-profile',
+  'share-profile',
   'export-profile',
   'export-profile-chat',
   'delete-profile',

@@ -196,6 +196,20 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     const appEventsSrc = read('js/app-event-listeners.js');
     return appEventsSrc.includes('.dashboard-biometric-widget-grid') && appEventsSrc.includes('.dashboard-marker-widget-grid') && appEventsSrc.includes('e.preventDefault()');
   })(), 'Dashboard picker grids must be whitelisted before the modal overflow guard prevents wheel events');
+  assert('Report AI overview textarea owns mouse wheel scrolling', (() => {
+    const appEventsSrc = read('js/app-event-listeners.js');
+    const block = (cssSrc.match(/\.report-ai-summary-text\s*{([\s\S]*?)}/) || [null, ''])[1];
+    return appEventsSrc.includes('.report-ai-summary-text') &&
+      block.includes('overflow-y: auto') &&
+      block.includes('overscroll-behavior: contain');
+  })(), 'Generated practitioner overview textarea must scroll before the modal wheel guard prevents the event');
+  assert('Report builder content pane owns mouse wheel scrolling', (() => {
+    const appEventsSrc = read('js/app-event-listeners.js');
+    const block = (cssSrc.match(/\.report-builder-scroll\s*{([\s\S]*?)}/) || [null, ''])[1];
+    return appEventsSrc.includes('.report-builder-scroll') &&
+      block.includes('overflow-y: auto') &&
+      block.includes('overscroll-behavior: contain');
+  })(), 'Long report builder category lists must scroll before the modal wheel guard prevents the event');
 
   // ═══════════════════════════════════════
   // 5. Health dots sentinel fix

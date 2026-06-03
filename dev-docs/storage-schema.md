@@ -1,6 +1,6 @@
 # Storage Schema
 
-getbased stores all data in the browser. There is no backend database. Two storage mechanisms are used: `localStorage` for all app data and preferences, and IndexedDB for auto-backup snapshots.
+getbased stores normal app data in the browser. `localStorage` holds app data and preferences, and IndexedDB holds auto-backup snapshots plus larger per-device datasets. Opt-in features may use hosted encrypted storage outside this browser; profile sharing is documented separately below because the hosted record contains only ciphertext and share metadata.
 
 ## localStorage key reference
 
@@ -34,6 +34,7 @@ Keys are namespaced by profile ID where data is per-profile. `{profileId}` defau
 | `labcharts-time-format` | string | `'24h'` \| `'12h'` — time display preference |
 | `labcharts-debug` | string | Debug mode flag — enables console output and diff viewer |
 | `labcharts-pii-choice` | sessionStorage | One-time PII warning flag (sessionStorage, not localStorage) |
+| `getbased-profile-shares-v1` | JSON array | Active profile share links created on this browser: share id, profile id/name, share URL, management token, createdAt, expiresAt. Does not include the share password or plaintext profile data |
 
 ### Per-profile keys
 
@@ -367,3 +368,38 @@ Encrypted key patterns (`SENSITIVE_PATTERNS` in `crypto.js`):
 Keys that are not sensitive (preferences, model selections, pricing caches, profile index) are always stored in plaintext.
 
 The encryption key is derived via PBKDF2 from a user passphrase + per-profile salt (`labcharts-{profileId}-enc-salt`).
+
+## Hosted encrypted share records
+
+Profile sharing is opt-in and uses hosted storage only after the user confirms upload in the Share Profile modal. The browser creates a normal v2 single-profile export, strips credential surfaces through `buildClientExportObject()`, compresses it when supported, and encrypts it locally before upload. The share password never leaves the browser and is not stored in the share link.
+
+Production records are stored by `api/share.js` in private Vercel Blob objects under `profile-shares/v1/{id}.json`. Production also stores small per-client fixed-slot rate-limit marker records under `profile-share-rate/v1/{sha256-client}/{windowStart}/{slot}.json` to add friction to anonymous share creation without relying on a read-then-write counter. Local development stores the same logical share record in the `dev-server.js` in-memory map.
+
+```js
+{
+  id: "base64url-share-id",
+  createdAt: "2026-06-02T12:00:00.000Z",
+  expiresAt: "2026-06-09T12:00:00.000Z",
+  manageTokenHash: "sha256-hex-of-local-management-token",
+  envelope: {
+    schema: "getbased-profile-share",
+    version: 1,
+    createdAt: "2026-06-02T12:00:00.000Z",
+    expiresAt: "2026-06-09T12:00:00.000Z",
+    kdf: {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      iterations: 600000,
+      salt: "base64url"
+    },
+    cipher: {
+      name: "AES-GCM",
+      iv: "base64url"
+    },
+    compression: "gzip", // or "none"
+    ciphertext: "base64url"
+  }
+}
+```
+
+The remote record contains only ciphertext plus metadata needed to decrypt it in a recipient's browser. The local active-link record contains the management token so the creating browser can delete the hosted envelope later; losing that browser-local record means the modal can no longer stop that link directly.

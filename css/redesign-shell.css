@@ -117,6 +117,15 @@
   border-color: var(--accent);
   background: var(--bg-hover);
 }
+.header-share-btn {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+}
+.header-share-btn:hover {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
 .donate-btn,
 .donate-btn:hover {
   width: auto;
@@ -488,6 +497,9 @@
     display: inline-flex;
     align-items: center;
     min-height: 44px;
+  }
+  .header-share-btn {
+    display: none;
   }
   .profile-compact-btn {
     min-width: 44px;

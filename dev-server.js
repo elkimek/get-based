@@ -486,6 +486,113 @@ function corsHeaders(req) {
   return origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
 }
 
+const PROFILE_SHARE_DEV_STORE = new Map();
+const PROFILE_SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
+const PROFILE_SHARE_MAX_BYTES = 3_750_000;
+const PROFILE_SHARE_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100_000;
+const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
+function _sendProfileShareJSON(req, res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
+  res.end(JSON.stringify(body));
+}
+function _validateProfileShareEnvelope(envelope) {
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) throw new Error('Missing encrypted profile payload.');
+  if (envelope.schema !== 'getbased-profile-share' || envelope.version !== 1) throw new Error('Unsupported encrypted profile payload.');
+  const expiresAt = Date.parse(envelope.expiresAt || '');
+  const now = Date.now();
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error('Share expiry must be in the future.');
+  if (expiresAt - now > PROFILE_SHARE_MAX_TTL_MS) throw new Error('Share expiry cannot exceed 30 days.');
+  if (envelope.kdf?.name !== 'PBKDF2' || envelope.kdf?.hash !== 'SHA-256') throw new Error('Unsupported key derivation.');
+  const iterations = Number(envelope.kdf?.iterations);
+  if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error(`PBKDF2 iterations must be at least ${PROFILE_SHARE_MIN_KDF_ITERATIONS}.`);
+  if (envelope.cipher?.name !== 'AES-GCM') throw new Error('Unsupported cipher.');
+  if (typeof envelope.ciphertext !== 'string' || envelope.ciphertext.length < 16) throw new Error('Encrypted profile payload is empty.');
+  const sizeBytes = Buffer.byteLength(JSON.stringify(envelope));
+  if (sizeBytes > PROFILE_SHARE_MAX_BYTES) throw new Error('Encrypted profile payload is too large for link sharing.');
+  return { sizeBytes, expiresAt };
+}
+function _handleProfileShareDev(req, res, url) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, { ...corsHeaders(req), 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.end();
+    return;
+  }
+  if (req.method === 'GET') {
+    const id = url.searchParams.get('id') || '';
+    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    const record = PROFILE_SHARE_DEV_STORE.get(id);
+    if (!record) { _sendProfileShareJSON(req, res, 404, { error: 'Shared profile not found.' }); return; }
+    if (Date.parse(record.expiresAt || '') <= Date.now()) {
+      PROFILE_SHARE_DEV_STORE.delete(id);
+      _sendProfileShareJSON(req, res, 410, { error: 'Shared profile link has expired.' });
+      return;
+    }
+    _sendProfileShareJSON(req, res, 200, { id, expiresAt: record.expiresAt, envelope: record.envelope });
+    return;
+  }
+  if (req.method === 'DELETE') {
+    const id = url.searchParams.get('id') || '';
+    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    const record = PROFILE_SHARE_DEV_STORE.get(id);
+    if (!record) { _sendProfileShareJSON(req, res, 200, { ok: true, missing: true }); return; }
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      let parsed = {};
+      try { parsed = body ? JSON.parse(body) : {}; } catch {}
+      const manageToken = String(parsed?.manageToken || req.headers['x-profile-share-manage-token'] || '');
+      const manageTokenHash = manageToken ? crypto.createHash('sha256').update(manageToken).digest('hex') : '';
+      if (record.manageTokenHash && (!manageToken || manageTokenHash !== record.manageTokenHash)) {
+        _sendProfileShareJSON(req, res, 403, { error: 'This link can only be stopped from the browser that created it.' });
+        return;
+      }
+      PROFILE_SHARE_DEV_STORE.delete(id);
+      _sendProfileShareJSON(req, res, 200, { ok: true });
+    });
+    return;
+  }
+  if (req.method !== 'POST') {
+    _sendProfileShareJSON(req, res, 405, { error: 'Method not allowed.' });
+    return;
+  }
+  let body = '';
+  let bytes = 0;
+  let aborted = false;
+  req.on('data', chunk => {
+    if (aborted) return;
+    bytes += chunk.length;
+    if (bytes > PROFILE_SHARE_MAX_BYTES + 8192) {
+      aborted = true;
+      _sendProfileShareJSON(req, res, 413, { error: 'Encrypted profile payload is too large for link sharing.' });
+      req.destroy();
+      return;
+    }
+    body += chunk;
+  });
+  req.on('end', () => {
+    if (aborted) return;
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { _sendProfileShareJSON(req, res, 400, { error: 'Invalid JSON body.' }); return; }
+    const id = parsed?.id || '';
+    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    const manageTokenHash = String(parsed?.manageTokenHash || '');
+    if (!PROFILE_SHARE_MANAGE_TOKEN_HASH_RE.test(manageTokenHash)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share management token.' }); return; }
+    if (PROFILE_SHARE_DEV_STORE.has(id)) { _sendProfileShareJSON(req, res, 409, { error: 'Share id already exists.' }); return; }
+    let normalized;
+    try { normalized = _validateProfileShareEnvelope(parsed.envelope); } catch (err) { _sendProfileShareJSON(req, res, 400, { error: err.message }); return; }
+    const record = {
+      id,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(normalized.expiresAt).toISOString(),
+      manageTokenHash,
+      envelope: parsed.envelope,
+    };
+    PROFILE_SHARE_DEV_STORE.set(id, record);
+    _sendProfileShareJSON(req, res, 201, { id, expiresAt: record.expiresAt, sizeBytes: normalized.sizeBytes });
+  });
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let pathname = decodeURIComponent(url.pathname);
@@ -543,6 +650,14 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ sha: sha.trim(), ref: e2 ? '' : ref.trim() }));
       });
     });
+    return;
+  }
+
+  // API: encrypted profile share mirror for local development. Production
+  // uses api/share.js with private Vercel Blob storage; localhost keeps the
+  // encrypted records in memory only.
+  if (pathname === '/api/share') {
+    _handleProfileShareDev(req, res, url);
     return;
   }
 

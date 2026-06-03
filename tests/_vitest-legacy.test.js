@@ -227,6 +227,7 @@ const LEGACY_TESTS = [
   // handleSSELine / cashu _openDB sections need a browser runtime and
   // stay on puppeteer in test-coverage-stragglers-dom.js.
   './test-coverage-stragglers.js',
+  './test-profile-share.js',
 ];
 
 for (const path of LEGACY_TESTS) {

@@ -27,6 +27,7 @@ const CL_ICONS = Object.freeze({
   pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5-4 4v5l-2 2-5-5-4 4-1-1 4-4-5-5 2-2h5Z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
   search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  share: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4"/><path d="m15.4 6.5-6.8 4"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
   user: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
 });
@@ -746,6 +747,7 @@ function _clToggleMenu(e, id, buttonEl = null) {
       ? _clMenuButton({ icon: CL_ICONS.flag, label: 'Unflag', action: 'unflag-profile', profileId: id })
       : _clMenuButton({ icon: CL_ICONS.flag, label: 'Flag', action: 'flag-profile', profileId: id })) +
     `<div class="cl-menu-sep"></div>` +
+    _clMenuButton({ icon: CL_ICONS.share, label: 'Share Profile', action: 'share-profile', profileId: id }) +
     _clMenuButton({ icon: CL_ICONS.export, label: 'Export', action: 'export-profile', profileId: id }) +
     _clMenuButton({ icon: CL_ICONS.export, label: 'Export with Chat', action: 'export-profile-chat', profileId: id }) +
     `<div class="cl-menu-sep"></div>` +
@@ -793,6 +795,11 @@ function _closeMenus() {
 }
 function _clExport(id) { _closeMenus(); window.exportClientJSON(id); }
 function _clExportChat(id) { _closeMenus(); window.exportClientJSON(id, true); }
+function _clShare(id) {
+  _closeMenus();
+  closeClientList();
+  setTimeout(() => window.openProfileShareModal?.(id), 120);
+}
 function _clDelete(id) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
 
 function _closestClientEl(event, selector) {
@@ -840,6 +847,7 @@ function _handleClientClick(event) {
   else if (action === 'unflag-profile') _clUnflag(id);
   else if (action === 'archive-profile') _clArchive(id);
   else if (action === 'unarchive-profile') _clUnarchive(id);
+  else if (action === 'share-profile') _clShare(id);
   else if (action === 'export-profile') _clExport(id);
   else if (action === 'export-profile-chat') _clExportChat(id);
   else if (action === 'delete-profile') _clDelete(id);

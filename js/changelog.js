@@ -5,6 +5,21 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.8.358', date: '2026-06-03', title: 'Private profile sharing',
+    items: [
+      '<b>Password-protected profile links.</b> Share an encrypted profile copy with someone else, then keep the link and password separate.',
+      '<b>Link controls and safeguards.</b> Copy or stop links created on this device, with hosted checks to limit weak encryption settings, abuse, and oversized shared files.',
+    ]
+  },
+  {
+    version: '1.8.354', date: '2026-06-02', title: 'Practitioner-ready report builder',
+    items: [
+      '<b>Report feature overhaul.</b> PDF reports now open in a cleaner preview with a readable patient header, compact clinical snapshot, selected lab categories, supplement dosing context, and a structure built for quick practitioner review.',
+      '<b>Editable Practitioner Overview.</b> Generate a one-minute overview from the selected report data, edit the text directly in the report builder, then include the final version in the PDF preview/export.',
+      '<b>Smoother report workflow.</b> The builder now follows the app\'s newer modal patterns, keeps long category lists usable, and gives the preview its own Print / Save PDF action.',
+    ]
+  },
+  {
     version: '1.8.0', date: '2026-05-18', title: 'Redesigned dashboard, guided onboarding, and recommendations',
     items: [
       '<b>A new dashboard built around what matters now.</b> The home screen is now a customizable overview instead of a long all-in-one page. Current Focus, Biological Age, Recommended Next Steps, Current Priority, Quick Markers, Biometrics Overview, Light Today, and Key Trends give you the short version first, with deeper work still one click away.',

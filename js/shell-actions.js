@@ -23,6 +23,9 @@ function runShellAction(action) {
   } else if (action === 'trigger-import') {
     clickFileInput('pdf-input');
     return true;
+  } else if (action === 'share-profile') {
+    window.openProfileShareModal?.();
+    return true;
   } else if (action === 'open-tweaks') {
     window.openTweaksPanel?.();
     return true;
