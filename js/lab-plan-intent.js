@@ -113,6 +113,24 @@ function markerDisplayName(markerKey) {
   return getMarkerCrosswalk(markerKey)?.canonicalName || markerKey.split('.').pop() || markerKey;
 }
 
+function slugifyMarkerName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 80);
+}
+
+function titleCaseMarkerName(name) {
+  const trimmed = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  if (/^[A-Z0-9\-() ]{2,}$/.test(trimmed)) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 function mentionsTestPlan(text) {
   const normalized = normalize(text);
   return TEST_PLAN_PROMPTS.some(term => normalized.includes(normalize(term)));
@@ -157,12 +175,66 @@ function extractMentionedMarkers(text, out) {
   resolveMarkerAliases(raw).forEach(markerKey => addMarker(out, markerKey));
 }
 
+function cleanCandidateName(candidate) {
+  return String(candidate || '')
+    .replace(/^[\s\-*•\d.)]+/, '')
+    .replace(/^(next|then|also)\s*:\s*/i, '')
+    .replace(/\b(panel|test|tests|marker|markers|studies|profile)\b$/i, '')
+    .replace(/[.;:]+$/g, '')
+    .trim();
+}
+
+function looksLikeNoise(candidate) {
+  const normalized = normalize(candidate);
+  if (!normalized || normalized.length < 2) return true;
+  if (normalized.length > 80) return true;
+  if (/^(and|or|with|plus|maybe|optional|core|next|also|then|because|for these)$/.test(normalized)) return true;
+  if (/\b(i would|i recommend|consider|check|test|include|worth|next time)\b/.test(normalized)) return true;
+  return false;
+}
+
+function addUnmappedCandidate(out, name) {
+  const displayName = titleCaseMarkerName(cleanCandidateName(name));
+  if (looksLikeNoise(displayName)) return;
+  if (resolveMarkerAliases(displayName).length) return;
+  const normalizedDisplay = normalize(displayName);
+  if ([...out.values()].some(marker => normalize(marker.displayName) === normalizedDisplay)) return;
+  const slug = slugifyMarkerName(displayName);
+  if (!slug) return;
+  addMarker(out, `unmapped.${slug}`, {
+    displayName,
+    reason: 'Recommended by the assistant; provider/catalog mapping is not verified yet.',
+    priority: 'candidate',
+    confidence: 'llm_recommended_unmapped',
+  });
+}
+
+function extractRecommendationCandidates(text, out) {
+  const raw = String(text || '');
+  const lines = raw.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    const bullet = line.match(/^[-*•\d.)\s]+(.+)$/);
+    if (bullet) addUnmappedCandidate(out, bullet[1]);
+  }
+
+  const recommendationClauses = raw.match(/(?:recommend|consider|check|test|include|order|worth checking|worth testing)[^.!?]*[.!?]?/gi) || [];
+  for (const clause of recommendationClauses) {
+    const afterVerb = clause.replace(/^.*?(?:recommend|consider|check|test|include|order|worth checking|worth testing)\s*(?:checking|testing|for|a|an|the|:)?\s*/i, '');
+    afterVerb
+      .split(/,|;|\band\b|\+|\//i)
+      .map(cleanCandidateName)
+      .filter(Boolean)
+      .forEach(candidate => addUnmappedCandidate(out, candidate));
+  }
+}
+
 export function buildLabPlanFromConversation(userText, assistantText = '') {
   const combined = `${userText || ''}\n${assistantText || ''}`;
   const userAskedForPlan = mentionsTestPlan(userText);
   const out = new Map();
   extractMentionedMarkers(combined, out);
   inferPanelMarkers(combined, out);
+  if (userAskedForPlan) extractRecommendationCandidates(assistantText, out);
   const markers = [...out.values()];
   if (!userAskedForPlan || !markers.length) return null;
   return {

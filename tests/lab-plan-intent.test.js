@@ -76,4 +76,19 @@ describe('natural lab plan intent', () => {
     ]));
     expect(plan.markers.length).toBeGreaterThan(25);
   });
+
+  it('preserves assistant-recommended tests even when they are not in the marker ontology yet', () => {
+    const plan = buildLabPlanFromConversation(
+      'What should I get tested next time?',
+      'Worth checking next: ceruloplasmin, RBC magnesium, omega-3 index, neurofilament light chain and mystery biomarker X.'
+    );
+
+    expect(plan.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ markerKey: 'unmapped.ceruloplasmin', displayName: 'Ceruloplasmin', confidence: 'llm_recommended_unmapped' }),
+      expect.objectContaining({ markerKey: 'unmapped.rbc_magnesium', displayName: 'RBC magnesium', confidence: 'llm_recommended_unmapped' }),
+      expect.objectContaining({ markerKey: 'unmapped.omega_3_index', displayName: 'Omega-3 index', confidence: 'llm_recommended_unmapped' }),
+      expect.objectContaining({ markerKey: 'unmapped.neurofilament_light_chain', displayName: 'Neurofilament light chain', confidence: 'llm_recommended_unmapped' }),
+      expect.objectContaining({ markerKey: 'unmapped.mystery_biomarker_x', displayName: 'Mystery biomarker X', confidence: 'llm_recommended_unmapped' }),
+    ]));
+  });
 });
