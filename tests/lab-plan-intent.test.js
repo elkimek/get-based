@@ -53,4 +53,27 @@ describe('natural lab plan intent', () => {
       requestedCount: 4,
     }));
   });
+
+  it('captures broad panel recommendations from the assistant instead of only mapped B markers', () => {
+    const plan = buildLabPlanFromConversation(
+      'What should I get tested next time?',
+      'I would consider a thyroid panel, tumor markers, bone metabolism, hormone panel, metabolic panel, inflammation panel, liver kidney function, iron studies, uric acid, homocysteine and vitamin D.'
+    );
+
+    const keys = plan.markers.map(m => m.markerKey);
+    expect(keys).toEqual(expect.arrayContaining([
+      'thyroid.tsh',
+      'tumor.cea',
+      'hormones.totalTestosterone',
+      'biochemistry.glucose',
+      'inflammation.hsCRP',
+      'liver.alt',
+      'kidney.creatinine',
+      'iron.ferritin',
+      'biochemistry.uricAcid',
+      'vitamins.vitaminD',
+      'coagulation.homocysteine',
+    ]));
+    expect(plan.markers.length).toBeGreaterThan(25);
+  });
 });
