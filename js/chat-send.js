@@ -36,6 +36,8 @@ import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
 import { buildLabOrderAssistantText, buildLabOrderDraft } from './lab-order-intent.js';
+import { buildLabPlanFromConversation } from './lab-plan-intent.js';
+import { renderLabPlanCard } from './lab-order-render.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -330,6 +332,8 @@ export async function sendChatMessage() {
 
     // Build assistant message object with context snapshot
     const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    const labPlanDraft = buildLabPlanFromConversation(text, fullText);
+    if (labPlanDraft) assistantMsg.labPlanDraft = labPlanDraft;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -386,8 +390,11 @@ export async function sendChatMessage() {
 
     await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage
 
-    // Append action bar
+    // Append action surfaces
     const msgIndex = state.chatHistory.length - 1;
+    if (labPlanDraft) {
+      aiMsgEl.insertAdjacentHTML('beforeend', renderLabPlanCard(labPlanDraft, msgIndex));
+    }
     const actionBarHtml = buildActionBar(msgIndex);
     const actionBarContainer = document.createElement('div');
     actionBarContainer.innerHTML = actionBarHtml;

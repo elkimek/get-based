@@ -189,30 +189,44 @@ export function selectProviderForDraft(draft, providerId) {
   };
 }
 
-export function buildLabOrderDraft(userText) {
-  const intent = detectLabOrderIntent(userText);
-  if (!intent.isOrderIntent) return null;
+export function buildLabOrderDraftFromMarkers(markerIntents = [], options = {}) {
+  const providerId = options.providerId || null;
+  const country = options.country || 'CZ';
+  const providerOptions = providerId ? [] : buildProviderOptions(country);
+  const providerComparisons = providerId ? [] : buildProviderComparisons(markerIntents, country);
+  const coverageMatrix = providerId ? null : buildProviderCoverageMatrix(markerIntents, { country });
+  const providerRecommendation = coverageMatrix ? recommendLabOrderStrategy(coverageMatrix) : null;
   const base = {
     id: `laborder_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
-    country: intent.country,
-    provider: intent.providerId || 'provider_selection',
-    providerId: intent.providerId,
-    providerName: intent.providerId ? getProviderById(intent.providerId)?.name : null,
-    status: intent.providerId ? 'draft' : 'provider_selection',
+    country,
+    provider: providerId || 'provider_selection',
+    providerId,
+    providerName: providerId ? getProviderById(providerId)?.name : null,
+    status: providerId ? 'draft' : 'provider_selection',
     createdAt: new Date().toISOString(),
-    userRequest: String(userText || ''),
-    matchedTerms: intent.matchedTerms,
-    requestedMarkers: intent.markerIntents,
+    userRequest: String(options.userRequest || ''),
+    matchedTerms: markerIntents.map(intent => intent.markerKey),
+    requestedMarkers: markerIntents,
     nationalItems: [],
-    providerOptions: intent.providerOptions,
-    providerComparisons: intent.providerComparisons,
-    providerRecommendation: intent.providerRecommendation,
+    providerOptions,
+    providerComparisons,
+    providerRecommendation,
     offers: [],
     products: [],
     totalEstimateCzk: null,
-    safetyBoundary: intent.providerId ? safetyBoundaryForProvider(intent.providerId) : 'Choose a lab first. getbased will show tests/offers for the selected lab and keep booking/payment user-in-loop.',
+    safetyBoundary: providerId ? safetyBoundaryForProvider(providerId) : 'Choose a lab first. getbased will show tests/offers for the selected lab and keep booking/payment user-in-loop.',
   };
-  return intent.providerId ? selectProviderForDraft(base, intent.providerId) : base;
+  return providerId ? selectProviderForDraft(base, providerId) : base;
+}
+
+export function buildLabOrderDraft(userText) {
+  const intent = detectLabOrderIntent(userText);
+  if (!intent.isOrderIntent) return null;
+  return buildLabOrderDraftFromMarkers(intent.markerIntents, {
+    country: intent.country,
+    providerId: intent.providerId,
+    userRequest: userText,
+  });
 }
 
 export function buildLabOrderAssistantText(draft) {

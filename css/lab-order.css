@@ -86,6 +86,43 @@
   margin-top: 10px;
 }
 
+.lab-plan-card {
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+}
+
+.lab-plan-markers {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.lab-plan-marker {
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent));
+  padding: 9px 10px;
+}
+
+.lab-plan-marker strong {
+  color: var(--text-primary);
+  display: block;
+  font-size: 13px;
+}
+
+.lab-plan-marker span,
+.lab-plan-more {
+  color: var(--text-secondary);
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.lab-plan-more {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
 .lab-order-result {
   border-radius: 10px;
   font-size: 13px;

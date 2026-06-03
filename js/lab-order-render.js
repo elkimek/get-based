@@ -117,6 +117,38 @@ function renderProviderSelection(draft, msgIndex) {
   </div>`;
 }
 
+export function renderLabPlanCard(plan, msgIndex) {
+  if (!plan || !Array.isArray(plan.markers) || !plan.markers.length) return '';
+  const markers = plan.markers;
+  const visibleLimit = 8;
+  const visible = markers.slice(0, visibleLimit);
+  const hidden = markers.length - visible.length;
+  const markerHtml = visible.map(marker => `<div class="lab-plan-marker">
+    <strong>${escapeHTML(marker.displayName || marker.markerKey)}</strong>
+    <span>${escapeHTML(marker.reason || 'Suggested from this conversation.')}</span>
+  </div>`).join('');
+  const moreHtml = hidden > 0 ? `<div class="lab-plan-more">+${escapeHTML(String(hidden))} more markers in this plan</div>` : '';
+  const alreadyCompared = plan.status === 'compared';
+  const actionsHtml = alreadyCompared
+    ? '<div class="lab-plan-more">Lab comparison is shown below.</div>'
+    : `<div class="lab-order-actions">
+      <button type="button" class="lab-order-primary" data-lab-order-action="compare-labs-from-plan" data-msg-index="${msgIndex}">Compare labs</button>
+      <button type="button" class="lab-order-secondary" data-lab-order-action="dismiss-lab-plan" data-msg-index="${msgIndex}">Not now</button>
+    </div>`;
+  return `<div class="lab-order-card lab-plan-card" data-lab-plan-id="${escapeHTML(plan.id || '')}">
+    <div class="lab-order-head">
+      <div>
+        <div class="lab-order-kicker">Next blood draw</div>
+        <div class="lab-order-title">${escapeHTML(plan.title || 'Suggested lab plan')}</div>
+      </div>
+      <span class="lab-order-status">${alreadyCompared ? 'Plan compared' : 'Plan first'}</span>
+    </div>
+    <div class="lab-plan-markers">${markerHtml}${moreHtml}</div>
+    <div class="lab-order-boundary">${escapeHTML(plan.safetyBoundary || 'Review the plan before comparing labs or ordering.')}</div>
+    ${actionsHtml}
+  </div>`;
+}
+
 export function renderLabOrderCard(draft, msgIndex) {
   if (!draft) return '';
   if (draft.status === 'provider_selection' || draft.provider === 'provider_selection') {

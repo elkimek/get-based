@@ -4,11 +4,16 @@ import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { saveChatHistory } from './chat-history.js';
 import { renderChatMessages } from './chat-render.js';
-import { selectProviderForDraft } from './lab-order-intent.js';
+import { selectProviderForDraft, buildLabOrderDraftFromMarkers } from './lab-order-intent.js';
 
 function getDraftForMessage(msgIndex) {
   const msg = state.chatHistory[Number(msgIndex)];
   return msg?.labOrderDraft ? { msg, draft: msg.labOrderDraft } : null;
+}
+
+function getPlanForMessage(msgIndex) {
+  const msg = state.chatHistory[Number(msgIndex)];
+  return msg?.labPlanDraft ? { msg, plan: msg.labPlanDraft } : null;
 }
 
 async function prepareCart(msgIndex) {
@@ -120,6 +125,28 @@ async function cancelOrder(msgIndex) {
   renderChatMessages();
 }
 
+async function compareLabsFromPlan(msgIndex) {
+  const found = getPlanForMessage(msgIndex);
+  if (!found) return;
+  found.msg.labOrderDraft = buildLabOrderDraftFromMarkers(found.plan.markers || [], {
+    userRequest: found.plan.userPrompt || found.msg.content || '',
+  });
+  found.plan.status = 'compared';
+  showNotification('Lab coverage compared', 'success');
+  await saveChatHistory();
+  renderChatMessages();
+}
+
+async function dismissLabPlan(msgIndex) {
+  const found = getPlanForMessage(msgIndex);
+  if (!found) return;
+  found.plan.status = 'dismissed';
+  found.msg.labPlanDraft = null;
+  showNotification('Lab plan hidden', 'success');
+  await saveChatHistory();
+  renderChatMessages();
+}
+
 export function handleLabOrderClick(event) {
   const btn = event.target?.closest?.('[data-lab-order-action]');
   if (!btn) return;
@@ -128,6 +155,8 @@ export function handleLabOrderClick(event) {
   const action = btn.dataset.labOrderAction;
   const msgIndex = btn.dataset.msgIndex;
   if (action === 'select-provider') void selectProvider(msgIndex, btn.dataset.labProviderId);
+  if (action === 'compare-labs-from-plan') void compareLabsFromPlan(msgIndex);
+  if (action === 'dismiss-lab-plan') void dismissLabPlan(msgIndex);
   if (action === 'prepare-cart') void prepareCart(msgIndex);
   if (action === 'prepare-unilabs-cart') void prepareUnilabsCart(msgIndex);
   if (action === 'change-provider') void changeProvider(msgIndex);

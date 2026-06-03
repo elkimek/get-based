@@ -152,6 +152,7 @@ const APP_SHELL = [
   '/js/lab-order-actions.js',
   '/js/lab-order-catalog.js',
   '/js/lab-order-intent.js',
+  '/js/lab-plan-intent.js',
   '/js/lab-order-render.js',
   '/js/lab-standards/standards-types.js',
   '/js/lab-standards/marker-crosswalk.js',

@@ -15,7 +15,7 @@ import { updateChatHeaderTitle } from './chat-personalities.js';
 import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
-import { renderLabOrderCard } from './lab-order-render.js';
+import { renderLabOrderCard, renderLabPlanCard } from './lab-order-render.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -92,6 +92,7 @@ export function renderChatMessages() {
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
+      if (msg.labPlanDraft) html += renderLabPlanCard(msg.labPlanDraft, i);
       if (msg.labOrderDraft) html += renderLabOrderCard(msg.labOrderDraft, i);
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
         const mId = msg.modelId || getActiveModelId();

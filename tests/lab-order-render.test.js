@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderLabOrderCard } from '../js/lab-order-render.js';
+import { renderLabOrderCard, renderLabPlanCard } from '../js/lab-order-render.js';
 
 describe('lab order card rendering', () => {
+  it('renders a natural lab plan as a soft conversion card before provider comparison', () => {
+    const html = renderLabPlanCard({
+      id: 'plan-1',
+      title: 'Suggested focused lab plan',
+      markers: [
+        { markerKey: 'coagulation.homocysteine', displayName: 'Homocysteine', reason: 'Functional methylation marker.' },
+        { markerKey: 'vitamins.folate', displayName: 'Folate', reason: 'B9 status.' },
+      ],
+      safetyBoundary: 'Review first.',
+    }, 4);
+
+    expect(html).toContain('Next blood draw');
+    expect(html).toContain('Plan first');
+    expect(html).toContain('Homocysteine');
+    expect(html).toContain('Functional methylation marker.');
+    expect(html).toContain('data-lab-order-action="compare-labs-from-plan"');
+    expect(html).toContain('data-lab-order-action="dismiss-lab-plan"');
+    expect(html).toContain('type="button" class="lab-order-primary"');
+  });
+
   it('renders action buttons as non-submit buttons to avoid accidental form navigation', () => {
     const html = renderLabOrderCard({
       id: 'draft-1',
