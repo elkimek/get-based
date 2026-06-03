@@ -31,6 +31,18 @@ interface Window {
   loadChatHistory?: () => Promise<void> | void;
   loadChatPersonality?: () => void;
   loadChatThreads?: () => void;
+  JSZip?: {
+    loadAsync(input: ArrayBuffer | Blob): Promise<{
+      files: Record<string, {
+        dir: boolean;
+        name: string;
+        async(type: 'blob'): Promise<Blob>;
+      }>;
+    }>;
+  };
+  mammoth?: {
+    extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<{ value?: string }>;
+  };
   navigate?: (route: string) => void;
   nostrGetSelectedNode?: () => string | null;
   nostrSetSelectedNode?: (url: string) => void;
