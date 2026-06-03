@@ -57,9 +57,9 @@ function _deployCatalog(body, req, res) {
       JSON.parse(body); // validate JSON shape
       const parsed = JSON.parse(body);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
-          || !parsed.slots || !parsed.shops) {
+          || !parsed.slots || !parsed.shops || !parsed.products) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Invalid catalog shape: missing required slots/shops keys');
+        res.end('Invalid catalog shape: missing required slots/shops/products keys');
         return;
       }
       const filePath = path.join(ROOT, 'data', 'recommendations.json');
@@ -618,8 +618,8 @@ const server = http.createServer((req, res) => {
     res.writeHead(403); res.end('Forbidden'); return;
   }
   // Hard loopback gate when bound to 0.0.0.0 (LAN-exposed for phone
-  // testing). Origin/Referer headers are forgeable by any LAN peer; the
-  // TCP socket address is not. The /api/* endpoints (deploy-catalog,
+  // testing). Origin/Referer headers are forgeable by any LAN peer;
+  // the TCP socket address is not. The /api/* endpoints (deploy-catalog,
   // git-status, proxy, fetch-page, check-url) write to disk / fetch
   // arbitrary URLs — none are needed for phone-testing the app's UX,
   // so refusing them outright on LAN is the safe default.
@@ -813,7 +813,7 @@ const server = http.createServer((req, res) => {
     // resolved path is guaranteed inside ROOT. Maintainer-placed symlinks
     // whose targets resolve outside ROOT are explicitly allowed; the
     // realpath check that previously rejected them was over-restrictive.
-    if (filePath.split(/[/\\]/).some(seg => seg === '..') || path.isAbsolute(filePath)) {
+    if (filePath.split(/[\/\\]/).some(seg => seg === '..') || path.isAbsolute(filePath)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'invalid path' }));
       return;
