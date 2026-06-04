@@ -1,9 +1,19 @@
+// @ts-check
 // light-device-session-modal.js — Log/start light therapy device sessions.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { BODY_REGIONS } from './sun.js';
+
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLInputElement|null}
+ */
+function _input(root, selector) {
+  return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
+}
 
 function _wireDeviceSessionModal(overlay) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
@@ -44,7 +54,7 @@ function _broadAreaForRegions(bodyAreas) {
 }
 
 function _readDistanceCm(overlay, fallbackCm) {
-  const distInput = overlay.querySelector('#dev-session-distance');
+  const distInput = _input(overlay, '#dev-session-distance');
   const distVal = parseFloat(distInput?.value);
   const distUnit = distInput?.dataset.unit || 'cm';
   return Number.isFinite(distVal)
@@ -162,9 +172,12 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   _wireDeviceSessionModal(overlay);
 
   let lastModePointerActivation = 0;
+  /**
+   * @param {HTMLElement} btn
+   */
   const setMode = (btn) => {
     const mode = btn.dataset.mode || '';
-    const input = overlay.querySelector('#dev-session-mode');
+    const input = _input(overlay, '#dev-session-mode');
     if (input) input.value = mode;
     for (const b of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
       const active = b === btn;
@@ -172,9 +185,10 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       b.setAttribute('aria-checked', active ? 'true' : 'false');
     }
   };
-  for (const btn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
+  for (const rawBtn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
+    const btn = /** @type {HTMLElement} */ (rawBtn);
     btn.addEventListener('pointerup', (e) => {
-      if (e.pointerType === 'mouse') return;
+      if ((/** @type {PointerEvent} */ (e)).pointerType === 'mouse') return;
       setMode(btn);
       lastModePointerActivation = Date.now();
       e.preventDefault();
@@ -228,13 +242,14 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   for (const btn of overlay.querySelectorAll('.dev-unit-btn')) {
     btn.addEventListener('click', () => {
       const target = btn.getAttribute('data-unit');
-      const input = overlay.querySelector('#dev-session-distance');
+      const input = _input(overlay, '#dev-session-distance');
+      if (!input || !target) return;
       const cur = input.dataset.unit || 'cm';
       if (cur === target) return;
       const v = parseFloat(input.value);
       if (Number.isFinite(v)) {
         const cm = cur === 'in' ? v * 2.54 : v;
-        input.value = target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm);
+        input.value = String(target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm));
       }
       input.dataset.unit = target;
       input.step = target === 'in' ? '0.5' : '1';
@@ -247,7 +262,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   }
 
   overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
-    const durationMin = parseInt(overlay.querySelector('#dev-session-duration').value, 10) || 10;
+    const durationMin = parseInt(_input(overlay, '#dev-session-duration')?.value || '', 10) || 10;
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
     const bodyAreas = Array.from(selectedRegions);
     if (bodyAreas.length === 0) {
@@ -255,8 +270,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       return;
     }
     const bodyArea = _broadAreaForRegions(bodyAreas);
-    const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
-    const mode = showModePicker ? overlay.querySelector('#dev-session-mode')?.value || null : null;
+    const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
+    const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
     await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
     overlay.remove();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
@@ -275,8 +290,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       return;
     }
     const bodyArea = _broadAreaForRegions(bodyAreas);
-    const eyesProtected = overlay.querySelector('#dev-session-eyes').checked;
-    const mode = showModePicker ? overlay.querySelector('#dev-session-mode')?.value || null : null;
+    const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
+    const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
     await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
     overlay.remove();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);

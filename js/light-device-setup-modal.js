@@ -1,3 +1,4 @@
+// @ts-check
 // light-device-setup-modal.js — add/custom light-device setup UI.
 //
 // Device persistence stays behind light-devices-store.js via injected
@@ -9,6 +10,34 @@ import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.j
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLInputElement|null}
+ */
+function _input(root, selector) {
+  return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
+}
+
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLButtonElement|null}
+ */
+function _button(root, selector) {
+  return /** @type {HTMLButtonElement|null} */ (root.querySelector(selector));
+}
+
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLSelectElement|null}
+ */
+function _select(root, selector) {
+  return /** @type {HTMLSelectElement|null} */ (root.querySelector(selector));
+}
+
+/** @type {any} */
 const setupDeps = {
   loadPresets: async () => ({ presets: [], types: {} }),
   addDeviceFromPreset: async () => null,
@@ -108,7 +137,7 @@ export async function openAddDeviceDialog() {
   }, { passive: false });
 
   let selectedPresetId = '';
-  const addBtn = overlay.querySelector('#add-device-confirm');
+  const addBtn = _button(overlay, '#add-device-confirm');
   const presetRows = Array.from(overlay.querySelectorAll('.light-device-preset-row'));
   for (const row of presetRows) {
     row.addEventListener('click', () => {
@@ -122,7 +151,7 @@ export async function openAddDeviceDialog() {
     });
   }
 
-  addBtn.addEventListener('click', async () => {
+  addBtn?.addEventListener('click', async () => {
     const presetId = selectedPresetId;
     if (!presetId) return;
     await setupDeps.addDeviceFromPreset(presetId);
@@ -230,13 +259,14 @@ export async function openCustomDeviceDialog() {
     btn.addEventListener('click', () => {
       const target = btn.getAttribute('data-unit');
       const inputId = btn.getAttribute('data-target');
-      const input = overlay.querySelector('#' + inputId);
+      const input = inputId ? _input(overlay, '#' + inputId) : null;
+      if (!input || !target) return;
       const cur = input.dataset.unit || 'cm';
       if (cur === target) return;
       const v = parseFloat(input.value);
       if (Number.isFinite(v)) {
         const cm = cur === 'in' ? v * 2.54 : v;
-        input.value = target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm * 10) / 10;
+        input.value = String(target === 'in' ? +(cm / 2.54).toFixed(1) : Math.round(cm * 10) / 10);
       }
       input.dataset.unit = target;
       for (const b of overlay.querySelectorAll(`.dev-unit-btn[data-target="${inputId}"]`)) {
@@ -250,11 +280,12 @@ export async function openCustomDeviceDialog() {
   if (hasAI) {
     overlay.querySelector('#custom-dev-fetch').addEventListener('click', () => _fetchCustomDeviceFromURL(overlay));
     if (hasVision) {
-      overlay.querySelector('#custom-dev-scan').addEventListener('click', () => overlay.querySelector('#custom-dev-image').click());
-      overlay.querySelector('#custom-dev-image').addEventListener('change', (e) => _scanCustomDeviceLabel(e.target, overlay));
+      const imageInput = _input(overlay, '#custom-dev-image');
+      _button(overlay, '#custom-dev-scan')?.addEventListener('click', () => imageInput?.click());
+      imageInput?.addEventListener('change', (e) => _scanCustomDeviceLabel(/** @type {HTMLInputElement} */ (e.target), overlay));
     }
   }
-  overlay.querySelector('#custom-dev-save').addEventListener('click', async () => {
+  _button(overlay, '#custom-dev-save')?.addEventListener('click', async () => {
     const spec = _readCustomDeviceForm(overlay);
     if (!spec.brand || !spec.model) {
       showNotification('Brand and model are required.', 'error');
@@ -268,22 +299,22 @@ export async function openCustomDeviceDialog() {
 }
 
 function _readCustomDeviceForm(overlay) {
-  const peaksRaw = overlay.querySelector('#custom-dev-peaks').value.trim();
+  const peaksRaw = _input(overlay, '#custom-dev-peaks')?.value.trim() || '';
   const peaks = peaksRaw
     ? peaksRaw.split(/[,\s]+/).map(s => parseFloat(s)).filter(n => Number.isFinite(n) && n > 100 && n < 3000)
     : [];
-  const irrRaw = overlay.querySelector('#custom-dev-irradiance').value.trim();
-  const distInput = overlay.querySelector('#custom-dev-distance');
-  const distRaw = distInput.value.trim();
-  const distUnit = distInput.dataset.unit || 'cm';
+  const irrRaw = _input(overlay, '#custom-dev-irradiance')?.value.trim() || '';
+  const distInput = _input(overlay, '#custom-dev-distance');
+  const distRaw = distInput?.value.trim() || '';
+  const distUnit = distInput?.dataset.unit || 'cm';
   const distCm = distRaw
     ? (distUnit === 'in' ? parseFloat(distRaw) * 2.54 : parseFloat(distRaw))
     : null;
-  const luxRaw = overlay.querySelector('#custom-dev-lux').value.trim();
+  const luxRaw = _input(overlay, '#custom-dev-lux')?.value.trim() || '';
   return {
-    brand: overlay.querySelector('#custom-dev-brand').value.trim(),
-    model: overlay.querySelector('#custom-dev-model').value.trim(),
-    type: overlay.querySelector('#custom-dev-type').value,
+    brand: _input(overlay, '#custom-dev-brand')?.value.trim() || '',
+    model: _input(overlay, '#custom-dev-model')?.value.trim() || '',
+    type: _select(overlay, '#custom-dev-type')?.value || 'combined',
     peakWavelengths: peaks,
     mwPerCm2At15cm: irrRaw ? parseFloat(irrRaw) : null,
     recommendedDistanceCm: distCm,
@@ -296,15 +327,15 @@ function _applyParsedDevice(parsed, overlay) {
   const valid = v => v != null && v !== '' && !/not (specified|found|available|provided)/i.test(String(v)) && !/^n\/?a$/i.test(String(v));
   const set = (id, val) => {
     if (!valid(val)) return;
-    const el = overlay.querySelector(id);
-    if (el && !el.value) el.value = val;
+    const el = /** @type {HTMLInputElement|HTMLSelectElement|null} */ (overlay.querySelector(id));
+    if (el && !el.value) el.value = String(val);
   };
   set('#custom-dev-brand', parsed.brand);
   set('#custom-dev-model', parsed.model);
   if (parsed.type) {
-    const sel = overlay.querySelector('#custom-dev-type');
-    const opt = Array.from(sel.options).find(o => o.value === parsed.type);
-    if (opt) sel.value = parsed.type;
+    const sel = _select(overlay, '#custom-dev-type');
+    const opt = sel ? Array.from(sel.options).find(o => o.value === parsed.type) : null;
+    if (sel && opt) sel.value = parsed.type;
   }
   if (Array.isArray(parsed.peakWavelengths) && parsed.peakWavelengths.length > 0) {
     const peaks = parsed.peakWavelengths.filter(n => Number.isFinite(Number(n))).join(', ');
@@ -315,13 +346,13 @@ function _applyParsedDevice(parsed, overlay) {
   // (US users), convert before populating so the visible value matches the
   // field's unit label.
   if (parsed.recommendedDistanceCm != null) {
-    const distEl = overlay.querySelector('#custom-dev-distance');
+    const distEl = _input(overlay, '#custom-dev-distance');
     if (distEl && !distEl.value) {
       const distUnit = distEl.dataset.unit || 'cm';
       const v = distUnit === 'in'
         ? +(Number(parsed.recommendedDistanceCm) / 2.54).toFixed(1)
         : Number(parsed.recommendedDistanceCm);
-      if (Number.isFinite(v) && v > 0) distEl.value = v;
+      if (Number.isFinite(v) && v > 0) distEl.value = String(v);
     }
   }
   set('#custom-dev-lux', parsed.lux);
@@ -359,12 +390,15 @@ channelGroups / modes / coupling guide (set ALL THREE to null if the product pag
 
 Use null for fields not found. Do NOT invent modes the vendor doesn't describe. No other text.`;
 
+/**
+ * @param {HTMLElement} overlay
+ */
 async function _fetchCustomDeviceFromURL(overlay) {
-  const urlInput = overlay.querySelector('#custom-dev-url');
+  const urlInput = _input(overlay, '#custom-dev-url');
   const url = urlInput?.value.trim();
   if (!url) { showNotification('Paste a product URL first', 'error'); return; }
   try { new URL(url); } catch { showNotification('Invalid URL', 'error'); return; }
-  const btn = overlay.querySelector('#custom-dev-fetch');
+  const btn = _button(overlay, '#custom-dev-fetch');
   if (btn) { btn.textContent = 'Fetching...'; btn.disabled = true; }
   try {
     // Same fetch path supplements.js uses — /api/fetch-page on localhost,
@@ -398,7 +432,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT);
     const comments = [];
     let c; while ((c = walker.nextNode())) comments.push(c);
-    for (const comment of comments) comment.remove();
+    for (const comment of comments) comment.parentNode?.removeChild(comment);
     const plainText = (doc.body?.textContent || '').replace(/\s{2,}/g, ' ');
     const kwPattern = /(.{0,300}(?:wavelength|spectrum|nm|red light|near.?infrared|UV[AB]?|irradiance|mW\/cm|lux|inches|distance|specifications?|specs).{0,500})/gi;
     const kwMatches = plainText.match(kwPattern) || [];
@@ -421,6 +455,10 @@ async function _fetchCustomDeviceFromURL(overlay) {
   }
 }
 
+/**
+ * @param {HTMLInputElement} input
+ * @param {HTMLElement} overlay
+ */
 async function _scanCustomDeviceLabel(input, overlay) {
   const file = input.files?.[0];
   input.value = '';
@@ -428,12 +466,12 @@ async function _scanCustomDeviceLabel(input, overlay) {
     showNotification('Please select an image (JPG, PNG, WebP)', 'error');
     return;
   }
-  const btn = overlay.querySelector('#custom-dev-scan');
+  const btn = _button(overlay, '#custom-dev-scan');
   if (btn) { btn.textContent = 'Scanning...'; btn.disabled = true; }
   try {
     const { base64, mediaType } = await resizeImage(file, 1024, 0.85);
-    const imageBlock = formatImageBlock(base64, mediaType);
-    const content = buildVisionContent([imageBlock], _CUSTOM_DEVICE_PROMPT);
+    const imageBlock = formatImageBlock(base64, mediaType, 'openrouter');
+    const content = buildVisionContent([imageBlock], _CUSTOM_DEVICE_PROMPT, 'openrouter');
     const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 800 });
     if (!overlay.isConnected) return;
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
