@@ -1,3 +1,4 @@
+// @ts-check
 // light-tools.js — In-browser measurement tools for the Light lens.
 //
 // All tools run fully on-device. Camera frames are processed in-browser
@@ -19,7 +20,7 @@
 // stores tool, timestamp, value, confidence, optional location label.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils.js';
 import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
@@ -346,8 +347,9 @@ export function openSunriseLogger() {
   document.body.appendChild(overlay);
   try { trapModalFocus(overlay); } catch (e) {}
 
-  overlay.querySelector('#sunrise-save').addEventListener('click', async () => {
-    const minutes = normalizeGoldenHourMinutes(overlay.querySelector('#sunrise-duration').value);
+  queryRequired(overlay, '#sunrise-save').addEventListener('click', async () => {
+    const durationInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#sunrise-duration'));
+    const minutes = normalizeGoldenHourMinutes(durationInput.value);
     if (window.logCompletedSession) {
       const start = Date.now() - minutes * 60 * 1000;
       await window.logCompletedSession({
@@ -393,9 +395,9 @@ export async function openEyeLevelAudit() {
   document.body.appendChild(overlay);
   try { trapModalFocus(overlay); } catch (e) {}
 
-  const statusEl = overlay.querySelector('#audit-status');
-  const listEl = overlay.querySelector('#audit-room-list');
-  const toggleBtn = overlay.querySelector('#audit-toggle');
+  const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
+  const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
+  const toggleBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#audit-toggle'));
   let pauseDetections = [];
 
   // Common room labels for one-tap selection. The free-text input is
@@ -415,10 +417,11 @@ export async function openEyeLevelAudit() {
     `).join('');
     // Wire up the inputs every render — DOM was just rebuilt.
     listEl.querySelectorAll('.audit-room-label-input').forEach((input) => {
-      input.addEventListener('change', (e) => {
-        const idx = parseInt(e.target.dataset.idx, 10);
+      const labelInput = /** @type {HTMLInputElement} */ (input);
+      labelInput.addEventListener('change', () => {
+        const idx = parseInt(labelInput.dataset.idx || '', 10);
         if (!isNaN(idx) && pauseDetections[idx]) {
-          pauseDetections[idx].label = e.target.value.trim();
+          pauseDetections[idx].label = labelInput.value.trim();
         }
       });
     });

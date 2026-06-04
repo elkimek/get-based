@@ -1,3 +1,4 @@
+// @ts-check
 // light-tool-camera.js — Shared camera/runtime helpers for Light tools.
 
 import { escapeHTML } from './utils.js';
@@ -74,7 +75,7 @@ if (typeof window !== 'undefined') {
   window._dismissAimingGuide = (toolKey) => {
     try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
     // Hide the currently-rendered guide without re-rendering the whole modal.
-    const el = document.querySelector(`.tool-aiming-guide[data-tool="${toolKey}"]`);
+    const el = /** @type {HTMLElement | null} */ (document.querySelector(`.tool-aiming-guide[data-tool="${toolKey}"]`));
     if (el) el.style.display = 'none';
   };
 }
