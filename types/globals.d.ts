@@ -93,7 +93,7 @@ interface Window {
   mammoth?: {
     extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<{ value?: string }>;
   };
-  navigate?: (route: string) => void;
+  navigate?: (route: string, options?: any) => void;
   nostrGetSelectedNode?: () => string | null;
   nostrSetSelectedNode?: (url: string) => void;
   openClientList?: () => void;
@@ -123,6 +123,21 @@ interface Window {
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
   loadCatalog?: AnyFunction;
   renderLightDeviceAffiliateRow?: AnyFunction;
+  getMeasurementsForRoom?: AnyFunction;
+  maybeAnalyzeAuditAfterSave?: AnyFunction;
+  renderAuditAIBlock?: AnyFunction;
+  renderAuditAIDot?: AnyFunction;
+  renderBurdenInterp?: AnyFunction;
+  renderMeasurementAIInline?: AnyFunction;
+  renderRoomAIBlock?: AnyFunction;
+  renderScreenAIBlock?: AnyFunction;
+  saveLightAuditFromUI?: AnyFunction;
+  openChatPanel?: AnyFunction;
+  openCCTMeter?: AnyFunction;
+  openDarknessMeter?: AnyFunction;
+  openFlickerDetector?: AnyFunction;
+  openLuxMeter?: AnyFunction;
+  openSpectrumClassifier?: AnyFunction;
   _fitbitAuth?: unknown;
   _appleHealth?: unknown;
   _ouraAuth?: unknown;
@@ -138,3 +153,16 @@ interface Window {
   updateSettingsUI?: () => void;
   updateTweaksUI?: () => void;
 }
+
+declare var getMeasurementsForRoom: AnyFunction | undefined;
+declare var navigate: AnyFunction | undefined;
+declare var openCCTMeter: AnyFunction | undefined;
+declare var openDarknessMeter: AnyFunction | undefined;
+declare var openFlickerDetector: AnyFunction | undefined;
+declare var openLuxMeter: AnyFunction | undefined;
+declare var openSpectrumClassifier: AnyFunction | undefined;
+declare var renderBurdenInterp: AnyFunction | undefined;
+declare var renderMeasurementAIInline: AnyFunction | undefined;
+declare var renderRoomAIBlock: AnyFunction | undefined;
+declare var renderScreenAIBlock: AnyFunction | undefined;
+declare var saveLightAuditFromUI: AnyFunction | undefined;

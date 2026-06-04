@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-model.js — deterministic Light Environment scoring and picker model.
 //
 // Keep this module free of app state and persistence. light-env.js owns storage,

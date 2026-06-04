@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-evening.js — canonical evening-hours helpers for Light Environment rooms.
 //
 // Rooms now store after-sunset exposure as numeric `eveningHoursAfterSunset`.
@@ -64,6 +65,7 @@ export function normalizeLightEnvironmentEveningFields(lightEnvironment) {
 
 export function normalizeRoomEveningPatch(patch = {}) {
   if (!patch || typeof patch !== 'object') return patch;
+  /** @type {Record<string, any>} */
   const next = { ...patch };
   if ('eveningUseAfterSunset' in next && !('eveningHoursAfterSunset' in next)) {
     next.eveningHoursAfterSunset = getRoomEveningHoursAfterSunset(next);

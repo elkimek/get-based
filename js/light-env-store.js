@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-store.js - persisted Light Environment room/screen mutations.
 //
 // UI modules own rendering, modal state, prompts, and notifications. This
