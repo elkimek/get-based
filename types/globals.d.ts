@@ -150,6 +150,7 @@ interface Window {
   _lastOllamaModelDetails?: any[];
   _lastIsOllamaServer?: boolean;
   _settingsHadProvider?: boolean;
+  _veniceAttestation?: any;
   _rsCashuBackupTimer?: ReturnType<typeof setTimeout>;
   _walletSeedThenAction?: AnyFunction | null;
   _getActiveProfileId?: () => string | null;

@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-round-prompts.js - prompt and message helpers for discussion rounds
 
 export const DEFAULT_DISCUSS_PROMPT = 'Respond to the other analyst\'s points above. Where do you agree or disagree? Add any insights they may have missed.';

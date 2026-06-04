@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-round-view.js - DOM helpers for live discussion round messages
 
 import { calculateCost, formatCost } from './schema.js';

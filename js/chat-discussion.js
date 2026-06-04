@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion.js - public barrel for multi-persona discussion helpers
 
 export { getCurrentDiscussionState, getThreadPersonaCount } from './chat-discussion-state.js';

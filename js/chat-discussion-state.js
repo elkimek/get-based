@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-state.js — multi-persona discussion state helpers
 
 import { state } from './state.js';

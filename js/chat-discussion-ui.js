@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-ui.js - button and continuation controls for multi-persona discussions
 
 import { state } from './state.js';
@@ -22,6 +23,11 @@ export function updateDiscussButton() {
     : 'Add another persona for a second opinion';
 }
 
+/**
+ * @param {any[]} personas
+ * @param {string | null | undefined} originalPersonality
+ * @param {{ onPersist?: () => void }} [options]
+ */
 export function showDiscussContinuePrompt(personas, originalPersonality, { onPersist } = {}) {
   const container = document.getElementById('chat-messages');
   if (!container) return;
@@ -38,7 +44,7 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
   container.appendChild(prompt);
   container.scrollTop = container.scrollHeight;
 
-  const steerInput = prompt.querySelector('.chat-discuss-steer');
+  const steerInput = /** @type {HTMLInputElement | null} */ (prompt.querySelector('.chat-discuss-steer'));
   if (steerInput) steerInput.focus();
 
   state._discussionPersonas = personas;

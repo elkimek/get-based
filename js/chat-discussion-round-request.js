@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-round-request.js - API request helpers for discussion rounds
 
 import { CHAT_SYSTEM_PROMPT } from './constants.js';

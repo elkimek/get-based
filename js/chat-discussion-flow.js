@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-flow.js - public discussion user-action handlers
 
 import { state } from './state.js';
@@ -35,7 +36,7 @@ export async function sendDiscussionUserTurn(text, discussionState = getCurrentD
 
 export async function continueDiscussion() {
   if (getChatAbortController()) return;
-  const steerInput = document.getElementById('chat-discuss-steer');
+  const steerInput = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-discuss-steer'));
   const steerText = steerInput ? steerInput.value.trim() : '';
   const threadId = state.currentThreadId;
   removeDiscussContinuePrompt();

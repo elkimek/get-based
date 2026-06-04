@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-turns.js - discussion round turn execution helpers
 
 import { state } from './state.js';
