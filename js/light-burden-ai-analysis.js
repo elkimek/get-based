@@ -1,3 +1,4 @@
+// @ts-check
 // light-burden-ai-analysis.js — AI verdict for the live indoor-burden
 // summary at the bottom of the Light Environment block.
 //
@@ -46,11 +47,11 @@ export function getBurdenFingerprint() {
   const env = _getEnv();
   if (!env) return '';
   const burden = computeIndoorBurden();
-  const parts = [
+  const parts = /** @type {Array<string|number>} */ ([
     burden.tier,
     Math.round(burden.d2 * 10) / 10,
     Math.round(burden.d3 * 10) / 10,
-  ];
+  ]);
   for (const r of env.rooms || []) {
     if (!isActiveToday(r)) continue;
     parts.push(`r:${r.id}:${r.primarySource || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);

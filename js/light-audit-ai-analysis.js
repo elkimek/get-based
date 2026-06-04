@@ -1,3 +1,4 @@
+// @ts-check
 // light-audit-ai-analysis.js — per-audit AI verdict for the Light
 // Audit feature (frozen snapshot of rooms + screens + measurements).
 //

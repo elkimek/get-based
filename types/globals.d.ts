@@ -53,6 +53,13 @@ interface Window {
   renderSessionAIDetail?: AnyFunction;
   renderLightChannelsLive?: AnyFunction;
   renderLightTodayStrip?: AnyFunction;
+  rollingChannelTotals?: (days?: number) => Record<string, number>;
+  rollingDeviceTotals?: (days?: number) => Record<string, number>;
+  rollingVitaminDIU?: (days?: number) => number;
+  weeklyChannelTier?: (value: number, channel?: string) => number;
+  tierLabel?: (tier: number) => string;
+  getSessions?: () => any[];
+  getDeviceSessions?: () => any[];
   maybeAnalyzeSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;

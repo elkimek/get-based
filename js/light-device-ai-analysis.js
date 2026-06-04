@@ -1,3 +1,4 @@
+// @ts-check
 // light-device-ai-analysis.js — per-session AI verdict for light therapy
 // device sessions (PBM panels, SAD lamps, dawn simulators, UVB phototherapy).
 //
@@ -10,7 +11,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getDevices, getDeviceSessions } from './light-devices.js';
-import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit } from './sun.js';
+import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 
@@ -153,8 +154,8 @@ export function buildDeviceSessionContext(sess) {
     // region weights. Falls back to null on missing data.
     let _bf = null;
     if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0
-        && typeof window !== 'undefined' && Array.isArray(window.BODY_REGIONS)) {
-      const _fbk = Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]));
+        && Array.isArray(BODY_REGIONS)) {
+      const _fbk = Object.fromEntries(BODY_REGIONS.map(r => [r.key, r.fraction]));
       _bf = sess.bodyAreas.reduce((s, k) => s + (_fbk[k] || 0), 0) || null;
     }
     const parts = [];

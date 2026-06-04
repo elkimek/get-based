@@ -1,3 +1,4 @@
+// @ts-check
 // light-today-ai.js — Light Today daily/weekly hero verdict.
 //
 // Synthesizes one day's full picture (sun + devices + tools) into a single
@@ -32,7 +33,7 @@ function _dayBoundaries(date) {
 }
 
 function _getDailyVerdicts() {
-  if (!state.importedData) state.importedData = {};
+  if (!state.importedData) state.importedData = /** @type {any} */ ({});
   if (!state.importedData.lightDailyVerdicts) state.importedData.lightDailyVerdicts = {};
   return state.importedData.lightDailyVerdicts;
 }
