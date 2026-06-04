@@ -1,3 +1,4 @@
+// @ts-check
 // light-conditions-now.js — Current outdoor conditions widget for Light & Sun
 
 import { state } from './state.js';
@@ -226,14 +227,15 @@ export function _refreshConditionsNow() {
     try { window.purgeMeteoCache(); } catch {}
   }
   document.querySelectorAll('.conditions-now').forEach(el => {
-    const id = el.id;
-    const variant = el.dataset.variant || 'full';
+    const slot = /** @type {HTMLElement} */ (el);
+    const id = slot.id;
+    const variant = slot.dataset.variant || 'full';
     if (id) _refreshConditions(id, variant, { force: true });
   });
 }
 
 export async function _setManualUvi() {
-  const input = document.getElementById('manual-uvi-input');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-uvi-input'));
   if (!input) return;
   const v = parseFloat(input.value);
   if (!Number.isFinite(v) || v < 0 || v > 20) {
@@ -379,8 +381,9 @@ export function _inspectConditionsNow() {
   const rawPre = overlay.querySelector('.sun-detail-section pre');
   if (rawPre) {
     rawPre.addEventListener('wheel', (e) => {
+      const wheelEvent = /** @type {WheelEvent} */ (e);
       const before = rawPre.scrollTop;
-      rawPre.scrollTop = before + e.deltaY;
+      rawPre.scrollTop = before + wheelEvent.deltaY;
       // Stop the modal from also scrolling on the same wheel tick.
       e.stopPropagation();
       e.preventDefault();
@@ -568,6 +571,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
       : 'Current time marker — all tracked sun events for today have passed.',
   };
   // Insert "now" at the right chronological position
+  /** @type {Array<{ icon: string, label: string, ts: number, tooltip: string, kind?: string, isNow?: boolean, peak?: boolean, uvaEvent?: boolean }>} */
   const eventsWithNow = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
   const eventRailLabel = (e) => ({
     sunrise: 'Sunrise',

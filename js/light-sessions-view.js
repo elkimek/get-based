@@ -1,3 +1,4 @@
+// @ts-check
 // light-sessions-view.js — Unified Light & Sun session list and modal
 
 import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';

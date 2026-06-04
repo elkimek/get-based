@@ -1,3 +1,4 @@
+// @ts-check
 // light-channel-view.js — Light channel pill and detail renderers
 
 import { state } from './state.js';
@@ -723,7 +724,7 @@ export function _openChannelOnLightPage(channelKey) {
 // expanded at a time — opening another collapses the previous one.
 // Re-clicking the same pill collapses it.
 export function _toggleChannelDetail(channelKey) {
-  const slot = document.querySelector('[data-channel-detail-slot]');
+  const slot = /** @type {HTMLElement | null} */ (document.querySelector('[data-channel-detail-slot]'));
   if (!slot) return;
   const row = slot.previousElementSibling; // the pill row
   const pills = row ? row.querySelectorAll('.light-pill') : [];
@@ -740,9 +741,9 @@ export function _toggleChannelDetail(channelKey) {
   slot.dataset.openChannel = channelKey;
   // Mark the matching pill expanded; move focus into the panel for SR users
   for (const p of pills) {
-    if (p.dataset.channel === channelKey) {
+    if (/** @type {HTMLElement} */ (p).dataset.channel === channelKey) {
       p.setAttribute('aria-expanded', 'true');
-      const panel = slot.firstElementChild;
+      const panel = /** @type {HTMLElement | null} */ (slot.firstElementChild);
       if (panel) panel.setAttribute('tabindex', '-1');
       requestAnimationFrame(() => panel && panel.focus({ preventScroll: false }));
       break;

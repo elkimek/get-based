@@ -1,3 +1,4 @@
+// @ts-check
 // sun-context.js — buildSunContext({ tier }) for AI integration.
 // Two-tier prompt blob; per-session detail moved to a tool-call API.
 //
@@ -861,6 +862,9 @@ function _projectSession(sess, fields) {
 // Default field set includes body summary (preset/fraction/sunscreen) but
 // strips the regions[] array unless the per-profile consent flag is set
 // (isBodyRegionsInAIContext). Location stays off by default.
+/**
+ * @param {{ days?: number, fields?: string[], includeActive?: boolean }} [opts]
+ */
 export function getSunSessionsSlice({ days = 30, fields, includeActive = false } = {}) {
   const sessions = state.importedData?.sunSessions || [];
   if (sessions.length === 0) return [];
