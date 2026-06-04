@@ -466,9 +466,9 @@ async function _refreshRoutstrWalletBalance() {
   } catch {
     el.textContent = '\u26a1 0 sats';
   }
-  if (window.cashuGetMintUrl) window.cashuGetMintUrl().then(function(url) {
+  if (window.cashuGetMintUrl) Promise.resolve(window.cashuGetMintUrl()).then(function(url) {
     const mintEl = document.getElementById('routstr-mint-label');
-    if (mintEl) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (mintEl && url) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   });
 }
 

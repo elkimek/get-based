@@ -234,7 +234,7 @@ export function initSettingsModelFetch() {
     });
     if (window.cashuGetMintUrl) Promise.resolve(window.cashuGetMintUrl()).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
-      if (el) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     });
     // H6: Check for pending deposit recovery
     if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {

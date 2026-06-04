@@ -43,7 +43,7 @@ interface Window {
   cashuGetBalance?: AnyFunction;
   cashuGetFeePct?: AnyFunction;
   cashuGetMaxWithdrawable?: AnyFunction;
-  cashuGetMintUrl?: AnyFunction;
+  cashuGetMintUrl?: () => Promise<string | null> | string | null;
   cashuGetWalletMnemonic?: AnyFunction;
   cashuHasWalletSeed?: AnyFunction;
   cashuImportWallet?: AnyFunction;
