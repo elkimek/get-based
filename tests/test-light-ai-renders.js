@@ -305,7 +305,17 @@ await import('../js/state.js');
   console.log('%c 9. Onboarding render ', 'font-weight:bold;color:#0ea5e9');
   {
     const mod = await import('../js/sun-onboarding-ai.js');
-    reset({ sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() } });
+    reset({
+      sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() },
+      healthGoals: [
+        { text: 'Stabilize sleep timing', severity: 'major' },
+      ],
+    });
+
+    const onboardingCtx = mod.buildOnboardingContext();
+    assert('onboarding context references array-shaped health goals',
+      onboardingCtx.includes('Stabilize sleep timing'),
+      onboardingCtx);
 
     withoutProvider();
     assert('onboarding block returns "" without provider',

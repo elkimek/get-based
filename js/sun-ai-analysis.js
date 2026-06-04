@@ -1,3 +1,4 @@
+// @ts-check
 // sun-ai-analysis.js — per-session AI verdict + tip for sun sessions.
 //
 // Thin wrapper around ai-verdict-engine: supplies the sun-specific
@@ -117,11 +118,19 @@ function _sevenDayRollup(currentSess) {
   };
 }
 
+function _healthGoalsText() {
+  const healthGoals = /** @type {any} */ (state.importedData?.healthGoals);
+  if (Array.isArray(healthGoals)) {
+    return healthGoals.map(g => g?.text).filter(Boolean).slice(0, 3).join('; ');
+  }
+  return healthGoals?.goals || '';
+}
+
 export function buildSingleSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
   const lc = state.importedData?.lightCircadian || {};
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = _healthGoalsText();
   const lines = [];
 
   lines.push('### Session');

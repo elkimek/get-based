@@ -1,3 +1,4 @@
+// @ts-check
 // sun-onboarding-ai.js — AI verdict for the Light & Sun onboarding
 // completion. Synthesizes the user's setup answers + Ott burden + sleep
 // complaints + goals into a personalized starting plan.
@@ -13,6 +14,14 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
+
+function _healthGoalsText() {
+  const healthGoals = /** @type {any} */ (state.importedData?.healthGoals);
+  if (Array.isArray(healthGoals)) {
+    return healthGoals.map(g => g?.text).filter(Boolean).slice(0, 3).join('; ');
+  }
+  return healthGoals?.goals || '';
+}
 
 const _OTT_LABELS = {
   morningDeficit: 'No bright light within 1 hr of waking',
@@ -90,7 +99,7 @@ export function buildOnboardingContext() {
     }
   }
 
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = _healthGoalsText();
   const sleep = state.importedData?.sleepRest;
   if (goals || sleep) {
     lines.push('');
