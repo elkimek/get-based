@@ -1,3 +1,4 @@
+// @ts-check
 // api-provider-storage.js — persisted AI provider settings, keys, and model caches.
 
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';

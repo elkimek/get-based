@@ -1,3 +1,4 @@
+// @ts-check
 // provider-panel-renderers.js — AI provider settings panel markup
 
 import { escapeHTML, escapeAttr } from './utils.js';

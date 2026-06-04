@@ -1,3 +1,4 @@
+// @ts-check
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -183,7 +184,10 @@ export function switchAIProvider(provider) {
   if (panel) panel.innerHTML = renderAIProviderPanel(provider);
   const modal = document.getElementById('settings-modal');
   if (modal) {
-    modal.querySelectorAll('.ai-provider-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.provider === provider));
+    modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
+      const providerBtn = /** @type {HTMLElement} */ (btn);
+      providerBtn.classList.toggle('active', providerBtn.dataset.provider === provider);
+    });
   }
   initSettingsOllamaCheck();
   initSettingsModelFetch();
@@ -219,7 +223,7 @@ export function initSettingsModelFetch() {
   }
   const rsKey = getRoutstrKey();
   if (rsKey && document.getElementById('routstr-model-area')) {
-    fetchRoutstrModels(rsKey).then(function(models) { if (models.length) renderRoutstrModelDropdown(models); });
+    fetchRoutstrModels().then(function(models) { if (models.length) renderRoutstrModelDropdown(models); });
     refreshRoutstrBalance();
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
@@ -228,9 +232,9 @@ export function initSettingsModelFetch() {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
-    if (window.cashuGetMintUrl) window.cashuGetMintUrl().then(function(url) {
+    if (window.cashuGetMintUrl) Promise.resolve(window.cashuGetMintUrl()).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
-      if (el) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     });
     // H6: Check for pending deposit recovery
     if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {
@@ -307,9 +311,10 @@ export function refreshVeniceBalance() {
 }
 
 export async function handleSaveVeniceKey() {
-  const input = document.getElementById('venice-key-input');
-  const btn = document.getElementById('save-venice-key-btn');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('venice-key-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-venice-key-btn'));
   const status = document.getElementById('venice-key-status');
+  if (!input || !btn || !status) return;
   const key = input.value.trim();
   if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter an API key</span>'; return; }
   btn.disabled = true; btn.textContent = 'Validating...';
@@ -355,9 +360,10 @@ export function handleRemoveVeniceKey() {
 // OPENROUTER HANDLERS
 // ═══════════════════════════════════════════════
 export async function handleSaveOpenRouterKey() {
-  const input = document.getElementById('openrouter-key-input');
-  const btn = document.getElementById('save-openrouter-key-btn');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-key-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-openrouter-key-btn'));
   const status = document.getElementById('openrouter-key-status');
+  if (!input || !btn || !status) return;
   const key = input.value.trim();
   if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter an API key</span>'; return; }
   btn.disabled = true; btn.textContent = 'Validating...';
@@ -448,9 +454,10 @@ export function showInsufficientBalanceDialog() {
 
 // ─── Routstr handlers ───
 export async function handleSaveRoutstrKey() {
-  const input = document.getElementById('routstr-key-input');
-  const btn = document.getElementById('save-routstr-key-btn');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-key-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-routstr-key-btn'));
   const status = document.getElementById('routstr-key-status');
+  if (!input || !btn || !status) return;
   let key = input.value.trim();
   if (key.startsWith('cashu:')) key = key.slice(6); // strip URI prefix
   if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter a key or Cashu token</span>'; return; }
@@ -521,8 +528,8 @@ export function handleRemoveRoutstrKey() {
 
 // ─── Custom API handlers ───
 async function handleSaveCustomApi() {
-  const urlInput = document.getElementById('custom-url-input');
-  const keyInput = document.getElementById('custom-key-input');
+  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-url-input'));
+  const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-key-input'));
   if (!urlInput || !keyInput) return;
   const url = urlInput.value.trim().replace(/\/+$/, '');
   const key = keyInput.value.trim();

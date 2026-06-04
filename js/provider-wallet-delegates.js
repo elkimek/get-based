@@ -1,3 +1,4 @@
+// @ts-check
 // provider-wallet-delegates.js - Delegated Routstr/Cashu wallet UI actions
 
 import { showNotification } from './utils.js';
@@ -38,12 +39,13 @@ function _hideWalletMenu() {
 }
 
 function _setInputValue(id, value) {
-  const input = document.getElementById(id);
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById(id));
   if (input) input.value = value;
 }
 
 function _inputInt(id) {
-  return parseInt(document.getElementById(id)?.value, 10);
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+  return parseInt(input?.value || '', 10);
 }
 
 function _copyClipboard(el) {
@@ -99,13 +101,15 @@ function _handleRoutstrWalletKeydown(event) {
 function _handleRoutstrWalletChange(event) {
   const el = _closestWalletEl(event, '[data-routstr-wallet-change]');
   if (!el || el.dataset.routstrWalletChange !== 'seed-ack') return;
-  const continueBtn = document.getElementById('routstr-seed-continue');
-  if (continueBtn) continueBtn.disabled = !el.checked;
+  const continueBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('routstr-seed-continue'));
+  const checkbox = /** @type {HTMLInputElement} */ (el);
+  if (continueBtn) continueBtn.disabled = !checkbox.checked;
 }
 
 function _handleRoutstrWalletBlur(event) {
   const el = _closestWalletEl(event, '[data-routstr-wallet-blur]');
-  if (el?.dataset.routstrWalletBlur === 'wallet-fund-custom' && el.value.trim()) _call('doRoutstrWalletFundCustom');
+  const input = /** @type {HTMLInputElement | null} */ (el);
+  if (input?.dataset.routstrWalletBlur === 'wallet-fund-custom' && input.value.trim()) _call('doRoutstrWalletFundCustom');
 }
 
 function _hideMintEdit() {

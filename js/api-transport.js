@@ -1,3 +1,4 @@
+// @ts-check
 // api-transport.js - Shared AI API fetch retry and stream timeout helpers
 
 import { isDebugMode } from './utils.js';

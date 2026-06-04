@@ -4,6 +4,8 @@ declare const Buffer: {
   };
 };
 
+declare const qrcode: any;
+
 type AnyFunction = (...args: any[]) => any;
 
 interface AmbientLightSensor extends EventTarget {
@@ -27,14 +29,37 @@ interface Window {
     messages: Array<{ role: string; content: string }>;
     maxTokens?: number;
   }) => Promise<{ text?: string }> | { text?: string };
+  cashuCheckFundingStatus?: AnyFunction;
+  cashuCheckProofStates?: AnyFunction;
+  cashuClearPendingDeposit?: AnyFunction;
+  cashuClearPendingWithdraw?: AnyFunction;
+  cashuCreateFundingInvoice?: AnyFunction;
+  cashuCreateWithdrawQuote?: AnyFunction;
+  cashuDepositToNode?: AnyFunction;
   cashuDestroyWalletDB?: () => Promise<void> | void;
+  cashuExecuteWithdraw?: AnyFunction;
+  cashuExportWallet?: AnyFunction;
+  cashuGenerateWalletSeed?: AnyFunction;
+  cashuGetBalance?: AnyFunction;
+  cashuGetFeePct?: AnyFunction;
+  cashuGetMaxWithdrawable?: AnyFunction;
   cashuGetMintUrl?: () => Promise<string | null> | string | null;
-  cashuRestoreWalletFromSeed?: (seed: string) => Promise<void> | void;
+  cashuGetWalletMnemonic?: AnyFunction;
+  cashuHasWalletSeed?: AnyFunction;
+  cashuImportWallet?: AnyFunction;
+  cashuReceiveToken?: AnyFunction;
+  cashuRecoverPendingDeposit?: AnyFunction;
+  cashuRecoverPendingWithdraw?: AnyFunction;
+  cashuRestoreWalletFromSeed?: AnyFunction;
+  cashuSendAsToken?: AnyFunction;
   cashuSetMintUrl?: (url: string) => Promise<void> | void;
+  cashuWithdrawToAddress?: AnyFunction;
   Chart?: new (canvas: HTMLCanvasElement, config: unknown) => { destroy(): void };
   closeModal?: () => void;
   closeEMFInterpretation?: AnyFunction;
   closeSettings?: () => void;
+  closeSettingsModal?: () => void;
+  clearE2EESession?: AnyFunction;
   destroyAllCharts?: () => void;
   detectDNAFile?: (header: string) => string | null;
   ensureActiveThread?: () => void;
@@ -44,6 +69,7 @@ interface Window {
   getActiveProfileId?: () => string | null;
   getProfileHeight?: (profileId: string) => { height?: number | string | null; unit?: string | null };
   getProfileLocation?: AnyFunction;
+  getOllamaConfig?: AnyFunction;
   getProfiles?: () => Array<{ id?: string; name?: string | null; sex?: string | null }>;
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
@@ -103,10 +129,16 @@ interface Window {
   importDataJSON: (file: File) => Promise<void> | void;
   isDebugMode?: () => boolean;
   isImportRunning?: () => boolean;
+  loadFocusCard?: AnyFunction;
   _pendingImport?: any;
   _pendingImportRefLookup?: Record<string, any> | null;
   _batchImportResolve?: ((action: string) => void) | null;
   _batchImportContext?: { current: number; total: number } | null;
+  _lastOllamaModelDetails?: any[];
+  _lastIsOllamaServer?: boolean;
+  _settingsHadProvider?: boolean;
+  _rsCashuBackupTimer?: ReturnType<typeof setTimeout>;
+  _walletSeedThenAction?: AnyFunction | null;
   loadDemoData?: (sex?: string) => Promise<void> | void;
   loadChatHistory?: () => Promise<void> | void;
   loadChatPersonality?: () => void;
@@ -125,7 +157,9 @@ interface Window {
   };
   navigate?: (route: string, options?: any) => void;
   nostrGetSelectedNode?: () => string | null;
+  nostrDiscoverNodes?: AnyFunction;
   nostrSetSelectedNode?: (url: string) => void;
+  openChatPanel?: AnyFunction;
   openClientList?: () => void;
   closeClientList?: () => void;
   openEMFAssessmentEditor?: () => void;
@@ -159,6 +193,9 @@ interface Window {
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
   showPromptDialog?: (message: string, options?: any) => Promise<string | null> | string | null;
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
+  updateChatHeaderModel?: AnyFunction;
+  updatePrivacyStatusCard?: AnyFunction;
+  refreshWebSearchToggle?: AnyFunction;
   saveImportedData?: AnyFunction;
   loadCatalog?: AnyFunction;
   _cachedCatalog?: { slots?: Record<string, any>; [key: string]: any } | null;

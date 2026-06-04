@@ -1,3 +1,4 @@
+// @ts-check
 // provider-ppq-panels.js - PPQ account, balance, and top-up panel behavior.
 
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
@@ -57,7 +58,7 @@ export function initSettingsPpqPanel() {
 export async function handleCreatePpqAccount() {
   if (_ppqCreating) return;
   _ppqCreating = true;
-  const createBtn = document.querySelector('[onclick="handleCreatePpqAccount()"]');
+  const createBtn = /** @type {HTMLButtonElement | null} */ (document.querySelector('[onclick="handleCreatePpqAccount()"]'));
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = 'Creating\u2026'; }
   const status = document.getElementById('ppq-key-status');
   if (status) status.innerHTML = '<span style="color:var(--text-muted)">Creating account\u2026</span>';
@@ -105,9 +106,10 @@ export function dismissPpqKeyReveal() {
 }
 
 export async function handleSavePpqKey() {
-  const input = document.getElementById('ppq-key-input');
-  const btn = document.getElementById('save-ppq-key-btn');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-key-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-ppq-key-btn'));
   const status = document.getElementById('ppq-key-status');
+  if (!input || !btn || !status) return;
   const key = input.value.trim();
   if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter an API key</span>'; return; }
   btn.disabled = true; btn.textContent = 'Validating...';
@@ -229,12 +231,12 @@ export function ppqShowCustomInput() {
   const slot = document.getElementById('ppq-custom-slot');
   if (!slot) return;
   slot.innerHTML = '<input type="text" inputmode="decimal" id="ppq-custom-amount" class="ppq-amt-btn" style="width:100%;text-align:center;cursor:text" placeholder="$" onkeydown="if(event.key===\'Enter\')doPpqTopupCustom();if(event.key===\'Escape\')selectPpqMethod(\'' + _ppqSelectedMethod + '\')" onblur="if(this.value.trim())doPpqTopupCustom()">';
-  const input = document.getElementById('ppq-custom-amount');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-custom-amount'));
   if (input) input.focus();
 }
 
 export function doPpqTopupCustom() {
-  const input = document.getElementById('ppq-custom-amount');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-custom-amount'));
   if (!input) return;
   const raw = input.value.replace(/[^0-9.]/g, '');
   const amount = parseFloat(raw);
