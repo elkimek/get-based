@@ -1,3 +1,4 @@
+// @ts-check
 // marker-detail-modal.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
@@ -44,7 +45,15 @@ export {
   deleteMarkerNote,
 };
 
-const markerDetailDeps = {
+const markerDetailDeps = /** @type {{
+  navigate: (category?: string, data?: any) => any,
+  isDashboardQuickMarkerPinned: (id?: string) => boolean,
+  toggleDashboardQuickMarkerPin: (id?: string) => any,
+  renameMarker: (id?: string) => any,
+  revertMarkerName: (id?: string) => any,
+  askAIAboutMarker: (id?: string) => any,
+  showEmojiPicker: (el: Element, callback: (emoji?: string | null) => void, opts?: any) => any,
+}} */ ({
   navigate: (category, data) => window.navigate?.(category, data),
   isDashboardQuickMarkerPinned: () => false,
   toggleDashboardQuickMarkerPin: (id) => globalThis.toggleDashboardQuickMarkerPin?.(id),
@@ -52,8 +61,11 @@ const markerDetailDeps = {
   revertMarkerName: (id) => globalThis.revertMarkerName?.(id),
   askAIAboutMarker: (id) => globalThis.askAIAboutMarker?.(id),
   showEmojiPicker: () => {},
-};
+});
 
+/**
+ * @param {Partial<typeof markerDetailDeps>} [deps]
+ */
 export function configureMarkerDetailModal(deps = {}) {
   Object.assign(markerDetailDeps, deps);
 }
@@ -154,6 +166,9 @@ function setDetailModalShell(...classes) {
   return modal;
 }
 
+/**
+ * @param {{ modal?: HTMLElement | null }} [opts]
+ */
 function refreshOpenMarkerDetailModalOnSync({ modal } = {}) {
   const id = modal?.dataset?.syncRefreshItemId || state._activeDetailMarkerId;
   if (!id) return;
@@ -165,10 +180,11 @@ bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync);
 // Remembered focus before a detail modal opens, so closeModal() can return
 // focus to the trigger. Keyboard users otherwise land on <body> after close
 // and lose their place in the page.
+/** @type {HTMLElement | null} */
 let _modalLastTrigger = null;
 export function rememberModalTrigger() {
   const el = document.activeElement;
-  _modalLastTrigger = (el && el !== document.body && typeof el.focus === 'function') ? el : null;
+  _modalLastTrigger = (el instanceof HTMLElement && el !== document.body) ? el : null;
 }
 function restoreModalTrigger() {
   const el = _modalLastTrigger;
@@ -619,7 +635,7 @@ export function showDetailModal(id, opts = {}) {
       const pheno = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.phenoAge?.values?.[refIdx] : null;
       const bortz = refIdx >= 0 ? data.categories.calculatedRatios?.markers?.bortzAge?.values?.[refIdx] : null;
       const age = state.profileDob && refDate
-        ? ((new Date(refDate + 'T00:00:00') - new Date(state.profileDob + 'T00:00:00')) / (365.25*24*60*60*1000))
+        ? ((new Date(refDate + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
         : null;
       const ageIsUsable = Number.isFinite(age) && age > 0;
       const profileRequirement = !state.profileDob
@@ -925,12 +941,13 @@ export function pickNewCatIcon(el) {
 }
 
 export function saveCustomMarker() {
-  const catSelect = document.getElementById('cm-category');
-  const newCatInput = document.getElementById('cm-new-cat');
-  const nameInput = document.getElementById('cm-name');
-  const unitInput = document.getElementById('cm-unit');
-  const refMinInput = document.getElementById('cm-ref-min');
-  const refMaxInput = document.getElementById('cm-ref-max');
+  const catSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('cm-category'));
+  const newCatInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-new-cat'));
+  const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-name'));
+  const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-unit'));
+  const refMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-min'));
+  const refMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-max'));
+  if (!catSelect) return;
   if (!nameInput?.value.trim()) { showNotification('Please enter a marker name', 'error'); return; }
   const name = nameInput.value.trim();
   // Determine category key and label
@@ -938,7 +955,7 @@ export function saveCustomMarker() {
   if (catSelect.value === '__new__') {
     catLabel = (newCatInput?.value || '').trim();
     if (!catLabel) { showNotification('Please enter a category name', 'error'); return; }
-    const iconEl = document.getElementById('cm-new-cat-icon');
+    const iconEl = /** @type {HTMLElement | null} */ (document.getElementById('cm-new-cat-icon'));
     var newCatIcon = iconEl?.dataset.custom === '1' ? iconEl.textContent.trim() : null;
     catKey = catLabel.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)
       .map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -966,8 +983,8 @@ export function saveCustomMarker() {
   // Parse optional ref range
   const refMin = refMinInput?.value ? parseFloat(refMinInput.value) : null;
   const refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;
-  const optMinInput = document.getElementById('cm-opt-min');
-  const optMaxInput = document.getElementById('cm-opt-max');
+  const optMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-min'));
+  const optMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-max'));
   const optMin = optMinInput?.value ? parseFloat(optMinInput.value) : null;
   const optMax = optMaxInput?.value ? parseFloat(optMaxInput.value) : null;
   // Save custom marker definition
