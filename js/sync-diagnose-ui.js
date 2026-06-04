@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnose-ui.js - Sync Diagnose modal lifecycle and copy handling.
 
 import { showNotification, isDebugMode } from './utils.js';
@@ -12,8 +13,19 @@ export {
   refreshRelayStorage,
 } from './sync-diagnose-actions.js';
 
+/** @type {(profileId?: any) => boolean} */
 let _isPhase2CutoverEnabled = () => false;
 
+/** @param {{
+ *   enableSync?: (...args: any[]) => any,
+ *   restoreFromMnemonic?: (...args: any[]) => any,
+ *   isSyncEnabled?: (...args: any[]) => any,
+ *   pushProfile?: (...args: any[]) => any,
+ *   enablePhase2Cutover?: (...args: any[]) => any,
+ *   disablePhase2Cutover?: (...args: any[]) => any,
+ *   isPhase2CutoverEnabled?: (profileId?: any) => boolean,
+ * }} [deps]
+ */
 export function configureSyncDiagnoseUI({
   enableSync,
   restoreFromMnemonic,

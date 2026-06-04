@@ -1,13 +1,34 @@
+// @ts-check
 // sync-diagnose-actions-context.js - Injected dependencies shared by Diagnose actions.
 
+/** @typedef {(...args: any[]) => any} SyncDiagnoseActionFn */
+/** @typedef {(...args: any[]) => Promise<any>} SyncDiagnoseAsyncActionFn */
+
+/** @type {SyncDiagnoseAsyncActionFn} */
 let _enableSync = async () => false;
+/** @type {SyncDiagnoseAsyncActionFn} */
 let _restoreFromMnemonic = async () => false;
+/** @type {SyncDiagnoseActionFn} */
 let _isSyncEnabled = () => false;
+/** @type {SyncDiagnoseAsyncActionFn} */
 let _pushProfile = async () => {};
+/** @type {SyncDiagnoseActionFn} */
 let _enablePhase2Cutover = () => ({ ok: false, reason: 'unconfigured' });
+/** @type {SyncDiagnoseActionFn} */
 let _disablePhase2Cutover = () => false;
+/** @type {SyncDiagnoseAsyncActionFn} */
 let _showSyncDiagnose = async () => {};
 
+/** @param {{
+ *   enableSync?: SyncDiagnoseAsyncActionFn,
+ *   restoreFromMnemonic?: SyncDiagnoseAsyncActionFn,
+ *   isSyncEnabled?: SyncDiagnoseActionFn,
+ *   pushProfile?: SyncDiagnoseAsyncActionFn,
+ *   enablePhase2Cutover?: SyncDiagnoseActionFn,
+ *   disablePhase2Cutover?: SyncDiagnoseActionFn,
+ *   showSyncDiagnose?: SyncDiagnoseAsyncActionFn,
+ * }} [deps]
+ */
 export function configureSyncDiagnoseActionContext({
   enableSync,
   restoreFromMnemonic,

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnostics-snapshot.js - Evolu row diagnostics snapshots.
 
 import { state } from './state.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnose-cutover-actions.js - Telemetry and lean-sync mode actions.
 
 import { state } from './state.js';

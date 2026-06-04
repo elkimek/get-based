@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnose-identity-actions.js - Identity rotation UI for Sync Diagnose.
 
 import { showNotification, escapeHTML } from './utils.js';
@@ -98,11 +99,11 @@ export async function confirmRotateIdentity(btn) {
   </div>`;
   document.body.appendChild(overlay);
 
-  const closeBtn = overlay.querySelector('.modal-close');
-  const cancelBtn = overlay.querySelector('#rotate-cancel-btn');
-  const copyBtn = overlay.querySelector('#rotate-copy-btn');
-  const check = overlay.querySelector('#rotate-saved-check');
-  const applyBtn = overlay.querySelector('#rotate-apply-btn');
+  const closeBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('.modal-close'));
+  const cancelBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-cancel-btn'));
+  const copyBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-copy-btn'));
+  const check = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#rotate-saved-check'));
+  const applyBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-apply-btn'));
   const cleanup = () => {
     mnemonic = null;
     if (Array.isArray(words)) {

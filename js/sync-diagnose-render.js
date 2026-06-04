@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnose-render.js - Pure HTML render helpers for Sync Diagnose.
 
 import { escapeHTML } from './utils.js';

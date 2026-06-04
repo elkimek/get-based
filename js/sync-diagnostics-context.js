@@ -1,14 +1,36 @@
+// @ts-check
 // sync-diagnostics-context.js - dependency access for sync diagnostics.
 
+/** @typedef {(...args: any[]) => any} SyncDiagnosticGetter */
+
+/** @type {SyncDiagnosticGetter} */
 let _getEvolu = () => null;
+/** @type {SyncDiagnosticGetter} */
 let _getProfileQuery = () => null;
+/** @type {SyncDiagnosticGetter} */
 let _getTombstoneQuery = () => null;
+/** @type {SyncDiagnosticGetter} */
 let _getAppOwner = () => null;
+/** @type {SyncDiagnosticGetter} */
 let _isSyncEnabled = () => false;
+/** @type {SyncDiagnosticGetter} */
 let _getSubscriptionFireCount = () => 0;
+/** @type {SyncDiagnosticGetter} */
 let _isSyncing = () => false;
+/** @type {SyncDiagnosticGetter} */
 let _isPulling = () => false;
 
+/** @param {{
+ *   getEvolu?: SyncDiagnosticGetter,
+ *   getProfileQuery?: SyncDiagnosticGetter,
+ *   getTombstoneQuery?: SyncDiagnosticGetter,
+ *   getAppOwner?: SyncDiagnosticGetter,
+ *   isSyncEnabled?: SyncDiagnosticGetter,
+ *   getSubscriptionFireCount?: SyncDiagnosticGetter,
+ *   isSyncing?: SyncDiagnosticGetter,
+ *   isPulling?: SyncDiagnosticGetter,
+ * }} [deps]
+ */
 export function configureSyncDiagnosticsContext({
   getEvolu,
   getProfileQuery,
