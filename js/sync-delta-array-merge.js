@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-array-merge.js - Pull-side array row overlay helper.
 
 import {

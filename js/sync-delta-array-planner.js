@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-array-planner.js - Push-side array delta planner.
 
 import { _bytesToBase64, _gzipString } from './sync-payload.js';

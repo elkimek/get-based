@@ -1,8 +1,10 @@
+// @ts-check
 // sync-delta-planner-context.js - Shared dependency access for push-side delta planners.
 
 let _getEvolu = () => null;
 let _getItemRowQuery = () => null;
 
+/** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
 export function configureSyncDeltaPlannerContext({ getEvolu, getItemRowQuery } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getItemRowQuery === 'function') _getItemRowQuery = getItemRowQuery;

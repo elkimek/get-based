@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-map-planner.js - Push-side keyed-map delta planner.
 
 import {

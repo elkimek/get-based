@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-merge-shapes.js - Pull-side per-row delta shape merge facade.
 
 export { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';

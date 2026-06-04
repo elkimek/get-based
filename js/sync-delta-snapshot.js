@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-snapshot.js — Delta snapshot storage keys and advancement gates.
 
 // Returns the localStorage key holding the last-pushed snapshot

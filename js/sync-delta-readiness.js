@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-readiness.js - Phase 2 cutover readiness checks.
 
 import { state } from './state.js';

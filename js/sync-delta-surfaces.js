@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-surfaces.js - ImportedData surfaces covered by per-row sync.
 
 // See memory/project_evolu_delta_refactor_plan.md for full design + risk

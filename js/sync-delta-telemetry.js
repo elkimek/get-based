@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-telemetry.js - Phase 1 delta push/pull telemetry.
 
 import { getPullDeltaSnapshot } from './sync-delta-pull-snapshot.js';
