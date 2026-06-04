@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-actions.js - delegated action contract for Light Environment UI.
 
 import { escapeAttr } from './utils.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // light-env.js — Light Environment module: rooms, screens, indoor light dose.
 //
 // Peer of js/emf.js. Tracks the user's continuous indoor light exposure

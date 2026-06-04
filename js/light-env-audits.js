@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-audits.js — saved Light Environment snapshots and compare UI.
 //
 // The live environment remains owned by light-env.js. This module receives
@@ -21,6 +22,7 @@ import { deleteImportedArrayItems } from './data-merge.js';
 //     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
 //     createdAt, updatedAt? }
 
+/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction }} */
 const auditDeps = {
   getEnvironment: () => state.importedData?.lightEnvironment || null,
   computeRoomSeverity: () => ({
