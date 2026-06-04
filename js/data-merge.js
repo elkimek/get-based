@@ -1,3 +1,4 @@
+// @ts-check
 // data-merge.js — per-array record merge for cross-device sync.
 
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
@@ -190,7 +191,7 @@ export function mergeLabEntry(existing, incoming) {
   if (!incoming || typeof incoming !== 'object') return existing;
   const existingTs = pickTimestamp(existing);
   const incomingTs = pickTimestamp(incoming);
-  const incomingWins = incomingTs > existingTs || incomingTs === existingTs;
+  const incomingWins = incomingTs >= existingTs;
   const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
   const markers = {};
   const markerSources = {};

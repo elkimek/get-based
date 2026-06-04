@@ -1,3 +1,4 @@
+// @ts-check
 // lab-entry-mutations.js - importedData-level lab entry mutation helpers.
 
 import {
