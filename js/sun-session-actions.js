@@ -1,3 +1,4 @@
+// @ts-check
 // sun-session-actions.js - delegated action contract for sun session UI.
 
 import { escapeAttr } from './utils.js';
@@ -26,7 +27,7 @@ function closestSunSessionAction(event) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const actionEl = target.closest('[data-sun-session-action]');
-  if (!actionEl) return null;
+  if (!(actionEl instanceof HTMLElement)) return null;
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
 

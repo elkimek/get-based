@@ -1,3 +1,4 @@
+// @ts-check
 // sun-spectrum.js — Clear-sky spectral reconstruction + action-spectrum convolution
 //
 // Reconstructs solar spectral irradiance at the user's location/time using a
@@ -331,6 +332,9 @@ const CHANNELS = [
 // × aerosol attenuation × cloud transmission. This is a heavily simplified
 // Bird-Riordan-derived model — accurate to ~25% relative for our use, which
 // is correlation against biomarkers (relative trends), not radiometry.
+/**
+ * @param {{ zenithDeg?: number | null, ozoneDU?: number, altitudeM?: number, cloudCover?: number, aod?: number | null }} [opts]
+ */
 export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null } = {}) {
   if (zenithDeg == null || zenithDeg >= 90) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
@@ -538,7 +542,18 @@ function ozoneAbsorption(nm) {
 //     Eye-side glass/lens attenuation lives in eyeMultiplier and is unaffected.
 // Output: { vitamin_d, pomc, no_cv, violet_eye, circadian, nir_solar, pbm_red, pbm_nir }
 //   Each in arbitrary "channel-au" units. Intended for relative comparison.
+/**
+ * @param {{
+ *   spectrum?: { wavelengths: number[], irradiance: number[] } | null,
+ *   durationMin?: number,
+ *   bodyExposureFraction?: number,
+ *   eyeExposure?: { mode?: string, durationSec?: number, lensTint?: string } | null,
+ *   bodyModifiers?: { glassBetween?: boolean, sunscreenSPF?: number | null } | null
+ * }} [opts]
+ * @returns {Record<string, number>}
+ */
 export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null } = {}) {
+  /** @type {Record<string, number>} */
   const result = {};
   if (!spectrum || !Array.isArray(spectrum.irradiance) || durationMin <= 0) {
     for (const ch of CHANNELS) result[ch.key] = 0;

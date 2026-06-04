@@ -28,7 +28,9 @@ interface Window {
   exportAllDataJSON?: () => Promise<void> | void;
   exportClientJSON?: (profileId: string, includeChat?: boolean) => Promise<void> | void;
   getInitialView?: () => string;
+  getActiveProfileId?: () => string | null;
   getProfileHeight?: (profileId: string) => { height?: number | string | null; unit?: string | null };
+  getProfiles?: () => Array<{ id?: string; sex?: string | null }>;
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
   _labState?: { currentProfile?: string | null };
@@ -62,6 +64,15 @@ interface Window {
   openSettingsModal?: (tab?: string) => void;
   pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
+  quickLogSunSession?: () => Promise<void> | void;
+  pauseSunSession?: (id?: string) => Promise<void> | void;
+  resumeSunSession?: (id?: string) => Promise<void> | void;
+  flipSidesMidSession?: (id?: string) => Promise<void> | void;
+  changeCoverageMidSession?: (id?: string) => Promise<void> | void;
+  applySunscreenMidSession?: (id?: string) => Promise<void> | void;
+  setOzoneOverrideMidSession?: () => Promise<void> | void;
+  _forgotStopPrompt?: (id?: string) => Promise<void> | void;
+  _openChannelOnLightPage?: (channel?: string) => void;
   refreshChartThemeColors?: (options?: { batchSize?: number }) => void;
   refreshSettingsWearables?: () => void;
   rememberModalTrigger?: () => void;

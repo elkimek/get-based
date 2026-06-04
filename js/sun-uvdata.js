@@ -1,3 +1,4 @@
+// @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled } from './crypto.js';
 import { isValidExternalUrl } from './url-safety.js';
@@ -301,6 +302,9 @@ function defaultConfig() {
 //
 // Pass `{ noCache: true }` to bypass both the fresh and stale cache layers
 // for a user-triggered force refresh — guarantees a fresh provider call.
+/**
+ * @param {{ lat?: number, lon?: number, isoTime?: string, noCache?: boolean }} [opts]
+ */
 export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   if (lat == null || lon == null) {
     throw new Error('fetchAtmosphere requires { lat, lon }');
@@ -705,7 +709,7 @@ function shapeCamsResponse(json, isoTime, sourceLabel) {
   // tropospheric-only field) and the snapshot freshness metadata.
   if (!json) return null;
   const aqEnvelope = json.airQuality || json;
-  const shaped = shapeOpenMeteoResponse(json, aqEnvelope, isoTime, sourceLabel);
+  const shaped = /** @type {any} */ (shapeOpenMeteoResponse(json, aqEnvelope, isoTime, sourceLabel));
   if (!shaped) return null;
   // Overlay CAMS DU. shapeOpenMeteoResponse picked an hourly index based
   // on isoTime; replicate that to slice the same array slot here.
@@ -806,7 +810,7 @@ function zenithOfflineEstimate({ lat, lon, isoTime }) {
 // Solar zenith angle in degrees. Standard NOAA solar position algorithm
 // (simplified — accurate to ~1° for civil purposes, plenty for our use).
 export function solarZenithAngle(date, lat, lon) {
-  const dayOfYear = Math.floor((date - new Date(Date.UTC(date.getUTCFullYear(), 0, 0))) / 86400000);
+  const dayOfYear = Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400000);
   const fractionalYear = (2 * Math.PI / 365) * (dayOfYear - 1 + (date.getUTCHours() - 12) / 24);
   // Solar declination
   const decl = 0.006918
