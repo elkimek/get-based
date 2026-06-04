@@ -9,7 +9,32 @@ import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showN
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
 
-/** @type {Record<string, any>} */
+/**
+ * @typedef {object} SunSessionUIDeps
+ * @property {() => any[]} getSessions
+ * @property {(id: any) => Promise<boolean> | boolean} deleteSession
+ * @property {(id: any, patch: any) => Promise<any>} updateSession
+ * @property {(opts: any) => Promise<any>} logCompletedSession
+ * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
+ * @property {() => any} getSunCoords
+ * @property {() => void} refreshSurfaces
+ * @property {(overlay: HTMLElement) => void} wireBackdropClose
+ * @property {(overlay: HTMLElement) => void} trapModalFocus
+ * @property {(sess: any) => string} summarizeBodyExposure
+ * @property {(ms: number) => string} formatElapsed
+ * @property {Array<{ key: string, label: string }>} exposurePresets
+ * @property {Array<{ key: string, label: string, pickerLabel?: string }>} eyeModes
+ * @property {Array<{ key: string, label: string }>} lensTints
+ * @property {Array<{ key: string, label: string }>} postureOptions
+ * @property {Array<{ key: string, label: string }>} surfaceOptions
+ * @property {Record<string, any>} channelDisplay
+ * @property {(value: any, key: any) => number} channelTier
+ * @property {(tier: any) => string} tierLabel
+ * @property {(...args: any[]) => string} formatChannelUnit
+ * @property {number} tooShortForChannelVerdictMin
+ */
+
+/** @type {SunSessionUIDeps} */
 const uiDeps = {
   getSessions: () => [],
   deleteSession: async () => false,
@@ -42,6 +67,7 @@ if (typeof document !== 'undefined') {
   });
 }
 
+/** @param {Partial<SunSessionUIDeps>} [deps] */
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
 }

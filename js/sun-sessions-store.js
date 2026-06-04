@@ -16,7 +16,15 @@ import {
   photosensitiveMedScale,
 } from './sun-session-model.js';
 
-/** @type {Record<string, any>} */
+/**
+ * @typedef {object} SunSessionsStoreDeps
+ * @property {(sess: any) => void} commitCurrentSlice
+ * @property {(id: any, state: any) => void} setLiveState
+ * @property {(id: any) => void} clearLiveState
+ * @property {(ms: number) => string} formatElapsed
+ */
+
+/** @type {SunSessionsStoreDeps} */
 const storeDeps = {
   commitCurrentSlice: () => {},
   setLiveState: () => {},
@@ -24,6 +32,7 @@ const storeDeps = {
   formatElapsed: (ms) => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
 };
 
+/** @param {Partial<SunSessionsStoreDeps>} [deps] */
 export function configureSunSessionsStore(deps = {}) {
   Object.assign(storeDeps, deps);
 }

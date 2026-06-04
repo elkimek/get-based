@@ -11,7 +11,26 @@ import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-bo
 import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 
-/** @type {Record<string, any>} */
+/**
+ * @typedef {object} SunActiveSessionDeps
+ * @property {() => any[]} getSessions
+ * @property {() => any} getActiveSession
+ * @property {(opts?: any) => Promise<any>} startSession
+ * @property {(id: any) => Promise<any>} stopSession
+ * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
+ * @property {() => any} getSunCoords
+ * @property {() => Promise<void> | void} saveImportedData
+ * @property {(atm: any) => any} applyAtmOverrides
+ * @property {() => void} refreshSurfaces
+ * @property {(raw: any) => string} normalizePSMTier
+ * @property {(tier?: any) => number} photosensitiveMedScale
+ * @property {Array<{ key: string, label: string, pickerLabel?: string }>} eyeModes
+ * @property {Array<{ key: string, label: string }>} lensTints
+ * @property {Array<{ key: string, label: string }>} postureOptions
+ * @property {Array<{ key: string, label: string }>} surfaceOptions
+ */
+
+/** @type {SunActiveSessionDeps} */
 const activeDeps = {
   getSessions: () => [],
   getActiveSession: () => null,
@@ -30,6 +49,7 @@ const activeDeps = {
   surfaceOptions: [],
 };
 
+/** @param {Partial<SunActiveSessionDeps>} [deps] */
 export function configureSunActiveSession(deps = {}) {
   Object.assign(activeDeps, deps);
 }
