@@ -20,13 +20,13 @@ let _disablePhase2Cutover = () => false;
 let _showSyncDiagnose = async () => {};
 
 /** @param {{
- *   enableSync?: SyncDiagnoseActionFn,
- *   restoreFromMnemonic?: SyncDiagnoseActionFn,
+ *   enableSync?: SyncDiagnoseAsyncActionFn,
+ *   restoreFromMnemonic?: SyncDiagnoseAsyncActionFn,
  *   isSyncEnabled?: SyncDiagnoseActionFn,
- *   pushProfile?: SyncDiagnoseActionFn,
+ *   pushProfile?: SyncDiagnoseAsyncActionFn,
  *   enablePhase2Cutover?: SyncDiagnoseActionFn,
  *   disablePhase2Cutover?: SyncDiagnoseActionFn,
- *   showSyncDiagnose?: SyncDiagnoseActionFn,
+ *   showSyncDiagnose?: SyncDiagnoseAsyncActionFn,
  * }} [deps]
  */
 export function configureSyncDiagnoseActionContext({
