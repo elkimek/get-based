@@ -55,6 +55,18 @@ export function hashString(str) {
   return (hash >>> 0).toString(36);
 }
 
+/**
+ * @template {Element} T
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {T}
+ */
+export function queryRequired(root, selector) {
+  const el = root.querySelector(selector);
+  if (!el) throw new Error(`Missing required element: ${selector}`);
+  return /** @type {T} */ (el);
+}
+
 // Marker keys are interpolated into inline-onclick JS string literals
 // (e.g. `onclick="showDetailModal('${id}')"`), where escapeHTML is not
 // enough — a key containing `'` or `\` would close the JS string and

@@ -1,6 +1,7 @@
+// @ts-check
 // light-tool-camera-modals.js — Camera-backed Light tool modal flows.
 
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, queryRequired, showNotification } from './utils.js';
 import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import {
   aimingGuideHTML,
@@ -11,6 +12,17 @@ import {
   saveLuxCalibration,
 } from './light-tool-camera.js';
 
+/**
+ * @template {Element} T
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {T | null}
+ */
+function queryOptional(root, selector) {
+  return /** @type {T | null} */ (root.querySelector(selector));
+}
+
+/** @param {{ saveMeasurement?: AnyFunction }} [deps] */
 function getSaveMeasurement(deps = {}) {
   const fn = deps.saveMeasurement || (typeof window !== 'undefined' ? window.saveMeasurement : null);
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
@@ -99,10 +111,10 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   // can't divide by currentLux because that already includes the active
   // factor.
   let currentRawLuma = null;
-  const valueEl = overlay.querySelector('#lux-value');
-  const zoneEl = overlay.querySelector('#lux-zone');
-  const sourceLine = overlay.querySelector('#lux-source-line');
-  const calCurrentEl = overlay.querySelector('#lux-cal-current');
+  const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-value'));
+  const zoneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-zone'));
+  const sourceLine = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-line'));
+  const calCurrentEl = /** @type {HTMLElement | null} */ (queryOptional(overlay, '#lux-cal-current'));
   _luxState.running = true;
   _luxState.calibration = loadLuxCalibration();
   if (calCurrentEl) calCurrentEl.textContent = `${_luxState.calibration.toFixed(2)}×`;
@@ -113,7 +125,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   let usingALS = false;
   let usingManualEntry = false;
   let cameraFallbackStarted = false;
-  const calibrationPanel = overlay.querySelector('#lux-calibration-panel');
+  const calibrationPanel = /** @type {HTMLElement | null} */ (queryOptional(overlay, '#lux-calibration-panel'));
   const startCameraFallback = async (introHTML = '') => {
     if (closed || cameraFallbackStarted) return;
     cameraFallbackStarted = true;
@@ -168,7 +180,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       // Camera path is unavailable — replace the live dial with a numeric
       // input so the user can still save a reading. Calibration panel is
       // irrelevant without a camera feed, hide it.
-      const dial = overlay.querySelector('.lux-dial');
+      const dial = /** @type {HTMLElement | null} */ (queryOptional(overlay, '.lux-dial'));
       if (dial) {
         dial.innerHTML = `
           <div style="display:flex;align-items:baseline;justify-content:center;gap:8px;padding:8px 0">
@@ -176,8 +188,8 @@ export async function openLuxMeter(opts = {}, deps = {}) {
             <span style="color:var(--text-muted);font-size:14px">lux</span>
           </div>
           <div class="lux-dial-zone" id="lux-zone" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:4px">—</div>`;
-        const manualInput = overlay.querySelector('#lux-manual-input');
-        const newZoneEl = overlay.querySelector('#lux-zone');
+        const manualInput = /** @type {HTMLInputElement | null} */ (queryOptional(overlay, '#lux-manual-input'));
+        const newZoneEl = /** @type {HTMLElement | null} */ (queryOptional(overlay, '#lux-zone'));
         if (manualInput) {
           manualInput.addEventListener('input', () => {
             const v = parseFloat(manualInput.value);
@@ -244,9 +256,9 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   }
 
   // Calibration panel handlers (camera path only — ALS panel was hidden above).
-  const calApplyBtn = overlay.querySelector('#lux-cal-apply');
-  const calResetBtn = overlay.querySelector('#lux-cal-reset');
-  const calRefInput = overlay.querySelector('#lux-cal-reference');
+  const calApplyBtn = /** @type {HTMLButtonElement | null} */ (queryOptional(overlay, '#lux-cal-apply'));
+  const calResetBtn = /** @type {HTMLButtonElement | null} */ (queryOptional(overlay, '#lux-cal-reset'));
+  const calRefInput = /** @type {HTMLInputElement | null} */ (queryOptional(overlay, '#lux-cal-reference'));
   if (calApplyBtn) {
     calApplyBtn.addEventListener('click', () => {
       if (currentRawLuma == null || currentRawLuma < 0.5) {
@@ -281,7 +293,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     });
   }
 
-  overlay.querySelector('#lux-save').addEventListener('click', async () => {
+  queryRequired(overlay, '#lux-save').addEventListener('click', async () => {
     if (currentLux == null) {
       if (usingManualEntry) showNotification('Enter a lux value first.', 'error');
       return;
@@ -336,8 +348,8 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
   try { trapModalFocus(overlay); } catch (e) {}
 
   let lastResult = null;
-  const resultEl = overlay.querySelector('#flicker-result');
-  const video = overlay.querySelector('#flicker-video');
+  const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#flicker-result'));
+  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#flicker-video'));
   _flickerState.running = true;
 
   try {
@@ -445,7 +457,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong>${escapeHTML(freq)}<br><small style="color:var(--text-muted)">banding ${peakBanding.toFixed(3)} · frame-luma ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''}</small>`;
   }
 
-  overlay.querySelector('#flicker-save').addEventListener('click', async () => {
+  queryRequired(overlay, '#flicker-save').addEventListener('click', async () => {
     if (!lastResult) return;
     await saveMeasurement('flicker', lastResult.score, {
       confidence: 0.7,
@@ -487,8 +499,8 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   try { trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
-  const statusEl = overlay.querySelector('#dark-status');
-  const startBtn = overlay.querySelector('#dark-start');
+  const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
+  const startBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#dark-start'));
 
   startBtn.addEventListener('click', async () => {
     startBtn.disabled = true;
@@ -660,10 +672,10 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   let currentCCT = null;
   let currentMelanopic = null;
   let currentPWMActive = false;
-  const valueEl = overlay.querySelector('#cct-value');
-  const toneEl = overlay.querySelector('#cct-tone');
-  const cohEl = overlay.querySelector('#cct-coherence');
-  const video = overlay.querySelector('#cct-video');
+  const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-value'));
+  const toneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-tone'));
+  const cohEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-coherence'));
+  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#cct-video'));
   _cctState.running = true;
 
   try {
@@ -740,7 +752,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       valueEl.textContent = 'Camera denied';
     }
 
-  overlay.querySelector('#cct-save').addEventListener('click', async () => {
+  queryRequired(overlay, '#cct-save').addEventListener('click', async () => {
     if (currentCCT == null) return;
     await saveMeasurement('cct', currentCCT, {
       confidence: 0.5,
@@ -813,8 +825,8 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
   try { trapModalFocus(overlay); } catch (e) {}
 
   let result = null;
-  const resultEl = overlay.querySelector('#spec-result');
-  const video = overlay.querySelector('#spec-video');
+  const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#spec-result'));
+  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#spec-video'));
   _specState.running = true;
 
   try {
@@ -900,7 +912,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     });
   }
 
-  overlay.querySelector('#spec-save').addEventListener('click', async () => {
+  queryRequired(overlay, '#spec-save').addEventListener('click', async () => {
     if (!result) {
       showNotification('Pick a light type first (or grant camera access).', 'error');
       return;
@@ -992,6 +1004,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
     </div>
     </div>`;
   let closed = false;
+  /** @type {Set<MediaStream>} */
   const activeGlassStreams = new Set();
   window._closeGlass = () => {
     closed = true;
@@ -1043,12 +1056,12 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       const luxEst = Math.max(0, meanLuma * 40 * loadLuxCalibration());
       if (closed) return;
       _glassReadings[which] = luxEst;
-      const readingEl = overlay.querySelector(`#glass-reading-${which}`);
+      const readingEl = queryOptional(overlay, `#glass-reading-${which}`);
       if (readingEl) readingEl.textContent = `${Math.round(luxEst)} lux`;
       computeGlass();
     } catch (e) {
       if (!closed) {
-        const readingEl = overlay.querySelector(`#glass-reading-${which}`);
+        const readingEl = queryOptional(overlay, `#glass-reading-${which}`);
         if (readingEl) readingEl.textContent = 'denied';
       }
     } finally {
@@ -1058,8 +1071,8 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       }
     }
   };
-  overlay.querySelector('#glass-measure-inside').addEventListener('click', () => measure('inside'));
-  overlay.querySelector('#glass-measure-outside').addEventListener('click', () => measure('outside'));
+  queryRequired(overlay, '#glass-measure-inside').addEventListener('click', () => measure('inside'));
+  queryRequired(overlay, '#glass-measure-outside').addEventListener('click', () => measure('outside'));
 
   function computeGlass() {
     if (_glassReadings.inside == null || _glassReadings.outside == null) return;
@@ -1068,11 +1081,12 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
     const lockNote = _lastGlassLock && _lastGlassLock.exposure !== 'manual'
       ? `<br><small style="color:var(--orange)">⚠ camera auto-exposure was active — re-exposes between samples, the ratio above is approximate. Re-take readings if you need precision.</small>`
       : '';
-    overlay.querySelector('#glass-result').innerHTML =
+    queryRequired(overlay, '#glass-result').innerHTML =
       `<strong>Glass transmits ${(transmission * 100).toFixed(0)}% of visible light</strong>` +
       `<br><small>Blocks ~${blocked.toFixed(0)}% of broadband visible. <strong>UV transmission cannot be inferred from this measurement</strong> — Low-E and UV-blocking coatings have very different UV/visible ratios. A handheld UV meter is required to verify UV-A or UV-B blocking.</small>${lockNote}`;
-    overlay.querySelector('#glass-save').disabled = false;
-    overlay.querySelector('#glass-save').onclick = async () => {
+    const glassSave = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#glass-save'));
+    glassSave.disabled = false;
+    glassSave.onclick = async () => {
       await saveMeasurement('glass-transmission', transmission, {
         confidence: _lastGlassLock && _lastGlassLock.exposure === 'manual' ? 0.7 : 0.5,
         extra: { inside: _glassReadings.inside, outside: _glassReadings.outside, lockMode: _lastGlassLock?.exposure || 'auto' },

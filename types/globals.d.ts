@@ -6,6 +6,16 @@ declare const Buffer: {
 
 type AnyFunction = (...args: any[]) => any;
 
+interface AmbientLightSensor extends EventTarget {
+  illuminance: number;
+  start(): void;
+  stop(): void;
+}
+
+interface AmbientLightSensorConstructor {
+  new(options?: { frequency?: number }): AmbientLightSensor;
+}
+
 interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
@@ -123,6 +133,21 @@ interface Window {
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
   loadCatalog?: AnyFunction;
   renderLightDeviceAffiliateRow?: AnyFunction;
+  AmbientLightSensor?: AmbientLightSensorConstructor;
+  _closeAudit?: AnyFunction;
+  _closeCCT?: AnyFunction;
+  _closeDark?: AnyFunction;
+  _closeFlicker?: AnyFunction;
+  _closeGlass?: AnyFunction;
+  _closeLuxMeter?: AnyFunction;
+  _closeSpec?: AnyFunction;
+  _dismissAimingGuide?: AnyFunction;
+  addRoom?: AnyFunction;
+  getRooms?: AnyFunction;
+  getSunCoords?: AnyFunction;
+  hydrateSession?: AnyFunction;
+  logCompletedSession?: AnyFunction;
+  maybeAnalyzeMeasurementAfterSave?: AnyFunction;
   getMeasurementsForRoom?: AnyFunction;
   maybeAnalyzeAuditAfterSave?: AnyFunction;
   renderAuditAIBlock?: AnyFunction;
@@ -131,7 +156,10 @@ interface Window {
   renderMeasurementAIInline?: AnyFunction;
   renderRoomAIBlock?: AnyFunction;
   renderScreenAIBlock?: AnyFunction;
+  refreshLightEnvironmentAssessment?: AnyFunction;
   saveLightAuditFromUI?: AnyFunction;
+  saveMeasurement?: AnyFunction;
+  suggestRoomSourceFromSpectrum?: AnyFunction;
   openChatPanel?: AnyFunction;
   openCCTMeter?: AnyFunction;
   openDarknessMeter?: AnyFunction;
