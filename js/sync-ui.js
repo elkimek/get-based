@@ -1,3 +1,4 @@
+// @ts-check
 // sync-ui.js - header sync badge, popover, and activity-log copy helpers.
 
 import { showNotification, isDebugMode, escapeHTML } from './utils.js';
@@ -13,6 +14,7 @@ import {
 let _isSyncEnabled = () => false;
 let _statusBound = false;
 
+/** @param {{ isSyncEnabled?: () => boolean }} [deps] */
 export function configureSyncUI({ isSyncEnabled } = {}) {
   if (typeof isSyncEnabled === 'function') _isSyncEnabled = isSyncEnabled;
 }
@@ -25,6 +27,7 @@ function getSyncDisplayState() {
   return getSyncDisplayStateFromStatus(currentSyncEnabled());
 }
 
+/** @param {number | null | undefined} ts */
 function _timeAgo(ts) {
   if (!ts) return 'never';
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -150,6 +153,7 @@ export function bindSyncUIStatusUpdates() {
 // when phone-side debugging needs the events shared without retyping.
 // Format: ISO timestamp + kind + text per line. Falls back to a manual
 // selection prompt on browsers without clipboard API permission.
+/** @param {HTMLElement | null | undefined} btn */
 export async function copySyncEvents(btn) {
   const events = getRecentSyncEvents();
   const lines = events.map(e => `${new Date(e.at).toISOString()}  ${e.kind.padEnd(12)}  ${e.text}`);

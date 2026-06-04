@@ -1,3 +1,4 @@
+// @ts-check
 // sync-actions.js - user-triggered sync actions.
 
 import { state } from './state.js';
@@ -13,11 +14,21 @@ import {
 export { cleanStorage } from './sync-storage-cleanup.js';
 export { onChatSaved, onDataSaved, onProfileSaved } from './sync-save-hooks.js';
 
+/** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
+/** @type {(...args: any[]) => any} */
 let _forcePull = () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
 
+/** @param {{
+ *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   forcePull?: (...args: any[]) => any,
+ *   isSyncEnabled?: () => boolean,
+ *   isEvoluReady?: () => boolean,
+ *   isSyncing?: () => boolean,
+ * }} [deps]
+ */
 export function configureSyncActions({
   pushProfile,
   forcePull,
@@ -63,6 +74,7 @@ export async function syncNow() {
 }
 
 // Push all profiles on first enable.
+/** @param {any} [options] */
 export async function pushAllProfiles(options = {}) {
   const profiles = getProfiles();
   for (const p of profiles) {

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-window-bindings.js - Browser global sync actions.
 
 import {
@@ -46,6 +47,7 @@ import {
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 } from './sync-cutover.js';
 
+/** @param {{ enableSync?: (...args: any[]) => any, disableSync?: (...args: any[]) => any }} [actions] */
 export function bindSyncWindowActions({ enableSync, disableSync } = {}) {
   if (typeof window === 'undefined') return;
 

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-storage-cleanup.js - emergency localStorage compaction for sync.
 
 import { state } from './state.js';
@@ -46,6 +47,7 @@ export async function cleanStorage() {
   let afterBytes = 0;
   for (const key of Object.keys(localStorage)) afterBytes += new Blob([localStorage.getItem(key) || '']).size;
   const freedKB = ((beforeBytes - afterBytes) / 1024).toFixed(0);
+  const freedKBNumber = +freedKB;
   const beforeMB = (beforeBytes / 1024 / 1024).toFixed(2);
   const afterMB = (afterBytes / 1024 / 1024).toFixed(2);
 
@@ -53,6 +55,6 @@ export async function cleanStorage() {
               `Caches cleared: ${cachesCleared}. ` +
               `History trimmed: ${historyTrimmed}.`;
   logSyncEvent('cleanup', msg);
-  showNotification(msg, freedKB > 0 ? 'success' : 'info');
-  return { beforeBytes, afterBytes, freedKB: +freedKB, cachesCleared, historyTrimmed };
+  showNotification(msg, freedKBNumber > 0 ? 'success' : 'info');
+  return { beforeBytes, afterBytes, freedKB: freedKBNumber, cachesCleared, historyTrimmed };
 }
