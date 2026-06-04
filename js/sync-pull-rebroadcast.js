@@ -1,3 +1,4 @@
+// @ts-check
 // sync-pull-rebroadcast.js - safe pull-side rebroadcast scheduling.
 
 import { state } from './state.js';
@@ -5,10 +6,19 @@ import {
   consumeRebroadcastBudget, getSyncStatus, logSyncEvent,
 } from './sync-state.js';
 
+/** @param {((...args: any[]) => any) | undefined} debug */
 function dbg(debug, ...args) {
   try { debug?.(...args); } catch {}
 }
 
+/** @param {{
+ *   profileId?: string,
+ *   merged?: any,
+ *   needsRebroadcast?: boolean,
+ *   pushProfile?: (...args: any[]) => any,
+ *   debug?: (...args: any[]) => any,
+ * }} [options]
+ */
 export function maybeScheduleRebroadcast({
   profileId,
   merged,

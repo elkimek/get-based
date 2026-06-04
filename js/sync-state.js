@@ -52,6 +52,7 @@ export function getRecentSyncEvents() {
   return _syncEvents.slice();
 }
 
+/** @returns {{ relay: string, relayCheckedAt: number | null, push: string, pushStartedAt: number | null, pushConfirmedAt: number | null, pull: string, pullReceivedAt: number | null, lastError: any }} */
 export function getSyncStatus() {
   return { ..._syncStatus };
 }

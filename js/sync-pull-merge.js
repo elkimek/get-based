@@ -1,3 +1,4 @@
+// @ts-check
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
 import { state } from './state.js';
@@ -105,7 +106,9 @@ function withoutLocalTombstones(importedData) {
   return rest;
 }
 
-export async function mergePulledImportedData(profileId, importedData, { debug } = {}) {
+/** @param {{ debug?: (...args: any[]) => any }} [options] */
+export async function mergePulledImportedData(profileId, importedData, options = {}) {
+  const { debug } = options;
   const localKey = profileStorageKey(profileId, 'imported');
   const localImportedForMerge = profileId === state.currentProfile
     ? (state.importedData || null)
@@ -184,7 +187,7 @@ export async function mergePulledProfile(profileId, profile) {
     }
     local.lastUpdated = Date.now();
   } else {
-    const newProfile = { id: profileId, lastUpdated: Date.now() };
+    const newProfile = /** @type {any} */ ({ id: profileId, lastUpdated: Date.now() });
     for (const field of PROFILE_MERGE_FIELDS) {
       if (field in profile) newProfile[field] = profile[field];
     }

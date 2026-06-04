@@ -1,3 +1,4 @@
+// @ts-check
 // sync-reconcile.js - startup reconciliation for localStorage vs Evolu rows.
 
 import { state } from './state.js';
@@ -10,9 +11,19 @@ import { isRestoreJoinPending } from './sync-identity.js';
 let _getEvolu = () => null;
 let _getProfileQuery = () => null;
 let _isSyncEnabled = () => false;
+/** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
+/** @type {(...args: any[]) => any} */
 let _debug = () => {};
 
+/** @param {{
+ *   getEvolu?: () => any,
+ *   getProfileQuery?: () => any,
+ *   isSyncEnabled?: () => boolean,
+ *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   debug?: (...args: any[]) => any,
+ * }} [deps]
+ */
 export function configureSyncReconcile({
   getEvolu,
   getProfileQuery,
