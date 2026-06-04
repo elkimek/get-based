@@ -1,3 +1,4 @@
+// @ts-check
 // data-merge.js — per-array record merge for cross-device sync.
 
 import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // lab-entry.js - shared helpers for mutating one lab entry row.
 
 export const LAB_ENTRY_MARKER_TOMBSTONES = 'deletedMarkers';
