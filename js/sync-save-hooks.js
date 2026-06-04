@@ -1,3 +1,4 @@
+// @ts-check
 // sync-save-hooks.js - Save/chat/profile sync debounce hooks.
 
 import { state } from './state.js';
@@ -6,6 +7,7 @@ import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
 
+/** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
@@ -21,6 +23,13 @@ const _profileSyncTimers = new Map();
 let _aiSettingsPushTimer = null;
 let _eventsBound = false;
 
+/** @param {{
+ *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   isSyncEnabled?: () => boolean,
+ *   isEvoluReady?: () => boolean,
+ *   isSyncing?: () => boolean,
+ * }} [deps]
+ */
 export function configureSyncSaveHooks({
   pushProfile,
   isSyncEnabled,
@@ -61,6 +70,9 @@ export function clearSyncSaveTimers() {
   }
 }
 
+/** @param {string | null | undefined} profileId
+ * @param {any} [fallback]
+ */
 export async function readProfileImportedData(profileId, fallback = null) {
   if (fallback && typeof fallback === 'object') return fallback;
   if (profileId === state.currentProfile && state.importedData) return state.importedData;
@@ -76,6 +88,10 @@ export async function readProfileImportedData(profileId, fallback = null) {
   return createDefaultProfileData();
 }
 
+/** @param {string} profileId
+ * @param {any} data
+ * @param {number} [attempt]
+ */
 function scheduleProfilePush(profileId, data, attempt = 0) {
   if (!_isSyncEnabled()) {
     _profileSyncTimers.delete(profileId);
@@ -99,6 +115,9 @@ function scheduleProfilePush(profileId, data, attempt = 0) {
   _pushProfile(profileId, data).catch(() => {});
 }
 
+/** @param {string | null | undefined} profileId
+ * @param {any} [importedData]
+ */
 export function onProfileSaved(profileId, importedData = null) {
   if (!profileId) return;
   if (!_isSyncEnabled()) return;
@@ -113,6 +132,7 @@ export function onProfileSaved(profileId, importedData = null) {
   _profileSyncTimers.set(profileId, timer);
 }
 
+/** @param {{ immediate?: boolean }} [options] */
 export function onDataSaved(options = {}) {
   if (_isSyncEnabled() && _isEvoluReady()) {
     const profileId = state.currentProfile;
