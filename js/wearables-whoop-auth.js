@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-whoop-auth.js — WHOOP OAuth2 PKCE flow (browser side)
 //
 // WHOOP supports native PKCE — the client is public, no secret needed. This
@@ -164,6 +165,7 @@ export async function refreshTokens({ clientId, refreshToken }) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    /** @type {Error & { status?: number }} */
     const err = new Error(body?.error_description || body?.error || `Refresh failed (${res.status})`);
     err.status = res.status; throw err;
   }
@@ -193,6 +195,7 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
     const latest = (readLatest?.() ?? connection);
     if (latest.expiresAt && (latest.expiresAt - Date.now()) >= REFRESH_LEAD_MS) return latest;
     if (!latest.refreshToken) {
+      /** @type {Error & { code?: string }} */
       const e = new Error('No refresh token stored — user must reconnect');
       e.code = 'needs-reauth'; throw e;
     }

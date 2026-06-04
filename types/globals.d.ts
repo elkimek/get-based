@@ -28,6 +28,7 @@ interface Window {
   getProfileHeight?: (profileId: string) => { height?: number | string | null; unit?: string | null };
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
+  _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;
   handleMtDNAFile?: (file: File) => Promise<void> | void;
   importDataJSON: (file: File) => Promise<void> | void;
@@ -64,6 +65,12 @@ interface Window {
   setManualHaplogroup?: (haplogroup: string) => Promise<void> | void;
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
+  _fitbitAuth?: unknown;
+  _ouraAuth?: unknown;
+  _polarAuth?: unknown;
+  _ultrahumanAuth?: unknown;
+  _whoopAuth?: unknown;
+  _withingsAuth?: unknown;
   updateChatHeaderTitle?: () => void;
   updateDiscussButton?: () => void;
   updateHeaderDates?: () => void;

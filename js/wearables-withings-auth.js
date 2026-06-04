@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-withings-auth.js — Withings OAuth2 server-side flow
 //
 // Withings's OAuth2 is LIKE Oura's but with two non-standard twists:
@@ -123,12 +124,14 @@ export async function refreshTokens({ clientId, refreshToken }) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    /** @type {Error & { status?: number }} */
     const err = new Error(body?.error || body?.error_description || `Refresh failed (${res.status})`);
     err.status = res.status; throw err;
   }
   if (body?.status !== undefined && body.status !== 0) {
     const { withingsErrorMessage } = await import('./wearables-withings.js');
     const mapped = withingsErrorMessage(body.status);
+    /** @type {Error & { status?: number, withingsCode?: number }} */
     const err = new Error(mapped
       ? `Withings ${body.status}: ${mapped}`
       : `Withings refresh error ${body.status}: ${body.error || 'unknown'}`);
@@ -162,6 +165,7 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
     const latest = (readLatest?.() ?? connection);
     if (latest.expiresAt && (latest.expiresAt - Date.now()) >= REFRESH_LEAD_MS) return latest;
     if (!latest.refreshToken) {
+      /** @type {Error & { code?: string }} */
       const e = new Error('No refresh token stored — user must reconnect');
       e.code = 'needs-reauth'; throw e;
     }

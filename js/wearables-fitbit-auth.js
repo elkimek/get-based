@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-fitbit-auth.js — Fitbit OAuth 2.0 PKCE flow
 //
 // Fitbit supports PKCE out of the box — public client, no client_secret
@@ -172,6 +173,7 @@ export async function refreshTokens({ clientId, refreshToken }) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    /** @type {Error & { status?: number }} */
     const err = new Error(body?.errors?.[0]?.message || body?.error_description || body?.error || `Refresh failed (${res.status})`);
     err.status = res.status; throw err;
   }
@@ -202,6 +204,7 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
     const latest = (readLatest?.() ?? connection);
     if (latest.expiresAt && (latest.expiresAt - Date.now()) >= REFRESH_LEAD_MS) return latest;
     if (!latest.refreshToken) {
+      /** @type {Error & { code?: string }} */
       const e = new Error('No refresh token stored — user must reconnect');
       e.code = 'needs-reauth'; throw e;
     }
