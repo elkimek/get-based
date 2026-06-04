@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-row-codec.js - Shared itemRow payload decoding for delta merge paths.
 
 import { _base64ToBytes, _gunzipToStringCapped } from './sync-payload.js';

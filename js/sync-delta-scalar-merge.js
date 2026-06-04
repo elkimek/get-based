@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-scalar-merge.js - Pull-side scalar row overlay helper.
 
 import { setAt } from './data-merge.js';

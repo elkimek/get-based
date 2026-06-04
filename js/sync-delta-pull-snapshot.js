@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-pull-snapshot.js - Pull-side row-count snapshot for delta diagnose.
 
 // Refreshed on every _mergeItemRowsIntoImported run. Used by telemetry /

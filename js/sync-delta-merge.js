@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-merge.js - Pull-side per-row delta merge overlay.
 
 import { resetPullDeltaSnapshot } from './sync-delta-observability.js';
@@ -9,6 +10,7 @@ import {
 let _getEvolu = () => null;
 let _getItemRowQuery = () => null;
 
+/** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
 export function configureSyncDeltaMerge({ getEvolu, getItemRowQuery } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getItemRowQuery === 'function') _getItemRowQuery = getItemRowQuery;

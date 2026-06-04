@@ -1,7 +1,9 @@
+// @ts-check
 // sync-delta-observability.js - Delta observability facade.
 
 import { configureSyncDeltaObservabilityContext } from './sync-delta-observability-context.js';
 
+/** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
 export function configureSyncDeltaObservability({ getEvolu, getItemRowQuery } = {}) {
   configureSyncDeltaObservabilityContext({ getEvolu, getItemRowQuery });
 }

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-map-merge.js - Pull-side keyed-map row overlay helper.
 
 import { getAt, setAt } from './data-merge.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta-surface-config.js - Per-surface itemId/keyId overrides.
 
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';

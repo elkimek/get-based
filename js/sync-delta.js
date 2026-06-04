@@ -1,3 +1,4 @@
+// @ts-check
 // sync-delta.js — Evolu per-row delta facade, apply wiring, and compatibility re-exports.
 
 import { configureSyncDeltaObservability } from './sync-delta-observability.js';
@@ -18,6 +19,7 @@ export { _mergeItemRowsIntoImported } from './sync-delta-merge.js';
 let _getEvolu = () => null;
 let _getItemRowQuery = () => null;
 
+/** @param {{ getEvolu?: () => any, getItemRowQuery?: () => any }} [deps] */
 export function configureSyncDelta({ getEvolu, getItemRowQuery } = {}) {
   if (typeof getEvolu === 'function') _getEvolu = getEvolu;
   if (typeof getItemRowQuery === 'function') _getItemRowQuery = getItemRowQuery;
