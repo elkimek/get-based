@@ -1,3 +1,4 @@
+// @ts-check
 // light-device-session-engine.js — shared dose math for light-device sessions.
 //
 // UI/store modules own dialogs and persistence. This module owns the repeated
@@ -5,6 +6,17 @@
 // spectrum synthesis, and SAD-lux fallback.
 
 import { BODY_REGIONS } from './sun-body-silhouette.js';
+
+/**
+ * @typedef {object} DeviceSessionDoseInput
+ * @property {any} [device]
+ * @property {number} [durationMin]
+ * @property {number} [distanceCm]
+ * @property {string} [bodyArea]
+ * @property {string[]|null} [bodyAreas]
+ * @property {boolean} [eyesProtected]
+ * @property {string|null} [mode]
+ */
 
 export const DEVICE_BODY_AREA_FRACTIONS = {
   face: 0.04,
@@ -64,6 +76,10 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
   return Math.min(rawDistFactor, 3.0);
 }
 
+/**
+ * @param {DeviceSessionDoseInput} [input]
+ * @param {any} [deps]
+ */
 export function computeDeviceSessionDoses({
   device,
   durationMin,

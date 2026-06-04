@@ -38,6 +38,9 @@ interface Window {
   fetchAtmosphere?: AnyFunction;
   reconstructSpectrum?: AnyFunction;
   computeChannelDoses?: AnyFunction;
+  synthesizeDeviceSpectrum?: AnyFunction;
+  effectiveDeviceForMode?: AnyFunction;
+  validateModeCoupling?: AnyFunction;
   erythemalSED?: AnyFunction;
   fractionOfMED?: AnyFunction;
   retinalUVdose?: AnyFunction;
@@ -60,6 +63,7 @@ interface Window {
   tierLabel?: (tier: number) => string;
   getSessions?: () => any[];
   getDeviceSessions?: () => any[];
+  maybeAnalyzeDeviceSessionAfterFinish?: AnyFunction;
   maybeAnalyzeSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;
