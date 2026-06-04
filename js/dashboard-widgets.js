@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-widgets.js - dashboard widget registry and persistence helpers
 
 import { state } from './state.js';

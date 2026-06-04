@@ -1,3 +1,4 @@
+// @ts-check
 // category-view-renderers.js — Category chart, table, heatmap, and fatty-acid render helpers
 
 import { state } from './state.js';
@@ -262,7 +263,7 @@ export function renderFattyAcidsCharts(cat) {
     bgC.push(s==="normal"?tc.green+"99":s==="high"?tc.red+"99":tc.yellow+"99");
     brC.push(s==="normal"?tc.green:s==="high"?tc.red:tc.yellow);
   }
-  const ctx = document.getElementById("chart-fa-bar");
+  const ctx = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-fa-bar"));
   if (!ctx) return;
   state.chartInstances["fa-bar"] = new window.Chart(ctx, {
     type: "bar",

@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-widget-controls.js - dashboard widget controls, picker, and layout actions
 
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
@@ -103,8 +104,8 @@ export function createDashboardWidgetControls(deps) {
   function scrollDashboardWidgetIntoView(id) {
     if (!id || typeof document === 'undefined') return;
     requestAnimationFrame(() => {
-      const el = [...document.querySelectorAll('.dashboard-widget[data-widget-id]')]
-        .find(node => node.dataset.widgetId === id);
+      const widgets = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.dashboard-widget[data-widget-id]')]);
+      const el = widgets.find(node => node.dataset.widgetId === id);
       el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     });
   }
@@ -112,7 +113,7 @@ export function createDashboardWidgetControls(deps) {
   function getDashboardViewportTargetWidgetId() {
     if (typeof document === 'undefined' || typeof window === 'undefined') return '';
     const targetLine = Math.max(120, window.innerHeight * 0.36);
-    const widgets = [...document.querySelectorAll('.dashboard-widget[data-widget-id]')];
+    const widgets = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.dashboard-widget[data-widget-id]')]);
     for (const el of widgets) {
       const rect = el.getBoundingClientRect();
       if (rect.bottom >= targetLine) return el.dataset.widgetId || '';

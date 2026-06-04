@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-view-composition.js - dashboard route/widget composition wiring
 
 import { state } from './state.js';
@@ -235,10 +236,15 @@ export function createDashboardViewComposition({
     removeDashboardBiometricMetric: (...args) => dashboardWidgetControls.removeDashboardBiometricMetric(...args),
     filterDashboardMarkerWidgetPicker: (...args) => dashboardWidgetControls.filterDashboardMarkerWidgetPicker(...args),
     filterDashboardBiometricWidgetPicker: (...args) => dashboardWidgetControls.filterDashboardBiometricWidgetPicker(...args),
+    /** @param {[]} args */
     resetDashboardWidgets: (...args) => dashboardWidgetControls.resetDashboardWidgets(...args),
+    /** @param {[]} args */
     clearDashboardWidgets: (...args) => dashboardWidgetControls.clearDashboardWidgets(...args),
+    /** @param {[]} args */
     openDashboardWidgetPicker: (...args) => dashboardWidgetControls.openDashboardWidgetPicker(...args),
+    /** @param {[]} args */
     openDashboardBiometricPicker: (...args) => dashboardWidgetControls.openDashboardBiometricPicker(...args),
+    /** @param {[]} args */
     closeDashboardWidgetPicker: (...args) => dashboardWidgetControls.closeDashboardWidgetPicker(...args),
     startDashboardWidgetDrag: (...args) => dashboardWidgetControls.startDashboardWidgetDrag(...args),
     allowDashboardWidgetDrop: (...args) => dashboardWidgetControls.allowDashboardWidgetDrop(...args),
