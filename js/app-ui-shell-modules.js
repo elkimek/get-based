@@ -1,3 +1,4 @@
+// @ts-check
 // app-ui-shell-modules.js - startup-loaded UI shell feature modules
 
 import './feedback.js';

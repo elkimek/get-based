@@ -1,3 +1,4 @@
+// @ts-check
 // app-event-listeners.js - app-wide DOM event and refresh wiring
 
 import { state } from './state.js';
@@ -149,7 +150,8 @@ function handleAppKeydown(e) {
         const modal = ov.querySelector('[role="dialog"]') || ov.querySelector('.modal') || ov.querySelector('.confirm-dialog') || ov;
         const focusable = modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');
         if (focusable.length === 0) return;
-        const first = focusable[0], last = focusable[focusable.length - 1];
+        const first = /** @type {HTMLElement} */ (focusable[0]);
+        const last = /** @type {HTMLElement} */ (focusable[focusable.length - 1]);
         if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
         else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
         return;
@@ -163,7 +165,7 @@ function handleAppKeydown(e) {
   if (e.key === "c" || e.key === "C") { e.preventDefault(); window.toggleChatPanel(); }
   if (e.key === "/") {
     e.preventDefault();
-    const sb = document.getElementById("sidebar-search");
+    const sb = /** @type {HTMLInputElement | null} */ (document.getElementById("sidebar-search"));
     if (sb) { sb.focus(); sb.select(); }
   }
 }

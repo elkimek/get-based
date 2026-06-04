@@ -1,3 +1,4 @@
+// @ts-check
 // app-light-sun-modules.js - startup-loaded Light & Sun feature modules
 
 import './sun-uvdata.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // app-foundation-modules.js - startup-loaded foundation and privacy modules
 
 import './schema.js';

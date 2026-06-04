@@ -1,3 +1,4 @@
+// @ts-check
 // app-ai-interaction-modules.js - startup-loaded AI and interaction feature modules
 
 import './chat.js';

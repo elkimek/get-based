@@ -1,3 +1,4 @@
+// @ts-check
 // startup-ui.js - first-render UI bootstrap after profile/OAuth startup
 
 import { applyProfileDisplayState } from './startup-profile.js';

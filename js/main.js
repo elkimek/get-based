@@ -1,3 +1,4 @@
+// @ts-check
 // main.js — Thin entry point
 
 import './app-feature-modules.js';

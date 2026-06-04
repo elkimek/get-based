@@ -1,3 +1,4 @@
+// @ts-check
 // startup-profile.js - profile migration, active-profile load, and UI state
 
 import { state } from './state.js';
@@ -17,7 +18,23 @@ import { ensureImportedArray } from './data-merge.js';
 async function migrateLegacyProfileStorage() {
   if (localStorage.getItem('labcharts-profiles')) return;
 
-  const profiles = [{ id: 'default', name: 'Default' }];
+  const now = Date.now();
+  const profiles = [{
+    id: 'default',
+    name: 'Default',
+    sex: null,
+    dob: null,
+    location: { country: '', zip: '' },
+    tags: [],
+    notes: '',
+    status: 'active',
+    avatar: null,
+    height: null,
+    heightUnit: 'cm',
+    createdAt: now,
+    lastUpdated: now,
+    pinned: false,
+  }];
   await saveProfiles(profiles);
   setActiveProfileId('default');
 
@@ -68,15 +85,18 @@ export function applyProfileDisplayState() {
   state.profileDob = getProfileDob(state.currentProfile);
 
   document.querySelectorAll('.unit-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.unit === state.unitSystem);
+    const toggle = /** @type {HTMLElement} */ (btn);
+    toggle.classList.toggle('active', toggle.dataset.unit === state.unitSystem);
   });
   document.querySelectorAll('.sex-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.sex === state.profileSex);
+    const toggle = /** @type {HTMLElement} */ (btn);
+    toggle.classList.toggle('active', toggle.dataset.sex === state.profileSex);
   });
   document.querySelectorAll('.range-toggle-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.range === state.rangeMode);
+    const toggle = /** @type {HTMLElement} */ (btn);
+    toggle.classList.toggle('active', toggle.dataset.range === state.rangeMode);
   });
 
-  const dobInputInit = document.getElementById('dob-input');
+  const dobInputInit = /** @type {HTMLInputElement | null} */ (document.getElementById('dob-input'));
   if (dobInputInit) dobInputInit.value = state.profileDob || '';
 }
