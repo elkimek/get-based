@@ -1,3 +1,4 @@
+// @ts-check
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
 
 import { escapeHTML, showNotification } from './utils.js';
@@ -87,15 +88,15 @@ export async function applyCustomOpenRouterModel(modelId) {
   setOpenRouterModel(id);
   const pricingEl = document.getElementById('openrouter-model-pricing');
   if (pricingEl) pricingEl.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Checking pricing\u2026</span>';
-  const select = document.getElementById('openrouter-model-select');
-  const input = document.getElementById('openrouter-custom-model');
+  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('openrouter-model-select'));
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-custom-model'));
   const inDropdown = select && [...select.options].some(o => o.value === id);
   if (select) {
     if (inDropdown) {
       select.value = id;
       if (input) { input.value = ''; input.style.borderColor = ''; }
     } else {
-      let customOpt = select.querySelector('option[value="__custom"]');
+      let customOpt = /** @type {HTMLOptionElement | null} */ (select.querySelector('option[value="__custom"]'));
       if (!customOpt) {
         customOpt = document.createElement('option');
         customOpt.value = '__custom';
@@ -126,7 +127,7 @@ export async function applyCustomOpenRouterModel(modelId) {
 export function onOpenRouterDropdownChange(value) {
   setOpenRouterModel(value);
   updateOpenRouterModelPricing(value);
-  const input = document.getElementById('openrouter-custom-model');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-custom-model'));
   if (input) { input.value = ''; input.style.borderColor = ''; }
   const health = document.getElementById('openrouter-model-health');
   if (health) { health.textContent = ''; health.title = ''; }
@@ -188,12 +189,12 @@ export function updateCustomModelPricing(modelId) {
 }
 
 export function applyCustomApiManualModel() {
-  const input = document.getElementById('custom-manual-model');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-manual-model'));
   if (!input) return;
   const model = input.value.trim();
   if (!model) { showNotification('Enter a model ID', 'error'); return; }
   setCustomApiModel(model);
-  const select = document.getElementById('custom-model-select');
+  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('custom-model-select'));
   if (select) select.value = model;
   updateCustomModelPricing(model);
   showNotification('Model set to ' + model, 'success');

@@ -1,3 +1,4 @@
+// @ts-check
 // provider-panel-delegates.js - Delegated AI provider settings panel actions
 
 const PROVIDER_PANEL_ROOTS = '#ai-provider-panel';

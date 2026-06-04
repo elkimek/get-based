@@ -1,3 +1,4 @@
+// @ts-check
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -69,6 +70,10 @@ export function refreshRoutstrBalance() {
 
 let _rsFundPollTimer = null;
 
+function _getWalletInput(id) {
+  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+}
+
 export function clearRoutstrWalletTimers() {
   if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
 }
@@ -113,7 +118,7 @@ export function rsWalletFundCustomInput() {
 }
 
 export function doRoutstrWalletFundCustom() {
-  const input = document.getElementById('routstr-wfund-custom');
+  const input = _getWalletInput('routstr-wfund-custom');
   if (!input) return;
   const amount = parseInt(input.value.replace(/[^0-9]/g, ''), 10);
   if (!amount || amount < 100) {
@@ -172,7 +177,7 @@ export async function doRoutstrWalletFund(amountSats) {
 }
 
 export async function doRoutstrWalletReceiveCashu() {
-  const input = document.getElementById('routstr-wcashu-input');
+  const input = _getWalletInput('routstr-wcashu-input');
   const statusEl = document.getElementById('routstr-wfund-status');
   if (!input || !statusEl) return;
   let token = input.value.trim();
@@ -226,7 +231,7 @@ export async function showRoutstrMintEdit() {
 }
 
 export async function doRoutstrMintChange() {
-  const input = document.getElementById('routstr-mint-input');
+  const input = _getWalletInput('routstr-mint-input');
   const statusEl = document.getElementById('routstr-mint-status');
   if (!input || !statusEl) return;
   const url = input.value.trim().replace(/\/+$/, '');
@@ -618,7 +623,7 @@ export function showRoutstrWithdrawLightning() {
     </div>
     <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-quote">Withdraw</button>
   </div>`;
-  const input = document.getElementById('routstr-withdraw-input');
+  const input = _getWalletInput('routstr-withdraw-input');
   input?.addEventListener('input', () => {
     const val = input.value.trim();
     const needsAmount = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
@@ -669,7 +674,7 @@ export async function doRoutstrSendToken(amount) {
 }
 
 export async function doRoutstrWithdrawQuote() {
-  const input = document.getElementById('routstr-withdraw-input');
+  const input = _getWalletInput('routstr-withdraw-input');
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!input || !statusEl) return;
   const val = input.value.trim();
@@ -679,8 +684,8 @@ export async function doRoutstrWithdrawQuote() {
   }
   const isAddress = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
   if (isAddress) {
-    const amountInput = document.getElementById('routstr-withdraw-amount');
-    const amount = parseInt(amountInput?.value) || 0;
+    const amountInput = _getWalletInput('routstr-withdraw-amount');
+    const amount = parseInt(amountInput?.value || '', 10) || 0;
     if (!amount || amount < 1) {
       statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter an amount in sats</div>';
       return;
@@ -729,7 +734,7 @@ export async function doRoutstrWithdrawExecute(quoteId) {
 }
 
 export async function doRoutstrWalletRestore() {
-  const input = document.getElementById('routstr-restore-seed');
+  const input = _getWalletInput('routstr-restore-seed');
   const statusEl = document.getElementById('routstr-restore-status');
   if (!input || !statusEl) return;
   const mnemonic = input.value.trim().toLowerCase();

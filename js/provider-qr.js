@@ -1,3 +1,4 @@
+// @ts-check
 // provider-qr.js - shared QR-code loader for provider funding and top-up panels
 
 import { loadScriptOnce } from './utils.js';

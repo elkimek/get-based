@@ -1,3 +1,4 @@
+// @ts-check
 // provider-local-ai-controls.js - Local AI connection checks, model advisor, and hardware overrides.
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -32,12 +33,12 @@ export function initSettingsOllamaCheck() {
       checkOpenAICompatible(mainUrl, config.apiKey),
       checkOllama(mainUrl),
     ]).then(([openaiResult, ollamaResult]) => {
-      const result = openaiResult.value || { available: false, models: [] };
-      const ollama = ollamaResult.value || { available: false, models: [], modelDetails: [] };
+      const result = openaiResult.status === 'fulfilled' ? openaiResult.value : { available: false, models: [] };
+      const ollama = ollamaResult.status === 'fulfilled' ? ollamaResult.value : { available: false, models: [], modelDetails: [] };
       const dot = document.getElementById('local-ai-dot');
       const text = document.getElementById('local-ai-status-text');
       const modelSection = document.getElementById('local-ai-model-section');
-      const modelSelect = document.getElementById('local-ai-model-select');
+      const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
       if (!dot || !text) return;
       if (result.available && result.models.length > 0) {
         dot.classList.add('connected');
@@ -85,6 +86,11 @@ function isLocalUrl(url) {
   } catch { return true; }
 }
 
+/**
+ * @param {any[]} modelDetails
+ * @param {HTMLSelectElement | null} modelSelect
+ * @param {boolean} [isOllama]
+ */
 export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = false) {
   const advisorEl = document.getElementById('local-ai-advisor');
   if (!advisorEl) return;
@@ -249,15 +255,15 @@ function getCORSHelpText() {
 }
 
 export async function testOllamaConnection() {
-  const urlInput = document.getElementById('local-ai-url-input');
+  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-url-input'));
   const dot = document.getElementById('local-ai-dot');
   const text = document.getElementById('local-ai-status-text');
   const modelSection = document.getElementById('local-ai-model-section');
-  const modelSelect = document.getElementById('local-ai-model-select');
+  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
   if (!urlInput || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
-  const apiKeyInput = document.getElementById('local-ai-apikey-input');
+  const apiKeyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('local-ai-apikey-input'));
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   text.textContent = 'Testing...';
   dot.className = 'local-ai-status-dot';
@@ -313,11 +319,11 @@ export async function testOllamaConnection() {
 }
 
 export async function testPIIOllamaConnection() {
-  const urlInput = document.getElementById('pii-local-url-input');
+  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-url-input'));
   const dot = document.getElementById('pii-local-dot');
   const text = document.getElementById('pii-local-status-text');
   const piiDropdown = document.getElementById('pii-model-dropdown');
-  const piiSelect = document.getElementById('pii-model-select');
+  const piiSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('pii-model-select'));
   if (!urlInput || !text) return;
   const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
   const config = getOllamaConfig();
@@ -347,7 +353,7 @@ export async function testPIIOllamaConnection() {
       dot.classList.add('connected');
       setOllamaPIIUrl(url);
       setOllamaPIIEnabled(true);
-      const toggle = document.getElementById('pii-local-toggle');
+      const toggle = /** @type {HTMLInputElement | null} */ (document.getElementById('pii-local-toggle'));
       if (toggle) toggle.checked = true;
       let currentPII = getOllamaPIIModel();
       if (!models.includes(currentPII)) { currentPII = models[0]; setOllamaPIIModel(currentPII); }
@@ -367,7 +373,8 @@ export async function testPIIOllamaConnection() {
 
 export function refreshModelAdvisor() {
   const details = window._lastOllamaModelDetails || [];
-  if (details.length) renderModelAdvisor(details, document.getElementById('local-ai-model-select'), !!window._lastIsOllamaServer);
+  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
+  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
 }
 
 export function copyOllamaPullCmd(cmd) {
@@ -379,11 +386,13 @@ export function applyHardwareOverride(vram) {
   if (isNaN(v) || v <= 0) { showNotification('Enter a valid VRAM amount in GB', 'error'); return; }
   saveHardwareOverride(v);
   const details = window._lastOllamaModelDetails || [];
-  if (details.length) renderModelAdvisor(details, document.getElementById('local-ai-model-select'), !!window._lastIsOllamaServer);
+  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
+  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
 }
 
 export function clearHardwareOverride() {
   saveHardwareOverride(null);
   const details = window._lastOllamaModelDetails || [];
-  if (details.length) renderModelAdvisor(details, document.getElementById('local-ai-model-select'), !!window._lastIsOllamaServer);
+  const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
+  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
 }
