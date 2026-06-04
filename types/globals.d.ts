@@ -4,6 +4,8 @@ declare const Buffer: {
   };
 };
 
+type AnyFunction = (...args: any[]) => any;
+
 interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
@@ -33,6 +35,25 @@ interface Window {
   getProfiles?: () => Array<{ id?: string; sex?: string | null }>;
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
+  fetchAtmosphere?: AnyFunction;
+  reconstructSpectrum?: AnyFunction;
+  computeChannelDoses?: AnyFunction;
+  erythemalSED?: AnyFunction;
+  fractionOfMED?: AnyFunction;
+  retinalUVdose?: AnyFunction;
+  solarZenithAngle?: AnyFunction;
+  interpolateAtmosphere?: AnyFunction;
+  vitaminDIU?: AnyFunction;
+  vitaminDIUPerSession?: AnyFunction;
+  pbmJoulesPerCm2?: AnyFunction;
+  circadianMelanopicLux?: AnyFunction;
+  _skinTypeToFitzpatrick?: AnyFunction;
+  geneticVitaminDMultiplier?: AnyFunction;
+  renderSessionAIInline?: AnyFunction;
+  renderSessionAIDetail?: AnyFunction;
+  renderLightChannelsLive?: AnyFunction;
+  renderLightTodayStrip?: AnyFunction;
+  maybeAnalyzeSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;
   handleMtDNAFile?: (file: File) => Promise<void> | void;

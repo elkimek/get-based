@@ -1,3 +1,4 @@
+// @ts-check
 // sun-active-session.js — active sun-session UI, live dose ticker, and
 // active-session modal. Core persisted session storage and hydration live in
 // sun-sessions-store.js; this module receives those operations through
@@ -10,6 +11,7 @@ import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-bo
 import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
 
+/** @type {Record<string, any>} */
 const activeDeps = {
   getSessions: () => [],
   getActiveSession: () => null,
@@ -215,7 +217,7 @@ export async function openStartSunSessionDialog() {
     if (!Number.isFinite(uvi)) return;
     latestPreflightUvi = uvi;
     const banner = overlay.querySelector('#sun-start-uvi-banner');
-    if (!banner) return;
+    if (!(banner instanceof HTMLElement)) return;
     const html = _renderUVIPreflightBanner(uvi, fitz, psm);
     if (html) {
       banner.innerHTML = html;
@@ -224,12 +226,12 @@ export async function openStartSunSessionDialog() {
   }).catch(() => {});
 
   overlay.querySelector('#start-confirm').addEventListener('click', async () => {
-    const eyeMode = overlay.querySelector('#start-eye-mode').value || 'direct';
-    const lensTint = overlay.querySelector('#start-lens-tint').value || 'clear';
-    const glassBetween = overlay.querySelector('#start-glass').checked;
-    const posture = overlay.querySelector('#start-posture').value || 'standing';
-    const surfaceAlbedo = overlay.querySelector('#start-surface').value || 'grass';
-    const rotatedSides = !!overlay.querySelector('#start-rotated')?.checked;
+    const eyeMode = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-eye-mode'))?.value || 'direct';
+    const lensTint = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-lens-tint'))?.value || 'clear';
+    const glassBetween = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#start-glass'))?.checked;
+    const posture = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-posture'))?.value || 'standing';
+    const surfaceAlbedo = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-surface'))?.value || 'grass';
+    const rotatedSides = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#start-rotated'))?.checked;
     const regions = Array.from(selected);
     if (regions.length === 0) {
       hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?';

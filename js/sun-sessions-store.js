@@ -1,3 +1,4 @@
+// @ts-check
 // sun-sessions-store.js — persisted Sun session lifecycle, hydration, and safety.
 //
 // This module owns importedData.sunSessions[] CRUD and dose hydration. UI flows
@@ -15,6 +16,7 @@ import {
   photosensitiveMedScale,
 } from './sun-session-model.js';
 
+/** @type {Record<string, any>} */
 const storeDeps = {
   commitCurrentSlice: () => {},
   setLiveState: () => {},
@@ -50,6 +52,19 @@ export function getActiveSession() {
 // Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
 // `regions` array (anatomical-region picker output). Regions take priority
 // when both are supplied — fraction is computed by summing region fractions.
+/**
+ * @param {{
+ *   exposurePreset?: string,
+ *   regions?: string[],
+ *   eyeMode?: string,
+ *   lensTint?: string,
+ *   glassBetween?: boolean,
+ *   location?: any,
+ *   posture?: string,
+ *   surfaceAlbedo?: string,
+ *   rotatedSides?: boolean
+ * }} [opts]
+ */
 export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass', rotatedSides = false } = {}) {
   const id = `sun_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
@@ -378,7 +393,9 @@ export function _applyAtmOverrides(atm) {
   return out;
 }
 
-export async function hydrateSession(id, { lat, lon } = {}) {
+/** @param {{ lat?: number, lon?: number }} [coords] */
+export async function hydrateSession(id, coords = {}) {
+  const { lat, lon } = coords;
   const sess = getSessions().find(s => s.id === id);
   if (!sess || !sess.endedAt) return null;
   // Lazy-load engine modules — they are loaded by main.js at boot, so
