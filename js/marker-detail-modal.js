@@ -180,11 +180,18 @@ bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync);
 // Remembered focus before a detail modal opens, so closeModal() can return
 // focus to the trigger. Keyboard users otherwise land on <body> after close
 // and lose their place in the page.
-/** @type {HTMLElement | null} */
+/** @type {(Element & { focus: () => void }) | null} */
 let _modalLastTrigger = null;
 export function rememberModalTrigger() {
   const el = document.activeElement;
-  _modalLastTrigger = (el instanceof HTMLElement && el !== document.body) ? el : null;
+  if (!(el instanceof Element) || el === document.body) {
+    _modalLastTrigger = null;
+    return;
+  }
+  const focusableEl = /** @type {Element & { focus?: unknown }} */ (el);
+  _modalLastTrigger = typeof focusableEl.focus === 'function'
+    ? /** @type {Element & { focus: () => void }} */ (focusableEl)
+    : null;
 }
 function restoreModalTrigger() {
   const el = _modalLastTrigger;

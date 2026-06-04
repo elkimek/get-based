@@ -55,8 +55,7 @@ export async function saveManualEntry(id, opts = {}) {
   const { keepOpen = false } = opts;
   const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
   const valueInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-value'));
-  const noteInput = document.getElementById('me-note');
-  const noteField = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (noteInput);
+  const noteField = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('me-note'));
   const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-unit'));
   if (!dateInput || !valueInput) return;
   const date = dateInput.value;
