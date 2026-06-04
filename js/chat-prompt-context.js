@@ -1,3 +1,4 @@
+// @ts-check
 // chat-prompt-context.js - chat API prompt and message-context helpers
 
 export function buildPersonalityPrompt(personality, customPersonality) {

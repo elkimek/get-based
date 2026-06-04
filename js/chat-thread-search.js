@@ -1,20 +1,29 @@
+// @ts-check
 // chat-thread-search.js — chat thread rail message search and highlighting
 
 import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { escapeHTML } from './utils.js';
 
+/** @type {{
+ *   getChatThreadKey: (threadId: string) => string,
+ *   renderThreadList: (filter?: string) => void,
+ *   switchToThread: (threadId: string) => Promise<void>,
+ * }} */
 const threadSearchCallbacks = {
   getChatThreadKey: () => '',
   renderThreadList: () => {},
   switchToThread: async () => {},
 };
 
-const SEARCH_RESULT_LIMIT = 30;
-
+/** @type {ReturnType<typeof setTimeout> | null} */
 let _threadSearchTimer = null;
+/** @type {{ profileId: string | null, threads: Map<string, any[]> } | null} */
 let _threadContentCache = null; // { profileId, threads: Map<threadId, messages[]> }
 
+const SEARCH_RESULT_LIMIT = 30;
+
+/** @param {Partial<typeof threadSearchCallbacks>} [callbacks] */
 export function configureChatThreadSearch(callbacks = {}) {
   Object.assign(threadSearchCallbacks, callbacks);
 }
@@ -75,7 +84,7 @@ async function searchThreadContent(query) {
     if (results.length > SEARCH_RESULT_LIMIT) break;
   }
   // Re-check input hasn't changed
-  const input = document.getElementById('chat-thread-search');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
   if (!input || input.value.trim().toLowerCase() !== q) return;
   showSearchResults(q, results);
 }
@@ -103,7 +112,7 @@ function showSearchResults(query, results) {
 }
 
 export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
-  const input = document.getElementById('chat-thread-search');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
   const query = input?.value?.trim() || '';
   // Switch to thread (re-renders messages if different thread)
   if (state.currentThreadId !== threadId) {
@@ -144,6 +153,7 @@ function highlightInMessage(el, query) {
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
     const text = node.textContent;
+    if (!text) continue;
     const lower = text.toLowerCase();
     // Find all match positions in this node (reverse order)
     const positions = [];
@@ -155,6 +165,7 @@ function highlightInMessage(el, query) {
     if (!positions.length) continue;
     // Split node at each match, in reverse to keep offsets valid
     const parent = node.parentNode;
+    if (!parent) continue;
     let remainder = node;
     for (let j = positions.length - 1; j >= 0; j--) {
       const idx = positions[j];

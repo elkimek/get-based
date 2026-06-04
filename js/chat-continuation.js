@@ -1,3 +1,4 @@
+// @ts-check
 // chat-continuation.js - response limit detection and automatic continuation
 
 import { callClaudeAPI } from './api.js';

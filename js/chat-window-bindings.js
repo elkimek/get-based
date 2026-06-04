@@ -1,3 +1,4 @@
+// @ts-check
 // chat-window-bindings.js — chat callback wiring and legacy window exports
 
 import { setAIPaused } from './api.js';

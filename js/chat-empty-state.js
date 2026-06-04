@@ -1,3 +1,4 @@
+// @ts-check
 // chat-empty-state.js — chat empty states and onboarding message HTML
 
 import { state } from './state.js';
@@ -23,10 +24,15 @@ const CHAT_EMPTY_STOP_PROPAGATION_ACTIONS = new Set([
   'open-wearables-settings',
 ]);
 
+/**
+ * @param {any} event
+ * @param {string} [selector]
+ * @returns {HTMLElement | null}
+ */
 function closestChatEmptyAction(event, selector = '[data-chat-empty-action]') {
   const target = event.target;
   if (!(target instanceof Element)) return null;
-  const actionEl = target.closest(selector);
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest(selector));
   if (!actionEl) return null;
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
@@ -61,7 +67,7 @@ function handleChatEmptyClick(event) {
     closeChatPanel();
     window.triggerDNAFilePicker?.();
   } else if (action === 'import-mtdna') {
-    const input = event.currentTarget?.querySelector('#mtdna-onboard-input');
+    const input = /** @type {HTMLInputElement | null} */ (event.currentTarget?.querySelector('#mtdna-onboard-input') || null);
     closeChatPanel();
     input?.click();
   } else if (action === 'open-wearables-settings') {
@@ -74,7 +80,8 @@ function handleChatEmptyClick(event) {
   } else if (action === 'open-provider-quiz') {
     window.openChatProviderQuiz?.();
   } else if (action === 'scroll-context-cards') {
-    event.currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const currentTarget = event.currentTarget instanceof Element ? event.currentTarget : null;
+    currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (action === 'start-lab-import') {
     startOnboardingLabImport();
   } else if (action === 'set-onboarding-focus') {
@@ -107,6 +114,7 @@ function handleChatEmptyInput(event) {
   if (actionEl.dataset.chatEmptyAction === 'save-location') saveChatLocation();
 }
 
+/** @param {HTMLElement | null} container */
 function installChatEmptyStateDelegates(container) {
   if (!container || container.dataset.chatEmptyDelegates === '1') return;
   container.dataset.chatEmptyDelegates = '1';
@@ -191,7 +199,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
   const pDob = state.profileDob || '';
   const pLoc = getProfileLocation(state.currentProfile);
   const _pH = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
-  const pHeight = _pH.height ? (_pH.unit === 'in' ? (_pH.height / 2.54).toFixed(1) : _pH.height) : '';
+  const pHeight = _pH.height ? (_pH.unit === 'in' ? (Number(_pH.height) / 2.54).toFixed(1) : _pH.height) : '';
   const pHeightUnit = _pH.unit || 'cm';
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">

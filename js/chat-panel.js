@@ -1,3 +1,4 @@
+// @ts-check
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
 import { hasAIProvider, isAIPaused, supportsWebSearch } from './api.js';
@@ -18,6 +19,7 @@ const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
 };
 
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
   Object.assign(panelCallbacks, callbacks);
 }
@@ -35,7 +37,7 @@ export function setChatWebSearchEnabled(val) {
 }
 
 function updateWebSearchToggleVisibility() {
-  const label = document.querySelector('#chat-panel .chat-websearch-toggle-label');
+  const label = /** @type {HTMLElement | null} */ (document.querySelector('#chat-panel .chat-websearch-toggle-label'));
   if (label) label.style.display = supportsWebSearch() ? '' : 'none';
 }
 
@@ -99,7 +101,7 @@ export async function openChatPanel(prefillMessage) {
   updateLensIndicator();
   updatePersonalityBar();
   // Sync web search toggle
-  const wsCb = panel.querySelector('#chat-websearch-checkbox');
+  const wsCb = /** @type {HTMLInputElement | null} */ (panel.querySelector('#chat-websearch-checkbox'));
   if (wsCb) wsCb.checked = getChatWebSearchEnabled();
   updateWebSearchToggleVisibility();
   // Load threads and ensure active thread
@@ -111,7 +113,7 @@ export async function openChatPanel(prefillMessage) {
   await loadChatHistory();
   panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
-  const input = document.getElementById('chat-input');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) {
     if (prefillMessage) input.value = prefillMessage;
     input.focus();
@@ -119,8 +121,8 @@ export async function openChatPanel(prefillMessage) {
 }
 
 export function updateChatInputState() {
-  const input = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('chat-send-btn');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const noAI = !hasAIProvider();
   if (input) {
     input.disabled = noAI;

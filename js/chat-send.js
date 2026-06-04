@@ -1,3 +1,4 @@
+// @ts-check
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
 import { state } from './state.js';
@@ -38,6 +39,7 @@ import {
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
 // ═══════════════════════════════════════════════
+/** @type {AbortController | null} */
 let _chatAbortController = null;
 
 export function isChatStreaming() {
@@ -55,9 +57,15 @@ export function setChatAbortController(controller) {
 // ═══════════════════════════════════════════════
 // TYPEWRITER — smooth character trickle for streaming
 // ═══════════════════════════════════════════════
+/**
+ * @param {HTMLElement} el
+ * @param {HTMLElement} typingEl
+ * @param {HTMLElement} container
+ */
 export function createTypewriter(el, typingEl, container) {
   let target = '';
   let displayed = 0;
+  /** @type {ReturnType<typeof setTimeout> | null} */
   let timer = null;
   let autoScrollLocked = false;
 
@@ -107,8 +115,8 @@ export function createTypewriter(el, typingEl, container) {
 // pending-queue, thumbnail generation) lives in chat-images.js. The only
 // back-reference into this module is `window.updateSendButtonState?.()`.
 export function updateSendButtonState() {
-  const input = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('chat-send-btn');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   if (!sendBtn) return;
   const hasContent = (input && input.value.trim()) || hasPendingAttachments();
   sendBtn.disabled = !hasContent && !_chatAbortController;
@@ -146,9 +154,10 @@ export async function sendChatMessage() {
     return;
   }
 
-  const input = document.getElementById('chat-input');
-  const sendBtn = document.getElementById('chat-send-btn');
-  const container = document.getElementById('chat-messages');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
+  const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
+  if (!input || !sendBtn || !container) return;
   const text = input.value.trim();
   const hasImages = hasPendingAttachments();
   if (!text && !hasImages) return;
@@ -275,7 +284,8 @@ export async function sendChatMessage() {
       webSearch: webSearchEnabled,
       provider: _msgProvider
     });
-    const { text: fullText, usage } = aiResult;
+    const fullText = aiResult.text;
+    const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
     const responseTruncated = isAIResponseTruncated(aiResult);
 
     // Final render with full markdown
@@ -364,12 +374,14 @@ export async function sendChatMessage() {
     while (actionBarContainer.firstChild) aiMsgEl.appendChild(actionBarContainer.firstChild);
 
     // Async-render supplement recommendations before action bar
-    if (_recSlots.length && window.renderRecommendationSection && window.loadCatalog) {
-      window.loadCatalog().then(catalog => {
+    const renderRecommendationSectionSync = window.renderRecommendationSectionSync;
+    const loadCatalog = window.loadCatalog;
+    if (_recSlots.length && window.renderRecommendationSection && renderRecommendationSectionSync && loadCatalog) {
+      loadCatalog().then(catalog => {
         if (!catalog?.slots || !aiMsgEl.isConnected) return;
         const sections = _recSlots.map(slot => {
           const slotLabel = catalog.slots[slot]?.label || slot.split('.').pop();
-          return window.renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
+          return renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
         }).filter(Boolean);
         if (!sections.length) return;
         const wrapper = document.createElement('details');
@@ -396,10 +408,11 @@ export async function sendChatMessage() {
 
     container.scrollTop = container.scrollHeight;
   } catch (err) {
+    const error = /** @type {any} */ (err);
     if (typingEl.parentNode) typingEl.remove();
 
     // Abort: save partial streamed text as a normal message
-    if (err.name === 'AbortError') {
+    if (error.name === 'AbortError') {
       // Read partial text from the DOM (typewriter accumulates into textContent)
       const partialText = aiMsgEl?.textContent?.trim() || '';
       if (partialText && aiMsgEl) {
@@ -410,13 +423,13 @@ export async function sendChatMessage() {
         state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, stopped: true });
         await saveChatHistory();
       }
-    } else if (!err?._modalShown) {
+    } else if (!error?._modalShown) {
       // Skip inline error rendering when a modal already surfaced the
       // condition (e.g., OpenRouter 402 → showInsufficientBalanceDialog),
       // to avoid double-notifying the user.
       const errEl = document.createElement('div');
       errEl.className = 'chat-msg chat-ai';
-      errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(err.message)}</span>`;
+      errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(error.message)}</span>`;
       container.appendChild(errEl);
     }
   }

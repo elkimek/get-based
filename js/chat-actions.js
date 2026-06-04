@@ -1,3 +1,4 @@
+// @ts-check
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
@@ -41,7 +42,7 @@ export function regenerateLastMessage() {
   state.chatHistory.pop();
   const lastUserMsg = state.chatHistory[state.chatHistory.length - 1];
   if (!lastUserMsg || lastUserMsg.role !== 'user') return;
-  const input = document.getElementById('chat-input');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) input.value = lastUserMsg.content;
   state.chatHistory.pop();
   void saveChatHistory();
