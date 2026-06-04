@@ -1,3 +1,4 @@
+// @ts-check
 // sync-tombstones.js - remote profile delete propagation and quarantine.
 
 import { state } from './state.js';
@@ -6,13 +7,28 @@ import { profileStorageKey, getProfiles, saveProfiles, loadProfile } from './pro
 import { getEncryptionEnabled, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { parseSyncPayload } from './sync-payload.js';
 
+/** @type {() => any} */
 let _getEvolu = () => null;
+/** @type {() => any} */
 let _getProfileQuery = () => null;
+/** @type {() => any} */
 let _getTombstoneQuery = () => null;
+/** @type {() => boolean} */
 let _isSyncEnabled = () => false;
+/** @type {((profileId: string, data: any) => Promise<any>) | null} */
 let _pushProfile = null;
+/** @type {(...args: any[]) => void} */
 let _debug = () => {};
 
+/** @param {{
+ *   getEvolu?: () => any,
+ *   getProfileQuery?: () => any,
+ *   getTombstoneQuery?: () => any,
+ *   isSyncEnabled?: () => boolean,
+ *   pushProfile?: (profileId: string, data: any) => Promise<any>,
+ *   debug?: (...args: any[]) => void,
+ * }} [deps]
+ */
 export function configureSyncTombstones({
   getEvolu,
   getProfileQuery,
@@ -45,9 +61,11 @@ function dbg(...args) {
   try { _debug(...args); } catch {}
 }
 
+/** @param {string} profileId */
 const TOMBSTONE_QUARANTINE_KEY = (profileId) => `labcharts-tombstone-pending-${profileId}`;
 const TOMBSTONE_BATCH_THRESHOLD = 2; // two or more tombstones at once require confirm
 
+/** @param {string} profileId */
 async function wipeProfileLocal(profileId) {
   await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
   for (const key of ['units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'suppImpact']) {
@@ -69,6 +87,7 @@ async function wipeProfileLocal(profileId) {
 // Soft-delete a profile's row on the relay so other devices stop seeing it.
 // Local wipe alone is insufficient: otherwise any peer that pulls the old
 // Evolu row can resurrect the deleted profile.
+/** @param {string | null | undefined} profileId */
 export async function deleteProfileFromRelay(profileId) {
   const evolu = currentEvolu();
   const profileQuery = currentProfileQuery();
@@ -86,7 +105,7 @@ export async function deleteProfileFromRelay(profileId) {
     return { ok: true };
   } catch (e) {
     console.error('[sync] Profile delete propagation failed:', e);
-    return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -169,6 +188,7 @@ export function listPendingTombstones() {
   return out;
 }
 
+/** @param {string} profileId */
 export async function applyPendingTombstone(profileId) {
   const profiles = getProfiles();
   const survivors = profiles.filter(p => p.id !== profileId);
@@ -180,6 +200,7 @@ export async function applyPendingTombstone(profileId) {
   return { ok: true };
 }
 
+/** @param {string} profileId */
 export async function rejectPendingTombstone(profileId) {
   if (!currentEvolu() || !_isSyncEnabled()) return { ok: false, reason: 'sync-off' };
   const localKey = profileStorageKey(profileId, 'imported');

@@ -1,3 +1,4 @@
+// @ts-check
 // sync-apply.js - apply inbound synced AI settings and display prefs.
 
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
@@ -20,6 +21,7 @@ function hasLocalAISettingsLock() {
   }
 }
 
+/** @param {string} key */
 function shouldKeepLocalOpenRouterOAuthSetting(key) {
   if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
   try {
@@ -30,6 +32,7 @@ function shouldKeepLocalOpenRouterOAuthSetting(key) {
   }
 }
 
+/** @param {string} key */
 function shouldKeepLocalAISetting(key) {
   return shouldKeepLocalOpenRouterOAuthSetting(key)
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
@@ -37,6 +40,7 @@ function shouldKeepLocalAISetting(key) {
 
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
 
+/** @param {Record<string, any> | null | undefined} settings */
 export async function applyAISettings(settings) {
   if (!settings) return;
   let changed = false;
@@ -59,6 +63,9 @@ export async function applyAISettings(settings) {
   }
 }
 
+/** @param {string} profileId
+ * @param {Record<string, string> | null | undefined} prefs
+ */
 export function applyDisplayPrefs(profileId, prefs) {
   if (!prefs) return;
   for (const suffix of DISPLAY_PREF_SUFFIXES) {

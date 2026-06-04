@@ -1,3 +1,4 @@
+// @ts-check
 // sync-cutover.js - Phase 2 lean-sync cutover gate and flag helpers.
 
 import {
@@ -10,6 +11,7 @@ export { isPhase2CutoverEnabled };
 // Gated setter - refuses to enable cutover when readiness check finds
 // blockers. Returns { ok, reason, blockerCount } so the UI can render
 // a useful error. Disable is always allowed (escape hatch).
+/** @param {string | null | undefined} profileId */
 export function enablePhase2Cutover(profileId) {
   if (!profileId) return { ok: false, reason: 'no-profile' };
   const r = getDeltaCutoverReadiness(profileId);
@@ -20,6 +22,7 @@ export function enablePhase2Cutover(profileId) {
   return { ok: false, reason: 'storage' };
 }
 
+/** @param {string | null | undefined} profileId */
 export function disablePhase2Cutover(profileId) {
   return disablePhase2CutoverFlag(profileId);
 }

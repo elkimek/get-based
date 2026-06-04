@@ -1,9 +1,19 @@
+// @ts-check
 // sync-relay-health.js - relay quota, self-service, and push persistence checks
 
+/** @typedef {{ id?: string | number, writeKey?: BufferSource }} SyncAppOwner */
+/** @typedef {{ bytes: number, cap: number, pct: number, level: string }} RelayQuotaEstimate */
+/** @typedef {{ storedBytes: number, messageCount: number, lastWriteToken: string | null, at: number }} RelaySnapshot */
+/** @typedef {{ verdict: string, at: number, reason: string | null }} RelayHealthVerdict */
+
+/** @type {() => SyncAppOwner | null} */
 let _getAppOwner = () => null;
+/** @type {() => string | null} */
 let _getSyncRelay = () => null;
+/** @type {((quota: RelayQuotaEstimate) => void) | null} */
 let _onQuotaThreshold = null;
 
+/** @param {{ getAppOwner?: () => SyncAppOwner | null, getSyncRelay?: () => string | null, onQuotaThreshold?: (quota: RelayQuotaEstimate) => void }} [deps] */
 export function configureRelayHealth({ getAppOwner, getSyncRelay, onQuotaThreshold } = {}) {
   if (typeof getAppOwner === 'function') _getAppOwner = getAppOwner;
   if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
@@ -25,6 +35,7 @@ function _ownerStorageKey() {
   return `labcharts-relay-bytes-${owner}`;
 }
 
+/** @param {number | string | null | undefined} bytes */
 export function trackPushBytes(bytes) {
   const safeBytes = _coerceRelayBytes(bytes);
   if (!_appOwner()?.id || safeBytes <= 0) return;
@@ -36,6 +47,7 @@ export function trackPushBytes(bytes) {
   _maybeWarnQuotaThreshold();
 }
 
+/** @returns {RelayQuotaEstimate | null} */
 export function getRelayQuotaEstimate() {
   if (!_appOwner()?.id) return null;
   let bytes = 0;
@@ -53,12 +65,14 @@ export function resetRelayQuotaEstimate() {
   try { localStorage.removeItem(_ownerStorageKey()); return true; } catch { return false; }
 }
 
+/** @param {number | string | null | undefined} bytes */
 function _setRelayQuotaBytes(bytes) {
   const safeBytes = _coerceRelayBytes(bytes);
   if (!_appOwner()?.id || safeBytes < 0) return;
   try { localStorage.setItem(_ownerStorageKey(), String(safeBytes)); } catch {}
 }
 
+/** @param {number | string | null | undefined} bytes */
 function _coerceRelayBytes(bytes) {
   const value = Number(bytes);
   return Number.isFinite(value) && value >= 0 ? Math.round(value) : -1;
@@ -93,6 +107,7 @@ function _getSelfBaseUrl() {
   } catch { return null; }
 }
 
+/** @param {string} context */
 async function _signSelfRequest(context) {
   const owner = _appOwner();
   if (!owner?.id || !owner?.writeKey) {
@@ -141,7 +156,9 @@ export async function fetchOwnerStorageFromRelay() {
   } catch { return null; }
 }
 
+/** @type {RelaySnapshot | null} */
 let _lastRelaySnapshot = null;
+/** @type {RelayHealthVerdict} */
 let _lastVerifyVerdict = { verdict: 'unknown', at: 0, reason: null };
 let _lastPushCommittedAt = 0;
 
