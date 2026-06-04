@@ -1,3 +1,4 @@
+// @ts-check
 // chat-render.js — chat transcript rendering
 
 import { state } from './state.js';

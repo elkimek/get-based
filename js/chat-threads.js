@@ -1,3 +1,4 @@
+// @ts-check
 // chat-threads.js — Conversation-thread management for the chat panel
 //
 // Extracted from chat.js (v1.21.9) as the second Phase 2e refactor split.
@@ -156,7 +157,7 @@ export function createNewThread({ sync = true } = {}) {
   window.updatePersonalityBar?.();
   renderThreadList();
   // Focus input
-  const input = document.getElementById('chat-input');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   if (input) input.focus();
 }
 
@@ -263,16 +264,20 @@ export function pruneOldThreads() {
 // ═══════════════════════════════════════════════
 // THREAD RAIL UI
 // ═══════════════════════════════════════════════
+/** @param {Event} event */
 function closestThreadAction(event) {
   const target = event.target;
   if (typeof Element === 'undefined' || !(target instanceof Element)) return null;
-  return target.closest('[data-chat-thread-action]');
+  return /** @type {HTMLElement | null} */ (target.closest('[data-chat-thread-action]'));
 }
 
+/** @param {HTMLElement} actionEl */
 function getThreadActionId(actionEl) {
-  return actionEl.dataset.threadId || actionEl.closest('[data-thread-id]')?.dataset.threadId || '';
+  const threadEl = /** @type {HTMLElement | null} */ (actionEl.closest('[data-thread-id]'));
+  return actionEl.dataset.threadId || threadEl?.dataset.threadId || '';
 }
 
+/** @param {Event} event */
 function handleThreadActionClick(event) {
   const actionEl = closestThreadAction(event);
   if (!actionEl) return;
@@ -301,6 +306,7 @@ export function installChatThreadDelegates() {
   document.addEventListener('click', handleThreadActionClick);
 }
 
+/** @param {string} [filter] */
 export function renderThreadList(filter) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
@@ -340,7 +346,7 @@ export function renderThreadList(filter) {
 
 function formatThreadDate(date) {
   const now = new Date();
-  const diff = now - date;
+  const diff = now.getTime() - date.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;

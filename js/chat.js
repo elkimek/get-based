@@ -1,3 +1,4 @@
+// @ts-check
 // chat.js — chat public barrel and window-binding entry point
 
 import './chat-window-bindings.js';

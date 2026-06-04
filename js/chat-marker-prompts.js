@@ -1,3 +1,4 @@
+// @ts-check
 // chat-marker-prompts.js — marker and correlation prompts that open chat
 
 import { state } from './state.js';

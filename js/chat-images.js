@@ -1,3 +1,4 @@
+// @ts-check
 // chat-images.js — Chat panel image attachment flow
 //
 // Extracted from chat.js (v1.21.9) as the first Phase 2e refactor split.
@@ -16,6 +17,7 @@ import { hasAIProvider, supportsVision } from './api.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
+/** @type {Array<{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null }>} */
 let _pendingAttachments = []; // { base64, mediaType, name, previewUrl, thumbUrl }
 let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
 
@@ -46,7 +48,7 @@ function hdTitle() {
 
 export function toggleHDMode() {
   _hdMode = !_hdMode;
-  localStorage.setItem('labcharts-hd-images', _hdMode);
+  localStorage.setItem('labcharts-hd-images', String(_hdMode));
   const btn = document.getElementById('chat-hd-btn');
   if (btn) {
     btn.classList.toggle('active', _hdMode);
@@ -83,7 +85,8 @@ export async function addImageAttachment(file) {
       showNotification(quality_warnings[0], 'info', 5000);
     }
   } catch (e) {
-    showNotification('Failed to process image: ' + e.message, 'error');
+    const error = /** @type {Error} */ (e);
+    showNotification('Failed to process image: ' + error.message, 'error');
   }
 }
 
@@ -165,7 +168,7 @@ export function initChatImageHandlers() {
   if (chatMessages) {
     chatMessages.addEventListener('dragover', (e) => {
       if (!supportsVision()) return;
-      const hasImage = [...e.dataTransfer.types].includes('Files');
+      const hasImage = [...(e.dataTransfer?.types || [])].includes('Files');
       if (hasImage) {
         e.preventDefault();
         e.stopPropagation();
@@ -173,7 +176,8 @@ export function initChatImageHandlers() {
       }
     });
     chatMessages.addEventListener('dragleave', (e) => {
-      if (!chatMessages.contains(e.relatedTarget)) {
+      const relatedTarget = /** @type {Node | null} */ (e.relatedTarget);
+      if (!relatedTarget || !chatMessages.contains(relatedTarget)) {
         chatMessages.classList.remove('chat-drop-active');
       }
     });
@@ -182,7 +186,7 @@ export function initChatImageHandlers() {
       e.stopPropagation();
       chatMessages.classList.remove('chat-drop-active');
       if (!supportsVision()) return;
-      const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+      const files = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
       for (const file of files) addImageAttachment(file);
     });
   }
@@ -190,10 +194,11 @@ export function initChatImageHandlers() {
   // File input change
   if (fileInput) {
     fileInput.addEventListener('change', (e) => {
-      for (const file of e.target.files) {
+      const input = /** @type {HTMLInputElement} */ (e.target);
+      for (const file of input.files || []) {
         addImageAttachment(file);
       }
-      e.target.value = '';
+      input.value = '';
     });
   }
 }

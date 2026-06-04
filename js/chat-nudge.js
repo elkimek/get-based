@@ -1,3 +1,4 @@
+// @ts-check
 // chat-nudge.js — Chat FAB nudge badge state
 
 import { state } from './state.js';

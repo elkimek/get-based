@@ -1,3 +1,4 @@
+// @ts-check
 // chat-summaries.js - conversation summary generation, storage, and modal actions
 
 import { state } from './state.js';

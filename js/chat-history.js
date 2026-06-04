@@ -1,3 +1,4 @@
+// @ts-check
 // chat-history.js - thread-aware chat history persistence and clearing
 
 import { state } from './state.js';

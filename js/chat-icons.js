@@ -1,3 +1,4 @@
+// @ts-check
 // chat-icons.js - shared chat SVG icons and icon-button DOM helpers
 
 export const CHAT_ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -45,6 +46,7 @@ function createChatIcon(kind) {
 
 export function setIconButtonContent(btn, kind, label = '') {
   if (!btn) return;
+  /** @type {Node[]} */
   const nodes = [createChatIcon(kind)];
   if (label) {
     const span = document.createElement('span');

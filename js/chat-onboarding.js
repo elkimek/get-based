@@ -1,3 +1,4 @@
+// @ts-check
 // chat-onboarding.js — Chat-first onboarding handlers and render helpers
 
 import { state } from './state.js';
@@ -15,6 +16,13 @@ import {
 } from './profile.js';
 import { hasAIProvider, isAIPaused } from './api.js';
 
+/** @type {{
+ *   closeChatPanel: () => void,
+ *   renderChatMessages: () => void,
+ *   sendChatMessage: () => void,
+ *   setChatNudge: (mode?: string) => void,
+ *   updateChatNudge: () => void,
+ * }} */
 const onboardingCallbacks = {
   closeChatPanel: () => {},
   renderChatMessages: () => {},
@@ -23,8 +31,29 @@ const onboardingCallbacks = {
   updateChatNudge: () => {},
 };
 
+/** @param {Partial<typeof onboardingCallbacks>} [callbacks] */
 export function configureChatOnboarding(callbacks = {}) {
   Object.assign(onboardingCallbacks, callbacks);
+}
+
+/** @param {string} id */
+function textControlById(id) {
+  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+}
+
+/** @param {string} id */
+function inputById(id) {
+  return /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+}
+
+/** @param {string} id */
+function selectById(id) {
+  return /** @type {HTMLSelectElement | null} */ (document.getElementById(id));
+}
+
+/** @param {string} id */
+function buttonById(id) {
+  return /** @type {HTMLButtonElement | null} */ (document.getElementById(id));
 }
 
 function closeChatPanel() {
@@ -52,7 +81,7 @@ export function useChatPrompt(text) {
     showNotification('Connect an AI provider first — open Settings → AI to set one up.', 'info');
     return;
   }
-  const input = document.getElementById('chat-input');
+  const input = textControlById('chat-input');
   if (input) { input.value = text; sendChatMessage(); }
 }
 
@@ -77,7 +106,7 @@ export function startOnboardingLabImport() {
     requestOnboardingLabImportProvider();
     return;
   }
-  const input = document.getElementById('pdf-input');
+  const input = inputById('pdf-input');
   if (!input) {
     showNotification('Import control is not available on this screen.', 'error');
     return;
@@ -88,9 +117,9 @@ export function startOnboardingLabImport() {
 }
 
 export function _updateOnboardNextBtn() {
-  const btn = document.getElementById('chat-onboard-next');
+  const btn = buttonById('chat-onboard-next');
   if (!btn) return;
-  const name = document.getElementById('chat-onboard-name')?.value?.trim();
+  const name = textControlById('chat-onboard-name')?.value?.trim();
   const sex = state.profileSex;
   btn.disabled = !(name && sex);
 }
@@ -107,8 +136,8 @@ export function setChatProfileSex(sex) {
 
 let _chatLocTimer = null;
 export function onboardHeightUnitChanged() {
-  const input = document.getElementById('chat-onboard-height');
-  const select = document.getElementById('chat-onboard-height-unit');
+  const input = textControlById('chat-onboard-height');
+  const select = selectById('chat-onboard-height-unit');
   if (!input || !select) return;
   const val = parseFloat(input.value);
   if (!val) { input.placeholder = select.value === 'in' ? 'inches' : 'cm'; return; }
@@ -117,7 +146,7 @@ export function onboardHeightUnitChanged() {
 }
 
 export function saveChatLocation() {
-  const country = document.getElementById('chat-onboard-country')?.value?.trim();
+  const country = textControlById('chat-onboard-country')?.value?.trim();
   if (country == null) return;
   setProfileLocation(state.currentProfile, country, '');
   const el = document.getElementById('chat-onboard-lat');
@@ -162,8 +191,8 @@ export function saveChatLocation() {
 }
 
 export function saveChatProfile(advance) {
-  const nameEl = document.getElementById('chat-onboard-name');
-  const dobEl = document.getElementById('chat-onboard-dob');
+  const nameEl = textControlById('chat-onboard-name');
+  const dobEl = textControlById('chat-onboard-dob');
   const name = nameEl?.value?.trim();
   const dob = dobEl?.value;
   if (name) renameProfile(state.currentProfile, name);
@@ -175,15 +204,15 @@ export function saveChatProfile(advance) {
     // Silently ignore invalid DOB — user can fix before clicking Continue
   }
   // Save height
-  const heightRaw = parseFloat(document.getElementById('chat-onboard-height')?.value);
-  const heightUnit = document.getElementById('chat-onboard-height-unit')?.value || 'cm';
+  const heightRaw = parseFloat(textControlById('chat-onboard-height')?.value || '');
+  const heightUnit = selectById('chat-onboard-height-unit')?.value || 'cm';
   if (heightRaw && window.setProfileHeight) {
     const heightCm = heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw;
     window.setProfileHeight(state.currentProfile, heightCm, heightUnit);
   }
   // Save weight as first biometric entry
-  const weightRaw = parseFloat(document.getElementById('chat-onboard-weight')?.value);
-  const weightUnit = document.getElementById('chat-onboard-weight-unit')?.value || 'kg';
+  const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
+  const weightUnit = selectById('chat-onboard-weight-unit')?.value || 'kg';
   if (weightRaw) {
     if (!state.importedData.biometrics) state.importedData.biometrics = { weight: [], bp: [], pulse: [] };
     const today = new Date().toISOString().slice(0, 10);
@@ -243,9 +272,9 @@ function _inferPeriodDates(startDay, endDay) {
 }
 
 export function _updatePeriodBtn() {
-  const startVal = document.getElementById('chat-onboard-period-start')?.value;
-  const endVal = document.getElementById('chat-onboard-period-end')?.value;
-  const btn = document.getElementById('chat-onboard-period-btn');
+  const startVal = textControlById('chat-onboard-period-start')?.value;
+  const endVal = textControlById('chat-onboard-period-end')?.value;
+  const btn = buttonById('chat-onboard-period-btn');
   const preview = document.getElementById('chat-onboard-period-preview');
   const startDay = parseInt(startVal);
   const endDay = parseInt(endVal);
@@ -254,7 +283,7 @@ export function _updatePeriodBtn() {
     const { startDate, endDate } = _inferPeriodDates(startDay, endDay);
     const s = new Date(startDate + 'T00:00:00');
     const e = new Date(endDate + 'T00:00:00');
-    const days = Math.max(1, Math.round((e - s) / 86400000));
+    const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000));
     const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (days <= 10) {
       preview.textContent = `→ ${fmt(s)} – ${fmt(e)} (${days} day${days !== 1 ? 's' : ''})`;
@@ -269,11 +298,11 @@ export function _updatePeriodBtn() {
 }
 
 export function saveChatPeriod() {
-  const startDay = parseInt(document.getElementById('chat-onboard-period-start')?.value);
-  const endDay = parseInt(document.getElementById('chat-onboard-period-end')?.value);
+  const startDay = parseInt(textControlById('chat-onboard-period-start')?.value || '');
+  const endDay = parseInt(textControlById('chat-onboard-period-end')?.value || '');
   if (!startDay || !endDay) return;
   const { startDate, endDate } = _inferPeriodDates(startDay, endDay);
-  const periodDays = Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000));
+  const periodDays = Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000));
   if (!state.importedData.menstrualCycle) state.importedData.menstrualCycle = {};
   const mc = state.importedData.menstrualCycle;
   if (!mc.periods) mc.periods = [];
@@ -289,9 +318,9 @@ export function saveChatPeriod() {
 }
 
 export function addChatSupplement() {
-  const nameEl = document.getElementById('chat-onboard-supp-name');
-  const doseEl = document.getElementById('chat-onboard-supp-dose');
-  const typeEl = document.getElementById('chat-onboard-supp-type');
+  const nameEl = textControlById('chat-onboard-supp-name');
+  const doseEl = textControlById('chat-onboard-supp-dose');
+  const typeEl = selectById('chat-onboard-supp-type');
   const name = nameEl?.value?.trim();
   if (!name) { nameEl?.focus(); return; }
   appendImportedArrayItem(state.importedData, 'supplements', {
@@ -322,7 +351,7 @@ function _refreshDashboardSupps() {
 
 function _refreshDashboardCycle() {
   // Ensure the lifestyle details section is open so the cycle section is visible
-  const details = document.querySelector('.welcome-context-details');
+  const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
   if (details && !details.open) { details.setAttribute('open', ''); sessionStorage.setItem('welcome-details-open', '1'); }
   const el = document.querySelector('.cycle-section');
   if (el && window.renderMenstrualCycleSection) {
