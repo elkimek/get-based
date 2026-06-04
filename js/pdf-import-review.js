@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-review.js - Import review modal rendering and interaction state
 
 import { state } from './state.js';
@@ -215,10 +216,12 @@ export function showImportPreview(parseResult) {
   applyImportReviewFilters();
 }
 
+/** @param {HTMLSelectElement} selectEl */
 export function mapUnmatchedMarker(selectEl) {
   applyImportMarkerMapping(selectEl, selectEl.value || '');
 }
 
+/** @param {HTMLInputElement} inputEl */
 export function mapUnmatchedMarkerInput(inputEl) {
   const raw = inputEl.value.trim();
   const key = resolveImportMarkerKey(raw);
@@ -246,6 +249,10 @@ function resolveImportMarkerKey(raw) {
   return '';
 }
 
+/**
+ * @param {HTMLElement} controlEl
+ * @param {string} key
+ */
 function applyImportMarkerMapping(controlEl, key) {
   const result = getPendingImport();
   if (!result) return;
@@ -290,6 +297,7 @@ function updateImportConfirmCount() {
   if (btn) btn.textContent = `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
 }
 
+/** @param {HTMLElement} btn */
 export function setImportReviewFilter(btn) {
   const group = btn.closest('.import-filter-group');
   if (group) {
@@ -299,15 +307,17 @@ export function setImportReviewFilter(btn) {
 }
 
 export function applyImportReviewFilters() {
-  const rows = Array.from(document.querySelectorAll('.import-table tbody tr[data-import-idx]'));
+  const rows = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.import-table tbody tr[data-import-idx]')));
   if (rows.length === 0) return;
-  const activeFilter = document.querySelector('.import-filter-btn.active')?.dataset.filter || 'all';
-  const query = (document.getElementById('import-review-search')?.value || '').trim().toLowerCase();
+  const activeFilterBtn = /** @type {HTMLElement | null} */ (document.querySelector('.import-filter-btn.active'));
+  const activeFilter = activeFilterBtn?.dataset.filter || 'all';
+  const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById('import-review-search'));
+  const query = (searchInput?.value || '').trim().toLowerCase();
   let visible = 0;
   for (const row of rows) {
     const status = row.classList.contains('import-excluded') ? 'excluded' : (row.dataset.importStatus || '');
     const filterMatch = activeFilter === 'all' || activeFilter === status;
-    const controlText = Array.from(row.querySelectorAll('input, select')).map(el => el.value).join(' ');
+    const controlText = Array.from(row.querySelectorAll('input, select')).map(el => /** @type {HTMLInputElement | HTMLSelectElement} */ (el).value).join(' ');
     const searchMatch = !query || `${row.textContent} ${controlText}`.toLowerCase().includes(query);
     const shouldShow = filterMatch && searchMatch;
     row.hidden = !shouldShow;
@@ -318,7 +328,7 @@ export function applyImportReviewFilters() {
 }
 
 export function applyManualImportDate(dateStr) {
-  const btn = document.getElementById('import-confirm-btn');
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('import-confirm-btn'));
   const pendingImport = getPendingImport();
   if (!pendingImport) return;
   const nextDate = (dateStr || '').trim();
@@ -330,6 +340,7 @@ export function applyManualImportDate(dateStr) {
   }
 }
 
+/** @param {HTMLElement} btn */
 export function toggleImportRow(btn) {
   const row = btn.closest('tr');
   if (!row) return;
@@ -343,7 +354,7 @@ export function toggleImportRow(btn) {
 
 export function getExcludedImportIndices() {
   const excluded = new Set();
-  for (const row of document.querySelectorAll('.import-table tr.import-excluded[data-import-idx]')) {
+  for (const row of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.import-table tr.import-excluded[data-import-idx]'))) {
     excluded.add(parseInt(row.dataset.importIdx, 10));
   }
   return excluded;
@@ -356,6 +367,12 @@ export function closeImportModal() {
   restoreDropZoneVisibility();
 }
 
+/**
+ * @param {any} result
+ * @param {number} current
+ * @param {number} total
+ * @returns {Promise<string>}
+ */
 export function showImportPreviewAsync(result, current, total) {
   const dropZone = document.getElementById('drop-zone');
   if (dropZone) dropZone.style.display = 'none';

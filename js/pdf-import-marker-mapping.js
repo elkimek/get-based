@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-marker-mapping.js — marker key safety, reference lookup, and unit normalization for imports
 
 import { state } from './state.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-persistence.js - durable imported-data save helpers for PDF import flows
 
 import { state } from './state.js';

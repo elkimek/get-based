@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-marker-normalization.js - AI marker normalization shared by text/image import
 
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
@@ -8,6 +9,17 @@ import { _sanitizeAIMarker, reconcileImportMarkerMappings } from './pdf-import-m
 const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
 const standardCats = new Set(Object.keys(MARKER_SCHEMA));
 
+/**
+ * @param {{ testType?: string, markers?: any[] }} parsed
+ * @param {{
+ *   markerRef?: Record<string, any> | null,
+ *   fileName?: string,
+ *   sourceText?: string,
+ *   existingKeys?: Set<string> | string[] | null,
+ *   mode?: string,
+ *   emitDebugLogs?: boolean,
+ * }} [options]
+ */
 export function normalizeParsedImportMarkers(parsed, {
   markerRef,
   fileName = '',
@@ -34,7 +46,7 @@ export function normalizeParsedImportMarkers(parsed, {
     .map(marker => normalizeParsedImportMarker(marker, { testType, detected, mode, emitDebugLogs }))
     .filter(marker => !isNaN(marker.value));
 
-  const reconcileOptions = { testType, refLookup: markerRef };
+  const reconcileOptions = /** @type {{ testType: string, refLookup?: Record<string, any> | null, existingKeys?: Set<string> | string[] | null }} */ ({ testType, refLookup: markerRef });
   if (existingKeys) reconcileOptions.existingKeys = existingKeys;
   reconcileImportMarkerMappings(markers, reconcileOptions);
 

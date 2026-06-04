@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-preflight.js — duplicate/model/specialty checks before PDF AI import
 
 import { state } from './state.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // pdf-import-progress.js — PDF import progress UI and floating status state
 
 import { IMPORT_STEPS } from './constants.js';
@@ -20,7 +21,7 @@ export function isImportRunning() {
 
 export function updateImportProgressPct(pct) {
   const bar = document.querySelector('.import-progress-bar');
-  const fill = document.querySelector('.import-progress-bar-fill');
+  const fill = /** @type {HTMLElement | null} */ (document.querySelector('.import-progress-bar-fill'));
   const label = document.querySelector('.import-progress-pct');
   if (bar) bar.setAttribute('aria-valuenow', String(pct));
   if (fill) fill.style.width = pct + '%';
@@ -132,7 +133,7 @@ export function syncImportStatusFab() {
   const visible = (running || done || failed) && !previewOpen && !progressBarVisible;
   fab.classList.toggle('hidden', !visible);
 
-  const floatingDz = document.querySelector('.drop-zone-hidden');
+  const floatingDz = /** @type {HTMLElement | null} */ (document.querySelector('.drop-zone-hidden'));
   if (floatingDz && (visible || previewOpen)) floatingDz.style.display = 'none';
   else if (floatingDz && importStatus.running && progressBarVisible) floatingDz.style.display = '';
   if (!visible) return;
@@ -145,7 +146,8 @@ export function syncImportStatusFab() {
   } else if (failed) {
     label = '\u2717';
   }
-  fab.querySelector('.import-status-label').textContent = label;
+  const labelEl = fab.querySelector('.import-status-label');
+  if (labelEl) labelEl.textContent = label;
   fab.classList.toggle('is-running', running);
   fab.classList.toggle('is-done', done);
   fab.classList.toggle('is-failed', failed);
