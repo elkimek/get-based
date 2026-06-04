@@ -28,6 +28,8 @@
     "js/light-audit-ai-analysis.js",
     "js/light-burden-ai-analysis.js",
     "js/light-channels-ai-analysis.js",
+    "js/light-device-session-engine.js",
+    "js/light-devices-store.js",
     "js/light-device-ai-analysis.js",
     "js/light-env-ai-analysis.js",
     "js/light-screen-ai-analysis.js",

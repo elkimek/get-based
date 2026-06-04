@@ -1,3 +1,4 @@
+// @ts-check
 // light-devices-store.js - persisted light-device and device-session mutations.
 //
 // UI modules own preset loading, dialogs, rendering, and notifications. This
@@ -107,6 +108,9 @@ export async function deleteDevice(id) {
   return true;
 }
 
+/**
+ * @param {{deviceId?: string, durationMin?: number, distanceCm?: number, bodyArea?: string, bodyAreas?: string[]|null, eyesProtected?: boolean, notes?: string, mode?: string|null}} [input]
+ */
 export async function logDeviceSession({ deviceId, durationMin, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null } = {}) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
@@ -152,6 +156,9 @@ export function getActiveDeviceSession() {
   return getDeviceSessions().find(s => !s.endedAt) || null;
 }
 
+/**
+ * @param {{deviceId?: string, distanceCm?: number, bodyAreas?: string[]|null, bodyArea?: string, eyesProtected?: boolean, mode?: string|null}} [input]
+ */
 export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null } = {}) {
   // Reject a second active timer - one session at a time keeps the
   // active-card UI unambiguous and matches sun-session semantics.
