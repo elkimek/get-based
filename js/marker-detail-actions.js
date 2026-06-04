@@ -1,3 +1,4 @@
+// @ts-check
 // marker-detail-actions.js - delegated action contract for marker detail modals.
 
 import { escapeAttr } from './utils.js';

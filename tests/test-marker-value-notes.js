@@ -96,7 +96,7 @@ const state = (await import('../js/state.js')).state;
   const labEntrySrc = read('js/lab-entry.js');
   const labEntryMutationsSrc = read('js/lab-entry-mutations.js');
   assert('saveManualEntry reads me-note from the form',
-    /const\s+noteInput\s*=\s*document\.getElementById\('me-note'\)/.test(markerDetailEditingSrc));
+    /saveManualEntry[\s\S]{0,800}document\.getElementById\('me-note'\)/.test(markerDetailEditingSrc));
   assert('saveManualEntry stores noteText in markerValueNotes when non-empty',
     /saveManualEntry[\s\S]{0,5200}saveManualMarkerValue\(\{ dotKey, date, storedValue, noteText \}\)/.test(markerDetailEditingSrc)
       && /function writeMarkerValueNote\(dotKey, date, noteText\)[\s\S]{0,500}notes\[key\] = capped/.test(markerDetailStoreSrc));

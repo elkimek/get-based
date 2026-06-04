@@ -33,6 +33,7 @@ interface Window {
   cashuSetMintUrl?: (url: string) => Promise<void> | void;
   Chart?: new (canvas: HTMLCanvasElement, config: unknown) => { destroy(): void };
   closeModal?: () => void;
+  closeEMFInterpretation?: AnyFunction;
   closeSettings?: () => void;
   destroyAllCharts?: () => void;
   detectDNAFile?: (header: string) => string | null;
@@ -157,6 +158,8 @@ interface Window {
   saveImportedData?: AnyFunction;
   loadCatalog?: AnyFunction;
   _cachedCatalog?: { slots?: Record<string, any>; [key: string]: any } | null;
+  _getRelevantSNPs?: AnyFunction;
+  _uninstallWearableModalFocusTrap?: AnyFunction;
   buildDNAHints?: AnyFunction;
   deleteNote?: AnyFunction;
   detectWearableTrendSlots?: AnyFunction;
@@ -172,6 +175,7 @@ interface Window {
   triggerDNAFilePicker?: AnyFunction;
   loadLightDevicePresets?: AnyFunction;
   renderLightDeviceAffiliateRow?: AnyFunction;
+  renderRecommendationSection?: AnyFunction;
   renderLightTools?: AnyFunction;
   renderActiveDeviceSessionCard?: AnyFunction;
   renderChannelDeficitDeviceRecs?: AnyFunction;

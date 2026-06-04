@@ -1,3 +1,4 @@
+// @ts-check
 // marker-detail-editing.js — Marker value, range, and note mutation workflows
 
 import { state } from './state.js';
@@ -19,13 +20,21 @@ import {
   deleteMarkerValueNote,
 } from './marker-detail-store.js';
 
-const markerDetailDeps = {
+const markerDetailDeps = /** @type {{
+  navigate: (category?: string, data?: any) => any,
+  showDetailModal: (id?: string, opts?: any) => any,
+  openManualEntryForm: (id?: string, prefillDate?: string) => any,
+  closeModal: () => any,
+}} */ ({
   navigate: (category, data) => window.navigate?.(category, data),
   showDetailModal: () => {},
   openManualEntryForm: () => {},
   closeModal: () => {},
-};
+});
 
+/**
+ * @param {Partial<typeof markerDetailDeps>} [deps]
+ */
 export function configureMarkerDetailEditing(deps = {}) {
   Object.assign(markerDetailDeps, deps);
 }
@@ -44,17 +53,17 @@ function closeModal() {
 
 export async function saveManualEntry(id, opts = {}) {
   const { keepOpen = false } = opts;
-  const dateInput = document.getElementById('me-date');
-  const valueInput = document.getElementById('me-value');
-  const noteInput = document.getElementById('me-note');
-  const unitInput = document.getElementById('me-unit');
+  const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
+  const valueInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-value'));
+  const noteField = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('me-note'));
+  const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-unit'));
   if (!dateInput || !valueInput) return;
   const date = dateInput.value;
   const value = parseFloat(valueInput.value);
   // Cap notes at 500 chars to defend against runaway paste — matches the
   // wearable-manual.js `_sanitizeNote` ceiling. Notes flow into IDB +
   // sync payloads + AI context; a few-MB paste would bloat all three.
-  const noteRaw = noteInput ? noteInput.value.trim() : '';
+  const noteRaw = noteField ? noteField.value.trim() : '';
   const noteText = noteRaw.length > 500 ? noteRaw.slice(0, 500) : noteRaw;
   if (!date) { showNotification('Please enter a date', 'error'); return; }
   if (isNaN(value)) { showNotification('Please enter a valid number', 'error'); return; }
@@ -224,6 +233,11 @@ export async function deleteValueNote(id, date) {
   if (changed) showDetailModal(id);
 }
 
+/**
+ * @param {string} id
+ * @param {string} type
+ * @param {MouseEvent} evt
+ */
 export function editRefRange(id, type, evt) {
   const marker = state.markerRegistry[id];
   if (!marker) return;
@@ -232,7 +246,7 @@ export function editRefRange(id, type, evt) {
   const curMax = isOptimal ? marker.optimalMax : marker.refMax;
   const label = isOptimal ? 'Optimal' : 'Reference';
 
-  const span = evt.target.closest('.ref-editable');
+  const span = evt.target instanceof Element ? evt.target.closest('.ref-editable') : null;
   if (!span) return;
 
   // Replace span with inline inputs
@@ -240,7 +254,7 @@ export function editRefRange(id, type, evt) {
   form.className = 'ref-edit-form';
   form.innerHTML = `${escapeHTML(label)}: <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMin ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-min"><button type="button" class="ref-edit-clear" onclick="document.getElementById('ref-edit-min').value='';document.getElementById('ref-edit-min').focus()" title="Clear (open-ended)">\u00d7</button></span> \u2013 <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMax ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-max"><button type="button" class="ref-edit-clear" onclick="document.getElementById('ref-edit-max').value='';document.getElementById('ref-edit-max').focus()" title="Clear (open-ended)">\u00d7</button></span> <button class="ref-edit-save" onclick="saveRefRange('${id}','${type}')">Save</button>`;
   span.replaceWith(form);
-  form.querySelector('#ref-edit-min').focus();
+  /** @type {HTMLElement | null} */ (form.querySelector('#ref-edit-min'))?.focus();
 
   // Enter to save
   form.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveRefRange(id, type); } });
@@ -250,8 +264,8 @@ export function editRefRange(id, type, evt) {
 
 export async function saveRefRange(id, type) {
   const dotKey = id.replace('_', '.');
-  const minEl = document.getElementById('ref-edit-min');
-  const maxEl = document.getElementById('ref-edit-max');
+  const minEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-min'));
+  const maxEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-max'));
   if (!minEl || !maxEl) return;
   let newMin = minEl.value.trim() !== '' ? parseFloat(minEl.value) : null;
   let newMax = maxEl.value.trim() !== '' ? parseFloat(maxEl.value) : null;
@@ -266,7 +280,7 @@ export async function saveRefRange(id, type) {
   const saved = await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
   if (!saved) return;
   // Refresh background view, then re-render modal with new ranges
-  const activeNav = document.querySelector('.nav-item.active');
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
   showDetailModal(id);
   showNotification('Range updated', 'info');
@@ -276,7 +290,7 @@ export async function revertRefRange(id, type) {
   const dotKey = id.replace('_', '.');
   const result = await revertRefRangeOverride(dotKey, type);
   if (!result) return;
-  const activeNav = document.querySelector('.nav-item.active');
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
   showDetailModal(id);
   showNotification(result.message, 'info');
@@ -288,13 +302,13 @@ export function toggleMarkerNoteEditor(dotKey) {
   const isHidden = editor.style.display === 'none';
   editor.style.display = isHidden ? 'block' : 'none';
   if (isHidden) {
-    const input = document.getElementById('marker-note-input');
+    const input = /** @type {HTMLElement | null} */ (document.getElementById('marker-note-input'));
     if (input) input.focus();
   }
 }
 
 export async function saveMarkerNote(dotKey, id) {
-  const input = document.getElementById('marker-note-input');
+  const input = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('marker-note-input'));
   const text = input?.value?.trim();
   const result = await saveMarkerNoteText(dotKey, text);
   if (result.action === 'noop') return;

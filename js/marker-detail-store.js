@@ -1,3 +1,4 @@
+// @ts-check
 // marker-detail-store.js - synced marker-detail mutation boundary.
 
 import { state } from './state.js';
@@ -13,11 +14,16 @@ import {
 
 const VALUE_NOTE_MAX_CHARS = 500;
 
+/** @returns {any} */
 function ensureImportedData() {
-  if (!state.importedData || typeof state.importedData !== 'object') state.importedData = {};
+  if (!state.importedData || typeof state.importedData !== 'object') state.importedData = /** @type {any} */ ({});
   return state.importedData;
 }
 
+/**
+ * @param {string} name
+ * @returns {Record<string, any>}
+ */
 function ensureMap(name) {
   const data = ensureImportedData();
   if (!data[name] || typeof data[name] !== 'object' || Array.isArray(data[name])) data[name] = {};
@@ -124,6 +130,9 @@ function writeMarkerValueNote(dotKey, date, noteText) {
   return changed;
 }
 
+/**
+ * @param {{ dotKey?: string, date?: string, storedValue?: any, noteText?: string, now?: number }} [opts]
+ */
 export async function saveManualMarkerValue({ dotKey, date, storedValue, noteText = '', now = Date.now() } = {}) {
   if (!dotKey || !date) return null;
   const data = ensureImportedData();
@@ -142,6 +151,9 @@ export async function saveManualMarkerValue({ dotKey, date, storedValue, noteTex
   return entry;
 }
 
+/**
+ * @param {{ dotKey?: string, date?: string, storedValue?: any, now?: number }} [opts]
+ */
 export async function editManualMarkerValue({ dotKey, date, storedValue, now = Date.now() } = {}) {
   const entry = state.importedData?.entries?.find(e => e.date === date);
   if (!entry || !dotKey) return null;
@@ -201,6 +213,11 @@ export async function deleteMarkerValueNote(dotKey, date) {
   return changed;
 }
 
+/**
+ * @param {string} dotKey
+ * @param {string} type
+ * @param {{ min?: number | null, max?: number | null }} [range]
+ */
 export async function saveRefRangeOverride(dotKey, type, { min, max } = {}) {
   const isOptimal = type === 'optimal';
   const isReference = type === 'ref' || type === 'reference';
