@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-settings-panel.js — Settings → Wearables integrations panel.
 // Keeps provider rows, connection actions, Apple Health import controls, and
 // manual-source management out of the dashboard strip renderer.
@@ -352,7 +353,9 @@ async function _updateManualCounts() {
 // Fire when the details element opens (delegated — the Settings section is
 // re-rendered on demand so we can't bind once at module load).
 document.addEventListener('toggle', (e) => {
-  if (e.target?.matches?.('details.wearable-row[data-adapter="manual"]') && e.target.open) {
+  if (e.target instanceof HTMLDetailsElement
+      && e.target.matches('details.wearable-row[data-adapter="manual"]')
+      && e.target.open) {
     _updateManualCounts();
   }
 }, true);
@@ -393,7 +396,7 @@ async function importAppleHealthFlow(file) {
   if (wrap) wrap.style.display = 'block';
   try {
     const res = await importAppleHealthFile(file, ({ stage, pct, rows, startDate, endDate }) => {
-      if (bar) bar.style.width = (pct ?? 0) + '%';
+      if (bar instanceof HTMLElement) bar.style.width = (pct ?? 0) + '%';
       if (text) text.textContent = stage === 'done'
         ? `${rows} days imported (${startDate} – ${endDate})`
         : `${stage}… ${pct ?? 0}%`;

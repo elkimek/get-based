@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-apple-health.js — Apple Health XML import pipeline
 //
 // Apple's export format: a .zip containing `apple_health_export/export.xml`
