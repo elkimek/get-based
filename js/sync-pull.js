@@ -1,3 +1,4 @@
+// @ts-check
 // sync-pull.js - inbound Evolu rows -> localStorage merge path.
 
 import { parseSyncPayload } from './sync-payload.js';
@@ -21,11 +22,21 @@ import {
 let _getEvolu = () => null;
 let _getProfileQuery = () => null;
 let _isSyncPushInFlight = () => false;
+/** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
+/** @type {(...args: any[]) => any} */
 let _debug = () => {};
 let _pulling = false;
 const _chatPullRetryTimers = new Map();
 
+/** @param {{
+ *   getEvolu?: () => any,
+ *   getProfileQuery?: () => any,
+ *   isSyncPushInFlight?: () => boolean,
+ *   pushProfile?: (...args: any[]) => Promise<any>,
+ *   debug?: (...args: any[]) => any,
+ * }} [deps]
+ */
 export function configureSyncPull({
   getEvolu,
   getProfileQuery,
@@ -220,7 +231,7 @@ export async function onSyncReceived() {
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {
-      window.renderProfileDropdown?.();
+      (/** @type {any} */ (window)).renderProfileDropdown?.();
     }
   } finally {
     _pulling = false;

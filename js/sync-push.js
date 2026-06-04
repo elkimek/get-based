@@ -1,3 +1,4 @@
+// @ts-check
 // sync-push.js - Evolu profile push path and in-flight watchdog state.
 
 import { buildSyncPayload } from './sync-payload.js';
@@ -13,8 +14,11 @@ import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
 let _getEvolu = () => null;
 let _getProfileQuery = () => null;
 let _isSyncEnabled = () => false;
+/** @type {(profileId?: any) => boolean} */
 let _isPhase2CutoverEnabled = () => false;
+/** @type {(...args: any[]) => any} */
 let _disablePhase2Cutover = () => {};
+/** @type {(...args: any[]) => any} */
 let _debug = () => {};
 
 // Tracks when _syncing was last set so a hung push (Evolu onComplete never
@@ -23,6 +27,15 @@ let _debug = () => {};
 let _syncing = false;
 let _syncingSince = 0;
 
+/** @param {{
+ *   getEvolu?: () => any,
+ *   getProfileQuery?: () => any,
+ *   isSyncEnabled?: () => boolean,
+ *   isPhase2CutoverEnabled?: (profileId?: any) => boolean,
+ *   disablePhase2Cutover?: (...args: any[]) => any,
+ *   debug?: (...args: any[]) => any,
+ * }} [deps]
+ */
 export function configureSyncPush({
   getEvolu,
   getProfileQuery,

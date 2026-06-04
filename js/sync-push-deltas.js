@@ -1,3 +1,4 @@
+// @ts-check
 // sync-push-deltas.js - Push-side delta planning and post-commit application.
 
 import { getAt } from './data-merge.js';

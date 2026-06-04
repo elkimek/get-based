@@ -1,15 +1,29 @@
+// @ts-check
 // sync-recovery.js - resume and network recovery hooks for sync.
 
 let _isSyncEnabled = () => false;
 let _isEvoluReady = () => false;
+/** @type {(...args: any[]) => Promise<any>} */
 let _pushCurrentProfile = async () => {};
+/** @type {(...args: any[]) => any} */
 let _forcePull = () => {};
+/** @type {(...args: any[]) => any} */
 let _debug = () => {};
+/** @type {(...args: any[]) => any} */
 let _notify = () => {};
 let _eventsBound = false;
 let _lastVisibleSyncAt = 0;
 let _lastNetState = true;
 
+/** @param {{
+ *   isSyncEnabled?: () => boolean,
+ *   isEvoluReady?: () => boolean,
+ *   pushCurrentProfile?: (...args: any[]) => Promise<any>,
+ *   forcePull?: (...args: any[]) => any,
+ *   debug?: (...args: any[]) => any,
+ *   notify?: (...args: any[]) => any,
+ * }} [deps]
+ */
 export function configureSyncRecovery({
   isSyncEnabled,
   isEvoluReady,

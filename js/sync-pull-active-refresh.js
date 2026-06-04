@@ -1,3 +1,4 @@
+// @ts-check
 // sync-pull-active-refresh.js - active-profile UI refresh after inbound pulls.
 
 import { state } from './state.js';
@@ -8,6 +9,7 @@ const UPDATE_TOAST_COOLDOWN_MS = 2500;
 let lastUpdateToastProfileId = null;
 let lastUpdateToastAt = 0;
 
+/** @param {((...args: any[]) => any) | undefined} debug */
 function dbg(debug, ...args) {
   try { debug?.(...args); } catch {}
 }
@@ -27,6 +29,15 @@ function hasOpenModalOverlay() {
   return !!document.querySelector('.modal-overlay.show, #modal-overlay.show');
 }
 
+/** @param {{
+ *   profileId?: string,
+ *   merged?: any,
+ *   chatApplied?: boolean,
+ *   remoteBroughtNewRows?: boolean,
+ *   localDataChanged?: boolean,
+ *   debug?: (...args: any[]) => any,
+ * }} [options]
+ */
 export function refreshActiveProfileAfterPull({
   profileId,
   merged,
@@ -61,7 +72,7 @@ export function refreshActiveProfileAfterPull({
   // is briefly absent during buildSidebar->navigate cycles and
   // would yank the user to 'dashboard' on a pull landing in
   // that gap (user-reported flicker/sync race).
-  const cat = state.currentView || document.querySelector('.nav-item.active')?.dataset?.category || 'dashboard';
+  const cat = state.currentView || document.querySelector('.nav-item.active')?.['dataset']?.category || 'dashboard';
 
   // Sidebar nav items are conditional on data presence (e.g. the
   // Genetics entry only renders when state.importedData.genetics

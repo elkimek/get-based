@@ -1,3 +1,4 @@
+// @ts-check
 // sync-pull-maintenance.js - one-time pull-path cleanup helpers.
 
 // One-time cleanup: the v1.6.0-v1.6.2 hash-skip mechanism wrote
@@ -6,6 +7,7 @@
 // state went out of sync with the stored hash). Sweep the now-orphan
 // keys on first pull after upgrade. Linear in localStorage keys,
 // idempotent via the migration flag.
+/** @param {(...args: any[]) => any} [debug] */
 export function clearStaleSyncHashKeysOnce(debug = () => {}) {
   try {
     if (localStorage.getItem('labcharts-sync-hash-v2-migrated')) return;
