@@ -1,3 +1,4 @@
+// @ts-check
 // sync-messenger.js - Agent Access token and context gateway helpers.
 
 import { state } from './state.js';
@@ -5,10 +6,14 @@ import { state } from './state.js';
 const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
 const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
 
+/** @type {() => string} */
 let _getSyncRelay = () => 'wss://sync.getbased.health';
+/** @type {(...args: any[]) => void} */
 let _debug = () => {};
+/** @type {number | null} */
 let _contextPushTimer = null;
 
+/** @param {{ getSyncRelay?: () => string, debug?: (...args: any[]) => void }} [deps] */
 export function configureSyncMessenger({ getSyncRelay, debug } = {}) {
   if (typeof getSyncRelay === 'function') _getSyncRelay = getSyncRelay;
   if (typeof debug === 'function') _debug = debug;

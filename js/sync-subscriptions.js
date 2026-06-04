@@ -1,20 +1,41 @@
+// @ts-check
 // sync-subscriptions.js - Evolu subscriptions and poll safety net.
 
+/** @typedef {{ subscribeQuery: (query: any) => (callback: () => void) => any, getQueryRows: (query: any) => any[], subscribeError: (callback: (error: any) => void) => any }} SyncEvoluLike */
+
+/** @type {() => boolean} */
 let _isSyncing = () => false;
+/** @type {() => boolean} */
 let _isPulling = () => false;
+/** @type {() => any} */
 let _onSyncReceived = () => {};
+/** @type {() => Promise<boolean>} */
 let _checkRelayConnection = async () => false;
+/** @type {(partial: any) => void} */
 let _updateSyncStatus = () => {};
+/** @type {(...args: any[]) => void} */
 let _debug = () => {};
 
+/** @type {number | null} */
 let _pollInterval = null;
+/** @type {number | null} */
 let _relayProbeInterval = null;
+/** @type {number | null} */
 let _pendingReceiveTimer = null;
 let _lastPollProfileSignature = '';
 let _lastPollTombstoneSignature = '';
 let _subscriptionFireCount = 0;
 const RECEIVE_RETRY_MS = 500;
 
+/** @param {{
+ *   isSyncing?: () => boolean,
+ *   isPulling?: () => boolean,
+ *   onSyncReceived?: () => any,
+ *   checkRelayConnection?: () => Promise<boolean>,
+ *   updateSyncStatus?: (partial: any) => void,
+ *   debug?: (...args: any[]) => void,
+ * }} [deps]
+ */
 export function configureSyncSubscriptions({
   isSyncing,
   isPulling,
@@ -57,6 +78,7 @@ function canReceiveSync() {
   return !_isSyncing() && !_isPulling();
 }
 
+/** @param {string} [reason] */
 function requestSyncReceive(reason = 'subscription') {
   if (canReceiveSync()) {
     _onSyncReceived();
@@ -70,6 +92,7 @@ function requestSyncReceive(reason = 'subscription') {
   }, RECEIVE_RETRY_MS);
 }
 
+/** @param {any[] | null | undefined} rows */
 function rowsSignature(rows) {
   return (rows || [])
     .map(row => `${row?.id || ''}:${row?.profileId || ''}:${row?.syncedAt || ''}:${row?.updatedAt || ''}:${row?.isDeleted || 0}`)
@@ -77,6 +100,7 @@ function rowsSignature(rows) {
     .join('|');
 }
 
+/** @param {{ evolu?: SyncEvoluLike | null, profileQuery?: any, tombstoneQuery?: any, itemRowQuery?: any }} [deps] */
 export function bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery } = {}) {
   if (!evolu || !profileQuery || !tombstoneQuery || !itemRowQuery) return;
 
@@ -141,6 +165,7 @@ async function runRelayProbe() {
   _updateSyncStatus({ relay: ok ? 'connected' : 'unreachable', relayCheckedAt: Date.now() });
 }
 
+/** @param {any} error */
 function onRelayProbeError(error) {
   const message = error?.message || String(error);
   const at = Date.now();

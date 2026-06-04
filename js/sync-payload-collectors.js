@@ -1,3 +1,4 @@
+// @ts-check
 // sync-payload-collectors.js - local settings/chat/display collection for sync payloads.
 
 import { encryptedGetItem } from './crypto.js';
@@ -32,12 +33,14 @@ export const AI_SETTINGS_KEYS = [
 
 export const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];
 
+/** @param {string} profileId */
 export function chatDeletedThreadsKey(profileId) {
   return `labcharts-${profileId}-chat-deleted-threads`;
 }
 
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+/** @param {string} profileId */
 function readChatDeletedThreads(profileId) {
   try {
     const raw = localStorage.getItem(chatDeletedThreadsKey(profileId));
@@ -57,6 +60,7 @@ function readChatDeletedThreads(profileId) {
   }
 }
 
+/** @param {string | null | undefined} raw */
 function parseCustomPersonalities(raw) {
   if (!raw) return undefined;
   try { return JSON.parse(raw); } catch { return undefined; }
@@ -72,6 +76,7 @@ export async function collectAISettings() {
 }
 
 // Per-profile chat keys to sync
+/** @param {string} profileId */
 export async function collectChatData(profileId) {
   const threadsKey = `labcharts-${profileId}-chat-threads`;
   const deletedThreads = readChatDeletedThreads(profileId);
@@ -114,6 +119,7 @@ export async function collectChatData(profileId) {
   } catch { return null; }
 }
 
+/** @param {string} profileId */
 export function collectDisplayPrefs(profileId) {
   const prefs = {};
   for (const suffix of DISPLAY_PREF_SUFFIXES) {

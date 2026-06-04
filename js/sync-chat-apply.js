@@ -1,3 +1,4 @@
+// @ts-check
 // sync-chat-apply.js - inbound chat sync apply helpers and freshness locks.
 
 import { state } from './state.js';
@@ -21,6 +22,7 @@ export function markChatDataLocal() {
   } catch {}
 }
 
+/** @param {string | null | undefined} profileId */
 function getLocalChatLockUntil(profileId) {
   if (profileId !== state.currentProfile) return 0;
   try {
@@ -31,10 +33,12 @@ function getLocalChatLockUntil(profileId) {
   }
 }
 
+/** @param {string | null | undefined} profileId */
 export function getChatDataLocalLockRemainingMs(profileId) {
   return Math.max(0, getLocalChatLockUntil(profileId) - Date.now());
 }
 
+/** @param {string} profileId */
 function hasMeaningfulLocalChatData(profileId) {
   try {
     const raw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
@@ -46,11 +50,13 @@ function hasMeaningfulLocalChatData(profileId) {
   }
 }
 
+/** @param {string} profileId */
 function shouldKeepLocalChatData(profileId) {
   return getChatDataLocalLockRemainingMs(profileId) > 0
     && hasMeaningfulLocalChatData(profileId);
 }
 
+/** @param {any} thread */
 function threadUpdatedAtMs(thread) {
   if (!thread || typeof thread !== 'object') return 0;
   const value = thread.updatedAt || thread.createdAt || '';
@@ -58,6 +64,7 @@ function threadUpdatedAtMs(thread) {
   return Number.isFinite(ts) ? ts : 0;
 }
 
+/** @param {any} value */
 function normalizeDeletedThreads(value) {
   const out = Object.create(null);
   if (!value) return out;
@@ -80,6 +87,7 @@ function normalizeDeletedThreads(value) {
   return out;
 }
 
+/** @param {string} profileId */
 function readLocalDeletedThreads(profileId) {
   try {
     const raw = localStorage.getItem(chatDeletedThreadsKey(profileId));
@@ -89,6 +97,9 @@ function readLocalDeletedThreads(profileId) {
   }
 }
 
+/** @param {string} profileId
+ * @param {any} deletedThreads
+ */
 function writeLocalDeletedThreads(profileId, deletedThreads) {
   try {
     const entries = Object.entries(normalizeDeletedThreads(deletedThreads))
@@ -100,6 +111,10 @@ function writeLocalDeletedThreads(profileId, deletedThreads) {
   } catch {}
 }
 
+/** @param {string} profileId
+ * @param {any[]} existingThreads
+ * @param {Record<string, number>} deletedThreads
+ */
 async function applyChatThreadTombstones(profileId, existingThreads, deletedThreads) {
   const keptThreads = [];
   let changed = false;
@@ -118,6 +133,9 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
   return changed;
 }
 
+/** @param {string} profileId
+ * @param {any} chatData
+ */
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
   // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).

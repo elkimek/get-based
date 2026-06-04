@@ -1,3 +1,4 @@
+// @ts-check
 // sync-payload.js - outbound/inbound wire payload helpers for Evolu sync
 
 import { getProfiles } from './profile.js';
@@ -12,25 +13,32 @@ export {
 
 // Phase 2 cutover flag — when set, buildSyncPayload omits importedData
 // from the blob entirely. Per-row CRDT deltas carry every field instead.
+/** @param {string} profileId */
 function _cutoverFlagKey(profileId) {
   return `labcharts-${profileId}-sync-cutover-v2`;
 }
 
+/** @param {string | null | undefined} profileId */
 export function isPhase2CutoverEnabled(profileId) {
   if (!profileId) return false;
   try { return localStorage.getItem(_cutoverFlagKey(profileId)) === '1'; } catch { return false; }
 }
 
+/** @param {string | null | undefined} profileId */
 export function enablePhase2CutoverFlag(profileId) {
   if (!profileId) return false;
   try { localStorage.setItem(_cutoverFlagKey(profileId), '1'); return true; } catch { return false; }
 }
 
+/** @param {string | null | undefined} profileId */
 export function disablePhase2CutoverFlag(profileId) {
   if (!profileId) return false;
   try { localStorage.removeItem(_cutoverFlagKey(profileId)); return true; } catch { return false; }
 }
 
+/** @param {string} profileId
+ * @param {any} importedData
+ */
 export async function buildSyncPayload(profileId, importedData) {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
@@ -67,6 +75,7 @@ export async function buildSyncPayload(profileId, importedData) {
   return inner;
 }
 
+/** @param {string} str */
 export async function _gzipString(str) {
   const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
   const buf = await new Response(stream).arrayBuffer();
@@ -76,6 +85,9 @@ export async function _gzipString(str) {
 // v1.7.12 audit fix: decompression-bomb defence for per-row payloads.
 export const _PER_ROW_DECOMPRESSED_CAP_BYTES = 1024 * 1024;
 
+/** @param {BlobPart} bytes
+ * @param {number} [maxBytes]
+ */
 export async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRESSED_CAP_BYTES) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   const reader = stream.getReader();
@@ -98,12 +110,14 @@ export async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRES
 }
 
 if (typeof window !== 'undefined') {
-  window._syncTestHooks = Object.assign(window._syncTestHooks || {}, {
+  const syncWindow = /** @type {Window & typeof globalThis & { _syncTestHooks?: any }} */ (window);
+  syncWindow._syncTestHooks = Object.assign(syncWindow._syncTestHooks || {}, {
     gunzipCapped: _gunzipToStringCapped,
     perRowCapBytes: _PER_ROW_DECOMPRESSED_CAP_BYTES,
   });
 }
 
+/** @param {Uint8Array} bytes */
 export function _bytesToBase64(bytes) {
   let s = '';
   const CHUNK = 0x8000;
@@ -113,6 +127,7 @@ export function _bytesToBase64(bytes) {
   return btoa(s);
 }
 
+/** @param {string} b64 */
 export function _base64ToBytes(b64) {
   const s = atob(b64);
   const out = new Uint8Array(s.length);
@@ -120,6 +135,7 @@ export function _base64ToBytes(b64) {
   return out;
 }
 
+/** @param {any} importedData */
 export function stripWearableCredentials(importedData) {
   if (!importedData?.wearableConnections) return importedData;
   const { wearableConnections, ...rest } = importedData;
@@ -128,6 +144,7 @@ export function stripWearableCredentials(importedData) {
 
 // Strip `genetics.snps` from the legacy blob payload so the only carrier
 // for SNP membership is the per-key `genetics.snps` delta map path.
+/** @param {any} importedData */
 export function stripGeneticsSnpsFromBlob(importedData) {
   if (!importedData?.genetics || typeof importedData.genetics !== 'object') return importedData;
   const { snps, ...geneticsMetadata } = importedData.genetics;
@@ -137,6 +154,7 @@ export function stripGeneticsSnpsFromBlob(importedData) {
 // 5 MB cap. Normal payloads are well under 1 MB, so this is already generous.
 export const MAX_SYNC_PAYLOAD_BYTES = 5_000_000;
 
+/** @param {string} dataJson */
 export async function parseSyncPayload(dataJson) {
   if (typeof dataJson !== 'string' || dataJson.length > MAX_SYNC_PAYLOAD_BYTES) {
     throw new Error('Invalid sync payload: bad type or too large');
@@ -156,6 +174,7 @@ export async function parseSyncPayload(dataJson) {
   }
   // Defence-in-depth: strip wearableConnections from any incoming blob,
   // regardless of producer version.
+  /** @param {any} imp */
   function safe(imp) {
     if (!imp || typeof imp !== 'object') return imp;
     if ('wearableConnections' in imp) {
