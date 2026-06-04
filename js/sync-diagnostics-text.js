@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnostics-text.js - plain-text Diagnose snapshot formatting.
 
 // Render the diagnostics object as plain text - meant for the Copy button

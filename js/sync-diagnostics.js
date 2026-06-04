@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnostics.js - Evolu diagnostics public facade.
 
 import { configureSyncDiagnosticsContext } from './sync-diagnostics-context.js';

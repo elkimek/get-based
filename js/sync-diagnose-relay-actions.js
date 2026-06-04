@@ -1,3 +1,4 @@
+// @ts-check
 // sync-diagnose-relay-actions.js - Relay storage operations for Sync Diagnose.
 
 import { showNotification } from './utils.js';
