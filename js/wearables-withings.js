@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-withings.js — Withings data layer
 //
 // BETA. Withings's REST API quirks:
@@ -152,6 +153,7 @@ async function withingsPOST(action, accessToken, params = {}) {
   });
   if (!res.ok) {
     let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    /** @type {Error & { status?: number }} */
     const e = new Error(err?.error || err?.detail || res.statusText || 'Withings request failed');
     e.status = res.status; throw e;
   }
@@ -162,6 +164,7 @@ async function withingsPOST(action, accessToken, params = {}) {
     const msg = mapped
       ? `Withings ${code}: ${mapped}`
       : `Withings status ${code}: ${payload?.error || 'unknown'}`;
+    /** @type {Error & { status?: number, withingsCode?: number }} */
     const e = new Error(msg);
     // Codes 100, 101, 102, 243, 283, 284 all mean "token dead — reconnect"
     // → surface as 401 so the auth-refresh middleware retries once.

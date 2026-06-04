@@ -38,7 +38,17 @@
     "js/touch-tooltip.js",
     "js/url-safety.js",
     "js/utils.js",
+    "js/wearable-adapters.js",
+    "js/wearables-fitbit.js",
     "js/wearables-formatters.js",
+    "js/wearables-manual-form-ui.js",
+    "js/wearables-oura.js",
+    "js/wearables-polar.js",
+    "js/wearables-store.js",
+    "js/wearables-summary.js",
+    "js/wearables-ultrahuman.js",
+    "js/wearables-whoop.js",
+    "js/wearables-withings.js",
     "types/**/*.d.ts"
   ]
 }

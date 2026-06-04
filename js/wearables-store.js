@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-store.js — L1 IndexedDB for raw wearable daily rows
 //
 // Per-profile database so wearable history doesn't leak across profiles.
@@ -97,6 +98,7 @@ async function _encryptRowIfEnabled(row) {
     // silently writing cleartext. The error propagates up to the adapter
     // sync orchestrator, which logs + shows a toast asking the user to
     // unlock. Better than silent downgrade.
+    /** @type {Error & { code?: string }} */
     const e = new Error('Wearable storage is encrypted; unlock with your passphrase before syncing.');
     e.code = 'session-locked';
     throw e;

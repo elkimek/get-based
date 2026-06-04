@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-oura.js — Oura API data-layer (OAuth2 server-side flow)
 //
 // Pure data-layer: talks to Oura's /v2/usercollection/* endpoints via the
@@ -34,6 +35,7 @@ async function ouraGET(path, accessToken, params = {}) {
     let err;
     try { err = await res.json(); } catch { err = { error: res.statusText }; }
     const msg = err?.detail || err?.error || res.statusText || 'Oura request failed';
+    /** @type {Error & { status?: number }} */
     const e = new Error(msg);
     e.status = res.status;
     throw e;

@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-fitbit.js — Fitbit Web API data layer
 //
 // Fitbit has a hard 150 req/hour per user rate limit. A naive per-day
@@ -34,6 +35,7 @@ async function fbGET(path, accessToken) {
   if (!res.ok) {
     let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
     const msg = err?.errors?.[0]?.message || err?.detail || err?.message || err?.error || res.statusText || 'Fitbit request failed';
+    /** @type {Error & { status?: number }} */
     const e = new Error(msg); e.status = res.status; throw e;
   }
   return res.json();
