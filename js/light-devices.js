@@ -1,3 +1,4 @@
+// @ts-check
 // light-devices.js — Light therapy device library + device session logging.
 //
 // Devices users own (Joovv, Sperti, Verilux SAD, dawn simulators, etc.) feed
@@ -158,7 +159,7 @@ export async function editDeviceSessionMode(id) {
   </div>`;
   _wireModal(overlay);
   overlay.querySelector('#dev-edit-mode-save').addEventListener('click', async () => {
-    const next = overlay.querySelector('#dev-edit-mode').value;
+    const next = _select(overlay, '#dev-edit-mode')?.value || '';
     overlay.remove();
     if (next === sess.mode) return;
     await updateDeviceSession(id, { mode: next });
@@ -210,13 +211,25 @@ const _DEVICE_AREA_LABELS = {
   'whole-body': 'Whole body',
 };
 
+/**
+ * @param {ParentNode} root
+ * @param {string} selector
+ * @returns {HTMLSelectElement|null}
+ */
+function _select(root, selector) {
+  return /** @type {HTMLSelectElement|null} */ (root.querySelector(selector));
+}
+
 export function openDeviceSessionDetail(id) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return;
   const device = getDevices().find(d => d.id === sess.deviceId) || null;
+  /** @type {(value: any, channelKey?: string) => number} */
   const channelTier = window.channelTier || (() => 0);
+  /** @type {(tier: number) => string} */
   const tierLabel = window.tierLabel || (() => 'none');
+  /** @type {(...args: any[]) => string} */
   const formatChannelUnit = window.formatChannelUnit || (() => '');
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
 

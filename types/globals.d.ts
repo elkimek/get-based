@@ -38,6 +38,11 @@ interface Window {
   fetchAtmosphere?: AnyFunction;
   reconstructSpectrum?: AnyFunction;
   computeChannelDoses?: AnyFunction;
+  CHANNEL_DISPLAY?: Record<string, { icon?: string; label?: string; what?: string; dailyTarget?: number }>;
+  channelTier?: (value: any, channelKey?: string) => number;
+  formatChannelUnit?: AnyFunction;
+  renderBodySilhouette?: (selected?: Set<string>) => string;
+  bindBodySilhouette?: (rootEl: Element, selected: Set<string>, onChange?: (selected: Set<string>) => void) => void;
   synthesizeDeviceSpectrum?: AnyFunction;
   effectiveDeviceForMode?: AnyFunction;
   validateModeCoupling?: AnyFunction;
@@ -54,6 +59,7 @@ interface Window {
   geneticVitaminDMultiplier?: AnyFunction;
   renderSessionAIInline?: AnyFunction;
   renderSessionAIDetail?: AnyFunction;
+  renderDeviceSessionAIDetail?: AnyFunction;
   renderLightChannelsLive?: AnyFunction;
   renderLightTodayStrip?: AnyFunction;
   rollingChannelTotals?: (days?: number) => Record<string, number>;
@@ -113,7 +119,10 @@ interface Window {
   scheduleChartThemeRefresh?: () => void;
   setManualHaplogroup?: (haplogroup: string) => Promise<void> | void;
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
+  showPromptDialog?: (message: string, options?: any) => Promise<string | null> | string | null;
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
+  loadCatalog?: AnyFunction;
+  renderLightDeviceAffiliateRow?: AnyFunction;
   _fitbitAuth?: unknown;
   _appleHealth?: unknown;
   _ouraAuth?: unknown;
