@@ -21,6 +21,7 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeDeficitAxes, computeIndoorBurden, isActiveToday } from './light-env.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getEnv() {
   if (!state.importedData) return null;
@@ -97,7 +98,7 @@ export function buildBurdenContext() {
 
   // User context
   const sleep = state.importedData?.sleepRest;
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   if (goals || sleep) {
     lines.push('');
     lines.push('### User context');

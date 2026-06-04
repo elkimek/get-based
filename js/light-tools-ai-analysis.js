@@ -11,6 +11,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _formatNumber(n, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -159,7 +160,7 @@ export function buildMeasurementContext(m) {
   const room = getRoomNameFor(m);
   // Bound user-supplied room name to prevent prompt-injection.
   if (room) lines.push(`Room: ${String(room).replace(/\s+/g, ' ').trim().slice(0, 80)}`);
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const sleep = state.importedData?.sleepRest;
   if (goals) lines.push(`User goals: ${String(goals).slice(0, 200)}`);
   if (sleep?.qualityScore != null) lines.push(`Sleep quality score: ${sleep.qualityScore}`);

@@ -1,3 +1,4 @@
+// @ts-check
 // sun-onboarding-ai.js — AI verdict for the Light & Sun onboarding
 // completion. Synthesizes the user's setup answers + Ott burden + sleep
 // complaints + goals into a personalized starting plan.
@@ -11,6 +12,7 @@ import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
 
@@ -90,7 +92,7 @@ export function buildOnboardingContext() {
     }
   }
 
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const sleep = state.importedData?.sleepRest;
   if (goals || sleep) {
     lines.push('');

@@ -11,6 +11,7 @@ import { hasAIProvider } from './api.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, tierLabel } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
@@ -113,7 +114,7 @@ export function buildDayContext(target) {
   const lines = [];
   const sd = state.importedData?.sunDefaults || {};
   const lc = state.importedData?.lightCircadian || {};
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const dateStr = _localDateString(targetDate);
 
   lines.push(`### Day: ${dateStr}`);

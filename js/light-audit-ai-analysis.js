@@ -17,6 +17,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getAudits() {
   if (!state.importedData) return [];
@@ -158,7 +159,7 @@ export function buildAuditContext(a) {
 
   // User context
   const sleep = state.importedData?.sleepRest;
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   if (goals || sleep) {
     lines.push('');
     lines.push('### User context');

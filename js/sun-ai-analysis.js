@@ -1,3 +1,4 @@
+// @ts-check
 // sun-ai-analysis.js — per-session AI verdict + tip for sun sessions.
 //
 // Thin wrapper around ai-verdict-engine: supplies the sun-specific
@@ -15,6 +16,7 @@ import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getSessions, formatChannelUnit, CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 //
@@ -121,7 +123,7 @@ export function buildSingleSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
   const lc = state.importedData?.lightCircadian || {};
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const lines = [];
 
   lines.push('### Session');

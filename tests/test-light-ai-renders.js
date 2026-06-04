@@ -51,11 +51,34 @@ await import('../js/state.js');
     fingerprint: 'fp', status: 'ok', generatedAt: Date.now(),
   });
 
+  // ─── 0. Health goals context formatter ─────────────────────────────
+  console.log('%c 0. Health goals context formatter ', 'font-weight:bold;color:#0ea5e9');
+  {
+    const { formatHealthGoalsText } = await import('../js/health-goals-utils.js');
+    assert('health goals formatter reads current array-shaped goals',
+      formatHealthGoalsText([
+        { text: 'Raise 25-OH-D', severity: 'major' },
+        { text: 'Stabilize sleep timing', severity: 'minor' },
+      ]) === 'Raise 25-OH-D; Stabilize sleep timing');
+    assert('health goals formatter reads legacy object-shaped goals',
+      formatHealthGoalsText({ goals: 'Reduce winter SAD' }) === 'Reduce winter SAD');
+  }
+
   // ─── 1. Light Devices session ──────────────────────────────────────
   console.log('%c 1. Device session render ', 'font-weight:bold;color:#0ea5e9');
   {
     const mod = await import('../js/light-device-ai-analysis.js');
     const sess = { id: 's1', endedAt: Date.now() - 60000, durationMin: 20, doses: { vitamin_d: 0 } };
+
+    reset({
+      healthGoals: [
+        { text: 'Improve winter energy', severity: 'major' },
+      ],
+    });
+    const deviceCtx = mod.buildDeviceSessionContext(sess);
+    assert('device session context references array-shaped health goals',
+      deviceCtx.includes('Improve winter energy'),
+      deviceCtx);
 
     withoutProvider();
     assert('device inline returns "" without provider',
@@ -305,7 +328,17 @@ await import('../js/state.js');
   console.log('%c 9. Onboarding render ', 'font-weight:bold;color:#0ea5e9');
   {
     const mod = await import('../js/sun-onboarding-ai.js');
-    reset({ sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() } });
+    reset({
+      sunDefaults: { fitzpatrick: 'III', completedAt: Date.now() },
+      healthGoals: [
+        { text: 'Stabilize sleep timing', severity: 'major' },
+      ],
+    });
+
+    const onboardingCtx = mod.buildOnboardingContext();
+    assert('onboarding context references array-shaped health goals',
+      onboardingCtx.includes('Stabilize sleep timing'),
+      onboardingCtx);
 
     withoutProvider();
     assert('onboarding block returns "" without provider',

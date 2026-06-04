@@ -35,6 +35,15 @@ return (async function() {
   // bundled inside Settings → AI. The same DOM IDs must still exist
   // because handleSaveLensConfig + _loadLocalLensStats look them up by ID.
   console.log('%c 16. Knowledge Base modal DOM ', 'font-weight:bold;color:#f59e0b');
+  const _savedKbCfg = localStorage.getItem('labcharts-lens-config');
+  localStorage.setItem('labcharts-lens-config', JSON.stringify({
+    backend: 'external-server',
+    url: 'https://kb.example.test',
+    enabled: false,
+    topK: 5,
+    testProbe: 'vitamin D deficiency supplementation',
+    multiQuery: true,
+  }));
   window.openKnowledgeBaseModal();
   await new Promise(r => setTimeout(r, 100));
   const lensSection = document.getElementById('custom-lens-section');
@@ -47,6 +56,8 @@ return (async function() {
     assert('lens section has Save + connect button', lensSection.innerHTML.includes('handleSaveLensConfig'));
   }
   window.closeKnowledgeBaseModal();
+  if (_savedKbCfg) localStorage.setItem('labcharts-lens-config', _savedKbCfg);
+  else localStorage.removeItem('labcharts-lens-config');
   // Settings → AI must NOT contain the KB section anymore.
   window.openSettingsModal('ai');
   await new Promise(r => setTimeout(r, 100));

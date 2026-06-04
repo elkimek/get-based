@@ -166,6 +166,18 @@ const {
   assert('context references UV index', ctx.includes('UV index: 6.2'));
   assert('context references health goals', ctx.includes('Restore vit-D status'));
 
+  reset({
+    sunDefaults: { fitzpatrick: 'III' },
+    healthGoals: [
+      { text: 'Raise 25-OH-D', severity: 'major' },
+      { text: 'Reduce winter SAD', severity: 'minor' },
+    ],
+  });
+  const arrayGoalsCtx = buildSingleSessionContext(makeSess());
+  assert('context references array-shaped health goals',
+    arrayGoalsCtx.includes('Raise 25-OH-D') && arrayGoalsCtx.includes('Reduce winter SAD'),
+    arrayGoalsCtx);
+
   // 7-day rollup with prior sessions. Anchor prior endedAt to REF_START
   // so the rollup window is deterministic regardless of when the test
   // runs.
