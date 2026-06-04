@@ -1,3 +1,4 @@
+// @ts-check
 // startup-oauth-callbacks.js - startup OAuth callback routing
 
 import {

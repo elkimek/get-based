@@ -1,3 +1,4 @@
+// @ts-check
 // startup-maintenance.js - startup service boot and non-blocking maintenance
 
 import { state } from './state.js';

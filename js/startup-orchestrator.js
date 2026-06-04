@@ -1,3 +1,4 @@
+// @ts-check
 // startup-orchestrator.js - app startup wiring and phase ordering
 
 import { state } from './state.js';

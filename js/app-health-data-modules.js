@@ -1,3 +1,4 @@
+// @ts-check
 // app-health-data-modules.js - startup-loaded Health & Data feature modules
 
 import './charts.js';
