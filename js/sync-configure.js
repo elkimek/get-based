@@ -1,3 +1,4 @@
+// @ts-check
 // sync-configure.js - Dependency wiring for the sync subsystem.
 
 import { showNotification, isDebugMode } from './utils.js';
@@ -32,12 +33,15 @@ import {
   getSyncProfileQuery, getSyncTombstoneQuery, isSyncEvoluReady,
 } from './sync-runtime.js';
 
+/** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
+/** @param {{ enableSync?: (...args: any[]) => any, disableSync?: (...args: any[]) => any }} [deps] */
 export function configureSyncModules({ enableSync, disableSync } = {}) {
   configureRelayHealth({
     getAppOwner: getSyncAppOwner,
     getSyncRelay,
+    /** @param {{ level?: string, pct?: number }} q */
     onQuotaThreshold(q) {
       if (q.level === 'red') {
         logSyncEvent('skip', `Relay storage ${q.pct}% — pushes will start failing soon, compact!`);
@@ -148,6 +152,7 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
     pushCurrentProfile,
     forcePull: _forcePull,
     debug: dbg,
+    /** @param {...any} args */
     notify: (...args) => {
       try { showNotification(...args); } catch {}
     },

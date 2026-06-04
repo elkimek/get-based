@@ -1,3 +1,4 @@
+// @ts-check
 // sync-settings-state.js - persisted sync enabled flag.
 
 export const SYNC_STORAGE_KEY = 'labcharts-sync-enabled';
@@ -17,7 +18,9 @@ export function isSyncEnabled() {
   return _syncStatePrimed ? _syncEnabled : primeSyncState();
 }
 
-export function setSyncEnabled(enabled, { persist = true } = {}) {
+/** @param {{ persist?: boolean }} [options] */
+export function setSyncEnabled(enabled, options = {}) {
+  const { persist = true } = options;
   if (persist) localStorage.setItem(SYNC_STORAGE_KEY, enabled ? 'true' : 'false');
   _syncEnabled = !!enabled;
   _syncStatePrimed = true;

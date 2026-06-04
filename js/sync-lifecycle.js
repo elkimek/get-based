@@ -1,3 +1,4 @@
+// @ts-check
 // sync-lifecycle.js - Sync enable / disable lifecycle actions.
 
 import { showNotification } from './utils.js';
@@ -16,6 +17,7 @@ import {
   getSyncQueryLoadedPromise, getSyncReadyPromise, setSyncAppOwnerError,
 } from './sync-runtime.js';
 
+/** @param {{ skipPush?: boolean }} [options] */
 export async function enableSync({ skipPush = false } = {}) {
   // Reject early if the webview can't actually run Evolu - no point flipping
   // the persisted flag and starting init only to time out at 30s.

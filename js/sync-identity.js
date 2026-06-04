@@ -1,3 +1,4 @@
+// @ts-check
 // sync-identity.js - BIP-39/QR loading and mnemonic restore helpers.
 
 import { loadScriptOnce, showNotification } from './utils.js';
@@ -10,10 +11,18 @@ let _qrCodeLoad = null;
 let _getAppOwner = () => null;
 let _getAppOwnerError = () => null;
 let _getEvolu = () => null;
+/** @type {(...args: any[]) => Promise<any>} */
 let _seedLocalProfiles = async () => {};
 
 export const RESTORE_JOIN_PENDING_KEY = 'labcharts-sync-restore-join-pending';
 
+/** @param {{
+ *   getAppOwner?: () => any,
+ *   getAppOwnerError?: () => any,
+ *   getEvolu?: () => any,
+ *   seedLocalProfiles?: (...args: any[]) => Promise<any>,
+ * }} [deps]
+ */
 export function configureSyncIdentity({
   getAppOwner,
   getAppOwnerError,
@@ -35,11 +44,12 @@ function currentEvolu() {
 }
 
 export async function ensureBip39() {
-  if (window.bip39) return window.bip39;
+  const w = /** @type {any} */ (window);
+  if (w.bip39) return w.bip39;
   if (!_bip39Load) {
     _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
-      if (!window.bip39) throw new Error('BIP-39 library did not initialize');
-      return window.bip39;
+      if (!w.bip39) throw new Error('BIP-39 library did not initialize');
+      return w.bip39;
     }).catch(err => {
       _bip39Load = null;
       throw err;
@@ -93,6 +103,7 @@ export function clearRestoreJoinPending() {
   setRestoreJoinPending(false);
 }
 
+/** @param {{ seedLocal?: boolean }} [options] */
 export async function restoreFromMnemonic(mnemonic, options = {}) {
   const evolu = currentEvolu();
   if (!evolu) return false;

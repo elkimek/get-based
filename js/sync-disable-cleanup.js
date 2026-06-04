@@ -1,3 +1,4 @@
+// @ts-check
 // sync-disable-cleanup.js - local cleanup helpers for disabling sync.
 
 export function isSyncDisableCleanupKey(key) {

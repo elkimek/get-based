@@ -1,3 +1,4 @@
+// @ts-check
 // sync-environment.js - relay URL and browser capability helpers.
 
 const SYNC_RELAY_KEY = 'labcharts-sync-relay';

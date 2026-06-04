@@ -1,3 +1,4 @@
+// @ts-check
 // sync-init.js - Evolu initialization and startup reconciliation.
 
 import { isDebugMode } from './utils.js';
@@ -13,6 +14,7 @@ import {
   setSyncReadyPromise,
 } from './sync-runtime.js';
 
+/** @param {...any} args */
 function dbg(...args) { if (isDebugMode()) console.log('[sync]', ...args); }
 
 export async function initSync() {
@@ -88,7 +90,7 @@ export async function initSync() {
     // the relay, so this had to be opt-in. Toggle Settings > Privacy >
     // Debug mode to expose.
     if (isDebugMode?.()) {
-      window._syncDebug = {
+      (/** @type {any} */ (window))._syncDebug = {
         getRows: () => evolu.getQueryRows(profileQuery),
         getOwner: () => getSyncAppOwner(),
         evolu,
