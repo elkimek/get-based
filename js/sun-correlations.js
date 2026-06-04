@@ -1,3 +1,4 @@
+// @ts-check
 // sun-correlations.js — On-demand Pearson correlation between weekly
 // sun-channel doses and per-week biomarker values. Surfaces in the standard
 // AI tier so chat can answer "why did my testosterone drop in November?"

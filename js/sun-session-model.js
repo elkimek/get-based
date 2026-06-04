@@ -1,3 +1,4 @@
+// @ts-check
 // sun-session-model.js — shared Sun session option and safety model.
 //
 // Keep these constants out of UI/store modules so the active-session ticker,

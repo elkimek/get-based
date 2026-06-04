@@ -1,3 +1,4 @@
+// @ts-check
 // sun-body-silhouette.js — Anatomical body-region picker for sun sessions.
 
 import { escapeAttr } from './utils.js';
@@ -349,12 +350,19 @@ function _regionAtSource(src_x, src_y) {
 // but render as nothing).
 let _overlayCache = { key: '', url: '' };
 let _overlayPending = false;
+/** @type {{ selected: Set<string>, onReady?: (url?: string) => void } | null} */
 let _overlayQueued = null;
 
+/** @param {Set<string>} selected */
 function _selectedKey(selected) {
   return Array.from(selected).sort().join('|');
 }
 
+/**
+ * @param {Set<string>} selected
+ * @param {(url?: string) => void} [onReady]
+ * @returns {string | null}
+ */
 function _renderSelectionOverlay(selected, onReady) {
   if (!_regionMapData || !selected || selected.size === 0) return null;
   const key = _selectedKey(selected);
@@ -436,10 +444,12 @@ export function renderBodySilhouette(selected) {
   // view shows just the matching cell of the source grid, scaled to fit
   // a 100×210 figure area (top of the 100×220 view, leaving y 210–220 for
   // the italic-serif label).
+  /** @type {((view?: string) => string) & { _placement?: (view?: string) => { imgX: number, imgY: number, fullW: number, fullH: number } | null }} */
   let renderStockImage = () => '';
   // Per-view alpha mask using the er.svg image itself — selection rects
   // are masked to figure-shape so the blue wash fills the body exactly,
   // no rectangular overflow past the silhouette.
+  /** @type {(view?: string, maskId?: string) => string} */
   let renderFigureMask = () => '';
   if (STOCK_FIGURE_PROTOTYPE) {
     // Per-cell scale so each figure fits 210 high regardless of source
