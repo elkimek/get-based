@@ -1,5 +1,13 @@
+// @ts-check
 // chat-discussion-callbacks.js - shared callback bridge for discussion rounds
 
+/** @type {{
+ *   createTypewriter: null | ((el: HTMLElement, typingEl: HTMLElement, container: HTMLElement) => { update(text: string): void, stop(): void }),
+ *   getChatAbortController: () => AbortController | null,
+ *   renderChatMessages: () => void,
+ *   setChatAbortController: (controller: AbortController | null) => void,
+ *   setSendButtonMode: (btn: HTMLElement | null, mode: string) => void,
+ * }} */
 const discussionCallbacks = {
   createTypewriter: null,
   getChatAbortController: () => null,
@@ -25,7 +33,7 @@ export function renderChatMessages() {
 }
 
 export function setSendButtonMode(btn, mode) {
-  discussionCallbacks.setSendButtonMode?.(btn, mode);
+  discussionCallbacks.setSendButtonMode?.(/** @type {HTMLElement | null} */ (btn), mode);
 }
 
 export function createDiscussionTypewriter(el, typingEl, container) {

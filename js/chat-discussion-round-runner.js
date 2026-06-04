@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-round-runner.js - per-persona discussion round execution
 
 import { state } from './state.js';
@@ -90,7 +91,8 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         webSearch: request.webSearch,
         provider: request.provider,
       });
-      const { text: fullText, usage } = aiResult;
+      const fullText = aiResult.text;
+      const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
       const responseTruncated = isAIResponseTruncated(aiResult);
 
       typewriter.stop();
@@ -132,11 +134,12 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       if (isRoundThreadActive(roundThreadId)) container.scrollTop = container.scrollHeight;
     }
   } catch (err) {
-    if (err.name === 'AbortError') {
+    const error = /** @type {any} */ (err);
+    if (error.name === 'AbortError') {
       // Partial text handled by DOM already.
-    } else if (!err?._modalShown) {
+    } else if (!error?._modalShown) {
       // Skip when a modal already surfaced the condition (e.g., 402).
-      renderDiscussionRoundError({ threadId: roundThreadId, container, error: err });
+      renderDiscussionRoundError({ threadId: roundThreadId, container, error });
     }
   }
 

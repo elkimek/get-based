@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-lifecycle.js - cleanup and completion helpers for discussions
 
 import { state } from './state.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-round-state.js - thread-bound discussion round persistence
 
 import { state } from './state.js';

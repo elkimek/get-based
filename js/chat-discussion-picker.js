@@ -1,3 +1,4 @@
+// @ts-check
 // chat-discussion-picker.js - persona picker controls for multi-persona discussions
 
 import { state } from './state.js';
@@ -14,8 +15,8 @@ export function readDiscussPersonaPickerSelection() {
   const picker = document.querySelector('.discuss-persona-picker');
   if (!picker) return null;
 
-  const lockedInputs = picker.querySelectorAll('input[data-locked="1"]');
-  const checkedInputs = picker.querySelectorAll('input:checked:not([data-locked="1"])');
+  const lockedInputs = /** @type {NodeListOf<HTMLInputElement>} */ (picker.querySelectorAll('input[data-locked="1"]'));
+  const checkedInputs = /** @type {NodeListOf<HTMLInputElement>} */ (picker.querySelectorAll('input:checked:not([data-locked="1"])'));
   const allSelected = [...lockedInputs, ...checkedInputs];
   if (lockedInputs.length > 0) {
     if (checkedInputs.length !== 1) return null;
@@ -79,12 +80,17 @@ export function showDiscussPersonaPicker() {
   function updatePickerState() {
     const checkedCount = picker.querySelectorAll('input:checked:not([data-locked="1"])').length;
     const maxNewSelections = addingToExisting ? 1 : 2;
-    const startBtn = picker.querySelector('.discuss-picker-start');
+    const startBtn = /** @type {HTMLButtonElement | null} */ (picker.querySelector('.discuss-picker-start'));
+    if (!startBtn) return;
     startBtn.disabled = checkedCount !== maxNewSelections;
     if (checkedCount >= maxNewSelections) {
-      picker.querySelectorAll('input:not(:checked):not([data-locked="1"])').forEach(cb => cb.disabled = true);
+      picker.querySelectorAll('input:not(:checked):not([data-locked="1"])').forEach(cb => {
+        /** @type {HTMLInputElement} */ (cb).disabled = true;
+      });
     } else {
-      picker.querySelectorAll('input:not([data-locked="1"])').forEach(cb => cb.disabled = false);
+      picker.querySelectorAll('input:not([data-locked="1"])').forEach(cb => {
+        /** @type {HTMLInputElement} */ (cb).disabled = false;
+      });
     }
   }
   picker.addEventListener('change', updatePickerState);
