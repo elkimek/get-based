@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-connect.js — Connect/disconnect/backfill orchestration
 //
 // Bridges the adapter registry (config), the vendor-specific fetcher + auth
@@ -292,6 +293,7 @@ async function callWithRefresh(adapter, fetcher) {
   }, () => getConnection(adapter.id)).catch(async e => {
     if (e?.code === 'needs-reauth' || e?.status === 400 || e?.status === 401) {
       saveConnection(adapter.id, { ...conn, needsReauth: true });
+      /** @type {Error & { code?: string }} */
       const wrap = new Error('Reconnect required'); wrap.code = 'needs-reauth'; throw wrap;
     }
     throw e;

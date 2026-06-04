@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-polar-auth.js — Polar AccessLink OAuth2 server-side flow
 //
 // Polar AccessLink is a confidential OAuth2 client (requires client_secret at
@@ -121,6 +122,7 @@ export async function refreshTokens({ clientId, refreshToken }) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
+    /** @type {Error & { status?: number }} */
     const err = new Error(body?.error || body?.error_description || `Refresh failed (${res.status})`);
     err.status = res.status; throw err;
   }
