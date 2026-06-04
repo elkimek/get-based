@@ -1,3 +1,4 @@
+// @ts-check
 // light-env-ai-analysis.js — per-room AI verdict for the Light
 // Environment module. Synthesizes a room's measurements + occupancy +
 // primary source + screens into one circadian-friendliness verdict.

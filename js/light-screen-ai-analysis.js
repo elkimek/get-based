@@ -1,3 +1,4 @@
+// @ts-check
 // light-screen-ai-analysis.js — per-screen AI verdict for the Light
 // Environment screens (phone, tablet, laptop, monitor, TV, e-reader).
 //

@@ -158,6 +158,9 @@ if (typeof window !== 'undefined') {
  * @param {boolean} [cfg.syncOnSave=true] — fire pushCurrentProfile after save.
  *   Set false for purely local-only verdicts (none currently).
  * @param {number} [cfg.timeoutMs=60000]
+ * @param {number[]} [cfg.autoFireRetryDelaysMs]
+ * @param {(anchor: string|null) => void} [cfg.onStateChange]
+ * @param {(target: any) => string|null} [cfg.getScrollAnchor]
  *
  * @returns {object} engine — { analyze, refresh, maybeAfterFinish,
  *   isAnalyzing, getStatus, purgeOrphaned }

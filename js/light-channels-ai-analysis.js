@@ -1,3 +1,4 @@
+// @ts-check
 // light-channels-ai-analysis.js — AI verdict for the "Your light, by
 // what it does" channel-mix section. Replaces the hardcoded
 // renderSuggestion() that picked the single lowest-tier channel and

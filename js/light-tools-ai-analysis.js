@@ -1,3 +1,4 @@
+// @ts-check
 // light-tools-ai-analysis.js — per-measurement AI interpretation for the
 // Light Tools (Lux Meter, Flicker Detector, Sleep Darkness, CCT Meter,
 // Spectrum Classifier, Glass Transmission, Eye-Level Audit).
