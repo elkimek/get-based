@@ -1,3 +1,4 @@
+// @ts-check
 // sun.js — Sun Sessions: episodic outdoor light exposure logging.
 // Layer between sun-uvdata.js (atmosphere fetch), sun-spectrum.js (dose
 // computation), and the dashboard / dedicated Light & Sun page.
@@ -922,7 +923,7 @@ function _refreshSurfaces(scrollAnchor) {
     // defaulting to 'dashboard' (which would yank a user mid-init off
     // whatever page they're on per the URL fragment / launcher target).
     const view = state.currentView
-      || document.querySelector('.nav-item.active')?.dataset?.category
+      || /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'))?.dataset?.category
       || 'dashboard';
     const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
     if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
@@ -1031,7 +1032,7 @@ configureSunActiveSession({
   stopSession,
   hydrateSession,
   getSunCoords,
-  saveImportedData,
+  saveImportedData: async () => { await saveImportedData(); },
   applyAtmOverrides: _applyAtmOverrides,
   refreshSurfaces: _refreshSurfaces,
   normalizePSMTier: _normalizePSMTier,

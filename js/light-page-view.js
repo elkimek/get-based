@@ -1,3 +1,4 @@
+// @ts-check
 // light-page-view.js — Light & Sun page shell and dashboard strip renderers
 
 import { state } from './state.js';
@@ -17,7 +18,7 @@ import {
 function closestLightPageAction(event) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
-  const actionEl = target.closest('[data-light-page-action]');
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-light-page-action]'));
   if (!actionEl) return null;
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
@@ -329,7 +330,7 @@ export function renderLightChannelsLive() {
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
   const row = section.querySelector('.light-pills-row');
-  const slot = section.querySelector('[data-channel-detail-slot]');
+  const slot = /** @type {HTMLElement | null} */ (section.querySelector('[data-channel-detail-slot]'));
   const openChannel = slot?.dataset.openChannel || '';
   if (row) {
     const wrap = document.createElement('div');

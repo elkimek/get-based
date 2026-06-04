@@ -1,3 +1,4 @@
+// @ts-check
 // sun-defaults.js — Light lens onboarding: 3 setup questions + a 10-item
 // indoor-light burden audit grounded in current photobiology. Persists to
 // importedData.sunDefaults.
@@ -529,7 +530,10 @@ function openSunSetupOverlay() {
 
   try { trapModalFocus(overlay); } catch (_) {}
   setLightSetupStep('core', { focus: false });
-  const focusBody = () => overlay.querySelector('.light-setup-focus-body')?.focus?.({ preventScroll: true });
+  const focusBody = () => {
+    const body = /** @type {HTMLElement | null} */ (overlay.querySelector('.light-setup-focus-body'));
+    body?.focus({ preventScroll: true });
+  };
   setTimeout(() => {
     _refreshSetupProgress();
     focusBody();
@@ -548,23 +552,25 @@ function closeSunSetupOverlay() {
 function setLightSetupStep(step, opts = {}) {
   if (typeof document === 'undefined') return;
   const nextStep = step === 'score' ? 'score' : 'core';
-  const modal = document.querySelector('.light-setup-focus-modal');
+  const modal = /** @type {HTMLElement | null} */ (document.querySelector('.light-setup-focus-modal'));
   if (!modal) return;
   modal.dataset.setupStep = nextStep;
   modal.querySelectorAll('[data-setup-tab]').forEach(tab => {
-    const active = tab.dataset.setupTab === nextStep;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    const setupTab = /** @type {HTMLElement} */ (tab);
+    const active = setupTab.dataset.setupTab === nextStep;
+    setupTab.classList.toggle('active', active);
+    setupTab.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   modal.querySelectorAll('[data-setup-pane]').forEach(pane => {
-    const active = pane.dataset.setupPane === nextStep;
-    pane.toggleAttribute('hidden', !active);
+    const setupPane = /** @type {HTMLElement} */ (pane);
+    const active = setupPane.dataset.setupPane === nextStep;
+    setupPane.toggleAttribute('hidden', !active);
   });
   const body = modal.querySelector('.light-setup-focus-body');
   if (body) body.scrollTop = 0;
   if (opts.focus !== false) {
-    const target = modal.querySelector(`[data-setup-pane="${nextStep}"] .light-setup-title, [data-setup-pane="${nextStep}"] h4`);
-    setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+    const target = /** @type {HTMLElement | null} */ (modal.querySelector(`[data-setup-pane="${nextStep}"] .light-setup-title, [data-setup-pane="${nextStep}"] h4`));
+    setTimeout(() => target?.focus({ preventScroll: true }), 0);
   }
 }
 
@@ -664,12 +670,14 @@ async function saveSunSetup() {
   // Skin type comes from the emoji-slider range. The slider defaults to
   // position 2 (median III) but data-set="0" means the user hasn't
   // actively confirmed; they must tap a face or drag.
-  const sliderEl = root.querySelector('#setup-skin-range');
+  const sliderEl = /** @type {HTMLInputElement | null} */ (root.querySelector('#setup-skin-range'));
   const isSet = sliderEl?.dataset?.set === '1';
-  const skinIdx = isSet ? parseInt(sliderEl?.value, 10) : -1;
+  const skinIdx = isSet ? parseInt(sliderEl?.value || '', 10) : -1;
   const fitzpatrick = (skinIdx >= 0 && skinIdx < 6) ? ROMAN[skinIdx] : null;
-  const homeLight = root.querySelector('#setup-homelight')?.value || null;
-  const eyewear = root.querySelector('#setup-eyewear')?.value || null;
+  const homeLightEl = /** @type {HTMLSelectElement | null} */ (root.querySelector('#setup-homelight'));
+  const eyewearEl = /** @type {HTMLSelectElement | null} */ (root.querySelector('#setup-eyewear'));
+  const homeLight = homeLightEl?.value || null;
+  const eyewear = eyewearEl?.value || null;
   if (!fitzpatrick) {
     setLightSetupStep('core');
     showNotification('Tap a face to confirm your skin type.');
@@ -678,7 +686,7 @@ async function saveSunSetup() {
   const ott = {};
   let ottScore = 0;
   for (const q of OTT_QUESTIONS) {
-    const cb = root.querySelector(`input[data-ott="${q.key}"]`);
+    const cb = /** @type {HTMLInputElement | null} */ (root.querySelector(`input[data-ott="${q.key}"]`));
     if (cb) {
       ott[q.key] = !!cb.checked;
       if (cb.checked) ottScore++;
@@ -687,10 +695,10 @@ async function saveSunSetup() {
   // photosensitiveMeds started as a boolean checkbox, then briefly used a
   // native select. The current setup uses a hidden input driven by inline
   // choice buttons so the option list stays inside the focused modal.
-  const psmEl = root.querySelector('#setup-photosensitive');
+  const psmEl = /** @type {HTMLInputElement | HTMLSelectElement | null} */ (root.querySelector('#setup-photosensitive'));
   const photosensitiveMeds = (psmEl?.tagName === 'SELECT' || psmEl?.type === 'hidden')
     ? (psmEl.value || 'none')
-    : (psmEl?.checked ? 'moderate' : 'none');
+    : (psmEl instanceof HTMLInputElement && psmEl.checked ? 'moderate' : 'none');
   await saveSunDefaults({
     fitzpatrick,
     photosensitiveMeds,
@@ -724,32 +732,34 @@ function _updateOttRunningScore() {
   const cbs = root.querySelectorAll('input[data-ott]');
   let score = 0;
   cbs.forEach(cb => {
-    cb.closest('.light-setup-ott-card')?.classList.toggle('is-flagged', cb.checked);
-    if (cb.checked) score++;
+    const input = /** @type {HTMLInputElement} */ (cb);
+    input.closest('.light-setup-ott-card')?.classList.toggle('is-flagged', input.checked);
+    if (input.checked) score++;
   });
   const aligned = 10 - score;
   const valueEl = root.querySelector('#ott-running-value');
   const alignedEl = root.querySelector('#ott-running-aligned');
   const labelEl = root.querySelector('#ott-running-label');
   const summary = root.querySelector('#ott-summary-score');
-  const meter = root.querySelector('#ott-running-score');
-  const fill = root.querySelector('#ott-score-fill');
+  const meter = /** @type {HTMLElement | null} */ (root.querySelector('#ott-running-score'));
+  const fill = /** @type {HTMLElement | null} */ (root.querySelector('#ott-score-fill'));
+  const label = /** @type {HTMLElement | null} */ (labelEl);
   const meta = ottScoreToLabel(score);
   if (valueEl) valueEl.textContent = `${score}/10`;
   if (alignedEl) alignedEl.textContent = `${aligned}/10`;
   if (meter) meter.dataset.tier = String(meta.tier);
   if (fill) fill.style.width = `${aligned * 10}%`;
-  if (labelEl) {
+  if (label) {
     // Tier-change animation — flash the badge briefly when its tier color
     // shifts so the score change feels alive instead of silently swapping.
-    const prevTier = labelEl.dataset.tier;
+    const prevTier = label.dataset.tier;
     const newTier = String(meta.tier);
-    labelEl.textContent = meta.label;
-    labelEl.className = `light-ott-badge light-ott-tier-${meta.tier}`;
-    labelEl.dataset.tier = newTier;
+    label.textContent = meta.label;
+    label.className = `light-ott-badge light-ott-tier-${meta.tier}`;
+    label.dataset.tier = newTier;
     if (prevTier !== undefined && prevTier !== newTier) {
-      labelEl.classList.add('tier-changed');
-      setTimeout(() => labelEl.classList.remove('tier-changed'), 600);
+      label.classList.add('tier-changed');
+      setTimeout(() => label.classList.remove('tier-changed'), 600);
     }
   }
   if (summary) summary.textContent = `${aligned}/10 aligned`;
@@ -807,9 +817,12 @@ function _selectSetupChoice(button) {
 function _refreshSetupProgress() {
   const card = document.querySelector('.light-setup-card');
   if (!card) return;
-  const skinFilled = card.querySelector('#setup-skin-range')?.dataset.set === '1';
-  const homeFilled = !!card.querySelector('#setup-homelight')?.value;
-  const eyewearFilled = !!card.querySelector('#setup-eyewear')?.value;
+  const skinRange = /** @type {HTMLInputElement | null} */ (card.querySelector('#setup-skin-range'));
+  const homeSelect = /** @type {HTMLSelectElement | null} */ (card.querySelector('#setup-homelight'));
+  const eyewearSelect = /** @type {HTMLSelectElement | null} */ (card.querySelector('#setup-eyewear'));
+  const skinFilled = skinRange?.dataset.set === '1';
+  const homeFilled = !!homeSelect?.value;
+  const eyewearFilled = !!eyewearSelect?.value;
   const filled = [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
   const progress = card.querySelector('.light-setup-progress');
   if (progress) {
@@ -861,6 +874,10 @@ if (typeof window !== 'undefined') {
 // roving tabindex pattern: Left/Right (and Up/Down) cycle the focused
 // face; Enter/Space activate the current face. Keeps the radiogroup
 // reachable for keyboard + screen-reader users.
+/**
+ * @param {KeyboardEvent} e
+ * @param {number} idx
+ */
 function _skinFaceKeydown(e, idx) {
   const max = 5;
   let next = null;
@@ -874,13 +891,13 @@ function _skinFaceKeydown(e, idx) {
     case 'Enter':
     case ' ':          // Space
       e.preventDefault();
-      const range = document.getElementById('setup-skin-range');
-      if (range) range.value = idx;
+      const range = /** @type {HTMLInputElement | null} */ (document.getElementById('setup-skin-range'));
+      if (range) range.value = String(idx);
       _updateSetupSkinSlider(idx);
       return;
   }
   if (next == null) return;
   e.preventDefault();
-  const target = document.querySelector(`.ctx-skin-face[data-idx="${next}"]`);
+  const target = /** @type {HTMLElement | null} */ (document.querySelector(`.ctx-skin-face[data-idx="${next}"]`));
   if (target) target.focus();
 }
