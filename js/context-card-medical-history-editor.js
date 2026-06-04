@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-medical-history-editor.js - Medical History context card editor
 
 import { state } from './state.js';
@@ -10,14 +11,27 @@ import {
   renderNoteField,
 } from './context-card-editor-ui.js';
 
+/** @type {(field: string) => void} */
 let recordContextChange = () => {};
+/** @type {(msg: string, field?: string) => void} */
 let saveContextAndRefresh = () => {};
 let editingConditionIndex = -1;
 let editingFamilyHistoryIndex = -1;
 
+/**
+ * @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
+ */
 export function configureMedicalHistoryEditor({ recordChange, saveAndRefresh } = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null}
+ */
+function getFormControl(id) {
+  return /** @type {HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null} */ (document.getElementById(id));
 }
 
 export function openDiagnosesEditor() {
@@ -181,11 +195,11 @@ export function renderDiagnosesModal(modal, current) {
   </div>`;
   renderContextEditorModal(modal, 'Medical History', 'Your diagnoses and family history. The AI considers both when interpreting your labs.', html, 'closeDiagnoses');
   setTimeout(() => {
-    const input = document.getElementById('condition-input');
+    const input = getFormControl('condition-input');
     if (input) {
       input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addCondition(); } };
     }
-    const fhCond = document.getElementById('fh-condition');
+    const fhCond = getFormControl('fh-condition');
     if (fhCond) {
       fhCond.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addFamilyHistoryEntry(); } };
     }
@@ -195,7 +209,7 @@ export function renderDiagnosesModal(modal, current) {
 }
 
 export function filterConditionSuggestions() {
-  const input = document.getElementById('condition-input');
+  const input = getFormControl('condition-input');
   const container = document.getElementById('condition-suggestions');
   if (!input || !container) return;
   const val = input.value.toLowerCase().trim();
@@ -214,38 +228,41 @@ export function filterConditionSuggestions() {
 }
 
 export function selectConditionSuggestion(name) {
-  const input = document.getElementById('condition-input');
+  const input = getFormControl('condition-input');
   if (input) input.value = name;
   const container = document.getElementById('condition-suggestions');
   if (container) container.innerHTML = '';
 }
 
+/** @param {MouseEvent} e */
 export function closeSuggestionsOnClickOutside(e) {
   const container = document.getElementById('condition-suggestions');
-  const input = document.getElementById('condition-input');
-  if (container && input && !input.contains(e.target) && !container.contains(e.target)) {
+  const input = getFormControl('condition-input');
+  const target = /** @type {Node | null} */ (e.target);
+  if (target && container && input && !input.contains(target) && !container.contains(target)) {
     container.innerHTML = '';
   }
   const fhContainer = document.getElementById('fh-condition-suggestions');
-  const fhInput = document.getElementById('fh-condition');
-  if (fhContainer && fhInput && !fhInput.contains(e.target) && !fhContainer.contains(e.target)) {
+  const fhInput = getFormControl('fh-condition');
+  if (target && fhContainer && fhInput && !fhInput.contains(target) && !fhContainer.contains(target)) {
     fhContainer.innerHTML = '';
   }
 }
 
 export function syncDiagnosesNote() {
-  const noteEl = document.getElementById('ctx-note-input');
+  const noteEl = getFormControl('ctx-note-input');
   if (noteEl && state.importedData.diagnoses) state.importedData.diagnoses.note = noteEl.value.trim();
 }
 
 export function addCondition() {
-  const input = document.getElementById('condition-input');
+  const input = getFormControl('condition-input');
   const severity = getSelectedOption('condition-severity') || 'mild';
-  const since = document.getElementById('condition-since');
+  const since = getFormControl('condition-since');
   const name = input ? input.value.trim() : '';
   if (!name) return;
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
+  /** @type {{ name: string, severity: string, since?: string }} */
   const cond = { name, severity };
   if (since && since.value.trim()) cond.since = since.value.trim();
   if (editingConditionIndex >= 0 && editingConditionIndex < diagnoses.conditions.length) {
@@ -285,10 +302,10 @@ export function deleteCondition(idx) {
 }
 
 export function addFamilyHistoryEntry() {
-  const relativeEl = document.getElementById('fh-relative');
-  const conditionEl = document.getElementById('fh-condition');
-  const ageEl = document.getElementById('fh-age');
-  const noteEl = document.getElementById('fh-note');
+  const relativeEl = getFormControl('fh-relative');
+  const conditionEl = getFormControl('fh-condition');
+  const ageEl = getFormControl('fh-age');
+  const noteEl = getFormControl('fh-note');
   const relative = relativeEl?.value || '';
   const condition = (conditionEl?.value || '').trim();
   if (!relative || !condition) return;
@@ -298,8 +315,9 @@ export function addFamilyHistoryEntry() {
   const note = (noteEl?.value || '').trim();
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
+  /** @type {{ relative: string, condition: string, onsetAge?: number, note?: string }} */
   const entry = { relative, condition };
-  if (Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
+  if (onsetAge != null && Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
   if (note) entry.note = note;
   if (editingFamilyHistoryIndex >= 0 && editingFamilyHistoryIndex < diagnoses.familyHistory.length) {
     diagnoses.familyHistory[editingFamilyHistoryIndex] = entry;
@@ -338,7 +356,7 @@ export function deleteFamilyHistoryEntry(idx) {
 }
 
 export function filterFamilyConditionSuggestions() {
-  const input = document.getElementById('fh-condition');
+  const input = getFormControl('fh-condition');
   const container = document.getElementById('fh-condition-suggestions');
   if (!input || !container) return;
   const val = input.value.toLowerCase().trim();
@@ -348,14 +366,14 @@ export function filterFamilyConditionSuggestions() {
 }
 
 export function selectFamilyConditionSuggestion(name) {
-  const input = document.getElementById('fh-condition');
+  const input = getFormControl('fh-condition');
   if (input) input.value = name;
   const container = document.getElementById('fh-condition-suggestions');
   if (container) container.innerHTML = '';
 }
 
 export function saveDiagnoses() {
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getFormControl('ctx-note-input')?.value || '';
   const diagnoses = _getDiagnoses();
   diagnoses.note = note.trim();
   const condLen = diagnoses.conditions.length;

@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-lifestyle-editors.js - lifestyle context card editors
 
 import { state } from './state.js';
@@ -81,13 +82,16 @@ import {
   selectCtxOption,
 } from './context-card-editor-ui.js';
 
+/** @type {(field: string) => void} */
 let recordContextChange = () => {};
+/** @type {(msg: string, field?: string) => void} */
 let saveContextAndRefresh = (msg, field) => {
   if (field) recordContextChange(field);
   saveImportedData();
   showNotification(msg, 'success');
 };
 
+/** @param {{ modal: HTMLElement }} payload */
 function refreshOpenHealthGoalsModalOnSync({ modal }) {
   renderHealthGoalsModal(modal);
 }
@@ -96,9 +100,33 @@ if (typeof window !== 'undefined') {
   bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync);
 }
 
+/**
+ * @param {{ recordChange?: (field: string) => void, saveAndRefresh?: (msg: string, field?: string) => void }} [deps]
+ */
 export function configureLifestyleContextEditors({ recordChange, saveAndRefresh } = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLInputElement | HTMLTextAreaElement | null}
+ */
+function getTextInput(id) {
+  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+}
+
+/**
+ * @param {string} id
+ * @returns {string}
+ */
+function getInputValue(id) {
+  return getTextInput(id)?.value || '';
+}
+
+function getActiveNavCategory() {
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
+  return activeNav?.dataset.category || "dashboard";
 }
 
 export function renderDietContaminantsBadge() {
@@ -153,14 +181,14 @@ export function saveDiet() {
   const type = getSelectedOption('diet-type');
   const pattern = getSelectedOption('diet-pattern');
   const restrictions = getSelectedTags('diet-restrictions');
-  const breakfast = (document.getElementById('diet-breakfast') || {}).value || '';
-  const breakfastTime = parseTimeInput((document.getElementById('diet-breakfast-time') || {}).value || '');
-  const lunch = (document.getElementById('diet-lunch') || {}).value || '';
-  const lunchTime = parseTimeInput((document.getElementById('diet-lunch-time') || {}).value || '');
-  const dinner = (document.getElementById('diet-dinner') || {}).value || '';
-  const dinnerTime = parseTimeInput((document.getElementById('diet-dinner-time') || {}).value || '');
-  const snacks = (document.getElementById('diet-snacks') || {}).value || '';
-  const snacksTime = parseTimeInput((document.getElementById('diet-snacks-time') || {}).value || '');
+  const breakfast = getInputValue('diet-breakfast');
+  const breakfastTime = parseTimeInput(getInputValue('diet-breakfast-time'));
+  const lunch = getInputValue('diet-lunch');
+  const lunchTime = parseTimeInput(getInputValue('diet-lunch-time'));
+  const dinner = getInputValue('diet-dinner');
+  const dinnerTime = parseTimeInput(getInputValue('diet-dinner-time'));
+  const snacks = getInputValue('diet-snacks');
+  const snacksTime = parseTimeInput(getInputValue('diet-snacks-time'));
   const bowelFrequency = getSelectedOption('diet-bowel');
   const stoolConsistency = getSelectedOption('diet-stool');
   const bloating = getSelectedOption('diet-bloating');
@@ -171,7 +199,7 @@ export function saveDiet() {
   const appetite = getSelectedOption('diet-appetite');
   const abdominalPain = getSelectedOption('diet-abdpain');
   const foodSensitivities = getSelectedTags('diet-sensitivities');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!type && !pattern && restrictions.length === 0 && !breakfast.trim() && !lunch.trim() && !dinner.trim() && !snacks.trim() && !bowelFrequency && !stoolConsistency && !bloating && !gas && !acidReflux && !burping && !nausea && !appetite && !abdominalPain && foodSensitivities.length === 0 && !note.trim()) {
     state.importedData.diet = null;
   } else {
@@ -215,7 +243,7 @@ export function saveSleepRest() {
   const issues = getSelectedTags('sleep-issues');
   const environment = getSelectedTags('sleep-env');
   const practices = getSelectedTags('sleep-practices');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!duration && !quality && !schedule && !roomTemp && issues.length === 0 && environment.length === 0 && practices.length === 0 && !note.trim()) {
     state.importedData.sleepRest = null;
   } else {
@@ -263,20 +291,21 @@ export function openLightCircadianEditor() {
 // the AI already knows about light from those answers and links over for
 // edits. Matches the design pattern of Settings → linked external editors.
 function renderLightSetupMirror(current) {
+  const appWindow = typeof window !== 'undefined' ? /** @type {any} */ (window) : {};
   const sd = state.importedData?.sunDefaults || null;
   const skin = current.skinType || (sd?.fitzpatrick ? `${sd.fitzpatrick}` : null);
 
   // Resolve the human-readable home-lighting + eyewear labels by reading
   // window-exposed metadata so we don't pull in the sun-defaults import
   // (would create a circular dep with this file's many other consumers).
-  const homeLightOptions = (typeof window !== 'undefined' && window._sunHomeLightOptions) || [];
-  const eyewearOptions = (typeof window !== 'undefined' && window._sunEyewearOptions) || [];
+  const homeLightOptions = appWindow._sunHomeLightOptions || [];
+  const eyewearOptions = appWindow._sunEyewearOptions || [];
   const homeMeta = homeLightOptions.find(o => o.key === sd?.homeLight);
   const eyewearMeta = eyewearOptions.find(o => o.key === sd?.eyewear);
 
   let ottBadge = '';
-  if (sd && typeof sd.ottScore === 'number' && typeof window.ottScoreToLabel === 'function') {
-    const { label, tier } = window.ottScoreToLabel(sd.ottScore);
+  if (sd && typeof sd.ottScore === 'number' && typeof appWindow.ottScoreToLabel === 'function') {
+    const { label, tier } = appWindow.ottScoreToLabel(sd.ottScore);
     ottBadge = `<span class="light-ott-badge light-ott-tier-${tier}">${escapeHTML(label)}</span>`;
   } else if (sd?.skipped) {
     ottBadge = `<span class="light-ott-badge">skipped</span>`;
@@ -323,7 +352,7 @@ export function saveLightCircadian() {
   const cold = getSelectedOption('light-cold');
   const grounding = getSelectedOption('light-grounding');
   const mealTiming = getSelectedTags('light-meal');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!amLight && !daytime && !uvExposure && !skinType && evening.length === 0 && !screenTime && techEnv.length === 0 && !cold && !grounding && mealTiming.length === 0 && !note.trim()) {
     state.importedData.lightCircadian = null;
   } else {
@@ -360,7 +389,7 @@ export function saveExercise() {
   const types = getSelectedTags('exercise-types');
   const intensity = getSelectedOption('exercise-intensity');
   const dailyMovement = getSelectedOption('exercise-movement');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!frequency && types.length === 0 && !intensity && !dailyMovement && !note.trim()) {
     state.importedData.exercise = null;
   } else {
@@ -395,7 +424,7 @@ export function saveStress() {
   const level = getSelectedOption('stress-level');
   const sources = getSelectedTags('stress-sources');
   const management = getSelectedTags('stress-mgmt');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!level && sources.length === 0 && management.length === 0 && !note.trim()) {
     state.importedData.stress = null;
   } else {
@@ -444,7 +473,7 @@ export function saveLoveLife() {
   const frequency = getSelectedOption('love-frequency');
   const orgasm = getSelectedOption('love-orgasm');
   const concerns = getSelectedTags('love-concerns');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!status && !relationship && !satisfaction && !libido && !frequency && !orgasm && concerns.length === 0 && !note.trim()) {
     state.importedData.loveLife = null;
   } else {
@@ -503,7 +532,7 @@ export function saveEnvironment() {
   const air = getSelectedTags('env-air');
   const toxins = getSelectedTags('env-toxins');
   const building = getSelectedOption('env-building');
-  const note = (document.getElementById('ctx-note-input') || {}).value || '';
+  const note = getInputValue('ctx-note-input');
   if (!setting && !climate && !water && waterConcerns.length === 0 && emf.length === 0 && emfMitigation.length === 0 && !homeLight && air.length === 0 && toxins.length === 0 && !building && !note.trim()) {
     state.importedData.environment = null;
   } else {
@@ -561,7 +590,7 @@ export function renderHealthGoalsModal(modal) {
   </div>`;
   renderContextEditorModal(modal, 'Health Goals', 'List things you want to solve or improve. The AI will prioritize analysis around your stated goals.', html);
   setTimeout(() => {
-    const input = document.getElementById('goal-text-input');
+    const input = getTextInput('goal-text-input');
     if (input) {
       input.focus();
       input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addHealthGoal(); } };
@@ -570,7 +599,7 @@ export function renderHealthGoalsModal(modal) {
 }
 
 export function addHealthGoal() {
-  const input = document.getElementById('goal-text-input');
+  const input = getTextInput('goal-text-input');
   const severity = getSelectedOption('goal-severity-select') || 'major';
   const text = input ? input.value.trim() : '';
   if (!text) return;
@@ -590,8 +619,7 @@ export function deleteHealthGoal(idx) {
 
 export function closeHealthGoals() {
   window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  window.navigate(getActiveNavCategory());
   if ((state.importedData.healthGoals || []).length > 0) showNotification('Health goals saved', 'success');
 }
 
@@ -600,8 +628,7 @@ export function clearHealthGoals() {
   recordContextChange('healthGoals');
   saveImportedData();
   window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  window.navigate(getActiveNavCategory());
   showNotification('Health goals cleared', 'info');
 }
 
@@ -622,20 +649,19 @@ export function openInterpretiveLensEditor() {
     </div>`);
   overlay.classList.add("show");
   setTimeout(() => {
-    const ta = document.getElementById('interpretive-lens-textarea');
+    const ta = getTextInput('interpretive-lens-textarea');
     if (ta) ta.focus();
   }, 50);
 }
 
 export function saveInterpretiveLens() {
-  const ta = document.getElementById('interpretive-lens-textarea');
+  const ta = getTextInput('interpretive-lens-textarea');
   const text = ta ? ta.value.trim() : '';
   state.importedData.interpretiveLens = text || '';
   recordContextChange('interpretiveLens');
   saveImportedData();
   window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  window.navigate(getActiveNavCategory());
   showNotification(text ? 'Interpretive lens saved' : 'Interpretive lens cleared', 'success');
 }
 
@@ -644,8 +670,7 @@ export function clearInterpretiveLens() {
   recordContextChange('interpretiveLens');
   saveImportedData();
   window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  window.navigate(getActiveNavCategory());
   showNotification('Interpretive lens cleared', 'info');
 }
 
