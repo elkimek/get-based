@@ -103,7 +103,9 @@ export function clearRestoreJoinPending() {
   setRestoreJoinPending(false);
 }
 
-/** @param {{ seedLocal?: boolean }} [options] */
+/** @param {string} mnemonic
+ * @param {{ seedLocal?: boolean }} [options]
+ */
 export async function restoreFromMnemonic(mnemonic, options = {}) {
   const evolu = currentEvolu();
   if (!evolu) return false;
