@@ -26,6 +26,15 @@ export function _collectActiveChips(card) {
   return Array.from(card.querySelectorAll('.wearable-log-chip.active')).map(b => b.dataset.tag);
 }
 
+export function inputValueFromElement(el) {
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.value;
+  return '';
+}
+
+export function inputValueById(id) {
+  return inputValueFromElement(document.getElementById(id));
+}
+
 // Shared note-textarea snippet for both manual-log forms. The `idSuffix`
 // disambiguates dashboard-card (`wl-...-note`) vs detail-modal (`wlad-note`).
 export function _renderNoteField(idSuffix = 'wl-note') {

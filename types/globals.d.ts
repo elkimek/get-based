@@ -19,6 +19,9 @@ interface Window {
   cashuGetMintUrl?: () => Promise<string | null> | string | null;
   cashuRestoreWalletFromSeed?: (seed: string) => Promise<void> | void;
   cashuSetMintUrl?: (url: string) => Promise<void> | void;
+  Chart?: new (canvas: HTMLCanvasElement, config: unknown) => { destroy(): void };
+  closeModal?: () => void;
+  closeSettings?: () => void;
   destroyAllCharts?: () => void;
   detectDNAFile?: (header: string) => string | null;
   ensureActiveThread?: () => void;
@@ -55,10 +58,13 @@ interface Window {
   nostrSetSelectedNode?: (url: string) => void;
   openClientList?: () => void;
   closeClientList?: () => void;
+  openEMFAssessmentEditor?: () => void;
+  openSettingsModal?: (tab?: string) => void;
   pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
   refreshChartThemeColors?: (options?: { batchSize?: number }) => void;
   refreshSettingsWearables?: () => void;
+  rememberModalTrigger?: () => void;
   renderProfileButton?: () => void;
   renderThreadList?: () => void;
   scheduleChartThemeRefresh?: () => void;
@@ -66,6 +72,7 @@ interface Window {
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
   _fitbitAuth?: unknown;
+  _appleHealth?: unknown;
   _ouraAuth?: unknown;
   _polarAuth?: unknown;
   _ultrahumanAuth?: unknown;

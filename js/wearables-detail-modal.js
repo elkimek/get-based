@@ -1,3 +1,5 @@
+// @ts-check
+
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { state } from './state.js';
 import {
@@ -13,7 +15,7 @@ import { MANUAL_METRICS } from './wearables-manual.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
-import { _collectActiveChips, _renderNoteField, _renderTagChips } from './wearables-manual-form-ui.js';
+import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
 
 const WEARABLE_DETAIL_RANGES = [
   { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
@@ -136,12 +138,12 @@ export async function openWearableDetail(metricId, opts = {}) {
   const focusTarget = opts.fromRangeToggle
     ? modal.querySelector('.wearable-detail-range .ctx-btn-option.active')
     : modal.querySelector('.modal-close');
-  focusTarget?.focus?.();
+  if (focusTarget instanceof HTMLElement) focusTarget.focus();
   _installWearableModalFocusTrap(modal);
 
   const canvas = document.getElementById('chart-modal');
   if (canvas && (series.length > 0 || manualChartEntries.length > 0)) {
-    renderWearableChart(canvas, canon, m, series, manualChartEntries);
+    if (canvas instanceof HTMLCanvasElement) renderWearableChart(canvas, canon, m, series, manualChartEntries);
   }
 }
 
@@ -559,7 +561,8 @@ export function openManualAddFromDetail(metricId, event) {
       <button type="button" class="wearable-log-cancel" ${wearableActionAttrs('close-detail-manual-add')}>✕</button>
     </form>`;
   }
-  slot.querySelector('input[type="number"]')?.focus?.();
+  const firstNumberInput = slot.querySelector('input[type="number"]');
+  if (firstNumberInput instanceof HTMLElement) firstNumberInput.focus();
 }
 
 export function closeManualAddFromDetail() {
@@ -583,17 +586,17 @@ export async function saveManualEntryFromDetail(metricId, kind) {
   const op = _bumpManualEntryOp(metricId);
   const { logManualMetric, logManualBP, refreshManualSummary } = await import('./wearables-manual.js');
   const profileId = getActiveProfileId();
-  const date = document.getElementById('wlad-date')?.value;
+  const date = inputValueById('wlad-date');
   if (!date) {
     showNotification?.('Pick a date', 'error');
     return;
   }
   const formEl = document.querySelector('.wearable-manual-add-form');
   const tags = formEl ? _collectActiveChips(formEl) : [];
-  const note = document.getElementById('wlad-note')?.value || '';
+  const note = inputValueFromElement(document.getElementById('wlad-note'));
   try {
     if (kind === 'weight') {
-      const val = parseFloat(document.getElementById('wlad-val')?.value);
+      const val = parseFloat(inputValueById('wlad-val'));
       if (!val || val <= 0) {
         showNotification?.('Enter a weight', 'error');
         return;
@@ -604,7 +607,7 @@ export async function saveManualEntryFromDetail(metricId, kind) {
       }
       await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
     } else if (kind === 'rhr') {
-      const val = parseInt(document.getElementById('wlad-val')?.value, 10);
+      const val = parseInt(inputValueById('wlad-val'), 10);
       if (!val || val <= 0) {
         showNotification?.('Enter a pulse', 'error');
         return;
@@ -615,9 +618,9 @@ export async function saveManualEntryFromDetail(metricId, kind) {
       }
       await logManualMetric(profileId, 'rhr', { date, value: val, tags, note });
     } else if (kind === 'bp') {
-      const sys = parseInt(document.getElementById('wlad-sys')?.value, 10);
-      const dia = parseInt(document.getElementById('wlad-dia')?.value, 10);
-      const pulse = parseInt(document.getElementById('wlad-pulse')?.value, 10);
+      const sys = parseInt(inputValueById('wlad-sys'), 10);
+      const dia = parseInt(inputValueById('wlad-dia'), 10);
+      const pulse = parseInt(inputValueById('wlad-pulse'), 10);
       if (!sys || !dia || sys <= 0 || dia <= 0) {
         showNotification?.('Enter systolic and diastolic', 'error');
         return;

@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-manual.js — Manual entry as a first-class wearable source.
 //
 // Treats user-entered weight / BP / pulse as rows in the wearables IndexedDB

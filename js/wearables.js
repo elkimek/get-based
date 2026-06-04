@@ -1,3 +1,4 @@
+// @ts-check
 // wearables.js — Dashboard wearable strip
 // Source-agnostic: reads `wearableSummary` (the L2 shape that ships to Evolu)
 // and walks CANONICAL_METRICS via the registry in wearable-adapters.js.
@@ -27,6 +28,8 @@ import {
   _collectActiveChips,
   _renderNoteField,
   _renderTagChips,
+  inputValueById,
+  inputValueFromElement,
   toggleManualLogChip,
 } from './wearables-manual-form-ui.js';
 import {
@@ -139,7 +142,10 @@ function rerenderCurrentView() {
 
 function resetOpenManualLogForms({ exceptMetricId = '' } = {}) {
   const openForms = Array.from(document.querySelectorAll('.wearable-card-empty .wearable-log-form'));
-  const shouldReset = openForms.some(form => form.closest('.wearable-card-empty')?.dataset.emptyMetric !== exceptMetricId);
+  const shouldReset = openForms.some(form => {
+    const card = form.closest('.wearable-card-empty');
+    return !(card instanceof HTMLElement) || card.dataset.emptyMetric !== exceptMetricId;
+  });
   if (!shouldReset) return false;
   rerenderCurrentView();
   return true;
@@ -830,6 +836,7 @@ async function chooseWearableSource(metricId, event) {
 
   // Wire clicks — pick a source, persist override, re-render strip.
   picker.querySelectorAll('[data-source]').forEach(btn => {
+    if (!(btn instanceof HTMLElement)) return;
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const sid = btn.dataset.source;
@@ -1008,12 +1015,16 @@ function openManualLogForm(metricId, event, opts = {}) {
       </div>`;
   }
   // Focus the first input.
-  setTimeout(() => card.querySelector('input[type="number"]')?.focus(), 0);
+  setTimeout(() => {
+    const firstNumberInput = card.querySelector('input[type="number"]');
+    if (firstNumberInput instanceof HTMLElement) firstNumberInput.focus();
+  }, 0);
   // Enter-to-save on the number inputs.
   card.querySelectorAll('input[type="number"]').forEach((el) => {
     el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); saveManualLog(metricId === 'bp_systolic' ? 'bp' : metricId, e); }
-      if (e.key === 'Escape') { e.preventDefault(); cancelManualLog(e); }
+      const keyEvent = /** @type {KeyboardEvent} */ (e);
+      if (keyEvent.key === 'Enter') { e.preventDefault(); saveManualLog(metricId === 'bp_systolic' ? 'bp' : metricId, e); }
+      if (keyEvent.key === 'Escape') { e.preventDefault(); cancelManualLog(e); }
     });
   });
 }
@@ -1029,26 +1040,25 @@ async function saveManualLog(kind, event) {
     kind === 'bp'     ? document.querySelector('.wearable-card-empty[data-empty-metric="bp_systolic"]') : null;
   const tags = cardForTags ? _collectActiveChips(cardForTags) : [];
   // Note field — id varies by kind ('wl-weight-note' / 'wl-bp-note' / 'wl-rhr-note').
-  const noteEl = document.getElementById(`wl-${kind === 'bp' ? 'bp' : kind}-note`);
-  const note = noteEl ? noteEl.value : '';
+  const note = inputValueFromElement(document.getElementById(`wl-${kind === 'bp' ? 'bp' : kind}-note`));
   try {
     if (kind === 'weight') {
-      const val = parseFloat(document.getElementById('wl-weight-val')?.value);
-      const date = document.getElementById('wl-weight-date')?.value;
+      const val = parseFloat(inputValueById('wl-weight-val'));
+      const date = inputValueById('wl-weight-date');
       if (!val || val <= 0 || !date) { showNotification?.('Enter a weight and date', 'error'); return; }
       if (val > 500) { showNotification?.('Weight over 500 kg seems unlikely', 'error'); return; }
       await logManualMetric(profileId, 'weight', { date, value: val, tags, note });
     } else if (kind === 'rhr') {
-      const val = parseInt(document.getElementById('wl-rhr-val')?.value, 10);
-      const date = document.getElementById('wl-rhr-date')?.value;
+      const val = parseInt(inputValueById('wl-rhr-val'), 10);
+      const date = inputValueById('wl-rhr-date');
       if (!val || val <= 0 || !date) { showNotification?.('Enter a pulse and date', 'error'); return; }
       if (val > 250) { showNotification?.('Pulse over 250 bpm seems unlikely', 'error'); return; }
       await logManualMetric(profileId, 'rhr', { date, value: val, tags, note });
     } else if (kind === 'bp') {
-      const sys = parseInt(document.getElementById('wl-bp-sys')?.value, 10);
-      const dia = parseInt(document.getElementById('wl-bp-dia')?.value, 10);
-      const pulse = parseInt(document.getElementById('wl-bp-pulse')?.value, 10);
-      const date = document.getElementById('wl-bp-date')?.value;
+      const sys = parseInt(inputValueById('wl-bp-sys'), 10);
+      const dia = parseInt(inputValueById('wl-bp-dia'), 10);
+      const pulse = parseInt(inputValueById('wl-bp-pulse'), 10);
+      const date = inputValueById('wl-bp-date');
       if (!sys || !dia || sys <= 0 || dia <= 0 || !date) { showNotification?.('Enter systolic, diastolic, and date', 'error'); return; }
       if (sys > 300 || dia > 200) { showNotification?.('BP values seem too high', 'error'); return; }
       if (dia >= sys) { showNotification?.('Diastolic should be lower than systolic', 'error'); return; }
