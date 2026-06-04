@@ -103,6 +103,10 @@ interface Window {
   importDataJSON: (file: File) => Promise<void> | void;
   isDebugMode?: () => boolean;
   isImportRunning?: () => boolean;
+  _pendingImport?: any;
+  _pendingImportRefLookup?: Record<string, any> | null;
+  _batchImportResolve?: ((action: string) => void) | null;
+  _batchImportContext?: { current: number; total: number } | null;
   loadDemoData?: (sex?: string) => Promise<void> | void;
   loadChatHistory?: () => Promise<void> | void;
   loadChatPersonality?: () => void;
