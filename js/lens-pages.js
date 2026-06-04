@@ -1,3 +1,4 @@
+// @ts-check
 // lens-pages.js — dedicated lens page renderers extracted from views.js
 
 import { state } from './state.js';

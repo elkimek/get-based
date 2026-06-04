@@ -1,3 +1,4 @@
+// @ts-check
 // mobile-dashboard.js - Mobile dashboard shell and bottom navigation
 
 import { state } from './state.js';
@@ -23,13 +24,14 @@ const MOBILE_WEARABLE_PRIORITY = [
 let _mobileDashboardManualTabLockUntil = 0;
 let _mobileChromeStateObserver = null;
 
+/** @type {any} */
 const mobileDashboardDeps = {
-  buildDashboardWidgetContext: () => ({ data: getActiveData(), filteredData: getActiveData() }),
+  buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
   getDashboardWidgetPrefs: () => ({}),
-  getVisibleDashboardWidgetEntries: () => [],
-  renderDashboardControlButtons: () => '',
+  getVisibleDashboardWidgetEntries: (..._args) => [],
+  renderDashboardControlButtons: (..._args) => '',
   isDashboardOrganizeMode: () => false,
-  renderDashboardWidget: () => '',
+  renderDashboardWidget: (..._args) => '',
   setupDropZone: () => {},
   loadCommitHash: () => {},
 };
@@ -364,9 +366,10 @@ function renderMobileIcon(name) {
 export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
   if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
   document.querySelectorAll('.m-tab').forEach(btn => {
-    const isActive = btn.dataset.tab === tab;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
+    const tabButton = /** @type {HTMLElement} */ (btn);
+    const isActive = tabButton.dataset.tab === tab;
+    tabButton.classList.toggle('active', isActive);
+    tabButton.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 }
 
@@ -397,7 +400,8 @@ function renderMobileDashboardWidgetStack(ctx) {
 }
 
 export function openMobileDashboardSearch() {
-  if (window.toggleMobileSidebar) window.toggleMobileSidebar();
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.toggleMobileSidebar) appWindow.toggleMobileSidebar();
   setTimeout(() => document.getElementById('sidebar-search')?.focus(), 80);
 }
 

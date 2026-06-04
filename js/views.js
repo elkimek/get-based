@@ -1,3 +1,4 @@
+// @ts-check
 // views.js — route facade and compatibility exports
 
 import { getActiveData, destroyAllCharts } from './data.js';
@@ -149,6 +150,7 @@ export function showGenomeLens() { return lensPageHandlers.showGenomeLens(); }
 export function showBodyLens() { return lensPageHandlers.showBodyLens(); }
 export function showInsightLens(preData) { return lensPageHandlers.showInsightLens(preData); }
 export function showRecommendations(preData) { return lensPageHandlers.showRecommendations(preData); }
+/** @type {any} */
 let dashboardView;
 export function showDashboard(data) { return dashboardView.showDashboard(data); }
 

@@ -91,6 +91,7 @@ interface Window {
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
   fetchAtmosphere?: AnyFunction;
+  filterThreadList?: AnyFunction;
   reconstructSpectrum?: AnyFunction;
   computeChannelDoses?: AnyFunction;
   CHANNEL_DISPLAY?: Record<string, { icon?: string; label?: string; what?: string; dailyTarget?: number }>;
@@ -142,6 +143,7 @@ interface Window {
   maybeAnalyzeSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;
+  handleChatKeydown?: AnyFunction;
   handleMtDNAFile?: (file: File) => Promise<void> | void;
   importDataJSON: (file: File) => Promise<void> | void;
   isDebugMode?: () => boolean;
@@ -221,6 +223,7 @@ interface Window {
   scheduleChartThemeRefresh?: () => void;
   saveChatHistory?: AnyFunction;
   setManualHaplogroup?: (haplogroup: string) => Promise<void> | void;
+  setChatWebSearchEnabled?: AnyFunction;
   setOnboardingFocus?: AnyFunction;
   setProfileHeight?: AnyFunction;
   showConfirmDialog?: (message: string) => Promise<boolean> | boolean;
@@ -235,6 +238,7 @@ interface Window {
   sendChatMessage?: AnyFunction;
   switchAIProvider?: AnyFunction;
   toggleChatPanel: () => void;
+  togglePersonalityBar?: AnyFunction;
   updateChatHeaderModel?: AnyFunction;
   updateAttachButtonVisibility: () => void;
   updateSendButtonState?: AnyFunction;
