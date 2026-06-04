@@ -1,3 +1,4 @@
+// @ts-check
 // sync-runtime.js - Mutable Evolu runtime handles shared by sync modules.
 
 let _evolu = null;
@@ -23,6 +24,7 @@ export function setSyncEvolu(evolu) {
   _evolu = evolu;
 }
 
+/** @param {{ profileQuery?: any, tombstoneQuery?: any, itemRowQuery?: any }} [queries] */
 export function setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery } = {}) {
   _profileQuery = profileQuery ?? null;
   _tombstoneQuery = tombstoneQuery ?? null;

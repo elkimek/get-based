@@ -1,3 +1,4 @@
+// @ts-check
 // sync.js — Evolu sync layer public entry point (opt-in, E2E encrypted)
 // Stores importedData + profile metadata per profile as a JSON blob.
 // Last-write-wins at the profile level — fine for single-user cross-device sync.
