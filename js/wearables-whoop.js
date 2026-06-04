@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-whoop.js — WHOOP data layer
 //
 // BETA. WHOOP's API is a clean REST JSON API with cursor pagination. All
@@ -29,6 +30,7 @@ async function whoopGET(path, accessToken, params = {}) {
     let err;
     try { err = await res.json(); } catch { err = { error: res.statusText }; }
     const msg = err?.detail || err?.message || err?.error || res.statusText || 'WHOOP request failed';
+    /** @type {Error & { status?: number }} */
     const e = new Error(msg); e.status = res.status; throw e;
   }
   return res.json();

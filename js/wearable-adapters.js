@@ -1,3 +1,4 @@
+// @ts-check
 // wearable-adapters.js — Canonical wearable-metric registry + vendor adapters
 //
 // Contract: the rest of the app reads **canonical** metric ids (hrv_rmssd,

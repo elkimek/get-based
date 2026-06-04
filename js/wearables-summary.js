@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-summary.js — L2 summary derivation + change gate
 //
 // Pure functions where possible so the gate logic is testable without IDB or DOM.
@@ -92,7 +93,7 @@ function isoWeekOf(dateStr) {
   const day = d.getUTCDay() || 7; // Sun=0 → 7
   d.setUTCDate(d.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  const weekNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 

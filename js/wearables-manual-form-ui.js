@@ -1,3 +1,5 @@
+// @ts-check
+
 import { escapeHTML } from './utils.js';
 
 // Chip row for optional context tags. Tags are informational; sensors cannot

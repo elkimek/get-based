@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-ultrahuman.js — Ultrahuman Ring Air data layer (OAuth2)
 //
 // Targets the new OAuth2 partner API under /api/partners/v1/user_data/*,
@@ -29,6 +30,7 @@ async function uhGET(path, accessToken, params = {}) {
     let err;
     try { err = await res.json(); } catch { err = { error: res.statusText }; }
     const msg = err?.detail || err?.message || err?.error || res.statusText || 'Ultrahuman request failed';
+    /** @type {Error & { status?: number }} */
     const e = new Error(msg); e.status = res.status; throw e;
   }
   return res.json();

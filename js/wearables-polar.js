@@ -1,3 +1,4 @@
+// @ts-check
 // wearables-polar.js — Polar AccessLink data layer
 //
 // BETA. AccessLink has two unusual quirks that shape this module:
@@ -37,6 +38,7 @@ async function polarGET(url, accessToken) {
   });
   if (!res.ok) {
     let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    /** @type {Error & { status?: number }} */
     const e = new Error(err?.error || err?.detail || res.statusText || 'Polar request failed');
     e.status = res.status; throw e;
   }
@@ -62,6 +64,7 @@ async function polarSend(url, method, accessToken, body) {
   });
   if (!res.ok) {
     let err; try { err = await res.json(); } catch { err = { error: res.statusText }; }
+    /** @type {Error & { status?: number }} */
     const e = new Error(err?.error || err?.detail || res.statusText || `Polar ${method} failed`);
     e.status = res.status; throw e;
   }
@@ -112,6 +115,7 @@ export async function fetchPolarPersonalInfo(accessToken, userId) {
 export async function fetchPolarDailyRange(accessToken, startDate, endDate, connection = {}) {
   const userId = connection.userId;
   if (!userId) {
+    /** @type {Error & { code?: string }} */
     const e = new Error('Polar connection missing userId — reconnect to obtain one');
     e.code = 'needs-reauth'; throw e;
   }
