@@ -191,7 +191,7 @@ export function mergeLabEntry(existing, incoming) {
   if (!incoming || typeof incoming !== 'object') return existing;
   const existingTs = pickTimestamp(existing);
   const incomingTs = pickTimestamp(incoming);
-  const incomingWins = incomingTs > existingTs || incomingTs === existingTs;
+  const incomingWins = incomingTs >= existingTs;
   const base = incomingWins ? { ...existing, ...incoming } : { ...incoming, ...existing };
   const markers = {};
   const markerSources = {};
