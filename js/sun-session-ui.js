@@ -1,3 +1,4 @@
+// @ts-check
 // sun-session-ui.js — UI rendering/editing for saved sun sessions.
 // Core session storage, dose hydration, and sun math stay in sun.js. This
 // module receives those core operations through configureSunSessionUI() so
@@ -8,6 +9,32 @@ import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showN
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
 
+/**
+ * @typedef {object} SunSessionUIDeps
+ * @property {() => any[]} getSessions
+ * @property {(id: any) => Promise<boolean> | boolean} deleteSession
+ * @property {(id: any, patch: any) => Promise<any>} updateSession
+ * @property {(opts: any) => Promise<any>} logCompletedSession
+ * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
+ * @property {() => any} getSunCoords
+ * @property {() => void} refreshSurfaces
+ * @property {(overlay: HTMLElement) => void} wireBackdropClose
+ * @property {(overlay: HTMLElement) => void} trapModalFocus
+ * @property {(sess: any) => string} summarizeBodyExposure
+ * @property {(ms: number) => string} formatElapsed
+ * @property {Array<{ key: string, label: string }>} exposurePresets
+ * @property {Array<{ key: string, label: string, pickerLabel?: string }>} eyeModes
+ * @property {Array<{ key: string, label: string }>} lensTints
+ * @property {Array<{ key: string, label: string }>} postureOptions
+ * @property {Array<{ key: string, label: string }>} surfaceOptions
+ * @property {Record<string, any>} channelDisplay
+ * @property {(value: any, key: any) => number} channelTier
+ * @property {(tier: any) => string} tierLabel
+ * @property {(...args: any[]) => string} formatChannelUnit
+ * @property {number} tooShortForChannelVerdictMin
+ */
+
+/** @type {SunSessionUIDeps} */
 const uiDeps = {
   getSessions: () => [],
   deleteSession: async () => false,
@@ -40,6 +67,7 @@ if (typeof document !== 'undefined') {
   });
 }
 
+/** @param {Partial<SunSessionUIDeps>} [deps] */
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
 }
@@ -612,9 +640,9 @@ export function openDetailedSessionDialog() {
   // as a validation channel — surfaces "Ended must be after Started"
   // and "over 4 hours" right under the inputs without a separate error
   // field. Clamps display only; save handler does the final validation.
-  const startEl = overlay.querySelector('#det-started-at');
-  const endEl = overlay.querySelector('#det-ended-at');
-  const hintEl = overlay.querySelector('#det-duration-hint');
+  const startEl = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-started-at'));
+  const endEl = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-ended-at'));
+  const hintEl = /** @type {HTMLElement | null} */ (overlay.querySelector('#det-duration-hint'));
   const updateDurationHint = () => {
     if (!startEl || !endEl || !hintEl) return;
     const sMs = new Date(startEl.value).getTime();
@@ -633,17 +661,17 @@ export function openDetailedSessionDialog() {
   updateDurationHint();
 
   overlay.querySelector('#det-save').addEventListener('click', async () => {
-    const eyeModeVal = overlay.querySelector('#det-eye-mode').value || 'direct';
-    const lensTintVal = overlay.querySelector('#det-lens-tint').value || 'clear';
-    const spf = parseInt(overlay.querySelector('#det-spf').value, 10) || null;
-    const glass = overlay.querySelector('#det-glass').checked;
-    const notes = overlay.querySelector('#det-notes').value || '';
+    const eyeModeVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-eye-mode'))?.value || 'direct';
+    const lensTintVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-lens-tint'))?.value || 'clear';
+    const spf = parseInt(/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-spf'))?.value || '', 10) || null;
+    const glass = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-glass'))?.checked;
+    const notes = /** @type {HTMLTextAreaElement | null} */ (overlay.querySelector('#det-notes'))?.value || '';
 
     // Resolve the two timestamps. Both fields default to a sensible
     // 15-min window ending now, so the empty-field fallback never fires
     // in practice — but we guard anyway in case a user clears one.
-    const startedAtRaw = overlay.querySelector('#det-started-at').value;
-    const endedAtRaw = overlay.querySelector('#det-ended-at').value;
+    const startedAtRaw = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-started-at'))?.value || '';
+    const endedAtRaw = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-ended-at'))?.value || '';
     const endedMsRaw = endedAtRaw ? new Date(endedAtRaw).getTime() : Date.now();
     const startedMsRaw = startedAtRaw
       ? new Date(startedAtRaw).getTime()
@@ -666,8 +694,8 @@ export function openDetailedSessionDialog() {
       const r = BODY_REGIONS.find(b => b.key === key);
       return sum + (r?.fraction || 0);
     }, 0);
-    const posture = overlay.querySelector('#det-posture')?.value || 'standing';
-    const surfaceAlbedo = overlay.querySelector('#det-surface')?.value || 'grass';
+    const posture = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-posture'))?.value || 'standing';
+    const surfaceAlbedo = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-surface'))?.value || 'grass';
     // Resolve coordinates so hydrateSession has somewhere to fetch
     // atmosphere from. Without this the past-session save records the
     // session but `useLat == null` short-circuits hydration → channels
