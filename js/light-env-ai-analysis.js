@@ -11,6 +11,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
 function _getMeasurementsForRoom(roomId) {
@@ -138,7 +139,7 @@ export function buildRoomContext(r) {
   }
 
   const sleepRest = state.importedData?.sleepRest;
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   lines.push('');
   lines.push('### User context');
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);

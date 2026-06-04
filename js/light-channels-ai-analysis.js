@@ -17,6 +17,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getMix() {
   return state.importedData?.channelMixAI || null;
@@ -92,7 +93,7 @@ export function buildChannelMixContext() {
 
   // User context
   const sd = state.importedData?.sunDefaults || {};
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
   if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);

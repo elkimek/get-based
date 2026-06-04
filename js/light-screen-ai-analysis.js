@@ -12,6 +12,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getScreens() { return state.importedData?.lightEnvironment?.screens || []; }
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
@@ -64,7 +65,7 @@ export function buildScreenContext(s) {
 
   // User context
   const sleep = state.importedData?.sleepRest;
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   if (goals || sleep) {
     lines.push('');
     lines.push('### User context');

@@ -12,6 +12,7 @@ import { getSunDefaults } from './sun-defaults.js';
 import { getDevices, getDeviceSessions } from './light-devices.js';
 import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ export function buildDeviceSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
   const lc = state.importedData?.lightCircadian || {};
-  const goals = state.importedData?.healthGoals?.goals || '';
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const device = getDevices().find(d => d.id === sess.deviceId) || null;
   const lines = [];
 

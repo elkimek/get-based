@@ -12,16 +12,9 @@ import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
-
-function _healthGoalsText() {
-  const healthGoals = /** @type {any} */ (state.importedData?.healthGoals);
-  if (Array.isArray(healthGoals)) {
-    return healthGoals.map(g => g?.text).filter(Boolean).slice(0, 3).join('; ');
-  }
-  return healthGoals?.goals || '';
-}
 
 const _OTT_LABELS = {
   morningDeficit: 'No bright light within 1 hr of waking',
@@ -99,7 +92,7 @@ export function buildOnboardingContext() {
     }
   }
 
-  const goals = _healthGoalsText();
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const sleep = state.importedData?.sleepRest;
   if (goals || sleep) {
     lines.push('');

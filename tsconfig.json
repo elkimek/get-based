@@ -18,6 +18,7 @@
     "js/commit-hash.js",
     "js/export.js",
     "js/food-contaminants.js",
+    "js/health-goals-utils.js",
     "js/image-utils.js",
     "js/import-drop-zone.js",
     "js/import-file-input.js",

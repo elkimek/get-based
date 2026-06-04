@@ -16,6 +16,7 @@ import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getSessions, formatChannelUnit, CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { formatHealthGoalsText } from './health-goals-utils.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 //
@@ -118,19 +119,11 @@ function _sevenDayRollup(currentSess) {
   };
 }
 
-function _healthGoalsText() {
-  const healthGoals = /** @type {any} */ (state.importedData?.healthGoals);
-  if (Array.isArray(healthGoals)) {
-    return healthGoals.map(g => g?.text).filter(Boolean).slice(0, 3).join('; ');
-  }
-  return healthGoals?.goals || '';
-}
-
 export function buildSingleSessionContext(sess) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
   const lc = state.importedData?.lightCircadian || {};
-  const goals = _healthGoalsText();
+  const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const lines = [];
 
   lines.push('### Session');
