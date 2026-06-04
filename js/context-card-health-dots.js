@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-health-dots.js - AI health-dot scoring for dashboard context cards
 
 import { state } from './state.js';
@@ -105,7 +106,10 @@ function applyGrayDots(keys) {
 }
 
 function buildContextForStaleKeys(keys, staleKeys) {
-  let ctx = window.buildLabContext();
+  const appWindow = /** @type {any} */ (window);
+  if (typeof appWindow.buildLabContext !== 'function') return '';
+  let ctx = appWindow.buildLabContext();
+  if (typeof ctx !== 'string') return '';
   if (staleKeys.length >= keys.length) return ctx;
 
   const skipKeys = keys.filter(k => !staleKeys.includes(k));
@@ -162,6 +166,10 @@ export async function loadContextHealthDots() {
   }
 
   const ctx = buildContextForStaleKeys(keys, staleKeys);
+  if (!ctx) {
+    applyGrayDots(staleKeys);
+    return;
+  }
   const prompt = buildHealthDotsPrompt(staleKeys);
 
   try {

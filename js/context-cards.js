@@ -1,3 +1,4 @@
+// @ts-check
 // context-cards.js - dashboard context card facade and shared lifecycle
 
 import { state } from './state.js';
@@ -245,7 +246,7 @@ let _ctxNotesTimer = null;
 export function debounceContextNotes() {
   clearTimeout(_ctxNotesTimer);
   _ctxNotesTimer = setTimeout(() => {
-    const ta = document.getElementById('ctx-notes-textarea');
+    const ta = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('ctx-notes-textarea'));
     if (ta) {
       state.importedData.contextNotes = ta.value;
       recordChange('contextNotes');
@@ -285,7 +286,13 @@ export function recordChange(field) {
   const snapshotStr = JSON.stringify(snapshot);
   const history = ensureImportedArray(state.importedData, 'changeHistory');
   // Skip if identical to last snapshot for this field
-  const lastIdx = history.findLastIndex(e => e.field === field);
+  let lastIdx = -1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].field === field) {
+      lastIdx = i;
+      break;
+    }
+  }
   if (lastIdx >= 0 && JSON.stringify(history[lastIdx].snapshot) === snapshotStr) return;
   // Same field + same day → overwrite. Stamp updatedAt so cross-device
   // tie-break prefers the newer write (composite-keyed merge in data-merge.js
@@ -307,21 +314,22 @@ export function recordChange(field) {
 }
 
 export function saveAndRefresh(msg, field) {
+  const appWindow = /** @type {any} */ (window);
   if (field) recordChange(field);
   saveImportedData();
   // Preserve details open state across the re-render below
-  const details = document.querySelector('.welcome-context-details');
+  const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
   if (details?.open) sessionStorage.setItem('welcome-details-open', '1');
-  window.closeModal();
+  appWindow.closeModal();
   showNotification(msg, 'success');
-  if (window.onContextCardSaved) window.onContextCardSaved();
+  if (typeof appWindow.onContextCardSaved === 'function') appWindow.onContextCardSaved();
   // Re-render the current view so the saved values appear on the card
   // immediately. BroadcastChannel notifies other tabs but never delivers
   // back to the sender, so a single-tab user would otherwise see no UI
   // update until a reload or navigation. Mirrors the BroadcastChannel
   // handler in crypto.js:initBroadcastChannel. See #123.
-  const activeNav = document.querySelector('.nav-item.active');
-  if (window.navigate) window.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  if (typeof appWindow.navigate === 'function') appWindow.navigate(activeNav?.dataset.category || 'dashboard');
   // Refresh health dots for the saved card (fingerprint will have changed).
   // Must run after navigate() so the ctx-dot-* elements exist in the new DOM.
   loadContextHealthDots();
@@ -332,14 +340,15 @@ configureLifestyleContextEditors({ recordChange, saveAndRefresh });
 
 // ── Card tips badges (async — waits for catalog) ──
 async function loadContextCardTips() {
-  if (!window.isProductRecsEnabled || !window.isProductRecsEnabled()) return;
-  if (!window.loadCatalog || !window.getCardSlotKeys) return;
-  await window.loadCatalog();
+  const appWindow = /** @type {any} */ (window);
+  if (!appWindow.isProductRecsEnabled || !appWindow.isProductRecsEnabled()) return;
+  if (!appWindow.loadCatalog || !appWindow.getCardSlotKeys) return;
+  await appWindow.loadCatalog();
   const cardKeys = ['sleepRest', 'lightCircadian', 'environment', 'exercise', 'diet', 'stress'];
   for (const key of cardKeys) {
     const el = document.getElementById(`ctx-tips-${key}`);
     if (!el || el.children.length > 0) continue;
-    if (window.getCardSlotKeys(key).length === 0) continue;
+    if (appWindow.getCardSlotKeys(key).length === 0) continue;
     const badge = document.createElement('span');
     badge.className = 'ctx-tips-badge';
     badge.textContent = 'Tips';
@@ -351,8 +360,9 @@ async function loadContextCardTips() {
 
 // ── Card tips modal ──
 function openCardTipsModal(cardKey) {
-  if (!window.renderCardTipsModal) return;
-  const html = window.renderCardTipsModal(cardKey);
+  const appWindow = /** @type {any} */ (window);
+  if (!appWindow.renderCardTipsModal) return;
+  const html = appWindow.renderCardTipsModal(cardKey);
   if (!html) return;
   // Reuse the detail modal overlay
   const overlay = document.getElementById('modal-overlay');

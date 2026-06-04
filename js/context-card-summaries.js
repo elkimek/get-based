@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-summaries.js - Context card metadata, summaries, and filled-state helpers
 
 import { state } from './state.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-dashboard-ai.js - dashboard AI personalization and data protection CTAs
 
 import { getFolderBackupState } from './backup.js';
@@ -33,21 +34,22 @@ export function renderInterpretiveLensSection() {
 // Programmatic DNA file picker. Mirrors the chat onboarding hidden-file-input
 // pattern so the same handleDNAFile parser runs.
 export function triggerDNAFilePicker() {
-  let input = document.getElementById('dna-dashboard-input');
+  let input = /** @type {HTMLInputElement | null} */ (document.getElementById('dna-dashboard-input'));
   if (!input) {
-    input = document.createElement('input');
-    input.type = 'file';
-    input.id = 'dna-dashboard-input';
-    input.accept = '.txt,.csv';
-    input.style.display = 'none';
-    input.addEventListener('change', () => {
-      const f = input.files && input.files[0];
+    const newInput = document.createElement('input');
+    newInput.type = 'file';
+    newInput.id = 'dna-dashboard-input';
+    newInput.accept = '.txt,.csv';
+    newInput.style.display = 'none';
+    newInput.addEventListener('change', () => {
+      const f = newInput.files && newInput.files[0];
       if (f && typeof window.handleDNAFile === 'function') {
         window.handleDNAFile(f);
       }
-      input.value = '';
+      newInput.value = '';
     });
-    document.body.appendChild(input);
+    document.body.appendChild(newInput);
+    input = newInput;
   }
   input.click();
 }
@@ -157,6 +159,7 @@ export function renderDataProtectionCta(stateOverride) {
 }
 
 export function openDataProtectionPicker() {
+  const appWindow = /** @type {any} */ (window);
   let overlay = document.getElementById('data-protection-picker-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -193,22 +196,28 @@ export function openDataProtectionPicker() {
   overlay.classList.add('show');
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  overlay.querySelector('#data-protection-picker-cancel').onclick = close;
-  setTimeout(() => overlay.querySelector('.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel')?.focus(), 50);
+  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#data-protection-picker-cancel'));
+  if (cancelButton) cancelButton.onclick = close;
+  setTimeout(() => {
+    const focusTarget = /** @type {HTMLElement | null} */ (overlay.querySelector('.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel'));
+    focusTarget?.focus();
+  }, 50);
   overlay.querySelectorAll('.dashboard-picker-card').forEach(btn => {
-    btn.onclick = () => {
-      const pick = btn.getAttribute('data-pick');
-      const isConfigured = btn.getAttribute('data-configured') === 'true';
+    const button = /** @type {HTMLButtonElement} */ (btn);
+    button.onclick = () => {
+      const pick = button.getAttribute('data-pick');
+      const isConfigured = button.getAttribute('data-configured') === 'true';
       if (isConfigured) { close(); return; }
       close();
-      if (pick === 'encryption' && typeof window.showEnableEncryptionModal === 'function') window.showEnableEncryptionModal();
-      else if (pick === 'sync' && typeof window.showSyncSetupModal === 'function') window.showSyncSetupModal();
-      else if (pick === 'backup' && typeof window.pickFolderForBackup === 'function') window.pickFolderForBackup();
+      if (pick === 'encryption' && typeof appWindow.showEnableEncryptionModal === 'function') appWindow.showEnableEncryptionModal();
+      else if (pick === 'sync' && typeof appWindow.showSyncSetupModal === 'function') appWindow.showSyncSetupModal();
+      else if (pick === 'backup' && typeof appWindow.pickFolderForBackup === 'function') appWindow.pickFolderForBackup();
     };
   });
 }
 
 export function openPersonalizeAIPicker() {
+  const appWindow = /** @type {any} */ (window);
   let overlay = document.getElementById('ai-personalize-picker-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -242,16 +251,21 @@ export function openPersonalizeAIPicker() {
   overlay.classList.add('show');
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  overlay.querySelector('#ai-personalize-picker-cancel').onclick = close;
-  setTimeout(() => overlay.querySelector('.ai-picker-card,#ai-personalize-picker-cancel')?.focus(), 50);
+  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#ai-personalize-picker-cancel'));
+  if (cancelButton) cancelButton.onclick = close;
+  setTimeout(() => {
+    const focusTarget = /** @type {HTMLElement | null} */ (overlay.querySelector('.ai-picker-card,#ai-personalize-picker-cancel'));
+    focusTarget?.focus();
+  }, 50);
   overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
-    btn.onclick = () => {
-      const pick = btn.getAttribute('data-pick');
+    const button = /** @type {HTMLButtonElement} */ (btn);
+    button.onclick = () => {
+      const pick = button.getAttribute('data-pick');
       close();
-      if (pick === 'lens' && typeof window.openInterpretiveLensEditor === 'function') {
-        window.openInterpretiveLensEditor();
-      } else if (pick === 'kb' && typeof window.openKnowledgeBaseModal === 'function') {
-        window.openKnowledgeBaseModal();
+      if (pick === 'lens' && typeof appWindow.openInterpretiveLensEditor === 'function') {
+        appWindow.openInterpretiveLensEditor();
+      } else if (pick === 'kb' && typeof appWindow.openKnowledgeBaseModal === 'function') {
+        appWindow.openKnowledgeBaseModal();
       }
     };
   });

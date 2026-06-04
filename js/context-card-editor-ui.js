@@ -1,3 +1,4 @@
+// @ts-check
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
 import { escapeHTML } from './utils.js';
