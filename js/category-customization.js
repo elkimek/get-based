@@ -1,3 +1,4 @@
+// @ts-check
 // category-customization.js — category/marker labels and category icon picker
 
 import { state } from './state.js';
@@ -7,10 +8,17 @@ import { showDetailModal } from './marker-detail-modal.js';
 
 let _navigate = (route, data) => window.navigate?.(route, data);
 
+/**
+ * @param {{ navigate?: (route: string, data?: any) => void }} [deps]
+ */
 export function configureCategoryCustomization(deps = {}) {
   if (typeof deps.navigate === 'function') _navigate = deps.navigate;
 }
 
+/**
+ * @param {string} fallbackRoute
+ * @param {{ forceRoute?: string }} [opts]
+ */
 function _refreshActiveView(fallbackRoute, opts = {}) {
   const data = getActiveData();
   window.buildSidebar?.(data);
@@ -84,6 +92,11 @@ const EMOJI_CATEGORIES = [
   { id: 'symbols', icon: '\uD83D\uDD36', label: 'Symbols & Colors', emojis: ['\uD83D\uDD36','\uD83D\uDD35','\uD83D\uDFE2','\uD83D\uDFE1','\uD83D\uDFE3','\uD83D\uDD34','\u26AA','\u26AB','\uD83D\uDFE0','\uD83D\uDFE4','\u2728','\uD83D\uDCAB','\u267B\uFE0F','\u269B\uFE0F','\u2699\uFE0F','\u267E\uFE0F','\u2B55','\uD83D\uDD16'] },
 ];
 
+/**
+ * @param {Element} anchorEl
+ * @param {(emoji: string | null | undefined) => void} callback
+ * @param {{ showReset?: boolean }} [opts]
+ */
 export function showEmojiPicker(anchorEl, callback, opts = {}) {
   // Remove existing picker
   document.querySelector('.emoji-picker')?.remove();
@@ -123,16 +136,26 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
     picker.innerHTML = html;
 
     // Bind events
-    const input = picker.querySelector('input');
-    input.addEventListener('input', e => { searchTerm = e.target.value; activeCat = null; render(); const el = picker.querySelector('input'); el.focus(); el.setSelectionRange(searchTerm.length, searchTerm.length); });
+    const input = /** @type {HTMLInputElement | null} */ (picker.querySelector('input'));
+    input?.addEventListener('input', e => {
+      const target = /** @type {HTMLInputElement} */ (e.target);
+      searchTerm = target.value;
+      activeCat = null;
+      render();
+      const el = /** @type {HTMLInputElement | null} */ (picker.querySelector('input'));
+      el?.focus();
+      el?.setSelectionRange(searchTerm.length, searchTerm.length);
+    });
     picker.querySelectorAll('.emoji-picker-cats button').forEach(btn => {
+      const button = /** @type {HTMLElement} */ (btn);
       btn.addEventListener('click', () => {
-        if (btn.dataset.cat === '__reset') { callback(null); picker.remove(); cleanup(); return; }
-        activeCat = activeCat === btn.dataset.cat ? null : btn.dataset.cat; searchTerm = ''; render();
+        if (button.dataset.cat === '__reset') { callback(null); picker.remove(); cleanup(); return; }
+        activeCat = activeCat === button.dataset.cat ? null : button.dataset.cat; searchTerm = ''; render();
       });
     });
     picker.querySelectorAll('.emoji-picker-grid span[data-emoji]').forEach(span => {
-      span.addEventListener('click', () => { callback(span.dataset.emoji); picker.remove(); cleanup(); });
+      const emojiEl = /** @type {HTMLElement} */ (span);
+      span.addEventListener('click', () => { callback(emojiEl.dataset.emoji); picker.remove(); cleanup(); });
     });
   }
 
@@ -141,7 +164,12 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
   setTimeout(() => picker.querySelector('input')?.focus(), 50);
 
   // Close on outside click
-  function onClickOutside(e) { if (!picker.contains(e.target) && e.target !== anchorEl) { picker.remove(); cleanup(); } }
+  /** @param {MouseEvent} e */
+  function onClickOutside(e) {
+    if (!(e.target instanceof Node)) return;
+    if (!picker.contains(e.target) && e.target !== anchorEl) { picker.remove(); cleanup(); }
+  }
+  /** @param {KeyboardEvent} e */
   function onEsc(e) { if (e.key === 'Escape') { picker.remove(); cleanup(); } }
   function cleanup() { document.removeEventListener('mousedown', onClickOutside); document.removeEventListener('keydown', onEsc); }
   setTimeout(() => { document.addEventListener('mousedown', onClickOutside); document.addEventListener('keydown', onEsc); }, 10);
@@ -151,7 +179,8 @@ export function changeCategoryIcon(categoryKey) {
   const data = getActiveData();
   const cat = data.categories[categoryKey];
   if (!cat) return;
-  const anchor = (typeof event !== 'undefined' && event?.target) || document.querySelector('.category-header h2 span') || document.body;
+  const eventTarget = typeof event !== 'undefined' && event?.target instanceof Element ? event.target : null;
+  const anchor = eventTarget || document.querySelector('.category-header h2 span') || document.body;
   const hasOverride = categoryKey in (state.importedData?.categoryIcons || {});
   showEmojiPicker(anchor, (emoji) => {
     if (emoji === null) {

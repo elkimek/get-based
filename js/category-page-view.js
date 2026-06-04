@@ -1,3 +1,4 @@
+// @ts-check
 // category-page-view.js — category route orchestration and view-mode switching
 
 import { state } from './state.js';

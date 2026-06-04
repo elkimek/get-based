@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-page-view.js — dashboard route shell and empty-state orchestration
 
 import { state } from './state.js';
@@ -34,7 +35,7 @@ function getDashboardMonthSpan(data) {
   const first = new Date(dates[0] + 'T00:00:00');
   const last = new Date(dates[dates.length - 1] + 'T00:00:00');
   if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return '';
-  const months = Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24 * 30.4375)));
+  const months = Math.max(1, Math.round((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)));
   return `${months} month${months === 1 ? '' : 's'}`;
 }
 

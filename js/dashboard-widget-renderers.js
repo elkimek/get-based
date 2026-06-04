@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-widget-renderers.js - dashboard widget body renderers
 
 import { state } from './state.js';

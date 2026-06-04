@@ -21,7 +21,7 @@ interface Window {
   _snpTableCache?: unknown;
   APP_VERSION?: string;
   applyAccentOverride?: () => void;
-  buildSidebar?: () => void;
+  buildSidebar?: AnyFunction;
   callClaudeAPI?: (request: {
     system?: string;
     messages: Array<{ role: string; content: string }>;
@@ -43,7 +43,7 @@ interface Window {
   getActiveProfileId?: () => string | null;
   getProfileHeight?: (profileId: string) => { height?: number | string | null; unit?: string | null };
   getProfileLocation?: AnyFunction;
-  getProfiles?: () => Array<{ id?: string; sex?: string | null }>;
+  getProfiles?: () => Array<{ id?: string; name?: string | null; sex?: string | null }>;
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
   fetchAtmosphere?: AnyFunction;
@@ -156,6 +156,20 @@ interface Window {
   showNotification?: (message: string, type?: string, timeoutMs?: number) => void;
   saveImportedData?: AnyFunction;
   loadCatalog?: AnyFunction;
+  _cachedCatalog?: { slots?: Record<string, any>; [key: string]: any } | null;
+  buildDNAHints?: AnyFunction;
+  deleteNote?: AnyFunction;
+  detectWearableTrendSlots?: AnyFunction;
+  isProductRecsEnabled?: () => boolean;
+  loadContextCardTips?: AnyFunction;
+  openManualLogForm?: AnyFunction;
+  openNoteEditor?: AnyFunction;
+  openWearableDetail?: AnyFunction;
+  showDetailModal?: AnyFunction;
+  startEmptyTour?: AnyFunction;
+  startTour?: AnyFunction;
+  syncWearableNow?: AnyFunction;
+  triggerDNAFilePicker?: AnyFunction;
   loadLightDevicePresets?: AnyFunction;
   renderLightDeviceAffiliateRow?: AnyFunction;
   renderLightTools?: AnyFunction;

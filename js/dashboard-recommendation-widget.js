@@ -1,3 +1,4 @@
+// @ts-check
 // dashboard-recommendation-widget.js - recommendation candidate and widget rendering
 
 import { state } from './state.js';
