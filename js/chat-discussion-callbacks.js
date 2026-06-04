@@ -16,14 +16,17 @@ const discussionCallbacks = {
   setSendButtonMode: () => {},
 };
 
+/** @param {Partial<typeof discussionCallbacks>} [callbacks] */
 export function configureChatDiscussion(callbacks = {}) {
   Object.assign(discussionCallbacks, callbacks);
 }
 
+/** @returns {AbortController | null} */
 export function getChatAbortController() {
   return discussionCallbacks.getChatAbortController?.() || null;
 }
 
+/** @param {AbortController | null} controller */
 export function setChatAbortController(controller) {
   discussionCallbacks.setChatAbortController?.(controller);
 }
@@ -32,10 +35,20 @@ export function renderChatMessages() {
   discussionCallbacks.renderChatMessages?.();
 }
 
+/**
+ * @param {HTMLElement | null} btn
+ * @param {string} mode
+ */
 export function setSendButtonMode(btn, mode) {
   discussionCallbacks.setSendButtonMode?.(/** @type {HTMLElement | null} */ (btn), mode);
 }
 
+/**
+ * @param {HTMLElement} el
+ * @param {HTMLElement} typingEl
+ * @param {HTMLElement} container
+ * @returns {{ update(text: string): void, stop(): void }}
+ */
 export function createDiscussionTypewriter(el, typingEl, container) {
   if (!discussionCallbacks.createTypewriter) {
     return {
