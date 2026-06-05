@@ -150,9 +150,13 @@ export function showGenomeLens() { return lensPageHandlers.showGenomeLens(); }
 export function showBodyLens() { return lensPageHandlers.showBodyLens(); }
 export function showInsightLens(preData) { return lensPageHandlers.showInsightLens(preData); }
 export function showRecommendations(preData) { return lensPageHandlers.showRecommendations(preData); }
-/** @type {any} */
+/** @type {ReturnType<typeof createDashboardViewComposition> | undefined} */
 let dashboardView;
-export function showDashboard(data) { return dashboardView.showDashboard(data); }
+function getDashboardView() {
+  if (!dashboardView) throw new Error('Dashboard view is not initialized');
+  return dashboardView;
+}
+export function showDashboard(data) { return getDashboardView().showDashboard(data); }
 
 const _navigate = createNavigate({
   routeHandlers: {
@@ -221,11 +225,11 @@ export const addDashboardBiometricWidget = (...args) => dashboardView.addDashboa
 export const removeDashboardBiometricMetric = (...args) => dashboardView.removeDashboardBiometricMetric(...args);
 export const filterDashboardMarkerWidgetPicker = (...args) => dashboardView.filterDashboardMarkerWidgetPicker(...args);
 export const filterDashboardBiometricWidgetPicker = (...args) => dashboardView.filterDashboardBiometricWidgetPicker(...args);
-export const resetDashboardWidgets = (...args) => dashboardView.resetDashboardWidgets(...args);
-export const clearDashboardWidgets = (...args) => dashboardView.clearDashboardWidgets(...args);
-export const openDashboardWidgetPicker = (...args) => dashboardView.openDashboardWidgetPicker(...args);
-export const openDashboardBiometricPicker = (...args) => dashboardView.openDashboardBiometricPicker(...args);
-export const closeDashboardWidgetPicker = (...args) => dashboardView.closeDashboardWidgetPicker(...args);
+export const resetDashboardWidgets = () => dashboardView.resetDashboardWidgets();
+export const clearDashboardWidgets = () => dashboardView.clearDashboardWidgets();
+export const openDashboardWidgetPicker = () => dashboardView.openDashboardWidgetPicker();
+export const openDashboardBiometricPicker = () => dashboardView.openDashboardBiometricPicker();
+export const closeDashboardWidgetPicker = () => dashboardView.closeDashboardWidgetPicker();
 export const startDashboardWidgetDrag = (...args) => dashboardView.startDashboardWidgetDrag(...args);
 export const allowDashboardWidgetDrop = (...args) => dashboardView.allowDashboardWidgetDrop(...args);
 export const dropDashboardWidget = (...args) => dashboardView.dropDashboardWidget(...args);

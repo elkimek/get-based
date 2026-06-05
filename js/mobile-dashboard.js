@@ -24,18 +24,35 @@ const MOBILE_WEARABLE_PRIORITY = [
 let _mobileDashboardManualTabLockUntil = 0;
 let _mobileChromeStateObserver = null;
 
-/** @type {any} */
+/**
+ * @typedef {{ data: any, filteredData: any, keyMarkers?: any[], trendAlerts?: any[], criticalFlags?: any[] }} MobileDashboardWidgetContext
+ * @typedef {{ def: { id: string, [key: string]: any }, body?: string, [key: string]: any }} MobileDashboardWidgetEntry
+ * @typedef {Record<string, any>} MobileDashboardWidgetPrefs
+ * @typedef {{
+ *   buildDashboardWidgetContext: (data: any) => MobileDashboardWidgetContext,
+ *   getDashboardWidgetPrefs: () => MobileDashboardWidgetPrefs,
+ *   getVisibleDashboardWidgetEntries: (ctx: MobileDashboardWidgetContext, prefs: MobileDashboardWidgetPrefs) => MobileDashboardWidgetEntry[],
+ *   renderDashboardControlButtons: (options?: { includeReset?: boolean }) => string,
+ *   isDashboardOrganizeMode: () => boolean,
+ *   renderDashboardWidget: (entry: MobileDashboardWidgetEntry, prefs: MobileDashboardWidgetPrefs, index: number, visibleEntries: MobileDashboardWidgetEntry[]) => string,
+ *   setupDropZone: () => void,
+ *   loadCommitHash: () => void,
+ * }} MobileDashboardDeps
+ */
+
+/** @type {MobileDashboardDeps} */
 const mobileDashboardDeps = {
   buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
   getDashboardWidgetPrefs: () => ({}),
-  getVisibleDashboardWidgetEntries: (..._args) => [],
-  renderDashboardControlButtons: (..._args) => '',
+  getVisibleDashboardWidgetEntries: (_ctx, _prefs) => [],
+  renderDashboardControlButtons: (_options) => '',
   isDashboardOrganizeMode: () => false,
-  renderDashboardWidget: (..._args) => '',
+  renderDashboardWidget: (_entry, _prefs, _index, _visibleEntries) => '',
   setupDropZone: () => {},
   loadCommitHash: () => {},
 };
 
+/** @param {Partial<MobileDashboardDeps>} [deps] */
 export function configureMobileDashboardView(deps = {}) {
   Object.assign(mobileDashboardDeps, deps);
 }
