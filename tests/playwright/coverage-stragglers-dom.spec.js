@@ -27,7 +27,7 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
       overlay?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       const nudgeApplied = !!dialog?.classList.contains('modal-nudge');
       dialog?.dispatchEvent(new Event('animationend', { bubbles: true }));
-      const nudgeCleared = !dialog?.classList.contains('modal-nudge');
+      const nudgeCleared = !!dialog && !dialog.classList.contains('modal-nudge');
       document.getElementById('confirm-cancel')?.click();
       await promise.catch(() => {});
       outcomes.confirmBackdropNudges = nudgeApplied;
