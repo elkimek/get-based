@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('data protection picker opens and dismisses', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'networkidle' });
+  await page.goto('/app', { waitUntil: 'load' });
 
   await page.evaluate(async () => {
     const cards = await import('/js/context-cards.js');
