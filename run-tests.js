@@ -70,8 +70,7 @@ const TEST_FILES = [
   'tests/test-wearables-ui-flows.js',
   // test-dashboard-knowledge-base.js HTML-string rendering checks ported to
   // Vitest (batch 27). Section 5 (picker open/dismiss — live DOM overlay +
-  // click) lives in test-dashboard-knowledge-base-dom.js below.
-  'tests/test-dashboard-knowledge-base-dom.js',
+  // click) moved to Playwright in tests/playwright/dashboard-knowledge-base.spec.js.
   // test-dashboard-data-protection.js HTML-string rendering checks ported to
   // Vitest (batch 28). Section 6 (picker open/dismiss — live DOM overlay +
   // click) moved to Playwright in tests/playwright/dashboard-data-protection.spec.js.
@@ -108,14 +107,11 @@ const TEST_FILES = [
   // probe + the live add/delete handler test against #detail-modal — live
   // in test-family-history-dom.js below.
   'tests/test-family-history-dom.js',
-  // Extracted from test-v1-6-shipped.js (PR #204) — the live-DOM
-  // assertion can't run in Node + ES modules can't run via the
-  // puppeteer `Function(s)()` evaluator, so the modal-render check
-  // needed its own thin file that stays in the puppeteer runner.
-  'tests/test-all-sessions-modal.js',
+  // test-v1-6-shipped.js modal-render check moved to Playwright in
+  // tests/playwright/all-sessions-modal.spec.js.
   // test-wearables-bp-merge.js source-inspection ported to Vitest (batch 30).
-  // Section-4 live idempotency probe lives in test-wearables-bp-merge-dom.js.
-  'tests/test-wearables-bp-merge-dom.js',
+  // Section-4 live idempotency probe moved to Playwright in
+  // tests/playwright/wearables-bp-merge.spec.js.
   // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
   // mutates state in ways that are expensive to fully reverse (creates a
   // demo profile, swaps currentProfile, opens/closes 8 modals), so anything
