@@ -1,3 +1,4 @@
+// @ts-check
 // marker-analysis.js — read-only marker range, status, and trend helpers
 
 import { state } from './state.js';

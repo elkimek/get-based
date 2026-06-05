@@ -1,3 +1,4 @@
+// @ts-check
 // notes.js — Standalone note editor
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
@@ -9,6 +10,7 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 
+/** @param {{ modal: HTMLElement }} context */
 function refreshOpenNoteEditorOnSync({ modal }) {
   if (modal.dataset.syncRefreshMode !== 'edit') {
     openNoteEditor(modal.dataset.syncRefreshDate || undefined);
@@ -33,9 +35,14 @@ if (typeof window !== 'undefined') {
   bindDetailModalSyncRefresh('note', refreshOpenNoteEditorOnSync);
 }
 
+/**
+ * @param {string | null | undefined} [date]
+ * @param {number | null | undefined} [existingIdx]
+ */
 export function openNoteEditor(date, existingIdx) {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
+  if (!modal || !overlay) return;
   const isEditing = existingIdx !== undefined && existingIdx !== null;
   const existing = isEditing ? (state.importedData.notes || [])[existingIdx] : null;
   const defaultDate = existing ? existing.date : (date || new Date().toISOString().slice(0, 10));
@@ -65,9 +72,10 @@ export function openNoteEditor(date, existingIdx) {
   }, 50);
 }
 
+/** @param {number | null | undefined} idx */
 export function saveNote(idx) {
-  const dateInput = document.getElementById('note-date-input');
-  const ta = document.getElementById('note-textarea');
+  const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('note-date-input'));
+  const ta = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('note-textarea'));
   const date = dateInput ? dateInput.value : '';
   const text = ta ? ta.value.trim() : '';
   if (!date) { showNotification('Please select a date', 'error'); return; }
@@ -81,18 +89,19 @@ export function saveNote(idx) {
   }
   saveImportedData();
   window.closeModal();
-  const activeNav = document.querySelector(".nav-item.active");
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
   window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
   showNotification('Note saved', 'success');
 }
 
+/** @param {number} idx */
 export async function deleteNote(idx) {
   if (!state.importedData.notes) return;
   if (await showConfirmDialog("Delete this note? This can't be undone.")) {
     deleteImportedArrayItem(state.importedData, 'notes', idx);
     saveImportedData();
     window.closeModal();
-    const activeNav = document.querySelector(".nav-item.active");
+    const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
     window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
     showNotification('Note deleted', 'info');
   }

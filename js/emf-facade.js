@@ -1,3 +1,4 @@
+// @ts-check
 // emf-facade.js - lazy window facade for the EMF assessment module
 
 export const EMF_LAZY_WINDOW_FUNCTIONS = [
@@ -25,6 +26,7 @@ export const EMF_LAZY_WINDOW_FUNCTIONS = [
   'handleEMFPDF',
 ];
 
+/** @type {Promise<any> | null} */
 let emfModulePromise = null;
 
 async function loadEMFModule() {
