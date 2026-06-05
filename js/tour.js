@@ -1,3 +1,4 @@
+// @ts-check
 // tour.js — Generic spotlight tour engine + app tours + cycle tour
 
 import { state } from './state.js';
@@ -284,6 +285,7 @@ export function endTour() {
 }
 
 // Internal navigation helper exposed for onclick
+// @ts-expect-error - custom window export for inline tour navigation handlers.
 window._tourGoToStep = goToStep;
 
 Object.assign(window, { startEmptyTour, startTour, startGuidedTour, startCycleTour, endTour });

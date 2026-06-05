@@ -1,3 +1,4 @@
+// @ts-check
 // nostr-discovery.js — Discover Routstr AI nodes via Nostr relays (NIP-91 / Kind 38421)
 // Queries multiple relays in parallel, parses provider announcements, health-checks endpoints.
 
