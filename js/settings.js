@@ -771,7 +771,6 @@ if (typeof window !== 'undefined') {
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
-  settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   const provider = getAIProvider();
@@ -1307,7 +1306,6 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
-  const hadProvider = settingsWindow._settingsHadProvider;
   document.getElementById('settings-modal-overlay').classList.remove('show');
   if (settingsWindow.updateChatNudge) settingsWindow.updateChatNudge();
   settingsWindow.refreshMobileDashboardActiveTab?.();
