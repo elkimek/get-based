@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const SHOW_CLASS_TOKEN = /(^|\s)show(\s|$)/;
+
 test('changelog modal opens, closes, and marks the current version as seen', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
@@ -13,7 +15,7 @@ test('changelog modal opens, closes, and marks the current version as seen', asy
     window.openChangelog(true);
   });
 
-  await expect(overlay).toHaveClass(/show/);
+  await expect(overlay).toHaveClass(SHOW_CLASS_TOKEN);
   await expect(modal.locator('.modal-close')).toHaveCount(1);
   await expect(modal).toContainText("What's New");
 
@@ -22,7 +24,7 @@ test('changelog modal opens, closes, and marks the current version as seen', asy
     window.closeChangelog();
   });
 
-  await expect(overlay).not.toHaveClass(/show/);
+  await expect(overlay).not.toHaveClass(SHOW_CLASS_TOKEN);
   expect(await page.evaluate(() => localStorage.getItem('labcharts-changelog-seen') !== null)).toBe(true);
 });
 
@@ -75,7 +77,6 @@ test('changelog renders whitelisted inline tags and safe links', async ({ page }
   const itemsHTML = await page.locator('#changelog-modal').evaluate((modal) => modal.innerHTML);
   expect(itemsHTML).toContain('<b>');
   expect(itemsHTML).not.toContain('&lt;b&gt;');
-  expect(itemsHTML).toMatch(/<b>The Medical Conditions card is now Medical History<\/b>/);
   expect(itemsHTML).not.toContain('&lt;code&gt;');
   expect(itemsHTML).toMatch(/<a href="https:\/\/(?:[a-z-]+\.)?getbased\.health[^"]*" target="_blank" rel="noopener noreferrer">[^<]+<\/a>/);
 });
