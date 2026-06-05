@@ -1,3 +1,4 @@
+// @ts-check
 // lens.js — Custom Knowledge Source
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
 
@@ -8,6 +9,10 @@ import { hasAIProvider, callClaudeAPI } from './api.js';
 
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
+
+/** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
+
+const lensWindow = /** @type {LensWindow} */ (window);
 
 // testProbe — per-user "canary" query used by Save + connect to verify the
 // endpoint. Default is health-themed because getbased's audience typically
@@ -773,7 +778,7 @@ export function openKnowledgeBaseModal() {
   // the trigger button. Defer one tick so the .show class transition
   // doesn't fight the focus call.
   setTimeout(() => {
-    const firstFocusable = modal.querySelector('input:not([disabled]),button:not([disabled]),[tabindex="0"]');
+    const firstFocusable = /** @type {HTMLElement | null} */ (modal.querySelector('input:not([disabled]),button:not([disabled]),[tabindex="0"]'));
     firstFocusable?.focus();
   }, 50);
 }
@@ -813,9 +818,12 @@ function _updateLensStatusChip() {
 }
 
 export async function handleSaveLensConfig() {
-  const topK = Math.max(1, Math.min(10, parseInt(document.getElementById('lens-topk-input')?.value, 10) || 5));
-  const enabled = !!document.getElementById('lens-enabled-toggle')?.checked;
-  const multiQuery = !!document.getElementById('lens-multi-query-checkbox')?.checked;
+  const topKInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-topk-input'));
+  const enabledToggle = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-enabled-toggle'));
+  const multiQueryCheckbox = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-multi-query-checkbox'));
+  const topK = Math.max(1, Math.min(10, parseInt(topKInput?.value || '', 10) || 5));
+  const enabled = !!enabledToggle?.checked;
+  const multiQuery = !!multiQueryCheckbox?.checked;
   // Backend is set by the pill buttons via handleLensBackendChange and
   // persisted immediately — read it from config rather than DOM.
   const backend = getLensConfig().backend || 'in-browser';
@@ -833,10 +841,14 @@ export async function handleSaveLensConfig() {
 
   // external-server: only backend where a user-entered display name is
   // meaningful (it's a remote endpoint, not a named library).
-  const name = (document.getElementById('lens-name-input')?.value || '').trim();
-  const url = (document.getElementById('lens-url-input')?.value || '').trim().replace(/\/+$/, '');
-  const keyRaw = document.getElementById('lens-key-input')?.value || '';
-  const testProbe = (document.getElementById('lens-test-probe-input')?.value || '').trim() || DEFAULT_TEST_PROBE;
+  const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-name-input'));
+  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-url-input'));
+  const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-key-input'));
+  const testProbeInput = /** @type {HTMLInputElement | null} */ (document.getElementById('lens-test-probe-input'));
+  const name = (nameInput?.value || '').trim();
+  const url = (urlInput?.value || '').trim().replace(/\/+$/, '');
+  const keyRaw = keyInput?.value || '';
+  const testProbe = (testProbeInput?.value || '').trim() || DEFAULT_TEST_PROBE;
 
   if (!url) { showNotification('Please enter an endpoint URL', 'error'); return; }
   if (!isValidLensUrl(url)) { showNotification('URL must be https:// (or http:// to localhost / LAN / .local)', 'error'); return; }
@@ -980,7 +992,7 @@ function _renderLocalDocList(docs) {
 function _attachLocalLensDropHandlers() {
   const drop = document.getElementById('lens-local-drop');
   const picker = document.getElementById('lens-local-filepick');
-  if (!drop || !picker) return;
+  if (!(drop instanceof HTMLElement) || !(picker instanceof HTMLInputElement)) return;
   if (drop.dataset.wired === '1') return;
   drop.dataset.wired = '1';
   drop.addEventListener('dragenter', (e) => { e.preventDefault(); drop.style.borderColor = 'var(--accent)'; });
@@ -990,7 +1002,7 @@ function _attachLocalLensDropHandlers() {
   drop.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.click(); }
   });
-  picker.addEventListener('change', (e) => { _handleLocalLensIngest(e.target.files); e.target.value = ''; });
+  picker.addEventListener('change', () => { _handleLocalLensIngest(picker.files); picker.value = ''; });
 }
 
 // Fixed-position progress pill that lives outside any modal. Ingest can
@@ -1033,13 +1045,14 @@ function _ensureIngestPill() {
     <button id="lens-ingest-pill-cancel" style="width:100%;padding:6px;background:transparent;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-secondary,#bbb);font-size:11px;cursor:pointer">Cancel</button>
   `;
   document.body.appendChild(pill);
-  pill.querySelector('#lens-ingest-pill-dismiss').addEventListener('click', () => {
+  const dismiss = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-dismiss'));
+  const cancel = /** @type {HTMLButtonElement | null} */ (pill.querySelector('#lens-ingest-pill-cancel'));
+  dismiss?.addEventListener('click', () => {
     pill.style.display = 'none';
   });
-  pill.querySelector('#lens-ingest-pill-cancel').addEventListener('click', async () => {
-    const btn = pill.querySelector('#lens-ingest-pill-cancel');
-    btn.disabled = true;
-    btn.textContent = 'Cancelling…';
+  cancel?.addEventListener('click', async () => {
+    cancel.disabled = true;
+    cancel.textContent = 'Cancelling…';
     try {
       const lens = await _getLocalLens();
       lens.abort();
@@ -1064,8 +1077,9 @@ async function _handleLocalLensIngest(fileList) {
 
   const pill = _ensureIngestPill();
   pill.style.display = '';
-  const pillText = pill.querySelector('#lens-ingest-pill-text');
-  const pillBar = pill.querySelector('#lens-ingest-pill-bar');
+  const pillText = /** @type {HTMLElement | null} */ (pill.querySelector('#lens-ingest-pill-text'));
+  const pillBar = /** @type {HTMLProgressElement | null} */ (pill.querySelector('#lens-ingest-pill-bar'));
+  if (!pillText || !pillBar) return;
   pillText.textContent = 'Reading files…';
 
   // Parse main-thread, hand text to worker (see lens-local-parsers.js for
@@ -1091,9 +1105,9 @@ async function _handleLocalLensIngest(fileList) {
     // Re-query the in-modal elements on every event so a mid-ingest
     // Settings reopen (which rerenders innerHTML) rebinds cleanly to
     // the new DOM nodes instead of updating detached ones.
-    const modalBar = document.getElementById('lens-local-progress');
+    const modalBar = /** @type {HTMLProgressElement | null} */ (document.getElementById('lens-local-progress'));
     const modalText = document.getElementById('lens-local-progress-text');
-    const modalWrap = document.getElementById('lens-local-progress-wrap');
+    const modalWrap = /** @type {HTMLElement | null} */ (document.getElementById('lens-local-progress-wrap'));
     if (modalWrap) modalWrap.style.display = '';
     if (p.stage === 'start') {
       pillBar.max = p.total; pillBar.value = 0;
@@ -1112,7 +1126,7 @@ async function _handleLocalLensIngest(fileList) {
       if (modalText) modalText.textContent = `Indexing ${p.index}/${p.total} · ${rate.toFixed(1)}/s · ${p.source}`;
     }
   });
-  window._lensIngestRunning = true;
+  lensWindow._lensIngestRunning = true;
   try {
     const stats = await lens.ingest(files);
     const dur = ((performance.now() - t0) / 1000).toFixed(1);
@@ -1131,7 +1145,7 @@ async function _handleLocalLensIngest(fileList) {
     if (modalText) modalText.textContent = errMsg;
     showNotification(errMsg, 'error');
   } finally {
-    window._lensIngestRunning = false;
+    lensWindow._lensIngestRunning = false;
     unsub();
     setTimeout(() => {
       _removeIngestPill();
@@ -1386,9 +1400,9 @@ function _showLibraryCreateDialog(embedder, models) {
       </div></div>`;
     overlay.classList.add('show');
 
-    const nameInput = document.getElementById('lens-create-name');
-    const ok = document.getElementById('lens-create-ok');
-    const cancel = document.getElementById('lens-create-cancel');
+    const nameInput = /** @type {HTMLInputElement} */ (document.getElementById('lens-create-name'));
+    const ok = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-ok'));
+    const cancel = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-cancel'));
 
     const close = (result) => {
       overlay.classList.remove('show');
@@ -1398,7 +1412,7 @@ function _showLibraryCreateDialog(embedder, models) {
     const submit = () => {
       const name = nameInput.value.trim();
       if (!name) { nameInput.focus(); return; }
-      const chosen = overlay.querySelector('input[name="lens-create-model"]:checked');
+      const chosen = /** @type {HTMLInputElement | null} */ (overlay.querySelector('input[name="lens-create-model"]:checked'));
       close({ name, model: chosen?.value || recommendedKey });
     };
     const onKey = (e) => {
