@@ -1,3 +1,4 @@
+// @ts-check
 // supplement-impact.js - supplement dose math and lab impact analysis
 
 import { state } from './state.js';

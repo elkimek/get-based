@@ -1,3 +1,4 @@
+// @ts-check
 // ai-verdict-engine.js — shared analyze-state engine for the per-row /
 // per-day AI verdicts surfaced across the Light & Sun feature (sun
 // sessions, light-therapy device sessions, tool measurements, room
@@ -51,7 +52,9 @@ import { pushCurrentProfile, isSyncEnabled } from './sync.js';
 // discovered, (b) users who want to keep the AI provider configured
 // for chat / lens but pause the per-row verdicts.
 function _engineDisabled() {
-  return typeof window !== 'undefined' && window.DISABLE_AI_VERDICTS === true;
+  if (typeof window === 'undefined') return false;
+  const w = /** @type {Window & typeof globalThis & { DISABLE_AI_VERDICTS?: boolean }} */ (window);
+  return w.DISABLE_AI_VERDICTS === true;
 }
 
 // Map raw API / parse errors to user-readable text. Without this the
@@ -108,8 +111,11 @@ const PURGE_DELAY_MS = 1500;
 let _activeAICalls = 0;
 const _aiCallWaiters = [];
 function _aiCap() {
-  const w = (typeof window !== 'undefined' && Number.isFinite(window._aiConcurrencyCap))
-    ? window._aiConcurrencyCap : 2;
+  const aiWindow = typeof window !== 'undefined'
+    ? /** @type {Window & typeof globalThis & { _aiConcurrencyCap?: number }} */ (window)
+    : null;
+  const w = (aiWindow && Number.isFinite(aiWindow._aiConcurrencyCap))
+    ? aiWindow._aiConcurrencyCap : 2;
   // Clamp to [1, 8] — Number.isFinite already excludes Infinity/NaN, but a
   // user setting w=999 in DevTools would defeat the cap entirely.
   return Math.min(8, Math.max(1, Math.floor(w)));
@@ -132,30 +138,31 @@ function _releaseAISlot() {
 // Diagnostic hook — useful for tests + manual debugging without
 // breaking encapsulation. Not a public API.
 if (typeof window !== 'undefined') {
-  window._aiSlotsDebug = () => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() });
+  const aiWindow = /** @type {Window & typeof globalThis & { _aiSlotsDebug?: () => { active: number, waiting: number, cap: number } }} */ (window);
+  aiWindow._aiSlotsDebug = () => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() });
 }
 
 /**
  * Create an AI verdict engine bound to a particular feature's data shape.
  *
  * @param {object} cfg
- * @param {(id: string) => any} cfg.getTarget — resolve target by id
- * @param {(t: any) => string} cfg.getId — extract id from a target
- * @param {(t: any) => object|null} cfg.getAIAnalysis — read aiAnalysis off the target
- * @param {(t: any, value: object) => void} cfg.setAIAnalysis — write aiAnalysis on the target
- * @param {(t: any) => string} cfg.getFingerprint — deterministic hash of the
+ * @param {(id: string) => any} cfg.getTarget - resolve target by id
+ * @param {(t: any) => string} cfg.getId - extract id from a target
+ * @param {(t: any) => object|null} cfg.getAIAnalysis - read aiAnalysis off the target
+ * @param {(t: any, value: object) => void} cfg.setAIAnalysis - write aiAnalysis on the target
+ * @param {(t: any) => string} cfg.getFingerprint - deterministic hash of the
  *   target fields that, when changed, should invalidate any cached verdict
- * @param {(t: any) => string} cfg.buildContext — markdown-style prompt context
- * @param {string} cfg.systemPrompt — full system prompt
- * @param {number} [cfg.maxTokens=400] — model output cap
- * @param {(t: any) => boolean} [cfg.canAnalyze] — gate (e.g. session has endedAt)
- * @param {(t: any) => boolean} [cfg.shouldAutoFire] — gate for maybeAfterFinish
- * @param {() => any[]} [cfg.getAllTargets] — used by the orphan purge to find
+ * @param {(t: any) => string} cfg.buildContext - markdown-style prompt context
+ * @param {string} cfg.systemPrompt - full system prompt
+ * @param {number} [cfg.maxTokens=400] - model output cap
+ * @param {(t: any) => boolean} [cfg.canAnalyze] - gate (e.g. session has endedAt)
+ * @param {(t: any) => boolean} [cfg.shouldAutoFire] - gate for maybeAfterFinish
+ * @param {() => any[]} [cfg.getAllTargets] - used by the orphan purge to find
  *   any persisted `status: 'analyzing'` from pre-fix runs and clear them
- * @param {(parsed: object, target: any) => object} [cfg.parseExtraFields] —
+ * @param {(parsed: object, target: any) => object} [cfg.parseExtraFields] -
  *   pull out feature-specific fields beyond {dot,tip,detail} (e.g. onboarding's
  *   actions[] array). Returned object is merged into the saved analysis.
- * @param {boolean} [cfg.syncOnSave=true] — fire pushCurrentProfile after save.
+ * @param {boolean} [cfg.syncOnSave=true] - fire pushCurrentProfile after save.
  *   Set false for purely local-only verdicts (none currently).
  * @param {number} [cfg.timeoutMs=60000]
  * @param {number[]} [cfg.autoFireRetryDelaysMs]

@@ -1,3 +1,4 @@
+// @ts-check
 // focus-card.js - Current Focus dashboard and Insight lens card
 
 import { state } from './state.js';
@@ -32,7 +33,7 @@ export function buildFocusContext() {
     return null;
   }
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
-  const age = state.profileDob ? Math.floor((new Date() - new Date(state.profileDob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+  const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const today = new Date().toISOString().slice(0, 10);
   const lastDate = data.dates[data.dates.length - 1];
   let ctx = `Profile: ${sexLabel}${age !== null ? ', age ' + age : ''}, today ${today}, last labs ${lastDate}\n`;
@@ -65,7 +66,8 @@ export function buildFocusContext() {
     ctx += `Notes for AI: ${contextNotes.trim()}\n`;
   }
 
-  const _isAICtx = (catKey) => { const g = data.categories[catKey]?.group; return !g || (window.isGroupInAIContext ? window.isGroupInAIContext(g) : true); };
+  const aiWindow = /** @type {Window & typeof globalThis & { isGroupInAIContext?: (group: any) => boolean }} */ (window);
+  const _isAICtx = (catKey) => { const g = data.categories[catKey]?.group; return !g || (aiWindow.isGroupInAIContext ? aiWindow.isGroupInAIContext(g) : true); };
   const flags = getAllFlaggedMarkers(data).filter(f => _isAICtx(f.categoryKey));
   if (flags.length > 0) {
     ctx += `Flagged (${flags.length} total${flags.length > 15 ? ', showing top 15' : ''}):\n`;
