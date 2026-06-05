@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('Light page view delegates session, link, channel, and prompt actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() => typeof window.navigate === 'function');
 
   const results = await page.evaluate(async () => {
     const { renderDashboardLightChannelPills, renderLightSessionLogActions } = await import('/js/light-page-view.js');
