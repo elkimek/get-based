@@ -1,3 +1,4 @@
+// @ts-check
 // cycle.js — Menstrual cycle tracking, phase calculation, editor, alerts
 import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
@@ -18,10 +19,54 @@ const CYCLE_ICONS = {
   x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
 };
 
+const appWindow = /** @type {Window & typeof globalThis & {
+  closeModal: () => void,
+  navigate: (category: string) => void,
+  recordChange: (field: string) => void,
+  startCycleTour?: (fromSave?: boolean) => void
+}} */ (window);
+
+/**
+ * @param {string | null | undefined} id
+ * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null}
+ */
+function getFormField(id) {
+  if (!id) return null;
+  const el = document.getElementById(id);
+  if (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  ) {
+    return el;
+  }
+  return null;
+}
+
+/**
+ * @param {string} id
+ * @returns {string}
+ */
+function getFieldValue(id) {
+  return getFormField(id)?.value || '';
+}
+
+/**
+ * @param {Element} el
+ * @returns {el is HTMLElement}
+ */
+function isHTMLElement(el) {
+  return el instanceof HTMLElement;
+}
+
 function isActiveCycleStatus(status) {
   return !status || CYCLE_ACTIVE_STATUSES.has(status);
 }
 
+/**
+ * @param {string | null | undefined} dateStr
+ * @param {Intl.DateTimeFormatOptions} [opts]
+ */
 function fmtCycleDate(dateStr, opts = { month: 'short', day: 'numeric' }) {
   if (!dateStr) return 'No date';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', opts);
@@ -50,7 +95,7 @@ export function getCyclePhase(dateStr, mc) {
   }
   if (!periodStart) return null;
   const startDate = new Date(periodStart + 'T00:00:00');
-  const cycleDay = Math.floor((target - startDate) / 86400000) + 1;
+  const cycleDay = Math.floor((target.getTime() - startDate.getTime()) / 86400000) + 1;
   const cycleLen = mc.cycleLength || 28;
   if (cycleDay > cycleLen + 7) return null; // too far from any known period
   const periodLen = mc.periodLength || 5;
@@ -84,7 +129,7 @@ export function getNextBestDrawDate(mc) {
   const currentDrawEnd = new Date(currentPeriodStart.getTime() + 4 * 86400000);
   const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   if (today >= currentDrawStart && today <= currentDrawEnd) {
-    const dayInCycle = Math.floor((today - currentPeriodStart) / 86400000) + 1;
+    const dayInCycle = Math.floor((today.getTime() - currentPeriodStart.getTime()) / 86400000) + 1;
     return {
       startDate: currentDrawStart.toISOString().slice(0, 10),
       endDate: currentDrawEnd.toISOString().slice(0, 10),
@@ -123,7 +168,7 @@ export function calculateCycleStats(periods) {
   const periodLengths = sorted.filter(p => p.endDate).map(p => {
     const start = new Date(p.startDate + 'T00:00:00');
     const end = new Date(p.endDate + 'T00:00:00');
-    return Math.round((end - start) / 86400000) + 1;
+    return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
   });
   if (periodLengths.length > 0) {
     const avgPeriod = Math.round(periodLengths.reduce((a, b) => a + b, 0) / periodLengths.length);
@@ -144,7 +189,7 @@ export function calculateCycleStats(periods) {
     for (let i = 1; i < sorted.length; i++) {
       const prev = new Date(sorted[i - 1].startDate + 'T00:00:00');
       const curr = new Date(sorted[i].startDate + 'T00:00:00');
-      cycleLengths.push(Math.round((curr - prev) / 86400000));
+      cycleLengths.push(Math.round((curr.getTime() - prev.getTime()) / 86400000));
     }
     const avgCycle = Math.round(cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length);
     // 90-day ceiling covers normal cycles, oligomenorrhea, and perimenopause.
@@ -175,7 +220,7 @@ export function detectPerimenopausePattern(mc, dob) {
   for (let i = 1; i < sorted.length; i++) {
     const prev = new Date(sorted[i - 1].startDate + 'T00:00:00');
     const curr = new Date(sorted[i].startDate + 'T00:00:00');
-    intervals.push(Math.round((curr - prev) / 86400000));
+    intervals.push(Math.round((curr.getTime() - prev.getTime()) / 86400000));
   }
   if (intervals.length < 3) return null;
 
@@ -452,45 +497,45 @@ export function openMenstrualCycleEditor() {
 export function saveMenstrualCycle() {
   syncMenstrualCycleProfileFromForm();
   // Auto-add pending period if form has data that hasn't been added yet
-  const cycleStatus = document.getElementById('mc-cycle-status')?.value || 'regular';
-  const pendingStart = document.getElementById('mc-period-start')?.value;
-  const pendingEnd = document.getElementById('mc-period-end')?.value;
+  const cycleStatus = getFieldValue('mc-cycle-status') || 'regular';
+  const pendingStart = getFieldValue('mc-period-start');
+  const pendingEnd = getFieldValue('mc-period-end');
   if (isActiveCycleStatus(cycleStatus) && pendingStart && pendingEnd && pendingEnd >= pendingStart) {
     const periods = state.importedData.menstrualCycle?.periods || [];
     const exists = periods.some(p => p.startDate === pendingStart);
     const overlaps = periods.some(p => pendingStart <= (p.endDate || p.startDate) && pendingEnd >= p.startDate);
     if (!exists && !overlaps) {
-      const flow = document.getElementById('mc-period-flow')?.value || 'moderate';
+      const flow = getFieldValue('mc-period-flow') || 'moderate';
       const symptomTags = document.querySelectorAll('#mc-period-symptoms .ctx-tag.active');
-      const symptoms = Array.from(symptomTags).map(t => t.dataset.value);
-      const notes = document.getElementById('mc-period-notes')?.value?.trim() || '';
+      const symptoms = Array.from(symptomTags).filter(isHTMLElement).map(t => t.dataset.value);
+      const notes = getFieldValue('mc-period-notes').trim();
       state.importedData.menstrualCycle.periods.push({ startDate: pendingStart, endDate: pendingEnd, flow, symptoms, notes });
     }
   }
-  window.recordChange('menstrualCycle');
+  appWindow.recordChange('menstrualCycle');
   saveImportedData();
-  window.closeModal();
+  appWindow.closeModal();
   const activeNav = document.querySelector(".nav-item.active");
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   showNotification('Menstrual cycle profile saved', 'success');
   // Auto-trigger cycle tour after dashboard re-renders
-  setTimeout(() => { if (window.startCycleTour) window.startCycleTour(true); }, 600);
+  setTimeout(() => { if (appWindow.startCycleTour) appWindow.startCycleTour(true); }, 600);
 }
 
 export async function clearMenstrualCycle() {
   if (await showConfirmDialog('Clear all menstrual cycle data? This cannot be undone.')) {
     state.importedData.menstrualCycle = null;
-    window.recordChange('menstrualCycle');
+    appWindow.recordChange('menstrualCycle');
     saveImportedData();
-    window.closeModal();
+    appWindow.closeModal();
     const activeNav = document.querySelector(".nav-item.active");
-    window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
     showNotification('Menstrual cycle data cleared', 'info');
   }
 }
 
 function _toggleCycleEditorFields() {
-  const status = document.getElementById('mc-cycle-status')?.value;
+  const status = getFieldValue('mc-cycle-status');
   const fields = document.getElementById('mc-active-fields');
   const periodLog = document.getElementById('mc-period-log-section');
   const isActive = isActiveCycleStatus(status);
@@ -511,13 +556,13 @@ export function syncMenstrualCycleProfileFromForm() {
   const periodLengthAuto = document.getElementById('mc-period-length-auto');
   const regularityAuto = document.getElementById('mc-regularity-auto');
   const flowAuto = document.getElementById('mc-flow-auto');
-  const cycleLength = cycleLengthAuto ? parseInt(cycleLengthAuto.dataset.value) : (mc.cycleLength || 28);
-  const periodLength = periodLengthAuto ? parseInt(periodLengthAuto.dataset.value) : (mc.periodLength || 5);
-  const regularity = regularityAuto ? regularityAuto.dataset.value : (mc.regularity || 'regular');
-  const flow = flowAuto ? flowAuto.dataset.value : (mc.flow || 'moderate');
-  const contraceptive = document.getElementById('mc-contraceptive')?.value || '';
-  const conditions = document.getElementById('mc-conditions').value.trim();
-  const cycleStatus = document.getElementById('mc-cycle-status')?.value || 'regular';
+  const cycleLength = cycleLengthAuto instanceof HTMLElement ? parseInt(cycleLengthAuto.dataset.value) : (mc.cycleLength || 28);
+  const periodLength = periodLengthAuto instanceof HTMLElement ? parseInt(periodLengthAuto.dataset.value) : (mc.periodLength || 5);
+  const regularity = regularityAuto instanceof HTMLElement ? regularityAuto.dataset.value : (mc.regularity || 'regular');
+  const flow = flowAuto instanceof HTMLElement ? flowAuto.dataset.value : (mc.flow || 'moderate');
+  const contraceptive = getFieldValue('mc-contraceptive');
+  const conditions = getFieldValue('mc-conditions').trim();
+  const cycleStatus = getFieldValue('mc-cycle-status') || 'regular';
   if (!state.importedData.menstrualCycle) {
     state.importedData.menstrualCycle = { cycleStatus, cycleLength, periodLength, regularity, flow, contraceptive, conditions, periods: [] };
   } else {
@@ -526,12 +571,12 @@ export function syncMenstrualCycleProfileFromForm() {
 }
 
 export function addPeriodEntry() {
-  const startDate = document.getElementById('mc-period-start').value;
-  const endDate = document.getElementById('mc-period-end').value;
-  const flow = document.getElementById('mc-period-flow').value;
+  const startDate = getFieldValue('mc-period-start');
+  const endDate = getFieldValue('mc-period-end');
+  const flow = getFieldValue('mc-period-flow');
   const symptomTags = document.querySelectorAll('#mc-period-symptoms .ctx-tag.active');
-  const symptoms = Array.from(symptomTags).map(t => t.dataset.value);
-  const notes = document.getElementById('mc-period-notes').value.trim();
+  const symptoms = Array.from(symptomTags).filter(isHTMLElement).map(t => t.dataset.value);
+  const notes = getFieldValue('mc-period-notes').trim();
   if (!startDate) { showNotification('Start date is required', 'error'); return; }
   if (!endDate) { showNotification('End date is required', 'error'); return; }
   if (endDate < startDate) { showNotification('End date must be on or after start date', 'error'); return; }
