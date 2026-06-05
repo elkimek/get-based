@@ -14,13 +14,12 @@ import { fileURLToPath } from 'url';
 
 const TEST_FILES = [
   // test-chat-threads.js behavioral + source-inspection ported to Vitest
-  // (batch 30). DOM sections (3/10/11) live in test-chat-threads-dom.js below.
-  'tests/test-chat-threads-dom.js',
+  // (batch 30). DOM sections moved to Playwright in
+  // tests/playwright/chat-threads-dom.spec.js.
   // test-chat-actions.js source-inspection + buildActionBar HTML-string
   // checks ported to Vitest (batch 29). DOM-runtime sections (4 / 10 / 12 —
   // renderChatMessages/DOMParser, navigator.clipboard, context-toggle live
-  // DOM) live in test-chat-actions-dom.js below.
-  'tests/test-chat-actions-dom.js',
+  // DOM) moved to Playwright in tests/playwright/chat-actions-dom.spec.js.
   'tests/test-mobile.js',
   // test-openrouter.js source-inspection + behavioral ported to Vitest
   // (batch 21). Settings modal DOM moved to Playwright in
@@ -30,10 +29,8 @@ const TEST_FILES = [
   // overlay/spotlight/tooltip DOM sections live in test-tour-dom.js below.
   'tests/test-tour-dom.js',
   // test-custom-personality.js source-inspection + behavioral ported to
-  // Vitest (batch 23). DOM-runtime sections (11/12/17/21 — updatePersonalityBar
-  // rendering, styleSheets CSS scan, dirty-state, Discuss button) live in
-  // test-custom-personality-dom.js below.
-  'tests/test-custom-personality-dom.js',
+  // Vitest (batch 23). DOM-runtime sections moved to Playwright in
+  // tests/playwright/custom-personality-dom.spec.js.
   // test-changelog.js source-inspection + hasCardContent behavioral ported
   // to Vitest (batch 20). Modal DOM moved to Playwright in
   // tests/playwright/changelog.spec.js.
