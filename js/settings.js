@@ -771,6 +771,7 @@ if (typeof window !== 'undefined') {
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
+  settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   const provider = getAIProvider();
