@@ -1,3 +1,4 @@
+// @ts-check
 // schema.js — Marker definitions, unit conversions, pricing, optimal ranges
 
 // ═══════════════════════════════════════════════

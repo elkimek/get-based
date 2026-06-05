@@ -1,3 +1,4 @@
+// @ts-check
 // adapters.js — Parser adapter registry for specialty lab products
 //
 // Each adapter provides a marker map and optional detection/normalization

@@ -1,3 +1,4 @@
+// @ts-check
 // pii.js — PII obfuscation (Ollama + regex), diff viewer
 
 import { showNotification, escapeHTML } from './utils.js';
@@ -59,7 +60,7 @@ export async function saveOllamaConfig(config) {
   const json = JSON.stringify(config);
   await encryptedSetItem('labcharts-ollama', json);
   updateKeyCache('labcharts-ollama', json);
-  window.markAISettingsLocal?.();
+  /** @type {Window & typeof globalThis & { markAISettingsLocal?: () => void }} */ (window).markAISettingsLocal?.();
 }
 
 export async function checkOllama(url) {
@@ -86,6 +87,7 @@ export async function checkOllama(url) {
 export async function checkOpenAICompatible(url, apiKey) {
   const baseUrl = (url || getOllamaConfig().url).replace(/\/+$/, '');
   try {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     const resp = await fetch(`${baseUrl}/v1/models`, { headers, signal: AbortSignal.timeout(3000) });
@@ -603,14 +605,14 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     wirePIIOverlayNudge(overlay);
     requestAnimationFrame(() => overlay.classList.add('show'));
 
-    const searchInput = overlay.querySelector('#pii-search-input');
-    const searchCount = overlay.querySelector('#pii-search-count');
-    const textarea = overlay.querySelector('#pii-edit-textarea');
-    const sendBtn = overlay.querySelector('#pii-review-send');
-    const statusEl = overlay.querySelector('#pii-stream-status');
-    const stopBtn = overlay.querySelector('#pii-stream-stop');
-    const leftPanel = overlay.querySelector('.pii-review-viewer > .pii-diff-left');
-    const mobileOriginal = overlay.querySelector('.pii-mobile-original-body');
+    const searchInput = /** @type {HTMLInputElement} */ (overlay.querySelector('#pii-search-input'));
+    const searchCount = /** @type {HTMLElement} */ (overlay.querySelector('#pii-search-count'));
+    const textarea = /** @type {HTMLTextAreaElement} */ (overlay.querySelector('#pii-edit-textarea'));
+    const sendBtn = /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-review-send'));
+    const statusEl = /** @type {HTMLElement | null} */ (overlay.querySelector('#pii-stream-status'));
+    const stopBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#pii-stream-stop'));
+    const leftPanel = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-review-viewer > .pii-diff-left'));
+    const mobileOriginal = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-mobile-original-body'));
     let dirty = false;
 
     // Search handler
@@ -642,7 +644,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     textarea.addEventListener('blur', () => {
       if (textarea.readOnly || !textarea.value) return;
       setTimeout(() => {
-        if (document.activeElement !== textarea && overlay.parentNode) {
+        if (document.activeElement !== textarea && overlay.parentElement) {
           showDiffPreview(textarea.value);
         }
       }, 150);
@@ -650,19 +652,20 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
 
     // Switch from highlighted diff view back to editable textarea
     function switchToEditMode(event) {
-      const diffView = overlay.querySelector('.pii-diff-preview');
+      const diffView = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-diff-preview'));
       if (!diffView) return;
       // Find which line was clicked to position cursor there
       let lineIdx = -1;
-      if (event && event.target && diffView.contains(event.target)) {
-        let el = event.target;
-        while (el && el.parentNode !== diffView) el = el.parentNode;
-        if (el) {
+      if (event && event.target && diffView.contains(/** @type {Node} */ (event.target))) {
+        let el = /** @type {Node | null} */ (event.target);
+        while (el && el.parentNode !== diffView) el = /** @type {Node | null} */ (el.parentNode);
+        if (el instanceof Element) {
           lineIdx = Array.from(diffView.children).indexOf(el);
         }
       }
       // Preserve scroll position across view switch
-      const scrollTop = diffView.parentNode?.scrollTop ?? 0;
+      const scrollParent = diffView.parentElement;
+      const scrollTop = scrollParent?.scrollTop ?? 0;
       diffView.style.display = 'none';
       textarea.style.display = '';
       if (lineIdx >= 0) {
@@ -672,7 +675,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
         textarea.setSelectionRange(offset, offset);
       }
       textarea.focus({ preventScroll: true });
-      textarea.parentNode.scrollTop = scrollTop;
+      if (textarea.parentElement) textarea.parentElement.scrollTop = scrollTop;
     }
 
     // Show highlighted diff preview, hiding the textarea
@@ -681,17 +684,23 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
       if (leftPanel) leftPanel.innerHTML = `<div class="pii-diff-header">Original (stays local)</div>${leftHtml}`;
       if (mobileOriginal) mobileOriginal.innerHTML = leftHtml;
       textarea.style.display = 'none';
-      let diffView = overlay.querySelector('.pii-diff-preview');
-      if (!diffView) { diffView = document.createElement('div'); diffView.className = 'pii-diff-preview'; textarea.parentNode.insertBefore(diffView, textarea); }
+      let diffView = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-diff-preview'));
+      if (!diffView) {
+        const textareaParent = textarea.parentElement;
+        if (!textareaParent) return;
+        diffView = document.createElement('div');
+        diffView.className = 'pii-diff-preview';
+        textareaParent.insertBefore(diffView, textarea);
+      }
       diffView.innerHTML = rightHtml;
       diffView.style.display = '';
     }
 
     // Edit button
-    overlay.querySelector('#pii-edit-btn').addEventListener('click', (e) => switchToEditMode(e));
+    /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-edit-btn')).addEventListener('click', (e) => switchToEditMode(e));
 
     // Regex fallback button
-    overlay.querySelector('#pii-review-regex').addEventListener('click', () => {
+    /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-review-regex')).addEventListener('click', () => {
       const result = obfuscatePDFText(originalText);
       textarea.value = result.obfuscated;
       textarea.readOnly = false;
@@ -707,7 +716,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
 
     // Send & cancel
     sendBtn.addEventListener('click', () => { document.body.style.overflow = ''; overlay.remove(); resolve(textarea.value); });
-    overlay.querySelector('#pii-review-cancel').addEventListener('click', () => {
+    /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-review-cancel')).addEventListener('click', () => {
       if (abortController) abortController.abort();
       unloadOllamaPIIModel();
       document.body.style.overflow = '';
@@ -718,11 +727,23 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
     // Streaming mode
     let abortController = null;
     if (isStreaming) {
-      const retryBtn = overlay.querySelector('#pii-stream-retry');
+      if (!statusEl || !stopBtn) {
+        document.body.style.overflow = '';
+        overlay.remove();
+        resolve('cancel');
+        return;
+      }
+      const retryBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#pii-stream-retry'));
+      if (!retryBtn) {
+        document.body.style.overflow = '';
+        overlay.remove();
+        resolve('cancel');
+        return;
+      }
       const expectedLen = originalText.length;
 
-      const thinkingSection = overlay.querySelector('#pii-thinking-section');
-      const thinkingContent = overlay.querySelector('#pii-thinking-content');
+      const thinkingSection = /** @type {HTMLDetailsElement | null} */ (overlay.querySelector('#pii-thinking-section'));
+      const thinkingContent = /** @type {HTMLElement | null} */ (overlay.querySelector('#pii-thinking-content'));
 
       const startStream = () => {
         // Reset state
@@ -734,11 +755,11 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
         stopBtn.hidden = false;
         retryBtn.hidden = true;
         // Clear previous diff preview so streaming is visible
-        const prevDiff = overlay.querySelector('.pii-diff-preview');
+        const prevDiff = /** @type {HTMLElement | null} */ (overlay.querySelector('.pii-diff-preview'));
         if (prevDiff) prevDiff.style.display = 'none';
         statusEl.className = 'pii-stream-status pii-stream-waiting';
         statusEl.textContent = 'Waiting for model response\u2026';
-        if (thinkingSection) { thinkingSection.hidden = true; thinkingContent.textContent = ''; }
+        if (thinkingSection && thinkingContent) { thinkingSection.hidden = true; thinkingContent.textContent = ''; }
         let charCount = 0;
         let rafPending = false;
         let pendingText = '';
@@ -746,7 +767,7 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
         let hasThinking = false;
 
         const flushToTextarea = () => {
-          if (pendingThinking && thinkingSection) {
+          if (pendingThinking && thinkingSection && thinkingContent) {
             if (!hasThinking) { thinkingSection.hidden = false; thinkingSection.open = true; hasThinking = true; }
             thinkingContent.textContent += pendingThinking;
             pendingThinking = '';
@@ -784,7 +805,11 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) 
           if (statusEl) statusEl.textContent = `Complete \u2014 ${charCount.toLocaleString()} chars \u2014 click text to edit`;
           stopBtn.hidden = true;
           retryBtn.hidden = false;
-          if (thinkingSection && hasThinking) { thinkingSection.open = false; thinkingSection.querySelector('summary').textContent = 'Thinking (done)'; }
+          if (thinkingSection && hasThinking) {
+            thinkingSection.open = false;
+            const summary = thinkingSection.querySelector('summary');
+            if (summary) summary.textContent = 'Thinking (done)';
+          }
           showDiffPreview(textarea.value);
         }).catch(err => {
           flushToTextarea();
