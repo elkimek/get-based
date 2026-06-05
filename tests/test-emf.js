@@ -170,6 +170,9 @@ assert('45l. EMF PII review streams current PDF text',
   emfSrc.includes('streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)'));
 assert('45m. EMF PII review provides regex fallback text',
   emfSrc.includes('obfuscatedText: obfuscated'));
+assert('45n. EMF PII review gates local AI availability explicitly',
+  emfSrc.includes('if (piiAvailable.available && reviewEnabled)') &&
+  emfSrc.includes('} else if (piiAvailable.available) {'));
 
 // ── EMF affiliate catalog (Safe Living Technologies) ──
 const recsMod = await import('../js/recommendations.js');

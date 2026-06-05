@@ -612,7 +612,7 @@ export async function handleEMFPDF(file) {
   const piiAvailable = await checkOllamaPII();
   const reviewEnabled = isPIIReviewEnabled();
 
-  if (piiAvailable && reviewEnabled) {
+  if (piiAvailable.available && reviewEnabled) {
     const { obfuscated } = obfuscatePDFText(pdfText);
     const result = await reviewPIIBeforeSend(pdfText, {
       obfuscatedText: obfuscated,
@@ -620,7 +620,7 @@ export async function handleEMFPDF(file) {
     });
     if (result === 'cancel') return;
     textToSend = result;
-  } else if (piiAvailable) {
+  } else if (piiAvailable.available) {
     try {
       textToSend = await sanitizeWithOllama(pdfText);
     } catch { /* fallback to regex */ }
