@@ -1,3 +1,4 @@
+// @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 
 import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
@@ -5,7 +6,12 @@ import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 
 // Use window.* to avoid circular import (crypto.js imports from backup.js)
-const getEncryptionEnabled = () => window.getEncryptionEnabled?.() || false;
+const appWindow = /** @type {Window & typeof globalThis & {
+  encryptedGetItem?: (key: string) => Promise<string | null>,
+  getEncryptionEnabled?: () => boolean,
+  showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any>,
+}} */ (window);
+const getEncryptionEnabled = () => appWindow.getEncryptionEnabled?.() || false;
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
 
 // Read the RAW stored value (encrypted-if-encryption-on, plaintext-if-off)
@@ -209,7 +215,7 @@ export async function buildFullBackupSnapshot() {
   if (snap.profiles.length === 0 && snap.profileList && isEncryptedValue(snap.profileList)) {
     let profileList = null;
     try {
-      const decrypted = await window.encryptedGetItem?.('labcharts-profiles');
+      const decrypted = await appWindow.encryptedGetItem?.('labcharts-profiles');
       if (decrypted) profileList = JSON.parse(decrypted);
     } catch {}
     if (Array.isArray(profileList)) {
@@ -276,7 +282,12 @@ export function importEncryptedBackup(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const backup = JSON.parse(e.target.result);
+      const result = e.target?.result;
+      if (typeof result !== 'string') {
+        showNotification('Invalid backup file format', 'error');
+        return;
+      }
+      const backup = JSON.parse(result);
       if (backup.format !== 'labcharts-backup' || !backup.profileList) {
         showNotification('Invalid backup file format', 'error');
         return;
@@ -474,7 +485,7 @@ export async function restoreAutoBackup(id) {
 // FOLDER BACKUP (File System Access API)
 // ═══════════════════════════════════════════════
 function isFolderBackupSupported() {
-  return typeof window.showDirectoryPicker === 'function';
+  return typeof appWindow.showDirectoryPicker === 'function';
 }
 
 async function saveFolderHandle(handle) {
@@ -532,8 +543,9 @@ export async function initFolderBackup() {
 
 export async function pickFolderForBackup() {
   if (!isFolderBackupSupported()) return;
+  const pickDirectory = /** @type {(options?: { mode?: 'read' | 'readwrite' }) => Promise<any>} */ (appWindow.showDirectoryPicker);
   try {
-    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const handle = await pickDirectory.call(appWindow, { mode: 'readwrite' });
     const testFile = await handle.getFileHandle('getbased-backup-latest.json', { create: true });
     const snapshot = await buildFullBackupSnapshot();
     if (snapshot) {

@@ -1,3 +1,4 @@
+// @ts-check
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
 import { state } from './state.js';
@@ -5,6 +6,14 @@ import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
+
+const appWindow = /** @type {Window & typeof globalThis & {
+  __WEARABLES_TEST?: boolean,
+  buildSidebar: () => void,
+  getFolderBackupState?: () => { folderName?: string | null, permissionLost?: boolean },
+  migrateProfileData: (data: any) => void,
+  navigate: (view: string) => void,
+}} */ (window);
 
 // ═══════════════════════════════════════════════
 // SENSITIVE KEY PATTERNS
@@ -189,7 +198,7 @@ export function isEncryptedObject(o) {
 // reach into production. The matching `_setEncryptionEnabledForTest`
 // pair lives below.
 export async function _setTestSessionKey(passphrase) {
-  if (!globalThis.window?.__WEARABLES_TEST) {
+  if (!appWindow.__WEARABLES_TEST) {
     throw new Error('_setTestSessionKey is test-only — set window.__WEARABLES_TEST first');
   }
   if (passphrase === null) { _sessionKey = null; return; }
@@ -308,12 +317,12 @@ function renderPassphraseForm(overlay, onSuccess) {
       <button class="passphrase-btn passphrase-btn-primary" id="passphrase-unlock-btn">Unlock</button>
       <button class="passphrase-btn passphrase-btn-link" id="passphrase-forgot-btn">Forgot passphrase?</button>
     </div>`;
-  overlay.style.display = 'flex';
-
-  const input = document.getElementById('passphrase-unlock-input');
-  const btn = document.getElementById('passphrase-unlock-btn');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-unlock-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-unlock-btn'));
   const errorEl = document.getElementById('passphrase-error');
-  const forgotBtn = document.getElementById('passphrase-forgot-btn');
+  const forgotBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-forgot-btn'));
+  if (!input || !btn || !errorEl || !forgotBtn) return;
+  overlay.style.display = 'flex';
 
   async function attemptUnlock() {
     const passphrase = input.value;
@@ -363,7 +372,8 @@ function renderPassphraseForm(overlay, onSuccess) {
 
   forgotBtn.addEventListener('click', () => {
     // Inline confirm inside the passphrase overlay (can't use showConfirmDialog — it's behind this z-index)
-    const dialog = overlay.querySelector('.passphrase-dialog');
+    const dialog = /** @type {HTMLElement | null} */ (overlay.querySelector('.passphrase-dialog'));
+    if (!dialog) return;
     dialog.innerHTML = `
       <div class="passphrase-icon">&#9888;&#65039;</div>
       <h3 class="passphrase-title">Erase All Data?</h3>
@@ -372,10 +382,10 @@ function renderPassphraseForm(overlay, onSuccess) {
         <button class="passphrase-btn passphrase-btn-secondary" id="passphrase-forgot-cancel">Go Back</button>
         <button class="passphrase-btn passphrase-btn-primary" id="passphrase-forgot-confirm" style="background:var(--red)">Erase Everything</button>
       </div>`;
-    document.getElementById('passphrase-forgot-cancel').addEventListener('click', () => {
+    document.getElementById('passphrase-forgot-cancel')?.addEventListener('click', () => {
       renderPassphraseForm(overlay, onSuccess);
     });
-    document.getElementById('passphrase-forgot-confirm').addEventListener('click', () => {
+    document.getElementById('passphrase-forgot-confirm')?.addEventListener('click', () => {
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -450,16 +460,16 @@ export function showEnableEncryptionModal() {
         <button class="passphrase-btn passphrase-btn-primary" id="passphrase-set-btn">Enable Encryption</button>
       </div>
     </div>`;
+  const input1 = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-set-input'));
+  const input2 = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-confirm-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-set-btn'));
+  const cancelBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-set-cancel'));
+  const errorEl = document.getElementById('passphrase-set-error');
+  if (!input1 || !input2 || !btn || !cancelBtn || !errorEl) return;
   overlay.style.display = 'flex';
 
-  const input1 = document.getElementById('passphrase-set-input');
-  const input2 = document.getElementById('passphrase-confirm-input');
-  const btn = document.getElementById('passphrase-set-btn');
-  const cancelBtn = document.getElementById('passphrase-set-cancel');
-  const errorEl = document.getElementById('passphrase-set-error');
-
   // Live strength meter
-  const strengthBars = overlay.querySelectorAll('.passphrase-strength-bar');
+  const strengthBars = /** @type {NodeListOf<HTMLElement>} */ (overlay.querySelectorAll('.passphrase-strength-bar'));
   const ruleItems = overlay.querySelectorAll('.passphrase-rules li');
   const barColors = ['var(--red)', 'var(--orange)', 'var(--yellow)', 'var(--green)'];
 
@@ -577,7 +587,7 @@ export function maybeShowBackupNudge() {
   });
   if (!hasAnyData) return;
   // Skip if folder backup is active and healthy
-  const _fbState = window.getFolderBackupState?.();
+  const _fbState = appWindow.getFolderBackupState?.();
   if (_fbState?.folderName && !_fbState?.permissionLost) return;
   // Skip if snoozed
   const snoozedUntil = localStorage.getItem('labcharts-backup-nudge-snoozed-until');
@@ -747,14 +757,14 @@ export async function changePassphrase() {
         <button class="passphrase-btn passphrase-btn-primary" id="passphrase-change-btn">Change Passphrase</button>
       </div>
     </div>`;
-  overlay.style.display = 'flex';
-
-  const oldInput = document.getElementById('passphrase-old-input');
-  const new1Input = document.getElementById('passphrase-new1-input');
-  const new2Input = document.getElementById('passphrase-new2-input');
-  const btn = document.getElementById('passphrase-change-btn');
-  const cancelBtn = document.getElementById('passphrase-change-cancel');
+  const oldInput = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-old-input'));
+  const new1Input = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-new1-input'));
+  const new2Input = /** @type {HTMLInputElement | null} */ (document.getElementById('passphrase-new2-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-change-btn'));
+  const cancelBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('passphrase-change-cancel'));
   const errorEl = document.getElementById('passphrase-change-error');
+  if (!oldInput || !new1Input || !new2Input || !btn || !cancelBtn || !errorEl) return;
+  overlay.style.display = 'flex';
 
   cancelBtn.addEventListener('click', () => {
     overlay.style.display = 'none';
@@ -843,12 +853,12 @@ export function initBroadcastChannel() {
           state.importedData = JSON.parse(raw);
           ensureImportedArray(state.importedData, 'notes');
           ensureImportedArray(state.importedData, 'supplements');
-          window.migrateProfileData(state.importedData);
-          window.buildSidebar();
+          appWindow.migrateProfileData(state.importedData);
+          appWindow.buildSidebar();
           // buildSidebar resets the .active class to Dashboard, so source
           // the target view from state.currentView (kept in sync by
           // navigate) rather than re-reading the stale DOM.
-          window.navigate(state.currentView || 'dashboard');
+          appWindow.navigate(state.currentView || 'dashboard');
         } catch { /* ignore parse errors */ }
       }
     }
