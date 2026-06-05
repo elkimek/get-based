@@ -130,10 +130,10 @@ const LEGACY_TESTS = [
   './test-dna-recommendations.js',
   './test-image-utils.js',
   // Batch 20 — changelog modal source-inspection + hasCardContent
-  // (DOM-runtime sections in test-changelog-dom.js stay on puppeteer).
+  // (DOM-runtime sections moved to Playwright).
   './test-changelog.js',
   // Batch 21 — OpenRouter integration source-inspection + behavioral
-  // (DOM section in test-openrouter-dom.js stays on puppeteer).
+  // (DOM section moved to Playwright).
   './test-openrouter.js',
   // Batch 22 — pre-release audit source-inspection + innerHTML sweep
   // (section-3b functional guard probes in test-audit-dom.js stay on puppeteer).
@@ -142,10 +142,10 @@ const LEGACY_TESTS = [
   // (DOM sections 11/12/17/21 in test-custom-personality-dom.js stay on puppeteer).
   './test-custom-personality.js',
   // Batch 24 — custom API provider behavioral + source-inspection
-  // (DOM sections 13/14 in test-custom-api-dom.js stay on puppeteer).
+  // (DOM sections 13/14 moved to Playwright).
   './test-custom-api.js',
   // Batch 25 — custom lens (Knowledge Source) behavioral + source-inspection
-  // (DOM sections 15/16 in test-custom-lens-dom.js stay on puppeteer).
+  // (DOM sections 15/16 moved to Playwright).
   './test-custom-lens.js',
   // Batch 26 — EMF assessment (full port, no DOM split — pure-logic +
   // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
