@@ -1,8 +1,9 @@
+// @ts-check
 // pdf-import.js — PDF parsing pipeline, import preview, drop zone, batch import
 
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, calculateCost, trackUsage } from './schema.js';
-import { showNotification, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
+import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
 import { saveImportedData } from './data.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
@@ -47,6 +48,24 @@ import {
   getExcludedImportIndices,
   resolveImportPreviewBatch,
 } from './pdf-import-review.js';
+
+/**
+ * @typedef {{
+ *   startOpenRouterOAuth?: () => void,
+ *   openSettingsModal?: (tab?: string) => void,
+ *   loadDemoData?: (sex?: string) => void,
+ *   maybeShowEncryptionNudge?: () => void,
+ *   importDataJSON: (file: File) => void | Promise<void>,
+ *   isDNAFile?: (file: File) => boolean,
+ *   isDNAFileByContent?: (file: File) => Promise<boolean>,
+ *   detectDNAFile?: (header: string) => string | null,
+ *   handleMtDNAFile?: (file: File) => void | Promise<void>,
+ *   handleDNAFile: (file: File) => void | Promise<void>,
+ * }} PdfImportWindowHooks
+ * @typedef {{ inputTokens?: number, outputTokens?: number }} ImportUsage
+ */
+
+const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
 
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
 export {
@@ -117,13 +136,13 @@ export function showAINeededDialog(action = 'import') {
   </div>`;
   overlay.classList.add('show');
   const close = () => overlay.classList.remove('show');
-  document.getElementById('ai-needed-or').onclick = () => { close(); if (window.startOpenRouterOAuth) window.startOpenRouterOAuth(); };
-  document.getElementById('ai-needed-key').onclick = () => { close(); if (window.openSettingsModal) window.openSettingsModal('ai'); };
+  document.getElementById('ai-needed-or').onclick = () => { close(); if (pdfImportWindow.startOpenRouterOAuth) pdfImportWindow.startOpenRouterOAuth(); };
+  document.getElementById('ai-needed-key').onclick = () => { close(); if (pdfImportWindow.openSettingsModal) pdfImportWindow.openSettingsModal('ai'); };
   document.getElementById('ai-needed-demo').onclick = () => {
     close();
-    if (window.loadDemoData) {
+    if (pdfImportWindow.loadDemoData) {
       const sex = state.profileSex === 'female' ? 'female' : 'male';
-      window.loadDemoData(sex);
+      pdfImportWindow.loadDemoData(sex);
     }
   };
   document.getElementById('ai-needed-cancel').onclick = close;
@@ -142,8 +161,10 @@ export async function extractPDFText(file) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     for (const item of textContent.items) {
-      if (item.str.trim()) {
-        allItems.push({ text: item.str.trim(), x: Math.round(item.transform[4]), y: Math.round(item.transform[5]), page: i });
+      const text = item.str?.trim();
+      if (text) {
+        const transform = item.transform || [];
+        allItems.push({ text, x: Math.round(Number(transform[4]) || 0), y: Math.round(Number(transform[5]) || 0), page: i });
       }
     }
   }
@@ -223,6 +244,14 @@ function formatImportError(err) {
     return 'AI analysis request was interrupted after privacy review. Try again, or switch provider/model if it repeats.';
   }
   return err?.message || String(err);
+}
+
+function getUsageTokens(usage) {
+  const u = /** @type {ImportUsage} */ (usage || {});
+  return {
+    inputTokens: Number(u.inputTokens) || 0,
+    outputTokens: Number(u.outputTokens) || 0,
+  };
 }
 
 export function tryParseJSON(str) {
@@ -387,7 +416,7 @@ Return ONLY valid JSON in this exact format, no other text:
 export async function confirmImport() {
   const result = getPendingImport();
   if (!result || !result.date) return;
-  const confirmBtn = document.getElementById('import-confirm-btn');
+  const confirmBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('import-confirm-btn'));
   if (confirmBtn) confirmBtn.disabled = true;
   // Guard: if profile changed during async import, abort to prevent saving to wrong profile
   if (result._importProfileId && result._importProfileId !== state.currentProfile) {
@@ -472,7 +501,7 @@ export async function confirmImport() {
   // Mirror insulin between hormones and diabetes categories (AI may map to either)
   syncLabEntryInsulinMirror(entry, { now: importTs });
   // Adopt PDF reference ranges if user opted in (skip if range matches schema default)
-  const adoptRanges = document.getElementById('import-adopt-ranges');
+  const adoptRanges = /** @type {HTMLInputElement | null} */ (document.getElementById('import-adopt-ranges'));
   if (adoptRanges && adoptRanges.checked) {
     if (!state.importedData.refOverrides) state.importedData.refOverrides = {};
     for (const m of matched) {
@@ -510,7 +539,7 @@ export async function confirmImport() {
     refreshImportedDataViews();
   }
   showNotification(`Imported ${importCount} markers from ${result.date}`, "success");
-  if (!_batchMode && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
+  if (!_batchMode && typeof pdfImportWindow.maybeShowEncryptionNudge === 'function') pdfImportWindow.maybeShowEncryptionNudge();
 }
 
 // ═══════════════════════════════════════════════
@@ -535,12 +564,12 @@ export async function classifyImportFiles(files) {
   const jsonFiles = files.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
   const pdfFiles = files.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
   const imageFiles = files.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
-  const dnaFiles = files.filter(f => window.isDNAFile && window.isDNAFile(f));
+  const dnaFiles = files.filter(f => pdfImportWindow.isDNAFile && pdfImportWindow.isDNAFile(f));
   const textFiles = [];
   const unmatched = files.filter(f => !jsonFiles.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f));
   for (const f of unmatched) {
     if (/\.(txt|csv)$/i.test(f.name)) {
-      if (window.isDNAFileByContent && await window.isDNAFileByContent(f)) dnaFiles.push(f);
+      if (pdfImportWindow.isDNAFileByContent && await pdfImportWindow.isDNAFileByContent(f)) dnaFiles.push(f);
       else if (f.name.endsWith('.txt')) textFiles.push(f);
     } else if (await isPdfByMagic(f)) {
       pdfFiles.push(f);
@@ -569,14 +598,14 @@ export function setupDropZone() {
       showNotification("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
       return;
     }
-    for (const f of jsonFiles) window.importDataJSON(f);
+    for (const f of jsonFiles) pdfImportWindow.importDataJSON(f);
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
         const header = await f.slice(0, 1500).text();
-        const fmt = window.detectDNAFile ? window.detectDNAFile(header) : null;
-        if ((fmt === 'mtdna' || fmt === '23andme-mito') && window.handleMtDNAFile) await window.handleMtDNAFile(f);
+        const fmt = pdfImportWindow.detectDNAFile ? pdfImportWindow.detectDNAFile(header) : null;
+        if ((fmt === 'mtdna' || fmt === '23andme-mito') && pdfImportWindow.handleMtDNAFile) await pdfImportWindow.handleMtDNAFile(f);
         else if (fmt === '23andme-y') { showNotification('Y-chromosome DNA files are not supported', 'info'); }
-        else await window.handleDNAFile(f);
+        else await pdfImportWindow.handleDNAFile(f);
       }
     }
     else if (textFiles.length > 0) { for (const f of textFiles) await handleTextFile(f); }
@@ -778,13 +807,14 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
       result.timings = { pii: 0, analysis: analysisTime };
       const prov = result.provider || getAIProvider();
       const mid = getActiveModelId();
+      const tokens = getUsageTokens(result.usage);
       result.costInfo = {
         provider: prov, modelId: mid,
-        inputTokens: result.usage?.inputTokens || 0,
-        outputTokens: result.usage?.outputTokens || 0,
-        cost: calculateCost(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0)
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens,
+        cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
       };
-      trackUsage(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0);
+      trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
       result.importHash = hashString(file.name + file.size);
       result._importProfileId = _startProfileId;
       if (!result.date) showNotification("Could not find collection date in PDF", "error");
@@ -883,13 +913,14 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     result.timings = { pii: piiTime, analysis: analysisTime };
     const prov = result.provider || getAIProvider();
     const mid = getActiveModelId();
+    const tokens = getUsageTokens(result.usage);
     result.costInfo = {
       provider: prov, modelId: mid,
-      inputTokens: result.usage?.inputTokens || 0,
-      outputTokens: result.usage?.outputTokens || 0,
-      cost: calculateCost(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0)
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
     };
-    trackUsage(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0);
+    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(pdfText);
     result._importProfileId = _startProfileId;
     if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
@@ -984,13 +1015,14 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   result.timings = { pii: piiTime, analysis: analysisTime };
   const prov = result.provider || getAIProvider();
   const mid = getActiveModelId();
+  const tokens = getUsageTokens(result.usage);
   result.costInfo = {
     provider: prov, modelId: mid,
-    inputTokens: result.usage?.inputTokens || 0,
-    outputTokens: result.usage?.outputTokens || 0,
-    cost: calculateCost(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0)
+    inputTokens: tokens.inputTokens,
+    outputTokens: tokens.outputTokens,
+    cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
   };
-  trackUsage(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0);
+  trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
   result.importHash = hashString(pdfText);
   if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
   if (result.markers.length === 0) { showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
@@ -1051,7 +1083,7 @@ export async function handleBatchPDFs(pdfFiles) {
   if (failed > 0) parts.push(`${failed} failed`);
   if (retryImported > 0) parts.push(`${retryImported} recovered on retry`);
   showNotification(`Batch import complete: ${parts.join(', ')}`, imported > 0 ? 'success' : 'info');
-  if (imported > 0 && typeof window.maybeShowEncryptionNudge === 'function') window.maybeShowEncryptionNudge();
+  if (imported > 0 && typeof pdfImportWindow.maybeShowEncryptionNudge === 'function') pdfImportWindow.maybeShowEncryptionNudge();
 }
 
 // ═══════════════════════════════════════════════
@@ -1074,7 +1106,7 @@ export async function handleImageFile(file) {
     await showImportProgress(3, file.name);
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -1088,13 +1120,14 @@ export async function handleImageFile(file) {
     result.timings = { pii: 0, analysis: analysisTime };
     const prov = result.provider || getAIProvider();
     const mid = getActiveModelId();
+    const tokens = getUsageTokens(result.usage);
     result.costInfo = {
       provider: prov, modelId: mid,
-      inputTokens: result.usage?.inputTokens || 0,
-      outputTokens: result.usage?.outputTokens || 0,
-      cost: calculateCost(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0)
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      cost: calculateCost(prov, mid, tokens.inputTokens, tokens.outputTokens)
     };
-    trackUsage(prov, mid, result.usage?.inputTokens || 0, result.usage?.outputTokens || 0);
+    trackUsage(prov, mid, tokens.inputTokens, tokens.outputTokens);
     result.importHash = hashString(file.name + file.size);
     result._importProfileId = _startProfileId;
     if (!result.date) showNotification("Could not find collection date in image", "error");
