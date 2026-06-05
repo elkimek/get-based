@@ -113,6 +113,9 @@ assert('OpenRouter provider button uses delegated settings action',
   /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
 assert('settings has eager provider switch bridge', settingsSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsSrc.includes('setAIProvider(provider);'));
+assert('settings records existing provider before provider-key onboarding return',
+  settingsSrc.includes('settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();')
+    && ppSrc.includes('if (window._settingsHadProvider) return'));
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));
