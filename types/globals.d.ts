@@ -23,6 +23,7 @@ interface Window {
   _snpTableCache?: unknown;
   APP_VERSION?: string;
   applyAccentOverride?: () => void;
+  buildLabPlanFromThreadAction?: () => Promise<void> | void;
   buildSidebar?: AnyFunction;
   callClaudeAPI?: (request: {
     system?: string;
