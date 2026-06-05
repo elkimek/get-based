@@ -36,9 +36,9 @@ export {
  * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
- *   buildSidebar?: (data?: unknown) => void,
+ *   buildSidebar: (data?: unknown) => void,
  *   invalidateLabContextCache?: () => void,
- *   navigate?: (route?: string, data?: unknown) => void,
+ *   navigate: (route?: string, data?: unknown) => void,
  *   showDetailModal?: (id: string) => void,
  * }} DataWindowHooks
  */
@@ -694,8 +694,8 @@ export function setDateRange(range) {
   // re-applies the correct active class. Source the target view from
   // state.currentView (set by navigate) rather than the DOM, since the
   // DOM's active class has just been clobbered by buildSidebar.
-  window.buildSidebar();
-  window.navigate(state.currentView || 'dashboard');
+  dataWindow.buildSidebar();
+  dataWindow.navigate(state.currentView || 'dashboard');
 }
 
 export function renderChartLayersDropdown() {
@@ -765,21 +765,21 @@ export function setSuppOverlay(mode) {
   state.suppOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'suppOverlay'), state.suppOverlayMode);
   const activeCat = _getActiveNavCategory();
-  window.navigate(activeCat);
+  dataWindow.navigate(activeCat);
 }
 
 export function setNoteOverlay(mode) {
   state.noteOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'noteOverlay'), state.noteOverlayMode);
   const activeCat = _getActiveNavCategory();
-  window.navigate(activeCat);
+  dataWindow.navigate(activeCat);
 }
 
 export function setPhaseOverlay(mode) {
   state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'phaseOverlay'), state.phaseOverlayMode);
   const activeCat = _getActiveNavCategory();
-  window.navigate(activeCat);
+  dataWindow.navigate(activeCat);
 }
 
 export function recalculateHOMAIR(entry) {
@@ -811,11 +811,11 @@ export function switchUnitSystem(system) {
   // Matches the pattern in toggleAltUnits().
   const openId = state._activeDetailMarkerId;
   const data = getActiveData();
-  window.buildSidebar(data);
+  dataWindow.buildSidebar(data);
   updateHeaderDates(data);
-  window.navigate(state.currentView || 'dashboard', data);
-  if (openId && typeof window.showDetailModal === 'function') {
-    window.showDetailModal(openId);
+  dataWindow.navigate(state.currentView || 'dashboard', data);
+  if (openId && typeof dataWindow.showDetailModal === 'function') {
+    dataWindow.showDetailModal(openId);
   }
 }
 
@@ -834,8 +834,8 @@ export function toggleAltUnits(force) {
   // Refresh the currently-visible detail modal so the alt-unit lines update
   // without a full navigate (the modal lives outside the page rebuild).
   const openId = state._activeDetailMarkerId;
-  if (openId && typeof window.showDetailModal === 'function') {
-    window.showDetailModal(openId);
+  if (openId && typeof dataWindow.showDetailModal === 'function') {
+    dataWindow.showDetailModal(openId);
   }
 }
 
@@ -878,10 +878,10 @@ export function switchRangeMode(mode) {
   _afterNextPaint(() => {
     if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
     const data = getActiveData();
-    window.buildSidebar(data);
-    window.navigate(state.currentView || 'dashboard', data);
-    if (openId && state._activeDetailMarkerId === openId && typeof window.showDetailModal === 'function') {
-      window.showDetailModal(openId);
+    dataWindow.buildSidebar(data);
+    dataWindow.navigate(state.currentView || 'dashboard', data);
+    if (openId && state._activeDetailMarkerId === openId && typeof dataWindow.showDetailModal === 'function') {
+      dataWindow.showDetailModal(openId);
     }
   });
 }
