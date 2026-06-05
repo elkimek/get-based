@@ -86,6 +86,7 @@
     "js/dashboard-widgets.js",
     "js/data-merge.js",
     "js/data.js",
+    "js/dna.js",
     "js/emf.js",
     "js/emf-facade.js",
     "js/export.js",
