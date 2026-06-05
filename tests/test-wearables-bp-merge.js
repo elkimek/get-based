@@ -8,8 +8,8 @@
 //
 // All assertions here are source-inspection regexes against wearables.js /
 // wearable-adapters.js / wearables-manual.js. The section-4 *live* DOM
-// idempotency probe (openManualLogForm called twice → still one form) lives
-// in tests/test-wearables-bp-merge-dom.js on the puppeteer runner.
+// idempotency probe (openManualLogForm called twice -> still one form) lives
+// in tests/playwright/wearables-bp-merge.spec.js.
 
 import './_node-shim.js';
 
@@ -73,8 +73,8 @@ assert('moveWearableCard mirrors the same dia-skip when sys present',
 // ═══════════════════════════════════════
 // 4. BP form idempotency (the dia-click bug fix) — source asserts
 // ═══════════════════════════════════════
-// The *live* DOM probe (openManualLogForm called twice → still one form)
-// lives in test-wearables-bp-merge-dom.js.
+// The *live* DOM probe (openManualLogForm called twice -> still one form)
+// lives in tests/playwright/wearables-bp-merge.spec.js.
 console.log('4. Form idempotency (source)');
 
 assert('openManualLogForm returns early when the form is already rendered',

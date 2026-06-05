@@ -151,8 +151,7 @@ const LEGACY_TESTS = [
   // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
   './test-emf.js',
   // Batch 27 — dashboard KB / Personalize-AI CTA HTML-string rendering
-  // (section 5 picker open/dismiss in test-dashboard-knowledge-base-dom.js
-  // stays on puppeteer).
+  // (section 5 picker open/dismiss moved to Playwright).
   './test-dashboard-knowledge-base.js',
   // Batch 28 — dashboard data-protection CTA HTML-string rendering
   // (section 6 picker open/dismiss moved to Playwright).
@@ -161,8 +160,8 @@ const LEGACY_TESTS = [
   // (DOM sections 4/10/12 in test-chat-actions-dom.js stay on puppeteer).
   './test-chat-actions.js',
   // Batch 30 — multi-port: tour source-inspection, chat-threads behavioral,
-  // wearables-bp-merge source-inspection. DOM remnants in the matching
-  // *-dom.js files stay on puppeteer.
+  // wearables-bp-merge source-inspection. The wearables-bp live DOM probe
+  // moved to Playwright; remaining DOM remnants stay on puppeteer.
   './test-tour.js',
   './test-settings-delegated-actions.js',
   './test-shell-delegated-actions.js',

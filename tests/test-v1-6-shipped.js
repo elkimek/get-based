@@ -393,7 +393,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       typeof window._openAllSessionsModal === 'function');
     // Behaviour: only in a real browser — Node's document shim returns null
     // for getElementById, so showAllSessionsModal would write innerHTML to
-    // null. Puppeteer covers the runtime path.
+    // null. Playwright covers the runtime path.
     if (!_isNode && typeof window._openAllSessionsModal === 'function') {
       const before = document.querySelectorAll('.modal-overlay').length;
       try { window._openAllSessionsModal(); } catch (e) {}

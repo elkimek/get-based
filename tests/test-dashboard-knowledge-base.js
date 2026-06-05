@@ -13,7 +13,7 @@
 // Run: node tests/test-dashboard-knowledge-base.js  (or via npm test)
 //
 // Section 5 (picker open/dismiss — needs a live DOM overlay + click events)
-// lives in tests/test-dashboard-knowledge-base-dom.js on the puppeteer runner.
+// lives in tests/playwright/dashboard-knowledge-base.spec.js.
 
 import './_node-shim.js';
 
@@ -30,8 +30,8 @@ console.log('=== Dashboard KB / Personalize-AI Tests ===\n');
 // that can't run the embedding worker. The KB-row *render* path itself is
 // pure-synchronous (reads cfg + the localStorage count-shadow, never the
 // worker), so stubbing these capabilities lets the real count-driven
-// visibility logic run in Node. Section 5's live picker test stays on
-// puppeteer where these are genuinely present.
+// visibility logic run in Node. Section 5's live picker test runs in
+// Playwright where these are genuinely present.
 //
 // The stub install + module imports happen INSIDE the try block so the
 // finally cleanup runs even if an import throws — otherwise a stub Worker
@@ -145,7 +145,7 @@ try {
   }
 
   // Section 5 (picker open/dismiss — live DOM) lives in
-  // test-dashboard-knowledge-base-dom.js.
+  // tests/playwright/dashboard-knowledge-base.spec.js.
 
   // ─── 6. Window exports ───
   {
