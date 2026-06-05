@@ -1,3 +1,4 @@
+// @ts-check
 // onboarding-view.js - Dashboard onboarding and AI connection reminders
 
 import { state } from './state.js';
@@ -64,7 +65,7 @@ export function completeOnboardingSex(sex) {
 export function completeOnboardingProfile() {
   const activeSexBtn = document.querySelector('.onboarding-sex-btn.active');
   const sex = activeSexBtn ? (activeSexBtn.textContent.trim().toLowerCase()) : null;
-  const dobInput = document.getElementById('onboarding-dob');
+  const dobInput = /** @type {HTMLInputElement | null} */ (document.getElementById('onboarding-dob'));
   const dob = dobInput ? dobInput.value : null;
   localStorage.setItem(profileStorageKey(state.currentProfile, 'onboarded'), 'profile-set');
   if (sex) { state.profileSex = sex; setProfileSex(state.currentProfile, sex); }
@@ -137,10 +138,11 @@ export function setOnboardingFocus(mode) {
     if (cards) {
       setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     } else if (window.openChatPanel) {
+      const appWindow = /** @type {any} */ (window);
       body.classList.remove('cards-focus');
-      Promise.resolve(window.openChatPanel()).then(() => {
-        if (!document.querySelector('#chat-panel .chat-context-cards') && state.chatHistory.length > 0 && window.createNewThread) {
-          window.createNewThread();
+      Promise.resolve(appWindow.openChatPanel()).then(() => {
+        if (!document.querySelector('#chat-panel .chat-context-cards') && state.chatHistory.length > 0 && appWindow.createNewThread) {
+          appWindow.createNewThread();
         } else {
           window.renderChatMessages?.();
         }

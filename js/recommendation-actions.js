@@ -1,3 +1,4 @@
+// @ts-check
 // recommendation-actions.js - recommendation modal and action handlers
 
 import { escapeHTML } from './utils.js';

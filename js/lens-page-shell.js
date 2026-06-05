@@ -1,3 +1,4 @@
+// @ts-check
 // lens-page-shell.js — shared lens page chrome, ordering, and widget helpers
 
 import { state } from './state.js';
@@ -27,21 +28,22 @@ export function lensPageActionAttrs(action, attrs = {}) {
 }
 
 function handleLensPageShellClick(event) {
-  const target = event.target;
-  if (!target || typeof target.closest !== 'function') return;
-  const actionEl = target.closest('[data-lens-page-action]');
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-page-action]'));
   if (!actionEl) return;
   if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page')) return;
   event.preventDefault();
+  const appWindow = /** @type {any} */ (window);
 
   const action = actionEl.dataset.lensPageAction || '';
   const id = actionEl.dataset.lensPageId || '';
   if (action === 'move-widget') {
     moveLensPageWidget(actionEl.dataset.lensPageRoute || '', id, actionEl.dataset.lensPageDirection || 0);
   } else if (action === 'add-dashboard-widget') {
-    window.addDashboardWidgetFromLens?.(id);
+    appWindow.addDashboardWidgetFromLens?.(id);
   } else if (action === 'remove-dashboard-widget') {
-    window.removeDashboardWidgetFromLens?.(id);
+    appWindow.removeDashboardWidgetFromLens?.(id);
   }
 }
 
@@ -108,10 +110,10 @@ export function moveLensPageWidget(route, id, direction) {
   id = String(id || '');
   const dir = Number(direction);
   if (!route || !id || !Number.isFinite(dir) || dir === 0) return;
-  const container = [...document.querySelectorAll('.lens-page-widgets[data-lens-route]')]
+  const container = Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.lens-page-widgets[data-lens-route]')))
     .find(el => el.dataset.lensRoute === route);
   const ids = container
-    ? [...container.querySelectorAll('.dashboard-widget[data-widget-id]')].map(el => el.dataset.widgetId).filter(Boolean)
+    ? Array.from(/** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll('.dashboard-widget[data-widget-id]'))).map(el => el.dataset.widgetId).filter(Boolean)
     : getLensPageWidgetOrder(route, []);
   const index = ids.indexOf(id);
   const target = index + (dir < 0 ? -1 : 1);

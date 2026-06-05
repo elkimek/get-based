@@ -1,3 +1,4 @@
+// @ts-check
 // mobile-dashboard.js - Mobile dashboard shell and bottom navigation
 
 import { state } from './state.js';
@@ -23,17 +24,35 @@ const MOBILE_WEARABLE_PRIORITY = [
 let _mobileDashboardManualTabLockUntil = 0;
 let _mobileChromeStateObserver = null;
 
+/**
+ * @typedef {{ data: any, filteredData: any, keyMarkers?: any[], trendAlerts?: any[], criticalFlags?: any[] }} MobileDashboardWidgetContext
+ * @typedef {{ def: { id: string, [key: string]: any }, body?: string, [key: string]: any }} MobileDashboardWidgetEntry
+ * @typedef {Record<string, any>} MobileDashboardWidgetPrefs
+ * @typedef {{
+ *   buildDashboardWidgetContext: (data: any) => MobileDashboardWidgetContext,
+ *   getDashboardWidgetPrefs: () => MobileDashboardWidgetPrefs,
+ *   getVisibleDashboardWidgetEntries: (ctx: MobileDashboardWidgetContext, prefs: MobileDashboardWidgetPrefs) => MobileDashboardWidgetEntry[],
+ *   renderDashboardControlButtons: (options?: { includeReset?: boolean }) => string,
+ *   isDashboardOrganizeMode: () => boolean,
+ *   renderDashboardWidget: (entry: MobileDashboardWidgetEntry, prefs: MobileDashboardWidgetPrefs, index: number, visibleEntries: MobileDashboardWidgetEntry[]) => string,
+ *   setupDropZone: () => void,
+ *   loadCommitHash: () => void,
+ * }} MobileDashboardDeps
+ */
+
+/** @type {MobileDashboardDeps} */
 const mobileDashboardDeps = {
-  buildDashboardWidgetContext: () => ({ data: getActiveData(), filteredData: getActiveData() }),
+  buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
   getDashboardWidgetPrefs: () => ({}),
-  getVisibleDashboardWidgetEntries: () => [],
-  renderDashboardControlButtons: () => '',
+  getVisibleDashboardWidgetEntries: (_ctx, _prefs) => [],
+  renderDashboardControlButtons: (_options) => '',
   isDashboardOrganizeMode: () => false,
-  renderDashboardWidget: () => '',
+  renderDashboardWidget: (_entry, _prefs, _index, _visibleEntries) => '',
   setupDropZone: () => {},
   loadCommitHash: () => {},
 };
 
+/** @param {Partial<MobileDashboardDeps>} [deps] */
 export function configureMobileDashboardView(deps = {}) {
   Object.assign(mobileDashboardDeps, deps);
 }
@@ -364,9 +383,10 @@ function renderMobileIcon(name) {
 export function mobileDashboardSetTab(tab, { fromScroll = false } = {}) {
   if (!fromScroll) _mobileDashboardManualTabLockUntil = Date.now() + 600;
   document.querySelectorAll('.m-tab').forEach(btn => {
-    const isActive = btn.dataset.tab === tab;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-current', isActive ? 'page' : 'false');
+    const tabButton = /** @type {HTMLElement} */ (btn);
+    const isActive = tabButton.dataset.tab === tab;
+    tabButton.classList.toggle('active', isActive);
+    tabButton.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 }
 
@@ -397,7 +417,8 @@ function renderMobileDashboardWidgetStack(ctx) {
 }
 
 export function openMobileDashboardSearch() {
-  if (window.toggleMobileSidebar) window.toggleMobileSidebar();
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.toggleMobileSidebar) appWindow.toggleMobileSidebar();
   setTimeout(() => document.getElementById('sidebar-search')?.focus(), 80);
 }
 

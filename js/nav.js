@@ -1,3 +1,4 @@
+// @ts-check
 // nav.js — Sidebar, compact profile button
 
 import { state } from './state.js';
@@ -46,19 +47,20 @@ function _navActionScope(el) {
 }
 
 function _findGroupHeader(groupName) {
-  return Array.from(document.querySelectorAll('.sidebar-group-header'))
+  return Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.sidebar-group-header')))
     .find(el => el.dataset.groupName === groupName) || null;
 }
 
 function _findGroupItems(groupName) {
-  return Array.from(document.querySelectorAll('.sidebar-group-items'))
+  return Array.from(/** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.sidebar-group-items')))
     .find(el => el.dataset.groupItems === groupName) || null;
 }
 
 function handleNavActionClick(event) {
   const target = event.target instanceof Element ? event.target : null;
-  const actionEl = target?.closest('[data-nav-action]');
+  const actionEl = /** @type {HTMLElement | null} */ (target?.closest('[data-nav-action]') || null);
   if (!actionEl || !_navActionScope(actionEl)) return;
+  const appWindow = /** @type {any} */ (window);
 
   const action = actionEl.dataset.navAction;
   let handled = true;
@@ -69,11 +71,11 @@ function handleNavActionClick(event) {
   } else if (action === 'open-light-assessment') {
     window.openLightEnvironmentAssessment?.();
   } else if (action === 'open-knowledge-base') {
-    window.openKnowledgeBaseModal?.();
+    appWindow.openKnowledgeBaseModal?.();
   } else if (action === 'open-report-builder') {
-    window.openReportBuilder?.();
+    appWindow.openReportBuilder?.();
   } else if (action === 'open-custom-marker') {
-    window.openCreateMarkerModal?.();
+    appWindow.openCreateMarkerModal?.();
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
   } else if (action === 'toggle-group-ai') {
@@ -88,7 +90,7 @@ function handleNavActionClick(event) {
 }
 
 function handleNavInput(event) {
-  const target = event.target instanceof Element ? event.target : null;
+  const target = event.target instanceof HTMLElement ? event.target : null;
   if (!target || !_navActionScope(target)) return;
   if (target.dataset.navInputAction === 'filter-sidebar') {
     filterSidebar();
@@ -119,11 +121,12 @@ export function openRecommendationsFromSidebar() {
 export function syncSidebarActive(route = state.currentView || 'dashboard') {
   const activeRoute = String(route || 'dashboard');
   document.querySelectorAll('#sidebar-nav .nav-item').forEach(el => {
-    const isActive = el.dataset.category === activeRoute;
-    el.classList.toggle('active', isActive);
-    el.classList.toggle('is-active', isActive);
-    if (isActive) el.setAttribute('aria-current', 'page');
-    else el.removeAttribute('aria-current');
+    const item = /** @type {HTMLElement} */ (el);
+    const isActive = item.dataset.category === activeRoute;
+    item.classList.toggle('active', isActive);
+    item.classList.toggle('is-active', isActive);
+    if (isActive) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
   });
 }
 
@@ -278,7 +281,8 @@ export function buildSidebar(data) {
     const flagHtml = group.totalFlagged > 0
       ? `<span class="flag-count">${group.totalFlagged}</span>`
       : '';
-    const aiOn = window.isGroupInAIContext && window.isGroupInAIContext(groupName);
+    const appWindow = /** @type {any} */ (window);
+    const aiOn = appWindow.isGroupInAIContext && appWindow.isGroupInAIContext(groupName);
     // axe nested-interactive: the AI toggle button cannot live inside an
     // interactive parent. Disclosure is now its own <button>; AI toggle
     // is a sibling, not a descendant. Arrow is also a sibling (decorative
@@ -307,9 +311,10 @@ function _getGroupCollapsed(groupName) {
 }
 
 export function toggleGroupAIContext(groupName) {
-  const isOn = window.isGroupInAIContext && window.isGroupInAIContext(groupName);
-  window.setGroupInAIContext(groupName, !isOn);
-  const btn = _findGroupHeader(groupName)?.querySelector('.sidebar-ai-toggle');
+  const appWindow = /** @type {any} */ (window);
+  const isOn = appWindow.isGroupInAIContext && appWindow.isGroupInAIContext(groupName);
+  appWindow.setGroupInAIContext(groupName, !isOn);
+  const btn = /** @type {HTMLElement | null} */ (_findGroupHeader(groupName)?.querySelector('.sidebar-ai-toggle') || null);
   if (btn) {
     btn.classList.toggle('active', !isOn);
     btn.title = !isOn ? 'Included in AI context' : 'Excluded from AI context — click to include';
@@ -331,11 +336,12 @@ export function toggleNavGroup(groupName) {
 }
 
 export function filterSidebar() {
-  const query = (document.getElementById('sidebar-search')?.value || '').toLowerCase().trim();
-  const items = document.querySelectorAll('#sidebar-nav .nav-item');
-  const titles = document.querySelectorAll('#sidebar-nav .sidebar-title');
-  const groupHeaders = document.querySelectorAll('#sidebar-nav .sidebar-group-header');
-  const groupItemContainers = document.querySelectorAll('#sidebar-nav .sidebar-group-items');
+  const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById('sidebar-search'));
+  const query = (searchInput?.value || '').toLowerCase().trim();
+  const items = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .nav-item'));
+  const titles = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-title'));
+  const groupHeaders = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-group-header'));
+  const groupItemContainers = /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('#sidebar-nav .sidebar-group-items'));
   if (!query) {
     items.forEach(el => el.style.display = '');
     titles.forEach(el => el.style.display = '');

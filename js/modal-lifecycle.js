@@ -1,3 +1,4 @@
+// @ts-check
 // modal-lifecycle.js — shared modal backdrop, focus trap, and scroll lock.
 
 export function wireBackdropClose(overlay, closeFn) {
@@ -17,16 +18,17 @@ export const _wireBackdropClose = wireBackdropClose;
 const _modalScrollState = (() => {
   const fallback = { locks: new Set(), priorOverflow: '' };
   if (typeof window === 'undefined') return fallback;
-  if (window.__labModalScrollState && window.__labModalScrollState.locks instanceof Set) {
-    return window.__labModalScrollState;
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.__labModalScrollState && appWindow.__labModalScrollState.locks instanceof Set) {
+    return appWindow.__labModalScrollState;
   }
   try {
-    Object.defineProperty(window, '__labModalScrollState', {
+    Object.defineProperty(appWindow, '__labModalScrollState', {
       value: fallback,
       configurable: true,
     });
   } catch (_) {
-    window.__labModalScrollState = fallback;
+    appWindow.__labModalScrollState = fallback;
   }
   return fallback;
 })();
@@ -52,7 +54,8 @@ export function trapModalFocus(overlay) {
     const focusables = overlay.querySelectorAll(
       'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])'
     );
-    if (focusables.length > 0) try { focusables[0].focus(); } catch (e) {}
+    const firstFocusable = /** @type {HTMLElement | undefined} */ (focusables[0]);
+    if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
   }, 30);
   const onKeydown = (e) => {
     if (e.key === 'Escape' && document.body.contains(overlay)) {
@@ -72,9 +75,9 @@ export function trapModalFocus(overlay) {
     } else {
       document.body.style.overflow = 'hidden';
     }
-    if (previouslyFocused && typeof previouslyFocused.focus === 'function'
-        && document.contains(previouslyFocused)) {
-      try { previouslyFocused.focus(); } catch (e) {}
+    const previousFocusTarget = /** @type {HTMLElement | null} */ (previouslyFocused instanceof HTMLElement ? previouslyFocused : null);
+    if (previousFocusTarget && document.contains(previousFocusTarget)) {
+      try { previousFocusTarget.focus(); } catch (e) {}
     }
   };
   const obs = new MutationObserver(() => {

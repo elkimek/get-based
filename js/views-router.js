@@ -1,3 +1,4 @@
+// @ts-check
 // views-router.js — route validation, route persistence, and scroll anchoring
 
 import { state } from './state.js';
@@ -111,11 +112,12 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     }
     _syncSidebarActive(activeCategory);
     // Close mobile sidebar on navigation
-    if (window.closeMobileSidebar) window.closeMobileSidebar();
+    const appWindow = /** @type {any} */ (window);
+    if (appWindow.closeMobileSidebar) appWindow.closeMobileSidebar();
     if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
       document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active');
     }
-    if (window.syncImportStatusFab) window.syncImportStatusFab();
+    if (appWindow.syncImportStatusFab) appWindow.syncImportStatusFab();
     destroyAllCharts?.();
     if (routeCategory === "dashboard") routeHandlers.dashboard?.(routeData);
     else if (routeCategory === "labs") routeHandlers.labs?.(routeData);
@@ -194,11 +196,12 @@ function _restorePixelScroll(pos) {
 function _syncSidebarActive(routeCategory) {
   if (typeof document === 'undefined') return;
   document.querySelectorAll(".nav-item").forEach(el => {
-    const isActive = el.dataset.category === routeCategory;
-    el.classList.toggle("active", isActive);
-    el.classList.toggle("is-active", isActive);
-    if (isActive) el.setAttribute('aria-current', 'page');
-    else el.removeAttribute('aria-current');
+    const item = /** @type {HTMLElement} */ (el);
+    const isActive = item.dataset.category === routeCategory;
+    item.classList.toggle("active", isActive);
+    item.classList.toggle("is-active", isActive);
+    if (isActive) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
   });
 }
 

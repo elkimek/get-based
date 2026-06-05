@@ -1,3 +1,4 @@
+// @ts-check
 // shell-actions.js - delegated actions for static index.html controls
 
 let shellDelegatesInstalled = false;
@@ -14,8 +15,9 @@ function clickFileInput(id) {
 }
 
 function runShellAction(action) {
+  const appWindow = /** @type {any} */ (window);
   if (action === 'toggle-mobile-sidebar') {
-    window.toggleMobileSidebar?.();
+    appWindow.toggleMobileSidebar?.();
     return true;
   } else if (action === 'close-mobile-sidebar') {
     window.closeMobileSidebar?.();
@@ -27,7 +29,7 @@ function runShellAction(action) {
     window.openProfileShareModal?.();
     return true;
   } else if (action === 'open-tweaks') {
-    window.openTweaksPanel?.();
+    appWindow.openTweaksPanel?.();
     return true;
   } else if (action === 'open-settings') {
     window.openSettingsModal?.();
@@ -36,16 +38,17 @@ function runShellAction(action) {
     window.openSettingsModal?.('ai');
     return true;
   } else if (action === 'open-feedback') {
-    window.openFeedbackModal?.();
+    appWindow.openFeedbackModal?.();
     return true;
   } else if (action === 'import-status') {
-    window.handleImportStatusClick?.();
+    appWindow.handleImportStatusClick?.();
     return true;
   }
   return false;
 }
 
 function runChatAction(action, actionEl) {
+  const appWindow = /** @type {any} */ (window);
   if (action === 'toggle-panel') {
     window.toggleChatPanel?.();
     return true;
@@ -53,34 +56,34 @@ function runChatAction(action, actionEl) {
     window.closeChatPanel?.();
     return true;
   } else if (action === 'toggle-thread-rail') {
-    window.toggleThreadRail?.();
+    appWindow.toggleThreadRail?.();
     return true;
   } else if (action === 'create-thread') {
-    window.createNewThread?.();
+    appWindow.createNewThread?.();
     return true;
   } else if (action === 'summarize-thread') {
-    window.summarizeThread?.();
+    appWindow.summarizeThread?.();
     return true;
   } else if (action === 'clear-history') {
-    window.clearChatHistory?.();
+    appWindow.clearChatHistory?.();
     return true;
   } else if (action === 'toggle-fullscreen') {
-    window.toggleChatFullscreen?.();
+    appWindow.toggleChatFullscreen?.();
     return true;
   } else if (action === 'toggle-personality') {
-    window.togglePersonalityBar?.();
+    appWindow.togglePersonalityBar?.();
     return true;
   } else if (action === 'set-personality') {
-    window.setChatPersonality?.(actionEl.dataset.personality || 'default');
+    appWindow.setChatPersonality?.(actionEl.dataset.personality || 'default');
     return true;
   } else if (action === 'attach-image') {
     clickFileInput('chat-image-input');
     return true;
   } else if (action === 'toggle-hd') {
-    window.toggleHDMode?.();
+    appWindow.toggleHDMode?.();
     return true;
   } else if (action === 'start-discussion') {
-    window.startDiscussion?.();
+    appWindow.startDiscussion?.();
     return true;
   } else if (action === 'send-message') {
     window.sendChatMessage?.();
