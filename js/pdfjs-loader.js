@@ -6,8 +6,12 @@
 // for any legacy reference that hasn't migrated to the loader yet.
 
 /**
- * @typedef {{ items: Array<{ str?: string }> }} PdfTextContent
- * @typedef {{ getTextContent(): Promise<PdfTextContent> }} PdfPageProxy
+ * @typedef {{ items: Array<{ str?: string, transform?: number[] }> }} PdfTextContent
+ * @typedef {{
+ *   getTextContent(): Promise<PdfTextContent>,
+ *   getViewport(options: { scale: number }): { width: number, height: number },
+ *   render(options: { canvasContext: CanvasRenderingContext2D | null, viewport: unknown }): { promise: Promise<void> }
+ * }} PdfPageProxy
  * @typedef {{ numPages: number, getPage(pageNumber: number): Promise<PdfPageProxy> }} PdfDocumentProxy
  * @typedef {{ promise: Promise<PdfDocumentProxy> }} PdfLoadingTask
  * @typedef {{

@@ -558,7 +558,7 @@ function wirePIIOverlayNudge(overlay) {
   });
 }
 
-export function reviewPIIBeforeSend(originalText, { obfuscatedText, streamFn }) {
+export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamFn = null } = {}) {
   return new Promise(resolve => {
     const isStreaming = typeof streamFn === 'function';
     const overlay = document.createElement('div');
