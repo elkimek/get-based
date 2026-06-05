@@ -32,7 +32,9 @@ test('blood pressure manual log form is idempotent', async ({ page }) => {
     }
   });
 
-  expect(result.available).toBe(true);
+  if (!result.available) {
+    throw new Error('window.openManualLogForm is not exposed - wearables.js handler missing');
+  }
   expect(result.formCountFirst).toBe(1);
   expect(result.formCountSecond).toBe(1);
   expect(result.sysInputPresent).toBe(true);

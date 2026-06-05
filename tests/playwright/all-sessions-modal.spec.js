@@ -46,6 +46,7 @@ test('all sessions modal renders scrollable session list', async ({ page }) => {
     const body = modalEl.querySelector('.light-sessions-modal-body');
     if (!body) throw new Error('modal body unavailable');
     body.scrollTop = 0;
+    // The modal wheel handler intentionally updates scrollTop synchronously.
     modalEl.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 600 }));
     return body.scrollTop;
   });
