@@ -1,3 +1,4 @@
+// @ts-check
 // dna.js — DNA raw data import: parser, storage, context assembly
 // Parses raw DNA files from Ancestry, 23andMe, MyHeritage, FTDNA, Living DNA
 // Runs the heavy parsing in a Web Worker (inline blob) to keep UI responsive
@@ -5,6 +6,16 @@
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+
+/** @typedef {Window & typeof globalThis & {
+ *   _pendingDNAImport?: any,
+ *   _pendingMtDNA?: any,
+ *   getLatitudeFromLocation?: () => string | null,
+ *   _getState: () => { importedData: any },
+ *   _saveAndRefresh: () => Promise<void> | void
+ * }} DnaWindow */
+
+const dnaWindow = /** @type {DnaWindow} */ (window);
 
 // ═══════════════════════════════════════════════
 // FORMAT DETECTION
@@ -977,8 +988,8 @@ function reimportDNA() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.txt,.csv';
-  input.onchange = (e) => {
-    const file = e.target.files?.[0];
+  input.onchange = () => {
+    const file = input.files?.[0];
     if (file && window.handleDNAFile) window.handleDNAFile(file);
   };
   input.click();
@@ -1011,7 +1022,7 @@ export async function handleDNAFile(file) {
 }
 
 function showDNAImportPreview(result, fileName) {
-  window._pendingDNAImport = result;
+  dnaWindow._pendingDNAImport = result;
 
   // Categorize matches by effect — skip raw APOE components when haplotype resolved
   const apoe = resolveAPOE(result.matches);
@@ -1099,21 +1110,21 @@ function showDNAImportPreview(result, fileName) {
 }
 
 function closeDNAImportPreview() {
-  window._pendingDNAImport = null;
+  dnaWindow._pendingDNAImport = null;
   _dnaImportRunning = false;
   const overlay = document.getElementById('dna-modal-overlay');
   if (overlay) overlay.classList.remove('show');
 }
 
 async function confirmDNAImport() {
-  const result = window._pendingDNAImport;
+  const result = dnaWindow._pendingDNAImport;
   if (!result) return;
   saveGeneticsData(state.importedData, result);
   if (!await saveImportedData()) {
     _dnaImportRunning = false;
     return;
   }
-  window._pendingDNAImport = null;
+  dnaWindow._pendingDNAImport = null;
   _dnaImportRunning = false;
   const overlay = document.getElementById('dna-modal-overlay');
   if (overlay) overlay.classList.remove('show');
@@ -1138,7 +1149,7 @@ async function confirmDNAImport() {
   if (normCount > 0) parts.push(`\uD83D\uDFE2 ${normCount} normal`);
 
   // Update chat onboarding — replace DNA upload with confirmation
-  const dnaEl = document.querySelector('.chat-onboard-dna');
+  const dnaEl = /** @type {HTMLElement | null} */ (document.querySelector('.chat-onboard-dna'));
   if (dnaEl) {
     dnaEl.style.borderTop = '1px solid var(--border)';
     dnaEl.style.paddingTop = '12px';
@@ -1283,7 +1294,7 @@ export function detectMtDNAMismatch(genetics) {
   const coupling = genetics.mtdna.coupling;
 
   // Get latitude band from profile
-  const bandStr = window.getLatitudeFromLocation ? window.getLatitudeFromLocation() : null;
+  const bandStr = dnaWindow.getLatitudeFromLocation ? dnaWindow.getLatitudeFromLocation() : null;
   if (!bandStr) return null;
 
   const BANDS = ['<25\u00b0 latitude (tropical)', '25-40\u00b0 (subtropical)', '40-50\u00b0 (temperate)', '50-60\u00b0 (northern)', '>60\u00b0 (subarctic)'];
@@ -1325,7 +1336,7 @@ export async function handleMtDNAFile(file) {
     const coupling = classifyCoupling(resolved.haplogroup, hapTable);
     const hgData = hapTable.haplogroups[resolved.haplogroup];
     const source = file.name.toLowerCase().includes('23andme') || file.name.toLowerCase().includes('genome') ? 'mtDNA (23andMe)' : 'mtDNA CSV';
-    window._pendingMtDNA = { mutations, resolved, coupling, hgData, source };
+    dnaWindow._pendingMtDNA = { mutations, resolved, coupling, hgData, source };
     _showMtDNAPreview(resolved, coupling, mutations, file.name);
   } catch (e) {
     if (window.isDebugMode?.()) console.error('mtDNA import error:', e);
@@ -1383,11 +1394,11 @@ function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
 export function closeMtDNAPreview() {
   const overlay = document.getElementById('dna-modal-overlay');
   if (overlay) overlay.classList.remove('show');
-  window._pendingMtDNA = null;
+  dnaWindow._pendingMtDNA = null;
 }
 
 export async function confirmMtDNAImport() {
-  const pending = window._pendingMtDNA;
+  const pending = dnaWindow._pendingMtDNA;
   if (!pending) return;
 
   if (!state.importedData.genetics) {
@@ -1471,8 +1482,8 @@ export { HAPLOGROUP_LIST };
 /// would feel out of place.
 async function confirmDeleteDNA() {
   if (await window.showConfirmDialog('Delete genetic data? This cannot be undone.')) {
-    deleteGeneticsData(window._getState().importedData);
-    await window._saveAndRefresh();
+    deleteGeneticsData(dnaWindow._getState().importedData);
+    await dnaWindow._saveAndRefresh();
   }
 }
 
