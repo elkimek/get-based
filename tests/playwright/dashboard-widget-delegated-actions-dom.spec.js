@@ -185,10 +185,11 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       bodyActionHost.querySelector('[data-dashboard-widget-action="delete-note"]')?.click();
       await delay(50);
 
+      const organizingWidgets = document.querySelector('.dashboard-widgets.is-organizing');
       return {
         stickyControlsRender: !!customizeBtn,
-        delegatedCustomizeEntersOrganizeMode: !!document.querySelector('.dashboard-widgets.is-organizing'),
-        organizeModeUsesVisualOrder: getComputedStyle(document.querySelector('.dashboard-widgets.is-organizing')).gridAutoFlow === 'row',
+        delegatedCustomizeEntersOrganizeMode: !!organizingWidgets,
+        organizeModeUsesVisualOrder: !!organizingWidgets && getComputedStyle(organizingWidgets).gridAutoFlow === 'row',
         chromeHasNoInlineHandlers: !!organizeWidgetChrome
           && !document.querySelector('.dashboard-sticky-actions [onclick], .dashboard-organize-footer [onclick], .dashboard-widget-chrome [onclick], .dashboard-widget[ondragstart], .dashboard-widget[ondragover], .dashboard-widget[ondrop]'),
         moveAndHideActionsRender: !!document.querySelector('.dashboard-widget-tool[data-dashboard-widget-action="move-widget"][data-dashboard-widget-direction]')

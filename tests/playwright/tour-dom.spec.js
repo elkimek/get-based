@@ -57,6 +57,7 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
       const welcomeDots = tooltip?.querySelectorAll('.tour-dot').length === 5
         && tooltip?.querySelectorAll('.tour-dot')[0]?.classList.contains('active') === true
         && tooltip?.querySelectorAll('.tour-dot')[1]?.classList.contains('active') === false;
+      // Tour buttons are rendered by tour.js as HTML strings with inline onclick handlers.
       const welcomeButtons = tooltip?.querySelectorAll('.tour-btn').length === 2
         && tooltip?.querySelectorAll('.tour-btn')[0]?.textContent.trim() === 'Skip'
         && tooltip?.querySelectorAll('.tour-btn')[0]?.classList.contains('tour-btn-secondary') === true
