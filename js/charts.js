@@ -1,3 +1,4 @@
+// @ts-check
 // charts.js — Chart.js plugins, chart creation, marker descriptions
 
 import { state } from './state.js';
@@ -8,11 +9,15 @@ import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from
 const CHART_JS_SRC = '/vendor/chart.min.js';
 const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';
 
+const chartWindow = /** @type {Window & typeof globalThis & {
+  __labChartDateAdapterLoaded?: boolean
+}} */ (window);
+
 let _chartJsLoad = null;
 let _chartDateAdapterLoad = null;
 
 export function isChartDateAdapterReady() {
-  return window.__labChartDateAdapterLoaded === true;
+  return chartWindow.__labChartDateAdapterLoaded === true;
 }
 
 function ensureChartDateAdapter() {
@@ -20,7 +25,7 @@ function ensureChartDateAdapter() {
   if (!_chartDateAdapterLoad) {
     _chartDateAdapterLoad = loadScriptOnce(CHART_DATE_ADAPTER_SRC)
       .then(() => {
-        window.__labChartDateAdapterLoaded = true;
+        chartWindow.__labChartDateAdapterLoaded = true;
         return window.Chart;
       })
       .catch(err => {
@@ -491,7 +496,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   if (!marker.singlePoint && chartDates && chartDates.length > 0) {
     const today = new Date().toISOString().slice(0, 10);
     const lastDate = chartDates[chartDates.length - 1];
-    const daysSince = Math.round((new Date(today) - new Date(lastDate + 'T00:00:00')) / 86400000);
+    const daysSince = Math.round((new Date(today).getTime() - new Date(lastDate + 'T00:00:00').getTime()) / 86400000);
     if (daysSince >= 30) {
       chartDates = [...chartDates, today];
       dates = [...dates, 'Today'];
@@ -507,7 +512,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
     const dobDate = new Date(state.profileDob + 'T00:00:00');
     chronoAgeValues = chartDates.map(d => {
       const draw = new Date(d + 'T00:00:00');
-      const age = (draw - dobDate) / (365.25 * 24 * 60 * 60 * 1000);
+      const age = (draw.getTime() - dobDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       return age > 0 ? Math.round(age * 10) / 10 : null;
     });
   }
@@ -534,13 +539,13 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
   const rawDates = chartDates || [];
   const chartNotes = marker.singlePoint ? [] : getNotesForChart(rawDates);
   const chartSupps = marker.singlePoint ? [] : getSupplementsForChart(rawDates);
-  const datasets = [{
+  const datasets = /** @type {Array<Record<string, any>>} */ ([{
     data: values, borderColor: tc.lineColor, backgroundColor: tc.lineFill,
     borderWidth: 2.5, pointBackgroundColor: ptColors, pointBorderColor: ptColors,
     pointStyle: ptStyles, pointRadius: 6, pointHoverRadius: 8, tension: 0.3, fill: false, spanGaps: true,
     label: isPhenoAge ? 'Biological Age' : '',
     _gbPointStatuses: ptStatuses
-  }];
+  }]);
   if (chronoAgeValues) {
     datasets.push({
       data: chronoAgeValues, borderColor: tc.chronoLineColor, backgroundColor: "transparent",
@@ -562,7 +567,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         ticks: { color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
         grid: { display: false } }
     : { ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
-  state.chartInstances[id] = new window.Chart(canvas, {
+  state.chartInstances[id] = new window.Chart(/** @type {HTMLCanvasElement} */ (canvas), {
     type: "line",
     data: { labels: chartLabels, datasets },
     options: { responsive:true, maintainAspectRatio:false,
