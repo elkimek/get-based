@@ -1,3 +1,4 @@
+// @ts-check
 // supplements.js — Supplement/medication editor and dashboard section
 
 import { state } from './state.js';
@@ -9,7 +10,7 @@ import {
   getConfiguredArrayItemId,
   replaceImportedArrayItem,
 } from './data-merge.js';
-import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
+import { callClaudeAPI, getAIProvider, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import {
@@ -34,6 +35,50 @@ export {
   refreshSupplementImpact,
   renderSupplementImpact,
 } from './supplement-impact.js';
+
+const appWindow = /** @type {Window & typeof globalThis & {
+  closeModal: () => void,
+  navigate: (category: string) => void
+}} */ (window);
+
+/**
+ * @param {string} id
+ * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null}
+ */
+function getFormField(id) {
+  const el = document.getElementById(id);
+  if (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  ) {
+    return el;
+  }
+  return null;
+}
+
+/**
+ * @param {Element | null} el
+ * @returns {string}
+ */
+function getElementValue(el) {
+  if (
+    el instanceof HTMLInputElement ||
+    el instanceof HTMLSelectElement ||
+    el instanceof HTMLTextAreaElement
+  ) {
+    return el.value;
+  }
+  return '';
+}
+
+/**
+ * @param {string} id
+ * @returns {string}
+ */
+function getFieldValue(id) {
+  return getFormField(id)?.value || '';
+}
 
 function _parseHttpUrl(raw) {
   const value = (raw || '').trim();
@@ -167,8 +212,15 @@ export function renderSupplementsSection() {
   return html;
 }
 
+/**
+ * @param {number} idx
+ * @param {string} [name]
+ * @param {string} [amount]
+ * @param {string | number} [timesPerDay]
+ * @param {string | number} [outerTimes]
+ */
 function _ingredientRowHtml(idx, name = '', amount = '', timesPerDay = '', outerTimes = '') {
-  const rowTimes = timesPerDay === 0 || timesPerDay ? String(timesPerDay) : '';
+  const rowTimes = timesPerDay !== '' && timesPerDay != null ? String(timesPerDay) : '';
   const effective = rowTimes || outerTimes;
   const total = effective ? ingredientDailyTotal({ amount, timesPerDay: effective }) : null;
   return `<div class="supp-ingredient-row" data-idx="${idx}">
@@ -181,15 +233,17 @@ function _ingredientRowHtml(idx, name = '', amount = '', timesPerDay = '', outer
 }
 
 function _getOuterTimesFromForm() {
-  const el = document.getElementById('supp-times');
-  return el && el.value ? el.value.trim() : '';
+  return getFieldValue('supp-times').trim();
 }
 
+/**
+ * @param {Element} inputEl
+ */
 function updateIngTotal(inputEl) {
   const row = inputEl.closest('.supp-ingredient-row');
   if (!row) return;
-  const amount = row.querySelector('.supp-ing-amount')?.value || '';
-  const rowTimes = row.querySelector('.supp-ing-times')?.value || '';
+  const amount = getElementValue(row.querySelector('.supp-ing-amount'));
+  const rowTimes = getElementValue(row.querySelector('.supp-ing-times'));
   const totalEl = row.querySelector('.supp-ing-total');
   if (!totalEl) return;
   const effective = rowTimes || _getOuterTimesFromForm();
@@ -211,9 +265,13 @@ function addIngredientRow() {
   const idx = container.children.length;
   container.insertAdjacentHTML('beforeend', _ingredientRowHtml(idx, '', '', '', _getOuterTimesFromForm()));
   const rows = container.querySelectorAll('.supp-ing-name');
-  if (rows.length) rows[rows.length - 1].focus();
+  const lastRow = rows[rows.length - 1];
+  if (lastRow instanceof HTMLElement) lastRow.focus();
 }
 
+/**
+ * @param {Element} btn
+ */
 function removeIngredientRow(btn) {
   btn.closest('.supp-ingredient-row')?.remove();
 }
@@ -233,9 +291,14 @@ function addPeriodRow() {
   const idx = container.children.length;
   container.insertAdjacentHTML('beforeend', _periodRowHtml(idx));
   // Show all remove buttons when 2+ rows
-  for (const btn of container.querySelectorAll('.supp-period-remove')) btn.style.display = '';
+  for (const btn of container.querySelectorAll('.supp-period-remove')) {
+    if (btn instanceof HTMLElement) btn.style.display = '';
+  }
 }
 
+/**
+ * @param {Element} btn
+ */
 function removePeriodRow(btn) {
   const container = document.getElementById('supp-periods');
   if (!container) return;
@@ -243,7 +306,7 @@ function removePeriodRow(btn) {
   const rows = container.querySelectorAll('.supp-period-row');
   if (rows.length === 1) {
     const rem = rows[0].querySelector('.supp-period-remove');
-    if (rem) rem.style.display = 'none';
+    if (rem instanceof HTMLElement) rem.style.display = 'none';
   }
 }
 
@@ -251,8 +314,8 @@ function _collectPeriods() {
   const rows = document.querySelectorAll('#supp-periods .supp-period-row');
   const periods = [];
   for (const row of rows) {
-    const start = row.querySelector('.supp-period-start')?.value;
-    const end = row.querySelector('.supp-period-end')?.value || null;
+    const start = getElementValue(row.querySelector('.supp-period-start'));
+    const end = getElementValue(row.querySelector('.supp-period-end')) || null;
     if (start) periods.push({ start, end });
   }
   return periods;
@@ -262,9 +325,9 @@ function _collectIngredients() {
   const rows = document.querySelectorAll('#supp-ingredients .supp-ingredient-row');
   const ingredients = [];
   for (const row of rows) {
-    const name = row.querySelector('.supp-ing-name')?.value.trim();
-    const amount = row.querySelector('.supp-ing-amount')?.value.trim();
-    const timesRaw = row.querySelector('.supp-ing-times')?.value.trim();
+    const name = getElementValue(row.querySelector('.supp-ing-name')).trim();
+    const amount = getElementValue(row.querySelector('.supp-ing-amount')).trim();
+    const timesRaw = getElementValue(row.querySelector('.supp-ing-times')).trim();
     if (!name) continue;
     const ing = { name, amount };
     const times = timesRaw ? parseFloat(timesRaw) : NaN;
@@ -279,12 +342,13 @@ async function scanSupplementLabel(input) {
   input.value = '';
   if (!file || !isValidImageType(file.type)) { showNotification('Please select an image (JPG, PNG, WebP)', 'error'); return; }
   const scanBtn = document.querySelector('.supp-scan-label');
-  if (scanBtn) { scanBtn.textContent = 'Scanning...'; scanBtn.disabled = true; }
+  if (scanBtn instanceof HTMLButtonElement) { scanBtn.textContent = 'Scanning...'; scanBtn.disabled = true; }
   try {
     const { base64, mediaType } = await resizeImage(file, 1024, 0.85);
-    const imageBlock = formatImageBlock(base64, mediaType);
-    const content = buildVisionContent([imageBlock], 'Extract product name and active ingredients from this supplement/medication label. Reply with ONLY JSON: {"product":"product name","dosage":"serving size e.g. 2 capsules/day","ingredients":[{"name":"ingredient","amount":"per serving"},...]}\nOnly active ingredients — skip fillers, excipients, binders, coatings, flavors, sweeteners. No other text.');
-    const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 2000 });
+    const provider = getAIProvider();
+    const imageBlock = formatImageBlock(base64, mediaType, provider);
+    const content = buildVisionContent([imageBlock], 'Extract product name and active ingredients from this supplement/medication label. Reply with ONLY JSON: {"product":"product name","dosage":"serving size e.g. 2 capsules/day","ingredients":[{"name":"ingredient","amount":"per serving"},...]}\nOnly active ingredients — skip fillers, excipients, binders, coatings, flavors, sweeteners. No other text.', provider);
+    const result = await callClaudeAPI({ messages: [{ role: 'user', content }], maxTokens: 2000 }, provider);
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse label from image', 'error'); return; }
     _applyParsedSupplement(JSON.parse(jsonMatch[0]));
@@ -292,7 +356,7 @@ async function scanSupplementLabel(input) {
     if (isDebugMode()) console.warn('[scanLabel]', e);
     showNotification('Failed to scan label: ' + (e.message || 'Unknown error'), 'error');
   } finally {
-    if (scanBtn) { scanBtn.textContent = 'Scan label'; scanBtn.disabled = false; }
+    if (scanBtn instanceof HTMLButtonElement) { scanBtn.textContent = 'Scan label'; scanBtn.disabled = false; }
   }
 }
 
@@ -310,21 +374,20 @@ function _applyParsedSupplement(parsed) {
     showNotification(`${ingredients.length} ingredients extracted`, 'success');
   }
   const _valid = v => v && !/not (specified|found|available|provided)/i.test(v) && !/n\/?a/i.test(v);
-  const nameInput = document.getElementById('supp-name');
+  const nameInput = getFormField('supp-name');
   if (nameInput && !nameInput.value.trim() && _valid(parsed.product)) nameInput.value = parsed.product;
-  const dosageInput = document.getElementById('supp-dosage');
+  const dosageInput = getFormField('supp-dosage');
   if (dosageInput && !dosageInput.value.trim() && _valid(parsed.dosage)) dosageInput.value = parsed.dosage;
 }
 
 async function fetchSupplementFromURL() {
-  const urlInput = document.getElementById('supp-url');
-  const rawUrl = urlInput?.value.trim();
+  const rawUrl = getFieldValue('supp-url').trim();
   if (!rawUrl) { showNotification('Paste a product URL first', 'error'); return; }
   const parsedUrl = _parseHttpUrl(rawUrl);
   if (!parsedUrl) { showNotification('Product URL must be http or https', 'error'); return; }
   const url = parsedUrl.toString();
   const btn = document.querySelector('.supp-url-fetch');
-  if (btn) { btn.textContent = 'Fetching...'; btn.disabled = true; }
+  if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetching...'; btn.disabled = true; }
   try {
     // Fetch page HTML — use /api/fetch-page on localhost, proxy GET on hosted
     const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -377,7 +440,7 @@ async function fetchSupplementFromURL() {
     if (isDebugMode()) console.warn('[fetchURL]', e);
     showNotification('Failed to fetch: ' + (e.message || 'Unknown error'), 'error');
   } finally {
-    if (btn) { btn.textContent = 'Fetch'; btn.disabled = false; }
+    if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetch'; btn.disabled = false; }
   }
 }
 
@@ -449,7 +512,7 @@ export function toggleSuppAccordion(idx) {
   const clickedRow = document.querySelector(`.supp-list-item[data-idx="${idx}"]`);
   // Collapse currently expanded
   if (existing) {
-    const oldIdx = parseInt(existing.dataset.expandedIdx);
+    const oldIdx = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
     existing.remove();
     const oldRow = document.querySelector(`.supp-list-item[data-idx="${oldIdx}"]`);
     if (oldRow) oldRow.classList.remove('supp-list-item-active');
@@ -538,23 +601,23 @@ export function showAddSuppForm() {
   // Collapse any open accordion to prevent duplicate IDs
   const existing = document.querySelector('.supp-list-expanded');
   if (existing) {
-    const oldIdx = parseInt(existing.dataset.expandedIdx);
+    const oldIdx = existing instanceof HTMLElement ? parseInt(existing.dataset.expandedIdx || '', 10) : NaN;
     existing.remove();
     const oldRow = document.querySelector(`.supp-list-item[data-idx="${oldIdx}"]`);
     if (oldRow) oldRow.classList.remove('supp-list-item-active');
   }
   area.innerHTML = _suppFormHtml(-1, null);
   setTimeout(() => {
-    const nameInput = document.getElementById('supp-name');
+    const nameInput = getFormField('supp-name');
     if (nameInput) nameInput.focus();
     area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 50);
 }
 
 export function saveSupplement(idx) {
-  const name = document.getElementById('supp-name').value.trim();
-  const dosage = document.getElementById('supp-dosage').value.trim();
-  const type = document.getElementById('supp-type').value;
+  const name = getFieldValue('supp-name').trim();
+  const dosage = getFieldValue('supp-dosage').trim();
+  const type = getFieldValue('supp-type');
   if (!name) { showNotification('Name is required', 'error'); return; }
   const collectedPeriods = _collectPeriods();
   if (collectedPeriods.length === 0) { showNotification('At least one period is required', 'error'); return; }
@@ -568,11 +631,11 @@ export function saveSupplement(idx) {
   }
   const startDate = sorted[0].start;
   const endDate = sorted[sorted.length - 1].end;
-  const note = document.getElementById('supp-note').value.trim();
+  const note = getFieldValue('supp-note').trim();
   const ingredients = _collectIngredients();
-  const timesRaw = document.getElementById('supp-times')?.value.trim();
+  const timesRaw = getFieldValue('supp-times').trim();
   const timesNum = timesRaw ? parseFloat(timesRaw) : NaN;
-  const sourceUrlRaw = document.getElementById('supp-url')?.value.trim() || '';
+  const sourceUrlRaw = getFieldValue('supp-url').trim();
   let parsedSourceUrl = null;
   if (sourceUrlRaw) {
     try {
@@ -619,17 +682,18 @@ export function deleteSupplement(idx) {
   if (state.importedData.supplements.length > 0) {
     openSupplementsEditor();
   } else {
-    window.closeModal();
+    appWindow.closeModal();
     const activeNav = document.querySelector(".nav-item.active");
-    window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   }
 }
 
 function askAIMitoContext() {
-  document.querySelector('[aria-label="Ask AI"]')?.click();
+  const askButton = document.querySelector('[aria-label="Ask AI"]');
+  if (askButton instanceof HTMLElement) askButton.click();
   setTimeout(() => {
     const ta = document.querySelector('textarea.chat-input');
-    if (ta) {
+    if (ta instanceof HTMLTextAreaElement) {
       ta.value = 'Explain the mitochondrial effects of my current supplements and medications. Which ones should I be concerned about and why?';
       ta.dispatchEvent(new Event('input', { bubbles: true }));
       ta.focus();
