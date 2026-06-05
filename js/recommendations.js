@@ -1,3 +1,4 @@
+// @ts-check
 // recommendations.js — Catalog loading, slot matching, HTML rendering for supplement & lifestyle recs
 
 import { escapeHTML } from './utils.js';
