@@ -1,3 +1,4 @@
+// @ts-check
 // js/lens-local-worker.js — browser-side lens engine (no Python, no server).
 //
 // Runs in a module Web Worker. Owns all OPFS I/O and all calls into
@@ -238,7 +239,8 @@ async function _ensureTransformers() {
   // ESM locally via a bundler pass at vendor-update time; tracked as
   // phase 2c in project_browser_local_lens.md. Until then, trust is
   // rooted in jsdelivr + our CSP's cdn.jsdelivr.net allowlist.
-  const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0');
+  const transformersUrl = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0';
+  const mod = await import(transformersUrl);
   // ORT picks one of 4 WASM variants at runtime (plain / asyncify / jsep /
   // jspi) based on what the browser supports — SharedArrayBuffer gates
   // threaded, cross-origin isolation headers gate jsep, etc. Vendoring
@@ -342,7 +344,7 @@ async function _loadEmbedder(modelKey) {
       `[lens-local] Embedding benchmark: ${_modelKey} on ${_embedderBackend}, ` +
       `${_benchmarkVerdict.msPerEmbed.toFixed(0)} ms/embed median → tier ${_benchmarkVerdict.tier} (${_benchmarkVerdict.tierLabel})`
     );
-    self._lensLocalBenchmark = _benchmarkVerdict; // devtools inspection
+    /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict; // devtools inspection
   } catch (err) {
     console.warn('[lens-local] benchmark failed:', err?.message || err);
     _benchmarkVerdict = null;
