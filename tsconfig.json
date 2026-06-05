@@ -75,6 +75,7 @@
     "js/context-card-summaries.js",
     "js/context-cards.js",
     "js/crypto.js",
+    "js/cycle.js",
     "js/dashboard-page-view.js",
     "js/dashboard-recommendation-widget.js",
     "js/dashboard-view-composition.js",
