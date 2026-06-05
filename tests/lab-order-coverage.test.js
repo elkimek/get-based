@@ -305,7 +305,7 @@ describe('provider coverage matrix and recommendations', () => {
       coveredCount: 4,
       coveragePercent: 100,
       missingMarkerKeys: [],
-      totalEstimateCzk: 995,
+      totalEstimateCzk: 1076,
     }));
     for (const marker of THYROID_MARKERS) {
       expect(unilabs.cells[marker.markerKey]).toEqual(expect.objectContaining({

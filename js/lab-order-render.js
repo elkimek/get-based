@@ -101,11 +101,15 @@ function renderCalculatedMarkers(draft) {
 
 function renderProviderRecommendation(draft) {
   const rec = draft.providerRecommendation;
-  if (!rec?.bestCoverage && !rec?.cheapestSplit) return '';
+  if (!rec?.bestCoverage && !rec?.cheapestComplete && !rec?.cheapestSplit) return '';
   const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, m.displayName || m.markerKey]));
   const best = rec.bestCoverage ? `<div class="lab-provider-recommendation-row">
     <span>Best coverage</span>
     <strong>${escapeHTML(rec.bestCoverage.name || rec.bestCoverage.providerId)} · ${escapeHTML(String(rec.bestCoverage.coveredCount))}/${escapeHTML(String(rec.bestCoverage.requestedCount))} tests · ${escapeHTML(formatCzk(rec.bestCoverage.totalEstimateCzk))}</strong>
+  </div>` : '';
+  const cheapestComplete = rec.cheapestComplete ? `<div class="lab-provider-recommendation-row">
+    <span>Cheapest complete single lab</span>
+    <strong>${escapeHTML(rec.cheapestComplete.name || rec.cheapestComplete.providerId)} · ${escapeHTML(formatCzk(rec.cheapestComplete.totalEstimateCzk))}</strong>
   </div>` : '';
   const splitLabel = (rec.cheapestSplit?.providerCount || 0) > 1 ? 'Cheapest complete split' : 'Cheapest complete option';
   const split = rec.cheapestSplit?.complete ? `<div class="lab-provider-recommendation-row split">
@@ -117,6 +121,7 @@ function renderProviderRecommendation(draft) {
   </div>` : '';
   return `<div class="lab-provider-recommendation">
     ${best}
+    ${cheapestComplete}
     ${split}
   </div>`;
 }

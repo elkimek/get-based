@@ -328,6 +328,8 @@ describe('lab order card rendering', () => {
 
     expect(html).toContain('Best coverage');
     expect(html).toContain('Unilabs.cz · 4/4 tests · 1 541 Kč');
+    expect(html).toContain('Cheapest complete single lab');
+    expect(html).toContain('Unilabs.cz · 1 541 Kč');
     expect(html).toContain('Cheapest complete split');
     expect(html).toContain('Labshop: Vitamin B12, Folate · 500 Kč');
     expect(html).toContain('Unilabs.cz: Homocysteine, Active B12 · 960 Kč');

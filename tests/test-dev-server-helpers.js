@@ -532,6 +532,12 @@ console.log('\n── Labshop preview endpoint source guard ──');
   assert('Unilabs preview endpoint wraps non-JSON add-product responses',
     src.includes('function _parseJsonResponseBody') && src.includes('_parseJsonResponseBody(add.body, `Unilabs AddProduct ${item.productId}`)'),
     src.slice(src.indexOf('function _parseJsonResponseBody'), src.indexOf('function _parseJsonResponseBody') + 220));
+  assert('Unilabs preview endpoint derives allowlist from provider catalogue source',
+    src.includes("getProviderCatalogueItems('cz.unilabs'") && src.includes('fallbackCatalogue'),
+    src.slice(src.indexOf('async function _createUnilabsCartPreview'), src.indexOf('async function _createUnilabsCartPreview') + 620));
+  assert('Unilabs preview endpoint reuses canonical blood draw fee constant',
+    src.includes('UNILABS_BLOOD_DRAW_FEE_CZK') && !src.includes('item.priceCzk, 81)'),
+    src.slice(src.indexOf('async function _createUnilabsCartPreview'), src.indexOf('async function _createUnilabsCartPreview') + 1100));
 }
 
 console.log('\n── Private catalogue endpoint source guard ──');

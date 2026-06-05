@@ -116,7 +116,9 @@ export function findUnilabsOffersForMarkers(markerIntents = [], options = {}) {
     .sort((a, b) => (a.priceCzk ?? Infinity) - (b.priceCzk ?? Infinity) || a.name.localeCompare(b.name, 'cs'));
 
   const offers = [];
-  if (packageOffer) offers.push(packageOffer);
+  if (packageOffer) {
+    offers.push(items.length ? packageOffer : { ...packageOffer, bloodDrawFeeCzk: packageOffer.bloodDrawFeeCzk ?? UNILABS_BLOOD_DRAW_FEE_CZK });
+  }
   if (items.length) offers.push(makeCustomCartOffer(items));
   return offers;
 }

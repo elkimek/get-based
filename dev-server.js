@@ -15,6 +15,7 @@ import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { getProviderCatalogueItems } from './js/lab-providers/provider-catalogue-source.js';
+import { UNILABS_BLOOD_DRAW_FEE_CZK } from './js/lab-providers/cz/unilabs.js';
 import { buildLabProviderCataloguesScript, loadLabProviderCataloguesFromEnv } from './api/lab-provider-catalogues.js';
 
 export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
@@ -567,30 +568,37 @@ function _parseJsonResponseBody(body, context = 'response') {
   }
 }
 async function _createUnilabsCartPreview(products) {
-  const allowed = new Map([
-    ['2540', { productId: '2540', name: 'ALT (Alaninaminotransferáza)', priceCzk: 28 }],
-    ['2542', { productId: '2542', name: 'AST (Aspartátaminotransferáza)', priceCzk: 28 }],
-    ['2544', { productId: '2544', name: 'CRP test', priceCzk: 171 }],
-    ['2547', { productId: '2547', name: 'Estradiol', priceCzk: 228 }],
-    ['2550', { productId: '2550', name: 'FSH - Folikulostimulační hormon', priceCzk: 197 }],
-    ['2548', { productId: '2548', name: 'Ferritin', priceCzk: 263 }],
-    ['2552', { productId: '2552', name: 'GGT', priceCzk: 28 }],
-    ['2556', { productId: '2556', name: 'Hořčík (Magnesium, Mg)', priceCzk: 31 }],
-    ['2560', { productId: '2560', name: 'Kreatinin', priceCzk: 29 }],
-    ['2561', { productId: '2561', name: 'Kyselina močová', priceCzk: 29 }],
-    ['2563', { productId: '2563', name: 'LH - Luteinizační hormon', priceCzk: 194 }],
-    ['2673', { productId: '2673', name: 'Glukóza', priceCzk: 28 }],
-    ['2694', { productId: '2694', name: 'Vyšetření štítné žlázy EXPERT', priceCzk: 995 }],
-    ['2709', { productId: '2709', name: 'Test na testosteron', priceCzk: 217 }],
-    ['2885', { productId: '2885', name: 'Vitamín B12', priceCzk: 291 }],
-    ['2886', { productId: '2886', name: 'Kyselina listová (folát, vitamín B9)', priceCzk: 290 }],
-    ['2888', { productId: '2888', name: 'Inzulin', priceCzk: 183 }],
-    ['3081', { productId: '3081', name: 'Test na apolipoprotein A1 (Apo A1)', priceCzk: 236 }],
-    ['2541', { productId: '2541', name: 'Test na apolipoprotein B (Apo B)', priceCzk: 236 }],
-    ['3082', { productId: '3082', name: 'Homocystein', priceCzk: 571 }],
-    ['3543', { productId: '3543', name: 'Test na aktivní vitamín B12', priceCzk: 308 }],
-    ['2571', { productId: '2571', name: 'TSH - hormon stimulující štítnou žlázu', priceCzk: 218 }],
-  ]);
+  const fallbackCatalogue = [
+    { providerProductId: '2543', name: 'Albumin', priceCzk: 29 },
+    { providerProductId: '2544', name: 'ALP - Alkalická fosfatáza', priceCzk: 29 },
+    { providerProductId: '2545', name: 'ALT - Alaninaminotransferáza', priceCzk: 29 },
+    { providerProductId: '2546', name: 'AMS - Alfa-amyláza', priceCzk: 29 },
+    { providerProductId: '2547', name: 'AST - Aspartátaminotransferáza', priceCzk: 29 },
+    { providerProductId: '2550', name: 'Bilirubin celkový', priceCzk: 29 },
+    { providerProductId: '2558', name: 'GGT - Gama-glutamyltransferáza', priceCzk: 29 },
+    { providerProductId: '2559', name: 'Hořčík', priceCzk: 29 },
+    { providerProductId: '2560', name: 'Kreatinin', priceCzk: 29 },
+    { providerProductId: '2561', name: 'Kyselina močová', priceCzk: 29 },
+    { providerProductId: '2563', name: 'LH - Luteinizační hormon', priceCzk: 194 },
+    { providerProductId: '2673', name: 'Glukóza', priceCzk: 28 },
+    { providerProductId: '2694', name: 'Vyšetření štítné žlázy EXPERT', priceCzk: 995 },
+    { providerProductId: '2709', name: 'Test na testosteron', priceCzk: 217 },
+    { providerProductId: '2885', name: 'Vitamín B12', priceCzk: 291 },
+    { providerProductId: '2886', name: 'Kyselina listová (folát, vitamín B9)', priceCzk: 290 },
+    { providerProductId: '2888', name: 'Inzulin', priceCzk: 183 },
+    { providerProductId: '3081', name: 'Test na apolipoprotein A1 (Apo A1)', priceCzk: 236 },
+    { providerProductId: '2541', name: 'Test na apolipoprotein B (Apo B)', priceCzk: 236 },
+    { providerProductId: '3082', name: 'Homocystein', priceCzk: 571 },
+    { providerProductId: '3543', name: 'Test na aktivní vitamín B12', priceCzk: 308 },
+    { providerProductId: '2571', name: 'TSH - hormon stimulující štítnou žlázu', priceCzk: 218 },
+  ];
+  const catalogue = getProviderCatalogueItems('cz.unilabs', { fallback: fallbackCatalogue });
+  const allowed = new Map(catalogue.map(product => [String(product.providerProductId || product.idProduct || product.productId), {
+    productId: String(product.providerProductId || product.idProduct || product.productId),
+    name: product.name,
+    priceCzk: Number(product.priceCzk) || 0,
+  }]));
+
   const requested = Array.isArray(products) ? products : [];
   const items = requested.map(p => allowed.get(String(p.productId || p.idProduct || p.id))).filter(Boolean);
   if (!items.length) throw Object.assign(new Error('No allowlisted Unilabs products in request'), { status: 400 });
@@ -620,7 +628,7 @@ async function _createUnilabsCartPreview(products) {
   const snippets = lastJson?.snippets || {};
   const summaryText = _stripHtml(snippets['snippet--configuratorProcess'] || snippets['snippet--selectedParameters'] || '');
   const totalMatch = summaryText.match(/Mezisoučet:\s*([0-9\s]+)\s*Kč/) || summaryText.match(/Vybrané parametry\s*([0-9\s]+)\s*Kč/);
-  const localTotalCzk = items.reduce((sum, item) => sum + item.priceCzk, 81);
+  const localTotalCzk = items.reduce((sum, item) => sum + item.priceCzk, UNILABS_BLOOD_DRAW_FEE_CZK);
   const remoteSessionVerified = Boolean(summaryText && items.every(item => summaryText.includes(item.name.split(' (')[0])));
   const totalCzk = remoteSessionVerified && totalMatch ? Number(totalMatch[1].replace(/\s/g, '')) : localTotalCzk;
   return {
@@ -629,7 +637,7 @@ async function _createUnilabsCartPreview(products) {
     preview: true,
     items,
     itemCount: items.length,
-    bloodDrawFeeCzk: 81,
+    bloodDrawFeeCzk: UNILABS_BLOOD_DRAW_FEE_CZK,
     totalCzk,
     checkoutUrl: `${base}/sestavte-si-vlastni-vysetreni`,
     cartUrl: `${base}/cart?step=1`,

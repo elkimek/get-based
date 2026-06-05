@@ -116,4 +116,30 @@ describe('Unilabs configurator catalogue adapter', () => {
       note: expect.stringContaining('not explicitly high-sensitivity CRP'),
     }));
   });
+
+  it('adds the blood-draw fee when a supplemental package covers every requested marker', () => {
+    const offers = findUnilabsOffersForMarkers([
+      { markerKey: 'thyroid.tsh', displayName: 'TSH' },
+      { markerKey: 'thyroid.freeT4', displayName: 'Free T4' },
+    ], {
+      catalogueItems: [],
+      supplementalOffers: [{
+        providerId: 'cz.unilabs',
+        providerProductId: 'unilabs-thyroid-package',
+        name: 'Synthetic thyroid package',
+        priceCzk: 995,
+        covers: [
+          { markerKey: 'thyroid.tsh', displayName: 'TSH', coverage: 'exact' },
+          { markerKey: 'thyroid.freeT4', displayName: 'Free T4', coverage: 'exact' },
+        ],
+      }],
+    });
+
+    expect(offers).toHaveLength(1);
+    expect(offers[0]).toEqual(expect.objectContaining({
+      providerProductId: 'unilabs-thyroid-package',
+      priceCzk: 995,
+      bloodDrawFeeCzk: 81,
+    }));
+  });
 });
