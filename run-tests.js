@@ -74,8 +74,7 @@ const TEST_FILES = [
   'tests/test-dashboard-knowledge-base-dom.js',
   // test-dashboard-data-protection.js HTML-string rendering checks ported to
   // Vitest (batch 28). Section 6 (picker open/dismiss — live DOM overlay +
-  // click) lives in test-dashboard-data-protection-dom.js below.
-  'tests/test-dashboard-data-protection-dom.js',
+  // click) moved to Playwright in tests/playwright/dashboard-data-protection.spec.js.
   'tests/test-chat-panel-ux.js',
   'tests/test-chat-empty-state-dom.js',
   // test-custom-api.js source-inspection + behavioral ported to Vitest

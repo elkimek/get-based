@@ -15,7 +15,7 @@
 // Run: node tests/test-dashboard-data-protection.js  (or via npm test)
 //
 // Section 6 (picker open/dismiss — needs a live DOM overlay + click events)
-// lives in tests/test-dashboard-data-protection-dom.js on the puppeteer runner.
+// lives in tests/playwright/dashboard-data-protection.spec.js.
 
 import './_node-shim.js';
 
@@ -91,7 +91,7 @@ const make = (overrides) => ({
 }
 
 // Section 6 (picker open/dismiss — live DOM) lives in
-// test-dashboard-data-protection-dom.js.
+// tests/playwright/dashboard-data-protection.spec.js.
 
 // ─── 7. Window exports ───────────────────────────────────
 {
