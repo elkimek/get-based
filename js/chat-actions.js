@@ -2,10 +2,11 @@
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
 import { CHAT_ICON_COPY, CHAT_ICON_REFRESH, setIconButtonContent } from './chat-icons.js';
 import { saveChatHistory } from './chat-history.js';
 import { buildLabOrderCopyText, buildLabPlanCopyText } from './lab-order-render.js';
+import { buildAILabPlanFromThread } from './lab-plan-ai.js';
 
 export function buildActionBar(msgIndex) {
   const msg = state.chatHistory[msgIndex];
@@ -54,7 +55,7 @@ export function regenerateLastMessage() {
 export function buildMessageCopyText(msg) {
   if (!msg) return '';
   const sections = [msg.content || ''];
-  const planText = buildLabPlanCopyText(msg.labPlanDraft);
+  const planText = msg.labOrderDraft ? '' : buildLabPlanCopyText(msg.labPlanDraft);
   const orderText = buildLabOrderCopyText(msg.labOrderDraft);
   if (planText) sections.push(planText);
   if (orderText) sections.push(orderText);
@@ -94,8 +95,53 @@ export function toggleContextDetails(msgIndex) {
   if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
 }
 
+function setLabPlanButtonBusy(isBusy) {
+  const btn = document.querySelector('[data-chat-action="build-lab-plan"]');
+  if (!(btn instanceof HTMLButtonElement)) return;
+  btn.disabled = !!isBusy;
+  btn.classList.toggle('is-loading', !!isBusy);
+  btn.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+  btn.title = isBusy ? 'Building lab plan…' : 'Build lab plan from this conversation';
+  btn.setAttribute('aria-label', isBusy ? 'Building lab plan' : 'Build lab plan');
+  const label = btn.querySelector('.chat-lab-plan-btn-label');
+  if (label) label.textContent = isBusy ? 'Building lab plan…' : 'Build lab plan';
+}
+
+export async function buildLabPlanFromThreadAction() {
+  if (!Array.isArray(state.chatHistory) || state.chatHistory.length === 0) {
+    showNotification('No conversation to turn into a lab plan yet', 'info');
+    return;
+  }
+  setLabPlanButtonBusy(true);
+  try {
+    const result = await buildAILabPlanFromThread(state.chatHistory);
+    const plan = result.plan;
+    const rationale = plan.rationale ? `\n\nLogic: ${plan.rationale}` : '';
+    const usage = result.usage && (result.usage.inputTokens || result.usage.outputTokens)
+      ? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }
+      : null;
+    state.chatHistory.push({
+      role: 'assistant',
+      content: `I built a focused next-blood-draw plan from this conversation.${rationale}\n\nReview/edit the tests, then use Compare labs to check verified online offers.`,
+      provider: result.provider,
+      modelId: result.modelId,
+      modelDisplay: result.modelDisplay || 'AI lab planner',
+      usage,
+      labPlanDraft: plan,
+    });
+    window.renderChatMessages?.();
+    await saveChatHistory();
+    showNotification('AI lab plan created', 'success');
+  } catch (err) {
+    showNotification(`Lab plan failed: ${err?.message || 'AI planner error'}`, 'error');
+  } finally {
+    setLabPlanButtonBusy(false);
+  }
+}
+
 Object.assign(window, {
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,
+  buildLabPlanFromThreadAction,
 });

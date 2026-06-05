@@ -28,7 +28,7 @@ import {
   clearChatHistory, getChatStorageKey, loadChatHistory, saveChatHistory,
 } from './chat-history.js';
 import {
-  buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
+  buildActionBar, buildLabPlanFromThreadAction, copyMessage, regenerateLastMessage, toggleContextDetails,
 } from './chat-actions.js';
 import { bindLabOrderActions, handleLabOrderClick } from './lab-order-actions.js';
 import {
@@ -142,6 +142,7 @@ Object.assign(window, {
   askAIAboutCorrelations,
   buildActionBar,
   handleLabOrderClick,
+  buildLabPlanFromThreadAction,
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,

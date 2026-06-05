@@ -219,6 +219,7 @@
             <span class="chat-lens-label">Lens</span>
           </button>
           <span class="sr-only" aria-live="polite" id="chat-lens-status"></span>
+          <button class="chat-lab-plan-btn" data-chat-action="build-lab-plan" title="Build lab plan from this conversation" aria-label="Build lab plan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.25C9.6 6.2 7 9.9 7 13.1A5 5 0 0 0 12 18a5 5 0 0 0 5-4.9c0-3.2-2.6-6.9-5-9.85Z"/><path d="M9.6 13.2a2.4 2.4 0 0 0 2.4 2.35"/></svg><span class="chat-lab-plan-btn-label sr-only">Build lab plan</span></button>
           <button class="chat-summary-btn" data-chat-action="summarize-thread" title="Summarize this conversation" aria-label="Summarize this conversation"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16"/><path d="M4 9h10"/><path d="M4 14h16"/><path d="M4 19h10"/></svg></button>
           <button class="chat-clear-btn" data-chat-action="clear-history" title="Clear history" aria-label="Clear history"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg></button>
           <button class="chat-fullscreen-btn" data-chat-action="toggle-fullscreen" aria-label="Toggle fullscreen chat" title="Toggle fullscreen">
@@ -279,6 +280,7 @@
   <div class="notification-container" id="notification-container" aria-live="polite" role="status"></div>
 
   <script src="version.js" defer></script>
+  <script src="/api/lab-provider-catalogues"></script>
   <script type="module" src="js/main.js"></script>
   <script>
     // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on

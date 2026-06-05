@@ -7,7 +7,11 @@ import { getMarkerCrosswalk, resolveMarkerAliases } from './lab-standards/marker
 const TEST_PLAN_PROMPTS = [
   'what should i test', 'what should i get tested', 'what to test', 'what labs',
   'what blood tests', 'blood tests would you recommend', 'recommend next',
+  'what would you test',
   'what markers', 'which markers', 'next blood draw', 'next labs', 'next lab',
+  'what should i order', 'what to order', 'order next', 'order labs', 'lab order',
+  'build lab plan', 'build a lab plan', 'build labs', 'build panel', 'build a panel',
+  'build blood draw', 'build a blood draw', 'labshop-ready',
   'check next', 'test next', 'get tested next', 'vyšetřit', 'vysetrit',
   'jaké testy', 'jake testy', 'co otestovat', 'krevní testy', 'krevni testy',
 ];
@@ -40,7 +44,7 @@ const PANEL_MARKERS = Object.freeze({
   boneMetabolism: [
     ['vitamins.vitaminD', 'Vitamin D', 'Bone/mineral metabolism marker.'],
     ['minerals.calcium', 'Calcium', 'Bone/mineral metabolism marker.'],
-    ['minerals.phosphate', 'Phosphate', 'Bone/mineral metabolism marker.'],
+    ['electrolytes.phosphorus', 'Phosphorus', 'Bone/mineral metabolism marker.'],
     ['hormones.pth', 'PTH', 'Parathyroid/bone metabolism marker.'],
     ['bone.alp', 'ALP', 'Bone/liver enzyme relevant to bone turnover context.'],
   ],
@@ -92,7 +96,7 @@ const PANEL_MARKERS = Object.freeze({
 const PANEL_TRIGGERS = [
   { terms: ['thyroid panel', 'thyroid', 'stitna zlaza', 'štítná žláza'], panel: 'thyroid' },
   { terms: ['tumor markers', 'tumour markers', 'oncomarkers', 'onk-markery', 'onkologicke markery'], panel: 'tumorMarkers' },
-  { terms: ['bone metabolism', 'bone panel', 'mineral metabolism'], panel: 'boneMetabolism' },
+  { terms: ['bone metabolism', 'bone panel', 'bone markers', 'mineral metabolism'], panel: 'boneMetabolism' },
   { terms: ['hormone panel', 'hormones panel', 'sex hormones', 'testosterone panel'], panel: 'hormonePanel' },
   { terms: ['metabolic panel', 'metabolic health', 'metabolism panel'], panel: 'metabolicPanel' },
   { terms: ['inflammation panel', 'inflammatory panel', 'immune panel'], panel: 'inflammationPanel' },
@@ -104,15 +108,119 @@ const PANEL_TRIGGERS = [
 
 const CANDIDATE_ALIAS_OVERRIDES = Object.freeze({
   ferritin: ['iron.ferritin'],
+  'serum ferritin': ['iron.ferritin'],
   'hs crp': ['inflammation.hsCRP'],
   'hs-crp': ['inflammation.hsCRP'],
+  hscrp: ['inflammation.hsCRP'],
+  'testosterone total': ['hormones.totalTestosterone'],
+  'total testosterone': ['hormones.totalTestosterone'],
+  'free testosterone': ['hormones.freeTestosterone'],
+  'free testo': ['hormones.freeTestosterone'],
+  'testosterone free': ['hormones.freeTestosterone'],
+  'fasting insulin': ['metabolism.insulin'],
+  insulin: ['metabolism.insulin'],
+  'glucose for homa ir': ['biochemistry.glucose'],
+  'homa ir glucose': ['biochemistry.glucose'],
+  'vitamin d total 25 oh': ['vitamins.vitaminD'],
+  '25 oh vitamin d': ['vitamins.vitaminD'],
+  alt: ['liver.alt'],
+  ast: ['liver.ast'],
+  ggt: ['liver.ggt'],
+  alp: ['liver.alp'],
+  'alkaline phosphatase': ['liver.alp'],
+  'alkalicka fosfataza': ['liver.alp'],
+  'c peptide': ['metabolism.cPeptide'],
+  'c-peptide': ['metabolism.cPeptide'],
+  'c peptid': ['metabolism.cPeptide'],
+  'c-peptid': ['metabolism.cPeptide'],
+  esr: ['inflammation.esr'],
+  sedimentace: ['inflammation.esr'],
+  fw: ['inflammation.esr'],
+  bun: ['kidney.urea'],
+  urea: ['kidney.urea'],
+  mocovina: ['kidney.urea'],
+  'blood urea nitrogen': ['kidney.urea'],
+  'cbc with differential': ['hematology.cbcDiff'],
+  'cbc diff': ['hematology.cbcDiff'],
+  'complete blood count with differential': ['hematology.cbcDiff'],
+  reticulocytes: ['hematology.reticulocytes'],
+  retikulocity: ['hematology.reticulocytes'],
+  egfr: ['kidney.egfr'],
+  'e gfr': ['kidney.egfr'],
+  'cystatin c': ['biochemistry.cystatinC'],
   tsh: ['thyroid.tsh'],
   'free t3': ['thyroid.freeT3'],
+  ft3: ['thyroid.freeT3'],
   'free t4': ['thyroid.freeT4'],
+  ft4: ['thyroid.freeT4'],
+  'tpo antibodies': ['thyroid.tpoAb'],
+  'tpo antibody': ['thyroid.tpoAb'],
+  tpoab: ['thyroid.tpoAb'],
+  'tpo ab': ['thyroid.tpoAb'],
+  'anti tpo': ['thyroid.tpoAb'],
+  'anti-tpo': ['thyroid.tpoAb'],
+  'thyroglobulin antibodies': ['thyroid.tgAb'],
+  'thyroglobulin antibody': ['thyroid.tgAb'],
+  'thyroglobulin antibodies tgab': ['thyroid.tgAb'],
+  'thyroglobulin antibodies tg ab': ['thyroid.tgAb'],
+  'thyroglobulin ab': ['thyroid.tgAb'],
+  tgab: ['thyroid.tgAb'],
+  'tg ab': ['thyroid.tgAb'],
+  'anti tg': ['thyroid.tgAb'],
+  'anti-tg': ['thyroid.tgAb'],
+  'a tg': ['thyroid.tgAb'],
+  'a-tg': ['thyroid.tgAb'],
   testosterone: ['hormones.totalTestosterone'],
   shbg: ['hormones.shbg'],
+  estradiol: ['hormones.estradiol'],
+  e2: ['hormones.estradiol'],
+  dht: ['hormones.dht'],
   lh: ['hormones.lh'],
   fsh: ['hormones.fsh'],
+  prolactin: ['hormones.prolactin'],
+  prolaktin: ['hormones.prolactin'],
+  'dhea s': ['hormones.dheaS'],
+  'dhea-s': ['hormones.dheaS'],
+  dheas: ['hormones.dheaS'],
+  'igf 1': ['hormones.igf1'],
+  'igf-1': ['hormones.igf1'],
+  igf1: ['hormones.igf1'],
+  'morning cortisol': ['hormones.morningCortisol'],
+  cortisol: ['hormones.morningCortisol'],
+  kortizol: ['hormones.morningCortisol'],
+  'homa ir': ['metabolism.homaIR'],
+  'homa-ir': ['metabolism.homaIR'],
+  hba1c: ['diabetes.hba1c'],
+  'hb a1c': ['diabetes.hba1c'],
+  'glycated hemoglobin': ['diabetes.hba1c'],
+  triglycerides: ['lipids.triglycerides'],
+  triglyceride: ['lipids.triglycerides'],
+  triglyceridy: ['lipids.triglycerides'],
+  triacylglyceroly: ['lipids.triglycerides'],
+  cholesterol: ['lipids.cholesterol'],
+  'total cholesterol': ['lipids.cholesterol'],
+  apob: ['lipids.apoB'],
+  'apo b': ['lipids.apoB'],
+  'apolipoprotein b': ['lipids.apoB'],
+  apoa1: ['lipids.apoAI'],
+  'apo a1': ['lipids.apoAI'],
+  apoai: ['lipids.apoAI'],
+  'apo ai': ['lipids.apoAI'],
+  'apolipoprotein a1': ['lipids.apoAI'],
+  'lp a': ['lipids.lpa'],
+  'lp(a)': ['lipids.lpa'],
+  lpa: ['lipids.lpa'],
+  'lipoprotein a': ['lipids.lpa'],
+  'lipoprotein(a)': ['lipids.lpa'],
+  albumin: ['proteins.albumin'],
+  'serum albumin': ['proteins.albumin'],
+  bilirubin: ['liver.bilirubinTotal'],
+  'total bilirubin': ['liver.bilirubinTotal'],
+  'bilirubin total': ['liver.bilirubinTotal'],
+  psa: ['prostate.psa'],
+  'psa total': ['prostate.psa'],
+  'total psa': ['prostate.psa'],
+  'psa (total)': ['prostate.psa'],
 });
 
 function normalize(text) {
@@ -152,9 +260,12 @@ function mentionsTestPlan(text) {
 
 function addMarker(out, markerKey, opts = {}) {
   if (!markerKey || out.has(markerKey)) return;
+  const displayName = opts.displayName || markerDisplayName(markerKey);
+  const normalizedDisplay = normalize(displayName);
+  if (normalizedDisplay && [...out.values()].some(marker => normalize(marker.displayName) === normalizedDisplay)) return;
   out.set(markerKey, {
     markerKey,
-    displayName: opts.displayName || markerDisplayName(markerKey),
+    displayName,
     reason: opts.reason || 'Mentioned in the health conversation.',
     priority: opts.priority || 'core',
     confidence: opts.confidence || 'conversation_derived',
@@ -163,7 +274,7 @@ function addMarker(out, markerKey, opts = {}) {
 
 function inferPanelMarkers(text, out) {
   const normalized = normalize(text);
-  if (normalized.includes('methylation') || normalized.includes('homocysteine') || normalized.includes('folate')) {
+  if (normalized.includes('methylation')) {
     for (const [markerKey, displayName, reason] of PANEL_MARKERS.methylation) {
       addMarker(out, markerKey, { displayName, reason, confidence: 'context_template' });
     }
@@ -181,9 +292,22 @@ function inferPanelMarkers(text, out) {
   }
 }
 
+function textForPanelInference(text) {
+  return String(text || '')
+    // If the assistant already spelled out a broad group as components, do not
+    // also expand the group label into a second implicit panel. Example:
+    // "Full thyroid panel (TSH, Free T4, Free T3)" should request exactly those
+    // three markers, not a duplicate thyroid package plus TPO antibodies.
+    .replace(/\b[^\n()]*\b(?:panel|markers|studies|profile|enzymes)\s*\(([^()]+)\)/gi, '($1)');
+}
+
 function extractMentionedMarkers(text, out) {
   const raw = String(text || '');
-  for (const token of raw.split(/[^\p{L}\p{N}]+/u).filter(Boolean)) {
+  for (const match of raw.matchAll(/[\p{L}\p{N}]+/gu)) {
+    const token = match[0];
+    const before = raw[match.index - 1] || '';
+    const after = raw[match.index + token.length] || '';
+    if (token.length < 3 || before === '-' || after === '-') continue;
     resolveMarkerAliases(token).forEach(markerKey => addMarker(out, markerKey));
   }
   resolveMarkerAliases(raw).forEach(markerKey => addMarker(out, markerKey));
@@ -201,11 +325,76 @@ function cleanCandidateName(candidate) {
     .trim();
 }
 
+function splitTopLevelList(text, separators = { comma: true, semicolon: true, plus: true, and: true, or: false }) {
+  const raw = String(text || '');
+  const parts = [];
+  let current = '';
+  let depth = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (ch === '(' || ch === '[') depth += 1;
+    if ((ch === ')' || ch === ']') && depth > 0) depth -= 1;
+    const atTop = depth === 0;
+    const rest = raw.slice(i);
+    const wordSep = atTop && (
+      (separators.and && /^\s+and\s+/i.test(rest)) ||
+      (separators.or && /^\s+or\s+/i.test(rest))
+    );
+    const charSep = atTop && (
+      (separators.comma && ch === ',') ||
+      (separators.semicolon && ch === ';') ||
+      (separators.plus && ch === '+')
+    );
+    if (charSep || wordSep) {
+      parts.push(current);
+      current = '';
+      if (wordSep) {
+        const m = rest.match(/^\s+(?:and|or)\s+/i);
+        i += (m?.[0]?.length || 1) - 1;
+      }
+      continue;
+    }
+    current += ch;
+  }
+  parts.push(current);
+  return parts;
+}
+
+function parentheticalInnerCandidates(text) {
+  const out = [];
+  const raw = String(text || '');
+  const re = /\(([^()]+)\)/g;
+  let match;
+  while ((match = re.exec(raw))) {
+    splitTopLevelList(match[1], { comma: true, semicolon: true, plus: true, and: true, or: true })
+      .map(cleanCandidateName)
+      .filter(Boolean)
+      .forEach(candidate => out.push(candidate));
+  }
+  return out;
+}
+
 function splitCandidateList(text) {
-  return String(text || '')
-    .split(/,|;|\band\b|\+/i)
+  const topLevel = splitTopLevelList(text, { comma: true, semicolon: true, plus: true, and: true, or: false })
     .map(cleanCandidateName)
     .filter(Boolean);
+  const expanded = [];
+  for (const candidate of topLevel) {
+    const shouldExpandParenthetical = /\b(?:panel|markers|studies|profile|enzymes)\s*\(/i.test(candidate);
+    if (!shouldExpandParenthetical) {
+      expanded.push(candidate);
+      continue;
+    }
+    const parenthetical = parentheticalInnerCandidates(candidate);
+    const withoutParenthetical = cleanCandidateName(candidate.replace(/\([^()]+\)/g, ''));
+    // The provider comparison should reason over orderable single markers.
+    // Do not keep broad labels like "Full thyroid" or "Liver enzymes" as
+    // separate requested tests when the component markers are present.
+    if (withoutParenthetical && !parenthetical.length) expanded.push(withoutParenthetical);
+    if (parenthetical.length) expanded.push(...parenthetical);
+    if (!withoutParenthetical && !parenthetical.length) expanded.push(candidate);
+  }
+  return expanded.filter(Boolean);
 }
 
 function isCandidateHeading(line) {
@@ -221,6 +410,7 @@ function looksLikeNoise(candidate) {
   if (!normalized || normalized.length < 2) return true;
   if (normalized.length > 80) return true;
   if (/^(and|or|with|plus|maybe|optional|core|next|also|then|because|for these)$/.test(normalized)) return true;
+  if (/^(thyroid|bone|hormone|metabolic|inflammation|liver kidney|kidney|liver|tumor|tumour)$/.test(normalized)) return true;
   if (/\b(i would|i recommend|consider|check|test|include|worth|next time)\b/.test(normalized)) return true;
   return false;
 }
@@ -260,10 +450,10 @@ function extractRecommendationCandidates(text, out) {
     }
   }
 
-  const recommendationVerb = /\b(?:recommend|consider|check|test|include|worth checking|worth testing)\b/i;
+  const recommendationVerb = /\b(?:recommend|consider|check|test|include|order|add|worth checking|worth testing)\b/i;
   for (const line of lines) {
     if (!recommendationVerb.test(line) || isCandidateHeading(line)) continue;
-    const afterVerb = line.replace(/^.*?\b(?:recommend|consider|check|test|include|worth checking|worth testing)\b\s*(?:checking|testing|next|for|a|an|the|:)?\s*/i, '');
+    const afterVerb = line.replace(/^.*?\b(?:recommend|consider|check|test|include|order|add|worth checking|worth testing)\b\s*(?:(?:checking|testing|ordering|adding|next|for|a|an|the)\b\s*)?:?\s*/i, '');
     splitCandidateList(afterVerb).forEach(candidate => addUnmappedCandidate(out, candidate));
   }
 }
@@ -273,7 +463,7 @@ export function buildLabPlanFromConversation(userText, assistantText = '') {
   const userAskedForPlan = mentionsTestPlan(userText);
   const out = new Map();
   extractMentionedMarkers(combined, out);
-  inferPanelMarkers(combined, out);
+  inferPanelMarkers(textForPanelInference(combined), out);
   if (userAskedForPlan) extractRecommendationCandidates(assistantText, out);
   const markers = [...out.values()];
   if (!userAskedForPlan || !markers.length) return null;
@@ -285,6 +475,29 @@ export function buildLabPlanFromConversation(userText, assistantText = '') {
     userPrompt: String(userText || ''),
     markers,
     safetyBoundary: 'This is a test plan, not a diagnosis. Compare labs only after you review/edit the marker list.',
+    nextAction: 'compare_labs',
+  };
+}
+
+export function buildLabPlanFromThread(messages = []) {
+  const transcript = (Array.isArray(messages) ? messages : [])
+    .filter(msg => msg && !msg.hidden && !msg.joined && typeof msg.content === 'string' && msg.content.trim())
+    .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+    .join('\n');
+  const out = new Map();
+  extractMentionedMarkers(transcript, out);
+  inferPanelMarkers(textForPanelInference(transcript), out);
+  extractRecommendationCandidates(transcript, out);
+  const markers = [...out.values()];
+  if (!markers.length) return null;
+  return {
+    id: `labplan_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    status: 'suggested',
+    title: markers.length > 4 ? 'Next blood draw' : 'Focused lab plan',
+    source: 'thread_action',
+    userPrompt: 'Build lab plan from this conversation',
+    markers,
+    safetyBoundary: 'This lab plan was pulled from the conversation. Review/edit it before comparing labs or preparing any provider handoff.',
     nextAction: 'compare_labs',
   };
 }

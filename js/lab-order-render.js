@@ -21,7 +21,7 @@ function statusLabel(status = 'draft') {
     provider_selection: 'Compare labs',
     preparing: 'Preparing cart…',
     cart_created: 'Cart prepared',
-    failed: 'Failed',
+    failed: 'Handoff boundary',
     cancelled: 'Cancelled',
   }[status] || status;
 }
@@ -41,9 +41,29 @@ function summarizeMarkerNames(markerKeys = [], markerNameByKey = new Map(), limi
   return hidden > 0 ? `${visible}, +${hidden} more` : visible;
 }
 
+function summarizeMissingDiagnostics(comparison, markerNameByKey) {
+  const missingKeys = comparison?.missingMarkerKeys || [];
+  if (!missingKeys.length) return '<em>Full requested coverage</em>';
+  const names = summarizeMarkerNames(missingKeys, markerNameByKey);
+  const labels = [...new Set(missingKeys
+    .map(markerKey => comparison.cells?.[markerKey]?.diagnosticLabel)
+    .filter(Boolean))];
+  const detail = labels.length ? ` · ${labels.slice(0, 2).join(' / ')}` : '';
+  return `<em>Not verified ${escapeHTML(String(missingKeys.length))}: ${escapeHTML(names)}${escapeHTML(detail)}</em>`;
+}
+
+function providerCatalogueWarning(comparisons = []) {
+  if (!comparisons.length) return '';
+  const emptyProviders = comparisons.filter(c => c && c.catalogueLoaded === false && Number(c.offerCount || 0) === 0);
+  if (!emptyProviders.length) return '';
+  const names = emptyProviders.map(c => c.name || c.providerId).join(', ');
+  return `Provider catalogue not loaded for ${names}. Refresh the private catalogue in local dev, then reload the page.`;
+}
+
 function renderRequestedMarkers(draft) {
   const markers = Array.isArray(draft.requestedMarkers) ? draft.requestedMarkers : [];
   if (!markers.length) return '';
+  const hasCalculatedMarkers = Array.isArray(draft.calculatedMarkers) && draft.calculatedMarkers.length > 0;
   const visibleLimit = 12;
   const visibleMarkers = markers.slice(0, visibleLimit);
   const hiddenMarkers = markers.slice(visibleLimit);
@@ -53,17 +73,29 @@ function renderRequestedMarkers(draft) {
     : '';
   const allMarkersHtml = hiddenMarkers.length
     ? `<details class="lab-order-marker-details">
-      <summary>Show all ${escapeHTML(String(markers.length))} requested tests</summary>
+      <summary>Show all ${escapeHTML(String(markers.length))} ${hasCalculatedMarkers ? 'orderable' : 'requested'} tests</summary>
       <div class="lab-order-marker-list">${markers.map(m => `<span>${escapeHTML(markerLabel(m))}</span>`).join('')}</div>
     </details>`
     : '';
   return `<div class="lab-order-requested">
     <div class="lab-order-requested-head">
-      <span>Requested tests</span>
+      <span>${hasCalculatedMarkers ? 'Orderable tests' : 'Requested tests'}</span>
       <strong>${escapeHTML(String(markers.length))}</strong>
     </div>
     <div class="lab-order-markers">${visibleHtml}${overflowHtml}</div>
     ${allMarkersHtml}
+  </div>`;
+}
+
+function renderCalculatedMarkers(draft) {
+  const markers = Array.isArray(draft.calculatedMarkers) ? draft.calculatedMarkers : [];
+  if (!markers.length) return '';
+  return `<div class="lab-order-calculated">
+    <div class="lab-order-requested-head">
+      <span>Calculated after results</span>
+      <strong>${escapeHTML(String(markers.length))}</strong>
+    </div>
+    <div class="lab-order-markers">${markers.map(m => `<span>${escapeHTML(markerLabel(m))}</span>`).join('')}</div>
   </div>`;
 }
 
@@ -92,15 +124,14 @@ function renderProviderRecommendation(draft) {
 function renderProviderSelection(draft, msgIndex) {
   const options = Array.isArray(draft.providerOptions) ? draft.providerOptions : [];
   const comparisons = Array.isArray(draft.providerComparisons) ? draft.providerComparisons : [];
+  const catalogueWarning = providerCatalogueWarning(comparisons);
   const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, markerLabel(m)]));
   const optionHtml = options.map(option => {
     const comparison = comparisons.find(c => c.providerId === option.providerId);
     const coverage = comparison
-      ? `<span>Coverage: ${escapeHTML(String(comparison.coveredCount))}/${escapeHTML(String(comparison.requestedCount))} tests · ${escapeHTML(formatCzk(comparison.totalEstimateCzk))}</span>`
+      ? `<span>Coverage: ${escapeHTML(String(comparison.coveredCount))}/${escapeHTML(String(comparison.requestedCount))} verified online offers · ${escapeHTML(formatCzk(comparison.totalEstimateCzk))}</span>`
       : `<span>${escapeHTML(option.summary || 'Show tests')}</span>`;
-    const missing = comparison?.missingMarkerKeys?.length
-      ? `<em>Missing ${escapeHTML(String(comparison.missingMarkerKeys.length))}: ${escapeHTML(summarizeMarkerNames(comparison.missingMarkerKeys, markerNameByKey))}</em>`
-      : '<em>Full requested coverage</em>';
+    const missing = summarizeMissingDiagnostics(comparison, markerNameByKey);
     return `<button type="button" class="lab-provider-option-card" data-lab-order-action="select-provider" data-lab-provider-id="${escapeHTML(option.providerId)}" data-msg-index="${msgIndex}">
     <span class="lab-provider-option-main">
       <strong>${escapeHTML(option.name || option.providerId)}</strong>
@@ -111,20 +142,22 @@ function renderProviderSelection(draft, msgIndex) {
   }).join('');
   const comparisonHtml = comparisons.length ? `<div class="lab-provider-comparison">
     <div class="lab-order-kicker">Coverage and price comparison</div>
+    ${catalogueWarning ? `<div class="lab-order-warning">${escapeHTML(catalogueWarning)}</div>` : ''}
     ${comparisons.map(c => `<div class="lab-provider-comparison-row">
       <span>${escapeHTML(c.name || c.providerId)}</span>
-      <strong>${escapeHTML(String(c.coveredCount))}/${escapeHTML(String(c.requestedCount))} tests · ${escapeHTML(formatCzk(c.totalEstimateCzk))}</strong>
+      <strong>${escapeHTML(String(c.coveredCount))}/${escapeHTML(String(c.requestedCount))} verified · ${escapeHTML(formatCzk(c.totalEstimateCzk))}</strong>
     </div>`).join('')}
   </div>` : '';
   return `<div class="lab-order-card" data-lab-order-id="${escapeHTML(draft.id || '')}">
     <div class="lab-order-head">
       <div>
-        <div class="lab-order-kicker">Lab order</div>
+        <div class="lab-order-kicker">Lab comparison</div>
         <div class="lab-order-title">Choose lab</div>
       </div>
       <span class="lab-order-status">Compare labs</span>
     </div>
     ${renderRequestedMarkers(draft)}
+    ${renderCalculatedMarkers(draft)}
     ${comparisonHtml}
     ${renderProviderRecommendation(draft)}
     <div class="lab-provider-options">${optionHtml}</div>
@@ -144,9 +177,15 @@ export function renderLabPlanCard(plan, msgIndex) {
   </div>`).join('');
   const moreHtml = hidden > 0 ? `<div class="lab-plan-more">+${escapeHTML(String(hidden))} more markers in this plan</div>` : '';
   const alreadyCompared = plan.status === 'compared';
+  const isBusy = plan.status === 'mapping_nclp' || plan.status === 'comparing_labs';
   const actionsHtml = alreadyCompared
     ? '<div class="lab-plan-more">Lab comparison is shown below.</div>'
-    : `<div class="lab-order-actions">
+    : isBusy
+      ? `<div class="lab-order-actions lab-order-actions-busy">
+        <button type="button" class="lab-order-primary is-loading" data-lab-order-action="compare-labs-from-plan" data-msg-index="${msgIndex}" disabled aria-busy="true">Comparing labs…</button>
+        <span class="lab-order-progress-note">${escapeHTML(plan.statusMessage || 'Checking lab catalogues. This can take a few seconds.')}</span>
+      </div>`
+      : `<div class="lab-order-actions">
       <button type="button" class="lab-order-primary" data-lab-order-action="compare-labs-from-plan" data-msg-index="${msgIndex}">Compare labs</button>
       <button type="button" class="lab-order-secondary" data-lab-order-action="dismiss-lab-plan" data-msg-index="${msgIndex}">Not now</button>
     </div>`;
@@ -156,12 +195,19 @@ export function renderLabPlanCard(plan, msgIndex) {
         <div class="lab-order-kicker">Next blood draw</div>
         <div class="lab-order-title">${escapeHTML(plan.title || 'Suggested lab plan')}</div>
       </div>
-      <span class="lab-order-status">${alreadyCompared ? 'Plan compared' : 'Plan first'}</span>
+      <span class="lab-order-status${isBusy ? ' is-loading' : ''}">${alreadyCompared ? 'Plan compared' : isBusy ? 'Comparing labs…' : 'Plan first'}</span>
     </div>
     <div class="lab-plan-markers">${markerHtml}${moreHtml}</div>
     <div class="lab-order-boundary">${escapeHTML(plan.safetyBoundary || 'Review the plan before comparing labs or ordering.')}</div>
     ${actionsHtml}
   </div>`;
+}
+
+export function renderLabAdjunctCards(msg, msgIndex) {
+  if (!msg || msg.role !== 'assistant') return '';
+  if (msg.labOrderDraft) return renderLabOrderCard(msg.labOrderDraft, msgIndex);
+  if (msg.labPlanDraft) return renderLabPlanCard(msg.labPlanDraft, msgIndex);
+  return '';
 }
 
 export function buildLabPlanCopyText(plan) {
@@ -182,18 +228,25 @@ export function buildLabOrderCopyText(draft) {
   if (!draft) return '';
   if (draft.status === 'provider_selection' || draft.provider === 'provider_selection') {
     const markerNameByKey = new Map((draft.requestedMarkers || []).map(m => [m.markerKey, markerLabel(m)]));
-    const lines = ['Lab order — compare labs'];
+    const lines = ['Lab comparison'];
     const markers = Array.isArray(draft.requestedMarkers) ? draft.requestedMarkers : [];
     if (markers.length) {
-      lines.push('', `Requested tests (${markers.length}):`, ...markers.map(m => `- ${markerLabel(m)}`));
+      const label = Array.isArray(draft.calculatedMarkers) && draft.calculatedMarkers.length ? 'Orderable tests' : 'Requested tests';
+      lines.push('', `${label} (${markers.length}):`, ...markers.map(m => `- ${markerLabel(m)}`));
+    }
+    const calculatedMarkers = Array.isArray(draft.calculatedMarkers) ? draft.calculatedMarkers : [];
+    if (calculatedMarkers.length) {
+      lines.push('', `Calculated after results (${calculatedMarkers.length}):`, ...calculatedMarkers.map(m => `- ${markerLabel(m)}`));
     }
     const comparisons = Array.isArray(draft.providerComparisons) ? draft.providerComparisons : [];
     if (comparisons.length) {
-      lines.push('', 'Coverage and price comparison:');
+      lines.push('', 'Verified online offer comparison:');
+      const catalogueWarning = providerCatalogueWarning(comparisons);
+      if (catalogueWarning) lines.push(catalogueWarning);
       for (const c of comparisons) {
-        lines.push(`- ${c.name || c.providerId}: ${c.coveredCount}/${c.requestedCount} tests — ${formatCzk(c.totalEstimateCzk)}`);
+        lines.push(`- ${c.name || c.providerId}: ${c.coveredCount}/${c.requestedCount} verified online offers — ${formatCzk(c.totalEstimateCzk)}`);
         if (Array.isArray(c.missingMarkerKeys) && c.missingMarkerKeys.length) {
-          lines.push(`  Missing: ${c.missingMarkerKeys.map(markerKey => markerNameByKey.get(markerKey) || markerKey).join(', ')}`);
+          lines.push(`  Not verified in current online source: ${c.missingMarkerKeys.map(markerKey => markerNameByKey.get(markerKey) || markerKey).join(', ')}`);
         }
       }
     }

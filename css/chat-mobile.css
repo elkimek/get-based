@@ -17,10 +17,11 @@
   .chat-thread-item-actions { display: flex; }
 }
 
-@media (pointer: coarse) {
+@media (max-width: 768px), (pointer: coarse) {
   .chat-thread-new-btn { width: 44px; height: 44px; }
   .chat-thread-item-action { width: 44px; height: 44px; font-size: 14px; }
   .chat-rail-toggle { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
   .chat-close-btn { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .chat-summary-btn, .chat-clear-btn { min-height: 44px; padding: 6px 10px; }
+  .chat-summary-btn, .chat-clear-btn, .chat-lab-plan-btn { width: 44px; min-width: 44px; min-height: 44px; padding: 0; }
+  .chat-header-actions { gap: 4px; }
 }

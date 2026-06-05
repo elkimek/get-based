@@ -5,6 +5,20 @@ import { showNotification } from './utils.js';
 import { saveChatHistory } from './chat-history.js';
 import { renderChatMessages } from './chat-render.js';
 import { selectProviderForDraft, buildLabOrderDraftFromMarkers } from './lab-order-intent.js';
+import { createPersistentNclpCache, enrichMarkersWithNclpCandidates } from './lab-standards/nclp-cache.js';
+
+const labPlanNclpCache = createPersistentNclpCache();
+const labPlanComparisonInFlight = new Set();
+
+function handoffFailureResult(providerName, checkoutUrl, err) {
+  const reason = err?.message || `${providerName} handoff failed.`;
+  return {
+    ok: false,
+    message: `getbased prepared the order preview, but the partner-lab handoff did not complete: ${reason} This is the handoff boundary — final booking/payment stays on ${providerName}.`,
+    checkoutUrl,
+    boundary: 'partner_handoff_required',
+  };
+}
 
 function getDraftForMessage(msgIndex) {
   const msg = state.chatHistory[Number(msgIndex)];
@@ -44,8 +58,8 @@ async function prepareCart(msgIndex) {
     showNotification('Labshop cart preview ready', 'success');
   } catch (err) {
     draft.status = 'failed';
-    draft.result = { ok: false, message: err?.message || 'Labshop cart preparation failed.' };
-    showNotification('Labshop cart preview failed', 'error');
+    draft.result = handoffFailureResult('Labshop', 'https://www.labshop.cz/kosik/prehled', err);
+    showNotification('Labshop handoff needs manual checkout', 'error');
   }
   await saveChatHistory();
   renderChatMessages();
@@ -80,8 +94,8 @@ async function prepareUnilabsCart(msgIndex) {
     showNotification('Unilabs cart preview ready', 'success');
   } catch (err) {
     draft.status = 'failed';
-    draft.result = { ok: false, message: err?.message || 'Unilabs cart preparation failed.' };
-    showNotification('Unilabs cart preview failed', 'error');
+    draft.result = handoffFailureResult('Unilabs Online', 'https://cz.unilabs.online/sestavte-si-vlastni-vysetreni', err);
+    showNotification('Unilabs handoff needs manual checkout', 'error');
   }
   await saveChatHistory();
   renderChatMessages();
@@ -125,16 +139,54 @@ async function cancelOrder(msgIndex) {
   renderChatMessages();
 }
 
-async function compareLabsFromPlan(msgIndex) {
+export async function compareLabsFromPlan(msgIndex) {
   const found = getPlanForMessage(msgIndex);
   if (!found) return;
-  found.msg.labOrderDraft = buildLabOrderDraftFromMarkers(found.plan.markers || [], {
-    userRequest: found.plan.userPrompt || found.msg.content || '',
-  });
-  found.plan.status = 'compared';
-  showNotification('Lab coverage compared', 'success');
-  await saveChatHistory();
+  const flightKey = found.plan.id || String(msgIndex);
+  if (labPlanComparisonInFlight.has(flightKey) || found.plan.status === 'mapping_nclp' || found.plan.status === 'comparing_labs') {
+    return;
+  }
+  if (found.plan.status === 'compared' || found.msg.labOrderDraft) {
+    found.plan.status = 'compared';
+    renderChatMessages();
+    return;
+  }
+
+  labPlanComparisonInFlight.add(flightKey);
+  const originalMarkers = found.plan.markers || [];
+  let markersForComparison = originalMarkers;
+  found.plan.status = 'mapping_nclp';
+  found.plan.statusMessage = 'Checking available lab tests…';
   renderChatMessages();
+  try {
+    try {
+      markersForComparison = await enrichMarkersWithNclpCandidates(originalMarkers, { cache: labPlanNclpCache });
+      found.plan.markers = markersForComparison;
+    } catch (err) {
+      console.warn('NČLP live lookup failed; comparing with existing marker mappings only.', err);
+      markersForComparison = originalMarkers;
+    }
+
+    // A second click/tab should not create a second comparison card if another
+    // in-flight run completed while this async lookup was waiting.
+    if (!found.msg.labOrderDraft) {
+      found.msg.labOrderDraft = buildLabOrderDraftFromMarkers(markersForComparison, {
+        userRequest: found.plan.userPrompt || found.msg.content || '',
+      });
+      showNotification('Lab coverage compared', 'success');
+    }
+    found.plan.status = 'compared';
+    delete found.plan.statusMessage;
+    await saveChatHistory();
+    renderChatMessages();
+  } catch (err) {
+    found.plan.status = 'suggested';
+    delete found.plan.statusMessage;
+    showNotification(`Lab comparison failed: ${err?.message || 'coverage error'}`, 'error');
+    renderChatMessages();
+  } finally {
+    labPlanComparisonInFlight.delete(flightKey);
+  }
 }
 
 async function dismissLabPlan(msgIndex) {

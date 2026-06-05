@@ -64,6 +64,9 @@ function runChatAction(action, actionEl) {
   } else if (action === 'summarize-thread') {
     appWindow.summarizeThread?.();
     return true;
+  } else if (action === 'build-lab-plan') {
+    window.buildLabPlanFromThreadAction?.();
+    return true;
   } else if (action === 'clear-history') {
     appWindow.clearChatHistory?.();
     return true;

@@ -1,5 +1,7 @@
 // Vitest setup — runs before every test file.
 //
+import { PROVIDER_CATALOGUE_FIXTURES } from './fixtures/lab-provider-catalogues.js';
+
 // Two shims so that the existing node-side test files (which were
 // written to be runnable directly via `node tests/foo.js`) work
 // inside Vitest's worker without modification:
@@ -19,6 +21,11 @@
 if (typeof globalThis.window === 'undefined') {
   globalThis.window = globalThis;
 }
+
+// Production provider catalogue rows are runtime/private data, not frontend
+// adapter constants. Tests inject deterministic fixtures through the same
+// boundary the deployed app uses for private catalogue snapshots.
+globalThis.__GETBASED_LAB_PROVIDER_CATALOGUES__ = PROVIDER_CATALOGUE_FIXTURES;
 
 // Minimal in-memory localStorage / sessionStorage polyfill. Some
 // modules (views.js, lens.js) read storage at module load to restore

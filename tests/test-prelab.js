@@ -310,7 +310,8 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     'Provider quiz and onboarding handlers should be extracted from chat.js');
   assert('sendChatMessage guards no provider', (() => {
     const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
-    const fnBody = chatSendSrc.substring(fnStart, fnStart + 300);
+    const fnEnd = chatSendSrc.indexOf('\nexport', fnStart + 10);
+    const fnBody = chatSendSrc.substring(fnStart, fnEnd === -1 ? chatSendSrc.length : fnEnd);
     return fnBody.includes('if (!hasAIProvider())');
   })(), 'sendChatMessage should check for provider and re-render setup guide');
 

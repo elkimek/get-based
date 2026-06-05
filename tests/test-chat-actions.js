@@ -52,6 +52,19 @@ const S = window._labState;
 const hasState = S && typeof S === 'object';
 assert('window._labState exists', hasState, hasState ? 'found' : 'not found');
 
+// Source guard: without an AI provider configured, sending a chat message should
+// show setup guidance without persisting an orphan user message to thread history.
+{
+  const sendSrc = read('js/chat-send.js');
+  const providerGuardIdx = sendSrc.indexOf('if (!hasAIProvider())');
+  const pushUserIdx = sendSrc.indexOf('state.chatHistory.push(userMsg)');
+  const earlySaveIdx = sendSrc.indexOf('await saveChatHistory(); // persist immediately so messages survive API failures');
+  assert('sendChatMessage checks provider before pushing user message', providerGuardIdx >= 0 && providerGuardIdx < pushUserIdx,
+    `guard=${providerGuardIdx} push=${pushUserIdx}`);
+  assert('sendChatMessage checks provider before early persistence', providerGuardIdx >= 0 && providerGuardIdx < earlySaveIdx,
+    `guard=${providerGuardIdx} save=${earlySaveIdx}`);
+}
+
 // ─── Section 1: Window exports ───
 console.log('Section 1: Window Exports');
 const requiredExports = [
@@ -331,6 +344,7 @@ assert('SW bypasses Routstr', swSrc.includes('api.routstr.com'), 'found');
 assert('SW bypasses PPQ', swSrc.includes('api.ppq.ai'), 'found');
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"), 'found');
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'), 'found');
+assert('SW APP_SHELL includes lab-order-coverage.js for offline lab comparison', swSrc.includes("'/js/lab-order-coverage.js'"), 'found');
 
 // ─── Section 16: CSS classes ───
 console.log('Section 16: CSS classes');
@@ -377,6 +391,7 @@ const chatDiscussionUiSrc = read('js/chat-discussion-ui.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
+const labOrderActionsSrc = read('js/lab-order-actions.js');
 const labCtxSrc = read('js/lab-context.js');
 assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getContextSummary'), 'found');
 assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
@@ -415,6 +430,34 @@ assert('chat window bindings import chat summary helpers',
   chatWindowBindingsSrc.includes("from './chat-summaries.js'"), 'found');
 assert('chat-summaries.js exports summarizeThread', chatSummariesSrc.includes('export async function summarizeThread'), 'found');
 assert('chat-summaries.js sends one transcript message', chatSummariesSrc.includes('buildSummaryTranscript(state.chatHistory)') && chatSummariesSrc.includes("role: 'user'"), 'found');
+assert('index.html exposes an emoji-free quiet Build lab plan header action',
+  read('index.html').includes('data-chat-action="build-lab-plan"') &&
+  read('index.html').includes('Build lab plan') &&
+  read('index.html').includes('chat-lab-plan-btn-label') &&
+  !read('index.html').includes('<span aria-hidden="true">🧪</span>'), 'found');
+assert('Build lab plan header action uses the same SVG/icon-button language as header controls',
+  /class="chat-lab-plan-btn"[\s\S]*<svg[\s\S]*chat-lab-plan-btn-label/.test(read('index.html')), 'found');
+assert('Build lab plan button is an icon-only blood-drop action with accessible text',
+  /class="chat-lab-plan-btn"[\s\S]*M12 3\.25[\s\S]*chat-lab-plan-btn-label sr-only/.test(read('index.html')) &&
+  read('css/chat-redesign.css').includes('width: 30px;') &&
+  !read('index.html').includes('>Build plan</span>'), 'found');
+assert('Build lab plan progress copy says building rather than reasoning',
+  chatActionsSrc.includes('Building lab plan…') &&
+  !chatActionsSrc.includes('Reasoning…') &&
+  !chatActionsSrc.includes('I reasoned through this conversation'), 'found');
+assert('chat-actions.js exports buildLabPlanFromThreadAction', chatActionsSrc.includes('export async function buildLabPlanFromThreadAction'), 'found');
+assert('lab-order-actions enriches plan markers through cached NČLP before provider comparison',
+  labOrderActionsSrc.includes('enrichMarkersWithNclpCandidates') &&
+  /markersForComparison\s*=\s*await enrichMarkersWithNclpCandidates[\s\S]*buildLabOrderDraftFromMarkers\(markersForComparison/.test(labOrderActionsSrc), 'found');
+assert('Build lab plan action uses AI planner, not direct deterministic thread extraction',
+  chatActionsSrc.includes('buildAILabPlanFromThread') && !chatActionsSrc.includes('buildLabPlanFromThread(state.chatHistory)'), 'found');
+assert('ordinary chat send does not auto-attach natural lab plan cards',
+  !chatSendSrc.includes('buildLabPlanFromConversation(text, fullText)') &&
+  !chatSendSrc.includes('assistantMsg.labPlanDraft = labPlanDraft'), 'found');
+assert('ordinary chat send does not auto-spawn lab order cards from exploratory panel talk',
+  !chatSendSrc.includes('buildLabOrderDraft(text)') &&
+  !chatSendSrc.includes('buildLabOrderAssistantText(labOrderDraft)') &&
+  !chatSendSrc.includes('labOrderDraft,'), 'found');
 assert('chat-send.js imports continuation helpers', chatSendSrc.includes("from './chat-continuation.js'"), 'found');
 assert('chat-continuation.js exports continuation helper', chatContinuationSrc.includes('export async function callChatAPIWithContinuation'), 'found');
 assert('chat-send.js imports prompt context helpers', chatSendSrc.includes("from './chat-prompt-context.js'"), 'found');

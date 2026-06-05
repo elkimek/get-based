@@ -1,63 +1,88 @@
-// cz/labshop.js — Labshop provider offer mapping.
-// Provider products live here, not in MARKER_SCHEMA and not in the standards
-// crosswalk. Coverage is explicit because panels are not marker-equivalent.
+// cz/labshop.js — Labshop provider offer adapter.
+//
+// Code owns adapter/matching logic; real provider catalogue rows are
+// runtime/private data injected through provider-catalogue-source or
+// options.catalogueItems.
 
 import { COVERAGE } from '../../lab-standards/standards-types.js';
+import { getExternalIdsForMarker } from '../../lab-standards/marker-crosswalk.js';
+import {
+  LABSHOP_CATALOGUE_SOURCE,
+  findLabshopCatalogueMatches,
+} from './labshop-catalog.js';
+import { getProviderCatalogueItems } from '../provider-catalogue-source.js';
 
-export const LABSHOP_PRODUCTS = Object.freeze({
-  '20036': {
-    providerId: 'cz.labshop',
-    providerProductId: '20036',
-    name: 'Vitaminy B - Basic',
-    priceCzk: 500,
-    coverage: COVERAGE.PANEL_CONTAINS,
-    covers: [
-      { markerKey: 'vitamins.vitaminB12', standard: 'NCLP', code: null, coverage: COVERAGE.PANEL_CONTAINS, confidence: 'manual', note: 'Labshop public product/card data has no confirmed NČLP code.' },
-      { markerKey: 'vitamins.folate', standard: 'NCLP', code: '07322', coverage: COVERAGE.PANEL_CONTAINS, confidence: 'manual', note: 'Panel coverage inferred from product name; verify detail text before production.' },
-    ],
-    checkout: {
-      addToCartEndpoint: '/kosik/pridat-do-kosiku',
-      requiresAntiforgeryToken: true,
-      checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
-    },
-  },
-  '20037': {
-    providerId: 'cz.labshop',
-    providerProductId: '20037',
-    name: 'Vitaminy B - Complete',
-    priceCzk: 3900,
-    coverage: COVERAGE.PANEL_CONTAINS,
-    covers: [
-      { markerKey: 'vitamins.vitaminB12', standard: 'NCLP', code: null, coverage: COVERAGE.PANEL_CONTAINS, confidence: 'manual' },
-      { markerKey: 'vitamins.folate', standard: 'NCLP', code: '07322', coverage: COVERAGE.PANEL_CONTAINS, confidence: 'manual' },
-    ],
-    checkout: {
-      addToCartEndpoint: '/kosik/pridat-do-kosiku',
-      requiresAntiforgeryToken: true,
-      checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
-    },
-  },
+const LABSHOP_CHECKOUT = Object.freeze({
+  addToCartEndpoint: '/kosik/pridat-do-kosiku',
+  requiresAntiforgeryToken: true,
+  checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
 });
 
-export function getLabshopProduct(productId) {
-  return LABSHOP_PRODUCTS[String(productId)] || null;
+
+
+function preferredNclpForMarker(marker) {
+  const fromIntent = (marker.nclpCandidates || []).find(candidate => candidate?.standard === 'NCLP' && candidate.code);
+  if (fromIntent) return fromIntent;
+  return getExternalIdsForMarker(marker.markerKey, 'nclp')
+    .find(candidate => candidate?.code && (!candidate.relation || candidate.relation === 'exact')) || null;
 }
 
-export function findLabshopOffersForMarkers(markerIntents = []) {
-  const requested = new Set(markerIntents.map(intent => intent.markerKey).filter(Boolean));
-  if (!requested.size) return [];
-  const offers = Object.values(LABSHOP_PRODUCTS)
-    .map(product => {
-      const matchingCovers = product.covers.filter(cover => requested.has(cover.markerKey));
-      if (!matchingCovers.length) return null;
-      return {
-        ...product,
-        covers: matchingCovers,
-        matchedMarkerKeys: matchingCovers.map(cover => cover.markerKey),
-      };
+function makeCatalogOffer(marker, product, match = {}) {
+  const nclp = preferredNclpForMarker(marker);
+  return {
+    providerId: 'cz.labshop',
+    providerProductId: product.providerProductId,
+    name: product.name,
+    priceCzk: product.priceCzk,
+    coverage: COVERAGE.EXACT,
+    confidence: 'public_labshop_embedded_catalogue',
+    covers: [{
+      markerKey: marker.markerKey,
+      displayName: marker.displayName || product.name,
+      standard: nclp ? 'NCLP' : null,
+      code: nclp?.code || null,
+      system: nclp?.system || null,
+      coverage: COVERAGE.EXACT,
+      confidence: 'public_labshop_embedded_catalogue',
+      matchType: match.matchType || 'catalogue_match',
+      note: `Mapped from Labshop /produkty/vysetreni embedded catalogue (${product.shortcut || product.name}).`,
+    }],
+    matchedMarkerKeys: [marker.markerKey],
+    catalogueSource: product.source || LABSHOP_CATALOGUE_SOURCE,
+    shortcut: product.shortcut || null,
+    groupName: product.groupName || null,
+    checkout: {
+      ...LABSHOP_CHECKOUT,
+      productUrl: product.url ? `https://www.labshop.cz${product.url}` : null,
+    },
+  };
+}
+
+export function getLabshopProduct(productId, options = {}) {
+  const fallback = [];
+  const catalogueItems = options.catalogueItems || getProviderCatalogueItems('cz.labshop', { fallback });
+  return catalogueItems.find(product => product.providerProductId === String(productId)) || null;
+}
+
+
+export function findLabshopOffersForMarkers(markerIntents = [], options = {}) {
+  const requestedMarkers = markerIntents.filter(intent => intent?.markerKey);
+  if (!requestedMarkers.length) return [];
+
+  const fallback = [];
+  const catalogueItems = Array.isArray(options.catalogueItems)
+    ? options.catalogueItems
+    : getProviderCatalogueItems('cz.labshop', { fallback });
+  const matchesByKey = new Map(findLabshopCatalogueMatches(requestedMarkers, catalogueItems)
+    .map(match => [match.markerKey, match]));
+
+  const catalogOffers = requestedMarkers
+    .map(marker => {
+      const match = matchesByKey.get(marker.markerKey);
+      return match ? makeCatalogOffer(marker, match.product, match) : null;
     })
     .filter(Boolean)
-    .sort((a, b) => b.matchedMarkerKeys.length - a.matchedMarkerKeys.length || a.priceCzk - b.priceCzk);
-  const bestCoverage = offers[0]?.matchedMarkerKeys.length || 0;
-  return offers.filter(offer => offer.matchedMarkerKeys.length === bestCoverage && offer.priceCzk === offers[0].priceCzk);
+    .sort((a, b) => (a.priceCzk ?? Infinity) - (b.priceCzk ?? Infinity) || a.name.localeCompare(b.name, 'cs'));
+
+  return catalogOffers;
 }

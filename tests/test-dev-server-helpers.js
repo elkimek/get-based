@@ -16,7 +16,14 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks, collectWearableOverrides, WEARABLE_CLIENT_ID_VARS, DEFAULT_UVDATA_UPSTREAM } from '../dev-server.js';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 let passed = 0, failed = 0;
 function assert(name, cond, detail) {
@@ -510,6 +517,32 @@ console.log('\n── collectWearableOverrides (issue #145) ──');
     'POLAR_CLIENT_ID', 'WHOOP_CLIENT_ID', 'FITBIT_CLIENT_ID'].sort();
   const got = WEARABLE_CLIENT_ID_VARS.map(([k]) => k).sort();
   assert('WEARABLE_CLIENT_ID_VARS exposes the same six env vars', JSON.stringify(got) === JSON.stringify(expected));
+}
+
+console.log('\n── Labshop preview endpoint source guard ──');
+{
+  const src = read('dev-server.js');
+  const labshopBlockIdx = src.indexOf("if (pathname === '/api/labshop' && req.method === 'POST')");
+  const unilabsBlockIdx = src.indexOf("if (pathname === '/api/unilabs' && req.method === 'POST')");
+  const labshopBlock = src.slice(labshopBlockIdx, unilabsBlockIdx);
+  assert('Labshop preview endpoint uses shared JSON body reader', labshopBlock.includes('_readJsonBody(req)'), labshopBlock.slice(0, 160));
+  assert('Labshop preview endpoint does not stringify missing prices as undefined Kč',
+    labshopBlock.includes('price: product.priceCzk != null') && labshopBlock.includes('priceCzk: product.priceCzk ?? null'),
+    labshopBlock.match(/price[^\n]+/g)?.join(' | '));
+  assert('Unilabs preview endpoint wraps non-JSON add-product responses',
+    src.includes('function _parseJsonResponseBody') && src.includes('_parseJsonResponseBody(add.body, `Unilabs AddProduct ${item.productId}`)'),
+    src.slice(src.indexOf('function _parseJsonResponseBody'), src.indexOf('function _parseJsonResponseBody') + 220));
+}
+
+console.log('\n── Private catalogue endpoint source guard ──');
+{
+  const src = read('dev-server.js');
+  const blockStart = src.indexOf("pathname === '/api/lab-provider-catalogues'");
+  const blockEnd = src.indexOf("// API: encrypted profile share mirror", blockStart);
+  const block = src.slice(blockStart, blockEnd);
+  assert('Private catalogue endpoint builds script before committing 200 headers',
+    /const\s+script\s*=\s*buildLabProviderCataloguesScript\(payload\)[\s\S]*res\.writeHead\(200/.test(block),
+    block);
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

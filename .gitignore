@@ -24,5 +24,6 @@ tools/
 dev-chrome.sh
 test-screenshots/
 .mcp.json
+data/lab-provider-catalogues.private.json
 .env.local
 .env.*.local

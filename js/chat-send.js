@@ -35,9 +35,6 @@ import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
-import { buildLabOrderAssistantText, buildLabOrderDraft, buildLabOrderDraftFromMarkers, shouldDeferLabOrderDraftForRecommendation } from './lab-order-intent.js';
-import { buildLabPlanFromConversation } from './lab-plan-intent.js';
-import { renderLabOrderCard, renderLabPlanCard } from './lab-order-render.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -164,17 +161,21 @@ export async function sendChatMessage() {
   // Capture attachments before clearing (they're ephemeral)
   const attachments = hasImages ? [...getPendingAttachments()] : [];
 
+  const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;
+
+  if (!hasAIProvider()) {
+    renderChatMessages(); // Re-render to show setup guide
+    return;
+  }
+
   // Ensure we have a thread
   if (!state.currentThreadId) {
     createNewThread();
   }
 
-  const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;
-
   // Auto-name thread from first user message
   const isFirstMessage = state.chatHistory.length === 0;
   const contextSnapshot = getContextSummary();
-  const labOrderDraft = !hasImages ? buildLabOrderDraft(text) : null;
 
   // Add user message — store tiny thumbnails for display, NOT full base64
   const userMsg = { role: 'user', content: text || '(image)' };
@@ -192,28 +193,6 @@ export async function sendChatMessage() {
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);
-  }
-
-  if (labOrderDraft) {
-    const personality = getActivePersonality();
-    state.chatHistory.push({
-      role: 'assistant',
-      content: buildLabOrderAssistantText(labOrderDraft),
-      context: contextSnapshot,
-      personalityName: personality.name,
-      personalityIcon: personality.icon,
-      provider: 'local',
-      modelDisplay: 'Labshop order preview',
-      labOrderDraft,
-    });
-    renderChatMessages();
-    await saveChatHistory();
-    return;
-  }
-
-  if (!hasAIProvider()) {
-    renderChatMessages(); // Re-render to show setup guide
-    return;
   }
 
   if (discussionState && !isFirstMessage) {
@@ -332,12 +311,6 @@ export async function sendChatMessage() {
 
     // Build assistant message object with context snapshot
     const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
-    const labPlanDraft = buildLabPlanFromConversation(text, fullText);
-    const deferredLabOrderDraft = labPlanDraft && shouldDeferLabOrderDraftForRecommendation(text)
-      ? buildLabOrderDraftFromMarkers(labPlanDraft.markers, { country: 'CZ', userRequest: text })
-      : null;
-    if (labPlanDraft) assistantMsg.labPlanDraft = labPlanDraft;
-    if (deferredLabOrderDraft) assistantMsg.labOrderDraft = deferredLabOrderDraft;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
@@ -396,12 +369,6 @@ export async function sendChatMessage() {
 
     // Append action surfaces
     const msgIndex = state.chatHistory.length - 1;
-    if (labPlanDraft) {
-      aiMsgEl.insertAdjacentHTML('beforeend', renderLabPlanCard(labPlanDraft, msgIndex));
-    }
-    if (deferredLabOrderDraft) {
-      aiMsgEl.insertAdjacentHTML('beforeend', renderLabOrderCard(deferredLabOrderDraft, msgIndex));
-    }
     const actionBarHtml = buildActionBar(msgIndex);
     const actionBarContainer = document.createElement('div');
     actionBarContainer.innerHTML = actionBarHtml;

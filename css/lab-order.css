@@ -79,11 +79,20 @@
 
 .lab-order-total strong { color: var(--text-primary); }
 
-.lab-order-boundary {
+.lab-order-boundary,
+.lab-order-warning {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
   margin-top: 10px;
+}
+
+.lab-order-warning {
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 28%, var(--border));
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 9px 10px;
 }
 
 .lab-plan-card {
@@ -159,6 +168,46 @@
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-secondary);
+}
+
+.lab-order-primary:disabled,
+.lab-order-secondary:disabled {
+  cursor: progress;
+  opacity: .72;
+}
+
+.lab-order-actions-busy {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lab-order-primary.is-loading,
+.lab-order-status.is-loading {
+  position: relative;
+}
+
+.lab-order-primary.is-loading::before,
+.lab-order-status.is-loading::before {
+  animation: lab-order-spin .85s linear infinite;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  content: '';
+  display: inline-block;
+  height: .9em;
+  margin-right: 7px;
+  vertical-align: -0.12em;
+  width: .9em;
+}
+
+.lab-order-progress-note {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@keyframes lab-order-spin {
+  to { transform: rotate(360deg); }
 }
 
 .lab-order-requested {
@@ -313,4 +362,53 @@
   font-size: 12px;
   gap: 4px;
   margin-top: 4px;
+}
+
+@media (max-width: 520px) {
+  .lab-order-card {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .lab-order-head,
+  .lab-order-item-main,
+  .lab-order-total,
+  .lab-order-actions,
+  .lab-order-requested-head,
+  .lab-provider-option-main,
+  .lab-provider-comparison-row,
+  .lab-provider-recommendation-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .lab-order-status,
+  .lab-provider-option-main span,
+  .lab-provider-comparison-row strong,
+  .lab-provider-recommendation-row strong {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .lab-order-actions {
+    align-items: stretch;
+  }
+
+  .lab-order-primary,
+  .lab-order-secondary {
+    min-height: 42px;
+    width: 100%;
+  }
+
+  .lab-provider-option-card {
+    padding: 12px;
+  }
+
+  .lab-order-markers,
+  .lab-order-marker-list {
+    max-height: 96px;
+    overflow: auto;
+  }
 }

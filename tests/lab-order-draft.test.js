@@ -7,6 +7,11 @@ import {
   selectProviderForDraft,
   shouldDeferLabOrderDraftForRecommendation,
 } from '../js/lab-order-intent.js';
+import {
+  clearProviderCatalogueSourceForTests,
+  setProviderCatalogueItemsForTests,
+} from '../js/lab-providers/provider-catalogue-source.js';
+import { LABSHOP_FIXTURE_CATALOGUE } from './fixtures/lab-provider-catalogues.js';
 
 describe('lab order draft uses architecture layers', () => {
   it('turns explicit Labshop text into marker intents plus provider offers', () => {
@@ -30,12 +35,13 @@ describe('lab order draft uses architecture layers', () => {
       'vitamins.vitaminB12',
       'vitamins.folate',
     ]));
+    expect(draft.offers.map(offer => offer.providerProductId)).toEqual(['19711', '19312']);
     expect(draft.offers[0]).toEqual(expect.objectContaining({
       providerId: 'cz.labshop',
-      providerProductId: '20036',
-      coverage: 'panel_contains',
+      providerProductId: '19711',
+      coverage: 'exact',
     }));
-    expect(draft.products[0].providerProductId).toBe('20036');
+    expect(draft.products.map(product => product.providerProductId)).toEqual(['19711', '19312']);
     expect(draft.safetyBoundary).toMatch(/final checkout\/payment stays user-in-loop/i);
   });
 
@@ -53,7 +59,7 @@ describe('lab order draft uses architecture layers', () => {
       providerId: 'cz.labshop',
       coveredCount: 2,
       requestedCount: 2,
-      totalEstimateCzk: 500,
+      totalEstimateCzk: 490,
     }));
     expect(draft.providerComparisons[1]).toEqual(expect.objectContaining({
       providerId: 'cz.unilabs',
@@ -61,6 +67,23 @@ describe('lab order draft uses architecture layers', () => {
       requestedCount: 2,
       totalEstimateCzk: 662,
     }));
+  });
+
+  it('treats a broad named panel request as actionable ordering intent', () => {
+    const draft = buildLabOrderDraft('I want a broad methylation panel: B12, active B12, folate, homocysteine, MMA, vitamin D and ferritin.');
+
+    expect(draft).not.toBeNull();
+    expect(draft.status).toBe('provider_selection');
+    expect(draft.requestedMarkers.map(m => m.markerKey)).toEqual(expect.arrayContaining([
+      'vitamins.vitaminB12',
+      'vitamins.holotranscobalamin',
+      'vitamins.folate',
+      'coagulation.homocysteine',
+      'vitamins.vitaminD',
+      'iron.ferritin',
+    ]));
+    expect(draft.requestedMarkers.some(m => m.displayName === 'MMA')).toBe(true);
+    expect(draft.providerComparisons.every(row => row.requestedCount === draft.requestedMarkers.length)).toBe(true);
   });
 
   it('expands common panel names into many requested markers for visual/provider comparison testing', () => {
@@ -87,8 +110,8 @@ describe('lab order draft uses architecture layers', () => {
 
     expect(selected.status).toBe('draft');
     expect(selected.providerId).toBe('cz.labshop');
-    expect(selected.offers[0]).toEqual(expect.objectContaining({ providerProductId: '20036' }));
-    expect(selected.products[0]).toEqual(expect.objectContaining({ name: 'Vitaminy B - Basic' }));
+    expect(selected.offers.map(offer => offer.providerProductId)).toEqual(['19711', '19312']);
+    expect(selected.products.map(product => product.name)).toEqual(['Kyselina listová (Foláty)', 'Vitamin B12']);
   });
 
   it('selects Unilabs as the second lab and shows a request-form test list', () => {
@@ -103,8 +126,29 @@ describe('lab order draft uses architecture layers', () => {
       coverage: 'exact',
     }));
     expect(selected.products.map(p => p.providerProductId)).toEqual(expect.arrayContaining(['2885', '2886']));
-    expect(selected.products[0].markers).toEqual(expect.arrayContaining(['Vitamin B12']));
+    expect(selected.products.find(p => p.providerProductId === '2885')?.markers).toEqual(expect.arrayContaining(['Vitamin B12']));
+    expect(selected.products.find(p => p.providerProductId === '2886')?.markers).toEqual(expect.arrayContaining(['Folate']));
     expect(selected.safetyBoundary).toMatch(/Unilabs.*cart/i);
+  });
+
+  it('covers Labshop TSH, free testosterone, vitamin D3, HbA1c, and liver enzymes from Czech catalogue aliases', () => {
+    const draft = buildLabOrderDraftFromMarkers([
+      { markerKey: 'thyroid.tsh', displayName: 'TSH' },
+      { markerKey: 'hormones.freeTestosterone', displayName: 'Free testosterone' },
+      { markerKey: 'vitamins.vitaminD', displayName: 'Vitamin D3' },
+      { markerKey: 'diabetes.hba1c', displayName: 'HbA1c' },
+      { markerKey: 'liver.alt', displayName: 'ALT' },
+      { markerKey: 'liver.ggt', displayName: 'GGT' },
+      { markerKey: 'liver.ast', displayName: 'AST' },
+    ]);
+
+    const labshop = draft.providerComparisons.find(row => row.providerId === 'cz.labshop');
+    expect(labshop).toEqual(expect.objectContaining({
+      coveredCount: 7,
+      requestedCount: 7,
+      totalEstimateCzk: 1218,
+      missingMarkerKeys: [],
+    }));
   });
 
   it('defers recommendation-plus-order prompts so the LLM can generate the full marker plan first', () => {
@@ -134,5 +178,20 @@ describe('lab order draft uses architecture layers', () => {
     ]));
     expect(draft.providerComparisons.every(row => row.requestedCount === 5)).toBe(true);
     expect(draft.providerComparisons.some(row => row.missingMarkerKeys.includes('unmapped.neurofilament_light_chain'))).toBe(true);
+  });
+
+  it('direct provider drafts expand eGFR into the creatinine orderable dependency', () => {
+    setProviderCatalogueItemsForTests('cz.labshop', LABSHOP_FIXTURE_CATALOGUE);
+    try {
+      const draft = buildLabOrderDraftFromMarkers([
+        { markerKey: 'kidney.egfr', displayName: 'eGFR' },
+      ], { providerId: 'cz.labshop', userRequest: 'Order eGFR from Labshop' });
+
+      expect(draft.calculatedMarkers.map(m => m.markerKey)).toEqual(['kidney.egfr']);
+      expect(draft.requestedMarkers.map(m => m.markerKey)).toEqual(['biochemistry.creatinine']);
+      expect(draft.products.map(p => p.providerProductId)).toEqual(['19267']);
+    } finally {
+      clearProviderCatalogueSourceForTests();
+    }
   });
 });

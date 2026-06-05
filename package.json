@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
+    "lab:catalog": "node scripts/build-lab-provider-catalogues.mjs",
+    "lab:coverage": "node scripts/lab-ontology-coverage.mjs",
     "test:watch": "vitest"
   },
   "devDependencies": {

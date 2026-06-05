@@ -256,10 +256,19 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-header-model { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-header-model:empty { display: none; }
 .chat-header-actions { display: flex; gap: 8px; align-items: center; }
-.chat-summary-btn, .chat-clear-btn {
+.chat-lab-plan-btn, .chat-summary-btn, .chat-clear-btn {
   background: none; border: 1px solid var(--border); color: var(--text-muted);
   font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
   font-family: inherit; transition: all 0.15s;
+}
+.chat-lab-plan-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: color-mix(in srgb, var(--red, #ef4444) 72%, var(--text-muted)); white-space: nowrap; }
+.chat-lab-plan-btn svg { display: block; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.chat-lab-plan-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 70%, var(--border)); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.chat-lab-plan-btn:disabled { cursor: wait; opacity: .72; }
+.chat-lab-plan-btn.is-loading svg { animation: labPlanPulse 0.9s ease-in-out infinite; }
+@keyframes labPlanPulse {
+  0%, 100% { transform: scale(1); opacity: .72; }
+  50% { transform: scale(1.12); opacity: 1; }
 }
 .chat-summary-btn:hover { color: var(--accent); border-color: var(--accent); }
 .chat-summary-btn.has-summary { color: var(--accent); border-color: var(--accent); }

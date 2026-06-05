@@ -6,12 +6,20 @@ import { getMarkerCrosswalk, resolveMarkerAliases } from './lab-standards/marker
 import { findLabshopOffersForMarkers } from './lab-providers/cz/labshop.js';
 import { findUnilabsOffersForMarkers } from './lab-providers/cz/unilabs.js';
 import { getProviderById, getProvidersForLocation } from './lab-providers/provider-registry.js';
-import { buildProviderCoverageMatrix, recommendLabOrderStrategy } from './lab-order-coverage.js';
+import { buildProviderCoverageMatrix, markerIntentsWithDerivedDependencies, recommendLabOrderStrategy } from './lab-order-coverage.js';
 
 const ORDER_TERMS = [
   'order', 'objedn', 'koupit', 'buy', 'prepare', 'připrav', 'make cart',
   'cart', 'košík', 'kosik', 'labshop', 'unilabs', 'samoplátce', 'samoplatce'
 ];
+
+const SOFT_ORDER_TERMS = ['i want', 'i need', 'can we check', 'check', 'panel', 'bloodwork', 'blood work', 'tests', 'labs'];
+
+const DIRECT_MARKER_OVERRIDES = Object.freeze([
+  { pattern: /\b(?:vitamin\s*d|25\s*oh\s*d|25\(oh\)d)\b/i, markerKey: 'vitamins.vitaminD', displayName: 'Vitamin D' },
+  { pattern: /\bferritin\b/i, markerKey: 'iron.ferritin', displayName: 'Ferritin' },
+  { pattern: /\b(?:mma|methylmalonic\s+acid)\b/i, markerKey: 'unmapped.mma', displayName: 'MMA' },
+]);
 
 const RECOMMENDATION_TERMS = [
   'recommend', 'doporuč', 'doporuc', 'what blood tests', 'what tests',
@@ -67,6 +75,14 @@ function addPanelMarkers(raw, markerKeys, displayNameByKey) {
   }
 }
 
+function addDirectMarkerOverrides(raw, markerKeys, displayNameByKey) {
+  for (const override of DIRECT_MARKER_OVERRIDES) {
+    if (!override.pattern.test(raw)) continue;
+    markerKeys.add(override.markerKey);
+    displayNameByKey.set(override.markerKey, override.displayName);
+  }
+}
+
 export function shouldDeferLabOrderDraftForRecommendation(text) {
   const lower = String(text || '').toLowerCase();
   const hasOrderVerb = ORDER_TERMS.some(term => lower.includes(term));
@@ -84,13 +100,14 @@ function buildProviderOptions(country = 'CZ') {
 }
 
 function offersForProvider(providerId, markerIntents) {
-  if (providerId === 'cz.labshop') return findLabshopOffersForMarkers(markerIntents);
-  if (providerId === 'cz.unilabs') return findUnilabsOffersForMarkers(markerIntents);
+  const lookupIntents = markerIntentsWithDerivedDependencies(markerIntents);
+  if (providerId === 'cz.labshop') return findLabshopOffersForMarkers(lookupIntents);
+  if (providerId === 'cz.unilabs') return findUnilabsOffersForMarkers(lookupIntents);
   return [];
 }
 
-function buildProviderComparisons(markerIntents = [], country = 'CZ') {
-  return buildProviderCoverageMatrix(markerIntents, { country }).providers.map(provider => ({
+function providerComparisonFromRow(provider) {
+  return {
     providerId: provider.providerId,
     name: provider.name,
     summary: PROVIDER_SUMMARIES[provider.providerId] || 'Provider available',
@@ -100,26 +117,48 @@ function buildProviderComparisons(markerIntents = [], country = 'CZ') {
     coveragePercent: provider.coveragePercent,
     coveredMarkerKeys: provider.coveredMarkerKeys,
     missingMarkerKeys: provider.missingMarkerKeys,
+    calculatedMarkerKeys: provider.calculatedMarkerKeys || [],
     coverageByMarker: Object.fromEntries(Object.entries(provider.cells).map(([markerKey, cell]) => [markerKey, cell.coverage])),
     cells: provider.cells,
     mandatoryFeesCzk: provider.mandatoryFeesCzk,
     totalEstimateCzk: provider.totalEstimateCzk,
     offerCount: provider.offerCount,
-    products: productsFromOffers(provider.providerId, provider.offers, markerIntents),
-  }));
+    catalogueLoaded: provider.catalogueLoaded,
+    products: productsFromOffers(provider.providerId, provider.offers, provider.requestedMarkers || []),
+  };
+}
+
+function buildProviderComparisonsFromMatrix(matrix) {
+  return matrix.providers.map(provider => providerComparisonFromRow({ ...provider, requestedMarkers: matrix.requestedMarkers }));
+}
+
+function buildProviderComparisons(markerIntents = [], country = 'CZ') {
+  return buildProviderComparisonsFromMatrix(buildProviderCoverageMatrix(markerIntents, { country }));
 }
 
 function productsFromOffers(providerId, offers, markerIntents) {
   const markerNameByKey = new Map(markerIntents.map(intent => [intent.markerKey, intent.displayName]));
   if (providerId === 'cz.unilabs') {
-    return offers.flatMap(offer => (offer.items || []).map(item => ({
-      providerProductId: item.providerProductId,
-      name: item.name,
-      priceCzk: item.priceCzk,
-      url: offer.checkout?.checkoutUrl || 'https://cz.unilabs.online/sestavte-si-vlastni-vysetreni',
-      markers: [item.displayName || markerNameByKey.get(item.markerKey) || item.markerKey],
-      note: 'Unilabs Online configurator product mapped from requested marker.',
-    })));
+    return offers.flatMap(offer => {
+      if (offer.items?.length) {
+        return offer.items.map(item => ({
+          providerProductId: item.providerProductId,
+          name: item.name,
+          priceCzk: item.priceCzk,
+          url: offer.checkout?.checkoutUrl || 'https://cz.unilabs.online/sestavte-si-vlastni-vysetreni',
+          markers: [item.displayName || markerNameByKey.get(item.markerKey) || item.markerKey],
+          note: 'Unilabs Online configurator product mapped from requested marker.',
+        }));
+      }
+      return [{
+        providerProductId: offer.providerProductId,
+        name: offer.name,
+        priceCzk: offer.priceCzk,
+        url: offer.checkout?.checkoutUrl || 'https://cz.unilabs.online/sestavte-si-vlastni-vysetreni',
+        markers: (offer.covers || []).map(cover => cover.displayName || markerNameByKey.get(cover.markerKey) || cover.markerKey),
+        note: 'Unilabs Online panel mapped from requested markers.',
+      }];
+    });
   }
   return offers.map(offer => ({
     providerProductId: offer.providerProductId,
@@ -152,6 +191,7 @@ export function detectLabOrderIntent(text) {
   }
   resolveMarkerAliases(raw).forEach(key => markerKeys.add(key));
   addPanelMarkers(raw, markerKeys, displayNameByKey);
+  addDirectMarkerOverrides(raw, markerKeys, displayNameByKey);
   const markerIntents = [...markerKeys].map(markerKey => ({
     markerKey,
     displayName: displayNameByKey.get(markerKey) || markerDisplayName(markerKey),
@@ -162,9 +202,10 @@ export function detectLabOrderIntent(text) {
   const offers = providerId ? offersForProvider(providerId, markerIntents) : [];
   const providerOptions = providerId ? [] : buildProviderOptions('CZ');
   const coverageMatrix = providerId ? null : buildProviderCoverageMatrix(markerIntents, { country: 'CZ' });
-  const providerComparisons = providerId ? [] : buildProviderComparisons(markerIntents, 'CZ');
+  const providerComparisons = coverageMatrix ? buildProviderComparisonsFromMatrix(coverageMatrix) : [];
   const providerRecommendation = coverageMatrix ? recommendLabOrderStrategy(coverageMatrix) : null;
-  const isOrderIntent = hasOrderVerb && markerIntents.length > 0 && (!providerId || offers.length > 0);
+  const hasSoftOrderIntent = SOFT_ORDER_TERMS.some(term => lower.includes(term));
+  const isOrderIntent = (hasOrderVerb || hasSoftOrderIntent) && markerIntents.length > 0 && (!providerId || offers.length > 0);
   return {
     isOrderIntent,
     confidence: isOrderIntent ? 'preview' : 'none',
@@ -206,9 +247,11 @@ export function buildLabOrderDraftFromMarkers(markerIntents = [], options = {}) 
   const providerId = options.providerId || null;
   const country = options.country || 'CZ';
   const providerOptions = providerId ? [] : buildProviderOptions(country);
-  const providerComparisons = providerId ? [] : buildProviderComparisons(markerIntents, country);
-  const coverageMatrix = providerId ? null : buildProviderCoverageMatrix(markerIntents, { country });
-  const providerRecommendation = coverageMatrix ? recommendLabOrderStrategy(coverageMatrix) : null;
+  const coverageMatrix = buildProviderCoverageMatrix(markerIntents, { country });
+  const providerComparisons = providerId ? [] : buildProviderComparisonsFromMatrix(coverageMatrix);
+  const providerRecommendation = providerId ? null : recommendLabOrderStrategy(coverageMatrix);
+  const requestedMarkers = coverageMatrix.requestedMarkers;
+  const calculatedMarkers = coverageMatrix.calculatedMarkers || [];
   const base = {
     id: `laborder_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     country,
@@ -219,7 +262,9 @@ export function buildLabOrderDraftFromMarkers(markerIntents = [], options = {}) 
     createdAt: new Date().toISOString(),
     userRequest: String(options.userRequest || ''),
     matchedTerms: markerIntents.map(intent => intent.markerKey),
-    requestedMarkers: markerIntents,
+    requestedMarkers,
+    calculatedMarkers,
+    originalRequestedMarkers: markerIntents,
     nationalItems: [],
     providerOptions,
     providerComparisons,

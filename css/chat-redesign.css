@@ -68,16 +68,24 @@ body.chat-open .analytics-consent-banner {
   flex: 0 0 auto;
   gap: 6px;
 }
+.chat-lab-plan-btn,
 .chat-summary-btn,
 .chat-clear-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 30px;
+  min-width: 30px;
   height: 30px;
   padding: 0;
   border-radius: var(--radius-sm);
 }
+.chat-summary-btn,
+.chat-clear-btn {
+  width: 30px;
+  padding: 0;
+}
+.chat-lab-plan-btn svg,
 .chat-summary-btn svg,
 .chat-clear-btn svg {
   display: block;

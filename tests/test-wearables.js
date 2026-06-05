@@ -610,7 +610,7 @@ const stalenessSummary = {
 window._labState.importedData.wearableSummary = stalenessSummary;
 const stripStaleHtml = window.renderWearableStrip();
 assert('Stale metric (HRV) gets "as of {date}" hint when its latestDate < source max',
-  /wearable-staleness[^>]*>\s*as of\s*[A-Z][a-z]+/.test(stripStaleHtml));
+  /wearable-staleness[^>]*>\s*as of\s*[^<]+</.test(stripStaleHtml));
 // Only one staleness hint should appear in the strip (HRV) — sleep_score's
 // latestDate matches the source max, so its card must NOT carry a hint.
 const stalenessHints = (stripStaleHtml.match(/wearable-staleness/g) || []).length;

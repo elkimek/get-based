@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import { getProviderCatalogueItems } from './js/lab-providers/provider-catalogue-source.js';
+import { buildLabProviderCataloguesScript, loadLabProviderCataloguesFromEnv } from './api/lab-provider-catalogues.js';
 
 export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 
@@ -46,6 +48,18 @@ const PORT = parseInt(process.argv[2], 10) || 8000;
 const HOST = process.env.HOST || '127.0.0.1';
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
+const PRIVATE_LAB_PROVIDER_CATALOGUES_FILE = path.join(ROOT, 'data', 'lab-provider-catalogues.private.json');
+
+function _loadLabProviderCataloguesForDev() {
+  if (process.env.LAB_PROVIDER_CATALOGUES_JSON) {
+    return loadLabProviderCataloguesFromEnv(process.env);
+  }
+  try {
+    return JSON.parse(fs.readFileSync(PRIVATE_LAB_PROVIDER_CATALOGUES_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
 
 // Mutex for /api/deploy-catalog so two concurrent POSTs can't race on
 // the read-hash → writeFileSync critical section. Promise-chained queue:
@@ -545,12 +559,37 @@ function _cookieHeader(cookieJar) {
 function _stripHtml(text) {
   return String(text || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 }
+function _parseJsonResponseBody(body, context = 'response') {
+  try {
+    return JSON.parse(body || '{}');
+  } catch (err) {
+    throw new Error(`${context} returned non-JSON response`);
+  }
+}
 async function _createUnilabsCartPreview(products) {
   const allowed = new Map([
+    ['2540', { productId: '2540', name: 'ALT (Alaninaminotransferáza)', priceCzk: 28 }],
+    ['2542', { productId: '2542', name: 'AST (Aspartátaminotransferáza)', priceCzk: 28 }],
+    ['2544', { productId: '2544', name: 'CRP test', priceCzk: 171 }],
+    ['2547', { productId: '2547', name: 'Estradiol', priceCzk: 228 }],
+    ['2550', { productId: '2550', name: 'FSH - Folikulostimulační hormon', priceCzk: 197 }],
+    ['2548', { productId: '2548', name: 'Ferritin', priceCzk: 263 }],
+    ['2552', { productId: '2552', name: 'GGT', priceCzk: 28 }],
+    ['2556', { productId: '2556', name: 'Hořčík (Magnesium, Mg)', priceCzk: 31 }],
+    ['2560', { productId: '2560', name: 'Kreatinin', priceCzk: 29 }],
+    ['2561', { productId: '2561', name: 'Kyselina močová', priceCzk: 29 }],
+    ['2563', { productId: '2563', name: 'LH - Luteinizační hormon', priceCzk: 194 }],
+    ['2673', { productId: '2673', name: 'Glukóza', priceCzk: 28 }],
+    ['2694', { productId: '2694', name: 'Vyšetření štítné žlázy EXPERT', priceCzk: 995 }],
+    ['2709', { productId: '2709', name: 'Test na testosteron', priceCzk: 217 }],
     ['2885', { productId: '2885', name: 'Vitamín B12', priceCzk: 291 }],
     ['2886', { productId: '2886', name: 'Kyselina listová (folát, vitamín B9)', priceCzk: 290 }],
+    ['2888', { productId: '2888', name: 'Inzulin', priceCzk: 183 }],
+    ['3081', { productId: '3081', name: 'Test na apolipoprotein A1 (Apo A1)', priceCzk: 236 }],
+    ['2541', { productId: '2541', name: 'Test na apolipoprotein B (Apo B)', priceCzk: 236 }],
     ['3082', { productId: '3082', name: 'Homocystein', priceCzk: 571 }],
     ['3543', { productId: '3543', name: 'Test na aktivní vitamín B12', priceCzk: 308 }],
+    ['2571', { productId: '2571', name: 'TSH - hormon stimulující štítnou žlázu', priceCzk: 218 }],
   ]);
   const requested = Array.isArray(products) ? products : [];
   const items = requested.map(p => allowed.get(String(p.productId || p.idProduct || p.id))).filter(Boolean);
@@ -576,12 +615,14 @@ async function _createUnilabsCartPreview(products) {
     });
     _mergeSetCookie(cookies, add.headers['set-cookie']);
     if (add.status < 200 || add.status >= 300) throw new Error(`Unilabs AddProduct returned ${add.status}`);
-    lastJson = JSON.parse(add.body || '{}');
+    lastJson = _parseJsonResponseBody(add.body, `Unilabs AddProduct ${item.productId}`);
   }
   const snippets = lastJson?.snippets || {};
   const summaryText = _stripHtml(snippets['snippet--configuratorProcess'] || snippets['snippet--selectedParameters'] || '');
   const totalMatch = summaryText.match(/Mezisoučet:\s*([0-9\s]+)\s*Kč/) || summaryText.match(/Vybrané parametry\s*([0-9\s]+)\s*Kč/);
-  const totalCzk = totalMatch ? Number(totalMatch[1].replace(/\s/g, '')) : items.reduce((sum, item) => sum + item.priceCzk, 81);
+  const localTotalCzk = items.reduce((sum, item) => sum + item.priceCzk, 81);
+  const remoteSessionVerified = Boolean(summaryText && items.every(item => summaryText.includes(item.name.split(' (')[0])));
+  const totalCzk = remoteSessionVerified && totalMatch ? Number(totalMatch[1].replace(/\s/g, '')) : localTotalCzk;
   return {
     ok: true,
     provider: 'unilabs',
@@ -594,7 +635,7 @@ async function _createUnilabsCartPreview(products) {
     cartUrl: `${base}/cart?step=1`,
     boundary: 'checkout_handoff_required',
     message: `Unilabs Online cart preview prepared (${totalCzk} Kč incl. blood draw fee). Continue on Unilabs to choose collection site/slot and handle identity/payment.`,
-    remoteSessionVerified: Boolean(summaryText && items.every(item => summaryText.includes(item.name.split(' (')[0]))),
+    remoteSessionVerified,
   };
 }
 
@@ -744,12 +785,21 @@ const server = http.createServer((req, res) => {
   // to whatever bundle they first cached, so phone testing silently
   // missed every code change after the initial visit. Allowlist it
   // explicitly here.
-  const LAN_SAFE_API_PATHS = new Set(['/api/commit']);
+  const LAN_SAFE_API_PATHS = new Set([
+    '/api/commit',
+    // Lab-ordering preview endpoints are bounded and do not expose arbitrary
+    // URL fetching or disk writes. They need to work when the dev app is opened
+    // from a workstation/phone over LAN or Tailscale.
+    '/api/lab-provider-catalogues',
+    '/api/lab-provider-catalogues.js',
+    '/api/labshop',
+    '/api/unilabs',
+  ]);
   if (HOST === '0.0.0.0'
       && (pathname.startsWith('/api/') || pathname === '/proxy')
       && !LAN_SAFE_API_PATHS.has(pathname)
       && !_isLoopbackSocket(req)) {
-    res.writeHead(403); res.end('Forbidden — /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
+    res.writeHead(403); res.end('Forbidden — unsafe /api/* disabled for non-loopback peers when HOST=0.0.0.0'); return;
   }
 
   // API: return current git HEAD + branch so Settings → Display shows the
@@ -765,6 +815,22 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: optional private lab provider catalogue injector. Production Vercel
+  // serves /api/lab-provider-catalogues from api/lab-provider-catalogues.js;
+  // local dev mirrors it so env-driven catalogue wiring can be smoked without deploy.
+  if ((pathname === '/api/lab-provider-catalogues' || pathname === '/api/lab-provider-catalogues.js') && req.method === 'GET') {
+    try {
+      const payload = _loadLabProviderCataloguesForDev();
+      const script = buildLabProviderCataloguesScript(payload);
+      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', ...corsHeaders(req) });
+      res.end(script);
+    } catch {
+      res.writeHead(500, { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', ...corsHeaders(req) });
+      res.end('globalThis.__GETBASED_LAB_PROVIDER_CATALOGUES__ = {};');
+    }
+    return;
+  }
+
   // API: encrypted profile share mirror for local development. Production
   // uses api/share.js with private Vercel Blob storage; localhost keeps the
   // encrypted records in memory only.
@@ -777,47 +843,44 @@ const server = http.createServer((req, res) => {
   // returns the cart handoff shape the UI needs, but does not submit checkout
   // or payment. Real cart creation can be wired behind this same contract.
   if (pathname === '/api/labshop' && req.method === 'POST') {
-    const MAX_BODY_BYTES = 64 * 1024;
-    let body = '';
-    let bytes = 0;
-    req.on('data', chunk => {
-      bytes += chunk.length;
-      if (bytes > MAX_BODY_BYTES) { res.writeHead(413); res.end('Body too large'); req.destroy(); return; }
-      body += chunk;
-    });
-    req.on('end', () => {
-      try {
-        const payload = JSON.parse(body || '{}');
-        if (payload.action !== 'create_cart_preview') {
-          res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ ok: false, error: 'Unsupported Labshop action' }));
-          return;
-        }
-        const allowed = new Map([
-          ['20036', { idProduct: '20036', name: 'Vitaminy B - Basic', price: '500 Kč' }],
-        ]);
-        const requested = Array.isArray(payload.products) ? payload.products : [];
-        const items = requested.map(p => allowed.get(String(p.idProduct || p.productId || p.id))).filter(Boolean);
-        if (!items.length) {
-          res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ ok: false, error: 'No allowlisted Labshop products in request' }));
-          return;
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-        res.end(JSON.stringify({
-          ok: true,
-          provider: 'labshop',
-          preview: true,
-          items,
-          itemCount: items.length,
-          checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
-          boundary: 'checkout_handoff_required',
-          message: 'Demo preview only: this does not fill your Labshop browser cart yet. Real cart handoff needs browser-side automation or a Labshop-supported cart/session transfer.',
-        }));
-      } catch (e) {
+    _readJsonBody(req).then((payload) => {
+      if (payload.action !== 'create_cart_preview') {
         res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-        res.end(JSON.stringify({ ok: false, error: e.message || 'Invalid JSON' }));
+        res.end(JSON.stringify({ ok: false, error: 'Unsupported Labshop action' }));
+        return;
       }
+      const devCatalogues = _loadLabProviderCataloguesForDev();
+      const devLabshopCatalogue = devCatalogues?.['cz.labshop'];
+      const labshopCatalogue = (Array.isArray(devLabshopCatalogue)
+        ? devLabshopCatalogue
+        : devLabshopCatalogue?.catalogueItems) || getProviderCatalogueItems('cz.labshop');
+      const allowed = new Map(labshopCatalogue.map(product => [String(product.providerProductId), {
+        idProduct: String(product.providerProductId),
+        name: product.name,
+        price: product.priceCzk != null ? `${product.priceCzk} Kč` : null,
+        priceCzk: product.priceCzk ?? null,
+      }]));
+      const requested = Array.isArray(payload.products) ? payload.products : [];
+      const items = requested.map(p => allowed.get(String(p.idProduct || p.productId || p.id))).filter(Boolean);
+      if (!items.length) {
+        res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+        res.end(JSON.stringify({ ok: false, error: 'No allowlisted Labshop products in request' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({
+        ok: true,
+        provider: 'labshop',
+        preview: true,
+        items,
+        itemCount: items.length,
+        checkoutUrl: 'https://www.labshop.cz/kosik/prehled',
+        boundary: 'checkout_handoff_required',
+        message: 'Demo preview only: this does not fill your Labshop browser cart yet. Real cart handoff needs browser-side automation or a Labshop-supported cart/session transfer.',
+      }));
+    }).catch((e) => {
+      res.writeHead(e.status || 400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+      res.end(JSON.stringify({ ok: false, error: e.message || 'Invalid JSON' }));
     });
     return;
   }

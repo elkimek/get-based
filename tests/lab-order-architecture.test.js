@@ -83,7 +83,7 @@ describe('lab ordering architecture foundation', () => {
     expect(getProviderById('cz.spadia')).toBeNull();
     expect(getProviderById('cz.labshop').capabilities.serverCartCreate).toBe(true);
     expect(getProviderById('cz.labshop').capabilities.requiresCaptchaAtCheckout).toBe(true);
-    expect(getProviderById('cz.unilabs').capabilities.reconnaissanceNeeded).toBe(true);
+    expect(getProviderById('cz.unilabs').capabilities.reconnaissanceNeeded).toBe(false);
   });
 
   it('maps marker intents to Labshop offers as provider-level coverage, not schema metadata', () => {
@@ -92,14 +92,21 @@ describe('lab ordering architecture foundation', () => {
       { markerKey: 'vitamins.folate', displayName: 'Folate' },
     ]);
 
-    expect(offers).toHaveLength(1);
+    expect(offers).toHaveLength(2);
+    expect(offers.map(offer => offer.providerProductId)).toEqual(['19711', '19312']);
     expect(offers[0]).toEqual(expect.objectContaining({
       providerId: 'cz.labshop',
-      providerProductId: '20036',
-      name: 'Vitaminy B - Basic',
-      coverage: 'panel_contains',
+      providerProductId: '19711',
+      name: 'Kyselina listová (Foláty)',
+      coverage: 'exact',
     }));
-    expect(offers[0].covers.map(c => c.markerKey)).toEqual(expect.arrayContaining([
+    expect(offers[1]).toEqual(expect.objectContaining({
+      providerId: 'cz.labshop',
+      providerProductId: '19312',
+      name: 'Vitamin B12',
+      coverage: 'exact',
+    }));
+    expect(offers.flatMap(offer => offer.covers.map(c => c.markerKey))).toEqual(expect.arrayContaining([
       'vitamins.vitaminB12',
       'vitamins.folate',
     ]));
