@@ -29,6 +29,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         const aiMsgs = realContainer.querySelectorAll('.chat-msg.chat-ai');
         const userMsgs = realContainer.querySelectorAll('.chat-msg.chat-user');
         outcomes.aiMessagesHaveActionBars = aiMsgs.length > 0 && aiMsgs[0].querySelector('.chat-action-bar') !== null;
+        outcomes.aiActionBarHasButtons = aiMsgs.length > 0 && aiMsgs[0].querySelectorAll('.chat-action-btn').length >= 1;
         outcomes.userMessagesHaveNoActionBars = userMsgs.length > 0 && userMsgs[0].querySelector('.chat-action-bar') === null;
       } else {
         const doc = new DOMParser().parseFromString(
@@ -38,6 +39,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         const aiMsg = doc.querySelector('.chat-msg.chat-ai');
         const userMsg = doc.querySelector('.chat-msg.chat-user');
         outcomes.aiMessagesHaveActionBars = !!aiMsg?.querySelector('.chat-action-bar');
+        outcomes.aiActionBarHasButtons = (aiMsg?.querySelectorAll('.chat-action-btn').length || 0) >= 1;
         outcomes.userMessagesHaveNoActionBars = userMsg?.querySelector('.chat-action-bar') === null;
       }
 
