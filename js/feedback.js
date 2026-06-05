@@ -1,3 +1,4 @@
+// @ts-check
 // feedback.js — Bug report / feedback modal (opens GitHub issue)
 
 import { escapeHTML, showNotification } from './utils.js';
@@ -14,6 +15,7 @@ const FEEDBACK_TYPES = [
 export function openFeedbackModal() {
   const modal = document.getElementById('feedback-modal');
   const overlay = document.getElementById('feedback-modal-overlay');
+  if (!modal || !overlay) return;
   const typeOptions = FEEDBACK_TYPES.map(t => `<option value="${t.value}">${escapeHTML(t.label)}</option>`).join('');
   modal.className = 'modal gb-form-modal feedback-redesign-modal';
   modal.innerHTML = `
@@ -53,17 +55,20 @@ export function openFeedbackModal() {
 }
 
 export function closeFeedbackModal() {
-  document.getElementById('feedback-modal-overlay').classList.remove('show');
+  document.getElementById('feedback-modal-overlay')?.classList.remove('show');
 }
 
 export function submitFeedback() {
-  const typeVal = document.getElementById('feedback-type')?.value || 'other';
-  const title = (document.getElementById('feedback-title')?.value || '').trim();
-  const desc = (document.getElementById('feedback-desc')?.value || '').trim();
+  const typeSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('feedback-type'));
+  const titleInput = /** @type {HTMLInputElement | null} */ (document.getElementById('feedback-title'));
+  const descInput = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('feedback-desc'));
+  const typeVal = typeSelect?.value || 'other';
+  const title = (titleInput?.value || '').trim();
+  const desc = (descInput?.value || '').trim();
 
   if (!title) {
     showNotification('Please enter a title', 'error');
-    document.getElementById('feedback-title')?.focus();
+    titleInput?.focus();
     return;
   }
 
@@ -78,6 +83,7 @@ export function submitFeedback() {
   const screenSize = `${screen.width}x${screen.height}`;
   const theme = getTheme();
   const providerKey = getAIProvider() || 'none';
+  /** @type {Record<string, string>} */
   const providerLabels = { openrouter: 'OpenRouter', routstr: 'Routstr', ppq: 'PPQ', venice: 'Venice', ollama: 'Local AI', custom: 'Custom API' };
   const provider = providerLabels[providerKey] || providerKey;
 
@@ -97,9 +103,10 @@ export function submitFeedback() {
 }
 
 function _updateFeedbackPlaceholder() {
-  const typeVal = document.getElementById('feedback-type')?.value || 'bug';
+  const typeSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('feedback-type'));
+  const typeVal = typeSelect?.value || 'bug';
   const typeDef = FEEDBACK_TYPES.find(t => t.value === typeVal) || FEEDBACK_TYPES[0];
-  const titleInput = document.getElementById('feedback-title');
+  const titleInput = /** @type {HTMLInputElement | null} */ (document.getElementById('feedback-title'));
   if (titleInput) titleInput.placeholder = typeDef.placeholder;
 }
 

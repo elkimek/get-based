@@ -1,3 +1,4 @@
+// @ts-check
 // chart-card-recs.js - Recommendation badges for marker chart cards
 
 import { showNotification } from './utils.js';

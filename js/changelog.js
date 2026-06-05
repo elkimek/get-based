@@ -1,3 +1,4 @@
+// @ts-check
 // changelog.js — What's New modal, version tracking, auto-trigger on update
 // APP_VERSION comes from /version.js (loaded as classic script before modules)
 

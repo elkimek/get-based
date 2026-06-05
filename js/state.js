@@ -1,3 +1,4 @@
+// @ts-check
 // state.js — Centralized mutable application state
 
 export const state = {

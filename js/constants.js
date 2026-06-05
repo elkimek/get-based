@@ -1,3 +1,4 @@
+// @ts-check
 // constants.js — Option arrays, chat personalities, system prompt, country data
 
 // ── Profile context card option arrays ──
