@@ -624,7 +624,7 @@ export function renderCardTipsModal(cardKey) {
 
 // Quiet, contextual EMF assessment nudge for the Environment card.
 // Single one-line link when no EMF assessment yet, or latest is older
-// than 180d. Empty otherwise so we don't nag users keeping up.
+// than 120d. Empty otherwise so we don't nag users keeping up.
 function _buildEMFNudge() {
   const assessments = state.importedData?.emfAssessment?.assessments || [];
   const openHandler = `event.preventDefault();document.getElementById('modal-overlay').classList.remove('show');setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
