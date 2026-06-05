@@ -4,8 +4,7 @@
 // Run: node tests/test-image-utils.js  (or via npm test)
 //
 // DOM-runtime assertions (HTML element existence + document.styleSheets
-// CSS-rule checks) live in tests/test-image-utils-dom.js and stay on
-// the puppeteer runner — they can't run in Node.
+// CSS-rule checks) live in tests/playwright/image-utils-dom.spec.js.
 
 import './_node-shim.js';
 
@@ -105,8 +104,8 @@ assert('Null text = empty', window.assessTextQuality(null) === 'empty');
 assert('Short text = poor', window.assessTextQuality('just a few words') === 'poor');
 assert('Good text', window.assessTextQuality('This is a normal lab report with glucose creatinine albumin and many other biomarker results that span multiple lines of text with values and reference ranges included for comprehensive analysis') === 'good');
 
-// HTML structure + CSS-rule checks (sections 6+7) live in test-image-utils-dom.js
-// (puppeteer-only) — can't run in Node without a real browser DOM.
+// HTML structure + CSS-rule checks (sections 6+7) live in
+// tests/playwright/image-utils-dom.spec.js.
 
 // ═══════════════════════════════════════
 // 8. PDF image fallback exports
@@ -154,7 +153,7 @@ assert('PDF reads use FileReader fallback after Blob.arrayBuffer aborts', pdfSrc
 assert('PDF text extraction uses resilient file read helper', pdfSrc.includes('const arrayBuffer = await readFileArrayBuffer(file);'));
 
 // CSS source-string checks — runtime "rule is loaded in stylesheet"
-// version lives in test-image-utils-dom.js (puppeteer).
+// version lives in tests/playwright/image-utils-dom.spec.js.
 const cssSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/chat-panel.css'),

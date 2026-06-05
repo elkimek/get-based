@@ -125,8 +125,7 @@ const LEGACY_TESTS = [
   // Batch 17 — recommendations module.
   './test-recommendations.js',
   // Batch 19 — DNA-aware recommendation integration + image utils
-  // (DOM-runtime sections extracted to test-image-utils-dom.js, kept
-  // in the puppeteer runner).
+  // (DOM-runtime sections moved to Playwright).
   './test-dna-recommendations.js',
   './test-image-utils.js',
   // Batch 20 — changelog modal source-inspection + hasCardContent
