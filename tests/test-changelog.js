@@ -4,8 +4,7 @@
 // Run: node tests/test-changelog.js  (or via npm test)
 //
 // DOM-runtime assertions (modal open/close, classList toggling, innerHTML
-// rendering, forceShow behavior) live in tests/test-changelog-dom.js and
-// stay on the puppeteer runner — they need a real browser DOM.
+// rendering, forceShow behavior) live in tests/playwright/changelog.spec.js.
 
 import './_node-shim.js';
 
@@ -87,7 +86,7 @@ assert('index.html loads version.js', indexSrc.includes('src="version.js"'));
 // ═══════════════════════════════════════
 // (Source-string checks here. The live-DOM verification — that the
 // elements are actually present after page load — runs in
-// test-changelog-dom.js on the puppeteer side.)
+// tests/playwright/changelog.spec.js.)
 console.log('3. HTML Modal Structure');
 
 assert('changelog-modal-overlay defined in index.html', indexSrc.includes('id="changelog-modal-overlay"'));
@@ -203,7 +202,7 @@ assert('maybeShowChangelog on window', typeof window.maybeShowChangelog === 'fun
 // ═══════════════════════════════════════
 // 12. Source-code regex defenses (inline-tag whitelist + href safety)
 // ═══════════════════════════════════════
-// Live-DOM verification of the rendered output lives in test-changelog-dom.js;
+// Live-DOM verification of the rendered output lives in tests/playwright/changelog.spec.js;
 // here we lock in the source-code regex that enforces the whitelist.
 console.log('12. Renderer Source-Code Defenses');
 

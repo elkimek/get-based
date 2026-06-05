@@ -9,8 +9,7 @@
 // Run: node tests/test-custom-lens.js  (or via npm test)
 //
 // DOM-runtime assertions (sections 15, 16 — chat-header lens indicator,
-// Knowledge Base modal rendering) live in tests/test-custom-lens-dom.js on
-// the puppeteer runner.
+// Knowledge Base modal rendering) live in tests/playwright/custom-lens.spec.js.
 
 import './_node-shim.js';
 
@@ -328,7 +327,7 @@ assert("app-feature-modules.js imports './app-ai-interaction-modules.js'", appFe
 assert("app-ai-interaction-modules.js imports './lens.js'", appAiInteractionModulesSrc.includes("import './lens.js'"));
 
 // Sections 15 (chat-header indicator DOM) and 16 (KB modal DOM) live in
-// test-custom-lens-dom.js — they need a live browser DOM.
+// tests/playwright/custom-lens.spec.js.
 
 // ─── 17. saveLensConfig clears cache ───
 console.log('\n17. Cache clear on config change');

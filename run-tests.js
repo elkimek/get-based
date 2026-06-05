@@ -23,10 +23,8 @@ const TEST_FILES = [
   'tests/test-chat-actions-dom.js',
   'tests/test-mobile.js',
   // test-openrouter.js source-inspection + behavioral ported to Vitest
-  // (batch 21). DOM-runtime section (Settings modal openSettingsModal,
-  // querySelectorAll on rendered provider cards) lives in
-  // test-openrouter-dom.js below.
-  'tests/test-openrouter-dom.js',
+  // (batch 21). Settings modal DOM moved to Playwright in
+  // tests/playwright/openrouter-settings.spec.js.
   'tests/test-routstr-wallet-dom.js',
   // test-tour.js source-inspection ported to Vitest (batch 30). Live tour
   // overlay/spotlight/tooltip DOM sections live in test-tour-dom.js below.
@@ -37,9 +35,8 @@ const TEST_FILES = [
   // test-custom-personality-dom.js below.
   'tests/test-custom-personality-dom.js',
   // test-changelog.js source-inspection + hasCardContent behavioral ported
-  // to Vitest (batch 20). DOM-runtime sections (modal open/close, forceShow
-  // behavior, inline-tag rendering) live in test-changelog-dom.js below.
-  'tests/test-changelog-dom.js',
+  // to Vitest (batch 20). Modal DOM moved to Playwright in
+  // tests/playwright/changelog.spec.js.
   'tests/test-settings-toggles-dom.js',
   // test-audit.js source-inspection (sections 1-16 + innerHTML sweep) ported
   // to Vitest (batch 22). The section-3b functional safeMarkerId-guard probes
@@ -77,14 +74,11 @@ const TEST_FILES = [
   'tests/test-chat-panel-ux.js',
   'tests/test-chat-empty-state-dom.js',
   // test-custom-api.js source-inspection + behavioral ported to Vitest
-  // (batch 24). DOM-runtime sections (13/14 — Settings modal rendering,
-  // Custom panel form fields, connected-state model dropdown) live in
-  // test-custom-api-dom.js below.
-  'tests/test-custom-api-dom.js',
+  // (batch 24). Settings modal DOM moved to Playwright in
+  // tests/playwright/custom-api-settings.spec.js.
   // test-custom-lens.js source-inspection + behavioral ported to Vitest
-  // (batch 25). DOM-runtime sections (15/16 — chat-header lens indicator,
-  // Knowledge Base modal rendering) live in test-custom-lens-dom.js below.
-  'tests/test-custom-lens-dom.js',
+  // (batch 25). Chat-header + KB modal DOM moved to Playwright in
+  // tests/playwright/custom-lens.spec.js.
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
   'tests/test-lens-local-worker.js',

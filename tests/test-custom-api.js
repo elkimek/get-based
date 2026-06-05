@@ -9,7 +9,7 @@
 //
 // DOM-runtime assertions (sections 13, 14 — Settings modal rendering, the
 // Custom panel form fields + connected-state model dropdown) live in
-// tests/test-custom-api-dom.js on the puppeteer runner.
+// tests/playwright/custom-api-settings.spec.js.
 
 import './_node-shim.js';
 
@@ -249,7 +249,8 @@ const customPanelIdx = panelRenderSrc.indexOf('// Custom API panel');
 const localPanelIdx = panelRenderSrc.indexOf('// Local AI panel');
 assert('Custom API panel before Local AI panel', customPanelIdx >= 0 && localPanelIdx >= 0 && customPanelIdx < localPanelIdx, `custom@${customPanelIdx}, local@${localPanelIdx}`);
 
-// Sections 13, 14 (Settings modal DOM) live in test-custom-api-dom.js.
+// Sections 13, 14 (Settings modal DOM) live in
+// tests/playwright/custom-api-settings.spec.js.
 
 // ─── 15. pdf-import.js model switch ───
 console.log('\n15. pdf-import.js model switch');

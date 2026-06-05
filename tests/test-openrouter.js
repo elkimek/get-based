@@ -7,7 +7,7 @@
 // Run: node tests/test-openrouter.js  (or via npm test)
 //
 // DOM-runtime assertions (Settings modal rendering — section 10) live in
-// tests/test-openrouter-dom.js on the puppeteer runner.
+// tests/playwright/openrouter-settings.spec.js.
 
 import './_node-shim.js';
 
@@ -238,9 +238,8 @@ else localStorage.removeItem('labcharts-ai-provider');
 if (oldORKey) localStorage.setItem('labcharts-openrouter-key', oldORKey);
 else localStorage.removeItem('labcharts-openrouter-key');
 
-// Section 10 (Settings modal DOM) lives in test-openrouter-dom.js — needs a
-// live browser DOM (openSettingsModal renders, querySelectorAll on rendered
-// .ai-provider-btn cards, getElementById on openrouter-* form fields).
+// Section 10 (Settings modal DOM) lives in
+// tests/playwright/openrouter-settings.spec.js.
 
 // ─── 11. Model pricing (pure-logic string return) ───
 console.log('\n11. Model pricing');
