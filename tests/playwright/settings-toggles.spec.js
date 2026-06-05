@@ -108,6 +108,9 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
 
   const crtInput = page.locator('#tweaks-crt-effects');
   await expect(crtInput).toBeDisabled();
+  await page.evaluate(() => {
+    document.querySelector('#tweaks-crt-effects + .toggle-slider')?.click();
+  });
 
   await expect.poll(async () => page.evaluate(() => ({
     crtStorage: localStorage.getItem('labcharts-crt-effects'),
