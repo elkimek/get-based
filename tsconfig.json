@@ -103,6 +103,7 @@
     "js/lab-context.js",
     "js/lens-page-shell.js",
     "js/lens-pages.js",
+    "js/lens.js",
     "js/lens-local.js",
     "js/lens-local-parsers.js",
     "js/lens-local-utils.js",
