@@ -1,3 +1,4 @@
+// @ts-check
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 
 import { state } from './state.js';
@@ -13,6 +14,10 @@ import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 
+/** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
+
+const settingsWindow = /** @type {SettingsWindow} */ (window);
+
 let _providerPanelsLoad = null;
 
 function loadProviderPanels() {
@@ -23,26 +28,29 @@ function loadProviderPanels() {
 function renderAIProviderPanelBridge(provider) {
   loadProviderPanels().then(() => {
     const panel = document.getElementById('ai-provider-panel');
-    if (panel && typeof window.renderAIProviderPanel === 'function' && window.renderAIProviderPanel !== renderAIProviderPanelBridge) {
-      panel.innerHTML = window.renderAIProviderPanel(provider || getAIProvider());
+    if (panel && typeof settingsWindow.renderAIProviderPanel === 'function' && settingsWindow.renderAIProviderPanel !== renderAIProviderPanelBridge) {
+      panel.innerHTML = settingsWindow.renderAIProviderPanel(provider || getAIProvider());
     }
   }).catch(() => {});
   return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
 }
 
+/** @param {string} name */
 function installProviderPanelBridge(name) {
-  if (typeof window[name] === 'function') return;
+  const registry = /** @type {Record<string, any>} */ (settingsWindow);
+  if (typeof registry[name] === 'function') return;
   const bridge = async function(...args) {
     await loadProviderPanels();
-    const fn = window[name];
+    const fn = registry[name];
     if (typeof fn !== 'function' || fn === bridge) return undefined;
     return fn(...args);
   };
-  window[name] = bridge;
+  registry[name] = bridge;
 }
 
 function setProviderButtonState(provider) {
-  document.querySelectorAll('.ai-provider-btn').forEach(btn => {
+  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.ai-provider-btn')));
+  buttons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.provider === provider);
   });
 }
@@ -59,14 +67,14 @@ function switchAIProviderBridge(provider) {
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
   loadProviderPanels().then(() => {
-    const fn = window.switchAIProvider;
+    const fn = settingsWindow.switchAIProvider;
     if (typeof fn === 'function' && fn !== switchAIProviderBridge) return fn(provider);
-    if (panel && typeof window.renderAIProviderPanel === 'function') panel.innerHTML = window.renderAIProviderPanel(provider);
+    if (panel && typeof settingsWindow.renderAIProviderPanel === 'function') panel.innerHTML = settingsWindow.renderAIProviderPanel(provider);
   }).catch(() => {});
 }
 
-window.renderAIProviderPanel = renderAIProviderPanelBridge;
-window.switchAIProvider = switchAIProviderBridge;
+settingsWindow.renderAIProviderPanel = renderAIProviderPanelBridge;
+settingsWindow.switchAIProvider = switchAIProviderBridge;
 [
   'toggleAIPause',
   'initSettingsModelFetch',
@@ -254,7 +262,8 @@ let themeChangeFrame = 0;
 let themeChangeTimer = 0;
 let pendingThemeId = '';
 function markThemeControls(themeId) {
-  document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn').forEach(btn => {
+  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn')));
+  buttons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.themeId === themeId);
   });
 }
@@ -284,15 +293,27 @@ function scheduleThemeChange(themeId) {
   }
 }
 
-window.handleThemeChange = scheduleThemeChange;
+settingsWindow.handleThemeChange = scheduleThemeChange;
 
+/**
+ * @param {Event} event
+ * @param {string} selector
+ * @param {Element} root
+ * @returns {HTMLElement | null}
+ */
 function closestWithin(event, selector, root) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
-  return el && root.contains(el) ? el : null;
+  return el instanceof HTMLElement && root.contains(el) ? el : null;
 }
 
+/**
+ * @param {Event} event
+ * @param {string} selector
+ * @param {Element} root
+ * @returns {HTMLInputElement | null}
+ */
 function toggleInputFromProxyClick(event, selector, root) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
@@ -311,7 +332,7 @@ function applySettingsToggle(actionEl) {
   const checked = actionEl instanceof HTMLInputElement && actionEl.checked;
   if (action === 'set-product-recs') {
     setProductRecsEnabled(checked);
-    window.navigate?.('dashboard');
+    settingsWindow.navigate?.('dashboard');
     return true;
   }
   if (action === 'set-debug-mode') {
@@ -319,15 +340,15 @@ function applySettingsToggle(actionEl) {
     return true;
   }
   if (action === 'toggle-ai-pause') {
-    window.toggleAIPause?.(checked);
+    settingsWindow.toggleAIPause?.(checked);
     return true;
   }
   if (action === 'set-wearable-context') {
-    window.setWearableContextEnabled?.(checked);
+    settingsWindow.setWearableContextEnabled?.(checked);
     return true;
   }
   if (action === 'set-body-regions-context') {
-    window.setBodyRegionsInAIContext?.(checked);
+    settingsWindow.setBodyRegionsInAIContext?.(checked);
     return true;
   }
   if (action === 'toggle-pii-local') {
@@ -430,11 +451,11 @@ function handleSettingsClick(event) {
   } else if (action === 'start-guided-tour') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => window.startGuidedTour?.(false), 300);
+    setTimeout(() => settingsWindow.startGuidedTour?.(false), 300);
   } else if (action === 'open-changelog') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => window.openChangelog?.(true), 300);
+    setTimeout(() => settingsWindow.openChangelog?.(true), 300);
   } else if (action === 'switch-ai-provider') {
     event.preventDefault();
     switchAIProviderBridge(actionEl.dataset.provider || 'openrouter');
@@ -443,7 +464,7 @@ function handleSettingsClick(event) {
     togglePrivacyConfigure();
   } else if (action === 'test-pii-ollama') {
     event.preventDefault();
-    window.testPIIOllamaConnection?.();
+    settingsWindow.testPIIOllamaConnection?.();
   } else if (action === 'rename-imported-entry') {
     event.preventDefault();
     void renameImportedEntryDateFromSettings(actionEl.dataset.entryDate || '');
@@ -452,17 +473,17 @@ function handleSettingsClick(event) {
     void removeImportedEntryFromSettings(actionEl.dataset.entryDate || '');
   } else if (action === 'export-client') {
     event.preventDefault();
-    window.exportClientJSON?.(window.getActiveProfileId?.());
+    settingsWindow.exportClientJSON?.(settingsWindow.getActiveProfileId?.());
   } else if (action === 'share-profile') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => window.openProfileShareModal?.(), 120);
+    setTimeout(() => settingsWindow.openProfileShareModal?.(), 120);
   } else if (action === 'export-all-clients') {
     event.preventDefault();
-    window.exportAllDataJSON?.();
+    settingsWindow.exportAllDataJSON?.();
   } else if (action === 'clear-all-data') {
     event.preventDefault();
-    window.clearAllData?.();
+    settingsWindow.clearAllData?.();
   } else if (action === 'reset-profile-usage') {
     event.preventDefault();
     resetCurrentProfileUsage();
@@ -482,7 +503,7 @@ function handleSettingsChange(event) {
 
   const action = actionEl.dataset.settingsAction;
   if (action === 'set-pii-model') {
-    setOllamaPIIModel(actionEl.value);
+    setOllamaPIIModel(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
     updatePrivacyStatusCard();
   }
 }
@@ -500,7 +521,7 @@ function closestSunDataSourceControl(event) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest('[data-sun-source-action]');
-  return el && el.closest('#sun-data-source-section') ? el : null;
+  return el instanceof HTMLElement && el.closest('#sun-data-source-section') ? el : null;
 }
 
 function handleSunDataSourceChange(event) {
@@ -508,7 +529,7 @@ function handleSunDataSourceChange(event) {
   if (!el) return;
   const action = el.dataset.sunSourceAction;
   if (action === 'set-meteo-mode') {
-    setMeteoMode(el.value || 'auto');
+    setMeteoMode(el instanceof HTMLSelectElement ? el.value || 'auto' : 'auto');
   } else if (action === 'save-meteo-selfhost') {
     saveMeteoSelfhost();
   } else if (action === 'toggle-meteo-rounding') {
@@ -556,20 +577,20 @@ function handleTweaksClick(event) {
     selectTweaksAccent(actionEl.dataset.accentId || '');
   } else if (action === 'reset-dashboard') {
     event.preventDefault();
-    window.resetDashboardWidgets?.();
+    settingsWindow.resetDashboardWidgets?.();
     closeTweaksPanel();
   } else if (action === 'clear-dashboard') {
     event.preventDefault();
-    window.clearDashboardWidgets?.();
+    settingsWindow.clearDashboardWidgets?.();
     closeTweaksPanel();
   } else if (action === 'organize-dashboard') {
     event.preventDefault();
-    window.toggleDashboardOrganizeMode?.(true);
+    settingsWindow.toggleDashboardOrganizeMode?.(true);
     closeTweaksPanel();
   } else if (action === 'send-feedback') {
     event.preventDefault();
     closeTweaksPanel();
-    window.openFeedbackModal?.();
+    settingsWindow.openFeedbackModal?.();
   }
 }
 
@@ -631,20 +652,22 @@ export function updateTweaksUI() {
   panel.classList.toggle('sunset-active', sunset);
   panel.classList.toggle('crt-active', crtEffects);
   panel.classList.toggle('crt-supported', crtSupported);
-  const sunsetToggle = panel.querySelector('#tweaks-sunset-mode');
+  const sunsetToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-sunset-mode'));
   if (sunsetToggle) sunsetToggle.checked = sunset;
-  const crtRow = panel.querySelector('#tweaks-crt-effects-row');
+  const crtRow = /** @type {HTMLElement | null} */ (panel.querySelector('#tweaks-crt-effects-row'));
   if (crtRow) crtRow.hidden = !crtSupported;
-  const crtToggle = panel.querySelector('#tweaks-crt-effects');
+  const crtToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-crt-effects'));
   if (crtToggle) {
     crtToggle.checked = crtEffects;
     crtToggle.disabled = !crtSupported;
   }
-  panel.querySelectorAll('.tweaks-theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
-  panel.querySelectorAll('.tweaks-accent-btn').forEach(btn => {
+  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-theme-btn')));
+  themeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
+  const accentButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-accent-btn')));
+  accentButtons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.accentId === accentId);
     if (btn.dataset.accentId === '') {
-      const swatch = btn.querySelector('.tweaks-accent-swatch');
+      const swatch = /** @type {HTMLElement | null} */ (btn.querySelector('.tweaks-accent-swatch'));
       const spec = accentSwatchSpec(null, theme);
       swatch?.style.setProperty('--tweak-accent', spec.color);
       swatch?.style.setProperty('--tweak-gradient', spec.gradient);
@@ -738,7 +761,7 @@ export function openTweaksPanel() {
   }
   installTweaksDelegates(document.getElementById('tweaks-panel-overlay'));
   updateTweaksUI();
-  document.querySelector('#tweaks-panel button')?.focus();
+  /** @type {HTMLButtonElement | null} */ (document.querySelector('#tweaks-panel button'))?.focus();
 }
 
 applyAccentOverride();
@@ -748,7 +771,7 @@ if (typeof window !== 'undefined') {
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
-  window._settingsHadProvider = !!window.hasAIProvider?.();
+  settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   const provider = getAIProvider();
@@ -870,7 +893,7 @@ export function openSettingsModal(tab) {
         <button class="settings-link-btn" data-settings-action="open-changelog">What's New</button>
       </div>
 
-      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(window.APP_VERSION || '')} · <span id="settings-commit-hash">···</span></div>
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);opacity:0.6">v${escapeHTML(settingsWindow.APP_VERSION || '')} · <span id="settings-commit-hash">···</span></div>
     </div>
 
     <!-- AI Tab -->
@@ -896,7 +919,7 @@ export function openSettingsModal(tab) {
           <button class="ai-provider-btn${provider === 'custom' ? ' active' : ''}" data-provider="custom" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> Custom</button>
           <button class="ai-provider-btn${provider === 'ollama' ? ' active' : ''}" data-provider="ollama" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-3-8c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1z"/></svg> Local</button>
         </div>
-        <div id="ai-provider-panel">${window.renderAIProviderPanel(provider)}</div>
+        <div id="ai-provider-panel">${settingsWindow.renderAIProviderPanel(provider)}</div>
       </div>
 
       <div class="settings-group-title">AI Context</div>
@@ -908,7 +931,7 @@ export function openSettingsModal(tab) {
             <div class="settings-copy-desc">~200 tokens summarising HRV, sleep, recovery and trends from your connected wearables.</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" id="ai-ctx-wearables-toggle" ${window.isWearableContextEnabled?.() ? 'checked' : ''} data-settings-action="set-wearable-context">
+            <input type="checkbox" id="ai-ctx-wearables-toggle" ${settingsWindow.isWearableContextEnabled?.() ? 'checked' : ''} data-settings-action="set-wearable-context">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -918,7 +941,7 @@ export function openSettingsModal(tab) {
             <div class="settings-copy-desc">Off by default. When on, specific anatomical regions you logged (face, chest, genitals…) are included in chat context and agent slices. Off keeps coverage fraction + preset names but strips the per-region anatomy.</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" id="ai-ctx-body-regions-toggle" ${window.isBodyRegionsInAIContext?.() ? 'checked' : ''} data-settings-action="set-body-regions-context">
+            <input type="checkbox" id="ai-ctx-body-regions-toggle" ${settingsWindow.isBodyRegionsInAIContext?.() ? 'checked' : ''} data-settings-action="set-body-regions-context">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -984,8 +1007,8 @@ export function openSettingsModal(tab) {
     </div>`;
   installSettingsDelegates(modal);
   overlay.classList.add('show');
-  window.initSettingsOllamaCheck();
-  window.initSettingsModelFetch();
+  settingsWindow.initSettingsOllamaCheck();
+  settingsWindow.initSettingsModelFetch();
   loadBackupSnapshots();
   loadSettingsCommitHash();
   hydrateSettingsSyncPanel();
@@ -998,7 +1021,7 @@ export function openSettingsModal(tab) {
 function scrollActiveSettingsTabIntoView() {
   requestAnimationFrame(() => {
     const bar = document.querySelector('#settings-modal .settings-tabs-bar');
-    const active = bar?.querySelector('.settings-tab-btn.active');
+    const active = /** @type {HTMLElement | null | undefined} */ (bar?.querySelector('.settings-tab-btn.active'));
     if (!bar || !active || window.matchMedia('(min-width: 721px)').matches) return;
     const padding = 12;
     const activeLeft = active.offsetLeft;
@@ -1042,20 +1065,22 @@ export function switchSettingsTab(tabId) {
   _activeSettingsTab = tabId;
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  modal.querySelectorAll('.settings-tab-btn').forEach(btn => {
+  const tabButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-btn')));
+  tabButtons.forEach(btn => {
     const isActive = btn.dataset.tab === tabId;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', String(isActive));
     btn.setAttribute('tabindex', isActive ? '0' : '-1');
   });
-  modal.querySelectorAll('.settings-tab-panel').forEach(panel => {
+  const tabPanels = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-panel')));
+  tabPanels.forEach(panel => {
     panel.classList.toggle('active', panel.dataset.tabPanel === tabId);
   });
   scrollActiveSettingsTabIntoView();
   // Re-run init for tabs that need async setup
   if (tabId === 'ai') {
-    window.initSettingsOllamaCheck();
-    window.initSettingsModelFetch();
+    settingsWindow.initSettingsOllamaCheck();
+    settingsWindow.initSettingsModelFetch();
   }
   if (tabId === 'data') {
     refreshDataEntriesSection();
@@ -1178,29 +1203,29 @@ export function renderSunDataSourceSettings() {
 }
 
 function setMeteoMode(mode) {
-  if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
-  const cfg = window.getMeteoConfig();
+  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
+  const cfg = settingsWindow.getMeteoConfig();
   cfg.mode = mode;
-  window.saveMeteoConfig(cfg);
+  settingsWindow.saveMeteoConfig(cfg);
   const fields = document.getElementById('meteo-selfhost-fields');
   if (fields) fields.style.display = mode === 'selfhost' ? '' : 'none';
 }
 
 function saveMeteoSelfhost() {
-  if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
-  const cfg = window.getMeteoConfig();
-  const url = document.getElementById('meteo-selfhost-url')?.value?.trim() || '';
-  const bearer = document.getElementById('meteo-selfhost-bearer')?.value?.trim() || '';
+  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
+  const cfg = settingsWindow.getMeteoConfig();
+  const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
+  const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
   cfg.selfhostUrl = url;
   cfg.selfhostBearer = bearer;
-  window.saveMeteoConfig(cfg);
+  settingsWindow.saveMeteoConfig(cfg);
 }
 
 function toggleMeteoRounding(enabled) {
-  if (!window.getMeteoConfig || !window.saveMeteoConfig) return;
-  const cfg = window.getMeteoConfig();
+  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
+  const cfg = settingsWindow.getMeteoConfig();
   cfg.privacyRounding = enabled ? 0.1 : 0;
-  window.saveMeteoConfig(cfg);
+  settingsWindow.saveMeteoConfig(cfg);
 }
 
 if (typeof window !== 'undefined') {
@@ -1265,22 +1290,27 @@ export function updateSettingsUI() {
   // Scope by data-attribute so the shared `.unit-toggle-btn` style class can be
   // reused for the Alternate Units row without the Unit System updater
   // accidentally deactivating it (its buttons lack a data-unit attribute).
-  modal.querySelectorAll('.unit-toggle-btn[data-unit]').forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
-  modal.querySelectorAll('.range-toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.range === state.rangeMode));
-  modal.querySelectorAll('.unit-toggle-btn[data-alt-units]').forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
+  const unitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-unit]')));
+  unitButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
+  const rangeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.range-toggle-btn')));
+  rangeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.range === state.rangeMode));
+  const altUnitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-alt-units]')));
+  altUnitButtons.forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
   const theme = getTheme();
-  modal.querySelectorAll('.settings-theme-btn').forEach(btn => {
+  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-theme-btn')));
+  themeButtons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.themeId === theme);
   });
   const timeFmt = getTimeFormat();
-  modal.querySelectorAll('.time-toggle-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.timefmt === timeFmt));
+  const timeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.time-toggle-btn')));
+  timeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.timefmt === timeFmt));
 }
 
 export function closeSettingsModal() {
-  const hadProvider = window._settingsHadProvider;
+  const hadProvider = settingsWindow._settingsHadProvider;
   document.getElementById('settings-modal-overlay').classList.remove('show');
-  if (window.updateChatNudge) window.updateChatNudge();
-  window.refreshMobileDashboardActiveTab?.();
+  if (settingsWindow.updateChatNudge) settingsWindow.updateChatNudge();
+  settingsWindow.refreshMobileDashboardActiveTab?.();
 }
 
 export function renderDataEntriesSection() {

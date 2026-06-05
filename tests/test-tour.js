@@ -209,7 +209,7 @@ assert('settings.js delegated handler calls startGuidedTour(false)',
   /start-guided-tour[\s\S]{0,160}startGuidedTour\?\.\(false\)/.test(settingsSrc));
 assert('settings.js closes modal before tour', settingsSrc.includes('closeSettingsModal()'));
 assert('settings.js uses setTimeout for tour delay',
-  /setTimeout\(\(\) => window\.startGuidedTour\?\.\(false\), 300\)/.test(settingsSrc));
+  /setTimeout\(\(\) => settingsWindow\.startGuidedTour\?\.\(false\), 300\)/.test(settingsSrc));
 assert('Tour button in Display tab panel', /tab-panel="display"[\s\S]*?Guided Tour/s.test(settingsSrc));
 
 // ═══════════════════════════════════════
