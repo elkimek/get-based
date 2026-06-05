@@ -30,6 +30,16 @@ function getPlanForMessage(msgIndex) {
   return msg?.labPlanDraft ? { msg, plan: msg.labPlanDraft } : null;
 }
 
+async function saveAndRenderLabOrderState() {
+  try {
+    await saveChatHistory();
+  } catch (err) {
+    console.warn('Lab order state save failed.', err);
+    showNotification('Lab order changes could not be saved locally', 'error');
+  }
+  renderChatMessages();
+}
+
 async function prepareCart(msgIndex) {
   const found = getDraftForMessage(msgIndex);
   if (!found) return;
@@ -61,8 +71,7 @@ async function prepareCart(msgIndex) {
     draft.result = handoffFailureResult('Labshop', 'https://www.labshop.cz/kosik/prehled', err);
     showNotification('Labshop handoff needs manual checkout', 'error');
   }
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 async function prepareUnilabsCart(msgIndex) {
@@ -97,8 +106,7 @@ async function prepareUnilabsCart(msgIndex) {
     draft.result = handoffFailureResult('Unilabs Online', 'https://cz.unilabs.online/sestavte-si-vlastni-vysetreni', err);
     showNotification('Unilabs handoff needs manual checkout', 'error');
   }
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 async function selectProvider(msgIndex, providerId) {
@@ -106,8 +114,7 @@ async function selectProvider(msgIndex, providerId) {
   if (!found || !providerId) return;
   found.msg.labOrderDraft = selectProviderForDraft(found.draft, providerId);
   showNotification(providerId === 'cz.unilabs' ? 'Unilabs tests shown' : 'Labshop tests shown', 'success');
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 async function changeProvider(msgIndex) {
@@ -126,8 +133,7 @@ async function changeProvider(msgIndex) {
     safetyBoundary: 'Choose a lab first. getbased will show tests/offers for the selected lab and keep booking/payment user-in-loop.',
   };
   showNotification('Choose another lab', 'success');
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 async function cancelOrder(msgIndex) {
@@ -135,14 +141,14 @@ async function cancelOrder(msgIndex) {
   if (!found) return;
   found.draft.status = 'cancelled';
   found.draft.result = { ok: true, message: 'Order draft cancelled.' };
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 export async function compareLabsFromPlan(msgIndex) {
-  const found = getPlanForMessage(msgIndex);
+  const messageIndex = Number(msgIndex);
+  const found = getPlanForMessage(messageIndex);
   if (!found) return;
-  const flightKey = found.plan.id || String(msgIndex);
+  const flightKey = found.plan.id || String(messageIndex);
   if (labPlanComparisonInFlight.has(flightKey) || found.plan.status === 'mapping_nclp' || found.plan.status === 'comparing_labs') {
     return;
   }
@@ -167,18 +173,24 @@ export async function compareLabsFromPlan(msgIndex) {
       markersForComparison = originalMarkers;
     }
 
+    const current = getPlanForMessage(messageIndex);
+    if (!current || (current.plan.id || String(messageIndex)) !== flightKey) {
+      showNotification('Lab comparison changed before it finished; please retry', 'info');
+      return;
+    }
+    current.plan.markers = markersForComparison;
+
     // A second click/tab should not create a second comparison card if another
     // in-flight run completed while this async lookup was waiting.
-    if (!found.msg.labOrderDraft) {
-      found.msg.labOrderDraft = buildLabOrderDraftFromMarkers(markersForComparison, {
-        userRequest: found.plan.userPrompt || found.msg.content || '',
+    if (!current.msg.labOrderDraft) {
+      current.msg.labOrderDraft = buildLabOrderDraftFromMarkers(markersForComparison, {
+        userRequest: current.plan.userPrompt || current.msg.content || '',
       });
       showNotification('Lab coverage compared', 'success');
     }
-    found.plan.status = 'compared';
-    delete found.plan.statusMessage;
-    await saveChatHistory();
-    renderChatMessages();
+    current.plan.status = 'compared';
+    delete current.plan.statusMessage;
+    await saveAndRenderLabOrderState();
   } catch (err) {
     found.plan.status = 'suggested';
     delete found.plan.statusMessage;
@@ -195,8 +207,7 @@ async function dismissLabPlan(msgIndex) {
   found.plan.status = 'dismissed';
   found.msg.labPlanDraft = null;
   showNotification('Lab plan hidden', 'success');
-  await saveChatHistory();
-  renderChatMessages();
+  await saveAndRenderLabOrderState();
 }
 
 export function handleLabOrderClick(event) {

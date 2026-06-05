@@ -100,6 +100,32 @@ describe('lab order actions', () => {
     expect(renderCalls).toBeGreaterThanOrEqual(2);
   });
 
+  it('keeps comparison writes attached if chat history is replaced during NČLP enrichment', async () => {
+    const run = compareLabsFromPlan(0);
+    expect(state.chatHistory[0].labPlanDraft.status).toBe('mapping_nclp');
+
+    state.chatHistory = [{
+      role: 'assistant',
+      content: 'Review first, then compare labs.',
+      labPlanDraft: {
+        id: 'plan-rapid-click',
+        title: 'Focused lab plan',
+        status: 'suggested',
+        markers: [{ markerKey: 'vitamins.folate', displayName: 'Folate' }],
+      },
+    }];
+
+    resolveEnrich();
+    await run;
+
+    expect(draftBuildCalls).toBe(1);
+    expect(saveCalls).toBe(1);
+    expect(state.chatHistory[0].labPlanDraft.status).toBe('compared');
+    expect(state.chatHistory[0].labPlanDraft.statusMessage).toBeUndefined();
+    expect(state.chatHistory[0].labOrderDraft).toMatchObject({ id: 'draft-from-plan' });
+    expect(notificationCalls).toEqual([{ message: 'Lab coverage compared', type: 'success' }]);
+  });
+
   it('resets the lab plan card if comparison draft building throws', async () => {
     draftBuildShouldThrow = true;
     const run = compareLabsFromPlan(0);

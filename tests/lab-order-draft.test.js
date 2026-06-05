@@ -129,6 +129,7 @@ describe('lab order draft uses architecture layers', () => {
     expect(selected.products.map(p => p.providerProductId)).toEqual(expect.arrayContaining(['2885', '2886']));
     expect(selected.products.find(p => p.providerProductId === '2885')?.markers).toEqual(expect.arrayContaining(['Vitamin B12']));
     expect(selected.products.find(p => p.providerProductId === '2886')?.markers).toEqual(expect.arrayContaining(['Folate']));
+    expect(selected.totalEstimateCzk).toBe(662);
     expect(selected.safetyBoundary).toMatch(/Unilabs.*cart/i);
   });
 

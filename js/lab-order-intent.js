@@ -228,7 +228,7 @@ export function selectProviderForDraft(draft, providerId) {
   const offers = offersForProvider(providerId, markerIntents);
   const products = productsFromOffers(providerId, offers, markerIntents);
   const totalEstimateCzk = providerId === 'cz.unilabs'
-    ? offers.reduce((sum, offer) => sum + (Number(offer.priceCzk) || 0), 0)
+    ? offers.reduce((sum, offer) => sum + (Number(offer.priceCzk) || 0) + (Number(offer.bloodDrawFeeCzk) || 0), 0)
     : products.reduce((sum, p) => sum + (Number(p.priceCzk) || 0), 0);
   return {
     ...draft,
