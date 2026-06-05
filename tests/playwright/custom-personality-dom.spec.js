@@ -85,9 +85,9 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       window.startNewCustomPersonality();
       const saveBtn2 = document.querySelector('.chat-personality-custom-save');
       window.snapshotPersonalityClean();
-      const disabledAfterSnapshot = saveBtn2?.disabled === true;
+      outcomes.saveDisabledAfterSnapshot = saveBtn2?.disabled === true;
       window.markPersonalityDirty();
-      outcomes.cleanSnapshotKeepsSaveDisabled = disabledAfterSnapshot && saveBtn2?.disabled === true;
+      outcomes.saveStaysDisabledAfterDirtyMark = saveBtn2?.disabled === true;
 
       const discussBtn = document.getElementById('chat-discuss-btn');
       outcomes.discussButtonDelegated = !!discussBtn

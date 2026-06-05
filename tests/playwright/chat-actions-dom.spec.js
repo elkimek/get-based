@@ -31,9 +31,14 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         outcomes.aiMessagesHaveActionBars = aiMsgs.length > 0 && aiMsgs[0].querySelector('.chat-action-bar') !== null;
         outcomes.userMessagesHaveNoActionBars = userMsgs.length > 0 && userMsgs[0].querySelector('.chat-action-bar') === null;
       } else {
-        const doc = new DOMParser().parseFromString(`<div class="chat-msg chat-ai">${buildActionBar(1)}</div>`, 'text/html');
-        outcomes.aiMessagesHaveActionBars = doc.querySelector('.chat-action-bar') !== null;
-        outcomes.userMessagesHaveNoActionBars = doc.querySelectorAll('.chat-action-btn').length >= 1;
+        const doc = new DOMParser().parseFromString(
+          `<div class="chat-msg chat-ai">${buildActionBar(1)}</div><div class="chat-msg chat-user">Hello</div>`,
+          'text/html'
+        );
+        const aiMsg = doc.querySelector('.chat-msg.chat-ai');
+        const userMsg = doc.querySelector('.chat-msg.chat-user');
+        outcomes.aiMessagesHaveActionBars = !!aiMsg?.querySelector('.chat-action-bar');
+        outcomes.userMessagesHaveNoActionBars = userMsg?.querySelector('.chat-action-bar') === null;
       }
 
       outcomes.clipboardAvailable = typeof navigator.clipboard !== 'undefined';
