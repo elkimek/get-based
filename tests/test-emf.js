@@ -146,6 +146,7 @@ const contextCardLifestyleEditorsSrc = read('js/context-card-lifestyle-editors.j
 const contextCardSummariesSrc = read('js/context-card-summaries.js');
 const contextProfileCss = read('css/context-profile.css');
 const lensPagesSrc = read('js/lens-pages.js');
+const emfSrc = read('js/emf.js');
 assert('45f. Sidebar exposes EMF assessment under Analysis tools', (() => {
   const analysisIndex = navSrc.indexOf('Analysis tools');
   const emfIndex = navSrc.indexOf("label: 'EMF assessment'");
@@ -165,6 +166,13 @@ assert('45j. EMF launcher has dedicated context CSS',
   contextProfileCss.includes('.ctx-emf-launcher.has-data'));
 assert('45k. Insight lens exposes EMF assessment action',
   lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes('window.openEMFAssessmentEditor'));
+assert('45l. EMF PII review streams current PDF text',
+  emfSrc.includes('streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)'));
+assert('45m. EMF PII review provides regex fallback text',
+  emfSrc.includes('obfuscatedText: obfuscated'));
+assert('45n. EMF PII review gates local AI availability explicitly',
+  emfSrc.includes('if (piiAvailable.available && reviewEnabled)') &&
+  emfSrc.includes('} else if (piiAvailable.available) {'));
 
 // ── EMF affiliate catalog (Safe Living Technologies) ──
 const recsMod = await import('../js/recommendations.js');

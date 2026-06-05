@@ -1,3 +1,4 @@
+// @ts-check
 // emf.js — Baubiologie EMF Assessment sub-module
 // Room-by-room EMF measurements with SBM-2015 severity ratings
 
@@ -15,6 +16,11 @@ import { renderMarkdown } from './markdown.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
+
+/**
+ * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
+ * @typedef {HTMLElement & { _interpretText?: string, _onSave?: ((interp: EMFInterpretation) => void) | null }} EMFInterpretationOverlay
+ */
 
 // ═══════════════════════════════════════════════
 // MEASUREMENT TYPES (display order)
@@ -501,23 +507,23 @@ function collectActiveAssessmentInputs() {
   if (!a || !modal) return;
 
   for (const field of ['date', 'label', 'consultant', 'note']) {
-    const input = modal.querySelector(`[data-emf-field="${field}"]`);
+    const input = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (modal.querySelector(`[data-emf-field="${field}"]`));
     if (input) applyEMFField(a, field, input.value || '');
   }
 
   const room = a.rooms?.[_activeRoomIdx];
   if (!room) return;
-  const locationInput = modal.querySelector('[data-emf-room-field="location"]');
+  const locationInput = /** @type {HTMLInputElement | null} */ (modal.querySelector('[data-emf-room-field="location"]'));
   if (locationInput) room.location = locationInput.value || '';
-  const noteInput = modal.querySelector('[data-emf-room-field="note"]');
+  const noteInput = /** @type {HTMLInputElement | null} */ (modal.querySelector('[data-emf-room-field="note"]'));
   if (noteInput) room.note = noteInput.value || '';
-  const sleepingInput = modal.querySelector('[data-emf-room-field="sleeping"]');
+  const sleepingInput = /** @type {HTMLInputElement | null} */ (modal.querySelector('[data-emf-room-field="sleeping"]'));
   if (sleepingInput) room.sleeping = !!sleepingInput.checked;
 
   for (const mt of MEASUREMENT_TYPES) {
-    const valueInput = modal.querySelector(`[data-emf-measurement-type="${mt.key}"]`);
+    const valueInput = /** @type {HTMLInputElement | null} */ (modal.querySelector(`[data-emf-measurement-type="${mt.key}"]`));
     if (valueInput) applyEMFMeasurementValue(room, mt.key, valueInput.value);
-    const meterInput = modal.querySelector(`[data-emf-meter-type="${mt.key}"]`);
+    const meterInput = /** @type {HTMLInputElement | HTMLSelectElement | null} */ (modal.querySelector(`[data-emf-meter-type="${mt.key}"]`));
     const measurement = room.measurements?.[mt.key];
     if (meterInput && measurement) measurement.meter = meterInput.value || null;
   }
@@ -606,13 +612,15 @@ export async function handleEMFPDF(file) {
   const piiAvailable = await checkOllamaPII();
   const reviewEnabled = isPIIReviewEnabled();
 
-  if (piiAvailable && reviewEnabled) {
+  if (piiAvailable.available && reviewEnabled) {
+    const { obfuscated } = obfuscatePDFText(pdfText);
     const result = await reviewPIIBeforeSend(pdfText, {
-      streamFn: (text, onChunk, signal) => sanitizeWithOllamaStreaming(text, onChunk, signal)
+      obfuscatedText: obfuscated,
+      streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)
     });
     if (result === 'cancel') return;
     textToSend = result;
-  } else if (piiAvailable) {
+  } else if (piiAvailable.available) {
     try {
       textToSend = await sanitizeWithOllama(pdfText);
     } catch { /* fallback to regex */ }
@@ -849,9 +857,9 @@ const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpre
 
 function openInterpretationModal(title, existingInterp, onGenerate, onSave, mitigationTags = []) {
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
-  let overlay = document.getElementById('emf-interp-overlay');
+  let overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
   if (!overlay) {
-    overlay = document.createElement('div');
+    overlay = /** @type {EMFInterpretationOverlay} */ (document.createElement('div'));
     overlay.id = 'emf-interp-overlay';
     overlay.className = 'emf-interp-overlay';
     document.body.appendChild(overlay);
@@ -895,8 +903,10 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   overlay._interpretText = hasExisting ? existingInterp.text : '';
   overlay._onSave = onSave;
 
-  document.getElementById('emf-interp-generate').addEventListener('click', () => {
-    const btn = document.getElementById('emf-interp-generate');
+  const generateBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
+  generateBtn?.addEventListener('click', () => {
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
+    if (!btn) return;
     btn.disabled = true;
     btn.textContent = 'Interpreting…';
     onGenerate(onSave);
@@ -962,7 +972,7 @@ function streamInterpretation(prompt, onComplete) {
   }).then(response => {
     _aiAbortController = null;
     const finalText = stripThinking(response?.text || '');
-    const usage = response?.usage || {};
+    const usage = /** @type {{ inputTokens?: number, outputTokens?: number }} */ (response?.usage || {});
     body.innerHTML = finalText ? renderMarkdown(finalText) : '<div class="emf-interp-placeholder">No response received.</div>';
 
     const interp = {
@@ -979,7 +989,7 @@ function streamInterpretation(prompt, onComplete) {
     if (meta) meta.innerHTML = buildMetaLine(interp);
 
     // Update generate button
-    const btn = document.getElementById('emf-interp-generate');
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
     if (btn) { btn.disabled = false; btn.textContent = 'Re-interpret'; }
 
     // Add discuss button if not present
@@ -988,12 +998,12 @@ function streamInterpretation(prompt, onComplete) {
       const discussBtn = document.createElement('button');
       discussBtn.className = 'import-btn import-btn-secondary';
       discussBtn.textContent = 'Discuss in Chat';
-      discussBtn.onclick = () => window.discussEMFInterpretation();
+      discussBtn.onclick = () => discussEMFInterpretation();
       actions.appendChild(discussBtn);
     }
 
     // Store for discuss
-    const overlay = document.getElementById('emf-interp-overlay');
+    const overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
     if (overlay) overlay._interpretText = finalText;
 
     if (onComplete) onComplete(interp);
@@ -1001,7 +1011,7 @@ function streamInterpretation(prompt, onComplete) {
     _aiAbortController = null;
     if (err.name === 'AbortError') return;
     body.innerHTML = `<div style="color:var(--red);padding:12px">Error: ${escapeHTML(err.message)}</div>`;
-    const btn = document.getElementById('emf-interp-generate');
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
     if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
   });
 }
@@ -1013,7 +1023,7 @@ export function closeEMFInterpretation() {
 }
 
 export function discussEMFInterpretation() {
-  const overlay = document.getElementById('emf-interp-overlay');
+  const overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
   const text = overlay?._interpretText;
   if (!text) return;
   closeEMFInterpretation();
