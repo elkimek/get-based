@@ -165,7 +165,7 @@ function productsFromOffers(providerId, offers, markerIntents) {
     name: offer.name,
     priceCzk: offer.priceCzk,
     url: offer.checkout?.checkoutUrl || (providerId === 'cz.labshop' ? 'https://www.labshop.cz/kosik/prehled' : 'https://www.unilabs.cz/'),
-    markers: offer.covers.map(cover => cover.displayName || markerNameByKey.get(cover.markerKey) || cover.markerKey),
+    markers: (offer.covers || []).map(cover => cover.displayName || markerNameByKey.get(cover.markerKey) || cover.markerKey),
     note: providerId === 'cz.unilabs'
       ? 'Unilabs request-form/catalog flow still needs reconnaissance.'
       : 'Provider offer mapped from lab-order provider layer.',

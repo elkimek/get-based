@@ -82,7 +82,7 @@ function makeCustomCartOffer(items) {
     providerId: 'cz.unilabs',
     providerProductId: 'unilabs-custom-cart',
     name: 'Unilabs custom test cart',
-    priceCzk: items.reduce((sum, product) => sum + (Number(product.priceCzk) || 0), UNILABS_BLOOD_DRAW_FEE_CZK),
+    priceCzk: items.reduce((sum, product) => sum + (Number(product.priceCzk) || 0), 0),
     bloodDrawFeeCzk: UNILABS_BLOOD_DRAW_FEE_CZK,
     coverage: COVERAGE.EXACT,
     confidence: 'public_unilabs_online_configurator',

@@ -6,6 +6,7 @@ import { escapeHTML, showNotification } from './utils.js';
 import { CHAT_ICON_COPY, CHAT_ICON_REFRESH, setIconButtonContent } from './chat-icons.js';
 import { saveChatHistory } from './chat-history.js';
 import { buildLabOrderCopyText, buildLabPlanCopyText } from './lab-order-render.js';
+import { hasAIProvider } from './api.js';
 import { buildAILabPlanFromThread } from './lab-plan-ai.js';
 
 export function buildActionBar(msgIndex) {
@@ -110,6 +111,10 @@ function setLabPlanButtonBusy(isBusy) {
 export async function buildLabPlanFromThreadAction() {
   if (!Array.isArray(state.chatHistory) || state.chatHistory.length === 0) {
     showNotification('No conversation to turn into a lab plan yet', 'info');
+    return;
+  }
+  if (!hasAIProvider()) {
+    window.renderChatMessages?.();
     return;
   }
   setLabPlanButtonBusy(true);
