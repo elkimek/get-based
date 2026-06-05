@@ -37,7 +37,8 @@ const TEST_FILES = [
   // test-changelog.js source-inspection + hasCardContent behavioral ported
   // to Vitest (batch 20). Modal DOM moved to Playwright in
   // tests/playwright/changelog.spec.js.
-  'tests/test-settings-toggles-dom.js',
+  // test-settings-toggles-dom.js moved to Playwright in
+  // tests/playwright/settings-toggles.spec.js.
   // test-audit.js source-inspection (sections 1-16 + innerHTML sweep) ported
   // to Vitest (batch 22). The section-3b functional safeMarkerId-guard probes
   // (need live DOM + populated state) live in test-audit-dom.js below.
@@ -47,9 +48,8 @@ const TEST_FILES = [
   'tests/test-lens-page-shell-delegated-actions-dom.js',
   'tests/test-light-page-view-delegated-actions-dom.js',
   // test-image-utils.js source-inspection + module-export checks ported to
-  // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7) live
-  // in test-image-utils-dom.js below.
-  'tests/test-image-utils-dom.js',
+  // Vitest (PR for batch 19). DOM-runtime assertions (sections 6 + 7)
+  // moved to Playwright in tests/playwright/image-utils-dom.spec.js.
   // test-emf.js fully ported to Vitest (batch 26) — pure-logic + module
   // imports, no DOM-runtime sections.
   // test-emf-flow.js fully ported to Vitest (batch 36) — CRUD/state asserts
@@ -72,7 +72,8 @@ const TEST_FILES = [
   // Vitest (batch 28). Section 6 (picker open/dismiss — live DOM overlay +
   // click) moved to Playwright in tests/playwright/dashboard-data-protection.spec.js.
   'tests/test-chat-panel-ux.js',
-  'tests/test-chat-empty-state-dom.js',
+  // test-chat-empty-state-dom.js moved to Playwright in
+  // tests/playwright/chat-empty-state.spec.js.
   // test-custom-api.js source-inspection + behavioral ported to Vitest
   // (batch 24). Settings modal DOM moved to Playwright in
   // tests/playwright/custom-api-settings.spec.js.
