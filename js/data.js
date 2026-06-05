@@ -1,3 +1,4 @@
+// @ts-check
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
@@ -30,6 +31,20 @@ export {
   statusIcon,
 } from './marker-analysis.js';
 
+/**
+ * @typedef {Record<string, any>} ImportedDataRecord
+ * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
+ * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
+ * @typedef {{
+ *   buildSidebar?: (data?: unknown) => void,
+ *   invalidateLabContextCache?: () => void,
+ *   navigate?: (route?: string, data?: unknown) => void,
+ *   showDetailModal?: (id: string) => void,
+ * }} DataWindowHooks
+ */
+
+const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (window);
+
 // ═══════════════════════════════════════════════
 // PRIVATE CYCLE PHASE HELPER (avoids circular dep with cycle.js)
 // ═══════════════════════════════════════════════
@@ -43,7 +58,7 @@ function _getCyclePhase(dateStr, mc) {
   }
   if (!periodStart) return null;
   const startDate = new Date(periodStart + 'T00:00:00');
-  const cycleDay = Math.floor((target - startDate) / 86400000) + 1;
+  const cycleDay = Math.floor((target.getTime() - startDate.getTime()) / 86400000) + 1;
   const cycleLen = mc.cycleLength || 28;
   if (cycleDay > cycleLen + 7) return null;
   const periodLen = mc.periodLength || 5;
@@ -92,7 +107,7 @@ function _activeDataCacheMatches(meta) {
 }
 
 function _makeActiveDataCacheMeta() {
-  const importedData = state.importedData || {};
+  const importedData = /** @type {ImportedDataRecord} */ (state.importedData || {});
   const entries = importedData.entries || null;
   const biometrics = importedData.biometrics || null;
   const wearableSummary = importedData.wearableSummary || null;
@@ -138,7 +153,7 @@ export async function saveImportedData(options = {}) {
     broadcastDataChanged(state.currentProfile);
     scheduleAutoBackup();
     touchProfileTimestamp(state.currentProfile);
-    if (window.invalidateLabContextCache) window.invalidateLabContextCache();
+    if (dataWindow.invalidateLabContextCache) dataWindow.invalidateLabContextCache();
     onDataSaved(options);
     return true;
   } catch (e) {
@@ -452,7 +467,7 @@ export function getActiveData() {
       if (!state.profileDob) return null;
       const dob = new Date(state.profileDob + 'T00:00:00');
       const draw = new Date(dateStr + 'T00:00:00');
-      const age = (draw - dob) / (365.25 * 24 * 60 * 60 * 1000);
+      const age = (draw.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       return age > 0 ? age : null;
     };
 
@@ -503,7 +518,7 @@ export function getActiveData() {
     // Coefficients and means from longevityworldcup.com (inspired by their open implementation)
     // Units: all SI as stored in schema, except ALP/GGT/ALT which need µkat/L→U/L (×60)
     // and lymphocytesPct which needs fraction→% (×100)
-    const _bortzFeatures = [
+    const _bortzFeatures = /** @type {BortzFeature[]} */ ([
       // [getValue fn,                                    mean,     coeff,   log, capVal, capMode]
       ['age',                                             56.049,  -0.026,  false, null,  null],
       [() => getVals('proteins', 'albumin'),              45.124,  -0.011,  false, 54,    'ceil'],
@@ -527,7 +542,7 @@ export function getActiveData() {
       [() => getVals('biochemistry', 'glucose'),            4.956,  0.0322, false, 4.44,  'floor'],
       [() => getVals('hematology', 'mch'),                 31.840,  0.0275, false, 25.7,  'floor'],
       [() => getVals('lipids', 'apoAI'),                    1.524, -0.185,  false, 1.82,  'ceil'],
-    ];
+    ]);
 
     ratios.markers.bortzAge.values = sortedDates.map((dateStr, i) => {
       const age = _ageAt(dateStr);
@@ -707,11 +722,16 @@ export function renderChartLayersDropdown() {
   </div>`;
 }
 
+function _getActiveNavCategory() {
+  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  return activeNav?.dataset.category || 'dashboard';
+}
+
 export function toggleChartLayersDropdown(e) {
   e.stopPropagation();
   const dd = document.getElementById('chart-layers-dropdown');
   if (!dd) return;
-  const trigger = dd.parentElement?.querySelector('.chart-layers-trigger');
+  const trigger = /** @type {HTMLButtonElement | null} */ (dd.parentElement?.querySelector('.chart-layers-trigger') || null);
   const isOpen = dd.classList.contains('open');
   dd.classList.toggle('open', !isOpen);
   if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
@@ -744,24 +764,21 @@ export function toggleChartLayersDropdown(e) {
 export function setSuppOverlay(mode) {
   state.suppOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'suppOverlay'), state.suppOverlayMode);
-  const activeNav = document.querySelector('.nav-item.active');
-  const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
+  const activeCat = _getActiveNavCategory();
   window.navigate(activeCat);
 }
 
 export function setNoteOverlay(mode) {
   state.noteOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'noteOverlay'), state.noteOverlayMode);
-  const activeNav = document.querySelector('.nav-item.active');
-  const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
+  const activeCat = _getActiveNavCategory();
   window.navigate(activeCat);
 }
 
 export function setPhaseOverlay(mode) {
   state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'phaseOverlay'), state.phaseOverlayMode);
-  const activeNav = document.querySelector('.nav-item.active');
-  const activeCat = activeNav ? activeNav.dataset.category : 'dashboard';
+  const activeCat = _getActiveNavCategory();
   window.navigate(activeCat);
 }
 
@@ -888,7 +905,7 @@ export function updateHeaderRangeToggle() {
   const el = document.getElementById('header-range-toggle');
   if (!el) return;
   const modes = ['optimal', 'reference', 'both'];
-  const buttons = Array.from(el.querySelectorAll('.range-toggle-btn'));
+  const buttons = /** @type {HTMLButtonElement[]} */ (Array.from(el.querySelectorAll('.range-toggle-btn')));
   const canPatch = buttons.length === modes.length && modes.every(m => buttons.some(btn => btn.dataset.range === m));
   if (!canPatch) {
     el.innerHTML = modes.map(m =>
