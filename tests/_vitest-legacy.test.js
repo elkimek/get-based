@@ -155,8 +155,7 @@ const LEGACY_TESTS = [
   // stays on puppeteer).
   './test-dashboard-knowledge-base.js',
   // Batch 28 — dashboard data-protection CTA HTML-string rendering
-  // (section 6 picker open/dismiss in test-dashboard-data-protection-dom.js
-  // stays on puppeteer).
+  // (section 6 picker open/dismiss moved to Playwright).
   './test-dashboard-data-protection.js',
   // Batch 29 — chat action buttons + context summary source-inspection
   // (DOM sections 4/10/12 in test-chat-actions-dom.js stay on puppeteer).

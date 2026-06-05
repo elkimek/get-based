@@ -8,10 +8,12 @@
     "dev-server": "node dev-server.js",
     "quality": "node scripts/quality-guardrails.mjs",
     "test": "vitest run",
+    "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "puppeteer": "^24.42.0",
