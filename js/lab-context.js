@@ -15,7 +15,7 @@ import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.
 import { CANONICAL_METRICS, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
 
 /**
- * @typedef {{ skipGroupFilter?: boolean, userMessage?: string }} LabContextOptions
+ * @typedef {{ skipGroupFilter?: boolean }} LabContextOptions
  * @typedef {{
  *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[]) => string,
  *   buildSunContext?: (options: { tier: string }) => string,
