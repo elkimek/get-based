@@ -154,7 +154,8 @@ export async function compareLabsFromPlan(msgIndex) {
   }
   if (found.plan.status === 'compared' || found.msg.labOrderDraft) {
     found.plan.status = 'compared';
-    renderChatMessages();
+    delete found.plan.statusMessage;
+    await saveAndRenderLabOrderState();
     return;
   }
 

@@ -109,6 +109,25 @@ describe('dynamic NČLP resolution cache', () => {
     }));
   });
 
+  it('merges storage-backed cache writes so concurrent workers do not evict earlier entries', () => {
+    const backing = new Map();
+    const storage = {
+      getItem: key => backing.get(key) || null,
+      setItem: (key, value) => backing.set(key, value),
+      removeItem: key => backing.delete(key),
+    };
+    const cache = createPersistentNclpCache({ storage, namespace: 'test.nclp.merge' });
+
+    cache.set('CZ:NCLP:alpha', { status: 'live_exact_candidate', fetchedAt: '2026-06-04T00:00:00.000Z', candidates: [{ code: 'A' }] });
+    backing.set('test.nclp.merge', JSON.stringify({
+      'CZ:NCLP:beta': { status: 'live_exact_candidate', fetchedAt: '2026-06-04T00:00:00.000Z', candidates: [{ code: 'B' }] },
+    }));
+    cache.set('CZ:NCLP:gamma', { status: 'live_exact_candidate', fetchedAt: '2026-06-04T00:00:00.000Z', candidates: [{ code: 'C' }] });
+
+    const persisted = JSON.parse(backing.get('test.nclp.merge'));
+    expect(Object.keys(persisted).sort()).toEqual(['CZ:NCLP:alpha', 'CZ:NCLP:beta', 'CZ:NCLP:gamma']);
+  });
+
   it('starts uncached live NČLP lookups concurrently instead of serially blocking a broad panel', async () => {
     const requested = ['Alpha marker', 'Beta marker', 'Gamma marker', 'Delta marker'].map((displayName, index) => ({
       markerKey: `unmapped.nclpConcurrency${index}`,

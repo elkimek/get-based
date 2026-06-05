@@ -135,8 +135,13 @@ export async function buildLabPlanFromThreadAction() {
       labPlanDraft: plan,
     });
     window.renderChatMessages?.();
-    await saveChatHistory();
-    showNotification('AI lab plan created', 'success');
+    try {
+      await saveChatHistory();
+      showNotification('AI lab plan created', 'success');
+    } catch (saveErr) {
+      console.warn('AI lab plan created but chat history save failed.', saveErr);
+      showNotification('AI lab plan created, but could not be saved locally', 'error');
+    }
   } catch (err) {
     showNotification(`Lab plan failed: ${err?.message || 'AI planner error'}`, 'error');
   } finally {

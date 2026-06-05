@@ -54,18 +54,20 @@ export function createPersistentNclpCache(opts = {}) {
     }
   }
 
+  let memoryStore = readStore();
+
   return {
-    get(key) { return readStore()[key] || null; },
+    get(key) { return memoryStore[key] || null; },
     set(key, value) {
-      const current = readStore();
-      current[key] = value;
-      writeStore(current);
+      memoryStore = { ...memoryStore, [key]: value };
+      writeStore({ ...readStore(), ...memoryStore });
       return value;
     },
     clear() {
+      memoryStore = {};
       try { storage.removeItem(namespace); } catch { /* ignore */ }
     },
-    entries() { return Object.entries(readStore()); },
+    entries() { return Object.entries(memoryStore); },
   };
 }
 
