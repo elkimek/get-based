@@ -1,3 +1,4 @@
+// @ts-check
 // settings-sync-panel.js — Cross-device sync and Agent Access settings panels
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
@@ -19,6 +20,17 @@ import {
   pushContextToGateway,
 } from './sync.js';
 
+const appWindow = /** @type {Window & typeof globalThis & {
+  applyPendingTombstone?: (id: string) => Promise<void>,
+  getAgentWearableSeriesDays?: () => number,
+  listPendingTombstones?: () => Array<{ id: string, name: string, at?: string | number | Date }>,
+  openSettingsModal?: (tab?: string) => void,
+  pushContextToGateway?: () => void,
+  rejectPendingTombstone?: (id: string) => Promise<void>,
+  setAgentWearableSeriesDays?: (days: number) => void,
+  updateSyncIndicator?: () => void,
+}} */ (window);
+
 let settingsSyncDelegatesInstalled = false;
 const SETTINGS_SYNC_STATE_ACTIONS = new Set([
   'toggle-sync',
@@ -32,7 +44,7 @@ function closestSettingsSyncAction(event, selector = '[data-sync-action],[data-s
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
-  if (!el) return null;
+  if (!(el instanceof HTMLElement)) return null;
   return el.closest('#sync-section, #messenger-section, #sync-setup-overlay, #sync-restore-overlay') ? el : null;
 }
 
@@ -65,11 +77,11 @@ async function handleSettingsSyncClick(event) {
   event.preventDefault();
 
   if (action === 'apply-tombstone') {
-    await window.applyPendingTombstone?.(actionEl.dataset.tombId || '');
-    window.openSettingsModal?.('data');
+    await appWindow.applyPendingTombstone?.(actionEl.dataset.tombId || '');
+    appWindow.openSettingsModal?.('data');
   } else if (action === 'reject-tombstone') {
-    await window.rejectPendingTombstone?.(actionEl.dataset.tombId || '');
-    window.openSettingsModal?.('data');
+    await appWindow.rejectPendingTombstone?.(actionEl.dataset.tombId || '');
+    appWindow.openSettingsModal?.('data');
   } else if (action === 'toggle-mnemonic') {
     toggleMnemonicVisibility();
   } else if (action === 'copy-mnemonic') {
@@ -116,8 +128,8 @@ function handleSettingsSyncChange(event) {
   } else if (action === 'toggle-messenger' && actionEl instanceof HTMLInputElement) {
     toggleMessenger(actionEl.checked);
   } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
-    window.setAgentWearableSeriesDays?.(actionEl.value === 'off' ? 0 : Number(actionEl.value));
-    window.pushContextToGateway?.();
+    appWindow.setAgentWearableSeriesDays?.(actionEl.value === 'off' ? 0 : Number(actionEl.value));
+    appWindow.pushContextToGateway?.();
   }
 }
 
@@ -136,7 +148,7 @@ function installSettingsSyncDelegates() {
 }
 
 function renderPendingTombstones() {
-  const pending = window.listPendingTombstones?.() || [];
+  const pending = appWindow.listPendingTombstones?.() || [];
   if (pending.length === 0) return '';
   const rows = pending.map(p => `
     <div class="sync-tombstone-row" data-tomb-id="${escapeAttr(p.id)}">
@@ -371,7 +383,7 @@ async function syncSetupNew() {
 }
 
 function updateSyncSetupAck(ack = document.getElementById('sync-setup-ack')) {
-  const doneBtn = document.getElementById('sync-setup-done-btn');
+  const doneBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-done-btn'));
   if (!(ack instanceof HTMLInputElement) || !doneBtn) return;
   doneBtn.disabled = !ack.checked;
   doneBtn.style.opacity = ack.checked ? '1' : '0.45';
@@ -403,7 +415,7 @@ function syncSetupBack() {
 
 async function syncSetupDoRestore() {
   if (_syncSetupInProgress) return;
-  const input = document.getElementById('sync-setup-restore-input');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
   if (!input) return;
   const raw = (input.value || '').trim();
   if (!raw) {
@@ -445,7 +457,7 @@ async function updateRelayStatus() {
   dot.style.background = connected ? '#22c55e' : 'var(--red)';
   text.textContent = connected ? 'Connected to relay' : 'Relay unreachable';
   // Keep header indicator in sync
-  if (window.updateSyncIndicator) window.updateSyncIndicator();
+  appWindow.updateSyncIndicator?.();
 }
 
 let _mnemonicRetries = 0;
@@ -551,13 +563,13 @@ function openRestoreMnemonicDialog() {
   const input = document.getElementById('sync-restore-dialog-input');
   if (input) {
     input.focus();
-    updateRestoreMnemonicDialogState(input);
+    updateRestoreMnemonicDialogState(input instanceof HTMLTextAreaElement ? input : null);
   }
 }
 
-function updateRestoreMnemonicDialogState(input = document.getElementById('sync-restore-dialog-input')) {
+function updateRestoreMnemonicDialogState(input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input'))) {
   const msg = document.getElementById('sync-restore-dialog-msg');
-  const btn = document.getElementById('sync-restore-dialog-go');
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
   if (!input) return;
   const raw = (input.value || '').trim();
   if (!raw) {
@@ -581,8 +593,8 @@ function closeRestoreMnemonicDialog() {
 }
 
 async function confirmRestoreMnemonic() {
-  const input = document.getElementById('sync-restore-dialog-input');
-  const btn = document.getElementById('sync-restore-dialog-go');
+  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input'));
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
   if (!input) return;
   const raw = (input.value || '').trim();
   const words = raw.split(/\s+/);
@@ -605,7 +617,7 @@ async function confirmRestoreMnemonic() {
 }
 
 function saveSyncRelay() {
-  const input = document.getElementById('sync-relay-input');
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('sync-relay-input'));
   if (!input) return;
   const url = input.value.trim();
   if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
@@ -654,10 +666,10 @@ export function renderMessengerSection() {
             data-sync-action="set-agent-wearable-series-days"
             aria-label="Wearable series window pushed to agent"
             class="settings-select">
-            <option value="off"${(window.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
-            <option value="7"${window.getAgentWearableSeriesDays?.() === 7 ? ' selected' : ''}>7 days</option>
-            <option value="30"${window.getAgentWearableSeriesDays?.() === 30 ? ' selected' : ''}>30 days</option>
-            <option value="90"${window.getAgentWearableSeriesDays?.() === 90 ? ' selected' : ''}>90 days</option>
+            <option value="off"${(appWindow.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
+            <option value="7"${appWindow.getAgentWearableSeriesDays?.() === 7 ? ' selected' : ''}>7 days</option>
+            <option value="30"${appWindow.getAgentWearableSeriesDays?.() === 30 ? ' selected' : ''}>30 days</option>
+            <option value="90"${appWindow.getAgentWearableSeriesDays?.() === 90 ? ' selected' : ''}>90 days</option>
           </select>
         </div>
       </div>

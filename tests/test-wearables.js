@@ -1530,7 +1530,7 @@ assert('Settings → Agent Access uses a <select> for the series window',
   /id="agent-wearable-series-select"/.test(settingsSyncPanelV29));
 assert('Settings select dispatches to setAgentWearableSeriesDays through delegated action',
   /data-sync-action="set-agent-wearable-series-days"/.test(settingsSyncPanelV29) &&
-  /window\.setAgentWearableSeriesDays\?\.\(actionEl\.value === 'off'/.test(settingsSyncPanelV29));
+  /(window|appWindow)\.setAgentWearableSeriesDays\?\.\(actionEl\.value === 'off'/.test(settingsSyncPanelV29));
 assert('Settings select offers Off / 7 / 30 / 90 options',
   /<option value="off"/.test(settingsSyncPanelV29) &&
   /<option value="7"/.test(settingsSyncPanelV29) &&
