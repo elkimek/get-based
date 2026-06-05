@@ -41,8 +41,7 @@ const TEST_FILES = [
   // tests/playwright/settings-toggles.spec.js.
   // test-audit.js source-inspection (sections 1-16 + innerHTML sweep) ported
   // to Vitest (batch 22). The section-3b functional safeMarkerId-guard probes
-  // (need live DOM + populated state) live in test-audit-dom.js below.
-  'tests/test-audit-dom.js',
+  // moved to Playwright in tests/playwright/audit-dom.spec.js.
   // test-nav-delegated-actions-dom.js moved to Playwright in
   // tests/playwright/nav-delegated-actions.spec.js.
   'tests/test-dashboard-widget-delegated-actions-dom.js',
@@ -94,17 +93,15 @@ const TEST_FILES = [
   'tests/test-ai-verdict-engine.js',
   // test-coverage-stragglers.js stub-based probes ported to Vitest
   // (batch 37). The img.onerror / showConfirmDialog / handleSSELine /
-  // cashu _openDB sections need a browser runtime and live here.
-  'tests/test-coverage-stragglers-dom.js',
+  // cashu _openDB browser-runtime sections moved to Playwright in
+  // tests/playwright/coverage-stragglers-dom.spec.js.
   'tests/test-silhouette-picker.js',
   'tests/test-silhouette-region-map.js',
   'tests/test-sun-ui-flow.js',
   'tests/test-audit-fixes.js',
   // test-family-history.js source-inspection + getConditionsSummary ported
-  // to Vitest (batch 36). DOM-runtime sections — the apostrophe round-trip
-  // probe + the live add/delete handler test against #detail-modal — live
-  // in test-family-history-dom.js below.
-  'tests/test-family-history-dom.js',
+  // to Vitest (batch 36). DOM-runtime sections moved to Playwright in
+  // tests/playwright/family-history-dom.spec.js.
   // test-v1-6-shipped.js modal-render check moved to Playwright in
   // tests/playwright/all-sessions-modal.spec.js.
   // test-wearables-bp-merge.js source-inspection ported to Vitest (batch 30).
