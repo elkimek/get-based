@@ -1,3 +1,4 @@
+// @ts-check
 // supplement-warnings.js — Mitochondrial effects warnings for supplements & drugs
 //
 // The compound database (data/mito-compounds.json) is independently compiled

@@ -1,3 +1,4 @@
+// @ts-check
 // hardware.js — GPU detection + model advisor for Local AI settings
 // Pure functions, no DOM manipulation, no app imports
 
@@ -133,9 +134,10 @@ export async function detectHardware() {
     gpu.vram = override;
     gpu.source = 'manual';
   }
+  const nav = /** @type {Navigator & { deviceMemory?: number }} */ (navigator);
   return {
     gpu,
-    ram: { gb: navigator.deviceMemory || null, source: navigator.deviceMemory ? 'deviceMemory' : 'unknown' },
+    ram: { gb: nav.deviceMemory || null, source: nav.deviceMemory ? 'deviceMemory' : 'unknown' },
     cpuThreads: navigator.hardwareConcurrency || null,
   };
 }

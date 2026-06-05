@@ -1,3 +1,4 @@
+// @ts-check
 // js/lens-local.js — browser-side lens engine, main-thread API.
 //
 // Implements the same surface as js/lens.js's queryLens(query) so the chat
@@ -13,11 +14,16 @@
 // Single worker per tab, lazily initialised on first call. Messages queue
 // so a query issued during an ingest waits its turn rather than racing.
 
+/** @type {Worker | null} */
 let _worker = null;
+/** @type {Promise<any> | null} */
 let _ready = null;
-let _inflight = null; // { type, resolve, reject }
+/** @type {{ type: string, resolve: (value: any) => void, reject: (reason?: any) => void } | null} */
+let _inflight = null;
+/** @type {Set<(msg: any) => void>} */
 const _progressSubs = new Set();
 
+/** @returns {Worker} */
 function ensureWorker() {
   if (_worker) return _worker;
   _worker = new Worker(new URL('./lens-local-worker.js', import.meta.url), {
@@ -58,7 +64,12 @@ function ensureWorker() {
 // Simple serial queue — enforces one request at a time. transformers.js
 // doesn't tolerate reentrant inference calls, and OPFS writes can race
 // against each other, so strict serialization is the safe default.
+/** @type {Promise<any>} */
 let _queue = Promise.resolve();
+/**
+ * @param {{ type: string, [key: string]: any }} msg
+ * @returns {Promise<any>}
+ */
 function send(msg) {
   _queue = _queue.then(() => new Promise((resolve, reject) => {
     _inflight = { type: msg.type, resolve, reject };

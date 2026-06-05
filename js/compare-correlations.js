@@ -1,3 +1,4 @@
+// @ts-check
 // compare-correlations.js - Compare Dates and Correlations views
 
 import { state } from './state.js';
@@ -8,12 +9,14 @@ import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
 import { ensureChartJs, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 
+/** @type {{ renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
 const compareCorrelationDeps = {
   renderTableColgroup: () => '',
   renderScrollableTableShell: (_kind, _wrapperClass, _tableClass, _colgroup, headHtml, bodyHtml) => '<table>' + headHtml + bodyHtml + '</table>',
   renderCategoryGlyph: (_categoryKey, label = '') => escapeHTML(label || ''),
 };
 
+/** @param {Partial<typeof compareCorrelationDeps>} deps */
 export function configureCompareCorrelationViews(deps = {}) {
   Object.assign(compareCorrelationDeps, deps);
 }
@@ -59,8 +62,10 @@ export function showCompare(data) {
   </div>`;
   html += `<div id="compare-results"></div>`;
   main.innerHTML = html;
-  document.getElementById('compare-select-1').value = state.compareDate1;
-  document.getElementById('compare-select-2').value = state.compareDate2;
+  const select1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
+  const select2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
+  if (select1) select1.value = state.compareDate1;
+  if (select2) select2.value = state.compareDate2;
   updateCompare();
 }
 
@@ -81,8 +86,8 @@ export function swapCompareDates() {
   const tmp = state.compareDate1;
   state.compareDate1 = state.compareDate2;
   state.compareDate2 = tmp;
-  const s1 = document.getElementById('compare-select-1');
-  const s2 = document.getElementById('compare-select-2');
+  const s1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
+  const s2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
   if (s1) s1.value = state.compareDate1;
   if (s2) s2.value = state.compareDate2;
   updateCompare();
@@ -201,17 +206,19 @@ export function populateCorrelationOptions(data) {
 }
 
 export function showCorrelationDropdown() {
-  document.getElementById("corr-options").classList.add("show");
+  document.getElementById("corr-options")?.classList.add("show");
 }
 
 export function filterCorrelationOptions() {
-  const search = document.getElementById("corr-search").value.toLowerCase();
+  const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById("corr-search"));
+  const search = (searchInput?.value || '').toLowerCase();
   document.querySelectorAll(".corr-option").forEach(opt => {
-    const name = opt.dataset.name.toLowerCase();
-    const cat = opt.dataset.cat.toLowerCase();
-    opt.style.display = (name.includes(search) || cat.includes(search)) ? '' : 'none';
+    const option = /** @type {HTMLElement} */ (opt);
+    const name = (option.dataset.name || '').toLowerCase();
+    const cat = (option.dataset.cat || '').toLowerCase();
+    option.style.display = (name.includes(search) || cat.includes(search)) ? '' : 'none';
   });
-  document.getElementById("corr-options").classList.add("show");
+  document.getElementById("corr-options")?.classList.add("show");
 }
 
 export function toggleCorrelationMarker(key) {
@@ -222,7 +229,8 @@ export function toggleCorrelationMarker(key) {
   populateCorrelationOptions();
   if (state.selectedCorrelationMarkers.length >= 2) renderCorrelationChart();
   else {
-    document.getElementById("corr-chart-container").style.display = "none";
+    const container = document.getElementById("corr-chart-container");
+    if (container) container.style.display = "none";
     if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
   }
 }
@@ -253,9 +261,10 @@ export function renderCorrelationChips() {
 export function renderCorrelationChart() {
   const data = getActiveData();
   const container = document.getElementById("corr-chart-container");
+  if (!container) return;
   container.style.display = "block";
   if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
-  const canvas = document.getElementById("chart-correlation");
+  const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-correlation"));
   if (!canvas) return;
   if (!window.Chart) {
     ensureChartJs().then(() => {
