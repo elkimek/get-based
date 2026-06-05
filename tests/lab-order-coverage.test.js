@@ -255,7 +255,7 @@ describe('provider coverage matrix and recommendations', () => {
       requestedCount: 4,
       coveragePercent: 100,
       mandatoryFeesCzk: 81,
-      totalEstimateCzk: 1460,
+      totalEstimateCzk: 1541,
     }));
     expect(unilabs.cells['vitamins.holotranscobalamin']).toEqual(expect.objectContaining({
       status: 'covered',

@@ -65,7 +65,7 @@ describe('lab order draft uses architecture layers', () => {
       providerId: 'cz.unilabs',
       coveredCount: 2,
       requestedCount: 2,
-      totalEstimateCzk: 581,
+      totalEstimateCzk: 662,
       mandatoryFeesCzk: 81,
     }));
   });

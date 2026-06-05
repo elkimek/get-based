@@ -260,6 +260,7 @@ function buildProviderRow(provider, markerIntents, calculatedMarkers = []) {
 
   const mandatoryFeesCzk = [...matchedOffers.values()].reduce((sum, offer) => sum + (Number(offer.bloodDrawFeeCzk) || 0), 0);
   const productTotalCzk = [...matchedOffers.values()].reduce((sum, offer) => sum + (Number(offer.priceCzk) || 0), 0);
+  const totalWithFeesCzk = productTotalCzk + mandatoryFeesCzk;
 
   return {
     providerId: provider.id,
@@ -272,7 +273,7 @@ function buildProviderRow(provider, markerIntents, calculatedMarkers = []) {
     missingMarkerKeys,
     calculatedMarkerKeys,
     mandatoryFeesCzk,
-    totalEstimateCzk: matchedOffers.size ? productTotalCzk : null,
+    totalEstimateCzk: matchedOffers.size ? totalWithFeesCzk : null,
     offerCount: offers.length,
     catalogueLoaded,
     offers,
