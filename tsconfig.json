@@ -11,6 +11,7 @@
     "strict": false
   },
   "include": [
+    "js/adapters.js",
     "js/app-ai-interaction-modules.js",
     "js/app-data-io-modules.js",
     "js/app-event-listeners.js",
@@ -144,6 +145,7 @@
     "js/pdf-import-progress.js",
     "js/pdf-import-review.js",
     "js/pdfjs-loader.js",
+    "js/pii.js",
     "js/profile.js",
     "js/profile-share.js",
     "js/recommendation-actions.js",
@@ -158,6 +160,7 @@
     "js/provider-qr.js",
     "js/provider-wallet-delegates.js",
     "js/provider-wallet-panels.js",
+    "js/schema.js",
     "js/shell-actions.js",
     "js/silhouette-paths.js",
     "js/startup-foundation.js",
