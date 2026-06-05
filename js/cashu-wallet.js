@@ -1,3 +1,4 @@
+// @ts-check
 // cashu-wallet.js — In-app Cashu eCash wallet for decentralized AI payments
 // Uses cashu-ts (vendored IIFE → global `cashuts`) for protocol operations.
 // Proofs stored in IndexedDB, included in backup/sync.
@@ -21,27 +22,32 @@ const DB_VERSION = 2;
 const STORE_PROOFS = 'proofs';
 const STORE_META = 'meta';
 const STORE_FEES = 'fee-proofs';
+const cashuWindow = /** @type {Window & typeof globalThis & {
+  cashuts?: any,
+  bip39?: any,
+  showNotification?: (message: string, type?: string, duration?: number) => void
+}} */ (window);
 
 let _cashuLibLoad = null;
 let _bip39Load = null;
 
 async function _cashuLib() {
-  if (window.cashuts) return window.cashuts;
+  if (cashuWindow.cashuts) return cashuWindow.cashuts;
   if (!_cashuLibLoad) {
     _cashuLibLoad = loadScriptOnce('/vendor/cashu-ts.js').then(() => {
-      if (!window.cashuts) throw new Error('Cashu library did not initialize');
-      return window.cashuts;
+      if (!cashuWindow.cashuts) throw new Error('Cashu library did not initialize');
+      return cashuWindow.cashuts;
     });
   }
   return _cashuLibLoad;
 }
 
 async function _ensureBip39() {
-  if (window.bip39) return window.bip39;
+  if (cashuWindow.bip39) return cashuWindow.bip39;
   if (!_bip39Load) {
     _bip39Load = loadScriptOnce('/vendor/bip39-minimal.js').then(() => {
-      if (!window.bip39) throw new Error('BIP-39 library did not initialize');
-      return window.bip39;
+      if (!cashuWindow.bip39) throw new Error('BIP-39 library did not initialize');
+      return cashuWindow.bip39;
     });
   }
   return _bip39Load;
@@ -84,7 +90,7 @@ function _openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = function(e) {
-      const db = e.target.result;
+      const db = req.result;
       if (!db.objectStoreNames.contains(STORE_PROOFS)) {
         db.createObjectStore(STORE_PROOFS, { keyPath: 'secret' });
       }
@@ -96,11 +102,11 @@ function _openDB() {
       }
     };
     req.onsuccess = function(e) {
-      _db = e.target.result;
+      _db = req.result;
       _migrateFeeProofs().catch(() => {});
       resolve(_db);
     };
-    req.onerror = function(e) { reject(e.target.error); };
+    req.onerror = function(e) { reject(req.error); };
   });
 }
 
@@ -120,6 +126,7 @@ async function _migrateUntaggedProofs() {
         if (!p._mint) store.put({ ...p, _mint: DEFAULT_MINT });
       }
     };
+    req.onerror = () => reject(req.error);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -200,6 +207,7 @@ async function _clearAllProofs() {
         if (!p._mint || p._mint === mintUrl) store.delete(p.secret);
       }
     };
+    req.onerror = () => reject(req.error);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -446,8 +454,8 @@ export async function restoreWalletFromSeed(mnemonic) {
 
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
 export async function getWalletBalance() {
-  const cashuts = await _cashuLib();
   const proofs = await _pruneSpentProofs();
+  const cashuts = await _cashuLib();
   return cashuts.sumProofs(proofs);
 }
 
@@ -817,8 +825,8 @@ async function _autoMeltFees(feeProofs) {
       // toggles produce one or two failures; only flag when something
       // is durably broken.
       _autoMeltConsecutiveFailures = (_autoMeltConsecutiveFailures || 0) + 1;
-      if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined' && window.showNotification) {
-        window.showNotification('Cashu fee melt failing repeatedly — proofs are safe and queued, but check Settings → AI → Routstr if the failures continue.', 'warning', 7000);
+      if (_autoMeltConsecutiveFailures === 3 && typeof window !== 'undefined' && cashuWindow.showNotification) {
+        cashuWindow.showNotification('Cashu fee melt failing repeatedly — proofs are safe and queued, but check Settings → AI → Routstr if the failures continue.', 'warning', 7000);
       }
     }
   }).catch(() => {}); // fire-and-forget, never block caller
