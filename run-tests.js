@@ -24,10 +24,11 @@ const TEST_FILES = [
   // test-openrouter.js source-inspection + behavioral ported to Vitest
   // (batch 21). Settings modal DOM moved to Playwright in
   // tests/playwright/openrouter-settings.spec.js.
-  'tests/test-routstr-wallet-dom.js',
+  // test-routstr-wallet-dom.js moved to Playwright in
+  // tests/playwright/routstr-wallet-dom.spec.js.
   // test-tour.js source-inspection ported to Vitest (batch 30). Live tour
-  // overlay/spotlight/tooltip DOM sections live in test-tour-dom.js below.
-  'tests/test-tour-dom.js',
+  // overlay/spotlight/tooltip DOM sections moved to Playwright in
+  // tests/playwright/tour-dom.spec.js.
   // test-custom-personality.js source-inspection + behavioral ported to
   // Vitest (batch 23). DOM-runtime sections moved to Playwright in
   // tests/playwright/custom-personality-dom.spec.js.
@@ -41,7 +42,8 @@ const TEST_FILES = [
   // moved to Playwright in tests/playwright/audit-dom.spec.js.
   // test-nav-delegated-actions-dom.js moved to Playwright in
   // tests/playwright/nav-delegated-actions.spec.js.
-  'tests/test-dashboard-widget-delegated-actions-dom.js',
+  // test-dashboard-widget-delegated-actions-dom.js moved to Playwright in
+  // tests/playwright/dashboard-widget-delegated-actions-dom.spec.js.
   // test-lens-page-shell-delegated-actions-dom.js moved to Playwright in
   // tests/playwright/lens-page-shell.spec.js.
   // test-light-page-view-delegated-actions-dom.js moved to Playwright in
