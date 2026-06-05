@@ -126,7 +126,10 @@ async function _migrateUntaggedProofs() {
         if (!p._mint) store.put({ ...p, _mint: DEFAULT_MINT });
       }
     };
-    req.onerror = () => reject(req.error);
+    req.onerror = (e) => {
+      e.preventDefault?.();
+      reject(req.error);
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -207,7 +210,10 @@ async function _clearAllProofs() {
         if (!p._mint || p._mint === mintUrl) store.delete(p.secret);
       }
     };
-    req.onerror = () => reject(req.error);
+    req.onerror = (e) => {
+      e.preventDefault?.();
+      reject(req.error);
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
