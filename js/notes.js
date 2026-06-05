@@ -90,7 +90,7 @@ export function saveNote(idx) {
   saveImportedData();
   window.closeModal();
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
-  window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+  window.navigate(activeNav?.dataset.category ?? "dashboard");
   showNotification('Note saved', 'success');
 }
 
@@ -102,7 +102,7 @@ export async function deleteNote(idx) {
     saveImportedData();
     window.closeModal();
     const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
-    window.navigate(activeNav ? activeNav.dataset.category : "dashboard");
+    window.navigate(activeNav?.dataset.category ?? "dashboard");
     showNotification('Note deleted', 'info');
   }
 }
