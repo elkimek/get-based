@@ -104,6 +104,7 @@
     "js/lens-local.js",
     "js/lens-local-parsers.js",
     "js/lens-local-utils.js",
+    "js/lens-local-worker.js",
     "js/light-audit-ai-analysis.js",
     "js/light-burden-ai-analysis.js",
     "js/light-channel-view.js",
