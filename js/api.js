@@ -1,3 +1,4 @@
+// @ts-check
 // api.js — AI provider management, API calls (OpenRouter, Venice, Routstr, PPQ, Local, Custom)
 
 import { getModelPricing } from './schema.js';
@@ -63,6 +64,16 @@ import {
   setCustomApiModel,
   getCustomApiModelDisplay,
 } from './api-provider-storage.js';
+
+/** @typedef {Window & typeof globalThis & {
+ *   _veniceE2EE?: any,
+ *   _veniceE2EEKey?: string,
+ *   _veniceAttestation?: any,
+ *   clearE2EESession?: () => void
+ * }} ApiWindow */
+
+const apiWindow = /** @type {ApiWindow} */ (window);
+
 export {
   AI_IMPORT_REQUEST_TIMEOUT_MS,
   FETCH_REQUEST_TIMEOUT_MS,
@@ -673,6 +684,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
     ? Math.max(maxTokens || 4096, 16384)  // thinking models burn reasoning against max_tokens; give real headroom
     : (maxTokens || 4096);
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
+  /** @type {Record<string, any>} */
   const body = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
   if (onStream) { body.stream = true; body.stream_options = { include_usage: true }; }
 
@@ -717,7 +729,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       if (modalShown) {
         try { window.showInsufficientBalanceDialog(); } catch {}
       }
-      const balanceErr = new Error(`Insufficient ${providerName} balance.${hint}`);
+      const balanceErr = /** @type {Error & { _modalShown?: boolean }} */ (new Error(`Insufficient ${providerName} balance.${hint}`));
       if (modalShown) balanceErr._modalShown = true;
       throw balanceErr;
     }
@@ -840,15 +852,15 @@ export async function callVeniceAPI(opts) {
   // ── E2EE path ──
   if (!crypto?.subtle) throw new Error('E2EE requires a secure context (HTTPS). Cannot encrypt on this page.');
   const { createVeniceE2EE, encryptMessage, decryptChunk } = await import('../vendor/venice-e2ee.js');
-  if (!window._veniceE2EE || window._veniceE2EEKey !== key) {
-    window._veniceE2EE = createVeniceE2EE({ apiKey: key });
-    window._veniceE2EEKey = key;
-    window.clearE2EESession = () => window._veniceE2EE?.clearSession();
+  if (!apiWindow._veniceE2EE || apiWindow._veniceE2EEKey !== key) {
+    apiWindow._veniceE2EE = createVeniceE2EE({ apiKey: key });
+    apiWindow._veniceE2EEKey = key;
+    apiWindow.clearE2EESession = () => apiWindow._veniceE2EE?.clearSession();
   }
   let session;
-  try { session = await window._veniceE2EE.createSession(modelId); }
+  try { session = await apiWindow._veniceE2EE.createSession(modelId); }
   catch (e) { throw new Error(`Venice E2EE setup failed: ${e.message}`); }
-  window._veniceAttestation = session.attestation ?? window._veniceAttestation ?? null;
+  apiWindow._veniceAttestation = session.attestation ?? apiWindow._veniceAttestation ?? null;
   // Refresh header lock indicator now that attestation is available
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
 
@@ -1115,6 +1127,7 @@ export async function checkPpqTopupStatus(invoiceId) {
 }
 export async function fetchPpqModels(key) {
   try {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (key || getPpqKey()) headers['Authorization'] = 'Bearer ' + (key || getPpqKey());
     const res = await fetch('https://api.ppq.ai/v1/models?type=chat', { headers });
