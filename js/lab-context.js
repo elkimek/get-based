@@ -1,3 +1,4 @@
+// @ts-check
 // lab-context.js — Lab context assembly for AI (buildLabContext + helpers)
 
 import { state } from './state.js';
@@ -12,6 +13,16 @@ import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warning
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
 import { CANONICAL_METRICS, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
+
+/**
+ * @typedef {{ skipGroupFilter?: boolean, userMessage?: string }} LabContextOptions
+ * @typedef {{
+ *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[]) => string,
+ *   buildSunContext?: (options: { tier: string }) => string,
+ * }} LabContextWindowHooks
+ */
+
+const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (window);
 
 // ═══════════════════════════════════════════════
 // LAB CONTEXT MEMOIZATION
@@ -115,7 +126,7 @@ function summarizeChange(field, prev, curr) {
 // the full session table on every turn — same shape as every other
 // section in this file.
 
-export function buildLabContext({ skipGroupFilter } = {}) {
+export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
   // Used by sync/push so the relay always receives complete data
   const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '');
@@ -129,12 +140,12 @@ export function buildLabContext({ skipGroupFilter } = {}) {
   return ctx;
 }
 
-function _buildLabContextInner({ skipGroupFilter } = {}) {
+function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter } = {}) {
   const data = getActiveData();
   const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
-  const age = state.profileDob ? Math.floor((new Date() - new Date(state.profileDob)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+  const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const today = new Date().toISOString().slice(0, 10);
   const unitLabel = state.unitSystem === 'US' ? 'US conventional' : 'SI';
 
@@ -154,7 +165,7 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
   // ── Staleness signal ──
   if (hasLabData && data.dates.length > 0) {
     const lastDate = data.dates[data.dates.length - 1];
-    const daysSince = Math.round((new Date() - new Date(lastDate + 'T00:00:00')) / (24 * 3600 * 1000));
+    const daysSince = Math.round((Date.now() - new Date(lastDate + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
     if (daysSince > 90) {
       const monthsAgo = Math.round(daysSince / 30.44);
       ctx += `NOTE: Most recent lab results are from ${fmtDate(lastDate)} (approximately ${monthsAgo} months ago). Values may have changed.\n\n`;
@@ -220,7 +231,7 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
               const changePct = range > 0 ? Math.abs(diff) / range : 0;
               const latestStatus = latestIdx !== -1 ? getStatus(m.values[latestIdx], mr.min, mr.max) : 'normal';
               const isFlagged = latestStatus === 'high' || latestStatus === 'low';
-              const msSpan = new Date(last.d + 'T00:00:00') - new Date(first.d + 'T00:00:00');
+              const msSpan = new Date(last.d + 'T00:00:00').getTime() - new Date(first.d + 'T00:00:00').getTime();
               const days = Math.round(msSpan / (24 * 3600 * 1000));
               let durStr;
               if (days < 30) durStr = `${days} day${days !== 1 ? 's' : ''}`;
@@ -269,7 +280,7 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
         return null;
       })();
       if (catLatestDate) {
-        const catDaysSince = Math.round((new Date() - new Date(catLatestDate + 'T00:00:00')) / (24 * 3600 * 1000));
+        const catDaysSince = Math.round((Date.now() - new Date(catLatestDate + 'T00:00:00').getTime()) / (24 * 3600 * 1000));
         if (catDaysSince > 90) {
           const catMonthsAgo = Math.round(catDaysSince / 30.44);
           ctx += `⚠ Last tested ~${catMonthsAgo} months ago — values may no longer reflect current status.\n`;
@@ -400,10 +411,11 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
   // ── 7b. Biometrics ──
   const bio = state.importedData.biometrics;
   const _profileHeight = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
-  if (_profileHeight.height || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length))) {
+  const profileHeightCm = Number(_profileHeight.height) || 0;
+  if (profileHeightCm || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length))) {
     ctx += `[section:biometrics]\n## Biometrics\n`;
-    if (_profileHeight.height) {
-      const htCm = _profileHeight.height;
+    if (profileHeightCm) {
+      const htCm = profileHeightCm;
       const htLabel = state.unitSystem === 'US'
         ? `${Math.floor(htCm / 2.54 / 12)}' ${Math.round(htCm / 2.54 % 12)}"`
         : `${htCm} cm`;
@@ -420,8 +432,8 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
         ctx += ` (avg last ${recent.length}: ${avgKg.toFixed(1)} kg)`;
       }
       ctx += '\n';
-      if (_profileHeight.height) {
-        const htM = _profileHeight.height / 100;
+      if (profileHeightCm) {
+        const htM = profileHeightCm / 100;
         const bmi = (latestKg / (htM * htM)).toFixed(1);
         ctx += `BMI: ${bmi}\n`;
       }
@@ -459,7 +471,7 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
     const activeMarkerKeys = hasLabData ? Object.entries(data.categories).flatMap(([catKey, cat]) =>
       Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null)).map(([key]) => `${catKey}.${key}`)
     ) : [];
-    const geneticsCtx = window._buildGeneticsContext ? window._buildGeneticsContext(genetics, activeMarkerKeys) : '';
+    const geneticsCtx = labContextWindow._buildGeneticsContext ? labContextWindow._buildGeneticsContext(genetics, activeMarkerKeys) : '';
     if (geneticsCtx) {
       ctx += `[section:genetics]\n${geneticsCtx}\n[/section:genetics]\n\n`;
     }
@@ -739,9 +751,9 @@ function _buildLabContextInner({ skipGroupFilter } = {}) {
   // the 30-day session table + biomarker correlations on every turn,
   // matching the pattern the rest of this file uses for every other
   // section (include if-data-exists, no keyword gating).
-  if (typeof window !== 'undefined' && typeof window.buildSunContext === 'function') {
+  if (typeof window !== 'undefined' && typeof labContextWindow.buildSunContext === 'function') {
     try {
-      ctx += window.buildSunContext({ tier: 'standard' });
+      ctx += labContextWindow.buildSunContext({ tier: 'standard' });
     } catch (e) { /* sun context is best-effort */ }
   }
 
