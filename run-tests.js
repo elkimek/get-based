@@ -109,11 +109,8 @@ const TEST_FILES = [
   // test-wearables-bp-merge.js source-inspection ported to Vitest (batch 30).
   // Section-4 live idempotency probe moved to Playwright in
   // tests/playwright/wearables-bp-merge.spec.js.
-  // axe-core runtime scan runs LAST. It rebuilds the DOM extensively and
-  // mutates state in ways that are expensive to fully reverse (creates a
-  // demo profile, swaps currentProfile, opens/closes 8 modals), so anything
-  // depending on a specific upstream state would have been observed by now.
-  'tests/test-a11y-axe.js',
+  // axe-core runtime scan moved to Playwright in
+  // tests/playwright/legacy-a11y-axe.spec.js.
 ];
 
 const PORT = process.env.PORT || 8000;
