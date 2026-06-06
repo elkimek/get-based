@@ -9,8 +9,6 @@ import fs from 'fs';
 import path from 'path';
 import { test } from '@playwright/test';
 
-test.setTimeout(240_000);
-
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
 const THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
@@ -36,22 +34,6 @@ const BOUNDARY_VIEWPORTS = [
 const ARTIFACTS_DIR = process.env.REDESIGN_E2E_ARTIFACTS
   ? path.resolve(process.env.REDESIGN_E2E_ARTIFACTS)
   : '';
-
-let pass = 0;
-let fail = 0;
-const failures = [];
-
-function assert(name, condition, detail = '') {
-  if (condition) {
-    pass++;
-    console.log(`  PASS ${name}`);
-  } else {
-    fail++;
-    const msg = `${name}${detail ? ` -- ${detail}` : ''}`;
-    failures.push(msg);
-    console.error(`  FAIL ${msg}`);
-  }
-}
 
 function testName(theme, viewport, label) {
   return `${theme}/${viewport}: ${label}`;
@@ -213,7 +195,7 @@ async function prepareScenario(page, theme, viewport) {
   });
 }
 
-async function captureArtifact(page, theme, viewport) {
+async function captureArtifact(page, theme, viewport, assert) {
   const shot = await page.screenshot({ fullPage: false });
   assert(testName(theme, viewport, 'Chrome screenshot is non-empty'), shot.length > 10000, `bytes=${shot.length}`);
   if (ARTIFACTS_DIR) {
@@ -489,7 +471,7 @@ async function evaluateBaseChecks(page, theme, viewport) {
   }, { theme, viewport, themeBarColors: THEME_BAR_COLORS });
 }
 
-async function checkDesktopModals(page, theme, viewportName) {
+async function checkDesktopModals(page, theme, viewportName, assert) {
   await page.evaluate(() => window.openSettingsModal?.('display'));
   await delay(200);
   let result = await page.evaluate(() => {
@@ -715,7 +697,7 @@ async function checkDesktopModals(page, theme, viewportName) {
   }
 }
 
-async function checkMobileInteractions(page, theme, viewportName) {
+async function checkMobileInteractions(page, theme, viewportName, assert) {
   await page.click('#sidebar-toggle');
   await delay(150);
   let result = await page.evaluate(() => ({
@@ -1118,7 +1100,7 @@ async function checkMobileInteractions(page, theme, viewportName) {
   }
 }
 
-async function makeScenarioPage(browser, viewport) {
+async function makeScenarioPage(browser, viewport, recordFailure) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     isMobile: viewport.mobile,
@@ -1128,18 +1110,35 @@ async function makeScenarioPage(browser, viewport) {
   });
   const page = await context.newPage();
   page.on('pageerror', err => {
-    fail++;
-    const msg = `PAGE ERROR ${err.message}`;
-    failures.push(msg);
-    console.error(`  FAIL ${msg}`);
+    recordFailure(`PAGE ERROR ${err.message}`);
   });
   return { context, page };
 }
 
 async function run(browser) {
+  let pass = 0;
+  let fail = 0;
+  const failures = [];
+  function assert(name, condition, detail = '') {
+    if (condition) {
+      pass++;
+      console.log(`  PASS ${name}`);
+    } else {
+      fail++;
+      const msg = `${name}${detail ? ` -- ${detail}` : ''}`;
+      failures.push(msg);
+      console.error(`  FAIL ${msg}`);
+    }
+  }
+  function recordFailure(msg) {
+    fail++;
+    failures.push(msg);
+    console.error(`  FAIL ${msg}`);
+  }
+
   for (const theme of THEMES) {
     for (const viewport of VIEWPORTS) {
-      const { context, page } = await makeScenarioPage(browser, viewport);
+      const { context, page } = await makeScenarioPage(browser, viewport, recordFailure);
       try {
         console.log(`\n▶ Theme Responsive E2E ${theme}/${viewport.name}`);
         await prepareScenario(page, theme, viewport);
@@ -1150,9 +1149,9 @@ async function run(browser) {
         if (base.failures.length === 0) {
           assert(testName(theme, viewport.name, 'base layout/theme checks passed'), true);
         }
-        if (viewport.mobile) await checkMobileInteractions(page, theme, viewport.name);
-        else await checkDesktopModals(page, theme, viewport.name);
-        await captureArtifact(page, theme, viewport.name);
+        if (viewport.mobile) await checkMobileInteractions(page, theme, viewport.name, assert);
+        else await checkDesktopModals(page, theme, viewport.name, assert);
+        await captureArtifact(page, theme, viewport.name, assert);
       } finally {
         await context.close();
       }
@@ -1160,7 +1159,7 @@ async function run(browser) {
   }
 
   for (const viewport of BOUNDARY_VIEWPORTS) {
-    const { context, page } = await makeScenarioPage(browser, viewport);
+    const { context, page } = await makeScenarioPage(browser, viewport, recordFailure);
     try {
       console.log(`\n▶ Theme Responsive E2E dark/${viewport.name}`);
       await prepareScenario(page, 'dark', viewport);
@@ -1189,9 +1188,7 @@ async function run(browser) {
   }
 }
 
-test('theme responsive E2E', async ({ browser }) => {
-  pass = 0;
-  fail = 0;
-  failures.length = 0;
+test('theme responsive E2E', async ({ browser }, testInfo) => {
+  testInfo.setTimeout(240_000);
   await run(browser);
 });

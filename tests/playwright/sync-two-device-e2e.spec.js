@@ -21,22 +21,6 @@ const DEVICE_ID = 'device-e2e-panel';
 const DEVICE_SESSION_ID = 'devsess-e2e-duration';
 const BASE_AT = Date.parse('2026-05-01T08:00:00.000Z');
 
-let pass = 0;
-let fail = 0;
-const failures = [];
-
-function assert(name, condition, detail = '') {
-  if (condition) {
-    pass++;
-    console.log(`  PASS ${name}`);
-  } else {
-    fail++;
-    const msg = `${name}${detail ? ` -- ${detail}` : ''}`;
-    failures.push(msg);
-    console.error(`  FAIL ${msg}`);
-  }
-}
-
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -109,26 +93,15 @@ function buildImportedData() {
 }
 
 async function makeContext(browser) {
-  if (typeof browser.newContext === 'function') {
-    return browser.newContext({ serviceWorkers: 'block' });
-  }
-  if (typeof browser.createBrowserContext === 'function') {
-    return browser.createBrowserContext();
-  }
-  if (typeof browser.createIncognitoBrowserContext === 'function') {
-    return browser.createIncognitoBrowserContext();
-  }
-  throw new Error('Browser does not expose isolated contexts; refusing to run two-device sync E2E in shared localStorage.');
+  return browser.newContext({ serviceWorkers: 'block' });
 }
 
-async function makePage(browser, label, importedData) {
+async function makePage(browser, label, importedData, recordPageError) {
   const context = await makeContext(browser);
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on('pageerror', err => {
-    failures.push(`${label} page error: ${err.message}`);
-    fail++;
-    console.error(`  FAIL ${label} page error -- ${err.message}`);
+    recordPageError(label, err);
   });
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await page.evaluate(async () => {
@@ -397,13 +370,32 @@ async function closeFloatingModals(page) {
 }
 
 async function run(browser) {
+  let pass = 0;
+  let fail = 0;
+  const failures = [];
   const contexts = [];
+  function assert(name, condition, detail = '') {
+    if (condition) {
+      pass++;
+      console.log(`  PASS ${name}`);
+    } else {
+      fail++;
+      const msg = `${name}${detail ? ` -- ${detail}` : ''}`;
+      failures.push(msg);
+      console.error(`  FAIL ${msg}`);
+    }
+  }
+  function recordPageError(label, err) {
+    failures.push(`${label} page error: ${err.message}`);
+    fail++;
+    console.error(`  FAIL ${label} page error -- ${err.message}`);
+  }
 
   try {
     console.log('=== Two-Device Sync E2E Tests ===\n');
     const base = buildImportedData();
-    const deviceA = await makePage(browser, 'A', clone(base));
-    const deviceB = await makePage(browser, 'B', clone(base));
+    const deviceA = await makePage(browser, 'A', clone(base), recordPageError);
+    const deviceB = await makePage(browser, 'B', clone(base), recordPageError);
     contexts.push(deviceA.context, deviceB.context);
     const { page: pageA } = deviceA;
     const { page: pageB } = deviceB;
@@ -496,9 +488,7 @@ async function run(browser) {
   }
 }
 
-test('two-device sync E2E', { timeout: 90_000 }, async ({ browser }) => {
-  pass = 0;
-  fail = 0;
-  failures.length = 0;
+test('two-device sync E2E', async ({ browser }, testInfo) => {
+  testInfo.setTimeout(90_000);
   await run(browser);
 });
