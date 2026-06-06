@@ -1,19 +1,14 @@
 // @ts-check
 // lens.js — Custom Knowledge Source
 // User-configured RAG endpoint that backs the Interpretive Lens with retrieved chunks.
-
 import { state } from './state.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { hashString, showNotification, showConfirmDialog, showPromptDialog, isDebugMode, escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider, callClaudeAPI } from './api.js';
-
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
-
 /** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
-
 const lensWindow = /** @type {LensWindow} */ (window);
-
 // testProbe — per-user "canary" query used by Save + connect to verify the
 // endpoint. Default is health-themed because getbased's audience typically
 // indexes health research, but any user with a different domain corpus (legal
@@ -53,7 +48,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 20;
 const MAX_CHUNKS = 10;
 const MAX_RESPONSE_BYTES = 32 * 1024;
-
 // ─── Config storage ───────────────────────────────────────────
 export function getLensConfig() {
   try {
@@ -74,7 +68,6 @@ export function getLensConfig() {
     return migrateLensConfig({ ...DEFAULT_CONFIG, ...saved });
   } catch { return { ...DEFAULT_CONFIG }; }
 }
-
 /// Rename/rebucket legacy backend values. 'desktop-engine' (Electron-only,
 /// removed) migrates to 'external-server' iff the user already had the
 /// Python lens URL saved — they can keep pointing at it if they kept a
@@ -90,7 +83,6 @@ function migrateLensConfig(cfg) {
   }
   return cfg;
 }
-
 export function saveLensConfig(partial) {
   const prev = getLensConfig();
   const next = { ...prev, ...partial };
@@ -102,15 +94,12 @@ export function saveLensConfig(partial) {
   updateLensStatus({});
   return next;
 }
-
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
-
 export async function saveLensKey(key) {
   await encryptedSetItem(SECRET_KEY, key);
   updateKeyCache(SECRET_KEY, key);
   clearLensCache();
 }
-
 export async function removeLens() {
   localStorage.removeItem(CONFIG_KEY);
   await encryptedSetItem(SECRET_KEY, '');
@@ -118,7 +107,6 @@ export async function removeLens() {
   clearLensCache();
   updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
 }
-
 export function hasLens() {
   const cfg = getLensConfig();
   if (!cfg.enabled) return false;
@@ -139,7 +127,6 @@ export function hasLens() {
   // external-server: URL + bearer key
   return !!(cfg.url && getLensKey());
 }
-
 // ─── URL validation ───────────────────────────────────────────
 // http:// is accepted for hosts that can't leak the Bearer token across the
 // public internet: loopback, RFC1918 LAN, link-local, Tailscale CGNAT, mDNS.

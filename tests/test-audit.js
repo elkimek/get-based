@@ -609,9 +609,9 @@ assert('Venice models JSON.parse guarded', apiProviderStorageSrc.includes('funct
 assert('OpenRouter models JSON.parse guarded', apiProviderStorageSrc.includes("readStoredArray('labcharts-openrouter-models')"));
 assert('OpenRouter pricing JSON.parse guarded', apiProviderStorageSrc.includes("try { cached = JSON.parse(localStorage.getItem('labcharts-openrouter-pricing')"));
 
-const exportSrc = read('js/export.js');
-assert('PDF report null popup guard', exportSrc.includes('if (!win)'));
-assert('PDF report context serialization', exportSrc.includes('fmtCtx'));
+const reportSrc = `${read('js/export-report.js')}\n${read('js/export-report-html.js')}`;
+assert('PDF report null popup guard', reportSrc.includes('if (!win)'));
+assert('PDF report context serialization', reportSrc.includes('fmtCtx'));
 
 const pdfSrc = read('js/pdf-import.js');
 const pdfReviewSrc = read('js/pdf-import-review.js');
@@ -757,8 +757,7 @@ assert('Health dots have title attribute', ctxHealthDotsSrc.includes('dot.title'
 assert('Health dots have aria-label', ctxHealthDotsSrc.includes("dot.setAttribute('aria-label'"));
 assert('AI tips have severity prefix', ctxHealthDotsSrc.includes('prefixes'));
 
-const exportSrc2 = read('js/export.js');
-assert('PDF report values have status prefix', exportSrc2.includes('sPrefix'));
+assert('PDF report values have status prefix', reportSrc.includes('sPrefix'));
 
 // ═══════════════════════════════════════
 // 16. Context Assembly Pipeline

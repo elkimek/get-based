@@ -1903,13 +1903,13 @@ assert('restoreWearableIDB iterates per-source and upsertDailyBatchRaw (preserve
   /async function restoreWearableIDB[\s\S]*?upsertDailyBatchRaw/.test(backupSrc));
 
 // P0-C: PDF report falls back to wearableSummary.metrics for biometrics.
-const exportSrc2 = await fetch('/js/export.js').then(r => r.text());
+const reportSrc2 = await fetch('/js/export-report.js').then(r => r.text());
 assert('PDF report Biometrics section reads wearableSummary.metrics.weight.latest as fallback',
-  /wm\?\.weight\?\.latest/.test(exportSrc2));
+  /wm\?\.weight\?\.latest/.test(reportSrc2));
 assert('PDF report Biometrics section reads wearableSummary.metrics.bp_systolic + bp_diastolic',
-  /wm\?\.bp_systolic\?\.latest/.test(exportSrc2) && /wm\?\.bp_diastolic\?\.latest/.test(exportSrc2));
+  /wm\?\.bp_systolic\?\.latest/.test(reportSrc2) && /wm\?\.bp_diastolic\?\.latest/.test(reportSrc2));
 assert('PDF report Biometrics section reads wearableSummary.metrics.rhr.latest as pulse fallback',
-  /wm\?\.rhr\?\.latest/.test(exportSrc2));
+  /wm\?\.rhr\?\.latest/.test(reportSrc2));
 
 // ═══════════════════════════════════════
 // 17a. UX audit follow-ups (v1.26.0)
