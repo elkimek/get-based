@@ -150,8 +150,7 @@ describe('service worker runtime cache behavior', () => {
     const version = makeFetchEvent('https://preview.getbased.health/version.js');
     listeners.get('fetch')(version);
     expect(await (await version.response()).text()).toBe('network:https://preview.getbased.health/version.js');
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(cache.put).toHaveBeenCalledWith(version.request, expect.any(Response));
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledWith(version.request, expect.any(Response)));
 
     matches.set('/app', new Response('cached-app-shell'));
     globalThis.fetch = vi.fn(async () => {

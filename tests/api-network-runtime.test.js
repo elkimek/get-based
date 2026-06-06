@@ -232,7 +232,7 @@ describe('profile share API runtime behavior', () => {
 
   it('rejects invalid share payloads and reports a full rate-limit window', async () => {
     process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_store123_secret';
-    installBlobStoreMock();
+    const { store } = installBlobStoreMock();
 
     const badId = await shareHandler(makeShareRequest('POST', {
       id: 'short',
@@ -259,6 +259,10 @@ describe('profile share API runtime behavior', () => {
     expect(await responseJson(weakEnvelope)).toEqual({
       error: 'PBKDF2 iterations must be at least 100000.',
     });
+    const storedPaths = Array.from(store.keys());
+    const rateLimitMarkersFromMalformedPosts = storedPaths.filter(path => path.startsWith('profile-share-rate/v1/'));
+    expect(rateLimitMarkersFromMalformedPosts).toHaveLength(3);
+    expect(storedPaths.filter(path => path.startsWith('profile-shares/v1/'))).toEqual([]);
 
     installBlobStoreMock({ conflictRateLimit: true });
     const limited = await shareHandler(makeShareRequest('POST', {
@@ -328,6 +332,10 @@ describe('AI proxy runtime behavior', () => {
       'http://api.example.com/v1/chat',
       'https://127.0.0.1/private',
       'https://10.0.0.2/private',
+      'https://192.168.1.1/secret',
+      'https://172.16.0.1/secret',
+      'https://169.254.169.254/latest/meta-data/',
+      'https://168.63.129.16/metadata',
       'https://[::ffff:127.0.0.1]/private',
       'not a url',
     ]) {
