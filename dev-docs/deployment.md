@@ -14,8 +14,15 @@ getbased is deployed on Vercel. The browser app is shipped as static files, and 
       "headers": { "...CSP and security headers..." },
       "continue": true
     },
-    { "src": "^/docs/?$",  "dest": "/dist-docs/index.html" },
-    { "src": "^/docs/(.*)", "dest": "/dist-docs/$1" }
+    { "src": "^/guide/(.*)", "status": 301, "headers": { "Location": "/docs/guide/$1" } },
+    { "src": "^/docs/guide/getting-started(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/quickstart" } },
+    { "src": "^/docs/guide/charts(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/biomarker-charts" } },
+    { "src": "^/docs/guide/folder-backup(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/backup" } },
+    { "src": "^/docs/guide/json-export-import(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/export-import" } },
+    { "src": "^/docs/guide/ai-providers(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/ai-providers" } },
+    { "src": "^/docs/guide/([^.]+?)(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/$1" } },
+    { "src": "^/docs(?:/.*)?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/" } },
+    { "src": "^/app/?$", "dest": "/index.html" }
   ]
 }
 ```
@@ -24,9 +31,18 @@ getbased is deployed on Vercel. The browser app is shipped as static files, and 
 |---|---|
 | `/` | `index.html` — the application (served by Vercel filesystem default) |
 | `/api/share` | `api/share.js` — encrypted profile share envelope storage |
-| `/docs` | `dist-docs/index.html` — VitePress documentation |
-| `/docs/*` | `dist-docs/*` — VitePress documentation assets and pages |
+| `/guide/*` | 301 redirect to the equivalent old `/docs/guide/*` compatibility path |
+| `/docs` | 301 redirect to `https://docs.getbased.health/` |
+| `/docs/guide/getting-started` | 301 redirect to `https://docs.getbased.health/quickstart` |
+| `/docs/guide/charts` | 301 redirect to `https://docs.getbased.health/guides/biomarker-charts` |
+| `/docs/guide/folder-backup` | 301 redirect to `https://docs.getbased.health/guides/backup` |
+| `/docs/guide/json-export-import` | 301 redirect to `https://docs.getbased.health/guides/export-import` |
+| `/docs/guide/ai-providers` | 301 redirect to `https://docs.getbased.health/ai-providers` |
+| `/docs/guide/*` | 301 redirect to the equivalent Mintlify guide path |
+| `/app` | `index.html` — app route used when the landing-page project owns `/` |
 | Everything else | Served as-is from the filesystem (JS, CSS, images, manifest) |
+
+User documentation is not built from this repository anymore. It lives in the separate Mintlify docs project at `docs.getbased.health`; this app keeps only compatibility redirects for old `app.getbased.health/docs/*` links.
 
 ## API routes
 
@@ -69,11 +85,9 @@ The landing page is self-contained (all CSS/JS inline) and depends only on three
 | `/` | Landing page from `../get-based-site/index.html` |
 | `/app` | App from `index.html` |
 | `/api/share` | In-memory encrypted profile share endpoint |
-| `/docs/*` | VitePress docs from `dist-docs/` |
+| `/docs/*` | 301 redirect to `docs.getbased.health` |
 
 Without the sibling repo, `/` serves the app directly. Override the site path with `SITE_DIR=/path/to/site node dev-server.js`.
-
-VitePress builds to `dist-docs/` (configured via `outDir` in `docs/.vitepress/config.mjs`). The output is separate from the `docs/` source directory to avoid Vercel serving the source files as a directory listing.
 
 ## CSP headers
 
