@@ -120,7 +120,7 @@ get-based/
 ├── js/                         # Native ES modules, runs in any browser
 │   ├── lens.js                  #   Custom Knowledge Source dispatcher
 │   └── lens-local*.js           #   Browser-local lens — per-library embedding model, OPFS vectors
-├── tests/                      # Node-side + Puppeteer browser assertions
+├── tests/                      # Vitest helpers + Playwright browser assertions
 ├── .github/workflows/          # Tests on every PR / push
 └── docs/                       # User-facing documentation
 ```
@@ -134,13 +134,13 @@ Open `index.html` (or start `node dev-server.js` for development) and the dashbo
 
 ## Testing
 
-Node-side helpers plus Puppeteer-driven browser assertions, all run headlessly (`ls tests/test-*.js | wc -l` for the current count):
+Node-side helpers plus Playwright-driven browser assertions, all run headlessly:
 
 ```bash
 ./run-tests.sh
 ```
 
-Starts a local server, runs all tests via Puppeteer, exits 0/1.
+Starts a local server, runs Vitest, the dev-server origin guard, and Playwright. Exits 0/1.
 
 ## Contributing
 

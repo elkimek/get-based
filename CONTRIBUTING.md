@@ -14,7 +14,7 @@ node dev-server.js
 
 Open `http://localhost:8000`. No install step, no build step — getbased is native ES modules loaded directly by the browser.
 
-Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server, and Puppeteer (`npm install`) if you want to run the test suite. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
+Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server, and `npm ci` if you want to run the test suite. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
 
 ---
 
@@ -24,7 +24,7 @@ Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server,
 ./run-tests.sh
 ```
 
-Auto-starts a server, runs every `tests/test-*.js` through headless Chrome, and prints pass/fail per file. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See [`dev-docs/testing.md`](dev-docs/testing.md) for how the harness works.
+Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser suite. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See [`dev-docs/testing.md`](dev-docs/testing.md) for how the harness works.
 
 ---
 

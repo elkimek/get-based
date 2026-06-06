@@ -48,7 +48,7 @@ const LEGACY_TESTS = [
   './test-lens-local-utils.js',
   './test-marker-key-safety.js',
   './test-dev-server-helpers.js',
-  // Batch 1 — pure-logic ports from puppeteer.
+  // Batch 1 — pure-logic ports from browser fixtures.
   './test-sun-spectrum.js',
   './test-lighting-hardware-caveats.js',
   './test-markdown.js',
@@ -135,10 +135,10 @@ const LEGACY_TESTS = [
   // (DOM section moved to Playwright).
   './test-openrouter.js',
   // Batch 22 — pre-release audit source-inspection + innerHTML sweep
-  // (section-3b functional guard probes in test-audit-dom.js stay on puppeteer).
+  // (section-3b functional guard probes moved to tests/playwright/audit-dom.spec.js).
   './test-audit.js',
   // Batch 23 — custom personality behavioral + source-inspection
-  // (DOM sections 11/12/17/21 in test-custom-personality-dom.js stay on puppeteer).
+  // (DOM sections 11/12/17/21 moved to tests/playwright/custom-personality-dom.spec.js).
   './test-custom-personality.js',
   // Batch 24 — custom API provider behavioral + source-inspection
   // (DOM sections 13/14 moved to Playwright).
@@ -156,11 +156,11 @@ const LEGACY_TESTS = [
   // (section 6 picker open/dismiss moved to Playwright).
   './test-dashboard-data-protection.js',
   // Batch 29 — chat action buttons + context summary source-inspection
-  // (DOM sections 4/10/12 in test-chat-actions-dom.js stay on puppeteer).
+  // (DOM sections 4/10/12 moved to tests/playwright/chat-actions-dom.spec.js).
   './test-chat-actions.js',
   // Batch 30 — multi-port: tour source-inspection, chat-threads behavioral,
   // wearables-bp-merge source-inspection. The wearables-bp live DOM probe
-  // moved to Playwright; remaining DOM remnants stay on puppeteer.
+  // moved to Playwright.
   './test-tour.js',
   './test-settings-delegated-actions.js',
   './test-shell-delegated-actions.js',
@@ -182,7 +182,7 @@ const LEGACY_TESTS = [
   // Batch 32 — test-wearables (~549 asserts: registry, IDB CRUD via
   // fake-indexeddb, summary math, write gate, 7 vendor OAuth/PKCE modules,
   // Apple Health parser, source-inspection sweep). The openWearableDetail
-  // Chart.js modal islands live in Playwright's legacy-wearables spec.
+  // Chart.js modal islands live in Playwright's wearables browser spec.
   './test-wearables.js',
   // Batch 33 — the remaining IDB tail, full ports (no DOM): blob-storage
   // (IDB k/v + localStorage→IDB migration), wearables-manual (manual-source
@@ -197,7 +197,7 @@ const LEGACY_TESTS = [
   // IIFE loaded via indirect eval, bip39-minimal self-assigns).
   //
   // test-ai-verdict-engine.js runs in Playwright's isolated browser context
-  // (tests/playwright/legacy-ai-verdict-engine.spec.js). It stays out of
+  // (tests/playwright/ai-verdict-engine-browser.spec.js). It stays out of
   // this shared Vitest worker because the engine owns global concurrency-slot
   // and inflight state also touched by the per-feature AI-verdict tests.
   './test-crypto.js',
@@ -209,8 +209,8 @@ const LEGACY_TESTS = [
   './test-dna.js',
   './test-dna-illumina-and-valence.js',
   // Batch 36 — family-history (source-inspection + getConditionsSummary;
-  // the apostrophe round-trip probe + live add/delete handler test stay on
-  // puppeteer in test-family-history-dom.js) and emf-flow (CRUD/state
+  // the apostrophe round-trip probe + live add/delete handler test moved to
+  // tests/playwright/family-history-dom.spec.js) and emf-flow (CRUD/state
   // assertions are pure mutations; render/modal/photo/interpretation paths
   // are coverage-only behind try/catch + "X ran").
   './test-family-history.js',
@@ -219,7 +219,7 @@ const LEGACY_TESTS = [
   // json-catch, reader.onerror, AbortSignal.any polyfill, IDB onerror
   // rails, dna worker.onerror). The img.onerror / showConfirmDialog /
   // handleSSELine / cashu _openDB sections need a browser runtime and
-  // stay on puppeteer in test-coverage-stragglers-dom.js.
+  // moved to tests/playwright/coverage-stragglers-dom.spec.js.
   './test-coverage-stragglers.js',
   './test-profile-share.js',
 ];

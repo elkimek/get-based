@@ -17,7 +17,7 @@ await import('../js/state.js');
 await import('../js/profile.js');
 await import('../js/lab-context.js');
 // Initialize profiles so getProfiles() / setProfileHeight() have something
-// to mutate. The puppeteer environment runs main.js which seeds this.
+// to mutate. The Playwright environment runs main.js which seeds this.
 if (!window._labState.profiles) {
   window._labState.profiles = [{ id: 'default', name: 'Default' }];
 }

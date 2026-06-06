@@ -26,7 +26,8 @@ data/
   demo-male.json    — Male demo profile (Alex)
 
 tests/
-  test-*.js         — browser-based + node-side test files (see run-tests.js for the list)
+  test-*.js         — Vitest-wrapped helper fixtures and browser-script fixtures
+  playwright/       — Playwright browser specs and browser-script runner
   verify-modules.js — Module integrity assertions
 
 js/

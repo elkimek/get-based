@@ -1,5 +1,5 @@
 // test-wearables-dom.js — DOM-runtime islands extracted from test-wearables.js.
-// Runs through Playwright's legacy browser runner: the openWearableDetail()
+// Runs through Playwright's browser-script runner: the openWearableDetail()
 // sections build a live #detail-modal with a Chart.js instance, and the JSZip
 // smoke needs a real <script> injection to load /vendor/jszip.min.js.
 // Everything else from test-wearables.js (~549 asserts) runs in Vitest.

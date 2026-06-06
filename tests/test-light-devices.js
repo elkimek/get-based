@@ -365,9 +365,9 @@ const {
   // closer distance = proportionally higher channel-au, capped at 3×
   // (near-field plateau).
   // Distance scaling test depends on full dose-computation flow that
-  // needs profile state — covered by puppeteer.
+  // needs profile state — covered by Playwright.
   const SKIP_DISTANCE_SCALING = true;
-  console.log('  SKIP: distance scaling e2e — needs profile state; covered by puppeteer.');
+  console.log('  SKIP: distance scaling e2e — needs profile state; covered by Playwright.');
   if (!SKIP_DISTANCE_SCALING && typeof window.logDeviceSession === 'function') {
     const distDevice = {
       id: 'D-dist', brand: 'Test', model: 'PBM',
@@ -441,10 +441,10 @@ const {
   //   4. Devices without `modes` (Pulse, Ironforge etc.) recompute
   //      identically to pre-Round-7 — no behavior change.
   // Recompute path depends on getSunCoords/profile state — covered by
-  // puppeteer end-to-end; gating off in Node keeps the other 80+
+  // Playwright end-to-end; gating off in Node keeps the other 80+
   // assertions on the device-library logic flowing.
   const SKIP_RECOMPUTE_PATH = true;
-  console.log('  SKIP: device-session recompute path — needs profile state; covered by puppeteer.');
+  console.log('  SKIP: device-session recompute path — needs profile state; covered by Playwright.');
   if (!SKIP_RECOMPUTE_PATH && typeof window.logDeviceSession === 'function' && typeof window.updateDeviceSession === 'function') {
     // Maxi UVB shape with full mode schema
     const maxiDevice = {

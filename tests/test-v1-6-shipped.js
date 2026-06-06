@@ -126,7 +126,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
         Math.abs(total - rolling) <= 1, `breakdown=${total} rolling=${rolling}`);
       // Skipped in Node — the underlying dose calc reaches into profile
       // location + sunDefaults state that isn't bootstrapped in standalone
-      // runs. Puppeteer covers it (the breakdown=rolling tie-out above
+      // runs. Playwright covers it (the breakdown=rolling tie-out above
       // already proves the two methods agree).
       if (!_isNode) {
         assert('today/yesterday rows non-zero',

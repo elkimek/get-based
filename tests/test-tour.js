@@ -8,7 +8,7 @@
 //
 // DOM-runtime sections (3 window-export checks + 4-12/15-17 — live tour
 // overlay/spotlight/tooltip creation, step navigation, z-index computed
-// styles, walkthrough) live in tests/test-tour-dom.js on the puppeteer
+// styles, walkthrough) live in tests/playwright/tour-dom.spec.js on the Playwright
 // runner. This file is pure source-inspection — no module import.
 
 import './_node-shim.js';
@@ -99,7 +99,7 @@ assert('Exactly 9 steps in TOUR_STEPS', stepMatches && stepMatches.length === 9,
 
 // Section 3 (window-export checks) + sections 4-12, 15-17 (live DOM tour
 // overlay/spotlight/tooltip creation, step navigation, z-index computed
-// styles, viewport clamping, walkthrough) live in test-tour-dom.js.
+// styles, viewport clamping, walkthrough) live in tests/playwright/tour-dom.spec.js.
 
 // ═══════════════════════════════════════
 // 13. Target not found — skip behavior

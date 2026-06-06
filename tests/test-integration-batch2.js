@@ -215,7 +215,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
 
   // Runtime check: save mutates state → re-render → summary text appears in DOM.
   // SKIPPED in Node — needs a real DOM for showDashboard's innerHTML writes;
-  // covered end-to-end by puppeteer. Gate on `process.versions.node` (only
+  // covered end-to-end by Playwright. Gate on `process.versions.node` (only
   // truthy in Node) — clean cross-environment skip.
   const _rtState = window._labState;
   const _isNode = typeof process !== 'undefined' && !!process.versions?.node;

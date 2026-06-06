@@ -10,8 +10,8 @@
 //
 // DOM-runtime assertions (sections 11, 12, 17, 21 — updatePersonalityBar
 // rendering, document.styleSheets CSS-rule scan, dirty-state save button,
-// Discuss button DOM) live in tests/test-custom-personality-dom.js on the
-// puppeteer runner.
+// Discuss button DOM) live in tests/playwright/custom-personality-dom.spec.js on the
+// Playwright runner.
 
 import './_node-shim.js';
 
@@ -164,7 +164,7 @@ assert('CHAT_PERSONALITIES has default', constantsSrc.includes("id: 'default'"))
 assert('CHAT_PERSONALITIES has house', constantsSrc.includes("id: 'house'"));
 assert('CHAT_PERSONALITIES no custom entry', !constantsSrc.includes("id: 'custom'"));
 
-// Sections 11, 12, 17, 21 (DOM-runtime) live in test-custom-personality-dom.js.
+// Sections 11, 12, 17, 21 (DOM-runtime) live in tests/playwright/custom-personality-dom.spec.js.
 
 // ── 13. sendChatMessage uses custom_ prefix check ──
 console.log('13. custom personality prompt context');

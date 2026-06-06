@@ -63,10 +63,10 @@ const { extractFromFile } = await import('../js/lens-local-parsers.js');
 
 // ── empty zip ── SKIPPED in Node ────────────────────────────────────
 // JSZip references `document` in the unzip path. The zip path is still
-// covered by the puppeteer suite; flagged here so a future Vitest
+// covered by the Playwright suite; flagged here so a future Vitest
 // browser-mode pass picks it up.
-console.log('  SKIP: empty zip path — JSZip needs `document`; covered by puppeteer.');
-console.log('  SKIP: empty zip returns [] — JSZip needs `document`; covered by puppeteer.');
+console.log('  SKIP: empty zip path — JSZip needs `document`; covered by Playwright.');
+console.log('  SKIP: empty zip returns [] — JSZip needs `document`; covered by Playwright.');
 
 // ── corrupt PDF ──
 {

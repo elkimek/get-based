@@ -320,7 +320,7 @@ if (apiKeyListMatch) {
     'Custom API key must be decrypted into in-memory cache at startup (issue #124)');
 }
 // Runtime rehydrate check is gated on encryption being unlocked — in Node
-// it isn't, so only the source-string check above runs. The puppeteer
+// it isn't, so only the source-string check above runs. The Playwright
 // suite (which has the full crypto stack) exercises the runtime path.
 
 // ─── 20. Streaming finish_reason length is surfaced ───

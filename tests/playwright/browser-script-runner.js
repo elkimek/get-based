@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 
 function buildFailureMessage(testPath, failures, pageErrors, recentMessages) {
-  const parts = [`${testPath} reported browser-test failures.`];
+  const parts = [`${testPath} reported browser-fixture failures.`];
   if (failures.length) {
     parts.push('\nFailures:');
     parts.push(failures.map(line => `- ${line}`).join('\n'));
@@ -17,7 +17,7 @@ function buildFailureMessage(testPath, failures, pageErrors, recentMessages) {
   return parts.join('\n');
 }
 
-export async function runLegacyBrowserScript(page, testPath, options = {}) {
+export async function runBrowserScript(page, testPath, options = {}) {
   const pageErrors = [];
   const onPageError = error => {
     pageErrors.push(error?.message || String(error));

@@ -3112,7 +3112,7 @@ await import('../js/settings.js');
   // returns true on the lost-debounce stop case.
   if (typeof window !== 'undefined') {
     // Inline the helper logic — we can't import data-merge.js from a
-    // Puppeteer-driven test page, but the logic is small enough to re-check.
+    // Playwright-driven test page, but the logic is small enough to re-check.
     const pickTs = (rec) => {
       for (const field of ['updatedAt', 'endedAt', 'startedAt', 'capturedAt', 'takenAt', 'savedAt', 'loggedAt', 'createdAt', 'addedAt', 'at']) {
         const value = rec?.[field];
