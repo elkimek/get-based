@@ -366,7 +366,7 @@ function renderGeneticsTask(hasSnps, hasMtdna, dnaSummary) {
     <span class="chat-onboard-mini-actions">
       ${!hasSnps ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Import</button>` : ''}
       ${!hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-mtdna">mtDNA</button>
-      <input type="file" id="mtdna-onboard-input" class="sr-only" accept=".txt,.csv" data-chat-empty-action="import-mtdna-file">` : ''}
+      <input type="file" id="mtdna-onboard-input" class="sr-only" accept=".txt,.csv" aria-label="Import mtDNA file" data-chat-empty-action="import-mtdna-file">` : ''}
       ${hasSnps && hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Re-import</button>` : ''}
     </span>
   </article>`;
