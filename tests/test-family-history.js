@@ -12,7 +12,7 @@
 // apostrophe round-trip probe and the live addFamilyHistoryEntry /
 // deleteFamilyHistoryEntry handler test (both need real innerHTML parsing,
 // dispatchEvent, and renderDiagnosesModal against a live #detail-modal) —
-// live in test-family-history-dom.js on the puppeteer runner.
+// live in tests/playwright/family-history-dom.spec.js on the Playwright runner.
 
 import './_node-shim.js';
 
@@ -84,7 +84,7 @@ const ctxMedicalSrc = await fetch('js/context-card-medical-history-editor.js').t
 const ctxCardSrc = `${ctxSrc}\n${ctxSummarySrc}\n${ctxMedicalSrc}`;
 // filterConditionSuggestions must wrap the inline call arg in JSON.stringify
 // so apostrophes survive the HTML-attribute → JS-string round-trip. The
-// live DOM round-trip probe lives in test-family-history-dom.js.
+// live DOM round-trip probe lives in tests/playwright/family-history-dom.spec.js.
 assert("filterConditionSuggestions uses JSON.stringify(m) for inline onclick arg",
   /selectConditionSuggestion\(\$\{escapeHTML\(JSON\.stringify\(m\)\)\}\)/.test(ctxMedicalSrc));
 assert("filterFamilyConditionSuggestions uses JSON.stringify(m) for inline onclick arg",
@@ -97,7 +97,7 @@ console.log('3. FAMILY_RELATIVES + addEntry guards');
 
 // FAMILY_RELATIVES isn't exported (private to context-card-medical-history-editor.js), so we
 // assert its allowlist + the handler's guards via the source. The live
-// handler-mutation test lives in test-family-history-dom.js.
+// handler-mutation test lives in tests/playwright/family-history-dom.spec.js.
 assert('FAMILY_RELATIVES declared with 8 first-degree+grandparent keys',
   /FAMILY_RELATIVES\s*=\s*\[[^\]]*'mother'[^\]]*'father'[^\]]*'sibling'[^\]]*'child'[^\]]*'maternal_grandmother'[^\]]*'maternal_grandfather'[^\]]*'paternal_grandmother'[^\]]*'paternal_grandfather'/s.test(ctxMedicalSrc));
 assert('addFamilyHistoryEntry validates relative against FAMILY_RELATIVES',

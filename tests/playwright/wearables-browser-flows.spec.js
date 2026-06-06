@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { runLegacyBrowserScript } from './legacy-browser-runner.js';
+import { runBrowserScript } from './browser-script-runner.js';
 
 const WEARABLES_BROWSER_TESTS = [
   ['wearables detail modal and browser DOM islands', 'tests/test-wearables-dom.js'],
@@ -8,6 +8,6 @@ const WEARABLES_BROWSER_TESTS = [
 
 for (const [name, path] of WEARABLES_BROWSER_TESTS) {
   test(name, { timeout: 60_000 }, async ({ page }) => {
-    await runLegacyBrowserScript(page, path);
+    await runBrowserScript(page, path);
   });
 }

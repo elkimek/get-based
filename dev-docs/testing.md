@@ -1,10 +1,15 @@
 # Testing
 
-getbased uses browser-based tests — no test framework, no Jest, no jsdom. Each test file is a self-executing IIFE that runs assertions against the live app in a real browser context.
+getbased uses two test layers:
+
+- **Vitest** wraps the node-side helper fixtures and fast logic checks.
+- **Playwright** runs the browser suite against the live app in headless Chrome.
+
+Some browser fixtures are still self-executing IIFEs with local `assert()` helpers; Playwright executes those through `tests/playwright/browser-script-runner.js` so they run in the same browser suite as native Playwright specs.
 
 ## The assert pattern
 
-Every test file defines a local `assert` helper and collects results:
+Browser-script fixture files define a local `assert` helper and collect results:
 
 ```js
 (async () => {
@@ -40,9 +45,9 @@ The `detail` argument appears in the failure output — use it to print the actu
 
 ## The test files
 
-All test files live in the `tests/` directory. Run `ls tests/test-*.js | wc -l` for the current count.
+All test files live in the `tests/` directory. Native browser specs live under `tests/playwright/`; fixture scripts live as `tests/test-*.js`.
 
-A few tests run node-side (no browser, no Puppeteer) — pure-helper unit tests + node script guards. Marked **node** in the table; everything else is browser-driven.
+A few tests run node-side (no browser) — pure-helper unit tests + node script guards. Marked **node** in the table; browser-driven coverage is owned by Playwright specs.
 
 | File | What it covers |
 |---|---|
@@ -160,54 +165,17 @@ The landing page test (`test-landing.js`) lives in the [get-based-site](https://
 The script:
 1. Checks if a server is running on port 8000; starts `node dev-server.js` if not
 2. Runs the node-side tests first (fast fail on helper regressions, no browser needed)
-3. Runs each browser test file through headless Chrome via Puppeteer
-4. Prints a pass/fail summary per file
+3. Runs the dev-server origin guard
+4. Runs the Playwright browser suite
 5. Exits with code `0` if all pass, `1` if any fail
 
-**Requires:** Node.js with Puppeteer installed (`npm i -g puppeteer` or `npx puppeteer`).
+**Requires:** Node.js and dependencies installed with `npm ci`.
 
-Alternatively, with a server already running:
+## Coverage status
 
-```bash
-NODE_PATH=/path/to/node_modules node run-tests.js
-```
+The old Puppeteer `JSCoverage` reporter was retired when the final standalone browser runner moved to Playwright. `./run-tests.sh` no longer emits function/byte coverage percentages; if `COVERAGE=1` is set, it prints a retirement notice after the suite passes. Browser regression status is currently tracked through the Playwright pass count and the native/Vitest fixture coverage represented by the test inventory.
 
-## Coverage reporting
-
-Function-level coverage is opt-in via the `COVERAGE` env var. Off by default — adds ~3 seconds per run when enabled.
-
-```bash
-COVERAGE=1 ./run-tests.sh
-```
-
-The runner uses Puppeteer's CDP-backed `JSCoverage` API with `includeRawScriptCoverage: true` so V8's per-function call data is exposed. Two metrics are reported:
-
-- **Function coverage** (primary) — each defined function called ≥ once. The metric the team gates on.
-- **Byte coverage** (secondary) — fraction of source bytes executed. Useful for spot-checks but noisy across branchy code.
-
-Per-file lines are sorted lowest-coverage first; the first 30 print, the rest get summarised at the bottom. Full data lands in `tests/.coverage.json` (gitignored — regenerated on every COVERAGE=1 run).
-
-### CI gate
-
-When `COVERAGE=1` is set, `run-tests.sh` defaults `COVERAGE_MIN=90`. The suite exits 1 if global function coverage drops below the floor:
-
-```bash
-COVERAGE=1 COVERAGE_MIN=90 ./run-tests.sh   # default
-COVERAGE=1 COVERAGE_MIN=0  ./run-tests.sh   # report-only, no gate
-```
-
-The gate is a static floor — pick a number, defend it. There is no auto-ratchet (the floor stays at 90 even when the actual coverage is higher) because legitimate refactors that drop coverage 91 → 90.5 shouldn't break CI.
-
-### Drift detector
-
-To catch slow erosion within the floor (the "death by a thousand cuts" pattern where coverage decays from 93% → 90.05% over many small commits), `run-tests.js` reads the prior `.coverage.json` snapshot before overwriting it. If the new run's function coverage drops > 0.5pt vs the prior, a `DRIFT WARNING` line prints in yellow. The warning is non-fatal — `COVERAGE_MIN` stays the hard gate.
-
-### Aggregation gotchas
-
-V8's coverage records are per-script-load, not per-source-file. The aggregator (in `run-tests.js`'s `writeCoverageReport`) handles two non-obvious cases:
-
-1. **Cache-busted URLs.** Tests that dynamic-import modules with `?bust=Date.now()` create separate URL records per import. The aggregator strips the query string before bucketing so all loads of `/js/foo.js?bust=N` fold into one canonical entry.
-2. **V8 startOffset divergence.** Same source bytes produce different `startOffset` values across loads. Naive `name + startOffset` deduping doubled function totals; the current aggregator picks ONE canonical entry per file (largest text wins) as ground truth, then OR-s in called-status across other entries by function name.
+If coverage gating comes back, it should be implemented in the Playwright layer rather than reintroducing a separate Puppeteer runner.
 
 ## Accessibility regression scan
 
@@ -244,7 +212,7 @@ After a wave of fixes that legitimately drops violation counts:
 A11Y_REBASELINE=1 ./run-tests.sh
 ```
 
-`run-tests.js` pipes the env var into the page context via `page.evaluateOnNewDocument`. The test prints a `▶ {...}` JSON line — copy it over the critical/serious/moderate/minor blocks in `tests/.a11y-baseline.json`. Don't lower these numbers without an actual fix; the gate would lock in the new lower bound and silently accept regressions.
+`tests/playwright/a11y-axe-browser.spec.js` pipes the env var into the page context before loading the fixture. The test prints a `▶ {...}` JSON line — copy it over the critical/serious/moderate/minor blocks in `tests/.a11y-baseline.json`. Don't lower these numbers without an actual fix; the gate would lock in the new lower bound and silently accept regressions.
 
 If the baseline file is missing entirely, the test treats the first run as "establish baseline" and prints the JSON to stdout for paste-back.
 

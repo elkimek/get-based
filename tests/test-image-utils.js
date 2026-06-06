@@ -167,7 +167,7 @@ assert('.chat-attach-remove style exists in CSS bundle', cssSrc.includes('.chat-
 assert('.chat-image-badge style exists in CSS bundle', cssSrc.includes('.chat-image-badge'));
 assert('.chat-drop-active style exists in CSS bundle', cssSrc.includes('.chat-drop-active'));
 
-// HTML structure source-string checks — puppeteer file confirms the
+// HTML structure source-string checks — Playwright file confirms the
 // real DOM has these IDs; here we confirm index.html still defines them.
 const htmlSrc = await fetchWithRetry('index.html');
 assert('chat-attach-btn defined in index.html', htmlSrc.includes('id="chat-attach-btn"'));

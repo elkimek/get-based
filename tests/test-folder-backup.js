@@ -88,9 +88,9 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
 
   // ═══════════════════════════════════════════════
   // 5. IndexedDB v2 has folder-handle store — SKIPPED in Node
-  //    Requires fake-indexeddb polyfill; covered by puppeteer.
+  //    Requires fake-indexeddb polyfill; covered by Playwright.
   // ═══════════════════════════════════════════════
-  console.log('  SKIP: IndexedDB v2 stores — needs IDB polyfill; covered by puppeteer.');
+  console.log('  SKIP: IndexedDB v2 stores — needs IDB polyfill; covered by Playwright.');
 
   // ═══════════════════════════════════════════════
   // 6. CSS has folder backup styles

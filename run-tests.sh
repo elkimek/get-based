@@ -48,14 +48,9 @@ trap cleanup EXIT
 # The legacy node-side files are wrapped by tests/_vitest-legacy.test.js.
 npm test || exit 1
 ensure_server
-# HTTP-reliant test before the Puppeteer suite (needs the dev server up).
+# HTTP-reliant test before the browser suite (needs the dev server up).
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
 PORT=$PORT npm run test:playwright || exit 1
-# When COVERAGE=1 is set, default COVERAGE_MIN=90 so the suite fails on
-# any regression below the floor. Pass COVERAGE_MIN=0 to keep the report
-# but skip the gate.
 if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
-  : "${COVERAGE_MIN:=90}"
-  export COVERAGE COVERAGE_MIN
+  echo "Coverage reporter retired with the Puppeteer runner; Playwright passed without function/byte percentages."
 fi
-PORT=$PORT node "$DIR/run-tests.js"

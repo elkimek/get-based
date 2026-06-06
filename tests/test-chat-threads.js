@@ -10,7 +10,7 @@
 //
 // DOM-runtime sections (3 HTML structure + getComputedStyle, 10 rail-toggle
 // classList, 11 search-filter rendered .chat-thread-item readback) live in
-// tests/test-chat-threads-dom.js on the puppeteer runner.
+// tests/playwright/chat-threads-dom.spec.js on the Playwright runner.
 
 import './_node-shim.js';
 
@@ -31,7 +31,7 @@ function assert(name, condition, detail) {
 // generateThreadId() in chat-threads.js is `'t_' + Date.now().toString(36)`
 // — pure millisecond timestamp, no counter. In Node (no DOM-render delay
 // between calls) two createNewThread() calls can land in the same ms and
-// collide on id; puppeteer's render latency happened to space them out.
+// collide on id; Playwright's render latency happened to space them out.
 // A 2ms gap before each createNewThread keeps ids distinct. (The latent
 // collision in generateThreadId itself is noted in the PR description.)
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -75,7 +75,7 @@ console.log('2. State Shape');
 assert('state.chatThreads exists', Array.isArray(st.chatThreads));
 assert('state.currentThreadId exists', st.hasOwnProperty('currentThreadId'));
 
-// Section 3 (HTML structure + getComputedStyle) lives in test-chat-threads-dom.js.
+// Section 3 (HTML structure + getComputedStyle) lives in tests/playwright/chat-threads-dom.spec.js.
 
 // ═══════════════════════════════════════════════
 // 4. Thread CRUD — Create
@@ -194,7 +194,7 @@ assert('message content matches', st.chatHistory[0].content === 'Test message');
 localStorage.removeItem(window.getChatThreadKey(rtThreadId));
 
 // Section 10 (rail-toggle persistence) + Section 11 (search filtering)
-// live in test-chat-threads-dom.js.
+// live in tests/playwright/chat-threads-dom.spec.js.
 
 // ═══════════════════════════════════════════════
 // 12. Thread Pruning (50 max)
@@ -225,7 +225,7 @@ for (let i = 0; i < 55; i++) {
 // ═══════════════════════════════════════════════
 console.log('13. Backup Snapshot');
 // buildBackupSnapshot() early-returns null when `labcharts-profiles` is
-// absent (backup.js:104). Puppeteer has the bootstrapped profile registry;
+// absent (backup.js:104). Playwright has the bootstrapped profile registry;
 // in Node we seed a minimal one so the snapshot path runs.
 const _origProfiles = localStorage.getItem('labcharts-profiles');
 if (!_origProfiles) {
@@ -260,7 +260,7 @@ else localStorage.setItem('labcharts-profiles', _origProfiles);
 // — hyphen-free — so `[^-]+` matches them. Use a representative hyphen-free
 // id here.
 //
-// NOTE: the original puppeteer test asserted the thread *index* key was
+// NOTE: the original Playwright test asserted the thread *index* key was
 // NOT sensitive ("plaintext by design"). That contradicts crypto.js, which
 // lists `^labcharts-[^-]+-chat-threads$` in SENSITIVE_PATTERNS — the index
 // IS encrypted. The stale assertion is corrected here to match the code;

@@ -10,7 +10,7 @@
 // Run: node tests/test-coverage-stragglers.js  (or via npm test)
 //
 // Sections 2,3,5,6,8,10 — stub-based probes that run in Node. Four
-// sections stay on the puppeteer runner in test-coverage-stragglers-dom.js:
+// sections stay on the Playwright runner in tests/playwright/coverage-stragglers-dom.spec.js:
 //   - §1 image-utils img.onerror  — needs a real `new Image()` decoder
 //   - §4 showConfirmDialog        — needs a real DOM overlay + animationend
 //   - §7 api.js handleSSELine     — the `data:`-prefixed SSE chunks only
@@ -188,7 +188,7 @@ console.log('6. api.js AbortSignal.any polyfill (fwd)');
   }
 }
 
-// §7 (api.js handleSSELine) lives in test-coverage-stragglers-dom.js.
+// §7 (api.js handleSSELine) lives in tests/playwright/coverage-stragglers-dom.spec.js.
 
 // ─── 8. IDB error rails (blob-storage, cashu-wallet, backup) ────────
 // Each module's CRUD wrapper has a per-call `req.onerror = () => reject(req.error)`

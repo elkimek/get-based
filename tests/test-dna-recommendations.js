@@ -188,7 +188,7 @@ assert('detectSupplementSlots verifies slot exists in catalog', recSrc.includes(
 console.log('6. Card DNA Section');
 
 // DNA info is inside the Tips modal via _buildCardDNASection in recommendations.js.
-// (Original puppeteer test read recommendations.js a second time here; under
+// (Original Playwright test read recommendations.js a second time here; under
 // Node's module cache the duplicate read is wasteful, so reuse `recSrc` from above.)
 assert('_buildCardDNASection checks contextCards', recSrc.includes('entry.contextCards'));
 assert('_buildCardDNASection checks snpHints', recSrc.includes('!entry.snpHints'));
@@ -215,7 +215,7 @@ assert('CSS has .rec-dna-ref', cssSrc.includes('.rec-dna-ref'));
 assert('CSS has .ctx-tip-avoid', cssSrc.includes('.ctx-tip-avoid'));
 assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));
 
-// (The original puppeteer test verified `.rec-dna-hints` was actually loaded
+// (The original Playwright test verified `.rec-dna-hints` was actually loaded
 // in document.styleSheets. That live-DOM check is redundant here: axe-core
 // scans the same page later in run-tests.sh and would catch a missing
 // stylesheet. The source-string assertion above proves the rule exists in

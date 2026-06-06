@@ -156,7 +156,7 @@ if (typeof globalThis.indexedDB === 'undefined') {
 // Worker shim — kept in sync with _node-shim.js. Synchronous in-process
 // runner for self-contained pure-JS workers whose source is a Blob (the
 // DNA parser worker in js/dna.js). No importScripts/network/WASM support
-// — test-lens-local-worker.js stays on puppeteer.
+// — test-lens-local-worker.js stays on Playwright.
 if (typeof globalThis.Worker === 'undefined') {
   const _blobRegistry = new Map();
   const _origCreateObjectURL = globalThis.URL.createObjectURL;

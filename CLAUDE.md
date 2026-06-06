@@ -16,7 +16,7 @@ App is fully data-driven — starts empty, users load their data via PDF import 
 
 ## Architecture
 
-Web app (PWA) only: production runtime ships with no build system, no bundler, and no runtime dependencies — just native ES modules (`<script type="module">`). Dev tooling does use `package.json` (Puppeteer + Vitest for tests) but those never reach end users. The Electron shell was retired in v1.21.0; users who want hardware-accelerated RAG self-host any server that speaks the *External server* lens protocol (`POST /query` with bearer auth, see `dev-docs/lens-endpoint-contract.md`).
+Web app (PWA) only: production runtime ships with no build system, no bundler, and no runtime dependencies — just native ES modules (`<script type="module">`). Dev tooling does use `package.json` (Playwright + Vitest for tests; Puppeteer currently supplies the Chromium executable path for Playwright) but those never reach end users. The Electron shell was retired in v1.21.0; users who want hardware-accelerated RAG self-host any server that speaks the *External server* lens protocol (`POST /query` with bearer auth, see `dev-docs/lens-endpoint-contract.md`).
 
 - **`BRAND.md`** — brand manual. Name is `getbased`, lowercase, no space
 - **`index.html`** — HTML skeleton (header, sidebar, modals, chat panel, script/CSS includes)
@@ -36,7 +36,7 @@ Web app (PWA) only: production runtime ships with no build system, no bundler, a
   - **`lens-local*.js`** (main + worker + utils + parsers) — the in-browser lens stack. Module Worker running transformers.js WASM + OPFS persistence (`FileSystemSyncAccessHandle`) + MMR reranker (λ=0.5, 3× oversample) + pdf.js/mammoth/JSZip extraction. Per-library OPFS subdirs, `_libraries.json` tracks registry. **Per-library model** (v1.21.4+): `MODELS` catalog (MiniLM / BGE-small-en / multilingual-E5-small / BGE-base-en); `_loadEmbedder()` swaps on library activate. Startup benchmark emits a tier verdict (`_benchmarkEmbedder`) that pre-selects a device-matched default in the creation dialog. Lazy-loaded on backend select.
 - **`vendor/`** — locally bundled Chart.js, chartjs-adapter-native, pdf.js (+worker), Google Fonts, Evolu (CRDT + SQLite WASM + OPFS worker), cashu-ts, bip39-minimal, qrcode-generator, mammoth (DOCX), JSZip, `venice-e2ee.js` (ECDH + HKDF + AES-GCM). `@huggingface/transformers` is NOT vendored — loaded from jsdelivr at runtime (bundler-gated bare specifiers). `./update-vendor.sh` refreshes.
 - **`data/`** — `demo-female.json`, `demo-male.json`, `emf-assessment-template.html`, `snp-health.json` (47 autosomal SNPs across 13 categories), `haplogroups.json` (39 mtDNA + Wallace coupling, includes 11 sub-clades), `mito-compounds.json` (114 PubMed-cited compounds)
-- **`tests/`** — `test-*.js` files, mostly Puppeteer browser asserts (IIFE + `assert(name, cond)` pattern); a few run node-side. `verify-modules.js` (manual smoke test, not in `run-tests.sh`). `spike-fixtures/apple-health-sample.xml` is the only retained fixture asset.
+- **`tests/`** — Vitest-wrapped `test-*.js` helper files plus Playwright browser specs in `tests/playwright/`. Some browser fixtures keep the IIFE + `assert(name, cond)` pattern and run through `tests/playwright/browser-script-runner.js`. `verify-modules.js` is a manual smoke test, not in `run-tests.sh`. `spike-fixtures/apple-health-sample.xml` is the only retained fixture asset.
 
 Functions called from inline HTML `onclick` handlers are exposed via `Object.assign(window, {...})` at the bottom of each module. Cross-module calls use `window.fn()` to avoid circular dependencies.
 
@@ -143,11 +143,11 @@ Dev server mirrors production routing. Landing page repo (`../get-based-site`) s
 
 ### Tests
 
-All tests (node-side + Puppeteer) run headlessly:
+All tests (node-side + Playwright browser) run headlessly:
 ```
 ./run-tests.sh
 ```
-Auto-starts server, runs node-side tests first (fast fail on helper regressions), then all browser tests via Puppeteer. Exits 0/1.
+Auto-starts server, runs node-side tests first (fast fail on helper regressions), then the Playwright browser suite. Exits 0/1.
 
 ### Documentation
 

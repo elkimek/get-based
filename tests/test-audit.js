@@ -9,7 +9,7 @@
 //
 // The section-3b *functional* block (proving safeMarkerId guards no-op on
 // adversarial input at runtime) needs a live DOM + populated state — it
-// lives in tests/test-audit-dom.js on the puppeteer runner. The section-3b
+// lives in tests/playwright/audit-dom.spec.js on the Playwright runner. The section-3b
 // *source-inspection* asserts (guard wiring present) stay here.
 
 import './_node-shim.js';
@@ -236,7 +236,7 @@ assert('Clipboard has navigator.clipboard guard', chatActionsSrc.includes('if (!
 // but legacy data and sync pulls can still feed unsafe keys into category
 // views — five entry points interpolate keys into onclick="…('${id}')" handlers.
 // safeMarkerId in utils.js gates each one. The *functional* proof that the
-// guards no-op on adversarial input lives in test-audit-dom.js (needs a
+// guards no-op on adversarial input lives in tests/playwright/audit-dom.spec.js (needs a
 // live DOM); here we pin the guard *wiring*.
 console.log('3b. Marker-key allowlist guards');
 

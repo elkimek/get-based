@@ -8,8 +8,8 @@
 // Run: node tests/test-chat-actions.js  (or via npm test)
 //
 // DOM-runtime sections (4 renderChatMessages/DOMParser, 10 navigator.clipboard,
-// 12 context-toggle live DOM) live in tests/test-chat-actions-dom.js on the
-// puppeteer runner.
+// 12 context-toggle live DOM) live in tests/playwright/chat-actions-dom.spec.js on the
+// Playwright runner.
 
 import './_node-shim.js';
 
@@ -244,7 +244,7 @@ if (hasState) {
 }
 
 // Section 4 (renderChatMessages / DOMParser integration) lives in
-// test-chat-actions-dom.js.
+// tests/playwright/chat-actions-dom.spec.js.
 
 // ─── Section 5: Backward compatibility ───
 console.log('Section 5: Backward compatibility');
@@ -263,7 +263,7 @@ if (hasState) {
 }
 
 // Section 10 (navigator.clipboard) and Section 12 (context-toggle live DOM)
-// live in test-chat-actions-dom.js.
+// live in tests/playwright/chat-actions-dom.spec.js.
 
 // ─── Section 13: Discussion Round Prompt Helpers ───
 console.log('Section 13: Discussion round prompt helpers');

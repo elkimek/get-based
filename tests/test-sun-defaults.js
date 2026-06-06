@@ -182,10 +182,10 @@ const {
 
   // ─── 8. getSunCoords country-band path — SKIPPED in Node ──────────────
   // The country-centroid resolution requires profile state (currentProfile +
-  // location wiring) that the puppeteer environment provides but Node
+  // location wiring) that the Playwright environment provides but Node
   // doesn't have without a full setupProfile() bootstrap. Still covered
-  // end-to-end by the puppeteer suite via test-sun-uvdata-flow.js.
-  console.log('  SKIP: getSunCoords country-band — needs profile bootstrap; covered by puppeteer.');
+  // end-to-end by the Playwright suite via test-sun-uvdata-flow.js.
+  console.log('  SKIP: getSunCoords country-band — needs profile bootstrap; covered by Playwright.');
   const SKIP_SECTION_8 = true;
   if (!SKIP_SECTION_8) {
   const sunMod = await import('../js/sun.js');

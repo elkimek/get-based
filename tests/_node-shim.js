@@ -119,7 +119,7 @@ if (typeof globalThis.indexedDB === 'undefined') {
 // source in-process: `worker.postMessage` invokes the worker's
 // `self.onmessage` handler and routes its `self.postMessage` back to the
 // main-side `worker.onmessage`. Does NOT support importScripts, network,
-// or WASM workers — test-lens-local-worker.js stays on puppeteer.
+// or WASM workers — test-lens-local-worker.js stays on Playwright.
 if (typeof globalThis.Worker === 'undefined') {
   const _blobRegistry = new Map();
   const _origCreateObjectURL = globalThis.URL.createObjectURL;

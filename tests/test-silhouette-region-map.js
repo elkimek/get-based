@@ -50,7 +50,7 @@ return (async function() {
   assert('Region map loads', !!map && map.data && map.width > 0 && map.height > 0,
     `width=${map?.width} height=${map?.height}`);
   // The audit specifically called out "~50–80ms one-shot cost". Don't
-  // pin too tight — Puppeteer headless can spike to several hundred
+  // pin too tight — Playwright headless can spike to several hundred
   // ms. Just bound the catastrophic case.
   assert('Region-map load completes within 5s', elapsed < 5000, `${elapsed.toFixed(0)}ms`);
 

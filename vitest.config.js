@@ -3,9 +3,8 @@
 // Default environment is `node`. Individual files can opt into `jsdom`
 // via a top-of-file pragma:  // @vitest-environment jsdom
 //
-// `include` is an EXPLICIT allowlist. Anything not listed is owned by
-// ./run-tests.sh (the puppeteer suite). Migration is incremental —
-// files move from puppeteer to Vitest one at a time without surprises.
+// `include` is an EXPLICIT allowlist. Anything not listed here is either a
+// browser fixture owned by Playwright or an ad-hoc helper script.
 //
 // Today we only have `_vitest-legacy.test.js`, which wraps each legacy
 // node-side file as a single `it()` test. As real `*.test.js` files

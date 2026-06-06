@@ -178,7 +178,7 @@ return (async () => {
     for (const [id, v] of allViolations) {
       (byImpact[v.impact] || byImpact.unknown).push({ id, ...v });
     }
-    // Surface findings via "▶ " prefix — run-tests.js (lines ~132-134)
+    // Surface findings via "▶ " prefix — the Playwright wrapper
     // only relays console.log lines that start with U+25B6, contain
     // "passed"/"Results", or look like FAIL. Without the prefix our %c-styled
     // headers get swallowed and the test fails with no actionable detail.
