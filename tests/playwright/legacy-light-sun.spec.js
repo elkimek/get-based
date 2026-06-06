@@ -8,8 +8,7 @@ const LIGHT_SUN_BROWSER_TESTS = [
 ];
 
 for (const [name, path] of LIGHT_SUN_BROWSER_TESTS) {
-  test(name, async ({ page }) => {
-    test.setTimeout(60_000);
+  test(name, { timeout: 60_000 }, async ({ page }) => {
     await runLegacyBrowserScript(page, path);
   });
 }
