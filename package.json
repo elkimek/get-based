@@ -17,7 +17,7 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   },
   "dependencies": {
     "@vercel/blob": "^2.4.0"
