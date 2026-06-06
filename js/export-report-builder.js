@@ -11,10 +11,10 @@ import {
   REPORT_LAB_SECTION_IDS,
   REPORT_PRESETS,
   REPORT_SECTION_DEFS,
-  exportPDFReport,
   generateReportAISummary,
   getReportPreset,
 } from './export-report.js';
+import { exportPDFReport } from './export-report-html.js';
 
 let reportBuilderDelegatesInstalled = false;
 

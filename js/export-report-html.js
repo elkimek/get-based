@@ -2,16 +2,32 @@
 // export-report-html.js — PDF report HTML renderer
 
 import { state } from './state.js';
-import { getStatus, formatValue, getTrend } from './utils.js';
+import { getStatus, formatValue, getTrend, showNotification } from './utils.js';
 import { getEffectiveRange } from './marker-analysis.js';
 import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import {
   buildReportHeaderFacts,
+  buildPreparedReportPayload,
   getReportHeaderProfile,
   normalizeReportOptions,
   renderReportAISummarySection,
   reportIncludes,
 } from './export-report.js';
+
+export function exportPDFReport(options = {}) {
+  const payload = buildPreparedReportPayload(options);
+  const html = buildReportHTML(payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.notes, payload.supps, payload.contextSections, payload.reportOptions);
+  const win = window.open('', '_blank');
+  if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
+  win.document.write(html);
+  win.document.close();
+  const printBtn = typeof win.document.querySelector === 'function'
+    ? win.document.querySelector('.report-print-btn')
+    : null;
+  if (printBtn) printBtn.addEventListener('click', () => win.print());
+  showNotification('PDF preview opened. Use Print in the preview to save as PDF.', 'info', 2500);
+  return true;
+}
 
 export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
   const reportOptions = normalizeReportOptions(options);

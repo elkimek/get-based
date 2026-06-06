@@ -16,10 +16,12 @@ import {
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import {
-  buildReportHTML as buildReportHTMLImpl,
-  exportPDFReport as exportPDFReportImpl,
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
+import {
+  buildReportHTML as buildReportHTMLImpl,
+  exportPDFReport as exportPDFReportImpl,
+} from './export-report-html.js';
 import {
   closeReportBuilder as closeReportBuilderImpl,
   openReportBuilder as openReportBuilderImpl,
@@ -40,7 +42,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   return buildReportHTMLImpl(profileName, sexLabel, data, flags, notes, supps, contextSections, options);
 }
 
-export function openReportBuilder(presetId = 'clinician') {
+export function openReportBuilder(presetId) {
   return openReportBuilderImpl(presetId);
 }
 

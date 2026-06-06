@@ -134,16 +134,25 @@ return (async function() {
     reportSrc.includes('formatFamilyHistoryItem') &&
       reportSrc.includes('humanizeContextKey') &&
       !reportSrc.includes('JSON.stringify(i)'));
+  assert('PDF report context uses imported profile height helper',
+    reportCoreSrc.includes('const pHeight = getProfileHeight(state.currentProfile);') &&
+      !reportCoreSrc.includes('window.getProfileHeight'));
   assert('PDF report gives profile context a designed card layout',
     reportSrc.includes('class="profile-context"') &&
       reportSrc.includes('class="context-card"') &&
       reportSrc.includes('.context-grid') &&
       reportSrc.includes('.context-facts'));
+  assert('PDF report modules avoid core-renderer circular imports',
+    !reportCoreSrc.includes("from './export-report-html.js'") &&
+      reportHtmlSrc.includes("from './export-report.js'"));
   assert('Report builder opens as a first-class modal',
     reportSrc.includes('export function openReportBuilder') &&
       reportSrc.includes('report-builder-overlay') &&
       reportSrc.includes('report-builder-scroll') &&
       reportSrc.includes("reportBuilderActionAttrs('export')"));
+  assert('Report builder facade delegates default preset to implementation',
+    exportSrc.includes('export function openReportBuilder(presetId)') &&
+      !exportSrc.includes("openReportBuilder(presetId = 'clinician')"));
   assert('Report builder supports AI overview generation',
     reportSrc.includes('export async function generateReportAISummary') &&
       reportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&

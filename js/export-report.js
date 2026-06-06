@@ -10,8 +10,6 @@ import { getBloodDrawPhases } from './cycle.js';
 import { effectiveTimesPerDay, formatSupplementTotal, ingredientDailyTotal } from './supplement-impact.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { trackUsage } from './schema.js';
-import { buildReportHTML } from './export-report-html.js';
-export { buildReportHTML } from './export-report-html.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT
@@ -507,7 +505,7 @@ function buildReportContextSections(data) {
     contextSections.push({ title: 'Menstrual Cycle', text: cycleText });
   }
   const pBio = state.importedData.biometrics;
-  const pHeight = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null };
+  const pHeight = getProfileHeight(state.currentProfile);
   // Fallback to the wearable summary when legacy biometrics arrays are empty -
   // wearable-only users (manual via Edit Client retired in Phase 4 + OAuth
   // sources) carry weight/BP/pulse only inside wearableSummary.metrics.
@@ -538,7 +536,7 @@ function buildReportContextSections(data) {
   return contextSections.filter(section => String(section.text || '').trim());
 }
 
-function buildPreparedReportPayload(options = {}) {
+export function buildPreparedReportPayload(options = {}) {
   const reportOptions = normalizeReportOptions(options);
   const rawData = getActiveData();
   let data = filterDataByReportRange(rawData, reportOptions.dateRange);
@@ -745,19 +743,4 @@ export function renderReportAISummarySection(summary) {
     ${meta ? `<p class="report-ai-meta">${escapeHTML(meta)}</p>` : ''}
     <p class="report-note">AI-generated from the selected report data. Review for accuracy before sharing.</p>
   </section>`;
-}
-
-export function exportPDFReport(options = {}) {
-  const payload = buildPreparedReportPayload(options);
-  const html = buildReportHTML(payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.notes, payload.supps, payload.contextSections, payload.reportOptions);
-  const win = window.open('', '_blank');
-  if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
-  win.document.write(html);
-  win.document.close();
-  const printBtn = typeof win.document.querySelector === 'function'
-    ? win.document.querySelector('.report-print-btn')
-    : null;
-  if (printBtn) printBtn.addEventListener('click', () => win.print());
-  showNotification('PDF preview opened. Use Print in the preview to save as PDF.', 'info', 2500);
-  return true;
 }
