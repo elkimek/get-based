@@ -182,7 +182,7 @@ const LEGACY_TESTS = [
   // Batch 32 — test-wearables (~549 asserts: registry, IDB CRUD via
   // fake-indexeddb, summary math, write gate, 7 vendor OAuth/PKCE modules,
   // Apple Health parser, source-inspection sweep). The openWearableDetail
-  // Chart.js modal islands stay on puppeteer in test-wearables-dom.js.
+  // Chart.js modal islands live in Playwright's legacy-wearables spec.
   './test-wearables.js',
   // Batch 33 — the remaining IDB tail, full ports (no DOM): blob-storage
   // (IDB k/v + localStorage→IDB migration), wearables-manual (manual-source
