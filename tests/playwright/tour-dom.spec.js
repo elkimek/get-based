@@ -9,6 +9,26 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
       && typeof window.endTour === 'function'
       && typeof window._tourGoToStep === 'function'
   );
+  await page.waitForFunction(() => {
+    const isVisible = selector => Array.from(document.querySelectorAll(selector)).some(el => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return rect.width > 0
+        && rect.height > 0
+        && rect.right > 0
+        && rect.left < window.innerWidth
+        && style.display !== 'none'
+        && style.visibility !== 'hidden'
+        && style.opacity !== '0';
+    });
+
+    return [
+      '.welcome-primary-panel',
+      '.demo-cards',
+      '.profile-compact-btn',
+      '.settings-btn',
+    ].every(isVisible);
+  });
 
   const results = await page.evaluate(async () => {
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
