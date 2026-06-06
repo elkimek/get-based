@@ -11,9 +11,16 @@ import { fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
 
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = process.env.PORT || '8000';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+const jsonPath = path.join(repoRoot, 'tests', '.coverage.json');
+const vitestCoveragePath = process.env.VITEST_COVERAGE_JSON ||
+  path.join(repoRoot, 'tests', '.vitest-coverage', 'coverage-final.json');
+const includeVitestCoverage = process.env.INCLUDE_VITEST_COVERAGE === '1' ||
+  process.env.INCLUDE_VITEST_COVERAGE === 'true';
+const sourceCache = new Map();
 
 const COVERAGE_FIXTURES = [
   ['export/import browser fixture', 'tests/test-export-import.js'],
@@ -57,16 +64,25 @@ function cleanUrl(url) {
   return (url || '').replace(/^https?:\/\/[^/]+/, '').split('?')[0];
 }
 
-function isAppSource(url) {
-  const rel = cleanUrl(url);
-  return /\/js\/.*\.m?js$/.test(rel) ||
-    /\/api\/.*\.js$/.test(rel) ||
-    rel === '/service-worker.js' ||
-    rel === '/version.js';
+function canonicalFile(url) {
+  let rel = cleanUrl(url);
+  if (rel.startsWith('file://')) rel = fileURLToPath(rel);
+  if (path.isAbsolute(rel)) {
+    const fromRepo = path.relative(repoRoot, rel);
+    if (!fromRepo.startsWith('..') && !path.isAbsolute(fromRepo)) {
+      return fromRepo.split(path.sep).join('/');
+    }
+  }
+  return rel.replace(/^\//, '');
 }
 
-function canonicalFile(url) {
-  return cleanUrl(url).replace(/^\//, '');
+function isAppSource(url) {
+  const rel = canonicalFile(url);
+  return /^js\/.*\.m?js$/.test(rel) ||
+    /^api\/.*\.js$/.test(rel) ||
+    rel === 'dev-server.js' ||
+    rel === 'service-worker.js' ||
+    rel === 'version.js';
 }
 
 function entrySource(entry) {
@@ -78,7 +94,12 @@ function coverageFunctions(entry) {
 }
 
 function calledRanges(entry) {
-  if (Array.isArray(entry.ranges)) return entry.ranges;
+  if (Array.isArray(entry.ranges)) {
+    return entry.ranges.map(range => ({
+      start: range.start ?? range.startOffset ?? 0,
+      end: range.end ?? range.endOffset ?? 0,
+    }));
+  }
   return coverageFunctions(entry)
     .filter(fn => fn.functionName)
     .flatMap(fn => (fn.ranges || [])
@@ -89,54 +110,178 @@ function calledRanges(entry) {
       })));
 }
 
-function writeCoverageReport(entries, fixtures) {
-  const perFile = new Map();
+function sourceForFile(file) {
+  if (sourceCache.has(file)) return sourceCache.get(file);
+  let source = '';
+  try {
+    source = fs.readFileSync(path.join(repoRoot, file), 'utf8');
+  } catch (_) {
+    source = '';
+  }
+  sourceCache.set(file, source);
+  return source;
+}
+
+function lineOffsets(source) {
+  const offsets = [0];
+  for (let i = 0; i < source.length; i += 1) {
+    if (source[i] === '\n') offsets.push(i + 1);
+  }
+  return offsets;
+}
+
+function locToOffset(source, loc, offsets = lineOffsets(source)) {
+  if (!loc || !Number.isFinite(loc.line)) return 0;
+  const lineIndex = Math.max(0, loc.line - 1);
+  const lineStart = offsets[lineIndex] ?? source.length;
+  return Math.min(source.length, Math.max(0, lineStart + (loc.column || 0)));
+}
+
+function locToRange(source, loc, offsets = lineOffsets(source)) {
+  const start = locToOffset(source, loc?.start, offsets);
+  const end = locToOffset(source, loc?.end, offsets);
+  return end > start ? { start, end } : null;
+}
+
+function getFileMetrics(model, file, total = 0, source = null) {
+  const metrics = model.get(file) || {
+    file,
+    total: 0,
+    ranges: [],
+    functions: new Map(),
+    sources: new Set(),
+  };
+  metrics.total = Math.max(metrics.total, total);
+  if (source) metrics.sources.add(source);
+  model.set(file, metrics);
+  return metrics;
+}
+
+function addCoveredRanges(metrics, ranges) {
+  for (const range of ranges) {
+    const start = Math.max(0, range.start ?? 0);
+    const end = Math.max(start, range.end ?? 0);
+    if (end > start) metrics.ranges.push({ start, end });
+  }
+}
+
+function addFunction(metrics, key, name, called, matchByName = false) {
+  let targetKey = key;
+  if (!metrics.functions.has(targetKey) && matchByName) {
+    const match = [...metrics.functions.entries()]
+      .find(([, fn]) => fn.name === name);
+    if (match) targetKey = match[0];
+  }
+
+  const existing = metrics.functions.get(targetKey);
+  if (existing) {
+    existing.called = existing.called || called;
+    return;
+  }
+
+  metrics.functions.set(targetKey, { name, called: Boolean(called) });
+}
+
+function addBrowserEntriesToModel(model, entries) {
   const canonical = new Map();
 
   for (const entry of entries) {
     if (!isAppSource(entry.url)) continue;
     const file = canonicalFile(entry.url);
-    const total = entrySource(entry).length;
+    const total = entrySource(entry).length || sourceForFile(file).length;
     if (!total) continue;
-    const prev = perFile.get(file) || { total: 0, ranges: [] };
-    prev.total = Math.max(prev.total, total);
-    prev.ranges.push(...calledRanges(entry));
-    perFile.set(file, prev);
+
+    const metrics = getFileMetrics(model, file, total, 'playwright');
+    addCoveredRanges(metrics, calledRanges(entry));
 
     const prevCanonical = canonical.get(file);
-    if (!prevCanonical || total > entrySource(prevCanonical).length) {
+    if (!prevCanonical || total > (entrySource(prevCanonical).length || sourceForFile(file).length)) {
       canonical.set(file, entry);
     }
   }
 
-  const fnPerFile = new Map();
   for (const [file, entry] of canonical) {
-    const fns = coverageFunctions(entry)
+    const metrics = getFileMetrics(model, file, entrySource(entry).length || sourceForFile(file).length, 'playwright');
+    coverageFunctions(entry)
       .filter(fn => fn.functionName)
-      .map(fn => ({
-        name: fn.functionName,
-        called: (fn.ranges?.[0]?.count || 0) > 0,
-      }));
-    fnPerFile.set(file, fns);
+      .forEach((fn, index) => {
+        const called = (fn.ranges || []).some(fnRange => (fnRange.count || 0) > 0);
+        addFunction(metrics, `${fn.functionName}:${index}`, fn.functionName, called);
+      });
   }
 
   for (const entry of entries) {
     if (!isAppSource(entry.url)) continue;
     const file = canonicalFile(entry.url);
     if (entry === canonical.get(file)) continue;
-    const fns = fnPerFile.get(file);
-    if (!fns) continue;
+    const metrics = model.get(file);
+    if (!metrics) continue;
+
     for (const fn of coverageFunctions(entry)) {
-      if (!fn.functionName || !((fn.ranges?.[0]?.count || 0) > 0)) continue;
-      const target = fns.find(candidate => candidate.name === fn.functionName && !candidate.called);
+      const called = fn.functionName && (fn.ranges || []).some(fnRange => (fnRange.count || 0) > 0);
+      if (!called) continue;
+      const target = [...metrics.functions.values()]
+        .find(candidate => candidate.name === fn.functionName && !candidate.called);
       if (target) target.called = true;
     }
   }
+}
 
-  const rows = [...perFile.entries()].map(([file, metrics]) => {
-    const fns = fnPerFile.get(file) || [];
+function readVitestCoverageModel() {
+  if (!includeVitestCoverage) return null;
+  if (!fs.existsSync(vitestCoveragePath)) return null;
+
+  const coverage = JSON.parse(fs.readFileSync(vitestCoveragePath, 'utf8'));
+  const model = new Map();
+
+  for (const [coveragePath, fileCoverage] of Object.entries(coverage)) {
+    const file = canonicalFile(fileCoverage.path || coveragePath);
+    if (!isAppSource(file)) continue;
+
+    const source = sourceForFile(file);
+    if (!source) continue;
+    const offsets = lineOffsets(source);
+    const metrics = getFileMetrics(model, file, source.length, 'vitest');
+
+    for (const [id, loc] of Object.entries(fileCoverage.statementMap || {})) {
+      if (!((fileCoverage.s?.[id] || 0) > 0)) continue;
+      const range = locToRange(source, loc, offsets);
+      if (range) addCoveredRanges(metrics, [range]);
+    }
+
+    for (const [id, fn] of Object.entries(fileCoverage.fnMap || {})) {
+      if (!fn.name) continue;
+      const range = locToRange(source, fn.loc, offsets) || locToRange(source, fn.decl, offsets) || { start: 0, end: 0 };
+      addFunction(metrics, `${fn.name}:${range.start}:${range.end}`, fn.name, (fileCoverage.f?.[id] || 0) > 0);
+    }
+  }
+
+  return model;
+}
+
+function mergeCoverageModels(...models) {
+  const combined = new Map();
+
+  for (const model of models) {
+    if (!model) continue;
+    for (const [file, metrics] of model) {
+      const target = getFileMetrics(combined, file, metrics.total);
+      for (const source of metrics.sources) target.sources.add(source);
+      addCoveredRanges(target, metrics.ranges);
+      for (const [key, fn] of metrics.functions) {
+        addFunction(target, key, fn.name, fn.called, true);
+      }
+    }
+  }
+
+  return combined;
+}
+
+function summarizeCoverageModel(model) {
+  const rows = [...model.entries()].map(([file, metrics]) => {
+    const fns = [...metrics.functions.values()];
     const fnCalled = fns.filter(fn => fn.called).length;
-    const covered = unionLength(metrics.ranges);
+    const covered = Math.min(metrics.total, unionLength(metrics.ranges));
     return {
       file,
       total: metrics.total,
@@ -147,6 +292,7 @@ function writeCoverageReport(entries, fixtures) {
       fnCalled,
       fnPct: fns.length > 0 ? (fnCalled / fns.length) * 100 : 100,
       uncalledFns: fns.filter(fn => !fn.called).map(fn => fn.name),
+      sources: [...metrics.sources].sort(),
     };
   });
   rows.sort((a, b) => a.fnPct - b.fnPct || b.fnTotal - a.fnTotal);
@@ -160,34 +306,64 @@ function writeCoverageReport(entries, fixtures) {
 
   const globalPct = totals.total > 0 ? (totals.covered / totals.total) * 100 : 0;
   const globalFnPct = totals.fnTotal > 0 ? (totals.fnCalled / totals.fnTotal) * 100 : 0;
-  const jsonPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'tests', '.coverage.json');
+
+  return { globalFnPct, globalPct, totals, rows };
+}
+
+function printableTotals(label, report) {
+  if (!report) return null;
+  return [
+    `  ${label} FUNCTIONS: ${report.totals.fnCalled.toLocaleString()} / ${report.totals.fnTotal.toLocaleString()} = ${report.globalFnPct.toFixed(2)}%`,
+    `  ${label} BYTES:     ${report.totals.covered.toLocaleString()} / ${report.totals.total.toLocaleString()} = ${report.globalPct.toFixed(2)}%`,
+  ];
+}
+
+function writeCoverageReport(entries, fixtures) {
+  const playwrightModel = new Map();
+  addBrowserEntriesToModel(playwrightModel, entries);
+  const playwright = summarizeCoverageModel(playwrightModel);
+
+  const vitestModel = readVitestCoverageModel();
+  const vitest = vitestModel ? summarizeCoverageModel(vitestModel) : null;
+  const combined = vitest
+    ? summarizeCoverageModel(mergeCoverageModels(vitestModel, playwrightModel))
+    : playwright;
+  const runner = vitest ? 'vitest-playwright' : 'playwright';
 
   let priorFnPct = null;
   try {
     const prior = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    if (Number.isFinite(prior.globalFnPct)) priorFnPct = prior.globalFnPct;
-    else if (prior?.totals?.fnTotal > 0) priorFnPct = (prior.totals.fnCalled / prior.totals.fnTotal) * 100;
+    if (prior.runner === runner && Number.isFinite(prior.globalFnPct)) priorFnPct = prior.globalFnPct;
   } catch (_) {
     // First coverage run on this checkout.
   }
 
   fs.writeFileSync(jsonPath, JSON.stringify({
-    runner: 'playwright',
-    scope: 'loaded app-source JavaScript from sampled browser fixtures',
-    globalPct,
-    globalFnPct,
-    totals,
+    runner,
+    scope: vitest
+      ? 'app-source JavaScript covered by Vitest/Node V8 coverage plus sampled Playwright Chromium fixtures'
+      : 'loaded app-source JavaScript from sampled Playwright Chromium fixtures',
+    globalPct: combined.globalPct,
+    globalFnPct: combined.globalFnPct,
+    totals: combined.totals,
     fixtures: fixtures.map(([name, testPath]) => ({ name, path: testPath })),
-    rows,
+    rows: combined.rows,
+    reports: {
+      combined,
+      playwright,
+      vitest,
+    },
     generatedAt: new Date().toISOString(),
   }, null, 2));
 
   console.log('\n' + '='.repeat(92));
-  console.log('  PLAYWRIGHT COVERAGE REPORT (function coverage primary; byte coverage secondary)');
+  console.log(vitest
+    ? '  COMBINED COVERAGE REPORT (Vitest/Node + Playwright; function coverage primary)'
+    : '  PLAYWRIGHT COVERAGE REPORT (function coverage primary; byte coverage secondary)');
   console.log('='.repeat(92));
   console.log(['File'.padEnd(50), 'Fns'.padStart(6), 'Called'.padStart(8), 'Fn%'.padStart(8), 'Byte%'.padStart(10)].join(''));
   console.log('-'.repeat(92));
-  for (const row of rows.slice(0, 30)) {
+  for (const row of combined.rows.slice(0, 30)) {
     console.log([
       row.file.padEnd(50).slice(0, 50),
       String(row.fnTotal).padStart(6),
@@ -196,18 +372,21 @@ function writeCoverageReport(entries, fixtures) {
       `${row.pct.toFixed(1)}%`.padStart(10),
     ].join(''));
   }
-  if (rows.length > 30) console.log(`  ... ${rows.length - 30} more files (full data in tests/.coverage.json)`);
+  if (combined.rows.length > 30) console.log(`  ... ${combined.rows.length - 30} more files (full data in tests/.coverage.json)`);
   console.log('-'.repeat(92));
-  console.log(`  GLOBAL FUNCTIONS: ${totals.fnCalled.toLocaleString()} / ${totals.fnTotal.toLocaleString()} = ${globalFnPct.toFixed(2)}%`);
-  console.log(`  GLOBAL BYTES:     ${totals.covered.toLocaleString()} / ${totals.total.toLocaleString()} = ${globalPct.toFixed(2)}%`);
+  if (vitest) {
+    for (const line of printableTotals('PLAYWRIGHT', playwright)) console.log(line);
+    for (const line of printableTotals('VITEST/NODE', vitest)) console.log(line);
+  }
+  for (const line of printableTotals('GLOBAL', combined)) console.log(line);
   if (priorFnPct != null) {
-    const drift = globalFnPct - priorFnPct;
-    if (drift <= -0.5) console.log(`  DRIFT WARNING: function coverage dropped ${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% -> ${globalFnPct.toFixed(2)}%)`);
-    else if (drift >= 0.5) console.log(`  DELTA: +${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% -> ${globalFnPct.toFixed(2)}%)`);
+    const drift = combined.globalFnPct - priorFnPct;
+    if (drift <= -0.5) console.log(`  DRIFT WARNING: function coverage dropped ${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% -> ${combined.globalFnPct.toFixed(2)}%)`);
+    else if (drift >= 0.5) console.log(`  DELTA: +${drift.toFixed(2)}pt vs prior run (${priorFnPct.toFixed(2)}% -> ${combined.globalFnPct.toFixed(2)}%)`);
   }
   console.log('='.repeat(92));
 
-  return { globalFnPct, globalPct, totals, rows };
+  return combined;
 }
 
 async function main() {

@@ -173,9 +173,9 @@ The script:
 
 ## Coverage status
 
-`COVERAGE=1 ./run-tests.sh` runs the normal suite first, then runs a Playwright Chromium coverage sampler over the high-surface browser fixtures. The sampler writes `tests/.coverage.json` and prints global function and byte coverage percentages for loaded app-source JavaScript.
+`COVERAGE=1 ./run-tests.sh` runs Vitest with V8 coverage enabled, runs the normal Playwright suite, then runs a Playwright Chromium coverage sampler over the high-surface browser fixtures. The sampler merges `tests/.vitest-coverage/coverage-final.json` with its browser coverage, writes `tests/.coverage.json`, and prints separate Playwright, Vitest/Node, and combined global function/byte coverage percentages for app-source JavaScript.
 
-Coverage is report-only by default. Set `COVERAGE_MIN=90` or another percentage to fail the run when global function coverage falls below that floor.
+Coverage is report-only by default. Set `COVERAGE_MIN=90` or another percentage to fail the run when combined global function coverage falls below that floor.
 
 ## Accessibility regression scan
 

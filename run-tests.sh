@@ -6,6 +6,10 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT=${PORT:-8000}
+COVERAGE_ENABLED=0
+if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
+  COVERAGE_ENABLED=1
+fi
 
 # Start server if not already running. nohup + disown fully detaches it
 # from the shell — signals sent to the shell's process group won't
@@ -46,13 +50,18 @@ trap cleanup EXIT
 
 # Vitest covers pure-logic node-side tests — fastest fail-fast layer.
 # The legacy node-side files are wrapped by tests/_vitest-legacy.test.js.
-npm test || exit 1
+if [ "$COVERAGE_ENABLED" = "1" ]; then
+  rm -rf "$DIR/tests/.vitest-coverage"
+  npm test -- --coverage || exit 1
+else
+  npm test || exit 1
+fi
 ensure_server
 # HTTP-reliant test before the browser suite (needs the dev server up).
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
 PORT=$PORT npm run test:playwright || exit 1
-if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
+if [ "$COVERAGE_ENABLED" = "1" ]; then
   : "${COVERAGE_MIN:=0}"
   export COVERAGE_MIN
-  PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
+  INCLUDE_VITEST_COVERAGE=1 PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
 fi

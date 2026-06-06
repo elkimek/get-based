@@ -30,5 +30,25 @@ export default defineConfig({
     ],
     setupFiles: ['./tests/_vitest-setup.js'],
     reporters: ['default'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['json-summary', 'json'],
+      reportsDirectory: 'tests/.vitest-coverage',
+      all: true,
+      include: [
+        'js/**/*.js',
+        'api/**/*.js',
+        'dev-server.js',
+        'service-worker.js',
+        'version.js',
+      ],
+      exclude: [
+        '**/node_modules/**',
+        'vendor/**',
+        'docs/**',
+        'dist-docs/**',
+        'tests/**',
+      ],
+    },
   },
 });
