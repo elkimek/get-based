@@ -273,6 +273,7 @@ describe('chat discussion round state runtime behavior', () => {
     expect(deps.encryptedSetItem).not.toHaveBeenCalled();
     expect(deps.state.chatThreads[1].messageCount).toBe(2);
     expect(deps.state.chatThreads[1].updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+    expect(deps.saveChatThreadIndex).toHaveBeenCalledTimes(1);
     expect(deps.renderThreadList).toHaveBeenCalled();
   });
 
@@ -440,7 +441,7 @@ describe('chat discussion flow runtime behavior', () => {
     );
   });
 
-  it('does nothing while streaming and opens the persona picker when idle', async () => {
+  it('does nothing while streaming', async () => {
     const blocked = installDiscussionFlowMocks({ abortController: new AbortController() });
     const flow = await import('../js/chat-discussion-flow.js');
 
@@ -449,17 +450,19 @@ describe('chat discussion flow runtime behavior', () => {
     await flow.startDiscussion();
     expect(blocked.runDiscussionContinuation).not.toHaveBeenCalled();
     expect(blocked.showDiscussPersonaPicker).not.toHaveBeenCalled();
+  });
 
-    await vi.resetModules();
-    for (const path of MOCK_PATHS) vi.doUnmock(path);
+  it('opens the persona picker when idle', async () => {
     const idle = installDiscussionFlowMocks();
     const idleFlow = await import('../js/chat-discussion-flow.js');
+
     await idleFlow.startDiscussion();
+
     expect(idle.reopenCurrentDiscussionThread).toHaveBeenCalled();
     expect(idle.showDiscussPersonaPicker).toHaveBeenCalled();
   });
 
-  it('runs either a single new persona turn or a full discussion from picker selection', async () => {
+  it('runs a single new persona turn from picker selection', async () => {
     const selection = {
       allPersonas: [{ id: 'one' }, { id: 'two' }],
       newPersonas: [{ id: 'two' }],
@@ -471,14 +474,20 @@ describe('chat discussion flow runtime behavior', () => {
     expect(deps.removeDiscussPersonaPicker).toHaveBeenCalled();
     expect(deps.runSingleDiscussionTurn).toHaveBeenCalledWith(selection.newPersonas[0], selection.allPersonas);
     expect(deps.runDiscussion).not.toHaveBeenCalled();
+  });
 
-    await vi.resetModules();
-    for (const path of MOCK_PATHS) vi.doUnmock(path);
+  it('runs a full discussion from picker selection when no new personas are selected', async () => {
+    const selection = {
+      allPersonas: [{ id: 'one' }, { id: 'two' }],
+      newPersonas: [],
+    };
     const existing = installDiscussionFlowMocks({
-      pickerSelection: { allPersonas: selection.allPersonas, newPersonas: [] },
+      pickerSelection: selection,
     });
     const flowExisting = await import('../js/chat-discussion-flow.js');
+
     await expect(flowExisting.startDiscussionFromPicker()).resolves.toBe('discussion');
+
     expect(existing.runDiscussion).toHaveBeenCalledWith(selection.allPersonas);
   });
 });
@@ -759,7 +768,8 @@ describe('chat marker prompt runtime behavior', () => {
     mod.askAIAboutMarker('missing');
     mod.askAIAboutCorrelations();
 
-    await Promise.resolve();
-    expect(deps.openChatPanel).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(deps.openChatPanel).not.toHaveBeenCalled();
+    });
   });
 });
