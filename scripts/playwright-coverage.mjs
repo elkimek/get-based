@@ -98,11 +98,10 @@ function writeCoverageReport(entries, fixtures) {
     const file = canonicalFile(entry.url);
     const total = entrySource(entry).length;
     if (!total) continue;
-    const covered = unionLength(calledRanges(entry));
-    const prev = perFile.get(file) || { total: 0, covered: 0 };
-    perFile.set(file, total > prev.total
-      ? { total, covered: Math.max(covered, prev.covered) }
-      : { total: prev.total, covered: Math.max(covered, prev.covered) });
+    const prev = perFile.get(file) || { total: 0, ranges: [] };
+    prev.total = Math.max(prev.total, total);
+    prev.ranges.push(...calledRanges(entry));
+    perFile.set(file, prev);
 
     const prevCanonical = canonical.get(file);
     if (!prevCanonical || total > entrySource(prevCanonical).length) {
@@ -137,12 +136,13 @@ function writeCoverageReport(entries, fixtures) {
   const rows = [...perFile.entries()].map(([file, metrics]) => {
     const fns = fnPerFile.get(file) || [];
     const fnCalled = fns.filter(fn => fn.called).length;
+    const covered = unionLength(metrics.ranges);
     return {
       file,
       total: metrics.total,
-      covered: metrics.covered,
-      pct: metrics.total > 0 ? (metrics.covered / metrics.total) * 100 : 0,
-      uncovered: metrics.total - metrics.covered,
+      covered,
+      pct: metrics.total > 0 ? (covered / metrics.total) * 100 : 0,
+      uncovered: metrics.total - covered,
       fnTotal: fns.length,
       fnCalled,
       fnPct: fns.length > 0 ? (fnCalled / fns.length) * 100 : 100,
@@ -211,42 +211,74 @@ function writeCoverageReport(entries, fixtures) {
 }
 
 async function main() {
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: chromiumExecutable || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
-  const smokeContext = await browser.newContext({
+  let browser = null;
+  try {
+    browser = await chromium.launch({
+      headless: true,
+      executablePath: chromiumExecutable || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    await smokeTestApp(browser);
+
+    const entries = [];
+    let firstFailure = null;
+    console.log(`Running Playwright coverage sampler against ${BASE_URL}`);
+    for (const [name, testPath, options = {}] of COVERAGE_FIXTURES) {
+      console.log(`  - ${name}`);
+      const result = await runCoverageFixture(browser, testPath, options);
+      entries.push(...result.entries);
+      if (result.failure) {
+        firstFailure = result.failure;
+        break;
+      }
+    }
+
+    const report = writeCoverageReport(entries, COVERAGE_FIXTURES);
+    if (firstFailure) throw firstFailure;
+
+    const minPct = Number.parseFloat(process.env.COVERAGE_MIN || '0');
+    if (Number.isFinite(minPct) && minPct > 0 && report.globalFnPct < minPct) {
+      throw new Error(`Coverage gate failed: function coverage ${report.globalFnPct.toFixed(2)}% is below COVERAGE_MIN=${minPct}.`);
+    }
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
+}
+
+async function smokeTestApp(browser) {
+  const context = await browser.newContext({
     baseURL: BASE_URL,
     serviceWorkers: 'block',
   });
-
   try {
-    const page = await smokeContext.newPage();
+    const page = await context.newPage();
     const response = await page.goto('/app', { waitUntil: 'load', timeout: 15_000 });
-    await smokeContext.close();
     if (!response?.ok()) throw new Error(`GET /app returned ${response?.status() || 'no response'}`);
   } catch (error) {
-    await smokeContext.close().catch(() => {});
-    await browser.close();
     console.error(`Cannot connect to ${BASE_URL}/app: ${error.message}`);
     console.error(`Start it with: node dev-server.js ${PORT}`);
-    process.exit(2);
+    error.exitCode = 2;
+    throw error;
+  } finally {
+    await context.close().catch(() => {});
   }
+}
 
-  const entries = [];
-  console.log(`Running Playwright coverage sampler against ${BASE_URL}`);
-  for (const [name, testPath, options = {}] of COVERAGE_FIXTURES) {
-    console.log(`  - ${name}`);
-    const context = await browser.newContext({
-      baseURL: BASE_URL,
-      serviceWorkers: 'block',
-    });
-    const page = await context.newPage();
-    const pageErrors = [];
-    page.on('pageerror', error => {
-      pageErrors.push(error?.message || String(error));
-    });
+async function runCoverageFixture(browser, testPath, options) {
+  const context = await browser.newContext({
+    baseURL: BASE_URL,
+    serviceWorkers: 'block',
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  let entries = [];
+  let failure = null;
+
+  page.on('pageerror', error => {
+    pageErrors.push(error?.message || String(error));
+  });
+
+  try {
     await page.coverage.startJSCoverage({
       resetOnNavigation: false,
       reportAnonymousScripts: false,
@@ -255,29 +287,27 @@ async function main() {
     try {
       await runBrowserScript(page, testPath, options);
       await page.waitForTimeout(250);
-      entries.push(...await page.coverage.stopJSCoverage());
+    } catch (error) {
+      failure = error;
     } finally {
-      await context.close();
+      try {
+        entries = await page.coverage.stopJSCoverage();
+      } catch (error) {
+        if (!failure) failure = error;
+      }
     }
-    if (pageErrors.length) {
-      console.error(`\nPage errors observed during ${testPath}:`);
-      for (const error of pageErrors) console.error(`  - ${error}`);
-      await browser.close();
-      process.exit(1);
-    }
+  } finally {
+    await context.close().catch(() => {});
   }
 
-  const report = writeCoverageReport(entries, COVERAGE_FIXTURES);
-  await browser.close();
-
-  const minPct = Number.parseFloat(process.env.COVERAGE_MIN || '0');
-  if (Number.isFinite(minPct) && minPct > 0 && report.globalFnPct < minPct) {
-    console.error(`\nCoverage gate failed: function coverage ${report.globalFnPct.toFixed(2)}% is below COVERAGE_MIN=${minPct}.`);
-    process.exit(1);
+  if (pageErrors.length && !failure) {
+    failure = new Error(`Page errors observed during ${testPath}:\n${pageErrors.map(error => `  - ${error}`).join('\n')}`);
   }
+
+  return { entries, failure };
 }
 
 main().catch(error => {
   console.error(error?.stack || error?.message || String(error));
-  process.exit(1);
+  process.exit(error?.exitCode || 1);
 });
