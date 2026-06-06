@@ -53,6 +53,7 @@ return (async function() {
   const reportBuilderSrc = await fetch('/js/export-report-builder.js').then(r => r.text());
   const reportSrc = `${reportCoreSrc}\n${reportHtmlSrc}\n${reportBuilderSrc}`;
   const modalSharedSrc = await fetch('/css/modal-shared.css').then(r => r.text());
+  const serviceWorkerSrc = await fetch('/service-worker.js').then(r => r.text());
 
   // exportClientJSON produces v2 client export with profile metadata
   assert('Client export sets version: 2', exportSrc.includes('version: 2, exportedAt:'));
@@ -145,6 +146,10 @@ return (async function() {
   assert('PDF report modules avoid core-renderer circular imports',
     !reportCoreSrc.includes("from './export-report-html.js'") &&
       reportHtmlSrc.includes("from './export-report.js'"));
+  assert('PDF report modules are precached for offline service-worker loads',
+    serviceWorkerSrc.includes("'/js/export-report.js'") &&
+      serviceWorkerSrc.includes("'/js/export-report-html.js'") &&
+      serviceWorkerSrc.includes("'/js/export-report-builder.js'"));
   assert('Report builder opens as a first-class modal',
     reportSrc.includes('export function openReportBuilder') &&
       reportSrc.includes('report-builder-overlay') &&
