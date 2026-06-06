@@ -3,7 +3,7 @@
 # Runs the full ./run-tests.sh battery:
 #   - Node-side tests (native-dialog guard, lens-local-utils, dev-server
 #     origin guard)
-#   - Puppeteer-driven web-app suite
+#   - Playwright-driven web-app suite
 
 name: Tests
 
@@ -33,11 +33,14 @@ jobs:
       - name: Run typecheck
         run: npm run typecheck
 
-      - name: Cache Puppeteer Chromium
+      - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
-          path: ~/.cache/puppeteer
-          key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
 
       - name: Resolve catalog file (fetch from private source if creds set, else use stub)
         env:

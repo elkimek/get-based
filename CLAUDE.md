@@ -16,7 +16,7 @@ App is fully data-driven — starts empty, users load their data via PDF import 
 
 ## Architecture
 
-Web app (PWA) only: production runtime ships with no build system, no bundler, and no runtime dependencies — just native ES modules (`<script type="module">`). Dev tooling does use `package.json` (Playwright + Vitest for tests; Puppeteer currently supplies the Chromium executable path for Playwright) but those never reach end users. The Electron shell was retired in v1.21.0; users who want hardware-accelerated RAG self-host any server that speaks the *External server* lens protocol (`POST /query` with bearer auth, see `dev-docs/lens-endpoint-contract.md`).
+Web app (PWA) only: production runtime ships with no build system, no bundler, and no runtime dependencies — just native ES modules (`<script type="module">`). Dev tooling does use `package.json` (Playwright + Vitest for tests) but those never reach end users. The Electron shell was retired in v1.21.0; users who want hardware-accelerated RAG self-host any server that speaks the *External server* lens protocol (`POST /query` with bearer auth, see `dev-docs/lens-endpoint-contract.md`).
 
 - **`BRAND.md`** — brand manual. Name is `getbased`, lowercase, no space
 - **`index.html`** — HTML skeleton (header, sidebar, modals, chat panel, script/CSS includes)
