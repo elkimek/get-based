@@ -88,6 +88,21 @@ export async function runLegacyBrowserScript(page, testPath, options = {}) {
 
       let returnValue = null;
       try {
+        if (!window.fetchWithRetry) {
+          window.fetchWithRetry = async function(url, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+              try {
+                return await fetch(url).then(response => {
+                  if (!response.ok) throw new Error(response.status);
+                  return response.text();
+                });
+              } catch (error) {
+                if (i === retries - 1) throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
+              }
+            }
+            return '';
+          };
+        }
         const response = await fetch(testPath);
         if (!response.ok) throw new Error(`Failed to fetch ${testPath}: ${response.status}`);
         const source = await response.text();
