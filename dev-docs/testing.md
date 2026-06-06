@@ -173,9 +173,9 @@ The script:
 
 ## Coverage status
 
-The old Puppeteer `JSCoverage` reporter was retired when the final standalone browser runner moved to Playwright. `./run-tests.sh` no longer emits function/byte coverage percentages; if `COVERAGE=1` is set, it prints a retirement notice after the suite passes. Browser regression status is currently tracked through the Playwright pass count and the native/Vitest fixture coverage represented by the test inventory.
+`COVERAGE=1 ./run-tests.sh` runs Vitest with V8 coverage enabled, runs the normal Playwright suite, then runs a Playwright Chromium coverage sampler over the high-surface browser fixtures. The sampler merges `tests/.vitest-coverage/coverage-final.json` with its browser coverage, writes `tests/.coverage.json`, and prints separate Playwright, Vitest/Node, and combined global function/byte coverage percentages for app-source JavaScript.
 
-If coverage gating comes back, it should be implemented in the Playwright layer rather than reintroducing a separate Puppeteer runner.
+Coverage is report-only by default. Set `COVERAGE_MIN=90` or another percentage to fail the run when combined global function coverage falls below that floor.
 
 ## Accessibility regression scan
 
