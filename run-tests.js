@@ -7,7 +7,6 @@
 // via Puppeteer's CDP-backed JSCoverage API, writes tests/.coverage.json plus
 // a sorted report. Off by default (~3s slower per run when enabled).
 
-import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -119,6 +118,7 @@ if (TEST_FILES.length === 0) {
 }
 
 (async () => {
+  const { default: puppeteer } = await import('puppeteer');
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox']

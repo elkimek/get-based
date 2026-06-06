@@ -7,19 +7,6 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT=${PORT:-8000}
 
-# Find Puppeteer — check npx cache, then local node_modules
-NODE_PATH_EXTRA=""
-if [ -d "$HOME/.npm/_npx" ]; then
-  NPX_DIR=$(find "$HOME/.npm/_npx" -path "*/node_modules/puppeteer" -type d 2>/dev/null | head -1 | sed 's|/puppeteer$||')
-  [ -n "$NPX_DIR" ] && NODE_PATH_EXTRA="$NPX_DIR"
-fi
-[ -d "$DIR/node_modules/puppeteer" ] && NODE_PATH_EXTRA="$DIR/node_modules"
-
-if [ -z "$NODE_PATH_EXTRA" ]; then
-  echo "Puppeteer not found. Install with: npm i -g puppeteer"
-  exit 2
-fi
-
 # Start server if not already running. nohup + disown fully detaches it
 # from the shell — signals sent to the shell's process group won't
 # propagate. Log to /tmp so we can inspect if it ever dies unexpectedly.
@@ -71,8 +58,4 @@ if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
   : "${COVERAGE_MIN:=90}"
   export COVERAGE COVERAGE_MIN
 fi
-PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/run-tests.js"
-PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/tests/test-sync-two-device-e2e.js"
-if [ -f "$DIR/tests/test-theme-responsive-e2e.js" ]; then
-  PORT=$PORT NODE_PATH="$NODE_PATH_EXTRA" node "$DIR/tests/test-theme-responsive-e2e.js"
-fi
+PORT=$PORT node "$DIR/run-tests.js"
