@@ -2,11 +2,9 @@
 // dna.js — DNA raw data import: parser, storage, context assembly
 // Parses raw DNA files from Ancestry, 23andMe, MyHeritage, FTDNA, Living DNA
 // Runs the heavy parsing in a Web Worker (inline blob) to keep UI responsive
-
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
-
 /** @typedef {Window & typeof globalThis & {
  *   _pendingDNAImport?: any,
  *   _pendingMtDNA?: any,
@@ -14,13 +12,10 @@ import { saveImportedData } from './data.js';
  *   _getState: () => { importedData: any },
  *   _saveAndRefresh: () => Promise<void> | void
  * }} DnaWindow */
-
 const dnaWindow = /** @type {DnaWindow} */ (window);
-
 // ═══════════════════════════════════════════════
 // FORMAT DETECTION
 // ═══════════════════════════════════════════════
-
 // Detect DNA file by checking first few lines of text content
 export function detectDNAFile(text) {
   const first = text.slice(0, 1500);
@@ -58,7 +53,6 @@ export function detectDNAFile(text) {
   if (dataLines.length > 0 && dataLines.length < 200 && dataLines.filter(l => /^\d+[ACGT]$/i.test(l.trim())).length >= dataLines.length * 0.8) return 'mtdna';
   return null;
 }
-
 // Check if a dropped/selected file looks like a DNA raw data file (by name only — sync check)
 export function isDNAFile(file) {
   if (!file) return false;
@@ -74,7 +68,6 @@ export function isDNAFile(file) {
   if (name.includes('dnaera')) return true;
   return false;
 }
-
 // Content-based DNA detection — reads first 1500 bytes (async, needs to see past 23andMe header)
 export async function isDNAFileByContent(file) {
   try {
@@ -82,11 +75,9 @@ export async function isDNAFileByContent(file) {
     return detectDNAFile(header) !== null;
   } catch { return false; }
 }
-
 // ═══════════════════════════════════════════════
 // WEB WORKER PARSER (inline blob)
 // ═══════════════════════════════════════════════
-
 const WORKER_CODE = `
 // DNA parser worker — receives { file, snpIds, format }
 // Posts back { matches, source, totalLines, format }
@@ -183,9 +174,7 @@ self.onmessage = async function(e) {
   self.postMessage({ matches, source: detectedFormat, totalLines: totalData, format: detectedFormat });
 };
 `;
-
 let _workerBlobUrl = null;
-
 function createWorker() {
   if (!_workerBlobUrl) {
     const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
@@ -193,14 +182,11 @@ function createWorker() {
   }
   return new Worker(_workerBlobUrl);
 }
-
 // ═══════════════════════════════════════════════
 // PARSE DNA FILE
 // ═══════════════════════════════════════════════
-
 let _snpTable = null;
 let _snpTablePromise = null;
-
 export const SNP_CATEGORY_LABELS = {
   methylation: 'Methylation',
   iron: 'Iron',

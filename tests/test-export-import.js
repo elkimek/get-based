@@ -48,6 +48,10 @@ return (async function() {
   console.log('%c 2. Client export structure (source) ', 'font-weight:bold;color:#f59e0b');
 
   const exportSrc = await fetch('/js/export.js').then(r => r.text());
+  const reportCoreSrc = await fetch('/js/export-report.js').then(r => r.text());
+  const reportHtmlSrc = await fetch('/js/export-report-html.js').then(r => r.text());
+  const reportBuilderSrc = await fetch('/js/export-report-builder.js').then(r => r.text());
+  const reportSrc = `${reportCoreSrc}\n${reportHtmlSrc}\n${reportBuilderSrc}`;
   const modalSharedSrc = await fetch('/css/modal-shared.css').then(r => r.text());
 
   // exportClientJSON produces v2 client export with profile metadata
@@ -94,86 +98,86 @@ return (async function() {
   assert('Client export has profile tags', exportSrc.includes('tags: p.tags'));
   assert('Client export has profile height', exportSrc.includes('height: p.height'));
   assert('PDF report print footer stays in document flow',
-    !/\.report-footer\s*\{[^}]*position:\s*fixed/i.test(exportSrc),
+    !/\.report-footer\s*\{[^}]*position:\s*fixed/i.test(reportSrc),
     'fixed print footer overlaps report content in generated PDFs');
   assert('PDF report footer avoids splitting across pages',
-    exportSrc.includes('break-inside: avoid; page-break-inside: avoid;'));
+    reportSrc.includes('break-inside: avoid; page-break-inside: avoid;'));
   assert('PDF print mode lets summary flow onto first page',
-    exportSrc.includes('.report-summary, .report-ai-summary, .profile-context { break-inside: auto; page-break-inside: auto; }') &&
-      exportSrc.includes('.report-summary, .report-ai-summary { padding: 12px 14px; margin-bottom: 16px; }'));
+    reportSrc.includes('.report-summary, .report-ai-summary, .profile-context { break-inside: auto; page-break-inside: auto; }') &&
+      reportSrc.includes('.report-summary, .report-ai-summary { padding: 12px 14px; margin-bottom: 16px; }'));
   assert('PDF report header uses human-readable report labels',
-      exportSrc.includes('${esc(profileName)} lab report') &&
-      exportSrc.includes('report-deck') &&
-      exportSrc.includes('Needs Attention') &&
-      exportSrc.includes('Lab Dates') &&
-      exportSrc.includes('Lab Groups') &&
-      exportSrc.includes('DOB / Age') &&
-      exportSrc.includes('Blood pressure') &&
-      exportSrc.includes('Resting pulse') &&
-      !exportSrc.includes('Collections</span>'));
+      reportSrc.includes('${esc(profileName)} lab report') &&
+      reportSrc.includes('report-deck') &&
+      reportSrc.includes('Needs Attention') &&
+      reportSrc.includes('Lab Dates') &&
+      reportSrc.includes('Lab Groups') &&
+      reportSrc.includes('DOB / Age') &&
+      reportSrc.includes('Blood pressure') &&
+      reportSrc.includes('Resting pulse') &&
+      !reportSrc.includes('Collections</span>'));
   assert('PDF report forces light document background',
-    exportSrc.includes(':root { color-scheme: light; }') &&
-      exportSrc.includes('html, body { background: #fff; }'));
+    reportSrc.includes(':root { color-scheme: light; }') &&
+      reportSrc.includes('html, body { background: #fff; }'));
   assert('PDF report surfaces summary before detailed lab tables',
-    exportSrc.indexOf("if (reportIncludes(reportOptions, 'summary'))") <
-      exportSrc.indexOf('// Flagged Results') &&
-      exportSrc.indexOf('// Flagged Results') < exportSrc.indexOf('// Category tables'));
+    reportSrc.indexOf("if (reportIncludes(reportOptions, 'summary'))") <
+      reportSrc.indexOf('// Flagged Results') &&
+      reportSrc.indexOf('// Flagged Results') < reportSrc.indexOf('// Category tables'));
   assert('PDF report date windows do not fall back to all lab dates',
-    exportSrc.includes('getReportCutoffDate(range)') &&
-      exportSrc.includes('return filterDataByDateIndices(rawData, indices, cutoffStr);') &&
-      !exportSrc.includes('if (indices.length === 0) return rawData;'));
+    reportSrc.includes('getReportCutoffDate(range)') &&
+      reportSrc.includes('return filterDataByDateIndices(rawData, indices, cutoffStr);') &&
+      !reportSrc.includes('if (indices.length === 0) return rawData;'));
   assert('PDF report notes filter by selected window, not lab draw dates',
-    exportSrc.includes('getReportCutoffDate(options.dateRange)') &&
-      exportSrc.includes('note.date >= cutoffStr') &&
-      !exportSrc.includes('dateSet.has(note.date)'));
+    reportSrc.includes('getReportCutoffDate(options.dateRange)') &&
+      reportSrc.includes('note.date >= cutoffStr') &&
+      !reportSrc.includes('dateSet.has(note.date)'));
   assert('PDF report formats profile context without raw JSON dumps',
-    exportSrc.includes('formatFamilyHistoryItem') &&
-      exportSrc.includes('humanizeContextKey') &&
-      !exportSrc.includes('JSON.stringify(i)'));
+    reportSrc.includes('formatFamilyHistoryItem') &&
+      reportSrc.includes('humanizeContextKey') &&
+      !reportSrc.includes('JSON.stringify(i)'));
   assert('PDF report gives profile context a designed card layout',
-    exportSrc.includes('class="profile-context"') &&
-      exportSrc.includes('class="context-card"') &&
-      exportSrc.includes('.context-grid') &&
-      exportSrc.includes('.context-facts'));
+    reportSrc.includes('class="profile-context"') &&
+      reportSrc.includes('class="context-card"') &&
+      reportSrc.includes('.context-grid') &&
+      reportSrc.includes('.context-facts'));
   assert('Report builder opens as a first-class modal',
-    exportSrc.includes('export function openReportBuilder') &&
-      exportSrc.includes('report-builder-overlay') &&
-      exportSrc.includes('report-builder-scroll') &&
-      exportSrc.includes("reportBuilderActionAttrs('export')"));
+    reportSrc.includes('export function openReportBuilder') &&
+      reportSrc.includes('report-builder-overlay') &&
+      reportSrc.includes('report-builder-scroll') &&
+      reportSrc.includes("reportBuilderActionAttrs('export')"));
   assert('Report builder supports AI overview generation',
-    exportSrc.includes('export async function generateReportAISummary') &&
-      exportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&
-      exportSrc.includes('Patient picture:') &&
-      exportSrc.includes('Discussion focus:') &&
-      exportSrc.includes('Practitioner overview') &&
-      exportSrc.includes("reportBuilderActionAttrs('generate-ai-summary')") &&
-      exportSrc.includes('report-ai-summary-text') &&
-      exportSrc.includes('aria-label="Editable practitioner overview"') &&
-      !exportSrc.includes('class="report-ai-summary-text" readonly') &&
+    reportSrc.includes('export async function generateReportAISummary') &&
+      reportSrc.includes('REPORT_AI_SUMMARY_PROMPT') &&
+      reportSrc.includes('Patient picture:') &&
+      reportSrc.includes('Discussion focus:') &&
+      reportSrc.includes('Practitioner overview') &&
+      reportSrc.includes("reportBuilderActionAttrs('generate-ai-summary')") &&
+      reportSrc.includes('report-ai-summary-text') &&
+      reportSrc.includes('aria-label="Editable practitioner overview"') &&
+      !reportSrc.includes('class="report-ai-summary-text" readonly') &&
       modalSharedSrc.includes('.report-ai-builder'));
   assert('Report category picker renders text labels without legacy emojis',
-    exportSrc.includes('<span class="report-category-title">${escapeHTML(option.label)}</span>') &&
-      !exportSrc.includes('${escapeHTML(option.icon)} ${escapeHTML(option.label)}'));
+    reportSrc.includes('<span class="report-category-title">${escapeHTML(option.label)}</span>') &&
+      !reportSrc.includes('${escapeHTML(option.icon)} ${escapeHTML(option.label)}'));
   assert('Report builder preview action uses primary modal styling',
-    exportSrc.includes('import-btn import-btn-primary report-builder-preview-btn') &&
+    reportSrc.includes('import-btn import-btn-primary report-builder-preview-btn') &&
       modalSharedSrc.includes('.report-builder-scroll') &&
       modalSharedSrc.includes('.report-builder-actions') &&
       modalSharedSrc.includes('.report-builder-preview-btn'));
   assert('PDF report accepts builder options',
-    exportSrc.includes('export function exportPDFReport(options = {})') &&
-      exportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
-      exportSrc.includes("reportIncludes(reportOptions, 'categories')") &&
-      exportSrc.includes('aiSummary: normalizeReportAISummary(options.aiSummary)'));
+    reportSrc.includes('export function exportPDFReport(options = {})') &&
+      reportSrc.includes('filterReportCategories(data, reportOptions.categoryKeys)') &&
+      reportSrc.includes("reportIncludes(reportOptions, 'categories')") &&
+      reportSrc.includes('aiSummary: normalizeReportAISummary(options.aiSummary)'));
   assert('PDF preview opens without auto-printing',
-    !exportSrc.includes('setTimeout(() => win.print()') &&
-      exportSrc.includes('report-print-btn') &&
-      exportSrc.includes('onclick="window.print()"'));
+    !reportSrc.includes('setTimeout(() => win.print()') &&
+      reportSrc.includes('report-print-btn') &&
+      reportSrc.includes("addEventListener('click', () => win.print())"));
   assert('PDF report initializes genetics before summary render',
-    exportSrc.indexOf('const genetics = state.importedData.genetics;') >= 0 &&
-      exportSrc.indexOf('const genetics = state.importedData.genetics;') < exportSrc.indexOf('body += renderSummarySection();'));
+    reportSrc.indexOf('const genetics = state.importedData.genetics;') >= 0 &&
+      reportSrc.indexOf('const genetics = state.importedData.genetics;') < reportSrc.indexOf('body += renderSummarySection();'));
   assert('PDF lab tables drop all-empty date columns',
-    exportSrc.includes('hasReportValue') &&
-      exportSrc.includes('.filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])))'));
+    reportSrc.includes('hasReportValue') &&
+      reportSrc.includes('.filter(({ index }) => markersWithData.some(([, marker]) => hasReportValue(marker.values?.[index])))'));
 
   // ═══════════════════════════════════════
   // 3. buildAllDataBundle — live call
