@@ -52,5 +52,7 @@ ensure_server
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
 PORT=$PORT npm run test:playwright || exit 1
 if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
-  echo "Coverage reporter retired with the Puppeteer runner; Playwright passed without function/byte percentages."
+  : "${COVERAGE_MIN:=0}"
+  export COVERAGE_MIN
+  PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
 fi
