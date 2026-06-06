@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Theme/responsive E2E smoke: real Chrome, real viewport changes, every shipped theme.
 //
 // This complements the legacy in-page tests. Those cover behavior well, but
@@ -8,7 +7,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer';
+import { test } from '@playwright/test';
+
+test.setTimeout(240_000);
 
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
@@ -65,6 +66,7 @@ async function waitForApp(page) {
     () => typeof window.navigate === 'function'
       && window._labState
       && typeof window.buildSidebar === 'function',
+    null,
     { timeout: 15000 }
   );
 }
@@ -76,11 +78,24 @@ async function seedDemoData(page) {
     const profiles = window.getProfiles?.() || [];
     let profile = profiles.find(p => p.id === profileId);
     if (!profile) {
-      profile = { id: profileId, name: 'Test Profile' };
+      profile = { id: profileId, name: 'E2E Dashboard' };
       profiles.push(profile);
     }
+    profile.name = 'E2E Dashboard';
+    profile.sex = 'male';
+    profile.dob = '1987-11-22';
     profile.location = { country: 'united states', zip: '10001' };
+    profile.tags = Array.from(new Set([...(Array.isArray(profile.tags) ? profile.tags : []), 'demo']));
     await window.saveProfiles?.(profiles);
+    const profileKey = window.profileStorageKey || ((id, suffix) => `labcharts-${id}-${suffix}`);
+    localStorage.setItem(profileKey(profileId, 'onboarded'), 'profile-set');
+    localStorage.setItem(profileKey(profileId, 'emptyTour'), 'completed');
+    localStorage.setItem(profileKey(profileId, 'tour'), 'completed');
+    localStorage.setItem(profileKey(profileId, 'ai-reminder-dismissed'), '1');
+    localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
+    localStorage.setItem(`labcharts-onboard-provider-skipped-${profileId}`, '1');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+    localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION || 'test');
     window.fetchAtmosphere = async () => {
       const now = Date.now();
       return {
@@ -107,6 +122,7 @@ async function seedDemoData(page) {
     window.saveImportedData?.();
     window.buildSidebar?.();
     window.navigate?.('dashboard');
+    window.closeChatPanel?.();
   });
   await page.waitForSelector('#main-content', { timeout: 10000 });
   await delay(200);
@@ -164,20 +180,18 @@ async function seedMobileLightSessions(page) {
 }
 
 async function prepareScenario(page, theme, viewport) {
-  await page.setViewport({
+  await page.setViewportSize({
     width: viewport.width,
     height: viewport.height,
-    isMobile: viewport.mobile,
-    hasTouch: viewport.mobile,
-    deviceScaleFactor: viewport.mobile ? 2 : 1,
   });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 20000 });
+  await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await waitForApp(page);
   await page.evaluate((nextTheme) => {
     window.closeModal?.();
     window.closeSettingsModal?.();
     window.closeChatPanel?.();
     window.closeMobileSidebar?.();
+    document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
     localStorage.removeItem('labcharts-accent-override');
     localStorage.removeItem('labcharts-sunset-mode');
@@ -192,6 +206,11 @@ async function prepareScenario(page, theme, viewport) {
     if (typeof window.setTheme === 'function') window.setTheme(nextTheme);
   }, theme);
   await seedDemoData(page);
+  await page.evaluate(() => {
+    window.endTour?.();
+    window.closeChatPanel?.();
+    document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
+  });
 }
 
 async function captureArtifact(page, theme, viewport) {
@@ -897,10 +916,11 @@ async function checkMobileInteractions(page, theme, viewportName) {
     if (tab === 'light') {
       await page.waitForFunction(
         () => !!document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid'),
+        null,
         { timeout: 2500 }
       ).catch(() => {});
     }
-    result = await page.evaluate((tab, theme) => {
+    result = await page.evaluate(({ tab, theme }) => {
       const active = document.querySelector(`#mobile-bottom-tabs .m-tab[data-tab="${tab}"], .m-tabbar .m-tab[data-tab="${tab}"]`);
       const conditionsGrid = document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid') || document.querySelector('.conditions-now-grid');
       const supportColumns = conditionsGrid
@@ -1002,7 +1022,7 @@ async function checkMobileInteractions(page, theme, viewportName) {
           getComputedStyle(sessionWidget.querySelector('.light-session-device .light-session-kind')).whiteSpace !== 'nowrap',
         supportColumns,
       };
-    }, tab, theme);
+    }, { tab, theme });
     assert(testName(theme, viewportName, `tab ${tab} navigates and stays active`),
       result.active && result.hasBottomTabs && result.visibleMain,
       JSON.stringify(result));
@@ -1033,7 +1053,7 @@ async function checkMobileInteractions(page, theme, viewportName) {
     window.scrollTo(0, 0);
     window.showCategory?.('biochemistry');
   });
-  await page.waitForSelector('.category-header');
+  await page.waitForSelector('.category-header', { timeout: 5000 });
   for (const view of ['table', 'heatmap']) {
     const shellKind = view === 'table' ? 'data' : 'heatmap';
     const wrapperClass = view === 'table' ? 'data-table-wrapper' : 'heatmap-wrapper';
@@ -1043,7 +1063,7 @@ async function checkMobileInteractions(page, theme, viewportName) {
       window.switchView?.(view, 'biochemistry', btn);
       window.scrollTo(0, 0);
     }, view);
-    await page.waitForSelector(`.gb-table-shell-${shellKind} .gb-table-sticky-head`);
+    await page.waitForSelector(`.gb-table-shell-${shellKind} .gb-table-sticky-head`, { state: 'attached', timeout: 5000 });
     await delay(120);
     result = await page.evaluate(({ shellKind, wrapperClass }) => {
       const maxScroll = Math.max(0, document.scrollingElement.scrollHeight - window.innerHeight);
@@ -1098,34 +1118,29 @@ async function checkMobileInteractions(page, theme, viewportName) {
   }
 }
 
-async function run() {
-  const launchOptions = {
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  };
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-  const browser = await puppeteer.launch(launchOptions);
-  const page = await browser.newPage();
-
+async function makeScenarioPage(browser, viewport) {
+  const context = await browser.newContext({
+    viewport: { width: viewport.width, height: viewport.height },
+    isMobile: viewport.mobile,
+    hasTouch: viewport.mobile,
+    deviceScaleFactor: viewport.mobile ? 2 : 1,
+    serviceWorkers: 'block',
+  });
+  const page = await context.newPage();
   page.on('pageerror', err => {
     fail++;
     const msg = `PAGE ERROR ${err.message}`;
     failures.push(msg);
     console.error(`  FAIL ${msg}`);
   });
+  return { context, page };
+}
 
-  try {
-    await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 20000 });
-    await page.setBypassServiceWorker(true);
-    await page.evaluate(async () => {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) await reg.unregister();
-    }).catch(() => {});
-
-    for (const theme of THEMES) {
-      for (const viewport of VIEWPORTS) {
+async function run(browser) {
+  for (const theme of THEMES) {
+    for (const viewport of VIEWPORTS) {
+      const { context, page } = await makeScenarioPage(browser, viewport);
+      try {
         console.log(`\n▶ Theme Responsive E2E ${theme}/${viewport.name}`);
         await prepareScenario(page, theme, viewport);
         const base = await evaluateBaseChecks(page, theme, viewport);
@@ -1138,10 +1153,15 @@ async function run() {
         if (viewport.mobile) await checkMobileInteractions(page, theme, viewport.name);
         else await checkDesktopModals(page, theme, viewport.name);
         await captureArtifact(page, theme, viewport.name);
+      } finally {
+        await context.close();
       }
     }
+  }
 
-    for (const viewport of BOUNDARY_VIEWPORTS) {
+  for (const viewport of BOUNDARY_VIEWPORTS) {
+    const { context, page } = await makeScenarioPage(browser, viewport);
+    try {
       console.log(`\n▶ Theme Responsive E2E dark/${viewport.name}`);
       await prepareScenario(page, 'dark', viewport);
       const result = await page.evaluate((expectedMobile) => ({
@@ -1156,20 +1176,22 @@ async function run() {
       assert(testName('dark', viewport.name, 'breakpoint renders usable content'),
         result.mainText > 40 && (viewport.mobile ? result.mobileShell : !result.mobileShell),
         JSON.stringify(result));
+    } finally {
+      await context.close();
     }
-  } finally {
-    await browser.close();
   }
 
   console.log(`\nTheme Responsive E2E: ${pass} passed, ${fail} failed`);
   if (fail) {
     console.error('\nFailures:');
     for (const item of failures) console.error(`  - ${item}`);
-    process.exit(1);
+    throw new Error(`Theme Responsive E2E failed: ${fail} failed`);
   }
 }
 
-run().catch(err => {
-  console.error(`Theme Responsive E2E crashed: ${err.stack || err.message}`);
-  process.exit(1);
+test('theme responsive E2E', async ({ browser }) => {
+  pass = 0;
+  fail = 0;
+  failures.length = 0;
+  await run(browser);
 });

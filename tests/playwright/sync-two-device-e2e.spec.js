@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Two-device sync E2E regression harness.
 //
 // Uses two isolated browser contexts to model device A and device B. The
@@ -6,7 +5,7 @@
 // same post-merge active-profile refresh path that sync-pull.js calls after a
 // pull, plus the real merge helper for stale-pull protection.
 
-import puppeteer from 'puppeteer';
+import { test } from '@playwright/test';
 
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
@@ -110,13 +109,16 @@ function buildImportedData() {
 }
 
 async function makeContext(browser) {
+  if (typeof browser.newContext === 'function') {
+    return browser.newContext({ serviceWorkers: 'block' });
+  }
   if (typeof browser.createBrowserContext === 'function') {
     return browser.createBrowserContext();
   }
   if (typeof browser.createIncognitoBrowserContext === 'function') {
     return browser.createIncognitoBrowserContext();
   }
-  throw new Error('Puppeteer does not expose isolated browser contexts; refusing to run two-device sync E2E in shared localStorage.');
+  throw new Error('Browser does not expose isolated contexts; refusing to run two-device sync E2E in shared localStorage.');
 }
 
 async function makePage(browser, label, importedData) {
@@ -128,15 +130,14 @@ async function makePage(browser, label, importedData) {
     fail++;
     console.error(`  FAIL ${label} page error -- ${err.message}`);
   });
-  await page.setBypassServiceWorker(true);
-  await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 20000 });
+  await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await page.evaluate(async () => {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
       for (const reg of regs) await reg.unregister();
     } catch (_) {}
   });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 20000 });
+  await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await page.waitForFunction(
     () => window._labState
       && typeof window.saveImportedData === 'function'
@@ -144,6 +145,7 @@ async function makePage(browser, label, importedData) {
       && typeof window.navigate === 'function'
       && typeof window.openSunSessionDetail === 'function'
       && typeof window.openDeviceSessionDetail === 'function',
+    null,
     { timeout: 15000 }
   );
   const helperBust = `syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -161,6 +163,7 @@ async function makePage(browser, label, importedData) {
     () => typeof window.__syncE2EMergePulledImportedData === 'function'
       && typeof window.__syncE2EPersistPulledImportedData === 'function'
       && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function',
+    null,
     { timeout: 15000 }
   );
   await page.evaluate(async ({ profileId, imported }) => {
@@ -229,6 +232,7 @@ async function openMarkerModal(page) {
   await page.waitForFunction(
     () => document.getElementById('modal-overlay')?.classList?.contains('show')
       && document.getElementById('detail-modal')?.classList?.contains('marker-detail-modal'),
+    null,
     { timeout: 5000 }
   );
 }
@@ -329,7 +333,7 @@ async function markerModalSnapshot(page) {
 
 async function navigateLight(page) {
   await page.evaluate(() => window.navigate('light'));
-  await page.waitForFunction(() => window._labState.currentView === 'light', { timeout: 5000 });
+  await page.waitForFunction(() => window._labState.currentView === 'light', null, { timeout: 5000 });
 }
 
 async function openSunSessionModal(page) {
@@ -337,6 +341,7 @@ async function openSunSessionModal(page) {
   await page.evaluate(({ id }) => window.openSunSessionDetail(id), { id: SUN_SESSION_ID });
   await page.waitForFunction(
     () => document.querySelector('.modal-overlay.show .sun-detail-modal[data-session-kind="sun"]'),
+    null,
     { timeout: 5000 }
   );
 }
@@ -346,6 +351,7 @@ async function openDeviceSessionModal(page) {
   await page.evaluate(({ id }) => window.openDeviceSessionDetail(id), { id: DEVICE_SESSION_ID });
   await page.waitForFunction(
     () => document.querySelector('.modal-overlay.show .sun-detail-modal[data-session-kind="device"]'),
+    null,
     { timeout: 5000 }
   );
 }
@@ -390,11 +396,7 @@ async function closeFloatingModals(page) {
   });
 }
 
-async function run() {
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+async function run(browser) {
   const contexts = [];
 
   try {
@@ -481,21 +483,22 @@ async function run() {
   } finally {
     for (const context of contexts) {
       try {
-        if (context && context !== browser.defaultBrowserContext()) await context.close();
+        await context?.close();
       } catch (_) {}
     }
-    await browser.close();
   }
 
   console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
   if (fail) {
     console.error('\nFailures:');
     for (const f of failures) console.error(`  - ${f}`);
-    process.exit(1);
+    throw new Error(`Two-device sync E2E failed: ${fail} failed`);
   }
 }
 
-run().catch(err => {
-  console.error(`\nFAIL two-device sync E2E crashed -- ${err.stack || err.message || err}`);
-  process.exit(1);
+test('two-device sync E2E', { timeout: 90_000 }, async ({ browser }) => {
+  pass = 0;
+  fail = 0;
+  failures.length = 0;
+  await run(browser);
 });
