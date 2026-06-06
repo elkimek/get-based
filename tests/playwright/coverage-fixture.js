@@ -34,6 +34,7 @@ function coverageFile(testInfo, label) {
     `r${testInfo.repeatEachIndex}`,
     process.pid,
     Date.now(),
+    Math.random().toString(36).slice(2, 8),
   ].join('-');
   return path.join(coverageDir, `${title}-${suffix}.json`);
 }

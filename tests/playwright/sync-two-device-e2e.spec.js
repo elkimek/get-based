@@ -403,9 +403,11 @@ async function run(browser, testInfo) {
     console.log('=== Two-Device Sync E2E Tests ===\n');
     const base = buildImportedData();
     const deviceA = await makePage(browser, 'A', clone(base), recordPageError, testInfo);
+    devices.push(deviceA);
+    contexts.push(deviceA.context);
     const deviceB = await makePage(browser, 'B', clone(base), recordPageError, testInfo);
-    devices.push(deviceA, deviceB);
-    contexts.push(deviceA.context, deviceB.context);
+    devices.push(deviceB);
+    contexts.push(deviceB.context);
     const { page: pageA } = deviceA;
     const { page: pageB } = deviceB;
 

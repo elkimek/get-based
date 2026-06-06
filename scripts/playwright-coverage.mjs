@@ -328,17 +328,24 @@ function normalizeFixture(fixture) {
 }
 
 function readPlaywrightCoverageShards() {
-  if (!fs.existsSync(playwrightCoverageDir)) return { entries: [], fixtures: [], files: [] };
+  if (!fs.existsSync(playwrightCoverageDir)) return { entries: [], fixtures: [], files: [], unreadable: [] };
 
   const files = fs.readdirSync(playwrightCoverageDir)
     .filter(file => file.endsWith('.json'))
     .sort();
   const entries = [];
   const fixtures = [];
+  const unreadable = [];
 
   for (const file of files) {
     const shardPath = path.join(playwrightCoverageDir, file);
-    const shard = JSON.parse(fs.readFileSync(shardPath, 'utf8'));
+    let shard;
+    try {
+      shard = JSON.parse(fs.readFileSync(shardPath, 'utf8'));
+    } catch (error) {
+      unreadable.push({ file, error: error.message });
+      continue;
+    }
     const shardEntries = Array.isArray(shard.entries) ? shard.entries : [];
     entries.push(...shardEntries);
     fixtures.push({
@@ -349,7 +356,7 @@ function readPlaywrightCoverageShards() {
     });
   }
 
-  return { entries, fixtures, files };
+  return { entries, fixtures, files, unreadable };
 }
 
 function enforceCoverageGate(report) {
@@ -433,7 +440,13 @@ function writeCoverageReport(entries, fixtures, options = {}) {
 async function main() {
   const suiteCoverage = readPlaywrightCoverageShards();
   if (suiteCoverage.files.length) {
-    console.log(`Reading ${suiteCoverage.files.length} Playwright coverage shard(s) from ${path.relative(repoRoot, playwrightCoverageDir)}`);
+    for (const { file, error } of suiteCoverage.unreadable) {
+      console.warn(`  Warning: skipping unreadable coverage shard ${file}: ${error}`);
+    }
+    if (!suiteCoverage.fixtures.length && requirePlaywrightCoverageShards) {
+      throw new Error(`No readable Playwright coverage shards found in ${playwrightCoverageDir}.`);
+    }
+    console.log(`Reading ${suiteCoverage.fixtures.length} readable Playwright coverage shard(s) from ${path.relative(repoRoot, playwrightCoverageDir)}`);
     const report = writeCoverageReport(suiteCoverage.entries, suiteCoverage.fixtures, {
       playwrightScope: 'Playwright suite coverage shards',
     });
