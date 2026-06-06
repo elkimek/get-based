@@ -82,8 +82,8 @@ const TEST_FILES = [
   // test-custom-lens.js source-inspection + behavioral ported to Vitest
   // (batch 25). Chat-header + KB modal DOM moved to Playwright in
   // tests/playwright/custom-lens.spec.js.
-  'tests/test-export-import.js',
-  'tests/test-ui-flows.js',
+  // test-export-import.js and test-ui-flows.js moved to Playwright in
+  // tests/playwright/legacy-core-flows.spec.js.
   // test-lens-local-worker.js moved to Playwright in
   // tests/playwright/legacy-ui-regressions.spec.js.
   // test-ai-verdict-engine.js stays on the puppeteer runner — the engine has
