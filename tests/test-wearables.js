@@ -9,8 +9,7 @@
 // Run: node tests/test-wearables.js  (or via npm test)
 //
 // DOM-runtime islands (the openWearableDetail Chart.js modal sections + the
-// JSZip script-injection smoke) live in tests/test-wearables-dom.js on the
-// puppeteer runner.
+// JSZip script-injection smoke) live in the Playwright legacy-wearables spec.
 
 import './_node-shim.js';
 
@@ -622,7 +621,7 @@ assert('Staleness hint carries an explanatory tooltip on hover',
 delete window._labState.importedData.wearableSummary;
 
 // Section 9b (Detail Modal — openWearableDetail + Chart.js + live modal
-// DOM) lives in test-wearables-dom.js on the puppeteer runner.
+// DOM) lives in Playwright's legacy-wearables spec.
 
 // ═══════════════════════════════════════
 // 10. Window exports for render handlers

@@ -1,8 +1,8 @@
 // test-wearables-dom.js — DOM-runtime islands extracted from test-wearables.js.
-// Stays in the puppeteer runner: the openWearableDetail() sections build a
-// live #detail-modal with a Chart.js instance, and the JSZip smoke needs a
-// real <script> injection to load /vendor/jszip.min.js. Everything else from
-// test-wearables.js (~549 asserts) runs in Vitest.
+// Runs through Playwright's legacy browser runner: the openWearableDetail()
+// sections build a live #detail-modal with a Chart.js instance, and the JSZip
+// smoke needs a real <script> injection to load /vendor/jszip.min.js.
+// Everything else from test-wearables.js (~549 asserts) runs in Vitest.
 //
 // Four islands:
 //   A. Detail modal — HRV + activity_score: modal-overlay show class,

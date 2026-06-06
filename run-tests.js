@@ -62,10 +62,9 @@ const TEST_FILES = [
   // Worker shim in _node-shim.js; renderGeneticsSection is a pure HTML-string
   // builder.
   // test-wearables.js (~549 asserts) ported to Vitest (batch 32) — IDB CRUD
-  // runs via fake-indexeddb. The openWearableDetail Chart.js modal islands +
-  // JSZip script-injection smoke live in test-wearables-dom.js below.
-  'tests/test-wearables-dom.js',
-  'tests/test-wearables-ui-flows.js',
+  // runs via fake-indexeddb. The openWearableDetail Chart.js modal islands,
+  // JSZip script-injection smoke, and click-driven wearable UI flows moved
+  // to Playwright in tests/playwright/legacy-wearables.spec.js.
   // test-dashboard-knowledge-base.js HTML-string rendering checks ported to
   // Vitest (batch 27). Section 5 (picker open/dismiss — live DOM overlay +
   // click) moved to Playwright in tests/playwright/dashboard-knowledge-base.spec.js.
@@ -94,9 +93,9 @@ const TEST_FILES = [
   // (batch 37). The img.onerror / showConfirmDialog / handleSSELine /
   // cashu _openDB browser-runtime sections moved to Playwright in
   // tests/playwright/coverage-stragglers-dom.spec.js.
-  'tests/test-silhouette-picker.js',
-  'tests/test-silhouette-region-map.js',
-  'tests/test-sun-ui-flow.js',
+  // test-silhouette-picker.js, test-silhouette-region-map.js, and
+  // test-sun-ui-flow.js moved to Playwright in
+  // tests/playwright/legacy-light-sun.spec.js.
   'tests/test-audit-fixes.js',
   // test-family-history.js source-inspection + getConditionsSummary ported
   // to Vitest (batch 36). DOM-runtime sections moved to Playwright in
