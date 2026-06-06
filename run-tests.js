@@ -20,7 +20,8 @@ const TEST_FILES = [
   // checks ported to Vitest (batch 29). DOM-runtime sections (4 / 10 / 12 —
   // renderChatMessages/DOMParser, navigator.clipboard, context-toggle live
   // DOM) moved to Playwright in tests/playwright/chat-actions-dom.spec.js.
-  'tests/test-mobile.js',
+  // test-mobile.js moved to Playwright in
+  // tests/playwright/legacy-ui-regressions.spec.js.
   // test-openrouter.js source-inspection + behavioral ported to Vitest
   // (batch 21). Settings modal DOM moved to Playwright in
   // tests/playwright/openrouter-settings.spec.js.
@@ -71,7 +72,8 @@ const TEST_FILES = [
   // test-dashboard-data-protection.js HTML-string rendering checks ported to
   // Vitest (batch 28). Section 6 (picker open/dismiss — live DOM overlay +
   // click) moved to Playwright in tests/playwright/dashboard-data-protection.spec.js.
-  'tests/test-chat-panel-ux.js',
+  // test-chat-panel-ux.js moved to Playwright in
+  // tests/playwright/legacy-ui-regressions.spec.js.
   // test-chat-empty-state-dom.js moved to Playwright in
   // tests/playwright/chat-empty-state.spec.js.
   // test-custom-api.js source-inspection + behavioral ported to Vitest
@@ -82,7 +84,8 @@ const TEST_FILES = [
   // tests/playwright/custom-lens.spec.js.
   'tests/test-export-import.js',
   'tests/test-ui-flows.js',
-  'tests/test-lens-local-worker.js',
+  // test-lens-local-worker.js moved to Playwright in
+  // tests/playwright/legacy-ui-regressions.spec.js.
   // test-ai-verdict-engine.js stays on the puppeteer runner — the engine has
   // process-global concurrency-slot + inflight state shared with the
   // per-feature AI-verdict tests already in Vitest, which leaves its slots
@@ -96,7 +99,8 @@ const TEST_FILES = [
   // test-silhouette-picker.js, test-silhouette-region-map.js, and
   // test-sun-ui-flow.js moved to Playwright in
   // tests/playwright/legacy-light-sun.spec.js.
-  'tests/test-audit-fixes.js',
+  // test-audit-fixes.js moved to Playwright in
+  // tests/playwright/legacy-ui-regressions.spec.js.
   // test-family-history.js source-inspection + getConditionsSummary ported
   // to Vitest (batch 36). DOM-runtime sections moved to Playwright in
   // tests/playwright/family-history-dom.spec.js.
