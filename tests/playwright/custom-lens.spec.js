@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('chat lens indicator hides when no lens is configured', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

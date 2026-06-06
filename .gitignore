@@ -12,6 +12,7 @@ release/
 # Coverage output from `COVERAGE=1 ./run-tests.sh` — regenerated on every run
 tests/.coverage.json
 tests/.vitest-coverage/
+tests/.playwright-coverage/
 labcharts-*.json
 test-*.json
 node_modules/

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('guided tour DOM creates, navigates, layers, and restores the empty tour overlay', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

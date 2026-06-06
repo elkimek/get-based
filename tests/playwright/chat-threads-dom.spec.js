@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('chat thread rail and delegated thread actions work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

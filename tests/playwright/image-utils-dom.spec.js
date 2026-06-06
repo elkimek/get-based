@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('chat image attachment DOM and CSS are loaded', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

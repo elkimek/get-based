@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test } from './coverage-fixture.js';
 import { runBrowserScript } from './browser-script-runner.js';
 
 const UI_REGRESSION_BROWSER_TESTS = [

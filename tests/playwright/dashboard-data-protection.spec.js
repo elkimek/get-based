@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('data protection picker opens and dismisses', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

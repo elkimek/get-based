@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('coverage straggler browser rails reject and clean up correctly', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

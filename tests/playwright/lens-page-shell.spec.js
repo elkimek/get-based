@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 async function prepareApp(page) {
   await page.addInitScript(() => {

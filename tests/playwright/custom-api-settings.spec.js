@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('custom API provider panel renders from Settings AI', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

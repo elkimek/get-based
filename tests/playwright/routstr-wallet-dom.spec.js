@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

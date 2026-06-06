@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Playwright coverage sampler for Get Based.
+// Playwright coverage reporter for Get Based.
 //
 // This intentionally runs after the normal test suite when COVERAGE=1 is set.
-// It samples high-surface browser-script fixtures under Chromium coverage and
-// reports loaded app-source JS function and byte coverage.
+// It prefers coverage shards emitted by the Playwright suite and falls back to
+// high-surface browser-script fixtures when no suite shards are available.
 
 import fs from 'fs';
 import path from 'path';
@@ -16,10 +16,14 @@ const PORT = process.env.PORT || '8000';
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 const jsonPath = path.join(repoRoot, 'tests', '.coverage.json');
+const playwrightCoverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
+  path.join(repoRoot, 'tests', '.playwright-coverage');
 const vitestCoveragePath = process.env.VITEST_COVERAGE_JSON ||
   path.join(repoRoot, 'tests', '.vitest-coverage', 'coverage-final.json');
 const includeVitestCoverage = process.env.INCLUDE_VITEST_COVERAGE === '1' ||
   process.env.INCLUDE_VITEST_COVERAGE === 'true';
+const requirePlaywrightCoverageShards = process.env.REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS === '1' ||
+  process.env.REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS === 'true';
 const sourceCache = new Map();
 
 const COVERAGE_FIXTURES = [
@@ -318,7 +322,51 @@ function printableTotals(label, report) {
   ];
 }
 
-function writeCoverageReport(entries, fixtures) {
+function normalizeFixture(fixture) {
+  if (Array.isArray(fixture)) return { name: fixture[0], path: fixture[1] };
+  return fixture;
+}
+
+function readPlaywrightCoverageShards() {
+  if (!fs.existsSync(playwrightCoverageDir)) return { entries: [], fixtures: [], files: [], unreadable: [] };
+
+  const files = fs.readdirSync(playwrightCoverageDir)
+    .filter(file => file.endsWith('.json'))
+    .sort();
+  const entries = [];
+  const fixtures = [];
+  const unreadable = [];
+
+  for (const file of files) {
+    const shardPath = path.join(playwrightCoverageDir, file);
+    let shard;
+    try {
+      shard = JSON.parse(fs.readFileSync(shardPath, 'utf8'));
+    } catch (error) {
+      unreadable.push({ file, error: error.message });
+      continue;
+    }
+    const shardEntries = Array.isArray(shard.entries) ? shard.entries : [];
+    entries.push(...shardEntries);
+    fixtures.push({
+      name: shard.titlePath?.slice(-1)[0] || shard.title || path.basename(file, '.json'),
+      path: shard.file || path.relative(repoRoot, shardPath).split(path.sep).join('/'),
+      label: shard.label || null,
+      entryCount: shardEntries.length,
+    });
+  }
+
+  return { entries, fixtures, files, unreadable };
+}
+
+function enforceCoverageGate(report) {
+  const minPct = Number.parseFloat(process.env.COVERAGE_MIN || '0');
+  if (Number.isFinite(minPct) && minPct > 0 && report.globalFnPct < minPct) {
+    throw new Error(`Coverage gate failed: function coverage ${report.globalFnPct.toFixed(2)}% is below COVERAGE_MIN=${minPct}.`);
+  }
+}
+
+function writeCoverageReport(entries, fixtures, options = {}) {
   const playwrightModel = new Map();
   addBrowserEntriesToModel(playwrightModel, entries);
   const playwright = summarizeCoverageModel(playwrightModel);
@@ -341,12 +389,12 @@ function writeCoverageReport(entries, fixtures) {
   fs.writeFileSync(jsonPath, JSON.stringify({
     runner,
     scope: vitest
-      ? 'app-source JavaScript covered by Vitest/Node V8 coverage plus sampled Playwright Chromium fixtures'
-      : 'loaded app-source JavaScript from sampled Playwright Chromium fixtures',
+      ? `app-source JavaScript covered by Vitest/Node V8 coverage plus ${options.playwrightScope || 'sampled Playwright Chromium fixtures'}`
+      : `loaded app-source JavaScript from ${options.playwrightScope || 'sampled Playwright Chromium fixtures'}`,
     globalPct: combined.globalPct,
     globalFnPct: combined.globalFnPct,
     totals: combined.totals,
-    fixtures: fixtures.map(([name, testPath]) => ({ name, path: testPath })),
+    fixtures: fixtures.map(normalizeFixture),
     rows: combined.rows,
     reports: {
       combined,
@@ -390,6 +438,26 @@ function writeCoverageReport(entries, fixtures) {
 }
 
 async function main() {
+  const suiteCoverage = readPlaywrightCoverageShards();
+  if (suiteCoverage.files.length) {
+    for (const { file, error } of suiteCoverage.unreadable) {
+      console.warn(`  Warning: skipping unreadable coverage shard ${file}: ${error}`);
+    }
+    if (!suiteCoverage.fixtures.length && requirePlaywrightCoverageShards) {
+      throw new Error(`No readable Playwright coverage shards found in ${playwrightCoverageDir}.`);
+    }
+    console.log(`Reading ${suiteCoverage.fixtures.length} readable Playwright coverage shard(s) from ${path.relative(repoRoot, playwrightCoverageDir)}`);
+    const report = writeCoverageReport(suiteCoverage.entries, suiteCoverage.fixtures, {
+      playwrightScope: 'Playwright suite coverage shards',
+    });
+    enforceCoverageGate(report);
+    return;
+  }
+
+  if (requirePlaywrightCoverageShards) {
+    throw new Error(`No Playwright coverage shards found in ${playwrightCoverageDir}.`);
+  }
+
   let browser = null;
   try {
     browser = await chromium.launch({
@@ -412,13 +480,12 @@ async function main() {
       }
     }
 
-    const report = writeCoverageReport(entries, COVERAGE_FIXTURES);
+    const report = writeCoverageReport(entries, COVERAGE_FIXTURES, {
+      playwrightScope: 'sampled Playwright Chromium fixtures',
+    });
     if (firstFailure) throw firstFailure;
 
-    const minPct = Number.parseFloat(process.env.COVERAGE_MIN || '0');
-    if (Number.isFinite(minPct) && minPct > 0 && report.globalFnPct < minPct) {
-      throw new Error(`Coverage gate failed: function coverage ${report.globalFnPct.toFixed(2)}% is below COVERAGE_MIN=${minPct}.`);
-    }
+    enforceCoverageGate(report);
   } finally {
     if (browser) await browser.close().catch(() => {});
   }

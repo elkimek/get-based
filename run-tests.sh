@@ -52,6 +52,7 @@ trap cleanup EXIT
 # The legacy node-side files are wrapped by tests/_vitest-legacy.test.js.
 if [ "$COVERAGE_ENABLED" = "1" ]; then
   rm -rf "$DIR/tests/.vitest-coverage"
+  rm -rf "$DIR/tests/.playwright-coverage"
   npm test -- --coverage || exit 1
 else
   npm test || exit 1
@@ -59,9 +60,13 @@ fi
 ensure_server
 # HTTP-reliant test before the browser suite (needs the dev server up).
 PORT=$PORT node "$DIR/tests/test-dev-server-origin.js" || exit 1
-PORT=$PORT npm run test:playwright || exit 1
+if [ "$COVERAGE_ENABLED" = "1" ]; then
+  PLAYWRIGHT_SUITE_COVERAGE=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT npm run test:playwright || exit 1
+else
+  PORT=$PORT npm run test:playwright || exit 1
+fi
 if [ "$COVERAGE_ENABLED" = "1" ]; then
   : "${COVERAGE_MIN:=0}"
   export COVERAGE_MIN
-  INCLUDE_VITEST_COVERAGE=1 PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
+  INCLUDE_VITEST_COVERAGE=1 REQUIRE_PLAYWRIGHT_COVERAGE_SHARDS=1 PLAYWRIGHT_COVERAGE_DIR="$DIR/tests/.playwright-coverage" PORT=$PORT node "$DIR/scripts/playwright-coverage.mjs" || exit 1
 fi

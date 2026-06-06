@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('chat action bars, clipboard, and context toggles work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

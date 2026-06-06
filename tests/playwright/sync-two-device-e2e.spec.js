@@ -5,7 +5,7 @@
 // same post-merge active-profile refresh path that sync-pull.js calls after a
 // pull, plus the real merge helper for stale-pull protection.
 
-import { test } from '@playwright/test';
+import { startPageCoverage, stopPageCoverage, test } from './coverage-fixture.js';
 
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
@@ -96,66 +96,73 @@ async function makeContext(browser) {
   return browser.newContext({ serviceWorkers: 'block' });
 }
 
-async function makePage(browser, label, importedData, recordPageError) {
+async function makePage(browser, label, importedData, recordPageError, testInfo) {
   const context = await makeContext(browser);
   const page = await context.newPage();
-  page.setDefaultTimeout(15000);
-  page.on('pageerror', err => {
-    recordPageError(label, err);
-  });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
-  await page.evaluate(async () => {
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const reg of regs) await reg.unregister();
-    } catch (_) {}
-  });
-  await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
-  await page.waitForFunction(
-    () => window._labState
-      && typeof window.saveImportedData === 'function'
-      && typeof window.showDetailModal === 'function'
-      && typeof window.navigate === 'function'
-      && typeof window.openSunSessionDetail === 'function'
-      && typeof window.openDeviceSessionDetail === 'function',
-    null,
-    { timeout: 15000 }
-  );
-  const helperBust = `syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  await page.addScriptTag({
-    type: 'module',
-    content: `
-      import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
-      import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
-      window.__syncE2EMergePulledImportedData = mergePulledImportedData;
-      window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
-      window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
-    `,
-  });
-  await page.waitForFunction(
-    () => typeof window.__syncE2EMergePulledImportedData === 'function'
-      && typeof window.__syncE2EPersistPulledImportedData === 'function'
-      && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function',
-    null,
-    { timeout: 15000 }
-  );
-  await page.evaluate(async ({ profileId, imported }) => {
-    localStorage.clear();
-    sessionStorage.clear();
-    localStorage.setItem('labcharts-active-profile', profileId);
-    window._labState.currentProfile = profileId;
-    window._labState.currentView = 'dashboard';
-    window._labState.importedData = JSON.parse(JSON.stringify(imported));
-    window._labState.markerRegistry = {};
-    window._labState._activeDetailMarkerId = null;
-    document.querySelectorAll('.modal-overlay').forEach(el => {
-      if (el.id) el.classList.remove('show');
-      else el.remove();
+  try {
+    page.setDefaultTimeout(15000);
+    page.on('pageerror', err => {
+      recordPageError(label, err);
     });
-    await window.saveImportedData({ immediate: true });
-    window.navigate('dashboard');
-  }, { profileId: PROFILE_ID, imported: importedData });
-  return { context, page };
+    await startPageCoverage(page);
+    await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
+    await page.evaluate(async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) await reg.unregister();
+      } catch (_) {}
+    });
+    await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
+    await page.waitForFunction(
+      () => window._labState
+        && typeof window.saveImportedData === 'function'
+        && typeof window.showDetailModal === 'function'
+        && typeof window.navigate === 'function'
+        && typeof window.openSunSessionDetail === 'function'
+        && typeof window.openDeviceSessionDetail === 'function',
+      null,
+      { timeout: 15000 }
+    );
+    const helperBust = `syncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    await page.addScriptTag({
+      type: 'module',
+      content: `
+        import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
+        import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
+        window.__syncE2EMergePulledImportedData = mergePulledImportedData;
+        window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
+        window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
+      `,
+    });
+    await page.waitForFunction(
+      () => typeof window.__syncE2EMergePulledImportedData === 'function'
+        && typeof window.__syncE2EPersistPulledImportedData === 'function'
+        && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function',
+      null,
+      { timeout: 15000 }
+    );
+    await page.evaluate(async ({ profileId, imported }) => {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem('labcharts-active-profile', profileId);
+      window._labState.currentProfile = profileId;
+      window._labState.currentView = 'dashboard';
+      window._labState.importedData = JSON.parse(JSON.stringify(imported));
+      window._labState.markerRegistry = {};
+      window._labState._activeDetailMarkerId = null;
+      document.querySelectorAll('.modal-overlay').forEach(el => {
+        if (el.id) el.classList.remove('show');
+        else el.remove();
+      });
+      await window.saveImportedData({ immediate: true });
+      window.navigate('dashboard');
+    }, { profileId: PROFILE_ID, imported: importedData });
+    return { context, page, label };
+  } catch (error) {
+    await stopPageCoverage(page, testInfo, `device-${label.toLowerCase()}`).catch(() => {});
+    await context.close().catch(() => {});
+    throw error;
+  }
 }
 
 async function getImportedData(page) {
@@ -369,11 +376,12 @@ async function closeFloatingModals(page) {
   });
 }
 
-async function run(browser) {
+async function run(browser, testInfo) {
   let pass = 0;
   let fail = 0;
   const failures = [];
   const contexts = [];
+  const devices = [];
   function assert(name, condition, detail = '') {
     if (condition) {
       pass++;
@@ -394,9 +402,12 @@ async function run(browser) {
   try {
     console.log('=== Two-Device Sync E2E Tests ===\n');
     const base = buildImportedData();
-    const deviceA = await makePage(browser, 'A', clone(base), recordPageError);
-    const deviceB = await makePage(browser, 'B', clone(base), recordPageError);
-    contexts.push(deviceA.context, deviceB.context);
+    const deviceA = await makePage(browser, 'A', clone(base), recordPageError, testInfo);
+    devices.push(deviceA);
+    contexts.push(deviceA.context);
+    const deviceB = await makePage(browser, 'B', clone(base), recordPageError, testInfo);
+    devices.push(deviceB);
+    contexts.push(deviceB.context);
     const { page: pageA } = deviceA;
     const { page: pageB } = deviceB;
 
@@ -473,6 +484,9 @@ async function run(browser) {
       deviceSnap.open && deviceSnap.durationMin === 18 && deviceSnap.text.includes('18 min'),
       JSON.stringify(deviceSnap));
   } finally {
+    for (const device of devices) {
+      await stopPageCoverage(device.page, testInfo, `device-${device.label.toLowerCase()}`).catch(() => {});
+    }
     for (const context of contexts) {
       try {
         await context?.close();
@@ -490,5 +504,5 @@ async function run(browser) {
 
 test('two-device sync E2E', async ({ browser }, testInfo) => {
   testInfo.setTimeout(90_000);
-  await run(browser);
+  await run(browser, testInfo);
 });
