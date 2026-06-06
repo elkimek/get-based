@@ -14,7 +14,12 @@ getbased is deployed on Vercel. The browser app is shipped as static files, and 
       "headers": { "...CSP and security headers..." },
       "continue": true
     },
+    { "src": "^/guide/(.*)", "status": 301, "headers": { "Location": "/docs/guide/$1" } },
     { "src": "^/docs/guide/getting-started(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/quickstart" } },
+    { "src": "^/docs/guide/charts(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/biomarker-charts" } },
+    { "src": "^/docs/guide/folder-backup(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/backup" } },
+    { "src": "^/docs/guide/json-export-import(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/export-import" } },
+    { "src": "^/docs/guide/ai-providers(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/ai-providers" } },
     { "src": "^/docs/guide/([^.]+?)(?:\\.html)?/?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/guides/$1" } },
     { "src": "^/docs(?:/.*)?$", "status": 301, "headers": { "Location": "https://docs.getbased.health/" } },
     { "src": "^/app/?$", "dest": "/index.html" }
@@ -26,8 +31,14 @@ getbased is deployed on Vercel. The browser app is shipped as static files, and 
 |---|---|
 | `/` | `index.html` — the application (served by Vercel filesystem default) |
 | `/api/share` | `api/share.js` — encrypted profile share envelope storage |
+| `/guide/*` | 301 redirect to the equivalent old `/docs/guide/*` compatibility path |
 | `/docs` | 301 redirect to `https://docs.getbased.health/` |
-| `/docs/guide/*` | 301 redirect to the Mintlify guide path, with explicit redirects for renamed pages |
+| `/docs/guide/getting-started` | 301 redirect to `https://docs.getbased.health/quickstart` |
+| `/docs/guide/charts` | 301 redirect to `https://docs.getbased.health/guides/biomarker-charts` |
+| `/docs/guide/folder-backup` | 301 redirect to `https://docs.getbased.health/guides/backup` |
+| `/docs/guide/json-export-import` | 301 redirect to `https://docs.getbased.health/guides/export-import` |
+| `/docs/guide/ai-providers` | 301 redirect to `https://docs.getbased.health/ai-providers` |
+| `/docs/guide/*` | 301 redirect to the equivalent Mintlify guide path |
 | `/app` | `index.html` — app route used when the landing-page project owns `/` |
 | Everything else | Served as-is from the filesystem (JS, CSS, images, manifest) |
 
