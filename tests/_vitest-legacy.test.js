@@ -196,13 +196,10 @@ const LEGACY_TESTS = [
   // cashu-wallet (wallet + Nostr discovery + BIP-39 + SSRF wiring; cashu-ts
   // IIFE loaded via indirect eval, bip39-minimal self-assigns).
   //
-  // test-ai-verdict-engine.js deliberately stays on the puppeteer runner:
-  // the engine has process-global concurrency-slot + inflight state that the
-  // per-feature AI-verdict tests (test-sun-ai-analysis et al., already in
-  // Vitest) share. Ported in isolation it's 35/35 green, but in the legacy
-  // runner's shared worker the earlier tests leave the engine's global slots
-  // dirty → hangs. Puppeteer's real async timing releases them; Node's
-  // doesn't. Left puppeteer-side until the engine exposes a state reset.
+  // test-ai-verdict-engine.js runs in Playwright's isolated browser context
+  // (tests/playwright/legacy-ai-verdict-engine.spec.js). It stays out of
+  // this shared Vitest worker because the engine owns global concurrency-slot
+  // and inflight state also touched by the per-feature AI-verdict tests.
   './test-crypto.js',
   './test-cashu-wallet.js',
   // Batch 35 — DNA adapter + Illumina/valence. parseDNAFile spins a

@@ -86,12 +86,8 @@ const TEST_FILES = [
   // tests/playwright/legacy-core-flows.spec.js.
   // test-lens-local-worker.js moved to Playwright in
   // tests/playwright/legacy-ui-regressions.spec.js.
-  // test-ai-verdict-engine.js stays on the puppeteer runner — the engine has
-  // process-global concurrency-slot + inflight state shared with the
-  // per-feature AI-verdict tests already in Vitest, which leaves its slots
-  // dirty in the legacy worker. See tests/_vitest-legacy.test.js for the
-  // full rationale.
-  'tests/test-ai-verdict-engine.js',
+  // test-ai-verdict-engine.js moved to Playwright in
+  // tests/playwright/legacy-ai-verdict-engine.spec.js.
   // test-coverage-stragglers.js stub-based probes ported to Vitest
   // (batch 37). The img.onerror / showConfirmDialog / handleSSELine /
   // cashu _openDB browser-runtime sections moved to Playwright in
@@ -114,6 +110,13 @@ const TEST_FILES = [
 ];
 
 const PORT = process.env.PORT || 8000;
+const COVERAGE = process.env.COVERAGE === '1' || process.env.COVERAGE === 'true';
+
+if (TEST_FILES.length === 0) {
+  console.log('No legacy Puppeteer test files remain; browser regressions run under Playwright.');
+  if (COVERAGE) writeRetiredCoverageReport();
+  process.exit(0);
+}
 
 (async () => {
   const browser = await puppeteer.launch({
@@ -193,7 +196,6 @@ const PORT = process.env.PORT || 8000;
   // Reload clean (no SW interference)
   await page.goto(`http://localhost:${PORT}/app`, { waitUntil: 'networkidle2', timeout: 15000 });
 
-  const COVERAGE = process.env.COVERAGE === '1' || process.env.COVERAGE === 'true';
   if (COVERAGE) {
     // resetOnNavigation: false keeps the accumulator alive across the page
     // reloads we do on context destruction below — otherwise we'd lose
@@ -288,6 +290,29 @@ const PORT = process.env.PORT || 8000;
 
   process.exit((fails.length > 0 || coverageGateFailure) ? 1 : 0);
 })();
+
+function writeRetiredCoverageReport() {
+  const outDir = path.dirname(fileURLToPath(import.meta.url));
+  const jsonPath = path.join(outDir, 'tests', '.coverage.json');
+  const generatedAt = new Date().toISOString();
+  fs.writeFileSync(jsonPath, JSON.stringify({
+    retired: true,
+    reason: 'No legacy Puppeteer test files remain; browser regressions run under Playwright.',
+    globalPct: null,
+    globalFnPct: null,
+    totals: { total: 0, covered: 0, fnTotal: 0, fnCalled: 0 },
+    rows: [],
+    generatedAt,
+  }, null, 2));
+
+  console.log('\n' + '='.repeat(88));
+  console.log('\x1b[35m\x1b[1m  COVERAGE REPORT (legacy Puppeteer runner retired)\x1b[0m');
+  console.log('='.repeat(88));
+  console.log('  No legacy Puppeteer test files remain. Use Playwright results for browser coverage.');
+  console.log('  GLOBAL FUNCTIONS: n/a (0 / 0)');
+  console.log('  GLOBAL BYTES:     n/a (0 / 0)');
+  console.log('='.repeat(88));
+}
 
 // Merge overlapping/adjacent [start, end) ranges and return their total length.
 function unionLength(ranges) {
