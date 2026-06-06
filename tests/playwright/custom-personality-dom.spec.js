@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('custom personality DOM renders editor controls and delegated discuss action', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

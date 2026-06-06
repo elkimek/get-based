@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('family history DOM handlers round-trip and mutate entries', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

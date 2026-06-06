@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 const SHOW_CLASS_TOKEN = /(^|\s)show(\s|$)/;
 

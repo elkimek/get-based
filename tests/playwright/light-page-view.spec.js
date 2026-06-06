@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('Light page view delegates session, link, channel, and prompt actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

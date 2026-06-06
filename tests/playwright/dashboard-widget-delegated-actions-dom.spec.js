@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('dashboard widget delegated actions cover organize, picker, biometrics, and body actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });

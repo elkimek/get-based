@@ -1,7 +1,8 @@
-import { test } from '@playwright/test';
+import { test } from './coverage-fixture.js';
 import { runBrowserScript } from './browser-script-runner.js';
 
-test('axe accessibility browser scan', { timeout: 120_000 }, async ({ page }) => {
+test('axe accessibility browser scan', async ({ page }, testInfo) => {
+  testInfo.setTimeout(120_000);
   const rebaseline = process.env.A11Y_REBASELINE === '1' || process.env.A11Y_REBASELINE === 'true';
   if (rebaseline) {
     await page.addInitScript(() => {

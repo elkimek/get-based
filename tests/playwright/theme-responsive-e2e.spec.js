@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { test } from '@playwright/test';
+import { startPageCoverage, stopPageCoverage, test } from './coverage-fixture.js';
 
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
@@ -1100,7 +1100,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   }
 }
 
-async function makeScenarioPage(browser, viewport, recordFailure) {
+async function makeScenarioPage(browser, viewport, recordFailure, testInfo, label) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     isMobile: viewport.mobile,
@@ -1109,13 +1109,20 @@ async function makeScenarioPage(browser, viewport, recordFailure) {
     serviceWorkers: 'block',
   });
   const page = await context.newPage();
-  page.on('pageerror', err => {
-    recordFailure(`PAGE ERROR ${err.message}`);
-  });
-  return { context, page };
+  try {
+    page.on('pageerror', err => {
+      recordFailure(`PAGE ERROR ${err.message}`);
+    });
+    await startPageCoverage(page);
+    return { context, page, label };
+  } catch (error) {
+    await stopPageCoverage(page, testInfo, label).catch(() => {});
+    await context.close().catch(() => {});
+    throw error;
+  }
 }
 
-async function run(browser) {
+async function run(browser, testInfo) {
   let pass = 0;
   let fail = 0;
   const failures = [];
@@ -1138,7 +1145,8 @@ async function run(browser) {
 
   for (const theme of THEMES) {
     for (const viewport of VIEWPORTS) {
-      const { context, page } = await makeScenarioPage(browser, viewport, recordFailure);
+      const label = `${theme}-${viewport.name}`;
+      const { context, page } = await makeScenarioPage(browser, viewport, recordFailure, testInfo, label);
       try {
         console.log(`\n▶ Theme Responsive E2E ${theme}/${viewport.name}`);
         await prepareScenario(page, theme, viewport);
@@ -1153,13 +1161,15 @@ async function run(browser) {
         else await checkDesktopModals(page, theme, viewport.name, assert);
         await captureArtifact(page, theme, viewport.name, assert);
       } finally {
+        await stopPageCoverage(page, testInfo, label).catch(() => {});
         await context.close();
       }
     }
   }
 
   for (const viewport of BOUNDARY_VIEWPORTS) {
-    const { context, page } = await makeScenarioPage(browser, viewport, recordFailure);
+    const label = `dark-${viewport.name}`;
+    const { context, page } = await makeScenarioPage(browser, viewport, recordFailure, testInfo, label);
     try {
       console.log(`\n▶ Theme Responsive E2E dark/${viewport.name}`);
       await prepareScenario(page, 'dark', viewport);
@@ -1176,6 +1186,7 @@ async function run(browser) {
         result.mainText > 40 && (viewport.mobile ? result.mobileShell : !result.mobileShell),
         JSON.stringify(result));
     } finally {
+      await stopPageCoverage(page, testInfo, label).catch(() => {});
       await context.close();
     }
   }
@@ -1190,5 +1201,5 @@ async function run(browser) {
 
 test('theme responsive E2E', async ({ browser }, testInfo) => {
   testInfo.setTimeout(240_000);
-  await run(browser);
+  await run(browser, testInfo);
 });

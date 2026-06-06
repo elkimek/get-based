@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture.js';
 
 test('audit runtime guards no-op on adversarial marker ids', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
