@@ -1,0 +1,223 @@
+import { expect, test } from '@playwright/test';
+
+test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() =>
+    typeof window.openSettingsModal === 'function'
+      && typeof window.switchAIProvider === 'function'
+      && typeof window.connectRoutstrNode === 'function'
+      && typeof window.doRoutstrNodeDeposit === 'function'
+      && typeof window.doRoutstrNodeWithdraw === 'function'
+  );
+
+  const results = await page.evaluate(async () => {
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+      },
+    });
+
+    const nodeUrl = 'https://routstr-wallet-dom.test';
+    const globalNames = [
+      'fetch',
+      'cashuGetBalance',
+      'cashuGetMintUrl',
+      'cashuSetMintUrl',
+      'cashuDepositToNode',
+      'cashuRecoverPendingDeposit',
+      'cashuImportWallet',
+      'cashuClearPendingDeposit',
+      'cashuGetWalletMnemonic',
+      'cashuRestoreWalletFromSeed',
+      'cashuHasWalletSeed',
+      'cashuGenerateWalletSeed',
+    ];
+    const oldGlobals = {};
+    for (const name of globalNames) oldGlobals[name] = window[name];
+
+    const storageKeys = [
+      'labcharts-ai-provider',
+      'labcharts-routstr-key',
+      'labcharts-routstr-node',
+      'labcharts-routstr-model',
+      'labcharts-routstr-models',
+      'labcharts-routstr-pricing',
+      'labcharts-routstr-vision-models',
+      'labcharts-cashu-wallet-mint',
+    ];
+    const oldStorage = {};
+    for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
+
+    let currentMint = 'https://mint-old.example';
+    let setMintUrl = null;
+    let depositArgs = null;
+    let recoverCalled = false;
+    let refundCalled = false;
+    let importedToken = null;
+    let restoredMnemonic = null;
+
+    try {
+      window.fetch = async function(url, opts = {}) {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href.startsWith(nodeUrl)) {
+          if (href.endsWith('/v1/info')) return jsonResponse({ nuts: {}, mints: ['https://mint-required.example'] });
+          if (href.endsWith('/v1/models')) {
+            return jsonResponse({
+              data: [{
+                id: 'claude-sonnet-4.6',
+                name: 'Claude Sonnet 4.6',
+                enabled: true,
+                pricing: { prompt: '0.000001', completion: '0.000003' },
+              }],
+            });
+          }
+          if (href.endsWith('/v1/balance/info')) return jsonResponse({ balance: 777000, total_requests: 0, total_spent: 0 });
+          if (href.endsWith('/v1/wallet/refund')) {
+            refundCalled = opts.method === 'POST' && opts.headers?.Authorization === 'Bearer sk-routstr-dom';
+            return jsonResponse({ cashu_token: 'cashuArefundtoken' });
+          }
+          return jsonResponse({}, 404);
+        }
+        return oldGlobals.fetch.call(window, url, opts);
+      };
+
+      window.cashuGetBalance = async () => 1500;
+      window.cashuGetMintUrl = async () => currentMint;
+      window.cashuSetMintUrl = async url => {
+        setMintUrl = url;
+        currentMint = url;
+        localStorage.setItem('labcharts-cashu-wallet-mint', url);
+      };
+      window.cashuDepositToNode = async (url, amount, existingKey) => {
+        depositArgs = { url, amount, existingKey };
+        throw new Error('mock node rejected deposit');
+      };
+      window.cashuRecoverPendingDeposit = async () => {
+        recoverCalled = true;
+        return 'cashuArecoverytoken';
+      };
+      window.cashuImportWallet = async token => {
+        importedToken = token;
+        return 888;
+      };
+      window.cashuClearPendingDeposit = async () => {};
+      window.cashuGetWalletMnemonic = async () => null;
+      window.cashuRestoreWalletFromSeed = async mnemonic => {
+        restoredMnemonic = mnemonic;
+        return { balance: 4321 };
+      };
+      window.cashuHasWalletSeed = async () => false;
+      window.cashuGenerateWalletSeed = async () => ({
+        mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident',
+      });
+
+      localStorage.setItem('labcharts-ai-provider', 'routstr');
+      localStorage.setItem('labcharts-routstr-node', nodeUrl);
+      localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
+      window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-dom');
+
+      window.openSettingsModal('ai');
+      await wait(100);
+      window.switchAIProvider('routstr');
+      await wait(150);
+
+      const walletRenders = !!document.getElementById('routstr-wallet-balance');
+      const nodeBalanceRenders = (document.getElementById('routstr-node-balance')?.textContent || '').includes('777');
+
+      await window.connectRoutstrNode(nodeUrl);
+      await wait(100);
+      const connectSwitchesMint = setMintUrl === 'https://mint-required.example';
+      const connectRendersDepositPicker = !!document.getElementById('routstr-deposit-amount');
+      const mintSwitchWarningVisible = (document.getElementById('routstr-node-picker')?.textContent || '').includes('Mint switched');
+
+      await window.doRoutstrNodeDeposit(nodeUrl, 500);
+      await wait(150);
+      const fundAreaText = document.getElementById('routstr-wallet-fund-area')?.textContent || '';
+      const depositUsesSessionKey = depositArgs?.url === nodeUrl
+        && depositArgs.amount === 500
+        && depositArgs.existingKey === 'sk-routstr-dom';
+      const depositFailureChecksRecovery = recoverCalled;
+      const depositFailureShowsRecovery = fundAreaText.includes('Deposit failed')
+        && fundAreaText.includes('Recover to Wallet')
+        && fundAreaText.includes('Copy Token');
+      const recoveryButtonCarriesToken = document.querySelector('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
+
+      localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
+      window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-dom');
+      await window.doRoutstrNodeWithdraw();
+      await wait(150);
+      const refundUsesSessionKey = refundCalled;
+      const refundImportsToken = importedToken === 'cashuArefundtoken';
+      const routstrKeyClearsAfterRefund = !window.getRoutstrKey?.();
+
+      await window.showWalletSeedPhrase();
+      await wait(50);
+      const restoreInput = document.getElementById('routstr-restore-seed');
+      const restoreTextareaRenders = !!restoreInput;
+      if (restoreInput) {
+        restoreInput.value = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
+      }
+      await window.doRoutstrWalletRestore();
+      await wait(50);
+      const restoreUsesNormalizedMnemonic = restoredMnemonic === restoreInput?.value;
+      const restoreReportsBalance = (document.getElementById('routstr-restore-status')?.textContent || '').includes('4,321');
+
+      await window.showRoutstrWalletFund();
+      await wait(50);
+      const continueBtn = document.getElementById('routstr-seed-continue');
+      const ack = document.getElementById('routstr-seed-ack');
+      const seedGateRenders = !!continueBtn && !!ack;
+      const seedContinueStartsDisabled = continueBtn?.disabled === true;
+      let seedAckEnablesContinue = false;
+      let seedAckProceedsToFunding = false;
+      if (ack && continueBtn) {
+        ack.checked = true;
+        ack.dispatchEvent(new Event('change', { bubbles: true }));
+        seedAckEnablesContinue = !continueBtn.disabled;
+        window.walletSeedAcknowledged();
+        await wait(50);
+        seedAckProceedsToFunding = !!document.getElementById('routstr-wcashu-input');
+      }
+
+      return {
+        walletRenders,
+        nodeBalanceRenders,
+        connectSwitchesMint,
+        connectRendersDepositPicker,
+        mintSwitchWarningVisible,
+        depositUsesSessionKey,
+        depositFailureChecksRecovery,
+        depositFailureShowsRecovery,
+        recoveryButtonCarriesToken,
+        refundUsesSessionKey,
+        refundImportsToken,
+        routstrKeyClearsAfterRefund,
+        restoreTextareaRenders,
+        restoreUsesNormalizedMnemonic,
+        restoreReportsBalance,
+        seedGateRenders,
+        seedContinueStartsDisabled,
+        seedAckEnablesContinue,
+        seedAckProceedsToFunding,
+      };
+    } finally {
+      for (const name of globalNames) window[name] = oldGlobals[name];
+      for (const key of storageKeys) {
+        if (oldStorage[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, oldStorage[key]);
+      }
+      window.updateKeyCache?.('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      window.closeModal?.();
+      window.closeSettingsModal?.();
+    }
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
