@@ -1,8 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
-import puppeteer from 'puppeteer';
 
 const PORT = process.env.PORT || '8000';
-const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || puppeteer.executablePath();
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 
 export default defineConfig({
   testDir: './tests/playwright',
@@ -19,7 +18,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     serviceWorkers: 'block',
     launchOptions: {
-      executablePath: chromiumExecutable,
+      ...(chromiumExecutable ? { executablePath: chromiumExecutable } : {}),
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     },
   },

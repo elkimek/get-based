@@ -47,7 +47,7 @@ jobs:
               # (URL substring matching, hardcoded sensitive-named locals,
               # XSS payloads) to verify the production guards. CodeQL flags
               # those as findings; useful in principle, useless in practice
-              # on a 25-file Puppeteer suite. Production code is still
+              # on the browser test suite. Production code is still
               # fully scanned.
               - tests/**
             query-filters:
