@@ -113,10 +113,11 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
-  const results = await page.evaluate(async ({ pullUrl, stateUrl, tombstonesUrl }) => {
+  const results = await page.evaluate(async ({ pullUrl, stateUrl, tombstonesUrl, payloadUrl }) => {
     const pull = await import(pullUrl);
     const syncState = await import(stateUrl);
     const tombstones = await import(tombstonesUrl);
+    const payload = await import(payloadUrl);
     const outcomes = {};
     const warnings = [];
     const debugCalls = [];
@@ -135,6 +136,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
 
     try {
       console.warn = (...args) => { warnings.push(args.map(String).join(' ')); };
+      localStorage.removeItem('labcharts-sync-hash-v2-migrated');
       syncState.resetSyncStatus();
       tombstones.configureSyncTombstones({
         getEvolu: () => null,
@@ -173,12 +175,12 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
         {
           profileId: 'bad id',
           syncedAt: new Date().toISOString(),
-          dataJson: JSON.stringify({ _v: 3, importedData: { entries: [] }, profile: null }),
+          dataJson: await payload.buildSyncPayload('bad id', { entries: [] }),
         },
         {
           profileId: 'safe_profile',
           syncedAt: new Date().toISOString(),
-          dataJson: JSON.stringify({ _v: 3, importedData: 'bad-shape', profile: null }),
+          dataJson: await payload.buildSyncPayload('safe_profile', 'bad-shape'),
         }
       );
       debugCalls.length = 0;
@@ -201,6 +203,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       syncState.resetSyncStatus();
       localStorage.removeItem('labcharts-bad id-sync-ts');
       localStorage.removeItem('labcharts-safe_profile-sync-ts');
+      localStorage.removeItem('labcharts-sync-hash-v2-migrated');
     }
 
     return outcomes;
@@ -208,6 +211,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
     pullUrl: moduleUrl('/js/sync-pull.js'),
     stateUrl: '/js/sync-state.js',
     tombstonesUrl: '/js/sync-tombstones.js',
+    payloadUrl: '/js/sync-payload.js',
   });
 
   for (const [name, passed] of Object.entries(results)) {
