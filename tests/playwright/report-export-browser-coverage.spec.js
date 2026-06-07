@@ -38,6 +38,13 @@ test('report builder modal delegates presets categories AI state and preview exp
     const checkedCategories = overlay => Array.from(overlay.querySelectorAll('input[data-report-category]:checked'))
       .map(input => input.dataset.reportCategory);
     const click = selector => getOverlay()?.querySelector(selector)?.click();
+    const toDateString = date => date.toISOString().slice(0, 10);
+    const recentDate = new Date();
+    recentDate.setDate(recentDate.getDate() - 14);
+    const olderDate = new Date();
+    olderDate.setDate(olderDate.getDate() - 75);
+    const recentLabDate = toDateString(recentDate);
+    const olderLabDate = toDateString(olderDate);
 
     try {
       state.currentProfile = 'report-export-coverage';
@@ -47,31 +54,31 @@ test('report builder modal delegates presets categories AI state and preview exp
       state.importedData = {
         entries: [
           {
-            date: '2026-01-01',
+            date: olderLabDate,
             markers: {
               'biochemistry.glucose': 5.0,
               'hematology.hemoglobin': 145,
             },
           },
           {
-            date: '2026-05-01',
+            date: recentLabDate,
             markers: {
               'biochemistry.glucose': 6.8,
               'hematology.hemoglobin': 142,
             },
           },
         ],
-        notes: [{ date: '2026-05-02', text: 'Report export browser note' }],
+        notes: [{ date: recentLabDate, text: 'Report export browser note' }],
         supplements: [{
           name: 'Magnesium',
           dosage: '200 mg',
           type: 'supplement',
-          startDate: '2026-01-10',
+          startDate: olderLabDate,
         }],
         biometrics: {
-          weight: [{ date: '2026-05-01', value: 82, unit: 'kg' }],
-          bp: [{ date: '2026-05-01', sys: 118, dia: 76 }],
-          pulse: [{ date: '2026-05-01', value: 61 }],
+          weight: [{ date: recentLabDate, value: 82, unit: 'kg' }],
+          bp: [{ date: recentLabDate, sys: 118, dia: 76 }],
+          pulse: [{ date: recentLabDate, value: 61 }],
         },
         diagnoses: {
           conditions: [{ name: 'Insulin resistance', severity: 'watch' }],
