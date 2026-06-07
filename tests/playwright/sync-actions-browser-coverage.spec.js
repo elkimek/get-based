@@ -76,16 +76,16 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       outcomes.forceResendUsesForceOption = pushes.some(call => call.id === profileId && call.options?.force === true);
 
       await actions.syncNow();
-      outcomes.syncNowPushesThenPulls = pushes.filter(call => call.id === profileId).length >= 3
+      outcomes.syncNowPushesThenPulls = pushes.filter(call => call.id === profileId).length === 3
         && pulls.length === 1;
 
       await actions.pushAllProfiles({ force: true });
       const allProfilePushes = pushes.slice(-2);
+      const activeProfilePush = allProfilePushes.find(call => call.id === profileId);
+      const otherProfilePush = allProfilePushes.find(call => call.id === otherProfileId);
       outcomes.pushAllProfilesReadsCurrentAndStoredData = allProfilePushes.length === 2
-        && allProfilePushes[0].id === profileId
-        && allProfilePushes[0].data.entries?.[0]?.date === '2026-06-07'
-        && allProfilePushes[1].id === otherProfileId
-        && allProfilePushes[1].data.notes?.[0]?.text === 'other profile'
+        && activeProfilePush?.data.entries?.[0]?.date === '2026-06-07'
+        && otherProfilePush?.data.notes?.[0]?.text === 'other profile'
         && allProfilePushes.every(call => call.options?.force === true);
 
       actions.bindSyncActionEvents();
@@ -199,9 +199,29 @@ test('sync indicator popover renders debug actions and copies activity', async (
 
       syncUi.toggleSyncDetail();
       outcomes.secondToggleClosesPopover = !document.getElementById('sync-popover');
-      syncUi.bindSyncUIStatusUpdates();
-      syncUi.bindSyncUIStatusUpdates();
-      outcomes.bindStatusUpdatesIsIdempotent = true;
+
+      syncUi.toggleSyncDetail();
+      if (!document.getElementById('sync-popover')) throw new Error('sync popover did not reopen');
+      const originalAppendChild = Element.prototype.appendChild;
+      let popoverAppendCount = 0;
+      Element.prototype.appendChild = function(node) {
+        if (node?.id === 'sync-popover') popoverAppendCount += 1;
+        return originalAppendChild.call(this, node);
+      };
+      try {
+        syncState.updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now(), lastError: null, relay: 'connected' });
+        const baselinePopoverAppendCount = popoverAppendCount;
+        popoverAppendCount = 0;
+        syncUi.bindSyncUIStatusUpdates();
+        syncUi.bindSyncUIStatusUpdates();
+        syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now(), lastError: null, relay: 'connected' });
+        await waitFor(() => popoverAppendCount >= baselinePopoverAppendCount + 1, 'status-bound popover repaint');
+        outcomes.bindStatusUpdatesIsIdempotent = popoverAppendCount === baselinePopoverAppendCount + 1
+          && !!document.getElementById('sync-popover')
+          && !!slot.querySelector('#sync-indicator-btn .sync-dot-syncing');
+      } finally {
+        Element.prototype.appendChild = originalAppendChild;
+      }
     } finally {
       syncUi.configureSyncUI({ isSyncEnabled: () => false });
       syncState.resetSyncStatus();
@@ -228,6 +248,8 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ identityUrl }) => {
+    // The cache-busted identity module statically imports this canonical
+    // singleton, so configuring it here injects deps into that fresh instance.
     const [identityActions, context] = await Promise.all([
       import(identityUrl),
       import('/js/sync-diagnose-actions-context.js'),
