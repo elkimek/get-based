@@ -488,6 +488,9 @@ test('report AI summary generation covers unavailable success and empty-response
     const report = await import(reportUrl);
     const state = window._labState;
     const outcomes = {};
+    if (typeof window.getProfiles !== 'function' || typeof window.saveProfiles !== 'function') {
+      throw new Error('Profile helpers are required for report AI summary coverage setup.');
+    }
     const originalProfiles = window.getProfiles();
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
