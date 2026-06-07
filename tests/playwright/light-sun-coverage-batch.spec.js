@@ -477,14 +477,17 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
       const luxInput = document.getElementById('lux-manual-input');
       outcomes.luxDeniedShowsManualInput = !!luxInput
         && document.getElementById('lux-source-line')?.textContent.includes('Camera access denied');
-      luxInput.value = '420';
-      luxInput.dispatchEvent(new Event('input', { bubbles: true }));
-      document.getElementById('lux-save').click();
-      await Promise.resolve();
-      outcomes.luxManualSavePersistsReading = saved.some(item => item.kind === 'lux'
-        && item.value === 420
-        && item.meta.roomId === 'bedroom'
-        && item.meta.extra.source === 'manual-entry');
+      outcomes.luxManualSavePersistsReading = false;
+      if (luxInput) {
+        luxInput.value = '420';
+        luxInput.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById('lux-save')?.click();
+        await Promise.resolve();
+        outcomes.luxManualSavePersistsReading = saved.some(item => item.kind === 'lux'
+          && item.value === 420
+          && item.meta.roomId === 'bedroom'
+          && item.meta.extra.source === 'manual-entry');
+      }
 
       await modals.openSpectrumClassifier({ roomId: 'desk' }, deps);
       outcomes.spectrumDeniedShowsManualChoices = !!document.querySelector('[data-spec-manual="Warm LED (2700-3000K)"],[data-spec-manual="Warm LED (2700–3000K)"]')
@@ -651,8 +654,11 @@ test('light devices cover session detail edit log active card and rendered list 
         && detailOverlay.textContent.includes('Upper chest')
         && detailOverlay.textContent.includes('Device AI')
         && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 3;
-      detailOverlay.querySelector('.sun-detail-channel-row')?.click();
-      outcomes.deviceDetailChannelRowsOpenLightPage = calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d');
+      outcomes.deviceDetailChannelRowsOpenLightPage = false;
+      if (detailOverlay) {
+        detailOverlay.querySelector('.sun-detail-channel-row')?.click();
+        outcomes.deviceDetailChannelRowsOpenLightPage = calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d');
+      }
 
       await lightDevices.editDeviceSessionDuration('devsess-one');
       outcomes.editDurationUsesPromptAndRecomputes = state.importedData.deviceSessions[0].durationMin === 17
@@ -670,16 +676,23 @@ test('light devices cover session detail edit log active card and rendered list 
 
       await lightDevices.openDeviceSessionDialog('dev-panel');
       const logOverlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      const logDurationInput = logOverlay?.querySelector('#dev-session-duration');
+      const logModeInput = logOverlay?.querySelector('#dev-session-mode');
+      const logAreaHint = logOverlay?.querySelector('#dev-session-area-hint');
+      const logSaveButton = logOverlay?.querySelector('#dev-session-save');
       outcomes.logDialogUsesLastSessionDefaults = !!logOverlay
-        && logOverlay.querySelector('#dev-session-duration')?.value === '12'
-        && logOverlay.querySelector('#dev-session-mode')?.value === 'combo'
-        && logOverlay.querySelector('#dev-session-area-hint')?.textContent.includes('region');
-      logOverlay.querySelector('#dev-session-duration').value = '9';
-      logOverlay.querySelector('#dev-session-save').click();
-      await Promise.resolve();
-      outcomes.logDialogSavesNewSession = state.importedData.deviceSessions.length === 2
-        && state.importedData.deviceSessions[1].durationMin === 9
-        && state.importedData.deviceSessions[1].bodyAreas.includes('breast-chest');
+        && logDurationInput?.value === '12'
+        && logModeInput?.value === 'combo'
+        && logAreaHint?.textContent.includes('region');
+      outcomes.logDialogSavesNewSession = false;
+      if (logDurationInput && logSaveButton) {
+        logDurationInput.value = '9';
+        logSaveButton.click();
+        await Promise.resolve();
+        outcomes.logDialogSavesNewSession = state.importedData.deviceSessions.length === 2
+          && state.importedData.deviceSessions[1].durationMin === 9
+          && state.importedData.deviceSessions[1].bodyAreas.includes('breast-chest');
+      }
 
       state.importedData.deviceSessions.push({
         id: 'devsess-active',
