@@ -8,6 +8,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
     const { state } = await import('/js/state.js');
     const outcomes = {};
     const calls = [];
+    const confirmQueue = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -39,9 +40,25 @@ test('client list live menu actions dispatch exports share demos and profile sta
       'labcharts-profiles',
       'labcharts-client-alice-imported',
       'labcharts-client-bob-imported',
+      'labcharts-client-bob-units',
+      'labcharts-client-bob-suppOverlay',
+      'labcharts-client-bob-noteOverlay',
+      'labcharts-client-bob-rangeMode',
+      'labcharts-client-bob-showAltUnits',
+      'labcharts-client-bob-suppImpact',
       'labcharts-client-bob-chat',
       'labcharts-client-bob-chat-threads',
       'labcharts-client-bob-chat-t_thread-a',
+      'labcharts-client-bob-chatRailOpen',
+      'labcharts-client-bob-chatPersonality',
+      'labcharts-client-bob-chatPersonalityCustom',
+      'labcharts-client-bob-focusCard',
+      'labcharts-client-bob-contextHealth',
+      'labcharts-client-bob-onboarded',
+      'labcharts-client-bob-emptyTour',
+      'labcharts-client-bob-tour',
+      'labcharts-client-bob-cycleTour',
+      'labcharts-client-bob-phaseOverlay',
     ];
     const saved = {
       profiles: clone(state.profiles),
@@ -109,7 +126,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       window.openProfileShareModal = id => calls.push(['share-profile', id]);
       window.showConfirmDialog = async message => {
         calls.push(['confirm', message]);
-        return window.__clientListConfirmNext === true;
+        return confirmQueue.shift() === true;
       };
       HTMLInputElement.prototype.click = function() {
         calls.push(['input-click', this.id || this.type || 'input']);
@@ -186,16 +203,23 @@ test('client list live menu actions dispatch exports share demos and profile sta
       document.querySelector('.cl-status-filter').value = 'active';
       document.querySelector('.cl-status-filter').dispatchEvent(new Event('change', { bubbles: true }));
       await openRowMenu('client-bob');
-      window.__clientListConfirmNext = false;
+      const confirmCountBeforeCancel = calls.filter(call => call[0] === 'confirm').length;
+      confirmQueue.push(false);
       clickAction('delete-profile', 'client-bob');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const cancelKeptProfile = state.profiles.some(p => p.id === 'client-bob');
+      await waitFor(() => calls.filter(call => call[0] === 'confirm').length > confirmCountBeforeCancel
+        && state.profiles.some(p => p.id === 'client-bob')
+        && !!document.querySelector('[data-id="client-bob"]'), 'cancel keeps profile row');
+      const cancelKeptProfile = state.profiles.some(p => p.id === 'client-bob')
+        && !!document.querySelector('[data-id="client-bob"]');
       await openRowMenu('client-bob');
-      window.__clientListConfirmNext = true;
+      const confirmCountBeforeDelete = calls.filter(call => call[0] === 'confirm').length;
+      confirmQueue.push(true);
       clickAction('delete-profile', 'client-bob');
-      await waitFor(() => !state.profiles.some(p => p.id === 'client-bob'), 'confirmed profile delete');
+      await waitFor(() => calls.filter(call => call[0] === 'confirm').length > confirmCountBeforeDelete
+        && !document.querySelector('[data-id="client-bob"]'), 'confirmed profile delete DOM refresh');
       outcomes.deleteActionHonorsConfirmAndRefreshesList = cancelKeptProfile
         && calls.some(call => call[0] === 'confirm' && call[1].includes('Delete this profile'))
+        && !state.profiles.some(p => p.id === 'client-bob')
         && !document.querySelector('[data-id="client-bob"]');
 
       document.body.click();
@@ -203,7 +227,6 @@ test('client list live menu actions dispatch exports share demos and profile sta
         && !document.getElementById('cl-tools-menu')?.classList.contains('show');
     } finally {
       window.closeClientList?.();
-      delete window.__clientListConfirmNext;
       state.profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
