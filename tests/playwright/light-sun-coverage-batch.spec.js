@@ -230,6 +230,7 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         channelTier: () => 0,
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
+        tooShortForChannelVerdictMin: 2,
       });
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
     }
@@ -355,22 +356,25 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       outcomes.startDialogShowsUvPreflight = !!overlay
         && overlay.querySelector('#sun-start-uvi-banner')?.hidden === false
         && overlay.textContent.includes('Extreme UV');
-      overlay.querySelector('#start-eye-mode').value = 'direct';
-      overlay.querySelector('#start-lens-tint').value = 'amber';
-      overlay.querySelector('#start-posture').value = 'lying';
-      overlay.querySelector('#start-surface').value = 'sand';
-      overlay.querySelector('#start-glass').checked = true;
-      overlay.querySelector('#start-rotated').checked = true;
-      overlay.querySelector('#start-confirm').click();
-      await Promise.resolve();
-      outcomes.startDialogPassesSelectedDefaults = calls.some(call => call[0] === 'start'
-        && call[1].regions.includes('face')
-        && call[1].eyeMode === 'direct'
-        && call[1].lensTint === 'amber'
-        && call[1].glassBetween === true
-        && call[1].posture === 'lying'
-        && call[1].surfaceAlbedo === 'sand'
-        && call[1].rotatedSides === true);
+      outcomes.startDialogPassesSelectedDefaults = false;
+      if (overlay) {
+        overlay.querySelector('#start-eye-mode').value = 'direct';
+        overlay.querySelector('#start-lens-tint').value = 'amber';
+        overlay.querySelector('#start-posture').value = 'lying';
+        overlay.querySelector('#start-surface').value = 'sand';
+        overlay.querySelector('#start-glass').checked = true;
+        overlay.querySelector('#start-rotated').checked = true;
+        overlay.querySelector('#start-confirm').click();
+        await Promise.resolve();
+        outcomes.startDialogPassesSelectedDefaults = calls.some(call => call[0] === 'start'
+          && call[1].regions.includes('face')
+          && call[1].eyeMode === 'direct'
+          && call[1].lensTint === 'amber'
+          && call[1].glassBetween === true
+          && call[1].posture === 'lying'
+          && call[1].surfaceAlbedo === 'sand'
+          && call[1].rotatedSides === true);
+      }
 
       active.setSunLiveState('active-sun', {
         ratePerMin: { vitamin_d: 2, circadian: 1 },
