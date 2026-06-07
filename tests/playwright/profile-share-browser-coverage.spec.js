@@ -44,7 +44,6 @@ test('profile share modal creates copies and manages active encrypted links', as
       importedRaw: await cryptoStore.encryptedGetItem(profileKey),
       fetch: window.fetch,
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
-      clipboardProto: Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard'),
     };
 
     try {
@@ -116,7 +115,8 @@ test('profile share modal creates copies and manages active encrypted links', as
           .includes('No active links created on this device') === true;
 
       overlay.querySelector('[data-profile-share-action="create"]')?.click();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await waitFor(() => document.getElementById('profile-share-consent')?.matches(':invalid') === true,
+        'consent validation');
       outcomes.requiresConsentBeforePosting = posted.length === 0
         && !!document.getElementById('profile-share-overlay');
 
@@ -245,6 +245,7 @@ test('profile share loader covers deep-link parsing and close paths', async ({ p
       outcomes.closeButtonRemovesLoader = !document.getElementById('profile-share-overlay');
     } finally {
       profileShare.closeProfileShareModal();
+      profileShare.resetProfileShareDeepLinkState();
       history.replaceState(null, '', originalUrl);
     }
 
