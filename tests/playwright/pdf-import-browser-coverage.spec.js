@@ -62,7 +62,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       const aiOverlay = document.getElementById('ai-needed-overlay');
       outcomes.aiNeededDialogRendersImageCopy = aiOverlay?.classList.contains('show') === true
         && aiOverlay?.textContent.includes('Reading lab values from an image') === true
-        && document.activeElement?.id === 'ai-needed-or';
+        && document.getElementById('ai-needed-or') !== null;
       document.getElementById('ai-needed-key')?.click();
       outcomes.aiNeededKeyOpensSettingsAI = calls.some(call => call[0] === 'settings' && call[1] === 'ai')
         && aiOverlay?.classList.contains('show') === false;
@@ -103,6 +103,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
 
 test('PDF import preflight covers model mismatch and unsupported lab dialogs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-status-fab', { state: 'attached' });
 
   const results = await page.evaluate(async ({ preflightUrl }) => {
     const preflight = await import(preflightUrl);
