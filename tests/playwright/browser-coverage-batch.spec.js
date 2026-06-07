@@ -506,12 +506,16 @@ test('sync diagnostics schema and snapshot helpers cover browser contracts', asy
         },
       };
       const queries = schema.createSyncQueries(fakeEvoluForQueries);
+      const profileCalls = queries.profileQuery.calls;
+      const tombstoneCalls = queries.tombstoneQuery.calls;
+      const itemRowCalls = queries.itemRowQuery.calls;
       outcomes.queriesBuildExpectedFilters = !!queries.profileQuery
         && !!queries.tombstoneQuery
         && !!queries.itemRowQuery
-        && queryCalls[0].some(c => c.join('|') === 'where|isDeleted|is not|1')
-        && queryCalls[1].some(c => c.join('|') === 'where|isDeleted|=|1')
-        && queryCalls[2].some(c => c.join('|') === 'selectFrom|itemRow');
+        && profileCalls.some(c => c.join('|') === 'where|isDeleted|is not|1')
+        && tombstoneCalls.some(c => c.join('|') === 'where|isDeleted|=|1')
+        && itemRowCalls.some(c => c.join('|') === 'selectFrom|itemRow')
+        && queryCalls.length === 3;
 
       const textPayload = {
         syncEnabled: true,
@@ -743,9 +747,10 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
       outcomes.cleanStorageLogsCleanupEvent = syncState.getRecentSyncEvents()
         .some(event => event.kind === 'cleanup' && event.text.includes('Caches cleared: 5'));
 
-      window.qrcode = function fakeQRCode() {};
+      const fakeQRCodeFn = function fakeQRCode() {};
+      window.qrcode = fakeQRCodeFn;
       const existingQRCode = await providerQr.ensureQRCode();
-      outcomes.qrReturnsExistingGlobal = existingQRCode === window.qrcode;
+      outcomes.qrReturnsExistingGlobal = existingQRCode === fakeQRCodeFn;
 
       window.qrcode = undefined;
       const loadedQRCode = await providerQr.ensureQRCode();
