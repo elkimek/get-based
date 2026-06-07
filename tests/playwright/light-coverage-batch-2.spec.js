@@ -163,18 +163,26 @@ test('light device setup covers preset pick custom form validation unit conversi
         customSave?.click();
         await Promise.resolve();
         const customSpec = calls.find(call => call[0] === 'custom')?.[1];
-        outcomes.manualCustomSaveNormalizesSpec = !!customSpec
-          && customSpec.brand === 'ManualBrand'
-          && customSpec.model === 'ManualModel'
-          && customSpec.type === 'sad'
-          && customSpec.peakWavelengths.join(',') === '660,850'
-          && customSpec.mwPerCm2At15cm === 55
-          && Math.abs(customSpec.recommendedDistanceCm - 15.24) < 0.05
-          && customSpec.lux === 10000
-          && !document.body.contains(customOverlay);
+        outcomes.manualCustomSaveHasSpec = !!customSpec;
+        outcomes.manualCustomSavePreservesBrand = customSpec?.brand === 'ManualBrand';
+        outcomes.manualCustomSavePreservesModel = customSpec?.model === 'ManualModel';
+        outcomes.manualCustomSavePreservesType = customSpec?.type === 'sad';
+        outcomes.manualCustomSaveFiltersValidPeakWavelengths = customSpec?.peakWavelengths?.join(',') === '660,850';
+        outcomes.manualCustomSaveStoresIrradiance = customSpec?.mwPerCm2At15cm === 55;
+        outcomes.manualCustomSaveConvertsDistanceToCm = Math.abs((customSpec?.recommendedDistanceCm || 0) - 15.24) < 0.05;
+        outcomes.manualCustomSaveStoresLux = customSpec?.lux === 10000;
+        outcomes.manualCustomSaveClosesOverlay = !document.body.contains(customOverlay);
       } else {
         outcomes.unitToggleConvertsDistanceBothWays = false;
-        outcomes.manualCustomSaveNormalizesSpec = false;
+        outcomes.manualCustomSaveHasSpec = false;
+        outcomes.manualCustomSavePreservesBrand = false;
+        outcomes.manualCustomSavePreservesModel = false;
+        outcomes.manualCustomSavePreservesType = false;
+        outcomes.manualCustomSaveFiltersValidPeakWavelengths = false;
+        outcomes.manualCustomSaveStoresIrradiance = false;
+        outcomes.manualCustomSaveConvertsDistanceToCm = false;
+        outcomes.manualCustomSaveStoresLux = false;
+        outcomes.manualCustomSaveClosesOverlay = false;
       }
 
       await setup.openCustomDeviceDialog();
@@ -192,13 +200,13 @@ test('light device setup covers preset pick custom form validation unit conversi
         for (let i = 0; i < 30 && customOverlay.querySelector('#custom-dev-brand')?.value !== 'PhotonLab'; i++) {
           await new Promise(resolve => setTimeout(resolve, 10));
         }
-        outcomes.aiUrlFetchAppliesParsedDevice = customOverlay.querySelector('#custom-dev-brand')?.value === 'PhotonLab'
-          && customOverlay.querySelector('#custom-dev-model')?.value === 'Aurora UVB'
-          && customOverlay.querySelector('#custom-dev-type')?.value === 'uvb'
-          && customOverlay.querySelector('#custom-dev-peaks')?.value === '295, 660, 850'
-          && customOverlay.querySelector('#custom-dev-irradiance')?.value === '90'
-          && customOverlay.querySelector('#custom-dev-distance')?.value === '7.9'
-          && calls.some(call => call[0] === 'ai-url');
+        outcomes.aiUrlFetchAppliesBrand = customOverlay.querySelector('#custom-dev-brand')?.value === 'PhotonLab';
+        outcomes.aiUrlFetchAppliesModel = customOverlay.querySelector('#custom-dev-model')?.value === 'Aurora UVB';
+        outcomes.aiUrlFetchAppliesType = customOverlay.querySelector('#custom-dev-type')?.value === 'uvb';
+        outcomes.aiUrlFetchAppliesPeakList = customOverlay.querySelector('#custom-dev-peaks')?.value === '295, 660, 850';
+        outcomes.aiUrlFetchAppliesIrradiance = customOverlay.querySelector('#custom-dev-irradiance')?.value === '90';
+        outcomes.aiUrlFetchAppliesConvertedDistance = customOverlay.querySelector('#custom-dev-distance')?.value === '7.9';
+        outcomes.aiUrlFetchCallsAiEndpoint = calls.some(call => call[0] === 'ai-url');
         customOverlay.querySelector('#custom-dev-save')?.click();
         await Promise.resolve();
         const parsedSpec = calls.filter(call => call[0] === 'custom').at(-1)?.[1];
@@ -208,7 +216,13 @@ test('light device setup covers preset pick custom form validation unit conversi
           && parsedSpec.peakWavelengths.length === 3
           && Math.abs(parsedSpec.recommendedDistanceCm - 20.066) < 0.1;
       } else {
-        outcomes.aiUrlFetchAppliesParsedDevice = false;
+        outcomes.aiUrlFetchAppliesBrand = false;
+        outcomes.aiUrlFetchAppliesModel = false;
+        outcomes.aiUrlFetchAppliesType = false;
+        outcomes.aiUrlFetchAppliesPeakList = false;
+        outcomes.aiUrlFetchAppliesIrradiance = false;
+        outcomes.aiUrlFetchAppliesConvertedDistance = false;
+        outcomes.aiUrlFetchCallsAiEndpoint = false;
         outcomes.aiParsedDeviceCanBeSaved = false;
       }
     } finally {
@@ -456,19 +470,19 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       ];
       state.importedData.lightMeasurements = samples;
       const contexts = Object.fromEntries(samples.map(sample => [sample.id, analysis.buildMeasurementContext(sample)]));
-      outcomes.contextsCoverEveryToolBranchAndUserContext = contexts['lux-one'].includes('Tool: lux meter')
-        && contexts['lux-one'].includes('Calibration factor applied')
-        && contexts['lux-one'].includes('Room: Bedroom with very long injected name')
-        && !contexts['lux-one'].includes('\nwith very long')
-        && contexts['lux-one'].includes('User goals: Stabilize sleep timing; Reduce eye strain')
-        && contexts['lux-one'].includes('Sleep quality score: 72')
-        && contexts['flicker-one'].includes('Flicker score: 2/3')
-        && contexts['dark-one'].includes('Peak lux')
-        && contexts['cct-one'].includes('PWM dimming detected')
-        && contexts['spec-one'].includes('RGB ratios')
-        && contexts['glass-one'].includes('Transmission ratio: 72%')
-        && contexts['audit-one'].includes('Room 1 (Office): 120 lux')
-        && contexts['unknown-one'].includes('Tool: mystery-tool');
+      outcomes.contextLuxToolLine = contexts['lux-one'].includes('Tool: lux meter');
+      outcomes.contextLuxCalibrationLine = contexts['lux-one'].includes('Calibration factor applied');
+      outcomes.contextRoomNameSanitized = contexts['lux-one'].includes('Room: Bedroom with very long injected name')
+        && !contexts['lux-one'].includes('\nwith very long');
+      outcomes.contextUserGoalsIncluded = contexts['lux-one'].includes('User goals: Stabilize sleep timing; Reduce eye strain');
+      outcomes.contextSleepScoreIncluded = contexts['lux-one'].includes('Sleep quality score: 72');
+      outcomes.contextFlickerBranch = contexts['flicker-one'].includes('Flicker score: 2/3');
+      outcomes.contextDarknessBranch = contexts['dark-one'].includes('Peak lux');
+      outcomes.contextCctPwmBranch = contexts['cct-one'].includes('PWM dimming detected');
+      outcomes.contextSpectrumRgbBranch = contexts['spec-one'].includes('RGB ratios');
+      outcomes.contextGlassTransmissionBranch = contexts['glass-one'].includes('Transmission ratio: 72%');
+      outcomes.contextAuditRoomsBranch = contexts['audit-one'].includes('Room 1 (Office): 120 lux');
+      outcomes.contextUnknownToolBranch = contexts['unknown-one'].includes('Tool: mystery-tool');
 
       const fpA = analysis.getMeasurementFingerprint(samples[0]);
       const fpB = analysis.getMeasurementFingerprint({ ...samples[0], extra: { ...samples[0].extra, calibrationFactor: 1.5 } });
@@ -479,7 +493,21 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
 
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.setItem('labcharts-ai-provider', 'ollama');
-      outcomes.renderHiddenWithoutProviderExceptCachedOk = analysis.renderMeasurementAIInline(samples[0]) === '';
+      outcomes.pausedProviderHidesUncachedVerdict = analysis.renderMeasurementAIInline(samples[0]) === '';
+      const pausedCachedOkSample = {
+        ...samples[0],
+        aiAnalysis: {
+          status: 'ok',
+          dot: 'green',
+          tip: 'cached ok tip',
+          detail: 'cached ok detail',
+          fingerprint: analysis.getMeasurementFingerprint(samples[0]),
+        },
+      };
+      const pausedCachedOkHtml = analysis.renderMeasurementAIInline(pausedCachedOkSample);
+      outcomes.pausedProviderStillRendersCachedOkVerdict = pausedCachedOkHtml.includes('sun-session-ai-dot-green')
+        && pausedCachedOkHtml.includes('cached ok tip')
+        && pausedCachedOkHtml.includes('cached ok detail');
 
       localStorage.removeItem('labcharts-ai-paused');
       const idleHtml = analysis.renderMeasurementAIInline(samples[0]);
@@ -506,13 +534,13 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       const errorSample = { ...samples[3], aiAnalysis: { status: 'error', error: 'bad', fingerprint: analysis.getMeasurementFingerprint(samples[3]) } };
       const errorHtml = analysis.renderMeasurementAIInline(errorSample);
       const auditHtml = analysis.renderMeasurementAIInline(samples[6]);
-      outcomes.renderStatesCoverIdleAnalyzingOkErrorAndAuditSkip = idleHtml.includes('Get AI verdict')
-        && analyzingHtml.includes('Analyzing')
-        && okHtml.includes('sun-session-ai-dot-green')
-        && okHtml.includes('&lt;bright&gt;')
-        && !okHtml.includes('<script>')
-        && errorHtml.includes('Analysis failed')
-        && auditHtml === '';
+      outcomes.inlineIdleShowsAnalyzeButton = idleHtml.includes('Get AI verdict');
+      outcomes.inlineAnalyzingShowsProgress = analyzingHtml.includes('Analyzing');
+      outcomes.inlineOkShowsGreenDot = okHtml.includes('sun-session-ai-dot-green');
+      outcomes.inlineOkEscapesTip = okHtml.includes('&lt;bright&gt;');
+      outcomes.inlineOkEscapesScriptDetail = !okHtml.includes('<script>');
+      outcomes.inlineErrorShowsFailure = errorHtml.includes('Analysis failed');
+      outcomes.inlineAuditRowsSkip = auditHtml === '';
     } finally {
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
