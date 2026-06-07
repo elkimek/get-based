@@ -1,0 +1,713 @@
+import { expect, test } from './coverage-fixture.js';
+
+function moduleUrl(path) {
+  return `${path}?lightSunCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+test('sun session UI covers list detail edit delete and past-session save paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ sunSessionUiUrl }) => {
+    const sunUI = await import(sunSessionUiUrl);
+    const state = window._labState;
+    const outcomes = {};
+    const originalView = state.currentView;
+    const savedWindow = {
+      solarZenithAngle: window.solarZenithAngle,
+      reconstructSpectrum: window.reconstructSpectrum,
+      vitaminDIU: window.vitaminDIU,
+      vitaminDIUPerSession: window.vitaminDIUPerSession,
+      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
+      circadianMelanopicLux: window.circadianMelanopicLux,
+      geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
+      renderSessionAIInline: window.renderSessionAIInline,
+      renderSessionAIDetail: window.renderSessionAIDetail,
+      navigate: window.navigate,
+    };
+    let sessions = [
+      {
+        id: 'sun-ended',
+        startedAt: Date.UTC(2026, 5, 7, 9, 0),
+        endedAt: Date.UTC(2026, 5, 7, 9, 35),
+        durationMin: 35,
+        location: { lat: 50.08, lon: 14.43, altitudeM: 250, source: 'profile' },
+        bodyExposure: {
+          preset: 'detailed',
+          fraction: 0.21,
+          regions: ['face', 'arms-front', 'breast-chest'],
+          sunscreenSPF: 15,
+          glassBetween: true,
+          rotatedSides: true,
+        },
+        eyeExposure: { mode: 'direct', lensTint: 'amber' },
+        posture: 'lying',
+        surfaceAlbedo: 'sand',
+        atmosphere: {
+          uvIndex: 7.2,
+          ozoneDU: null,
+          cloudCover: 12,
+          source: 'open_meteo',
+          airQuality: { pm25: 6, aod: 0.12 },
+        },
+        safety: { medFraction: 0.72, fitzpatrick: 'II' },
+        doses: {
+          vitamin_d: 320,
+          circadian: 85,
+          nir_solar: 110,
+          no_cv: 30,
+          pomc: 18,
+          violet_eye: 12,
+        },
+        notes: 'Midday patio session',
+      },
+      {
+        id: 'sun-active',
+        startedAt: Date.now() - 13 * 3600 * 1000,
+        endedAt: null,
+        paused: false,
+        bodyExposure: { fraction: 0.08, regions: ['face'], rotatedSides: false },
+        eyeExposure: { mode: 'sunglasses', lensTint: 'clear' },
+        doses: { circadian: 10 },
+      },
+    ];
+    const calls = [];
+
+    try {
+      state.currentView = 'light';
+      window.solarZenithAngle = () => 42.4;
+      window.reconstructSpectrum = () => ({
+        wavelengths: [280, 300, 320, 340, 360, 380, 400, 420],
+        irradiance: [0.2, 0.4, 1.2, 2.2, 2.1, 1.6, 0.8, 0.1],
+      });
+      window.vitaminDIU = () => 1500;
+      window.vitaminDIUPerSession = () => 2400;
+      window.pbmJoulesPerCm2 = () => 8.6;
+      window.circadianMelanopicLux = () => 12500;
+      window.geneticVitaminDMultiplier = () => ({
+        mult: 0.82,
+        contributors: [{ gene: 'GC', genotype: 'TT', multiplier: 0.82 }],
+      });
+      window.renderSessionAIInline = () => '<span class="ai-inline-test">AI inline</span>';
+      window.renderSessionAIDetail = () => '<section class="ai-detail-test">AI detail</section>';
+      window.navigate = route => calls.push(['navigate', route]);
+
+      sunUI.configureSunSessionUI({
+        getSessions: () => sessions,
+        deleteSession: async id => {
+          calls.push(['delete', id]);
+          sessions = sessions.filter(sess => sess.id !== id);
+          return true;
+        },
+        updateSession: async (id, patch) => {
+          calls.push(['update', id, patch]);
+          const sess = sessions.find(item => item.id === id);
+          if (sess) Object.assign(sess, patch);
+          return sess;
+        },
+        logCompletedSession: async opts => {
+          calls.push(['log-completed', opts]);
+          sessions.push({ id: 'sun-logged', ...opts, doses: { vitamin_d: 1 } });
+          return 'sun-logged';
+        },
+        hydrateSession: async id => calls.push(['hydrate', id]),
+        getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'test' }),
+        refreshSurfaces: () => calls.push(['refresh']),
+        wireBackdropClose: () => calls.push(['wire-backdrop']),
+        trapModalFocus: () => calls.push(['trap-focus']),
+        summarizeBodyExposure: sess => `${sess.bodyExposure?.regions?.length || 0} regions`,
+        formatElapsed: () => '13:00:00',
+        exposurePresets: [{ key: 'detailed', label: 'Detailed' }, { key: 'face_hands', label: 'Face + hands' }],
+        eyeModes: [
+          { key: 'direct', label: 'Eyes uncovered', pickerLabel: 'Eyes uncovered' },
+          { key: 'sunglasses', label: 'Sunglasses' },
+        ],
+        lensTints: [{ key: 'clear', label: 'Clear' }, { key: 'amber', label: 'Amber' }],
+        postureOptions: [{ key: 'standing', label: 'Standing' }, { key: 'lying', label: 'Lying flat' }],
+        surfaceOptions: [{ key: 'grass', label: 'Grass' }, { key: 'sand', label: 'Sand' }],
+        channelDisplay: {
+          vitamin_d: { icon: 'D', label: 'Vitamin D', dailyTarget: 300, what: 'Vitamin D' },
+          circadian: { icon: 'C', label: 'Circadian', dailyTarget: 100, what: 'Circadian' },
+          nir_solar: { icon: 'N', label: 'NIR', dailyTarget: 100, what: 'NIR' },
+          no_cv: { icon: 'NO', label: 'NO', dailyTarget: 100, what: 'NO' },
+          pomc: { icon: 'P', label: 'POMC', dailyTarget: 100, what: 'POMC' },
+          violet_eye: { icon: 'V', label: 'Violet', dailyTarget: 100, what: 'Violet' },
+        },
+        channelTier: value => value >= 100 ? 3 : value > 20 ? 2 : value > 0 ? 1 : 0,
+        tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
+        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        tooShortForChannelVerdictMin: 2,
+      });
+
+      const listHost = document.createElement('div');
+      listHost.innerHTML = sunUI.renderSessionsList();
+      outcomes.sessionListIncludesActiveControls = !!listHost.querySelector('[data-sun-session-action="pause-session"]')
+        && !!listHost.querySelector('[data-sun-session-action="forgot-stop"]')
+        && !!listHost.querySelector('.ai-inline-test');
+
+      const chipsHost = document.createElement('div');
+      chipsHost.innerHTML = sunUI.renderChannelChips(sessions[0].doses, sessions[0]);
+      outcomes.channelChipsShowTopChannelsAndMore = !!chipsHost.querySelector('.sun-chip-more')
+        && chipsHost.textContent.includes('Vitamin D');
+
+      sunUI.openSunSessionDetail('sun-ended');
+      const detailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
+      const detailText = detailOverlay?.textContent || '';
+      const detailHtml = detailOverlay?.innerHTML || '';
+      outcomes.detailShowsAtmosphereGenesAndModifiers = !!detailOverlay
+        && detailText.includes('UV split')
+        && detailHtml.includes('GC TT')
+        && detailText.includes('Behind glass')
+        && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 6
+        && !!detailOverlay.querySelector('.ai-detail-test');
+      detailOverlay?.remove();
+
+      sunUI.openDetailedSessionDialog();
+      const detailedOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
+      if (detailedOverlay) {
+        const pad = value => String(value).padStart(2, '0');
+        const localDateTimeValue = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const endedAt = new Date(Date.now() - 10 * 60 * 1000);
+        const startedAt = new Date(endedAt.getTime() - 20 * 60 * 1000);
+        detailedOverlay.querySelector('#det-started-at').value = localDateTimeValue(startedAt);
+        detailedOverlay.querySelector('#det-ended-at').value = localDateTimeValue(endedAt);
+        detailedOverlay.querySelector('#det-spf').value = '8';
+        detailedOverlay.querySelector('#det-glass').checked = true;
+        detailedOverlay.querySelector('#det-notes').value = 'Backfilled session';
+        detailedOverlay.querySelector('#det-save').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      const loggedPastSession = calls.find(call => call[0] === 'log-completed')?.[1] || null;
+      outcomes.pastSessionSaveLogsPayload = !!loggedPastSession;
+      outcomes.pastSessionSaveTimes = Number.isFinite(loggedPastSession?.startedAt)
+        && Number.isFinite(loggedPastSession?.endedAt)
+        && loggedPastSession.startedAt < loggedPastSession.endedAt;
+      outcomes.pastSessionSaveGlassAndSpf = loggedPastSession?.bodyExposure?.glassBetween === true
+        && loggedPastSession?.bodyExposure?.sunscreenSPF === 8;
+      outcomes.pastSessionSaveNotes = loggedPastSession?.notes === 'Backfilled session';
+      outcomes.pastSessionSaveHydrates = calls.some(call => call[0] === 'hydrate' && call[1] === 'sun-logged');
+      outcomes.pastSessionSaveNavigates = calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+
+      const editPromise = sunUI.editSunSessionDuration('sun-ended');
+      await Promise.resolve();
+      document.getElementById('prompt-dialog-input').value = '42';
+      document.getElementById('prompt-ok').click();
+      await editPromise;
+      outcomes.editDurationUpdatesSession = sessions.find(sess => sess.id === 'sun-ended')?.durationMin === 42
+        && calls.some(call => call[0] === 'update' && call[1] === 'sun-ended' && call[2].durationMin === 42);
+
+      const missingEdit = sunUI.editSunSessionDuration('missing-session');
+      await missingEdit;
+      outcomes.missingEditShowsNoUpdate = !calls.some(call => call[0] === 'update' && call[1] === 'missing-session');
+
+      const deletePromise = sunUI.deleteSunSession('sun-ended');
+      await Promise.resolve();
+      document.getElementById('confirm-ok').click();
+      await deletePromise;
+      outcomes.deleteConfirmsAndRefreshes = !sessions.some(sess => sess.id === 'sun-ended')
+        && calls.some(call => call[0] === 'delete' && call[1] === 'sun-ended')
+        && calls.some(call => call[0] === 'refresh');
+    } finally {
+      Object.assign(window, savedWindow);
+      state.currentView = originalView;
+      sunUI.configureSunSessionUI({
+        getSessions: () => [],
+        deleteSession: async () => false,
+        updateSession: async () => null,
+        logCompletedSession: async () => null,
+        hydrateSession: async () => null,
+        getSunCoords: () => null,
+        refreshSurfaces: () => {},
+        wireBackdropClose: () => {},
+        trapModalFocus: () => {},
+        summarizeBodyExposure: () => 'Body unset',
+        formatElapsed: () => '0:00',
+        exposurePresets: [],
+        eyeModes: [],
+        lensTints: [],
+        postureOptions: [],
+        surfaceOptions: [],
+        channelDisplay: {},
+        channelTier: () => 0,
+        tierLabel: () => 'none',
+        formatChannelUnit: () => '',
+      });
+      document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, {
+    sunSessionUiUrl: moduleUrl('/js/sun-session-ui.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('sun active session covers start dialog stop summary and live dose helpers', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ activeUrl, sessionUiUrl }) => {
+    const active = await import(activeUrl);
+    const sunUI = await import(sessionUiUrl);
+    const state = window._labState;
+    const outcomes = {};
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const savedWindow = {
+      fetchAtmosphere: window.fetchAtmosphere,
+      reconstructSpectrum: window.reconstructSpectrum,
+      computeChannelDoses: window.computeChannelDoses,
+      erythemalSED: window.erythemalSED,
+      fractionOfMED: window.fractionOfMED,
+      solarZenithAngle: window.solarZenithAngle,
+      interpolateAtmosphere: window.interpolateAtmosphere,
+      vitaminDIU: window.vitaminDIU,
+      vitaminDIUPerSession: window.vitaminDIUPerSession,
+      renderLightChannelsLive: window.renderLightChannelsLive,
+      renderLightTodayStrip: window.renderLightTodayStrip,
+    };
+    let sessions = [{
+      id: 'last-ended',
+      startedAt: Date.now() - 3600000,
+      endedAt: Date.now() - 1800000,
+      durationMin: 30,
+      bodyExposure: { regions: ['face', 'arms-front'], fraction: 0.09 },
+      eyeExposure: { mode: 'sunglasses', lensTint: 'clear' },
+      posture: 'standing',
+      surfaceAlbedo: 'grass',
+    }];
+    const calls = [];
+
+    try {
+      state.importedData = {
+        ...state.importedData,
+        sunDefaults: { fitzpatrick: 'II', photosensitiveMeds: 'moderate' },
+        lightCircadian: { skinType: 'II - fair' },
+        genetics: { rsTest: 'AA' },
+      };
+      sunUI.configureSunSessionUI({
+        channelDisplay: {
+          vitamin_d: { icon: 'D', label: 'Vitamin D', dailyTarget: 300, what: 'Vitamin D' },
+          circadian: { icon: 'C', label: 'Circadian', dailyTarget: 100, what: 'Circadian' },
+        },
+        channelTier: value => value > 0 ? 2 : 0,
+        tierLabel: tier => tier ? 'moderate' : 'none',
+        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        tooShortForChannelVerdictMin: 2,
+      });
+      active.configureSunActiveSession({
+        getSessions: () => sessions,
+        getActiveSession: () => sessions.find(sess => !sess.endedAt) || null,
+        startSession: async opts => {
+          calls.push(['start', opts]);
+          sessions.push({
+            id: 'active-sun',
+            startedAt: Date.now() - 11 * 60 * 1000,
+            endedAt: null,
+            location: opts.location,
+            bodyExposure: { fraction: 0.11, regions: opts.regions, glassBetween: opts.glassBetween, rotatedSides: opts.rotatedSides },
+            eyeExposure: { mode: opts.eyeMode, lensTint: opts.lensTint },
+            posture: opts.posture,
+            surfaceAlbedo: opts.surfaceAlbedo,
+          });
+          return 'active-sun';
+        },
+        stopSession: async id => {
+          calls.push(['stop', id]);
+          const sess = sessions.find(item => item.id === id);
+          Object.assign(sess, {
+            endedAt: Date.now(),
+            durationMin: 24,
+            doses: { vitamin_d: 220 },
+            safety: { medFraction: 0.83, fitzpatrick: 'II' },
+            atmosphere: { uvIndex: 8.5 },
+          });
+          return sess;
+        },
+        hydrateSession: async id => calls.push(['hydrate', id]),
+        getSunCoords: () => ({ lat: 50.08, lon: 14.43, altitudeM: 200 }),
+        saveImportedData: async () => calls.push(['save']),
+        applyAtmOverrides: atm => ({ ...atm, uvIndex: atm.uvIndex + 0.1 }),
+        refreshSurfaces: () => calls.push(['refresh']),
+        normalizePSMTier: raw => raw || 'none',
+        photosensitiveMedScale: tier => tier === 'moderate' ? 0.65 : 1,
+        eyeModes: [{ key: 'direct', label: 'Eyes uncovered' }, { key: 'sunglasses', label: 'Sunglasses' }],
+        lensTints: [{ key: 'clear', label: 'Clear' }, { key: 'amber', label: 'Amber' }],
+        postureOptions: [{ key: 'standing', label: 'Standing' }, { key: 'lying', label: 'Lying' }],
+        surfaceOptions: [{ key: 'grass', label: 'Grass' }, { key: 'sand', label: 'Sand' }],
+      });
+
+      window.fetchAtmosphere = async () => ({ uvIndex: 11.2, cloudCover: 10, ozoneDU: 290, source: 'open_meteo', confidence: 0.9, temperatureC: 34 });
+      window.reconstructSpectrum = () => ({ wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] });
+      window.computeChannelDoses = ({ durationMin }) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
+      window.erythemalSED = ({ durationMin }) => 0.4 * durationMin;
+      window.fractionOfMED = ({ sed, medScale }) => sed / (10 * medScale);
+      window.solarZenithAngle = () => 35;
+      window.interpolateAtmosphere = atm => ({ ...atm, uvIndex: atm.uvIndex + 0.2 });
+      window.vitaminDIU = () => 1300;
+      window.vitaminDIUPerSession = () => 2600;
+      window.renderLightChannelsLive = () => calls.push(['render-live']);
+      window.renderLightTodayStrip = () => '<div id="today-light-strip-test">today</div>';
+
+      await active.openStartSunSessionDialog();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const overlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
+      outcomes.startDialogShowsUvPreflight = !!overlay
+        && overlay.querySelector('#sun-start-uvi-banner')?.hidden === false
+        && overlay.textContent.includes('Extreme UV');
+      overlay.querySelector('#start-eye-mode').value = 'direct';
+      overlay.querySelector('#start-lens-tint').value = 'amber';
+      overlay.querySelector('#start-posture').value = 'lying';
+      overlay.querySelector('#start-surface').value = 'sand';
+      overlay.querySelector('#start-glass').checked = true;
+      overlay.querySelector('#start-rotated').checked = true;
+      overlay.querySelector('#start-confirm').click();
+      await Promise.resolve();
+      outcomes.startDialogPassesSelectedDefaults = calls.some(call => call[0] === 'start'
+        && call[1].regions.includes('face')
+        && call[1].eyeMode === 'direct'
+        && call[1].lensTint === 'amber'
+        && call[1].glassBetween === true
+        && call[1].posture === 'lying'
+        && call[1].surfaceAlbedo === 'sand'
+        && call[1].rotatedSides === true);
+
+      active.setSunLiveState('active-sun', {
+        ratePerMin: { vitamin_d: 2, circadian: 1 },
+        sedPerMin: 0.5,
+        fitzpatrick: 'II',
+        medScale: 0.65,
+        psmTier: 'moderate',
+        atm: { uvIndex: 8.4, cloudCover: 20, temperatureC: 35, source: 'open_meteo', confidence: 0.9 },
+        zenith: 35,
+        snapshotAt: Date.now() - 90 * 1000,
+        committedDoses: { pomc: 4 },
+        committedSED: 0.5,
+        committedRetinalUV: 2,
+        fractionOfMEDFn: window.fractionOfMED,
+        pending: false,
+      });
+      const live = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.liveDosesIntegrateCurrentSlice = live.doses.vitamin_d > 0
+        && live.doses.pomc === 4
+        && live.medFraction > 0
+        && live.retinalUV > 2;
+
+      sessions.find(sess => sess.id === 'active-sun').paused = true;
+      const paused = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.pausedLiveDosesUseCommittedValues = paused.paused === true
+        && paused.doses.pomc === 4
+        && paused.retinalUV === 2;
+      sessions.find(sess => sess.id === 'active-sun').paused = false;
+
+      active.commitSunLiveSlice(sessions.find(sess => sess.id === 'active-sun'));
+      const afterCommit = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.commitSliceAccumulatesDoses = afterCommit.doses.vitamin_d > live.doses.vitamin_d;
+
+      await active.quickLogSunSession();
+      outcomes.quickLogStopsActiveSession = calls.some(call => call[0] === 'stop' && call[1] === 'active-sun')
+        && calls.some(call => call[0] === 'hydrate' && call[1] === 'active-sun')
+        && calls.some(call => call[0] === 'refresh');
+
+      outcomes.elapsedFormattingCoversHourAndMinute = active._formatElapsed(3723000) === '1:02:03'
+        && active._formatElapsed(65000) === '1:05';
+    } finally {
+      Object.assign(window, savedWindow);
+      state.importedData = originalImported;
+      active.resetSunActiveSessionState();
+      active.configureSunActiveSession({
+        getSessions: () => [],
+        getActiveSession: () => null,
+        startSession: async () => null,
+        stopSession: async () => null,
+        hydrateSession: async () => null,
+        getSunCoords: () => null,
+        saveImportedData: async () => {},
+        applyAtmOverrides: atm => atm,
+        refreshSurfaces: () => {},
+        normalizePSMTier: raw => raw || 'none',
+        photosensitiveMedScale: () => 1,
+        eyeModes: [],
+        lensTints: [],
+        postureOptions: [],
+        surfaceOptions: [],
+      });
+      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, {
+    activeUrl: moduleUrl('/js/sun-active-session.js'),
+    sessionUiUrl: moduleUrl('/js/sun-session-ui.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('light camera tool modals cover denied and manual fallback contracts', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ modalsUrl }) => {
+    const modals = await import(modalsUrl);
+    const outcomes = {};
+    const savedMediaDevices = navigator.mediaDevices;
+    const hadALS = Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor');
+    const originalALS = window.AmbientLightSensor;
+    const saved = [];
+
+    try {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: async () => { throw new DOMException('denied', 'NotAllowedError'); } },
+      });
+      window.AmbientLightSensor = undefined;
+      const deps = {
+        saveMeasurement: async (kind, value, meta) => {
+          saved.push({ kind, value, meta });
+        },
+      };
+
+      await modals.openLuxMeter({ roomId: 'bedroom' }, deps);
+      const luxInput = document.getElementById('lux-manual-input');
+      outcomes.luxDeniedShowsManualInput = !!luxInput
+        && document.getElementById('lux-source-line')?.textContent.includes('Camera access denied');
+      luxInput.value = '420';
+      luxInput.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('lux-save').click();
+      await Promise.resolve();
+      outcomes.luxManualSavePersistsReading = saved.some(item => item.kind === 'lux'
+        && item.value === 420
+        && item.meta.roomId === 'bedroom'
+        && item.meta.extra.source === 'manual-entry');
+
+      await modals.openSpectrumClassifier({ roomId: 'desk' }, deps);
+      outcomes.spectrumDeniedShowsManualChoices = !!document.querySelector('[data-spec-manual="Warm LED (2700-3000K)"],[data-spec-manual="Warm LED (2700–3000K)"]')
+        && document.getElementById('spec-result')?.textContent.includes('Camera access denied');
+      document.querySelector('[data-spec-manual]')?.click();
+      document.getElementById('spec-save').click();
+      await Promise.resolve();
+      outcomes.spectrumManualSavePersistsSelection = saved.some(item => item.kind === 'spectrum'
+        && item.meta.roomId === 'desk'
+        && item.meta.extra.reason.includes('manual selection'));
+
+      await modals.openFlickerDetector({ roomId: 'office' }, deps);
+      outcomes.flickerDeniedExplainsCameraRequirement = document.getElementById('flicker-result')?.textContent.includes('Camera access denied');
+      document.getElementById('flicker-save').click();
+      await Promise.resolve();
+      window._closeFlicker();
+
+      await modals.openCCTMeter({ roomId: 'office' }, deps);
+      outcomes.cctDeniedSetsCameraDeniedValue = document.getElementById('cct-value')?.textContent === 'Camera denied';
+      document.getElementById('cct-save').click();
+      await Promise.resolve();
+      window._closeCCT();
+
+      await modals.openDarknessMeter({ roomId: 'bedroom' }, deps);
+      document.getElementById('dark-start').click();
+      await Promise.resolve();
+      outcomes.darknessDeniedShowsUnavailableMessage = document.getElementById('dark-status')?.textContent.includes('Camera access denied');
+      window._closeDark();
+
+      outcomes.deniedToolsDoNotSaveWithoutResult = saved.filter(item => item.kind !== 'lux' && item.kind !== 'spectrum').length === 0;
+    } finally {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: savedMediaDevices,
+      });
+      if (hadALS) window.AmbientLightSensor = originalALS;
+      else delete window.AmbientLightSensor;
+      ['_closeLuxMeter', '_closeSpec', '_closeFlicker', '_closeCCT', '_closeDark', '_closeGlass'].forEach(name => {
+        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      });
+      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, {
+    modalsUrl: moduleUrl('/js/light-tool-camera-modals.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('light devices cover session detail edit log active card and rendered list paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ devicesUrl, silhouetteUrl }) => {
+    const lightDevices = await import(devicesUrl);
+    const silhouette = await import(silhouetteUrl);
+    const { profileStorageKey } = await import('/js/profile.js');
+    const blobStorage = await import('/js/blob-storage.js');
+    const state = window._labState;
+    const outcomes = {};
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
+    const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
+    const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
+    const savedWindow = {
+      validateModeCoupling: window.validateModeCoupling,
+      channelTier: window.channelTier,
+      tierLabel: window.tierLabel,
+      formatChannelUnit: window.formatChannelUnit,
+      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
+      _openChannelOnLightPage: window._openChannelOnLightPage,
+      renderDeviceSessionAIDetail: window.renderDeviceSessionAIDetail,
+      loadCatalog: window.loadCatalog,
+      renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
+      showPromptDialog: window.showPromptDialog,
+      navigate: window.navigate,
+      renderBodySilhouette: window.renderBodySilhouette,
+      bindBodySilhouette: window.bindBodySilhouette,
+    };
+    const calls = [];
+
+    try {
+      state.currentView = 'light';
+      state.unitSystem = 'metric';
+      const device = {
+        id: 'dev-panel',
+        brand: 'TestLight',
+        model: 'Panel 900',
+        type: 'combined',
+        peakWavelengths: [630, 660, 810, 850],
+        mwPerCm2At15cm: 55,
+        recommendedDistanceCm: 20,
+        channels: ['vitamin_d', 'circadian', 'pbm_red', 'pbm_nir'],
+        modes: [
+          { id: 'combo', label: 'Combo', default: true },
+          { id: 'red', label: 'Red only' },
+          { id: 'blocked', label: 'Blocked' },
+        ],
+        catalogSlug: 'testlight-panel-900',
+        addedAt: Date.now() - 9 * 86400000,
+        lastSession: {
+          durationMin: 12,
+          distanceCm: 25,
+          bodyAreas: ['breast-chest', 'arms-front'],
+          eyesProtected: true,
+          mode: 'combo',
+        },
+      };
+      const session = {
+        id: 'devsess-one',
+        deviceId: 'dev-panel',
+        startedAt: Date.now() - 3 * 86400000,
+        endedAt: Date.now() - 3 * 86400000 + 12 * 60000,
+        durationMin: 12,
+        distanceCm: 25,
+        bodyArea: 'torso',
+        bodyAreas: ['breast-chest', 'arms-front'],
+        eyesProtected: false,
+        mode: 'combo',
+        doses: { vitamin_d: 22, circadian: 35, pbm_red: 12 },
+        notes: 'Desk panel test',
+      };
+      state.importedData = {
+        ...state.importedData,
+        lightDevices: [device],
+        deviceSessions: [session],
+      };
+      window.validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
+      window.channelTier = value => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0;
+      window.tierLabel = tier => ['none', 'low', 'moderate', 'high'][tier] || 'none';
+      window.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
+      window.CHANNEL_DISPLAY = {
+        vitamin_d: { icon: 'D', label: 'Vitamin D', what: 'Vitamin D' },
+        circadian: { icon: 'C', label: 'Circadian', what: 'Circadian' },
+        pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
+        pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
+      };
+      window._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
+      window.renderDeviceSessionAIDetail = () => '<section class="device-ai-detail-test">Device AI</section>';
+      window.loadCatalog = async () => ({ items: [] });
+      window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
+      window.showPromptDialog = async () => '17';
+      window.navigate = route => calls.push(['navigate', route]);
+      window.renderBodySilhouette = silhouette.renderBodySilhouette;
+      window.bindBodySilhouette = silhouette.bindBodySilhouette;
+
+      const devicesHtml = await lightDevices.renderDevicesSection();
+      const devicesHost = document.createElement('div');
+      devicesHost.innerHTML = devicesHtml;
+      outcomes.renderDevicesSectionShowsStatsAndAffiliate = devicesHost.textContent.includes('TestLight Panel 900')
+        && devicesHost.textContent.includes('1 session')
+        && !!devicesHost.querySelector('.affiliate-test')
+        && devicesHost.textContent.includes('630')
+        && devicesHost.textContent.includes('850')
+        && !!devicesHost.querySelector('.light-device-feed-chip');
+
+      lightDevices.openDeviceSessionDetail('devsess-one');
+      let detailOverlay = document.querySelector('[data-session-kind="device"]')?.closest('.modal-overlay');
+      outcomes.deviceDetailShowsModeBodyChannelsAndAI = !!detailOverlay
+        && detailOverlay.textContent.includes('Combo')
+        && detailOverlay.textContent.includes('Upper chest')
+        && detailOverlay.textContent.includes('Device AI')
+        && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 3;
+      detailOverlay.querySelector('.sun-detail-channel-row')?.click();
+      outcomes.deviceDetailChannelRowsOpenLightPage = calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d');
+
+      await lightDevices.editDeviceSessionDuration('devsess-one');
+      outcomes.editDurationUsesPromptAndRecomputes = state.importedData.deviceSessions[0].durationMin === 17
+        && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+
+      await lightDevices.editDeviceSessionMode('devsess-one');
+      const modeOverlay = document.querySelector('[aria-label="Edit session mode"]')?.closest('.modal-overlay');
+      if (modeOverlay) {
+        modeOverlay.querySelector('#dev-edit-mode').value = 'red';
+        modeOverlay.querySelector('#dev-edit-mode-save').click();
+        await Promise.resolve();
+      }
+      outcomes.editModeFiltersAndSavesMode = state.importedData.deviceSessions[0].mode === 'red'
+        && !modeOverlay?.textContent.includes('Blocked');
+
+      await lightDevices.openDeviceSessionDialog('dev-panel');
+      const logOverlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      outcomes.logDialogUsesLastSessionDefaults = !!logOverlay
+        && logOverlay.querySelector('#dev-session-duration')?.value === '12'
+        && logOverlay.querySelector('#dev-session-mode')?.value === 'combo'
+        && logOverlay.querySelector('#dev-session-area-hint')?.textContent.includes('region');
+      logOverlay.querySelector('#dev-session-duration').value = '9';
+      logOverlay.querySelector('#dev-session-save').click();
+      await Promise.resolve();
+      outcomes.logDialogSavesNewSession = state.importedData.deviceSessions.length === 2
+        && state.importedData.deviceSessions[1].durationMin === 9
+        && state.importedData.deviceSessions[1].bodyAreas.includes('breast-chest');
+
+      state.importedData.deviceSessions.push({
+        id: 'devsess-active',
+        deviceId: 'dev-panel',
+        startedAt: Date.now() - 65000,
+        endedAt: null,
+        distanceCm: 20,
+        bodyAreas: ['face', 'arms-front', 'legs-front', 'legs-back'],
+        eyesProtected: true,
+        doses: {},
+      });
+      const activeHtml = lightDevices.renderActiveDeviceSessionCard();
+      outcomes.activeDeviceCardShowsElapsedAndStop = activeHtml.includes('data-live-elapsed-for="devsess-active"')
+        && activeHtml.includes('Stop &amp; save')
+        && activeHtml.includes('+1 more');
+    } finally {
+      state.importedData = originalImported;
+      if (originalImportedBlobValue == null) await blobStorage.deleteBlob(importedStorageKey);
+      else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
+      if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
+      else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
+      Object.assign(window, savedWindow);
+      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, {
+    devicesUrl: moduleUrl('/js/light-devices.js'),
+    silhouetteUrl: moduleUrl('/js/sun-body-silhouette.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
