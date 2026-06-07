@@ -12,13 +12,20 @@ test('report builder modal delegates presets categories AI state and preview exp
     const builder = await import(builderUrl);
     const state = window._labState;
     const outcomes = {};
+    if (typeof window.getProfiles !== 'function' || typeof window.saveProfiles !== 'function') {
+      throw new Error('Profile helpers are required for report export coverage setup.');
+    }
+    const originalProfiles = window.getProfiles();
+    if (!Array.isArray(originalProfiles)) {
+      throw new Error('Expected getProfiles to return the current profile list.');
+    }
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       dateRangeFilter: state.dateRangeFilter,
-      profiles: JSON.parse(JSON.stringify(window.getProfiles?.() || [])),
+      profiles: JSON.parse(JSON.stringify(originalProfiles)),
       open: window.open,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
@@ -73,7 +80,7 @@ test('report builder modal delegates presets categories AI state and preview exp
         customMarkers: {},
       };
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles?.([{
+      await window.saveProfiles([{
         id: 'report-export-coverage',
         name: 'Report Coverage',
         sex: 'male',
@@ -91,7 +98,9 @@ test('report builder modal delegates presets categories AI state and preview exp
           write(markup) { capturedReport += markup; },
           close() {},
           querySelector(selector) {
-            if (selector !== '.report-print-btn') return null;
+            if (selector !== '.report-print-btn') {
+              throw new Error(`Unexpected popup querySelector: ${selector}`);
+            }
             return {
               addEventListener(type) {
                 if (type === 'click') printHandlerInstalled = true;
@@ -181,7 +190,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       state.profileDob = original.profileDob;
       state.dateRangeFilter = original.dateRangeFilter;
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles?.(original.profiles);
+      await window.saveProfiles(original.profiles);
       window.open = original.open;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
