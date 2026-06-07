@@ -379,7 +379,10 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
 
       const inlineHost = document.createElement('div');
       inlineHost.innerHTML = sessionsView.renderUnifiedSessionsList();
-      outcomes.inlineListCapsAndShowsMore = inlineHost.querySelectorAll('.sun-session').length === 3
+      // Active sessions are pinned elsewhere, so history sees four completed
+      // rows (2 sun + 2 device) and caps the inline list to the first three.
+      const inlineRows = inlineHost.querySelectorAll('.sun-session');
+      outcomes.inlineListCapsAndShowsMore = inlineRows.length === 3
         && inlineHost.textContent.includes('View all 4 sessions')
         && !!inlineHost.querySelector('.light-sessions-list-unified');
 
@@ -390,8 +393,10 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
         && overlay?.textContent.includes('Device') === true
         && overlay?.querySelectorAll('.sun-session').length === 4;
 
-      overlay?.querySelector('.sun-session-delete')?.click();
-      outcomes.deleteButtonDoesNotCloseModal = document.body.contains(overlay)
+      const devADelete = overlay?.querySelector('.light-session-device[data-id="dev-a"] .sun-session-delete');
+      devADelete?.click();
+      outcomes.deleteButtonTargetsDevAAndDoesNotCloseModal = !!devADelete
+        && document.body.contains(overlay)
         && calls.some(call => call[0] === 'delete' && call[1] === 'dev-a');
 
       deviceSessions = [
@@ -405,12 +410,15 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
         && overlay?.textContent.includes('NIR') === true;
 
       const body = overlay?.querySelector('.light-sessions-modal-body');
-      const wheelPrevented = body?.dispatchEvent(new WheelEvent('wheel', {
-        deltaY: 120,
-        cancelable: true,
-        bubbles: true,
-      })) === false;
-      outcomes.modalWheelIsHandled = wheelPrevented;
+      outcomes.modalWheelBodyExists = !!body;
+      const wheelPrevented = body
+        ? body.dispatchEvent(new WheelEvent('wheel', {
+            deltaY: 120,
+            cancelable: true,
+            bubbles: true,
+          })) === false
+        : false;
+      outcomes.modalWheelIsHandled = outcomes.modalWheelBodyExists && wheelPrevented;
 
       overlay?.querySelector('.light-session-device[role="button"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await delay(0);
