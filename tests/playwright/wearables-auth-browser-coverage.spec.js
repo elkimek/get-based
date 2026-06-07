@@ -18,14 +18,18 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
     });
     const exerciseBeginOAuth = async (spec) => {
       const frame = document.createElement('iframe');
+      let timeoutId = null;
       const loaded = new Promise((resolve, reject) => {
-        frame.onload = () => resolve();
-        setTimeout(() => reject(new Error(`Timed out loading auth iframe for ${spec.id}`)), 5000);
+        frame.onload = () => {
+          if (timeoutId != null) clearTimeout(timeoutId);
+          resolve();
+        };
+        timeoutId = setTimeout(() => reject(new Error(`Timed out loading auth iframe for ${spec.id}`)), 5000);
       });
       frame.src = `/app?wearables-auth-frame=${encodeURIComponent(spec.id)}-${Date.now()}`;
       document.body.appendChild(frame);
-      await loaded;
       try {
+        await loaded;
         const win = frame.contentWindow;
         win._labState = { currentProfile: 'wearables-auth-profile' };
         win.sessionStorage.removeItem(spec.stateKey);
@@ -40,6 +44,7 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
         const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
         return JSON.parse(raw || '{}');
       } finally {
+        if (timeoutId != null) clearTimeout(timeoutId);
         frame.remove();
       }
     };
@@ -49,23 +54,23 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
       window._labState.currentProfile = 'wearables-auth-profile';
 
       for (const spec of cases) {
-        const mod = await import(spec.url);
-        const requests = [];
-        const fetchQueue = [];
-        window.fetch = async (url, options = {}) => {
-          const parsedBody = JSON.parse(String(options.body || '{}'));
-          requests.push({
-            url: String(url),
-            method: options.method,
-            body: parsedBody,
-          });
-          const next = fetchQueue.shift();
-          if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
-          return makeResponse(next);
-        };
-        const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
-
         try {
+          const mod = await import(spec.url);
+          const requests = [];
+          const fetchQueue = [];
+          window.fetch = async (url, options = {}) => {
+            const parsedBody = JSON.parse(String(options.body || '{}'));
+            requests.push({
+              url: String(url),
+              method: options.method,
+              body: parsedBody,
+            });
+            const next = fetchQueue.shift();
+            if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
+            return makeResponse(next);
+          };
+          const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
+
           const exact = mod.pickRedirectUri([
             `${location.origin}/app`,
             'https://example.invalid/callback',
@@ -130,11 +135,14 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             && (!spec.exchangeUserId || callback.tokens.userId === spec.exchangeUserId);
 
           const errorCallback = await mod[spec.completeName](new URLSearchParams('error=access_denied&error_description=nope'));
-          const missingCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
+          const missingStateCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
+          const missingCodeCallback = await mod[spec.completeName](new URLSearchParams('state=only-state'));
           outcomes[`${spec.id}CallbackEarlyErrors`] = errorCallback.ok === false
             && errorCallback.error.includes('access_denied')
-            && missingCallback.ok === false
-            && missingCallback.error.includes('Missing code');
+            && missingStateCallback.ok === false
+            && missingStateCallback.error === 'Missing code or state in callback'
+            && missingCodeCallback.ok === false
+            && missingCodeCallback.error === 'Missing code or state in callback';
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
             state: 'expected-state',
@@ -260,6 +268,9 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
           outcomes[`${spec.id}WithFreshTokenMissingRefresh`] = spec.id === 'polar'
             ? missingRefreshResult?.accessToken === 'expired' && missingRefreshWrites.length === 0
             : missingRefreshError?.code === 'needs-reauth' && missingRefreshWrites.length === 0;
+          outcomes[`${spec.id}ProviderCompleted`] = true;
+        } catch (error) {
+          outcomes[`${spec.id}ProviderError: ${error?.message || error}`] = false;
         } finally {
           sessionStorage.removeItem(spec.stateKey);
         }
@@ -313,12 +324,12 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
         exchangeRefresh: 'withings-refresh',
         exchangeTokenType: 'Bearer',
         exchangeUserId: 'withings-user',
-        refreshResponse: { body: { access_token: 'withings-refreshed', refresh_token: 'withings-refresh-2', expires_in: 120, scope: 'user.metrics', token_type: 'Bearer', userid: 'withings-user-2' } },
+        refreshResponse: { status: 0, body: { access_token: 'withings-refreshed', refresh_token: 'withings-refresh-2', expires_in: 120, scope: 'user.metrics', token_type: 'Bearer', userid: 'withings-user-2' } },
         refreshAccess: 'withings-refreshed',
         refreshRefresh: 'withings-refresh-2',
         refreshTokenType: 'Bearer',
         refreshUserId: 'withings-user-2',
-        freshResponse: { body: { access_token: 'withings-fresh', refresh_token: 'withings-refresh-3', expires_in: 120, scope: 'fresh-scope', token_type: 'Bearer', userid: 'withings-user-3' } },
+        freshResponse: { status: 0, body: { access_token: 'withings-fresh', refresh_token: 'withings-refresh-3', expires_in: 120, scope: 'fresh-scope', token_type: 'Bearer', userid: 'withings-user-3' } },
         freshAccess: 'withings-fresh',
         freshRefresh: 'withings-refresh-3',
         freshScope: 'fresh-scope',
@@ -404,14 +415,18 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
     });
     const exerciseBeginOAuth = async (spec) => {
       const frame = document.createElement('iframe');
+      let timeoutId = null;
       const loaded = new Promise((resolve, reject) => {
-        frame.onload = () => resolve();
-        setTimeout(() => reject(new Error(`Timed out loading auth iframe for ${spec.id}`)), 5000);
+        frame.onload = () => {
+          if (timeoutId != null) clearTimeout(timeoutId);
+          resolve();
+        };
+        timeoutId = setTimeout(() => reject(new Error(`Timed out loading auth iframe for ${spec.id}`)), 5000);
       });
       frame.src = `/app?wearables-auth-frame=${encodeURIComponent(spec.id)}-${Date.now()}`;
       document.body.appendChild(frame);
-      await loaded;
       try {
+        await loaded;
         const win = frame.contentWindow;
         win._labState = { currentProfile: 'wearables-auth-profile' };
         win.sessionStorage.removeItem(spec.stateKey);
@@ -426,6 +441,7 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
         const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
         return JSON.parse(raw || '{}');
       } finally {
+        if (timeoutId != null) clearTimeout(timeoutId);
         frame.remove();
       }
     };
@@ -435,23 +451,23 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
       window._labState.currentProfile = 'wearables-auth-profile';
 
       for (const spec of cases) {
-        const mod = await import(spec.url);
-        const requests = [];
-        const fetchQueue = [];
-        window.fetch = async (url, options = {}) => {
-          const parsedBody = JSON.parse(String(options.body || '{}'));
-          requests.push({
-            url: String(url),
-            method: options.method,
-            body: parsedBody,
-          });
-          const next = fetchQueue.shift();
-          if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
-          return makeResponse(next);
-        };
-        const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
-
         try {
+          const mod = await import(spec.url);
+          const requests = [];
+          const fetchQueue = [];
+          window.fetch = async (url, options = {}) => {
+            const parsedBody = JSON.parse(String(options.body || '{}'));
+            requests.push({
+              url: String(url),
+              method: options.method,
+              body: parsedBody,
+            });
+            const next = fetchQueue.shift();
+            if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
+            return makeResponse(next);
+          };
+          const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
+
           const exact = mod.pickRedirectUri([
             `${location.origin}/app`,
             'https://example.invalid/callback',
@@ -524,11 +540,14 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             && (!spec.exchangeUserId || callback.tokens.userId === spec.exchangeUserId);
 
           const errorCallback = await mod[spec.completeName](new URLSearchParams('error=access_denied&error_description=nope'));
-          const missingCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
+          const missingStateCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
+          const missingCodeCallback = await mod[spec.completeName](new URLSearchParams('state=only-state'));
           outcomes[`${spec.id}CallbackEarlyErrors`] = errorCallback.ok === false
             && errorCallback.error.includes('access_denied')
-            && missingCallback.ok === false
-            && missingCallback.error.includes('Missing code');
+            && missingStateCallback.ok === false
+            && missingStateCallback.error === 'Missing code or state in callback'
+            && missingCodeCallback.ok === false
+            && missingCodeCallback.error === 'Missing code or state in callback';
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
             state: 'expected-state',
@@ -644,6 +663,9 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
           }
           outcomes[`${spec.id}WithFreshTokenMissingRefresh`] = missingRefreshError?.code === 'needs-reauth'
             && missingRefreshWrites.length === 0;
+          outcomes[`${spec.id}ProviderCompleted`] = true;
+        } catch (error) {
+          outcomes[`${spec.id}ProviderError: ${error?.message || error}`] = false;
         } finally {
           sessionStorage.removeItem(spec.stateKey);
         }
