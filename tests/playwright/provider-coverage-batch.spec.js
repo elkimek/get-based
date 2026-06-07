@@ -271,6 +271,8 @@ test('provider panels cover provider switching key saves balances custom API and
       closeSettingsModal: window.closeSettingsModal,
       openChatPanel: window.openChatPanel,
       loadFocusCard: window.loadFocusCard,
+      handleSaveCustomApi: window.handleSaveCustomApi,
+      handleRemoveCustomApi: window.handleRemoveCustomApi,
     };
 
     let openedUrl = '';
@@ -442,6 +444,8 @@ test('provider panels cover provider switching key saves balances custom API and
       window.closeSettingsModal = oldGlobals.closeSettingsModal;
       window.openChatPanel = oldGlobals.openChatPanel;
       window.loadFocusCard = oldGlobals.loadFocusCard;
+      window.handleSaveCustomApi = oldGlobals.handleSaveCustomApi;
+      window.handleRemoveCustomApi = oldGlobals.handleRemoveCustomApi;
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
@@ -574,6 +578,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         && document.querySelector('#ppq-topup-area a[href^="monero:"]') !== null
         && (document.getElementById('ppq-topup-area')?.textContent || '').includes('Show address');
       const paidPoll = intervals.find(item => item.ms === 3000 && !item.cleared);
+      const paidPollIntervalScheduled = !!paidPoll;
       if (paidPoll) await paidPoll.fn();
       const paidInvoiceUpdatesBalance = (document.getElementById('ppq-topup-area')?.textContent || '').includes('Payment received')
         && document.getElementById('ppq-balance')?.textContent.includes('$1.25');
@@ -581,6 +586,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       createMode = 'expired';
       await ppq.doPpqTopup(2);
       const expiredPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
+      const expiredPollIntervalScheduled = !!expiredPoll;
       if (expiredPoll) await expiredPoll.fn();
       const expiredInvoice = (document.getElementById('ppq-topup-status')?.textContent || '').includes('Invoice expired');
 
@@ -588,9 +594,14 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       await ppq.doPpqTopup(2);
       const topupError = (document.getElementById('ppq-topup-area')?.textContent || '').includes('bad topup');
 
+      createMode = 'paid';
+      await ppq.doPpqTopup(2);
+      const cancelPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
+      const cancelPollIntervalScheduled = !!cancelPoll;
       ppq.cancelPpqTopup();
       const cancelHidesArea = document.getElementById('ppq-topup-area')?.style.display === 'none'
-        && intervals.some(item => item.cleared);
+        && !!cancelPoll
+        && intervals.find(item => item.id === cancelPoll.id)?.cleared === true;
 
       return {
         accountReveal,
@@ -599,9 +610,12 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         customInputRenders,
         rejectsLowCustom,
         invoiceRenders,
+        paidPollIntervalScheduled,
         paidInvoiceUpdatesBalance,
+        expiredPollIntervalScheduled,
         expiredInvoice,
         topupError,
+        cancelPollIntervalScheduled,
         cancelHidesArea,
         noUnexpectedReturn: returnToChatCount === 0,
       };
