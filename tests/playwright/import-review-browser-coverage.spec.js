@@ -187,6 +187,10 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       review.applyManualImportDate('2026-06-01');
       outcomes.manualDateUpdatesPendingAndButton = review.getPendingImport()?.date === '2026-06-01'
         && confirmBtn?.disabled === false;
+      review.applyManualImportDate('');
+      outcomes.emptyManualDateDisablesImport = review.getPendingImport()?.date === ''
+        && confirmBtn?.disabled === true;
+      review.applyManualImportDate('2026-06-01');
 
       review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="unmatched"]'));
       outcomes.unmatchedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '11/13 shown';
@@ -216,14 +220,29 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       review.toggleImportRow(excludeBtn);
       outcomes.excludeUpdatesRowAndCount = excludeBtn.textContent === 'Include'
         && excludeBtn.closest('tr')?.classList.contains('import-excluded') === true
-        && confirmBtn?.textContent === 'Import 2 Markers';
+        && confirmBtn?.textContent === 'Import 2 Markers'
+        && review.getExcludedImportIndices().has(0) === true;
 
       review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="excluded"]'));
       outcomes.excludedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
 
+      review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="all"]'));
+      const selectRow = document.querySelector('tr[data-import-status="unmatched"]');
+      const select = document.createElement('select');
+      select.dataset.markerIdx = selectRow.dataset.importIdx;
+      select.innerHTML = '<option value="iron.ferritin">Ferritin</option>';
+      select.value = 'iron.ferritin';
+      selectRow.querySelector('.import-map-cell').append(select);
+      review.mapUnmatchedMarker(select);
+      outcomes.mapUnmatchedBySelect = selectRow.dataset.importStatus === 'matched'
+        && review.getPendingImport().markers[Number(select.dataset.markerIdx)].mappedKey === 'iron.ferritin'
+        && confirmBtn?.textContent === 'Import 3 Markers';
+
       review.closeImportModal();
       outcomes.closeClearsPending = overlay?.classList.contains('show') === false
         && review.getPendingImport() === null;
+
+      outcomes.resolveWithoutBatchReturnsFalse = review.resolveImportPreviewBatch('import') === false;
 
       const batchPromise = review.showImportPreviewAsync({
         date: '2026-06-02',
@@ -235,6 +254,18 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       review.closeImportModal();
       outcomes.asyncCloseResolvesSkip = await batchPromise === 'skip'
         && dropZone?.style.display === '';
+
+      const importBatchPromise = review.showImportPreviewAsync({
+        date: '2026-06-03',
+        fileName: 'batch-import-review.pdf',
+        markers: [baseMarkers[0]],
+      }, 3, 5);
+      const resolvedImport = review.resolveImportPreviewBatch('import');
+      outcomes.asyncResolveImportClearsModal = resolvedImport === true
+        && await importBatchPromise === 'import'
+        && overlay?.classList.contains('show') === false
+        && review.getPendingImport() === null
+        && dropZone?.style.display === '';
     } finally {
       state.currentProfile = originalProfile;
       window._pendingImport = null;
@@ -243,6 +274,82 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       window._batchImportContext = null;
       document.getElementById('import-modal-overlay')?.classList.remove('show');
       if (dropZone) dropZone.style.display = originalDropDisplay;
+    }
+
+    return outcomes;
+  }, {
+    reviewUrl: moduleUrl('/js/pdf-import-review.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('PDF import review modal covers privacy cost and debug details', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ reviewUrl }) => {
+    const review = await import(reviewUrl);
+    const outcomes = {};
+    const savedStorage = {};
+    const storageKeys = [
+      'labcharts-debug',
+      'labcharts-ai-provider',
+      'labcharts-ollama-model',
+      'labcharts-ollama-pii-model',
+    ];
+
+    try {
+      for (const key of storageKeys) savedStorage[key] = localStorage.getItem(key);
+      localStorage.setItem('labcharts-debug', 'true');
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ollama-model', 'llama-debug');
+      localStorage.setItem('labcharts-ollama-pii-model', 'pii-debug');
+
+      review.showImportPreview({
+        date: '2026-06-04',
+        fileName: 'debug-review.pdf',
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.4,
+          unit: 'mmol/l',
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+          refMin: 3.0,
+          refMax: 6.0,
+        }],
+        privacyMethod: 'ollama+review',
+        costInfo: {
+          provider: 'ollama',
+          modelId: 'llama-debug',
+          inputTokens: 1000,
+          outputTokens: 500,
+          cost: 0,
+        },
+        timings: { pii: 2, analysis: 3 },
+        privacyOriginal: 'Patient: Jane Example',
+        privacyObfuscated: 'Patient: [NAME]',
+      });
+
+      const modal = document.getElementById('import-modal');
+      outcomes.ollamaPrivacyNoticeRendersReviewedState = modal?.textContent.includes('Personal information scrubbed by local AI (reviewed)') === true;
+      outcomes.costInfoRendersModelTokensAndCost = modal?.textContent.includes('llama-debug') === true
+        && modal?.textContent.includes('1,500 tokens') === true
+        && modal?.textContent.includes('Free') === true;
+      outcomes.debugDetailsRenderTimingAndPrivacyButton = modal?.textContent.includes('PII: 2s (pii-debug)') === true
+        && modal?.textContent.includes('Analysis: 3s (llama-debug)') === true
+        && modal?.querySelector('.import-privacy-details-btn') !== null;
+      outcomes.rangeAdoptionOptionRendersWhenLabRangesDiffer = modal?.querySelector('#import-adopt-ranges') !== null;
+    } finally {
+      for (const key of storageKeys) {
+        if (savedStorage[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, savedStorage[key]);
+      }
+      window._pendingImport = null;
+      window._pendingImportRefLookup = null;
+      document.getElementById('import-modal-overlay')?.classList.remove('show');
     }
 
     return outcomes;
