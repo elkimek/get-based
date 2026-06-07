@@ -41,7 +41,6 @@ test('category customization covers rename icon and emoji picker browser paths',
       state.currentView = 'dashboard';
       window.buildSidebar = data => calls.push(['sidebar', !!data?.categories?.lipids]);
       window.navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
-      category.configureCategoryCustomization({ navigate: window.navigate });
 
       window.showPromptDialog = async () => '  Better Lipids  ';
       await category.renameCategory('lipids');
@@ -196,6 +195,25 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       window.openChatPanel = () => calls.push(['chat']);
       window.useChatPrompt = prompt => calls.push(['prompt', prompt]);
       window.openEMFAssessmentEditor = () => calls.push(['emf-editor']);
+
+      lifestyle.openExerciseEditor();
+      const defaultExerciseFrequency = setOption('exercise-freq');
+      lifestyle.saveExercise();
+      outcomes.defaultSaveContextAndRefreshStoresAndNotifies = state.importedData.exercise?.frequency === defaultExerciseFrequency
+        && Array.from(document.querySelectorAll('.notification-toast')).some(el => el.textContent.includes('Exercise saved'));
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      state.importedData.exercise = null;
+
+      state.importedData.healthGoals = [{ text: 'Initial sync goal', severity: 'major' }];
+      lifestyle.openHealthGoalsEditor();
+      outcomes.healthGoalsModalStartsWithInitialSyncGoal = modal.textContent.includes('Initial sync goal');
+      state.importedData.healthGoals = [{ text: 'Synced goal from sync', severity: 'minor' }];
+      window.dispatchEvent(new CustomEvent('labcharts-sync-applied'));
+      await delay(0);
+      outcomes.healthGoalsModalRefreshesOnSync = modal.textContent.includes('Synced goal from sync')
+        && !modal.textContent.includes('Initial sync goal');
+      state.importedData.healthGoals = [];
+
       lifestyle.configureLifestyleContextEditors({
         recordChange: field => calls.push(['record', field]),
         saveAndRefresh: (msg, field) => calls.push(['save', msg, field || '']),
@@ -375,6 +393,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       import('/js/data.js'),
     ]);
     const outcomes = {};
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const saved = {
       importedData: clone(state.importedData),
@@ -384,6 +403,10 @@ test('context health dots and focus card cover cache fallback and empty states',
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       openRouterKey: localStorage.getItem('labcharts-openrouter-key'),
+      ollamaModel: localStorage.getItem('labcharts-ollama-model'),
+      fetch: window.fetch,
+      getOllamaConfig: window.getOllamaConfig,
+      buildLabContext: window.buildLabContext,
     };
     const cacheKeys = [];
     const host = document.createElement('div');
@@ -439,6 +462,72 @@ test('context health dots and focus card cover cache fallback and empty states',
       health.refreshAllHealthDots();
       outcomes.refreshAllHealthDotsRequiresProvider = localStorage.getItem(healthCacheKey) !== null;
 
+      localStorage.removeItem(healthCacheKey);
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.removeItem('labcharts-ai-paused');
+      localStorage.setItem('labcharts-ollama-model', 'context-test-model');
+      state.importedData = {
+        entries: [{ date: '2026-06-01', markers: { 'vitamins.vitaminD': 22, 'lipids.apoB': 115 } }],
+        healthGoals: [{ text: 'Improve sleep', severity: 'major' }],
+        diagnoses: { conditions: [{ name: 'Hashimoto', severity: 'mild' }] },
+        diet: { type: 'omnivore', breakfast: 'eggs' },
+        exercise: { frequency: 'daily' },
+        sleepRest: { duration: '7-8 hours' },
+        lightCircadian: { amLight: 'daily' },
+        stress: { level: 'moderate' },
+        loveLife: { status: 'partnered' },
+        environment: { setting: 'urban' },
+      };
+      data.invalidateActiveDataCache();
+      let aiResponse = JSON.stringify({
+        healthGoals: { dot: 'green', tip: 'goals covered' },
+        diet: 'yellow',
+        exercise: { dot: 'purple', tip: 'invalid color' },
+      });
+      const aiCalls = [];
+      window.getOllamaConfig = () => ({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' });
+      window.buildLabContext = () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n');
+      window.fetch = async (url, options = {}) => {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href === 'http://ollama.test/v1/chat/completions') {
+          const body = JSON.parse(options.body || '{}');
+          aiCalls.push({ url: href, body });
+          return new Response(JSON.stringify({
+            choices: [{ message: { content: aiResponse }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 7, completion_tokens: 5 },
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return saved.fetch(url, options);
+      };
+      await health.loadContextHealthDots();
+      const parsedHealthCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}');
+      outcomes.healthDotsCallsLocalCompatibleEndpoint = aiCalls.length === 1
+        && aiCalls[0].url === 'http://ollama.test/v1/chat/completions'
+        && aiCalls[0].body.model === 'context-test-model'
+        && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('"healthGoals"'))
+        && aiCalls[0].body.messages.some(msg => msg.role === 'user' && msg.content.includes('[section:diet]'));
+      outcomes.healthDotsCachesParsedObjectAndStringEntries = document.getElementById('ctx-dot-healthGoals')?.classList.contains('ctx-health-dot-green') === true
+        && document.getElementById('ctx-ai-healthGoals')?.textContent.includes('goals covered')
+        && document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-yellow') === true
+        && document.getElementById('ctx-dot-exercise')?.classList.contains('ctx-health-dot-gray') === true
+        && parsedHealthCache.dots?.healthGoals === 'green'
+        && parsedHealthCache.summaries?.healthGoals === 'goals covered'
+        && parsedHealthCache.dots?.diet === 'yellow'
+        && typeof parsedHealthCache.fingerprints?.healthGoals === 'string';
+
+      aiResponse = 'not json';
+      localStorage.removeItem(healthCacheKey);
+      aiCalls.length = 0;
+      await health.loadContextHealthDots();
+      outcomes.healthDotsGrayAndWritesCacheOnInvalidAIResponse = aiCalls.length === 1
+        && document.getElementById('ctx-dot-healthGoals')?.classList.contains('ctx-health-dot-gray') === true
+        && localStorage.getItem(healthCacheKey) !== null;
+
+      window.fetch = saved.fetch;
+      window.getOllamaConfig = saved.getOllamaConfig;
+      if (saved.buildLabContext === undefined) delete window.buildLabContext;
+      else window.buildLabContext = saved.buildLabContext;
+
       const demo = await fetch('data/demo-male.json').then(r => r.json());
       state.importedData = demo;
       state.importedData.healthGoals = [{ text: 'Improve insulin sensitivity', severity: 'major' }];
@@ -466,6 +555,41 @@ test('context health dots and focus card cover cache fallback and empty states',
         && focusContext.includes('Flagged');
 
       localStorage.removeItem(focusCacheKey);
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.removeItem('labcharts-ai-paused');
+      localStorage.setItem('labcharts-ollama-model', 'context-test-model');
+      const focusAiCalls = [];
+      window.getOllamaConfig = () => ({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' });
+      window.fetch = async (url, options = {}) => {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href === 'http://ollama.test/v1/chat/completions') {
+          const body = JSON.parse(options.body || '{}');
+          focusAiCalls.push(body);
+          const stream = new ReadableStream({
+            start(controller) {
+              const encoder = new TextEncoder();
+              controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Vitamin D is low."}}]}\n\n'));
+              controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":" Recheck with ApoB."},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":6}}\n\n'));
+              controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+              controller.close();
+            },
+          });
+          return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+        }
+        return saved.fetch(url, options);
+      };
+      document.getElementById('focus-card-body').innerHTML = '';
+      await focus.loadFocusCard();
+      await delay(30);
+      const streamedFocusCache = JSON.parse(localStorage.getItem(focusCacheKey) || '{}');
+      outcomes.loadFocusCardStreamsAndCachesLocalAI = focusAiCalls.length === 1
+        && focusAiCalls[0].stream === true
+        && document.getElementById('focus-card-body')?.textContent.includes('Vitamin D is low. Recheck with ApoB') === true
+        && streamedFocusCache.text === 'Vitamin D is low. Recheck with ApoB.';
+      window.fetch = saved.fetch;
+      window.getOllamaConfig = saved.getOllamaConfig;
+
+      localStorage.removeItem(focusCacheKey);
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
@@ -473,6 +597,12 @@ test('context health dots and focus card cover cache fallback and empty states',
       document.getElementById('focus-card-body').innerHTML = '';
       await focus.loadFocusCard();
       outcomes.loadFocusCardShowsEnableAIWithoutConnectedProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
+      localStorage.setItem(focusCacheKey, JSON.stringify({ fingerprint: focusFp, text: 'Temporary focus cache' }));
+      document.getElementById('focus-card-body').innerHTML = '<span>Temporary focus cache</span>';
+      focus.refreshFocusCard();
+      await delay(0);
+      outcomes.refreshFocusCardClearsCacheAndReloadsProviderGate = localStorage.getItem(focusCacheKey) === null
+        && document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
 
       state.importedData = { entries: [] };
       data.invalidateActiveDataCache();
@@ -492,7 +622,13 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-ai-paused', saved.paused);
       if (saved.openRouterKey == null) localStorage.removeItem('labcharts-openrouter-key');
       else localStorage.setItem('labcharts-openrouter-key', saved.openRouterKey);
+      if (saved.ollamaModel == null) localStorage.removeItem('labcharts-ollama-model');
+      else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
       window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
+      window.fetch = saved.fetch;
+      window.getOllamaConfig = saved.getOllamaConfig;
+      if (saved.buildLabContext === undefined) delete window.buildLabContext;
+      else window.buildLabContext = saved.buildLabContext;
       for (const key of cacheKeys) localStorage.removeItem(key);
       host.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
