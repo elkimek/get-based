@@ -716,6 +716,10 @@ function installProfileShareDelegates(overlay) {
 }
 
 let _lastOpenedShareId = '';
+export function resetProfileShareDeepLinkState() {
+  _lastOpenedShareId = '';
+}
+
 export function handleProfileShareDeepLink() {
   const id = parseProfileShareIdFromLocation();
   if (!id || id === _lastOpenedShareId) return;
