@@ -156,6 +156,12 @@ test('report builder modal delegates presets categories AI state and preview exp
       outcomes.selectAllRestoresCategories = checkedCategories(overlay).includes('biochemistry')
         && checkedCategories(overlay).includes('hematology');
 
+      overlay.querySelector('#report-date-range').value = 'all';
+      overlay.querySelector('#report-date-range').dispatchEvent(new Event('change', { bubbles: true }));
+      await wait();
+      overlay = getOverlay();
+      outcomes.exportRestoresAllDateRange = overlay?.querySelector('#report-date-range')?.value === 'all';
+
       capturedReport = '';
       printHandlerInstalled = false;
       click('[data-report-action="export"]');
