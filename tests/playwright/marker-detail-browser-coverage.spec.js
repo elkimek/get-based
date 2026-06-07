@@ -26,6 +26,13 @@ test('marker detail editing covers manual values notes delete and revert workflo
       }
       throw new Error(`Timed out waiting for ${selector}`);
     };
+    const waitUntil = async (predicate, label) => {
+      for (let i = 0; i < 40; i += 1) {
+        if (predicate()) return;
+        await wait(25);
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
     const clickConfirm = async (ok = true) => {
       await waitFor(ok ? '#confirm-ok' : '#confirm-cancel');
       document.getElementById(ok ? 'confirm-ok' : 'confirm-cancel')?.click();
@@ -136,7 +143,11 @@ test('marker detail editing covers manual values notes delete and revert workflo
       const editInput = valueEl.querySelector('input');
       editInput.value = '46.5';
       editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      await wait(30);
+      await waitUntil(() => {
+        const entry = state.importedData.entries.find(item => item.date === '2026-06-03');
+        return entry?.markers?.[dotKey] === 46.5
+          && calls.some(call => call[0] === 'detail' && call[1] === id);
+      }, 'inline marker value save');
       const editedEntry = state.importedData.entries.find(entry => entry.date === '2026-06-03');
       outcomes.inlineEditUpdatesManualValue = editedEntry?.markers?.[dotKey] === 46.5
         && calls.some(call => call[0] === 'detail' && call[1] === id);
@@ -194,7 +205,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
         closeModal: () => {},
       });
       document.getElementById('marker-detail-coverage-fixture')?.remove();
-      document.querySelectorAll('.confirm-overlay,.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll('.mv-value,.confirm-overlay,.notification-toast').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -227,6 +238,13 @@ test('marker detail editing covers range overrides and marker note editor paths'
     const calls = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate, label) => {
+      for (let i = 0; i < 40; i += 1) {
+        if (predicate()) return;
+        await wait(25);
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
     const saved = {
       importedData: clone(state.importedData),
       markerRegistry: clone(state.markerRegistry),
@@ -322,7 +340,12 @@ test('marker detail editing covers range overrides and marker note editor paths'
       document.getElementById('ref-edit-min').value = '44';
       document.getElementById('ref-edit-max').value = '48';
       document.querySelector('.ref-edit-form').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      await wait(30);
+      await waitUntil(
+        () => state.importedData.refOverrides[dotKey]?.optimalMin === 44
+          && state.importedData.refOverrides[dotKey]?.optimalMax === 48
+          && state.importedData.refOverrides[dotKey]?.optimalSource === 'manual',
+        'optimal range override save'
+      );
       outcomes.enterSavesOptimalRangeOverride =
         state.importedData.refOverrides[dotKey]?.optimalMin === 44
         && state.importedData.refOverrides[dotKey]?.optimalMax === 48
