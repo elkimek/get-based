@@ -17,14 +17,17 @@ test('import file input and drop zone route browser file types and busy states',
     const originals = {
       importDataJSON: window.importDataJSON,
       isImportRunning: window.isImportRunning,
-      isDNAFile: window.isDNAFile,
+      isDNAFileByContent: window.isDNAFileByContent,
       detectDNAFile: window.detectDNAFile,
       handleMtDNAFile: window.handleMtDNAFile,
       handleDNAFile: window.handleDNAFile,
       showNotification: window.showNotification,
     };
     const input = document.getElementById('pdf-input');
-    const dropZone = document.getElementById('drop-zone');
+    const originalDropZone = document.getElementById('drop-zone');
+    const dropZone = originalDropZone.cloneNode(true);
+    let originalClick = null;
+    originalDropZone.replaceWith(dropZone);
     const flush = () => new Promise(resolve => setTimeout(resolve, 40));
     const makeFiles = (...files) => {
       const dt = new DataTransfer();
@@ -48,7 +51,7 @@ test('import file input and drop zone route browser file types and busy states',
 
     try {
       window.importDataJSON = file => { calls.push(['json', file.name]); };
-      window.isDNAFile = file => file.name.endsWith('.dna.txt');
+      window.isDNAFileByContent = async file => (await file.text()).includes('MTDNA');
       window.detectDNAFile = header => header.includes('MTDNA') ? 'mtdna' : 'autosomal';
       window.handleMtDNAFile = async file => { calls.push(['mtdna', file.name]); };
       window.handleDNAFile = async file => { calls.push(['dna', file.name]); };
@@ -74,8 +77,9 @@ test('import file input and drop zone route browser file types and busy states',
       outcomes.inputUnsupportedNotifies = calls.slice(beforeUnsupported)
         .some(call => call[0] === 'notify' && call[1] === 'error' && call[2].includes('Unsupported file type'));
 
+      delete dropZone.dataset.lazyDropZoneBound;
       dropZoneModule.setupDropZone();
-      const originalClick = input.click;
+      originalClick = input.click;
       input.click = () => { calls.push(['picker']); };
       dropZone.click();
       outcomes.dropZoneClickOpensPicker = calls.some(call => call[0] === 'picker');
@@ -100,11 +104,10 @@ test('import file input and drop zone route browser file types and busy states',
       await flush();
       outcomes.dropRoutesJson = calls.slice(beforeDropJson)
         .some(call => call[0] === 'json' && call[1] === 'drop-profile.json');
-
-      input.click = originalClick;
     } finally {
+      if (originalClick) input.click = originalClick;
       Object.assign(window, originals);
-      dropZone?.classList.remove('drag-over');
+      if (dropZone.isConnected) dropZone.replaceWith(originalDropZone);
     }
 
     return outcomes;
