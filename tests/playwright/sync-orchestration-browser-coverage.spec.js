@@ -189,6 +189,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       outcomes.alreadyPullingSkipsConcurrentCall = debugCalls.some(message => message.includes('already pulling'));
       outcomes.unsafeAndMalformedRowsAreSkipped = events.some(event => event.kind === 'skip'
         && event.text.includes('malformed importedData shape'))
+        && !localStorage.getItem('labcharts-bad id-sync-ts')
         && !localStorage.getItem('labcharts-safe_profile-sync-ts')
         && pull.isSyncPulling() === false;
 
@@ -198,6 +199,7 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
       console.warn = originalWarn;
       pull.clearSyncPullTimers();
       syncState.resetSyncStatus();
+      localStorage.removeItem('labcharts-bad id-sync-ts');
       localStorage.removeItem('labcharts-safe_profile-sync-ts');
     }
 
