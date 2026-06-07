@@ -685,9 +685,14 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
     const cleanup = await import(cleanupUrl);
     const providerQr = await import(providerQrUrl);
     const syncState = await import('/js/sync-state.js');
+    const { profileStorageKey } = await import('/js/profile.js');
+    const blobStorage = await import('/js/blob-storage.js');
     const state = window._labState;
     const outcomes = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
+    const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
+    const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
     const cacheKeys = [
       'labcharts-openrouter-models',
       'labcharts-venice-models',
@@ -759,6 +764,10 @@ test('sync scalar merge storage cleanup and QR loader cover browser contracts', 
         && loadedAgain === loadedQRCode;
     } finally {
       state.importedData = originalImported;
+      if (originalImportedBlobValue == null) await blobStorage.deleteBlob(importedStorageKey);
+      else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
+      if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
+      else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
       for (const [key, value] of Object.entries(originalCacheValues)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
