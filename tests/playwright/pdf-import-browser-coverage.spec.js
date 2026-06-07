@@ -141,15 +141,17 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
       }];
       const continuePromise = preflight.runPreflightChecks('OmegaQuant fatty acid report', 'omegaquant.pdf');
       const continueButton = await waitFor(() => document.getElementById('confirm-continue'));
+      if (!continueButton) throw new Error('model-mismatch confirm-continue not found');
       outcomes.modelMismatchDialogShowsBothModels = document.getElementById('confirm-dialog-overlay')?.textContent.includes('llama-previous') === true
         && document.getElementById('confirm-dialog-overlay')?.textContent.includes('llama-current') === true;
-      continueButton?.click();
+      continueButton.click();
       outcomes.modelMismatchContinueKeepsCurrentModel = await continuePromise === true
         && localStorage.getItem('labcharts-ollama-model') === 'llama-current';
 
       const switchPromise = preflight.runPreflightChecks('OmegaQuant fatty acid report', 'omegaquant.pdf');
       const switchButton = await waitFor(() => document.getElementById('confirm-switch'));
-      switchButton?.click();
+      if (!switchButton) throw new Error('model-mismatch confirm-switch not found');
+      switchButton.click();
       outcomes.modelMismatchSwitchRestoresPreviousModel = await switchPromise === true
         && localStorage.getItem('labcharts-ollama-model') === 'llama-previous';
 
@@ -179,9 +181,10 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
           && overlay.textContent.includes('Diagnostic Solutions (comprehensive)')
           && document.getElementById('confirm-cancel');
       });
+      if (!unsupportedCancel) throw new Error('unsupported-lab confirm-cancel not found');
       outcomes.unsupportedLabDialogUsesClassifiedLabel = fetchCalls === 1
         && document.getElementById('confirm-dialog-overlay')?.textContent.includes('Diagnostic Solutions (comprehensive)') === true;
-      unsupportedCancel?.click();
+      unsupportedCancel.click();
       outcomes.unsupportedLabCancelStopsImport = await unsupportedCancelPromise === false;
 
       const unsupportedProceedPromise = preflight.runPreflightChecks('unknown specialty report text', 'unknown.pdf');
@@ -191,7 +194,8 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
           && overlay.textContent.includes('Diagnostic Solutions (comprehensive)')
           && document.getElementById('confirm-ok');
       });
-      unsupportedProceed?.click();
+      if (!unsupportedProceed) throw new Error('unsupported-lab confirm-ok not found');
+      unsupportedProceed.click();
       outcomes.unsupportedLabCanProceed = await unsupportedProceedPromise === true
         && fetchCalls === 2;
     } finally {
