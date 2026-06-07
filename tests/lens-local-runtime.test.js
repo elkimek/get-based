@@ -166,7 +166,7 @@ function makeWorkerHarness(options = {}) {
 }
 
 async function loadLensLocal(options) {
-  await vi.resetModules();
+  vi.resetModules();
   const harness = makeWorkerHarness(options);
   globalThis.Worker = harness.Worker;
   return { harness, mod: await import('../js/lens-local.js') };
@@ -305,6 +305,10 @@ describe('lens-local main-thread runtime behavior', () => {
       ],
       sourceName: 'Active Library',
     });
+    await expect(mod.queryLensLocal(' vitamin d ', { topK: 3, floor: 1.0 })).resolves.toEqual({
+      chunks: [],
+      sourceName: 'Active Library',
+    });
     expect(harness.workers[0].messages).toEqual(expect.arrayContaining([
       { type: 'query', text: 'vitamin d', topK: 3 },
       { type: 'list_libraries' },
@@ -331,9 +335,12 @@ describe('lens-local main-thread runtime behavior', () => {
   });
 
   it('rejects queued requests when the worker sends an error message', async () => {
-    const { mod } = await loadLensLocal({ errorMessageType: 'init' });
+    const { harness, mod } = await loadLensLocal({ errorMessageType: 'init' });
 
     await expect(mod.openLocalLens()).rejects.toThrow('init failed');
+    await expect(mod.openLocalLens()).rejects.toThrow('init failed');
+    expect(harness.workers).toHaveLength(1);
+    expect(harness.workers[0].messages).toEqual([{ type: 'init' }]);
   });
 
   it('rejects queued requests when the worker itself errors', async () => {
