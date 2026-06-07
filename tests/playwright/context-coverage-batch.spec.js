@@ -158,15 +158,21 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       ottScoreToLabel: window.ottScoreToLabel,
     };
     const calls = [];
+    const controlOutcomeName = (kind, id, index) =>
+      `${kind}_${id}_${index}_renders`.replace(/[^a-zA-Z0-9_]/g, '_');
     const setOption = (id, index = 0) => {
       const btn = document.querySelectorAll(`#${id} .ctx-btn-option`)[index];
+      const label = btn?.textContent?.trim() || '';
+      outcomes[controlOutcomeName('option', id, index)] = !!btn && !!label;
       btn?.classList.add('active');
-      return btn?.textContent?.trim() || null;
+      return label;
     };
     const setTag = (id, index = 0) => {
       const btn = document.querySelectorAll(`#${id} .ctx-tag`)[index];
+      const label = btn?.textContent?.trim() || '';
+      outcomes[controlOutcomeName('tag', id, index)] = !!btn && !!label;
       btn?.classList.add('active');
-      return btn?.textContent?.trim() || null;
+      return label;
     };
 
     try {
@@ -377,6 +383,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       profileDob: state.profileDob,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
+      openRouterKey: localStorage.getItem('labcharts-openrouter-key'),
     };
     const cacheKeys = [];
     const host = document.createElement('div');
@@ -445,7 +452,11 @@ test('context health dots and focus card cover cache fallback and empty states',
       const focusFp = data.getFocusCardFingerprint();
       localStorage.setItem(focusCacheKey, JSON.stringify({ fingerprint: focusFp, text: '**ApoB** is the priority.' }));
       outcomes.renderFocusCardUsesCachedMarkdown = focus.renderFocusCard().includes('<strong>ApoB</strong>');
-      host.querySelector('#focus-card-body').outerHTML = focus.renderFocusCard().match(/<div class="focus-card-body"[\s\S]*?<\/div>/)?.[0] || '<div id="focus-card-body"></div>';
+      const focusShell = document.createElement('div');
+      focusShell.innerHTML = focus.renderFocusCard();
+      const renderedFocusBody = focusShell.querySelector('#focus-card-body');
+      outcomes.focusCardBodyParsedFromRenderedCard = !!renderedFocusBody;
+      if (renderedFocusBody) document.getElementById('focus-card-body')?.replaceWith(renderedFocusBody);
       await focus.loadFocusCard({ refreshStale: false });
       outcomes.loadFocusCardKeepsFreshCachedText = document.getElementById('focus-card-body')?.textContent.includes('ApoB is the priority') === true;
       const focusContext = focus.buildFocusContext();
@@ -455,10 +466,13 @@ test('context health dots and focus card cover cache fallback and empty states',
         && focusContext.includes('Flagged');
 
       localStorage.removeItem(focusCacheKey);
-      localStorage.setItem('labcharts-ai-paused', 'true');
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      localStorage.removeItem('labcharts-ai-paused');
+      localStorage.removeItem('labcharts-openrouter-key');
+      window.updateKeyCache?.('labcharts-openrouter-key', '');
       document.getElementById('focus-card-body').innerHTML = '';
       await focus.loadFocusCard();
-      outcomes.loadFocusCardShowsEnableAIWithoutProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
+      outcomes.loadFocusCardShowsEnableAIWithoutConnectedProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
 
       state.importedData = { entries: [] };
       data.invalidateActiveDataCache();
@@ -476,6 +490,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');
       else localStorage.setItem('labcharts-ai-paused', saved.paused);
+      if (saved.openRouterKey == null) localStorage.removeItem('labcharts-openrouter-key');
+      else localStorage.setItem('labcharts-openrouter-key', saved.openRouterKey);
+      window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
       for (const key of cacheKeys) localStorage.removeItem(key);
       host.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
