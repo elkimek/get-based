@@ -239,3 +239,345 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     expect(passed, name).toBe(true);
   }
 });
+
+test('dashboard widget state transitions cover layout, recommendations, and picker branches', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() =>
+    typeof window.navigate === 'function'
+      && typeof window.resetDashboardWidgets === 'function'
+      && typeof window.addDashboardMarkerWidget === 'function'
+      && typeof window.openRecommendationDetail === 'function'
+  );
+
+  const results = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { profileStorageKey } = await import('/js/profile.js');
+    const { dashboardBiometricSelectionKey } = await import('/js/dashboard-widgets.js');
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, timeout = 1500) => {
+      const started = Date.now();
+      while (Date.now() - started < timeout) {
+        if (predicate()) return true;
+        await delay(25);
+      }
+      return false;
+    };
+    const calls = [];
+    const demo = await (await fetch('/data/demo-male.json')).json();
+    const profileId = `dashboard-ui-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const catalog = {
+      slots: {
+        'body.sleepRecovery': {
+          label: 'Sleep recovery support',
+          freeActions: ['Shift training load earlier'],
+        },
+        'light.morningLight': {
+          label: 'Morning light anchor',
+          freeActions: ['Get outdoor light before screens'],
+        },
+        'lipids.apoB': {
+          label: 'ApoB support',
+          freeActions: ['Add soluble fiber at meals'],
+        },
+      },
+    };
+    const savedFns = {
+      isProductRecsEnabled: window.isProductRecsEnabled,
+      loadCatalog: window.loadCatalog,
+      detectWearableTrendSlots: window.detectWearableTrendSlots,
+      rollingChannelTotals: window.rollingChannelTotals,
+      getSessions: window.getSessions,
+      renderRecommendationSection: window.renderRecommendationSection,
+      openChatPanel: window.openChatPanel,
+      openSettingsModal: window.openSettingsModal,
+      showDetailModal: window.showDetailModal,
+      openWearableDetail: window.openWearableDetail,
+      openManualLogForm: window.openManualLogForm,
+      syncWearableNow: window.syncWearableNow,
+    };
+    const hadFns = {};
+    for (const name of Object.keys(savedFns)) {
+      hadFns[name] = Object.prototype.hasOwnProperty.call(window, name);
+    }
+    const originalState = {
+      currentProfile: state.currentProfile,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      importedData: state.importedData,
+      currentView: state.currentView,
+    };
+    const hadCachedCatalog = Object.prototype.hasOwnProperty.call(window, '_cachedCatalog');
+    const originalCachedCatalog = window._cachedCatalog;
+    let realNavigate;
+
+    try {
+
+    state.currentProfile = profileId;
+    state.profileSex = 'male';
+    state.profileDob = '1988-03-14';
+    state.importedData = demo;
+    state.importedData.notes = [
+      { date: '2026-05-03', text: 'Started dashboard coverage note with enough text to render preview state.' },
+      { date: '2026-04-01', text: 'Earlier context note.' },
+    ];
+    state.importedData.healthGoals = [
+      { text: 'Improve cholesterol, morning light, and recovery consistency', severity: 'high' },
+    ];
+    state.importedData.wearableConnections = {
+      oura: {
+        source: 'oura',
+        connectedAt: '2026-01-01T00:00:00.000Z',
+        accessToken: 'token',
+        lastSyncAt: Date.now() - (18 * 60 * 60 * 1000),
+        coverageDays: 20,
+      },
+    };
+    state.importedData.wearableSummary = {
+      summaryUpdatedAt: new Date().toISOString(),
+      sources: {
+        oura: { connectedSince: '2026-01-01T00:00:00.000Z', lastSyncAt: Date.now() - (18 * 60 * 60 * 1000), coverageDays: 20 },
+      },
+      metrics: {
+        rhr: {
+          primarySource: 'oura',
+          latest: 68,
+          latestDate: '2026-05-03',
+          baseline: 60,
+          baselineP25: 57,
+          baselineP75: 63,
+          rolling: { d7: 68, d30: 62, d90: 60 },
+          trend30d: 'rising',
+          weekly: [60, 62, 65, 68],
+        },
+        hrv: {
+          primarySource: 'oura',
+          latest: 42,
+          latestDate: '2026-05-03',
+          baseline: 55,
+          rolling: { d7: 42, d30: 50, d90: 55 },
+          trend30d: 'falling',
+          weekly: [56, 52, 48, 42],
+        },
+      },
+    };
+
+    const widgetPrefsKey = profileStorageKey(profileId, 'dashboardWidgetsV10');
+    const recSavedKey = profileStorageKey(profileId, 'recommendations-saved-v1');
+    const recDismissedKey = profileStorageKey(profileId, 'recommendations-dismissed-v1');
+    const biometricKey = dashboardBiometricSelectionKey();
+    localStorage.removeItem(widgetPrefsKey);
+    localStorage.removeItem(recSavedKey);
+    localStorage.removeItem(recDismissedKey);
+    localStorage.removeItem(biometricKey);
+
+    window.isProductRecsEnabled = () => true;
+    delete window._cachedCatalog;
+    window.loadCatalog = async () => {
+      await delay(10);
+      return catalog;
+    };
+    window.detectWearableTrendSlots = () => [{
+      slotKey: 'body.sleepRecovery',
+      reason: 'Resting heart rate is elevated and HRV is below baseline.',
+    }];
+    window.rollingChannelTotals = () => ({ circadian: 0 });
+    window.getSessions = () => [];
+    window.renderRecommendationSection = async slotKey => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`;
+    window.openChatPanel = prompt => calls.push(['chat', prompt]);
+    window.openSettingsModal = panel => calls.push(['settings', panel]);
+    window.showDetailModal = id => calls.push(['detail', id]);
+    window.openWearableDetail = id => calls.push(['wearable-detail', id]);
+    window.openManualLogForm = (id, event) => calls.push(['manual-log', id, event?.type || '']);
+    window.syncWearableNow = button => calls.push(['sync', button?.classList?.contains('db-biometric-sync-btn') === true]);
+
+    const readPrefs = () => JSON.parse(localStorage.getItem(widgetPrefsKey) || '{"order":[],"hidden":[]}');
+    const readJson = key => JSON.parse(localStorage.getItem(key) || '[]');
+    const dashboardWidget = id => document.querySelector(`.dashboard-widget[data-widget-id="${id}"]`);
+
+    window.navigate('dashboard');
+    const recCardsHydrated = await waitFor(() =>
+      document.querySelectorAll('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card').length > 0
+    );
+    const firstRec = document.querySelector('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card');
+    const firstRecId = firstRec?.dataset.recId || '';
+    firstRec?.querySelector('.dashboard-action-btn-primary')?.click();
+    const recDetailModalOpens = await waitFor(() =>
+      document.querySelector('#detail-modal.recommendation-detail-modal')?.textContent?.includes('Options for')
+    );
+    const firstRecButtons = Array.from(firstRec?.querySelectorAll('.dashboard-action-btn') || []);
+    firstRecButtons.find(btn => btn.textContent?.trim() === 'Discuss')?.click();
+    const discussPromptSent = calls.some(([kind, prompt]) =>
+      kind === 'chat' && String(prompt).includes('recommendation from getbased')
+    );
+    firstRecButtons.find(btn => btn.textContent?.trim() === 'Bookmark')?.click();
+    await delay(100);
+    const bookmarkStored = firstRecId && readJson(recSavedKey).includes(firstRecId);
+
+    window.navigate('recommendations');
+    const recommendationsPageRenders = await waitFor(() =>
+      document.querySelectorAll('#recommendations-page .rec-next-card').length > 0
+    );
+    const dismissButton = Array.from(document.querySelectorAll('#recommendations-page .rec-next-card .dashboard-action-btn'))
+      .find(btn => btn.textContent?.trim() === 'Dismiss');
+    dismissButton?.click();
+    await delay(100);
+    const dismissStored = firstRecId && readJson(recDismissedKey).length > 0;
+    window.dismissRecommendation?.(firstRecId, false);
+    window.saveRecommendation?.(firstRecId, false);
+
+    window.resetDashboardWidgets();
+    window.navigate('dashboard');
+    await waitFor(() => dashboardWidget('focus'));
+    window.moveDashboardWidget('focus', 1);
+    await delay(100);
+    const movedOrder = readPrefs().order;
+    const moveWidgetReordersPrefs = movedOrder.indexOf('spotlight') >= 0
+      && movedOrder.indexOf('focus') > movedOrder.indexOf('spotlight');
+    const beforeInvalidMove = JSON.stringify(readPrefs());
+    window.moveDashboardWidget('missing-widget', 1);
+    await delay(50);
+    const invalidMoveNoops = JSON.stringify(readPrefs()) === beforeInvalidMove;
+
+    window.hideDashboardWidget('focus');
+    await delay(100);
+    const hideWidgetUpdatesPrefs = readPrefs().hidden.includes('focus') && !dashboardWidget('focus');
+    window.showDashboardWidget('focus');
+    const showWidgetRestoresDom = await waitFor(() => !!dashboardWidget('focus') && !readPrefs().hidden.includes('focus'));
+
+    window.clearDashboardWidgets();
+    await delay(100);
+    const clearWidgetsShowsEmptyState = !!document.querySelector('.dashboard-widget.is-empty .dashboard-widget-empty')
+      && readPrefs().hidden.includes('focus')
+      && readPrefs().hidden.includes('notes');
+    window.showDashboardWidget('notes');
+    const notesWidgetRenders = await waitFor(() =>
+      dashboardWidget('notes')?.textContent?.includes('Started dashboard coverage note')
+    );
+
+    const beforeBadMarker = JSON.stringify(readPrefs());
+    window.addDashboardMarkerWidget('not_real');
+    await delay(50);
+    const badMarkerNoops = JSON.stringify(readPrefs()) === beforeBadMarker;
+    window.addDashboardMarkerWidget('lipids_apoB');
+    const markerWidgetAdded = await waitFor(() => !!dashboardWidget('marker_lipids_apoB'));
+    window.hideDashboardWidget('marker_lipids_apoB');
+    await delay(100);
+    const markerWidgetRemovedByHide = !readPrefs().order.includes('marker_lipids_apoB')
+      && !readPrefs().hidden.includes('marker_lipids_apoB');
+
+    realNavigate = window.navigate;
+    const lensNavigateCalls = [];
+    let addedFromLens = false;
+    let removedFromLens = false;
+    try {
+      window.navigate = route => {
+        lensNavigateCalls.push(route);
+        state.currentView = route;
+      };
+      state.currentView = 'labs';
+      window.addDashboardWidgetFromLens('alerts');
+      addedFromLens = !readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.includes('labs');
+      window.removeDashboardWidgetFromLens('alerts');
+      removedFromLens = readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
+    } finally {
+      window.navigate = realNavigate;
+    }
+    state.currentView = 'dashboard';
+    window.navigate('dashboard');
+    await waitFor(() => dashboardWidget('focus') || document.querySelector('.dashboard-widget'));
+
+    localStorage.setItem(biometricKey, JSON.stringify([]));
+    window.addDashboardBiometricMetric('bp_systolic');
+    await waitFor(() => readJson(biometricKey).includes('bp_systolic'));
+    window.addDashboardBiometricWidget('rhr');
+    await waitFor(() => readJson(biometricKey).includes('rhr'));
+    const biometricSelectionAddsManualAndWearable = readJson(biometricKey).includes('bp_systolic')
+      && readJson(biometricKey).includes('rhr');
+    window.removeDashboardBiometricMetric('rhr');
+    await delay(50);
+    const biometricRemovePersists = !readJson(biometricKey).includes('rhr');
+    window.openDashboardBiometricPicker();
+    await waitFor(() => !!document.querySelector('.dashboard-biometric-picker'));
+    const biometricSearch = document.getElementById('dashboard-biometric-widget-search');
+    if (biometricSearch) {
+      biometricSearch.value = 'zzzz-no-biometric';
+      biometricSearch.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await delay(50);
+    const biometricFilterShowsEmpty = document.getElementById('dashboard-biometric-widget-empty')?.hidden === false;
+    document.querySelector('[data-dashboard-widget-action="connect-source"]')?.click();
+    await delay(50);
+    const connectSourceClosesPicker = calls.some(([kind, panel]) => kind === 'settings' && panel === 'wearables')
+      && !document.getElementById('dashboard-widget-picker-overlay');
+
+    window.resetDashboardWidgets();
+    window.navigate('dashboard');
+    await waitFor(() => dashboardWidget('focus') && dashboardWidget('spotlight'));
+    window.toggleDashboardOrganizeMode(true);
+    await waitFor(() => document.querySelector('.dashboard-widgets.is-organizing'));
+    const dragEl = document.querySelector('[data-dashboard-widget-drag-id="focus"]');
+    const dataTransfer = {
+      value: '',
+      setData(_type, value) { this.value = value; },
+      getData() { return this.value; },
+      setDragImage() { calls.push(['drag-image']); },
+    };
+    let preventCount = 0;
+    window.startDashboardWidgetDrag({ dataTransfer, currentTarget: dragEl }, 'focus', dragEl);
+    window.allowDashboardWidgetDrop({ preventDefault() { preventCount += 1; } });
+    window.dropDashboardWidget({ dataTransfer, preventDefault() { preventCount += 1; } }, 'spotlight');
+    await delay(100);
+    const dragPrefs = readPrefs();
+    const dragDropReordersPrefs = preventCount >= 2
+      && dragPrefs.order.indexOf('focus') > dragPrefs.order.indexOf('spotlight');
+    window.toggleDashboardOrganizeMode(false);
+
+    return {
+      recCardsHydrated,
+      recDetailModalOpens,
+      discussPromptSent,
+      bookmarkStored,
+      recommendationsPageRenders,
+      dismissStored,
+      moveWidgetReordersPrefs,
+      invalidMoveNoops,
+      hideWidgetUpdatesPrefs,
+      showWidgetRestoresDom,
+      clearWidgetsShowsEmptyState,
+      notesWidgetRenders,
+      badMarkerNoops,
+      markerWidgetAdded,
+      markerWidgetRemovedByHide,
+      addedFromLens,
+      removedFromLens,
+      biometricSelectionAddsManualAndWearable,
+      biometricRemovePersists,
+      biometricFilterShowsEmpty,
+      connectSourceClosesPicker,
+      dragDropReordersPrefs,
+    };
+    } finally {
+      if (realNavigate && window.navigate !== realNavigate) window.navigate = realNavigate;
+      window.closeDashboardWidgetPicker?.();
+      window.toggleDashboardOrganizeMode?.(false);
+      document.getElementById('dashboard-widget-picker-overlay')?.remove();
+      state.currentProfile = originalState.currentProfile;
+      state.profileSex = originalState.profileSex;
+      state.profileDob = originalState.profileDob;
+      state.importedData = originalState.importedData;
+      state.currentView = originalState.currentView;
+      if (hadCachedCatalog) window._cachedCatalog = originalCachedCatalog;
+      else delete window._cachedCatalog;
+      for (const [name, original] of Object.entries(savedFns)) {
+        if (hadFns[name]) window[name] = original;
+        else delete window[name];
+      }
+    }
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
