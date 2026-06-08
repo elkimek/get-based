@@ -734,6 +734,7 @@ Return ONLY valid JSON in this exact format:
     date: parsed.date || null,
     testType,
     markers,
+    fileName,
     usage: usage || {},
     provider,
     imageMode: true,

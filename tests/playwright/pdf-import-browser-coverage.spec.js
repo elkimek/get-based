@@ -177,6 +177,222 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
   }
 });
 
+test('PDF import runtime handlers cover AI parse fallback text and image routes', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#drop-zone', { state: 'attached' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ pdfImportUrl, reviewUrl }) => {
+    const [pdfImport, review] = await Promise.all([
+      import(pdfImportUrl),
+      import(reviewUrl),
+    ]);
+    const state = window._labState;
+    const outcomes = {};
+    const storageKeys = [
+      'labcharts-ai-provider',
+      'labcharts-ai-paused',
+      'labcharts-ollama-model',
+      'labcharts-pii-review',
+      'labcharts-ollama-pii-enabled',
+      'labcharts-debug',
+    ];
+    const savedStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
+    const original = {
+      fetch: window.fetch,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      currentProfile: state.currentProfile,
+      profileSex: state.profileSex,
+    };
+    const encoder = new TextEncoder();
+    const fetchCalls = [];
+    let fallbackStreamAborts = 0;
+
+    const parsedPayload = JSON.stringify({
+      testType: 'blood',
+      date: '2026-06-01',
+      markers: [
+        {
+          rawName: 'Glucose',
+          value: 5.4,
+          mappedKey: 'biochemistry.glucose',
+          unit: 'mmol/L',
+          refMin: 3.9,
+          refMax: 5.5,
+        },
+        {
+          rawName: 'Novel Peptide',
+          value: 8.1,
+          mappedKey: null,
+          suggestedKey: 'runtimeImport.novelPeptide',
+          suggestedName: 'Novel Peptide',
+          suggestedCategoryLabel: 'Runtime Import',
+          suggestedGroup: 'Coverage',
+          unit: 'U/L',
+          refMin: 0,
+          refMax: 10,
+        },
+      ],
+    });
+    const wrappedPayload = `<think>scratchpad</think>\n\`\`\`json\n${parsedPayload}\n\`\`\``;
+    const labText = Array.from({ length: 36 }, (_, index) => (
+      index % 6 === 0
+        ? 'Patient Jane Example collection 2026-06-01 glucose 5.4 mmol/L ferritin marker'
+        : 'routine chemistry report value reference interval serum plasma validated'
+    )).join(' ');
+
+    const jsonResponse = content => new Response(JSON.stringify({
+      choices: [{ message: { content }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 21, completion_tokens: 9 },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const streamResponse = content => {
+      const event = JSON.stringify({
+        choices: [{ delta: { content }, finish_reason: null }],
+        usage: { prompt_tokens: 31, completion_tokens: 11 },
+      });
+      const done = JSON.stringify({
+        choices: [{ finish_reason: 'stop' }],
+        usage: { prompt_tokens: 31, completion_tokens: 11 },
+      });
+      return new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${event}\n`));
+          controller.enqueue(encoder.encode(`data: ${done}\n`));
+          controller.enqueue(encoder.encode('data: [DONE]\n'));
+          controller.close();
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    };
+    const requestText = body => (body.messages || []).map(message => {
+      if (Array.isArray(message.content)) {
+        return message.content.map(block => block.text || block.type || '').join(' ');
+      }
+      return String(message.content || '');
+    }).join('\n');
+
+    try {
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-ollama-model', 'llama-import-coverage');
+      localStorage.setItem('labcharts-pii-review', 'false');
+      localStorage.setItem('labcharts-ollama-pii-enabled', 'false');
+      localStorage.removeItem('labcharts-debug');
+      state.currentProfile = 'pdf-import-runtime-coverage';
+      state.profileSex = 'female';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        customMarkers: {},
+      };
+
+      window.fetch = async (_url, options = {}) => {
+        const body = JSON.parse(String(options.body || '{}'));
+        const text = requestText(body);
+        fetchCalls.push({ stream: body.stream === true, text });
+        if (text.includes('What type of lab test')) return jsonResponse('{"testType":"blood"}');
+        if (body.stream && text.includes('fallback-stream.pdf') && fallbackStreamAborts === 0) {
+          fallbackStreamAborts += 1;
+          throw new Error('bodyStreamBuffer was aborted by user');
+        }
+        return body.stream ? streamResponse(wrappedPayload) : jsonResponse(wrappedPayload);
+      };
+
+      const fallbackParsed = await pdfImport.parseLabPDFWithAI(
+        labText,
+        'fallback-stream.pdf',
+        () => {},
+      );
+      outcomes.streamAbortFallbackRetriesWithoutStreaming = fallbackStreamAborts === 1
+        && fallbackParsed.date === '2026-06-01'
+        && fallbackParsed.markers.length === 2
+        && fallbackParsed.provider === 'ollama';
+
+      const imageProgress = [];
+      const imageParsed = await pdfImport.parseLabPDFWithAIImages(
+        [{ base64: 'aW1hZ2UtYnl0ZXM=', mediaType: 'image/png', page: 1 }],
+        'direct-image.png',
+        pct => imageProgress.push(pct),
+      );
+      outcomes.imageParserBuildsVisionPayloadAndProgress = imageParsed.imageMode === true
+        && imageParsed.markers[0].mappedKey === 'biochemistry.glucose'
+        && imageProgress.length > 0
+        && fetchCalls.some(call => call.stream && call.text.includes('image_url'));
+
+      await pdfImport.handlePDFFile(
+        new File(['unused'], 'runtime-report.pdf', { type: 'application/pdf' }),
+        false,
+        labText,
+      );
+      const textPending = review.getPendingImport();
+      const textModal = document.getElementById('import-modal');
+      outcomes.textHandlerRunsFullPipelineToPreview = textPending?.fileName === 'runtime-report.pdf'
+        && textPending.privacyMethod === 'regex'
+        && textPending.costInfo?.modelId === 'llama-import-coverage'
+        && textPending.importHash
+        && textPending._importProfileId === 'pdf-import-runtime-coverage'
+        && textModal?.textContent.includes('runtime-report.pdf') === true;
+      review.closeImportModal();
+
+      await pdfImport.handleTextFile(new File(['   \n'], 'blank.txt', { type: 'text/plain' }));
+      outcomes.emptyTextFileShowsError = Array.from(document.querySelectorAll('.notification-toast.error'))
+        .some(toast => toast.textContent.includes('Text file is empty'));
+
+      await pdfImport.handleTextFile(new File([labText], 'notes.txt', { type: 'text/plain' }));
+      const textFilePending = review.getPendingImport();
+      outcomes.nonEmptyTextFileRoutesThroughPdfHandler = textFilePending?.fileName === 'notes.txt'
+        && textFilePending.markers.length === 2;
+      review.closeImportModal();
+
+      await pdfImport.handleImageFile(new File(['image bytes'], 'scan.png', { type: 'image/png' }));
+      const imagePending = review.getPendingImport();
+      outcomes.imageFileHandlerOpensPreview = imagePending?.fileName === 'scan.png'
+        && imagePending.markers.length === 2;
+      outcomes.imageFileHandlerCarriesImageMetadata = imagePending?.fileName === 'scan.png'
+        && imagePending.imageMode === true
+        && imagePending.privacyMethod === 'none (image mode)';
+      outcomes.imageFileHandlerRecordsCostHashAndProfile = imagePending?.fileName === 'scan.png'
+        && imagePending.costInfo?.inputTokens > 0
+        && imagePending.costInfo?.outputTokens > 0
+        && !!imagePending.importHash
+        && imagePending._importProfileId === 'pdf-import-runtime-coverage';
+      review.closeImportModal();
+
+      outcomes.fetchMockCoveredClassificationStreamAndRetry = fetchCalls.some(call => !call.stream && call.text.includes('What type of lab test'))
+        && fetchCalls.filter(call => call.stream).length >= 3
+        && fetchCalls.some(call => !call.stream && call.text.includes('fallback-stream.pdf'));
+    } finally {
+      window.fetch = original.fetch;
+      state.importedData = original.importedData;
+      state.currentProfile = original.currentProfile;
+      state.profileSex = original.profileSex;
+      for (const [key, value] of Object.entries(savedStorage)) {
+        if (value == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      review.closeImportModal();
+      document.getElementById('ai-needed-overlay')?.classList.remove('show');
+      document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
+      window.hideImportProgress?.('cancel');
+    }
+
+    return outcomes;
+  }, {
+    pdfImportUrl: moduleUrl('/js/pdf-import.js'),
+    reviewUrl: moduleUrl('/js/pdf-import-review.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('PDF import preflight covers model mismatch and unsupported lab dialogs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#import-status-fab', { state: 'attached' });
