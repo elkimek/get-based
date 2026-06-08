@@ -583,13 +583,13 @@ test('sync init browser coverage handles disabled and unsupported startup guards
 
     try {
       runtime.clearSyncRuntimeState();
-      settings.setSyncEnabled(false);
+      settings.setSyncEnabled(false, { persist: false });
       await syncInit.initSync();
       outcomes.disabledSyncLeavesRuntimeIdle = runtime.getSyncEvolu() === null
         && runtime.getSyncAppOwnerError() === null;
 
       runtime.clearSyncRuntimeState();
-      settings.setSyncEnabled(true);
+      settings.setSyncEnabled(true, { persist: false });
       Object.defineProperty(navigator, 'locks', {
         configurable: true,
         value: undefined,
