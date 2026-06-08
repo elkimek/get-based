@@ -218,3 +218,409 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
     expect(passed, name).toBe(true);
   }
 });
+
+test('sync subscriptions browser coverage handles deferred receives and relay health', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ subscriptionsUrl }) => {
+    const subscriptions = await import(subscriptionsUrl);
+    const outcomes = {};
+    const receives = [];
+    const statusUpdates = [];
+    const debugCalls = [];
+    const callbacks = new Map();
+    const intervals = [];
+    const timeouts = [];
+    const original = {
+      setInterval: window.setInterval,
+      clearInterval: window.clearInterval,
+      setTimeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+    };
+    const profileQuery = { name: 'profile' };
+    const tombstoneQuery = { name: 'tombstones' };
+    const itemRowQuery = { name: 'itemRows' };
+    let profileRows = [{ id: 'row-1', profileId: 'profile-a', syncedAt: '2026-06-08T10:00:00.000Z' }];
+    let tombstoneRows = [];
+    let syncing = false;
+    let pulling = false;
+    let relayOk = true;
+    let relayError = null;
+    let errorCallback = null;
+
+    const flushMicrotasks = async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+
+    try {
+      window.setInterval = (fn, ms) => {
+        const id = intervals.length + 1;
+        intervals.push({ id, fn, ms, cleared: false });
+        return id;
+      };
+      window.clearInterval = (id) => {
+        const timer = intervals.find(item => item.id === id);
+        if (timer) timer.cleared = true;
+      };
+      window.setTimeout = (fn, ms) => {
+        const id = 100 + timeouts.length;
+        timeouts.push({ id, fn, ms, cleared: false });
+        return id;
+      };
+      window.clearTimeout = (id) => {
+        const timer = timeouts.find(item => item.id === id);
+        if (timer) timer.cleared = true;
+      };
+
+      subscriptions.configureSyncSubscriptions({
+        isSyncing: () => syncing,
+        isPulling: () => pulling,
+        onSyncReceived: () => { receives.push('receive'); },
+        checkRelayConnection: async () => {
+          if (relayError) throw relayError;
+          return relayOk;
+        },
+        updateSyncStatus: partial => { statusUpdates.push(partial); },
+        debug: (...args) => { debugCalls.push(args.map(String).join(' ')); },
+      });
+      subscriptions.clearSyncSubscriptionTimers();
+      subscriptions.bindSyncSubscriptions({});
+      outcomes.missingDependenciesDoNotSubscribe = intervals.length === 0
+        && subscriptions.getSyncSubscriptionFireCount() === 0;
+
+      const evolu = {
+        subscribeQuery(query) {
+          return callback => {
+            callbacks.set(query.name, callback);
+            return () => {};
+          };
+        },
+        getQueryRows(query) {
+          if (query === profileQuery) return profileRows;
+          if (query === tombstoneQuery) return tombstoneRows;
+          return [];
+        },
+        subscribeError(callback) {
+          errorCallback = callback;
+          return () => {};
+        },
+      };
+
+      subscriptions.bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery });
+      callbacks.get('profile')();
+      outcomes.profileSubscriptionReceivesImmediately = receives.length === 1
+        && subscriptions.getSyncSubscriptionFireCount() === 1
+        && debugCalls.some(message => message.includes('subscription fired (#1)'));
+
+      syncing = true;
+      callbacks.get('tombstones')();
+      callbacks.get('itemRows')();
+      outcomes.deferredReceivesScheduleSingleRetry = receives.length === 1
+        && timeouts.filter(timer => timer.ms === 500 && !timer.cleared).length === 1
+        && debugCalls.some(message => message.includes('tombstone subscription: receive deferred'));
+
+      syncing = false;
+      timeouts[0].fn();
+      outcomes.deferredRetryReceivesWhenIdle = receives.length === 2;
+
+      const pollInterval = intervals.find(timer => timer.ms === 30000);
+      profileRows = [{ id: 'row-1', profileId: 'profile-a', syncedAt: '2026-06-08T10:01:00.000Z' }];
+      pollInterval.fn();
+      const receiveCountAfterPoll = receives.length;
+      pollInterval.fn();
+      outcomes.pollSignatureChangeReceivesOnce = receiveCountAfterPoll === 3
+        && receives.length === 3
+        && debugCalls.some(message => message.includes('poll: row signature changed'));
+
+      errorCallback(null);
+      errorCallback({ type: 'WebSocketClosed' });
+      outcomes.websocketErrorsMarkRelayUnreachable = statusUpdates.some(update => update.relay === 'unreachable'
+        && update.lastError?.type === 'WebSocketClosed');
+
+      subscriptions.startRelayProbe();
+      await flushMicrotasks();
+      outcomes.relayProbeMarksConnected = statusUpdates.some(update => update.relay === 'connected'
+        && typeof update.relayCheckedAt === 'number');
+
+      relayOk = false;
+      const relayInterval = intervals.find(timer => timer.ms === 60000);
+      relayInterval.fn();
+      await flushMicrotasks();
+      outcomes.relayIntervalMarksUnreachable = statusUpdates.some(update => update.relay === 'unreachable'
+        && typeof update.relayCheckedAt === 'number'
+        && !update.lastError);
+
+      relayError = new Error('probe failed');
+      relayInterval.fn();
+      await flushMicrotasks();
+      outcomes.relayProbeErrorsCarryLastError = statusUpdates.some(update => update.relay === 'unreachable'
+        && update.lastError?.type === 'RelayProbeError'
+        && update.lastError?.message === 'probe failed');
+
+      subscriptions.clearSyncSubscriptionTimers();
+      outcomes.clearTimersResetsCounters = subscriptions.getSyncSubscriptionFireCount() === 0
+        && pollInterval.cleared === true
+        && relayInterval.cleared === true;
+    } finally {
+      subscriptions.clearSyncSubscriptionTimers();
+      subscriptions.configureSyncSubscriptions({
+        isSyncing: () => false,
+        isPulling: () => false,
+        onSyncReceived: () => {},
+        checkRelayConnection: async () => false,
+        updateSyncStatus: () => {},
+        debug: () => {},
+      });
+      window.setInterval = original.setInterval;
+      window.clearInterval = original.clearInterval;
+      window.setTimeout = original.setTimeout;
+      window.clearTimeout = original.clearTimeout;
+    }
+
+    return outcomes;
+  }, {
+    subscriptionsUrl: moduleUrl('/js/sync-subscriptions.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('sync reconcile browser coverage force-pushes divergent startup state', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({
+    reconcileUrl,
+    payloadUrl,
+    collectorsUrl,
+    identityUrl,
+    profileUrl,
+    stateUrl,
+  }) => {
+    const [reconcile, payload, collectors, identity, profile, stateModule] = await Promise.all([
+      import(reconcileUrl),
+      import(payloadUrl),
+      import(collectorsUrl),
+      import(identityUrl),
+      import(profileUrl),
+      import(stateUrl),
+    ]);
+    const { state } = stateModule;
+    const outcomes = {};
+    const pushes = [];
+    const debugCalls = [];
+    const profileId = `sync_reconcile_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const profileQuery = { name: 'profiles' };
+    let rows = [];
+    let enabled = true;
+    const storageKeys = [
+      ...collectors.AI_SETTINGS_KEYS,
+      identity.RESTORE_JOIN_PENDING_KEY,
+      `labcharts-${profileId}-sync-cutover-v2`,
+    ];
+    const savedStorage = storageKeys.map(key => [key, localStorage.getItem(key)]);
+    const savedState = {
+      currentProfile: state.currentProfile,
+      importedData: state.importedData,
+      profiles: state.profiles,
+    };
+    const evolu = {
+      getQueryRows(query) {
+        return query === profileQuery ? rows : [];
+      },
+    };
+    const resetCalls = () => {
+      pushes.length = 0;
+      debugCalls.length = 0;
+    };
+    const clearAiSettings = () => {
+      for (const key of collectors.AI_SETTINGS_KEYS) localStorage.removeItem(key);
+    };
+    const profileData = devices => ({
+      ...profile.createDefaultProfileData(),
+      lightDevices: devices,
+    });
+    const rowFor = async (importedData, aiProvider = 'same-provider') => {
+      clearAiSettings();
+      localStorage.setItem('labcharts-ai-provider', aiProvider);
+      return {
+        profileId,
+        syncedAt: new Date().toISOString(),
+        dataJson: await payload.buildSyncPayload(profileId, importedData),
+      };
+    };
+
+    try {
+      state.currentProfile = profileId;
+      state.profiles = [{
+        id: profileId,
+        name: 'Sync Reconcile',
+        sex: null,
+        dob: null,
+        location: { country: '', zip: '' },
+        tags: [],
+        notes: '',
+        status: 'active',
+        avatar: null,
+        height: null,
+        heightUnit: 'cm',
+        createdAt: Date.now(),
+        lastUpdated: Date.now(),
+        pinned: false,
+      }];
+      state.importedData = profileData([
+        { id: 'lamp-1', name: 'Local lamp', updatedAt: '2026-06-08T10:00:00.000Z' },
+      ]);
+      clearAiSettings();
+      localStorage.removeItem(identity.RESTORE_JOIN_PENDING_KEY);
+      reconcile.configureSyncReconcile({
+        getEvolu: () => evolu,
+        getProfileQuery: () => profileQuery,
+        isSyncEnabled: () => enabled,
+        pushProfile: async (pushedProfileId, importedData, options) => {
+          pushes.push({ profileId: pushedProfileId, importedData, options });
+        },
+        debug: (...args) => { debugCalls.push(args.map(String).join(' ')); },
+      });
+
+      enabled = false;
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.disabledSyncSkips = pushes.length === 0;
+
+      enabled = true;
+      rows = [];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.missingRemoteRowSkips = pushes.length === 0;
+
+      rows = [{ profileId, syncedAt: new Date().toISOString(), dataJson: '{bad json' }];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.malformedRemotePayloadSkips = pushes.length === 0;
+
+      rows = [await rowFor(state.importedData)];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.matchingRemotePayloadSkips = pushes.length === 0
+        && debugCalls.some(message => message.includes('nothing to do'));
+
+      resetCalls();
+      rows = [await rowFor(profileData([
+        { id: 'lamp-1', name: 'Remote lamp', updatedAt: '2026-06-07T10:00:00.000Z' },
+      ]))];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.newerLocalRowsForcePush = pushes.length === 1
+        && pushes[0].profileId === profileId
+        && pushes[0].importedData === state.importedData
+        && pushes[0].options?.force === true
+        && debugCalls.some(message => message.includes('unsynced rows'));
+
+      resetCalls();
+      rows = [await rowFor(state.importedData, 'remote-provider')];
+      localStorage.setItem('labcharts-ai-provider', 'local-provider');
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.newerLocalAiSettingsForcePush = pushes.length === 1
+        && pushes[0].profileId === profileId
+        && pushes[0].options?.force === true
+        && debugCalls.some(message => message.includes('newer local AI settings'));
+
+      resetCalls();
+      localStorage.setItem(identity.RESTORE_JOIN_PENDING_KEY, String(Date.now()));
+      rows = [await rowFor(profileData([
+        { id: 'lamp-1', name: 'Remote lamp', updatedAt: '2026-06-07T10:00:00.000Z' },
+      ]))];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.restoreJoinPendingSkips = pushes.length === 0
+        && debugCalls.some(message => message.includes('skipped until restored mnemonic pulls remote owner data'));
+    } finally {
+      for (const [key, value] of savedStorage) {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      state.currentProfile = savedState.currentProfile;
+      state.importedData = savedState.importedData;
+      state.profiles = savedState.profiles;
+      reconcile.configureSyncReconcile({
+        getEvolu: () => null,
+        getProfileQuery: () => null,
+        isSyncEnabled: () => false,
+        pushProfile: async () => {},
+        debug: () => {},
+      });
+    }
+
+    return outcomes;
+  }, {
+    reconcileUrl: moduleUrl('/js/sync-reconcile.js'),
+    payloadUrl: '/js/sync-payload.js',
+    collectorsUrl: '/js/sync-payload-collectors.js',
+    identityUrl: '/js/sync-identity.js',
+    profileUrl: '/js/profile.js',
+    stateUrl: '/js/state.js',
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('sync init browser coverage handles disabled and unsupported startup guards', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ initUrl, settingsUrl, runtimeUrl }) => {
+    const [syncInit, settings, runtime] = await Promise.all([
+      import(initUrl),
+      import(settingsUrl),
+      import(runtimeUrl),
+    ]);
+    const outcomes = {};
+    const savedSyncEnabled = localStorage.getItem(settings.SYNC_STORAGE_KEY);
+    const hadOwnLocks = Object.prototype.hasOwnProperty.call(navigator, 'locks');
+    const ownLocksDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
+
+    try {
+      runtime.clearSyncRuntimeState();
+      settings.setSyncEnabled(false, { persist: false });
+      await syncInit.initSync();
+      outcomes.disabledSyncLeavesRuntimeIdle = runtime.getSyncEvolu() === null
+        && runtime.getSyncAppOwnerError() === null;
+
+      runtime.clearSyncRuntimeState();
+      settings.setSyncEnabled(true, { persist: false });
+      Object.defineProperty(navigator, 'locks', {
+        configurable: true,
+        value: undefined,
+      });
+      await syncInit.initSync();
+      outcomes.missingWebLocksSetsOwnerError = runtime.getSyncEvolu() === null
+        && String(runtime.getSyncAppOwnerError()).includes('navigator.locks not available');
+    } finally {
+      runtime.clearSyncRuntimeState();
+      if (hadOwnLocks && ownLocksDescriptor) {
+        Object.defineProperty(navigator, 'locks', ownLocksDescriptor);
+      } else {
+        delete navigator.locks;
+      }
+      if (savedSyncEnabled === null) {
+        localStorage.removeItem(settings.SYNC_STORAGE_KEY);
+        settings.setSyncEnabled(false, { persist: false });
+      } else {
+        localStorage.setItem(settings.SYNC_STORAGE_KEY, savedSyncEnabled);
+        settings.setSyncEnabled(savedSyncEnabled === 'true', { persist: false });
+      }
+    }
+
+    return outcomes;
+  }, {
+    initUrl: moduleUrl('/js/sync-init.js'),
+    settingsUrl: '/js/sync-settings-state.js',
+    runtimeUrl: '/js/sync-runtime.js',
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
