@@ -281,6 +281,36 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
         },
       },
     };
+    const savedFns = {
+      isProductRecsEnabled: window.isProductRecsEnabled,
+      loadCatalog: window.loadCatalog,
+      detectWearableTrendSlots: window.detectWearableTrendSlots,
+      rollingChannelTotals: window.rollingChannelTotals,
+      getSessions: window.getSessions,
+      renderRecommendationSection: window.renderRecommendationSection,
+      openChatPanel: window.openChatPanel,
+      openSettingsModal: window.openSettingsModal,
+      showDetailModal: window.showDetailModal,
+      openWearableDetail: window.openWearableDetail,
+      openManualLogForm: window.openManualLogForm,
+      syncWearableNow: window.syncWearableNow,
+    };
+    const hadFns = {};
+    for (const name of Object.keys(savedFns)) {
+      hadFns[name] = Object.prototype.hasOwnProperty.call(window, name);
+    }
+    const originalState = {
+      currentProfile: state.currentProfile,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      importedData: state.importedData,
+      currentView: state.currentView,
+    };
+    const hadCachedCatalog = Object.prototype.hasOwnProperty.call(window, '_cachedCatalog');
+    const originalCachedCatalog = window._cachedCatalog;
+    let realNavigate;
+
+    try {
 
     state.currentProfile = profileId;
     state.profileSex = 'male';
@@ -392,8 +422,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     dismissButton?.click();
     await delay(100);
     const dismissStored = firstRecId && readJson(recDismissedKey).length > 0;
-    window.dismissRecommendation(firstRecId, false);
-    window.saveRecommendation(firstRecId, false);
+    window.dismissRecommendation?.(firstRecId, false);
+    window.saveRecommendation?.(firstRecId, false);
 
     window.resetDashboardWidgets();
     window.navigate('dashboard');
@@ -435,20 +465,25 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const markerWidgetRemovedByHide = !readPrefs().order.includes('marker_lipids_apoB')
       && !readPrefs().hidden.includes('marker_lipids_apoB');
 
-    const realNavigate = window.navigate;
+    realNavigate = window.navigate;
     const lensNavigateCalls = [];
-    window.navigate = route => {
-      lensNavigateCalls.push(route);
-      state.currentView = route;
-    };
-    state.currentView = 'labs';
-    window.addDashboardWidgetFromLens('alerts');
-    const addedFromLens = !readPrefs().hidden.includes('alerts')
-      && lensNavigateCalls.includes('labs');
-    window.removeDashboardWidgetFromLens('alerts');
-    const removedFromLens = readPrefs().hidden.includes('alerts')
-      && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
-    window.navigate = realNavigate;
+    let addedFromLens = false;
+    let removedFromLens = false;
+    try {
+      window.navigate = route => {
+        lensNavigateCalls.push(route);
+        state.currentView = route;
+      };
+      state.currentView = 'labs';
+      window.addDashboardWidgetFromLens('alerts');
+      addedFromLens = !readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.includes('labs');
+      window.removeDashboardWidgetFromLens('alerts');
+      removedFromLens = readPrefs().hidden.includes('alerts')
+        && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
+    } finally {
+      window.navigate = realNavigate;
+    }
     state.currentView = 'dashboard';
     window.navigate('dashboard');
     await waitFor(() => dashboardWidget('focus') || document.querySelector('.dashboard-widget'));
@@ -523,6 +558,23 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       connectSourceClosesPicker,
       dragDropReordersPrefs,
     };
+    } finally {
+      if (realNavigate && window.navigate !== realNavigate) window.navigate = realNavigate;
+      window.closeDashboardWidgetPicker?.();
+      window.toggleDashboardOrganizeMode?.(false);
+      document.getElementById('dashboard-widget-picker-overlay')?.remove();
+      state.currentProfile = originalState.currentProfile;
+      state.profileSex = originalState.profileSex;
+      state.profileDob = originalState.profileDob;
+      state.importedData = originalState.importedData;
+      state.currentView = originalState.currentView;
+      if (hadCachedCatalog) window._cachedCatalog = originalCachedCatalog;
+      else delete window._cachedCatalog;
+      for (const [name, original] of Object.entries(savedFns)) {
+        if (hadFns[name]) window[name] = original;
+        else delete window[name];
+      }
+    }
   });
 
   for (const [name, passed] of Object.entries(results)) {
