@@ -243,6 +243,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
 
 test('sync delta planners and committed apply cover row mutation contracts', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ arrayPlannerUrl, mapPlannerUrl, scalarPlannerUrl, pushDeltasUrl }) => {
     const [arrayPlanner, mapPlanner, scalarPlanner, pushDeltas, syncDelta] = await Promise.all([
@@ -333,11 +334,15 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
           isDeleted: null,
         },
       ];
-      const mapPlan = await mapPlanner._planKeyedMapDelta(profileId, 'manualValues', {
-        [glucoseKey]: 7,
-        [nullKey]: null,
-        '__proto__': 123,
+      const manualValues = Object.create(null);
+      manualValues[glucoseKey] = 7;
+      manualValues[nullKey] = null;
+      Object.defineProperty(manualValues, '__proto__', {
+        configurable: true,
+        enumerable: true,
+        value: 123,
       });
+      const mapPlan = await mapPlanner._planKeyedMapDelta(profileId, 'manualValues', manualValues);
       const glucoseOp = mapPlan.ops.find(op => op.args.itemId === manualItemId(glucoseKey));
       const nullOp = mapPlan.ops.find(op => op.args.itemId === manualItemId(nullKey));
       outcomes.mapPlannerPreservesRawKeysAllowsClearsAndTombstones =
@@ -471,6 +476,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
 
 test('sync delta merge helpers overlay array map and scalar rows', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ arrayMergeUrl, mapMergeUrl, scalarMergeUrl }) => {
     const [arrayMerge, mapMerge, scalarMerge] = await Promise.all([
