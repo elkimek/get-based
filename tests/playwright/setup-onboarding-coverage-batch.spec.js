@@ -365,7 +365,10 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       document.body.append(cards, importTarget);
 
       onboarding.setOnboardingFocus('cards');
-      await wait(140);
+      await waitUntil(
+        () => scrolled.some(call => String(call[0]).includes('profile-context-cards') && call[1] === 'start'),
+        'cards focus scroll'
+      );
       outcomes.cardsFocusSetsClassStorageAndScroll =
         document.body.classList.contains('cards-focus')
         && !document.body.classList.contains('chat-fullscreen')
