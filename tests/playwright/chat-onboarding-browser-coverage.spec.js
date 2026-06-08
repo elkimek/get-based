@@ -182,11 +182,14 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       heightUnit.value = 'in';
       document.getElementById('chat-onboard-weight').value = '150';
       document.getElementById('chat-onboard-weight-unit').value = 'lb';
-      document.getElementById('chat-onboard-country').value = 'Germany';
+      const countryInput = document.getElementById('chat-onboard-country');
+      countryInput.value = '';
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-openrouter-key');
       onboarding.saveChatProfile(true);
+      countryInput.value = 'Germany';
+      onboarding.saveChatLocation();
       await Promise.resolve();
       await Promise.resolve();
       const loc = profile.getProfileLocation(profileId);
