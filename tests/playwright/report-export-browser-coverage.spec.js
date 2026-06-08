@@ -480,6 +480,267 @@ test('report payload and HTML cover filtered context genetics and supplement bra
   }
 });
 
+test('report HTML renderer covers sparse single-date trend and print branches', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ htmlUrl }) => {
+    const html = await import(htmlUrl);
+    const state = window._labState;
+    const outcomes = {};
+    const original = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      profiles: JSON.parse(JSON.stringify(state.profiles || [])),
+      currentProfile: state.currentProfile,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      rangeMode: state.rangeMode,
+      unitSystem: state.unitSystem,
+      open: window.open,
+      snpTable: window._snpTableCache,
+    };
+    const trendMarkers = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [
+      `trend${index}`,
+      {
+        name: `Trend Marker ${index + 1}`,
+        unit: 'u',
+        refMin: 0,
+        refMax: 20,
+        values: [5, 7 + index],
+      },
+    ]));
+    const flags = [
+      {
+        name: 'Low Marker <Flag>',
+        value: '0.50',
+        rawValue: 0.5,
+        unit: 'u',
+        refMin: 1,
+        refMax: 2,
+        effectiveMin: 1,
+        effectiveMax: 2,
+        status: 'low',
+      },
+      ...Array.from({ length: 10 }, (_, index) => ({
+        name: `High Marker ${index + 1}`,
+        value: String(31 + index),
+        rawValue: 31 + index,
+        unit: 'u',
+        refMin: 0,
+        refMax: 30,
+        effectiveMin: 0,
+        effectiveMax: 30,
+        status: 'high',
+      })),
+    ];
+
+    try {
+      state.currentProfile = 'report-html-renderer-coverage';
+      state.profiles = [{
+        id: 'report-html-renderer-coverage',
+        name: 'Renderer Coverage',
+        sex: 'female',
+        dob: '1990-01-02',
+        location: { city: 'Prague', country: 'CZ' },
+        height: 170,
+        heightUnit: 'cm',
+        tags: [],
+        notes: '',
+        status: 'active',
+      }];
+      state.profileSex = '';
+      state.profileDob = '';
+      state.rangeMode = 'reference';
+      state.unitSystem = 'EU';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        genetics: {
+          mtdna: {
+            haplogroup: 'J1c',
+            source: 'mtDNA only <source>',
+          },
+        },
+        customMarkers: {},
+      };
+      window._snpTableCache = null;
+      window.invalidateActiveDataCache?.();
+
+      const emptyReport = html.buildReportHTML(
+        'Sparse <Profile>',
+        'Not specified',
+        {
+          dates: [],
+          categories: {
+            empty: {
+              label: 'Empty Group',
+              markers: {
+                none: { name: 'No Value', unit: 'mg/L', refMin: 0, refMax: 10, values: [null, undefined] },
+              },
+            },
+          },
+        },
+        [],
+        [],
+        [{
+          name: 'No dosage supplement',
+          type: '',
+          startDate: '2026-01-01',
+          endDate: '2026-02-01',
+        }],
+        [{ title: 'Plain Context', text: 'Single context line <safe>' }],
+        {
+          preset: 'personal',
+          dateRange: '3m',
+          sections: ['summary', 'categories', 'supplements', 'context', 'genetics'],
+        },
+      );
+      outcomes.emptyReportDeckSupplementAndMtDna = emptyReport.includes('Sparse &lt;Profile&gt; lab report')
+        && emptyReport.includes('No lab results are available for the selected report window')
+        && emptyReport.includes('No lab dates in selected range')
+        && emptyReport.includes('<strong>No out-of-range results.</strong>')
+        && emptyReport.includes('Within Reference Range:</strong> 0 of 0 markers with data')
+        && emptyReport.includes('No dosage supplement')
+        && emptyReport.includes('<td>\u2014</td><td>\u2014</td>')
+        && emptyReport.includes('Jan 1, 2026 \u2192 Feb 1, 2026')
+        && emptyReport.includes('Single context line &lt;safe&gt;')
+        && emptyReport.includes('mtDNA Haplogroup:</strong> J1c')
+        && emptyReport.includes('Source: mtDNA only &lt;source&gt;')
+        && !emptyReport.includes('<h2>Empty Group</h2>');
+
+      const data = {
+        dates: ['2026-01-01', '2026-02-01'],
+        categories: {
+          chemistry: {
+            label: 'Chemistry <Set>',
+            markers: {
+              albumin: { name: 'Albumin', unit: 'g/L', refMin: 35, refMax: 50, values: [42, null] },
+              ferritin: { name: 'Ferritin', unit: 'ug/L', refMin: 30, refMax: 150, values: [null, 180] },
+              zero: { name: 'Zero Trend Marker', unit: 'u', refMin: 0, refMax: 10, values: [0, 8] },
+              stable: { name: 'Stable Marker', unit: 'u', refMin: 0, refMax: 10, values: [5, 5.05] },
+            },
+          },
+          trends: {
+            label: 'Trend Group',
+            markers: trendMarkers,
+          },
+          spot: {
+            label: 'Single Point',
+            singleDate: true,
+            singleDateLabel: 'Spot check',
+            markers: {
+              spotLow: { name: 'Spot Marker', unit: 'u', refMin: 1, refMax: 2, values: [0.5] },
+            },
+          },
+        },
+      };
+      const denseReport = html.buildReportHTML(
+        'Dense Renderer',
+        'Female',
+        data,
+        flags,
+        [{ date: '2026-02-03', text: 'Dense note <escape>' }],
+        [
+          {
+            name: 'Dose Stack',
+            dose: '100 mg',
+            amount: '1 cap',
+            frequency: 'daily',
+            type: 'medication',
+            startDate: '2026-01-01',
+            endDate: '2026-03-01',
+            timesPerDay: 2,
+            ingredients: [
+              { name: '', amount: '' },
+              { name: 'Zinc', amount: '15 mg' },
+            ],
+          },
+        ],
+        [{ title: 'Structured Context', text: 'Goal: cover report renderer\nUnkeyed context line <escaped>' }],
+        {
+          preset: 'full',
+          dateRange: 'all',
+          sections: ['summary', 'flagged', 'categories', 'trends', 'supplements', 'notes', 'genetics', 'context'],
+        },
+      );
+      outcomes.denseReportCoversFlagsTrendsSparseCellsAndSupplements = denseReport.includes('2 lab dates covering 14 markers across 3 lab groups.')
+        && denseReport.includes('11 latest markers are outside range.')
+        && denseReport.includes('Out of Range Highlights (10 of 11)')
+        && denseReport.includes('See Flagged Results for the full list of 11 out-of-range markers.')
+        && denseReport.includes('Low Marker &lt;Flag&gt;')
+        && denseReport.includes('LOW')
+        && denseReport.includes('Trend Highlights (&gt;10% change)')
+        && denseReport.includes('See Notable Trends for the full list of 9 changes.')
+        && denseReport.includes('<h2>Chemistry &lt;Set&gt;</h2>')
+        && denseReport.includes('<th>Jan 1, 2026</th>')
+        && denseReport.includes('<th>Feb 1, 2026</th>')
+        && denseReport.includes('class="val-missing">\u2014</td>')
+        && denseReport.includes('<th>Spot check</th>')
+        && denseReport.includes('Dose Stack')
+        && denseReport.includes('100 mg<br>1 cap<br>daily<br>Zinc 15 mg x 2/day -&gt; 30 mg/day')
+        && denseReport.includes('Jan 1, 2026 \u2192 Mar 1, 2026')
+        && denseReport.includes('Dense note &lt;escape&gt;')
+        && denseReport.includes('<dt>Goal</dt><dd>cover report renderer</dd>')
+        && denseReport.includes('Unkeyed context line &lt;escaped&gt;')
+        && denseReport.includes('Within Reference Range:</strong>');
+
+      let capturedReport = '';
+      let printHandler = null;
+      window.open = () => ({
+        document: {
+          write(markup) { capturedReport += markup; },
+          close() {},
+          querySelector(selector) {
+            if (selector !== '.report-print-btn') throw new Error(`Unexpected selector: ${selector}`);
+            return {
+              addEventListener(type, handler) {
+                if (type === 'click') printHandler = handler;
+              },
+            };
+          },
+        },
+        print() {},
+      });
+      state.importedData.entries = [{
+        date: '2026-02-01',
+        markers: { 'biochemistry.glucose': 5.6 },
+      }];
+      outcomes.successfulExportWritesPreviewAndInstallsPrint = html.exportPDFReport({
+        preset: 'personal',
+        dateRange: 'all',
+        sections: ['summary', 'categories'],
+        categoryKeys: ['biochemistry'],
+      }) === true
+        && capturedReport.includes('Renderer Coverage lab report')
+        && capturedReport.includes('Glucose')
+        && capturedReport.includes('Print / Save PDF')
+        && typeof printHandler === 'function'
+        && Array.from(document.querySelectorAll('.notification-toast.info'))
+          .some(toast => toast.textContent.includes('PDF preview opened'));
+    } finally {
+      state.importedData = original.importedData;
+      state.profiles = original.profiles;
+      state.currentProfile = original.currentProfile;
+      state.profileSex = original.profileSex;
+      state.profileDob = original.profileDob;
+      state.rangeMode = original.rangeMode;
+      state.unitSystem = original.unitSystem;
+      window.open = original.open;
+      window._snpTableCache = original.snpTable;
+      window.invalidateActiveDataCache?.();
+    }
+
+    return outcomes;
+  }, {
+    htmlUrl: moduleUrl('/js/export-report-html.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('report AI summary generation covers unavailable success and empty-response paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
