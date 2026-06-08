@@ -266,6 +266,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
+      navigate: window.navigate,
       buildSidebar: window.buildSidebar,
       openChatPanel: window.openChatPanel,
       toggleChatPanel: window.toggleChatPanel,
@@ -276,6 +277,8 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     const calls = [];
     const host = document.createElement('div');
     host.id = 'onboarding-coverage-host';
+    let cards = null;
+    let importTarget = null;
 
     try {
       document.body.appendChild(host);
@@ -358,9 +361,9 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       };
       document.body.classList.add('chat-fullscreen');
       localStorage.setItem('labcharts-chat-fullscreen', 'true');
-      const cards = document.createElement('div');
+      cards = document.createElement('div');
       cards.className = 'profile-context-cards';
-      const importTarget = document.createElement('button');
+      importTarget = document.createElement('button');
       importTarget.className = 'welcome-direct-import-btn';
       document.body.append(cards, importTarget);
 
@@ -396,9 +399,9 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       outcomes.blankFocusClearsFocusClasses =
         !document.body.classList.contains('cards-focus')
         && !document.body.classList.contains('import-focus');
-      cards.remove();
-      importTarget.remove();
     } finally {
+      cards?.remove();
+      importTarget?.remove();
       host.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       document.body.classList.remove('cards-focus', 'import-focus', 'chat-fullscreen');
@@ -407,7 +410,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
-      onboarding.configureOnboardingView({ navigate: null });
+      onboarding.configureOnboardingView({ navigate: saved.navigate });
       Object.assign(window, {
         buildSidebar: saved.buildSidebar,
         openChatPanel: saved.openChatPanel,
