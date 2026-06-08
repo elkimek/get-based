@@ -358,8 +358,8 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && imagePending.imageMode === true
         && imagePending.privacyMethod === 'none (image mode)';
       outcomes.imageFileHandlerRecordsCostHashAndProfile = imagePending?.fileName === 'scan.png'
-        && Number.isFinite(imagePending.costInfo?.inputTokens)
-        && Number.isFinite(imagePending.costInfo?.outputTokens)
+        && imagePending.costInfo?.inputTokens > 0
+        && imagePending.costInfo?.outputTokens > 0
         && !!imagePending.importHash
         && imagePending._importProfileId === 'pdf-import-runtime-coverage';
       review.closeImportModal();
