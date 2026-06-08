@@ -322,6 +322,166 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
   }
 });
 
+test('device session dialog covers validation unit mode start and save paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ deviceSessionUrl }) => {
+    const [{ state }, deviceSessionModal] = await Promise.all([
+      import('/js/state.js'),
+      import(deviceSessionUrl),
+    ]);
+    const outcomes = {};
+    const calls = [];
+    const saved = {
+      unitSystem: state.unitSystem,
+      navigate: window.navigate,
+      validateModeCoupling: window.validateModeCoupling,
+      renderBodySilhouette: window.renderBodySilhouette,
+      bindBodySilhouette: window.bindBodySilhouette,
+    };
+    let activeSession = null;
+    const devices = [{
+      id: 'panel-coverage',
+      brand: 'CoverageLight',
+      model: 'Dual 900',
+      recommendedDistanceCm: 30,
+      lastSession: {
+        durationMin: 18,
+        distanceCm: 30,
+        bodyArea: 'legs',
+        eyesProtected: false,
+        mode: 'red',
+      },
+      modes: [
+        { id: 'combo', label: 'Combo', default: true },
+        { id: 'red', label: 'Red only' },
+        { id: 'nir', label: 'NIR only' },
+        { id: 'blocked', label: 'Blocked' },
+      ],
+    }];
+
+    try {
+      state.unitSystem = 'US';
+      window.navigate = route => calls.push(['navigate', route]);
+      window.validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
+      window.renderBodySilhouette = selected => `
+        <button type="button" class="body-region-test" data-region="legs-front" aria-pressed="${selected.has('legs-front')}">Legs front</button>
+        <button type="button" class="body-region-test" data-region="arms-front" aria-pressed="${selected.has('arms-front')}">Arms front</button>
+      `;
+      window.bindBodySilhouette = (slot, selected, callback) => {
+        slot.querySelectorAll('[data-region]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const region = btn.dataset.region;
+            if (!region) return;
+            if (selected.has(region)) selected.delete(region);
+            else selected.add(region);
+            callback(selected);
+          });
+        });
+      };
+
+      const deps = {
+        hydrateDevicesFromPresets: async () => calls.push(['hydrate-devices']),
+        getDevices: () => devices,
+        logDeviceSession: async payload => calls.push(['log', payload]),
+        getActiveDeviceSession: () => activeSession,
+        startDeviceSession: async payload => {
+          calls.push(['start', payload]);
+          activeSession = { id: 'active-device' };
+        },
+        ensureActiveDeviceTicker: () => calls.push(['ticker']),
+      };
+
+      await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
+      let overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      const modeButtons = overlay?.querySelectorAll('.dev-mode-btn') || [];
+      const distance = overlay?.querySelector('#dev-session-distance');
+      outcomes.dialogUsesLastSessionAndFiltersModes = !!overlay
+        && overlay.querySelector('#dev-session-duration')?.value === '18'
+        && overlay.querySelector('#dev-session-mode')?.value === 'red'
+        && modeButtons.length === 3
+        && !overlay.textContent.includes('Blocked')
+        && overlay.querySelector('#dev-session-eyes')?.checked === false
+        && overlay.querySelector('#dev-session-area-hint')?.textContent.includes('Legs');
+
+      overlay?.querySelector('.dev-mode-btn[data-mode="nir"]')?.click();
+      outcomes.modeClickUpdatesHiddenInputAndAria = overlay?.querySelector('#dev-session-mode')?.value === 'nir'
+        && overlay.querySelector('.dev-mode-btn[data-mode="nir"]')?.getAttribute('aria-checked') === 'true';
+
+      if (distance) {
+        const initialInches = Number(distance.value);
+        overlay.querySelector('.dev-unit-btn[data-unit="cm"]')?.click();
+        const convertedCm = Number(distance.value);
+        overlay.querySelector('.dev-unit-btn[data-unit="in"]')?.click();
+        outcomes.unitToggleConvertsBothDirections = distance.dataset.unit === 'in'
+          && Math.abs(initialInches - 11.8) < 0.05
+          && Math.abs(convertedCm - 30) < 0.05
+          && overlay.querySelector('.dev-unit-btn[data-unit="in"]')?.getAttribute('aria-selected') === 'true';
+      } else {
+        outcomes.unitToggleConvertsBothDirections = false;
+      }
+
+      overlay?.querySelector('#dev-session-clear')?.click();
+      overlay?.querySelector('#dev-session-save')?.click();
+      outcomes.emptyRegionBlocksSave = !calls.some(call => call[0] === 'log')
+        && overlay?.querySelector('#dev-session-area-hint')?.textContent.includes('Pick at least one region');
+      overlay?.remove();
+
+      activeSession = { id: 'already-running' };
+      await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
+      overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      overlay?.querySelector('#dev-session-start')?.click();
+      await Promise.resolve();
+      outcomes.activeSessionBlocksNewTimer = !!overlay
+        && document.body.contains(overlay)
+        && !calls.some(call => call[0] === 'start');
+      activeSession = null;
+      overlay?.querySelector('#dev-session-start')?.click();
+      await Promise.resolve();
+      const startPayload = calls.find(call => call[0] === 'start')?.[1];
+      outcomes.startTimerUsesDefaultsAndNavigates = !!startPayload
+        && startPayload.deviceId === 'panel-coverage'
+        && startPayload.mode === 'red'
+        && startPayload.bodyArea === 'legs'
+        && startPayload.bodyAreas.includes('legs-front')
+        && calls.some(call => call[0] === 'ticker')
+        && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+
+      await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
+      overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      overlay.querySelector('#dev-session-duration').value = '7';
+      overlay.querySelector('.dev-mode-btn[data-mode="combo"]')?.click();
+      overlay.querySelector('#dev-session-save')?.click();
+      await Promise.resolve();
+      const logPayload = calls.find(call => call[0] === 'log')?.[1];
+      outcomes.saveSessionUsesModeDurationAndRegions = !!logPayload
+        && logPayload.durationMin === 7
+        && logPayload.mode === 'combo'
+        && logPayload.bodyArea === 'legs'
+        && Math.abs(logPayload.distanceCm - 30) < 0.1
+        && logPayload.eyesProtected === false;
+      outcomes.hydratesDevicesOnEachOpen = calls.filter(call => call[0] === 'hydrate-devices').length === 3;
+    } finally {
+      state.unitSystem = saved.unitSystem;
+      if (saved.navigate) window.navigate = saved.navigate;
+      else delete window.navigate;
+      if (saved.validateModeCoupling) window.validateModeCoupling = saved.validateModeCoupling;
+      else delete window.validateModeCoupling;
+      if (saved.renderBodySilhouette) window.renderBodySilhouette = saved.renderBodySilhouette;
+      else delete window.renderBodySilhouette;
+      if (saved.bindBodySilhouette) window.bindBodySilhouette = saved.bindBodySilhouette;
+      else delete window.bindBodySilhouette;
+      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, { deviceSessionUrl: moduleUrl('/js/light-device-session-modal.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('light sessions view covers all-sessions modal refresh scroll and row events', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 

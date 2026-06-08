@@ -541,6 +541,217 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
   }
 });
 
+test('light camera tool modals cover mocked camera readings and save paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ modalsUrl }) => {
+    const modals = await import(modalsUrl);
+    const outcomes = {};
+    const savedReadings = [];
+    const savedMediaDevices = navigator.mediaDevices;
+    const savedPlay = HTMLMediaElement.prototype.play;
+    const savedGetContext = HTMLCanvasElement.prototype.getContext;
+    const savedRaf = window.requestAnimationFrame;
+    const savedCancelRaf = window.cancelAnimationFrame;
+    const savedSetTimeout = window.setTimeout;
+    const hadALS = Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor');
+    const originalALS = window.AmbientLightSensor;
+    const streamStops = [];
+    let cameraPattern = 'lux';
+    let rafId = 0;
+    const rafTimers = new Map();
+    const delay = ms => new Promise(resolve => savedSetTimeout(resolve, ms));
+    const waitFor = async (predicate, attempts = 80) => {
+      for (let i = 0; i < attempts; i++) {
+        if (predicate()) return true;
+        await delay(5);
+      }
+      return false;
+    };
+    const makeFrame = (width, height) => {
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          let r = 80;
+          let g = 80;
+          let b = 80;
+          if (cameraPattern === 'flicker') {
+            const v = y % 4 < 2 ? 240 : 24;
+            r = v; g = v; b = v;
+          } else if (cameraPattern === 'cct') {
+            const bright = y % 4 < 2;
+            r = bright ? 20 : 6;
+            g = bright ? 80 : 24;
+            b = bright ? 230 : 90;
+          } else if (cameraPattern === 'glass-inside') {
+            r = 40; g = 40; b = 40;
+          } else if (cameraPattern === 'glass-outside') {
+            r = 100; g = 100; b = 100;
+          }
+          data[i] = r;
+          data[i + 1] = g;
+          data[i + 2] = b;
+          data[i + 3] = 255;
+        }
+      }
+      return data;
+    };
+    const makeTrack = () => ({
+      stop: () => streamStops.push('stop'),
+      getSettings: () => ({
+        frameRate: 120,
+        exposureMode: 'manual',
+        whiteBalanceMode: 'manual',
+        focusMode: 'manual',
+      }),
+      getCapabilities: () => ({
+        exposureMode: ['manual'],
+        whiteBalanceMode: ['manual'],
+        focusMode: ['manual'],
+        exposureTime: { min: 1, max: 500 },
+        iso: { min: 50, max: 800 },
+        colorTemperature: { min: 2000, max: 8000 },
+      }),
+      applyConstraints: async constraints => {
+        outcomes.cameraLockRequestsAdvancedConstraints = Array.isArray(constraints?.advanced)
+          && constraints.advanced.length > 0;
+      },
+    });
+    const makeStream = () => {
+      const track = makeTrack();
+      const stream = new MediaStream();
+      Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [track] });
+      Object.defineProperty(stream, 'getVideoTracks', { configurable: true, value: () => [track] });
+      return stream;
+    };
+    const deps = {
+      saveMeasurement: async (kind, value, meta) => {
+        savedReadings.push({ kind, value, meta });
+      },
+    };
+
+    try {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: async () => makeStream() },
+      });
+      delete window.AmbientLightSensor;
+      HTMLMediaElement.prototype.play = async function play() {
+        return undefined;
+      };
+      HTMLCanvasElement.prototype.getContext = function getContext(type, options) {
+        if (type !== '2d') return savedGetContext.call(this, type, options);
+        const canvas = this;
+        return {
+          drawImage: () => {},
+          getImageData: () => ({ data: makeFrame(canvas.width, canvas.height) }),
+        };
+      };
+      window.setTimeout = (handler, timeout, ...args) => savedSetTimeout(handler, Math.min(Number(timeout) || 0, 1), ...args);
+      window.requestAnimationFrame = callback => {
+        const id = ++rafId;
+        const timer = savedSetTimeout(() => {
+          rafTimers.delete(id);
+          callback(performance.now());
+        }, 1);
+        rafTimers.set(id, timer);
+        return id;
+      };
+      window.cancelAnimationFrame = id => {
+        const timer = rafTimers.get(id);
+        if (timer) clearTimeout(timer);
+        rafTimers.delete(id);
+      };
+
+      cameraPattern = 'lux';
+      localStorage.removeItem('labcharts-lux-calibration');
+      await modals.openLuxMeter({ roomId: 'workbench' }, deps);
+      const luxReady = await waitFor(() => document.getElementById('lux-value')?.textContent !== '—');
+      const calInput = document.getElementById('lux-cal-reference');
+      if (calInput) calInput.value = '6400';
+      document.getElementById('lux-cal-apply')?.click();
+      await delay(5);
+      document.getElementById('lux-save')?.click();
+      await Promise.resolve();
+      const luxSaved = savedReadings.find(item => item.kind === 'lux');
+      outcomes.luxCameraPathCalibratesAndSaves = luxReady
+        && !!luxSaved
+        && luxSaved.meta.roomId === 'workbench'
+        && luxSaved.meta.extra.source === 'camera-estimate'
+        && luxSaved.meta.extra.calibrationFactor >= 1.9
+        && !document.querySelector('[aria-label="Lux meter"]');
+
+      cameraPattern = 'flicker';
+      await modals.openFlickerDetector({ roomId: 'bench' }, deps);
+      const flickerReady = await waitFor(() => document.getElementById('flicker-result')?.textContent.includes('flicker'));
+      document.getElementById('flicker-save')?.click();
+      await Promise.resolve();
+      const flickerSaved = savedReadings.find(item => item.kind === 'flicker');
+      outcomes.flickerCameraPathScoresAndSaves = flickerReady
+        && !!flickerSaved
+        && flickerSaved.value >= 2
+        && flickerSaved.meta.extra.bandingRatio > 0.1
+        && flickerSaved.meta.roomId === 'bench';
+
+      cameraPattern = 'cct';
+      await modals.openCCTMeter({ roomId: 'bench' }, deps);
+      const cctReady = await waitFor(() => /^\d+ K$/.test(document.getElementById('cct-value')?.textContent || ''));
+      document.getElementById('cct-save')?.click();
+      await Promise.resolve();
+      const cctSaved = savedReadings.find(item => item.kind === 'cct');
+      outcomes.cctCameraPathComputesMelanopicPwmAndSaves = cctReady
+        && !!cctSaved
+        && cctSaved.value >= 5000
+        && cctSaved.meta.extra.melanopic > 0.5
+        && cctSaved.meta.extra.pwmActive === true;
+
+      await modals.openGlassTransmission({ roomId: 'window' }, deps);
+      cameraPattern = 'glass-inside';
+      document.getElementById('glass-measure-inside')?.click();
+      const insideReady = await waitFor(() => document.getElementById('glass-reading-inside')?.textContent.includes('lux'));
+      cameraPattern = 'glass-outside';
+      document.getElementById('glass-measure-outside')?.click();
+      const outsideReady = await waitFor(() => document.getElementById('glass-save')?.disabled === false);
+      document.getElementById('glass-save')?.click();
+      await Promise.resolve();
+      const glassSaved = savedReadings.find(item => item.kind === 'glass-transmission');
+      outcomes.glassCameraPathComputesRatioAndSaves = insideReady
+        && outsideReady
+        && !!glassSaved
+        && glassSaved.value > 0.35
+        && glassSaved.value < 0.45
+        && glassSaved.meta.extra.lockMode === 'manual'
+        && glassSaved.meta.roomId === 'window';
+      outcomes.cameraStreamsAreStoppedOnClose = streamStops.length >= 5;
+    } finally {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: savedMediaDevices,
+      });
+      HTMLMediaElement.prototype.play = savedPlay;
+      HTMLCanvasElement.prototype.getContext = savedGetContext;
+      window.requestAnimationFrame = savedRaf;
+      window.cancelAnimationFrame = savedCancelRaf;
+      window.setTimeout = savedSetTimeout;
+      if (hadALS) window.AmbientLightSensor = originalALS;
+      else delete window.AmbientLightSensor;
+      ['_closeLuxMeter', '_closeFlicker', '_closeCCT', '_closeGlass'].forEach(name => {
+        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      });
+      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, {
+    modalsUrl: moduleUrl('/js/light-tool-camera-modals.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('light devices cover session detail edit log active card and rendered list paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
