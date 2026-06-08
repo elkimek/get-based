@@ -32,6 +32,14 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
 
   const results = await page.evaluate(async () => {
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, timeoutMs = 1000) => {
+      const startedAt = performance.now();
+      while (performance.now() - startedAt < timeoutMs) {
+        if (predicate()) return true;
+        await wait(25);
+      }
+      return predicate();
+    };
     const firstVisible = selector => Array.from(document.querySelectorAll(selector)).find(el => {
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
@@ -87,18 +95,19 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
         && tooltip?.querySelectorAll('.tour-btn')[1]?.getAttribute('onclick')?.includes('_tourGoToStep(1)') === true;
 
       window._tourGoToStep(1);
-      await wait(100);
-      const tooltip2 = document.getElementById('tour-tooltip');
-      const dots2 = tooltip2?.querySelectorAll('.tour-dot') || [];
-      const btns2 = tooltip2?.querySelectorAll('.tour-btn') || [];
-      const stepOneNavigation = tooltip2?.querySelector('h4')?.textContent === 'Start Guided Chat'
-        && dots2[1]?.classList.contains('active') === true
-        && dots2[0]?.classList.contains('active') === false
-        && btns2[0]?.textContent.trim() === 'Back'
-        && btns2[1]?.textContent.trim() === 'Next'
-        && btns2[0]?.getAttribute('onclick')?.includes('_tourGoToStep(0)') === true
-        && btns2[1]?.getAttribute('onclick')?.includes('_tourGoToStep(2)') === true
-        && document.getElementById('tour-spotlight')?.style.display === 'block';
+      const stepOneNavigation = await waitFor(() => {
+        const tooltip2 = document.getElementById('tour-tooltip');
+        const dots2 = tooltip2?.querySelectorAll('.tour-dot') || [];
+        const btns2 = tooltip2?.querySelectorAll('.tour-btn') || [];
+        return tooltip2?.querySelector('h4')?.textContent === 'Start Guided Chat'
+          && dots2[1]?.classList.contains('active') === true
+          && dots2[0]?.classList.contains('active') === false
+          && btns2[0]?.textContent.trim() === 'Back'
+          && btns2[1]?.textContent.trim() === 'Next'
+          && btns2[0]?.getAttribute('onclick')?.includes('_tourGoToStep(0)') === true
+          && btns2[1]?.getAttribute('onclick')?.includes('_tourGoToStep(2)') === true
+          && document.getElementById('tour-spotlight')?.style.display === 'block';
+      });
 
       const startTarget = firstVisible('.welcome-primary-panel');
       let stepOneSpotlightTargetsPanel = false;
