@@ -490,6 +490,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
     const outcomes = {};
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      profiles: JSON.parse(JSON.stringify(state.profiles || [])),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
@@ -535,6 +536,18 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
 
     try {
       state.currentProfile = 'report-html-renderer-coverage';
+      state.profiles = [{
+        id: 'report-html-renderer-coverage',
+        name: 'Renderer Coverage',
+        sex: 'female',
+        dob: '1990-01-02',
+        location: { city: 'Prague', country: 'CZ' },
+        height: 170,
+        heightUnit: 'cm',
+        tags: [],
+        notes: '',
+        status: 'active',
+      }];
       state.profileSex = '';
       state.profileDob = '';
       state.rangeMode = 'reference';
@@ -646,9 +659,9 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         ],
         [{ title: 'Structured Context', text: 'Goal: cover report renderer\nUnkeyed context line <escaped>' }],
         {
-          preset: 'clinician',
+          preset: 'full',
           dateRange: 'all',
-          sections: ['summary', 'flagged', 'categories', 'trends', 'supplements', 'notes', 'context'],
+          sections: ['summary', 'flagged', 'categories', 'trends', 'supplements', 'notes', 'genetics', 'context'],
         },
       );
       outcomes.denseReportCoversFlagsTrendsSparseCellsAndSupplements = denseReport.includes('2 lab dates covering 14 markers across 3 lab groups.')
@@ -699,7 +712,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         sections: ['summary', 'categories'],
         categoryKeys: ['biochemistry'],
       }) === true
-        && capturedReport.includes('Profile lab report')
+        && capturedReport.includes('Renderer Coverage lab report')
         && capturedReport.includes('Glucose')
         && capturedReport.includes('Print / Save PDF')
         && typeof printHandler === 'function'
@@ -707,6 +720,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
           .some(toast => toast.textContent.includes('PDF preview opened'));
     } finally {
       state.importedData = original.importedData;
+      state.profiles = original.profiles;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
