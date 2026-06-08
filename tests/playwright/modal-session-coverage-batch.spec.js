@@ -359,6 +359,18 @@ test('device session dialog covers validation unit mode start and save paths', a
         { id: 'blocked', label: 'Blocked' },
       ],
     }];
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, attempts = 80) => {
+      for (let i = 0; i < attempts; i++) {
+        if (predicate()) return true;
+        await delay(5);
+      }
+      return false;
+    };
+    const waitForCall = async kind => {
+      await waitFor(() => calls.some(call => call[0] === kind));
+      return calls.find(call => call[0] === kind)?.[1] || null;
+    };
 
     try {
       state.unitSystem = 'US';
@@ -383,9 +395,13 @@ test('device session dialog covers validation unit mode start and save paths', a
       const deps = {
         hydrateDevicesFromPresets: async () => calls.push(['hydrate-devices']),
         getDevices: () => devices,
-        logDeviceSession: async payload => calls.push(['log', payload]),
+        logDeviceSession: async payload => {
+          await delay(0);
+          calls.push(['log', payload]);
+        },
         getActiveDeviceSession: () => activeSession,
         startDeviceSession: async payload => {
+          await delay(0);
           calls.push(['start', payload]);
           activeSession = { id: 'active-device' };
         },
@@ -431,14 +447,13 @@ test('device session dialog covers validation unit mode start and save paths', a
       await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
       overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
       overlay?.querySelector('#dev-session-start')?.click();
-      await Promise.resolve();
+      await delay(20);
       outcomes.activeSessionBlocksNewTimer = !!overlay
         && document.body.contains(overlay)
         && !calls.some(call => call[0] === 'start');
       activeSession = null;
       overlay?.querySelector('#dev-session-start')?.click();
-      await Promise.resolve();
-      const startPayload = calls.find(call => call[0] === 'start')?.[1];
+      const startPayload = await waitForCall('start');
       outcomes.startTimerUsesDefaultsAndNavigates = !!startPayload
         && startPayload.deviceId === 'panel-coverage'
         && startPayload.mode === 'red'
@@ -452,8 +467,7 @@ test('device session dialog covers validation unit mode start and save paths', a
       overlay.querySelector('#dev-session-duration').value = '7';
       overlay.querySelector('.dev-mode-btn[data-mode="combo"]')?.click();
       overlay.querySelector('#dev-session-save')?.click();
-      await Promise.resolve();
-      const logPayload = calls.find(call => call[0] === 'log')?.[1];
+      const logPayload = await waitForCall('log');
       outcomes.saveSessionUsesModeDurationAndRegions = !!logPayload
         && logPayload.durationMin === 7
         && logPayload.mode === 'combo'

@@ -561,7 +561,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
     let rafId = 0;
     const rafTimers = new Map();
     const delay = ms => new Promise(resolve => savedSetTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 80) => {
+    const waitFor = async (predicate, attempts = 400) => {
       for (let i = 0; i < attempts; i++) {
         if (predicate()) return true;
         await delay(5);
@@ -597,8 +597,8 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       }
       return data;
     };
-    const makeTrack = () => ({
-      stop: () => streamStops.push('stop'),
+    const makeTrack = label => ({
+      stop: () => streamStops.push(label),
       getSettings: () => ({
         frameRate: 120,
         exposureMode: 'manual',
@@ -618,8 +618,8 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
           && constraints.advanced.length > 0;
       },
     });
-    const makeStream = () => {
-      const track = makeTrack();
+    const makeStream = label => {
+      const track = makeTrack(label);
       const stream = new MediaStream();
       Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [track] });
       Object.defineProperty(stream, 'getVideoTracks', { configurable: true, value: () => [track] });
@@ -627,6 +627,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
     };
     const deps = {
       saveMeasurement: async (kind, value, meta) => {
+        await delay(0);
         savedReadings.push({ kind, value, meta });
       },
     };
@@ -634,7 +635,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
     try {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
-        value: { getUserMedia: async () => makeStream() },
+        value: { getUserMedia: async () => makeStream(cameraPattern) },
       });
       delete window.AmbientLightSensor;
       HTMLMediaElement.prototype.play = async function play() {
@@ -648,7 +649,6 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
           getImageData: () => ({ data: makeFrame(canvas.width, canvas.height) }),
         };
       };
-      window.setTimeout = (handler, timeout, ...args) => savedSetTimeout(handler, Math.min(Number(timeout) || 0, 1), ...args);
       window.requestAnimationFrame = callback => {
         const id = ++rafId;
         const timer = savedSetTimeout(() => {
@@ -673,7 +673,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       document.getElementById('lux-cal-apply')?.click();
       await delay(5);
       document.getElementById('lux-save')?.click();
-      await Promise.resolve();
+      await waitFor(() => savedReadings.some(item => item.kind === 'lux'));
       const luxSaved = savedReadings.find(item => item.kind === 'lux');
       outcomes.luxCameraPathCalibratesAndSaves = luxReady
         && !!luxSaved
@@ -686,7 +686,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       await modals.openFlickerDetector({ roomId: 'bench' }, deps);
       const flickerReady = await waitFor(() => document.getElementById('flicker-result')?.textContent.includes('flicker'));
       document.getElementById('flicker-save')?.click();
-      await Promise.resolve();
+      await waitFor(() => savedReadings.some(item => item.kind === 'flicker'));
       const flickerSaved = savedReadings.find(item => item.kind === 'flicker');
       outcomes.flickerCameraPathScoresAndSaves = flickerReady
         && !!flickerSaved
@@ -698,7 +698,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       await modals.openCCTMeter({ roomId: 'bench' }, deps);
       const cctReady = await waitFor(() => /^\d+ K$/.test(document.getElementById('cct-value')?.textContent || ''));
       document.getElementById('cct-save')?.click();
-      await Promise.resolve();
+      await waitFor(() => savedReadings.some(item => item.kind === 'cct'));
       const cctSaved = savedReadings.find(item => item.kind === 'cct');
       outcomes.cctCameraPathComputesMelanopicPwmAndSaves = cctReady
         && !!cctSaved
@@ -714,7 +714,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       document.getElementById('glass-measure-outside')?.click();
       const outsideReady = await waitFor(() => document.getElementById('glass-save')?.disabled === false);
       document.getElementById('glass-save')?.click();
-      await Promise.resolve();
+      await waitFor(() => savedReadings.some(item => item.kind === 'glass-transmission'));
       const glassSaved = savedReadings.find(item => item.kind === 'glass-transmission');
       outcomes.glassCameraPathComputesRatioAndSaves = insideReady
         && outsideReady
@@ -723,7 +723,16 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
         && glassSaved.value < 0.45
         && glassSaved.meta.extra.lockMode === 'manual'
         && glassSaved.meta.roomId === 'window';
-      outcomes.cameraStreamsAreStoppedOnClose = streamStops.length >= 5;
+      const stopCounts = streamStops.reduce((acc, label) => {
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
+      outcomes.cameraStreamsAreStoppedOnClose = streamStops.length === 5
+        && stopCounts.lux === 1
+        && stopCounts.flicker === 1
+        && stopCounts.cct === 1
+        && stopCounts['glass-inside'] === 1
+        && stopCounts['glass-outside'] === 1;
     } finally {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
@@ -733,7 +742,6 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       HTMLCanvasElement.prototype.getContext = savedGetContext;
       window.requestAnimationFrame = savedRaf;
       window.cancelAnimationFrame = savedCancelRaf;
-      window.setTimeout = savedSetTimeout;
       if (hadALS) window.AmbientLightSensor = originalALS;
       else delete window.AmbientLightSensor;
       ['_closeLuxMeter', '_closeFlicker', '_closeCCT', '_closeGlass'].forEach(name => {
