@@ -51,6 +51,7 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/profile.js'),
+      import('/js/supplements.js'),
     ]);
 
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -197,13 +198,15 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       outcomes.cachedRenderShowsSummary = cachedText.includes('Creatinine rose with stable glucose.');
       outcomes.cachedRenderShowsRefresh = !!host.querySelector('.supp-impact-refresh');
 
-      impact.refreshSupplementImpact(0);
+      host.querySelector('.supp-impact-refresh')?.click();
+      outcomes.refreshUsesWindowRegisteredHandler = typeof window.refreshSupplementImpact === 'function';
       outcomes.refreshClearsSummaryImmediately = document.getElementById('supp-impact-summary-0')?.textContent === '';
       outcomes.refreshShowsShimmerImmediately = document.getElementById('supp-impact-dot-0')?.classList.contains('ctx-health-dot-shimmer') === true;
       await waitUntil(() => document.getElementById('supp-impact-summary-0')?.textContent?.includes('needs review'), 'refreshed impact summary');
       outcomes.refreshAppliesNewDot = document.getElementById('supp-impact-dot-0')?.classList.contains('ctx-health-dot-red') === true;
       outcomes.refreshAppliesNewSummary = document.getElementById('supp-impact-summary-0')?.textContent === 'Creatinine rise needs review.';
     } finally {
+      await wait(100);
       state.currentProfile = saved.currentProfile;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
@@ -222,9 +225,11 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
 
   expectAll(results);
   expect(aiRequests, 'AI analysis requests').toHaveLength(2);
-  const firstMessages = aiRequests[0].messages.map(message => message.content).join('\n');
-  expect(firstMessages).toContain('Creatine monohydrate 890mg');
-  expect(firstMessages).toContain('1780 mg/day');
-  expect(firstMessages).toContain('also taking: Zinc');
-  expect(aiRequests[0].model).toBe('supp-impact-coverage-model');
+  for (const request of aiRequests) {
+    const messages = request.messages.map(message => message.content).join('\n');
+    expect(messages).toContain('Creatine monohydrate 890mg');
+    expect(messages).toContain('1780 mg/day');
+    expect(messages).toContain('also taking: Zinc');
+    expect(request.model).toBe('supp-impact-coverage-model');
+  }
 });
