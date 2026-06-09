@@ -184,17 +184,17 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         eyeExposure: { mode: 'closed-eyes' },
       });
       const zeroDoses = mod.computeChannelDoses({ spectrum: null, durationMin: 20 });
-      outcomes.computeChannelDosesCoversBodyAndEyeGates = directDoses.vitamin_d > 0
+      outcomes.computeChannelDosesCoversBodyModifiers = directDoses.vitamin_d > 0
         && directDoses.circadian > 0
-        && bareDoses.circadian > directDoses.circadian
         && protectedDoses.vitamin_d < directDoses.vitamin_d
         && protectedDoses.circadian < directDoses.circadian
+        && Object.values(zeroDoses).every(value => value === 0);
+      outcomes.computeChannelDosesCoversEyeGates = bareDoses.circadian > directDoses.circadian
         && blueBlockerDoses.circadian > amberDoses.circadian
         && clearGlassesDoses.circadian > blueBlockerDoses.circadian
         && sunglassesDoses.circadian < amberDoses.circadian
         && indoorDoses.circadian === 0
-        && closedEyeDoses.violet_eye === 0
-        && Object.values(zeroDoses).every(value => value === 0);
+        && closedEyeDoses.violet_eye === 0;
 
       const sedBare = mod.erythemalSED({ spectrum: clear, durationMin: 20, bodyExposureFraction: 1 });
       const sedProtected = mod.erythemalSED({
@@ -236,7 +236,7 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && mod.vitaminDIU(100, 'II', 8, true) === 2 * mod.vitaminDIU(100, 'II', 8, false)
         && mod.vitaminDIU(10000, 'II', 8) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIURaw(100, 'II', 8, false, genetics) < mod.vitaminDIURaw(100, 'II', 8)
-        && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * 30000)
+        && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * window.VITD_PER_SESSION_BODYFRAC_CAP_IU)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, null) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIUPerSession(10, 'II', 8, false, null, 0.37) === mod.vitaminDIURaw(10, 'II', 8);
 
