@@ -157,6 +157,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       outcomes.localLockSkipsRemoteMergeButAppliesTombstones =
         lockRemaining > 0
         && wrongProfileLockRemaining === 0
+        // In the local-lock path, applyChatData returns whether tombstones changed.
         && lockedApplied === true
         && lockedThreads.some(thread => thread.id === 'locked-keep')
         && !lockedThreads.some(thread => thread.id === 'locked-gone')
@@ -179,6 +180,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
         && storedSecret?.startsWith('v1:')
         && JSON.parse(decryptedSecret || '[]')?.[0]?.content === 'encrypted remote message';
     } finally {
+      // Ensure the test-only crypto cleanup can run even if setup failed early.
       window.__WEARABLES_TEST = true;
       try { await cryptoModule._setTestSessionKey(null); } catch {}
       if (oldWearablesTest === undefined) delete window.__WEARABLES_TEST;
