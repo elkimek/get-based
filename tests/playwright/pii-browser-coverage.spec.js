@@ -194,7 +194,6 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
 
       const beforeUnloadCalls = fetchCalls.length;
       pii.unloadOllamaPIIModel();
-      await wait();
       const unloadCall = fetchCalls.slice(beforeUnloadCalls).find(call => call.href.endsWith('/api/generate'));
       check('unloadOllamaPIIModel posts keep_alive zero to Ollama', unloadCall?.body.includes('"keep_alive":0') === true);
 
@@ -289,12 +288,14 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       } catch (error) {
         probeError = error.message;
       }
-      check('sanitizeWithOllamaStreaming handles probe stream chunks malformed JSON and thinking',
+      check('sanitizeWithOllamaStreaming handles stream chunks malformed JSON and thinking',
         streamed.includes('Jana Novak') &&
         streamChunks.join('').includes('Patient: Jana') &&
         thinkingChunks.join('').includes('checking identifiers') &&
-        thinkingChunks.join('').includes('hidden chain') &&
-        /unreachable/i.test(probeError));
+        thinkingChunks.join('').includes('hidden chain'));
+      check('sanitizeWithOllamaStreaming abort probe fallback reports unreachable server',
+        /unreachable/i.test(probeError),
+        probeError);
     } finally {
       window.fetch = saved.fetch;
       window.markAISettingsLocal = saved.markAISettingsLocal;
@@ -338,6 +339,10 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       failures.push(`Timed out waiting for ${label}`);
       return false;
     };
+    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
     const pii = await import(piiUrl);
 
     const saved = {
@@ -351,9 +356,9 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
         const href = typeof url === 'string' ? url : url?.url || String(url);
         if (href.endsWith('/api/generate')) {
           unloadCalls.push(String(options.body || ''));
-          return new Response(JSON.stringify({ done: true }), { headers: { 'Content-Type': 'application/json' } });
+          return jsonResponse({ done: true });
         }
-        return saved.fetch.call(window, url, options);
+        return jsonResponse({});
       };
 
       const original = 'Patient: Alice Smith\nPhone: +420 777 888 999\nDate: 2026-01-02';
