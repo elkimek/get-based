@@ -24,7 +24,6 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldSetTimeout = window.setTimeout;
-    const oldClearTimeout = window.clearTimeout;
     const oldWarn = console.warn;
     const oldProfilesStorage = localStorage.getItem('labcharts-profiles');
     const oldRelayWarning = localStorage.getItem('labcharts-relay-quota-warned');
@@ -34,6 +33,8 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
     }));
     const warnings = [];
     const wait = ms => new Promise(resolve => oldSetTimeout(resolve, ms));
+    const defaultDisableProfileId = `${profileId}default`;
+    const storagePrefixes = [storagePrefix, `labcharts-${defaultDisableProfileId}-`];
 
     function makeEvolu({ profileRows = [], itemRows = [], completeProfileWrites = true } = {}) {
       const calls = { insert: [], update: [] };
@@ -68,7 +69,7 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
       return { evolu, calls, profileRows, itemRows };
     }
 
-    function configure(fake, { enabled = true, cutover } = {}) {
+    function configure(fake, { enabled = true, cutover, disablePhase2Cutover } = {}) {
       syncDelta.configureSyncDelta({
         getEvolu: () => fake.evolu,
         getItemRowQuery: () => itemRowQuery,
@@ -78,13 +79,15 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
         getProfileQuery: () => profileQuery,
         isSyncEnabled: () => enabled,
       };
-      if (typeof cutover === 'boolean') deps.isPhase2CutoverEnabled = () => cutover;
+      if (typeof cutover === 'function') deps.isPhase2CutoverEnabled = cutover;
+      else if (typeof cutover === 'boolean') deps.isPhase2CutoverEnabled = () => cutover;
+      if (typeof disablePhase2Cutover === 'function') deps.disablePhase2Cutover = disablePhase2Cutover;
       syncPush.configureSyncPush(deps);
     }
 
     try {
       for (const key of [...oldStorageEntries.keys()]) {
-        if (key?.startsWith(storagePrefix)) localStorage.removeItem(key);
+        if (storagePrefixes.some(prefix => key?.startsWith(prefix))) localStorage.removeItem(key);
       }
       localStorage.removeItem('labcharts-relay-quota-warned');
       localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Sync Push Browser' }]));
@@ -116,6 +119,8 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
         && guardFake.calls.update.length === 0;
 
       const fake = makeEvolu();
+      state.currentProfile = profileId;
+      state.profiles = [{ id: profileId, name: 'Sync Push Browser' }];
       const firstImported = {
         sunSessions: [{ id: 'sun-1', date: '2026-06-09' }],
         lightDevices: [{ id: 'device-1', name: 'Panel' }],
@@ -150,18 +155,41 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
           && call.args.profileId === profileId)
         && syncPush.isSyncPushInFlight() === false;
 
+      const defaultDisableFake = makeEvolu();
+      state.currentProfile = defaultDisableProfileId;
+      state.profiles = [{ id: defaultDisableProfileId, name: 'Sync Push Default Disable' }];
+      state.importedData = {
+        entries: [{ id: 'entry-default-drift', date: '2026-06-09', markers: {} }],
+      };
+      configure(defaultDisableFake, { cutover: true });
+      const defaultDisablePush = await syncPush.pushProfile(defaultDisableProfileId, state.importedData);
+      outcomes.defaultCutoverDisableCallbackIsCovered =
+        defaultDisablePush?.ok === true
+        && warnings.some(message => message.includes('Phase 2 cutover drift detected'));
+
       const driftImported = {
         entries: [{ id: 'entry-drift', date: '2026-06-11', markers: {} }],
       };
+      state.currentProfile = profileId;
+      state.profiles = [{ id: profileId, name: 'Sync Push Browser' }];
       state.importedData = driftImported;
-      configure(fake, { cutover: true });
+      localStorage.setItem(`${storagePrefix}sync-cutover-v2`, '1');
+      const updatesBeforeDrift = fake.calls.update.length;
+      configure(fake, {
+        cutover: () => localStorage.getItem(`${storagePrefix}sync-cutover-v2`) === '1',
+        disablePhase2Cutover: id => { localStorage.removeItem(`labcharts-${id}-sync-cutover-v2`); },
+      });
       const drifted = await syncPush.pushProfile(profileId, driftImported);
+      const driftUpdates = fake.calls.update.slice(updatesBeforeDrift)
+        .filter(call => call.table === 'profileData');
+      const driftPayload = JSON.parse(driftUpdates[0]?.args?.dataJson || '{}');
       outcomes.cutoverDriftWarnsAndStillCommits =
         drifted?.ok === true
         && warnings.some(message => message.includes('Phase 2 cutover drift detected'))
-        && fake.calls.update.some(call => call.table === 'profileData'
-          && call.args.profileId === profileId
-          && call.args.dataJson);
+        && localStorage.getItem(`${storagePrefix}sync-cutover-v2`) == null
+        && driftUpdates.length === 1
+        && driftPayload._v === 3
+        && driftPayload.importedData?.entries?.[0]?.id === 'entry-drift';
 
       const hungFake = makeEvolu({ completeProfileWrites: false });
       configure(hungFake, { cutover: false });
@@ -181,7 +209,6 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
         && warnings.some(message => message.includes('Push NOT committed after 30s'));
     } finally {
       window.setTimeout = oldSetTimeout;
-      window.clearTimeout = oldClearTimeout;
       console.warn = oldWarn;
       syncPush.configureSyncPush({
         getEvolu: () => null,
@@ -200,7 +227,7 @@ test('sync push covers browser commit guards cutover drift and watchdog paths', 
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
       for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))) {
-        if (key?.startsWith(storagePrefix)) localStorage.removeItem(key);
+        if (storagePrefixes.some(prefix => key?.startsWith(prefix))) localStorage.removeItem(key);
       }
       if (oldProfilesStorage == null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', oldProfilesStorage);
