@@ -337,11 +337,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
         polarCommitCalls === 2 &&
         polarRows.some(row => row.date === '2026-06-02' && row.sleep_score === 86 && row.steps === 3456 && row.hrv_day === 44));
 
-      const staleStartedAt = connect.getConnection('polar')?.lastSyncAt || 0;
-      state.importedData.wearableConnections.polar.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
+      const forcedStaleAt = Date.now() - (13 * 60 * 60 * 1000);
+      state.importedData.wearableConnections.polar.lastSyncAt = forcedStaleAt;
       await connect.syncStaleWearablesNow();
       const staleUpdatedAt = connect.getConnection('polar')?.lastSyncAt || 0;
-      check('syncStaleWearablesNow refreshes stale connected sources', staleUpdatedAt >= staleStartedAt);
+      check('syncStaleWearablesNow refreshes stale connected sources', staleUpdatedAt > forcedStaleAt);
 
       state.importedData.wearableConnections.polar.needsReauth = true;
       const recoverSkipped = await connect.recoverIfL1Empty('polar');
