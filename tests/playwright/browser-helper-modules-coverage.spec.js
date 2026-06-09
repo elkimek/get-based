@@ -23,29 +23,31 @@ test('browser helper coverage exercises url safety markdown brand assets and hea
     const outcomes = {};
     const isValidUrl = urlSafety.isValidExternalUrl;
 
-    const blockedUrls = [
-      'not a url',
-      'ftp://example.com/file',
-      'https://localhost/private',
-      'https://127.0.0.1/private',
-      'https://0.0.0.0/private',
-      'https://api.local/private',
-      'https://10.1.2.3/private',
-      'https://172.16.0.1/private',
-      'https://172.31.255.255/private',
-      'https://192.168.0.1/private',
-      'https://169.254.169.254/latest/meta-data',
-      'https://100.64.1.2/private',
-      'https://224.0.0.1/private',
-      'https://168.63.129.16/metadata',
-      'https://[::]/private',
-      'https://[fc00::1]/private',
-      'https://[fe80::1]/private',
+    const blockedUrlCases = [
+      ['invalidInput', 'not a url'],
+      ['ftpProtocol', 'ftp://example.com/file'],
+      ['localhost', 'https://localhost/private'],
+      ['loopbackIpv4', 'https://127.0.0.1/private'],
+      ['zeroIpv4', 'https://0.0.0.0/private'],
+      ['localDomain', 'https://api.local/private'],
+      ['rfc1918Ten', 'https://10.1.2.3/private'],
+      ['rfc1918172Start', 'https://172.16.0.1/private'],
+      ['rfc1918172End', 'https://172.31.255.255/private'],
+      ['rfc1918C', 'https://192.168.0.1/private'],
+      ['linkLocalMetadata', 'https://169.254.169.254/latest/meta-data'],
+      ['carrierGradeNat', 'https://100.64.1.2/private'],
+      ['multicastIpv4', 'https://224.0.0.1/private'],
+      ['azureMetadata', 'https://168.63.129.16/metadata'],
+      ['zeroIpv6', 'https://[::]/private'],
+      ['ulaIpv6', 'https://[fc00::1]/private'],
+      ['linkLocalIpv6', 'https://[fe80::1]/private'],
     ];
 
     outcomes.urlAllowsPublicHttpsHosts = isValidUrl('https://example.com/path?q=1')
       && isValidUrl('https://[2606:4700:4700::1111]/dns-query');
-    outcomes.urlBlocksPrivateMetadataAndInvalidHosts = blockedUrls.every(url => !isValidUrl(url));
+    for (const [name, url] of blockedUrlCases) {
+      outcomes[`urlBlocks_${name}`] = !isValidUrl(url);
+    }
     outcomes.urlOptionsControlHttpAndLocalhost = isValidUrl('http://example.com/api', { requireHttps: false })
       && !isValidUrl('http://example.com/api')
       && isValidUrl('http://localhost:11434/api', { requireHttps: false, allowLocalhost: true })
@@ -104,18 +106,19 @@ test('browser helper coverage exercises url safety markdown brand assets and hea
     const withingsDarkMark = brandAssets.brandMarkMono('withings', { size: 24 });
     document.documentElement.setAttribute('data-theme', 'light');
     const withingsLightMark = brandAssets.brandMarkMono('withings', { size: 20 });
-    const polarFallbackMark = brandAssets.brandMarkMono('polar');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const appleHealthFallbackMark = brandAssets.brandMarkMono('apple_health');
     outcomes.brandMarksUseThemeAssetsAndFallbackMasks = withingsDarkMark.includes('/brands/withings/wordmark-on-dark.svg')
       && withingsDarkMark.includes('height="24"')
       && withingsLightMark.includes('/brands/withings/wordmark-on-light.svg')
       && withingsLightMark.includes('height="20"')
-      && polarFallbackMark.includes('wearable-vendor-mark')
-      && polarFallbackMark.includes('/brands/polar/mark-mono.svg')
+      && appleHealthFallbackMark.includes('wearable-vendor-mark')
+      && appleHealthFallbackMark.includes('/brands/apple-health/mark-mono.svg')
       && brandAssets.brandMarkMono('missing') === '';
     outcomes.brandMetadataCoversOfficialFallbackAndUnknownVendors = brandAssets.brandAsset('whoop')?.mode === 'official'
       && brandAssets.brandAsset('missing') === null
       && brandAssets.brandHasSignIn('fitbit', 'dark') === true
-      && brandAssets.brandHasSignIn('polar', 'dark') === false
+      && brandAssets.brandHasSignIn('apple_health', 'dark') === false
       && brandAssets.brandSignInUrl('fitbit', 'light').endsWith('/brands/fitbit/sign-in-dark.png')
       && brandAssets.brandSignInUrl('missing') === null
       && brandAssets.brandColor('withings') === '#00B0EA'
