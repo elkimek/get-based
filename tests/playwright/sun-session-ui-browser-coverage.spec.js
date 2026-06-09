@@ -121,6 +121,10 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       window.reconstructSpectrum = () => {
         throw new Error('nighttime spectrum should not be reconstructed');
       };
+      window.vitaminDIU = () => 900;
+      window.vitaminDIUPerSession = () => 20;
+      window.pbmJoulesPerCm2 = () => 8.4;
+      window.circadianMelanopicLux = () => 5200;
       window.geneticVitaminDMultiplier = () => ({ mult: 1, contributors: [] });
       window.renderSessionAIInline = () => '<span class="ai-inline-test">AI inline</span>';
       window.renderSessionAIDetail = () => '<section class="ai-detail-test">AI detail</section>';
@@ -154,23 +158,21 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
 
       outcomes.noDosesRenderNoChips = sunUI.renderChannelChips(null) === '';
 
-      window.vitaminDIU = () => 900;
-      window.vitaminDIUPerSession = () => 20;
-      window.pbmJoulesPerCm2 = () => 8.4;
-      window.circadianMelanopicLux = () => 5200;
       const edgeChipHost = document.createElement('div');
       edgeChipHost.innerHTML = [
         sunUI.renderChannelChips({ vitamin_d: 80 }, { durationMin: 15, safety: { fitzpatrick: 'III' }, atmosphere: { uvIndex: 5 }, bodyExposure: {} }),
         sunUI.renderChannelChips({ nir_solar: 40 }, { durationMin: 15 }),
         sunUI.renderChannelChips({ circadian: 40 }, { durationMin: 15 }),
         sunUI.renderChannelChips({ no_cv: 120 }, { durationMin: 15 }),
-        sunUI.renderChannelChips({ pomc: 4 }, { durationMin: 15 }),
       ].join('');
+      const pomcLowHost = document.createElement('div');
+      pomcLowHost.innerHTML = sunUI.renderChannelChips({ pomc: 4 }, { durationMin: 15 });
       outcomes.edgeChipValuesUseExpectedUnitsAndThresholds = edgeChipHost.textContent.includes('~900 IU')
         && edgeChipHost.textContent.includes('8.4 J/cm')
         && edgeChipHost.textContent.includes('~5.2k lux')
         && edgeChipHost.textContent.includes('\u2713 120%')
-        && !edgeChipHost.textContent.includes('4%');
+        && pomcLowHost.textContent.includes('POMC')
+        && !pomcLowHost.querySelector('[data-channel="pomc"] .sun-chip-value');
 
       window.vitaminDIUPerSession = () => 1500;
       window.pbmJoulesPerCm2 = () => 12.4;
@@ -409,14 +411,16 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       await sameEdit;
       outcomes.sameDurationEditSkipsMutation = calls.length === sameEditBefore;
 
+      const successEditBefore = calls.length;
       const successEdit = sunUI.editSunSessionDuration('editable-session');
       await waitForDialog('#prompt-dialog-input');
       document.getElementById('prompt-dialog-input').value = '31';
       document.getElementById('prompt-ok')?.click();
       await successEdit;
+      const successCalls = calls.slice(successEditBefore);
       outcomes.successEditUpdatesWithoutDashboardNavigate = sessions[0].durationMin === 31
-        && calls.some(call => call[0] === 'update' && call[1] === 'editable-session' && call[2].durationMin === 31)
-        && !calls.some(call => call[0] === 'navigate');
+        && successCalls.some(call => call[0] === 'update' && call[1] === 'editable-session' && call[2].durationMin === 31)
+        && !successCalls.some(call => call[0] === 'navigate');
     } finally {
       state.currentView = saved.currentView;
       if (saved.navigate) window.navigate = saved.navigate;
