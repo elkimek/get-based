@@ -76,7 +76,7 @@ test('lens and wearables helper coverage exercises chunking math and display for
       && wearablesFormatters.formatValue(12, 'kg') === '12'
       && wearablesFormatters.formatValue(72.34, 'kg') === '72.3';
 
-    const currentYear = new Date().getUTCFullYear();
+    const currentYear = new Date().getFullYear();
     const sameYearDate = wearablesFormatters.shortDate(`${currentYear}-04-24`);
     const priorYear = currentYear - 1;
     const priorYearDate = wearablesFormatters.shortDate(`${priorYear}-04-24`);
