@@ -17,10 +17,13 @@ test('api transport browser coverage exercises proxy retry abort and stream time
     const transport = await import(apiTransportUrl);
     const outcomes = {};
 
-    const withImmediateTimers = async (fn) => {
+    const withImmediateTimers = async (fn, observedDelays = []) => {
       const originalSetTimeout = window.setTimeout;
       const originalClearTimeout = window.clearTimeout;
-      window.setTimeout = (cb, _ms, ...args) => originalSetTimeout(() => cb(...args), 0);
+      window.setTimeout = (cb, ms, ...args) => {
+        observedDelays.push(ms);
+        return originalSetTimeout(() => cb(...args), 0);
+      };
       window.clearTimeout = (handle) => originalClearTimeout(handle);
       try {
         return await fn();
@@ -106,6 +109,7 @@ test('api transport browser coverage exercises proxy retry abort and stream time
       && stalledMessage.includes('coverage stream stalled');
 
     let rateLimitAttempts = 0;
+    const rateLimitDelays = [];
     const rateLimitResponse = await withImmediateTimers(() => transport.fetchWithRetry(
       'https://api.example.test/rate-limit',
       { method: 'POST', headers: {}, body: '{}' },
@@ -115,15 +119,16 @@ test('api transport browser coverage exercises proxy retry abort and stream time
         proxyFetch: async () => {
           rateLimitAttempts += 1;
           if (rateLimitAttempts === 1) {
-            return new Response('limited', { status: 429, headers: { 'retry-after': '0' } });
+            return new Response('limited', { status: 429, headers: { 'retry-after': '7' } });
           }
           return new Response('ok', { status: 200 });
         },
         debug: () => false,
       },
-    ));
+    ), rateLimitDelays);
     outcomes.fetchWithRetryRetriesRateLimits = rateLimitAttempts === 2
-      && rateLimitResponse.status === 200;
+      && rateLimitResponse.status === 200
+      && rateLimitDelays.includes(7000);
 
     let networkAttempts = 0;
     const networkResponse = await withImmediateTimers(() => transport.fetchWithRetry(
@@ -188,7 +193,8 @@ test('api transport browser coverage exercises proxy retry abort and stream time
     outcomes.fetchWithRetryConvertsRequestTimeoutErrors = timeoutMessage.includes('request timed out after 1s');
 
     const originalAnyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, 'any');
-    let polyfillSignalCombined = true;
+    let polyfillSignalCombined = false;
+    outcomes.fetchWithRetryCanPatchAbortSignalAnyForPolyfill = originalAnyDescriptor?.configurable === true;
     if (originalAnyDescriptor?.configurable) {
       let releaseFetch;
       let capturedSignal = null;
