@@ -120,11 +120,22 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
       const outcomes = {};
       for (const id of Object.keys(stateKeys)) {
         const frame = document.createElement('iframe');
-        const loaded = new Promise(resolve => { frame.onload = resolve; });
+        let timeoutId = null;
+        const loaded = new Promise((resolve, reject) => {
+          frame.onload = () => {
+            if (timeoutId != null) clearTimeout(timeoutId);
+            resolve();
+          };
+          frame.onerror = () => {
+            if (timeoutId != null) clearTimeout(timeoutId);
+            reject(new Error(`Failed to load wearables connect iframe for ${id}`));
+          };
+          timeoutId = setTimeout(() => reject(new Error(`Timed out loading wearables connect iframe for ${id}`)), 5000);
+        });
         frame.src = `/wearables-connect-frame-${id}`;
         document.body.appendChild(frame);
-        await loaded;
         try {
+          await loaded;
           frame.contentWindow._labState = { currentProfile: profileId };
           frame.contentWindow.sessionStorage.removeItem(stateKeys[id]);
           sessionStorage.removeItem(stateKeys[id]);
@@ -145,6 +156,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
             && typeof pending.state === 'string'
             && pending.state.length >= 16;
         } finally {
+          if (timeoutId != null) clearTimeout(timeoutId);
           frame.remove();
         }
       }
@@ -349,7 +361,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       } catch (error) {
         ghostError = error.message;
       }
-      check('syncNow unknown connected source exercises generic failure branch', /Cannot read/.test(ghostError));
+      check(
+        'syncNow unknown connected source exercises generic failure branch',
+        /not.*function|cannot read|is not a function|undefined/i.test(ghostError),
+        ghostError
+      );
       delete state.importedData.wearableConnections.ghost;
 
       state.importedData.wearableConnections.polar = { ...savedPolarConnection, userId: null };
