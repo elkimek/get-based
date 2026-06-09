@@ -17,17 +17,19 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
     const dm = await import(dataMergeUrl);
     const outcomes = {};
 
-    outcomes.timestampHelpersHandlePrecedenceAndTies =
-      dm.pickTimestamp(null) === 0
-      && dm.pickTimestamp('bad') === 0
-      && dm.pickTimestamp({ updatedAt: 0, endedAt: 200 }) === 0
-      && dm.pickTimestamp({ capturedAt: 40 }) === 40
-      && dm.pickTimestamp({ createdAt: '2026-05-31T04:00:00.000Z' }) === Date.parse('2026-05-31T04:00:00.000Z')
-      && dm.pickTimestamp({ updatedAt: Number.NaN, date: '2026-04-15' }) === Date.parse('2026-04-15')
-      && dm.compareRecordFreshness({ updatedAt: 20 }, { updatedAt: 10 }) === 1
+    outcomes.pickTimestampRejectsInvalidRecords = dm.pickTimestamp(null) === 0
+      && dm.pickTimestamp('bad') === 0;
+    outcomes.pickTimestampHonorsZeroAndCapturedAt = dm.pickTimestamp({ updatedAt: 0, endedAt: 200 }) === 0
+      && dm.pickTimestamp({ capturedAt: 40 }) === 40;
+    outcomes.pickTimestampParsesIsoAndFallsThroughNaN =
+      dm.pickTimestamp({ createdAt: '2026-05-31T04:00:00.000Z' }) === Date.parse('2026-05-31T04:00:00.000Z')
+      && dm.pickTimestamp({ updatedAt: Number.NaN, date: '2026-04-15' }) === Date.parse('2026-04-15');
+    outcomes.compareRecordFreshnessOrdersNewerOlderAndTies =
+      dm.compareRecordFreshness({ updatedAt: 20 }, { updatedAt: 10 }) === 1
       && dm.compareRecordFreshness({ updatedAt: 10 }, { updatedAt: 20 }) === -1
-      && dm.compareRecordFreshness({ updatedAt: 10 }, { updatedAt: 10 }) === 0
-      && dm.pickFresherRecord({ id: 'tie', value: 'current', updatedAt: 10 }, { id: 'tie', value: 'candidate', updatedAt: 10 }).value === 'current';
+      && dm.compareRecordFreshness({ updatedAt: 10 }, { updatedAt: 10 }) === 0;
+    outcomes.pickFresherRecordKeepsCurrentOnTie =
+      dm.pickFresherRecord({ id: 'tie', value: 'current', updatedAt: 10 }, { id: 'tie', value: 'candidate', updatedAt: 10 }).value === 'current';
 
     const mergedEntry = dm.mergeLabEntry(
       {
@@ -61,13 +63,15 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
         sourceFiles: ['new.pdf'],
       }
     );
-    outcomes.labEntryMergeKeepsFreshMarkersSourcesAndTombstones =
+    outcomes.labEntryMergeKeepsFreshAndExistingMarkers =
       mergedEntry.markers?.['biochemistry.glucose'] === 5.5
-      && mergedEntry.markers?.['hormones.insulin'] === 8
-      && !Object.prototype.hasOwnProperty.call(mergedEntry.markers || {}, 'biochemistry.alp')
-      && mergedEntry.deletedMarkers?.['biochemistry.alp'] === 250
-      && mergedEntry.markerSources?.['biochemistry.glucose']?.file === 'new.pdf'
-      && mergedEntry.sourceFiles.includes('old.pdf')
+      && mergedEntry.markers?.['hormones.insulin'] === 8;
+    outcomes.labEntryMergeAppliesMarkerTombstone =
+      !Object.prototype.hasOwnProperty.call(mergedEntry.markers || {}, 'biochemistry.alp')
+      && mergedEntry.deletedMarkers?.['biochemistry.alp'] === 250;
+    outcomes.labEntryMergeKeepsFreshMarkerSource = mergedEntry.markerSources?.['biochemistry.glucose']?.file === 'new.pdf';
+    outcomes.labEntryMergeUnionsSourceFiles =
+      mergedEntry.sourceFiles.includes('old.pdf')
       && mergedEntry.sourceFiles.includes('new.pdf')
       && mergedEntry.sourceFile === 'new.pdf';
 
@@ -132,26 +136,33 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
     };
     const merged = dm.mergeImportedData(local, remote);
     const mergedMay = merged.entries.find(entry => entry.date === '2026-05-01');
-    outcomes.importedDataMergeUnionsRowsMapsNaturalKeysAndNestedPaths =
+    outcomes.importedDataMergePreservesGeneticsSnpsAndRemoteFields =
       merged.genetics.snps.rsTest === 'AA'
-      && merged.genetics.ancestry === 'remote-only'
-      && merged.customMarkers.localMarker
-      && merged.customMarkers.remoteMarker
-      && merged.sunSessions.find(session => session.id === 's1')?.note === 'local fresh'
+      && merged.genetics.ancestry === 'remote-only';
+    outcomes.importedDataMergeMergesLocalWinsMaps =
+      !!merged.customMarkers.localMarker
+      && !!merged.customMarkers.remoteMarker;
+    outcomes.importedDataMergePicksFreshAndAdditiveSunSessions =
+      merged.sunSessions.find(session => session.id === 's1')?.note === 'local fresh'
       && merged.sunSessions.some(session => session.id === 's2')
-      && merged.sunSessions.some(session => session.id === 's3')
-      && !merged.sunSessions.some(session => session.id === 's-deleted')
+      && merged.sunSessions.some(session => session.id === 's3');
+    outcomes.importedDataMergeDropsAndPreservesTombstones =
+      !merged.sunSessions.some(session => session.id === 's-deleted')
       && merged._deleted.sunSessions.includes('s-deleted')
-      && merged._deleted.sunSessions.includes('remote-deleted')
-      && merged.lightEnvironment.rooms.length === 2
+      && merged._deleted.sunSessions.includes('remote-deleted');
+    outcomes.importedDataMergeUnionsNestedLightEnvironment =
+      merged.lightEnvironment.rooms.length === 2
       && merged.lightEnvironment.screens.length === 2
-      && merged.lightEnvironment.scalar === 'remote'
-      && merged.notes.length === 2
-      && merged.changeHistory.length === 3
-      && merged.changeHistory.find(row => row.field === 'stress')?.snapshot === 'local'
-      && mergedMay.markers?.['biochemistry.alp'] === 1.2
-      && mergedMay.markers?.['biochemistry.glucose'] === 4.7
-      && mergedMay.sourceFiles.includes('may.pdf')
+      && merged.lightEnvironment.scalar === 'remote';
+    outcomes.importedDataMergeUnionsNaturalKeyNotes = merged.notes.length === 2;
+    outcomes.importedDataMergeDedupsCompositeHistory =
+      merged.changeHistory.length === 3
+      && merged.changeHistory.find(row => row.field === 'stress')?.snapshot === 'local';
+    outcomes.importedDataMergeMergesSameDateLabMarkers =
+      mergedMay.markers?.['biochemistry.alp'] === 1.2
+      && mergedMay.markers?.['biochemistry.glucose'] === 4.7;
+    outcomes.importedDataMergeUnionsLabSourceFiles =
+      mergedMay.sourceFiles.includes('may.pdf')
       && mergedMay.sourceFiles.includes('old.pdf');
 
     const freshNow = 2_000_000;
@@ -167,11 +178,12 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       freshLocal,
       freshNow
     );
-    outcomes.freshLocalLabEntriesRestoreButRespectTombstones =
+    outcomes.freshLocalLabEntriesRestoreMissingRecentEntry =
       preserveChanged === true
-      && pulled.entries.some(entry => entry.date === '2026-06-01')
-      && blockedByTombstone === false
-      && dm.preserveFreshLocalLabEntries({ entries: [] }, { entries: [{ date: '2026-04-01', updatedAt: freshNow - 3 * 60_000 }] }, freshNow) === false;
+      && pulled.entries.some(entry => entry.date === '2026-06-01');
+    outcomes.freshLocalLabEntriesRespectTombstones = blockedByTombstone === false;
+    outcomes.freshLocalLabEntriesIgnoreStaleLocalEntry =
+      dm.preserveFreshLocalLabEntries({ entries: [] }, { entries: [{ date: '2026-04-01', updatedAt: freshNow - 3 * 60_000 }] }, freshNow) === false;
 
     const reimportedAfterDelete = {
       entries: [{ date: '2026-05-01', updatedAt: 1_000, markers: { 'biochemistry.alp': 1.3 } }],
@@ -182,10 +194,11 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       _deleted: { entries: ['2026-05-01'] },
       _deletedAt: { entries: { '2026-05-01': 500 } },
     });
-    outcomes.clearTombstoneBeatsOlderDeleteAndRebroadcastsClear =
+    outcomes.clearTombstoneKeepsReimportedEntry =
       mergedReimport.entries.some(entry => entry.date === '2026-05-01')
-      && !mergedReimport._deleted?.entries?.includes('2026-05-01')
-      && Number.isFinite(mergedReimport._deletedClearedAt?.entries?.['2026-05-01']);
+      && !mergedReimport._deleted?.entries?.includes('2026-05-01');
+    outcomes.clearTombstonePreservesClearMetadata =
+      Number.isFinite(mergedReimport._deletedClearedAt?.entries?.['2026-05-01']);
 
     return outcomes;
   }, { dataMergeUrl: moduleUrl('/js/data-merge.js') });
@@ -203,10 +216,9 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     const nested = {};
     dm.setAt(nested, 'lightEnvironment.rooms', [{ id: 'room-1' }]);
     dm.setAt(nested, '__proto__.polluted', true);
-    outcomes.getSetAtHandlesNestedPathsAndPrototypeGuard =
-      dm.getAt(nested, 'lightEnvironment.rooms.0.id') === 'room-1'
-      && dm.getAt(null, 'anything') === undefined
-      && !({}).polluted;
+    outcomes.setAtCreatesNestedPaths = dm.getAt(nested, 'lightEnvironment.rooms.0.id') === 'room-1';
+    outcomes.getAtReturnsUndefinedForNullRoot = dm.getAt(null, 'anything') === undefined;
+    outcomes.setAtRejectsPrototypePollution = !({}).polluted;
 
     const idsBlob = {};
     const firstNotes = dm.ensureImportedArray(idsBlob, 'notes');
@@ -215,18 +227,23 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     const replaceResult = dm.replaceImportedArrayItem(idsBlob, 'notes', 0, { date: '2026-05-01', text: 'Edited note' });
     const editedNoteId = dm.getConfiguredArrayItemId('notes', idsBlob.notes[0]);
     const deleteResult = dm.deleteImportedArrayItem(idsBlob, 'notes', 0);
-    outcomes.configuredIdsAndSingleItemMutationsTrackNaturalTombstones =
-      Array.isArray(firstNotes)
-      && typeof originalNoteId === 'string'
-      && typeof editedNoteId === 'string'
-      && replaceResult.previousItem.text === 'Original note'
-      && replaceResult.nextItem.text === 'Edited note'
-      && idsBlob._deleted.notes.includes(originalNoteId)
-      && deleteResult.removedItem.text === 'Edited note'
-      && idsBlob._deleted.notes.includes(editedNoteId)
-      && dm.getConfiguredArrayItemId('unknownPath', { id: 'safe-id' }) === 'safe-id'
-      && dm.getConfiguredArrayItemId('unknownPath', { id: '__proto__' }) === null
-      && dm.replaceImportedArrayItem(idsBlob, 'notes', 9, { text: 'Nope' }) === null
+    outcomes.ensureImportedArrayCreatesMissingNaturalArray = Array.isArray(firstNotes);
+    outcomes.configuredArrayItemIdResolvesNaturalNoteIds =
+      typeof originalNoteId === 'string'
+      && typeof editedNoteId === 'string';
+    outcomes.replaceImportedArrayItemReturnsPreviousAndNext =
+      replaceResult.previousItem.text === 'Original note'
+      && replaceResult.nextItem.text === 'Edited note';
+    outcomes.replaceImportedArrayItemTombstonesOldNaturalId = idsBlob._deleted.notes.includes(originalNoteId);
+    outcomes.deleteImportedArrayItemReturnsAndTombstonesRemovedRow =
+      deleteResult.removedItem.text === 'Edited note'
+      && idsBlob._deleted.notes.includes(editedNoteId);
+    outcomes.configuredArrayItemIdAcceptsSafeFallbackId =
+      dm.getConfiguredArrayItemId('unknownPath', { id: 'safe-id' }) === 'safe-id';
+    outcomes.configuredArrayItemIdRejectsUnsafeFallbackId =
+      dm.getConfiguredArrayItemId('unknownPath', { id: '__proto__' }) === null;
+    outcomes.singleItemMutationsRejectOutOfBoundsIndexes =
+      dm.replaceImportedArrayItem(idsBlob, 'notes', 9, { text: 'Nope' }) === null
       && dm.deleteImportedArrayItem(idsBlob, 'notes', 9) === null;
 
     const bulkBlob = {
@@ -245,21 +262,25 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     const sortedHistory = dm.sortImportedArray(bulkBlob, 'changeHistory', (a, b) => a.date.localeCompare(b.date));
     const trimmedOldest = dm.trimImportedArray(bulkBlob, 'changeHistory', 2);
     const invalidTrim = dm.trimImportedArray(bulkBlob, 'changeHistory', -1);
-    outcomes.bulkMutationsHandleDottedPathsClearSortAndTrim =
+    outcomes.deleteImportedArrayItemsHandlesDottedPaths =
       removedRooms.length === 1
       && removedMeasurements.length === 1
       && bulkBlob.lightEnvironment.rooms[0].id === 'r2'
-      && bulkBlob.lightMeasurements[0].id === 'm2'
-      && bulkBlob._deleted['lightEnvironment.rooms'].includes('r1')
-      && bulkBlob._deleted.lightMeasurements.includes('m1')
-      && clearedGoals.length === 2
+      && bulkBlob.lightMeasurements[0].id === 'm2';
+    outcomes.deleteImportedArrayItemsTombstonesDottedPathRows =
+      bulkBlob._deleted['lightEnvironment.rooms'].includes('r1')
+      && bulkBlob._deleted.lightMeasurements.includes('m1');
+    outcomes.clearImportedArrayEmptiesAndTombstonesConfiguredRows =
+      clearedGoals.length === 2
       && bulkBlob.healthGoals.length === 0
-      && bulkBlob._deleted.healthGoals.length === 2
-      && sortedHistory[0].date === '2026-05-01'
-      && trimmedOldest[0].date === '2026-05-01'
-      && bulkBlob.changeHistory.length === 2
-      && invalidTrim.length === 0
-      && dm.deleteImportedArrayItems(bulkBlob, 'missing.path', () => true).length === 0
+      && bulkBlob._deleted.healthGoals.length === 2;
+    outcomes.sortImportedArraySortsInPlace = sortedHistory[0].date === '2026-05-01';
+    outcomes.trimImportedArrayKeepsNewestRows =
+      trimmedOldest[0].date === '2026-05-01'
+      && bulkBlob.changeHistory.length === 2;
+    outcomes.trimImportedArrayRejectsInvalidMaxLength = invalidTrim.length === 0;
+    outcomes.bulkMutationsReturnEmptyForMissingArrays =
+      dm.deleteImportedArrayItems(bulkBlob, 'missing.path', () => true).length === 0
       && dm.clearImportedArray(bulkBlob, 'missing.path').length === 0
       && dm.sortImportedArray(bulkBlob, 'missing.path', () => 0).length === 0;
 
@@ -271,22 +292,23 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
       ],
     };
     const removedTail = dm.trimImportedArray(keepFirstBlob, 'notes', 1, { keep: 'first' });
-    outcomes.trimKeepFirstRemovesTailAndTombstonesConfiguredRows =
+    outcomes.trimKeepFirstRemovesTailRows =
       keepFirstBlob.notes.length === 1
       && keepFirstBlob.notes[0].text === 'one'
-      && removedTail.map(note => note.text).join(',') === 'two,three'
-      && keepFirstBlob._deleted.notes.length === 2;
+      && removedTail.map(note => note.text).join(',') === 'two,three';
+    outcomes.trimKeepFirstTombstonesConfiguredRows = keepFirstBlob._deleted.notes.length === 2;
 
     const union = dm.unionById(
       [{ id: 'a', updatedAt: 10 }, { id: 'b', updatedAt: 20 }, { localOnly: true }],
       [{ id: 'b', updatedAt: 30, value: 'remote fresh' }, { id: 'c', updatedAt: 40 }, { remoteOnly: true }],
       ['c']
     );
-    outcomes.unionByIdKeepsIdlessRowsTombstonesAndFreshConflicts =
+    outcomes.unionByIdPicksFreshConflictWinner =
       union.length === 4
-      && union.find(row => row.id === 'b')?.value === 'remote fresh'
-      && !union.some(row => row.id === 'c')
-      && union.some(row => row.localOnly)
+      && union.find(row => row.id === 'b')?.value === 'remote fresh';
+    outcomes.unionByIdDropsTombstonedIds = !union.some(row => row.id === 'c');
+    outcomes.unionByIdKeepsIdlessRows =
+      union.some(row => row.localOnly)
       && union.some(row => row.remoteOnly);
 
     const tombBlob = {};
@@ -298,24 +320,35 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     dm.recordTombstone(tombBlob, 'sunSessions', '');
     dm.clearTombstone(null, 'sunSessions', 'ignored');
     dm.clearTombstone(tombBlob, 'sunSessions', '');
-    outcomes.recordAndClearTombstoneMaintainMetadata =
+    outcomes.recordTombstoneDedupesAndStoresMetadata =
       tombBlob._deleted.sunSessions.filter(id => id === 's1').length === 1
-      && Number.isFinite(tombBlob._deletedAt.sunSessions.s1)
-      && !tombBlob._deleted.entries
+      && Number.isFinite(tombBlob._deletedAt.sunSessions.s1);
+    outcomes.clearTombstoneRemovesEntryDeleteAndStoresClearMetadata =
+      !tombBlob._deleted.entries
       && Number.isFinite(tombBlob._deletedClearedAt.entries['2026-05-01']);
 
-    outcomes.localHasRowsRemoteLacksCoversRowsMapsTombstonesAndClears =
-      dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }, { id: 'b' }] }, { sunSessions: [{ id: 'a' }] }) === true
-      && dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a', updatedAt: 20 }] }, { sunSessions: [{ id: 'a', updatedAt: 10 }] }) === true
-      && dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }] }, { sunSessions: [{ id: 'a' }, { id: 'b' }] }) === false
-      && dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }, { id: 'b' }] }, { sunSessions: [{ id: 'b' }, { id: 'a' }] }) === false
-      && dm.localHasRowsRemoteLacks({ customMarkers: { local: { name: 'Local' } } }, { customMarkers: {} }) === true
-      && dm.localHasRowsRemoteLacks({ notes: [{ date: '2026-05-02', text: 'Local note' }] }, { notes: [] }) === true
-      && dm.localHasRowsRemoteLacks({ entries: [{ date: '2026-05-01', markers: { a: 1, b: 2 } }] }, { entries: [{ date: '2026-05-01', markers: { a: 1 } }] }) === true
-      && dm.localHasRowsRemoteLacks({ entries: [{ date: '2026-05-01', deletedMarkers: { b: 200 }, markers: { a: 1 } }] }, { entries: [{ date: '2026-05-01', markers: { a: 1, b: 2 } }] }) === true
-      && dm.localHasRowsRemoteLacks({ _deleted: { sunSessions: ['gone'] }, _deletedAt: { sunSessions: { gone: 200 } } }, { _deleted: { sunSessions: ['gone'] }, _deletedAt: { sunSessions: { gone: 100 } } }) === true
-      && dm.localHasRowsRemoteLacks({ _deletedClearedAt: { entries: { '2026-05-01': 200 } } }, { _deletedClearedAt: { entries: { '2026-05-01': 100 } } }) === true
-      && dm.localHasRowsRemoteLacks(null, { sunSessions: [{ id: 'a' }] }) === false
+    outcomes.localHasRowsRemoteLacksDetectsMissingIdRows =
+      dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }, { id: 'b' }] }, { sunSessions: [{ id: 'a' }] }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsFreshLocalRows =
+      dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a', updatedAt: 20 }] }, { sunSessions: [{ id: 'a', updatedAt: 10 }] }) === true;
+    outcomes.localHasRowsRemoteLacksIgnoresRemoteSuperset =
+      dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }] }, { sunSessions: [{ id: 'a' }, { id: 'b' }] }) === false;
+    outcomes.localHasRowsRemoteLacksIgnoresOrderOnlyDiffs =
+      dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }, { id: 'b' }] }, { sunSessions: [{ id: 'b' }, { id: 'a' }] }) === false;
+    outcomes.localHasRowsRemoteLacksDetectsLocalWinsMapRows =
+      dm.localHasRowsRemoteLacks({ customMarkers: { local: { name: 'Local' } } }, { customMarkers: {} }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsNaturalKeyRows =
+      dm.localHasRowsRemoteLacks({ notes: [{ date: '2026-05-02', text: 'Local note' }] }, { notes: [] }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsMissingLabMarkers =
+      dm.localHasRowsRemoteLacks({ entries: [{ date: '2026-05-01', markers: { a: 1, b: 2 } }] }, { entries: [{ date: '2026-05-01', markers: { a: 1 } }] }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsLabMarkerTombstones =
+      dm.localHasRowsRemoteLacks({ entries: [{ date: '2026-05-01', deletedMarkers: { b: 200 }, markers: { a: 1 } }] }, { entries: [{ date: '2026-05-01', markers: { a: 1, b: 2 } }] }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsNewerTombstoneMetadata =
+      dm.localHasRowsRemoteLacks({ _deleted: { sunSessions: ['gone'] }, _deletedAt: { sunSessions: { gone: 200 } } }, { _deleted: { sunSessions: ['gone'] }, _deletedAt: { sunSessions: { gone: 100 } } }) === true;
+    outcomes.localHasRowsRemoteLacksDetectsNewerClearMetadata =
+      dm.localHasRowsRemoteLacks({ _deletedClearedAt: { entries: { '2026-05-01': 200 } } }, { _deletedClearedAt: { entries: { '2026-05-01': 100 } } }) === true;
+    outcomes.localHasRowsRemoteLacksHandlesNullSides =
+      dm.localHasRowsRemoteLacks(null, { sunSessions: [{ id: 'a' }] }) === false
       && dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }] }, null) === true;
 
     return outcomes;
