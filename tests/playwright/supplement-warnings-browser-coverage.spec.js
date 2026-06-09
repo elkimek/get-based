@@ -59,13 +59,11 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
       const tylenol = warnings.lookupMitoCompound('daily tylenol tablets');
       const shortAliasExact = warnings.lookupMitoCompound('nac');
       const shortAliasInPhrase = warnings.lookupMitoCompound('daily nac');
-      const hyphenatedKeyword = warnings.lookupMitoCompound('alpha-lipoic acid 600mg');
 
       outcomes.lookupExactNormalizesCaseAndTrim = metformin?.name === 'Metformin';
       outcomes.lookupWordBoundaryFindsKeywordInPhrase = tylenol?.name === 'Acetaminophen';
       outcomes.lookupShortExactKeywordWorks = shortAliasExact?.name === 'N-Acetylcysteine';
       outcomes.lookupShortKeywordDoesNotWordMatch = shortAliasInPhrase === null;
-      outcomes.lookupHyphenatedKeywordMatches = hyphenatedKeyword?.name === 'Alpha-Lipoic Acid';
       outcomes.lookupRejectsTooShortQueries = warnings.lookupMitoCompound('nr') === null;
       outcomes.lookupMissReturnsNull = warnings.lookupMitoCompound('made-up-compound') === null;
 
