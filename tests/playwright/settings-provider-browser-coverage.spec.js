@@ -1,0 +1,430 @@
+import { expect, test } from './coverage-fixture.js';
+
+const moduleUrl = (path) => `${path}?settingsProviderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+test('local AI settings controls cover connection, advisor, privacy, and hardware override branches', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ controlsUrl, piiUrl }) => {
+    const controls = await import(controlsUrl);
+    const pii = await import(piiUrl);
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    const storageKeys = [
+      'labcharts-ollama',
+      'labcharts-ollama-model',
+      'labcharts-ollama-pii-url',
+      'labcharts-ollama-pii-model',
+      'labcharts-ollama-pii-enabled',
+      'labcharts-hw-vram-override',
+    ];
+    const oldStorage = {};
+    for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
+    const oldGlobals = {
+      fetch: window.fetch,
+      updatePrivacyStatusCard: window.updatePrivacyStatusCard,
+      markAISettingsLocal: window.markAISettingsLocal,
+      clipboard: navigator.clipboard,
+    };
+    const writes = [];
+    let privacyUpdates = 0;
+    let chatReturns = 0;
+    let corsProbe = false;
+    let localFetchCount = 0;
+
+    try {
+      for (const key of storageKeys) localStorage.removeItem(key);
+      window.updateKeyCache?.('labcharts-ollama', '');
+      window.updatePrivacyStatusCard = () => { privacyUpdates += 1; };
+      window.markAISettingsLocal = () => {};
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async value => { writes.push(String(value)); },
+        },
+      });
+      controls.configureLocalAiControls({
+        returnToChatIfOnboarding: () => { chatReturns += 1; },
+      });
+
+      document.body.insertAdjacentHTML('beforeend', `
+        <section id="local-ai-fixture">
+          <input id="local-ai-url-input">
+          <input id="local-ai-apikey-input" value="sk-local">
+          <span id="local-ai-dot" class="local-ai-status-dot"></span>
+          <span id="local-ai-status-text"></span>
+          <div id="local-ai-model-section" style="display:none">
+            <select id="local-ai-model-select"></select>
+          </div>
+          <div id="local-ai-advisor"></div>
+          <input id="pii-local-url-input">
+          <span id="pii-local-dot" class="local-ai-status-dot"></span>
+          <span id="pii-local-status-text"></span>
+          <input id="pii-local-toggle" type="checkbox">
+          <div id="pii-model-dropdown" style="display:none">
+            <select id="pii-model-select"></select>
+          </div>
+        </section>
+      `);
+
+      const urlInput = document.getElementById('local-ai-url-input');
+      const statusText = document.getElementById('local-ai-status-text');
+      const dot = document.getElementById('local-ai-dot');
+
+      urlInput.value = 'not a url';
+      await controls.testOllamaConnection();
+      const invalidUrlBranch = statusText.textContent.includes('valid Local AI URL')
+        && dot.classList.contains('disconnected');
+
+      window.fetch = async function(url, opts = {}) {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD' && opts.mode === 'no-cors') {
+          corsProbe = true;
+          return new Response('', { status: 200 });
+        }
+        if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD') {
+          throw new TypeError('Failed to fetch');
+        }
+        return oldGlobals.fetch.call(window, url, opts);
+      };
+      urlInput.value = 'http://localhost:11434';
+      await controls.testOllamaConnection();
+      const corsHelp = corsProbe
+        && statusText.textContent.includes('Blocked by CORS')
+        && dot.classList.contains('disconnected');
+
+      window.fetch = async function(url, opts = {}) {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD') {
+          return new Response('', { status: 204 });
+        }
+        if (href === 'http://localhost:11434/v1/models') {
+          localFetchCount += 1;
+          return jsonResponse({
+            data: [
+              { id: 'llama3.2', name: 'Llama 3.2', size: 3200000000 },
+              { id: 'qwen2.5:14b', name: 'Qwen 14B', size: 9200000000 },
+            ],
+          });
+        }
+        if (href === 'http://localhost:11434/api/tags') {
+          return jsonResponse({
+            models: [
+              { name: 'llama3.2', size: 3200000000, details: { parameter_size: '3B', quantization_level: 'Q4_K_M', family: 'llama' } },
+              { name: 'qwen2.5:14b', size: 9200000000, details: { parameter_size: '14B', quantization_level: 'Q4_K_M', family: 'qwen' } },
+            ],
+          });
+        }
+        return oldGlobals.fetch.call(window, url, opts);
+      };
+      urlInput.value = ' http://localhost:11434/ ';
+      await controls.testOllamaConnection();
+      await wait(0);
+      const localConnectSuccess = statusText.textContent.includes('Connected')
+        && dot.classList.contains('connected')
+        && document.getElementById('local-ai-model-section')?.style.display === 'block'
+        && document.getElementById('local-ai-model-select')?.options.length === 2
+        && document.getElementById('local-ai-advisor')?.textContent.includes('llama3.2')
+        && localFetchCount >= 1
+        && privacyUpdates >= 1
+        && chatReturns === 1;
+
+      controls.copyOllamaPullCmd('ollama pull qwen2.5:14b');
+      await wait(0);
+      const copyPullCommand = writes.includes('ollama pull qwen2.5:14b');
+
+      controls.applyHardwareOverride('16');
+      await wait(0);
+      const hardwareOverrideApplied = localStorage.getItem('labcharts-hw-vram-override') === '16'
+        && document.getElementById('local-ai-advisor')?.textContent.includes('16 GB');
+      controls.applyHardwareOverride('0');
+      await wait(0);
+      const invalidHardwareOverride = [...document.querySelectorAll('.notification-toast')]
+        .some(el => el.textContent.includes('valid VRAM'));
+      controls.clearHardwareOverride();
+      await wait(0);
+      const hardwareOverrideCleared = !localStorage.getItem('labcharts-hw-vram-override');
+
+      document.getElementById('pii-local-url-input').value = 'http://localhost:11434';
+      await controls.testPIIOllamaConnection();
+      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connected')
+        && document.getElementById('pii-local-dot')?.classList.contains('connected')
+        && document.getElementById('pii-local-toggle')?.checked === true
+        && document.getElementById('pii-model-dropdown')?.style.display === 'block'
+        && document.getElementById('pii-model-select')?.options.length === 2
+        && localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
+
+      await pii.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
+      document.getElementById('local-ai-model-select').innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
+      await controls.renderModelAdvisor([
+        { name: 'remote-small', size: 2000000000, quantLevel: 'Q4', paramSize: '2B' },
+        { name: 'remote-huge', size: 30000000000, quantLevel: 'Q4', paramSize: '30B' },
+      ], document.getElementById('local-ai-model-select'), false);
+      const remoteAdvisorPromptsVram = document.getElementById('local-ai-advisor')?.textContent.includes('Remote server')
+        && document.querySelector('.model-advisor-override-body')?.style.display === 'flex';
+
+      return {
+        invalidUrlBranch,
+        corsHelp,
+        localConnectSuccess,
+        copyPullCommand,
+        hardwareOverrideApplied,
+        invalidHardwareOverride,
+        hardwareOverrideCleared,
+        piiConnectSuccess,
+        remoteAdvisorPromptsVram,
+      };
+    } finally {
+      window.fetch = oldGlobals.fetch;
+      window.updatePrivacyStatusCard = oldGlobals.updatePrivacyStatusCard;
+      window.markAISettingsLocal = oldGlobals.markAISettingsLocal;
+      if (oldGlobals.clipboard) {
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: oldGlobals.clipboard });
+      }
+      for (const key of storageKeys) {
+        if (oldStorage[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, oldStorage[key]);
+      }
+      window.updateKeyCache?.('labcharts-ollama', oldStorage['labcharts-ollama'] || '');
+      document.getElementById('local-ai-fixture')?.remove();
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    }
+  }, {
+    controlsUrl: moduleUrl('/js/provider-local-ai-controls.js'),
+    piiUrl: moduleUrl('/js/pii.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('settings sync and agent access delegates cover setup, restore, relay, tombstone, and token paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl }) => {
+    const syncPanel = await import(syncPanelUrl);
+    const syncState = await import(syncStateUrl);
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, label) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        if (predicate()) return true;
+        await wait(25);
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const words = Array.from({ length: 24 }, (_, i) => `word${i + 1}`);
+    const mnemonic = words.join(' ');
+
+    const storageKeys = [
+      'labcharts-sync-enabled',
+      'labcharts-sync-relay',
+      'labcharts-messenger-enabled',
+      'labcharts-messenger-token',
+      'labcharts-agent-wearable-series-days',
+    ];
+    const oldStorage = {};
+    for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
+    const oldGlobals = {
+      applyPendingTombstone: window.applyPendingTombstone,
+      rejectPendingTombstone: window.rejectPendingTombstone,
+      listPendingTombstones: window.listPendingTombstones,
+      openSettingsModal: window.openSettingsModal,
+      updateSyncIndicator: window.updateSyncIndicator,
+      getAgentWearableSeriesDays: window.getAgentWearableSeriesDays,
+      setAgentWearableSeriesDays: window.setAgentWearableSeriesDays,
+      pushContextToGateway: window.pushContextToGateway,
+      clipboard: navigator.clipboard,
+      fetch: window.fetch,
+      WebSocket: window.WebSocket,
+    };
+    const writes = [];
+    const applied = [];
+    const rejected = [];
+    const openedTabs = [];
+    let syncIndicatorUpdates = 0;
+    let pushedContexts = 0;
+    let seriesDays = 0;
+
+    try {
+      for (const key of storageKeys) localStorage.removeItem(key);
+      syncState.setSyncEnabled(false);
+      window.applyPendingTombstone = async id => { applied.push(id); };
+      window.rejectPendingTombstone = async id => { rejected.push(id); };
+      window.listPendingTombstones = () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }];
+      window.openSettingsModal = tab => { openedTabs.push(tab); };
+      window.updateSyncIndicator = () => { syncIndicatorUpdates += 1; };
+      window.getAgentWearableSeriesDays = () => seriesDays;
+      window.setAgentWearableSeriesDays = days => { seriesDays = days; localStorage.setItem('labcharts-agent-wearable-series-days', String(days)); };
+      window.pushContextToGateway = () => { pushedContexts += 1; };
+      window.fetch = async () => new Response('', { status: 200 });
+      window.WebSocket = class {
+        constructor(url) {
+          this.url = url;
+          Promise.resolve().then(() => this.onopen?.());
+        }
+        close() {}
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async value => { writes.push(String(value)); },
+        },
+      });
+
+      document.body.insertAdjacentHTML('beforeend', `
+        <section id="sync-section"></section>
+        <section id="messenger-section"></section>
+      `);
+      const syncSection = document.getElementById('sync-section');
+      const messengerSection = document.getElementById('messenger-section');
+
+      syncSection.innerHTML = syncPanel.renderSyncSection();
+      const tombstoneBanner = syncSection.textContent.includes('Old Profile');
+      syncSection.querySelector('[data-sync-action="apply-tombstone"]').click();
+      syncSection.querySelector('[data-sync-action="reject-tombstone"]').click();
+      const tombstoneDelegates = await waitFor(() => applied.includes('profile-old')
+        && rejected.includes('profile-old')
+        && openedTabs.filter(tab => tab === 'data').length >= 2, 'tombstone delegates');
+
+      syncSection.querySelector('[data-sync-action="toggle-sync"]').checked = true;
+      syncSection.querySelector('[data-sync-action="toggle-sync"]').dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
+      const setupOverlay = document.getElementById('sync-setup-overlay');
+      const setupModalOpened = setupOverlay?.classList.contains('show')
+        && syncSection.querySelector('[data-sync-action="toggle-sync"]')?.checked === true;
+      setupOverlay.click();
+      const setupNudgesOnBackdrop = setupOverlay.querySelector('.confirm-dialog')?.classList.contains('modal-nudge');
+      setupOverlay.querySelector('[data-sync-setup-action="setup-restore"]').click();
+      const setupRestoreShown = setupOverlay.querySelector('#sync-setup-restore')?.style.display === 'block';
+      setupOverlay.querySelector('[data-sync-setup-action="setup-back"]').click();
+      const setupBackRestoresChoices = setupOverlay.querySelector('#sync-setup-choices')?.style.display === '';
+
+      window.syncSetupDone();
+      const setupDoneCloses = !setupOverlay.classList.contains('show');
+
+      syncState.setSyncEnabled(true);
+      localStorage.setItem('labcharts-sync-enabled', 'true');
+      localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
+      syncSection.innerHTML = syncPanel.renderSyncSection();
+      const enabledRender = syncSection.textContent.includes('Your mnemonic')
+        && syncSection.querySelector('#sync-relay-input')?.value === 'wss://relay.example';
+      syncSection.querySelector('[data-sync-action="open-restore-dialog"]').click();
+      await wait(0);
+      const restoreOverlay = document.getElementById('sync-restore-overlay');
+      const restoreDialogOpens = restoreOverlay?.classList.contains('show')
+        && restoreOverlay.querySelector('#sync-restore-dialog-go')?.disabled === true;
+      const restoreInput = restoreOverlay.querySelector('#sync-restore-dialog-input');
+      restoreInput.value = words.slice(0, 3).join(' ');
+      restoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+      const restoreCountsWords = restoreOverlay.querySelector('#sync-restore-dialog-msg')?.textContent.includes('3 words');
+      restoreInput.value = mnemonic;
+      restoreInput.dispatchEvent(new Event('input', { bubbles: true }));
+      const restoreEnablesSubmit = restoreOverlay.querySelector('#sync-restore-dialog-msg')?.textContent.includes('24 words')
+        && restoreOverlay.querySelector('#sync-restore-dialog-go')?.disabled === false;
+      restoreOverlay.click();
+      const restoreBackdropCloses = !restoreOverlay.classList.contains('show');
+
+      const relayInput = syncSection.querySelector('#sync-relay-input');
+      relayInput.value = 'https://bad-relay.example';
+      syncSection.querySelector('[data-sync-action="save-relay"]').click();
+      await wait(0);
+      const invalidRelayToast = [...document.querySelectorAll('.notification-toast')]
+        .some(el => el.textContent.includes('Relay URL must start'));
+      relayInput.value = 'wss://new-relay.example';
+      syncSection.querySelector('[data-sync-action="save-relay"]').click();
+      const relaySaved = await waitFor(() => localStorage.getItem('labcharts-sync-relay') === 'wss://new-relay.example'
+        && syncIndicatorUpdates >= 1
+        && document.getElementById('sync-status-text')?.textContent.includes('Connected'), 'relay connected status');
+
+      messengerSection.innerHTML = syncPanel.renderMessengerSection();
+      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = true;
+      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
+      const token = localStorage.getItem('labcharts-messenger-token');
+      const messengerEnabled = localStorage.getItem('labcharts-messenger-enabled') === 'true'
+        && !!token
+        && messengerSection.textContent.includes('Read-only token');
+      messengerSection.querySelector('[data-sync-action="toggle-messenger-token"]').click();
+      const tokenShown = document.getElementById('messenger-token')?.dataset.masked === 'false'
+        && document.getElementById('messenger-token')?.textContent !== '•'.repeat(64)
+        && document.getElementById('messenger-token-toggle')?.textContent === 'Hide';
+      messengerSection.querySelector('[data-sync-action="copy-messenger-token"]').click();
+      await wait(0);
+      const tokenCopied = writes.includes(token);
+      messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').value = '30';
+      messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').dispatchEvent(new Event('change', { bubbles: true }));
+      const seriesDelegated = seriesDays === 30 && pushedContexts >= 1;
+      messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]').click();
+      await wait(0);
+      const regenerated = localStorage.getItem('labcharts-messenger-token') !== token
+        && messengerSection.textContent.includes('Read-only token');
+      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = false;
+      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
+      await wait(0);
+      const messengerDisabled = localStorage.getItem('labcharts-messenger-enabled') === 'false'
+        && !localStorage.getItem('labcharts-messenger-token')
+        && messengerSection.textContent.includes('Let AI agents query your labs');
+
+      return {
+        tombstoneBanner,
+        tombstoneDelegates,
+        setupModalOpened,
+        setupNudgesOnBackdrop,
+        setupRestoreShown,
+        setupBackRestoresChoices,
+        setupDoneCloses,
+        enabledRender,
+        restoreDialogOpens,
+        restoreCountsWords,
+        restoreEnablesSubmit,
+        restoreBackdropCloses,
+        invalidRelayToast,
+        relaySaved,
+        messengerEnabled,
+        tokenShown,
+        tokenCopied,
+        seriesDelegated,
+        regenerated,
+        messengerDisabled,
+      };
+    } finally {
+      window.applyPendingTombstone = oldGlobals.applyPendingTombstone;
+      window.rejectPendingTombstone = oldGlobals.rejectPendingTombstone;
+      window.listPendingTombstones = oldGlobals.listPendingTombstones;
+      window.openSettingsModal = oldGlobals.openSettingsModal;
+      window.updateSyncIndicator = oldGlobals.updateSyncIndicator;
+      window.getAgentWearableSeriesDays = oldGlobals.getAgentWearableSeriesDays;
+      window.setAgentWearableSeriesDays = oldGlobals.setAgentWearableSeriesDays;
+      window.pushContextToGateway = oldGlobals.pushContextToGateway;
+      window.fetch = oldGlobals.fetch;
+      window.WebSocket = oldGlobals.WebSocket;
+      if (oldGlobals.clipboard) {
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: oldGlobals.clipboard });
+      }
+      for (const key of storageKeys) {
+        if (oldStorage[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, oldStorage[key]);
+      }
+      syncState.setSyncEnabled(oldStorage['labcharts-sync-enabled'] === 'true');
+      document.getElementById('sync-section')?.remove();
+      document.getElementById('messenger-section')?.remove();
+      document.getElementById('sync-setup-overlay')?.remove();
+      document.getElementById('sync-restore-overlay')?.remove();
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    }
+  }, {
+    syncPanelUrl: '/js/settings-sync-panel.js',
+    syncStateUrl: '/js/sync-settings-state.js',
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
