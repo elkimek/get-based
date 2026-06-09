@@ -309,7 +309,6 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       'nostrDiscoverNodes',
       'nostrGetSelectedNode',
       'nostrSetSelectedNode',
-      'navigator',
       'fetch',
     ];
     for (const name of globalNames) oldGlobals[name] = window[name];
@@ -318,6 +317,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     const clipboardWrites = [];
     const oldNotification = window.showNotification;
     const oldQrcode = window.qrcode;
+    const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
+    const oldClipboard = window.navigator.clipboard;
 
     function json(body, status = 200) {
       return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -561,6 +562,14 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       window.showNotification = oldNotification;
       window.qrcode = oldQrcode;
       for (const name of globalNames) window[name] = oldGlobals[name];
+      if (hadClipboard) {
+        Object.defineProperty(window.navigator, 'clipboard', {
+          configurable: true,
+          value: oldClipboard,
+        });
+      } else {
+        delete window.navigator.clipboard;
+      }
       clearTimeout(window._rsCashuBackupTimer);
       clearTimeout(window._tokenClipTimer);
       clearTimeout(window._seedClipTimer);
@@ -587,7 +596,10 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       cashuClearPendingDeposit: window.cashuClearPendingDeposit,
       cashuGetMaxWithdrawable: window.cashuGetMaxWithdrawable,
     };
+    const calls = [];
     const clipboardWrites = [];
+    const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
+    const oldClipboard = window.navigator.clipboard;
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: async text => clipboardWrites.push(text) },
@@ -599,7 +611,6 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
     window.cashuClearPendingDeposit = async () => calls.push(['clearPending']);
     window.cashuGetMaxWithdrawable = async () => 888;
 
-    const calls = [];
     const root = document.createElement('div');
     root.id = 'ai-provider-panel';
     root.innerHTML = `
@@ -739,6 +750,14 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       window.cashuImportWallet = oldGlobals.cashuImportWallet;
       window.cashuClearPendingDeposit = oldGlobals.cashuClearPendingDeposit;
       window.cashuGetMaxWithdrawable = oldGlobals.cashuGetMaxWithdrawable;
+      if (hadClipboard) {
+        Object.defineProperty(window.navigator, 'clipboard', {
+          configurable: true,
+          value: oldClipboard,
+        });
+      } else {
+        delete window.navigator.clipboard;
+      }
     }
   });
 
