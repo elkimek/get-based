@@ -382,6 +382,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       'labcharts-profiles',
       importedKey,
     ];
+    let savedBackupSnapshots = null;
     const saved = {
       profile: state.currentProfile,
       view: state.currentView,
@@ -455,6 +456,20 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
         Number(localStorage.getItem('labcharts-backup-nudge-snoozed-until')) > Date.now()
         && document.getElementById('passphrase-overlay')?.style.display === 'none';
 
+      const backupDb = await cryptoStore.openBackupDB();
+      savedBackupSnapshots = await new Promise((resolve, reject) => {
+        const tx = backupDb.transaction('snapshots', 'readonly');
+        const req = tx.objectStore('snapshots').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+      await new Promise((resolve, reject) => {
+        const tx = backupDb.transaction('snapshots', 'readwrite');
+        tx.objectStore('snapshots').clear();
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+
       const backupHost = document.createElement('section');
       backupHost.id = 'crypto-backup-coverage-host';
       backupHost.innerHTML = cryptoStore.renderBackupSection();
@@ -463,10 +478,8 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       outcomes.emptySnapshotsHideList =
         document.getElementById('backup-snapshot-list')?.style.display === 'none';
 
-      const db = await cryptoStore.openBackupDB();
-      const tx = db.transaction('snapshots', 'readwrite');
+      const tx = backupDb.transaction('snapshots', 'readwrite');
       const store = tx.objectStore('snapshots');
-      store.clear();
       store.add({
         createdAt: new Date('2026-06-09T10:00:00.000Z').toISOString(),
         encrypted: true,
@@ -506,7 +519,20 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       } else {
         delete window.BroadcastChannel;
       }
+      await cryptoStore.encryptedRemoveItem(importedKey);
+      if (savedBackupSnapshots) {
+        const db = await cryptoStore.openBackupDB();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('snapshots', 'readwrite');
+          const store = tx.objectStore('snapshots');
+          store.clear();
+          for (const snapshot of savedBackupSnapshots) store.put(snapshot);
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+        });
+      }
       for (const [key, value] of Object.entries(saved.storage)) {
+        if (key === importedKey) continue;
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
