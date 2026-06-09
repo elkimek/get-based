@@ -360,7 +360,9 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         .some(link => link.href.includes('mitochondriak.sk') && link.href.includes('utm_source=getbased'));
       outcomes.disclosureBannerGatesThenDismisses = !!host.querySelector('.rec-disclosure-banner')
         && !!host.querySelector('.rec-section-gated');
-      host.querySelector('.rec-disclosure-btn')?.click();
+      const disclosureButton = host.querySelector('.rec-disclosure-btn');
+      outcomes.disclosureButtonFound = !!disclosureButton;
+      disclosureButton?.click();
       outcomes.disclosureButtonUngatesSections = localStorage.getItem('labcharts-rec-disclosure') === 'seen'
         && !host.querySelector('.rec-section-gated');
 
@@ -426,13 +428,17 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       outcomes.mitigationTextDetection = rec.detectMitigationsInText('YShield paint and a Stetzer filter may help.').length === 2;
       outcomes.emfRelevanceDetection = rec.detectEMFRelevance('WiFi exposure in the bedroom affects sleep') === true
         && rec.detectEMFRelevance('generic fatigue without signal terms') === false;
-      outcomes.wearableTrendSlotsDedup = rec.detectWearableTrendSlots({
+      const trendSlots = rec.detectWearableTrendSlots({
         metrics: {
           hrv_rmssd: { rolling: { d7: 31 }, baselineP25: 45 },
           rhr: { rolling: { d7: 71 }, baselineP75: 63 },
           sleep_score: { rolling: { d7: 66 }, baseline: 78 },
         },
-      }).map(slot => slot.slotKey).join('|') === 'magnesium|melatonin';
+      }).map(slot => slot.slotKey);
+      const trendSlotSet = new Set(trendSlots);
+      outcomes.wearableTrendSlotsDedup = trendSlotSet.has('magnesium')
+        && trendSlotSet.has('melatonin')
+        && trendSlots.length === 2;
 
       const presets = { presets: [{ catalogSlug: 'red-panel', channels: ['pbm_red', 'pbm_nir'] }] };
       outcomes.channelDeficitProductsResolve = rec.recommendDeviceProductsForChannelDeficit(catalogA, 'pbm_red', presets)[0]?.key === 'red-panel';
