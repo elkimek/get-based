@@ -11,6 +11,7 @@ function expectAll(outcomes) {
 }
 
 test('conditions now browser coverage covers refresh cache manual override and inspect paths', async ({ page }) => {
+  test.setTimeout(30_000);
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ conditionsUrl }) => {
@@ -75,6 +76,10 @@ test('conditions now browser coverage covers refresh cache manual override and i
       ...overrides,
     });
     const slotText = id => document.getElementById(id)?.textContent || '';
+    const waitForFullSlotIdle = label => waitUntil(() => {
+      const slot = document.getElementById('cond-now-coverage-full');
+      return !!slot && slot.getAttribute('aria-busy') === 'false' && !slot.classList.contains('is-refreshing');
+    }, label);
 
     try {
       document.body.append(host);
@@ -110,7 +115,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.fullRenderShowsSource = slotText('cond-now-coverage-full').includes('Open-Meteo');
       outcomes.cachedAtmosphereAvailable = conditions.getCachedConditionsAtmosphere()?._appliedByTest === true;
 
-      const compactHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-compact-cache' });
+      const compactHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-full' });
       outcomes.cacheHitRendersCompactRow = compactHtml.includes('conditions-now-row');
       outcomes.cacheHitRendersCompactSource = compactHtml.includes('Open-Meteo');
       outcomes.elapsedShortFormatsMinutes = conditions._formatElapsedShort(65_000) === '1:05';
@@ -134,13 +139,14 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.validManualUviPersistsOverride = state.importedData.sunDefaults.overrides.uvIndex === 5.5;
       outcomes.validManualUviSavesData = calls.some(call => call[0] === 'save');
       outcomes.validManualUviForcesRefresh = calls.some(call => call[0] === 'fetch' && call[1].noCache === true);
-      await wait(650);
+      await waitForFullSlotIdle('manual UVI refresh settle');
       calls.length = 0;
       await conditions._clearManualUvi();
       outcomes.clearManualUviRemovesOverride = !('uvIndex' in (state.importedData.sunDefaults.overrides || {}));
       outcomes.clearManualUviSavesData = calls.some(call => call[0] === 'save');
+      outcomes.clearManualUviForcesRefresh = calls.some(call => call[0] === 'fetch' && call[1].noCache === true);
 
-      await wait(650);
+      await waitForFullSlotIdle('clear manual UVI refresh settle');
       localStorage.setItem('meteo:coverage-stale', 'cached');
       calls.length = 0;
       conditions._refreshConditionsNow();
@@ -148,7 +154,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.forceRefreshCallsPurgeHook = calls.some(call => call[0] === 'purge');
       outcomes.forceRefreshClearsMeteoCache = localStorage.getItem('meteo:coverage-stale') === null;
 
-      await wait(650);
+      await waitForFullSlotIdle('forced refresh settle');
       calls.length = 0;
       window.fetchAtmosphere = async opts => {
         calls.push(['fetch-error', opts]);
