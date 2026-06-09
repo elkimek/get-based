@@ -6,7 +6,7 @@ function moduleUrl(path) {
 
 function expectAll(outcomes) {
   for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
+    expect.soft(passed, name).toBe(true);
   }
 }
 
