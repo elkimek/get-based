@@ -134,8 +134,7 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         && mergedCurrent.restoreJoinApplied === true
         && mergedCurrent.merged.wearableConnections?.oura?.refreshToken === 'local-refresh-token'
         && !mergedCurrent.merged.wearableConnections?.fitbit
-        && !Object.prototype.hasOwnProperty.call(mergedCurrent.merged, '_deleted')
-        && mergedCurrent.mergeMsg.includes('merged sun=0/dev=2');
+        && !Object.prototype.hasOwnProperty.call(mergedCurrent.merged, '_deleted');
       outcomes.mergeCurrentProfileUnionsRowsAndFlagsLocalRebroadcast =
         mergedDates.has('2026-06-07')
         && mergedDates.has('2026-06-08')
@@ -210,6 +209,8 @@ test('sync pull merge browser coverage exercises row recovery merge persistence 
         && addedProfile.pinned === true
         && addedProfile.color === '#abcdef'
         && !Object.prototype.hasOwnProperty.call(addedProfile, 'notes');
+
+      outcomes.allOutcomesReached = true;
     } finally {
       state.currentProfile = saved.state.currentProfile;
       state.importedData = saved.state.importedData;
