@@ -73,3 +73,165 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
     expect(passed, name).toBe(true);
   }
 });
+
+test('chat action browser coverage handles copy and regenerate branches', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() => !!window._labState);
+
+  const results = await page.evaluate(async () => {
+    const [chatActions, chatThreads] = await Promise.all([
+      import('/js/chat-actions.js'),
+      import('/js/chat-threads.js'),
+    ]);
+    const state = window._labState;
+    const outcomes = {};
+    const copied = [];
+    const threadStorageKey = state.currentThreadId
+      ? chatThreads.getChatThreadKey(state.currentThreadId)
+      : null;
+    let input = null;
+    let createdInput = false;
+    let originalInputValue = '';
+    const saved = {
+      chatHistory: JSON.parse(JSON.stringify(state.chatHistory || [])),
+      currentThreadId: state.currentThreadId,
+      clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
+      isChatStreaming: window.isChatStreaming,
+      renderChatMessages: window.renderChatMessages,
+      sendChatMessage: window.sendChatMessage,
+      setTimeout: window.setTimeout,
+      threadStorageKey,
+      threadStorage: threadStorageKey ? localStorage.getItem(threadStorageKey) : null,
+    };
+    const timers = [];
+    const flush = () => new Promise(resolve => saved.setTimeout.call(window, resolve, 0));
+    const makeButton = (id) => {
+      const button = document.createElement('button');
+      button.id = id;
+      button.textContent = 'Copy';
+      document.body.appendChild(button);
+      return button;
+    };
+
+    try {
+      window.setTimeout = (fn, delay = 0) => {
+        timers.push({ fn, delay });
+        return timers.length;
+      };
+
+      state.chatHistory = [
+        { role: 'user', content: 'Hello <there>' },
+        {
+          role: 'assistant',
+          content: 'Assistant answer',
+          context: [{ label: '<Labs>', detail: '5 > 3' }],
+        },
+      ];
+
+      outcomes.buildActionBarEscapesContextAndAddsLastRegenerate = (() => {
+        const html = chatActions.buildActionBar(1);
+        return html.includes('Regenerate')
+          && html.includes('copyMessage(1)')
+          && html.includes('&lt;Labs&gt;')
+          && html.includes('5 &gt; 3')
+          && chatActions.buildActionBar(0) === ''
+          && chatActions.buildActionBar(99) === '';
+      })();
+
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async text => { copied.push(text); } },
+      });
+      const successBtn = makeButton('chat-copy-btn-1');
+      chatActions.copyMessage(1);
+      await flush();
+      outcomes.copyMessageSuccessWritesAndMarksCopied =
+        copied[0] === 'Assistant answer'
+        && successBtn.textContent.includes('Copied')
+        && timers.some(timer => timer.delay === 1500);
+      timers.pop()?.fn();
+      outcomes.copyMessageSuccessResetTimerRestoresCopy = successBtn.textContent.includes('Copy');
+      successBtn.remove();
+
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async () => { throw new Error('blocked'); } },
+      });
+      const failBtn = makeButton('chat-copy-btn-1');
+      chatActions.copyMessage(1);
+      await flush();
+      outcomes.copyMessageFailureMarksFailed = failBtn.textContent.includes('Failed');
+      failBtn.remove();
+
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: null,
+      });
+      const unsupportedBtn = makeButton('chat-copy-btn-1');
+      chatActions.copyMessage(1);
+      outcomes.copyMessageNoClipboardMarksUnsupported = unsupportedBtn.textContent.includes('Not supported');
+
+      let renderCount = 0;
+      let sendCount = 0;
+      input = document.getElementById('chat-input');
+      if (input) {
+        originalInputValue = input.value;
+      } else {
+        input = document.createElement('textarea');
+        input.id = 'chat-input';
+        document.body.appendChild(input);
+        createdInput = true;
+      }
+      window.renderChatMessages = () => { renderCount += 1; };
+      window.sendChatMessage = () => { sendCount += 1; };
+      window.isChatStreaming = () => true;
+      state.currentThreadId = null;
+      state.chatHistory = [
+        { role: 'user', content: 'Streaming guard' },
+        { role: 'assistant', content: 'Still streaming' },
+      ];
+      chatActions.regenerateLastMessage();
+      outcomes.regenerateSkipsWhileStreaming = renderCount === 0
+        && sendCount === 0
+        && state.chatHistory.length === 2;
+
+      window.isChatStreaming = () => false;
+      state.chatHistory = [
+        { role: 'assistant', content: 'Earlier assistant' },
+        { role: 'user', content: 'Repeat this prompt' },
+        { role: 'assistant', content: 'Regenerate me' },
+      ];
+      chatActions.regenerateLastMessage();
+      outcomes.regeneratePopsLastPairAndResends =
+        renderCount === 1
+        && sendCount === 1
+        && input.value === 'Repeat this prompt'
+        && state.chatHistory.length === 1
+        && state.chatHistory[0].content === 'Earlier assistant';
+    } finally {
+      state.chatHistory = saved.chatHistory;
+      state.currentThreadId = saved.currentThreadId;
+      window.isChatStreaming = saved.isChatStreaming;
+      window.renderChatMessages = saved.renderChatMessages;
+      window.sendChatMessage = saved.sendChatMessage;
+      window.setTimeout = saved.setTimeout;
+      if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
+      else delete navigator.clipboard;
+      if (saved.threadStorageKey) {
+        if (saved.threadStorage == null) localStorage.removeItem(saved.threadStorageKey);
+        else localStorage.setItem(saved.threadStorageKey, saved.threadStorage);
+      }
+      document.querySelectorAll('[id^="chat-copy-btn-"]').forEach(el => el.remove());
+      if (input) {
+        if (createdInput) input.remove();
+        else input.value = originalInputValue;
+      }
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
