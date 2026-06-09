@@ -1,0 +1,236 @@
+import { expect, test } from './coverage-fixture.js';
+
+function moduleUrl(path) {
+  return `${path}?dashboardAiCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function openBlankPage(page) {
+  await page.route('**/dashboard-ai-browser-coverage**', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+  }));
+  await page.goto('/dashboard-ai-browser-coverage', { waitUntil: 'load' });
+}
+
+test('dashboard AI browser coverage exercises CTA rendering picker routing and DNA input', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async ({ dashboardUrl }) => {
+    const originalShowDirectoryPicker = window.showDirectoryPicker;
+    const hadShowDirectoryPicker = Object.prototype.hasOwnProperty.call(window, 'showDirectoryPicker');
+    window.showDirectoryPicker = async () => ({ name: 'Coverage Backups' });
+    const dashboardAi = await import(dashboardUrl);
+    const { state } = await import('/js/state.js');
+    const outcomes = {};
+
+    const snapshotStorage = storage => new Map(Array.from({ length: storage.length }, (_, index) => storage.key(index))
+      .filter(key => key !== null)
+      .map(key => [key, storage.getItem(key)]));
+    const restoreStorage = (storage, snapshot) => {
+      storage.clear();
+      for (const [key, value] of snapshot) {
+        if (value != null) storage.setItem(key, value);
+      }
+    };
+
+    const savedLocal = snapshotStorage(localStorage);
+    const savedImportedData = state.importedData;
+    const hadImportedData = Object.prototype.hasOwnProperty.call(state, 'importedData');
+    const savedGlobals = {
+      showDirectoryPicker: originalShowDirectoryPicker,
+      showEnableEncryptionModal: window.showEnableEncryptionModal,
+      showSyncSetupModal: window.showSyncSetupModal,
+      pickFolderForBackup: window.pickFolderForBackup,
+      openInterpretiveLensEditor: window.openInterpretiveLensEditor,
+      openKnowledgeBaseModal: window.openKnowledgeBaseModal,
+      handleDNAFile: window.handleDNAFile,
+      setTimeout: window.setTimeout,
+    };
+    const hadGlobals = {};
+    for (const name of Object.keys(savedGlobals)) {
+      hadGlobals[name] = Object.prototype.hasOwnProperty.call(window, name);
+    }
+    const originalInputClick = HTMLInputElement.prototype.click;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+
+    const calls = [];
+    const timers = [];
+    let clickedInputId = null;
+    let handledDnaFile = null;
+
+    try {
+      window.setTimeout = (fn, delay, ...args) => {
+        timers.push(delay);
+        if (typeof fn === 'function') Promise.resolve().then(() => fn(...args));
+        return timers.length;
+      };
+      window.showEnableEncryptionModal = () => calls.push('encryption');
+      window.showSyncSetupModal = () => calls.push('sync');
+      window.pickFolderForBackup = () => calls.push('backup');
+      window.openInterpretiveLensEditor = () => calls.push('lens');
+      window.openKnowledgeBaseModal = () => calls.push('kb');
+      window.handleDNAFile = file => {
+        handledDnaFile = { name: file.name, textType: file.type };
+      };
+      HTMLInputElement.prototype.click = function clickSpy() {
+        clickedInputId = this.id;
+      };
+
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      localStorage.setItem('labcharts-sync-enabled', 'false');
+      localStorage.setItem('labcharts-lens-key', 'coverage-key');
+      localStorage.setItem('labcharts-lens-config', JSON.stringify({
+        enabled: true,
+        backend: 'external-server',
+        url: 'https://kb.example/rag',
+        name: 'Research <Vault>',
+        multiQuery: true,
+      }));
+      state.importedData = {
+        ...(state.importedData || {}),
+        interpretiveLens: 'Dr <Lens> & mitochondria',
+      };
+
+      const lensHtml = dashboardAi.renderInterpretiveLensSection();
+      host.innerHTML = lensHtml;
+      outcomes.renderInterpretiveLensEscapesLensAndKb = host.textContent.includes('Dr <Lens> & mitochondria')
+        && host.textContent.includes('Research <Vault>')
+        && host.textContent.includes('query rewriting on')
+        && !lensHtml.includes('Dr <Lens>')
+        && !lensHtml.includes('Research <Vault>')
+        && host.querySelectorAll('.lens-section').length === 2;
+      outcomes.renderInterpretiveLensHidesPersonalizeCtaWhenConfigured =
+        !host.textContent.includes('Personalize how AI answers');
+      outcomes.renderInterpretiveLensIncludesDataProtectionCta =
+        !!host.querySelector('.dashboard-cta[aria-label="Protect your data"]');
+
+      const kbHtml = dashboardAi.renderKnowledgeBaseSection();
+      outcomes.renderKnowledgeBaseSectionShowsConfiguredExternalLibrary = kbHtml.includes('Knowledge Base')
+        && kbHtml.includes('Research &lt;Vault&gt;')
+        && kbHtml.includes('query rewriting on');
+
+      localStorage.setItem('labcharts-lens-config', JSON.stringify({ enabled: false, backend: 'external-server', url: '', name: '' }));
+      outcomes.renderKnowledgeBaseSectionHidesWhenUnconfigured = dashboardAi.renderKnowledgeBaseSection() === '';
+
+      const ctaCases = {
+        allProtected: dashboardAi.renderDataProtectionCta({
+          encryption: true,
+          sync: true,
+          backup: true,
+          backupSupported: true,
+        }),
+        encryptionOnly: dashboardAi.renderDataProtectionCta({
+          encryption: false,
+          sync: true,
+          backup: true,
+          backupSupported: true,
+        }),
+        syncOnly: dashboardAi.renderDataProtectionCta({
+          encryption: true,
+          sync: false,
+          backup: true,
+          backupSupported: true,
+        }),
+        backupOnly: dashboardAi.renderDataProtectionCta({
+          encryption: true,
+          sync: true,
+          backup: false,
+          backupSupported: true,
+        }),
+        backupUnsupported: dashboardAi.renderDataProtectionCta({
+          encryption: true,
+          sync: true,
+          backup: false,
+          backupSupported: false,
+        }),
+        multipleMissing: dashboardAi.renderDataProtectionCta({
+          encryption: false,
+          sync: false,
+          backup: false,
+          backupSupported: true,
+        }),
+      };
+      outcomes.renderDataProtectionCtaCoversStatusMatrix = ctaCases.allProtected === ''
+        && ctaCases.encryptionOnly.includes('Enable encryption')
+        && ctaCases.syncOnly.includes('Sync to other devices')
+        && ctaCases.backupOnly.includes('Set up auto-backup')
+        && ctaCases.backupUnsupported === ''
+        && ctaCases.multipleMissing.includes('Protect your data');
+
+      const clickPickerCard = async (openPicker, selector) => {
+        openPicker();
+        await Promise.resolve();
+        const overlay = document.querySelector('.confirm-overlay.show');
+        overlay?.querySelector(selector)?.click();
+        await Promise.resolve();
+        return overlay && !overlay.classList.contains('show');
+      };
+
+      outcomes.dataProtectionPickerRoutesAllUnconfiguredActions =
+        await clickPickerCard(dashboardAi.openDataProtectionPicker, '[data-pick="encryption"]')
+        && await clickPickerCard(dashboardAi.openDataProtectionPicker, '[data-pick="sync"]')
+        && await clickPickerCard(dashboardAi.openDataProtectionPicker, '[data-pick="backup"]')
+        && calls.includes('encryption')
+        && calls.includes('sync')
+        && calls.includes('backup');
+
+      outcomes.personalizePickerRoutesLensAndKnowledgeBase =
+        await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="lens"]')
+        && await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="kb"]')
+        && calls.includes('lens')
+        && calls.includes('kb');
+      outcomes.pickersScheduleFocusTimers = timers.some(delay => delay === 50);
+
+      dashboardAi.triggerDNAFilePicker();
+      const input = document.getElementById('dna-dashboard-input');
+      const transfer = new DataTransfer();
+      let dnaInputResetCount = 0;
+      transfer.items.add(new File(['rsid,genotype'], 'genome.csv', { type: 'text/csv' }));
+      if (input) {
+        Object.defineProperty(input, 'files', { configurable: true, value: transfer.files });
+        const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+        if (valueDescriptor?.get && valueDescriptor?.set) {
+          Object.defineProperty(input, 'value', {
+            configurable: true,
+            get() {
+              return valueDescriptor.get.call(this);
+            },
+            set(value) {
+              if (value === '') dnaInputResetCount += 1;
+              valueDescriptor.set.call(this, value);
+            },
+          });
+        }
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      outcomes.triggerDNAFilePickerCreatesInputClicksAndDispatchesFile = clickedInputId === 'dna-dashboard-input'
+        && input?.accept === '.txt,.csv'
+        && handledDnaFile?.name === 'genome.csv'
+        && handledDnaFile?.textType === 'text/csv'
+        && dnaInputResetCount === 1;
+    } finally {
+      host.remove();
+      document.querySelectorAll('#data-protection-picker-overlay,#ai-personalize-picker-overlay,#dna-dashboard-input')
+        .forEach(el => el.remove());
+      HTMLInputElement.prototype.click = originalInputClick;
+      for (const [name, original] of Object.entries(savedGlobals)) {
+        if (name === 'showDirectoryPicker' && !hadShowDirectoryPicker) delete window[name];
+        else if (hadGlobals[name]) window[name] = original;
+        else delete window[name];
+      }
+      if (hadImportedData) state.importedData = savedImportedData;
+      else delete state.importedData;
+      restoreStorage(localStorage, savedLocal);
+    }
+
+    return outcomes;
+  }, {
+    dashboardUrl: moduleUrl('/js/context-card-dashboard-ai.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
