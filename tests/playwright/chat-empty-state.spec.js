@@ -239,7 +239,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     });
     const fullContextData = () => baseImportedData({
       healthGoals: ['better energy'],
-      diagnoses: { items: ['hypothyroid'] },
+      diagnoses: { conditions: [{ name: 'hypothyroid' }] },
       diet: { style: 'omnivore' },
       exercise: { frequency: '3x/week' },
       sleepRest: { quality: 'fragmented' },
@@ -282,6 +282,8 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       if (opts.providerBranch) sessionStorage.setItem(`chat-onboard-provider-branch-${profileId}`, opts.providerBranch);
       container.innerHTML = '';
       panel.className = '';
+      chatInput.value = '';
+      calls.length = 0;
     };
     const renderText = () => {
       renderEmptyChatState(container, panel);
@@ -289,6 +291,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     };
 
     try {
+      document.body.append(container, panel);
       if (createdChatInput) {
         chatInput.id = 'chat-input';
         document.body.append(chatInput);
@@ -302,7 +305,6 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       } else {
         pdfInput.value = '';
       }
-      document.body.append(container, panel);
       window._resumeAI = () => calls.push(['resume-ai']);
       window.openChatProviderQuiz = () => calls.push(['provider-quiz']);
       window.setOnboardingFocus = focus => calls.push(['focus', focus]);
@@ -375,7 +377,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       outcomes.dataContextNudgeStateRendersCopy = nudgeText.includes('I can see your lab results');
       outcomes.dataContextNudgeStateRunsFocusAction = calls.some(call => call[0] === 'focus' && call[1] === 'cards');
 
-      setFixture(labData({ diagnoses: { item: 'baseline' }, diet: { style: 'high protein' }, exercise: { frequency: 'daily' } }), { extrasDone: true });
+      setFixture(labData({ diagnoses: { conditions: [{ name: 'baseline' }] }, diet: { style: 'high protein' }, exercise: { frequency: 'daily' } }), { extrasDone: true });
       const generalText = renderText();
       outcomes.generalPromptStateLeavesPanelInactive = !panel.classList.contains('chat-onboarding-active');
       outcomes.generalPromptStateUsesDefaultPromptCopy = generalText.includes('What are my most concerning results?');
