@@ -195,12 +195,38 @@ test('recommendations browser coverage exercises catalog renderers detectors and
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ recUrl }) => {
-    const [rec, { state }] = await Promise.all([
-      import(recUrl),
-      import('/js/state.js'),
-    ]);
-
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const { state } = await import('/js/state.js');
+    const recommendationWindowKeys = [
+      'isProductRecsEnabled',
+      'setProductRecsEnabled',
+      'markRecDisclosureSeen',
+      'renderRecommendationSection',
+      'renderRecommendationSectionSync',
+      'detectSupplementSlots',
+      'loadCatalog',
+      'buildDNAHints',
+      'getCardSlotKeys',
+      'renderCardTipsModal',
+      'loadEMFCatalog',
+      'getEMFMeters',
+      'getEMFProductsForMitigations',
+      'renderEMFMeterRecs',
+      'renderEMFMitigationRecs',
+      'detectEMFRelevance',
+      'detectMitigationsInText',
+      'getLightDeviceProduct',
+      'renderLightDeviceAffiliateRow',
+      'recommendDeviceProductsForChannelDeficit',
+      'renderChannelDeficitDeviceRecs',
+      'copyCouponCode',
+    ];
+    const savedRecommendationWindowExports = recommendationWindowKeys.map(key => ({
+      key,
+      hadOwn: Object.prototype.hasOwnProperty.call(window, key),
+      value: window[key],
+    }));
+    const rec = await import(recUrl);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
       return [key, localStorage.getItem(key)];
@@ -215,6 +241,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
+      recommendationWindowExports: savedRecommendationWindowExports,
     };
     const outcomes = {};
     const host = document.createElement('div');
@@ -421,6 +448,10 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       restoreWindowProp('openProfileLocationEditor', saved.openProfileLocationEditor);
       restoreWindowProp('openEMFAssessmentEditor', saved.openEMFAssessmentEditor);
       restoreWindowProp('openSettingsTab', saved.openSettingsTab);
+      for (const { key, hadOwn, value } of saved.recommendationWindowExports) {
+        if (hadOwn) window[key] = value;
+        else delete window[key];
+      }
       window.setTimeout = saved.setTimeout;
       if (saved.clipboard) Object.defineProperty(navigator, 'clipboard', saved.clipboard);
       else delete navigator.clipboard;
