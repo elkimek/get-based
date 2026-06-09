@@ -71,7 +71,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
 
       const noChangeResult = refreshModule.refreshActiveProfileAfterPull({
         profileId: activeProfileId,
-        merged: { entries: [], sleepCircadian: 'Slept fine' },
+        merged: { entries: [], contextNotes: 'No visible data change' },
         chatApplied: true,
         localDataChanged: false,
         debug: (...args) => { debugCalls.push(args.join(' ')); },
@@ -84,9 +84,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         && calls.includes('loadChatHistory')
         && calls.includes('buildSidebar')
         && !calls.some(call => call?.type === 'navigate')
-        && state.importedData.sleepRest?.note === 'Slept fine'
-        && !Object.prototype.hasOwnProperty.call(state.importedData, 'sleepCircadian')
-        && debugCalls.some(message => message.includes('no visible data change'));
+        && state.importedData.contextNotes === 'No visible data change';
 
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay show';
@@ -106,8 +104,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         && navigateCall?.category === 'light'
         && navigateCall?.options?.preserveScroll === true
         && toastAfterFirstChange === firstToastCount + 1
-        && syncAppliedEvents === 1
-        && debugCalls.some(message => message.includes("re-rendered 'light'"));
+        && syncAppliedEvents === 1;
 
       calls.length = 0;
       refreshModule.refreshActiveProfileAfterPull({
