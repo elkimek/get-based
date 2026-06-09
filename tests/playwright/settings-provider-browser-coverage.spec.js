@@ -4,6 +4,7 @@ const moduleUrl = (path) => `${path}?settingsProviderCoverage=${Date.now()}-${Ma
 
 test('local AI settings controls cover connection, advisor, privacy, and hardware override branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ controlsUrl, piiUrl }) => {
     const controls = await import(controlsUrl);
@@ -205,11 +206,19 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
 test('settings sync and agent access delegates cover setup, restore, relay, tombstone, and token paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl }) => {
     const syncPanel = await import(syncPanelUrl);
     const syncState = await import(syncStateUrl);
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, label) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        if (predicate()) return true;
+        await wait(25);
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
     const words = Array.from({ length: 24 }, (_, i) => `word${i + 1}`);
     const mnemonic = words.join(' ');
 
@@ -280,10 +289,9 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const tombstoneBanner = syncSection.textContent.includes('Old Profile');
       syncSection.querySelector('[data-sync-action="apply-tombstone"]').click();
       syncSection.querySelector('[data-sync-action="reject-tombstone"]').click();
-      await wait(0);
-      const tombstoneDelegates = applied.includes('profile-old')
+      const tombstoneDelegates = await waitFor(() => applied.includes('profile-old')
         && rejected.includes('profile-old')
-        && openedTabs.filter(tab => tab === 'data').length >= 2;
+        && openedTabs.filter(tab => tab === 'data').length >= 2, 'tombstone delegates');
 
       syncSection.querySelector('[data-sync-action="toggle-sync"]').checked = true;
       syncSection.querySelector('[data-sync-action="toggle-sync"]').dispatchEvent(new Event('change', { bubbles: true }));
@@ -331,10 +339,9 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         .some(el => el.textContent.includes('Relay URL must start'));
       relayInput.value = 'wss://new-relay.example';
       syncSection.querySelector('[data-sync-action="save-relay"]').click();
-      await wait(0);
-      const relaySaved = localStorage.getItem('labcharts-sync-relay') === 'wss://new-relay.example'
+      const relaySaved = await waitFor(() => localStorage.getItem('labcharts-sync-relay') === 'wss://new-relay.example'
         && syncIndicatorUpdates >= 1
-        && document.getElementById('sync-status-text')?.textContent.includes('Connected');
+        && document.getElementById('sync-status-text')?.textContent.includes('Connected'), 'relay connected status');
 
       messengerSection.innerHTML = syncPanel.renderMessengerSection();
       messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = true;
