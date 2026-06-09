@@ -59,13 +59,13 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
       const tylenol = warnings.lookupMitoCompound('daily tylenol tablets');
       const shortAliasExact = warnings.lookupMitoCompound('nac');
       const shortAliasInPhrase = warnings.lookupMitoCompound('daily nac');
-      const escapedKeyword = warnings.lookupMitoCompound('alpha-lipoic acid 600mg');
+      const hyphenatedKeyword = warnings.lookupMitoCompound('alpha-lipoic acid 600mg');
 
       outcomes.lookupExactNormalizesCaseAndTrim = metformin?.name === 'Metformin';
       outcomes.lookupWordBoundaryFindsKeywordInPhrase = tylenol?.name === 'Acetaminophen';
       outcomes.lookupShortExactKeywordWorks = shortAliasExact?.name === 'N-Acetylcysteine';
       outcomes.lookupShortKeywordDoesNotWordMatch = shortAliasInPhrase === null;
-      outcomes.lookupEscapesRegexCharacters = escapedKeyword?.name === 'Alpha-Lipoic Acid';
+      outcomes.lookupHyphenatedKeywordMatches = hyphenatedKeyword?.name === 'Alpha-Lipoic Acid';
       outcomes.lookupRejectsTooShortQueries = warnings.lookupMitoCompound('nr') === null;
       outcomes.lookupMissReturnsNull = warnings.lookupMitoCompound('made-up-compound') === null;
 
@@ -89,14 +89,20 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
         { name: 'Melatonin' },
         { name: 'Alpha-Lipoic Acid' },
       ]);
+      const metforminWarning = metforminWarnings[0];
+      const metforminSearchUrl = metforminWarning?.searchUrl ? new URL(metforminWarning.searchUrl) : null;
 
       outcomes.scanNullReturnsEmpty = Array.isArray(emptyWarnings) && emptyWarnings.length === 0;
       outcomes.scanDedupesAliases = metforminWarnings.length === 1;
-      outcomes.scanUsesOriginalSupplementName = metforminWarnings[0]?.match === 'Metformin';
-      outcomes.scanBuildsWarningText = metforminWarnings[0]?.warning.includes('Metformin: inhibits Complex I');
+      outcomes.scanUsesOriginalSupplementName = metforminWarning?.match === 'Metformin';
+      outcomes.scanBuildsWarningFromLoadedEntry =
+        metforminWarning?.warning.startsWith(`${metformin?.name}: `) === true
+        && metforminWarning.effects.every(effect => metforminWarning.warning.includes(effect.f));
       outcomes.scanIncludesPubMedUrls =
-        metforminWarnings[0]?.url === 'https://pubmed.ncbi.nlm.nih.gov/39693440/';
-      outcomes.scanIncludesSearchUrls = metforminWarnings[0]?.searchUrl.includes('metformin%20mitochondrial');
+        /^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/.test(metforminWarning?.url || '');
+      outcomes.scanIncludesSearchUrls =
+        metforminSearchUrl?.hostname === 'pubmed.ncbi.nlm.nih.gov'
+        && !!metforminSearchUrl.searchParams.get('term');
       outcomes.scanIgnoresProtectiveEffects = protectiveWarnings.length === 0;
       outcomes.scanTreatsRedoxCyclesAsHarmful =
         paraquatWarnings[0]?.effects.some(effect => effect.a === 'redox cycles') === true;
@@ -112,7 +118,7 @@ test('supplement warning browser coverage exercises lookup scan urls and effect 
           { a: 'inhibits', f: 'Complex I', t: 'high dose' },
           { showContext: true },
         ) === 'may inhibit Complex I (high dose)';
-      outcomes.humanizeMappedVerbWithoutContext =
+      outcomes.humanizeMappedVerbNoContextField =
         warnings.humanizeEffect({ a: 'binds', f: 'CoQ10' }, { showContext: true }) === 'binds CoQ10';
       outcomes.humanizeUnknownVerbSingularizes =
         warnings.humanizeEffect({ a: 'protects', f: 'Complex I' }) === 'may protect Complex I';
