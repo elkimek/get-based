@@ -119,6 +119,15 @@ const MOCK_CATALOG = {
         url: 'https://mitochondriak.sk/magnesium-other',
         vendorKey: 'mito',
       },
+      {
+        key: 'cz-only-magnesium',
+        type: 'supplement',
+        brand: 'Czech Only',
+        name: 'CZ-only magnesium',
+        regions: ['CZ'],
+        url: 'https://mitochondriak.com/cz-only-magnesium',
+        vendorKey: 'mito',
+      },
     ],
     'env.shieldingPaint': [
       {
@@ -205,10 +214,11 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       openEMFAssessmentEditor: window.openEMFAssessmentEditor,
       openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
+      setTimeout: window.setTimeout,
     };
     const outcomes = {};
     const host = document.createElement('div');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const wait = ms => new Promise(resolve => saved.setTimeout.call(window, resolve, ms));
     const restoreWindowProp = (key, value) => {
       if (value === undefined) delete window[key];
       else window[key] = value;
@@ -282,7 +292,10 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       outcomes.unknownRegionFallback = rec.regionLookupChain('NOPE').join('|') === 'NOPE|INTL';
       outcomes.profileRegionResolvesCountry = rec.getUserRegion() === 'SK';
       outcomes.regionLabelFallback = rec.regionLabel('NOPE') === 'worldwide';
-      outcomes.productsFilterByHierarchy = rec.getProductsForSlot(catalogA, 'magnesium', 'SK').length === 5;
+      const skProducts = rec.getProductsForSlot(catalogA, 'magnesium', 'SK');
+      outcomes.productsFilterByHierarchy = skProducts.length === 5
+        && skProducts.some(product => product.key === 'mag-glycinate')
+        && !skProducts.some(product => product.key === 'cz-only-magnesium');
 
       outcomes.pickRegionalPrefersSpecific = rec._pickRegional({ INTL: 'world', SK: 'local' }, 'SK') === 'local';
       outcomes.pickRegionalRejectsArray = rec._pickRegional([{ SK: 'bad' }], 'SK') === null;
@@ -325,16 +338,25 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && !host.querySelector('.rec-section-gated');
 
       let copiedCode = '';
+      let couponFlashCleanup = null;
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: async code => { copiedCode = code; } },
       });
+      window.setTimeout = (fn, _ms, ...args) => {
+        couponFlashCleanup = () => fn(...args);
+        return 1;
+      };
       const couponBtn = host.querySelector('.rec-coupon-code');
       window.copyCouponCode(couponBtn);
       await wait(0);
       outcomes.copyCouponUsesClipboard = copiedCode === 'SK12'
         && couponBtn?.dataset.flashing === '1'
         && couponBtn?.textContent.includes('Copied');
+      couponFlashCleanup?.();
+      outcomes.copyCouponCleanupRestoresButton = couponBtn?.dataset.flashing !== '1'
+        && couponBtn?.textContent === 'SK12';
+      window.setTimeout = saved.setTimeout;
 
       const asyncHtml = await rec.renderRecommendationSection('magnesium', { label: 'Async recommendations' });
       outcomes.asyncRenderUsesLoadedCatalog = asyncHtml.includes('Async recommendations')
@@ -348,7 +370,8 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       state.importedData.emfAssessment = { assessments: [] };
       const environmentTips = rec.renderCardTipsModal('environment');
       outcomes.environmentCardIncludesEmfNudge = environmentTips.includes('Open the EMF assessment');
-      state.importedData.emfAssessment = { assessments: [{ date: '2024-01-01' }] };
+      const staleAssessmentDate = new Date(Date.now() - 130 * 86400_000).toISOString().slice(0, 10);
+      state.importedData.emfAssessment = { assessments: [{ date: staleAssessmentDate }] };
       outcomes.staleEmfNudgeRenders = rec.renderCardTipsModal('environment').includes('Re-check the room');
 
       outcomes.emfMetersFilterByType = rec.getEMFMeters(catalogA, ['rf'])[0]?.key === 'safe-meter';
@@ -391,7 +414,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && deficitHtml.includes('turn off')
         && deficitHtml.includes('utm_campaign=light-devices');
     } finally {
-      await wait(1450);
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       state.importedData = saved.importedData;
@@ -399,6 +421,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       restoreWindowProp('openProfileLocationEditor', saved.openProfileLocationEditor);
       restoreWindowProp('openEMFAssessmentEditor', saved.openEMFAssessmentEditor);
       restoreWindowProp('openSettingsTab', saved.openSettingsTab);
+      window.setTimeout = saved.setTimeout;
       if (saved.clipboard) Object.defineProperty(navigator, 'clipboard', saved.clipboard);
       else delete navigator.clipboard;
       localStorage.clear();
