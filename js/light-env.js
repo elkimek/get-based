@@ -1075,6 +1075,7 @@ async function updateLightEnvScreenAndRender(id, patch) {
 
 async function deleteLightEnvScreen(id) {
   await deleteScreen(id);
+  if (_expandedScreenId === id) _expandedScreenId = null;
   refreshLightEnvironmentUI();
 }
 

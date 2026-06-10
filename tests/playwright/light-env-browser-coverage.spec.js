@@ -371,10 +371,22 @@ test('light environment browser coverage handles screens tools and confirm delet
       await window.addLightEnvScreenWithDevice(null, 'tablet');
       await waitUntil(() => env().screens.some(s => s.device === 'tablet'), 'tablet screen added');
       const directScreenId = latestScreen().id;
+      const directScreenBeforeDelete = document.createElement('div');
+      directScreenBeforeDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
       await window.deleteLightEnvScreen(directScreenId);
+      const directScreenAfterDelete = document.createElement('div');
+      directScreenAfterDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      await window.addLightEnvScreenWithDevice(null, 'monitor');
+      await waitUntil(() => env().screens.some(s => s.device === 'monitor'), 'monitor screen added');
+      const replacementScreenId = latestScreen().id;
+      const directScreenAfterReplacement = document.createElement('div');
+      directScreenAfterReplacement.innerHTML = window.renderEnvironmentSection({ embedded: true });
       await window.deleteLightEnvRoom(directRoomId);
       outcomes.directDeleteHelpersRemoveRecords =
-        !env().screens.some(s => s.id === directScreenId)
+        directScreenBeforeDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`)?.classList.contains('expanded') === true
+        && directScreenAfterDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`) === null
+        && directScreenAfterReplacement.querySelector(`.light-env-screen-card[data-id="${replacementScreenId}"]`)?.classList.contains('expanded') === true
+        && !env().screens.some(s => s.id === directScreenId)
         && !env().rooms.some(r => r.id === directRoomId);
     } finally {
       document.getElementById('light-env-browser-host')?.remove();
