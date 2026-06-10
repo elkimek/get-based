@@ -272,7 +272,8 @@ test('settings browser coverage renames imported entry dates through the data se
         sectionRefreshed: document.getElementById('data-entries-section').textContent.includes('Feb 3, 2026'),
         viewsRefreshed: calls.includes('buildSidebar')
           && calls.includes('updateHeaderDates')
-          && calls.includes('navigate:dashboard'),
+          && calls.includes('navigate:dashboard')
+          && calls.includes('invalidateLabContextCache'),
       };
     } finally {
       state.importedData = saved.importedData;
