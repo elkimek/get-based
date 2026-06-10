@@ -119,10 +119,11 @@ test('light sessions view edge coverage handles empty and compact device history
       sessionsView._openAllSessionsModal();
       overlay = document.querySelector('.light-sessions-modal-overlay');
       const modalRow = overlay?.querySelector('.light-session-device[data-id="dev-nir"]');
+      const detailCallsBeforeModalEnter = calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length;
       modalRow?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       await delay(0);
       outcomes.modalEnterClosesAfterOpeningDetail = !document.body.contains(overlay)
-        && calls.some(call => call[0] === 'detail' && call[1] === 'dev-nir');
+        && calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length === detailCallsBeforeModalEnter + 1;
     } finally {
       Object.assign(window, saved);
       document.querySelectorAll('.light-sessions-modal-overlay').forEach(el => el.remove());
