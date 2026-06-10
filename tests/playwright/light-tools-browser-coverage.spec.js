@@ -37,6 +37,10 @@ test('light tools browser coverage exercises storage render and modal flows', as
       getContext: HTMLCanvasElement.prototype.getContext,
       requestAnimationFrame: window.requestAnimationFrame,
       cancelAnimationFrame: window.cancelAnimationFrame,
+      setTimeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+      performanceNowDescriptor: Object.getOwnPropertyDescriptor(performance, 'now'),
+      performanceNow: performance.now,
       hadAmbientLightSensor: Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor'),
       AmbientLightSensor: window.AmbientLightSensor,
     };
@@ -52,6 +56,13 @@ test('light tools browser coverage exercises storage render and modal flows', as
     const loggedSessions = [];
     const hydrateCalls = [];
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate, timeoutMs = 1000) => {
+      const started = Date.now();
+      while (!predicate()) {
+        if (Date.now() - started > timeoutMs) throw new Error('Timed out waiting for browser coverage condition');
+        await wait(10);
+      }
+    };
     const hasDeleted = id => Array.isArray(state.importedData?._deleted?.lightMeasurements)
       && state.importedData._deleted.lightMeasurements.includes(id);
 
@@ -246,10 +257,33 @@ test('light tools browser coverage exercises storage render and modal flows', as
       results.openFlickerFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Flicker detector"]');
       window._closeFlicker?.();
+      let fakeNow = 0;
+      Object.defineProperty(performance, 'now', {
+        configurable: true,
+        value: () => {
+          fakeNow += 10_000;
+          return fakeNow;
+        },
+      });
+      window.setTimeout = (callback, _delay, ...args) => saved.setTimeout.call(window, callback, 0, ...args);
       await lightTools.openDarknessMeter({ roomId: 'room-2' });
+      document.getElementById('dark-start')?.click();
+      await waitUntil(() => document.getElementById('dark-start')?.textContent === 'Save reading');
       results.openDarknessFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Sleep darkness meter"]');
       window._closeDark?.();
+      window.setTimeout = saved.setTimeout;
+      window.clearTimeout = saved.clearTimeout;
+      if (saved.performanceNowDescriptor) {
+        Object.defineProperty(performance, 'now', saved.performanceNowDescriptor);
+      } else {
+        try { delete performance.now; } catch (_) {
+          Object.defineProperty(performance, 'now', {
+            configurable: true,
+            value: saved.performanceNow,
+          });
+        }
+      }
       await lightTools.openCCTMeter({ roomId: 'room-2' });
       results.openCCTFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Color temperature meter"]');
@@ -259,10 +293,12 @@ test('light tools browser coverage exercises storage render and modal flows', as
         !!document.querySelector('[aria-label="Spectrum classifier"]');
       window._closeSpec?.();
       await lightTools.openGlassTransmission({ roomId: 'room-2' });
+      document.getElementById('glass-measure-inside')?.click();
+      await waitUntil(() => (document.getElementById('glass-reading-inside')?.textContent || '').includes('lux'), 2500);
       results.openGlassFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Glass transmission test"]');
       window._closeGlass?.();
-      results.cameraFacadeStreamsStoppedOnClose = streamStops.length >= 3;
+      results.cameraFacadeStreamsStoppedOnClose = streamStops.length >= 5;
 
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
@@ -299,6 +335,18 @@ test('light tools browser coverage exercises storage render and modal flows', as
       HTMLCanvasElement.prototype.getContext = saved.getContext;
       window.requestAnimationFrame = saved.requestAnimationFrame;
       window.cancelAnimationFrame = saved.cancelAnimationFrame;
+      window.setTimeout = saved.setTimeout;
+      window.clearTimeout = saved.clearTimeout;
+      if (saved.performanceNowDescriptor) {
+        Object.defineProperty(performance, 'now', saved.performanceNowDescriptor);
+      } else {
+        try { delete performance.now; } catch (_) {
+          Object.defineProperty(performance, 'now', {
+            configurable: true,
+            value: saved.performanceNow,
+          });
+        }
+      }
       if (saved.hadAmbientLightSensor) window.AmbientLightSensor = saved.AmbientLightSensor;
       else delete window.AmbientLightSensor;
       try {
