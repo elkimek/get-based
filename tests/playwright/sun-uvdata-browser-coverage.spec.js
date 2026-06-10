@@ -1,0 +1,507 @@
+import { expect, test } from './coverage-fixture.js';
+
+function moduleUrl(path) {
+  return `${path}?sunUvdataBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function expectAll(outcomes) {
+  const failed = Object.entries(outcomes)
+    .filter(([, value]) => value !== true)
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+  expect(failed).toEqual([]);
+}
+
+test('sun uvdata browser coverage handles config cache globals and purging', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ sunUrl }) => {
+    const outcomes = {};
+    const storageKey = 'labcharts-meteo-config';
+    const originalConfig = localStorage.getItem(storageKey);
+    const originalWarn = console.warn;
+    const cleanup = () => {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (
+          key === 'meteo-cache-v2-purged' ||
+          key === 'meteo:legacy-a' ||
+          key === 'meteo:v1:keep-a' ||
+          key?.startsWith('meteo:v2:')
+        ) {
+          keys.push(key);
+        }
+      }
+      keys.forEach(key => localStorage.removeItem(key));
+    };
+
+    try {
+      cleanup();
+      localStorage.removeItem('meteo-cache-v2-purged');
+      localStorage.setItem('meteo:legacy-a', 'old-cache');
+      localStorage.setItem('meteo:v2:keep-a', 'fresh-cache');
+
+      const mod = await import(sunUrl);
+
+      outcomes.importSweepsOnlyLegacyMeteoCache =
+        localStorage.getItem('meteo:legacy-a') === null
+        && localStorage.getItem('meteo:v2:keep-a') === 'fresh-cache'
+        && localStorage.getItem('meteo-cache-v2-purged') === '1';
+
+      outcomes.browserGlobalsExposeUvdataExports =
+        window.fetchAtmosphere === mod.fetchAtmosphere
+        && window.manualAtmosphere === mod.manualAtmosphere
+        && window.interpolateAtmosphere === mod.interpolateAtmosphere
+        && window.getMeteoConfig === mod.getMeteoConfig
+        && window.saveMeteoConfig === mod.saveMeteoConfig
+        && window.purgeMeteoCache === mod.purgeMeteoCache
+        && window.solarZenithAngle === mod.solarZenithAngle
+        && window.computeUVConfidence === mod.computeUVConfidence;
+
+      localStorage.setItem(storageKey, '{bad json');
+      const invalidConfig = mod.getMeteoConfig();
+      outcomes.invalidStoredConfigFallsBackToDefaults =
+        invalidConfig.mode === 'auto'
+        && invalidConfig.selfhostUrl === ''
+        && invalidConfig.selfhostBearer === ''
+        && invalidConfig.privacyRounding === 0.1;
+
+      localStorage.setItem(storageKey, JSON.stringify({
+        mode: 'cams',
+        selfhostUrl: 'https://legacy.example/uv',
+        selfhostBearer: 123,
+        privacyRounding: 0.25,
+        extra: 'ignored',
+      }));
+      const migrated = mod.getMeteoConfig();
+      const persistedMigration = JSON.parse(localStorage.getItem(storageKey));
+      outcomes.legacyModeMigratesAndSanitizesStoredConfig =
+        migrated.mode === 'auto'
+        && migrated.selfhostUrl === 'https://legacy.example/uv'
+        && migrated.selfhostBearer === ''
+        && migrated.privacyRounding === 0.25
+        && persistedMigration.mode === 'auto'
+        && persistedMigration.extra === undefined;
+
+      const warnings = [];
+      console.warn = (...args) => warnings.push(args.join(' '));
+      localStorage.setItem(storageKey, JSON.stringify({
+        mode: 'selfhost',
+        selfhostUrl: '',
+        selfhostBearer: 'secret',
+        privacyRounding: 0.5,
+      }));
+      const emptySelfhost = mod.getMeteoConfig();
+      const persistedSelfhost = JSON.parse(localStorage.getItem(storageKey));
+      outcomes.emptySelfhostFallsBackInMemoryAndWarnsOnce =
+        emptySelfhost.mode === 'auto'
+        && persistedSelfhost.mode === 'selfhost'
+        && warnings.length === 1
+        && warnings[0].includes('mode=selfhost with empty selfhostUrl');
+
+      mod.saveMeteoConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'https://uv.example',
+        selfhostBearer: 'secret-token',
+        privacyRounding: 0.25,
+      });
+      localStorage.setItem(storageKey, 'v1:opaque-encrypted-envelope');
+      const encryptedFallback = mod.getMeteoConfig();
+      outcomes.encryptedEnvelopeUsesCachedDecryptedConfig =
+        encryptedFallback.mode === 'selfhost'
+        && encryptedFallback.selfhostUrl === 'https://uv.example'
+        && encryptedFallback.selfhostBearer === 'secret-token'
+        && encryptedFallback.privacyRounding === 0.25;
+
+      localStorage.setItem('meteo:v1:keep-a', '{}');
+      localStorage.setItem('meteo:v2:purge-a', '{}');
+      localStorage.setItem('meteo:v2:purge-b', '{}');
+      const beforePurge = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+        .filter(key => key?.startsWith('meteo:v2:')).length;
+      const removed = mod.purgeMeteoCache();
+      const afterPurge = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+        .filter(key => key?.startsWith('meteo:v2:')).length;
+      outcomes.purgeMeteoCacheCountsAndRemovesOnlyV2Entries =
+        beforePurge >= 3
+        && removed === beforePurge
+        && afterPurge === 0
+        && localStorage.getItem('meteo:v1:keep-a') === '{}';
+
+      const lowConfidence = mod.computeUVConfidence({
+        source: 'cams',
+        snapshotAgeSec: 90000,
+        cloudCover: 90,
+        zenithDeg: 84,
+        uvIndex: 0.2,
+        isStale: true,
+      });
+      outcomes.confidenceHandlesManualOverridePenaltiesAndBounds =
+        mod.computeUVConfidence({ source: 'open_meteo', manualOverridden: true }) === 1
+        && lowConfidence >= 0.05
+        && lowConfidence < 0.1
+        && mod.computeUVConfidence({ source: 'unknown-provider', uvIndex: 99 }) <= 0.99;
+    } finally {
+      console.warn = originalWarn;
+      cleanup();
+      if (originalConfig == null) localStorage.removeItem(storageKey);
+      else localStorage.setItem(storageKey, originalConfig);
+    }
+
+    return outcomes;
+  }, { sunUrl: moduleUrl('/js/sun-uvdata.js') });
+
+  expectAll(outcomes);
+});
+
+test('sun uvdata browser coverage drives provider chain cache stale and offline paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ sunUrl }) => {
+    const outcomes = {};
+    const storageKey = 'labcharts-meteo-config';
+    const originalConfig = localStorage.getItem(storageKey);
+    const originalFetch = window.fetch;
+    const mod = await import(sunUrl);
+    const iso = '2026-06-01T12:30:00.000Z';
+    const jsonResponse = (json, init = {}) => new Response(JSON.stringify(json), {
+      status: init.status || 200,
+      headers: {
+        'content-type': 'application/json',
+        ...(init.headers || {}),
+      },
+    });
+    const forecast = (uvIndex = 4.4, extra = {}) => ({
+      utc_offset_seconds: 0,
+      hourly: {
+        time: ['2026-06-01T12:00'],
+        uv_index: [uvIndex],
+        uv_index_clear_sky: [Number.isFinite(uvIndex) ? uvIndex + 1 : uvIndex],
+        cloud_cover: [20],
+        temperature_2m: [22],
+        ...(extra.hourly || {}),
+      },
+      daily: {
+        time: ['2026-06-01'],
+        sunrise: ['2026-06-01T05:10'],
+        sunset: ['2026-06-01T20:35'],
+        uv_index_max: [Number.isFinite(uvIndex) ? uvIndex + 1 : uvIndex],
+        ...(extra.daily || {}),
+      },
+      ...extra.root,
+    });
+    const airQuality = {
+      utc_offset_seconds: 0,
+      hourly: {
+        time: ['2026-06-01T12:00'],
+        pm10: [11],
+        pm2_5: [6],
+        nitrogen_dioxide: [14],
+        aerosol_optical_depth: [0.08],
+        ozone: [70],
+      },
+      current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
+    };
+    const saveConfig = cfg => mod.saveMeteoConfig({
+      mode: cfg.mode,
+      selfhostUrl: cfg.selfhostUrl || '',
+      selfhostBearer: cfg.selfhostBearer || '',
+      privacyRounding: cfg.privacyRounding ?? 0.1,
+    });
+    const cleanupCache = () => {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('meteo:v2:')) keys.push(key);
+      }
+      keys.forEach(key => localStorage.removeItem(key));
+    };
+
+    try {
+      cleanupCache();
+
+      saveConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'https://uvdata.example/base/',
+        selfhostBearer: 'token',
+      });
+      const selfhostCalls = [];
+      window.fetch = async (url, opts = {}) => {
+        selfhostCalls.push({
+          url: String(url),
+          authorization: opts.headers?.Authorization || '',
+        });
+        return jsonResponse(forecast(5.2));
+      };
+      const selfhost = await mod.fetchAtmosphere({
+        lat: 120,
+        lon: -250,
+        isoTime: iso,
+        noCache: true,
+      });
+      outcomes.selfhostAddsBearerClampsCoordsAndShapes =
+        selfhost.source === 'selfhost'
+        && selfhost.uvIndex === 5.2
+        && selfhostCalls[0].authorization === 'Bearer token'
+        && selfhostCalls[0].url.includes('latitude=90.000000')
+        && selfhostCalls[0].url.includes('longitude=-180.000000');
+
+      saveConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'https://uvdata.example/base',
+      });
+      const fallbackCalls = [];
+      window.fetch = async (url) => {
+        const href = String(url);
+        fallbackCalls.push(href);
+        if (href.startsWith('https://uvdata.example')) return jsonResponse({ ok: true });
+        if (href.includes('air-quality')) return jsonResponse(airQuality);
+        return jsonResponse(forecast(4.2));
+      };
+      const selfhostFallback = await mod.fetchAtmosphere({
+        lat: 50,
+        lon: 14,
+        isoTime: iso,
+        noCache: true,
+      });
+      outcomes.invalidSelfhostShapeFallsBackToOpenMeteo =
+        selfhostFallback.source === 'open_meteo'
+        && selfhostFallback.uvIndex === 4.2
+        && fallbackCalls.some(call => call.startsWith('https://uvdata.example'))
+        && fallbackCalls.some(call => call.includes('api.open-meteo.com'))
+        && fallbackCalls.some(call => call.includes('air-quality-api.open-meteo.com'));
+
+      saveConfig({ mode: 'auto' });
+      window.fetch = async (url) => {
+        const href = String(url);
+        if (href === '/api/proxy') {
+          return jsonResponse(forecast(null, {
+            hourly: {
+              cloud_cover: [null],
+              temperature_2m: [null],
+              ozone_du: [315],
+              aod: [0.07],
+            },
+            root: {
+              airQuality,
+              _camsMeta: { ageSec: 600 },
+            },
+            daily: {
+              uv_index_max_cams: [7.4],
+              uv_index_max_cams_at: ['2026-06-01T13:00'],
+            },
+          }));
+        }
+        if (href.includes('air-quality')) return jsonResponse(airQuality);
+        return jsonResponse(forecast(6.6));
+      };
+      const merged = await mod.fetchAtmosphere({
+        lat: 50,
+        lon: 14,
+        isoTime: iso,
+        noCache: true,
+      });
+      outcomes.sparseCamsResultMergesOpenMeteoFallback =
+        merged.source === 'cams+open_meteo'
+        && merged.uvIndex === 6.6
+        && merged.ozoneDU === 315
+        && merged.airQuality?.aod === 0.07
+        && merged.confidence <= 0.95;
+
+      saveConfig({ mode: 'open-meteo' });
+      cleanupCache();
+      let cacheFetches = 0;
+      window.fetch = async (url) => {
+        cacheFetches += 1;
+        return String(url).includes('air-quality')
+          ? jsonResponse(airQuality)
+          : jsonResponse(forecast(3.3));
+      };
+      const first = await mod.fetchAtmosphere({ lat: 40.11, lon: -73.22, isoTime: iso });
+      const second = await mod.fetchAtmosphere({ lat: 40.11, lon: -73.22, isoTime: iso });
+      const bypass = await mod.fetchAtmosphere({ lat: 40.11, lon: -73.22, isoTime: iso, noCache: true });
+      outcomes.freshCacheHitAndNoCacheBypass =
+        first.source === 'open_meteo'
+        && second.source === 'open_meteo'
+        && bypass.source === 'open_meteo'
+        && cacheFetches === 4;
+
+      cleanupCache();
+      localStorage.setItem('meteo:v2:50.00_14.00_2026-06-01T08', JSON.stringify({
+        uvIndex: 2.2,
+        uvClearSky: 3.0,
+        ozoneDU: 300,
+        cloudCover: 30,
+        temperatureC: 12,
+        airQuality: null,
+        source: 'open_meteo',
+        confidence: 0.5,
+        fetchedAt: Date.now() - 2 * 60 * 60 * 1000,
+      }));
+      window.fetch = () => Promise.reject(new Error('offline'));
+      const stale = await mod.fetchAtmosphere({ lat: 50, lon: 14, isoTime: iso });
+      outcomes.staleCacheFallbackUsesLatestMatchingCoords =
+        stale._stale === true
+        && stale.source === 'open_meteo_stale'
+        && stale.uvIndex === 2.2;
+
+      cleanupCache();
+      const offline = await mod.fetchAtmosphere({
+        lat: 0,
+        lon: 0,
+        isoTime: '2026-03-20T12:00:00.000Z',
+        noCache: true,
+      });
+      outcomes.allProvidersFailedUsesZenithOfflineEstimate =
+        offline.source === 'zenith_offline'
+        && offline.uvIndex > 10
+        && offline.ozoneDU === 300;
+    } finally {
+      window.fetch = originalFetch;
+      cleanupCache();
+      if (originalConfig == null) localStorage.removeItem(storageKey);
+      else localStorage.setItem(storageKey, originalConfig);
+    }
+
+    return outcomes;
+  }, { sunUrl: moduleUrl('/js/sun-uvdata.js') });
+
+  expectAll(outcomes);
+});
+
+test('sun uvdata browser coverage handles response caps shapers and interpolation', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ sunUrl }) => {
+    const outcomes = {};
+    const storageKey = 'labcharts-meteo-config';
+    const originalConfig = localStorage.getItem(storageKey);
+    const originalFetch = window.fetch;
+    const mod = await import(sunUrl);
+    const saveOpenMeteo = () => mod.saveMeteoConfig({
+      mode: 'open-meteo',
+      selfhostUrl: '',
+      selfhostBearer: '',
+      privacyRounding: 0.1,
+    });
+    const cleanupCache = () => {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('meteo:v2:')) keys.push(key);
+      }
+      keys.forEach(key => localStorage.removeItem(key));
+    };
+
+    try {
+      saveOpenMeteo();
+      cleanupCache();
+      window.fetch = async () => new Response('{}', {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'content-length': String(300000),
+        },
+      });
+      const declaredCap = await mod.fetchAtmosphere({
+        lat: 1,
+        lon: 1,
+        isoTime: '2026-06-01T12:00:00.000Z',
+        noCache: true,
+      });
+      outcomes.declaredContentLengthCapFallsThroughToOffline =
+        declaredCap.source === 'zenith_offline';
+
+      cleanupCache();
+      window.fetch = async () => new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(300000));
+          controller.close();
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+      const streamedCap = await mod.fetchAtmosphere({
+        lat: 2,
+        lon: 2,
+        isoTime: '2026-06-01T12:00:00.000Z',
+        noCache: true,
+      });
+      outcomes.streamingBodyCapFallsThroughToOffline =
+        streamedCap.source === 'zenith_offline';
+
+      cleanupCache();
+      const forecast = {
+        utc_offset_seconds: 7200,
+        hourly: {
+          time: [
+            '2026-05-31T12:00',
+            '2026-06-01T11:00',
+            '2026-06-01T12:00',
+            '2026-06-01T13:00',
+          ],
+          uv_index: [8, 3, 5, 7],
+          uv_index_clear_sky: [9, 4, 6, 8],
+          cloud_cover: [60, 30, 20, 10],
+          temperature_2m: [16, 19, 21, 23],
+        },
+        daily: {
+          time: ['2026-05-31', '2026-06-01'],
+          sunrise: ['2026-05-31T05:30', '2026-06-01T05:10'],
+          sunset: ['2026-05-31T20:20', '2026-06-01T20:35'],
+          uv_index_max: [9, 7],
+        },
+      };
+      const airQuality = {
+        utc_offset_seconds: 0,
+        hourly: {
+          time: ['2026-06-01T10:00'],
+          pm10: [20],
+          pm2_5: [7],
+          nitrogen_dioxide: [12],
+          aerosol_optical_depth: [0.08],
+          ozone: [80],
+        },
+        current: { pm2_5: 9, pm10: 18, european_aqi: 2 },
+      };
+      window.fetch = async (url) => new Response(JSON.stringify(
+        String(url).includes('air-quality') ? airQuality : forecast
+      ), { status: 200, headers: { 'content-type': 'application/json' } });
+
+      const shaped = await mod.fetchAtmosphere({
+        lat: 50.08,
+        lon: 14.43,
+        isoTime: '2026-06-01T10:30:00.000Z',
+        noCache: true,
+      });
+      outcomes.openMeteoShaperUsesLocalDayPeakAndSurfaceOzone =
+        shaped.source === 'open_meteo'
+        && shaped.uvIndex === 5
+        && shaped.ozoneDU === null
+        && shaped.airQuality?.surfaceOzoneUgM3 === 80
+        && shaped.airQuality?.european_aqi === 2
+        && shaped.daily?.sunrise === '2026-06-01T05:10'
+        && shaped.daily?.sunset === '2026-06-01T20:35'
+        && shaped.daily?.uvIndexMax === 7
+        && shaped.daily?.peakAt === '2026-06-01T13:00'
+        && shaped.hourly?.utcOffsetSeconds === 7200;
+
+      const lerped = mod.interpolateAtmosphere(shaped, '2026-06-01T10:30:00.000Z');
+      const nearest = mod.interpolateAtmosphere(shaped, '2026-06-02T00:00:00.000Z');
+      const invalid = mod.interpolateAtmosphere({ hourly: { time: ['bad'], uv_index: [1] } }, 'not a date');
+      outcomes.interpolateAtmosphereCoversLerpNearestAndInvalid =
+        Math.abs(lerped.uvIndex - 6) < 0.001
+        && Math.abs(lerped.uvClearSky - 7) < 0.001
+        && Math.abs(lerped.cloudCover - 15) < 0.001
+        && Math.abs(lerped.temperatureC - 22) < 0.001
+        && nearest.uvIndex === 7
+        && invalid === null;
+    } finally {
+      window.fetch = originalFetch;
+      cleanupCache();
+      if (originalConfig == null) localStorage.removeItem(storageKey);
+      else localStorage.setItem(storageKey, originalConfig);
+    }
+
+    return outcomes;
+  }, { sunUrl: moduleUrl('/js/sun-uvdata.js') });
+
+  expectAll(outcomes);
+});
