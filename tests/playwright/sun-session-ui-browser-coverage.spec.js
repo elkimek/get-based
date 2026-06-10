@@ -273,6 +273,15 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       durationMin: 30,
       bodyExposure: { fraction: 0.05, regions: [] },
       eyeExposure: { mode: 'direct', lensTint: 'clear' },
+    }, {
+      id: 'previous-detailed-session',
+      startedAt: Date.UTC(2026, 5, 7, 9, 0),
+      endedAt: Date.UTC(2026, 5, 7, 9, 20),
+      durationMin: 20,
+      bodyExposure: { fraction: 0.18, regions: ['face', 'arms-front'] },
+      eyeExposure: { mode: 'indirect', lensTint: 'amber' },
+      posture: 'lying',
+      surfaceAlbedo: 'snow',
     }];
 
     const configure = (overrides = {}) => sunUI.configureSunSessionUI({
@@ -298,11 +307,14 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       trapModalFocus: () => calls.push(['trap']),
       summarizeBodyExposure: sess => `${sess.bodyExposure?.regions?.length || 0} regions`,
       formatElapsed: () => '0:30',
-      exposurePresets: [{ key: 'face_hands', label: 'Face + hands' }],
-      eyeModes: [{ key: 'direct', label: 'Eyes uncovered', pickerLabel: 'Eyes uncovered' }],
-      lensTints: [{ key: 'clear', label: 'Clear' }],
-      postureOptions: [{ key: 'standing', label: 'Standing' }],
-      surfaceOptions: [{ key: 'grass', label: 'Grass' }],
+      exposurePresets: [{ key: 'face_hands', label: 'Face + hands' }, { key: 'detailed', label: 'Detailed' }],
+      eyeModes: [
+        { key: 'direct', label: 'Eyes uncovered', pickerLabel: 'Eyes uncovered' },
+        { key: 'indirect', label: 'Indirect light' },
+      ],
+      lensTints: [{ key: 'clear', label: 'Clear' }, { key: 'amber', label: 'Amber' }],
+      postureOptions: [{ key: 'standing', label: 'Standing' }, { key: 'lying', label: 'Lying flat' }],
+      surfaceOptions: [{ key: 'grass', label: 'Grass' }, { key: 'snow', label: 'Snow' }],
       channelDisplay: {},
       channelTier: () => 0,
       tierLabel: () => 'none',
@@ -386,6 +398,56 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
         && logged.bodyExposure.regions.length === 0
         && fallbackCalls.some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback')
         && !fallbackCalls.some(call => call[0] === 'navigate');
+
+      configure();
+      state.currentView = 'light';
+      sunUI.openDetailedSessionDialog();
+      const defaultOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
+      const defaultHint = defaultOverlay?.querySelector('#sun-silhouette-hint')?.textContent || '';
+      const defaultBefore = calls.length;
+      const defaultStart = defaultOverlay?.querySelector('#det-started-at');
+      const defaultEnd = defaultOverlay?.querySelector('#det-ended-at');
+      if (defaultStart && defaultEnd) {
+        defaultStart.value = '2026-06-07T09:45';
+        defaultEnd.value = '2026-06-07T10:05';
+        defaultEnd.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      defaultOverlay?.querySelector('[data-region="legs-front"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const expandedHint = defaultOverlay?.querySelector('#sun-silhouette-hint')?.textContent || '';
+      const spfInput = defaultOverlay?.querySelector('#det-spf');
+      const glassInput = defaultOverlay?.querySelector('#det-glass');
+      const notesInput = defaultOverlay?.querySelector('#det-notes');
+      if (spfInput) spfInput.value = '30';
+      if (glassInput) glassInput.checked = true;
+      if (notesInput) notesInput.value = 'Bright snow field';
+      defaultOverlay?.querySelector('#det-save')?.click();
+      await waitFor(() => calls.slice(defaultBefore).some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback'));
+      const defaultCalls = calls.slice(defaultBefore);
+      const defaultLogged = defaultCalls.find(call => call[0] === 'log')?.[1];
+      outcomes.lastSessionDefaultsDetailedPayloadAndLightNavigate = !!defaultOverlay
+        && defaultOverlay.querySelector('#det-eye-mode')?.value === 'indirect'
+        && defaultOverlay.querySelector('#det-lens-tint')?.value === 'amber'
+        && defaultOverlay.querySelector('#det-posture')?.value === 'lying'
+        && defaultOverlay.querySelector('#det-surface')?.value === 'snow'
+        && defaultHint.includes('2 regions exposed')
+        && expandedHint.includes('3 regions exposed')
+        && defaultLogged?.bodyExposure?.preset === 'detailed'
+        && defaultLogged.bodyExposure.fraction > 0.18
+        && defaultLogged.bodyExposure.regions.includes('face')
+        && defaultLogged.bodyExposure.regions.includes('arms-front')
+        && defaultLogged.bodyExposure.regions.includes('legs-front')
+        && defaultLogged.bodyExposure.sunscreenSPF === 30
+        && defaultLogged.bodyExposure.glassBetween === true
+        && defaultLogged.eyeExposure?.mode === 'indirect'
+        && defaultLogged.eyeExposure?.lensTint === 'amber'
+        && defaultLogged.eyeExposure?.durationSec === 20 * 60
+        && defaultLogged.posture === 'lying'
+        && defaultLogged.surfaceAlbedo === 'snow'
+        && defaultLogged.notes === 'Bright snow field'
+        && defaultLogged.location?.source === 'test'
+        && defaultCalls.some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback')
+        && defaultCalls.some(call => call[0] === 'navigate' && call[1] === 'light');
+      state.currentView = 'dashboard';
 
       configure();
       const deleteBefore = calls.length;
