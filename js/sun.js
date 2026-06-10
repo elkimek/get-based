@@ -444,7 +444,7 @@ export async function setOzoneOverrideMidSession() {
   const cur = state.importedData?.sunDefaults?.overrides?.ozoneDU;
   const raw = await showPromptDialog(
     `Stratospheric ozone column (Dobson Units). Typical 220-450 DU. Leave empty to clear and use the source value.`,
-    { defaultValue: cur ? String(cur) : '', okLabel: 'Apply', placeholder: 'e.g. 320' }
+    { defaultValue: cur ? String(cur) : '', okLabel: 'Apply', placeholder: 'e.g. 320', allowEmpty: true }
   );
   if (raw == null) return;
   const trimmed = String(raw).trim();
