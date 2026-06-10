@@ -180,6 +180,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && wearableContext.includes('HRV rebound');
 
       labContext.setAgentWearableSeriesDays('bad-value');
+      // localStorage.clear() above guarantees this starts absent; invalid values must not create it.
       const invalidSeriesSetting = localStorage.getItem('labcharts-lab-context-browser-coverage-agent-wearable-series') === null;
       labContext.setAgentWearableSeriesEnabled(true);
       const enabledDays = labContext.isAgentWearableSeriesEnabled() === true
