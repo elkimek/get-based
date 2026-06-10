@@ -68,10 +68,19 @@ async function startWorkerCoverage(page) {
       }, 5000);
       pending.set(key, { resolve, reject, timer });
     });
-    await client.send('Target.sendMessageToTarget', {
-      sessionId,
-      message: JSON.stringify({ id, method, params }),
-    });
+    try {
+      await client.send('Target.sendMessageToTarget', {
+        sessionId,
+        message: JSON.stringify({ id, method, params }),
+      });
+    } catch (error) {
+      const waiter = pending.get(key);
+      if (waiter) {
+        pending.delete(key);
+        clearTimeout(waiter.timer);
+      }
+      throw error;
+    }
     return response;
   };
 
@@ -105,6 +114,9 @@ async function startWorkerCoverage(page) {
         const session = sessions.get(sessionId);
         if (session) session.started = true;
       }
+    } catch {
+      const session = sessions.get(sessionId);
+      if (session) session.started = false;
     } finally {
       await sendToTarget(sessionId, 'Runtime.runIfWaitingForDebugger').catch(() => {});
     }
@@ -177,13 +189,17 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
   if (!isCoverageEnabled() || !startedPages.has(page)) return;
   const state = coverageStates.get(page) || {};
   let entries = [];
+  let coverageError = null;
   try {
     entries = await page.coverage.stopJSCoverage();
+  } catch (error) {
+    coverageError = error;
   } finally {
     startedPages.delete(page);
     coverageStates.delete(page);
   }
   entries.push(...await stopWorkerCoverage(state.workerState));
+  if (coverageError) throw coverageError;
   fs.mkdirSync(coverageDir, { recursive: true });
   fs.writeFileSync(coverageFile(testInfo, label), JSON.stringify({
     title: testInfo.title,
