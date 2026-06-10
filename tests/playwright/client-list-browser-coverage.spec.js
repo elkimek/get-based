@@ -414,3 +414,201 @@ test('client list form live actions cover health link avatar haplogroup and loca
     expect(passed, name).toBe(true);
   }
 });
+
+test('client list remaining browser helpers cover filters avatar upload tags and profile metadata actions', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() => typeof window.openClientList === 'function');
+
+  const results = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const outcomes = {};
+    const calls = [];
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const waitFor = async (predicate, label) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        if (predicate()) return true;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const rowNames = () => [...document.querySelectorAll('.cl-list > .cl-row .cl-row-name')]
+      .map(el => el.textContent.trim());
+    const now = Date.now();
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return [key, key ? localStorage.getItem(key) : null];
+    }));
+    const saved = {
+      profiles: clone(state.profiles),
+      currentProfile: state.currentProfile,
+      importedData: clone(state.importedData),
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      bodyOverflow: document.body.style.overflow,
+      renderProfileButton: window.renderProfileButton,
+      showNotification: window.showNotification,
+      hasAIProvider: window.hasAIProvider,
+    };
+
+    try {
+      localStorage.clear();
+      localStorage.setItem('labcharts-sync-enabled', 'false');
+      localStorage.setItem('labcharts-active-profile', 'client-list-helper-main');
+      localStorage.setItem('labcharts-location-cache', JSON.stringify({
+        'slovakia|': 48.7,
+        'slovakia|81101': 48.1,
+      }));
+      state.currentProfile = 'client-list-helper-main';
+      state.profileSex = 'female';
+      state.profileDob = '1985-03-04';
+      state.importedData = {
+        wearableSummary: { metrics: { weight: { latest: 70 } } },
+        genetics: { mtdna: {} },
+      };
+      state.profiles = [
+        {
+          id: 'client-list-helper-main',
+          name: 'Zeta Helper',
+          sex: 'female',
+          dob: '1985-03-04',
+          location: { country: 'Slovakia', zip: '81101' },
+          tags: ['vip'],
+          notes: 'primary helper',
+          status: 'active',
+          avatar: null,
+          height: 170,
+          heightUnit: 'cm',
+          createdAt: now - 90_000,
+          lastUpdated: now - 30_000,
+          pinned: true,
+        },
+        {
+          id: 'client-list-helper-secondary',
+          name: 'Alpha Helper',
+          sex: null,
+          dob: null,
+          location: { country: '', zip: '' },
+          tags: ['metabolic'],
+          notes: 'secondary helper',
+          status: 'active',
+          avatar: null,
+          height: null,
+          heightUnit: 'cm',
+          createdAt: now - 120_000,
+          lastUpdated: now - 60_000,
+          pinned: false,
+        },
+      ];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+      window.renderProfileButton = () => calls.push(['render-profile-button']);
+      window.showNotification = (...args) => calls.push(['notification', ...args]);
+      window.hasAIProvider = () => false;
+
+      window.openClientList();
+      await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list open');
+      window._clSearch('alpha');
+      await waitFor(() => rowNames().join('|') === 'Alpha Helper', 'client search render');
+      outcomes.searchHelperFiltersList = document.getElementById('cl-search')?.value === 'alpha'
+        && rowNames().join('|') === 'Alpha Helper';
+
+      window._clSearch('');
+      await waitFor(() => rowNames().length === 2, 'cleared search render');
+      window._clSort('az');
+      await waitFor(() => rowNames().join('|') === 'Zeta Helper|Alpha Helper', 'pinned sort render');
+      window._clTagFilter('metabolic');
+      await waitFor(() => rowNames().join('|') === 'Alpha Helper', 'tag filter render');
+      window._clTagFilter('metabolic');
+      await waitFor(() => rowNames().length === 2, 'tag filter toggle clear');
+      outcomes.sortAndTagFilterHelpersRerenderList = rowNames().includes('Zeta Helper')
+        && rowNames().includes('Alpha Helper');
+
+      window.openClientForm('client-list-helper-main');
+      await waitFor(() => !!document.querySelector('.cl-form'), 'helper edit form');
+      window._clSetSex('male');
+      outcomes.setSexHelperTogglesActiveButton = document.querySelector('#cl-sex-toggle .sex-toggle-btn.active')?.dataset.sex === 'male';
+
+      document.getElementById('cl-country').value = 'Slovakia';
+      document.getElementById('cl-zip').value = '81101';
+      window._clUpdateLat();
+      outcomes.latitudeHelperUsesCacheAndZipSuffix = document.getElementById('cl-lat-display')?.textContent.includes('ZIP-refined') === true
+        && document.getElementById('cl-lat-display')?.textContent.includes('48') === true;
+
+      const tagInput = document.getElementById('cl-tag-input');
+      tagInput.value = 'coach';
+      tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      await waitFor(() => [...document.querySelectorAll('.cl-tag-pill')].some(el => el.textContent.includes('coach')), 'tag added');
+      const coachRemove = [...document.querySelectorAll('.cl-tag-pill')]
+        .find(el => el.textContent.includes('coach'))
+        ?.querySelector('[data-cl-action="remove-tag"]');
+      coachRemove?.click();
+      outcomes.tagKeyboardAndRemoveHelpersMutatePills = ![...document.querySelectorAll('.cl-tag-pill')]
+        .some(el => el.textContent.includes('coach'));
+
+      window._clHeightUnitChanged();
+      outcomes.heightUnitHelperConvertsAndUpdatesBmi = document.getElementById('cl-height-unit')?.value === 'in'
+        && document.getElementById('cl-height-unit-toggle')?.textContent === 'in'
+        && document.getElementById('cl-height')?.placeholder === 'inches'
+        && document.getElementById('cl-bmi-display')?.textContent.includes('24.2');
+
+      const avatarInput = document.getElementById('cl-avatar-input');
+      const canvas = document.createElement('canvas');
+      canvas.width = 4;
+      canvas.height = 6;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const file = new File([blob], 'helper-avatar.png', { type: 'image/png' });
+      Object.defineProperty(avatarInput, 'files', {
+        configurable: true,
+        value: [file],
+      });
+      await window._clAvatarChanged(avatarInput);
+      outcomes.avatarChangeHelperResizesAndShowsPreview = document.getElementById('cl-avatar-img') instanceof HTMLImageElement
+        && document.getElementById('cl-avatar-img')?.getAttribute('src')?.startsWith('data:image/jpeg')
+        && !!document.querySelector('.cl-avatar-remove');
+
+      window._clBackToList();
+      await waitFor(() => !!document.getElementById('cl-search'), 'back to client list');
+      outcomes.backToListHelperRestoresSearchView = !!document.getElementById('cl-search')
+        && !document.querySelector('.cl-form');
+
+      window._clUnpin('client-list-helper-main');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-list-helper-main')?.pinned === false, 'profile unpinned');
+      window._clArchive('client-list-helper-secondary');
+      await waitFor(() => state.profiles.find(p => p.id === 'client-list-helper-secondary')?.status === 'archived', 'profile archived');
+      window._clEdit('client-list-helper-main');
+      await waitFor(() => !!document.querySelector('.cl-form'), 'edit helper opens form');
+      window._clBackToList();
+      await waitFor(() => !!document.getElementById('cl-search'), 'back after edit');
+      window._clSelect('client-list-helper-main');
+      outcomes.profileMetadataHelpersUnpinArchiveEditAndSelect =
+        state.profiles.find(p => p.id === 'client-list-helper-main')?.pinned === false
+        && state.profiles.find(p => p.id === 'client-list-helper-secondary')?.status === 'archived'
+        && calls.filter(call => call[0] === 'render-profile-button').length >= 2
+        && !document.getElementById('client-list-overlay')?.classList.contains('show');
+    } finally {
+      window.closeClientList?.();
+      state.profiles = saved.profiles;
+      state.currentProfile = saved.currentProfile;
+      state.importedData = saved.importedData;
+      state.profileSex = saved.profileSex;
+      state.profileDob = saved.profileDob;
+      document.body.style.overflow = saved.bodyOverflow;
+      window.renderProfileButton = saved.renderProfileButton;
+      window.showNotification = saved.showNotification;
+      window.hasAIProvider = saved.hasAIProvider;
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+      document.querySelectorAll('.notification-container,.notification-toast').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
