@@ -18,6 +18,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
     const threadId = 'thread-one';
     const importedKey = `labcharts-${profileId}-imported`;
     const restoredImportedKey = `labcharts-${restoredProfileId}-imported`;
+    const originalProfileList = JSON.stringify([{ id: profileId, name: 'Backup Profile' }]);
     const originalSetTimeout = window.setTimeout.bind(window);
     const saved = {
       storage: Array.from({ length: localStorage.length }, (_, i) => {
@@ -98,7 +99,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       await blobStorage.deleteBlob(restoredImportedKey);
 
       window.getEncryptionEnabled = () => true;
-      localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Backup Profile' }]));
+      localStorage.setItem('labcharts-profiles', originalProfileList);
       localStorage.setItem(importedKey, JSON.stringify({ entries: [{ date: '2026-06-09', markers: { ferritin: 41 } }] }));
       localStorage.setItem(`labcharts-${profileId}-chat`, JSON.stringify([{ role: 'user', content: 'hello' }]));
       localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread' }]));
@@ -158,7 +159,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       document.getElementById('confirm-cancel')?.click();
       await waitFor(() => !document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       outcomes.importCancelLeavesExistingProfileList = cancelMessage.includes('This backup is encrypted')
-        && localStorage.getItem('labcharts-profiles') !== backupPayload.profileList;
+        && localStorage.getItem('labcharts-profiles') === originalProfileList;
 
       const restoreTimeouts = captureTimeouts();
       backup.importEncryptedBackup(importBackupFile(backupPayload));
@@ -196,6 +197,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
       outcomes.restoreMissingAutoBackupShowsError = toasts().some(text => text.includes('Snapshot not found'));
       clearToasts();
 
+      await blobStorage.deleteBlob(restoredImportedKey);
+      localStorage.removeItem(restoredImportedKey);
       localStorage.setItem('labcharts-profiles', '[]');
       const autoRestoreTimeouts = captureTimeouts();
       const restoreAuto = backup.restoreAutoBackup(snapshots[0].id);
@@ -203,10 +206,14 @@ test('backup browser coverage exercises export import auto backup and folder sta
       document.getElementById('confirm-ok')?.click();
       await restoreAuto;
       await waitFor(() => localStorage.getItem('labcharts-profiles') === backupPayload.profileList);
+      await waitFor(async () => (await blobStorage.getBlob(restoredImportedKey))?.includes('glucose'));
+      const autoRestoredImported = await blobStorage.getBlob(restoredImportedKey);
       await waitFor(() => toasts().some(text => text.includes('Backup restored'))
         && autoRestoreTimeouts.some(t => t.ms === 1000));
       outcomes.restoreAutoBackupRestoresSnapshotAndDefersReload =
         localStorage.getItem('labcharts-profiles') === backupPayload.profileList
+        && autoRestoredImported?.includes('glucose') === true
+        && localStorage.getItem(restoredImportedKey) === null
         && autoRestoreTimeouts.some(t => t.ms === 1000)
         && toasts().some(text => text.includes('Backup restored'));
       restoreTimers();
