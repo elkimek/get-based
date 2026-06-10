@@ -226,6 +226,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       outcomes.outsideClickClosesFloatingMenus = !document.getElementById('cl-active-menu')?.classList.contains('show')
         && !document.getElementById('cl-tools-menu')?.classList.contains('show');
     } finally {
+      window._clSort?.('lastUpdated');
       window.closeClientList?.();
       state.profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
