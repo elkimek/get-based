@@ -108,7 +108,6 @@ test('light environment browser coverage handles summary modal prompt and source
       document.getElementById('prompt-dialog-input').dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('prompt-ok').click();
       await customPromise;
-      await waitUntil(() => env().rooms.length === 1, 'custom room added');
       const customRoomId = env().rooms[0].id;
       outcomes.customPromptAddsAndExpandsRoom =
         env().rooms[0].name === 'Studio'
@@ -263,16 +262,19 @@ test('light environment browser coverage handles screens tools and confirm delet
       await window.setLightEnvScreenHoursBucket(fallbackScreen.id, 'most');
       await window.setLightEnvScreenEveningBucket(fallbackScreen.id, 'gt3');
       await window.setLightEnvTodayActive('screen', fallbackScreen.id, false);
-      outcomes.screenMutationGlobalsUpdateAndRender =
-        fallbackScreen.hoursPerDay === 8
-        && fallbackScreen.eveningUseAfterSunset === 4
-        && fallbackScreen.todayOverride?.active === false;
-
       localStorage.setItem('labcharts-light-env-active-room', bedroomId);
       const host = document.createElement('div');
       host.id = 'light-env-browser-host';
       host.innerHTML = window.renderEnvironmentSection({ embedded: true });
       document.body.appendChild(host);
+      const fallbackCard = host.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`);
+      outcomes.screenMutationGlobalsUpdateAndRender =
+        fallbackScreen.hoursPerDay === 8
+        && fallbackScreen.eveningUseAfterSunset === 4
+        && fallbackScreen.todayOverride?.active === false
+        && fallbackCard?.classList.contains('light-env-card-skipped')
+        && fallbackCard?.querySelector('[data-light-env-action="set-screen-hours-bucket"][data-light-env-key="most"]')?.getAttribute('aria-pressed') === 'true'
+        && fallbackCard?.querySelector('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]')?.getAttribute('aria-pressed') === 'true';
       for (const tool of ['spectrum', 'lux', 'flicker', 'cct', 'darkness']) {
         host.querySelector(`[data-light-env-action="open-tool"][data-light-env-tool="${tool}"]`)?.click();
       }
