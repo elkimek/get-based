@@ -115,8 +115,7 @@ async function startWorkerCoverage(page) {
         if (session) session.started = true;
       }
     } catch {
-      const session = sessions.get(sessionId);
-      if (session) session.started = false;
+      // Short-lived workers can detach before profiler setup completes.
     } finally {
       await sendToTarget(sessionId, 'Runtime.runIfWaitingForDebugger').catch(() => {});
     }
@@ -199,7 +198,6 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
     coverageStates.delete(page);
   }
   entries.push(...await stopWorkerCoverage(state.workerState));
-  if (coverageError) throw coverageError;
   fs.mkdirSync(coverageDir, { recursive: true });
   fs.writeFileSync(coverageFile(testInfo, label), JSON.stringify({
     title: testInfo.title,
@@ -209,6 +207,7 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
     generatedAt: new Date().toISOString(),
     entries: entries.map(shrinkEntry),
   }));
+  if (coverageError) throw coverageError;
 }
 
 export const test = base.extend({
