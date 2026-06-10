@@ -161,7 +161,8 @@ test('sync tombstones browser coverage exercises relay delete quarantine and pen
         applied.ok === true
         && state.profiles.map(p => p.id).sort().join('|') === 'batch-b|keep'
         && localStorage.getItem(tombKey('batch-a')) === null
-        && localStorage.getItem(profileKey('batch-a', 'units')) === null;
+        && localStorage.getItem(profileKey('batch-a', 'units')) === null
+        && localStorage.getItem(`labcharts-batch-a-chat-t_one`) === null;
 
       setProfiles([{ id: 'lastonly', name: 'Last Only' }], 'lastonly');
       localStorage.setItem(tombKey('lastonly'), JSON.stringify({ at: Date.now(), source: 'remote' }));
