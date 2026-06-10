@@ -227,3 +227,42 @@ test('sync delta helper browser coverage exercises observability context and rea
     expect(passed, name).toBe(true);
   }
 });
+
+test('sync delta facade covers default provider guards', async ({ page }) => {
+  await openBlankPage(page, '/sync-delta-facade-coverage');
+
+  const results = await page.evaluate(async ({ deltaUrl }) => {
+    const delta = await import(deltaUrl);
+    const outcomes = {};
+
+    try {
+      delta.configureSyncDelta();
+      const today = new Date().toISOString().slice(0, 10);
+      outcomes.applyArrayDeltaWithoutRuntimeReturnsFalse =
+        delta._applyArrayDelta('entries', { ops: [{ kind: 'insert', args: { profileId: 'missing-runtime' } }] }) === false;
+
+      const readiness = delta.getDeltaCutoverReadiness('default-provider-profile', {
+        entries: [{ date: today, markers: { 'biochemistry.glucose': 5.4 } }],
+      });
+      outcomes.defaultProviderReadinessUsesNullQueryState =
+        readiness.ready === false
+        && readiness.surfaces.entries.localCount === 1
+        && readiness.surfaces.entries.rowCount === 0
+        && readiness.surfaces.entries.status === 'missing-rows';
+    } finally {
+      delta.configureSyncDelta({
+        getEvolu: () => null,
+        getItemRowQuery: () => null,
+      });
+    }
+
+    outcomes.allOutcomesReached = true;
+    return outcomes;
+  }, {
+    deltaUrl: moduleUrl('/js/sync-delta.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
