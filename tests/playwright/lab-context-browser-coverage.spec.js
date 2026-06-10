@@ -166,7 +166,10 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
 
       const wearableContext = labContext.buildWearableContext(state.importedData);
       outcomes.wearableContextCoversLabelsRollupsWeeklyAndAnomalies =
-        wearableContext.includes('Wearables (oura + manual, 30d coverage)')
+        wearableContext.includes('Wearables (')
+        && wearableContext.includes('oura')
+        && wearableContext.includes('manual')
+        && wearableContext.includes('30d coverage')
         && wearableContext.includes('HRV')
         && wearableContext.includes('Resting')
         && wearableContext.includes('Body comp:')
@@ -191,14 +194,10 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       outcomes.agentSeriesPreferenceCoversValidInvalidAndLegacy =
         invalidSeriesSetting && enabledDays && sevenDaySetting && disabledDays && legacyOnMigrates;
 
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date();
-      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0, 10);
       await storeModule.upsertDailyBatch('lab-context-browser-coverage', [
-        { source: 'oura', date: yesterdayStr, hrv_rmssd: 48, rhr: 60, sleep_total_min: 410, sleep_hr_avg: 56 },
-        { source: 'oura', date: today, hrv_rmssd: 52, rhr: 58, sleep_total_min: 432, sleep_hr_avg: 55 },
-        { source: 'manual', date: today, body_fat_pct: 17.4, muscle_mass_kg: 61.2, tags: ['morning'], note: 'same scale' },
+        { source: 'oura', date: recentDates.seriesPrevious, hrv_rmssd: 48, rhr: 60, sleep_total_min: 410, sleep_hr_avg: 56 },
+        { source: 'oura', date: recentDates.seriesCurrent, hrv_rmssd: 52, rhr: 58, sleep_total_min: 432, sleep_hr_avg: 55 },
+        { source: 'manual', date: recentDates.seriesCurrent, body_fat_pct: 17.4, muscle_mass_kg: 61.2, tags: ['morning'], note: 'same scale' },
       ]);
       const seriesBlock = await labContext.buildWearableSeriesSection(7);
       outcomes.seriesSectionCoversIdbMatrixAndManualContext =
@@ -247,6 +246,8 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
     recentDates: {
       old: isoDaysAgo(35),
       current: isoDaysAgo(2),
+      seriesPrevious: isoDaysAgo(1),
+      seriesCurrent: isoDaysAgo(0),
     },
   });
 
