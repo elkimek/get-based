@@ -312,6 +312,13 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
     });
 
     const getToasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
+    const waitFor = async predicate => {
+      for (let i = 0; i < 20; i += 1) {
+        if (predicate()) return true;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return false;
+    };
     const waitForDialog = async selector => {
       for (let i = 0; i < 10; i += 1) {
         const el = document.querySelector(selector);
@@ -363,20 +370,22 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       const fallbackOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
       const fallbackStart = fallbackOverlay?.querySelector('#det-started-at');
       const fallbackEnd = fallbackOverlay?.querySelector('#det-ended-at');
+      const fallbackBefore = calls.length;
       if (fallbackStart && fallbackEnd) {
         fallbackStart.value = '';
         fallbackEnd.value = '';
       }
       fallbackOverlay?.querySelector('#det-save')?.click();
-      await new Promise(resolve => setTimeout(resolve, 0));
-      const logged = calls.find(call => call[0] === 'log')?.[1];
+      await waitFor(() => calls.slice(fallbackBefore).some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback'));
+      const fallbackCalls = calls.slice(fallbackBefore);
+      const logged = fallbackCalls.find(call => call[0] === 'log')?.[1];
       outcomes.emptyTimestampFallbackSavesDefaultExposureWithoutNavigate = !!logged
         && logged.bodyExposure?.preset === 'face_hands'
         && logged.bodyExposure?.fraction === 0.05
         && Array.isArray(logged.bodyExposure?.regions)
         && logged.bodyExposure.regions.length === 0
-        && calls.some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback')
-        && !calls.some(call => call[0] === 'navigate');
+        && fallbackCalls.some(call => call[0] === 'hydrate' && call[1] === 'logged-fallback')
+        && !fallbackCalls.some(call => call[0] === 'navigate');
 
       configure();
       const deleteBefore = calls.length;
