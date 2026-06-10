@@ -165,17 +165,17 @@ self.addEventListener('message', async (e) => {
   const msg = e.data || {};
   try {
     switch (msg.type) {
-      case 'init':              return handleInit();
-      case 'ingest':            return handleIngest(msg.files || []);
-      case 'query':             return handleQuery(msg.text, msg.topK || 10);
+      case 'init':              return await handleInit();
+      case 'ingest':            return await handleIngest(msg.files || []);
+      case 'query':             return await handleQuery(msg.text, msg.topK || 10);
       case 'stats':             return handleStats();
-      case 'delete':            return handleDelete(msg.source);
-      case 'clear':             return handleClear();
+      case 'delete':            return await handleDelete(msg.source);
+      case 'clear':             return await handleClear();
       case 'list_libraries':    return handleListLibraries();
-      case 'activate_library':  return handleActivateLibrary(msg.libraryId);
-      case 'create_library':    return handleCreateLibrary(msg.name, msg.model);
-      case 'rename_library':    return handleRenameLibrary(msg.libraryId, msg.name);
-      case 'delete_library':    return handleDeleteLibrary(msg.libraryId);
+      case 'activate_library':  return await handleActivateLibrary(msg.libraryId);
+      case 'create_library':    return await handleCreateLibrary(msg.name, msg.model);
+      case 'rename_library':    return await handleRenameLibrary(msg.libraryId, msg.name);
+      case 'delete_library':    return await handleDeleteLibrary(msg.libraryId);
       // Abort is a side-channel signal — skips the serial queue on the
       // main thread so it can interrupt an in-flight ingest. handleIngest
       // polls _abortRequested between embeds and commits whatever's been
