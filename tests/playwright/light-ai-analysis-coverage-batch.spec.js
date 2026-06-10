@@ -256,6 +256,41 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       outcomes.sunAnalyzeShowsInflightThenStoresVerdict = sunAnalyzingHtml.includes('Analyzing')
         && sunSession.aiAnalysis?.status === 'ok'
         && sunSession.aiAnalysis.tip === 'pending tip';
+
+      window.fetch = async (url, options = {}) => {
+        if (String(url).includes('/v1/chat/completions')) {
+          return new Response(JSON.stringify({
+            choices: [{ message: { content: '{"dot":"green","tip":"device refresh tip","detail":"device refresh detail"}' } }],
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return saved.fetch(url, options);
+      };
+      delete deviceSession.aiAnalysis;
+      const deviceRefresh = await device.refreshDeviceSessionAIAnalysis(deviceSession.id);
+      outcomes.deviceRefreshWritesVerdictBySessionId = deviceRefresh?.status === 'ok'
+        && deviceSession.aiAnalysis?.tip === 'device refresh tip'
+        && device.renderDeviceSessionAIInline(deviceSession).includes('device refresh tip');
+
+      let deviceAuthCalls = 0;
+      window.fetch = async (url, options = {}) => {
+        if (String(url).includes('/v1/chat/completions')) {
+          deviceAuthCalls++;
+          return new Response(JSON.stringify({ error: { type: 'authentication_error', message: 'bad key' } }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        return saved.fetch(url, options);
+      };
+      delete deviceSession.aiAnalysis;
+      const authResult = await device.analyzeDeviceSessionAI(deviceSession, { force: true });
+      outcomes.deviceAnalyzeNormalizesAuthError = authResult === null
+        && deviceAuthCalls === 1
+        && deviceSession.aiAnalysis?.status === 'error'
+        && device.renderDeviceSessionAIDetail(deviceSession).includes('Provider rejected')
+        && device.renderDeviceSessionAIDetail(deviceSession).includes('check Settings');
+      device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-unfinished', endedAt: null });
+      outcomes.deviceAutoFireSkipsUnfinishedSession = deviceAuthCalls === 1;
     } finally {
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
@@ -714,10 +749,16 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       window.tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
       window.getSessions = () => state.importedData.sunSessions;
       window.getDeviceSessions = () => state.importedData.deviceSessions;
+      const queuedAIResponses = [];
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
+          const verdict = queuedAIResponses.shift() || {
+            dot: 'yellow',
+            tip: 'aggregate tip',
+            detail: 'aggregate detail',
+          };
           return new Response(JSON.stringify({
-            choices: [{ message: { content: '{"dot":"yellow","tip":"aggregate tip","detail":"aggregate detail"}' } }],
+            choices: [{ message: { content: JSON.stringify(verdict) } }],
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         return saved.fetch(url, options);
@@ -838,6 +879,28 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && todayAI.renderLightTodayHero().includes('today failed')
         && todayAI.renderLightTodayDashboardChip().includes('today failed');
 
+      queuedAIResponses.push(
+        { dot: 'green', tip: 'channel analyze tip', detail: 'channel analyze detail' },
+        { dot: 'yellow', tip: 'channel refresh tip', detail: 'channel refresh detail' },
+        { dot: 'green', tip: 'burden analyze tip', detail: 'burden analyze detail' },
+        { dot: 'red', tip: 'burden refresh tip', detail: 'burden refresh detail' },
+      );
+      delete state.importedData.channelMixAI;
+      delete state.importedData.lightEnvironment.burdenAI;
+      const channelAnalysis = await channelAI.analyzeChannelMixAI({ force: true });
+      // engine.refresh() forces a fresh analyze, so same-fingerprint refreshes consume the queued verdicts below.
+      const channelRefresh = await channelAI.refreshChannelMixAI();
+      const burdenAnalysis = await burdenAI.analyzeBurdenAI({ force: true });
+      const burdenRefresh = await burdenAI.refreshBurdenAIAnalysis();
+      outcomes.aggregateSingletonAnalyzeAndRefreshWriteVerdicts = channelAnalysis?.tip === 'channel analyze tip'
+        && channelRefresh?.tip === 'channel refresh tip'
+        && state.importedData.channelMixAI?.tip === 'channel refresh tip'
+        && burdenAnalysis?.tip === 'burden analyze tip'
+        && burdenRefresh?.tip === 'burden refresh tip'
+        && state.importedData.lightEnvironment.burdenAI?.tip === 'burden refresh tip'
+        && queuedAIResponses.length === 0;
+
+      queuedAIResponses.push({ dot: 'yellow', tip: 'aggregate tip', detail: 'aggregate detail' });
       delete state.importedData.lightDailyVerdicts[todayKey];
       const dayAnalysis = await todayAI.analyzeDayAI(today, { force: true });
       outcomes.dayAnalyzeWritesDailyVerdict = dayAnalysis?.status === 'ok'
