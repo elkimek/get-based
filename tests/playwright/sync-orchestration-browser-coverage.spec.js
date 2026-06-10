@@ -219,6 +219,212 @@ test('sync pull browser force paths update status and skip unsafe rows', async (
   }
 });
 
+test('sync context defaults and pull retry cover unconfigured browser paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({
+    plannerContextUrl,
+    diagnosticsContextUrl,
+    actionContextUrl,
+    pullUrl,
+    tombstonesUrl,
+    syncDeltaUrl,
+    syncStateUrl,
+    stateUrl,
+    profileUrl,
+    cryptoUrl,
+  }) => {
+    const [
+      plannerContext,
+      diagnosticsContext,
+      actionContext,
+      pull,
+      tombstones,
+      syncDelta,
+      syncState,
+      { state },
+      profileStore,
+      cryptoStore,
+    ] = await Promise.all([
+      import(plannerContextUrl),
+      import(diagnosticsContextUrl),
+      import(actionContextUrl),
+      import(pullUrl),
+      import(tombstonesUrl),
+      import(syncDeltaUrl),
+      import(syncStateUrl),
+      import(stateUrl),
+      import(profileUrl),
+      import(cryptoUrl),
+    ]);
+    const outcomes = {};
+    const profileId = `sync_pull_retry_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const importedKey = profileStore.profileStorageKey(profileId, 'imported');
+    const queryToken = { name: 'profiles' };
+    const rows = [];
+    const debugCalls = [];
+    const warnings = [];
+    const timers = [];
+    const original = {
+      currentProfile: state.currentProfile,
+      importedData: state.importedData,
+      warn: console.warn,
+      setTimeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+      chatLock: sessionStorage.getItem('labcharts-chat-local-lock-until'),
+    };
+    let nextTimerId = 1;
+    const flushMicrotasks = async () => {
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+    };
+
+    try {
+      outcomes.plannerDefaultsReturnNoRows =
+        Array.isArray(plannerContext.getPlannerItemRows(profileId, 'entries'))
+        && plannerContext.getPlannerItemRows(profileId, 'entries').length === 0;
+      outcomes.diagnosticsDefaultsAreSafe =
+        diagnosticsContext.currentDiagnosticEvolu() === null
+        && diagnosticsContext.currentDiagnosticProfileQuery() === null
+        && diagnosticsContext.currentDiagnosticTombstoneQuery() === null
+        && diagnosticsContext.currentDiagnosticAppOwner() === null
+        && diagnosticsContext.currentDiagnosticSyncEnabled() === false
+        && diagnosticsContext.currentDiagnosticSubscriptionFireCount() === 0
+        && diagnosticsContext.currentDiagnosticSyncing() === false
+        && diagnosticsContext.currentDiagnosticPulling() === false;
+      const defaultEnable = await actionContext.enableSyncForDiagnose({});
+      const defaultRestore = await actionContext.restoreMnemonicForDiagnose('words');
+      const defaultPush = await actionContext.pushProfileForDiagnose(profileId);
+      const defaultPhase2 = actionContext.enablePhase2CutoverForDiagnose(profileId);
+      const defaultDisablePhase2 = actionContext.disablePhase2CutoverForDiagnose(profileId);
+      const defaultShowDiagnose = await actionContext.showSyncDiagnoseForActions();
+      outcomes.actionDefaultsAreCallable =
+        actionContext.currentSyncEnabled() === false
+        && defaultEnable === false
+        && defaultRestore === false
+        && defaultPush === undefined
+        && defaultPhase2?.ok === false
+        && defaultPhase2?.reason === 'unconfigured'
+        && defaultDisablePhase2 === false
+        && defaultShowDiagnose === undefined;
+
+      console.warn = (...args) => { warnings.push(args.map(String).join(' ')); };
+      await pull.onSyncReceived();
+      const defaultForce = pull.forcePull();
+      outcomes.pullDefaultsSkipAndWarn = defaultForce === undefined
+        && pull.isSyncPulling() === false
+        && warnings.some(message => message.includes('Cannot force pull'));
+
+      window.setTimeout = (fn, ms) => {
+        const id = nextTimerId++;
+        timers.push({ id, fn, ms, cleared: false });
+        return id;
+      };
+      window.clearTimeout = id => {
+        const timer = timers.find(item => item.id === id);
+        if (timer) timer.cleared = true;
+      };
+
+      state.currentProfile = profileId;
+      state.importedData = {
+        entries: [{ date: '2026-06-10', markers: { 'coverage.local': 1 } }],
+      };
+      sessionStorage.setItem('labcharts-chat-local-lock-until', String(Date.now() + 30_000));
+      await cryptoStore.encryptedRemoveItem(importedKey);
+      localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
+      localStorage.removeItem(`labcharts-${profileId}-chat-threads`);
+      syncState.resetSyncStatus();
+      tombstones.configureSyncTombstones({
+        getEvolu: () => null,
+        getTombstoneQuery: () => null,
+        isSyncEnabled: () => false,
+      });
+      syncDelta.configureSyncDelta({
+        getEvolu: () => ({ getQueryRows: () => [] }),
+        getItemRowQuery: () => ({}),
+      });
+      rows.push({
+        profileId,
+        syncedAt: new Date().toISOString(),
+        dataJson: JSON.stringify({
+          _v: 3,
+          importedData: { entries: [] },
+          profile: null,
+          chatData: { threads: 'not-array' },
+        }),
+      });
+      pull.configureSyncPull({
+        getEvolu: () => ({
+          getQueryRows(query) {
+            return query === queryToken ? rows : [];
+          },
+        }),
+        getProfileQuery: () => queryToken,
+        debug: (...args) => { debugCalls.push(args.map(String).join(' ')); },
+      });
+
+      await pull.onSyncReceived();
+      const rebroadcastTimer = timers.find(timer => timer.ms === 100 && !timer.cleared);
+      const chatRetryTimer = timers.find(timer => timer.ms >= 1000 && !timer.cleared);
+      outcomes.pullSchedulesRebroadcastAndChatRetry =
+        !!rebroadcastTimer
+        && !!chatRetryTimer
+        && debugCalls.some(message => message.includes('rebroadcast'))
+        && localStorage.getItem(`labcharts-${profileId}-sync-ts`) !== null
+        && pull.isSyncPulling() === false;
+
+      const timersBeforeRetry = timers.length;
+      rebroadcastTimer?.fn();
+      rows.length = 0;
+      chatRetryTimer?.fn();
+      await flushMicrotasks();
+      outcomes.pullRetryTimerRunsDefaultPushAndInFlightGuard =
+        timers.length === timersBeforeRetry
+        && debugCalls.some(message => message.includes('Retrying chat pull'))
+        && pull.isSyncPulling() === false;
+    } finally {
+      console.warn = original.warn;
+      pull.clearSyncPullTimers();
+      syncState.resetSyncStatus();
+      tombstones.configureSyncTombstones({
+        getEvolu: () => null,
+        getTombstoneQuery: () => null,
+        isSyncEnabled: () => false,
+      });
+      syncDelta.configureSyncDelta({
+        getEvolu: () => null,
+        getItemRowQuery: () => null,
+      });
+      state.currentProfile = original.currentProfile;
+      state.importedData = original.importedData;
+      if (original.chatLock == null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
+      else sessionStorage.setItem('labcharts-chat-local-lock-until', original.chatLock);
+      window.setTimeout = original.setTimeout;
+      window.clearTimeout = original.clearTimeout;
+      localStorage.removeItem(`labcharts-${profileId}-sync-ts`);
+      localStorage.removeItem(`labcharts-${profileId}-chat-threads`);
+      await cryptoStore.encryptedRemoveItem(importedKey);
+    }
+
+    return outcomes;
+  }, {
+    plannerContextUrl: moduleUrl('/js/sync-delta-planner-context.js'),
+    diagnosticsContextUrl: moduleUrl('/js/sync-diagnostics-context.js'),
+    actionContextUrl: moduleUrl('/js/sync-diagnose-actions-context.js'),
+    pullUrl: moduleUrl('/js/sync-pull.js'),
+    tombstonesUrl: '/js/sync-tombstones.js',
+    syncDeltaUrl: '/js/sync-delta.js',
+    syncStateUrl: '/js/sync-state.js',
+    stateUrl: '/js/state.js',
+    profileUrl: '/js/profile.js',
+    cryptoUrl: '/js/crypto.js',
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('sync subscriptions browser coverage handles deferred receives and relay health', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
