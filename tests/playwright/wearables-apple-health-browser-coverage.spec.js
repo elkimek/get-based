@@ -25,7 +25,6 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       currentProfile: state.currentProfile,
       importedData: clone(state.importedData),
       profiles: clone(state.profiles),
-      activeProfile: localStorage.getItem('labcharts-active-profile'),
       jszip: window.JSZip,
       hadJSZip: Object.prototype.hasOwnProperty.call(window, 'JSZip'),
     };
@@ -35,7 +34,8 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
     }));
     const profileId = `apple-health-browser-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const results = {};
-    const progress = [];
+    const blobProgress = [];
+    const importProgress = [];
     const zipProgress = [];
     const invalidErrors = [];
 
@@ -84,27 +84,29 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       const parsedRows = apple.parseAppleHealthXml(richXml);
       const dayOne = parsedRows.find(row => row.date === '2026-06-01');
       const dayTwo = parsedRows.find(row => row.date === '2026-06-02');
-      results.xmlParserAggregatesCoreSignals = parsedRows.length === 2
-        && dayOne?.hrv_sdnn === 60
-        && dayOne?.hrv_day === 30
-        && dayOne?.rhr === 58
-        && dayOne?.hr_day === 75
-        && dayOne?.steps === 1000
-        && dayOne?.spo2_avg === 97
+      results.xmlParserReturnsTwoDays = parsedRows.length === 2
+        && parsedRows[0]?.date === '2026-06-01'
+        && parsedRows[1]?.date === '2026-06-02';
+      results.xmlParserSplitsHrvWindows = dayOne?.hrv_sdnn === 60
+        && dayOne?.hrv_day === 30;
+      results.xmlParserAggregatesHeartRateSignals = dayOne?.rhr === 58
+        && dayOne?.hr_day === 75;
+      results.xmlParserDeduplicatesStepsBySource = dayOne?.steps === 1000;
+      results.xmlParserNormalisesOxygenAndVo2 = dayOne?.spo2_avg === 97
         && dayOne?.vo2max === 42;
-      results.xmlParserConvertsBodyAndBloodPressureUnits = dayOne?.weight === 81.65
-        && dayOne?.body_fat_pct === 20
+      results.xmlParserConvertsWeight = dayOne?.weight === 81.65;
+      results.xmlParserConvertsBodyComposition = dayOne?.body_fat_pct === 20
         && dayOne?.fat_mass_kg === 16.33
-        && dayOne?.lean_mass_kg === 65
-        && dayOne?.bp_systolic === 120
-        && dayOne?.bp_diastolic === 80
-        && dayOne?.body_temp_delta === null;
+        && dayOne?.lean_mass_kg === 65;
+      results.xmlParserConvertsBloodPressure = dayOne?.bp_systolic === 120
+        && dayOne?.bp_diastolic === 80;
+      results.xmlParserDropsAbsoluteBodyTemperature = dayOne?.body_temp_delta === null;
       results.xmlParserFallsBackWhenNoHourMetadata = dayTwo?.hrv_sdnn === 50
         && dayTwo?.hrv_day === null;
 
-      const blobRows = await apple.parseAppleHealthBlob(new Blob([richXml], { type: 'application/xml' }), evt => progress.push(evt));
+      const blobRows = await apple.parseAppleHealthBlob(new Blob([richXml], { type: 'application/xml' }), evt => blobProgress.push(evt));
       results.blobParserMatchesXmlParser = JSON.stringify(blobRows) === JSON.stringify(parsedRows);
-      results.blobParserReportsProgress = progress.some(evt => evt.stage === 'parsing' && evt.pct >= 40);
+      results.blobParserReportsProgress = blobProgress.some(evt => evt.stage === 'parsing' && evt.pct >= 40);
 
       try {
         await apple.importAppleHealthFile(new File(['not apple'], 'notes.txt', { type: 'text/plain' }));
@@ -115,20 +117,22 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
 
       const xmlResult = await apple.importAppleHealthFile(
         new File([richXml], 'export.xml', { type: 'application/xml' }),
-        evt => progress.push(evt)
+        evt => importProgress.push(evt)
       );
       const importedRows = await store.getDailyRange(profileId, 'apple_health', '2026-06-01', '2026-06-02');
       const importMeta = await store.getMeta(profileId, 'last-sync:apple_health');
-      results.xmlImportWritesRowsMetaAndConnection = xmlResult.rows === 2
+      results.xmlImportReturnsDateRange = xmlResult.rows === 2
         && xmlResult.startDate === '2026-06-01'
-        && xmlResult.endDate === '2026-06-02'
-        && importedRows.length === 2
-        && importMeta?.rows === 2
-        && state.importedData.wearableConnections.apple_health?.fileName === 'export.xml'
-        && state.importedData.wearableConnections.apple_health?.coverageDays === 2
-        && state.importedData.wearableSummary?.sources?.apple_health?.coverageDays === 2;
+        && xmlResult.endDate === '2026-06-02';
+      results.xmlImportWritesIndexedDbRows = importedRows.length === 2;
+      results.xmlImportWritesMeta = importMeta?.rows === 2
+        && importMeta?.startDate === '2026-06-01'
+        && importMeta?.endDate === '2026-06-02';
+      results.xmlImportUpdatesConnection = state.importedData.wearableConnections.apple_health?.fileName === 'export.xml'
+        && state.importedData.wearableConnections.apple_health?.coverageDays === 2;
+      results.xmlImportUpdatesSummary = state.importedData.wearableSummary?.sources?.apple_health?.coverageDays === 2;
       results.xmlImportReportsAllStages = ['reading', 'parsing', 'writing', 'summarising', 'done']
-        .every(stage => progress.some(evt => evt.stage === stage));
+        .every(stage => importProgress.some(evt => evt.stage === stage));
 
       window.JSZip = {
         loadAsync: async (_file, options = {}) => {
@@ -180,8 +184,6 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
       state.profiles = saved.profiles;
-      if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
-      else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
       if (saved.hadJSZip) window.JSZip = saved.jszip;
       else delete window.JSZip;
       localStorage.clear();
