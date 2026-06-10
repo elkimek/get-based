@@ -37,3 +37,32 @@ test('chat image attachment DOM and CSS are loaded', async ({ page }) => {
     '.chat-drop-active': true,
   });
 });
+
+test('image utility content builders format provider-compatible vision messages', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const imageUtils = await import(`/js/image-utils.js?imageUtilsCoverage=${Date.now()}`);
+    const outcomes = {};
+    const block = imageUtils.formatImageBlock('abc123', 'image/png', 'ollama');
+    const contentWithText = imageUtils.buildVisionContent([block], 'Read the marker table.', 'openrouter');
+    const contentWithoutText = imageUtils.buildVisionContent([block], '', 'venice');
+
+    outcomes.formatImageBlockUsesDataUrlImageBlock =
+      block.type === 'image_url'
+      && block.image_url.url === 'data:image/png;base64,abc123';
+    outcomes.buildVisionContentAppendsTextOnlyWhenProvided =
+      contentWithText.length === 2
+      && contentWithText[0] === block
+      && contentWithText[1].type === 'text'
+      && contentWithText[1].text === 'Read the marker table.'
+      && contentWithoutText.length === 1
+      && contentWithoutText[0] === block;
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

@@ -114,6 +114,96 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
   }
 });
 
+test('discussion round state persists active and inactive thread histories', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
+
+  const results = await page.evaluate(async ({ roundStateUrl }) => {
+    const [roundState, chatThreads, { state }] = await Promise.all([
+      import(roundStateUrl),
+      import('/js/chat-threads.js'),
+      import('/js/state.js'),
+    ]);
+    const outcomes = {};
+    const profileId = 'discussion-round-state-coverage';
+    const saved = {
+      currentProfile: state.currentProfile,
+      currentThreadId: state.currentThreadId,
+      chatThreads: state.chatThreads,
+      chatHistory: state.chatHistory,
+      encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
+    };
+    const removeProfileChatKeys = () => {
+      for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean)) {
+        if (key.startsWith(`labcharts-${profileId}-chat`)) localStorage.removeItem(key);
+      }
+    };
+    const initialUpdatedAt = new Date(Date.now() - 86400000).toISOString();
+
+    try {
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      removeProfileChatKeys();
+      state.currentProfile = profileId;
+      state.currentThreadId = 'active-thread';
+      state.chatHistory = [{ role: 'user', content: 'before' }];
+      state.chatThreads = [
+        { id: 'active-thread', title: 'Active', messageCount: 1, updatedAt: initialUpdatedAt },
+        { id: 'inactive-thread', title: 'Inactive', messageCount: 1, updatedAt: initialUpdatedAt },
+      ];
+
+      let renderCalls = 0;
+      const activeMessages = [{ role: 'assistant', content: 'active render' }];
+      const inactiveMessages = [{ role: 'assistant', content: 'inactive render' }];
+      roundState.renderRoundMessages('inactive-thread', inactiveMessages, () => { renderCalls += 1; });
+      const inactiveRenderSkipped = renderCalls === 0
+        && state.chatHistory[0].content === 'before';
+      roundState.renderRoundMessages('active-thread', activeMessages, () => { renderCalls += 1; });
+      outcomes.renderRoundMessagesOnlyRendersActiveThread = inactiveRenderSkipped
+        && renderCalls === 1
+        && state.chatHistory === activeMessages;
+
+      await roundState.saveRoundChatHistory(null, [{ role: 'assistant', content: 'ignored' }]);
+      const activeSaveMessages = [{ role: 'assistant', content: 'active saved' }];
+      await roundState.saveRoundChatHistory('active-thread', activeSaveMessages);
+      outcomes.activeRoundSaveUsesSharedChatHistory =
+        state.chatHistory === activeSaveMessages;
+
+      const inactiveSaveMessages = [
+        { role: 'assistant', content: 'inactive saved' },
+        { role: 'user', content: 'follow up' },
+      ];
+      const beforeUpdatedAt = state.chatThreads.find(thread => thread.id === 'inactive-thread')?.updatedAt;
+      await roundState.saveRoundChatHistory('inactive-thread', inactiveSaveMessages);
+      const inactiveThread = state.chatThreads.find(thread => thread.id === 'inactive-thread');
+      const inactiveStored = JSON.parse(localStorage.getItem(chatThreads.getChatThreadKey('inactive-thread')) || '[]');
+      const savedThreadIndex = JSON.parse(localStorage.getItem(chatThreads.getChatThreadsKey()) || '[]');
+      outcomes.inactiveRoundSavePersistsThreadAndUpdatesIndex =
+        inactiveStored.length === 2
+        && inactiveStored[0].content === 'inactive saved'
+        && inactiveThread.messageCount === 2
+        && inactiveThread.updatedAt !== beforeUpdatedAt
+        && savedThreadIndex.some(thread => thread.id === 'inactive-thread' && thread.messageCount === 2);
+    } finally {
+      removeProfileChatKeys();
+      state.currentProfile = saved.currentProfile;
+      state.currentThreadId = saved.currentThreadId;
+      state.chatThreads = saved.chatThreads;
+      state.chatHistory = saved.chatHistory;
+      if (saved.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
+      else localStorage.setItem('labcharts-encryption-enabled', saved.encryptionEnabled);
+      window.renderThreadList?.();
+    }
+
+    return outcomes;
+  }, {
+    roundStateUrl: moduleUrl('/js/chat-discussion-round-state.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('chat discussion request builder covers personality model assistant and usage metadata', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-input');
