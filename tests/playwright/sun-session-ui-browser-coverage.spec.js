@@ -527,3 +527,132 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
 
   expectAll(results);
 });
+
+test('sun session UI covers default dependency callbacks', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ sunSessionUrl }) => {
+    const [{ state }, sunUI] = await Promise.all([
+      import('/js/state.js'),
+      import(sunSessionUrl),
+    ]);
+    const outcomes = {};
+    const saved = {
+      currentView: state.currentView,
+    };
+    const windowKeys = [
+      'navigate',
+      'solarZenithAngle',
+      'geneticVitaminDMultiplier',
+    ];
+    const savedWindow = Object.fromEntries(windowKeys.map(key => [
+      key,
+      { had: Object.prototype.hasOwnProperty.call(window, key), value: window[key] },
+    ]));
+    const session = {
+      id: 'default-deps-session',
+      startedAt: Date.now() - 20 * 60000,
+      endedAt: Date.now(),
+      durationMin: 20,
+      location: { lat: 50.08, lon: 14.43, source: 'test' },
+      bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], glassBetween: false },
+      eyeExposure: { mode: 'direct', lensTint: 'clear' },
+      atmosphere: { uvIndex: 4.2, source: 'manual' },
+      safety: { medFraction: 0.25, fitzpatrick: 'III' },
+      doses: { vitamin_d: 12, circadian: 6, nir_solar: 3 },
+    };
+    const waitFor = async predicate => {
+      for (let i = 0; i < 30; i += 1) {
+        if (predicate()) return true;
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return false;
+    };
+    const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
+
+    try {
+      state.currentView = 'dashboard';
+      window.navigate = route => {
+        outcomes.unexpectedNavigate = route;
+      };
+      window.solarZenithAngle = () => 48;
+      window.geneticVitaminDMultiplier = () => ({ mult: 1, contributors: [] });
+
+      const emptyList = sunUI.renderSessionsList();
+      outcomes.defaultEmptyListUsesGetSessions = emptyList.includes('No sun sessions logged yet');
+
+      const activeHost = document.createElement('div');
+      activeHost.innerHTML = sunUI.renderSunSessionRow({
+        id: 'default-active',
+        startedAt: Date.now() - 60000,
+        endedAt: null,
+        bodyExposure: { fraction: 0.05, regions: ['face'] },
+        eyeExposure: { mode: 'unknown' },
+        safety: { medFraction: 0.1, fitzpatrick: 'III' },
+        doses: { vitamin_d: 4, pomc: 2 },
+      });
+      outcomes.defaultRowUsesSummaryElapsedAndChipHelpers = activeHost.textContent.includes('0:00')
+        && activeHost.textContent.includes('Body unset')
+        && activeHost.textContent.includes('Eyes unset')
+        && activeHost.textContent.includes('vitamin d')
+        && !!activeHost.querySelector('.sun-chip-tier-0');
+
+      sunUI.configureSunSessionUI({ getSessions: () => [session] });
+      sunUI.openSunSessionDetail(session.id);
+      const detailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
+      outcomes.defaultDetailUsesModalAndChannelDeps = !!detailOverlay
+        && detailOverlay.textContent.includes('Sun session')
+        && detailOverlay.textContent.includes('none');
+      detailOverlay?.remove();
+
+      sunUI.openDetailedSessionDialog();
+      const defaultLogOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
+      defaultLogOverlay?.querySelector('[data-region="face"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      defaultLogOverlay?.querySelector('#det-save')?.click();
+      await waitFor(() => !document.body.contains(defaultLogOverlay));
+      outcomes.defaultDetailedSaveUsesLogAndCoordsFallbacks = toasts().some(text => text.includes('Detailed session saved'));
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+
+      sunUI.configureSunSessionUI({
+        getSessions: () => [session],
+        logCompletedSession: async () => 'default-hydrate-session',
+      });
+      sunUI.openDetailedSessionDialog();
+      const defaultHydrateOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
+      defaultHydrateOverlay?.querySelector('[data-region="face"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      defaultHydrateOverlay?.querySelector('#det-save')?.click();
+      await waitFor(() => !document.body.contains(defaultHydrateOverlay));
+      outcomes.defaultDetailedSaveUsesHydrateFallback = toasts().some(text => text.includes('Detailed session saved'));
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+
+      const deletePromise = sunUI.deleteSunSession(session.id);
+      await waitFor(() => !!document.getElementById('confirm-ok'));
+      document.getElementById('confirm-ok')?.click();
+      await deletePromise;
+      outcomes.defaultDeleteUsesDeleteAndRefreshFallbacks = !document.getElementById('confirm-dialog-overlay')?.classList.contains('show');
+
+      const editPromise = sunUI.editSunSessionDuration(session.id);
+      await waitFor(() => !!document.getElementById('prompt-dialog-input'));
+      const input = document.getElementById('prompt-dialog-input');
+      if (input) {
+        input.value = '21';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      document.getElementById('prompt-ok')?.click();
+      await editPromise;
+      outcomes.defaultEditUsesUpdateFallback = toasts().some(text => text.includes('Session duration set to 21 min'))
+        && !outcomes.unexpectedNavigate;
+    } finally {
+      state.currentView = saved.currentView;
+      for (const [key, info] of Object.entries(savedWindow)) {
+        if (info.had) window[key] = info.value;
+        else delete window[key];
+      }
+      document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, { sunSessionUrl: moduleUrl('/js/sun-session-ui.js') });
+
+  expectAll(results);
+});
