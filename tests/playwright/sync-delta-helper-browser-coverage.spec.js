@@ -256,6 +256,7 @@ test('sync delta facade covers default provider guards', async ({ page }) => {
       });
     }
 
+    outcomes.allOutcomesReached = true;
     return outcomes;
   }, {
     deltaUrl: moduleUrl('/js/sync-delta.js'),
