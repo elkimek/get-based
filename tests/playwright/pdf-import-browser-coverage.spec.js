@@ -652,3 +652,136 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
     expect(passed, name).toBe(true);
   }
 });
+
+test('PDF import covers extraction errors drop zone setup and batch retry', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#drop-zone', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ pdfImportUrl }) => {
+    const pdfImport = await import(pdfImportUrl);
+    const outcomes = {};
+    const dropZone = document.getElementById('drop-zone');
+    const pdfInput = document.getElementById('pdf-input');
+    const original = {
+      pdfInputClick: pdfInput?.click,
+      setTimeout: window.setTimeout,
+      aiProvider: localStorage.getItem('labcharts-ai-provider'),
+      aiPaused: localStorage.getItem('labcharts-ai-paused'),
+      ollamaModel: localStorage.getItem('labcharts-ollama-model'),
+      ollamaPiiEnabled: localStorage.getItem('labcharts-ollama-pii-enabled'),
+      piiReview: localStorage.getItem('labcharts-pii-review'),
+    };
+    const waitFor = async (predicate, label) => {
+      for (let i = 0; i < 80; i += 1) {
+        const value = predicate();
+        if (value) return value;
+        await new Promise(resolve => original.setTimeout.call(window, resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const setOrRemove = (key, value) => {
+      if (value == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    };
+    const notificationsText = () => Array.from(document.querySelectorAll('.notification-toast'))
+      .map(toast => toast.textContent || '')
+      .join('\n');
+
+    try {
+      const invalidPdf = new File(['this is not a PDF'], 'broken.pdf', { type: 'application/pdf' });
+      let textError = '';
+      try {
+        await pdfImport.extractPDFText(invalidPdf);
+      } catch (err) {
+        textError = String(err?.message || err);
+      }
+      let imageError = '';
+      try {
+        await pdfImport.extractPDFImages(invalidPdf, 1);
+      } catch (err) {
+        imageError = String(err?.message || err);
+      }
+
+      const fallbackPdf = new File(['also not a PDF'], 'fallback.pdf', { type: 'application/pdf' });
+      Object.defineProperty(fallbackPdf, 'arrayBuffer', {
+        value: () => Promise.reject(new Error('forced arrayBuffer failure')),
+      });
+      let fallbackError = '';
+      try {
+        await pdfImport.extractPDFText(fallbackPdf);
+      } catch (err) {
+        fallbackError = String(err?.message || err);
+      }
+      outcomes.invalidPdfExtractionAndFileReaderFallbackRejectThroughPdfLoader = textError.length > 0
+        && imageError.length > 0
+        && fallbackError.length > 0
+        && !fallbackError.includes('forced arrayBuffer failure');
+
+      await pdfImport.handlePDFFile(invalidPdf);
+      await waitFor(() => notificationsText().includes('Error parsing PDF:'), 'PDF parsing error notification');
+      outcomes.handlePDFFileFormatsParsingErrorNotification = notificationsText().includes('Error parsing PDF:')
+        && notificationsText().includes('Invalid PDF');
+
+      let inputClicks = 0;
+      if (!dropZone || !pdfInput) throw new Error('Expected drop zone and PDF input to exist.');
+      pdfInput.click = () => { inputClicks += 1; };
+      pdfImport.setupDropZone();
+      dropZone.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      outcomes.setupDropZoneClickRoutesToPdfInput = inputClicks >= 1;
+
+      dropZone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true }));
+      const dragClassAdded = dropZone.classList.contains('drag-over');
+      dropZone.dispatchEvent(new DragEvent('dragleave', { bubbles: true, cancelable: true }));
+      outcomes.setupDropZoneDragEventsToggleClass = dragClassAdded
+        && !dropZone.classList.contains('drag-over');
+
+      const unsupportedTransfer = new DataTransfer();
+      unsupportedTransfer.items.add(new File(['binary'], 'unsupported.bin', { type: 'application/octet-stream' }));
+      dropZone.dispatchEvent(new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: unsupportedTransfer,
+      }));
+      await waitFor(() => notificationsText().includes('Unsupported file type'), 'unsupported drop notification');
+      outcomes.dropUnsupportedFileShowsNotification = notificationsText().includes('Unsupported file type');
+
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-ollama-model', 'coverage-batch-model');
+      localStorage.setItem('labcharts-ollama-pii-enabled', 'false');
+      localStorage.setItem('labcharts-pii-review', 'false');
+      const immediateDelays = [];
+      window.setTimeout = (callback, delay, ...args) => {
+        if (delay === 5000) {
+          immediateDelays.push(delay);
+          return original.setTimeout.call(window, () => callback(...args), 0);
+        }
+        return original.setTimeout.call(window, callback, delay, ...args);
+      };
+      await pdfImport.handleBatchPDFs([invalidPdf]);
+      await waitFor(() => notificationsText().includes('Batch import complete'), 'batch completion notification');
+      outcomes.batchInvalidPdfRetriesOnceAndCompletes = immediateDelays.includes(5000)
+        && notificationsText().includes('Retrying 1 failed file')
+        && notificationsText().includes('Batch import complete: 1 failed');
+    } finally {
+      window.setTimeout = original.setTimeout;
+      if (pdfInput && original.pdfInputClick) pdfInput.click = original.pdfInputClick;
+      setOrRemove('labcharts-ai-provider', original.aiProvider);
+      setOrRemove('labcharts-ai-paused', original.aiPaused);
+      setOrRemove('labcharts-ollama-model', original.ollamaModel);
+      setOrRemove('labcharts-ollama-pii-enabled', original.ollamaPiiEnabled);
+      setOrRemove('labcharts-pii-review', original.piiReview);
+      document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
+      document.getElementById('ai-needed-overlay')?.classList.remove('show');
+      window.hideImportProgress?.('cancel');
+    }
+
+    return outcomes;
+  }, {
+    pdfImportUrl: moduleUrl('/js/pdf-import.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

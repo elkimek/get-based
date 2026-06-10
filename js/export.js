@@ -849,8 +849,7 @@ async function _importDatabaseBundle(json) {
       }
       // Save
       const value = JSON.stringify(current);
-      if (getEncryptionEnabled()) { await encryptedSetItem(storageKey, value); }
-      else { localStorage.setItem(storageKey, value); }
+      await encryptedSetItem(storageKey, value);
       if (bp.chat) await _importChatData(existing.id, bp.chat);
       merged++;
     } else {
@@ -867,8 +866,7 @@ async function _importDatabaseBundle(json) {
       // Write data
       const storageKey = profileStorageKey(id, 'imported');
       const value = JSON.stringify(importData);
-      if (getEncryptionEnabled()) { await encryptedSetItem(storageKey, value); }
-      else { localStorage.setItem(storageKey, value); }
+      await encryptedSetItem(storageKey, value);
       if (bp.chat) await _importChatData(id, bp.chat);
       created++;
     }
