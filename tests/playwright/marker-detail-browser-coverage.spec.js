@@ -544,3 +544,197 @@ test('marker detail delegated actions cover click key and data attribute contrac
     expect(passed, name).toBe(true);
   }
 });
+
+test('marker detail modal covers default deps descriptions alt units and bio age CRP fallback', async ({ page }) => {
+  await page.route('**/marker-detail-modal-isolated-coverage', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<!doctype html><html><head><title>Marker detail isolated coverage</title></head>
+      <body>
+        <div id="modal-overlay" class="modal-overlay"><div id="detail-modal" class="modal"></div></div>
+        <div id="notification-container"></div>
+      </body></html>`,
+  }));
+  await page.goto('/marker-detail-modal-isolated-coverage', { waitUntil: 'load' });
+  await page.waitForSelector('#modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ modalUrl }) => {
+    const [modal, { state }, data] = await Promise.all([
+      import(modalUrl),
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
+    const outcomes = {};
+    const calls = [];
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const saved = {
+      importedData: clone(state.importedData),
+      markerRegistry: clone(state.markerRegistry),
+      currentProfile: state.currentProfile,
+      currentView: state.currentView,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      unitSystem: state.unitSystem,
+      showAltUnits: state.showAltUnits,
+      rangeMode: state.rangeMode,
+      chartInstances: state.chartInstances,
+    };
+    const windowKeys = [
+      'toggleDashboardQuickMarkerPin',
+      'renameMarker',
+      'revertMarkerName',
+      'askAIAboutMarker',
+      'renderRecommendationSection',
+      'isProductRecsEnabled',
+      '_getRelevantSNPs',
+      'closeEMFInterpretation',
+      '_uninstallWearableModalFocusTrap',
+    ];
+    const savedWindow = Object.fromEntries(windowKeys.map(key => [
+      key,
+      { had: Object.prototype.hasOwnProperty.call(window, key), value: window[key] },
+    ]));
+    const date = '2026-06-01';
+    const albuminId = 'proteins_albumin';
+    const albuminKey = 'proteins.albumin';
+
+    try {
+      state.currentProfile = 'marker-detail-modal-coverage';
+      state.currentView = 'proteins';
+      state.profileSex = 'male';
+      state.profileDob = '1980-01-02';
+      state.unitSystem = 'EU';
+      state.showAltUnits = true;
+      state.rangeMode = 'both';
+      state.chartInstances = {};
+      state.importedData = {
+        entries: [{
+          date,
+          markers: {
+            [albuminKey]: 42,
+            'biochemistry.creatinine': 82,
+            'biochemistry.glucose': 5.1,
+            'proteins.crp': 1.2,
+            'differential.lymphocytesPct': 0.28,
+            'hematology.mcv': 90,
+            'hematology.rdwcv': 12.5,
+            'biochemistry.alp': 1.1,
+            'hematology.wbc': 5.4,
+          },
+          markerSources: { [albuminKey]: { file: 'coverage-lab.pdf', at: 1 } },
+        }],
+        notes: [],
+        supplements: [],
+        customMarkers: {},
+        markerLabels: { [albuminKey]: 'Albumin renamed' },
+        markerNotes: {},
+        markerValueNotes: {},
+        manualValues: {},
+        refOverrides: {},
+        genetics: { snps: [] },
+      };
+      data.invalidateActiveDataCache();
+      state.markerRegistry = {};
+
+      window.toggleDashboardQuickMarkerPin = id => calls.push(['pin', id]);
+      window.renameMarker = id => calls.push(['rename', id]);
+      window.revertMarkerName = id => calls.push(['revert-name', id]);
+      window.askAIAboutMarker = id => calls.push(['ask-ai', id]);
+      window.isProductRecsEnabled = () => true;
+      window._getRelevantSNPs = () => [];
+      window.renderRecommendationSection = async id => `<div class="coverage-rec">rec ${id}</div>`;
+      window.closeEMFInterpretation = () => calls.push(['close-emf']);
+      window._uninstallWearableModalFocusTrap = () => calls.push(['uninstall-focus']);
+
+      localStorage.setItem('labcharts-marker-desc', JSON.stringify({
+        'coverage.cached': 'Cached marker description',
+      }));
+      outcomes.fetchCustomMarkerDescriptionUsesCache =
+        await modal.fetchCustomMarkerDescription('coverage.cached', 'Coverage cached', 'u') === 'Cached marker description';
+
+      modal.showDetailModal(albuminId, { scrollToRec: true });
+      await wait(80);
+      const detail = document.getElementById('detail-modal');
+      const detailText = detail?.textContent || '';
+      outcomes.detailModalRendersAltUnitsQuickPinAndRecommendations =
+        detailText.includes('Albumin renamed')
+        && detailText.includes('g/dl')
+        && detailText.includes('coverage-lab.pdf')
+        && !!detail?.querySelector('.gb-detail-pin-btn[aria-pressed="false"]')
+        && detailText.includes('rec proteins.albumin');
+
+      detail?.querySelector('[data-marker-detail-action="quick-pin"]')?.click();
+      detail?.querySelector('[data-marker-detail-action="rename-marker"]')?.click();
+      detail?.querySelector('[data-marker-detail-action="revert-marker-name"]')?.click();
+      detail?.querySelector('[data-marker-detail-action="ask-ai"]')?.click();
+      outcomes.defaultDelegatesCallGlobalMarkerActions =
+        calls.some(call => call[0] === 'pin' && call[1] === albuminId)
+        && calls.some(call => call[0] === 'rename' && call[1] === albuminId)
+        && calls.some(call => call[0] === 'revert-name' && call[1] === albuminId)
+        && calls.some(call => call[0] === 'ask-ai' && call[1] === albuminId);
+
+      const icon = document.createElement('span');
+      icon.textContent = '*';
+      document.body.appendChild(icon);
+      modal.pickNewCatIcon(icon);
+      outcomes.defaultEmojiPickerNoops = icon.textContent === '*';
+
+      modal.showDetailModal('calculatedRatios_phenoAge');
+      await wait(80);
+      const bioText = document.getElementById('detail-modal')?.textContent || '';
+      outcomes.bioAgeDetailUsesStandardCrpPresenceFallback =
+        bioText.includes('PhenoAge')
+        && !bioText.includes('Missing: hs-CRP')
+        && !bioText.includes('Missing on latest date');
+
+      modal.closeModal();
+      outcomes.closeModalRunsCleanupHooks =
+        calls.some(call => call[0] === 'close-emf')
+        && calls.some(call => call[0] === 'uninstall-focus')
+        && !document.getElementById('modal-overlay')?.classList.contains('show');
+    } finally {
+      state.importedData = saved.importedData;
+      state.markerRegistry = saved.markerRegistry;
+      state.currentProfile = saved.currentProfile;
+      state.currentView = saved.currentView;
+      state.profileSex = saved.profileSex;
+      state.profileDob = saved.profileDob;
+      state.unitSystem = saved.unitSystem;
+      state.showAltUnits = saved.showAltUnits;
+      state.rangeMode = saved.rangeMode;
+      state.chartInstances = saved.chartInstances;
+      for (const [key, info] of Object.entries(savedWindow)) {
+        if (info.had) window[key] = info.value;
+        else delete window[key];
+      }
+      data.invalidateActiveDataCache();
+      modal.configureMarkerDetailModal({
+        navigate: (category, payload) => window.navigate?.(category, payload),
+        isDashboardQuickMarkerPinned: () => false,
+        toggleDashboardQuickMarkerPin: id => globalThis.toggleDashboardQuickMarkerPin?.(id),
+        renameMarker: id => globalThis.renameMarker?.(id),
+        revertMarkerName: id => globalThis.revertMarkerName?.(id),
+        askAIAboutMarker: id => globalThis.askAIAboutMarker?.(id),
+        showEmojiPicker: () => {},
+      });
+      document.getElementById('modal-overlay')?.classList.remove('show');
+      document.getElementById('detail-modal')?.replaceChildren();
+      document.querySelectorAll('.notification-toast,.confirm-overlay').forEach(el => el.remove());
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return outcomes;
+  }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
