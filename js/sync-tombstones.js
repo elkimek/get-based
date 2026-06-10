@@ -68,8 +68,17 @@ const TOMBSTONE_BATCH_THRESHOLD = 2; // two or more tombstones at once require c
 /** @param {string} profileId */
 async function wipeProfileLocal(profileId) {
   await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
-  for (const key of ['units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'suppImpact']) {
+  for (const key of ['units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'showAltUnits', 'suppImpact']) {
     localStorage.removeItem(profileStorageKey(profileId, key));
+  }
+  const threadIndexRaw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+  if (threadIndexRaw) {
+    try {
+      const threads = JSON.parse(threadIndexRaw);
+      for (const t of threads || []) {
+        if (t?.id) localStorage.removeItem(`labcharts-${profileId}-chat-t_${t.id}`);
+      }
+    } catch {}
   }
   for (const key of [
     'chat', 'chat-threads', 'chatRailOpen', 'chatPersonality',
