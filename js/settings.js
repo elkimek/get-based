@@ -529,7 +529,8 @@ function handleSunDataSourceChange(event) {
   if (!el) return;
   const action = el.dataset.sunSourceAction;
   if (action === 'set-meteo-mode') {
-    setMeteoMode(el instanceof HTMLSelectElement ? el.value || 'auto' : 'auto');
+    const mode = (el instanceof HTMLSelectElement || el instanceof HTMLInputElement) ? el.value || 'auto' : 'auto';
+    setMeteoMode(mode);
   } else if (action === 'save-meteo-selfhost') {
     saveMeteoSelfhost();
   } else if (action === 'toggle-meteo-rounding') {
