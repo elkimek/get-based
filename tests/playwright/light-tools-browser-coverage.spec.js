@@ -101,7 +101,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await lightTools.saveMeasurement('spectrum', 'warm-led', { roomId: 'room-2' });
       results.saveHooksRun = analyzeCalls.includes('spectrum')
         && spectrumCalls.some(call => call.roomId === 'room-2' && call.value === 'warm-led')
-        && refreshCalls.length >= 4;
+        && refreshCalls.length === 5;
       results.roomFilterHandlesRoomAndMissingId = lightTools.getMeasurementsForRoom('room-1').every(item => item.roomId === 'room-1')
         && lightTools.getMeasurementsForRoom(null).length === 0;
       results.deleteMeasurementRemovesAndReports = await lightTools.deleteMeasurement(secondLux.id)
@@ -141,6 +141,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       window.logCompletedSession = async payload => loggedSessions.push(payload);
       window.getSessions = () => [{ id: 'session-one' }];
       window.hydrateSession = async id => hydrateCalls.push(id);
+      const sunriseNavigateStart = navigateCalls.length;
       lightTools.openSunriseLogger();
       const sunriseOverlay = document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay');
       const durationInput = document.getElementById('sunrise-duration');
@@ -151,7 +152,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
         && loggedSessions[0]?.eyeExposure?.durationSec === 120 * 60
         && loggedSessions[0]?.bodyExposure?.preset === 'face_hands'
         && hydrateCalls.includes('session-one');
-      results.sunriseLoggerNavigatesLight = navigateCalls.some(call => call[0] === 'light' && !call[1]);
+      results.sunriseLoggerNavigatesLight = navigateCalls.slice(sunriseNavigateStart)
+        .some(call => call[0] === 'light' && !call[1]);
       sunriseOverlay?.remove();
 
       Object.defineProperty(navigator, 'mediaDevices', {
@@ -185,10 +187,12 @@ test('light tools browser coverage exercises storage render and modal flows', as
         getSessions: saved.getSessions,
         hydrateSession: saved.hydrateSession,
       });
-      Object.defineProperty(navigator, 'mediaDevices', {
-        configurable: true,
-        value: saved.mediaDevices,
-      });
+      try {
+        Object.defineProperty(navigator, 'mediaDevices', {
+          configurable: true,
+          value: saved.mediaDevices,
+        });
+      } catch (_) {}
       try { window._closeAudit?.(); } catch (_) {}
       delete window._closeAudit;
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
