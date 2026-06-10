@@ -961,3 +961,325 @@ test('report export helpers cover option normalization AI markup and popup block
     expect(passed, name).toBe(true);
   }
 });
+
+test('export facade covers JSON downloads imports chat bundle and clear cancel', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ exportUrl, profileUrl, cryptoUrl }) => {
+    const [exportFacade, profileStore, cryptoStore] = await Promise.all([
+      import(exportUrl),
+      import(profileUrl),
+      import(cryptoUrl),
+    ]);
+    const state = window._labState;
+    const outcomes = {};
+    const profileId = 'export-facade-coverage';
+    const originalProfiles = profileStore.getProfiles();
+    const original = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      currentProfile: state.currentProfile,
+      profiles: JSON.parse(JSON.stringify(originalProfiles)),
+      activeProfile: localStorage.getItem('labcharts-active-profile'),
+      encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
+      aiProvider: localStorage.getItem('labcharts-ai-provider'),
+      aiPaused: localStorage.getItem('labcharts-ai-paused'),
+      openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
+      fileReader: window.FileReader,
+      createObjectURL: URL.createObjectURL,
+      revokeObjectURL: URL.revokeObjectURL,
+      anchorClick: HTMLAnchorElement.prototype.click,
+      cashuGetMintUrl: window.cashuGetMintUrl,
+      nostrGetSelectedNode: window.nostrGetSelectedNode,
+      cashuSetMintUrl: window.cashuSetMintUrl,
+      nostrSetSelectedNode: window.nostrSetSelectedNode,
+    };
+    const waitFor = async (predicate, label) => {
+      for (let i = 0; i < 80; i += 1) {
+        const value = predicate();
+        if (value) return value;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const setOrRemove = (key, value) => {
+      if (value == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    };
+    const profileData = {
+      entries: [{
+        date: '2026-06-03',
+        markers: { 'biochemistry.glucose': 5.8 },
+      }],
+      notes: [{ date: '2026-06-03', text: 'Export facade note' }],
+      supplements: [{ name: 'Zinc', dosage: '15 mg', type: 'supplement', startDate: '2026-06-01' }],
+      customMarkers: {},
+      refOverrides: {},
+      healthGoals: [],
+      markerNotes: {},
+      markerValueNotes: {},
+      changeHistory: [],
+      chatSummaries: [],
+      sunSessions: [{ id: 'sun-export', date: '2026-06-03' }],
+      lightDevices: [{ id: 'light-export', name: 'Desk lamp' }],
+      channelMixAI: { summary: 'balanced' },
+    };
+    const downloadRecords = [];
+    const blobTexts = new Map();
+    const revokedUrls = [];
+
+    try {
+      localStorage.setItem('labcharts-encryption-enabled', 'false');
+      state.currentProfile = profileId;
+      state.importedData = JSON.parse(JSON.stringify(profileData));
+      localStorage.setItem('labcharts-active-profile', profileId);
+      await profileStore.saveProfiles([{
+        id: profileId,
+        name: 'Export Facade',
+        sex: 'female',
+        dob: '1985-04-05',
+        location: { country: 'CZ', zip: '11000' },
+        tags: ['coverage'],
+        notes: 'Export facade profile note',
+        status: 'active',
+        avatar: null,
+        height: 171,
+        heightUnit: 'cm',
+        createdAt: Date.now(),
+        lastUpdated: Date.now(),
+        pinned: false,
+      }]);
+      await cryptoStore.encryptedSetItem(
+        profileStore.profileStorageKey(profileId, 'imported'),
+        JSON.stringify(profileData),
+      );
+      localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{
+        id: 'thread-one',
+        title: 'Export thread',
+        createdAt: 1,
+        updatedAt: 2,
+      }]));
+      localStorage.setItem(`labcharts-${profileId}-chat-t_thread-one`, JSON.stringify([
+        { role: 'user', content: 'What changed?' },
+        { role: 'assistant', content: 'Glucose improved.' },
+      ]));
+      localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'clinician');
+      localStorage.setItem(`labcharts-${profileId}-chatPersonalityCustom`, JSON.stringify([{ id: 'direct', label: 'Direct' }]));
+
+      let objectUrlIndex = 0;
+      URL.createObjectURL = blob => {
+        objectUrlIndex += 1;
+        const url = `blob:export-facade-${objectUrlIndex}`;
+        blobTexts.set(url, blob.text());
+        return url;
+      };
+      URL.revokeObjectURL = url => { revokedUrls.push(url); };
+      HTMLAnchorElement.prototype.click = function click() {
+        downloadRecords.push({
+          download: this.download,
+          href: this.getAttribute('href') || this.href,
+        });
+      };
+      window.cashuGetMintUrl = async () => 'https://mint.example';
+      window.nostrGetSelectedNode = () => 'wss://relay.example';
+
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'true');
+      const unavailable = await exportFacade.generateReportAISummary({ dateRange: 'all' });
+      outcomes.facadeAISummaryReturnsNullWhenProviderUnavailable = unavailable === null
+        && Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Connect an AI provider'));
+
+      exportFacade.exportDataJSON();
+      await waitFor(() => downloadRecords.length >= 1, 'legacy client export download');
+      await exportFacade.exportClientJSON(profileId, true);
+      await exportFacade.exportAllDataJSON();
+      await Promise.all(downloadRecords.map(async record => {
+        record.text = await blobTexts.get(record.href);
+      }));
+      const activeClientExport = JSON.parse(downloadRecords[0].text);
+      const chatClientExport = JSON.parse(downloadRecords[1].text);
+      const allDataBundle = JSON.parse(downloadRecords[2].text);
+      outcomes.downloadsIncludeActiveClientChatBundleAndWallet = downloadRecords.length === 3
+        && downloadRecords[0].download.includes('getbased-export-facade')
+        && activeClientExport.profile.name === 'Export Facade'
+        && activeClientExport.entries[0].markers['biochemistry.glucose'] === 5.8
+        && chatClientExport.chat.threads[0].id === 'thread-one'
+        && chatClientExport.chat.messages['thread-one'][1].content.includes('Glucose')
+        && allDataBundle.type === 'database'
+        && allDataBundle.profiles.length === 1
+        && allDataBundle.profiles[0].chat.threads[0].id === 'thread-one'
+        && allDataBundle.wallet.mintUrl === 'https://mint.example'
+        && allDataBundle.wallet.nodeUrl === 'wss://relay.example'
+        && revokedUrls.length === 3;
+
+      class ErrorFileReader {
+        readAsText() {
+          setTimeout(() => this.onerror?.(new Event('error')), 0);
+        }
+      }
+      window.FileReader = ErrorFileReader;
+      let errorReaderResolved = false;
+      await exportFacade.importDataJSON(new File(['{}'], 'reader-error.json', { type: 'application/json' }));
+      errorReaderResolved = true;
+      window.FileReader = original.fileReader;
+      outcomes.readerOnerrorImportResolves = errorReaderResolved;
+
+      const singleImport = {
+        profile: {
+          name: 'Imported Facade Client',
+          sex: 'male',
+          dob: '1980-01-02',
+          tags: ['imported'],
+          height: 182,
+          heightUnit: 'cm',
+        },
+        entries: [{
+          date: '2026-06-04',
+          markers: { 'vitamins.vitaminD': 44 },
+        }],
+        notes: [{ date: '2026-06-04', text: 'Single import note' }],
+        chat: {
+          threads: [{ id: 'single-thread', title: 'Imported chat' }],
+          messages: { 'single-thread': [{ role: 'user', content: 'Imported message' }] },
+          personality: 'coach',
+          customPersonalities: [{ id: 'coach', label: 'Coach' }],
+        },
+      };
+      await exportFacade.importDataJSON(new File([JSON.stringify(singleImport)], 'single-client.json', { type: 'application/json' }));
+      const singleProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Facade Client');
+      const singleThreads = singleProfile
+        ? JSON.parse(localStorage.getItem(`labcharts-${singleProfile.id}-chat-threads`) || '[]')
+        : [];
+      outcomes.singleClientImportCreatesProfileDataAndChat = !!singleProfile
+        && state.currentProfile === singleProfile.id
+        && state.importedData.entries.some(entry => entry.markers?.['vitamins.vitaminD'] === 44)
+        && singleThreads[0]?.id === 'single-thread'
+        && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
+
+      Object.defineProperty(window, 'cashuSetMintUrl', {
+        configurable: true,
+        writable: true,
+        value: async () => {},
+      });
+      Object.defineProperty(window, 'nostrSetSelectedNode', {
+        configurable: true,
+        writable: true,
+        value: () => {},
+      });
+      const databaseBundle = {
+        type: 'database',
+        profiles: [
+          {
+            id: profileId,
+            name: 'Export Facade Merged',
+            sex: 'female',
+            data: {
+              entries: [{
+                date: '2026-06-05',
+                markers: { 'hematology.hemoglobin': 131 },
+              }],
+              notes: [{ date: '2026-06-05', text: 'Merged bundle note' }],
+              supplements: [{ name: 'Creatine', startDate: '2026-06-05' }],
+              healthGoals: [{ text: 'Keep glucose stable', severity: 'medium' }],
+              customMarkers: { 'coverage.marker': { name: 'Coverage Marker' } },
+              refOverrides: { 'biochemistry.glucose': { min: 4, max: 6 } },
+              categoryLabels: { coverage: 'Coverage' },
+              markerLabels: { 'coverage.marker': 'Coverage Marker' },
+              manualValues: { 'coverage.marker': 9 },
+              chatSummaries: [{ threadId: 'thread-one', text: 'Summary' }],
+              changeHistory: [{ field: 'glucose', date: '2026-06-05', value: 5.8 }],
+            },
+            chat: {
+              threads: [{ id: 'bundle-thread', title: 'Bundle chat' }],
+              messages: { 'bundle-thread': [{ role: 'assistant', content: 'Bundle message' }] },
+              personality: 'bundle',
+            },
+          },
+          {
+            name: 'Bundle Facade New',
+            data: {
+              entries: [{
+                date: '2026-06-06',
+                markers: { 'proteins.crp': 1.2 },
+              }],
+            },
+            chat: {
+              threads: [{ id: 'new-bundle-thread', title: 'New bundle chat' }],
+              messages: { 'new-bundle-thread': [{ role: 'user', content: 'New bundle message' }] },
+            },
+          },
+        ],
+        wallet: {
+          mintUrl: 'https://mint.restore',
+          nodeUrl: 'wss://relay.restore',
+        },
+      };
+      await exportFacade.importDataJSON(new File([JSON.stringify(databaseBundle)], 'database-bundle.json', { type: 'application/json' }));
+      const mergedRaw = await cryptoStore.encryptedGetItem(profileStore.profileStorageKey(profileId, 'imported'));
+      const mergedData = JSON.parse(mergedRaw);
+      const mergedThreads = JSON.parse(localStorage.getItem(`labcharts-${profileId}-chat-threads`) || '[]');
+      const newBundleProfile = profileStore.getProfiles().find(profile => profile.name === 'Bundle Facade New');
+      outcomes.databaseBundleMergesCreatesAndImportsChat = state.currentProfile === profileId
+        && profileStore.getProfiles().some(profile => profile.id === profileId && profile.name === 'Export Facade Merged')
+        && mergedData.entries.some(entry => entry.markers?.['hematology.hemoglobin'] === 131)
+        && mergedData.notes.some(note => note.text === 'Merged bundle note')
+        && mergedThreads.some(thread => thread.id === 'bundle-thread')
+        && !!newBundleProfile;
+
+      const clearPromise = exportFacade.clearAllData();
+      const cancelButton = await waitFor(() => document.getElementById('confirm-cancel'), 'clear data cancel button');
+      const clearPrompt = document.getElementById('confirm-dialog-overlay')?.textContent || '';
+      cancelButton.click();
+      await clearPromise;
+      outcomes.clearAllDataCancelKeepsProfiles = clearPrompt.includes('Clear ALL data')
+        && profileStore.getProfiles().length >= 2
+        && profileStore.getProfiles().some(profile => profile.id === profileId);
+    } finally {
+      window.FileReader = original.fileReader;
+      URL.createObjectURL = original.createObjectURL;
+      URL.revokeObjectURL = original.revokeObjectURL;
+      HTMLAnchorElement.prototype.click = original.anchorClick;
+      if (original.cashuGetMintUrl === undefined) delete window.cashuGetMintUrl;
+      else window.cashuGetMintUrl = original.cashuGetMintUrl;
+      if (original.nostrGetSelectedNode === undefined) delete window.nostrGetSelectedNode;
+      else window.nostrGetSelectedNode = original.nostrGetSelectedNode;
+      if (original.cashuSetMintUrl === undefined) delete window.cashuSetMintUrl;
+      else window.cashuSetMintUrl = original.cashuSetMintUrl;
+      if (original.nostrSetSelectedNode === undefined) delete window.nostrSetSelectedNode;
+      else window.nostrSetSelectedNode = original.nostrSetSelectedNode;
+
+      const originalIds = new Set(original.profiles.map(profile => profile.id));
+      const touchedIds = new Set([profileId]);
+      for (const profile of profileStore.getProfiles()) {
+        if (!originalIds.has(profile.id)) touchedIds.add(profile.id);
+      }
+      for (const id of touchedIds) {
+        await cryptoStore.encryptedRemoveItem(profileStore.profileStorageKey(id, 'imported'));
+        for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean)) {
+          if (key.startsWith(`labcharts-${id}-chat`)) localStorage.removeItem(key);
+        }
+      }
+      state.importedData = original.importedData;
+      state.currentProfile = original.currentProfile;
+      await profileStore.saveProfiles(original.profiles);
+      window.invalidateActiveDataCache?.();
+      setOrRemove('labcharts-active-profile', original.activeProfile);
+      setOrRemove('labcharts-encryption-enabled', original.encryptionEnabled);
+      setOrRemove('labcharts-ai-provider', original.aiProvider);
+      setOrRemove('labcharts-ai-paused', original.aiPaused);
+      setOrRemove('labcharts-openrouter-key', original.openrouterKey);
+      document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
+    }
+
+    return outcomes;
+  }, {
+    exportUrl: moduleUrl('/js/export.js'),
+    profileUrl: moduleUrl('/js/profile.js'),
+    cryptoUrl: moduleUrl('/js/crypto.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
