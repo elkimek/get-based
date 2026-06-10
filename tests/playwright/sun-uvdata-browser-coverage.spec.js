@@ -122,7 +122,7 @@ test('sun uvdata browser coverage handles config cache globals and purging', asy
       const afterPurge = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
         .filter(key => key?.startsWith('meteo:v2:')).length;
       outcomes.purgeMeteoCacheCountsAndRemovesOnlyV2Entries =
-        beforePurge >= 3
+        beforePurge === 3
         && removed === beforePurge
         && afterPurge === 0
         && localStorage.getItem('meteo:v1:keep-a') === '{}';
@@ -305,7 +305,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && merged.uvIndex === 6.6
         && merged.ozoneDU === 315
         && merged.airQuality?.aod === 0.07
-        && merged.confidence <= 0.95;
+        && Math.abs(merged.confidence - 0.65) < 0.01;
 
       saveConfig({ mode: 'open-meteo' });
       cleanupCache();
@@ -485,14 +485,16 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
 
       const lerped = mod.interpolateAtmosphere(shaped, '2026-06-01T10:30:00.000Z');
       const nearest = mod.interpolateAtmosphere(shaped, '2026-06-02T00:00:00.000Z');
-      const invalid = mod.interpolateAtmosphere({ hourly: { time: ['bad'], uv_index: [1] } }, 'not a date');
+      const invalidTarget = mod.interpolateAtmosphere(shaped, 'not a date');
+      const invalidTimes = mod.interpolateAtmosphere({ hourly: { time: ['bad'], uv_index: [1] } }, '2026-06-01T10:30:00.000Z');
       outcomes.interpolateAtmosphereCoversLerpNearestAndInvalid =
         Math.abs(lerped.uvIndex - 6) < 0.001
         && Math.abs(lerped.uvClearSky - 7) < 0.001
         && Math.abs(lerped.cloudCover - 15) < 0.001
         && Math.abs(lerped.temperatureC - 22) < 0.001
         && nearest.uvIndex === 7
-        && invalid === null;
+        && invalidTarget === null
+        && invalidTimes === null;
     } finally {
       window.fetch = originalFetch;
       cleanupCache();
