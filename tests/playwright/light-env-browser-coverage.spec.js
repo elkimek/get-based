@@ -139,6 +139,28 @@ test('light environment browser coverage handles summary modal prompt and source
         mappedSection.includes('Moderate load')
         && mappedSummary.includes('Open assessment')
         && mappedSummary.includes('2 active today');
+
+      localStorage.removeItem('labcharts-light-env-active-room');
+      env().rooms[0].updatedAt = 100;
+      bedroom.updatedAt = 200;
+      const defaultHost = document.createElement('div');
+      defaultHost.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      outcomes.defaultActiveRoomUsesMostRecentlyUpdatedRoom =
+        defaultHost.querySelector(`.light-env-room-disclosure[data-id="${bedroom.id}"]`)?.classList.contains('expanded') === true;
+
+      await window.updateLightEnvRoomAndRender(bedroom.id, { name: 'Bedroom Prime' });
+      outcomes.updateRoomAndRenderRefreshesLightUI =
+        env().rooms.find(r => r.id === bedroom.id)?.name === 'Bedroom Prime'
+        && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+
+      window.openLightEnvironmentAssessment();
+      await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal'), 'assessment modal reopened');
+      env().rooms.find(r => r.id === bedroom.id).name = 'Synced Bedroom';
+      window.dispatchEvent(new Event('labcharts-sync-applied'));
+      await waitUntil(() => (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom'), 'sync refresh render');
+      outcomes.syncRefreshRebuildsOpenAssessment =
+        !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal')
+        && (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom');
     } finally {
       document.getElementById('light-env-assessment-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
@@ -263,6 +285,15 @@ test('light environment browser coverage handles screens tools and confirm delet
       await window.setLightEnvScreenEveningBucket(fallbackScreen.id, 'gt3');
       await window.setLightEnvTodayActive('screen', fallbackScreen.id, false);
       localStorage.setItem('labcharts-light-env-active-room', bedroomId);
+      state.importedData.lightMeasurements = [
+        { id: 'lux-reading', roomId: bedroomId, tool: 'lux', value: 1234, capturedAt: Date.now() },
+        { id: 'flicker-reading', roomId: bedroomId, tool: 'flicker', value: 2, capturedAt: Date.now() - 86400000 },
+        { id: 'cct-reading', roomId: bedroomId, tool: 'cct', value: 3000, capturedAt: Date.now() - 8 * 86400000 },
+        { id: 'darkness-reading', roomId: bedroomId, tool: 'darkness', value: 0.5, capturedAt: Date.now() - 35 * 86400000 },
+        { id: 'spectrum-reading', roomId: bedroomId, tool: 'spectrum', value: 'Warm spectrum', capturedAt: Date.now() },
+        { id: 'glass-reading', roomId: bedroomId, tool: 'glass-transmission', value: 0.42, capturedAt: Date.now() },
+        { id: 'audit-reading', roomId: bedroomId, tool: 'audit', value: 2, capturedAt: Date.now() },
+      ];
       const host = document.createElement('div');
       host.id = 'light-env-browser-host';
       host.innerHTML = window.renderEnvironmentSection({ embedded: true });
@@ -275,6 +306,21 @@ test('light environment browser coverage handles screens tools and confirm delet
         && fallbackCard?.classList.contains('light-env-card-skipped')
         && fallbackCard?.querySelector('[data-light-env-action="set-screen-hours-bucket"][data-light-env-key="most"]')?.getAttribute('aria-pressed') === 'true'
         && fallbackCard?.querySelector('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]')?.getAttribute('aria-pressed') === 'true';
+      const bedroomCardText = host.querySelector(`.light-env-room-disclosure[data-id="${bedroomId}"]`)?.textContent || '';
+      outcomes.measurementReadingsRenderAllToolFormats =
+        bedroomCardText.includes('1,234 lux')
+        && bedroomCardText.includes('moderate flicker')
+        && bedroomCardText.includes('3,000 K')
+        && bedroomCardText.includes('0.50 lux (sleep)')
+        && bedroomCardText.includes('Warm spectrum')
+        && bedroomCardText.includes('42% transmits')
+        && bedroomCardText.includes('2 room snapshots');
+      const wasScreenExpanded = fallbackCard?.classList.contains('expanded') === true;
+      window.toggleLightEnvScreenExpanded(fallbackScreen.id);
+      const expandedHost = document.createElement('div');
+      expandedHost.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      outcomes.screenExpandToggleChangesPortableCardState =
+        expandedHost.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`)?.classList.contains('expanded') !== wasScreenExpanded;
       for (const tool of ['spectrum', 'lux', 'flicker', 'cct', 'darkness']) {
         host.querySelector(`[data-light-env-action="open-tool"][data-light-env-tool="${tool}"]`)?.click();
       }
@@ -318,7 +364,30 @@ test('light environment browser coverage handles screens tools and confirm delet
         && typeof window.computeRoomSeverity(env().rooms.find(r => r.id === livingId)).tier === 'number'
         && typeof window.computeIndoorBurden().d2 === 'number'
         && typeof window.computeDeficitAxes().d3 === 'number'
-        && window.getScreensForRoom(null).some(s => s.id === officeScreen.id);
+        && window.getScreensForRoom(null).some(s => s.id === officeScreen.id)
+        && window.getRooms().some(r => r.id === livingId);
+
+      const directRoomId = await lightEnv.addRoom('Garage');
+      await window.addLightEnvScreenWithDevice(null, 'tablet');
+      await waitUntil(() => env().screens.some(s => s.device === 'tablet'), 'tablet screen added');
+      const directScreenId = latestScreen().id;
+      const directScreenBeforeDelete = document.createElement('div');
+      directScreenBeforeDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      await window.deleteLightEnvScreen(directScreenId);
+      const directScreenAfterDelete = document.createElement('div');
+      directScreenAfterDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      await window.addLightEnvScreenWithDevice(null, 'monitor');
+      await waitUntil(() => env().screens.some(s => s.device === 'monitor'), 'monitor screen added');
+      const replacementScreenId = latestScreen().id;
+      const directScreenAfterReplacement = document.createElement('div');
+      directScreenAfterReplacement.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      await window.deleteLightEnvRoom(directRoomId);
+      outcomes.directDeleteHelpersRemoveRecords =
+        directScreenBeforeDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`)?.classList.contains('expanded') === true
+        && directScreenAfterDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`) === null
+        && directScreenAfterReplacement.querySelector(`.light-env-screen-card[data-id="${replacementScreenId}"]`)?.classList.contains('expanded') === true
+        && !env().screens.some(s => s.id === directScreenId)
+        && !env().rooms.some(r => r.id === directRoomId);
     } finally {
       document.getElementById('light-env-browser-host')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();
