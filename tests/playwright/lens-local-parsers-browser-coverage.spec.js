@@ -85,9 +85,10 @@ async function openParserCoveragePage(page) {
 test('lens local parsers browser coverage extracts text docx pdf and zip entries', async ({ page }) => {
   await openParserCoveragePage(page);
 
-  const results = await page.evaluate(async ({ parserUrl }) => {
+  const { outcomes, errors } = await page.evaluate(async ({ parserUrl }) => {
     const parsers = await import(parserUrl);
     const outcomes = {};
+    const errors = [];
     const warnings = [];
     const originalWarn = console.warn;
     console.warn = (...args) => {
@@ -95,61 +96,110 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
       originalWarn(...args);
     };
 
+    const runScenario = async (name, scenario) => {
+      try {
+        outcomes[name] = await scenario();
+      } catch (error) {
+        outcomes[name] = false;
+        errors.push(`${name}: ${error?.message || String(error)}`);
+      }
+    };
+
+    const captureWarnings = async scenario => {
+      const start = warnings.length;
+      const value = await scenario();
+      return {
+        value,
+        warnings: warnings.slice(start),
+      };
+    };
+
     try {
-      const markdown = await parsers.extractFromFile(new File(['# Notes\\nKeep spacing.'], 'Notes.MARKDOWN', {
-        type: 'text/markdown',
-      }));
-      outcomes.textExtensionIsCaseInsensitive = markdown.length === 1
-        && markdown[0].name === 'Notes.MARKDOWN'
-        && markdown[0].text.includes('Keep spacing.');
+      await runScenario('textExtensionIsCaseInsensitive', async () => {
+        const markdownText = '# Notes\nKeep spacing.';
+        const markdown = await parsers.extractFromFile(new File([markdownText], 'Notes.MARKDOWN', {
+          type: 'text/markdown',
+        }));
+        return markdown.length === 1
+          && markdown[0].name === 'Notes.MARKDOWN'
+          && markdown[0].text === markdownText;
+      });
 
-      const csv = await parsers.extractFromFile(new File(['a,b\\n1,2'], 'labs.csv', { type: 'text/csv' }));
-      outcomes.csvExtractsAsRawText = csv.length === 1 && csv[0].text === 'a,b\\n1,2';
+      await runScenario('csvExtractsAsRawText', async () => {
+        const csvText = 'a,b\n1,2';
+        const csv = await parsers.extractFromFile(new File([csvText], 'labs.csv', { type: 'text/csv' }));
+        return csv.length === 1 && csv[0].text === csvText;
+      });
 
-      const unsupported = await parsers.extractFromFile(new File(['ignored'], 'scan.exe', {
-        type: 'application/octet-stream',
-      }));
-      outcomes.unsupportedExtensionReturnsEmptyAndWarns = Array.isArray(unsupported)
-        && unsupported.length === 0
-        && warnings.some(line => line.includes('scan.exe') && line.includes('application/octet-stream'));
+      await runScenario('unsupportedExtensionReturnsEmptyAndWarns', async () => {
+        const { value: unsupported, warnings: unsupportedWarnings } = await captureWarnings(() => (
+          parsers.extractFromFile(new File(['ignored'], 'scan.exe', {
+            type: 'application/octet-stream',
+          }))
+        ));
+        return Array.isArray(unsupported)
+          && unsupported.length === 0
+          && unsupportedWarnings.some(line => line.includes('scan.exe') && line.includes('application/octet-stream'));
+      });
 
-      const pdf = await parsers.extractFromFile(new File([new Uint8Array([1, 2, 3])], 'manual.pdf', {
-        type: 'application/pdf',
-      }));
-      outcomes.pdfUsesLoaderAndJoinsPages = pdf.length === 1
-        && pdf[0].text.includes('PDF page-1 alpha')
-        && pdf[0].text.includes('PDF page-2 omega')
-        && pdf[0].text.includes('\n\n');
+      await runScenario('pdfUsesLoaderAndJoinsPages', async () => {
+        const pdf = await parsers.extractFromFile(new File([new Uint8Array([1, 2, 3])], 'manual.pdf', {
+          type: 'application/pdf',
+        }));
+        return pdf.length === 1
+          && pdf[0].text.includes('PDF page-1 alpha')
+          && pdf[0].text.includes('PDF page-2 omega')
+          && pdf[0].text.includes('\n\n');
+      });
 
-      const docxA = await parsers.extractFromFile(new File([new Uint8Array([1, 2, 3, 4])], 'report.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }));
-      const docxB = await parsers.extractFromFile(new File([new Uint8Array([1, 2])], 'second.docx', {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }));
-      outcomes.docxLoadsMammothOnceAndExtractsText = docxA[0]?.text === 'DOCX text bytes=4'
-        && docxB[0]?.text === 'DOCX text bytes=2'
-        && window.__mammothLoadCount === 1;
+      await runScenario('docxLoadsMammothOnceAndExtractsText', async () => {
+        const docxA = await parsers.extractFromFile(new File([new Uint8Array([1, 2, 3, 4])], 'report.docx', {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }));
+        const docxB = await parsers.extractFromFile(new File([new Uint8Array([1, 2])], 'second.docx', {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }));
+        return docxA[0]?.text === 'DOCX text bytes=4'
+          && docxB[0]?.text === 'DOCX text bytes=2'
+          && window.__mammothLoadCount === 1;
+      });
 
-      const zip = await parsers.extractFromFile(new File([new Uint8Array([80, 75])], 'archive.zip', {
-        type: 'application/zip',
-      }));
-      const zipNames = zip.map(entry => entry.name).sort();
-      outcomes.zipRecursesSupportedEntriesWithArchivePrefix = zipNames.includes('archive.zip::folder/readme.MD')
-        && zipNames.includes('archive.zip::folder/manual.pdf')
-        && zipNames.includes('archive.zip::folder/report.docx')
-        && !zipNames.some(name => name.includes('image.png'));
-      outcomes.zipEntryFailureIsSkippedWithWarning = zip.length === 3
-        && warnings.some(line => line.includes('zip entry failed: folder/broken.pdf'));
-      outcomes.zipLoadsJsZipOnce = window.__jszipLoadCount === 1;
+      let zip = [];
+      let zipWarnings = [];
+      await runScenario('zipExtractsArchiveEntries', async () => {
+        const captured = await captureWarnings(() => (
+          parsers.extractFromFile(new File([new Uint8Array([80, 75])], 'archive.zip', {
+            type: 'application/zip',
+          }))
+        ));
+        if (!Array.isArray(captured.value)) return false;
+        zip = captured.value;
+        zipWarnings = captured.warnings;
+        return true;
+      });
+      if (outcomes.zipExtractsArchiveEntries === true) {
+        await runScenario('zipRecursesSupportedEntriesWithArchivePrefix', async () => {
+          const zipNames = zip.map(entry => entry.name).sort();
+          return zipNames.includes('archive.zip::folder/readme.MD')
+            && zipNames.includes('archive.zip::folder/manual.pdf')
+            && zipNames.includes('archive.zip::folder/report.docx')
+            && !zipNames.some(name => name.includes('image.png'));
+        });
+        await runScenario('zipEntryFailureIsSkippedWithWarning', async () => (
+          zip.length === 3
+            && zipWarnings.some(line => line.includes('zip entry failed: folder/broken.pdf'))
+        ));
+        await runScenario('zipLoadsJsZipOnce', async () => window.__jszipLoadCount === 1);
+      }
     } finally {
       console.warn = originalWarn;
     }
 
-    return outcomes;
+    return { outcomes, errors };
   }, { parserUrl: moduleUrl('/js/lens-local-parsers.js') });
 
-  for (const [name, passed] of Object.entries(results)) {
+  expect(errors, errors.join('\n')).toEqual([]);
+  for (const [name, passed] of Object.entries(outcomes)) {
     expect(passed, name).toBe(true);
   }
 });
