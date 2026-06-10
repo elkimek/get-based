@@ -98,13 +98,15 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
       form.querySelector('#wlad-note').value = 'evening detail add';
       form.querySelector('.wearable-log-save')?.click();
       const weightSaved = await waitFor(async () => (await store.getDaily(profileId, 'manual', '2026-06-02'))?.weight === 82.4);
+      const weightDetailIdle = await waitForDetailIdle('weight');
       const weightRow = await store.getDaily(profileId, 'manual', '2026-06-02');
       check('weight detail submit saves row note and navigates',
         weightSaved
+        && weightDetailIdle
         && weightRow?.note === 'evening detail add'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
       check('weight detail submit settles rerender before next metric',
-        await waitForDetailIdle('weight'));
+        weightDetailIdle);
 
       form = await openAddForm('rhr');
       form.querySelector('[data-wearable-action="close-detail-manual-add"]')?.click();

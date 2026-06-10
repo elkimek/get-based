@@ -145,7 +145,21 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       import(editorUrl),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, attempts = 100) => {
+      for (let i = 0; i < attempts; i += 1) {
+        try {
+          if (await predicate()) return true;
+        } catch {}
+        await delay(10);
+      }
+      return false;
+    };
+    const byId = id => {
+      const el = document.getElementById(id);
+      if (!el) throw new Error(`Expected #${id} in medical history editor`);
+      return el;
+    };
     const outcomes = {};
     const calls = [];
     const saved = {
@@ -193,35 +207,51 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       });
 
       editor.openDiagnosesEditor();
-      await wait(80);
+      const editorReady = await waitFor(() => [
+        'condition-input',
+        'condition-suggestions',
+        'condition-since',
+        'fh-relative',
+        'fh-condition',
+        'fh-condition-suggestions',
+        'fh-age',
+        'fh-note',
+        'ctx-note-input',
+      ].every(id => document.getElementById(id)));
+      if (!editorReady) throw new Error('Medical history editor controls did not render');
+      const editorHooksReady = await waitFor(() =>
+        typeof byId('condition-input').onkeydown === 'function'
+          && typeof byId('fh-condition').onkeydown === 'function'
+      );
+      if (!editorHooksReady) throw new Error('Medical history editor deferred handlers did not install');
       outcomes.openDiagnosesEditorShowsSeededModal = overlay.classList.contains('show') === true
         && modal.getAttribute('aria-label') === 'Medical History'
         && modal.textContent.includes('Hypertension')
         && modal.textContent.includes('Father');
 
-      const conditionInput = document.getElementById('condition-input');
+      const conditionInput = byId('condition-input');
       conditionInput.value = 'endo';
       editor.filterConditionSuggestions();
-      outcomes.conditionSuggestionsRespectMaleProfile = !document.getElementById('condition-suggestions')?.textContent.includes('Endometriosis');
+      outcomes.conditionSuggestionsRespectMaleProfile = !byId('condition-suggestions').textContent.includes('Endometriosis');
 
       conditionInput.value = 'hypertension';
       editor.filterConditionSuggestions();
-      outcomes.conditionSuggestionsSkipExistingConditions = document.getElementById('condition-suggestions')?.children.length === 0;
+      outcomes.conditionSuggestionsSkipExistingConditions = byId('condition-suggestions').children.length === 0;
 
-      document.getElementById('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">stale</div>';
+      byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">stale</div>';
       editor.selectConditionSuggestion("Hashimoto's");
       outcomes.selectConditionSuggestionSetsInputAndClearsMenu = conditionInput.value === "Hashimoto's"
-        && document.getElementById('condition-suggestions')?.children.length === 0;
+        && byId('condition-suggestions').children.length === 0;
 
-      document.getElementById('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">condition</div>';
-      document.getElementById('fh-condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">family</div>';
+      byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">condition</div>';
+      byId('fh-condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">family</div>';
       outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      outcomes.outsideClickClosesBothSuggestionMenus = document.getElementById('condition-suggestions')?.children.length === 0
-        && document.getElementById('fh-condition-suggestions')?.children.length === 0;
+      outcomes.outsideClickClosesBothSuggestionMenus = byId('condition-suggestions').children.length === 0
+        && byId('fh-condition-suggestions').children.length === 0;
 
-      document.getElementById('condition-input').value = "Hashimoto's";
-      document.getElementById('condition-since').value = '2021';
-      document.getElementById('ctx-note-input').value = 'diagnoses note from add';
+      byId('condition-input').value = "Hashimoto's";
+      byId('condition-since').value = '2021';
+      byId('ctx-note-input').value = 'diagnoses note from add';
       editor.addCondition();
       outcomes.addConditionAppendsAndSyncsNote = state.importedData.diagnoses.conditions.length === 2
         && state.importedData.diagnoses.conditions[1].name === "Hashimoto's"
@@ -230,21 +260,21 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         && calls.some(call => call[0] === 'record' && call[1] === 'diagnoses');
 
       const beforeEmptyAdd = state.importedData.diagnoses.conditions.length;
-      document.getElementById('condition-input').value = '';
+      byId('condition-input').value = '';
       editor.addCondition();
       outcomes.emptyConditionIsIgnored = state.importedData.diagnoses.conditions.length === beforeEmptyAdd;
 
       editor.editCondition(1);
-      outcomes.editConditionPrefillsSelectedRow = document.getElementById('condition-input')?.value === "Hashimoto's"
-        && document.getElementById('condition-since')?.value === '2021'
+      outcomes.editConditionPrefillsSelectedRow = byId('condition-input').value === "Hashimoto's"
+        && byId('condition-since').value === '2021'
         && document.querySelector('#detail-modal .ctx-condition-item.is-editing')?.textContent.includes("Hashimoto's");
 
       editor.cancelConditionEdit();
       outcomes.cancelConditionEditClearsEditingState = document.querySelector('#detail-modal .ctx-condition-item.is-editing') === null;
 
       editor.editCondition(1);
-      document.getElementById('condition-input').value = 'Psoriasis';
-      document.getElementById('condition-since').value = '2022';
+      byId('condition-input').value = 'Psoriasis';
+      byId('condition-since').value = '2022';
       document.querySelectorAll('#condition-severity .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
       Array.from(document.querySelectorAll('#condition-severity .ctx-btn-option'))
         .find(btn => btn.textContent.trim() === 'minor')
@@ -259,26 +289,26 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       outcomes.deleteConditionRemovesByIndex = state.importedData.diagnoses.conditions.length === 1
         && state.importedData.diagnoses.conditions[0].name === 'Psoriasis';
 
-      document.getElementById('fh-condition').value = 'alzh';
+      byId('fh-condition').value = 'alzh';
       editor.filterFamilyConditionSuggestions();
-      outcomes.familyConditionSuggestionsRenderMatches = document.getElementById('fh-condition-suggestions')?.textContent.includes("Alzheimer's Disease") === true;
+      outcomes.familyConditionSuggestionsRenderMatches = byId('fh-condition-suggestions').textContent.includes("Alzheimer's Disease") === true;
 
       editor.selectFamilyConditionSuggestion("Alzheimer's Disease");
-      outcomes.selectFamilySuggestionSetsInputAndClearsMenu = document.getElementById('fh-condition')?.value === "Alzheimer's Disease"
-        && document.getElementById('fh-condition-suggestions')?.children.length === 0;
+      outcomes.selectFamilySuggestionSetsInputAndClearsMenu = byId('fh-condition').value === "Alzheimer's Disease"
+        && byId('fh-condition-suggestions').children.length === 0;
 
       const beforeInvalidFamily = state.importedData.diagnoses.familyHistory.length;
-      const relative = document.getElementById('fh-relative');
+      const relative = byId('fh-relative');
       relative.insertAdjacentHTML('beforeend', '<option value="__invalid_relative">Invalid</option>');
       relative.value = '__invalid_relative';
-      document.getElementById('fh-condition').value = 'Asthma';
+      byId('fh-condition').value = 'Asthma';
       editor.addFamilyHistoryEntry();
       outcomes.invalidRelativeIsRejected = state.importedData.diagnoses.familyHistory.length === beforeInvalidFamily;
 
       relative.value = 'child';
-      document.getElementById('fh-condition').value = 'Asthma';
-      document.getElementById('fh-age').value = '200';
-      document.getElementById('fh-note').value = 'childhood';
+      byId('fh-condition').value = 'Asthma';
+      byId('fh-age').value = '200';
+      byId('fh-note').value = 'childhood';
       editor.addFamilyHistoryEntry();
       outcomes.addFamilyHistoryClampsAge = state.importedData.diagnoses.familyHistory.length === 2
         && state.importedData.diagnoses.familyHistory[1].relative === 'child'
@@ -286,18 +316,18 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         && state.importedData.diagnoses.familyHistory[1].note === 'childhood';
 
       editor.editFamilyHistoryEntry(1);
-      outcomes.editFamilyHistoryPrefillsSelectedRow = document.getElementById('fh-relative')?.value === 'child'
-        && document.getElementById('fh-condition')?.value === 'Asthma'
+      outcomes.editFamilyHistoryPrefillsSelectedRow = byId('fh-relative').value === 'child'
+        && byId('fh-condition').value === 'Asthma'
         && document.querySelector('#detail-modal .ctx-family-item.is-editing')?.textContent.includes('Asthma');
 
       editor.cancelFamilyHistoryEdit();
       outcomes.cancelFamilyHistoryEditClearsEditingState = document.querySelector('#detail-modal .ctx-family-item.is-editing') === null;
 
       editor.editFamilyHistoryEntry(1);
-      document.getElementById('fh-relative').value = 'mother';
-      document.getElementById('fh-condition').value = 'Breast Cancer';
-      document.getElementById('fh-age').value = '-5';
-      document.getElementById('fh-note').value = 'BRCA';
+      byId('fh-relative').value = 'mother';
+      byId('fh-condition').value = 'Breast Cancer';
+      byId('fh-age').value = '-5';
+      byId('fh-note').value = 'BRCA';
       editor.addFamilyHistoryEntry();
       outcomes.editFamilyHistoryUpdatesInPlaceAndClampsLowAge = state.importedData.diagnoses.familyHistory.length === 2
         && state.importedData.diagnoses.familyHistory[1].relative === 'mother'
@@ -309,14 +339,14 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       outcomes.deleteFamilyHistoryRemovesByIndex = state.importedData.diagnoses.familyHistory.length === 1
         && state.importedData.diagnoses.familyHistory[0].relative === 'mother';
 
-      document.getElementById('ctx-note-input').value = 'final saved note';
+      byId('ctx-note-input').value = 'final saved note';
       editor.saveDiagnoses();
       outcomes.saveDiagnosesCallsConfiguredRefresh = state.importedData.diagnoses.note === 'final saved note'
         && calls.some(call => call[0] === 'saveRefresh' && call[1] === 'Medical history saved' && call[2] === 'diagnoses');
 
       state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
       editor.renderDiagnosesModal(modal, state.importedData.diagnoses);
-      document.getElementById('ctx-note-input').value = '';
+      byId('ctx-note-input').value = '';
       editor.saveDiagnoses();
       outcomes.saveEmptyDiagnosesClearsState = state.importedData.diagnoses === null;
 
@@ -330,7 +360,10 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       outcomes.closeDiagnosesDelegatesToCloseModal = overlay.classList.contains('show') === false
         && calls.some(call => call[0] === 'close');
     } finally {
-      await wait(80);
+      await waitFor(() => {
+        const input = document.getElementById('condition-input');
+        return !input || typeof input.onkeydown === 'function';
+      }, 20);
       document.removeEventListener('click', editor.closeSuggestionsOnClickOutside);
       state.importedData = saved.importedData;
       state.profileSex = saved.profileSex;
