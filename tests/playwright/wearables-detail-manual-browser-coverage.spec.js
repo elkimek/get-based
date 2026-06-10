@@ -35,12 +35,20 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
       }
       return false;
     };
+    const closeDetailModal = async () => {
+      try { window.closeModal?.(); } catch (_) {}
+      await waitFor(() => !document.getElementById('modal-overlay')?.classList.contains('show'), 100);
+    };
+    const debugManualButtons = () => Array.from(document.querySelectorAll('#detail-modal [data-wearable-action="open-detail-manual-add"]'))
+      .map(el => el.dataset.wearableMetric || 'unknown')
+      .join(',') || 'none';
     const openAddForm = async metric => {
+      await closeDetailModal();
       await window.openWearableDetail(metric);
       const triggerSelector = `#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`;
       const triggerReady = await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show')
         && !!document.querySelector(triggerSelector));
-      if (!triggerReady) throw new Error(`manual add trigger not ready for ${metric}`);
+      if (!triggerReady) throw new Error(`manual add trigger not ready for ${metric}; available add buttons: ${debugManualButtons()}`);
       document.querySelector(triggerSelector)?.click();
       const formReady = await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-add-form'));
       if (!formReady) throw new Error(`manual add form not ready for ${metric}`);
