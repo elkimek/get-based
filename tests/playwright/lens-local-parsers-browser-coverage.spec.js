@@ -172,22 +172,25 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
             type: 'application/zip',
           }))
         ));
+        if (!Array.isArray(captured.value)) return false;
         zip = captured.value;
         zipWarnings = captured.warnings;
-        return Array.isArray(zip);
+        return true;
       });
-      await runScenario('zipRecursesSupportedEntriesWithArchivePrefix', async () => {
-        const zipNames = zip.map(entry => entry.name).sort();
-        return zipNames.includes('archive.zip::folder/readme.MD')
-          && zipNames.includes('archive.zip::folder/manual.pdf')
-          && zipNames.includes('archive.zip::folder/report.docx')
-          && !zipNames.some(name => name.includes('image.png'));
-      });
-      await runScenario('zipEntryFailureIsSkippedWithWarning', async () => (
-        zip.length === 3
-          && zipWarnings.some(line => line.includes('zip entry failed: folder/broken.pdf'))
-      ));
-      await runScenario('zipLoadsJsZipOnce', async () => window.__jszipLoadCount === 1);
+      if (outcomes.zipExtractsArchiveEntries === true) {
+        await runScenario('zipRecursesSupportedEntriesWithArchivePrefix', async () => {
+          const zipNames = zip.map(entry => entry.name).sort();
+          return zipNames.includes('archive.zip::folder/readme.MD')
+            && zipNames.includes('archive.zip::folder/manual.pdf')
+            && zipNames.includes('archive.zip::folder/report.docx')
+            && !zipNames.some(name => name.includes('image.png'));
+        });
+        await runScenario('zipEntryFailureIsSkippedWithWarning', async () => (
+          zip.length === 3
+            && zipWarnings.some(line => line.includes('zip entry failed: folder/broken.pdf'))
+        ));
+        await runScenario('zipLoadsJsZipOnce', async () => window.__jszipLoadCount === 1);
+      }
     } finally {
       console.warn = originalWarn;
     }
