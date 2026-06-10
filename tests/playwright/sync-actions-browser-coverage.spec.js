@@ -4,6 +4,184 @@ function moduleUrl(path) {
   return `${path}?syncActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+test('sync save hooks and messenger cover debounce and gateway paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ saveHooksUrl, messengerUrl }) => {
+    const [{ state }, saveHooks, messenger] = await Promise.all([
+      import('/js/state.js'),
+      import(saveHooksUrl),
+      import(messengerUrl),
+    ]);
+    const outcomes = {};
+    const pushes = [];
+    const fetches = [];
+    const debugCalls = [];
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const profileId = 'sync-hooks-active';
+    const storageKeys = [
+      'labcharts-messenger-enabled',
+      'labcharts-messenger-token',
+    ];
+    const saved = {
+      currentProfile: state.currentProfile,
+      importedData: clone(state.importedData),
+      setTimeout: window.setTimeout,
+      clearTimeout: window.clearTimeout,
+      fetch: window.fetch,
+      storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
+      chatLock: sessionStorage.getItem('labcharts-chat-local-lock-until'),
+    };
+    let enabled = true;
+    let ready = true;
+    let timerId = 1;
+    const timers = new Map();
+    const runPendingTimers = async (cycles = 1) => {
+      for (let cycle = 0; cycle < cycles; cycle += 1) {
+        const pending = Array.from(timers.entries()).filter(([, timer]) => !timer.cleared);
+        if (!pending.length) return;
+        for (const [id, timer] of pending) {
+          if (!timers.has(id) || timer.cleared) continue;
+          timers.delete(id);
+          await timer.fn();
+          await Promise.resolve();
+        }
+      }
+    };
+
+    try {
+      window.setTimeout = (fn, ms) => {
+        const id = timerId++;
+        timers.set(id, { fn, ms, cleared: false });
+        return id;
+      };
+      window.clearTimeout = id => {
+        const timer = timers.get(id);
+        if (timer) timer.cleared = true;
+        timers.delete(id);
+      };
+      window.fetch = async (url, options = {}) => {
+        fetches.push({ url: String(url), options: clone(options) });
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      };
+      state.currentProfile = profileId;
+      state.importedData = { entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 4.9 } } }] };
+      localStorage.setItem('labcharts-messenger-enabled', 'false');
+      localStorage.removeItem('labcharts-messenger-token');
+      sessionStorage.removeItem('labcharts-chat-local-lock-until');
+
+      saveHooks.clearSyncSaveTimers();
+      saveHooks.onDataSaved({ immediate: true });
+      saveHooks.onChatSaved();
+      saveHooks.onProfileSaved('default-gated', { entries: [] });
+      outcomes.defaultSaveHookDependenciesGateWork = pushes.length === 0 && timers.size === 0;
+
+      saveHooks.configureSyncSaveHooks({
+        pushProfile: async (id, data, options) => {
+          pushes.push({ id, data: clone(data), options: clone(options || null) });
+        },
+        isSyncEnabled: () => enabled,
+        isEvoluReady: () => ready,
+      });
+
+      saveHooks.onDataSaved({ immediate: true });
+      outcomes.immediateDataSavePushesActiveProfile = pushes.length === 1
+        && pushes[0].id === profileId
+        && pushes[0].data.entries?.[0]?.markers?.metabolic?.glucose === 4.9;
+
+      saveHooks.onChatSaved();
+      await runPendingTimers();
+      outcomes.chatSaveMarksLocalAndDebouncesPush = pushes.length === 2
+        && pushes[1].id === profileId
+        && Number(sessionStorage.getItem('labcharts-chat-local-lock-until') || '0') > Date.now();
+
+      saveHooks.onProfileSaved('profile-fallback', { notes: [{ text: 'fallback data' }] });
+      await runPendingTimers();
+      outcomes.profileSaveUsesProvidedFallbackData = pushes.length === 3
+        && pushes[2].id === 'profile-fallback'
+        && pushes[2].data.notes?.[0]?.text === 'fallback data';
+
+      ready = false;
+      saveHooks.onProfileSaved('profile-retry', { notes: [{ text: 'retry data' }] });
+      await runPendingTimers();
+      outcomes.profileSaveRetriesUntilEvoluReady = pushes.length === 3
+        && Array.from(timers.values()).some(timer => timer.ms === 1000);
+      ready = true;
+      await runPendingTimers();
+      outcomes.profileRetryFlushPushesAfterReady = pushes.length === 4
+        && pushes[3].id === 'profile-retry'
+        && pushes[3].data.notes?.[0]?.text === 'retry data';
+
+      saveHooks.bindSyncSaveHookEvents();
+      saveHooks.bindSyncSaveHookEvents();
+      window.dispatchEvent(new Event('labcharts-ai-settings-local-changed'));
+      await runPendingTimers();
+      outcomes.aiSettingsEventDebouncesSingleProfilePush = pushes.length === 5
+        && pushes[4].id === profileId
+        && pushes[4].data.entries?.[0]?.date === '2026-06-09';
+
+      localStorage.setItem('labcharts-messenger-enabled', 'true');
+      localStorage.setItem('labcharts-messenger-token', 'token-a');
+      messenger.configureSyncMessenger({});
+      messenger.pushContextToGateway();
+      await runPendingTimers();
+      const defaultGateway = fetches.at(-1);
+      outcomes.messengerDefaultRelayPushesContext = defaultGateway?.url === 'https://sync.getbased.health/api/context'
+        && defaultGateway.options?.headers?.Authorization === 'Bearer token-a'
+        && JSON.parse(defaultGateway.options?.body || '{}').profileId === profileId;
+
+      messenger.configureSyncMessenger({
+        getSyncRelay: () => 'ws://relay.local',
+        debug: (...args) => { debugCalls.push(args.map(String).join(' ')); },
+      });
+      messenger.pushContextToGateway();
+      await runPendingTimers();
+      const customGateway = fetches.at(-1);
+      outcomes.messengerCustomRelayNormalizesWsAndDebugs = customGateway?.url === 'http://relay.local/api/context'
+        && debugCalls.some(message => message.includes('Context pushed to gateway'));
+
+      messenger.revokeMessengerToken();
+      const beforeDisabledPush = fetches.length;
+      messenger.pushContextToGateway();
+      outcomes.messengerDisabledTokenDoesNotSchedule = fetches.length === beforeDisabledPush
+        && messenger.isMessengerEnabled() === false
+        && messenger.getMessengerToken() === null;
+    } finally {
+      saveHooks.configureSyncSaveHooks({
+        pushProfile: async () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        isSyncing: () => false,
+      });
+      saveHooks.clearSyncSaveTimers();
+      messenger.configureSyncMessenger({ getSyncRelay: () => 'wss://sync.getbased.health', debug: () => {} });
+      state.currentProfile = saved.currentProfile;
+      state.importedData = saved.importedData;
+      window.setTimeout = saved.setTimeout;
+      window.clearTimeout = saved.clearTimeout;
+      window.fetch = saved.fetch;
+      for (const [key, value] of Object.entries(saved.storage)) {
+        if (value == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      if (saved.chatLock == null) sessionStorage.removeItem('labcharts-chat-local-lock-until');
+      else sessionStorage.setItem('labcharts-chat-local-lock-until', saved.chatLock);
+    }
+
+    return outcomes;
+  }, {
+    saveHooksUrl: moduleUrl('/js/sync-save-hooks.js'),
+    messengerUrl: moduleUrl('/js/sync-messenger.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('sync action delegates push force pull and all-profile paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
@@ -47,6 +225,11 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       localStorage.setItem(otherDataKey, JSON.stringify({ notes: [{ text: 'other profile' }] }));
       localStorage.setItem('labcharts-messenger-enabled', 'false');
       localStorage.removeItem('labcharts-messenger-token');
+
+      await actions.pushCurrentProfile();
+      await actions.syncNow();
+      await actions.forceResendCurrentProfile();
+      outcomes.defaultActionDependenciesAreSafeNoops = pushes.length === 0 && pulls.length === 0;
 
       let enabled = false;
       let ready = false;
