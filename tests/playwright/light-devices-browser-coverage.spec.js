@@ -13,10 +13,9 @@ function seedCompletedTour() {
 }
 
 function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
+  for (const [name, passed] of Object.entries(outcomes)) {
+    expect(passed, name).toBe(true);
+  }
 }
 
 test('light devices browser coverage handles store mutations UI wrappers and picker flows', async ({ page }) => {
@@ -196,7 +195,6 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         && activeHost.textContent.includes('CoverageLight Panel Pro');
 
       await window.stopDeviceSessionAndNotify(activeId);
-      await wait(1100);
       const stoppedSession = store.getDeviceSessions().find(s => s.id === activeId);
       outcomes.stopDeviceSessionWrapperSavesDosesNotifiesAndNavigates =
         !!stoppedSession?.endedAt
@@ -323,6 +321,13 @@ test('light device setup browser coverage exercises default dependency fallbacks
   const outcomes = await page.evaluate(async ({ setupUrl }) => {
     const setup = await import(setupUrl);
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate, label) => {
+      for (let i = 0; i < 120; i += 1) {
+        if (predicate()) return true;
+        await wait(20);
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
     const outcomes = {};
 
     try {
@@ -334,8 +339,9 @@ test('light device setup browser coverage exercises default dependency fallbacks
         && emptyPresetOverlay.querySelectorAll('.light-device-preset-row').length === 0;
 
       emptyPresetOverlay?.querySelector('#add-device-custom')?.click();
-      await wait(0);
+      await waitUntil(() => !!document.querySelector('[aria-label="Add custom light device"]'), 'custom device fallback overlay');
       const customOverlay = document.querySelector('[aria-label="Add custom light device"]')?.closest('.modal-overlay');
+      if (!customOverlay) throw new Error('Custom device fallback overlay missing');
       customOverlay.querySelector('#custom-dev-brand').value = 'Fallback';
       customOverlay.querySelector('#custom-dev-model').value = 'Manual';
       customOverlay.querySelector('#custom-dev-save')?.click();
