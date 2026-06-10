@@ -275,8 +275,11 @@ test('sync context defaults and pull retry cover unconfigured browser paths', as
       chatLock: sessionStorage.getItem('labcharts-chat-local-lock-until'),
     };
     let nextTimerId = 1;
-    const flushMicrotasks = async () => {
-      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+    const waitForPullIdle = async () => {
+      for (let i = 0; i < 20 && pull.isSyncPulling(); i += 1) {
+        await Promise.resolve();
+      }
+      return pull.isSyncPulling() === false;
     };
 
     try {
@@ -326,8 +329,9 @@ test('sync context defaults and pull retry cover unconfigured browser paths', as
       };
 
       state.currentProfile = profileId;
+      const localEntryDate = new Date().toISOString().slice(0, 10);
       state.importedData = {
-        entries: [{ date: '2026-06-10', markers: { 'coverage.local': 1 } }],
+        entries: [{ date: localEntryDate, markers: { 'coverage.local': 1 } }],
       };
       sessionStorage.setItem('labcharts-chat-local-lock-until', String(Date.now() + 30_000));
       await cryptoStore.encryptedRemoveItem(importedKey);
@@ -377,11 +381,11 @@ test('sync context defaults and pull retry cover unconfigured browser paths', as
       rebroadcastTimer?.fn();
       rows.length = 0;
       chatRetryTimer?.fn();
-      await flushMicrotasks();
-      outcomes.pullRetryTimerRunsDefaultPushAndInFlightGuard =
+      const retryPullIdle = await waitForPullIdle();
+      outcomes.pullRetryTimerCompletesCleanlyWithEmptyRows =
         timers.length === timersBeforeRetry
         && debugCalls.some(message => message.includes('Retrying chat pull'))
-        && pull.isSyncPulling() === false;
+        && retryPullIdle;
     } finally {
       console.warn = original.warn;
       pull.clearSyncPullTimers();
