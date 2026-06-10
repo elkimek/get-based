@@ -21,6 +21,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
     const calls = [];
+    let injectedNav = null;
     const saved = {
       importedData: clone(state.importedData),
       profileDob: state.profileDob,
@@ -29,10 +30,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       recordChange: window.recordChange,
       startCycleTour: window.startCycleTour,
     };
-    const waitFor = async predicate => {
-      for (let i = 0; i < 25; i += 1) {
+    const waitFor = async (predicate, attempts = 25, delayMs = 0) => {
+      for (let i = 0; i < attempts; i += 1) {
         if (predicate()) return true;
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
       return false;
     };
@@ -58,6 +59,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       nav.className = 'nav-item active';
       nav.dataset.category = 'cycle';
       document.body.appendChild(nav);
+      injectedNav = nav;
 
       window.closeModal = () => {
         calls.push(['close']);
@@ -174,7 +176,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       document.getElementById('mc-period-notes').value = 'pending save';
       const saveBefore = calls.length;
       cycle.saveMenstrualCycle();
-      await new Promise(resolve => setTimeout(resolve, 650));
+      await waitFor(() => calls.slice(saveBefore).some(call => call[0] === 'tour' && call[1] === true), 80, 25);
       const saveCalls = calls.slice(saveBefore);
       const savedPeriod = state.importedData.menstrualCycle.periods.find(p => p.startDate === '2026-07-01');
       outcomes.saveSyncsFormPendingPeriodNavigatesAndTours = state.importedData.menstrualCycle.contraceptive === 'Copper IUD'
@@ -218,6 +220,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       if (saved.startCycleTour) window.startCycleTour = saved.startCycleTour;
       else delete window.startCycleTour;
       document.querySelectorAll('.notification-container,.notification-toast,.confirm-overlay').forEach(el => el.remove());
+      injectedNav?.remove();
       document.querySelectorAll('.nav-item.active').forEach(el => el.classList.remove('active'));
     }
 
