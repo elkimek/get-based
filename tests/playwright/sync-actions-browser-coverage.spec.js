@@ -28,6 +28,8 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       importedData: clone(state.importedData),
       setTimeout: window.setTimeout,
       clearTimeout: window.clearTimeout,
+      addEventListener: window.addEventListener,
+      removeEventListener: window.removeEventListener,
       fetch: window.fetch,
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       chatLock: sessionStorage.getItem('labcharts-chat-local-lock-until'),
@@ -36,6 +38,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
     let ready = true;
     let timerId = 1;
     const timers = new Map();
+    const boundListeners = [];
     const runPendingTimers = async (cycles = 1) => {
       for (let cycle = 0; cycle < cycles; cycle += 1) {
         const pending = Array.from(timers.entries()).filter(([, timer]) => !timer.cleared);
@@ -59,6 +62,12 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         const timer = timers.get(id);
         if (timer) timer.cleared = true;
         timers.delete(id);
+      };
+      window.addEventListener = (type, listener, options) => {
+        if (type === 'labcharts-ai-settings-local-changed') {
+          boundListeners.push({ type, listener, options });
+        }
+        return saved.addEventListener.call(window, type, listener, options);
       };
       window.fetch = async (url, options = {}) => {
         fetches.push({ url: String(url), options: clone(options) });
@@ -145,8 +154,10 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
 
       messenger.revokeMessengerToken();
       const beforeDisabledPush = fetches.length;
+      const beforeDisabledTimers = timers.size;
       messenger.pushContextToGateway();
       outcomes.messengerDisabledTokenDoesNotSchedule = fetches.length === beforeDisabledPush
+        && timers.size === beforeDisabledTimers
         && messenger.isMessengerEnabled() === false
         && messenger.getMessengerToken() === null;
     } finally {
@@ -160,8 +171,13 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       messenger.configureSyncMessenger({ getSyncRelay: () => 'wss://sync.getbased.health', debug: () => {} });
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
+      for (const { type, listener, options } of boundListeners) {
+        saved.removeEventListener.call(window, type, listener, options);
+      }
       window.setTimeout = saved.setTimeout;
       window.clearTimeout = saved.clearTimeout;
+      window.addEventListener = saved.addEventListener;
+      window.removeEventListener = saved.removeEventListener;
       window.fetch = saved.fetch;
       for (const [key, value] of Object.entries(saved.storage)) {
         if (value == null) localStorage.removeItem(key);
