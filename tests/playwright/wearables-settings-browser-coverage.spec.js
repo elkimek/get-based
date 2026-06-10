@@ -6,6 +6,7 @@ function moduleUrl(path) {
 
 test('wearables settings browser coverage exercises import and connection actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const failures = await page.evaluate(async ({ panelUrl, stateUrl, profileUrl, storeUrl, blobUrl }) => {
     const [{ state }, { profileStorageKey }, store, blobStorage] = await Promise.all([
@@ -123,11 +124,12 @@ test('wearables settings browser coverage exercises import and connection action
 
       state.importedData.wearableConnections.apple_health.accessToken = 'coverage-token';
       const syncButton = document.createElement('button');
+      const dashboardNavigationsBeforeSync = calls.filter(call => call[0] === 'navigate' && call[1] === 'dashboard').length;
       await window.handleWearableSyncNow('apple_health', syncButton);
       check('sync-now handler restores trigger state and navigates',
         !syncButton.disabled
         && !syncButton.classList.contains('is-syncing')
-        && calls.filter(call => call[0] === 'navigate' && call[1] === 'dashboard').length >= 2);
+        && calls.filter(call => call[0] === 'navigate' && call[1] === 'dashboard').length === dashboardNavigationsBeforeSync + 1);
 
       const beforeBackfill = state.importedData.wearableConnections.apple_health.lastSyncAt || 0;
       await window.handleWearableBackfill('apple_health');
