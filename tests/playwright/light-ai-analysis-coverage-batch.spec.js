@@ -271,18 +271,10 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && deviceSession.aiAnalysis?.tip === 'device refresh tip'
         && device.renderDeviceSessionAIInline(deviceSession).includes('device refresh tip');
 
-      const waitFor = async (predicate, timeoutMs = 1800) => {
-        const started = Date.now();
-        while (Date.now() - started < timeoutMs) {
-          if (predicate()) return true;
-          await new Promise(resolve => setTimeout(resolve, 25));
-        }
-        return false;
-      };
-      let deviceAutoCalls = 0;
+      let deviceAuthCalls = 0;
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
-          deviceAutoCalls++;
+          deviceAuthCalls++;
           return new Response(JSON.stringify({ error: { type: 'authentication_error', message: 'bad key' } }), {
             status: 401,
             headers: { 'Content-Type': 'application/json' },
@@ -291,12 +283,14 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         return saved.fetch(url, options);
       };
       delete deviceSession.aiAnalysis;
-      device.maybeAnalyzeDeviceSessionAfterFinish(deviceSession);
-      const autoStopped = await waitFor(() => deviceSession.aiAnalysis?.status === 'error'
-        && device.renderDeviceSessionAIDetail(deviceSession).includes('Provider rejected'), 1000);
-      outcomes.deviceAutoFireStopsOnNonRetryableAuthError = autoStopped
-        && deviceAutoCalls === 1
+      const authResult = await device.analyzeDeviceSessionAI(deviceSession, { force: true });
+      outcomes.deviceAnalyzeNormalizesAuthError = authResult === null
+        && deviceAuthCalls === 1
+        && deviceSession.aiAnalysis?.status === 'error'
+        && device.renderDeviceSessionAIDetail(deviceSession).includes('Provider rejected')
         && device.renderDeviceSessionAIDetail(deviceSession).includes('check Settings');
+      device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-unfinished', endedAt: null });
+      outcomes.deviceAutoFireSkipsUnfinishedSession = deviceAuthCalls === 1;
     } finally {
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
@@ -894,6 +888,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       delete state.importedData.channelMixAI;
       delete state.importedData.lightEnvironment.burdenAI;
       const channelAnalysis = await channelAI.analyzeChannelMixAI({ force: true });
+      // engine.refresh() forces a fresh analyze, so same-fingerprint refreshes consume the queued verdicts below.
       const channelRefresh = await channelAI.refreshChannelMixAI();
       const burdenAnalysis = await burdenAI.analyzeBurdenAI({ force: true });
       const burdenRefresh = await burdenAI.refreshBurdenAIAnalysis();
@@ -902,7 +897,8 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && state.importedData.channelMixAI?.tip === 'channel refresh tip'
         && burdenAnalysis?.tip === 'burden analyze tip'
         && burdenRefresh?.tip === 'burden refresh tip'
-        && state.importedData.lightEnvironment.burdenAI?.tip === 'burden refresh tip';
+        && state.importedData.lightEnvironment.burdenAI?.tip === 'burden refresh tip'
+        && queuedAIResponses.length === 0;
 
       queuedAIResponses.push({ dot: 'yellow', tip: 'aggregate tip', detail: 'aggregate detail' });
       delete state.importedData.lightDailyVerdicts[todayKey];
