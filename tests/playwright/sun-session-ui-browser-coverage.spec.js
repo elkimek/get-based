@@ -539,10 +539,16 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
     const outcomes = {};
     const saved = {
       currentView: state.currentView,
-      navigate: window.navigate,
-      solarZenithAngle: window.solarZenithAngle,
-      geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
     };
+    const windowKeys = [
+      'navigate',
+      'solarZenithAngle',
+      'geneticVitaminDMultiplier',
+    ];
+    const savedWindow = Object.fromEntries(windowKeys.map(key => [
+      key,
+      { had: Object.prototype.hasOwnProperty.call(window, key), value: window[key] },
+    ]));
     const session = {
       id: 'default-deps-session',
       startedAt: Date.now() - 20 * 60000,
@@ -638,10 +644,10 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
         && !outcomes.unexpectedNavigate;
     } finally {
       state.currentView = saved.currentView;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
-      window.solarZenithAngle = saved.solarZenithAngle;
-      window.geneticVitaminDMultiplier = saved.geneticVitaminDMultiplier;
+      for (const [key, info] of Object.entries(savedWindow)) {
+        if (info.had) window[key] = info.value;
+        else delete window[key];
+      }
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
     }
 

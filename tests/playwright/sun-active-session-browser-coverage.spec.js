@@ -5,10 +5,9 @@ function moduleUrl(path) {
 }
 
 function expectAll(outcomes) {
-  const failed = Object.entries(outcomes)
-    .filter(([, value]) => value !== true)
-    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
-  expect(failed).toEqual([]);
+  for (const [name, passed] of Object.entries(outcomes)) {
+    expect(passed, name).toBe(true);
+  }
 }
 
 test('sun active session covers default dependencies and live ticker card branches', async ({ page }) => {
