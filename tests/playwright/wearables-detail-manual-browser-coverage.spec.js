@@ -28,19 +28,30 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
     const originalRange = localStorage.getItem('wearable-detail-range');
     const calls = [];
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 120) => {
+    const waitFor = async (predicate, attempts = 300) => {
       for (let i = 0; i < attempts; i += 1) {
         if (await predicate()) return true;
         await delay(10);
       }
       return false;
     };
+    const closeDetailModal = async () => {
+      try { window.closeModal?.(); } catch (_) {}
+      await waitFor(() => !document.getElementById('modal-overlay')?.classList.contains('show'), 100);
+    };
+    const debugManualButtons = () => Array.from(document.querySelectorAll('#detail-modal [data-wearable-action="open-detail-manual-add"]'))
+      .map(el => el.dataset.wearableMetric || 'unknown')
+      .join(',') || 'none';
     const openAddForm = async metric => {
+      await closeDetailModal();
       await window.openWearableDetail(metric);
-      await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show')
-        && !!document.querySelector(`#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`));
-      document.querySelector(`#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`)?.click();
-      await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-add-form'));
+      const triggerSelector = `#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`;
+      const triggerReady = await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show')
+        && !!document.querySelector(triggerSelector));
+      if (!triggerReady) throw new Error(`manual add trigger not ready for ${metric}; available add buttons: ${debugManualButtons()}`);
+      document.querySelector(triggerSelector)?.click();
+      const formReady = await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-add-form'));
+      if (!formReady) throw new Error(`manual add form not ready for ${metric}`);
       return document.querySelector('#detail-modal .wearable-manual-add-form');
     };
 
