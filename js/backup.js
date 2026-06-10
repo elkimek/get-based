@@ -467,7 +467,7 @@ export async function restoreAutoBackup(id) {
     if (backup.profiles) {
       for (const p of backup.profiles) {
         for (const [suffix, value] of Object.entries(p.keys)) {
-          localStorage.setItem(`labcharts-${p.profileId}-${suffix}`, value);
+          await writeRawStoredItem(`labcharts-${p.profileId}-${suffix}`, value);
         }
       }
     }
