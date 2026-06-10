@@ -1,0 +1,314 @@
+import { expect, test } from './coverage-fixture.js';
+
+function moduleUrl(path) {
+  return `${path}?sunBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function expectAll(outcomes) {
+  const failed = Object.entries(outcomes)
+    .filter(([, value]) => value !== true)
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+  expect(failed).toEqual([]);
+}
+
+test('sun browser coverage exercises facade totals prompts and location paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl }) => {
+    const [{ state }, sun, utils] = await Promise.all([
+      import('/js/state.js'),
+      import(sunUrl),
+      import(utilsUrl),
+    ]);
+    const outcomes = {};
+    const profileId = `sun-browser-${Date.now()}`;
+    const activeId = 'sun-active-coverage';
+    const now = Date.now();
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+    const saved = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) : state.profiles,
+      currentProfile: state.currentProfile,
+      profiles: localStorage.getItem('labcharts-profiles'),
+      buildSidebar: window.buildSidebar,
+      navigate: window.navigate,
+      getDeviceSessions: window.getDeviceSessions,
+      vitaminDIU: window.vitaminDIU,
+      vitaminDIUPerSession: window.vitaminDIUPerSession,
+      VITD_DAILY_SATURATION_IU: window.VITD_DAILY_SATURATION_IU,
+      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
+      circadianMelanopicLux: window.circadianMelanopicLux,
+      ingredientDailyTotal: window.ingredientDailyTotal,
+      geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
+    };
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, attempts = 100) => {
+      for (let i = 0; i < attempts; i += 1) {
+        try {
+          if (await predicate()) return true;
+        } catch {}
+        await delay(10);
+      }
+      return false;
+    };
+    const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
+    const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    const setPromptValue = async value => {
+      await waitFor(() => document.getElementById('prompt-dialog-input'));
+      const input = document.getElementById('prompt-dialog-input');
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('prompt-ok')?.click();
+    };
+    const confirmDialog = async () => {
+      await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
+      document.getElementById('confirm-ok')?.click();
+    };
+    const todaySession = {
+      id: 'sun-ended-today',
+      startedAt: todayStart + 10 * 3600000,
+      endedAt: todayStart + 10.5 * 3600000,
+      durationMin: 30,
+      location: { lat: 50.08, lon: 14.43, altitudeM: 230, source: 'gps' },
+      bodyExposure: { preset: 'detailed', fraction: 0.24, regions: ['face', 'arms-front'], sunscreenSPF: null, glassBetween: false, rotatedSides: true },
+      eyeExposure: { mode: 'direct', lensTint: 'clear', durationSec: 1800 },
+      atmosphere: { uvIndex: 6.8, ozoneDU: 310 },
+      doses: { vitamin_d: 3200, no_cv: 6000, circadian: 50000, nir_solar: 42000 },
+      safety: { medFraction: 0.42, fitzpatrick: 'II' },
+    };
+    const yesterdaySession = {
+      id: 'sun-ended-yesterday',
+      startedAt: yesterdayStart + 12 * 3600000,
+      endedAt: yesterdayStart + 12.4 * 3600000,
+      durationMin: 24,
+      bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], sunscreenSPF: null, glassBetween: false, rotatedSides: false },
+      eyeExposure: { mode: 'sunglasses', lensTint: 'amber', durationSec: 1440 },
+      atmosphere: { uvIndex: 3.2 },
+      doses: { vitamin_d: 900, no_cv: 1500, circadian: 14000 },
+      safety: { medFraction: 0.31, fitzpatrick: 'III' },
+    };
+    const oldSession = {
+      id: 'sun-old-ended',
+      startedAt: now - 12 * 86400000,
+      endedAt: now - 12 * 86400000 + 1800000,
+      durationMin: 30,
+      bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [] },
+      eyeExposure: { mode: 'direct', lensTint: 'clear' },
+      doses: { vitamin_d: 9999, no_cv: 9999 },
+      safety: { medFraction: 0.99, fitzpatrick: 'III' },
+    };
+    const activeSession = {
+      id: activeId,
+      startedAt: now - 13 * 3600000,
+      endedAt: null,
+      bodyExposure: { preset: 'detailed', fraction: 0.12, regions: [], sunscreenSPF: null, glassBetween: false, rotatedSides: false },
+      eyeExposure: { mode: 'direct', lensTint: 'clear' },
+      atmosphere: { uvIndex: 5.4 },
+      doses: null,
+      safety: { medFraction: 0.1, fitzpatrick: 'III' },
+    };
+
+    try {
+      window.buildSidebar = () => {};
+      window.navigate = () => {};
+      window.getDeviceSessions = () => [{
+        id: 'device-vitd',
+        startedAt: todayStart + 11 * 3600000,
+        endedAt: todayStart + 11.2 * 3600000,
+        bodyArea: 'whole-body',
+        doses: { vitamin_d: 2200, no_cv: 300, circadian: 800 },
+      }];
+      window.vitaminDIU = (au, fitz, uvi, rotated) => (uvi != null && uvi < 3 ? 0 : Math.min(au * (rotated ? 2 : 1), 20000));
+      window.vitaminDIUPerSession = (au, fitz, uvi, rotated, genetics, bodyFraction) => {
+        if (uvi != null && uvi < 3) return 0;
+        const bodyCap = Number.isFinite(bodyFraction) && bodyFraction > 0 ? bodyFraction * 30000 : 20000;
+        return Math.min(au * (rotated ? 2 : 1), bodyCap, 20000);
+      };
+      window.VITD_DAILY_SATURATION_IU = 20000;
+      window.pbmJoulesPerCm2 = au => au / 1000;
+      window.circadianMelanopicLux = (au, durationMin) => au / Math.max(durationMin, 1);
+      window.ingredientDailyTotal = ing => ing.name.includes('Vitamin') ? { value: 125, unit: 'mcg' } : null;
+
+      state.currentProfile = profileId;
+      state.profiles = [{
+        id: profileId,
+        name: 'Sun Browser',
+        location: { country: 'Japan', zip: '' },
+      }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify([{
+        id: profileId,
+        name: 'Sun Browser',
+        location: { country: 'Japan', zip: '' },
+      }]));
+      state.importedData = {
+        ...state.importedData,
+        genetics: { snps: [] },
+        sunDefaults: { fitzpatrick: 'II', overrides: {} },
+        sunSessions: [todaySession, yesterdaySession, oldSession, activeSession],
+        deviceSessions: [{
+          id: 'stored-device-vitd',
+          startedAt: todayStart + 13 * 3600000,
+          endedAt: todayStart + 13.1 * 3600000,
+          bodyAreas: ['face', 'arms-front'],
+          doses: { vitamin_d: 1200 },
+        }],
+        supplements: [{
+          name: 'D stack',
+          startDate: new Date(todayStart).toISOString().slice(0, 10),
+          ingredients: [
+            { name: 'Vitamin D3', amount: 125, unit: 'mcg' },
+            { name: 'Topical vitamin D cream', amount: 1000, unit: 'IU' },
+          ],
+        }],
+      };
+
+      const defaultEmptyPrompt = utils.showPromptDialog('Default empty prompt');
+      await setPromptValue('');
+      const defaultEmptyResult = await defaultEmptyPrompt;
+      const allowEmptyPrompt = utils.showPromptDialog('Allow empty prompt', { allowEmpty: true });
+      await setPromptValue('');
+      const allowEmptyResult = await allowEmptyPrompt;
+      outcomes.promptAllowEmptyPreservesDefaultSemantics = defaultEmptyResult === null
+        && allowEmptyResult === '';
+
+      outcomes.windowFacadeExports = window.rollingChannelTotals === sun.rollingChannelTotals
+        && typeof window.applySunscreenMidSession === 'function'
+        && window.SUN_ENGINE_VERSION === sun.SUN_ENGINE_VERSION;
+      outcomes.tierHelpersCoverDailyWeeklyAndFallbacks = sun.channelTier(0, 'vitamin_d') === 0
+        && sun.channelTier(200, 'vitamin_d') === 3
+        && sun.weeklyChannelTier(560, 'pomc') === 4
+        && sun.tierLabel(99) === 'none'
+        && sun.tierDots(3) === '●●●○';
+      outcomes.formatChannelUnitsCoverThresholdsAndFallbacks =
+        sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 6, null, true, 0.24).includes('IU')
+        && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 1, null, false, 0.24) === 'below UVI threshold'
+        && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('saturated')
+        && sun.formatChannelUnit('nir_solar', 12400, 20) === '12 J/cm²'
+        && sun.formatChannelUnit('circadian', 52000, 10).includes('5.2k M-EDI lux')
+        && sun.formatChannelUnit('no_cv', 200, 20) === ''
+        && sun.formatChannelUnit('circadian', 200, 1) === 'session too short';
+
+      const totals = sun.rollingChannelTotals(7);
+      const channelBreakdown = sun.dailyChannelBreakdown('vitamin_d', 3);
+      const iuBreakdown = sun.dailyVitaminDIUBreakdown(3);
+      const rollingIU = sun.rollingVitaminDIU(7);
+      const todayIU = sun.cumulativeVitaminDIUToday();
+      const budget = sun.vitaminDBudgetStatus();
+      outcomes.aggregateTotalsAndBreakdownsIncludeSunAndDeviceData = totals.vitamin_d === 4100
+        && totals.no_cv === 7500
+        && channelBreakdown.at(-1).sun === 3200
+        && channelBreakdown.at(-1).device === 2200
+        && iuBreakdown.at(-1).sun > 0
+        && iuBreakdown.at(-1).device > 0
+        && rollingIU >= todayIU
+        && budget.supplementIU === 5000
+        && budget.exceedsSupplementUL === true;
+      outcomes.medTotalsSplitTodayAndYesterday = sun.cumulativeMEDToday() === 0.42
+        && sun.cumulativeMEDYesterday() === 0.31;
+
+      await sun.pauseSunSession(activeId);
+      await sun.resumeSunSession(activeId);
+      await sun.flipSidesMidSession(activeId);
+      await sun.flipSidesMidSession(activeId);
+      outcomes.sessionLifecycleNotificationsAndRotation =
+        activeSession.paused === false
+        && activeSession.bodyExposure.rotatedSides === true
+        && toasts().some(text => text.includes('Session paused'))
+        && toasts().some(text => text.includes('Session resumed'))
+        && toasts().some(text => text.includes('Already logged as rotated'));
+      clearToasts();
+
+      const invalidSunscreen = sun.applySunscreenMidSession(activeId);
+      await setPromptValue('101');
+      await invalidSunscreen;
+      const validSunscreen = sun.applySunscreenMidSession(activeId);
+      await setPromptValue('45');
+      await validSunscreen;
+      outcomes.sunscreenPromptHandlesInvalidAndValidValues =
+        activeSession.bodyExposure.sunscreenSPF === 45
+        && toasts().some(text => text.includes('SPF must be 0-100'))
+        && toasts().some(text => text.includes('SPF updated to 45'));
+      clearToasts();
+
+      await sun.changeCoverageMidSession(activeId);
+      const coverageOverlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
+      const coverageHint = coverageOverlay?.querySelector('#sun-coverage-hint')?.textContent || '';
+      coverageOverlay?.querySelector('#coverage-confirm')?.click();
+      await waitFor(() => toasts().some(text => text.includes('fully clothed')));
+      outcomes.coverageModalAppliesEmptyRegionState = coverageHint.includes('No regions exposed')
+        && activeSession.bodyExposure.fraction === 0
+        && activeSession.bodyExposure.regions.length === 0
+        && toasts().some(text => text.includes('fully clothed'));
+      clearToasts();
+
+      const ozoneInvalid = sun.setOzoneOverrideMidSession();
+      await setPromptValue('99');
+      await ozoneInvalid;
+      const ozoneSet = sun.setOzoneOverrideMidSession();
+      await setPromptValue('320');
+      await ozoneSet;
+      const ozoneClear = sun.setOzoneOverrideMidSession();
+      await setPromptValue('');
+      await ozoneClear;
+      outcomes.ozonePromptValidatesSetsAndClearsOverride =
+        state.importedData.sunDefaults.overrides.ozoneDU === null
+        && toasts().some(text => text.includes('Ozone DU must be 100-600'))
+        && toasts().some(text => text.includes('Ozone override set: 320 DU'))
+        && toasts().some(text => text.includes('Ozone override cleared'));
+      clearToasts();
+
+      const forgetStop = sun._forgotStopPrompt(activeId);
+      await confirmDialog();
+      await forgetStop;
+      outcomes.forgotStopConfirmEndsActiveSession = Number.isFinite(activeSession.endedAt)
+        && activeSession.durationMin > 700
+        && toasts().some(text => text.includes('Session ended'));
+      clearToasts();
+
+      const countryCoords = sun.getSunCoords();
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          getCurrentPosition(resolve) {
+            resolve({ coords: { latitude: 40.7, longitude: -74.0, altitude: null } });
+          },
+        },
+      });
+      const precise = await sun.requestPreciseLocation();
+      delete state.importedData.sunDefaults.coords;
+      state.profiles = [{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }];
+      localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }]));
+      const noCoords = sun.getSunCoords();
+      outcomes.locationFallbacksAndPreciseRequest =
+        countryCoords.source === 'country-band'
+        && Math.abs(countryCoords.lat - 36.2) < 0.1
+        && precise?.lat === 40.7
+        && precise?.lon === -74
+        && noCoords === null
+        && toasts().some(text => text.includes('Precise location saved'));
+    } finally {
+      state.importedData = saved.importedData;
+      state.profiles = saved.profilesState;
+      state.currentProfile = saved.currentProfile;
+      if (saved.profiles == null) localStorage.removeItem('labcharts-profiles');
+      else localStorage.setItem('labcharts-profiles', saved.profiles);
+      window.buildSidebar = saved.buildSidebar;
+      window.navigate = saved.navigate;
+      window.getDeviceSessions = saved.getDeviceSessions;
+      window.vitaminDIU = saved.vitaminDIU;
+      window.vitaminDIUPerSession = saved.vitaminDIUPerSession;
+      window.VITD_DAILY_SATURATION_IU = saved.VITD_DAILY_SATURATION_IU;
+      window.pbmJoulesPerCm2 = saved.pbmJoulesPerCm2;
+      window.circadianMelanopicLux = saved.circadianMelanopicLux;
+      window.ingredientDailyTotal = saved.ingredientDailyTotal;
+      if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
+      else delete navigator.geolocation;
+      document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());
+    }
+    return outcomes;
+  }, { sunUrl: moduleUrl('/js/sun.js'), utilsUrl: moduleUrl('/js/utils.js') });
+
+  expectAll(outcomes);
+});

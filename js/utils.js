@@ -460,8 +460,9 @@ export function showConfirmDialog(message) {
 /// cross-origin workers, some PWA configurations) and its synchronous
 /// nature makes it awkward inside async flows. This helper reuses the
 /// confirm-dialog CSS so both dialogs look consistent; resolves to the
-/// trimmed string on OK, or null on Cancel / Esc / backdrop-click.
-export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '', inputType = 'text' } = {}) {
+/// trimmed string on OK, or null on Cancel / Esc / backdrop-click. Callers
+/// that need to distinguish empty OK from cancel can pass allowEmpty.
+export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', cancelLabel = 'Cancel', placeholder = '', inputType = 'text', allowEmpty = false } = {}) {
   return new Promise((resolve) => {
     let overlay = document.getElementById('prompt-dialog-overlay');
     if (!overlay) {
@@ -492,12 +493,16 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
+    const readValue = () => {
+      const trimmed = input.value.trim();
+      return allowEmpty ? trimmed : (trimmed || null);
+    };
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); close(null); }
-      else if (e.key === 'Enter') { e.preventDefault(); close(input.value.trim() || null); }
+      else if (e.key === 'Enter') { e.preventDefault(); close(readValue()); }
     };
 
-    ok.onclick = () => close(input.value.trim() || null);
+    ok.onclick = () => close(readValue());
     cancel.onclick = () => close(null);
     overlay.onclick = (e) => { if (e.target === overlay) close(null); };
     document.addEventListener('keydown', onKey);
