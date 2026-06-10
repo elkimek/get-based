@@ -42,12 +42,18 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
     const debugManualButtons = () => Array.from(document.querySelectorAll('#detail-modal [data-wearable-action="open-detail-manual-add"]'))
       .map(el => el.dataset.wearableMetric || 'unknown')
       .join(',') || 'none';
+    const addTriggerSelector = metric =>
+      `#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`;
+    const waitForDetailIdle = metric => waitFor(() =>
+      document.getElementById('modal-overlay')?.classList.contains('show')
+        && !!document.querySelector(addTriggerSelector(metric))
+        && !document.querySelector('#detail-modal .wearable-manual-add-form')
+    );
     const openAddForm = async metric => {
       await closeDetailModal();
       await window.openWearableDetail(metric);
-      const triggerSelector = `#detail-modal [data-wearable-action="open-detail-manual-add"][data-wearable-metric="${metric}"]`;
-      const triggerReady = await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show')
-        && !!document.querySelector(triggerSelector));
+      const triggerSelector = addTriggerSelector(metric);
+      const triggerReady = await waitForDetailIdle(metric);
       if (!triggerReady) throw new Error(`manual add trigger not ready for ${metric}; available add buttons: ${debugManualButtons()}`);
       document.querySelector(triggerSelector)?.click();
       const formReady = await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-add-form'));
@@ -92,11 +98,15 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
       form.querySelector('#wlad-note').value = 'evening detail add';
       form.querySelector('.wearable-log-save')?.click();
       const weightSaved = await waitFor(async () => (await store.getDaily(profileId, 'manual', '2026-06-02'))?.weight === 82.4);
+      const weightDetailIdle = await waitForDetailIdle('weight');
       const weightRow = await store.getDaily(profileId, 'manual', '2026-06-02');
       check('weight detail submit saves row note and navigates',
         weightSaved
+        && weightDetailIdle
         && weightRow?.note === 'evening detail add'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
+      check('weight detail submit settles rerender before next metric',
+        weightDetailIdle);
 
       form = await openAddForm('rhr');
       form.querySelector('[data-wearable-action="close-detail-manual-add"]')?.click();
@@ -127,6 +137,8 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
         && rhrRow?.note === 'morning rested'
         && Array.isArray(rhrRow?.tags)
         && rhrRow.tags.includes('resting'));
+      check('rhr detail submit settles rerender before next metric',
+        await waitForDetailIdle('rhr'));
 
       form = await openAddForm('bp_systolic');
       check('bp detail add renders pair pulse tags and note controls',
@@ -162,6 +174,8 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
         && bpRow?.note === 'after stairs'
         && Array.isArray(bpRow?.tags)
         && bpRow.tags.includes('stress'));
+      check('bp detail submit settles rerender before final assertion',
+        await waitForDetailIdle('bp_systolic'));
 
       await window.openWearableDetail('bp_systolic');
       await waitFor(() => !!document.querySelector('#detail-modal .wearable-manual-entry[data-entry-date="2026-06-04"]'));
