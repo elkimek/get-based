@@ -68,10 +68,19 @@ async function startWorkerCoverage(page) {
       }, 5000);
       pending.set(key, { resolve, reject, timer });
     });
-    await client.send('Target.sendMessageToTarget', {
-      sessionId,
-      message: JSON.stringify({ id, method, params }),
-    });
+    try {
+      await client.send('Target.sendMessageToTarget', {
+        sessionId,
+        message: JSON.stringify({ id, method, params }),
+      });
+    } catch (error) {
+      const waiter = pending.get(key);
+      if (waiter) {
+        pending.delete(key);
+        clearTimeout(waiter.timer);
+      }
+      throw error;
+    }
     return response;
   };
 
@@ -105,6 +114,8 @@ async function startWorkerCoverage(page) {
         const session = sessions.get(sessionId);
         if (session) session.started = true;
       }
+    } catch {
+      // Short-lived workers can detach before profiler setup completes.
     } finally {
       await sendToTarget(sessionId, 'Runtime.runIfWaitingForDebugger').catch(() => {});
     }
@@ -177,8 +188,11 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
   if (!isCoverageEnabled() || !startedPages.has(page)) return;
   const state = coverageStates.get(page) || {};
   let entries = [];
+  let coverageError = null;
   try {
     entries = await page.coverage.stopJSCoverage();
+  } catch (error) {
+    coverageError = error;
   } finally {
     startedPages.delete(page);
     coverageStates.delete(page);
@@ -193,6 +207,7 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
     generatedAt: new Date().toISOString(),
     entries: entries.map(shrinkEntry),
   }));
+  if (coverageError) throw coverageError;
 }
 
 export const test = base.extend({
