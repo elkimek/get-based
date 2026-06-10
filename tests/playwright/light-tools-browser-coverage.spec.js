@@ -33,6 +33,12 @@ test('light tools browser coverage exercises storage render and modal flows', as
       getSessions: window.getSessions,
       hydrateSession: window.hydrateSession,
       mediaDevices: navigator.mediaDevices,
+      play: HTMLMediaElement.prototype.play,
+      getContext: HTMLCanvasElement.prototype.getContext,
+      requestAnimationFrame: window.requestAnimationFrame,
+      cancelAnimationFrame: window.cancelAnimationFrame,
+      hadAmbientLightSensor: Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor'),
+      AmbientLightSensor: window.AmbientLightSensor,
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -156,6 +162,108 @@ test('light tools browser coverage exercises storage render and modal flows', as
         .some(call => call[0] === 'light' && !call[1]);
       sunriseOverlay?.remove();
 
+      window.getSunCoords = () => ({ lat: 50.08, lon: 14.43 });
+      window.solarZenithAngle = date => {
+        const hour = date.getHours() + date.getMinutes() / 60;
+        return hour >= 6 && hour < 18 ? 80 : 100;
+      };
+      lightTools.openSunriseLogger();
+      const timedSunriseText = document.querySelector('[aria-label="Golden hour log"]')?.textContent || '';
+      results.sunriseLoggerWithCoordsShowsClockTimes =
+        timedSunriseText.includes('sunrise') && timedSunriseText.includes('sunset');
+      document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay')?.remove();
+
+      const streamStops = [];
+      const makeTrack = () => ({
+        stop: () => streamStops.push('stop'),
+        getSettings: () => ({
+          frameRate: 120,
+          exposureMode: 'manual',
+          whiteBalanceMode: 'manual',
+          focusMode: 'manual',
+        }),
+        getCapabilities: () => ({
+          exposureMode: ['manual'],
+          whiteBalanceMode: ['manual'],
+          focusMode: ['manual'],
+          exposureTime: { min: 1, max: 500 },
+          iso: { min: 50, max: 800 },
+          colorTemperature: { min: 2000, max: 8000 },
+        }),
+        applyConstraints: async () => {},
+      });
+      const makeStream = () => {
+        const stream = new MediaStream();
+        const track = makeTrack();
+        Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [track] });
+        Object.defineProperty(stream, 'getVideoTracks', { configurable: true, value: () => [track] });
+        return stream;
+      };
+      Object.defineProperty(navigator, 'mediaDevices', {
+        configurable: true,
+        value: { getUserMedia: async () => makeStream() },
+      });
+      HTMLMediaElement.prototype.play = async function play() {
+        return undefined;
+      };
+      HTMLCanvasElement.prototype.getContext = function getContext(type, options) {
+        if (type !== '2d') return saved.getContext.call(this, type, options);
+        const canvas = this;
+        return {
+          drawImage: () => {},
+          getImageData: () => {
+            const data = new Uint8ClampedArray(canvas.width * canvas.height * 4);
+            for (let i = 0; i < data.length; i += 4) {
+              data[i] = 190;
+              data[i + 1] = 170;
+              data[i + 2] = 130;
+              data[i + 3] = 255;
+            }
+            return { data };
+          },
+        };
+      };
+      window.requestAnimationFrame = callback => setTimeout(() => callback(performance.now()), 0);
+      window.cancelAnimationFrame = id => clearTimeout(id);
+      class FakeAmbientLightSensor extends EventTarget {
+        constructor() {
+          super();
+          this.illuminance = 440;
+        }
+        start() {
+          setTimeout(() => this.dispatchEvent(new Event('reading')), 0);
+        }
+        stop() {}
+      }
+      window.AmbientLightSensor = FakeAmbientLightSensor;
+
+      await lightTools.openLuxMeter({ roomId: 'room-1' });
+      await wait(10);
+      results.openLuxMeterFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Lux meter"]');
+      window._closeLuxMeter?.();
+      await lightTools.openFlickerDetector({ roomId: 'room-1' });
+      results.openFlickerFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Flicker detector"]');
+      window._closeFlicker?.();
+      await lightTools.openDarknessMeter({ roomId: 'room-2' });
+      results.openDarknessFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Sleep darkness meter"]');
+      window._closeDark?.();
+      await lightTools.openCCTMeter({ roomId: 'room-2' });
+      results.openCCTFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Color temperature meter"]');
+      window._closeCCT?.();
+      await lightTools.openSpectrumClassifier({ roomId: 'room-2' });
+      results.openSpectrumFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Spectrum classifier"]');
+      window._closeSpec?.();
+      await lightTools.openGlassTransmission({ roomId: 'room-2' });
+      results.openGlassFacadeCreatesAndClosesModal =
+        !!document.querySelector('[aria-label="Glass transmission test"]');
+      window._closeGlass?.();
+      results.cameraFacadeStreamsStoppedOnClose = streamStops.length >= 3;
+
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: {
@@ -187,14 +295,22 @@ test('light tools browser coverage exercises storage render and modal flows', as
         getSessions: saved.getSessions,
         hydrateSession: saved.hydrateSession,
       });
+      HTMLMediaElement.prototype.play = saved.play;
+      HTMLCanvasElement.prototype.getContext = saved.getContext;
+      window.requestAnimationFrame = saved.requestAnimationFrame;
+      window.cancelAnimationFrame = saved.cancelAnimationFrame;
+      if (saved.hadAmbientLightSensor) window.AmbientLightSensor = saved.AmbientLightSensor;
+      else delete window.AmbientLightSensor;
       try {
         Object.defineProperty(navigator, 'mediaDevices', {
           configurable: true,
           value: saved.mediaDevices,
         });
       } catch (_) {}
-      try { window._closeAudit?.(); } catch (_) {}
-      delete window._closeAudit;
+      ['_closeLuxMeter', '_closeFlicker', '_closeDark', '_closeCCT', '_closeSpec', '_closeGlass', '_closeAudit'].forEach(name => {
+        try { window[name]?.(); } catch (_) {}
+        try { delete window[name]; } catch (_) {}
+      });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
