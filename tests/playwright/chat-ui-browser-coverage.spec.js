@@ -286,6 +286,103 @@ test('chat thread search covers message results clearing and jump highlighting',
   }
 });
 
+test('chat panel browser coverage toggles web search and panel chrome', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-panel');
+
+  const results = await page.evaluate(async ({ chatPanelUrl }) => {
+    const chatPanel = await import(chatPanelUrl);
+    const outcomes = {};
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, key ? localStorage.getItem(key) : null];
+    }));
+    const panel = document.getElementById('chat-panel');
+    const backdrop = document.getElementById('chat-backdrop');
+    const fab = document.getElementById('chat-fab');
+    const input = document.getElementById('chat-input');
+    const label = document.querySelector('#chat-panel .chat-websearch-toggle-label');
+    const checkbox = document.getElementById('chat-websearch-checkbox');
+    const original = {
+      panelClass: panel?.className,
+      backdropClass: backdrop?.className,
+      bodyClass: document.body.className,
+      fabClass: fab?.className,
+      inputValue: input?.value,
+      labelDisplay: label?.style.display,
+      checkboxChecked: checkbox?.checked,
+      refreshMobileDashboardActiveTab: window.refreshMobileDashboardActiveTab,
+    };
+    let mobileRefreshes = 0;
+
+    try {
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-chat-fullscreen', 'false');
+      window.refreshMobileDashboardActiveTab = () => { mobileRefreshes++; };
+      panel?.classList.remove('open', 'chat-panel-fullscreen');
+      backdrop?.classList.remove('open');
+      document.body.classList.remove('chat-open', 'chat-fullscreen', 'chat-autostart-reserved');
+      fab?.classList.remove('hidden');
+
+      chatPanel.setChatWebSearchEnabled(true);
+      outcomes.webSearchTogglePersistsOnAndShowsForProvider =
+        chatPanel.getChatWebSearchEnabled() === true
+        && localStorage.getItem('labcharts-chat-websearch') === 'on'
+        && label?.style.display === '';
+
+      chatPanel.setChatWebSearchEnabled(false);
+      outcomes.webSearchTogglePersistsOff =
+        chatPanel.getChatWebSearchEnabled() === false
+        && localStorage.getItem('labcharts-chat-websearch') === 'off';
+
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      chatPanel.refreshWebSearchToggle();
+      outcomes.webSearchToggleHidesForUnsupportedProvider = label?.style.display === 'none';
+
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      chatPanel.toggleChatPanel();
+      outcomes.togglePanelOpensChrome =
+        panel?.classList.contains('open') === true
+        && backdrop?.classList.contains('open') === true
+        && document.body.classList.contains('chat-open') === true
+        && fab?.classList.contains('hidden') === true
+        && checkbox?.checked === false;
+
+      chatPanel.toggleChatPanel();
+      outcomes.togglePanelClosesChrome =
+        panel?.classList.contains('open') === false
+        && backdrop?.classList.contains('open') === false
+        && document.body.classList.contains('chat-open') === false
+        && fab?.classList.contains('hidden') === false
+        && mobileRefreshes === 1;
+    } finally {
+      chatPanel.closeChatPanel();
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+      if (panel && original.panelClass != null) panel.className = original.panelClass;
+      if (backdrop && original.backdropClass != null) backdrop.className = original.backdropClass;
+      document.body.className = original.bodyClass;
+      if (fab && original.fabClass != null) fab.className = original.fabClass;
+      if (input && original.inputValue != null) input.value = original.inputValue;
+      if (label && original.labelDisplay != null) label.style.display = original.labelDisplay;
+      if (checkbox && original.checkboxChecked != null) checkbox.checked = original.checkboxChecked;
+      if (original.refreshMobileDashboardActiveTab === undefined) delete window.refreshMobileDashboardActiveTab;
+      else window.refreshMobileDashboardActiveTab = original.refreshMobileDashboardActiveTab;
+    }
+
+    return outcomes;
+  }, {
+    chatPanelUrl: moduleUrl('/js/chat-panel.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('chat summaries cover saved summary modal actions without network calls', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-panel');
