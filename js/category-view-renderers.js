@@ -255,7 +255,8 @@ export function renderFattyAcidsCharts(cat) {
   }
   const tc = getChartColors();
   const names=[], vals=[], mins=[], maxs=[], bgC=[], brC=[];
-  for (const m of Object.values(cat.markers)) {
+  for (const [key, m] of Object.entries(cat.markers)) {
+    if (!safeMarkerId(key)) continue;
     const r = getEffectiveRange(m);
     names.push(m.name.replace(/\(.+\)/,"").trim());
     vals.push(m.values[0]); mins.push(r.min); maxs.push(r.max);
