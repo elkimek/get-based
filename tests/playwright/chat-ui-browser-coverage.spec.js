@@ -357,6 +357,8 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
         && fab?.classList.contains('hidden') === false
         && mobileRefreshes === 1;
     } finally {
+      if (original.refreshMobileDashboardActiveTab === undefined) delete window.refreshMobileDashboardActiveTab;
+      else window.refreshMobileDashboardActiveTab = original.refreshMobileDashboardActiveTab;
       chatPanel.closeChatPanel();
       localStorage.clear();
       for (const [key, value] of storage) {
@@ -369,8 +371,6 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       if (input && original.inputValue != null) input.value = original.inputValue;
       if (label && original.labelDisplay != null) label.style.display = original.labelDisplay;
       if (checkbox && original.checkboxChecked != null) checkbox.checked = original.checkboxChecked;
-      if (original.refreshMobileDashboardActiveTab === undefined) delete window.refreshMobileDashboardActiveTab;
-      else window.refreshMobileDashboardActiveTab = original.refreshMobileDashboardActiveTab;
     }
 
     return outcomes;
