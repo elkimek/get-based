@@ -79,11 +79,22 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
     const originalCloseModal = window.closeModal;
     const originalNavigate = window.navigate;
     const navCalls = [];
+    let closeCalls = 0;
+    const waitFor = async (predicate) => {
+      for (let i = 0; i < 40; i++) {
+        if (predicate()) return true;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return false;
+    };
 
     try {
       state.importedData ||= {};
       state.importedData.notes = [];
-      window.closeModal = () => document.getElementById('modal-overlay')?.classList.remove('show');
+      window.closeModal = () => {
+        closeCalls++;
+        document.getElementById('modal-overlay')?.classList.remove('show');
+      };
       window.navigate = (category) => { navCalls.push(category); };
 
       notes.openNoteEditor('2026-06-07');
@@ -108,6 +119,35 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
       outcomes.saveEditsInPlace = state.importedData.notes.length === 1
         && state.importedData.notes[0].text === 'Edited coverage batch note';
 
+      notes.openNoteEditor('2026-06-08');
+      window.dispatchEvent(new Event('labcharts-sync-applied'));
+      outcomes.syncRefreshAddModeReopensByDate =
+        await waitFor(() => document.getElementById('note-date-input')?.value === '2026-06-08')
+        && document.getElementById('detail-modal')?.dataset.syncRefreshMode === 'add';
+
+      notes.openNoteEditor(null, 0);
+      state.importedData.notes[0].text = 'Synced coverage batch note';
+      window.dispatchEvent(new Event('labcharts-sync-applied'));
+      outcomes.syncRefreshEditReopensSameIndex =
+        await waitFor(() => document.getElementById('note-textarea')?.value === 'Synced coverage batch note')
+        && document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '0';
+
+      notes.openNoteEditor(null, 0);
+      state.importedData.notes.unshift({ date: '2026-06-06', text: 'Inserted remote note' });
+      window.dispatchEvent(new Event('labcharts-sync-applied'));
+      outcomes.syncRefreshFindsShiftedNote =
+        await waitFor(() => document.getElementById('detail-modal')?.dataset.syncRefreshIndex === '1')
+        && document.getElementById('note-textarea')?.value === 'Synced coverage batch note';
+
+      const closeCallsBeforeMissingNote = closeCalls;
+      notes.openNoteEditor(null, 1);
+      state.importedData.notes = state.importedData.notes.filter(note => note.date !== '2026-06-07');
+      window.dispatchEvent(new Event('labcharts-sync-applied'));
+      outcomes.syncRefreshClosesWhenNoteMissing =
+        closeCalls >= closeCallsBeforeMissingNote + 1
+        && document.getElementById('modal-overlay')?.classList.contains('show') === false;
+
+      state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
       notes.openNoteEditor(null, 0);
       const deletePromise = notes.deleteNote(0);
       await Promise.resolve();
