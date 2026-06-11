@@ -11,6 +11,67 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
+test('sync tombstones browser coverage exercises default dependency callbacks', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ defaultUrl, syncOffUrl, debugUrl }) => {
+    const outcomes = {};
+    const syncTsKey = 'labcharts-default-profile-sync-ts';
+    const savedSyncTs = localStorage.getItem(syncTsKey);
+
+    try {
+      const defaults = await import(defaultUrl);
+      await defaults.applyRemoteTombstones();
+      const defaultDelete = await defaults.deleteProfileFromRelay('default-profile');
+      outcomes.defaultQueriesSkipWithoutConfiguredDeps =
+        defaultDelete.skipped === true
+        && defaultDelete.reason === 'sync-off';
+
+      const syncOff = await import(syncOffUrl);
+      syncOff.configureSyncTombstones({
+        getEvolu: () => ({ getQueryRows: () => [] }),
+        getProfileQuery: () => 'profiles',
+      });
+      const defaultSyncOff = await syncOff.deleteProfileFromRelay('default-profile');
+      outcomes.defaultIsSyncEnabledFalseSkipsRelayDelete =
+        defaultSyncOff.skipped === true
+        && defaultSyncOff.reason === 'sync-off';
+
+      const debugDefault = await import(debugUrl);
+      const relay = {
+        updates: [],
+        getQueryRows: () => [{ id: 'row-default-debug', profileId: 'default-profile' }],
+        update(table, args) {
+          this.updates.push({ table, args });
+        },
+      };
+      debugDefault.configureSyncTombstones({
+        getEvolu: () => relay,
+        getProfileQuery: () => 'profiles',
+        isSyncEnabled: () => true,
+      });
+      localStorage.setItem(syncTsKey, 'old');
+      const debugResult = await debugDefault.deleteProfileFromRelay('default-profile');
+      outcomes.defaultDebugCallbackDoesNotBlockSuccessfulDelete =
+        debugResult.ok === true
+        && relay.updates[0]?.table === 'profileData'
+        && relay.updates[0]?.args?.profileId === 'default-profile'
+        && localStorage.getItem(syncTsKey) === null;
+    } finally {
+      if (savedSyncTs == null) localStorage.removeItem(syncTsKey);
+      else localStorage.setItem(syncTsKey, savedSyncTs);
+    }
+
+    return outcomes;
+  }, {
+    defaultUrl: moduleUrl('/js/sync-tombstones.js'),
+    syncOffUrl: moduleUrl('/js/sync-tombstones.js'),
+    debugUrl: moduleUrl('/js/sync-tombstones.js'),
+  });
+
+  expectAll(outcomes);
+});
+
 test('sync tombstones browser coverage exercises relay delete quarantine and pending paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
