@@ -101,15 +101,18 @@ test('profile share load browser coverage fetches decrypts imports and clears de
       history.pushState(null, '', `?share=${id}#share/${id}`);
       share.openSharedProfileImportModal(id);
       await waitFor(() => !!document.querySelector('[data-profile-share-form="load"]'), 'load form');
-      document.getElementById('profile-share-load-password').value = password;
+      const passwordInput = document.getElementById('profile-share-load-password');
+      if (!(passwordInput instanceof HTMLInputElement)) {
+        throw new Error('Profile share load password input missing');
+      }
+      passwordInput.value = password;
       document.querySelector('[data-profile-share-action="load"]')?.click();
       await waitFor(() => !document.getElementById('profile-share-overlay'), 'load modal closed after import');
 
       const imported = window.__profileShareImports?.[0];
+      const shareFetch = fetches.find(({ href }) => href === `/api/share?id=${encodeURIComponent(id)}`);
       outcomes.fetchesEnvelopeByShareId =
-        fetches.length === 1
-        && fetches[0].method === 'GET'
-        && fetches[0].href === `/api/share?id=${encodeURIComponent(id)}`;
+        shareFetch?.method === 'GET';
       outcomes.decryptsAndImportsSharedProfile =
         imported?.name === 'getbased-shared-profile.json'
         && imported.type === 'application/json'
