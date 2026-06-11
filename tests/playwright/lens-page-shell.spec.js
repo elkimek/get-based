@@ -73,3 +73,134 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     expect(passed, name).toBe(true);
   }
 });
+
+test('lens page browser coverage renders genome details and marker-backed labs', async ({ page }) => {
+  await prepareApp(page);
+
+  const results = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { createLensPageHandlers } = await import('/js/lens-pages.js');
+    const main = document.getElementById('main-content');
+    const originalData = state.importedData ? JSON.parse(JSON.stringify(state.importedData)) : state.importedData;
+    const originalBodyClass = document.body.className;
+    const originalMainHTML = main?.innerHTML || '';
+    const setupCalls = [];
+
+    const renderLensHeader = (title, description, actions = '') => `<header class="lens-page-header">
+      <h1>${title}</h1>
+      <p>${description}</p>
+      <div class="lens-page-actions">${actions}</div>
+    </header>`;
+    const renderLensPageWidgets = (route, widgets) => `<section class="lens-page-widgets" data-lens-route="${route}">
+      ${widgets.filter(Boolean).map(widget => `<article class="dashboard-widget" data-widget-id="${widget.id}">
+        <h2>${widget.title}</h2>
+        <p>${widget.description}</p>
+        <div class="dashboard-widget-body">${widget.body}</div>
+      </article>`).join('')}
+    </section>`;
+
+    const handlers = createLensPageHandlers({
+      setupDropZone: () => setupCalls.push('setup'),
+      buildDashboardWidgetContext: data => ({ data }),
+      renderLabsPriorityBanner: () => '<section data-testid="labs-priority">Priority labs</section>',
+      renderDashboardQuickMarkersWidget: () => '<div data-testid="quick-markers">Quick markers</div>',
+      renderDashboardKeyTrendsWidget: () => '<div data-testid="key-trends">Key trends</div>',
+      renderDashboardGenomeWidget: () => '<div data-testid="genome-widget">Genome widget</div>',
+      renderDashboardWearableTilesWidget: () => '',
+      renderDashboardInsightsListWidget: () => '',
+      renderDashboardRecommendationsWidget: () => '',
+      renderFocusCard: () => '',
+      loadFocusCard: () => {},
+      getDashboardWidgetPrefs: () => ({ hidden: [] }),
+      getCachedRecommendationsCatalog: () => null,
+      refreshRecommendationsWhenCatalogReady: () => {},
+      getGlobalRecommendationCandidates: () => [],
+      renderRecommendationCard: candidate => `<div>${candidate?.title || ''}</div>`,
+      renderRecommendationsEmpty: () => '<div>Empty recommendations</div>',
+      lensPageActionAttrs: (action, values = {}) => `data-lens-page-action="${action}" data-lens-page-id="${values.id || ''}"`,
+      renderLensHeader,
+      renderLensPageWidgets,
+      renderLensWidget: (id, title, description, body) => `<article data-widget-id="${id}"><h2>${title}</h2><p>${description}</p>${body}</article>`,
+    });
+
+    try {
+      state.importedData = {
+        ...(state.importedData || {}),
+        genetics: {
+          source: '23andMe <raw>',
+          importDate: '2026-02-03',
+          coverage: { found: 1234, total: 5678 },
+          apoe: 'E3/E4',
+          snps: {
+            rs1801133: { genotype: 'GA', gene: 'MTHFR' },
+            rs429358: { genotype: 'CT', gene: 'APOE' },
+          },
+          mtdna: {
+            haplogroup: 'H1',
+            importDate: '2026-02-04',
+            coupling: {
+              label: 'Stored maternal lineage',
+              shortLabel: 'Maternal lineage',
+            },
+          },
+        },
+      };
+      handlers.showGenomeLens();
+      const genomeText = main?.textContent || '';
+      const genomeHtml = main?.innerHTML || '';
+      const genomeCardCount = main?.querySelectorAll('.genetics-overview-card').length || 0;
+
+      state.importedData = { ...(state.importedData || {}), genetics: { snps: {}, effects: {} } };
+      handlers.showGenomeLens();
+      const emptyGenomeHtml = main?.innerHTML || '';
+
+      handlers.showLabs({
+        dates: [],
+        categories: {
+          lipids: {
+            markers: {
+              ldl: { values: [null, 93] },
+            },
+          },
+        },
+      });
+      const markerBackedLabsHtml = main?.innerHTML || '';
+
+      handlers.showLabs({
+        dates: [],
+        categories: {
+          lipids: {
+            markers: {
+              ldl: { values: [null, null] },
+            },
+          },
+        },
+      });
+      const emptyLabsHtml = main?.innerHTML || '';
+
+      return {
+        genomeLensRenders: genomeText.includes('Dedicated DNA workspace') && genomeText.includes('Genome widget'),
+        genomeImportDetailsRender: genomeCardCount >= 4
+          && genomeHtml.includes('genome-import-details')
+          && genomeHtml.includes('23andMe &lt;raw&gt;')
+          && !genomeHtml.includes('23andMe <raw>'),
+        genomeCoverageAndMtdnaRender: genomeText.includes('1,234 / 5,678 catalog SNPs matched')
+          && genomeText.includes('mtDNA H1')
+          && genomeText.includes('Stored maternal lineage'),
+        genomeControlsRender: genomeHtml.includes('window.reimportDNA') && genomeHtml.includes('window.confirmDeleteDNA'),
+        emptyGenomeOmitsImportDetails: !emptyGenomeHtml.includes('genome-import-details'),
+        markerBackedLabsSkipDropZone: markerBackedLabsHtml.includes('data-testid="labs-priority"')
+          && !markerBackedLabsHtml.includes('id="drop-zone"'),
+        emptyLabsRenderDropZone: emptyLabsHtml.includes('id="drop-zone"') && setupCalls.length >= 2,
+      };
+    } finally {
+      state.importedData = originalData;
+      document.body.className = originalBodyClass;
+      if (main) main.innerHTML = originalMainHTML;
+    }
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
