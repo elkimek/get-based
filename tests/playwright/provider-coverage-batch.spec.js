@@ -2,6 +2,100 @@ import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = (path) => `${path}?providerCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+test('provider panel renderers cover Venice and Local AI markup branches', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ renderersUrl }) => {
+    const renderers = await import(renderersUrl);
+    const crypto = await import('/js/crypto.js');
+    const storageKeys = [
+      'labcharts-venice-key',
+      'labcharts-venice-model',
+      'labcharts-venice-models',
+      'labcharts-venice-e2ee',
+      'labcharts-venice-e2ee-models',
+      'labcharts-ollama',
+    ];
+    const oldStorage = {};
+    for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
+    const oldCache = {
+      veniceKey: crypto.getCachedKey('labcharts-venice-key'),
+      ollama: crypto.getCachedKey('labcharts-ollama'),
+    };
+    const fixture = document.createElement('section');
+    fixture.id = 'provider-renderer-fixture';
+
+    try {
+      for (const key of storageKeys) localStorage.removeItem(key);
+      localStorage.setItem('labcharts-venice-key', 'venice-test-key');
+      localStorage.setItem('labcharts-venice-model', 'e2ee-model');
+      localStorage.setItem('labcharts-venice-e2ee', 'on');
+      localStorage.setItem('labcharts-venice-models', JSON.stringify([
+        { id: 'regular-model', name: 'Regular <Model>' },
+      ]));
+      localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([
+        { id: 'e2ee-model', name: 'Secure <Model>' },
+      ]));
+      crypto.updateKeyCache('labcharts-venice-key', 'venice-test-key');
+
+      fixture.innerHTML = renderers.renderAIProviderPanel('venice');
+      document.body.appendChild(fixture);
+      const veniceSelect = fixture.querySelector('#venice-model-select');
+      const veniceE2EERenders = fixture.querySelector('#venice-key-status')?.textContent.includes('Connected')
+        && fixture.querySelector('#venice-key-input')?.value === 'venice-test-key'
+        && veniceSelect?.value === 'e2ee-model'
+        && fixture.querySelector('#venice-e2ee-toggle')?.checked === true
+        && fixture.querySelector('#venice-e2ee-indicator')?.style.display === ''
+        && fixture.querySelector('#venice-model-select option[value="e2ee-model"]')?.textContent === 'Secure <Model>'
+        && !!fixture.querySelector('[data-provider-panel-action="remove-venice-key"]');
+
+      localStorage.setItem('labcharts-venice-e2ee', 'on');
+      localStorage.setItem('labcharts-venice-model', 'regular-model');
+      localStorage.setItem('labcharts-venice-e2ee-models', '[]');
+      fixture.innerHTML = renderers.renderAIProviderPanel('venice');
+      const veniceMissingE2EEDisables = !fixture.querySelector('#venice-e2ee-toggle')
+        && fixture.querySelector('#venice-model-select')?.value === 'regular-model';
+
+      const ollamaConfig = JSON.stringify({
+        url: 'https://local.example/v1',
+        model: 'gemma3-local',
+        mode: 'openai-compatible',
+        apiKey: 'local-secret',
+      });
+      localStorage.setItem('labcharts-ollama', ollamaConfig);
+      crypto.updateKeyCache('labcharts-ollama', ollamaConfig);
+      // Local AI has no named provider case, so it is rendered through the default fallback.
+      fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
+      const localAIRenders = fixture.querySelector('#local-ai-url-input')?.value === 'https://local.example/v1'
+        && fixture.querySelector('#local-ai-apikey-input')?.value === 'local-secret'
+        && fixture.querySelector('#local-ai-status-text')?.textContent === 'Checking connection...'
+        && fixture.querySelector('[data-provider-panel-action="test-ollama-connection"]')?.textContent === 'Test'
+        && fixture.querySelector('#local-ai-model-select')?.dataset.providerPanelChange === 'local-ai-model'
+        && fixture.textContent.includes('/v1/chat/completions');
+
+      return {
+        veniceE2EERenders,
+        veniceMissingE2EEDisables,
+        localAIRenders,
+      };
+    } finally {
+      for (const key of storageKeys) {
+        if (oldStorage[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, oldStorage[key]);
+      }
+      if (oldCache.veniceKey == null) crypto.updateKeyCache('labcharts-venice-key', null);
+      else crypto.updateKeyCache('labcharts-venice-key', oldCache.veniceKey);
+      if (oldCache.ollama == null) crypto.updateKeyCache('labcharts-ollama', null);
+      else crypto.updateKeyCache('labcharts-ollama', oldCache.ollama);
+      fixture.remove();
+    }
+  }, { renderersUrl: moduleUrl('/js/provider-panel-renderers.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('provider model controls cover dropdowns custom models and delegates', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
