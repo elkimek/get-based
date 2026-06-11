@@ -600,6 +600,83 @@ test('sync subscriptions browser coverage handles deferred receives and relay he
   }
 });
 
+test('sync subscriptions browser coverage exercises default dependency no-ops', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ subscriptionsUrl }) => {
+    const subscriptions = await import(subscriptionsUrl);
+    const outcomes = {};
+    const callbacks = new Map();
+    const intervals = [];
+    const original = {
+      setInterval: window.setInterval,
+      clearInterval: window.clearInterval,
+    };
+    const profileQuery = { name: 'profile-defaults' };
+    const tombstoneQuery = { name: 'tombstones-defaults' };
+    const itemRowQuery = { name: 'itemRows-defaults' };
+    let errorCallback = null;
+
+    try {
+      window.setInterval = (fn, ms) => {
+        const id = intervals.length + 1;
+        intervals.push({ id, fn, ms, cleared: false });
+        return id;
+      };
+      window.clearInterval = (id) => {
+        const timer = intervals.find(item => item.id === id);
+        if (timer) timer.cleared = true;
+      };
+
+      subscriptions.clearSyncSubscriptionTimers();
+      const evolu = {
+        subscribeQuery(query) {
+          return callback => {
+            callbacks.set(query.name, callback);
+            return () => {};
+          };
+        },
+        getQueryRows() {
+          return [];
+        },
+        subscribeError(callback) {
+          errorCallback = callback;
+          return () => {};
+        },
+      };
+
+      subscriptions.bindSyncSubscriptions({ evolu, profileQuery, tombstoneQuery, itemRowQuery });
+      callbacks.get('profile-defaults')?.();
+      callbacks.get('tombstones-defaults')?.();
+      callbacks.get('itemRows-defaults')?.();
+      errorCallback?.({ type: 'IgnoredDefaultError' });
+
+      outcomes.defaultCallbacksDoNotThrow =
+        subscriptions.getSyncSubscriptionFireCount() === 1
+        && callbacks.size === 3
+        && intervals.some(timer => timer.ms === 30000 && !timer.cleared);
+
+      subscriptions.clearSyncSubscriptionTimers();
+      outcomes.defaultTimersClear =
+        subscriptions.getSyncSubscriptionFireCount() === 0
+        && intervals.every(timer => timer.cleared);
+    } finally {
+      subscriptions.clearSyncSubscriptionTimers();
+      window.setInterval = original.setInterval;
+      window.clearInterval = original.clearInterval;
+    }
+
+    return outcomes;
+  }, {
+    subscriptionsUrl: moduleUrl('/js/sync-subscriptions.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('sync reconcile browser coverage force-pushes divergent startup state', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
