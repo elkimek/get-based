@@ -10,15 +10,16 @@ async function openBlankPage(page) {
   await page.goto('/browser-helper-coverage', { waitUntil: 'load' });
 }
 
-test('browser helper coverage exercises url safety markdown brand assets and health goals', async ({ page }) => {
+test('browser helper coverage exercises url safety marker keys markdown brand assets and health goals', async ({ page }) => {
   await openBlankPage(page);
 
-  const results = await page.evaluate(async ({ brandAssetsUrl, healthGoalsUrl, markdownUrl, urlSafetyUrl }) => {
-    const [brandAssets, healthGoals, markdown, urlSafety] = await Promise.all([
+  const results = await page.evaluate(async ({ brandAssetsUrl, healthGoalsUrl, markdownUrl, urlSafetyUrl, utilsUrl }) => {
+    const [brandAssets, healthGoals, markdown, urlSafety, utils] = await Promise.all([
       import(brandAssetsUrl),
       import(healthGoalsUrl),
       import(markdownUrl),
       import(urlSafetyUrl),
+      import(utilsUrl),
     ]);
     const outcomes = {};
     const isValidUrl = urlSafety.isValidExternalUrl;
@@ -54,6 +55,56 @@ test('browser helper coverage exercises url safety markdown brand assets and hea
       && !isValidUrl('http://localhost:11434/api', { requireHttps: false });
     outcomes.urlBlocksEmbeddedPrivateIpv4Forms = !isValidUrl('https://[::ffff:c0a8:0101]/private')
       && !isValidUrl('https://[2002:c0a8:0101::]/private');
+
+    outcomes.safeMarkerIdAcceptsStrictMarkerIds = [
+      'biochemistry.glucose',
+      'diabetes.insulin_d',
+      'biochemistry_glucose',
+      'metabolomix.5_h_indoleacetic_acid',
+      'cat_marker_with_underscores',
+    ].every(id => utils.safeMarkerId(id) === id);
+    outcomes.safeMarkerIdDocumentsInjectionSafeDotSegmentIds = [
+      '.',
+      '.foo',
+      'foo.',
+    ].every(id => utils.safeMarkerId(id) === id);
+    outcomes.safeMarkerIdRejectsInlineHandlerAndProtoInputs = [
+      "foo.b'ar",
+      'foo.b"ar',
+      'foo.b\\ar',
+      'foo.<script>',
+      'foo. bar',
+      'foo.\nbar',
+      'foo.bar()',
+      '',
+      `a.${'b'.repeat(200)}`,
+      '__proto__.bar',
+      'foo.__proto__',
+      'foo.constructor',
+      'prototype.bar',
+      '__proto__',
+      null,
+      undefined,
+      42,
+      {},
+    ].every(id => utils.safeMarkerId(id) === null);
+    outcomes.sanitizeMarkerKeyCleansAllowedPartsAndRejectsUnsafeShapes =
+      utils.sanitizeMarkerKey('biochemistry.glucose') === 'biochemistry.glucose'
+      && utils.sanitizeMarkerKey("bio'chem.glu cose") === 'biochem.glucose'
+      && utils.sanitizeMarkerKey('diabetes.insulin_d') === 'diabetes.insulin_d'
+      && [
+        'biochemistryglucose',
+        '.glucose',
+        'biochemistry.',
+        null,
+        42,
+        '\'"<>.glucose',
+        'biochemistry.\'"<>',
+        '__proto__.bar',
+        'foo.__proto__',
+        'foo.constructor',
+        'prototype.foo',
+      ].every(key => utils.sanitizeMarkerKey(key) === null);
 
     const inlineHtml = markdown.applyInlineMarkdown(
       '**bold** and *italic* with `code`, [safe](https://example.com/"quoted"), [bad](javascript:alert(1)), https://docs.example/path and <script>'
@@ -148,6 +199,7 @@ test('browser helper coverage exercises url safety markdown brand assets and hea
     healthGoalsUrl: moduleUrl('/js/health-goals-utils.js'),
     markdownUrl: moduleUrl('/js/markdown.js'),
     urlSafetyUrl: moduleUrl('/js/url-safety.js'),
+    utilsUrl: moduleUrl('/js/utils.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {
