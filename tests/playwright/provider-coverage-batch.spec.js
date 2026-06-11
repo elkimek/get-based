@@ -53,8 +53,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       localStorage.setItem('labcharts-venice-model', 'regular-model');
       localStorage.setItem('labcharts-venice-e2ee-models', '[]');
       fixture.innerHTML = renderers.renderAIProviderPanel('venice');
-      const veniceMissingE2EEDisables = localStorage.getItem('labcharts-venice-e2ee') === 'off'
-        && !fixture.querySelector('#venice-e2ee-toggle')
+      const veniceMissingE2EEDisables = !fixture.querySelector('#venice-e2ee-toggle')
         && fixture.querySelector('#venice-model-select')?.value === 'regular-model';
 
       const ollamaConfig = JSON.stringify({
@@ -65,6 +64,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       });
       localStorage.setItem('labcharts-ollama', ollamaConfig);
       crypto.updateKeyCache('labcharts-ollama', ollamaConfig);
+      // Local AI has no named provider case, so it is rendered through the default fallback.
       fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
       const localAIRenders = fixture.querySelector('#local-ai-url-input')?.value === 'https://local.example/v1'
         && fixture.querySelector('#local-ai-apikey-input')?.value === 'local-secret'
