@@ -204,6 +204,97 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
   }
 });
 
+test('chat thread search default callbacks cover no-op filter and jump paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-thread-search');
+
+  const results = await page.evaluate(async ({ threadSearchUrl }) => {
+    const [{ state }, threadSearch] = await Promise.all([
+      import('/js/state.js'),
+      import(threadSearchUrl),
+    ]);
+    const input = document.getElementById('chat-thread-search');
+    const list = document.getElementById('chat-thread-list');
+    const messages = document.getElementById('chat-messages');
+    const original = {
+      currentProfile: state.currentProfile,
+      currentThreadId: state.currentThreadId,
+      chatThreads: state.chatThreads,
+      chatHistory: state.chatHistory,
+      inputValue: input?.value,
+      listHTML: list?.innerHTML,
+      messagesHTML: messages?.innerHTML,
+    };
+    const waitForSearch = () => new Promise(resolve => setTimeout(resolve, 320));
+
+    try {
+      state.currentProfile = 'chat-search-default-profile';
+      state.currentThreadId = 'default-thread-a';
+      state.chatThreads = [
+        { id: 'default-thread-a', name: 'Default A' },
+        { id: 'default-thread-b', name: 'Default B' },
+      ];
+      state.chatHistory = [
+        { role: 'user', content: 'Needle default message for no-op switch coverage' },
+      ];
+      if (messages) {
+        messages.innerHTML = '<div id="chat-msg-0" class="chat-msg"><span>Needle default message for no-op switch coverage</span></div>';
+      }
+
+      const staleMark = document.createElement('mark');
+      staleMark.className = 'chat-search-mark';
+      staleMark.textContent = 'old';
+      messages?.appendChild(staleMark);
+      const staleHighlight = document.getElementById('chat-msg-0');
+      staleHighlight?.classList.add('chat-msg-highlight');
+      if (input) input.value = '';
+      threadSearch.filterThreadList('');
+      const clearSearchNoopsAndRemovesMarks =
+        document.querySelector('.chat-search-mark') === null
+        && staleHighlight?.classList.contains('chat-msg-highlight') === false;
+
+      if (list) list.innerHTML = '<div>No matching conversations</div>';
+      if (input) input.value = 'needle';
+      threadSearch.invalidateThreadContentCache();
+      threadSearch.filterThreadList('needle');
+      await waitForSearch();
+      const defaultKeyNoResultsBranch =
+        list?.textContent.includes('No matches in conversations or messages') === true;
+
+      await threadSearch.jumpToSearchResult(
+        'default-thread-b',
+        0,
+        state.chatHistory[0].content.slice(0, 50)
+      );
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      const defaultSwitchNoopKeepsThreadAndHighlights =
+        state.currentThreadId === 'default-thread-a'
+        && document.getElementById('chat-msg-0')?.classList.contains('chat-msg-highlight') === true
+        && document.querySelector('.chat-search-mark')?.textContent.toLowerCase() === 'needle';
+
+      return {
+        clearSearchNoopsAndRemovesMarks,
+        defaultKeyNoResultsBranch,
+        defaultSwitchNoopKeepsThreadAndHighlights,
+      };
+    } finally {
+      state.currentProfile = original.currentProfile;
+      state.currentThreadId = original.currentThreadId;
+      state.chatThreads = original.chatThreads;
+      state.chatHistory = original.chatHistory;
+      if (input && original.inputValue != null) input.value = original.inputValue;
+      if (list && original.listHTML != null) list.innerHTML = original.listHTML;
+      if (messages && original.messagesHTML != null) messages.innerHTML = original.messagesHTML;
+    }
+  }, {
+    threadSearchUrl: moduleUrl('/js/chat-thread-search.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('chat thread search covers stale results limits and shifted highlight branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-thread-search');
