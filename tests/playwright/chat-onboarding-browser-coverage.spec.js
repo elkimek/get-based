@@ -238,6 +238,7 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
 
 test('chat onboarding browser coverage keeps default callbacks safe before chat wiring', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
     const [onboarding, { state }, profile] = await Promise.all([
