@@ -55,6 +55,8 @@ test('profile browser coverage exercises migration height and latitude helpers',
       outcomes.migrationRemapsUnitSuffixedMarkerAndMetadata =
         migrated.entries[0].markers['biochemistry.alp'] === 1.2
         && migrated.entries[0].markers['biochemistry.alpUkatL'] === undefined
+        && migrated.entries[0].markerSources['biochemistry.alp']?.file === 'fixture.pdf'
+        && migrated.entries[0].markerSources['biochemistry.alpUkatL'] === undefined
         && migrated.customMarkers['biochemistry.alpUkatL'] === undefined
         && migrated.markerLabels['biochemistry.alp'] === 'Fixture ALP'
         && migrated.manualValues['biochemistry.alp:2026-05-01'] === 1.2
@@ -123,6 +125,14 @@ test('profile browser coverage exercises migration height and latitude helpers',
     profileUrl: moduleUrl('/js/profile.js'),
   });
 
+  const expectedOutcomes = [
+    'migrationRemapsUnitSuffixedMarkerAndMetadata',
+    'profileHeightSetterUpdatesActiveProfile',
+    'latitudeDetectionCachesAndRendersResult',
+  ];
+  for (const key of expectedOutcomes) {
+    expect(results, `outcome key '${key}' was never set`).toHaveProperty(key);
+  }
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
