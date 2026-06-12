@@ -432,6 +432,103 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
   }
 });
 
+test('PDF import confirm flow covers preview persistence', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ pdfImportUrl, reviewUrl }) => {
+    const [pdfImport, review] = await Promise.all([
+      import(pdfImportUrl),
+      import(reviewUrl),
+    ]);
+    const state = window._labState;
+    const outcomes = {};
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, key === null || key === undefined ? null : localStorage.getItem(key)];
+    }));
+    const original = {
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      currentProfile: state.currentProfile,
+      profileSex: state.profileSex,
+      maybeShowEncryptionNudge: window.maybeShowEncryptionNudge,
+    };
+    const resetNotifications = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+
+    try {
+      state.currentProfile = 'pdf-import-confirm-coverage';
+      state.profileSex = 'male';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        customMarkers: {},
+        markerNotes: {},
+        markerValueNotes: {},
+        manualValues: {},
+        refOverrides: {},
+      };
+      window.maybeShowEncryptionNudge = () => {};
+
+      review.showImportPreview({
+        date: '2026-06-07',
+        fileName: 'confirm-import.pdf',
+        testType: 'blood',
+        importHash: 'confirm-import-hash',
+        costInfo: {
+          provider: 'ollama',
+          modelId: 'llama-confirm',
+          inputTokens: 10,
+          outputTokens: 5,
+          cost: 0,
+        },
+        markers: [{
+          rawName: 'Glucose',
+          value: 5.4,
+          unit: 'mmol/L',
+          refMin: 3.9,
+          refMax: 5.5,
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+        }],
+      });
+      await pdfImport.confirmImport();
+      const imported = state.importedData.entries.find(entry => entry.date === '2026-06-07');
+      outcomes.confirmImportPersistsMatchedPreview =
+        imported?.markers?.['biochemistry.glucose'] === 5.4
+        && imported.importedWith?.provider === 'ollama'
+        && imported.importedWith?.modelId === 'llama-confirm'
+        && imported.importHash === 'confirm-import-hash'
+        && imported.sourceFiles?.includes('confirm-import.pdf') === true
+        && review.getPendingImport() === null;
+    } finally {
+      state.importedData = original.importedData;
+      state.currentProfile = original.currentProfile;
+      state.profileSex = original.profileSex;
+      if (original.maybeShowEncryptionNudge) window.maybeShowEncryptionNudge = original.maybeShowEncryptionNudge;
+      else delete window.maybeShowEncryptionNudge;
+      review.closeImportModal();
+      document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
+      document.getElementById('ai-needed-overlay')?.classList.remove('show');
+      pdfImport.hideImportProgress('cancel');
+      resetNotifications();
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return outcomes;
+  }, {
+    pdfImportUrl: moduleUrl('/js/pdf-import.js'),
+    reviewUrl: moduleUrl('/js/pdf-import-review.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('PDF import preflight covers model mismatch and unsupported lab dialogs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#import-status-fab', { state: 'attached' });
