@@ -29,6 +29,14 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     const biometricKey = profileModule.profileStorageKey(profileId, 'dashboardBiometricMetricsV1');
     const quickPinsKey = profileModule.profileStorageKey(profileId, 'dashboardQuickMarkerPinsV1');
     const outcomes = {};
+    const waitForToastText = async expectedTexts => {
+      for (let i = 0; i < 20; i++) {
+        const text = document.getElementById('notification-container')?.textContent || '';
+        if (expectedTexts.every(expected => text.includes(expected))) return text;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return document.getElementById('notification-container')?.textContent || '';
+    };
 
     state.currentProfile = profileId;
     state.currentView = 'dashboard';
@@ -89,42 +97,46 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     const main = document.getElementById('main-content');
     const genomeText = main?.textContent || '';
     const genomeHtml = main?.innerHTML || '';
-    outcomes.showGenomeLensUsesViewsFacade =
-      genomeText.includes('Dedicated DNA workspace')
-      && genomeText.includes('Actionable Genetic Modifiers')
-      && genomeText.includes('mtDNA H1')
-      && genomeHtml.includes('23andMe &lt;raw&gt;')
-      && !genomeHtml.includes('23andMe <raw>');
+    outcomes.showGenomeLensRendersDedicatedWorkspace = genomeText.includes('Dedicated DNA workspace');
+    outcomes.showGenomeLensRendersGeneticModifiers = genomeText.includes('Actionable Genetic Modifiers');
+    outcomes.showGenomeLensRendersMtDnaHaplogroup = genomeText.includes('mtDNA H1');
+    outcomes.showGenomeLensEscapesGeneticSource = genomeHtml.includes('23andMe &lt;raw&gt;');
+    outcomes.showGenomeLensDoesNotRenderRawGeneticSource = !genomeHtml.includes('23andMe <raw>');
 
     views.openDashboardWidgetPicker();
     views.filterDashboardMarkerWidgetPicker('apo');
     views.filterDashboardBiometricWidgetPicker('weight');
     const markerOptions = [...document.querySelectorAll('.dashboard-marker-widget-option')];
     const biometricOptions = [...document.querySelectorAll('.dashboard-biometric-widget-option')];
-    const visibleMarkerTexts = markerOptions.filter(option => !option.hidden).map(option => option.textContent || '');
-    const visibleBiometricTexts = biometricOptions.filter(option => !option.hidden).map(option => option.textContent || '');
-    outcomes.markerPickerFilterUsesViewsFacade =
-      visibleMarkerTexts.length === 1
-      && visibleMarkerTexts[0].includes('Apo B')
-      && markerOptions.some(option => option.hidden && option.textContent.includes('Vitamin D'))
-      && document.getElementById('dashboard-marker-widget-empty')?.hidden === true;
-    outcomes.biometricPickerFilterUsesViewsFacade =
-      visibleBiometricTexts.length === 1
-      && visibleBiometricTexts[0].includes('Weight')
-      && biometricOptions.every(option => option.textContent.includes('Weight') || option.hidden)
-      && document.getElementById('dashboard-biometric-widget-empty')?.hidden === true;
+    const visibleMarkerOptions = markerOptions.filter(option => !option.hidden);
+    const apoBOption = markerOptions.find(option => (option.textContent || '').includes('Apo B'));
+    const vitaminDOption = markerOptions.find(option => (option.textContent || '').includes('Vitamin D'));
+    const weightOption = biometricOptions.find(option => option.dataset.dashboardWidgetId === 'weight');
+    outcomes.markerPickerFilterShowsApoB = apoBOption?.hidden === false;
+    outcomes.markerPickerFilterShowsOnlyApoB = visibleMarkerOptions.length === 1 && visibleMarkerOptions[0] === apoBOption;
+    outcomes.markerPickerFilterHidesVitaminD = vitaminDOption?.hidden === true;
+    outcomes.markerPickerFilterKeepsEmptyHidden = document.getElementById('dashboard-marker-widget-empty')?.hidden === true;
+    outcomes.biometricPickerFilterShowsWeightMetric =
+      weightOption?.hidden === false
+      && (weightOption.textContent || '').includes('Weight');
+    outcomes.biometricPickerFilterMatchesSearchAttribute = biometricOptions.every(option => {
+      const matchesNeedle = (option.dataset.biometricSearch || '').includes('weight');
+      return matchesNeedle ? option.hidden === false : option.hidden === true;
+    });
+    outcomes.biometricPickerFilterKeepsEmptyHidden = document.getElementById('dashboard-biometric-widget-empty')?.hidden === true;
 
     state.currentView = 'labs';
-    window.toggleDashboardQuickMarkerPin('lipids_apoB');
+    const quickPinFacade = window.toggleDashboardQuickMarkerPin;
+    outcomes.quickPinWindowFacadeExists = typeof quickPinFacade === 'function';
+    if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
     const pinsAfterAdd = JSON.parse(localStorage.getItem(quickPinsKey) || '[]');
-    window.toggleDashboardQuickMarkerPin('lipids_apoB');
+    if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
     const pinsAfterRemove = JSON.parse(localStorage.getItem(quickPinsKey) || '[]');
-    const toastText = document.getElementById('notification-container')?.textContent || '';
-    outcomes.quickPinUsesViewsWindowFacade =
-      pinsAfterAdd[0] === 'lipids_apoB'
-      && pinsAfterRemove.length === 0
-      && toastText.includes('Pinned to Quick Markers')
-      && toastText.includes('Removed from Quick Markers');
+    const toastText = await waitForToastText(['Pinned to Quick Markers', 'Removed from Quick Markers']);
+    outcomes.quickPinAddsMarkerToStorage = pinsAfterAdd[0] === 'lipids_apoB';
+    outcomes.quickPinRemovesMarkerFromStorage = pinsAfterRemove.length === 0;
+    outcomes.quickPinShowsPinnedToast = toastText.includes('Pinned to Quick Markers');
+    outcomes.quickPinShowsRemovedToast = toastText.includes('Removed from Quick Markers');
 
     views.closeDashboardWidgetPicker();
     return outcomes;
