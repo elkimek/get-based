@@ -545,6 +545,15 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && screenAI.renderScreenAIBlock(phoneScreen).includes('screen failed')
         && onboarding.renderOnboardingAIBlock().includes('setup failed');
 
+      delete bedroom.aiAnalysis;
+      const roomRefresh = await roomAI.refreshRoomAIAnalysis('bedroom');
+      let missingRoomRefreshCrashed = false;
+      try { await roomAI.refreshRoomAIAnalysis('missing-room'); }
+      catch (_) { missingRoomRefreshCrashed = true; }
+      outcomes.roomRefreshResolvesByIdAndWritesVerdict = roomRefresh?.status === 'ok'
+        && bedroom.aiAnalysis?.tip === 'auto tip';
+      outcomes.roomRefreshMissingIdNoops = !missingRoomRefreshCrashed;
+
       delete state.importedData.sunDefaults.aiAnalysis;
       const analyzeResult = await onboarding.analyzeOnboardingAI({ force: true });
       outcomes.onboardingAnalyzeParsesActions = analyzeResult?.status === 'ok'
@@ -905,6 +914,15 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const dayAnalysis = await todayAI.analyzeDayAI(today, { force: true });
       outcomes.dayAnalyzeWritesDailyVerdict = dayAnalysis?.status === 'ok'
         && state.importedData.lightDailyVerdicts[todayKey]?.tip === 'aggregate tip';
+
+      queuedAIResponses.push({ dot: 'red', tip: 'today refresh tip', detail: 'today refresh detail' });
+      const dayRefresh = await todayAI.refreshDayAIAnalysis(todayKey);
+      let invalidDayRefreshCrashed = false;
+      try { await todayAI.refreshDayAIAnalysis('not-a-date'); }
+      catch (_) { invalidDayRefreshCrashed = true; }
+      outcomes.dayRefreshUsesDateKeyAndWritesDailyVerdict = dayRefresh?.status === 'ok'
+        && state.importedData.lightDailyVerdicts[todayKey]?.tip === 'today refresh tip';
+      outcomes.dayRefreshInvalidKeyNoops = !invalidDayRefreshCrashed;
     } finally {
       state.importedData = saved.importedData;
       window.fetch = saved.fetch;
