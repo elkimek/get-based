@@ -24,6 +24,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
+    const nav = await import('/js/nav.js');
     const { state } = await import('/js/state.js');
     const origDateRangeFilter = state.dateRangeFilter;
     const origCurrentView = state.currentView;
@@ -87,6 +88,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
 
       window.buildSidebar(fixtureData);
       window.renderProfileButton();
+      nav.openRecommendationsFromSidebar();
 
       const inlineHandler = document.querySelector('#sidebar-nav [onclick], #sidebar-nav [oninput], #sidebar-nav [onkeydown], #profile-selector [onclick]');
       document.querySelector('#sidebar-nav .nav-item[data-category="labs"]')?.click();
@@ -122,6 +124,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
 
       return {
         noInlineHandlers: !inlineHandler,
+        recommendationsHelperRoutes: calls.some(c => c[0] === 'navigate' && c[1] === 'recommendations'),
         labsRoutes: calls.some(c => c[0] === 'navigate' && c[1] === 'labs'),
         compareKeyboardRoutes: calls.some(c => c[0] === 'navigate' && c[1] === 'compare'),
         searchHidesNonMatching: document.querySelector('#sidebar-nav .nav-item[data-category="metabolic"]')?.style.display === 'none',
