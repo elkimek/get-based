@@ -240,3 +240,88 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
     expect.soft(passed, name).toBe(true);
   }
 });
+
+test('dashboard widget renderers browser coverage uses default wearable priority fallback', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async ({ renderersUrl, profileUrl, stateUrl }) => {
+    const [renderersModule, profileModule, stateModule] = await Promise.all([
+      import(renderersUrl),
+      import(profileUrl),
+      import(stateUrl),
+    ]);
+    const { state } = stateModule;
+    const outcomes = {};
+    const originalProfile = state.currentProfile;
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const profileId = 'dashboardRendererPriorityCoverage';
+    const selectionKey = profileModule.profileStorageKey(profileId, 'dashboardBiometricMetricsV1');
+
+    try {
+      state.currentProfile = profileId;
+      state.importedData = {
+        wearableSummary: {
+          sources: { oura: { source: 'oura' } },
+          metrics: {
+            hrv_rmssd: { latest: 54, baseline: 48 },
+            steps: { latest: 9200, baseline: 7000 },
+          },
+        },
+        wearableConnections: {},
+      };
+      localStorage.removeItem(selectionKey);
+
+      const renderers = renderersModule.createDashboardWidgetRenderers({
+        markerHasData: () => true,
+        renderDashboardLightChannelPills: () => '',
+        renderLightConditionsWidgetBody: () => '',
+        renderLightSessionLogActions: () => '',
+        getMobileDashboardMarkers: () => [],
+        getMobileDashboardInsights: () => [],
+        getMobileWearableTiles: () => [],
+        formatMobileWearableValue: (_metricId, metric) => String(metric.latest),
+        formatMobileWearableDelta: () => 'latest',
+        rerenderDashboardFromWidgetChange: () => {},
+        showRecommendations: () => {},
+      });
+
+      const order = renderers.getDashboardBiometricMetricOrder();
+      outcomes.defaultPriorityFallsBackToRegistryAndCanonicalMetrics =
+        order[0] === 'hrv_rmssd'
+        && order.includes('steps')
+        && order.includes('bp_systolic')
+        && order.indexOf('steps') < order.indexOf('bp_systolic');
+
+      outcomes.emptyMobileTilesFallBackToManualDefaultSelection =
+        renderers.getDashboardBiometricSelection().join('|') === 'weight|bp_systolic|rhr';
+
+      renderers.saveDashboardBiometricSelection(['hrv_rmssd', 'steps', 'bp_systolic']);
+      const html = renderers.renderDashboardWearableTilesWidget();
+      outcomes.savedSelectionRendersDataAndEmptyManualTiles =
+        html.includes('HRV')
+        && html.includes('Steps')
+        && html.includes('Blood pressure')
+        && html.includes('3 metrics selected');
+    } finally {
+      localStorage.removeItem(selectionKey);
+      state.currentProfile = originalProfile;
+      state.importedData = originalImported;
+    }
+
+    return outcomes;
+  }, {
+    renderersUrl: moduleUrl('/js/dashboard-widget-renderers.js'),
+    profileUrl: '/js/profile.js',
+    stateUrl: '/js/state.js',
+  });
+
+  const expectedOutcomeKeys = [
+    'defaultPriorityFallsBackToRegistryAndCanonicalMetrics',
+    'emptyMobileTilesFallBackToManualDefaultSelection',
+    'savedSelectionRendersDataAndEmptyManualTiles',
+  ];
+  expect(Object.keys(results)).toEqual(expectedOutcomeKeys);
+  for (const [name, passed] of Object.entries(results)) {
+    expect.soft(passed, name).toBe(true);
+  }
+});
