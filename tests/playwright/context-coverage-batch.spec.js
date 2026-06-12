@@ -2,6 +2,52 @@ import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = path => `${path}?contextCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+test('context editor select option helper toggles active buttons', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ editorUrl }) => {
+    const editor = await import(editorUrl);
+    const outcomes = {};
+    const host = document.createElement('div');
+
+    try {
+      document.body.appendChild(host);
+      host.innerHTML = editor.renderSelectField('Severity', 'ctx-select-coverage', ['major', 'mild', 'minor'], 'major');
+      const buttons = Array.from(host.querySelectorAll('#ctx-select-coverage .ctx-btn-option'));
+
+      outcomes.initialSelectionComesFromRenderedField =
+        buttons.length === 3
+        && editor.getSelectedOption('ctx-select-coverage') === 'major'
+        && buttons[0].classList.contains('active');
+
+      editor.selectCtxOption(buttons[1], 'ctx-select-coverage');
+      outcomes.selectCtxOptionMovesActiveState =
+        editor.getSelectedOption('ctx-select-coverage') === 'mild'
+        && !buttons[0].classList.contains('active')
+        && buttons[1].classList.contains('active')
+        && !buttons[2].classList.contains('active');
+
+      editor.selectCtxOption(buttons[1], 'ctx-select-coverage');
+      outcomes.selectCtxOptionTogglesActiveButtonOff =
+        editor.getSelectedOption('ctx-select-coverage') === null
+        && buttons.every(button => !button.classList.contains('active'));
+
+      editor.selectCtxOption(buttons[2], 'missing-select-group');
+      outcomes.selectCtxOptionMissingGroupNoops =
+        editor.getSelectedOption('missing-select-group') === null
+        && !buttons[2].classList.contains('active');
+    } finally {
+      host.remove();
+    }
+
+    return outcomes;
+  }, { editorUrl: moduleUrl('/js/context-card-editor-ui.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('category customization covers rename icon and emoji picker browser paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
