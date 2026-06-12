@@ -21,9 +21,13 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
     const lockKey = 'labcharts-chat-local-lock-until';
     const threadsKey = `labcharts-${profileId}-chat-threads`;
     const deletedKey = collectors.chatDeletedThreadsKey(profileId);
+    const customPersonalityKey = `labcharts-${profileId}-chatPersonalityCustom`;
+    const activePersonalityKey = `labcharts-${profileId}-chatPersonality`;
     const msgKey = id => `labcharts-${profileId}-chat-t_${id}`;
     const readJson = key => JSON.parse(localStorage.getItem(key) || 'null');
     const ids = [
+      'collector',
+      'collector-empty',
       'corrupt-remote',
       'keep',
       'gone',
@@ -40,8 +44,8 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       'labcharts-encryption-enabled',
       threadsKey,
       deletedKey,
-      `labcharts-${profileId}-chatPersonalityCustom`,
-      `labcharts-${profileId}-chatPersonality`,
+      customPersonalityKey,
+      activePersonalityKey,
       ...ids.map(msgKey),
     ];
     const oldStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
@@ -58,6 +62,27 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       outcomes.invalidInputIgnored =
         await chatApply.applyChatData(profileId, null) === false
         && await chatApply.applyChatData(profileId, { threads: 'not-array' }) === false;
+
+      localStorage.setItem(threadsKey, JSON.stringify([
+        { id: 'collector', messageCount: 1, updatedAt: '2026-06-08T08:00:00.000Z' },
+        { id: 'collector-empty', messageCount: 0, updatedAt: '2026-06-08T08:05:00.000Z' },
+      ]));
+      localStorage.setItem(msgKey('collector'), JSON.stringify([{ role: 'user', content: 'collect me' }]));
+      localStorage.setItem(customPersonalityKey, JSON.stringify([{ id: 'collector_voice', name: 'Collector Voice' }]));
+      localStorage.setItem(activePersonalityKey, 'collector_voice');
+      const collectedChat = await collectors.collectChatData(profileId);
+      outcomes.collectChatDataParsesCustomPersonalities =
+        collectedChat?.threads?.length === 2
+        && collectedChat?.messages?.collector?.[0]?.content === 'collect me'
+        && Array.isArray(collectedChat?.messages?.['collector-empty'])
+        && collectedChat.customPersonalities?.[0]?.name === 'Collector Voice'
+        && collectedChat.activePersonality === 'collector_voice';
+
+      localStorage.setItem(customPersonalityKey, '{not json');
+      const invalidCustomChat = await collectors.collectChatData(profileId);
+      outcomes.collectChatDataIgnoresInvalidCustomPersonalities =
+        invalidCustomChat?.customPersonalities === undefined
+        && invalidCustomChat?.activePersonality === 'collector_voice';
 
       localStorage.setItem(threadsKey, 'not-json');
       const corruptApplied = await chatApply.applyChatData(profileId, {
