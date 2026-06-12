@@ -4,6 +4,111 @@ function moduleUrl(path) {
   return `${path}?medicalHistoryCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+test('medical history default dependencies no-op while saving editor state', async ({ page }) => {
+  await page.goto('/js/context-card-medical-history-editor.js', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ editorUrl }) => {
+    const [{ state }, editor] = await Promise.all([
+      import('/js/state.js'),
+      import(editorUrl),
+    ]);
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate, attempts = 100) => {
+      for (let i = 0; i < attempts; i += 1) {
+        try {
+          if (await predicate()) return true;
+        } catch {}
+        await wait(10);
+      }
+      return false;
+    };
+    const byId = id => {
+      const el = document.getElementById(id);
+      if (!el) throw new Error(`Expected #${id} in default medical history editor`);
+      return el;
+    };
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const saved = {
+      importedData: clone(state.importedData),
+      currentProfile: state.currentProfile,
+    };
+    const outcomes = {};
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-overlay';
+    const modal = document.createElement('div');
+    modal.id = 'detail-modal';
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    try {
+      state.currentProfile = 'medical-history-default-deps';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        healthGoals: [],
+        diagnoses: { conditions: [], note: '', familyHistory: [] },
+        customMarkers: {},
+        markerNotes: {},
+        markerValueNotes: {},
+        changeHistory: [],
+      };
+
+      editor.openDiagnosesEditor();
+      const controlsReady = await waitFor(() => [
+        'condition-input',
+        'condition-since',
+        'ctx-note-input',
+      ].every(id => document.getElementById(id)));
+      if (!controlsReady) throw new Error('Default medical history controls did not render');
+      byId('condition-input').value = 'Migraine';
+      byId('condition-since').value = '2020';
+      byId('ctx-note-input').value = 'default note';
+      let addCrashed = false;
+      try { editor.addCondition(); }
+      catch (_) { addCrashed = true; }
+      outcomes.defaultRecordChangeNoopAllowsConditionAdd =
+        !addCrashed
+        && state.importedData.diagnoses?.conditions?.[0]?.name === 'Migraine'
+        && state.importedData.diagnoses?.conditions?.[0]?.since === '2020'
+        && state.importedData.diagnoses?.note === 'default note';
+
+      byId('ctx-note-input').value = 'saved with default callback';
+      let saveCrashed = false;
+      try { editor.saveDiagnoses(); }
+      catch (_) { saveCrashed = true; }
+      outcomes.defaultSaveAndRefreshNoopAllowsSave =
+        !saveCrashed
+        && state.importedData.diagnoses?.note === 'saved with default callback';
+
+      let clearCrashed = false;
+      try { editor.clearDiagnoses(); }
+      catch (_) { clearCrashed = true; }
+      outcomes.defaultSaveAndRefreshNoopAllowsClear =
+        !clearCrashed
+        && state.importedData.diagnoses === null;
+    } finally {
+      state.importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
+      overlay.remove();
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return outcomes;
+  }, { editorUrl: moduleUrl('/js/context-card-medical-history-editor.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('family history DOM handlers round-trip and mutate entries', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
