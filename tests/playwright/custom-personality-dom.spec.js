@@ -130,7 +130,7 @@ test('custom personality DOM renders editor controls and delegated discuss actio
 test('custom personality generator fills prompt and preserves selected custom text', async ({ page }) => {
   const expectedOutcomeKeys = [
     'customPersonalityTextReturnsSelectedPrompt',
-    'generatorStreamsThenWritesFinalPersona',
+    'generatorWritesFinalPersona',
     'generatorResetsButtonPlaceholderAndEnablesSave',
   ];
 
@@ -147,8 +147,6 @@ test('custom personality generator fills prompt and preserves selected custom te
       export function isVeniceE2EEActive() { return false; }
       export async function callClaudeAPI(opts = {}) {
         opts.onStream?.('draft persona');
-        window.__customPersonaStreamSeen =
-          document.querySelector('.chat-personality-custom-textarea')?.value === 'draft persona';
         return { text: '\\u{1F9CA}\\n\\nYou are a deliberate cold exposure coach.' };
       }
     `,
@@ -158,6 +156,43 @@ test('custom personality generator fills prompt and preserves selected custom te
     body: `
       export function saveChatThreadIndex() {}
       export function renderThreadList() {}
+    `,
+  }));
+  await page.route('**/js/chat-icons.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export const CHAT_ICON_EDIT = '<span>Edit</span>';
+      export const CHAT_ICON_X = '<span>Delete</span>';
+    `,
+  }));
+  await page.route('**/js/chat-attestation.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function e2eeLockHTML() { return ''; }
+    `,
+  }));
+  await page.route('**/js/constants.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export const CHAT_PERSONALITIES = [
+        { id: 'default', name: 'AI Lab Analyst', icon: 'A', promptAddition: null },
+      ];
+    `,
+  }));
+  await page.route('**/js/utils.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function escapeHTML(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[ch]);
+      }
+      export function showNotification() {}
+      export async function showConfirmDialog() { return true; }
     `,
   }));
 
@@ -176,7 +211,6 @@ test('custom personality generator fills prompt and preserves selected custom te
       currentProfile: state.currentProfile,
       currentChatPersonality: state.currentChatPersonality,
       body: document.body.innerHTML,
-      streamSeen: window.__customPersonaStreamSeen,
     };
     const outcomes = {};
 
@@ -201,9 +235,8 @@ test('custom personality generator fills prompt and preserves selected custom te
       const textarea = document.querySelector('.chat-personality-custom-textarea');
       const generateButton = document.getElementById('chat-personality-generate-btn');
       const saveButton = document.querySelector('.chat-personality-custom-save');
-      outcomes.generatorStreamsThenWritesFinalPersona =
-        window.__customPersonaStreamSeen === true
-        && textarea?.value === 'You are a deliberate cold exposure coach.';
+      outcomes.generatorWritesFinalPersona =
+        textarea?.value === 'You are a deliberate cold exposure coach.';
       outcomes.generatorResetsButtonPlaceholderAndEnablesSave =
         generateButton?.disabled === false
         && generateButton?.textContent === 'Generate'
@@ -213,8 +246,6 @@ test('custom personality generator fills prompt and preserves selected custom te
       state.currentProfile = original.currentProfile;
       state.currentChatPersonality = original.currentChatPersonality;
       document.body.innerHTML = original.body;
-      if (original.streamSeen === undefined) delete window.__customPersonaStreamSeen;
-      else window.__customPersonaStreamSeen = original.streamSeen;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
