@@ -309,9 +309,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
     };
 
     try {
-      check('adapterSupportsMetric detects real missing and unknown adapter metrics',
-        adapters.adapterSupportsMetric('oura', 'hrv_rmssd') === true &&
-        adapters.adapterSupportsMetric('oura', 'not_a_metric') === false &&
+      check('adapterSupportsMetric returns true for a supported metric',
+        adapters.adapterSupportsMetric('oura', 'hrv_rmssd') === true);
+      check('adapterSupportsMetric returns false for an unknown metric',
+        adapters.adapterSupportsMetric('oura', 'not_a_metric') === false);
+      check('adapterSupportsMetric returns false for an unknown adapter',
         adapters.adapterSupportsMetric('not-a-real-adapter', 'steps') === false);
 
       await connect.loadWearableRuntimeConfig();
@@ -324,6 +326,8 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
 
       const withingsBaselineClient = adapters.adapterById('withings')?.oauth?.clientId || null;
       adapters.applyOAuthOverrides({ withings: 'browser-withings-client' });
+      check('apply OAuth overrides updates adapter client before reset',
+        adapters.getOAuthClientId('withings') === 'browser-withings-client');
       adapters._resetOAuthOverrides();
       check('reset OAuth overrides restores adapter baseline in browser',
         adapters.getOAuthClientId('withings') === withingsBaselineClient);
