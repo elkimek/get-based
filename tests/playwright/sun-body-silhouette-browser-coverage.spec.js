@@ -14,8 +14,9 @@ function expectAll(outcomes) {
 test('sun body silhouette covers stock render region map overlay and input paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const outcomes = await page.evaluate(async ({ silhouetteUrl }) => {
+  const outcomes = await page.evaluate(async ({ pathsUrl, silhouetteUrl }) => {
     const silhouette = await import(silhouetteUrl);
+    const paths = await import(pathsUrl);
     const outcomes = {};
     const saved = {
       getActiveProfileId: window.getActiveProfileId,
@@ -51,6 +52,17 @@ test('sun body silhouette covers stock render region map overlay and input paths
       silhouette.resetBodySilhouetteState();
       window.getActiveProfileId = () => 'profile-female';
       window.getProfiles = () => [{ id: 'profile-female', sex: 'female' }];
+
+      const femaleParts = paths.buildBodyParts('female');
+      const maleParts = paths.buildBodyParts('male');
+      const expectedPartKeys = 'armL,armR,head,legL,legR,torso';
+      outcomes.legacyBuildBodyPartsReturnsCanonicalPaths =
+        femaleParts.head === paths.FEMALE_BODY_PATH
+        && femaleParts.torso === paths.FEMALE_BODY_PATH
+        && maleParts.head === paths.MALE_BODY_PATH
+        && maleParts.legL === paths.MALE_BODY_PATH
+        && Object.keys(femaleParts).sort().join(',') === expectedPartKeys
+        && Object.keys(maleParts).sort().join(',') === expectedPartKeys;
 
       const femaleHost = mount(new Set(['face', 'arms-back']));
       const femaleSvg = femaleHost.querySelector('svg.sun-silhouette');
@@ -151,7 +163,10 @@ test('sun body silhouette covers stock render region map overlay and input paths
     }
 
     return outcomes;
-  }, { silhouetteUrl: moduleUrl('/js/sun-body-silhouette.js') });
+  }, {
+    pathsUrl: moduleUrl('/js/silhouette-paths.js'),
+    silhouetteUrl: moduleUrl('/js/sun-body-silhouette.js'),
+  });
 
   expectAll(outcomes);
 });
