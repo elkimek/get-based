@@ -246,7 +246,12 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       await actions.syncNow();
       await actions.forceResendCurrentProfile();
       outcomes.defaultActionDependenciesAreSafeNoops = pushes.length === 0 && pulls.length === 0;
-      actions.configureSyncActions({ isEvoluReady: () => true });
+      actions.configureSyncActions({
+        isEvoluReady: () => true,
+        pushProfile: async (id, data, options) => {
+          pushes.push({ id, data: clone(data), options: clone(options || null) });
+        },
+      });
       await actions.forceResendCurrentProfile();
       outcomes.defaultSyncEnabledDependencyGatesForceResend = pushes.length === 0;
 
