@@ -1,5 +1,9 @@
 import { expect, test } from './coverage-fixture.js';
 
+function moduleUrl(path) {
+  return `${path}?lensPageShellCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 async function prepareApp(page) {
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
@@ -9,6 +13,43 @@ async function prepareApp(page) {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() => typeof window.navigate === 'function');
 }
+
+test('lens page shell default dashboard deps render fallback widgets', async ({ page }) => {
+  await prepareApp(page);
+
+  const results = await page.evaluate(async ({ shellUrl }) => {
+    const shell = await import(shellUrl);
+    const defaultHtml = shell.renderLensWidget(
+      'lab-marker',
+      'Lab marker',
+      'Default deps',
+      '<p>Body</p>'
+    );
+    shell.configureLensPageShell({
+      getAvailableDashboardFixedWidgetIds: () => ['lab-marker'],
+    });
+    const defaultPrefsHtml = shell.renderLensWidget(
+      'lab-marker',
+      'Lab marker',
+      'Default prefs',
+      ''
+    );
+
+    return {
+      defaultAvailableIdsHideDashboardToggle: !defaultHtml.includes('lens-widget-dashboard-toggle'),
+      defaultWidgetRendersTitle: defaultHtml.includes('Lab marker'),
+      defaultWidgetRendersDescription: defaultHtml.includes('Default deps'),
+      defaultWidgetRendersBody: defaultHtml.includes('<p>Body</p>'),
+      configuredIdsRenderDashboardToggle: defaultPrefsHtml.includes('lens-widget-dashboard-toggle'),
+      defaultPrefsRenderVisibleDashboardAction: defaultPrefsHtml.includes('Remove from Dashboard'),
+      emptyBodyUsesDefaultFallback: defaultPrefsHtml.includes('No data available yet.'),
+    };
+  }, { shellUrl: moduleUrl('/js/lens-page-shell.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
 
 test('lens page shell delegates move and dashboard toggle actions', async ({ page }) => {
   await prepareApp(page);
