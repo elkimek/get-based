@@ -297,6 +297,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       'cashuReceiveToken',
       'cashuGetMintUrl',
       'cashuSetMintUrl',
+      'cashuDepositToNode',
       'cashuHasWalletSeed',
       'cashuGenerateWalletSeed',
       'cashuExportWallet',
@@ -319,6 +320,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     const oldQrcode = window.qrcode;
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
     const oldClipboard = window.navigator.clipboard;
+    let currentMint = 'https://mint.current.test/Bitcoin';
 
     function json(body, status = 200) {
       return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -371,8 +373,15 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         if (token === 'cashuAfail') throw new Error('bad token');
         return { received: 321, fee: 0, balance: 1821 };
       };
-      window.cashuGetMintUrl = async () => 'https://mint.current.test/Bitcoin';
-      window.cashuSetMintUrl = async url => calls.push(['setMint', url]);
+      window.cashuGetMintUrl = async () => currentMint;
+      window.cashuSetMintUrl = async url => {
+        currentMint = url;
+        calls.push(['setMint', url]);
+      };
+      window.cashuDepositToNode = async (nodeUrl, amount, existingKey) => {
+        calls.push(['depositToNode', nodeUrl, amount, existingKey || '']);
+        return { api_key: 'sk-wallet-browser', balance: amount };
+      };
       window.cashuHasWalletSeed = async () => true;
       window.cashuGenerateWalletSeed = async () => ({
         mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident',
@@ -389,10 +398,35 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         { name: 'Node One', urls: ['https://node.one.test'], modelCount: 2, online: true, onion: true },
       ];
       window.nostrGetSelectedNode = () => 'https://node.one.test';
-      window.nostrSetSelectedNode = url => calls.push(['setNode', url]);
+      window.nostrSetSelectedNode = url => {
+        localStorage.setItem('labcharts-routstr-node', url);
+        calls.push(['setNode', url]);
+      };
       window.fetch = async url => {
         const href = String(url);
         if (href === 'https://node.one.test/v1/info') return json({ nuts: {}, mints: ['https://mint.node.test/Bitcoin'] });
+        if (href === 'https://node.one.test/v1/models') {
+          return json({
+            data: [
+              {
+                id: 'claude-sonnet-4.6',
+                name: 'Claude Sonnet 4.6',
+                enabled: true,
+                pricing: { prompt: '0.000001', completion: '0.000002' },
+              },
+              {
+                id: 'image-preview',
+                name: 'Image Preview',
+                enabled: true,
+                architecture: { input_modalities: ['image'] },
+              },
+              { id: 'gpt-5-mini', name: 'GPT-5 mini', enabled: false },
+            ],
+          });
+        }
+        if (href === 'https://node.one.test/v1/balance/info') {
+          return json({ balance: 987000, total_requests: 2, total_spent: 13000 });
+        }
         if (href === 'https://mint.node.test/Bitcoin/v1/info') return json({ nuts: { 4: true } });
         if (href === 'https://mint.bad.test/v1/info') return json({ nope: true });
         return json({}, 404);
@@ -400,7 +434,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 
       const panels = await import(`/js/provider-wallet-panels.js?walletPanelsCoverage=${Date.now()}`);
       panels.configureRoutstrWalletPanels({
-        renderAIProviderPanel: provider => `<div id="rendered-panel">${provider}</div>`,
+        renderAIProviderPanel: provider => `<div id="rendered-panel">${provider}</div><div id="routstr-wallet-balance"></div><div id="routstr-node-balance"></div>`,
         renderRoutstrModelDropdown: models => calls.push(['renderModels', models.length]),
         initSettingsModelFetch: () => calls.push(['initFetch']),
         returnToChatIfOnboarding: () => calls.push(['returnChat']),
@@ -533,6 +567,16 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       seed.click();
       const seedBlurToggles = seed.style.filter === '';
 
+      await panels.connectRoutstrNode('https://node.one.test');
+      await panels.doRoutstrNodeDeposit('https://node.one.test', 500);
+      await waitFor(() => document.getElementById('routstr-node-balance')?.textContent.includes('987'));
+      const successfulNodeDepositRefreshesProvider = calls.some(item => item[0] === 'depositToNode' && item[1] === 'https://node.one.test' && item[2] === 500)
+        && calls.some(item => item[0] === 'setNode' && item[1] === 'https://node.one.test')
+        && calls.some(item => item[0] === 'renderModels' && item[1] === 1)
+        && calls.some(item => item[0] === 'returnChat')
+        && document.getElementById('rendered-panel')?.textContent === 'routstr'
+        && document.getElementById('routstr-node-balance')?.textContent.includes('987');
+
       return {
         refreshCashu,
         customRejectsMinimum,
@@ -544,6 +588,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         mintChangeSuccess,
         mintChangeRejectsInvalidMint,
         nodePickerFiltersOnline,
+        successfulNodeDepositRefreshesProvider,
         nodeActionDelegates,
         menuToggles,
         backupCopiesToken,
@@ -573,6 +618,12 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       clearTimeout(window._rsCashuBackupTimer);
       clearTimeout(window._tokenClipTimer);
       clearTimeout(window._seedClipTimer);
+      localStorage.removeItem('labcharts-routstr-node');
+      localStorage.removeItem('labcharts-routstr-key');
+      localStorage.removeItem('labcharts-routstr-model');
+      localStorage.removeItem('labcharts-routstr-models');
+      localStorage.removeItem('labcharts-routstr-pricing');
+      localStorage.removeItem('labcharts-routstr-vision-models');
       window.closeModal?.();
       window.closeSettingsModal?.();
     }
