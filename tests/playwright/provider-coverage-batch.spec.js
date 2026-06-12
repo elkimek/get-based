@@ -345,6 +345,12 @@ test('provider panels cover provider switching key saves balances custom API and
       'labcharts-venice-e2ee-models',
       'labcharts-venice-pricing',
       'labcharts-venice-vision-models',
+      'labcharts-routstr-key',
+      'labcharts-routstr-node',
+      'labcharts-routstr-model',
+      'labcharts-routstr-models',
+      'labcharts-routstr-pricing',
+      'labcharts-routstr-vision-models',
       'labcharts-ppq-key',
       'labcharts-ppq-credit-id',
       'labcharts-ppq-model',
@@ -365,6 +371,7 @@ test('provider panels cover provider switching key saves balances custom API and
       closeSettingsModal: window.closeSettingsModal,
       openChatPanel: window.openChatPanel,
       loadFocusCard: window.loadFocusCard,
+      clearE2EESession: window.clearE2EESession,
       handleSaveCustomApi: window.handleSaveCustomApi,
       handleRemoveCustomApi: window.handleRemoveCustomApi,
     };
@@ -373,11 +380,13 @@ test('provider panels cover provider switching key saves balances custom API and
     let settingsClosed = 0;
     let chatOpened = 0;
     let focusLoads = 0;
+    let e2eeClears = 0;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       window.updateKeyCache?.('labcharts-openrouter-key', '');
       window.updateKeyCache?.('labcharts-venice-key', '');
+      window.updateKeyCache?.('labcharts-routstr-key', '');
       window.updateKeyCache?.('labcharts-ppq-key', '');
       window.updateKeyCache?.('labcharts-custom-key', '');
       window.open = url => { openedUrl = String(url); return null; };
@@ -385,6 +394,7 @@ test('provider panels cover provider switching key saves balances custom API and
       window.closeSettingsModal = () => { settingsClosed += 1; };
       window.openChatPanel = () => { chatOpened += 1; };
       window.loadFocusCard = () => { focusLoads += 1; };
+      window.clearE2EESession = () => { e2eeClears += 1; };
 
       window.fetch = async function(url, opts = {}) {
         const href = typeof url === 'string' ? url : url?.url || '';
@@ -420,6 +430,15 @@ test('provider panels cover provider switching key saves balances custom API and
         }
         if (href === 'https://api.ppq.ai/credits/balance') {
           return jsonResponse({ balance: '0.08' });
+        }
+        if (href === 'https://routstr.example/v1/models') {
+          return jsonResponse({
+            data: [
+              { id: 'claude-sonnet-4.6', name: 'Claude Sonnet', enabled: true, pricing: { prompt: '0.000002', completion: '0.000006' }, architecture: { modality: 'text+image->text' } },
+              { id: 'mistral-large', name: 'Mistral Large', enabled: true, pricing: { prompt: '0.000001', completion: '0.000003' } },
+              { id: 'codex-preview', name: 'Codex Preview', enabled: true },
+            ],
+          });
         }
         if (href === 'https://custom.example/v1/models') {
           return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'a-model', name: 'A Model' }] });
@@ -482,6 +501,36 @@ test('provider panels cover provider switching key saves balances custom API and
         && (document.getElementById('venice-balance')?.textContent || '').includes('$0.42')
         && JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]').length === 1;
 
+      panels.handleRemoveVeniceKey();
+      const veniceRemoveClearsKeyModelsAndE2EE =
+        localStorage.getItem('labcharts-venice-key') === null
+        && localStorage.getItem('labcharts-venice-models') === null
+        && localStorage.getItem('labcharts-venice-e2ee-models') === null
+        && localStorage.getItem('labcharts-venice-model') === null
+        && e2eeClears >= 1;
+
+      localStorage.setItem('labcharts-routstr-node', 'https://routstr.example');
+      panel.innerHTML = `
+        <input id="routstr-key-input" value="sk-routstr-good">
+        <button id="save-routstr-key-btn">Save</button>
+        <div id="routstr-key-status"></div>
+        <div id="routstr-model-area"></div>
+      `;
+      await panels.handleSaveRoutstrKey();
+      await wait(0);
+      const routstrSaveRendersModels = document.getElementById('routstr-key-status')?.textContent.includes('Connected')
+        && localStorage.getItem('labcharts-routstr-key') === 'sk-routstr-good'
+        && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-4.6'
+        && JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]').includes('claude-sonnet-4.6');
+
+      panels.handleRemoveRoutstrKey();
+      const routstrRemoveClearsKeyModelsAndPricing =
+        localStorage.getItem('labcharts-routstr-key') === null
+        && localStorage.getItem('labcharts-routstr-models') === null
+        && localStorage.getItem('labcharts-routstr-model') === null
+        && localStorage.getItem('labcharts-routstr-pricing') === null
+        && localStorage.getItem('labcharts-routstr-vision-models') === null;
+
       panel.innerHTML = `
         <input id="ppq-key-input" value="sk-ppq-good">
         <button id="save-ppq-key-btn">Save</button>
@@ -525,6 +574,9 @@ test('provider panels cover provider switching key saves balances custom API and
         pauseStoresEnabled,
         openRouterSaveAndBalance,
         veniceSaveAndBalance,
+        veniceRemoveClearsKeyModelsAndE2EE,
+        routstrSaveRendersModels,
+        routstrRemoveClearsKeyModelsAndPricing,
         ppqSaveAndBalance,
         customSaveRendersConnected,
         customRemoveRendersDisconnected,
@@ -538,6 +590,7 @@ test('provider panels cover provider switching key saves balances custom API and
       window.closeSettingsModal = oldGlobals.closeSettingsModal;
       window.openChatPanel = oldGlobals.openChatPanel;
       window.loadFocusCard = oldGlobals.loadFocusCard;
+      window.clearE2EESession = oldGlobals.clearE2EESession;
       window.handleSaveCustomApi = oldGlobals.handleSaveCustomApi;
       window.handleRemoveCustomApi = oldGlobals.handleRemoveCustomApi;
       for (const key of storageKeys) {
@@ -546,6 +599,7 @@ test('provider panels cover provider switching key saves balances custom API and
       }
       window.updateKeyCache?.('labcharts-openrouter-key', oldStorage['labcharts-openrouter-key'] || '');
       window.updateKeyCache?.('labcharts-venice-key', oldStorage['labcharts-venice-key'] || '');
+      window.updateKeyCache?.('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
       window.updateKeyCache?.('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
       window.updateKeyCache?.('labcharts-custom-key', oldStorage['labcharts-custom-key'] || '');
       if (oldSessionPrevious == null) sessionStorage.removeItem('or_previous_ai_provider');
