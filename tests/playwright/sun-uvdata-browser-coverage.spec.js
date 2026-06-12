@@ -58,6 +58,24 @@ test('sun uvdata browser coverage handles config cache globals and purging', asy
         && window.solarZenithAngle === mod.solarZenithAngle
         && window.computeUVConfidence === mod.computeUVConfidence;
 
+      const manualMeter = mod.manualAtmosphere({
+        uvIndex: 5.8,
+        ozoneDU: 318,
+        hasMeter: true,
+        notes: 'meter reading',
+      });
+      const manualEntry = mod.manualAtmosphere({ uvIndex: 2.4 });
+      outcomes.manualAtmosphereBuildsMeterAndEntryRows =
+        manualMeter.source === 'manual_meter'
+        && manualMeter.confidence === 1
+        && manualMeter.uvClearSky === 5.8
+        && manualMeter.ozoneDU === 318
+        && manualMeter.notes === 'meter reading'
+        && manualEntry.source === 'manual_entry'
+        && manualEntry.confidence === 0.85
+        && manualEntry.ozoneDU === null
+        && manualEntry.cloudCover === null;
+
       localStorage.setItem(storageKey, '{bad json');
       const invalidConfig = mod.getMeteoConfig();
       outcomes.invalidStoredConfigFallsBackToDefaults =
@@ -161,6 +179,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
     const storageKey = 'labcharts-meteo-config';
     const originalConfig = localStorage.getItem(storageKey);
     const originalFetch = window.fetch;
+    const originalWarn = console.warn;
     const mod = await import(sunUrl);
     const iso = '2026-06-01T12:30:00.000Z';
     const jsonResponse = (json, init = {}) => new Response(JSON.stringify(json), {
@@ -270,6 +289,33 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && fallbackCalls.some(call => call.includes('api.open-meteo.com'))
         && fallbackCalls.some(call => call.includes('air-quality-api.open-meteo.com'));
 
+      saveConfig({
+        mode: 'selfhost',
+        selfhostUrl: 'http://127.0.0.1:9000',
+      });
+      const rejectedSelfhostCalls = [];
+      const rejectedSelfhostWarnings = [];
+      console.warn = (...args) => rejectedSelfhostWarnings.push(args.join(' '));
+      window.fetch = async (url) => {
+        const href = String(url);
+        rejectedSelfhostCalls.push(href);
+        if (href.includes('air-quality')) return jsonResponse(airQuality);
+        return jsonResponse(forecast(3.9));
+      };
+      const rejectedSelfhostFallback = await mod.fetchAtmosphere({
+        lat: 50,
+        lon: 14,
+        isoTime: iso,
+        noCache: true,
+      });
+      console.warn = originalWarn;
+      outcomes.rejectedSelfhostAvailabilityWarnsAndFallsBack =
+        rejectedSelfhostFallback.source === 'open_meteo'
+        && rejectedSelfhostFallback.uvIndex === 3.9
+        && !rejectedSelfhostCalls.some(call => call.startsWith('http://127.0.0.1'))
+        && rejectedSelfhostCalls.some(call => call.includes('api.open-meteo.com'))
+        && rejectedSelfhostWarnings.some(line => line.includes('selfhost URL rejected'));
+
       saveConfig({ mode: 'auto' });
       window.fetch = async (url) => {
         const href = String(url);
@@ -306,6 +352,26 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && merged.ozoneDU === 315
         && merged.airQuality?.aod === 0.07
         && Math.abs(merged.confidence - 0.65) < 0.01;
+
+      saveConfig({ mode: 'noaa' });
+      const legacyNoaaCalls = [];
+      window.fetch = async (url) => {
+        const href = String(url);
+        legacyNoaaCalls.push(href);
+        if (href.includes('air-quality')) return jsonResponse(airQuality);
+        return jsonResponse(forecast(2.8));
+      };
+      const legacyNoaa = await mod.fetchAtmosphere({
+        lat: 40,
+        lon: -100,
+        isoTime: iso,
+        noCache: true,
+      });
+      outcomes.legacyNoaaModeMigratesToAutoProviderOrder =
+        legacyNoaa.source === 'cams'
+        && legacyNoaa.uvIndex === 2.8
+        && legacyNoaaCalls.length === 1
+        && legacyNoaaCalls[0] === '/api/proxy';
 
       saveConfig({ mode: 'open-meteo' });
       cleanupCache();
@@ -357,6 +423,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && offline.ozoneDU === 300;
     } finally {
       window.fetch = originalFetch;
+      console.warn = originalWarn;
       cleanupCache();
       if (originalConfig == null) localStorage.removeItem(storageKey);
       else localStorage.setItem(storageKey, originalConfig);
