@@ -588,6 +588,87 @@ return (async function () {
     assert('DISABLE_AI_VERDICTS gate test skipped — no AI provider in test env', true);
   }
 
+  // ─── 16. Default callbacks + retry classifier browser coverage ────
+  // The main fixture's helper supplies shouldAutoFire/getAllTargets, so
+  // create a bare engine here to exercise those documented defaults in
+  // the browser. This also drives the private retry classifier through
+  // maybeAfterFinish after a transient parse failure.
+  console.log('%c 16. Default callbacks + retry classifier ', 'font-weight:bold;color:#a855f7');
+
+  {
+    const origProvider = localStorage.getItem('labcharts-ai-provider');
+    const origModel = localStorage.getItem('labcharts-ollama-model');
+    const origFetch = window.fetch;
+    const store = new Map();
+    const targets = new Map();
+    let calls = 0;
+    const waitFor = async (predicate, timeoutMs = 3000, intervalMs = 25) => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+      return predicate();
+    };
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
+    localStorage.setItem('labcharts-ollama-model', 'coverage-model');
+    window.fetch = () => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve(new Response('transient response without json', {
+          headers: { 'Content-Type': 'text/plain' },
+        }));
+      }
+      return Promise.resolve(new Response(
+        '{"choices":[{"message":{"content":"{\\"dot\\":\\"yellow\\",\\"tip\\":\\"default retry\\",\\"detail\\":\\"default retry recovered\\"}"}}]}',
+        { headers: { 'Content-Type': 'application/json' } }
+      ));
+    };
+    try {
+      const engine = createAIVerdict({
+        getTarget: id => targets.get(id) || null,
+        getId: t => t?.id,
+        getAIAnalysis: t => store.get(t.id) || null,
+        setAIAnalysis: (t, v) => { if (v == null) store.delete(t.id); else store.set(t.id, v); },
+        getFingerprint: t => `fp_${t.id}`,
+        buildContext: t => `### Default callback target ${t.id}`,
+        systemPrompt: 'Return {"dot":"yellow","tip":"default retry","detail":"default retry recovered"}.',
+        autoFireRetryDelaysMs: [20],
+      });
+      const target = { id: 'default-auto-fire' };
+      targets.set(target.id, target);
+      await engine.purgeOrphaned();
+      assert('default getAllTargets keeps purgeOrphaned as a no-op',
+        store.size === 0 && calls === 0,
+        `storeSize=${store.size} calls=${calls}`);
+
+      engine.maybeAfterFinish(target);
+      assert('isAnalyzing reports retrying auto-fire target by id',
+        engine.isAnalyzing(target.id) === true);
+      const completed = await waitFor(() => {
+        const current = store.get(target.id);
+        return calls >= 2
+          && current?.status === 'ok'
+          && current?.tip === 'default retry'
+          && engine.isAnalyzing(target.id) === false;
+      });
+      const stored = store.get(target.id);
+      assert('default shouldAutoFire permits maybeAfterFinish to analyze target',
+        calls >= 1);
+      assert('retry classifier treats parse failure as retryable and recovers',
+        completed,
+        `calls=${calls} stored=${JSON.stringify(stored)}`);
+      assert('isAnalyzing clears after default auto-fire sequence',
+        engine.isAnalyzing(target.id) === false);
+    } finally {
+      window.fetch = origFetch;
+      if (origProvider == null) localStorage.removeItem('labcharts-ai-provider');
+      else localStorage.setItem('labcharts-ai-provider', origProvider);
+      if (origModel == null) localStorage.removeItem('labcharts-ollama-model');
+      else localStorage.setItem('labcharts-ollama-model', origModel);
+    }
+  }
+
   console.log(`%c Result: ${pass} passed, ${fail} failed `, fail === 0
     ? 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px'
     : 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
