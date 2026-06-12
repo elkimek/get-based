@@ -7,10 +7,11 @@ function moduleUrl(path) {
 test('sun and device session AI analysis covers contexts fingerprints and render states', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ sunUrl, deviceUrl }) => {
-    const [sun, device] = await Promise.all([
+  const results = await page.evaluate(async ({ sunUrl, deviceUrl, apiUrl }) => {
+    const [sun, device, api] = await Promise.all([
       import(sunUrl),
       import(deviceUrl),
+      import(apiUrl),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -257,6 +258,45 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && sunSession.aiAnalysis?.status === 'ok'
         && sunSession.aiAnalysis.tip === 'pending tip';
 
+      let sunRefreshCalls = 0;
+      window.fetch = async (url, options = {}) => {
+        if (String(url).includes('/v1/chat/completions')) {
+          sunRefreshCalls++;
+          return new Response(JSON.stringify({
+            choices: [{ message: { content: '{"dot":"green","tip":"sun refresh tip","detail":"sun refresh detail"}' } }],
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return saved.fetch(url, options);
+      };
+      delete sunSession.aiAnalysis;
+      const sunRefresh = await sun.refreshSessionAIAnalysis(sunSession.id);
+      const sunRefreshCallCountAfterHit = sunRefreshCalls;
+      let missingSunRefreshCrashed = false;
+      try { await sun.refreshSessionAIAnalysis('missing-sun-session'); }
+      catch (_) { missingSunRefreshCrashed = true; }
+      outcomes.sunRefreshWritesVerdictBySessionId = sunRefresh?.status === 'ok'
+        && sunSession.aiAnalysis?.tip === 'sun refresh tip'
+        && sun.renderSessionAIInline(sunSession).includes('sun refresh tip')
+        && sunRefreshCallCountAfterHit === 1;
+      outcomes.sunRefreshMissingIdNoops = !missingSunRefreshCrashed
+        && sunRefreshCalls === sunRefreshCallCountAfterHit;
+
+      let sunAutoFireCalls = 0;
+      window.fetch = async (url, options = {}) => {
+        if (String(url).includes('/v1/chat/completions')) {
+          sunAutoFireCalls++;
+          return new Response(JSON.stringify({
+            choices: [{ message: { content: '{"dot":"green","tip":"sun auto tip","detail":"sun auto detail"}' } }],
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return saved.fetch(url, options);
+      };
+      outcomes.sunAutoFireProviderGateIsLive = api.hasAIProvider() === true;
+      sun.maybeAnalyzeSessionAfterFinish({ ...sunSession, id: 'sun-unfinished', endedAt: null });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      outcomes.sunAutoFireSkipsUnfinishedSession = outcomes.sunAutoFireProviderGateIsLive
+        && sunAutoFireCalls === 0;
+
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           return new Response(JSON.stringify({
@@ -310,6 +350,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
   }, {
     sunUrl: moduleUrl('/js/sun-ai-analysis.js'),
     deviceUrl: moduleUrl('/js/light-device-ai-analysis.js'),
+    apiUrl: moduleUrl('/js/api.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {
