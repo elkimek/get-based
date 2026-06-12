@@ -35,7 +35,7 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
     }
 
     {
-      const appEvents = await import(`/js/app-event-listeners.js?bust=${Date.now()}`);
+      const appEvents = await import('/js/app-event-listeners.js');
       const overlay = document.getElementById('feedback-modal-overlay');
       const modal = overlay?.firstElementChild;
       appEvents.installGlobalEventListeners();

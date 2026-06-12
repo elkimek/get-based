@@ -50,11 +50,14 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       let progressScrolled = false;
       if (progressBar) {
         const originalScrollIntoView = progressBar.scrollIntoView;
-        progressBar.scrollIntoView = options => {
-          progressScrolled = options?.behavior === 'smooth' && options?.block === 'center';
-        };
-        progress.handleImportStatusClick();
-        progressBar.scrollIntoView = originalScrollIntoView;
+        try {
+          progressBar.scrollIntoView = options => {
+            progressScrolled = options?.behavior === 'smooth' && options?.block === 'center';
+          };
+          progress.handleImportStatusClick();
+        } finally {
+          progressBar.scrollIntoView = originalScrollIntoView;
+        }
       }
       outcomes.importStatusClickScrollsRunningProgress = progressScrolled;
 
@@ -67,13 +70,16 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       let previewScrolled = false;
       if (importOverlay) {
         const originalScrollIntoView = importOverlay.scrollIntoView;
-        importOverlay.scrollIntoView = options => {
-          previewScrolled = options?.behavior === 'smooth';
-        };
-        importOverlay.classList.add('show');
-        progress.handleImportStatusClick();
-        importOverlay.classList.remove('show');
-        importOverlay.scrollIntoView = originalScrollIntoView;
+        try {
+          importOverlay.scrollIntoView = options => {
+            previewScrolled = options?.behavior === 'smooth';
+          };
+          importOverlay.classList.add('show');
+          progress.handleImportStatusClick();
+        } finally {
+          importOverlay.classList.remove('show');
+          importOverlay.scrollIntoView = originalScrollIntoView;
+        }
       }
       outcomes.importStatusClickScrollsOpenPreview = previewScrolled;
 
