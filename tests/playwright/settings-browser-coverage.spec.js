@@ -50,6 +50,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       saveMeteoConfig: window.saveMeteoConfig,
       theme: localStorage.getItem('labcharts-theme'),
       accent: localStorage.getItem('labcharts-accent'),
+      timeFormat: localStorage.getItem('labcharts-time-format'),
       sunset: localStorage.getItem('labcharts-sunset-mode'),
       crt: localStorage.getItem('labcharts-crt-effects'),
       piiEnabled: localStorage.getItem('labcharts-ollama-pii-enabled'),
@@ -82,6 +83,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       localStorage.removeItem('labcharts-sunset-mode');
       localStorage.removeItem('labcharts-crt-effects');
       localStorage.setItem('labcharts-theme', 'dark');
+      localStorage.setItem('labcharts-time-format', '24h');
       window.openSettingsModal('display');
       const modal = document.getElementById('settings-modal');
       modal.insertAdjacentHTML('beforeend', '<button type="button" class="settings-theme-btn" data-theme-id="glass" data-settings-action="select-theme">Glass</button>');
@@ -90,6 +92,11 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       results.scheduleThemeChangeMarksControl = themeBtn.classList.contains('active');
       await waitFor(() => localStorage.getItem('labcharts-theme') === 'glass', 'theme commit');
       results.scheduleThemeChangeCommits = document.documentElement.dataset.theme === 'glass';
+      const timeBtn = modal.querySelector('[data-settings-action="set-time-format"][data-timefmt="12h"]');
+      timeBtn.click();
+      results.setTimeFormatFromDisplaySettings = localStorage.getItem('labcharts-time-format') === '12h'
+        && timeBtn.classList.contains('active')
+        && window.formatTime('14:05') === '2:05 PM';
 
       window.openTweaksPanel();
       const sunsetToggle = document.getElementById('tweaks-sunset-mode');
@@ -187,6 +194,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       };
       restoreStorage('labcharts-theme', saved.theme);
       restoreStorage('labcharts-accent', saved.accent);
+      restoreStorage('labcharts-time-format', saved.timeFormat);
       restoreStorage('labcharts-sunset-mode', saved.sunset);
       restoreStorage('labcharts-crt-effects', saved.crt);
       restoreStorage('labcharts-ollama-pii-enabled', saved.piiEnabled);
