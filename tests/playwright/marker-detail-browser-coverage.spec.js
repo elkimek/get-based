@@ -4,6 +4,111 @@ function moduleUrl(path) {
   return `${path}?markerDetailCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+test('marker detail editing covers default dependency callbacks', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ editingUrl }) => {
+    const [editing, { state }, data] = await Promise.all([
+      import(editingUrl),
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
+    const outcomes = {};
+    const calls = [];
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+    const fillManualForm = ({ date, value, unit = 'g/l' }) => {
+      let fixture = document.getElementById('marker-detail-default-deps-fixture');
+      if (!fixture) {
+        fixture = document.createElement('div');
+        fixture.id = 'marker-detail-default-deps-fixture';
+        document.body.appendChild(fixture);
+      }
+      fixture.innerHTML = `
+        <input id="me-date" value="${date}">
+        <input id="me-value" value="${value}">
+        <textarea id="me-note"></textarea>
+        <input id="me-unit" value="${unit}">
+      `;
+    };
+    const saved = {
+      importedData: clone(state.importedData),
+      markerRegistry: clone(state.markerRegistry),
+      currentProfile: state.currentProfile,
+      currentView: state.currentView,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      unitSystem: state.unitSystem,
+      buildSidebar: window.buildSidebar,
+      navigate: window.navigate,
+    };
+    const id = 'proteins_albumin';
+    const dotKey = 'proteins.albumin';
+
+    try {
+      state.currentProfile = 'marker-detail-default-deps-coverage';
+      state.currentView = 'proteins';
+      state.profileSex = 'male';
+      state.profileDob = '1980-01-02';
+      state.unitSystem = 'EU';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        customMarkers: {},
+        markerNotes: {},
+        markerValueNotes: {},
+        manualValues: {},
+        refOverrides: {},
+      };
+      data.invalidateActiveDataCache();
+      const active = data.getActiveData();
+      state.markerRegistry = {
+        [id]: active.categories.proteins.markers.albumin,
+      };
+      window.buildSidebar = () => calls.push(['sidebar']);
+      window.navigate = (category, payload) => calls.push(['navigate', category, payload || null]);
+
+      fillManualForm({ date: '2026-06-04', value: '44' });
+      await editing.saveManualEntry(id);
+      await wait(70);
+      outcomes.defaultCloseModalPathSavesAndNavigates =
+        state.importedData.entries.some(entry => entry.date === '2026-06-04' && entry.markers?.[dotKey] === 44)
+        && calls.some(call => call[0] === 'sidebar')
+        && calls.some(call => call[0] === 'navigate' && call[1] === 'proteins');
+
+      fillManualForm({ date: '2026-06-05', value: '45' });
+      await editing.saveAndAddAnotherManualEntry(id);
+      await wait(0);
+      outcomes.defaultOpenManualEntryPathSavesAndNavigates =
+        state.importedData.entries.some(entry => entry.date === '2026-06-05' && entry.markers?.[dotKey] === 45)
+        && calls.filter(call => call[0] === 'navigate' && call[1] === 'proteins').length >= 2;
+    } finally {
+      state.importedData = saved.importedData;
+      state.markerRegistry = saved.markerRegistry;
+      state.currentProfile = saved.currentProfile;
+      state.currentView = saved.currentView;
+      state.profileSex = saved.profileSex;
+      state.profileDob = saved.profileDob;
+      state.unitSystem = saved.unitSystem;
+      if (saved.buildSidebar) window.buildSidebar = saved.buildSidebar;
+      else delete window.buildSidebar;
+      if (saved.navigate) window.navigate = saved.navigate;
+      else delete window.navigate;
+      data.invalidateActiveDataCache();
+      document.getElementById('marker-detail-default-deps-fixture')?.remove();
+      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, { editingUrl: moduleUrl('/js/marker-detail-editing.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('marker detail editing covers manual values notes delete and revert workflows', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
