@@ -240,6 +240,91 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
   }
 });
 
+test('Light audit defaults cover fallback dependency accessors', async ({ page }) => {
+  await page.goto('/js/light-env-audits.js', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const [{ state }, data, audits] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/light-env-audits.js'),
+    ]);
+
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const saved = {
+      importedData: clone(state.importedData),
+      currentProfile: state.currentProfile,
+      maybeAnalyzeAuditAfterSave: window.maybeAnalyzeAuditAfterSave,
+    };
+    const calls = [];
+    const outcomes = {};
+    const baseTime = Date.parse('2026-06-08T12:00:00Z');
+    const room = { id: 'bedroom', name: 'Bedroom', primarySource: 'led-cool', hoursOccupiedPerDay: 8 };
+
+    try {
+      state.currentProfile = 'light-audit-default-deps-coverage';
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        healthGoals: [],
+        diagnoses: null,
+        customMarkers: {},
+        markerNotes: {},
+        markerValueNotes: {},
+        changeHistory: [],
+        lightEnvironment: { rooms: [room], screens: [] },
+        lightMeasurements: [
+          { roomId: 'bedroom', tool: 'lux', value: 44, capturedAt: baseTime + 500 },
+        ],
+        lightAudits: [{
+          id: 'default_dep_audit',
+          date: '2026-06-01',
+          label: 'Default dependencies',
+          rooms: [room],
+          screens: [],
+          measurements: [],
+          createdAt: baseTime - 500,
+        }],
+      };
+      data.invalidateActiveDataCache();
+      window.maybeAnalyzeAuditAfterSave = audit => calls.push(['default-auto-audit', audit.id]);
+
+      audits.configureLightEnvAudits({});
+      const defaultSavedAudit = await audits.saveLightAudit('Default deps snapshot');
+      const host = document.createElement('div');
+      host.innerHTML = audits.renderLightAuditsBlock();
+      document.body.appendChild(host);
+      try {
+        window.toggleLightAudit('default_dep_audit');
+        window.toggleLightAudit('default_dep_audit');
+
+        outcomes.defaultAuditDepsRenderFallbackSeverity =
+          host.querySelector('.light-env-sev-green') !== null;
+        outcomes.defaultAuditDepsSaveSnapshotsEnvironment =
+          defaultSavedAudit?.label === 'Default deps snapshot'
+          && defaultSavedAudit?.rooms?.[0]?.id === 'bedroom'
+          && defaultSavedAudit?.measurements?.length === 1;
+        outcomes.defaultAuditDepsAutoAnalyzeHook =
+          calls.some(call => call[0] === 'default-auto-audit' && call[1] === defaultSavedAudit?.id);
+      } finally {
+        host.remove();
+      }
+    } finally {
+      state.importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
+      data.invalidateActiveDataCache();
+      window.maybeAnalyzeAuditAfterSave = saved.maybeAnalyzeAuditAfterSave;
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('Light audit history covers save expand update compare interpret and delete controls', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
