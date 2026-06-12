@@ -102,6 +102,12 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       outcomes.breakpointListenerWasRegistered = mediaListeners.length > 0
         && mobileDashboard.isMobileDashboardViewport() === true;
 
+      const wearablePriority = mobileDashboard.getMobileWearablePriority();
+      outcomes.mobileWearablePriorityKeepsHighSignalOrder =
+        wearablePriority.slice(0, 4).join('|') === 'hrv_rmssd|sleep_score|readiness_score|steps'
+        && wearablePriority.includes('bp_systolic')
+        && wearablePriority.indexOf('steps') < wearablePriority.indexOf('bp_systolic');
+
       state.currentView = 'dashboard';
       mediaListeners[0]?.({ matches: true });
       state.currentView = 'labs';
