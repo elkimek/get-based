@@ -219,6 +219,19 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const imported = await wallet.importWallet('cashuA-import');
       outcomes.importAddsProofs = imported === 3;
 
+      state.receiveQueue.unshift([
+        proof('state-live', 6),
+        proof('state-spent', 4, { spent: true }),
+        proof('state-pending', 5, { pending: true }),
+      ]);
+      await wallet.receiveToken('cashuA-proof-state');
+      const checkedBalance = await wallet.checkProofStates();
+      const exportedAfterStateCheck = await wallet.exportWallet();
+      outcomes.checkProofStatesPrunesSpentAndKeepsPending = checkedBalance > 0
+        && exportedAfterStateCheck.includes('state-live')
+        && exportedAfterStateCheck.includes('state-pending')
+        && !exportedAfterStateCheck.includes('state-spent');
+
       const max = await wallet.getMaxWithdrawable();
       const addressWithdraw = await wallet.withdrawToAddress('alice@getbased.test', Math.min(max + 2, 20));
       outcomes.lightningAddressWithdraw = addressWithdraw.paid === true
@@ -263,6 +276,157 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       ]);
       outcomes.destroyWalletDbInvoked = destroyed === true || destroyed === 'timeout';
       return outcomes;
+    } finally {
+      await deleteCashuDb();
+      window.cashuts = oldGlobals.cashuts;
+      window.bip39 = oldGlobals.bip39;
+      window.fetch = oldGlobals.fetch;
+      window.showNotification = oldGlobals.showNotification;
+      localStorage.removeItem('labcharts-cashu-wallet-mint');
+      localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
+    }
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBeTruthy();
+  }
+});
+
+test('cashu wallet browser coverage exercises fee proof auto-melt storage', async ({ page }) => {
+  await page.route('**/cashu-wallet-fee-blank', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><html><body></body></html>',
+  }));
+  // Production fee collection is disabled; this routed copy reaches the private auto-melt path without changing app code.
+  await page.route('**/js/cashu-wallet.js*', async route => {
+    const response = await route.fetch();
+    const source = await response.text();
+    const body = source.replace('const WALLET_FEE_PCT = 0;', 'const WALLET_FEE_PCT = 0.5;');
+    if (body === source) throw new Error('Failed to enable Cashu fee path for coverage test');
+    await route.fulfill({
+      response,
+      body,
+      headers: {
+        ...response.headers(),
+        'content-type': 'application/javascript',
+      },
+    });
+  });
+  await page.goto('/cashu-wallet-fee-blank', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const oldGlobals = {
+      cashuts: window.cashuts,
+      bip39: window.bip39,
+      fetch: window.fetch,
+      showNotification: window.showNotification,
+    };
+    const proof = (secret, amount, extra = {}) => ({ secret, amount, C: `C-${secret}`, ...extra });
+    const state = {
+      meltCalls: [],
+      lnurlAmounts: [],
+      receiveQueue: [[proof('fee-token', 240)]],
+    };
+    const sumProofs = (proofs = []) => proofs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const waitFor = async (predicate, label) => {
+      for (let i = 0; i < 120; i += 1) {
+        const value = await predicate();
+        if (value) return value;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+
+    class Wallet {
+      async loadMint() {}
+
+      async groupProofsByState(proofs) {
+        return { unspent: proofs, spent: [], pending: [] };
+      }
+
+      async receive() {
+        return (state.receiveQueue.shift() || [proof('fee-fallback', 1)])
+          .map(item => ({ ...item }));
+      }
+
+      async send(amount, proofs) {
+        const total = sumProofs(proofs);
+        return {
+          send: [proof(`fee-send-${amount}`, amount)],
+          keep: total > amount ? [proof(`fee-keep-${total - amount}`, total - amount)] : [],
+        };
+      }
+
+      async createMeltQuoteBolt11(invoice) {
+        const amount = Number(String(invoice).match(/(\d+)/)?.[1] || 0);
+        return { quote: `fee-quote-${amount}`, amount, fee_reserve: 5, state: 'UNPAID' };
+      }
+
+      async meltProofsBolt11(quote, proofs) {
+        state.meltCalls.push({ quote, amount: sumProofs(proofs) });
+        return { change: [proof(`fee-change-${state.meltCalls.length}`, 1)] };
+      }
+    }
+
+    window.cashuts = {
+      Wallet,
+      sumProofs,
+      getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
+    };
+    window.bip39 = oldGlobals.bip39 || {};
+    window.showNotification = () => {};
+    window.fetch = async url => {
+      const href = String(url);
+      if (href === 'https://primal.net/.well-known/lnurlp/denimgecko11') {
+        return new Response(JSON.stringify({
+          callback: 'https://lnurl.primal.test/callback?tag=pay',
+          minSendable: 1000,
+          maxSendable: 200000,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (href.startsWith('https://lnurl.primal.test/callback')) {
+        const amountMsats = Number(new URL(href).searchParams.get('amount'));
+        state.lnurlAmounts.push(amountMsats);
+        return new Response(JSON.stringify({ pr: `lnbc${amountMsats / 1000}` }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    async function deleteCashuDb() {
+      await new Promise(resolve => {
+        const req = indexedDB.deleteDatabase('getbased-cashu');
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        req.onblocked = () => resolve();
+        setTimeout(resolve, 500);
+      });
+    }
+
+    let wallet;
+    try {
+      await deleteCashuDb();
+      wallet = await import(`/js/cashu-wallet.js?cashuFeeCoverage=${Date.now()}`);
+      await wallet.setMintUrl('https://mint.fee-coverage.test/Bitcoin');
+      const received = await wallet.receiveToken('cashuA-fee-token');
+      const feeBalance = await waitFor(async () => {
+        const balance = await wallet.getFeeBalance();
+        return balance === 1 ? balance : null;
+      }, 'fee auto-melt change proof');
+      const walletBalance = await wallet.getWalletBalance();
+
+      return {
+        feePctEnabledInRoutedModule: wallet.getFeePct() === 0.5,
+        receiveCollectedFee: received.received === 120 && received.fee === 120,
+        autoMeltRequestedInvoiceForFeeMinusReserve: state.lnurlAmounts.includes(115000),
+        autoMeltSavedChangeFeeProof: feeBalance === 1,
+        autoMeltCalledMintWithFeeProofs: state.meltCalls.length === 1
+          && state.meltCalls[0].quote.amount === 115
+          && state.meltCalls[0].amount === 120,
+        walletKeepsPostFeeChange: walletBalance === 120,
+      };
     } finally {
       await deleteCashuDb();
       window.cashuts = oldGlobals.cashuts;
