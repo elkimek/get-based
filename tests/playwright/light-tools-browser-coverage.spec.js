@@ -43,6 +43,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
       performanceNow: performance.now,
       hadAmbientLightSensor: Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor'),
       AmbientLightSensor: window.AmbientLightSensor,
+      hadDismissAimingGuide: Object.prototype.hasOwnProperty.call(window, '_dismissAimingGuide'),
+      dismissAimingGuide: window._dismissAimingGuide,
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -142,6 +144,17 @@ test('light tools browser coverage exercises storage render and modal flows', as
       results.renderShowsMeasuredStatus = populatedHtml.includes('measurements')
         && populatedHtml.includes('2 rooms mapped')
         && populatedHtml.includes('Recommended next');
+      const guideHost = document.createElement('div');
+      guideHost.innerHTML = lightTools.aimingGuideHTML('lux');
+      document.body.append(guideHost);
+      const guide = guideHost.querySelector('.tool-aiming-guide');
+      window._dismissAimingGuide?.('lux');
+      results.aimingGuideDismissHidesRenderedCard = guide?.style.display === 'none';
+      results.aimingGuideDismissPersistsFlag =
+        localStorage.getItem('labcharts-aim-guide-lux') === 'dismissed';
+      results.aimingGuideDismissSuppressesFutureHtml = lightTools.aimingGuideHTML('lux') === '';
+      guideHost.remove();
+      localStorage.removeItem('labcharts-aim-guide-lux');
       state.importedData.lightMeasurements = [];
       state.importedData.lightEnvironment.rooms = [];
       const emptyHtml = lightTools.renderLightTools();
@@ -349,6 +362,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
       }
       if (saved.hadAmbientLightSensor) window.AmbientLightSensor = saved.AmbientLightSensor;
       else delete window.AmbientLightSensor;
+      if (saved.hadDismissAimingGuide) window._dismissAimingGuide = saved.dismissAimingGuide;
+      else delete window._dismissAimingGuide;
       try {
         Object.defineProperty(navigator, 'mediaDevices', {
           configurable: true,
