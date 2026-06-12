@@ -602,6 +602,14 @@ return (async function () {
     const store = new Map();
     const targets = new Map();
     let calls = 0;
+    const waitFor = async (predicate, timeoutMs = 3000, intervalMs = 25) => {
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+      return predicate();
+    };
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.setItem('labcharts-ollama-model', 'coverage-model');
     window.fetch = () => {
@@ -630,17 +638,25 @@ return (async function () {
       const target = { id: 'default-auto-fire' };
       targets.set(target.id, target);
       await engine.purgeOrphaned();
-      assert('default getAllTargets callback lets purgeOrphaned run', true);
+      assert('default getAllTargets keeps purgeOrphaned as a no-op',
+        store.size === 0 && calls === 0,
+        `storeSize=${store.size} calls=${calls}`);
 
       engine.maybeAfterFinish(target);
       assert('isAnalyzing reports retrying auto-fire target by id',
         engine.isAnalyzing(target.id) === true);
-      await new Promise(r => setTimeout(r, 800));
+      const completed = await waitFor(() => {
+        const current = store.get(target.id);
+        return calls >= 2
+          && current?.status === 'ok'
+          && current?.tip === 'default retry'
+          && engine.isAnalyzing(target.id) === false;
+      });
       const stored = store.get(target.id);
       assert('default shouldAutoFire permits maybeAfterFinish to analyze target',
         calls >= 1);
       assert('retry classifier treats parse failure as retryable and recovers',
-        calls >= 2 && stored?.status === 'ok' && stored?.tip === 'default retry',
+        completed,
         `calls=${calls} stored=${JSON.stringify(stored)}`);
       assert('isAnalyzing clears after default auto-fire sequence',
         engine.isAnalyzing(target.id) === false);
