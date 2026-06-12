@@ -641,10 +641,12 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       fetch: window.fetch,
       setInterval: window.setInterval,
       clearInterval: window.clearInterval,
+      openSettingsModal: window.openSettingsModal,
     };
     const intervals = [];
     let nextIntervalId = 1;
     let returnToChatCount = 0;
+    let settingsOpened = 0;
     let createMode = 'paid';
 
     try {
@@ -688,16 +690,55 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         return oldGlobals.fetch.call(window, url);
       };
 
-      ppq.configurePpqPanels({
-        returnToChatIfOnboarding: () => { returnToChatCount += 1; },
-      });
-
       document.body.insertAdjacentHTML('beforeend', `
         <div id="ai-provider-panel">
           <button onclick="handleCreatePpqAccount()">Create Account (instant, no signup)</button>
           <div id="ppq-key-status"></div>
         </div>
       `);
+      const panel = document.getElementById('ai-provider-panel');
+      window.openSettingsModal = () => { settingsOpened += 1; };
+
+      panel.innerHTML = `
+        <input id="ppq-key-input" value="sk-ppq-default">
+        <button id="save-ppq-key-btn">Save</button>
+        <div id="ppq-key-status"></div>
+        <div id="ppq-model-area"></div>
+      `;
+      await ppq.handleSavePpqKey();
+      const defaultSaveUsesNoopReturnCallback = document.getElementById('ppq-key-status')?.textContent.includes('Connected')
+        && document.getElementById('ppq-model-select')?.value === 'claude-sonnet-4.6';
+
+      localStorage.setItem('labcharts-ppq-key', 'sk-ppq-remove');
+      localStorage.setItem('labcharts-ppq-credit-id', 'credit-remove');
+      localStorage.setItem('labcharts-ppq-model', 'claude-sonnet-4.6');
+      localStorage.setItem('labcharts-ppq-models', JSON.stringify([{ id: 'claude-sonnet-4.6', name: 'Claude' }]));
+      localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'claude-sonnet-4.6': { input: 3, output: 15 } }));
+      localStorage.setItem('labcharts-ppq-vision-models', JSON.stringify(['claude-sonnet-4.6']));
+      const removePromise = ppq.handleRemovePpqKey();
+      for (let i = 0; i < 50 && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show'); i += 1) {
+        await wait(10);
+      }
+      const removeMessage = document.querySelector('#confirm-dialog-overlay .confirm-message')?.textContent || '';
+      document.getElementById('confirm-ok')?.click();
+      await removePromise;
+      const removePpqKeyClearsFundsWarningAndState = removeMessage.includes('$1.25 remaining')
+        && localStorage.getItem('labcharts-ppq-key') === null
+        && localStorage.getItem('labcharts-ppq-models') === null
+        && localStorage.getItem('labcharts-ppq-model') === null
+        && localStorage.getItem('labcharts-ppq-pricing') === null
+        && localStorage.getItem('labcharts-ppq-vision-models') === null
+        && localStorage.getItem('labcharts-ppq-credit-id') === null
+        && settingsOpened === 1;
+
+      ppq.configurePpqPanels({
+        returnToChatIfOnboarding: () => { returnToChatCount += 1; },
+      });
+
+      panel.innerHTML = `
+        <button onclick="handleCreatePpqAccount()">Create Account (instant, no signup)</button>
+        <div id="ppq-key-status"></div>
+      `;
 
       await ppq.handleCreatePpqAccount();
       const accountReveal = document.getElementById('ai-provider-panel')?.textContent.includes('Save your account details')
@@ -752,6 +793,8 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         && intervals.find(item => item.id === cancelPoll.id)?.cleared === true;
 
       return {
+        defaultSaveUsesNoopReturnCallback,
+        removePpqKeyClearsFundsWarningAndState,
         accountReveal,
         dismissRerendersTopup,
         methodSelected,
@@ -772,6 +815,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       window.fetch = oldGlobals.fetch;
       window.setInterval = oldGlobals.setInterval;
       window.clearInterval = oldGlobals.clearInterval;
+      window.openSettingsModal = oldGlobals.openSettingsModal;
       ppq.configurePpqPanels({ returnToChatIfOnboarding: () => {} });
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
@@ -782,6 +826,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       document.getElementById('ppq-topup-toggle')?.remove();
       document.getElementById('ppq-topup-area')?.remove();
       document.getElementById('ppq-balance')?.remove();
+      document.getElementById('confirm-dialog-overlay')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
   }, { ppqUrl: moduleUrl('/js/provider-ppq-panels.js') });
