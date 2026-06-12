@@ -267,3 +267,98 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
     expect(passed, name).toBe(true);
   }
 });
+
+test('sun sessions store default dependency callbacks preserve lifecycle behavior', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ storeUrl }) => {
+    const [store, { state }, data] = await Promise.all([
+      import(storeUrl),
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const saved = {
+      importedData: clone(state.importedData),
+      currentProfile: state.currentProfile,
+      profiles: clone(state.profiles),
+      maybeAnalyzeSessionAfterFinish: window.maybeAnalyzeSessionAfterFinish,
+    };
+    const results = {};
+
+    try {
+      state.currentProfile = 'sun-session-default-deps';
+      state.profiles = [{
+        id: state.currentProfile,
+        name: 'Sun Session Defaults',
+        createdAt: Date.now(),
+        lastUpdated: Date.now(),
+        tags: [],
+        notes: '',
+        status: 'active',
+        pinned: false,
+      }];
+      state.importedData = {
+        entries: [],
+        notes: [],
+        supplements: [],
+        healthGoals: [],
+        sunSessions: [],
+      };
+      data.invalidateActiveDataCache();
+      delete window.maybeAnalyzeSessionAfterFinish;
+
+      const id = await store.startSession({ exposurePreset: 'face_hands' });
+      const active = store.getActiveSession();
+      active.startedAt = Date.now() - 135000;
+      const paused = await store.pauseSession(id);
+      results.defaultPauseDepsAreNoopsButStatePersists =
+        paused?.paused === true
+        && paused.pausedAt
+        && paused.id === id;
+
+      const elapsed = document.createElement('span');
+      elapsed.dataset.liveElapsedFor = id;
+      document.body.appendChild(elapsed);
+      const stopped = await store.stopSession(id);
+      const expectedElapsed = `${Math.max(0, Math.floor((stopped.endedAt - stopped.startedAt) / 60000))}m`;
+      results.defaultStopDepsFreezeElapsedAndSkipAiHook =
+        stopped?.endedAt
+        && stopped.durationMin >= 2
+        && stopped.eyeExposure?.durationSec >= 120
+        && !elapsed.hasAttribute('data-live-elapsed-for')
+        && elapsed.textContent === expectedElapsed
+        && window.maybeAnalyzeSessionAfterFinish === undefined;
+      elapsed.remove();
+    } finally {
+      document.querySelectorAll('[data-live-elapsed-for]').forEach(el => el.remove());
+      state.importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
+      state.profiles = saved.profiles;
+      data.invalidateActiveDataCache();
+      if (saved.maybeAnalyzeSessionAfterFinish === undefined) delete window.maybeAnalyzeSessionAfterFinish;
+      else window.maybeAnalyzeSessionAfterFinish = saved.maybeAnalyzeSessionAfterFinish;
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return results;
+  }, { storeUrl: moduleUrl('/js/sun-sessions-store.js') });
+
+  const expectedOutcomes = [
+    'defaultPauseDepsAreNoopsButStatePersists',
+    'defaultStopDepsFreezeElapsedAndSkipAiHook',
+  ];
+  for (const key of expectedOutcomes) {
+    expect(outcomes, `outcome key '${key}' was never set`).toHaveProperty(key);
+  }
+  for (const [name, passed] of Object.entries(outcomes)) {
+    expect(passed, name).toBe(true);
+  }
+});
