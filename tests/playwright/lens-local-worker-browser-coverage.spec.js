@@ -19,7 +19,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
     }
     localStorage.removeItem('labcharts-lens-local-count');
 
-    const worker = new Worker('/js/lens-local-worker.js?mock=1', { type: 'module' });
+    const worker = new Worker('/js/lens-local-worker.js?mock=1&benchmark=1', { type: 'module' });
     const roundTrip = (msg, expectedType, timeoutMs = 5000) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         worker.removeEventListener('message', onMessage);
@@ -56,6 +56,13 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         && ready.activeId === 'default'
         && ready.activeModel === 'all-minilm'
         && ready.models?.['all-minilm']?.dim === 384
+        && ready.embedder?.backend === 'wasm'
+        && ready.embedder?.modelKey === 'all-minilm'
+        && ready.embedder?.dim === 384
+        && Number.isFinite(ready.embedder?.msPerEmbed)
+        && ready.embedder?.tier >= 1
+        && ready.embedder?.tier <= 3
+        && typeof ready.embedder?.tierLabel === 'string'
         && ready.libraries?.some(lib => lib.id === 'default'));
 
       const unknownType = await expectWorkerError({ type: 'not-a-real-worker-message' }, /unknown message type/i);

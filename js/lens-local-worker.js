@@ -200,6 +200,15 @@ async function handleInit() {
   if (params.has('mock')) {
     _embedder = mockEmbedder;
     console.log('[lens-local] mock embedder active (test mode)');
+    if (params.has('benchmark')) {
+      try {
+        _benchmarkVerdict = await _benchmarkEmbedder();
+        /** @type {any} */ (self)._lensLocalBenchmark = _benchmarkVerdict;
+      } catch (err) {
+        console.warn('[lens-local] mock benchmark failed:', err?.message || err);
+        _benchmarkVerdict = null;
+      }
+    }
     await openOpfs();
     await loadCorpusIntoMemory();
     self.postMessage(readyPayload());
