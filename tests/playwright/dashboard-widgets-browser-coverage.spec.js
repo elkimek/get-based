@@ -297,7 +297,7 @@ test('dashboard widget renderers browser coverage uses default wearable priority
 
       renderers.saveDashboardBiometricSelection(['hrv_rmssd', 'steps', 'bp_systolic']);
       const html = renderers.renderDashboardWearableTilesWidget();
-      outcomes.savedSelectionRendersSyncedAndManualTiles =
+      outcomes.savedSelectionRendersDataAndEmptyManualTiles =
         html.includes('HRV')
         && html.includes('Steps')
         && html.includes('Blood pressure')
@@ -318,7 +318,7 @@ test('dashboard widget renderers browser coverage uses default wearable priority
   const expectedOutcomeKeys = [
     'defaultPriorityFallsBackToRegistryAndCanonicalMetrics',
     'emptyMobileTilesFallBackToManualDefaultSelection',
-    'savedSelectionRendersSyncedAndManualTiles',
+    'savedSelectionRendersDataAndEmptyManualTiles',
   ];
   expect(Object.keys(results)).toEqual(expectedOutcomeKeys);
   for (const [name, passed] of Object.entries(results)) {
