@@ -89,6 +89,19 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       outcomes.defaultSaveHookDependenciesGateWork = pushes.length === 0 && timers.size === 0;
 
       saveHooks.configureSyncSaveHooks({
+        isSyncEnabled: () => true,
+      });
+      saveHooks.onDataSaved({ immediate: true });
+      outcomes.defaultEvoluReadyGateSkipsDataPush = pushes.length === 0 && timers.size === 0;
+
+      saveHooks.configureSyncSaveHooks({
+        isEvoluReady: () => true,
+      });
+      saveHooks.onDataSaved({ immediate: true });
+      await Promise.resolve();
+      outcomes.defaultPushProfileNoopAllowsImmediateDataSave = pushes.length === 0 && timers.size === 0;
+
+      saveHooks.configureSyncSaveHooks({
         pushProfile: async (id, data, options) => {
           pushes.push({ id, data: clone(data), options: clone(options || null) });
         },
