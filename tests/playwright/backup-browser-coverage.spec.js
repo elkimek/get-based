@@ -124,6 +124,11 @@ test('backup browser coverage exercises export import auto backup and folder sta
         && snapshot.profiles?.[0]?.keys?.units === 'EU'
         && snapshot.profiles?.[0]?.keys?.chatRailOpen === 'true';
 
+      localStorage.removeItem(importedKey);
+      await blobStorage.setBlob(importedKey, JSON.stringify({ entries: [{ date: '2026-06-11', markers: { cobalt: 3 } }] }));
+      const fullSnapshot = await backup.buildFullBackupSnapshot();
+      outcomes.fullSnapshotReadsRawImportedBlob = fullSnapshot?.profiles?.[0]?.keys?.imported?.includes('cobalt') === true;
+
       const downloads = [];
       URL.createObjectURL = blob => {
         downloads.push({ blobType: blob.type, blobSize: blob.size });
@@ -272,6 +277,156 @@ test('backup browser coverage exercises export import auto backup and folder sta
         if (value != null) localStorage.setItem(key, value);
       }
       document.querySelectorAll('.notification-container,.notification-toast,#confirm-dialog-overlay').forEach(el => el.remove());
+    }
+
+    return outcomes;
+  }, { backupUrl: moduleUrl('/js/backup.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('backup browser coverage exercises IDB errors and folder reauthorization', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ backupUrl }) => {
+    const backup = await import(backupUrl);
+    const outcomes = {};
+    const saved = {
+      indexedDB: Object.getOwnPropertyDescriptor(window, 'indexedDB'),
+      showDirectoryPicker: Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker'),
+    };
+    const originalSetTimeout = window.setTimeout.bind(window);
+    const delay = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
+    const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
+    const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    let mode = 'open-error';
+    let requestPermissionResult = 'granted';
+    let requestPermissionCalls = 0;
+    const folderHandle = {
+      name: 'Coverage Backups',
+      queryPermission: async () => 'prompt',
+      requestPermission: async () => {
+        requestPermissionCalls += 1;
+        if (requestPermissionResult === 'throw') throw new Error('permission prompt blocked');
+        return requestPermissionResult;
+      },
+    };
+
+    const requestError = message => {
+      const req = { error: new Error(message), result: undefined, onsuccess: null, onerror: null };
+      originalSetTimeout(() => req.onerror?.({ target: req }), 0);
+      return req;
+    };
+    const successRequest = result => {
+      const req = { error: null, result, onsuccess: null, onerror: null };
+      originalSetTimeout(() => req.onsuccess?.({ target: req }), 0);
+      return req;
+    };
+    const makeStore = storeName => ({
+      getAll: () => (mode === 'snapshots-getall-error'
+        ? requestError('snapshot list failed')
+        : successRequest([])),
+      get: () => {
+        if (storeName === 'folder-handle') {
+          if (mode === 'folder-get-error') return requestError('folder handle failed');
+          if (mode === 'folder-handle-denied') return successRequest(folderHandle);
+          return successRequest(null);
+        }
+        if (mode === 'snapshot-get-error') return requestError('snapshot get failed');
+        return successRequest(null);
+      },
+      put: () => successRequest(undefined),
+      delete: () => successRequest(undefined),
+      clear: () => successRequest(undefined),
+      add: () => successRequest(undefined),
+      count: () => successRequest(0),
+      openCursor: () => successRequest(null),
+    });
+    const fakeDb = {
+      objectStoreNames: { contains: () => true },
+      createObjectStore: () => ({}),
+      transaction: storeName => {
+        const tx = {
+          error: null,
+          objectStore: () => makeStore(storeName),
+          oncomplete: null,
+          onerror: null,
+        };
+        originalSetTimeout(() => tx.oncomplete?.({ target: tx }), 0);
+        return tx;
+      },
+    };
+    const openSuccess = () => {
+      const req = { error: null, result: fakeDb, onupgradeneeded: null, onsuccess: null, onerror: null };
+      originalSetTimeout(() => req.onsuccess?.({ target: req }), 0);
+      return req;
+    };
+
+    try {
+      Object.defineProperty(window, 'indexedDB', {
+        configurable: true,
+        value: {
+        open: () => (mode === 'open-error' ? requestError('backup db open failed') : openSuccess()),
+        },
+      });
+      Object.defineProperty(window, 'showDirectoryPicker', {
+        configurable: true,
+        value: async () => folderHandle,
+      });
+
+      const openError = await backup.openBackupDB().then(
+        () => '',
+        error => error?.message || String(error)
+      );
+      outcomes.openBackupDBRejectsOpenErrors = openError.includes('backup db open failed');
+
+      mode = 'snapshots-getall-error';
+      const snapshots = await backup.getAutoBackupSnapshots();
+      outcomes.getAutoBackupSnapshotsResolvesEmptyOnRequestError = Array.isArray(snapshots)
+        && snapshots.length === 0;
+
+      mode = 'snapshot-get-error';
+      const restoreError = await backup.restoreAutoBackup(42).then(
+        () => '',
+        error => error?.message || String(error)
+      );
+      outcomes.restoreAutoBackupRejectsRequestErrors = restoreError.includes('snapshot get failed');
+
+      mode = 'folder-get-error';
+      await backup.initFolderBackup();
+      outcomes.initFolderBackupIgnoresStoredHandleReadErrors = backup.getFolderBackupState().folderName === null;
+
+      mode = 'folder-handle-denied';
+      await backup.initFolderBackup();
+      await delay(20);
+      outcomes.initFolderBackupMarksPermissionLost = backup.getFolderBackupState().permissionLost === true
+        && backup.renderFolderBackupSection().includes('Restore access');
+
+      document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await delay(20);
+      outcomes.deferredFolderReauthRestoresAccess = requestPermissionCalls === 1
+        && backup.getFolderBackupState().permissionLost === false
+        && backup.renderFolderBackupSection().includes('Coverage Backups');
+
+      requestPermissionResult = 'denied';
+      await backup.reauthorizeFolderBackup();
+      outcomes.reauthorizeFolderBackupReportsDeniedPermission = requestPermissionCalls === 2
+        && toasts().some(text => text.includes('Permission denied'));
+      clearToasts();
+
+      requestPermissionResult = 'throw';
+      await backup.reauthorizeFolderBackup();
+      outcomes.reauthorizeFolderBackupReportsPromptErrors = requestPermissionCalls === 3
+        && toasts().some(text => text.includes('Could not restore access'));
+    } finally {
+      if (saved.indexedDB) Object.defineProperty(window, 'indexedDB', saved.indexedDB);
+      else delete window.indexedDB;
+      if (saved.showDirectoryPicker) Object.defineProperty(window, 'showDirectoryPicker', saved.showDirectoryPicker);
+      else delete window.showDirectoryPicker;
+      clearToasts();
+      document.querySelectorAll('#backup-folder-section').forEach(el => el.remove());
     }
 
     return outcomes;

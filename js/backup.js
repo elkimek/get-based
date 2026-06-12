@@ -249,8 +249,8 @@ export async function buildFullBackupSnapshot() {
   for (const p of snap.profiles || []) {
     if (p.keys && p.keys.imported == null) {
       const key = profileStorageKey(p.profileId, 'imported');
-      const idbBlob = await getBlob(key);
-      if (idbBlob != null) p.keys.imported = idbBlob;
+      const rawImported = await readRawStoredItem(key);
+      if (rawImported != null) p.keys.imported = rawImported;
     }
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
