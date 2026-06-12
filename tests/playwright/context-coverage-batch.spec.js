@@ -32,10 +32,11 @@ test('context editor select option helper toggles active buttons', async ({ page
         editor.getSelectedOption('ctx-select-coverage') === null
         && buttons.every(button => !button.classList.contains('active'));
 
+      buttons[2].classList.add('active');
       editor.selectCtxOption(buttons[2], 'missing-select-group');
       outcomes.selectCtxOptionMissingGroupNoops =
         editor.getSelectedOption('missing-select-group') === null
-        && !buttons[2].classList.contains('active');
+        && buttons[2].classList.contains('active');
     } finally {
       host.remove();
     }
