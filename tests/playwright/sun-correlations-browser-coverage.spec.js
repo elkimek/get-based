@@ -4,6 +4,13 @@ function moduleUrl(path) {
   return `${path}?sunCorrelationsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function expectAll(outcomes) {
+  const failed = Object.entries(outcomes)
+    .filter(([, value]) => value !== true)
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+  expect(failed).toEqual([]);
+}
+
 test('sun correlations browser coverage computes Pearson pairs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
@@ -12,7 +19,7 @@ test('sun correlations browser coverage computes Pearson pairs', async ({ page }
       import('/js/state.js'),
       import(correlationsUrl),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = value => JSON.parse(JSON.stringify(value ?? {}));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
@@ -86,7 +93,5 @@ test('sun correlations browser coverage computes Pearson pairs', async ({ page }
     return outcomes;
   }, { correlationsUrl: moduleUrl('/js/sun-correlations.js') });
 
-  for (const [name, passed] of Object.entries(outcomes)) {
-    expect(passed, name).toBe(true);
-  }
+  expectAll(outcomes);
 });
