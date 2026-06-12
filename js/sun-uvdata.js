@@ -35,6 +35,7 @@ import { isValidExternalUrl } from './url-safety.js';
 
 const STORAGE_KEY = 'labcharts-meteo-config';
 let _warnedAboutEmptySelfhost = false;
+let _warnedAboutRejectedSelfhostUrl = false;
 // Sync-friendly decrypted-config cache. Populated by initMeteoConfigCache()
 // on startup + after every saveMeteoConfig(). Lets the rest of the app
 // keep calling getMeteoConfig() synchronously even though the at-rest
@@ -322,7 +323,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   }
 
   // Provider order based on config
-  const order = providerOrder(cfg);
+  const order = providerOrder(cfg, { lat: rLat, lon: rLon });
 
   let lastError = null;
   for (let i = 0; i < order.length; i++) {
@@ -546,7 +547,37 @@ const PROVIDERS = {
   },
 };
 
-function providerOrder(cfg) {
+function providerIsAvailable(provider, ctx) {
+  try {
+    if (!provider.available) return true;
+    const ok = provider.available(ctx);
+    if (!ok && provider.name === 'selfhost' && ctx?.mode === 'selfhost' && ctx.selfhostUrl && !_warnedAboutRejectedSelfhostUrl) {
+      try {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(ctx.selfhostBearer
+            ? '[meteo] selfhost URL rejected — bearer-bearing requests require https:// and public hosts; falling back to Open-Meteo.'
+            : '[meteo] selfhost URL rejected — must be public http(s), not loopback / RFC1918 / link-local; falling back to Open-Meteo.');
+        }
+      } catch {}
+      _warnedAboutRejectedSelfhostUrl = true;
+    }
+    return ok;
+  } catch (e) {
+    try {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[meteo] provider availability check failed; skipping provider.', e?.name || e);
+      }
+    } catch {}
+    return false;
+  }
+}
+
+function availableProviders(candidates, ctx) {
+  return candidates.filter(provider => providerIsAvailable(provider, ctx));
+}
+
+function providerOrder(cfg, coords = {}) {
+  const ctx = Object.assign({}, cfg, coords);
   // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only
   // useful for non-browser callers. CAMS now runs through the
   // getbased-uvdata relay (api/proxy?meteo=cams) — the deploy decides
@@ -554,10 +585,10 @@ function providerOrder(cfg) {
   // it isn't, CAMS returns 503 and the auto-fallback chain reaches
   // Open-Meteo so the user still gets data.
   if (cfg.mode === 'manual') return [];
-  if (cfg.mode === 'selfhost') return cfg.selfhostUrl ? [PROVIDERS.selfhost, PROVIDERS.openMeteo] : [PROVIDERS.openMeteo];
-  if (cfg.mode === 'cams') return [PROVIDERS.cams, PROVIDERS.openMeteo];
-  if (cfg.mode === 'noaa') return [PROVIDERS.noaa, PROVIDERS.openMeteo];
-  if (cfg.mode === 'open-meteo') return [PROVIDERS.openMeteo];
+  if (cfg.mode === 'selfhost') return availableProviders([PROVIDERS.selfhost, PROVIDERS.openMeteo], ctx);
+  if (cfg.mode === 'cams') return availableProviders([PROVIDERS.cams, PROVIDERS.openMeteo], ctx);
+  if (cfg.mode === 'noaa') return availableProviders([PROVIDERS.noaa, PROVIDERS.openMeteo], ctx);
+  if (cfg.mode === 'open-meteo') return availableProviders([PROVIDERS.openMeteo], ctx);
   // 'auto' — selfhost (if configured) → CAMS hosted relay → Open-Meteo.
   // CAMS goes ahead of Open-Meteo because the deploy controls whether
   // the upstream is reachable; if it isn't, it 503s fast and the chain
@@ -567,7 +598,7 @@ function providerOrder(cfg) {
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
   order.push(PROVIDERS.cams);
   order.push(PROVIDERS.openMeteo);
-  return order;
+  return availableProviders(order, ctx);
 }
 
 // ─── Response shapers ──────────────────────────────────────────────────
