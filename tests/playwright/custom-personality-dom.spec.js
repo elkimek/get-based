@@ -1,5 +1,9 @@
 import { expect, test } from './coverage-fixture.js';
 
+function moduleUrl(path) {
+  return `${path}?customPersonalityCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 test('custom personality DOM renders editor controls and delegated discuss action', async ({ page }) => {
   const expectedOutcomeKeys = [
     'customSectionRenders',
@@ -116,6 +120,110 @@ test('custom personality DOM renders editor controls and delegated discuss actio
     }
 
     return outcomes;
+  });
+
+  for (const name of expectedOutcomeKeys) {
+    expect(results[name], name).toBe(true);
+  }
+});
+
+test('custom personality generator fills prompt and preserves selected custom text', async ({ page }) => {
+  const expectedOutcomeKeys = [
+    'customPersonalityTextReturnsSelectedPrompt',
+    'generatorStreamsThenWritesFinalPersona',
+    'generatorResetsButtonPlaceholderAndEnablesSave',
+  ];
+
+  await page.route('**/chat-personality-generator-coverage', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><html><body></body></html>',
+  }));
+  await page.route('**/js/api.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function hasAIProvider() { return true; }
+      export function getAIProvider() { return 'stub'; }
+      export function getActiveModelDisplay() { return 'Stub Model'; }
+      export function isVeniceE2EEActive() { return false; }
+      export async function callClaudeAPI(opts = {}) {
+        opts.onStream?.('draft persona');
+        window.__customPersonaStreamSeen =
+          document.querySelector('.chat-personality-custom-textarea')?.value === 'draft persona';
+        return { text: '\\u{1F9CA}\\n\\nYou are a deliberate cold exposure coach.' };
+      }
+    `,
+  }));
+  await page.route('**/js/chat-threads.js*', route => route.fulfill({
+    contentType: 'application/javascript',
+    body: `
+      export function saveChatThreadIndex() {}
+      export function renderThreadList() {}
+    `,
+  }));
+
+  await page.goto('/chat-personality-generator-coverage', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ personalityUrl }) => {
+    const [{ state }, personalities] = await Promise.all([
+      import('/js/state.js'),
+      import(personalityUrl),
+    ]);
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
+      const key = localStorage.key(index);
+      return [key, localStorage.getItem(key)];
+    }));
+    const original = {
+      currentProfile: state.currentProfile,
+      currentChatPersonality: state.currentChatPersonality,
+      body: document.body.innerHTML,
+      streamSeen: window.__customPersonaStreamSeen,
+    };
+    const outcomes = {};
+
+    try {
+      state.currentProfile = 'chat-personality-generator';
+      state.currentChatPersonality = 'custom_selected';
+      const customKey = `labcharts-${state.currentProfile}-chatPersonalityCustom`;
+      localStorage.setItem(customKey, JSON.stringify([
+        { id: 'custom_other', name: 'Other', icon: 'O', promptText: 'Other prompt' },
+        { id: 'custom_selected', name: 'Selected', icon: 'S', promptText: 'Selected prompt' },
+      ]));
+      outcomes.customPersonalityTextReturnsSelectedPrompt =
+        personalities.getCustomPersonalityText() === 'Selected prompt';
+
+      document.body.innerHTML = `
+        <input id="chat-personality-custom-name" value="Cold Exposure Coach">
+        <textarea class="chat-personality-custom-textarea"></textarea>
+        <button id="chat-personality-generate-btn">Generate</button>
+        <button class="chat-personality-custom-save" disabled>Save</button>
+      `;
+      await personalities.generateCustomPersonality();
+      const textarea = document.querySelector('.chat-personality-custom-textarea');
+      const generateButton = document.getElementById('chat-personality-generate-btn');
+      const saveButton = document.querySelector('.chat-personality-custom-save');
+      outcomes.generatorStreamsThenWritesFinalPersona =
+        window.__customPersonaStreamSeen === true
+        && textarea?.value === 'You are a deliberate cold exposure coach.';
+      outcomes.generatorResetsButtonPlaceholderAndEnablesSave =
+        generateButton?.disabled === false
+        && generateButton?.textContent === 'Generate'
+        && textarea?.placeholder.includes('Describe how you want the AI')
+        && saveButton?.disabled === false;
+    } finally {
+      state.currentProfile = original.currentProfile;
+      state.currentChatPersonality = original.currentChatPersonality;
+      document.body.innerHTML = original.body;
+      if (original.streamSeen === undefined) delete window.__customPersonaStreamSeen;
+      else window.__customPersonaStreamSeen = original.streamSeen;
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return outcomes;
+  }, {
+    personalityUrl: moduleUrl('/js/chat-personalities.js'),
   });
 
   for (const name of expectedOutcomeKeys) {
