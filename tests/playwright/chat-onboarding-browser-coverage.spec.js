@@ -236,6 +236,111 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
   }
 });
 
+test('chat onboarding browser coverage keeps default callbacks safe before chat wiring', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
+
+  const results = await page.evaluate(async ({ onboardingUrl }) => {
+    const [onboarding, { state }, profile] = await Promise.all([
+      import(onboardingUrl),
+      import('/js/state.js'),
+      import('/js/profile.js'),
+    ]);
+    const outcomes = {};
+    const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const savedState = {
+      currentProfile: state.currentProfile,
+      profiles: state.profiles,
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      importedData: state.importedData,
+      chatHistory: state.chatHistory,
+    };
+    const host = document.createElement('div');
+    const profileId = `chat_onboard_defaults_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const profileRecord = {
+      id: profileId,
+      name: 'Default',
+      sex: null,
+      dob: null,
+      location: { country: '', zip: '' },
+      tags: [],
+      notes: '',
+      status: 'active',
+      avatar: null,
+      height: null,
+      heightUnit: 'cm',
+      createdAt: Date.now(),
+      lastUpdated: Date.now(),
+      pinned: false,
+    };
+    const restoreStorage = () => {
+      localStorage.clear();
+      for (const [key, value] of localSnapshot) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    };
+    let thrownError = null;
+
+    try {
+      host.innerHTML = `
+        <button id="chat-onboard-next" type="button"></button>
+        <input id="chat-onboard-name" type="text" value="Callback Safe">
+        <input id="chat-onboard-dob" type="date" value="1985-04-12">
+        <input id="chat-onboard-country" type="text">
+        <div id="chat-onboard-lat"></div>
+        <div id="chat-panel" class="open"></div>
+      `;
+      document.body.appendChild(host);
+      localStorage.removeItem('labcharts-chat-nudge');
+      state.currentProfile = profileId;
+      state.profiles = [profileRecord];
+      state.profileSex = 'female';
+      state.profileDob = null;
+      state.importedData = profile.createDefaultProfileData();
+      state.chatHistory = [];
+      localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+
+      onboarding.saveChatProfile(true);
+      outcomes.defaultUpdateNudgeCallbackAllowsProfileAdvance =
+        state.profiles[0].name === 'Callback Safe'
+        && state.profileDob === '1985-04-12'
+        && localStorage.getItem('labcharts-chat-nudge') === null;
+
+      state.importedData = {
+        ...profile.createDefaultProfileData(),
+        entries: [],
+        diet: { pattern: 'Mediterranean' },
+      };
+      onboarding.onContextCardSaved();
+      outcomes.defaultSetNudgeCallbackDoesNotMutateNudgeStorage =
+        localStorage.getItem('labcharts-chat-nudge') === null;
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      state.currentProfile = savedState.currentProfile;
+      state.profiles = savedState.profiles;
+      state.profileSex = savedState.profileSex;
+      state.profileDob = savedState.profileDob;
+      state.importedData = savedState.importedData;
+      state.chatHistory = savedState.chatHistory;
+      restoreStorage();
+      host.remove();
+    }
+    if (thrownError) throw thrownError;
+
+    outcomes.allDefaultCallbackOutcomesReached = Object.keys(outcomes).length === 2;
+    return outcomes;
+  }, { onboardingUrl: moduleUrl('/js/chat-onboarding.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('chat onboarding cycle supplement and provider quiz helpers cover browser paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-input');
