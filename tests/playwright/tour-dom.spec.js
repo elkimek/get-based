@@ -1,11 +1,12 @@
 import { expect, test } from './coverage-fixture.js';
 
-test('guided tour DOM creates, navigates, layers, and restores the empty tour overlay', async ({ page }) => {
+test('guided and cycle tour DOM creates navigates layers and restores overlays', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() =>
     typeof window.startEmptyTour === 'function'
       && typeof window.startTour === 'function'
       && typeof window.startGuidedTour === 'function'
+      && typeof window.startCycleTour === 'function'
       && typeof window.endTour === 'function'
       && typeof window._tourGoToStep === 'function'
   );
@@ -55,17 +56,21 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     const emptyTourKey = `labcharts-${profileId}-emptyTour`;
     const tourKey = `labcharts-${profileId}-tour`;
+    const cycleTourKey = `labcharts-${profileId}-cycleTour`;
     const savedEmptyTourState = localStorage.getItem(emptyTourKey);
     const savedTourState = localStorage.getItem(tourKey);
+    const savedCycleTourState = localStorage.getItem(cycleTourKey);
 
     try {
       localStorage.removeItem(emptyTourKey);
       localStorage.removeItem(tourKey);
+      localStorage.removeItem(cycleTourKey);
       ['tour-overlay', 'tour-spotlight', 'tour-tooltip'].forEach(id => document.getElementById(id)?.remove());
 
       const exportsCallable = typeof window.startEmptyTour === 'function'
         && typeof window.startTour === 'function'
         && typeof window.startGuidedTour === 'function'
+        && typeof window.startCycleTour === 'function'
         && typeof window.endTour === 'function'
         && typeof window._tourGoToStep === 'function';
 
@@ -171,6 +176,27 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
       await wait(50);
 
       localStorage.removeItem(emptyTourKey);
+      window.startGuidedTour(false);
+      await wait(50);
+      const guidedTourChoosesEmptyWelcomeText =
+        document.getElementById('tour-tooltip')?.querySelector('p')?.textContent.includes('fresh profile') === true;
+      const guidedTourChoosesEmptyStepCount =
+        document.getElementById('tour-tooltip')?.querySelectorAll('.tour-dot').length === 5;
+      window.endTour();
+      await wait(50);
+
+      localStorage.removeItem(cycleTourKey);
+      window.startCycleTour(false);
+      await wait(50);
+      const cycleTourStartsAtCycleWelcomeTitle =
+        document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent === 'Cycle-Aware Lab Interpretation';
+      const cycleTourStartsCentered =
+        document.getElementById('tour-spotlight')?.style.display === 'none';
+      window.endTour();
+      await wait(50);
+      const cycleTourCompletesKey = localStorage.getItem(cycleTourKey) === 'completed';
+
+      localStorage.removeItem(emptyTourKey);
       window.startEmptyTour(false);
       await wait(50);
       const overlayStyles = getComputedStyle(document.getElementById('tour-overlay'));
@@ -241,6 +267,11 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
         autoTriggerCompletedNoops,
         legacyEncryptedFlagNoops,
         manualRetriggerIgnoresCompletion,
+        guidedTourChoosesEmptyWelcomeText,
+        guidedTourChoosesEmptyStepCount,
+        cycleTourStartsAtCycleWelcomeTitle,
+        cycleTourStartsCentered,
+        cycleTourCompletesKey,
         zIndexLayering,
         tooltipStaysInViewport,
         stepTargetsExist,
@@ -253,6 +284,8 @@ test('guided tour DOM creates, navigates, layers, and restores the empty tour ov
       else localStorage.removeItem(emptyTourKey);
       if (savedTourState) localStorage.setItem(tourKey, savedTourState);
       else localStorage.removeItem(tourKey);
+      if (savedCycleTourState) localStorage.setItem(cycleTourKey, savedCycleTourState);
+      else localStorage.removeItem(cycleTourKey);
     }
   });
 
