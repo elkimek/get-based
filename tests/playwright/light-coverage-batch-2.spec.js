@@ -529,11 +529,36 @@ test('light tools AI analysis covers per-tool contexts fingerprints and inline s
       const analyzingHtml = analysis.renderMeasurementAIInline(samples[1]);
       releaseFetch();
       await analyzingPromise;
+      let refreshFetchCalls = 0;
+      window.fetch = async (url, options = {}) => {
+        if (String(url).includes('/v1/chat/completions')) {
+          refreshFetchCalls += 1;
+          return new Response(JSON.stringify({
+            choices: [{ message: { content: '{"dot":"red","tip":"refresh tip","detail":"refresh detail"}' } }],
+            usage: { prompt_tokens: 4, completion_tokens: 3 },
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return saved.fetch(url, options);
+      };
+      const refreshedMeasurement = await analysis.refreshMeasurementAIAnalysis('lux-one');
+      const callsAfterRefresh = refreshFetchCalls;
+      let missingMeasurementRefreshCrashed = false;
+      try { await analysis.refreshMeasurementAIAnalysis('missing-measurement'); }
+      catch (_) { missingMeasurementRefreshCrashed = true; }
+      const callsAfterMissingRefresh = refreshFetchCalls;
+      analysis.maybeAnalyzeMeasurementAfterSave(samples[6]);
+      await new Promise(resolve => setTimeout(resolve, 20));
       const okSample = { ...samples[2], aiAnalysis: { status: 'ok', dot: 'green', tip: '<bright>', detail: '<script>x</script>', fingerprint: analysis.getMeasurementFingerprint(samples[2]) } };
       const okHtml = analysis.renderMeasurementAIInline(okSample);
       const errorSample = { ...samples[3], aiAnalysis: { status: 'error', error: 'bad', fingerprint: analysis.getMeasurementFingerprint(samples[3]) } };
       const errorHtml = analysis.renderMeasurementAIInline(errorSample);
       const auditHtml = analysis.renderMeasurementAIInline(samples[6]);
+      outcomes.refreshMeasurementResolvesByIdAndWritesVerdict = refreshedMeasurement?.status === 'ok'
+        && samples[0].aiAnalysis?.tip === 'refresh tip';
+      outcomes.refreshMeasurementUsesSingleApiCall = callsAfterRefresh === 1;
+      outcomes.refreshMeasurementMissingIdNoops = !missingMeasurementRefreshCrashed;
+      outcomes.refreshMeasurementMissingIdSkipsApiCall = callsAfterMissingRefresh === callsAfterRefresh;
+      outcomes.auditMeasurementAutoFireSkipsAggregateRows = refreshFetchCalls === callsAfterMissingRefresh;
       outcomes.inlineIdleShowsAnalyzeButton = idleHtml.includes('Get AI verdict');
       outcomes.inlineAnalyzingShowsProgress = analyzingHtml.includes('Analyzing');
       outcomes.inlineOkShowsGreenDot = okHtml.includes('sun-session-ai-dot-green');
