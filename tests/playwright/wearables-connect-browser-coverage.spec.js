@@ -309,6 +309,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
     };
 
     try {
+      check('adapterSupportsMetric detects real missing and unknown adapter metrics',
+        adapters.adapterSupportsMetric('oura', 'hrv_rmssd') === true &&
+        adapters.adapterSupportsMetric('oura', 'not_a_metric') === false &&
+        adapters.adapterSupportsMetric('not-a-real-adapter', 'steps') === false);
+
       await connect.loadWearableRuntimeConfig();
       check('runtime config applies OAuth client overrides',
         runtimeConfigCalls === 1 &&
@@ -316,6 +321,13 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
         adapters.getOAuthClientId('polar') === 'runtime-polar-client');
       await connect.loadWearableRuntimeConfig();
       check('runtime config promise is reused', runtimeConfigCalls === 1);
+
+      const withingsBaselineClient = adapters.adapterById('withings')?.oauth?.clientId || null;
+      adapters.applyOAuthOverrides({ withings: 'browser-withings-client' });
+      adapters._resetOAuthOverrides();
+      check('reset OAuth overrides restores adapter baseline in browser',
+        adapters.getOAuthClientId('withings') === withingsBaselineClient);
+      adapters.applyOAuthOverrides({ oura: 'runtime-oura-client', polar: 'runtime-polar-client' });
 
       sessionStorage.setItem('polar-oauth-pending', JSON.stringify({
         state: 'polar-state-ok',
