@@ -109,3 +109,137 @@ test('wearables store browser coverage handles rows raw backup metadata and data
 
   expect(results).toEqual([]);
 });
+
+test('wearables store browser coverage rejects IndexedDB request and transaction failures', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const failures = [];
+    const check = (name, condition, detail = '') => {
+      if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
+    };
+    const originalIndexedDB = Object.getOwnPropertyDescriptor(window, 'indexedDB');
+    let mode = 'open-error';
+
+    const requestError = () => {
+      const req = {
+        result: null,
+        error: new Error(`${mode} request failed`),
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      setTimeout(() => req.onerror?.(), 0);
+      return req;
+    };
+    const successRequest = result => {
+      const req = {
+        result,
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      setTimeout(() => req.onsuccess?.(), 0);
+      return req;
+    };
+    const makeTx = () => {
+      const tx = {
+        error: mode === 'tx-abort' ? null : new Error(`${mode} transaction failed`),
+        oncomplete: null,
+        onerror: null,
+        onabort: null,
+        objectStore: () => ({
+          put: () => {
+            setTimeout(() => {
+              if (mode === 'tx-abort') tx.onabort?.();
+              else tx.onerror?.();
+            }, 0);
+          },
+          delete: () => {
+            setTimeout(() => {
+              if (mode === 'tx-abort') tx.onabort?.();
+              else tx.onerror?.();
+            }, 0);
+          },
+          get: () => requestError(),
+          openCursor: () => requestError(),
+          index: () => ({
+            count: () => requestError(),
+            openCursor: () => requestError(),
+          }),
+        }),
+      };
+      return tx;
+    };
+    const fakeDb = {
+      name: 'fake-wearables-error-db',
+      close() {},
+      transaction: () => makeTx(),
+    };
+    const fakeIndexedDB = {
+      open: () => mode === 'open-error' ? requestError() : successRequest(fakeDb),
+      deleteDatabase: () => successRequest(undefined),
+    };
+
+    try {
+      Object.defineProperty(window, 'indexedDB', {
+        configurable: true,
+        value: fakeIndexedDB,
+      });
+      const store = await import(`/js/wearables-store.js?errorCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+      const openError = await store.openWearablesDB('open-fails')
+        .then(() => '', error => error?.message || String(error));
+      check('openWearablesDB rejects when indexedDB.open errors',
+        openError.includes('open-error request failed'), openError);
+
+      mode = 'tx-error';
+      const txError = await store.upsertDaily('fake-profile', { source: 'oura', date: '2026-06-01' })
+        .then(() => '', error => error?.message || String(error));
+      check('txPromise rejects transaction error callbacks',
+        txError.includes('tx-error transaction failed'), txError);
+
+      mode = 'tx-abort';
+      const abortError = await store.deleteDaily('fake-profile', 'oura', '2026-06-01')
+        .then(() => '', error => error?.message || String(error));
+      check('txPromise rejects transaction abort callbacks',
+        abortError.includes('Transaction aborted'), abortError);
+
+      mode = 'batch-read-error';
+      const batchError = await store.upsertDailyBatch('fake-profile', [{ source: 'oura', date: '2026-06-02' }])
+        .then(() => '', error => error?.message || String(error));
+      check('upsertDailyBatch rejects row read request errors',
+        batchError.includes('batch-read-error request failed'), batchError);
+
+      mode = 'get-error';
+      const getError = await store.getDaily('fake-profile', 'oura', '2026-06-02')
+        .then(() => '', error => error?.message || String(error));
+      check('getDaily rejects request errors',
+        getError.includes('get-error request failed'), getError);
+
+      mode = 'range-error';
+      const rangeError = await store.getDailyRangeRaw('fake-profile', 'oura', '2026-06-01', '2026-06-30')
+        .then(() => '', error => error?.message || String(error));
+      check('getDailyRangeRaw rejects cursor request errors',
+        rangeError.includes('range-error request failed'), rangeError);
+      const decryptedRangeError = await store.getDailyRange('fake-profile', 'oura', '2026-06-01', '2026-06-30')
+        .then(() => '', error => error?.message || String(error));
+      check('getDailyRange rejects cursor request errors',
+        decryptedRangeError.includes('range-error request failed'), decryptedRangeError);
+
+      mode = 'count-error';
+      const countError = await store.countSource('fake-profile', 'oura')
+        .then(() => '', error => error?.message || String(error));
+      check('countSource rejects index count request errors',
+        countError.includes('count-error request failed'), countError);
+    } finally {
+      if (originalIndexedDB) Object.defineProperty(window, 'indexedDB', originalIndexedDB);
+      else delete window.indexedDB;
+    }
+
+    return failures;
+  });
+
+  expect(results).toEqual([]);
+});
