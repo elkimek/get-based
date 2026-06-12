@@ -93,6 +93,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       await waitFor(() => localStorage.getItem('labcharts-theme') === 'glass', 'theme commit');
       results.scheduleThemeChangeCommits = document.documentElement.dataset.theme === 'glass';
       const timeBtn = modal.querySelector('[data-settings-action="set-time-format"][data-timefmt="12h"]');
+      if (!timeBtn) throw new Error('time-format 12h button not found in display panel');
       timeBtn.click();
       results.setTimeFormatFromDisplaySettings = localStorage.getItem('labcharts-time-format') === '12h'
         && timeBtn.classList.contains('active')
