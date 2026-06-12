@@ -6,6 +6,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     typeof window.toggleThreadRail === 'function'
       && typeof window.renderThreadList === 'function'
       && typeof window.filterThreadList === 'function'
+      && typeof window.autoNameThread === 'function'
       && !!window._labState
   );
 
@@ -105,6 +106,24 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       window.filterThreadList('nonexistent');
       outcomes.noMatchShowsEmptyState = document.querySelectorAll('.chat-thread-item').length === 0
         && document.querySelector('#chat-thread-list div')?.textContent.includes('No matching') === true;
+      window.filterThreadList('');
+
+      const existingThreadName = state.chatThreads.find(thread => thread.id === 't_b')?.name;
+      window.autoNameThread('t_b', 'This should not rename an existing thread');
+      state.chatThreads.unshift({
+        id: 't_new',
+        name: 'New Conversation',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messageCount: 1,
+        personality: 'default',
+      });
+      window.autoNameThread('t_new', 'What are my vitamin D levels looking like over the past year?');
+      const expectedAutoName = 'What are my vitamin D levels looking\u2026';
+      outcomes.autoNameThreadRenamesOnlyNewConversations =
+        state.chatThreads.find(thread => thread.id === 't_b')?.name === existingThreadName
+        && state.chatThreads.find(thread => thread.id === 't_new')?.name === expectedAutoName
+        && document.querySelector('.chat-thread-item[data-thread-id="t_new"] .chat-thread-item-name')?.textContent === expectedAutoName;
     } finally {
       state.chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
