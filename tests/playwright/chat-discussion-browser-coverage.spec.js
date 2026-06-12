@@ -4,6 +4,79 @@ function moduleUrl(path) {
   return `${path}?chatDiscussionCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+test('chat discussion state reopens ended current thread in browser', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-input');
+
+  const results = await page.evaluate(async ({ discussionStateUrl }) => {
+    const [{ state }, discussionState, chatThreads] = await Promise.all([
+      import('/js/state.js'),
+      import(discussionStateUrl),
+      import('/js/chat-threads.js'),
+    ]);
+    const outcomes = {};
+    const profileId = `discussion-reopen-${Date.now()}`;
+    const saved = {
+      currentProfile: state.currentProfile,
+      currentThreadId: state.currentThreadId,
+      chatThreads: state.chatThreads,
+    };
+    let threadIndexKey = null;
+    let previousIndex = null;
+
+    try {
+      state.currentProfile = profileId;
+      state.currentThreadId = 'discussion-reopen-thread';
+      state.chatThreads = [{
+        id: 'discussion-reopen-thread',
+        name: 'Ended discussion',
+        createdAt: '2026-06-12T00:00:00.000Z',
+        updatedAt: '2026-06-12T00:00:00.000Z',
+        messageCount: 2,
+        personality: 'default',
+        discussionEnded: true,
+        discussionPersonas: [
+          { id: 'default', name: 'Analyst' },
+          { id: 'skeptic', name: 'Skeptic' },
+        ],
+      }];
+      threadIndexKey = chatThreads.getChatThreadsKey();
+      previousIndex = localStorage.getItem(threadIndexKey);
+      localStorage.removeItem(threadIndexKey);
+
+      const reopened = discussionState.reopenCurrentDiscussionThread();
+      const storedThreads = JSON.parse(localStorage.getItem(threadIndexKey) || '[]');
+      outcomes.reopenClearsEndedFlagAndPersistsIndex =
+        reopened?.id === 'discussion-reopen-thread'
+        && !('discussionEnded' in reopened)
+        && storedThreads.some(thread => thread.id === 'discussion-reopen-thread' && !('discussionEnded' in thread));
+
+      const reopenedAgain = discussionState.reopenCurrentDiscussionThread();
+      outcomes.reopenAlreadyOpenThreadReturnsThread =
+        reopenedAgain?.id === 'discussion-reopen-thread'
+        && !('discussionEnded' in reopenedAgain);
+
+      state.currentThreadId = 'missing-thread';
+      outcomes.reopenMissingCurrentThreadReturnsNull =
+        discussionState.reopenCurrentDiscussionThread() === null;
+    } finally {
+      if (threadIndexKey) {
+        if (previousIndex == null) localStorage.removeItem(threadIndexKey);
+        else localStorage.setItem(threadIndexKey, previousIndex);
+      }
+      state.currentProfile = saved.currentProfile;
+      state.currentThreadId = saved.currentThreadId;
+      state.chatThreads = saved.chatThreads;
+    }
+
+    return outcomes;
+  }, { discussionStateUrl: moduleUrl('/js/chat-discussion-state.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('chat prompt context attestation and discussion prompt helpers cover browser branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#chat-input');
