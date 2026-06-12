@@ -48,9 +48,6 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
           writeText: async value => { writes.push(String(value)); },
         },
       });
-      controls.configureLocalAiControls({
-        returnToChatIfOnboarding: () => { chatReturns += 1; },
-      });
 
       document.body.insertAdjacentHTML('beforeend', `
         <section id="local-ai-fixture">
@@ -75,6 +72,34 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       const urlInput = document.getElementById('local-ai-url-input');
       const statusText = document.getElementById('local-ai-status-text');
       const dot = document.getElementById('local-ai-dot');
+
+      window.fetch = async function(url, opts = {}) {
+        const href = typeof url === 'string' ? url : url?.url || '';
+        if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD') {
+          return new Response('', { status: 204 });
+        }
+        if (href === 'http://localhost:11434/v1/models') {
+          return jsonResponse({
+            data: [{ id: 'llama3.2', name: 'Llama 3.2', size: 3200000000 }],
+          });
+        }
+        if (href === 'http://localhost:11434/api/tags') {
+          return jsonResponse({
+            models: [{ name: 'llama3.2', size: 3200000000, details: { parameter_size: '3B', quantization_level: 'Q4_K_M', family: 'llama' } }],
+          });
+        }
+        return oldGlobals.fetch.call(window, url, opts);
+      };
+      urlInput.value = 'http://localhost:11434';
+      await controls.testOllamaConnection();
+      await wait(0);
+      const defaultReturnCallbackAllowsConnection = statusText.textContent.includes('Connected')
+        && dot.classList.contains('connected')
+        && chatReturns === 0;
+
+      controls.configureLocalAiControls({
+        returnToChatIfOnboarding: () => { chatReturns += 1; },
+      });
 
       urlInput.value = 'not a url';
       await controls.testOllamaConnection();
@@ -134,6 +159,14 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && privacyUpdates >= 1
         && chatReturns === 1;
 
+      document.getElementById('local-ai-advisor').innerHTML = '';
+      controls.refreshModelAdvisor();
+      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b'); i += 1) {
+        await wait(10);
+      }
+      const refreshModelAdvisorRerendersCachedDetails =
+        document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b');
+
       controls.copyOllamaPullCmd('ollama pull qwen2.5:14b');
       await wait(0);
       const copyPullCommand = writes.includes('ollama pull qwen2.5:14b');
@@ -169,9 +202,11 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && document.querySelector('.model-advisor-override-body')?.style.display === 'flex';
 
       return {
+        defaultReturnCallbackAllowsConnection,
         invalidUrlBranch,
         corsHelp,
         localConnectSuccess,
+        refreshModelAdvisorRerendersCachedDetails,
         copyPullCommand,
         hardwareOverrideApplied,
         invalidHardwareOverride,
