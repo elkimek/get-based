@@ -20,6 +20,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       startOpenRouterOAuth: window.startOpenRouterOAuth,
       openSettingsModal: window.openSettingsModal,
       loadDemoData: window.loadDemoData,
+      navigate: window.navigate,
     };
     const calls = [];
 
@@ -27,6 +28,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       window.startOpenRouterOAuth = () => calls.push(['oauth']);
       window.openSettingsModal = tab => calls.push(['settings', tab]);
       window.loadDemoData = sex => calls.push(['demo', sex]);
+      window.navigate = view => calls.push(['navigate', view]);
       state.profileSex = 'female';
 
       await progress.showImportProgress(2, '<cbc>.pdf');
@@ -44,17 +46,47 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
         && fab?.classList.contains('hidden') === false
         && fab?.querySelector('.import-status-label')?.textContent === '42%';
 
+      const progressBar = dropZone?.querySelector('.import-progress-bar');
+      let progressScrolled = false;
+      if (progressBar) {
+        const originalScrollIntoView = progressBar.scrollIntoView;
+        progressBar.scrollIntoView = options => {
+          progressScrolled = options?.behavior === 'smooth' && options?.block === 'center';
+        };
+        progress.handleImportStatusClick();
+        progressBar.scrollIntoView = originalScrollIntoView;
+      }
+      outcomes.importStatusClickScrollsRunningProgress = progressScrolled;
+
       await progress.showBatchImportProgress(1, 'batch-two.pdf', 2, 5);
       outcomes.batchProgressShowsCounterAndFabLabel = dropZone?.querySelector('.batch-progress-counter')?.textContent === 'Processing file 2 of 5'
         && fab?.querySelector('.import-status-label')?.textContent.includes('2/5') === true
         && fab?.querySelector('.import-status-label')?.textContent.includes('8%') === true;
 
       const importOverlay = document.getElementById('import-modal-overlay');
+      let previewScrolled = false;
+      if (importOverlay) {
+        const originalScrollIntoView = importOverlay.scrollIntoView;
+        importOverlay.scrollIntoView = options => {
+          previewScrolled = options?.behavior === 'smooth';
+        };
+        importOverlay.classList.add('show');
+        progress.handleImportStatusClick();
+        importOverlay.classList.remove('show');
+        importOverlay.scrollIntoView = originalScrollIntoView;
+      }
+      outcomes.importStatusClickScrollsOpenPreview = previewScrolled;
+
       importOverlay?.classList.add('show');
       progress.syncImportStatusFab();
       outcomes.previewOverlayHidesStatusFab = fab?.classList.contains('hidden') === true
         && dropZone?.style.display === 'none';
       importOverlay?.classList.remove('show');
+
+      dropZone?.querySelector('.import-progress-bar')?.remove();
+      progress.handleImportStatusClick();
+      outcomes.importStatusClickNavigatesWhenProgressBarIsMissing = calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard');
+
       progress.hideImportProgress('cancel');
       outcomes.cancelHidesStatusFab = fab?.classList.contains('hidden') === true;
 
@@ -85,6 +117,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       window.startOpenRouterOAuth = saved.startOpenRouterOAuth;
       window.openSettingsModal = saved.openSettingsModal;
       window.loadDemoData = saved.loadDemoData;
+      window.navigate = saved.navigate;
       progress.hideImportProgress('cancel');
       document.getElementById('import-modal-overlay')?.classList.remove('show');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
