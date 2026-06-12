@@ -244,3 +244,64 @@ test('sync configure browser coverage wires globals ui and relay quota notificat
     expect(passed, name).toBe(true);
   }
 });
+
+test('sync relay health browser coverage handles default owner reset and verdict snapshots', async ({ page }) => {
+  await openBlankPage(page, '/sync-relay-health-browser-coverage');
+
+  const results = await page.evaluate(async ({ relayUrl }) => {
+    const relayHealth = await import(relayUrl);
+    const outcomes = {};
+    const ownerId = `relay-health-owner-${Date.now()}`;
+    const relayBytesKey = `labcharts-relay-bytes-${ownerId}`;
+    const originalRelayBytes = localStorage.getItem(relayBytesKey);
+    let thrownError = null;
+
+    try {
+      localStorage.removeItem(relayBytesKey);
+
+      const defaultEstimate = relayHealth.getRelayQuotaEstimate();
+      const defaultReset = relayHealth.resetRelayQuotaEstimate();
+      outcomes.defaultOwnerDependencyReturnsEmptyState =
+        defaultEstimate === null
+        && defaultReset === false;
+
+      relayHealth.configureRelayHealth({
+        getAppOwner: () => ({ id: ownerId, writeKey: new Uint8Array([1, 2, 3, 4]) }),
+        getSyncRelay: () => 'wss://relay.example.test',
+      });
+
+      relayHealth.trackPushBytes(4096);
+      const beforeReset = relayHealth.getRelayQuotaEstimate();
+      const didReset = relayHealth.resetRelayQuotaEstimate();
+      const afterReset = relayHealth.getRelayQuotaEstimate();
+      outcomes.resetRelayQuotaEstimateClearsOwnerScopedBytes =
+        beforeReset?.bytes === 4096
+        && localStorage.getItem(relayBytesKey) === null
+        && didReset === true
+        && afterReset?.bytes === 0;
+
+      const firstVerdict = relayHealth.getRelayHealthVerdict();
+      firstVerdict.verdict = 'mutated';
+      const secondVerdict = relayHealth.getRelayHealthVerdict();
+      outcomes.getRelayHealthVerdictReturnsStableCopy =
+        secondVerdict.verdict === 'unknown'
+        && secondVerdict.reason === null
+        && typeof secondVerdict.at === 'number';
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      if (originalRelayBytes == null) localStorage.removeItem(relayBytesKey);
+      else localStorage.setItem(relayBytesKey, originalRelayBytes);
+    }
+    if (thrownError) throw thrownError;
+
+    outcomes.allRelayHealthOutcomesReached = Object.keys(outcomes).length === 3;
+    return outcomes;
+  }, {
+    relayUrl: moduleUrl('/js/sync-relay-health.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
