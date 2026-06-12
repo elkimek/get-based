@@ -106,6 +106,61 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
         'prototype.foo',
       ].every(key => utils.sanitizeMarkerKey(key) === null);
 
+    const analyticsKeys = ['labcharts-analytics-disabled', 'labcharts-analytics-consent-seen'];
+    const oldAnalytics = {};
+    for (const key of analyticsKeys) oldAnalytics[key] = localStorage.getItem(key);
+    try {
+      for (const key of analyticsKeys) localStorage.removeItem(key);
+      document.body.classList.remove('analytics-consent-visible');
+      document.getElementById('analytics-consent-banner')?.remove();
+
+      utils.setAnalyticsEnabled(true);
+      const analyticsCanEnable = utils.isAnalyticsEnabled()
+        && localStorage.getItem('labcharts-analytics-disabled') === 'false';
+      utils.setAnalyticsEnabled(false);
+      const analyticsCanDisable = !utils.isAnalyticsEnabled()
+        && localStorage.getItem('labcharts-analytics-disabled') === 'true';
+
+      utils.setAnalyticsEnabled(true);
+      utils.maybeShowAnalyticsConsent();
+      utils.maybeShowAnalyticsConsent();
+      const banner = document.getElementById('analytics-consent-banner');
+      const analyticsBannerRendersOnce = document.querySelectorAll('#analytics-consent-banner').length === 1
+        && banner?.getAttribute('role') === 'region'
+        && document.body.classList.contains('analytics-consent-visible');
+      utils.dismissAnalyticsConsent();
+      const analyticsDismissMarksSeenAndRemovesBanner =
+        localStorage.getItem('labcharts-analytics-consent-seen') === '1'
+        && !document.getElementById('analytics-consent-banner')
+        && !document.body.classList.contains('analytics-consent-visible');
+      utils.maybeShowAnalyticsConsent();
+      const analyticsSeenConsentSuppressesBanner =
+        localStorage.getItem('labcharts-analytics-consent-seen') === '1'
+        && !document.getElementById('analytics-consent-banner')
+        && !document.body.classList.contains('analytics-consent-visible');
+
+      for (const key of analyticsKeys) localStorage.removeItem(key);
+      utils.maybeShowAnalyticsConsent();
+      utils.dismissAnalyticsConsentAndDisable();
+      outcomes.analyticsConsentHelpersCoverStorageBannerAndDisable =
+        analyticsCanEnable
+        && analyticsCanDisable
+        && analyticsBannerRendersOnce
+        && analyticsDismissMarksSeenAndRemovesBanner
+        && analyticsSeenConsentSuppressesBanner
+        && localStorage.getItem('labcharts-analytics-disabled') === 'true'
+        && localStorage.getItem('labcharts-analytics-consent-seen') === '1'
+        && !document.getElementById('analytics-consent-banner')
+        && !document.body.classList.contains('analytics-consent-visible');
+    } finally {
+      document.getElementById('analytics-consent-banner')?.remove();
+      document.body.classList.remove('analytics-consent-visible');
+      for (const key of analyticsKeys) {
+        if (oldAnalytics[key] == null) localStorage.removeItem(key);
+        else localStorage.setItem(key, oldAnalytics[key]);
+      }
+    }
+
     const inlineHtml = markdown.applyInlineMarkdown(
       '**bold** and *italic* with `code`, [safe](https://example.com/"quoted"), [bad](javascript:alert(1)), https://docs.example/path and <script>'
     );
