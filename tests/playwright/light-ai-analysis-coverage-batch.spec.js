@@ -545,6 +545,15 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && screenAI.renderScreenAIBlock(phoneScreen).includes('screen failed')
         && onboarding.renderOnboardingAIBlock().includes('setup failed');
 
+      delete auditSnapshot.aiAnalysis;
+      const auditRefresh = await audit.refreshAuditAIAnalysis('audit-ai');
+      let missingAuditRefreshCrashed = false;
+      try { await audit.refreshAuditAIAnalysis('missing-audit'); }
+      catch (_) { missingAuditRefreshCrashed = true; }
+      outcomes.auditRefreshResolvesByIdAndWritesVerdict = auditRefresh?.status === 'ok'
+        && auditSnapshot.aiAnalysis?.tip === 'auto tip';
+      outcomes.auditRefreshMissingIdNoops = !missingAuditRefreshCrashed;
+
       delete bedroom.aiAnalysis;
       const roomRefresh = await roomAI.refreshRoomAIAnalysis('bedroom');
       let missingRoomRefreshCrashed = false;
