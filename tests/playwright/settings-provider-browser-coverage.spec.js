@@ -161,11 +161,11 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       document.getElementById('local-ai-advisor').innerHTML = '';
       controls.refreshModelAdvisor();
-      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('llama3.2'); i += 1) {
+      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b'); i += 1) {
         await wait(10);
       }
       const refreshModelAdvisorRerendersCachedDetails =
-        document.getElementById('local-ai-advisor')?.textContent.includes('llama3.2');
+        document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b');
 
       controls.copyOllamaPullCmd('ollama pull qwen2.5:14b');
       await wait(0);
