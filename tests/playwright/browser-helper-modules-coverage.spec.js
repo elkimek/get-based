@@ -133,6 +133,11 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
         localStorage.getItem('labcharts-analytics-consent-seen') === '1'
         && !document.getElementById('analytics-consent-banner')
         && !document.body.classList.contains('analytics-consent-visible');
+      utils.maybeShowAnalyticsConsent();
+      const analyticsSeenConsentSuppressesBanner =
+        localStorage.getItem('labcharts-analytics-consent-seen') === '1'
+        && !document.getElementById('analytics-consent-banner')
+        && !document.body.classList.contains('analytics-consent-visible');
 
       for (const key of analyticsKeys) localStorage.removeItem(key);
       utils.maybeShowAnalyticsConsent();
@@ -142,6 +147,7 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
         && analyticsCanDisable
         && analyticsBannerRendersOnce
         && analyticsDismissMarksSeenAndRemovesBanner
+        && analyticsSeenConsentSuppressesBanner
         && localStorage.getItem('labcharts-analytics-disabled') === 'true'
         && localStorage.getItem('labcharts-analytics-consent-seen') === '1'
         && !document.getElementById('analytics-consent-banner')
