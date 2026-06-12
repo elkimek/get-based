@@ -252,6 +252,11 @@ test('correlations browser contract filters markers toggles chips and builds cha
       const ldlMarker = activeData.categories.lipids.markers.ldl;
       const expectedLdlPct = ((2.3 - ldlMarker.refMin) / (ldlMarker.refMax - ldlMarker.refMin)) * 100;
       const optionCount = document.querySelectorAll('.corr-option').length;
+      const dropdown = document.getElementById('corr-options');
+      dropdown?.classList.remove('show');
+      compare.showCorrelationDropdown();
+      outcomes.showCorrelationDropdownOpensOptions = dropdown?.classList.contains('show') === true;
+      dropdown?.classList.remove('show');
       document.getElementById('corr-search').value = 'vitamin';
       compare.filterCorrelationOptions();
       const vitaminOption = Array.from(document.querySelectorAll('.corr-option'))
@@ -343,6 +348,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
   });
 
   const expectedOutcomeKeys = [
+    'showCorrelationDropdownOpensOptions',
     'searchDropdownFiltersByMarkerOrCategory',
     'singleMarkerRendersChipWithoutChart',
     'secondMarkerBuildsNormalizedChart',
