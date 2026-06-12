@@ -432,6 +432,145 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
   }
 });
 
+test('PDF import scanned PDF dialog covers image mode choices', async ({ page }) => {
+  await page.route('**/js/pdfjs-loader.js', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: `
+      export function loadPdfJs() { return Promise.resolve({}); }
+      export async function getPdfDocument() {
+        return {
+          numPages: 1,
+          async getPage() {
+            return {
+              async getTextContent() { return { items: [] }; },
+              getViewport() { return { width: 10, height: 10 }; },
+              render() { return { promise: Promise.resolve() }; },
+            };
+          },
+        };
+      }
+    `,
+  }));
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#drop-zone', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ pdfImportUrl }) => {
+    const pdfImport = await import(pdfImportUrl);
+    const outcomes = {};
+    const original = {
+      setTimeout: window.setTimeout,
+      aiProvider: localStorage.getItem('labcharts-ai-provider'),
+      aiPaused: localStorage.getItem('labcharts-ai-paused'),
+    };
+    let createdConfirmOverlay = false;
+    let createdConfirmDialog = false;
+
+    const waitFor = async (predicate, label) => {
+      for (let i = 0; i < 120; i += 1) {
+        const value = predicate();
+        if (value) return value;
+        await new Promise(resolve => original.setTimeout.call(window, resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
+    const ensureConfirmDialog = () => {
+      let overlay = document.getElementById('confirm-dialog-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'confirm-dialog-overlay';
+        overlay.className = 'confirm-overlay';
+        document.body.appendChild(overlay);
+        createdConfirmOverlay = true;
+      }
+      let dialog = document.getElementById('confirm-dialog');
+      if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'confirm-dialog';
+        dialog.className = 'confirm-dialog';
+        overlay.appendChild(dialog);
+        createdConfirmDialog = true;
+      }
+    };
+    const notificationsText = () => Array.from(document.querySelectorAll('.notification-toast'))
+      .map(toast => toast.textContent || '')
+      .join('\n');
+    const runChoice = async (choice) => {
+      ensureConfirmDialog();
+      document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+      document.getElementById('ai-needed-overlay')?.classList.remove('show');
+      window.hideImportProgress?.('cancel');
+
+      const file = new File(['%PDF-1.4 scanned'], `scanned-${choice}.pdf`, { type: 'application/pdf' });
+      const pending = pdfImport.handlePDFFile(file);
+      const dialogState = await waitFor(() => {
+        const overlay = document.getElementById('confirm-dialog-overlay');
+        const dialog = document.getElementById('confirm-dialog');
+        const buttons = dialog ? Array.from(dialog.querySelectorAll('button')) : [];
+        if (overlay?.classList.contains('show') && buttons.length === 3) return { overlay, buttons };
+        return null;
+      }, `${choice} scanned PDF dialog`);
+
+      if (choice === 'escape') {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      } else {
+        const label = choice === 'cancel' ? 'Cancel' : choice === 'text' ? 'Try text anyway' : 'Use image mode';
+        dialogState.buttons.find(btn => btn.textContent.trim() === label)?.click();
+      }
+      await pending;
+
+      return {
+        hidden: dialogState.overlay.classList.contains('show') === false,
+        notifications: notificationsText(),
+        aiNeeded: document.getElementById('ai-needed-overlay')?.classList.contains('show') === true,
+        aiNeededText: document.getElementById('ai-needed-overlay')?.textContent || '',
+      };
+    };
+
+    try {
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'true');
+
+      const cancel = await runChoice('cancel');
+      outcomes.cancelChoiceClosesScannedPdfDialog = cancel.hidden
+        && !cancel.notifications.includes('PDF appears empty')
+        && cancel.aiNeeded === false;
+
+      const text = await runChoice('text');
+      outcomes.textChoiceContinuesToEmptyPdfError = text.hidden
+        && text.notifications.includes('PDF appears empty');
+
+      const image = await runChoice('image');
+      outcomes.imageChoiceShowsImageAiNeededDialog = image.hidden
+        && image.aiNeeded
+        && image.aiNeededText.includes('Reading lab values from an image');
+
+      const escape = await runChoice('escape');
+      outcomes.escapeKeyCancelsScannedPdfDialog = escape.hidden
+        && escape.aiNeeded === false
+        && !escape.notifications.includes('PDF appears empty');
+    } finally {
+      if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
+      else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
+      if (original.aiPaused == null) localStorage.removeItem('labcharts-ai-paused');
+      else localStorage.setItem('labcharts-ai-paused', original.aiPaused);
+      window.hideImportProgress?.('cancel');
+      document.getElementById('ai-needed-overlay')?.classList.remove('show');
+      document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
+      document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+      if (createdConfirmDialog && !createdConfirmOverlay) document.getElementById('confirm-dialog')?.remove();
+      if (createdConfirmOverlay) document.getElementById('confirm-dialog-overlay')?.remove();
+    }
+
+    return outcomes;
+  }, {
+    pdfImportUrl: moduleUrl('/js/pdf-import.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
 test('PDF import confirm flow covers preview persistence', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
