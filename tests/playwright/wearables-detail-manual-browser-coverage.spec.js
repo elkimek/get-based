@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 
-test('wearables detail modal covers delegated manual add save and cancel flows', async ({ page }) => {
+test('wearables detail modal covers manual migration delegated add save and cancel flows', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const failures = await page.evaluate(async () => {
@@ -73,6 +73,37 @@ test('wearables detail modal covers delegated manual add save and cancel flows',
         changeHistory: [],
       };
       window.navigate = route => calls.push(['navigate', route]);
+
+      const migration = await manual.migrateBiometricsToManual(profileId, {
+        weight: [
+          { date: '2026-05-01', value: 154.3234, unit: 'lb' },
+          { date: '', value: 90, unit: 'kg' },
+        ],
+        bp: [
+          { date: '2026-05-01', systolic: 118, diastolic: 74 },
+          { date: '2026-05-02', systolic: 121 },
+        ],
+        pulse: [
+          { date: '2026-05-01', value: 61 },
+        ],
+      });
+      const migratedJointRow = await store.getDaily(profileId, 'manual', '2026-05-01');
+      const migratedBpOnlyRow = await store.getDaily(profileId, 'manual', '2026-05-02');
+      check('biometrics migration reports grouped manual rows', migration?.counts?.rows === 2);
+      check('biometrics migration converts legacy pounds to kilograms',
+        Math.abs((migratedJointRow?.weight || 0) - 70) < 0.01);
+      check('biometrics migration merges same-date systolic patch',
+        migratedJointRow?.bp_systolic === 118);
+      check('biometrics migration merges same-date diastolic patch',
+        migratedJointRow?.bp_diastolic === 74);
+      check('biometrics migration merges same-date pulse patch',
+        migratedJointRow?.rhr === 61);
+      check('biometrics migration preserves bp-only systolic dates',
+        migratedBpOnlyRow?.bp_systolic === 121);
+      check('biometrics migration does not leak diastolic into bp-only dates',
+        migratedBpOnlyRow?.bp_diastolic == null);
+      check('biometrics migration refreshes manual connection coverage',
+        state.importedData.wearableConnections?.manual?.coverageDays === 2);
 
       await manual.logManualMetric(profileId, 'weight', { date: '2026-06-01', value: 80 });
       await manual.logManualMetric(profileId, 'rhr', { date: '2026-06-01', value: 62, tags: ['resting'] });
