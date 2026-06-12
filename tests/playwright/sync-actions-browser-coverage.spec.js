@@ -246,6 +246,14 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       await actions.syncNow();
       await actions.forceResendCurrentProfile();
       outcomes.defaultActionDependenciesAreSafeNoops = pushes.length === 0 && pulls.length === 0;
+      actions.configureSyncActions({
+        isEvoluReady: () => true,
+        pushProfile: async (id, data, options) => {
+          pushes.push({ id, data: clone(data), options: clone(options || null) });
+        },
+      });
+      await actions.forceResendCurrentProfile();
+      outcomes.defaultSyncEnabledDependencyGatesForceResend = pushes.length === 0;
 
       let enabled = false;
       let ready = false;
@@ -347,6 +355,11 @@ test('sync indicator popover renders debug actions and copies activity', async (
       if (!slot.parentNode) document.body.appendChild(slot);
       localStorage.setItem('labcharts-debug', 'true');
       syncState.resetSyncStatus();
+
+      slot.innerHTML = '<span>stale</span>';
+      syncUi.renderSyncIndicator();
+      outcomes.defaultSyncUIEnabledDependencyClearsSlot = slot.innerHTML === '';
+
       syncUi.configureSyncUI({ isSyncEnabled: () => enabled });
 
       syncUi.renderSyncIndicator();
