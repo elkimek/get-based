@@ -16,6 +16,7 @@ import {
   rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import {
@@ -439,8 +440,8 @@ export function showInsufficientBalanceDialog() {
       '<button class="confirm-btn confirm-btn-cancel" id="or-nb-cancel">Not now</button>' +
     '</div>' +
   '</div>';
-  overlay.classList.add('show');
-  const close = function() { overlay.classList.remove('show'); };
+  openModalOverlay(overlay, { initialFocus: '#or-add-credits', focusDelay: 50 });
+  const close = function() { closeModalOverlay(overlay); };
   document.getElementById('or-add-credits').onclick = function() {
     close();
     window.open('https://openrouter.ai/settings/credits', '_blank', 'noopener');

@@ -2,6 +2,7 @@
 // recommendation-actions.js - recommendation modal and action handlers
 
 import { escapeHTML } from './utils.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 
 function setDetailModalShell(...classes) {
   const modal = document.getElementById('detail-modal');
@@ -24,7 +25,7 @@ export function createRecommendationActions({
     modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
       <h3>${escapeHTML(label || 'Recommendation')}</h3>
       <div class="dashboard-widget-empty">Loading options...</div>`;
-    overlay.classList.add("show");
+    openModalOverlay(overlay);
     Promise.resolve(window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus }))
       .then(html => {
         modal.innerHTML = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>

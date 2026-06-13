@@ -136,7 +136,7 @@ globalThis.fetch = async (url, opts) => {
   const { createRecommendationActions } = await import('../js/recommendation-actions.js');
   const originalGetElementById = document.getElementById;
   const modalStub = { className: 'modal', innerHTML: '' };
-  const overlayStub = { classList: { add: () => {} } };
+  const overlayStub = { classList: { add: () => {}, contains: () => false } };
   document.getElementById = (id) => id === 'detail-modal' ? modalStub : id === 'modal-overlay' ? overlayStub : null;
   createRecommendationActions({
     getActiveData: () => ({}),
