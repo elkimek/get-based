@@ -188,6 +188,11 @@ console.log('=== Phase 3 A11y Tests ===\n');
     synthPrimaryHoverRule[0].includes('.light-today-cta:not(.light-today-cta-secondary):hover') &&
     synthPrimaryHoverRule[0].includes('.sun-session-ctl-stop:hover') &&
     synthPrimaryHoverRule[0].includes('.import-btn-primary:hover'));
+  const darkCtaHoverRule = themesSrc.match(/\[data-theme="cyberterm"\]\s+\.dashboard-action-btn-primary:hover,[\s\S]*?\{[^}]*color:\s*#fff/);
+  assert('terminal glass neuromancer primary dashboard CTA hovers use light text',
+    !!darkCtaHoverRule &&
+    darkCtaHoverRule[0].includes('[data-theme="glass"] .dashboard-action-btn-primary:hover') &&
+    darkCtaHoverRule[0].includes('[data-theme="neuromancer"] .dashboard-action-btn-primary:hover'));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');

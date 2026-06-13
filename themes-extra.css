@@ -359,11 +359,23 @@
 /* #ff2bd6 with white foreground is under AA for normal text; this dark
    foreground keeps synth active controls readable. */
 [data-theme="synth-sunrise"] { --on-accent: #0d0524; }
+[data-theme="neuromancer"] { --on-accent: #050608; }
+[data-theme="cyberterm"] .dashboard-action-btn-primary,
+[data-theme="glass"] .dashboard-action-btn-primary,
+[data-theme="neuromancer"] .dashboard-action-btn-primary {
+  transition: border-color 0.15s, transform 0.05s;
+}
+[data-theme="cyberterm"] .dashboard-action-btn-primary:hover,
+[data-theme="glass"] .dashboard-action-btn-primary:hover,
+[data-theme="neuromancer"] .dashboard-action-btn-primary:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: #fff;
+}
 [data-theme="synth-sunrise"] .dashboard-action-btn-primary:hover,
 [data-theme="synth-sunrise"] .light-today-cta:not(.light-today-cta-secondary):hover,
 [data-theme="synth-sunrise"] .sun-session-ctl-stop:hover,
 [data-theme="synth-sunrise"] .import-btn-primary:hover { color: #fff; }
-[data-theme="neuromancer"] { --on-accent: #050608; }
 
 [data-theme="cyberterm"] .brand-mark::before {
   content: "$ ";

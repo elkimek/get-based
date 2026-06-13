@@ -6,6 +6,14 @@ import { escapeHTML } from './utils.js';
 
 const CHANGELOG = [
   {
+    version: '1.8.455', date: '2026-06-13', title: 'XLSX lab imports and improvements',
+    items: [
+      '<b>XLSX lab import support.</b> Excel lab reports can now be imported alongside PDFs and CSVs.',
+      '<b>Bugfixes and improvements.</b> Improved import reliability and fixed theme CTA hover contrast issues.',
+      '<b>Substantial codebase improvements.</b> Expanded browser test coverage and cleaned up shared app behavior.',
+    ]
+  },
+  {
     version: '1.8.358', date: '2026-06-03', title: 'Private profile sharing',
     items: [
       '<b>Password-protected profile links.</b> Share an encrypted profile copy with someone else, then keep the link and password separate.',
