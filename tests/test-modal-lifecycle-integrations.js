@@ -14,6 +14,7 @@ const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lif
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor.js'), 'utf8');
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
+const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
@@ -21,6 +22,10 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.j
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
+const knowledgeBaseModalSrc = lensSrc.slice(
+  lensSrc.indexOf('export function openKnowledgeBaseModal'),
+  lensSrc.indexOf('function _kbModalKeydown')
+);
 
 let passed = 0;
 let failed = 0;
@@ -115,6 +120,14 @@ assert('sync setup and restore dialogs use shared lifecycle helpers',
 
 assert('global focus trap top-overlay check includes confirm overlays',
   appEventsSrc.includes("'.modal-overlay.show, .confirm-overlay.show'"));
+
+assert('knowledge base modal uses shared lifecycle helpers',
+  lensSrc.includes("from './modal-lifecycle.js'") &&
+    knowledgeBaseModalSrc.includes('wireBackdropClose(overlay, closeKnowledgeBaseModal)') &&
+    knowledgeBaseModalSrc.includes('openModalOverlay(overlay, {') &&
+    knowledgeBaseModalSrc.includes("closeModalOverlay('kb-modal-overlay')") &&
+    !knowledgeBaseModalSrc.includes("overlay.classList.add('show')") &&
+    !knowledgeBaseModalSrc.includes("overlay.classList.remove('show')"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
