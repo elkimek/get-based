@@ -4,6 +4,7 @@
 import { escapeHTML, showNotification } from './utils.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug Report', prefix: '[Bug]', ghLabel: 'bug', placeholder: 'Brief description of the bug' },
@@ -49,13 +50,11 @@ export function openFeedbackModal() {
       </div>
     </form>
     </div>`;
-  overlay.classList.add('show');
-  // Focus the title input
-  setTimeout(() => document.getElementById('feedback-title')?.focus(), 50);
+  openModalOverlay(overlay, { initialFocus: '#feedback-title', focusDelay: 50 });
 }
 
 export function closeFeedbackModal() {
-  document.getElementById('feedback-modal-overlay')?.classList.remove('show');
+  closeModalOverlay('feedback-modal-overlay');
 }
 
 export function submitFeedback() {
