@@ -37,6 +37,9 @@ import {
 } from '../dev-server.js';
 
 let passed = 0, failed = 0;
+const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
+const LOOPBACK_ORIGIN = `http://127.0.0.1:${DEV_SERVER_PORT}`;
+const LOCALHOST_ORIGIN = `http://localhost:${DEV_SERVER_PORT}`;
 function assert(name, cond, detail) {
   if (cond) { console.log(`  PASS: ${name}`); passed++; }
   else { console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); failed++; }
@@ -240,9 +243,9 @@ function reqWith(headers = {}, remoteAddress = '') {
 }
 
 assert('isSameOrigin accepts allowed Origin',
-  isSameOrigin(reqWith({ origin: 'http://127.0.0.1:8000' })));
+  isSameOrigin(reqWith({ origin: LOOPBACK_ORIGIN })));
 assert('isSameOrigin accepts allowed Referer origin',
-  isSameOrigin(reqWith({ referer: 'http://localhost:8000/app?x=1' })));
+  isSameOrigin(reqWith({ referer: `${LOCALHOST_ORIGIN}/app?x=1` })));
 assert('isSameOrigin rejects missing headers',
   !isSameOrigin(reqWith({})));
 assert('isSameOrigin rejects malformed Referer',
@@ -261,19 +264,19 @@ assert('host origin match accepts http/https exact host',
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'http://phone.tailnet.ts.net:8000' })) &&
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'https://phone.tailnet.ts.net:8000' })));
 assert('host origin match rejects missing and mismatched headers',
-  !_isHostOriginMatch(reqWith({ origin: 'http://127.0.0.1:8000' })) &&
-  !_isHostOriginMatch(reqWith({ host: '127.0.0.1:8000', origin: 'https://evil.example' })));
+  !_isHostOriginMatch(reqWith({ origin: LOOPBACK_ORIGIN })) &&
+  !_isHostOriginMatch(reqWith({ host: `127.0.0.1:${DEV_SERVER_PORT}`, origin: 'https://evil.example' })));
 
 {
-  const headers = corsHeaders(reqWith({ origin: 'http://127.0.0.1:8000' }));
+  const headers = corsHeaders(reqWith({ origin: LOOPBACK_ORIGIN }));
   assert('corsHeaders reflects allowed Origin',
-    headers['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' && headers.Vary === 'Origin',
+    headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN && headers.Vary === 'Origin',
     JSON.stringify(headers));
 }
 {
-  const headers = corsHeaders(reqWith({ referer: 'http://localhost:8000/app' }));
+  const headers = corsHeaders(reqWith({ referer: `${LOCALHOST_ORIGIN}/app` }));
   assert('corsHeaders reflects allowed Referer origin',
-    headers['Access-Control-Allow-Origin'] === 'http://localhost:8000' && headers.Vary === 'Origin',
+    headers['Access-Control-Allow-Origin'] === LOCALHOST_ORIGIN && headers.Vary === 'Origin',
     JSON.stringify(headers));
 }
 assert('corsHeaders omits foreign origins',
@@ -297,12 +300,12 @@ function captureJsonResponse() {
 
 {
   const { res, out } = captureJsonResponse();
-  _sendProfileShareJSON(reqWith({ origin: 'http://127.0.0.1:8000' }), res, 201, { ok: true });
+  _sendProfileShareJSON(reqWith({ origin: LOOPBACK_ORIGIN }), res, 201, { ok: true });
   assert('profile share JSON helper writes JSON and CORS headers',
     out.status === 201 &&
     out.headers?.['Content-Type'] === 'application/json' &&
     out.headers?.['Cache-Control'] === 'no-store' &&
-    out.headers?.['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' &&
+    out.headers?.['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN &&
     JSON.parse(out.body).ok === true,
     JSON.stringify(out));
 }
@@ -359,9 +362,11 @@ function invokeProfileShareDev(method, search = '', body, headers = {}) {
         resolve(out);
       },
     };
-    _handleProfileShareDev(req, res, new URL(`http://localhost/api/share${search}`));
+    _handleProfileShareDev(req, res, new URL(`${LOCALHOST_ORIGIN}/api/share${search}`));
     if (body !== undefined) {
       req.emit('data', Buffer.from(String(body)));
+    }
+    if (body !== undefined || method === 'POST' || method === 'DELETE') {
       req.emit('end');
     }
   });
@@ -395,13 +400,13 @@ function jsonBody(out) {
     id,
     manageTokenHash,
     envelope,
-  }), { origin: 'http://127.0.0.1:8000' });
+  }), { origin: LOOPBACK_ORIGIN });
   const createBody = jsonBody(createOut);
   assert('profile share dev POST stores valid encrypted share',
     createOut.status === 201 &&
     createBody.id === id &&
     createBody.sizeBytes > 0 &&
-    createOut.headers?.['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000',
+    createOut.headers?.['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN,
     JSON.stringify(createOut));
 
   const duplicateOut = await invokeProfileShareDev('POST', '', JSON.stringify({
@@ -426,6 +431,12 @@ function jsonBody(out) {
     wrongDelete.status === 403 &&
     /only be stopped/.test(jsonBody(wrongDelete).error || ''),
     JSON.stringify(wrongDelete));
+
+  const omittedBodyDelete = await invokeProfileShareDev('DELETE', `?id=${id}`);
+  assert('profile share dev DELETE without body returns forbidden instead of hanging',
+    omittedBodyDelete.status === 403 &&
+    /only be stopped/.test(jsonBody(omittedBodyDelete).error || ''),
+    JSON.stringify(omittedBodyDelete));
 
   const deleteOut = await invokeProfileShareDev('DELETE', `?id=${id}`, '', {
     'x-profile-share-manage-token': manageToken,
