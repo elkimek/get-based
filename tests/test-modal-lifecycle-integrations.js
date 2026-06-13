@@ -16,6 +16,7 @@ const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboar
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
@@ -155,6 +156,15 @@ assert('utility confirm and prompt dialogs use shared lifecycle helpers',
     !utilsSrc.includes("overlay.classList.add('show')") &&
     !utilsSrc.includes('overlay.classList.remove("show")') &&
     !utilsSrc.includes("overlay.classList.remove('show')"));
+
+assert('marker detail modals open and close through shared lifecycle helpers',
+  markerDetailSrc.includes("from './modal-lifecycle.js'") &&
+    (markerDetailSrc.match(/openModalOverlay\(overlay/g) || []).length >= 3 &&
+    markerDetailSrc.includes("openModalOverlay(overlay, { initialFocus: '#me-value', focusDelay: 50 })") &&
+    markerDetailSrc.includes("openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 })") &&
+    markerDetailSrc.includes("closeModalOverlay('modal-overlay')") &&
+    !markerDetailSrc.includes('overlay.classList.add("show")') &&
+    !markerDetailSrc.includes("overlay.classList.add('show')"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
