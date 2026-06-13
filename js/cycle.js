@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
 import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
 import { saveImportedData } from './data.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_KEY_ACTIVATE_EDITOR = "if(event.key==='Enter'||event.key===' '){event.preventDefault();openMenstrualCycleEditor()}";
@@ -491,7 +492,7 @@ export function openMenstrualCycleEditor() {
       <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="saveMenstrualCycle()">Save</button>
     </div>`;
   modal.innerHTML = html;
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveMenstrualCycle() {
