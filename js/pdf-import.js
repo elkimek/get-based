@@ -67,6 +67,10 @@ import {
 
 const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
 
+function isCsvTextFile(file) {
+  return /\.csv$/i.test(file.name) || file.type === 'text/csv';
+}
+
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
 export {
   showImportPreview,
@@ -781,14 +785,16 @@ async function _showImageModeDialog() {
 
 export async function handlePDFFile(file, forceImageMode = false, preExtractedText = null) {
   const _startProfileId = state.currentProfile;
-  const textImportKind = preExtractedText
-    ? (/\.(csv)$/i.test(file.name) || file.type === 'text/csv' ? 'CSV' : 'text file')
+  const hasPreExtractedText = preExtractedText !== null;
+  const isCsvImport = hasPreExtractedText && isCsvTextFile(file);
+  const textImportKind = hasPreExtractedText
+    ? (isCsvImport ? 'CSV' : 'text file')
     : 'PDF';
-  const textAction = textImportKind === 'CSV' ? 'csv' : textImportKind === 'text file' ? 'text' : 'import';
+  const textAction = hasPreExtractedText ? (isCsvImport ? 'csv' : 'text') : 'import';
   try {
     await showImportProgress(0, file.name);
-    const pdfText = preExtractedText || await extractPDFText(file);
-    const textQuality = preExtractedText ? 'good' : assessTextQuality(pdfText);
+    const pdfText = hasPreExtractedText ? preExtractedText : await extractPDFText(file);
+    const textQuality = hasPreExtractedText ? 'good' : assessTextQuality(pdfText);
 
     // Determine import mode — ask user for scanned/empty PDFs
     let useImageMode = forceImageMode;
@@ -1158,7 +1164,7 @@ export async function handleImageFile(file) {
 // ═══════════════════════════════════════════════
 export async function handleTextFile(file) {
   const text = await file.text();
-  const isCsv = /\.(csv)$/i.test(file.name) || file.type === 'text/csv';
+  const isCsv = isCsvTextFile(file);
   if (!text.trim()) { showNotification(`${isCsv ? 'CSV' : 'Text file'} is empty`, "error"); return; }
   await handlePDFFile(file, false, text);
 }
