@@ -13,6 +13,7 @@ import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } f
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -1007,7 +1008,7 @@ export function openSettingsModal(tab) {
     </div>
     </div>`;
   installSettingsDelegates(modal);
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
   settingsWindow.initSettingsOllamaCheck();
   settingsWindow.initSettingsModelFetch();
   loadBackupSnapshots();
@@ -1308,7 +1309,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
-  document.getElementById('settings-modal-overlay').classList.remove('show');
+  closeModalOverlay('settings-modal-overlay');
   if (settingsWindow.updateChatNudge) settingsWindow.updateChatNudge();
   settingsWindow.refreshMobileDashboardActiveTab?.();
 }
