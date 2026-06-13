@@ -588,3 +588,94 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
     expect(passed, name).toBe(true);
   }
 });
+
+test('sync window bindings expose browser globals and injected callbacks', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ bindingsUrl }) => {
+    const bindings = await import(bindingsUrl);
+    const outcomes = {};
+    const expectedFunctionNames = [
+      'getMnemonic',
+      'getMnemonicResolutionError',
+      'getSyncBlocker',
+      'restoreFromMnemonic',
+      'isSyncEnabled',
+      'pushCurrentProfile',
+      'forceResendCurrentProfile',
+      'cleanStorage',
+      'syncNow',
+      'showSyncDiagnose',
+      'deleteProfileFromRelay',
+      'listPendingTombstones',
+      'applyPendingTombstone',
+      'rejectPendingTombstone',
+      'checkRelayConnection',
+      'isMessengerEnabled',
+      'getMessengerToken',
+      'generateMessengerToken',
+      'revokeMessengerToken',
+      'pushContextToGateway',
+      '_syncDiag',
+      '_forcePull',
+      'renderSyncIndicator',
+      'updateSyncIndicator',
+      'toggleSyncDetail',
+      'copySyncEvents',
+      'copySyncDiagnose',
+      'confirmCompactRelay',
+      'confirmRotateIdentity',
+      'refreshRelayStorage',
+      'fetchOwnerStorageFromRelay',
+      'verifyPushLanded',
+      'getRelayHealthVerdict',
+      'compactOwnerSelfServe',
+      'getRelayQuotaEstimate',
+      'resetRelayQuotaEstimate',
+      'getDeltaTelemetry',
+      'resetDeltaTelemetry',
+      'confirmResetDeltaTelemetry',
+      'getDeltaCutoverReadiness',
+      'isPhase2CutoverEnabled',
+      'enablePhase2Cutover',
+      'disablePhase2Cutover',
+      'confirmEnablePhase2',
+      'confirmDisablePhase2',
+      'confirmBackfillBlockers',
+    ];
+    const allNames = ['enableSync', 'disableSync', ...expectedFunctionNames];
+    const savedDescriptors = new Map(allNames.map(name => [
+      name,
+      Object.getOwnPropertyDescriptor(window, name),
+    ]));
+    const enableSync = () => 'enabled';
+    const disableSync = () => 'disabled';
+
+    try {
+      bindings.bindSyncWindowActions({ enableSync, disableSync });
+      outcomes.injectedCallbacksAreAssigned =
+        window.enableSync === enableSync
+        && window.disableSync === disableSync
+        && window.enableSync() === 'enabled'
+        && window.disableSync() === 'disabled';
+      outcomes.importedSyncGlobalsAreFunctions =
+        expectedFunctionNames.every(name => typeof window[name] === 'function');
+      outcomes.forcePullAliasAndTelemetryBindingsExist =
+        typeof window._forcePull === 'function'
+        && typeof window.getDeltaTelemetry === 'function'
+        && typeof window.getRelayQuotaEstimate === 'function'
+        && typeof window.confirmBackfillBlockers === 'function';
+    } finally {
+      for (const [name, descriptor] of savedDescriptors.entries()) {
+        if (descriptor) Object.defineProperty(window, name, descriptor);
+        else delete window[name];
+      }
+    }
+
+    return outcomes;
+  }, { bindingsUrl: moduleUrl('/js/sync-window-bindings.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
