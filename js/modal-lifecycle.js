@@ -35,6 +35,88 @@ const _modalScrollState = (() => {
 
 const _modalScrollLocks = _modalScrollState.locks;
 
+const _overlayFocusTargets = (() => {
+  if (typeof window === 'undefined') return new WeakMap();
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.__labModalOverlayFocusTargets instanceof WeakMap) {
+    return appWindow.__labModalOverlayFocusTargets;
+  }
+  const focusTargets = new WeakMap();
+  try {
+    Object.defineProperty(appWindow, '__labModalOverlayFocusTargets', {
+      value: focusTargets,
+      configurable: true,
+    });
+  } catch (_) {
+    appWindow.__labModalOverlayFocusTargets = focusTargets;
+  }
+  return focusTargets;
+})();
+
+function _resolveOverlay(overlayOrId) {
+  if (!overlayOrId || typeof document === 'undefined') return null;
+  if (typeof overlayOrId === 'string') return document.getElementById(overlayOrId);
+  return overlayOrId;
+}
+
+function _isRestorableFocusTarget(target) {
+  return typeof HTMLElement !== 'undefined'
+    && target instanceof HTMLElement
+    && target !== document.body
+    && target !== document.documentElement
+    && document.contains(target);
+}
+
+function _resolveFocusTarget(target, overlay) {
+  if (!target) return null;
+  if (typeof target === 'string') {
+    return overlay.querySelector(target) || document.querySelector(target);
+  }
+  return target;
+}
+
+export function openModalOverlay(overlayOrId, options = {}) {
+  const overlay = _resolveOverlay(overlayOrId);
+  if (!overlay) return null;
+  const showClass = options.showClass || 'show';
+  const activeElement = document.activeElement;
+  if (_isRestorableFocusTarget(activeElement)) {
+    _overlayFocusTargets.set(overlay, activeElement);
+  }
+  overlay.classList.add(showClass);
+
+  if (options.initialFocus) {
+    const delay = Number.isFinite(options.focusDelay) ? Math.max(0, options.focusDelay) : 30;
+    setTimeout(() => {
+      const currentOverlay = _resolveOverlay(overlayOrId);
+      if (!currentOverlay || !currentOverlay.classList.contains(showClass)) return;
+      const target = _resolveFocusTarget(options.initialFocus, currentOverlay);
+      if (target && typeof target.focus === 'function') {
+        try { target.focus(); } catch (_) {}
+      }
+    }, delay);
+  }
+
+  return overlay;
+}
+
+export function closeModalOverlay(overlayOrId, options = {}) {
+  const overlay = _resolveOverlay(overlayOrId);
+  if (!overlay) return null;
+  const showClass = options.showClass || 'show';
+  overlay.classList.remove(showClass);
+
+  if (options.restoreFocus !== false) {
+    const focusTarget = _overlayFocusTargets.get(overlay);
+    _overlayFocusTargets.delete(overlay);
+    if (_isRestorableFocusTarget(focusTarget)) {
+      try { focusTarget.focus(); } catch (_) {}
+    }
+  }
+
+  return overlay;
+}
+
 function _pruneDetachedModalScrollLocks() {
   for (const lock of Array.from(_modalScrollLocks)) {
     if (!document.body.contains(lock)) _modalScrollLocks.delete(lock);

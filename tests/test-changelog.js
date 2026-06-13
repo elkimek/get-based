@@ -36,6 +36,7 @@ const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
 const swSrc = await fetchWithRetry('service-worker.js');
+const modalLifecycleSrc = await fetchWithRetry('js/modal-lifecycle.js');
 // Original test fetched '/app' (dev-server alias for index.html); read
 // index.html directly in Node.
 const indexSrc = await fetchWithRetry('index.html');
@@ -51,6 +52,10 @@ assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELO
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
 assert('changelog.js exports maybeShowChangelog', changelogSrc.includes('export function maybeShowChangelog'));
+assert('changelog.js uses shared modal overlay lifecycle helpers',
+  changelogSrc.includes("from './modal-lifecycle.js'")
+    && changelogSrc.includes('openModalOverlay(')
+    && changelogSrc.includes('closeModalOverlay('));
 assert('changelog.js has getMajorMinor helper', changelogSrc.includes('function getMajorMinor'));
 assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('getMajorMinor(seen) !== getMajorMinor('));
 // forceShow patch-bump escape hatch — when a maintainer flags an entry as
@@ -80,6 +85,9 @@ assert('SW imports version.js', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses template literal', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes version.js', swSrc.includes("'/version.js'"));
 assert('index.html loads version.js', indexSrc.includes('src="version.js"'));
+assert('modal-lifecycle.js exports overlay show/hide helpers',
+  modalLifecycleSrc.includes('export function openModalOverlay')
+    && modalLifecycleSrc.includes('export function closeModalOverlay'));
 
 // ═══════════════════════════════════════
 // 3. HTML: changelog modal exists in source

@@ -3,6 +3,7 @@
 // APP_VERSION comes from /version.js (loaded as classic script before modules)
 
 import { escapeHTML } from './utils.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 const CHANGELOG = [
   {
@@ -295,12 +296,11 @@ export function openChangelog(showAll) {
 
   html += `</div>`;
   modal.innerHTML = html;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 }
 
 export function closeChangelog() {
-  const overlay = document.getElementById('changelog-modal-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('changelog-modal-overlay');
   markChangelogSeen();
 }
 

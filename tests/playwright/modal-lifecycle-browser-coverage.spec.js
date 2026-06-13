@@ -59,6 +59,34 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       click(defaultCloseOverlay);
       outcomes.defaultBackdropCloseRemovesOverlay = !document.body.contains(defaultCloseOverlay);
 
+      const opener = document.createElement('button');
+      opener.id = 'open-helper-opener';
+      opener.textContent = 'Open helper opener';
+      document.body.append(opener);
+      opener.focus();
+      const classOverlay = document.createElement('div');
+      classOverlay.className = 'modal-overlay';
+      classOverlay.innerHTML = `
+        <div class="modal">
+          <button id="open-helper-close">Close</button>
+          <input id="open-helper-input">
+        </div>
+      `;
+      document.body.append(classOverlay);
+      modalLifecycle.openModalOverlay(classOverlay, { initialFocus: '#open-helper-input', focusDelay: 0 });
+      await waitUntil(() => document.activeElement?.id === 'open-helper-input', 'open helper focus target');
+      const helperOpenedAndFocused =
+        classOverlay.classList.contains('show')
+        && document.activeElement?.id === 'open-helper-input';
+      modalLifecycle.closeModalOverlay('missing-overlay');
+      modalLifecycle.closeModalOverlay(classOverlay);
+      outcomes.openCloseOverlayHelpersToggleClassFocusAndRestore =
+        helperOpenedAndFocused
+        && !classOverlay.classList.contains('show')
+        && document.activeElement?.id === 'open-helper-opener';
+      classOverlay.remove();
+      opener.remove();
+
       const beforeModal = document.getElementById('before-modal');
       beforeModal.focus();
       const overlayA = document.createElement('div');

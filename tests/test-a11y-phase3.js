@@ -81,6 +81,16 @@ console.log('=== Phase 3 A11y Tests ===\n');
       closeButtons === labelled,
       `${labelled}/${closeButtons} labelled`);
   }
+  const feedbackSrc = read('/js/feedback.js');
+  const changelogSrc = read('/js/changelog.js');
+  assert('feedback modal uses shared overlay lifecycle helpers',
+    feedbackSrc.includes("from './modal-lifecycle.js'")
+      && feedbackSrc.includes('openModalOverlay(')
+      && feedbackSrc.includes('closeModalOverlay('));
+  assert('changelog modal uses shared overlay lifecycle helpers',
+    changelogSrc.includes("from './modal-lifecycle.js'")
+      && changelogSrc.includes('openModalOverlay(')
+      && changelogSrc.includes('closeModalOverlay('));
 
   // ─── 4. Brand-voice "we/us" eliminated from key sites ───
   const utilsSrc = read('/js/utils.js');
