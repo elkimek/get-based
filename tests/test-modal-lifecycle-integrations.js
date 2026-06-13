@@ -18,6 +18,7 @@ const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
+const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 
 let passed = 0;
@@ -94,6 +95,13 @@ assert('OpenRouter balance dialog uses shared overlay lifecycle helpers',
     providerPanelsSrc.includes('closeModalOverlay(overlay)') &&
     !providerPanelsSrc.includes("overlay.classList.add('show')") &&
     !providerPanelsSrc.includes("overlay.classList.remove('show')"));
+
+assert('settings modal opens and closes through shared overlay lifecycle helpers',
+  settingsSrc.includes("from './modal-lifecycle.js'") &&
+    settingsSrc.includes('openModalOverlay(overlay)') &&
+    settingsSrc.includes("closeModalOverlay('settings-modal-overlay')") &&
+    !settingsSrc.includes("overlay.classList.add('show')") &&
+    !settingsSrc.includes("document.getElementById('settings-modal-overlay').classList.remove('show')"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
