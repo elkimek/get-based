@@ -29,6 +29,7 @@ test('sun session model browser coverage exercises safety defaults and caveats',
       && model._normalizePSMTier(true) === 'moderate'
       && model._normalizePSMTier(false) === 'none'
       && model._normalizePSMTier(null) === 'none'
+      && model._normalizePSMTier(undefined) === 'none'
       && model._normalizePSMTier('mild') === 'mild'
       && model._normalizePSMTier('bad') === 'none';
 
@@ -38,6 +39,7 @@ test('sun session model browser coverage exercises safety defaults and caveats',
       && model.EXPOSURE_PRESETS.every(preset => preset.fraction > 0 && preset.fraction <= 0.5)
       && model.POSTURE_OPTIONS.some(option => option.key === 'lying-supine')
       && model.POSTURE_MULTIPLIERS.standing === 1
+      && model.POSTURE_MULTIPLIERS['lying-supine'] === 1.4
       && model.POSTURE_MULTIPLIERS['lying-prone'] === 1.4
       && model.SURFACE_OPTIONS.some(option => option.key === 'snow')
       && model.SURFACE_ALBEDO.grass === 0.03
