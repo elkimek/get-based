@@ -75,6 +75,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       <div id="chips" class="sun-channel-chips">
         <button id="toggle-chips" ${actionsModule.sunSessionActionAttrs('toggle-chips')}>More</button>
       </div>
+      <div id="other-chips" class="sun-channel-chips"></div>
       <div id="ignore" ${actionsModule.sunSessionActionAttrs('ignore')}>
         <button id="ignored-button">Ignored</button>
       </div>
@@ -153,9 +154,12 @@ test('sun session action delegates route clicks keyboard and modal actions in br
 
     click('toggle-chips');
     const expandedOnce = byId('chips').classList.contains('sun-chips-expanded');
+    const otherExpandedOnce = byId('other-chips').classList.contains('sun-chips-expanded');
     click('toggle-chips');
     const collapsedAgain = !byId('chips').classList.contains('sun-chips-expanded');
-    outcomes.toggleChipsOnlyChangesOwningChipContainer = expandedOnce && collapsedAgain;
+    const otherCollapsedAgain = !byId('other-chips').classList.contains('sun-chips-expanded');
+    outcomes.toggleChipsOnlyChangesOwningChipContainer =
+      expandedOnce && !otherExpandedOnce && collapsedAgain && otherCollapsedAgain;
 
     const beforeIgnore = calls.length;
     const ignoreAllowed = click('ignored-button');
@@ -175,6 +179,8 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       </div>
     `);
     const docKeysBefore = callCount('document-keydown');
+    const detailCallsBeforeKeyboard = callCount('openSunSessionDetail');
+    const forgotCallsBeforeKeyboard = callCount('_forgotStopPrompt');
     const channelCallsBeforeKeyboard = callCount('_openChannelOnLightPage');
     const detailEnterAllowed = keydown('open-detail', 'Enter');
     const forgotSpaceAllowed = keydown('forgot-stop', ' ');
@@ -187,8 +193,8 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       detailEnterAllowed === false
       && forgotSpaceAllowed === false
       && channelEnterAllowed === false
-      && called('openSunSessionDetail', call => call[1] === 'sun-1')
-      && called('_forgotStopPrompt', call => call[1] === 'sun-1')
+      && callCount('openSunSessionDetail') === detailCallsBeforeKeyboard + 1
+      && callCount('_forgotStopPrompt') === forgotCallsBeforeKeyboard + 1
       && callCount('_openChannelOnLightPage') === channelCallsBeforeKeyboard + 1
       && !document.getElementById('keyboard-channel-overlay')
       && docKeysAfterAllowed === docKeysBefore
