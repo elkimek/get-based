@@ -191,6 +191,7 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         new File(['dna hook'], 'genome.dna', { type: 'text/plain' }),
         new File(['DNA RAW content'], 'ancestry.csv', { type: 'text/csv' }),
         new File(['date,marker,value\n2026-06-01,Glucose,5.4'], 'lab-results.csv', { type: 'text/csv' }),
+        new File(['xlsx bytes'], 'lab-results.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
         new File(['plain notes'], 'notes.txt', { type: 'text/plain' }),
         new File(['unsupported'], 'archive.bin', { type: 'application/octet-stream' }),
       ]);
@@ -198,7 +199,7 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         && classified.pdfFiles.length === 3
         && classified.imageFiles.length === 1
         && classified.dnaFiles.length === 2
-        && classified.textFiles.length === 2
+        && classified.textFiles.length === 3
         && classified.unsupportedCount === 1;
       outcomes.pdfMagicSniffChecksHeader = await pdfImport.isPdfByMagic(magicPdf) === true
         && await pdfImport.isPdfByMagic(new File(['NOPE'], 'not-pdf.bin')) === false;
@@ -243,6 +244,8 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
+      jszip: window.JSZip,
+      hadJSZip: Object.prototype.hasOwnProperty.call(window, 'JSZip'),
     };
     const encoder = new TextEncoder();
     const fetchCalls = [];
@@ -397,6 +400,53 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && csvFilePending.privacyMethod === 'regex';
       review.closeImportModal();
 
+      const xlsxEntries = {
+        'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8"?>
+          <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+            <sheets><sheet name="Results" sheetId="1" r:id="rId1"/></sheets>
+          </workbook>`,
+        'xl/_rels/workbook.xml.rels': `<?xml version="1.0" encoding="UTF-8"?>
+          <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+            <Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/>
+          </Relationships>`,
+        'xl/sharedStrings.xml': `<?xml version="1.0" encoding="UTF-8"?>
+          <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+            <si><t>Date</t></si><si><t>Marker</t></si><si><t>Value</t></si>
+            <si><t>2026-06-01</t></si><si><t>Glucose</t></si><si><t>5.4</t></si>
+          </sst>`,
+        'xl/worksheets/sheet1.xml': `<?xml version="1.0" encoding="UTF-8"?>
+          <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+            <sheetData>
+              <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>
+              <row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row>
+            </sheetData>
+          </worksheet>`,
+      };
+      window.JSZip = {
+        loadAsync: async () => ({
+          files: Object.fromEntries(Object.keys(xlsxEntries).map(path => [path, {}])),
+          file(path) {
+            return xlsxEntries[path] == null ? null : { async: async () => xlsxEntries[path] };
+          },
+        }),
+      };
+      const xlsxFile = new File(
+        [new Uint8Array([0x50, 0x4b, 0x03, 0x04])],
+        'lab-results.xlsx',
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      );
+      const extractedXlsxText = await pdfImport.extractXLSXText(xlsxFile);
+      outcomes.xlsxExtractorReadsWorkbookCells = extractedXlsxText.includes('Workbook: lab-results.xlsx')
+        && extractedXlsxText.includes('Sheet: Results')
+        && extractedXlsxText.includes('Glucose');
+      await pdfImport.handleTextFile(xlsxFile);
+      const xlsxFilePending = review.getPendingImport();
+      outcomes.xlsxFileRoutesThroughTextImportPipeline = xlsxFilePending?.fileName === 'lab-results.xlsx'
+        && xlsxFilePending.markers.length === 2
+        && xlsxFilePending.privacyMethod === 'regex';
+      review.closeImportModal();
+
       await pdfImport.handleImageFile(new File(['image bytes'], 'scan.png', { type: 'image/png' }));
       const imagePending = review.getPendingImport();
       outcomes.imageFileHandlerOpensPreview = imagePending?.fileName === 'scan.png'
@@ -419,6 +469,8 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
+      if (original.hadJSZip) window.JSZip = original.jszip;
+      else delete window.JSZip;
       for (const [key, value] of Object.entries(savedStorage)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);

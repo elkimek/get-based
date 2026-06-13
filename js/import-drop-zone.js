@@ -37,7 +37,7 @@ export function setupDropZone() {
     }
     const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
     if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
-      window.showNotification?.("Unsupported file type. Use PDF, text, image, JSON, or DNA raw data (.txt/.csv).", "error");
+      window.showNotification?.("Unsupported file type. Use PDF, Excel (.xlsx), text, CSV, image, JSON, or DNA raw data (.txt/.csv).", "error");
       return;
     }
     for (const f of jsonFiles) window.importDataJSON(f);
