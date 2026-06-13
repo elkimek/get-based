@@ -67,6 +67,7 @@ interface Window {
   closeRestoreMnemonicDialog?: () => void;
   closeSettings?: () => void;
   closeSettingsModal: () => void;
+  closeSummaryModal?: () => void;
   closeSyncSetup?: () => Promise<void> | void;
   closeTweaksPanel: () => void;
   clearE2EESession?: AnyFunction;

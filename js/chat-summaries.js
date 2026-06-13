@@ -8,6 +8,7 @@ import { saveImportedData } from './data.js';
 import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider, isAIPaused } from './api.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   appendImportedArrayItem,
   deleteImportedArrayItems,
@@ -249,13 +250,13 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.id = 'summary-modal-overlay';
-    overlay.className = 'modal-overlay show';
+    overlay.className = 'modal-overlay';
     let mdInside = false;
     overlay.addEventListener('mousedown', (e) => { mdInside = e.target !== overlay; });
     overlay.onclick = (e) => { if (e.target === overlay && !mdInside) _closeSummaryModal(); mdInside = false; };
     document.body.appendChild(overlay);
-  } else {
-    overlay.className = 'modal-overlay show';
+  } else if (!overlay.classList.contains('show')) {
+    overlay.className = 'modal-overlay';
   }
   overlay.dataset.syncRefreshKind = 'chat-summary';
   overlay.dataset.syncRefreshSummaryId = thread?._savedId || '';
@@ -293,6 +294,7 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
       ${thread?._savedId ? `<button class="summary-action-btn secondary delete" onclick="deleteSavedSummary('${escapeHTML(thread._savedId)}')" title="Delete summary">Delete</button>` : ''}
     </div>
   </div>`;
+  openModalOverlay(overlay);
 }
 
 function _closeSummaryModal() {
@@ -303,7 +305,7 @@ function _closeSummaryModal() {
   _activeSummary = null;
   const overlay = document.getElementById('summary-modal-overlay');
   if (overlay) {
-    overlay.classList.remove('show');
+    closeModalOverlay(overlay);
     setTimeout(() => overlay.remove(), 300);
   }
 }

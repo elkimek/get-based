@@ -102,6 +102,8 @@ function handleAppKeydown(e) {
       else syncSetupOverlay.classList.remove("show");
       return;
     }
+    const summaryOverlay = document.getElementById("summary-modal-overlay");
+    if (summaryOverlay && summaryOverlay.classList.contains("show")) { window.closeSummaryModal?.(); return; }
     const chatPanel = document.getElementById("chat-panel");
     if (chatPanel && chatPanel.classList.contains("open")) { window.closeChatPanel(); return; }
     const importOverlay = document.getElementById("import-modal-overlay");
@@ -141,7 +143,7 @@ function handleAppKeydown(e) {
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
+    const overlayIds = ["client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {
