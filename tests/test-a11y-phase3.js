@@ -210,6 +210,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     neuromancerDisplayRule[0].includes('.dashboard-greeting h1') &&
     neuromancerDisplayRule[0].includes('.dashboard-widget-title') &&
     neuromancerDisplayRule[0].includes('.m-section-title') &&
+    neuromancerDisplayRule[0].includes('.light-section-title') &&
     !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───
