@@ -155,12 +155,20 @@ test('light environment browser coverage handles summary modal prompt and source
 
       window.openLightEnvironmentAssessment();
       await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal'), 'assessment modal reopened');
+      await wait(70);
+      const focusedRoomName = document.querySelector('#light-env-assessment-overlay .light-env-room-name-input');
+      focusedRoomName?.focus();
       env().rooms.find(r => r.id === bedroom.id).name = 'Synced Bedroom';
       window.dispatchEvent(new Event('labcharts-sync-applied'));
       await waitUntil(() => (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom'), 'sync refresh render');
+      await wait(90);
+      const closeButtonAfterSyncRefresh = document.querySelector('#light-env-assessment-overlay .modal-close');
       outcomes.syncRefreshRebuildsOpenAssessment =
         !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal')
         && (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom');
+      outcomes.syncRefreshDoesNotMoveFocusToClose =
+        !!focusedRoomName
+        && document.activeElement !== closeButtonAfterSyncRefresh;
     } finally {
       document.getElementById('light-env-assessment-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();

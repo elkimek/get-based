@@ -49,6 +49,7 @@ import {
   renderLightAuditsBlock,
 } from './light-env-audits.js';
 import { installLightEnvActionDelegates, lightEnvActionAttrs } from './light-env-actions.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
 export {
@@ -568,16 +569,16 @@ function isLightEnvironmentAssessmentOpen() {
 
 function renderLightEnvironmentAssessmentModal() {
   let overlay = getLightEnvironmentAssessmentOverlay();
+  const wasOpen = overlay?.classList?.contains('show') === true;
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.id = LIGHT_ENV_ASSESSMENT_OVERLAY_ID;
-    overlay.className = 'modal-overlay show light-env-assessment-overlay';
+    overlay.className = 'modal-overlay light-env-assessment-overlay';
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) closeLightEnvironmentAssessment();
     });
     document.body.appendChild(overlay);
   }
-  overlay.classList.add('show');
   overlay.innerHTML = `<div class="modal light-env-assessment-modal" role="dialog" aria-modal="true" aria-labelledby="light-env-assessment-title">
     <button class="modal-close" ${lightEnvActionAttrs('close-assessment')} aria-label="Close">×</button>
     <div class="modal-header">
@@ -586,6 +587,7 @@ function renderLightEnvironmentAssessmentModal() {
     <p class="light-env-assessment-modal-copy">Map the rooms, screens, and readings that shape your indoor day. Save audit snapshots before and after changes to compare what moved.</p>
     ${renderEnvironmentSection({ embedded: true })}
   </div>`;
+  openModalOverlay(overlay, wasOpen ? {} : { initialFocus: '.modal-close', focusDelay: 50 });
 }
 
 export function openLightEnvironmentAssessment() {
@@ -593,7 +595,10 @@ export function openLightEnvironmentAssessment() {
 }
 
 export function closeLightEnvironmentAssessment() {
-  getLightEnvironmentAssessmentOverlay()?.remove();
+  const overlay = getLightEnvironmentAssessmentOverlay();
+  if (!overlay) return;
+  closeModalOverlay(overlay);
+  overlay.remove();
 }
 
 export function refreshLightEnvironmentAssessment() {
