@@ -175,6 +175,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       </div>
     `);
     const docKeysBefore = callCount('document-keydown');
+    const channelCallsBeforeKeyboard = callCount('_openChannelOnLightPage');
     const detailEnterAllowed = keydown('open-detail', 'Enter');
     const forgotSpaceAllowed = keydown('forgot-stop', ' ');
     const channelEnterAllowed = keydown('keyboard-channel', 'Enter');
@@ -188,14 +189,15 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       && channelEnterAllowed === false
       && called('openSunSessionDetail', call => call[1] === 'sun-1')
       && called('_forgotStopPrompt', call => call[1] === 'sun-1')
-      && called('_openChannelOnLightPage', call => call[1] === 'vitamin_d')
+      && callCount('_openChannelOnLightPage') === channelCallsBeforeKeyboard + 1
+      && !document.getElementById('keyboard-channel-overlay')
       && docKeysAfterAllowed === docKeysBefore
       && callCount('document-keydown') === docKeysBefore + 2
       && !called('openSunSessionDetail', call => call[1] === 'sun-input');
 
     const docClicksBeforeDelete = callCount('document-click');
     const deleteAllowed = click('delete-session');
-    outcomes.deleteSessionWithoutCloseModalPreventsDefaultStopsBubbleAndRoutes =
+    outcomes.deleteSessionNotInOverlayPreventsDefaultStopsBubbleAndRoutes =
       deleteAllowed === false
       && called('deleteSunSession', call => call[1] === 'sun-2')
       && callCount('document-click') === docClicksBeforeDelete;
