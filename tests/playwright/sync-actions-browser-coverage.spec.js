@@ -660,11 +660,9 @@ test('sync window bindings expose browser globals and injected callbacks', async
         && window.disableSync() === 'disabled';
       outcomes.importedSyncGlobalsAreFunctions =
         expectedFunctionNames.every(name => typeof window[name] === 'function');
-      outcomes.forcePullAliasAndTelemetryBindingsExist =
+      outcomes.forcePullIsExposedOnlyViaAlias =
         typeof window._forcePull === 'function'
-        && typeof window.getDeltaTelemetry === 'function'
-        && typeof window.getRelayQuotaEstimate === 'function'
-        && typeof window.confirmBackfillBlockers === 'function';
+        && window.forcePull === undefined;
     } finally {
       for (const [name, descriptor] of savedDescriptors.entries()) {
         if (descriptor) Object.defineProperty(window, name, descriptor);
