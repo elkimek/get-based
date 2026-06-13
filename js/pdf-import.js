@@ -71,6 +71,10 @@ function isCsvTextFile(file) {
   return /\.csv$/i.test(file.name) || file.type === 'text/csv';
 }
 
+function isTextImportFile(file) {
+  return isCsvTextFile(file) || /\.txt$/i.test(file.name) || file.type?.startsWith('text/');
+}
+
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
 export {
   showImportPreview,
@@ -786,11 +790,10 @@ async function _showImageModeDialog() {
 export async function handlePDFFile(file, forceImageMode = false, preExtractedText = null) {
   const _startProfileId = state.currentProfile;
   const hasPreExtractedText = preExtractedText !== null;
-  const isCsvImport = hasPreExtractedText && isCsvTextFile(file);
-  const textImportKind = hasPreExtractedText
-    ? (isCsvImport ? 'CSV' : 'text file')
-    : 'PDF';
-  const textAction = hasPreExtractedText ? (isCsvImport ? 'csv' : 'text') : 'import';
+  const isCsvImport = isCsvTextFile(file);
+  const isTextFileImport = isTextImportFile(file);
+  const textImportKind = isCsvImport ? 'CSV' : isTextFileImport ? 'text file' : 'PDF';
+  const textAction = isCsvImport ? 'csv' : isTextFileImport ? 'text' : 'import';
   try {
     await showImportProgress(0, file.name);
     const pdfText = hasPreExtractedText ? preExtractedText : await extractPDFText(file);
