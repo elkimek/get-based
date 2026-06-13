@@ -440,7 +440,7 @@ const ALLOWED_ORIGINS = new Set([
     `http://[::1]:${p}`,
   ]),
 ]);
-function isSameOrigin(req) {
+export function isSameOrigin(req) {
   if (req.headers.origin) return ALLOWED_ORIGINS.has(req.headers.origin);
   if (req.headers.referer) {
     try { return ALLOWED_ORIGINS.has(new URL(req.headers.referer).origin); }
@@ -452,7 +452,7 @@ function isSameOrigin(req) {
 // Loopback check on the actual TCP socket — the only authentication that
 // can't be forged by a LAN peer setting `Origin: http://localhost:PORT`.
 // Used as a hard gate in front of /api/* when HOST=0.0.0.0 (phone testing).
-function _isLoopbackSocket(req) {
+export function _isLoopbackSocket(req) {
   const ra = req.socket?.remoteAddress || '';
   // Node reports IPv4 via "::ffff:127.0.0.1" on dual-stack listeners.
   return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
@@ -466,7 +466,7 @@ function _isLoopbackSocket(req) {
 // for security purposes. Used as an escape hatch for tailscale-served
 // phone tabs where the host the user typed isn't in the static
 // ALLOWED_ORIGINS allowlist.
-function _isHostOriginMatch(req) {
+export function _isHostOriginMatch(req) {
   const host = req.headers.host;
   const origin = req.headers.origin;
   if (!host || !origin) return false;
@@ -479,7 +479,7 @@ function _isHostOriginMatch(req) {
 // between `isSameOrigin` (allowlist) and the response header (wildcard) is
 // only safe today because the guard runs first; reflecting keeps the two
 // halves in sync if the guard's pathname check is ever loosened.
-function corsHeaders(req) {
+export function corsHeaders(req) {
   const origin = req.headers.origin && ALLOWED_ORIGINS.has(req.headers.origin)
     ? req.headers.origin
     : (req.headers.referer ? (() => { try { return ALLOWED_ORIGINS.has(new URL(req.headers.referer).origin) ? new URL(req.headers.referer).origin : null; } catch { return null; } })() : null);
@@ -492,11 +492,11 @@ const PROFILE_SHARE_MAX_BYTES = 3_750_000;
 const PROFILE_SHARE_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100_000;
 const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
-function _sendProfileShareJSON(req, res, status, body) {
+export function _sendProfileShareJSON(req, res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
   res.end(JSON.stringify(body));
 }
-function _validateProfileShareEnvelope(envelope) {
+export function _validateProfileShareEnvelope(envelope) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) throw new Error('Missing encrypted profile payload.');
   if (envelope.schema !== 'getbased-profile-share' || envelope.version !== 1) throw new Error('Unsupported encrypted profile payload.');
   const expiresAt = Date.parse(envelope.expiresAt || '');
