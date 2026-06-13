@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { COMMON_CONDITIONS } from './constants.js';
 import { escapeHTML } from './utils.js';
 import { saveImportedData } from './data.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 import {
   renderContextEditorModal,
   getSelectedOption,
@@ -41,7 +42,7 @@ export function openDiagnosesEditor() {
   const overlay = document.getElementById("modal-overlay");
   const current = state.importedData.diagnoses || { conditions: [], note: '' };
   renderDiagnosesModal(modal, current);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 // Relatives surfaced in the Family History subsection. First-degree

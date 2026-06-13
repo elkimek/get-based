@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -369,7 +370,7 @@ function openCardTipsModal(cardKey) {
   const modal = document.getElementById('detail-modal');
   if (!overlay || !modal) return;
   modal.innerHTML = html;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 }
 
 // ── Window exports for onclick handlers ──
