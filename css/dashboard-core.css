@@ -66,3 +66,13 @@
 .dashboard-action-btn-primary {
   background: var(--accent); border-color: transparent; color: var(--on-accent);
 }
+html:not([data-theme]) .dashboard-action-btn-primary {
+  /* White hover text fails against the blue accent during background
+     interpolation, so this button snaps directly to the dark hover surface. */
+  transition: border-color 0.15s, transform 0.05s;
+}
+html:not([data-theme]) .dashboard-action-btn-primary:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: #fff;
+}

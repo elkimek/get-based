@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 
-const THEMES = ['cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+const THEMES = ['dark', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
 
 function parseCssColor(value) {
   const match = String(value || '').match(/rgba?\(([^)]+)\)/i);
@@ -36,12 +36,13 @@ function contrastRatio(foreground, background) {
   return (light + 0.05) / (dark + 0.05);
 }
 
-test('custom dark theme primary dashboard CTA hover text stays readable', async ({ page }) => {
+test('dark theme primary dashboard CTA hover text stays readable', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'networkidle' });
 
   for (const theme of THEMES) {
     await page.evaluate(async (nextTheme) => {
-      document.documentElement.dataset.theme = nextTheme;
+      if (nextTheme === 'dark') delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = nextTheme;
       document.body.insertAdjacentHTML(
         'beforeend',
         `<button id="hover-contrast-cta" class="dashboard-action-btn dashboard-action-btn-primary" style="position:fixed;left:24px;top:24px;z-index:9999">Primary CTA</button>`
