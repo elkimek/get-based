@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
+const chatSummariesSrc = fs.readFileSync(path.join(root, 'js/chat-summaries.js'), 'utf8');
 const contextCardsSrc = fs.readFileSync(path.join(root, 'js/context-cards.js'), 'utf8');
 const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor.js'), 'utf8');
@@ -63,6 +65,18 @@ assert('lifestyle context editors open through shared overlay lifecycle helper',
     (contextLifestyleSrc.match(/openModalOverlay\(overlay\)/g) || []).length >= 10 &&
     !contextLifestyleSrc.includes('overlay.classList.add("show")') &&
     !contextLifestyleSrc.includes("overlay.classList.add('show')"));
+
+assert('chat summary modal uses shared overlay lifecycle helpers',
+  chatSummariesSrc.includes("from './modal-lifecycle.js'") &&
+    chatSummariesSrc.includes("overlay.className = 'modal-overlay'") &&
+    chatSummariesSrc.includes('openModalOverlay(overlay)') &&
+    chatSummariesSrc.includes('closeModalOverlay(overlay)') &&
+    !chatSummariesSrc.includes("overlay.className = 'modal-overlay show'") &&
+    !chatSummariesSrc.includes("overlay.classList.remove('show')"));
+
+assert('chat summary modal participates in global keyboard modal handling',
+  appEventsSrc.includes('"summary-modal-overlay"') &&
+    appEventsSrc.includes('window.closeSummaryModal?.()'));
 
 assert('card tips modal closes through shared detail modal close path',
   recommendationsSrc.includes('onclick="window.closeModal()"') &&
