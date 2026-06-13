@@ -3,6 +3,7 @@
 
 import { showNotification, escapeHTML } from './utils.js';
 import { ensureBip39, ensureQRCode } from './sync-identity.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   currentSyncEnabled,
   enableSyncForDiagnose,
@@ -51,7 +52,10 @@ export async function confirmRotateIdentity(btn) {
   // phone-side entry, copy button, and a save-confirmation checkbox
   // that gates the Apply button.
   const existing = btn?.closest?.('.modal-overlay');
-  if (existing) existing.remove();
+  if (existing) {
+    closeModalOverlay(existing);
+    existing.remove();
+  }
 
   let qrSvg = '';
   try {
@@ -71,7 +75,7 @@ export async function confirmRotateIdentity(btn) {
     .join(' ');
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Rotate sync identity" style="max-width:560px">
     <div class="modal-header"><h3>Rotate sync identity — save your new mnemonic</h3><button class="modal-close" aria-label="Close">×</button></div>
     <div class="modal-body" style="font-size:13px">
@@ -98,6 +102,7 @@ export async function confirmRotateIdentity(btn) {
     </div>
   </div>`;
   document.body.appendChild(overlay);
+  openModalOverlay(overlay);
 
   const closeBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('.modal-close'));
   const cancelBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#rotate-cancel-btn'));
@@ -110,6 +115,7 @@ export async function confirmRotateIdentity(btn) {
       words.fill('');
       words.length = 0;
     }
+    closeModalOverlay(overlay);
     overlay.remove();
   };
   closeBtn?.addEventListener('click', cleanup);

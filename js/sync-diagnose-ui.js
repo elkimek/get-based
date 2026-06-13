@@ -6,6 +6,7 @@ import { _evoluDiagnosticsText, getEvoluDiagnostics } from './sync-diagnostics.j
 import { getRelayQuotaEstimate, verifyPushLanded } from './sync-relay-health.js';
 import { configureSyncDiagnoseActions } from './sync-diagnose-actions.js';
 import { renderSyncDiagnoseModal } from './sync-diagnose-render.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 export {
   confirmBackfillBlockers, confirmCompactRelay, confirmDisablePhase2,
@@ -59,7 +60,7 @@ export async function showSyncDiagnose() {
   try { healthVerdict = await verifyPushLanded(); } catch {}
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   overlay.innerHTML = renderSyncDiagnoseModal({
     diagnostics,
     healthVerdict,
@@ -71,7 +72,17 @@ export async function showSyncDiagnose() {
   // the same snapshot the user is staring at (avoids racing a re-fetch).
   overlay.dataset.copyText = _evoluDiagnosticsText(diagnostics);
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  openModalOverlay(overlay);
+  const close = () => {
+    closeModalOverlay(overlay);
+    overlay.remove();
+  };
+  overlay.querySelectorAll('[data-sync-diagnose-close]').forEach((btn) => {
+    btn.addEventListener('click', close);
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
 }
 
 // Copies the Sync diagnose snapshot to the clipboard. Walks up to find

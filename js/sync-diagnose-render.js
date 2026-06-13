@@ -154,7 +154,7 @@ export function renderSyncDiagnoseModal({
   const d = diagnostics;
   const rowsHtml = renderRowsHtml(d.rows);
   return `<div class="modal" role="dialog" aria-label="Sync diagnose" style="max-width:640px">
-    <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button></div>
+    <div class="modal-header"><h3>Sync diagnose</h3><button class="modal-close" data-sync-diagnose-close aria-label="Close">×</button></div>
     <div class="modal-body" style="font-size:13px">
       <div style="margin-bottom:12px">
         <div><b>Sync enabled:</b> ${d.syncEnabled ? 'yes' : 'no'}</div>
@@ -181,7 +181,7 @@ export function renderSyncDiagnoseModal({
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
         <button class="ctx-btn-option" onclick="window.copySyncDiagnose(this)" title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>
-        <button class="ctx-btn-option" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        <button class="ctx-btn-option" data-sync-diagnose-close>Close</button>
       </div>
     </div>
   </div>`;
