@@ -12,6 +12,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from '.
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
+import { closeModalOverlay } from './modal-lifecycle.js';
 import {
   configureMarkerDetailEditing,
   editRefRange,
@@ -1066,7 +1067,7 @@ export async function deleteCustomMarker(id) {
 }
 
 export function closeModal() {
-  document.getElementById("modal-overlay").classList.remove("show");
+  closeModalOverlay('modal-overlay');
   const detailModal = document.getElementById("detail-modal");
   if (detailModal) {
     detailModal.className = 'modal';

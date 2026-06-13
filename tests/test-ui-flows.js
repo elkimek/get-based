@@ -105,6 +105,9 @@ return (async function() {
   assert('marker-detail-modal.js defines restoreModalTrigger', /function restoreModalTrigger\s*\(/.test(markerDetailSrc));
   assert('showDetailModal captures trigger before opening', /showDetailModal[\s\S]*?rememberModalTrigger\(\)/.test(markerDetailSrc));
   assert('closeModal restores trigger on close', /function closeModal\(\)[\s\S]*?restoreModalTrigger\(\)/.test(markerDetailSrc));
+  assert('closeModal uses shared overlay lifecycle helper',
+    markerDetailSrc.includes("from './modal-lifecycle.js'") &&
+      /function closeModal\(\)[\s\S]{0,180}closeModalOverlay\('modal-overlay'\)/.test(markerDetailSrc));
   assert('rememberModalTrigger exported', markerDetailSrc.includes('export function rememberModalTrigger'));
   assert('rememberModalTrigger on window', /window\s*,\s*\{[\s\S]*?rememberModalTrigger/.test(viewsSrc));
   assert('wearable detail modal captures trigger', wearablesDetailSrc.includes('window.rememberModalTrigger?.()'));

@@ -9,6 +9,7 @@ import {
   ensureImportedArray,
   replaceImportedArrayItem,
 } from './data-merge.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 
 /** @param {{ modal: HTMLElement }} context */
 function refreshOpenNoteEditorOnSync({ modal }) {
@@ -43,6 +44,7 @@ export function openNoteEditor(date, existingIdx) {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   if (!modal || !overlay) return;
+  const wasOpen = overlay.classList.contains('show');
   const isEditing = existingIdx !== undefined && existingIdx !== null;
   const existing = isEditing ? (state.importedData.notes || [])[existingIdx] : null;
   const defaultDate = existing ? existing.date : (date || new Date().toISOString().slice(0, 10));
@@ -65,11 +67,8 @@ export function openNoteEditor(date, existingIdx) {
   modal.dataset.syncRefreshMode = isEditing ? 'edit' : 'add';
   modal.dataset.syncRefreshIndex = isEditing ? String(existingIdx) : '';
   modal.dataset.syncRefreshDate = defaultDate || '';
-  overlay.classList.add("show");
-  setTimeout(() => {
-    const ta = document.getElementById('note-textarea');
-    if (ta) ta.focus();
-  }, 50);
+  if (!wasOpen) window.rememberModalTrigger?.();
+  openModalOverlay(overlay, { initialFocus: '#note-textarea', focusDelay: 50 });
 }
 
 /** @param {number | null | undefined} idx */

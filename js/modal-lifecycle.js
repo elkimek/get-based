@@ -79,8 +79,9 @@ export function openModalOverlay(overlayOrId, options = {}) {
   const overlay = _resolveOverlay(overlayOrId);
   if (!overlay) return null;
   const showClass = options.showClass || 'show';
+  const alreadyShown = overlay.classList.contains(showClass);
   const activeElement = document.activeElement;
-  if (_isRestorableFocusTarget(activeElement)) {
+  if (!alreadyShown && _isRestorableFocusTarget(activeElement)) {
     _overlayFocusTargets.set(overlay, activeElement);
   }
   overlay.classList.add(showClass);
