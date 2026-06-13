@@ -193,6 +193,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     !!darkCtaHoverRule &&
     darkCtaHoverRule[0].includes('[data-theme="glass"] .dashboard-action-btn-primary:hover') &&
     darkCtaHoverRule[0].includes('[data-theme="neuromancer"] .dashboard-action-btn-primary:hover'));
+  const defaultDarkCtaHoverRule = cssSrc.match(/html:not\(\[data-theme\]\)\s+\.dashboard-action-btn-primary:hover,[\s\S]*?\{[^}]*color:\s*#fff/);
+  assert('modern minimal primary dashboard CTA hover uses light text',
+    !!defaultDarkCtaHoverRule &&
+    defaultDarkCtaHoverRule[0].includes('[data-theme="dark"] .dashboard-action-btn-primary:hover'));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');

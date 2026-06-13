@@ -66,3 +66,13 @@
 .dashboard-action-btn-primary {
   background: var(--accent); border-color: transparent; color: var(--on-accent);
 }
+html:not([data-theme]) .dashboard-action-btn-primary,
+[data-theme="dark"] .dashboard-action-btn-primary {
+  transition: border-color 0.15s, transform 0.05s;
+}
+html:not([data-theme]) .dashboard-action-btn-primary:hover,
+[data-theme="dark"] .dashboard-action-btn-primary:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: #fff;
+}
