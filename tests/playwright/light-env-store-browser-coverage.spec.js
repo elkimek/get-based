@@ -128,23 +128,34 @@ test('light environment store browser coverage persists room screen and tombston
       const roomScreenId = await store.addScreen('monitor', roomId);
       const roomScreen = env.screens.find(s => s.id === roomScreenId);
       const portable = env.screens.find(s => s.id === portableId);
+      const portableBucket = store.getScreensForRoom(null);
+      const roomBucket = store.getScreensForRoom(roomId);
       const updatedScreen = await store.updateScreen(roomScreenId, {
         hoursPerDay: 5,
         eveningUseAfterSunset: 1.5,
         blueBlockerEnabled: true,
       });
       const missingScreenUpdate = await store.updateScreen('missing-screen', { hoursPerDay: 1 });
-      outcomes.addUpdateAndFilterScreens =
+      const screenTodayUpdate = await store.setTodayActive('screen', roomScreenId, false);
+      const missingScreenTodayUpdate = await store.setTodayActive('screen', 'missing-screen', true);
+      outcomes.addUpdateFilterScreensAndScreenTodayOverride =
         /^scr_[a-z0-9]+_[a-f0-9]{4}$/.test(portableId)
         && /^scr_[a-z0-9]+_[a-f0-9]{4}$/.test(roomScreenId)
-        && store.getScreensForRoom(null).some(s => s.id === portableId)
-        && store.getScreensForRoom(roomId).some(s => s.id === roomScreenId)
+        && portableBucket.some(s => s.id === portableId)
+        && !portableBucket.some(s => s.id === roomScreenId)
+        && roomBucket.some(s => s.id === roomScreenId)
+        && !roomBucket.some(s => s.id === portableId)
         && updatedScreen === roomScreen
         && roomScreen.hoursPerDay === 5
         && roomScreen.eveningUseAfterSunset === 1.5
         && roomScreen.blueBlockerEnabled === true
+        && screenTodayUpdate === roomScreen
+        && roomScreen.todayOverride.date === todayLocal()
+        && roomScreen.todayOverride.active === false
+        && store.isActiveToday(roomScreen) === false
         && Number.isFinite(roomScreen.updatedAt)
         && missingScreenUpdate === null
+        && missingScreenTodayUpdate === null
         && portable.roomId === null;
 
       const deleteScreenResult = await store.deleteScreen(portableId);
