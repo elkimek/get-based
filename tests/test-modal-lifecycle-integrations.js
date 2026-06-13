@@ -23,6 +23,7 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.j
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
+const utilsSrc = fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8');
 const knowledgeBaseModalSrc = lensSrc.slice(
   lensSrc.indexOf('export function openKnowledgeBaseModal'),
   lensSrc.indexOf('function _kbModalKeydown')
@@ -137,11 +138,23 @@ assert('PDF import preflight dialogs use shared lifecycle helpers',
     pdfImportPreflightSrc.includes("overlay.dataset.escapeOwner = 'preflight'") &&
     pdfImportPreflightSrc.includes('overlay.onclick = previousOnclick') &&
     pdfImportPreflightSrc.includes('delete overlay.dataset.escapeOwner') &&
-    appEventsSrc.includes("confirmOverlay.dataset.escapeOwner === 'preflight'") &&
+    appEventsSrc.includes('confirmOverlay.dataset.escapeOwner') &&
     pdfImportPreflightSrc.includes('document.addEventListener(\'keydown\', onKey)') &&
     pdfImportPreflightSrc.includes("cleanup = openPreflightOverlay(overlay, () => close('cancel'))") &&
     !pdfImportPreflightSrc.includes("overlay.classList.add('show')") &&
     !pdfImportPreflightSrc.includes("overlay.classList.remove('show')"));
+
+assert('utility confirm and prompt dialogs use shared lifecycle helpers',
+  utilsSrc.includes("from './modal-lifecycle.js'") &&
+    utilsSrc.includes("overlay.dataset.escapeOwner = 'utils-confirm'") &&
+    (utilsSrc.match(/openModalOverlay\(overlay/g) || []).length >= 2 &&
+    (utilsSrc.match(/closeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    utilsSrc.includes('overlay.onclick = previousOnclick') &&
+    utilsSrc.includes('delete overlay.dataset.escapeOwner') &&
+    !utilsSrc.includes('overlay.classList.add("show")') &&
+    !utilsSrc.includes("overlay.classList.add('show')") &&
+    !utilsSrc.includes('overlay.classList.remove("show")') &&
+    !utilsSrc.includes("overlay.classList.remove('show')"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&

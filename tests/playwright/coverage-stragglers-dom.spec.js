@@ -32,6 +32,26 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
       await promise.catch(() => {});
       outcomes.confirmBackdropNudges = nudgeApplied;
       outcomes.confirmAnimationEndClearsNudge = nudgeCleared;
+
+      const escapePromise = utils.showConfirmDialog('escape probe');
+      await new Promise(resolve => setTimeout(resolve, 50));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      const escapeResult = await Promise.race([
+        escapePromise,
+        new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      ]);
+      outcomes.confirmEscapeResolvesFalse = escapeResult === false
+        && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === false;
+
+      const promptPromise = utils.showPromptDialog('prompt escape', { defaultValue: 'abc' });
+      await new Promise(resolve => setTimeout(resolve, 50));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      const promptResult = await Promise.race([
+        promptPromise,
+        new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      ]);
+      outcomes.promptEscapeResolvesNull = promptResult === null
+        && document.getElementById('prompt-dialog-overlay')?.classList.contains('show') === false;
     }
 
     {

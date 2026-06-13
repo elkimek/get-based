@@ -1,6 +1,8 @@
 // @ts-check
 // utils.js — Pure utility functions, notifications, dialogs
 
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+
 /// Encode all five HTML-special characters — &, <, >, ", '. Safe to use
 /// in both text content AND attribute contexts. The prior implementation
 /// (textContent → innerHTML) only encoded & < >, which made every
@@ -447,11 +449,40 @@ export function showConfirmDialog(message) {
       <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
       <button class="confirm-btn confirm-btn-danger" id="confirm-ok">Confirm</button>
     </div></div>`;
-    overlay.classList.add("show");
-    document.getElementById("confirm-ok").onclick = () => { overlay.classList.remove("show"); resolve(true); };
-    document.getElementById("confirm-cancel").onclick = () => { overlay.classList.remove("show"); resolve(false); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
-    document.getElementById("confirm-cancel").focus();
+    let settled = false;
+    const previousOnclick = overlay.onclick;
+    overlay.dataset.escapeOwner = 'utils-confirm';
+    const cleanup = () => {
+      document.removeEventListener('keydown', onKey);
+      overlay.onclick = previousOnclick;
+      delete overlay.dataset.escapeOwner;
+    };
+    const close = (result) => {
+      if (settled) return;
+      settled = true;
+      closeModalOverlay(overlay);
+      cleanup();
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        const d = overlay.querySelector('.confirm-dialog');
+        if (d) {
+          d.classList.add('modal-nudge');
+          d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true });
+        }
+      }
+    };
+    openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 0 });
+    document.getElementById("confirm-ok").onclick = () => close(true);
+    document.getElementById("confirm-cancel").onclick = () => close(false);
   });
 }
 
@@ -482,15 +513,19 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
         <button class="confirm-btn confirm-btn-cancel" id="prompt-cancel">${escapeHTML(cancelLabel)}</button>
         <button class="confirm-btn confirm-btn-danger" id="prompt-ok" style="background:var(--accent)">${escapeHTML(okLabel)}</button>
       </div></div>`;
-    overlay.classList.add('show');
 
     const input = /** @type {HTMLInputElement} */ (document.getElementById('prompt-dialog-input'));
     const ok = document.getElementById('prompt-ok');
     const cancel = document.getElementById('prompt-cancel');
+    let settled = false;
+    const previousOnclick = overlay.onclick;
 
     const close = (value) => {
-      overlay.classList.remove('show');
+      if (settled) return;
+      settled = true;
+      closeModalOverlay(overlay);
       document.removeEventListener('keydown', onKey);
+      overlay.onclick = previousOnclick;
       resolve(value);
     };
     const readValue = () => {
@@ -506,8 +541,9 @@ export function showPromptDialog(message, { defaultValue = '', okLabel = 'OK', c
     cancel.onclick = () => close(null);
     overlay.onclick = (e) => { if (e.target === overlay) close(null); };
     document.addEventListener('keydown', onKey);
-    // Autofocus the input + select default text so the user can just type.
-    setTimeout(() => { input.focus(); input.select(); }, 0);
+    openModalOverlay(overlay, { initialFocus: input, focusDelay: 0 });
+    // Select default text so the user can just type.
+    setTimeout(() => { if (overlay.classList.contains('show')) input.select(); }, 0);
   });
 }
 
