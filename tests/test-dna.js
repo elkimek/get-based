@@ -418,6 +418,10 @@ assert('dashboard genome SNP rows keep severity left border',
 const dnaSrc = await fetchWithRetry('js/dna.js');
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
 assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
+assert('DNA preview modal uses shared overlay lifecycle helpers',
+  dnaSrc.includes("from './modal-lifecycle.js'") &&
+    dnaSrc.includes('openModalOverlay(overlay)') &&
+    (dnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length === 3);
 assert('DNA import success waits for persistence',
   /async function confirmDNAImport\(\)[\s\S]{0,220}await saveImportedData\(\)/.test(dnaSrc));
 const dnaSaveFailureBlock = (dnaSrc.match(/if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
