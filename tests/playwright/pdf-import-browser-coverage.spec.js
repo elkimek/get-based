@@ -951,6 +951,12 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       duplicateCancel.click();
       outcomes.duplicateCancelStopsImport = await duplicateCancelPromise === false;
 
+      const duplicateEscapePromise = preflight.runPreflightChecks(duplicateText, 'omegaquant.pdf');
+      await waitForButton('confirm-cancel');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      outcomes.duplicateEscapeCancelsImport = await duplicateEscapePromise === false
+        && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === false;
+
       const duplicateProceedPromise = preflight.runPreflightChecks(duplicateText, 'omegaquant.pdf');
       const duplicateProceed = await waitForButton('confirm-ok');
       duplicateProceed.click();

@@ -5,26 +5,66 @@ import { state } from './state.js';
 import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider, setAIProvider, setCustomApiModel, setOllamaMainModel, setOpenRouterModel, setPpqModel, setRoutstrModel, setVeniceModel } from './api.js';
 import { detectProduct, getAdapterByTestType } from './adapters.js';
 import { escapeHTML, hashString, isDebugMode } from './utils.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+
+function ensurePreflightOverlay() {
+  let overlay = document.getElementById('confirm-dialog-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'confirm-dialog-overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
+  }
+  return overlay;
+}
+
+function nudgePreflightDialog(overlay) {
+  const dialog = overlay.querySelector('.confirm-dialog');
+  if (!dialog) return;
+  dialog.classList.add('modal-nudge');
+  dialog.addEventListener('animationend', () => dialog.classList.remove('modal-nudge'), { once: true });
+}
+
+function openPreflightOverlay(overlay, cancel) {
+  openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 30 });
+  const previousOnclick = overlay.onclick;
+  overlay.dataset.escapeOwner = 'preflight';
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancel();
+    }
+  };
+  document.addEventListener('keydown', onKey);
+  overlay.onclick = (e) => { if (e.target === overlay) nudgePreflightDialog(overlay); };
+  return () => {
+    document.removeEventListener('keydown', onKey);
+    overlay.onclick = previousOnclick;
+    delete overlay.dataset.escapeOwner;
+  };
+}
 
 function showPreflightConfirm(message, confirmLabel = 'Import Anyway') {
   return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
+    const overlay = ensurePreflightOverlay();
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
       <p class="confirm-message">${message}</p>
       <div class="confirm-actions">
         <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
         <button class="confirm-btn confirm-btn-danger" id="confirm-ok">${escapeHTML(confirmLabel)}</button>
       </div></div>`;
-    overlay.classList.add('show');
-    document.getElementById('confirm-ok').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
+    let settled = false;
+    let cleanup = () => {};
+    const close = (result) => {
+      if (settled) return;
+      settled = true;
+      closeModalOverlay(overlay);
+      cleanup();
+      resolve(result);
+    };
+    cleanup = openPreflightOverlay(overlay, () => close(false));
+    document.getElementById('confirm-ok').onclick = () => close(true);
+    document.getElementById('confirm-cancel').onclick = () => close(false);
   });
 }
 
@@ -71,13 +111,7 @@ function tryAutoSwitchModel(prevModel, prevProvider) {
 
 function showModelMismatchDialog(mismatch) {
   return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
+    const overlay = ensurePreflightOverlay();
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true">
       <p class="confirm-message">Previous imports used <strong>${escapeHTML(mismatch.prevModel)}</strong>. Using <strong>${escapeHTML(mismatch.currentModel)}</strong> may cause marker key mismatches and break trend lines.</p>
       <div class="confirm-actions" style="flex-wrap:wrap;gap:8px">
@@ -85,15 +119,22 @@ function showModelMismatchDialog(mismatch) {
         <button class="confirm-btn" id="confirm-continue" style="background:var(--yellow);color:#000">Continue Anyway</button>
         <button class="confirm-btn confirm-btn-danger" id="confirm-switch">Switch to ${escapeHTML(mismatch.prevModel.split('/').pop())}</button>
       </div></div>`;
-    overlay.classList.add('show');
+    let settled = false;
+    let cleanup = () => {};
+    const close = (result) => {
+      if (settled) return;
+      settled = true;
+      closeModalOverlay(overlay);
+      cleanup();
+      resolve(result);
+    };
+    cleanup = openPreflightOverlay(overlay, () => close('cancel'));
     document.getElementById('confirm-switch').onclick = () => {
       tryAutoSwitchModel(mismatch.prevModel, mismatch.prevProvider);
-      overlay.classList.remove('show');
-      resolve('switched');
+      close('switched');
     };
-    document.getElementById('confirm-continue').onclick = () => { overlay.classList.remove('show'); resolve('continue'); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve('cancel'); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
+    document.getElementById('confirm-continue').onclick = () => close('continue');
+    document.getElementById('confirm-cancel').onclick = () => close('cancel');
   });
 }
 
@@ -140,13 +181,7 @@ ${snippet}` }],
 
 function showUnsupportedLabDialog(testType) {
   return new Promise(resolve => {
-    let overlay = document.getElementById('confirm-dialog-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'confirm-dialog-overlay';
-      overlay.className = 'confirm-overlay';
-      document.body.appendChild(overlay);
-    }
+    const overlay = ensurePreflightOverlay();
     const displayType = escapeHTML(testType);
     overlay.innerHTML = `<div class="confirm-dialog" role="alertdialog" aria-modal="true" style="max-width:480px">
       <p class="confirm-message" style="margin-bottom:12px">
@@ -160,10 +195,18 @@ function showUnsupportedLabDialog(testType) {
         <button class="confirm-btn confirm-btn-cancel" id="confirm-cancel">Cancel</button>
         <button class="confirm-btn" id="confirm-ok" style="background:var(--yellow);color:#000">Import Anyway</button>
       </div></div>`;
-    overlay.classList.add('show');
-    document.getElementById('confirm-ok').onclick = () => { overlay.classList.remove('show'); resolve(true); };
-    document.getElementById('confirm-cancel').onclick = () => { overlay.classList.remove('show'); resolve(false); };
-    overlay.onclick = (e) => { if (e.target === overlay) { const d = overlay.querySelector('.confirm-dialog'); if (d) { d.classList.add('modal-nudge'); d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true }); } } };
+    let settled = false;
+    let cleanup = () => {};
+    const close = (result) => {
+      if (settled) return;
+      settled = true;
+      closeModalOverlay(overlay);
+      cleanup();
+      resolve(result);
+    };
+    cleanup = openPreflightOverlay(overlay, () => close(false));
+    document.getElementById('confirm-ok').onclick = () => close(true);
+    document.getElementById('confirm-cancel').onclick = () => close(false);
   });
 }
 
