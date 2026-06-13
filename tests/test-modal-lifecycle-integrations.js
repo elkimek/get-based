@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 
@@ -34,6 +35,13 @@ assert('supplements editor opens through shared overlay lifecycle helper',
   supplementsSrc.includes("from './modal-lifecycle.js'") &&
     supplementsSrc.includes('openModalOverlay(overlay)') &&
     !supplementsSrc.includes('overlay.classList.add("show")'));
+
+assert('dashboard AI pickers use shared overlay lifecycle helpers',
+  dashboardAiSrc.includes("from './modal-lifecycle.js'") &&
+    dashboardAiSrc.includes('openModalOverlay(overlay, {') &&
+    dashboardAiSrc.includes('closeModalOverlay(overlay)') &&
+    !dashboardAiSrc.includes("overlay.classList.add('show')") &&
+    !dashboardAiSrc.includes("overlay.classList.remove('show')"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

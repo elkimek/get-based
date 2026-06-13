@@ -7,6 +7,7 @@ import { getLensSummary } from './lens.js';
 import { state } from './state.js';
 import { isSyncEnabled } from './sync.js';
 import { escapeHTML } from './utils.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 // Dashboard "AI personalization" zone:
 //   - Full-width row for the Interpretive Lens, only if it is set.
@@ -168,7 +169,7 @@ export function openDataProtectionPicker() {
     document.body.appendChild(overlay);
   }
   const close = () => {
-    overlay.classList.remove('show');
+    closeModalOverlay(overlay);
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -193,15 +194,14 @@ export function openDataProtectionPicker() {
       <button class="confirm-btn confirm-btn-cancel" id="data-protection-picker-cancel">Close</button>
     </div>
   </div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay, {
+    initialFocus: '.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel',
+    focusDelay: 50,
+  });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#data-protection-picker-cancel'));
   if (cancelButton) cancelButton.onclick = close;
-  setTimeout(() => {
-    const focusTarget = /** @type {HTMLElement | null} */ (overlay.querySelector('.dashboard-picker-card:not([data-configured="true"]),.dashboard-picker-card,#data-protection-picker-cancel'));
-    focusTarget?.focus();
-  }, 50);
   overlay.querySelectorAll('.dashboard-picker-card').forEach(btn => {
     const button = /** @type {HTMLButtonElement} */ (btn);
     button.onclick = () => {
@@ -226,7 +226,7 @@ export function openPersonalizeAIPicker() {
     document.body.appendChild(overlay);
   }
   const close = () => {
-    overlay.classList.remove('show');
+    closeModalOverlay(overlay);
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -248,15 +248,14 @@ export function openPersonalizeAIPicker() {
       <button class="confirm-btn confirm-btn-cancel" id="ai-personalize-picker-cancel">Cancel</button>
     </div>
   </div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay, {
+    initialFocus: '.ai-picker-card,#ai-personalize-picker-cancel',
+    focusDelay: 50,
+  });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
   const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#ai-personalize-picker-cancel'));
   if (cancelButton) cancelButton.onclick = close;
-  setTimeout(() => {
-    const focusTarget = /** @type {HTMLElement | null} */ (overlay.querySelector('.ai-picker-card,#ai-personalize-picker-cancel'));
-    focusTarget?.focus();
-  }, 50);
   overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
     const button = /** @type {HTMLButtonElement} */ (btn);
     button.onclick = () => {
