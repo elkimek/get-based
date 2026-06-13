@@ -1156,6 +1156,11 @@ function isUSCoords(lat, lon) {
   return false;
 }
 
+export {
+  shapeNoaaResponse as _testShapeNoaaResponse,
+  isUSCoords as _testIsUSCoords,
+};
+
 // Expose for window.fn calls from inline HTML handlers
 if (typeof window !== 'undefined') {
   Object.assign(window, {
