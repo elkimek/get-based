@@ -40,16 +40,14 @@ test('custom dark theme primary dashboard CTA hover text stays readable', async 
   await page.goto('/app', { waitUntil: 'networkidle' });
 
   for (const theme of THEMES) {
-    const result = await page.evaluate(async (nextTheme) => {
+    await page.evaluate(async (nextTheme) => {
       document.documentElement.dataset.theme = nextTheme;
       document.body.insertAdjacentHTML(
         'beforeend',
         `<button id="hover-contrast-cta" class="dashboard-action-btn dashboard-action-btn-primary" style="position:fixed;left:24px;top:24px;z-index:9999">Primary CTA</button>`
       );
       await new Promise(requestAnimationFrame);
-      return true;
     }, theme);
-    expect(result).toBe(true);
 
     const button = page.locator('#hover-contrast-cta');
     await button.hover();
