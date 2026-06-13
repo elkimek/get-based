@@ -135,6 +135,13 @@ assert('knowledge base modal uses shared lifecycle helpers',
     !knowledgeBaseModalSrc.includes("overlay.classList.add('show')") &&
     !knowledgeBaseModalSrc.includes("overlay.classList.remove('show')"));
 
+assert('lens library create dialog uses shared lifecycle helpers',
+  lensSrc.includes("from './modal-lifecycle.js'") &&
+    lensSrc.includes("openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 })") &&
+    lensSrc.includes('closeModalOverlay(overlay)') &&
+    !lensSrc.includes("overlay.classList.add('show')") &&
+    !lensSrc.includes("overlay.classList.remove('show')"));
+
 assert('PDF import preflight dialogs use shared lifecycle helpers',
   pdfImportPreflightSrc.includes("from './modal-lifecycle.js'") &&
     pdfImportPreflightSrc.includes("openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 30 })") &&

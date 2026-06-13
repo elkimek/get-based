@@ -1381,14 +1381,14 @@ function _showLibraryCreateDialog(embedder, models) {
         <button class="confirm-btn confirm-btn-cancel" id="lens-create-cancel">Cancel</button>
         <button class="confirm-btn confirm-btn-danger" id="lens-create-ok" style="background:var(--accent)">Create</button>
       </div></div>`;
-    overlay.classList.add('show');
+    openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 });
 
     const nameInput = /** @type {HTMLInputElement} */ (document.getElementById('lens-create-name'));
     const ok = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-ok'));
     const cancel = /** @type {HTMLButtonElement} */ (document.getElementById('lens-create-cancel'));
 
     const close = (result) => {
-      overlay.classList.remove('show');
+      closeModalOverlay(overlay);
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
@@ -1407,7 +1407,6 @@ function _showLibraryCreateDialog(embedder, models) {
     cancel.onclick = () => close(null);
     overlay.onclick = (e) => { if (e.target === overlay) close(null); };
     document.addEventListener('keydown', onKey);
-    setTimeout(() => nameInput.focus(), 0);
   });
 }
 
