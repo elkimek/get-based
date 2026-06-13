@@ -11,6 +11,59 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
+test('sun session model browser coverage exercises safety defaults and caveats', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ caveatsUrl, modelUrl }) => {
+    const [caveats, model] = await Promise.all([
+      import(caveatsUrl),
+      import(modelUrl),
+    ]);
+    const outcomes = {};
+
+    outcomes.photosensitiveTiersNormalizeLegacyAndUnknownInputs =
+      model.PHOTOSENSITIVE_MED_TIERS.map(tier => tier.key).join(',') === 'none,mild,moderate,severe'
+      && model.photosensitiveMedScale('moderate') === 0.4
+      && model.photosensitiveMedScale('severe') === 0.25
+      && model.photosensitiveMedScale('unknown-tier') === 1
+      && model._normalizePSMTier(true) === 'moderate'
+      && model._normalizePSMTier(false) === 'none'
+      && model._normalizePSMTier(null) === 'none'
+      && model._normalizePSMTier(undefined) === 'none'
+      && model._normalizePSMTier('mild') === 'mild'
+      && model._normalizePSMTier('bad') === 'none';
+
+    outcomes.exposurePostureAndSurfaceOptionsExposeExpectedDefaults =
+      model.EXPOSURE_PRESETS.some(preset => preset.key === 'face_hands' && preset.fraction === 0.05)
+      && model.EXPOSURE_PRESETS.some(preset => preset.key === 'sunbathing' && preset.fraction === 0.5)
+      && model.EXPOSURE_PRESETS.every(preset => preset.fraction > 0 && preset.fraction <= 0.5)
+      && model.POSTURE_OPTIONS.some(option => option.key === 'lying-supine')
+      && model.POSTURE_MULTIPLIERS.standing === 1
+      && model.POSTURE_MULTIPLIERS['lying-supine'] === 1.4
+      && model.POSTURE_MULTIPLIERS['lying-prone'] === 1.4
+      && model.SURFACE_OPTIONS.some(option => option.key === 'snow')
+      && model.SURFACE_ALBEDO.grass === 0.03
+      && model.SURFACE_ALBEDO.snow === 0.8;
+
+    outcomes.lightingHardwareCaveatsLoadAsPromptBlock =
+      Array.isArray(caveats.LIGHTING_HARDWARE_CAVEATS)
+      && caveats.LIGHTING_HARDWARE_CAVEATS.length >= 5
+      && caveats.LIGHTING_HARDWARE_CAVEATS.every(entry => typeof entry === 'string' && entry.length > 0)
+      && caveats.LIGHTING_HARDWARE_CAVEATS_TEXT === caveats.LIGHTING_HARDWARE_CAVEATS.join('\n')
+      && /PWM flicker/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
+      && /TRIAC/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
+      && /dimmable LED/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT)
+      && /blackout curtains/i.test(caveats.LIGHTING_HARDWARE_CAVEATS_TEXT);
+
+    return outcomes;
+  }, {
+    caveatsUrl: moduleUrl('/js/lighting-hardware-caveats.js'),
+    modelUrl: moduleUrl('/js/sun-session-model.js'),
+  });
+
+  expectAll(outcomes);
+});
+
 test('sun browser coverage exercises facade totals prompts and location paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
