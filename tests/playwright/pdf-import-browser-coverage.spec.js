@@ -190,6 +190,7 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         new File(['image'], 'photo.webp', { type: '' }),
         new File(['dna hook'], 'genome.dna', { type: 'text/plain' }),
         new File(['DNA RAW content'], 'ancestry.csv', { type: 'text/csv' }),
+        new File(['date,marker,value\n2026-06-01,Glucose,5.4'], 'lab-results.csv', { type: 'text/csv' }),
         new File(['plain notes'], 'notes.txt', { type: 'text/plain' }),
         new File(['unsupported'], 'archive.bin', { type: 'application/octet-stream' }),
       ]);
@@ -197,7 +198,7 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         && classified.pdfFiles.length === 3
         && classified.imageFiles.length === 1
         && classified.dnaFiles.length === 2
-        && classified.textFiles.length === 1
+        && classified.textFiles.length === 2
         && classified.unsupportedCount === 1;
       outcomes.pdfMagicSniffChecksHeader = await pdfImport.isPdfByMagic(magicPdf) === true
         && await pdfImport.isPdfByMagic(new File(['NOPE'], 'not-pdf.bin')) === false;
@@ -387,6 +388,13 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       const textFilePending = review.getPendingImport();
       outcomes.nonEmptyTextFileRoutesThroughPdfHandler = textFilePending?.fileName === 'notes.txt'
         && textFilePending.markers.length === 2;
+      review.closeImportModal();
+
+      await pdfImport.handleTextFile(new File([labText], 'lab-results.csv', { type: 'text/csv' }));
+      const csvFilePending = review.getPendingImport();
+      outcomes.csvFileRoutesThroughTextImportPipeline = csvFilePending?.fileName === 'lab-results.csv'
+        && csvFilePending.markers.length === 2
+        && csvFilePending.privacyMethod === 'regex';
       review.closeImportModal();
 
       await pdfImport.handleImageFile(new File(['image bytes'], 'scan.png', { type: 'image/png' }));
