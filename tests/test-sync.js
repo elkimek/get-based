@@ -716,6 +716,10 @@ await import('../js/settings.js');
     markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshKind')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshDate')
       && markerDetailModalSrc.includes('delete detailModal.dataset.syncRefreshEditIdx'));
+  assert('notes editor opens through shared overlay lifecycle helper',
+    notesSrc.includes("from './modal-lifecycle.js'") &&
+      notesSrc.includes("openModalOverlay(overlay, { initialFocus: '#note-textarea', focusDelay: 50 })") &&
+      notesSrc.includes('window.rememberModalTrigger?.()'));
   assert('active-profile sync broadcasts shared modal refresh event without marker special-casing',
     syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')")
       && !syncPullActiveRefreshSrc.includes('marker-detail-modal')
