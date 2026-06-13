@@ -236,6 +236,6 @@ Bundled locally under `vendor/`:
 |---|---|---|
 | Chart.js | 4.4.7 | Line charts, bar charts |
 | pdf.js | 4.10.38 (legacy ESM) | PDF text extraction; loaded lazily via `js/pdfjs-loader.js` with `isEvalSupported: false` pinned for defense-in-depth |
-| Inter, Outfit, JetBrains Mono | latest | Google Fonts (body, headings, data) |
+| Inter, Outfit, JetBrains Mono, VT323 | latest | Google Fonts (body, headings, data, Neuromancer display accents) |
 
 AI providers (OpenRouter, Routstr, PPQ, Venice, Local AI) are called directly from the browser for normal chat/import flows. Same-origin API helpers under `api/` cover hosted infrastructure such as OAuth/runtime proxying and encrypted profile share envelope storage, but they must not receive AI prompts or plaintext profile data unless explicitly documented for a new feature.

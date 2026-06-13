@@ -4,6 +4,7 @@ Copyright (c) 2020 The Outfit Project Authors (https://github.com/Outfit/Outfit-
 with Reserved Font Name "Outfit".
 Copyright (c) 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono),
 with Reserved Font Name "JetBrains Mono".
+Copyright 2011, The VT323 Project Authors (peter.hull@oikoi.com).
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

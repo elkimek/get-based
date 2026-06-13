@@ -197,6 +197,21 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('modern minimal primary dashboard CTA hover uses light text',
     !!defaultDarkCtaHoverRule &&
     cssSrc.includes('White hover text fails against the blue accent during background'));
+  const fontsSrc = read('/vendor/fonts/fonts.css');
+  assert('VT323 is bundled as local WOFF2 subsets',
+    /font-family:\s*'VT323'/.test(fontsSrc) &&
+    fontsSrc.includes("url('./vt323-400-3.woff2') format('woff2')") &&
+    !fontsSrc.includes('fonts.gstatic.com'));
+  const neuromancerDisplayRule = themesSrc.match(/\[data-theme="neuromancer"\] \.brand-mark,[\s\S]*?\{[^}]*font-family:\s*var\(--font-neuromancer-display\)/);
+  const neuromancerDisplayToken = themesSrc.match(/\[data-theme="neuromancer"\]\s*\{[^}]*--font-neuromancer-display:\s*'VT323'/);
+  assert('neuromancer VT323 stays scoped to display accents',
+    !!neuromancerDisplayToken &&
+    !!neuromancerDisplayRule &&
+    neuromancerDisplayRule[0].includes('.dashboard-greeting h1') &&
+    neuromancerDisplayRule[0].includes('.dashboard-widget-title') &&
+    neuromancerDisplayRule[0].includes('.m-section-title') &&
+    neuromancerDisplayRule[0].includes('.light-section-title') &&
+    !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');
