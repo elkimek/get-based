@@ -16,12 +16,36 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
-import { parseEnvLocal, _proxyHostBlocked, _isAllowedProxyUrl, _resolveCatalogRepo, _runPostDeployHooks, collectWearableOverrides, WEARABLE_CLIENT_ID_VARS, DEFAULT_UVDATA_UPSTREAM } from '../dev-server.js';
+import {
+  parseEnvLocal,
+  _proxyHostBlocked,
+  _isAllowedProxyUrl,
+  _resolveCatalogRepo,
+  _runPostDeployHooks,
+  collectWearableOverrides,
+  WEARABLE_CLIENT_ID_VARS,
+  DEFAULT_UVDATA_UPSTREAM,
+  isSameOrigin,
+  _isLoopbackSocket,
+  _isHostOriginMatch,
+  corsHeaders,
+  _sendProfileShareJSON,
+  _validateProfileShareEnvelope,
+} from '../dev-server.js';
 
 let passed = 0, failed = 0;
 function assert(name, cond, detail) {
   if (cond) { console.log(`  PASS: ${name}`); passed++; }
   else { console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); failed++; }
+}
+function assertThrows(name, fn, pattern) {
+  try {
+    fn();
+    assert(name, false, 'expected throw');
+  } catch (err) {
+    const message = String(err?.message || err);
+    assert(name, pattern ? pattern.test(message) : true, message);
+  }
 }
 
 console.log('\n── parseEnvLocal ──');
@@ -205,6 +229,114 @@ assert('blocks private IP',            !_isAllowedProxyUrl('https://192.168.1.1/
 assert('blocks cloud metadata',        !_isAllowedProxyUrl('https://169.254.169.254/latest/meta-data/'));
 assert('blocks .local',                !_isAllowedProxyUrl('https://box.local/admin'));
 assert('blocks malformed URL',         !_isAllowedProxyUrl('not a url'));
+
+console.log('\n── origin/CORS/profile share helpers ──');
+
+function reqWith(headers = {}, remoteAddress = '') {
+  return { headers, socket: { remoteAddress } };
+}
+
+assert('isSameOrigin accepts allowed Origin',
+  isSameOrigin(reqWith({ origin: 'http://127.0.0.1:8000' })));
+assert('isSameOrigin accepts allowed Referer origin',
+  isSameOrigin(reqWith({ referer: 'http://localhost:8000/app?x=1' })));
+assert('isSameOrigin rejects missing headers',
+  !isSameOrigin(reqWith({})));
+assert('isSameOrigin rejects malformed Referer',
+  !isSameOrigin(reqWith({ referer: 'not a url' })));
+assert('isSameOrigin rejects foreign Origin',
+  !isSameOrigin(reqWith({ origin: 'https://evil.example' })));
+
+assert('loopback socket helper accepts IPv4 and IPv6 loopback',
+  _isLoopbackSocket(reqWith({}, '127.0.0.1')) &&
+  _isLoopbackSocket(reqWith({}, '::1')) &&
+  _isLoopbackSocket(reqWith({}, '::ffff:127.0.0.1')));
+assert('loopback socket helper rejects LAN peers',
+  !_isLoopbackSocket(reqWith({}, '192.168.1.40')));
+
+assert('host origin match accepts http/https exact host',
+  _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'http://phone.tailnet.ts.net:8000' })) &&
+  _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'https://phone.tailnet.ts.net:8000' })));
+assert('host origin match rejects missing and mismatched headers',
+  !_isHostOriginMatch(reqWith({ origin: 'http://127.0.0.1:8000' })) &&
+  !_isHostOriginMatch(reqWith({ host: '127.0.0.1:8000', origin: 'https://evil.example' })));
+
+{
+  const headers = corsHeaders(reqWith({ origin: 'http://127.0.0.1:8000' }));
+  assert('corsHeaders reflects allowed Origin',
+    headers['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' && headers.Vary === 'Origin',
+    JSON.stringify(headers));
+}
+{
+  const headers = corsHeaders(reqWith({ referer: 'http://localhost:8000/app' }));
+  assert('corsHeaders reflects allowed Referer origin',
+    headers['Access-Control-Allow-Origin'] === 'http://localhost:8000' && headers.Vary === 'Origin',
+    JSON.stringify(headers));
+}
+assert('corsHeaders omits foreign origins',
+  Object.keys(corsHeaders(reqWith({ origin: 'https://evil.example' }))).length === 0);
+
+function captureJsonResponse() {
+  const out = {};
+  return {
+    res: {
+      writeHead(status, headers) {
+        out.status = status;
+        out.headers = headers;
+      },
+      end(body) {
+        out.body = body;
+      },
+    },
+    out,
+  };
+}
+
+{
+  const { res, out } = captureJsonResponse();
+  _sendProfileShareJSON(reqWith({ origin: 'http://127.0.0.1:8000' }), res, 201, { ok: true });
+  assert('profile share JSON helper writes JSON and CORS headers',
+    out.status === 201 &&
+    out.headers?.['Content-Type'] === 'application/json' &&
+    out.headers?.['Cache-Control'] === 'no-store' &&
+    out.headers?.['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' &&
+    JSON.parse(out.body).ok === true,
+    JSON.stringify(out));
+}
+
+function validProfileEnvelope(overrides = {}) {
+  return {
+    schema: 'getbased-profile-share',
+    version: 1,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 100_000 },
+    cipher: { name: 'AES-GCM' },
+    ciphertext: 'encrypted-profile-payload',
+    ...overrides,
+  };
+}
+
+{
+  const normalized = _validateProfileShareEnvelope(validProfileEnvelope());
+  assert('valid encrypted profile envelope normalizes size and expiry',
+    normalized.sizeBytes > 0 && normalized.expiresAt > Date.now(),
+    JSON.stringify(normalized));
+}
+assertThrows('profile envelope rejects missing payload',
+  () => _validateProfileShareEnvelope(null),
+  /Missing encrypted profile payload/);
+assertThrows('profile envelope rejects expired links',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ expiresAt: new Date(Date.now() - 1000).toISOString() })),
+  /future/);
+assertThrows('profile envelope rejects weak KDF iterations',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ kdf: { name: 'PBKDF2', hash: 'SHA-256', iterations: 99_999 } })),
+  /PBKDF2 iterations/);
+assertThrows('profile envelope rejects unsupported cipher',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ cipher: { name: 'AES-CBC' } })),
+  /Unsupported cipher/);
+assertThrows('profile envelope rejects empty ciphertext',
+  () => _validateProfileShareEnvelope(validProfileEnvelope({ ciphertext: '' })),
+  /empty/);
 
 // ── _resolveCatalogRepo ──
 console.log('\n── _resolveCatalogRepo ──');
