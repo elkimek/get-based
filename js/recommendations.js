@@ -616,7 +616,7 @@ export function renderCardTipsModal(cardKey) {
   }
   if (cardKey === 'environment') items += _buildEMFNudge();
   if (!items) return '';
-  return `<button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('show')">\u00D7</button>
+  return `<button class="modal-close" onclick="window.closeModal()">\u00D7</button>
     <div class="ctx-tips-modal-header">${cardInfo.emoji} ${escapeHTML(cardInfo.label)} \u2014 Tips</div>
     <div class="ctx-tips-modal-body">${items}</div>
     <div class="rec-mini-disclaimer" style="margin-top:12px">For informational purposes only. Not medical advice. Consult your healthcare provider before starting any supplement.</div>`;
@@ -627,7 +627,7 @@ export function renderCardTipsModal(cardKey) {
 // than 120d. Empty otherwise so we don't nag users keeping up.
 function _buildEMFNudge() {
   const assessments = state.importedData?.emfAssessment?.assessments || [];
-  const openHandler = `event.preventDefault();document.getElementById('modal-overlay').classList.remove('show');setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
+  const openHandler = `event.preventDefault();window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
   if (!assessments.length) {
     return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
   }
