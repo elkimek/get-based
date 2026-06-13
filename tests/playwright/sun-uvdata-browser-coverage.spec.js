@@ -373,6 +373,18 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && legacyNoaaCalls.length === 1
         && legacyNoaaCalls[0] === '/api/proxy';
 
+      const shapedNoaa = mod._testShapeNoaaResponse({ UVI: 6.1, ozone: 307 }, iso);
+      outcomes.noaaTestHooksCoverLegacyShaperAndUsPredicate =
+        shapedNoaa?.source === 'noaa_nws'
+        && shapedNoaa.uvIndex === 6.1
+        && shapedNoaa.ozoneDU === 307
+        && shapedNoaa.confidence === mod.UV_SOURCE_CONFIDENCE.noaa_nws
+        && mod._testShapeNoaaResponse({}, iso) === null
+        && mod._testIsUSCoords(40, -100) === true
+        && mod._testIsUSCoords(61, -150) === true
+        && mod._testIsUSCoords(20.5, -157) === true
+        && mod._testIsUSCoords(50, 14) === false;
+
       saveConfig({ mode: 'open-meteo' });
       cleanupCache();
       let cacheFetches = 0;
