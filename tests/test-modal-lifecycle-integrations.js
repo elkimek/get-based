@@ -19,6 +19,7 @@ const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 
 let passed = 0;
@@ -102,6 +103,18 @@ assert('settings modal opens and closes through shared overlay lifecycle helpers
     settingsSrc.includes("closeModalOverlay('settings-modal-overlay')") &&
     !settingsSrc.includes("overlay.classList.add('show')") &&
     !settingsSrc.includes("document.getElementById('settings-modal-overlay').classList.remove('show')"));
+
+assert('sync setup and restore dialogs use shared lifecycle helpers',
+  settingsSyncPanelSrc.includes("from './modal-lifecycle.js'") &&
+    settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action=\"setup-new\"]', focusDelay: 50 })") &&
+    settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 })") &&
+    (settingsSyncPanelSrc.match(/closeModalOverlay\('sync-setup-overlay'\)/g) || []).length >= 2 &&
+    settingsSyncPanelSrc.includes("closeModalOverlay('sync-restore-overlay')") &&
+    !settingsSyncPanelSrc.includes("overlay.classList.add('show')") &&
+    !settingsSyncPanelSrc.includes("overlay.classList.remove('show')"));
+
+assert('global focus trap top-overlay check includes confirm overlays',
+  appEventsSrc.includes("'.modal-overlay.show, .confirm-overlay.show'"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&

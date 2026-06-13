@@ -147,7 +147,7 @@ function handleAppKeydown(e) {
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {
-        const openOverlays = Array.from(document.querySelectorAll('.modal-overlay.show'));
+        const openOverlays = Array.from(document.querySelectorAll('.modal-overlay.show, .confirm-overlay.show'));
         if (openOverlays.length && openOverlays[openOverlays.length - 1] !== ov) continue;
         const modal = ov.querySelector('[role="dialog"]') || ov.querySelector('.modal') || ov.querySelector('.confirm-dialog') || ov;
         const focusable = modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])');

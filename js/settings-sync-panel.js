@@ -19,6 +19,7 @@ import {
   revokeMessengerToken,
   pushContextToGateway,
 } from './sync.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   applyPendingTombstone?: (id: string) => Promise<void>,
@@ -316,12 +317,11 @@ export function showSyncSetupModal() {
       <button class="confirm-btn confirm-btn-cancel" data-sync-setup-action="setup-cancel">Cancel</button>
     </div>
   </div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action="setup-new"]', focusDelay: 50 });
 }
 
 async function closeSyncSetup() {
-  const overlay = document.getElementById('sync-setup-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('sync-setup-overlay');
   // If sync was started during setup but user cancelled, clean up
   if (isSyncEnabled()) {
     _mnemonicCache = null;
@@ -391,8 +391,7 @@ function updateSyncSetupAck(ack = document.getElementById('sync-setup-ack')) {
 }
 
 function syncSetupDone() {
-  const overlay = document.getElementById('sync-setup-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('sync-setup-overlay');
   _releaseSyncToggle();
   const el = document.getElementById('sync-section');
   if (el) el.innerHTML = renderSyncSection();
@@ -557,12 +556,11 @@ function openRestoreMnemonicDialog() {
       <button id="sync-restore-dialog-go" class="import-btn import-btn-primary" style="padding:8px 16px;font-size:13px" data-sync-action="confirm-restore">Restore &amp; reload</button>
     </div>
   </div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 });
   // Live word count + button enable so the user gets immediate feedback as
   // they paste — much friendlier than only finding out on submit.
   const input = document.getElementById('sync-restore-dialog-input');
   if (input) {
-    input.focus();
     updateRestoreMnemonicDialogState(input instanceof HTMLTextAreaElement ? input : null);
   }
 }
@@ -588,8 +586,7 @@ function updateRestoreMnemonicDialogState(input = /** @type {HTMLTextAreaElement
 }
 
 function closeRestoreMnemonicDialog() {
-  const overlay = document.getElementById('sync-restore-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('sync-restore-overlay');
 }
 
 async function confirmRestoreMnemonic() {
