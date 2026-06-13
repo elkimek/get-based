@@ -16,6 +16,7 @@ import { getChartColors } from './theme.js';
 import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 
 const WEARABLE_DETAIL_RANGES = [
   { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
@@ -133,7 +134,7 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
 
   modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity, rangeKey });
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 
   const focusTarget = opts.fromRangeToggle
     ? modal.querySelector('.wearable-detail-range .ctx-btn-option.active')

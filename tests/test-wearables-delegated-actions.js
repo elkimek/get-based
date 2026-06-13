@@ -46,6 +46,9 @@ assert('wearables detail modal renders delegated action and form attributes',
     detailSrc.includes("wearableActionAttrs('set-detail-range'") &&
     detailSrc.includes("wearableActionAttrs('delete-detail-manual-entry'") &&
     detailSrc.includes("wearableFormAttrs('detail-manual-add'"));
+assert('wearables detail modal opens through shared overlay lifecycle helper',
+  detailSrc.includes("from './modal-lifecycle.js'") &&
+    detailSrc.includes('openModalOverlay(overlay)'));
 assert('wearable action attr helper has one shared definition',
   (stripSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 0 &&
     (detailSrc.match(/\bfunction\s+wearableActionAttrs\b/g) || []).length === 1 &&
