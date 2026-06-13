@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { hashString, showNotification, showConfirmDialog, showPromptDialog, isDebugMode, escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider, callClaudeAPI } from './api.js';
+import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-lifecycle.js';
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
 /** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
@@ -733,7 +734,7 @@ export function openKnowledgeBaseModal() {
     overlay.id = 'kb-modal-overlay';
     overlay.className = 'modal-overlay';
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeKnowledgeBaseModal(); });
+    wireBackdropClose(overlay, closeKnowledgeBaseModal);
   }
   if (!modal) {
     modal = document.createElement('div');
@@ -755,24 +756,19 @@ export function openKnowledgeBaseModal() {
     </div>
     </div>
   `;
-  overlay.classList.add('show');
+  openModalOverlay(overlay, {
+    initialFocus: 'input:not([disabled]),button:not([disabled]),[tabindex="0"]',
+    focusDelay: 50
+  });
   document.addEventListener('keydown', _kbModalKeydown);
   // Hydrate stats async without blocking the open.
   if (getLensConfig().backend === 'in-browser') {
     _loadLocalLensStats().catch(() => {});
   }
-  // Move focus into the modal so keyboard users land inside, not on
-  // the trigger button. Defer one tick so the .show class transition
-  // doesn't fight the focus call.
-  setTimeout(() => {
-    const firstFocusable = /** @type {HTMLElement | null} */ (modal.querySelector('input:not([disabled]),button:not([disabled]),[tabindex="0"]'));
-    firstFocusable?.focus();
-  }, 50);
 }
 
 export function closeKnowledgeBaseModal() {
-  const overlay = document.getElementById('kb-modal-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('kb-modal-overlay');
   document.removeEventListener('keydown', _kbModalKeydown);
 }
 
