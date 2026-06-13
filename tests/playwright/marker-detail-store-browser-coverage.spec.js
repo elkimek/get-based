@@ -66,12 +66,15 @@ test('marker detail store browser coverage persists manual values notes ranges a
         noteText: 'fingerstick',
         now: 102,
       });
+      const createdEntryRevert = await store.revertManualMarkerValue('biochemistry.glucose', '2026-06-01', { now: 103 });
       const persistedAfterCreate = JSON.parse(await encryptedGetItem(importedKey));
       outcomes.guardsAndEnsureImportedDataCreateAndPersist =
         missingKeySave === null
         && missingDateSave === null
+        && createdEntryRevert === null
         && createdEntry?.date === '2026-06-01'
         && createdEntry.markers['biochemistry.glucose'] === 4.8
+        && state.importedData.manualValues['biochemistry.glucose:2026-06-01'] === true
         && state.importedData.markerValueNotes['biochemistry.glucose:2026-06-01'] === 'fingerstick'
         && persistedAfterCreate.entries.some(e => e.date === '2026-06-01');
 
@@ -200,12 +203,16 @@ test('marker detail store browser coverage persists manual values notes ranges a
 
       const emptyNoteNoop = await store.saveMarkerNoteText('biochemistry.alt', '');
       const savedMarkerNote = await store.saveMarkerNoteText('biochemistry.alt', '  liver context  ');
+      const whitespaceDeletedMarkerNote = await store.saveMarkerNoteText('biochemistry.alt', '  ');
+      const resavedMarkerNote = await store.saveMarkerNoteText('biochemistry.alt', 'liver context');
       const deletedMarkerNote = await store.deleteMarkerNoteText('biochemistry.alt');
       const deletedMissingMarkerNote = await store.deleteMarkerNoteText('biochemistry.alt');
       const missingKeyNote = await store.saveMarkerNoteText('', 'ignored');
       outcomes.markerNotesTrimSaveDeleteAndGuard =
         emptyNoteNoop.action === 'noop'
         && savedMarkerNote.action === 'saved'
+        && whitespaceDeletedMarkerNote.action === 'deleted'
+        && resavedMarkerNote.action === 'saved'
         && deletedMarkerNote === true
         && deletedMissingMarkerNote === false
         && missingKeyNote.action === 'noop'
