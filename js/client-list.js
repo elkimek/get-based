@@ -6,6 +6,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { getProfiles, getActiveProfileId, createProfile, switchProfile, deleteProfile, updateProfileMeta, getAllTags, getLocationCache, latitudeToBand, getLatitudeFromLocation, detectLatitudeWithAI, getProfileHeight } from './profile.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 let _search = '';
 let _sort = 'lastUpdated';
@@ -129,17 +130,12 @@ export function openClientList() {
   const overlay = document.getElementById('client-list-overlay');
   if (!overlay) return;
   renderClientList();
-  overlay.classList.add('show');
+  openModalOverlay(overlay, { initialFocus: '#cl-search' });
   document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => {
-    const input = document.getElementById('cl-search');
-    if (input) input.focus();
-  });
 }
 
 export function closeClientList() {
-  const overlay = document.getElementById('client-list-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('client-list-overlay');
   document.body.style.overflow = '';
   _editingId = null;
 }

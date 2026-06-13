@@ -48,6 +48,10 @@ assert('client-list menu buttons are data-driven',
 assert('client-list can open share modal for selected profile',
   clientListSrc.includes('function _clShare(id)') &&
     clientListSrc.includes('window.openProfileShareModal?.(id)'));
+assert('client-list modal uses shared overlay lifecycle helpers',
+  clientListSrc.includes("from './modal-lifecycle.js'") &&
+    clientListSrc.includes('openModalOverlay(') &&
+    clientListSrc.includes('closeModalOverlay('));
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
   clientListSrc.includes("btn.setAttribute('data-cl-action', 'remove-avatar')") &&
     !clientListSrc.includes('.onclick'));
