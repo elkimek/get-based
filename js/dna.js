@@ -5,6 +5,7 @@
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 /** @typedef {Window & typeof globalThis & {
  *   _pendingDNAImport?: any,
  *   _pendingMtDNA?: any,
@@ -1092,14 +1093,13 @@ function showDNAImportPreview(result, fileName) {
     document.body.appendChild(overlay);
   }
   overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 }
 
 function closeDNAImportPreview() {
   dnaWindow._pendingDNAImport = null;
   _dnaImportRunning = false;
-  const overlay = document.getElementById('dna-modal-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('dna-modal-overlay');
 }
 
 async function confirmDNAImport() {
@@ -1112,8 +1112,7 @@ async function confirmDNAImport() {
   }
   dnaWindow._pendingDNAImport = null;
   _dnaImportRunning = false;
-  const overlay = document.getElementById('dna-modal-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('dna-modal-overlay');
   showNotification(`Imported ${result.coverage.found} SNPs from ${result.source}`, 'success');
 
   // Build summary for chat confirmation
@@ -1374,12 +1373,11 @@ function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
     document.body.appendChild(overlay);
   }
   overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 }
 
 export function closeMtDNAPreview() {
-  const overlay = document.getElementById('dna-modal-overlay');
-  if (overlay) overlay.classList.remove('show');
+  closeModalOverlay('dna-modal-overlay');
   dnaWindow._pendingMtDNA = null;
 }
 
