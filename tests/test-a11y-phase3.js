@@ -202,15 +202,73 @@ console.log('=== Phase 3 A11y Tests ===\n');
     /font-family:\s*'VT323'/.test(fontsSrc) &&
     fontsSrc.includes("url('./vt323-400-3.woff2') format('woff2')") &&
     !fontsSrc.includes('fonts.gstatic.com'));
-  const neuromancerDisplayRule = themesSrc.match(/\[data-theme="neuromancer"\] \.brand-mark,[\s\S]*?\{[^}]*font-family:\s*var\(--font-neuromancer-display\)/);
+  const neuromancerDisplayRule = themesSrc.match(/\[data-theme="neuromancer"\] \.brand-mark,[\s\S]*?\{[^}]*font-family:\s*var\(--font-neuromancer-display\)[^}]*\}/);
   const neuromancerDisplayToken = themesSrc.match(/\[data-theme="neuromancer"\]\s*\{[^}]*--font-neuromancer-display:\s*'VT323'/);
+  const neuromancerDisplaySelectors = [
+    '.dashboard-greeting h1',
+    '.m-greeting h1',
+    '.welcome-hero h2',
+    '.category-header h2',
+    '.dashboard-widget-title',
+    '.dashboard-widget-picker-title',
+    '.empty-state h3',
+    '#tour-tooltip h4',
+    '.alerts-title',
+    '.chart-card-title',
+    '.fa-card-name',
+    '.marker-detail-modal h3',
+    '.m-section-title',
+    '.light-section-title',
+    '.light-conditions-now-title',
+    '.light-setup-title',
+    '.light-setup-focus-head h3',
+    '.light-setup-ott h4',
+    '.light-today-title',
+    '.light-channel-detail-title',
+    '.cycle-widget-title',
+    '.context-section-title',
+    '.supp-form-title',
+    '.contaminant-section-title',
+    '.genetics-empty-stub-title',
+    '.genetics-section .section-header > span:first-child',
+    '.dna-preview-title',
+    '.wearable-strip-title',
+    '.wearable-manual-entries-title',
+    '.rec-section-header',
+    '.cl-title',
+    '.cl-section-title',
+    '.passphrase-title',
+    '.encryption-status-title',
+    '.chat-header-title',
+    '.chat-thread-rail-title',
+    '.chat-saved-summaries-title',
+    '.emf-interp-header h3',
+    '.gb-modal-title',
+    '.modal h3',
+  ];
+  const neuromancerBaseFontSelectors = [
+    '.alert-name',
+    '.db-spotlight-name',
+    '.db-key-trend-name',
+    '.trend-alert-name',
+    '.labs-priority-copy strong',
+    '.m-marker-main strong',
+    '.light-device-name',
+    '.light-device-preset-name',
+    '.light-device-picker-name',
+    '.light-tool-action-name',
+    '.wearable-metric-name',
+    '.settings-tab-btn',
+    '.chat-thread-item-name',
+    '.chat-personality-current-name',
+    '.chat-personality-opt-name',
+  ];
   assert('neuromancer VT323 stays scoped to display accents',
     !!neuromancerDisplayToken &&
     !!neuromancerDisplayRule &&
-    neuromancerDisplayRule[0].includes('.dashboard-greeting h1') &&
-    neuromancerDisplayRule[0].includes('.dashboard-widget-title') &&
-    neuromancerDisplayRule[0].includes('.m-section-title') &&
-    neuromancerDisplayRule[0].includes('.light-section-title') &&
+    neuromancerDisplaySelectors.every(selector => neuromancerDisplayRule[0].includes(selector)) &&
+    neuromancerBaseFontSelectors.every(selector => !neuromancerDisplayRule[0].includes(selector)) &&
+    neuromancerDisplayRule[0].includes('font-size-adjust: 0.62') &&
     !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));
 
   // ─── 12. Weight input respects unit system ───
