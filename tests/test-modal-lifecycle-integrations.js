@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const contextCardsSrc = fs.readFileSync(path.join(root, 'js/context-cards.js'), 'utf8');
+const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor.js'), 'utf8');
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
@@ -56,6 +57,12 @@ assert('context medical history and card tips open through shared overlay lifecy
     contextCardsSrc.includes('openModalOverlay(overlay)') &&
     !contextMedicalSrc.includes('overlay.classList.add("show")') &&
     !contextCardsSrc.includes("overlay.classList.add('show')"));
+
+assert('lifestyle context editors open through shared overlay lifecycle helper',
+  contextLifestyleSrc.includes("from './modal-lifecycle.js'") &&
+    (contextLifestyleSrc.match(/openModalOverlay\(overlay\)/g) || []).length >= 10 &&
+    !contextLifestyleSrc.includes('overlay.classList.add("show")') &&
+    !contextLifestyleSrc.includes("overlay.classList.add('show')"));
 
 assert('card tips modal closes through shared detail modal close path',
   recommendationsSrc.includes('onclick="window.closeModal()"') &&
