@@ -512,7 +512,7 @@ export function _validateProfileShareEnvelope(envelope) {
   if (sizeBytes > PROFILE_SHARE_MAX_BYTES) throw new Error('Encrypted profile payload is too large for link sharing.');
   return { sizeBytes, expiresAt };
 }
-function _handleProfileShareDev(req, res, url) {
+export function _handleProfileShareDev(req, res, url) {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, { ...corsHeaders(req), 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
     res.end();

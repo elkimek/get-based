@@ -16,6 +16,8 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
+import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import {
   parseEnvLocal,
   _proxyHostBlocked,
@@ -31,6 +33,7 @@ import {
   corsHeaders,
   _sendProfileShareJSON,
   _validateProfileShareEnvelope,
+  _handleProfileShareDev,
 } from '../dev-server.js';
 
 let passed = 0, failed = 0;
@@ -337,6 +340,112 @@ assertThrows('profile envelope rejects unsupported cipher',
 assertThrows('profile envelope rejects empty ciphertext',
   () => _validateProfileShareEnvelope(validProfileEnvelope({ ciphertext: '' })),
   /empty/);
+
+function invokeProfileShareDev(method, search = '', body, headers = {}) {
+  return new Promise(resolve => {
+    const req = new EventEmitter();
+    req.method = method;
+    req.headers = headers;
+    req.socket = { remoteAddress: '127.0.0.1' };
+    req.destroy = () => { req.destroyed = true; };
+    const out = {};
+    const res = {
+      writeHead(status, responseHeaders = {}) {
+        out.status = status;
+        out.headers = responseHeaders;
+      },
+      end(responseBody = '') {
+        out.body = String(responseBody);
+        resolve(out);
+      },
+    };
+    _handleProfileShareDev(req, res, new URL(`http://localhost/api/share${search}`));
+    if (body !== undefined) {
+      req.emit('data', Buffer.from(String(body)));
+      req.emit('end');
+    }
+  });
+}
+
+function jsonBody(out) {
+  return JSON.parse(out.body || '{}');
+}
+
+{
+  const out = await invokeProfileShareDev('OPTIONS');
+  assert('profile share dev OPTIONS returns CORS preflight headers',
+    out.status === 204 &&
+    /GET, POST, DELETE, OPTIONS/.test(out.headers?.['Access-Control-Allow-Methods'] || ''),
+    JSON.stringify(out));
+}
+
+{
+  const out = await invokeProfileShareDev('POST', '', 'not json');
+  assert('profile share dev POST rejects invalid JSON',
+    out.status === 400 && jsonBody(out).error === 'Invalid JSON body.',
+    JSON.stringify(out));
+}
+
+{
+  const id = 'coverage-share-flow-001';
+  const manageToken = 'coverage-manage-token';
+  const manageTokenHash = crypto.createHash('sha256').update(manageToken).digest('hex');
+  const envelope = validProfileEnvelope();
+  const createOut = await invokeProfileShareDev('POST', '', JSON.stringify({
+    id,
+    manageTokenHash,
+    envelope,
+  }), { origin: 'http://127.0.0.1:8000' });
+  const createBody = jsonBody(createOut);
+  assert('profile share dev POST stores valid encrypted share',
+    createOut.status === 201 &&
+    createBody.id === id &&
+    createBody.sizeBytes > 0 &&
+    createOut.headers?.['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000',
+    JSON.stringify(createOut));
+
+  const duplicateOut = await invokeProfileShareDev('POST', '', JSON.stringify({
+    id,
+    manageTokenHash,
+    envelope,
+  }));
+  assert('profile share dev POST rejects duplicate share ids',
+    duplicateOut.status === 409 && /already exists/.test(jsonBody(duplicateOut).error || ''),
+    JSON.stringify(duplicateOut));
+
+  const getOut = await invokeProfileShareDev('GET', `?id=${id}`);
+  const getBody = jsonBody(getOut);
+  assert('profile share dev GET returns stored envelope',
+    getOut.status === 200 &&
+    getBody.id === id &&
+    getBody.envelope?.ciphertext === envelope.ciphertext,
+    JSON.stringify(getOut));
+
+  const wrongDelete = await invokeProfileShareDev('DELETE', `?id=${id}`, JSON.stringify({ manageToken: 'wrong-token' }));
+  assert('profile share dev DELETE rejects wrong manage token',
+    wrongDelete.status === 403 &&
+    /only be stopped/.test(jsonBody(wrongDelete).error || ''),
+    JSON.stringify(wrongDelete));
+
+  const deleteOut = await invokeProfileShareDev('DELETE', `?id=${id}`, '', {
+    'x-profile-share-manage-token': manageToken,
+  });
+  assert('profile share dev DELETE removes share with header token',
+    deleteOut.status === 200 && jsonBody(deleteOut).ok === true,
+    JSON.stringify(deleteOut));
+
+  const missingOut = await invokeProfileShareDev('GET', `?id=${id}`);
+  assert('profile share dev GET returns 404 after delete',
+    missingOut.status === 404 && /not found/.test(jsonBody(missingOut).error || ''),
+    JSON.stringify(missingOut));
+}
+
+{
+  const out = await invokeProfileShareDev('DELETE', '?id=missing-share-flow-001');
+  assert('profile share dev DELETE missing share is idempotent',
+    out.status === 200 && jsonBody(out).ok === true && jsonBody(out).missing === true,
+    JSON.stringify(out));
+}
 
 // ── _resolveCatalogRepo ──
 console.log('\n── _resolveCatalogRepo ──');
