@@ -24,6 +24,9 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.j
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
+const syncDiagnoseIdentitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-identity-actions.js'), 'utf8');
+const syncDiagnoseRenderSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-render.js'), 'utf8');
+const syncDiagnoseUiSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-ui.js'), 'utf8');
 const utilsSrc = fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8');
 const knowledgeBaseModalSrc = lensSrc.slice(
   lensSrc.indexOf('export function openKnowledgeBaseModal'),
@@ -165,6 +168,20 @@ assert('marker detail modals open and close through shared lifecycle helpers',
     markerDetailSrc.includes("closeModalOverlay('modal-overlay')") &&
     !markerDetailSrc.includes('overlay.classList.add("show")') &&
     !markerDetailSrc.includes("overlay.classList.add('show')"));
+
+assert('sync diagnose overlays use shared lifecycle helpers',
+  syncDiagnoseUiSrc.includes("from './modal-lifecycle.js'") &&
+    syncDiagnoseUiSrc.includes("overlay.className = 'modal-overlay'") &&
+    syncDiagnoseUiSrc.includes('openModalOverlay(overlay)') &&
+    syncDiagnoseUiSrc.includes('closeModalOverlay(overlay)') &&
+    syncDiagnoseIdentitySrc.includes("from './modal-lifecycle.js'") &&
+    syncDiagnoseIdentitySrc.includes("overlay.className = 'modal-overlay'") &&
+    syncDiagnoseIdentitySrc.includes('openModalOverlay(overlay)') &&
+    (syncDiagnoseIdentitySrc.match(/closeModalOverlay\(/g) || []).length >= 2 &&
+    (syncDiagnoseRenderSrc.match(/data-sync-diagnose-close/g) || []).length >= 2 &&
+    !syncDiagnoseRenderSrc.includes("this.closest('.modal-overlay').remove()") &&
+    !syncDiagnoseUiSrc.includes("overlay.className = 'modal-overlay show'") &&
+    !syncDiagnoseIdentitySrc.includes("overlay.className = 'modal-overlay show'"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&
