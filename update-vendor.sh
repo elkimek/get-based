@@ -51,7 +51,7 @@ curl -fsSL "https://cdn.jsdelivr.net/npm/jszip@${JSZIP_VERSION}/dist/jszip.min.j
 echo "=== Downloading Google Fonts ==="
 FONTS_CSS=$(curl -fsSL \
   -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120" \
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap")
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&family=VT323&display=swap")
 
 # Parse CSS, download woff2 files, generate local fonts.css
 python3 -c "

@@ -274,6 +274,7 @@
   --radius-sm: 0px;
   --font-display: 'JetBrains Mono', ui-monospace, monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-neuromancer-display: 'VT323', 'JetBrains Mono', ui-monospace, monospace;
 }
 [data-theme="neuromancer"] body {
   background-color: #050608;
@@ -433,10 +434,20 @@
 
 [data-theme="neuromancer"] .brand-mark,
 [data-theme="neuromancer"] .header h1.brand-mark,
-[data-theme="neuromancer"] .app-footer-logo {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+[data-theme="neuromancer"] .app-footer-logo,
+[data-theme="neuromancer"] .dashboard-greeting h1,
+[data-theme="neuromancer"] .dashboard-widget-title,
+[data-theme="neuromancer"] .m-section-title,
+[data-theme="neuromancer"] .light-section-title {
+  font-family: var(--font-neuromancer-display);
+  font-weight: 400;
   font-variant-caps: normal;
   letter-spacing: 0;
+}
+
+[data-theme="neuromancer"] .brand-mark,
+[data-theme="neuromancer"] .header h1.brand-mark,
+[data-theme="neuromancer"] .app-footer-logo {
   text-transform: lowercase;
 }
 
@@ -970,8 +981,9 @@
 @media (max-width: 600px) {
   [data-theme="neuromancer"] .brand-mark,
   [data-theme="neuromancer"] .header h1.brand-mark {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: var(--font-neuromancer-display);
     font-size: 17px;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: lowercase;
   }
