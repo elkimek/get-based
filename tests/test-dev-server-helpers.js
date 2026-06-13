@@ -16,6 +16,8 @@
 // These were extracted as exports so tests can import them without spinning
 // up the HTTP server (the server-side SSRF guard would be end-to-end work).
 
+import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import {
   parseEnvLocal,
   _proxyHostBlocked,
@@ -31,9 +33,13 @@ import {
   corsHeaders,
   _sendProfileShareJSON,
   _validateProfileShareEnvelope,
+  _handleProfileShareDev,
 } from '../dev-server.js';
 
 let passed = 0, failed = 0;
+const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
+const LOOPBACK_ORIGIN = `http://127.0.0.1:${DEV_SERVER_PORT}`;
+const LOCALHOST_ORIGIN = `http://localhost:${DEV_SERVER_PORT}`;
 function assert(name, cond, detail) {
   if (cond) { console.log(`  PASS: ${name}`); passed++; }
   else { console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); failed++; }
@@ -237,9 +243,9 @@ function reqWith(headers = {}, remoteAddress = '') {
 }
 
 assert('isSameOrigin accepts allowed Origin',
-  isSameOrigin(reqWith({ origin: 'http://127.0.0.1:8000' })));
+  isSameOrigin(reqWith({ origin: LOOPBACK_ORIGIN })));
 assert('isSameOrigin accepts allowed Referer origin',
-  isSameOrigin(reqWith({ referer: 'http://localhost:8000/app?x=1' })));
+  isSameOrigin(reqWith({ referer: `${LOCALHOST_ORIGIN}/app?x=1` })));
 assert('isSameOrigin rejects missing headers',
   !isSameOrigin(reqWith({})));
 assert('isSameOrigin rejects malformed Referer',
@@ -258,19 +264,19 @@ assert('host origin match accepts http/https exact host',
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'http://phone.tailnet.ts.net:8000' })) &&
   _isHostOriginMatch(reqWith({ host: 'phone.tailnet.ts.net:8000', origin: 'https://phone.tailnet.ts.net:8000' })));
 assert('host origin match rejects missing and mismatched headers',
-  !_isHostOriginMatch(reqWith({ origin: 'http://127.0.0.1:8000' })) &&
-  !_isHostOriginMatch(reqWith({ host: '127.0.0.1:8000', origin: 'https://evil.example' })));
+  !_isHostOriginMatch(reqWith({ origin: LOOPBACK_ORIGIN })) &&
+  !_isHostOriginMatch(reqWith({ host: `127.0.0.1:${DEV_SERVER_PORT}`, origin: 'https://evil.example' })));
 
 {
-  const headers = corsHeaders(reqWith({ origin: 'http://127.0.0.1:8000' }));
+  const headers = corsHeaders(reqWith({ origin: LOOPBACK_ORIGIN }));
   assert('corsHeaders reflects allowed Origin',
-    headers['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' && headers.Vary === 'Origin',
+    headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN && headers.Vary === 'Origin',
     JSON.stringify(headers));
 }
 {
-  const headers = corsHeaders(reqWith({ referer: 'http://localhost:8000/app' }));
+  const headers = corsHeaders(reqWith({ referer: `${LOCALHOST_ORIGIN}/app` }));
   assert('corsHeaders reflects allowed Referer origin',
-    headers['Access-Control-Allow-Origin'] === 'http://localhost:8000' && headers.Vary === 'Origin',
+    headers['Access-Control-Allow-Origin'] === LOCALHOST_ORIGIN && headers.Vary === 'Origin',
     JSON.stringify(headers));
 }
 assert('corsHeaders omits foreign origins',
@@ -294,12 +300,12 @@ function captureJsonResponse() {
 
 {
   const { res, out } = captureJsonResponse();
-  _sendProfileShareJSON(reqWith({ origin: 'http://127.0.0.1:8000' }), res, 201, { ok: true });
+  _sendProfileShareJSON(reqWith({ origin: LOOPBACK_ORIGIN }), res, 201, { ok: true });
   assert('profile share JSON helper writes JSON and CORS headers',
     out.status === 201 &&
     out.headers?.['Content-Type'] === 'application/json' &&
     out.headers?.['Cache-Control'] === 'no-store' &&
-    out.headers?.['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8000' &&
+    out.headers?.['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN &&
     JSON.parse(out.body).ok === true,
     JSON.stringify(out));
 }
@@ -337,6 +343,120 @@ assertThrows('profile envelope rejects unsupported cipher',
 assertThrows('profile envelope rejects empty ciphertext',
   () => _validateProfileShareEnvelope(validProfileEnvelope({ ciphertext: '' })),
   /empty/);
+
+function invokeProfileShareDev(method, search = '', body, headers = {}) {
+  return new Promise(resolve => {
+    const req = new EventEmitter();
+    req.method = method;
+    req.headers = headers;
+    req.socket = { remoteAddress: '127.0.0.1' };
+    req.destroy = () => { req.destroyed = true; };
+    const out = {};
+    const res = {
+      writeHead(status, responseHeaders = {}) {
+        out.status = status;
+        out.headers = responseHeaders;
+      },
+      end(responseBody = '') {
+        out.body = String(responseBody);
+        resolve(out);
+      },
+    };
+    _handleProfileShareDev(req, res, new URL(`${LOCALHOST_ORIGIN}/api/share${search}`));
+    if (body !== undefined) {
+      req.emit('data', Buffer.from(String(body)));
+    }
+    if (body !== undefined || method === 'POST' || method === 'DELETE') {
+      req.emit('end');
+    }
+  });
+}
+
+function jsonBody(out) {
+  return JSON.parse(out.body || '{}');
+}
+
+{
+  const out = await invokeProfileShareDev('OPTIONS');
+  assert('profile share dev OPTIONS returns CORS preflight headers',
+    out.status === 204 &&
+    /GET, POST, DELETE, OPTIONS/.test(out.headers?.['Access-Control-Allow-Methods'] || ''),
+    JSON.stringify(out));
+}
+
+{
+  const out = await invokeProfileShareDev('POST', '', 'not json');
+  assert('profile share dev POST rejects invalid JSON',
+    out.status === 400 && jsonBody(out).error === 'Invalid JSON body.',
+    JSON.stringify(out));
+}
+
+{
+  const id = 'coverage-share-flow-001';
+  const manageToken = 'coverage-manage-token';
+  const manageTokenHash = crypto.createHash('sha256').update(manageToken).digest('hex');
+  const envelope = validProfileEnvelope();
+  const createOut = await invokeProfileShareDev('POST', '', JSON.stringify({
+    id,
+    manageTokenHash,
+    envelope,
+  }), { origin: LOOPBACK_ORIGIN });
+  const createBody = jsonBody(createOut);
+  assert('profile share dev POST stores valid encrypted share',
+    createOut.status === 201 &&
+    createBody.id === id &&
+    createBody.sizeBytes > 0 &&
+    createOut.headers?.['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN,
+    JSON.stringify(createOut));
+
+  const duplicateOut = await invokeProfileShareDev('POST', '', JSON.stringify({
+    id,
+    manageTokenHash,
+    envelope,
+  }));
+  assert('profile share dev POST rejects duplicate share ids',
+    duplicateOut.status === 409 && /already exists/.test(jsonBody(duplicateOut).error || ''),
+    JSON.stringify(duplicateOut));
+
+  const getOut = await invokeProfileShareDev('GET', `?id=${id}`);
+  const getBody = jsonBody(getOut);
+  assert('profile share dev GET returns stored envelope',
+    getOut.status === 200 &&
+    getBody.id === id &&
+    getBody.envelope?.ciphertext === envelope.ciphertext,
+    JSON.stringify(getOut));
+
+  const wrongDelete = await invokeProfileShareDev('DELETE', `?id=${id}`, JSON.stringify({ manageToken: 'wrong-token' }));
+  assert('profile share dev DELETE rejects wrong manage token',
+    wrongDelete.status === 403 &&
+    /only be stopped/.test(jsonBody(wrongDelete).error || ''),
+    JSON.stringify(wrongDelete));
+
+  const omittedBodyDelete = await invokeProfileShareDev('DELETE', `?id=${id}`);
+  assert('profile share dev DELETE without body returns forbidden instead of hanging',
+    omittedBodyDelete.status === 403 &&
+    /only be stopped/.test(jsonBody(omittedBodyDelete).error || ''),
+    JSON.stringify(omittedBodyDelete));
+
+  const deleteOut = await invokeProfileShareDev('DELETE', `?id=${id}`, '', {
+    'x-profile-share-manage-token': manageToken,
+  });
+  assert('profile share dev DELETE removes share with header token',
+    deleteOut.status === 200 && jsonBody(deleteOut).ok === true,
+    JSON.stringify(deleteOut));
+
+  const missingOut = await invokeProfileShareDev('GET', `?id=${id}`);
+  assert('profile share dev GET returns 404 after delete',
+    missingOut.status === 404 && /not found/.test(jsonBody(missingOut).error || ''),
+    JSON.stringify(missingOut));
+}
+
+{
+  const out = await invokeProfileShareDev('DELETE', '?id=missing-share-flow-001');
+  assert('profile share dev DELETE missing share is idempotent',
+    out.status === 200 && jsonBody(out).ok === true && jsonBody(out).missing === true,
+    JSON.stringify(out));
+}
 
 // ── _resolveCatalogRepo ──
 console.log('\n── _resolveCatalogRepo ──');
