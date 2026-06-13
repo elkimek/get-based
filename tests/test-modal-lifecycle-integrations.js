@@ -16,6 +16,7 @@ const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboar
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
@@ -128,6 +129,19 @@ assert('knowledge base modal uses shared lifecycle helpers',
     knowledgeBaseModalSrc.includes("closeModalOverlay('kb-modal-overlay')") &&
     !knowledgeBaseModalSrc.includes("overlay.classList.add('show')") &&
     !knowledgeBaseModalSrc.includes("overlay.classList.remove('show')"));
+
+assert('PDF import preflight dialogs use shared lifecycle helpers',
+  pdfImportPreflightSrc.includes("from './modal-lifecycle.js'") &&
+    pdfImportPreflightSrc.includes("openModalOverlay(overlay, { initialFocus: '#confirm-cancel', focusDelay: 30 })") &&
+    (pdfImportPreflightSrc.match(/closeModalOverlay\(overlay\)/g) || []).length >= 3 &&
+    pdfImportPreflightSrc.includes("overlay.dataset.escapeOwner = 'preflight'") &&
+    pdfImportPreflightSrc.includes('overlay.onclick = previousOnclick') &&
+    pdfImportPreflightSrc.includes('delete overlay.dataset.escapeOwner') &&
+    appEventsSrc.includes("confirmOverlay.dataset.escapeOwner === 'preflight'") &&
+    pdfImportPreflightSrc.includes('document.addEventListener(\'keydown\', onKey)') &&
+    pdfImportPreflightSrc.includes("cleanup = openPreflightOverlay(overlay, () => close('cancel'))") &&
+    !pdfImportPreflightSrc.includes("overlay.classList.add('show')") &&
+    !pdfImportPreflightSrc.includes("overlay.classList.remove('show')"));
 
 assert('light environment assessment uses shared overlay lifecycle before removal',
   lightEnvSrc.includes("from './modal-lifecycle.js'") &&

@@ -87,7 +87,11 @@ function handleAppKeydown(e) {
     const emfInterpOverlay = document.getElementById("emf-interp-overlay");
     if (emfInterpOverlay && emfInterpOverlay.classList.contains("show")) { window.closeEMFInterpretation(); return; }
     const confirmOverlay = document.getElementById("confirm-dialog-overlay");
-    if (confirmOverlay && confirmOverlay.classList.contains("show")) { confirmOverlay.classList.remove("show"); return; }
+    if (confirmOverlay && confirmOverlay.classList.contains("show")) {
+      if (confirmOverlay.dataset.escapeOwner === 'preflight') return;
+      confirmOverlay.classList.remove("show");
+      return;
+    }
     // Sync restore dialog — single-step "paste your 24 words" modal.
     const syncRestoreOverlay = document.getElementById("sync-restore-overlay");
     if (syncRestoreOverlay && syncRestoreOverlay.classList.contains("show")) {
