@@ -12,7 +12,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from '.
 import { deleteEmptyLabEntries, deleteLabEntryMarkerValues } from './lab-entry-mutations.js';
 import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
-import { closeModalOverlay } from './modal-lifecycle.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   configureMarkerDetailEditing,
   editRefRange,
@@ -727,7 +727,7 @@ export function showDetailModal(id, opts = {}) {
     html += `<div style="text-align:center;margin-top:8px"><a href="#" style="color:var(--text-muted);font-size:0.8rem" ${markerDetailActionAttrs('delete-custom-marker', { id })}>Delete this marker</a></div>`;
   }
   modal.innerHTML = html;
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
   if (opts.scrollToHistory) {
     setTimeout(() => {
       const historyEl = modal.querySelector('.marker-history-list');
@@ -860,11 +860,10 @@ export function openManualEntryForm(id, prefillDate) {
       </div>
     </div>
     </div>`;
-  overlay.classList.add("show");
+  openModalOverlay(overlay, { initialFocus: '#me-value', focusDelay: 50 });
   setTimeout(() => {
     const el = document.getElementById('me-value');
     if (el) {
-      el.focus();
       // Enter-to-save / Esc-to-cancel for keyboard users.
       const onKey = (e) => {
         if (e.key === 'Enter') { e.preventDefault(); saveManualEntry(id); }
@@ -938,8 +937,7 @@ export function openCreateMarkerModal() {
       </div>
     </div>
     </div>`;
-  overlay.classList.add("show");
-  setTimeout(() => { const el = document.getElementById('cm-name'); if (el) el.focus(); }, 50);
+  openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 });
 }
 
 export function pickNewCatIcon(el) {
