@@ -88,7 +88,7 @@ function handleAppKeydown(e) {
     if (emfInterpOverlay && emfInterpOverlay.classList.contains("show")) { window.closeEMFInterpretation(); return; }
     const confirmOverlay = document.getElementById("confirm-dialog-overlay");
     if (confirmOverlay && confirmOverlay.classList.contains("show")) {
-      if (confirmOverlay.dataset.escapeOwner === 'preflight') return;
+      if (confirmOverlay.dataset.escapeOwner) return;
       confirmOverlay.classList.remove("show");
       return;
     }
