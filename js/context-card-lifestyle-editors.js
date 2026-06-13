@@ -60,6 +60,7 @@ import {
 import { bindDetailModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 import {
   appendImportedArrayItem,
   clearImportedArray,
@@ -174,7 +175,7 @@ export function openDietEditor() {
     ${renderTagsField('Food sensitivities', 'diet-sensitivities', FOOD_SENSITIVITIES, current.foodSensitivities || [])}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.diet != null, 'saveDiet', 'clearDiet')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveDiet() {
@@ -232,7 +233,7 @@ export function openSleepRestEditor() {
     ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.sleepRest != null, 'saveSleepRest', 'clearSleepRest')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveSleepRest() {
@@ -282,7 +283,7 @@ export function openLightCircadianEditor() {
     ${lat ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📍 Latitude: <strong style="color:var(--text-primary)">${escapeHTML(lat)}</strong> <span style="font-size:11px">(from Settings → Location)</span></div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">💡 Set your country in Settings → Profile for automatic latitude detection</div>`}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.lightCircadian != null, 'saveLightCircadian', 'clearLightCircadian')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 // Render a compact read-only summary of the user's Light lens setup —
@@ -381,7 +382,7 @@ export function openExerciseEditor() {
     ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.exercise != null, 'saveExercise', 'clearExercise')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveExercise() {
@@ -417,7 +418,7 @@ export function openStressEditor() {
     ${renderTagsField('Management', 'stress-mgmt', STRESS_MGMT, current.management)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.stress != null, 'saveStress', 'clearStress')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveStress() {
@@ -462,7 +463,7 @@ export function openLoveLifeEditor() {
     }), current.concerns)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.loveLife != null, 'saveLoveLife', 'clearLoveLife')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveLoveLife() {
@@ -517,7 +518,7 @@ export function openEnvironmentEditor() {
     ${renderSelectField('Building', 'env-building', ENV_BUILDING, current.building)}
     ${renderNoteField(current.note)}
     ${contextEditorActions(state.importedData.environment != null, 'saveEnvironment', 'clearEnvironment')}`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function saveEnvironment() {
@@ -554,7 +555,7 @@ export function openHealthGoalsEditor() {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   renderHealthGoalsModal(modal);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
 }
 
 export function renderHealthGoalsModal(modal) {
@@ -647,7 +648,7 @@ export function openInterpretiveLensEditor() {
       <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
       ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearInterpretiveLens()">Clear</button>` : ''}
     </div>`);
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
   setTimeout(() => {
     const ta = getTextInput('interpretive-lens-textarea');
     if (ta) ta.focus();
@@ -713,5 +714,5 @@ export function showDietContaminantsModal() {
   </div>
   <div class="contaminant-attribution">Sources: <a href="https://www.ewg.org/foodnews/" target="_blank" rel="noopener">EWG Shopper's Guide 2025</a> · <a href="https://www.plasticlist.org/report" target="_blank" rel="noopener">PlasticList</a></div>`;
   modal.innerHTML = html;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 }
