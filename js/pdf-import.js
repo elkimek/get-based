@@ -90,6 +90,9 @@ function loadJSZip() {
     script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip failed to load'));
     script.onerror = () => reject(new Error('Failed to load /vendor/jszip.min.js'));
     document.head.appendChild(script);
+  }).catch(err => {
+    _jszipLoad = null;
+    return Promise.reject(err);
   });
   return _jszipLoad;
 }
@@ -1238,7 +1241,12 @@ function isDateFormatCode(formatCode) {
     .replace(/_.?/g, '')
     .replace(/\*.?/g, '')
     .toLowerCase();
-  return /[dy]/.test(cleaned) || /h{1,2}:?m{1,2}/.test(cleaned);
+  const tokens = cleaned.match(/[a-z]+/g) || [];
+  const hasYear = tokens.some(token => /^y{2,4}$/.test(token));
+  const hasDay = tokens.some(token => /^d{1,4}$/.test(token));
+  const hasMonth = tokens.some(token => /^m{1,5}$/.test(token));
+  const hasTime = /(^|[^a-z])h{1,2}:?m{1,2}([^a-z]|$)/.test(cleaned);
+  return hasTime || (hasYear && (hasDay || hasMonth)) || (hasDay && hasMonth);
 }
 
 function getDateStyleIndexes(stylesXml) {

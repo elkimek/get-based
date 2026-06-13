@@ -219,6 +219,26 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
 });
 
 test('PDF import runtime handlers cover AI parse fallback text and image routes', async ({ page }) => {
+  let jszipVendorRequests = 0;
+  await page.route('**/vendor/jszip.min.js', route => {
+    jszipVendorRequests += 1;
+    if (jszipVendorRequests === 1) {
+      route.abort('failed');
+      return;
+    }
+    route.fulfill({
+      contentType: 'text/javascript',
+      body: `
+        window.JSZip = {
+          loadAsync: async () => ({
+            files: {},
+            file() { return null; },
+          }),
+        };
+      `,
+    });
+  });
+
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#drop-zone', { state: 'attached' });
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
@@ -400,6 +420,27 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && csvFilePending.privacyMethod === 'regex';
       review.closeImportModal();
 
+      delete window.JSZip;
+      const retryXlsxFile = new File(
+        [new Uint8Array([0x50, 0x4b, 0x03, 0x04])],
+        'retry.xlsx',
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      );
+      let firstLoaderError = '';
+      let secondLoaderError = '';
+      try {
+        await pdfImport.extractXLSXText(retryXlsxFile);
+      } catch (err) {
+        firstLoaderError = err?.message || String(err);
+      }
+      try {
+        await pdfImport.extractXLSXText(retryXlsxFile);
+      } catch (err) {
+        secondLoaderError = err?.message || String(err);
+      }
+      outcomes.xlsxJsZipLoaderRetriesAfterScriptFailure = firstLoaderError.includes('Failed to load /vendor/jszip.min.js')
+        && secondLoaderError.includes('Workbook metadata is missing');
+
       const xlsxEntries = {
         'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8"?>
           <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -413,13 +454,18 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         'xl/sharedStrings.xml': `<?xml version="1.0" encoding="UTF-8"?>
           <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
             <si><t>Date</t></si><si><t>Marker</t></si><si><t>Value</t></si>
-            <si><t>2026-06-01</t></si><si><t>Glucose</t></si><si><t>5.4</t></si>
+            <si><t>2026-06-01</t></si><si><t>Glucose</t></si><si><t>5.4</t></si><si><t>Flag</t></si>
           </sst>`,
+        'xl/styles.xml': `<?xml version="1.0" encoding="UTF-8"?>
+          <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+            <numFmts count="1"><numFmt numFmtId="164" formatCode="body"/></numFmts>
+            <cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="164"/></cellXfs>
+          </styleSheet>`,
         'xl/worksheets/sheet1.xml': `<?xml version="1.0" encoding="UTF-8"?>
           <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
             <sheetData>
-              <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>
-              <row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row>
+              <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c><c r="D1" t="s"><v>6</v></c></row>
+              <row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c><c r="D2" s="1"><v>7</v></c></row>
             </sheetData>
           </worksheet>`,
       };
@@ -439,7 +485,9 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       const extractedXlsxText = await pdfImport.extractXLSXText(xlsxFile);
       outcomes.xlsxExtractorReadsWorkbookCells = extractedXlsxText.includes('Workbook: lab-results.xlsx')
         && extractedXlsxText.includes('Sheet: Results')
-        && extractedXlsxText.includes('Glucose');
+        && extractedXlsxText.includes('Glucose')
+        && extractedXlsxText.includes('\t7')
+        && !extractedXlsxText.includes('1900-01');
       await pdfImport.handleTextFile(xlsxFile);
       const xlsxFilePending = review.getPendingImport();
       outcomes.xlsxFileRoutesThroughTextImportPipeline = xlsxFilePending?.fileName === 'lab-results.xlsx'
