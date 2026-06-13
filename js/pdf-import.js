@@ -100,7 +100,13 @@ export function showAINeededDialog(action = 'import') {
     overlay.className = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
-  const verb = action === 'image' ? 'Reading lab values from an image' : 'Reading lab values from a PDF';
+  const verb = action === 'image'
+    ? 'Reading lab values from an image'
+    : action === 'csv'
+      ? 'Reading lab values from a CSV'
+      : action === 'text'
+        ? 'Reading lab values from a text file'
+        : 'Reading lab values from a PDF';
   overlay.innerHTML = `<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="AI needed to import">
     <p class="confirm-message"><strong>${verb} needs an AI to parse them.</strong></p>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">Quickest setup is the &ldquo;card&rdquo; option below &mdash; one-click login, charge to your card, you&rsquo;re done in about 30 seconds.</p>
@@ -570,7 +576,7 @@ export async function classifyImportFiles(files) {
   for (const f of unmatched) {
     if (/\.(txt|csv)$/i.test(f.name)) {
       if (pdfImportWindow.isDNAFileByContent && await pdfImportWindow.isDNAFileByContent(f)) dnaFiles.push(f);
-      else if (f.name.endsWith('.txt')) textFiles.push(f);
+      else textFiles.push(f);
     } else if (await isPdfByMagic(f)) {
       pdfFiles.push(f);
     }
@@ -775,6 +781,10 @@ async function _showImageModeDialog() {
 
 export async function handlePDFFile(file, forceImageMode = false, preExtractedText = null) {
   const _startProfileId = state.currentProfile;
+  const textImportKind = preExtractedText
+    ? (/\.(csv)$/i.test(file.name) || file.type === 'text/csv' ? 'CSV' : 'text file')
+    : 'PDF';
+  const textAction = textImportKind === 'CSV' ? 'csv' : textImportKind === 'text file' ? 'text' : 'import';
   try {
     await showImportProgress(0, file.name);
     const pdfText = preExtractedText || await extractPDFText(file);
@@ -827,11 +837,11 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     }
 
     // Text mode path (original flow)
-    if (!pdfText.trim()) { hideImportProgress('error'); showNotification("PDF appears empty — no text extracted", "error"); return; }
+    if (!pdfText.trim()) { hideImportProgress('error'); showNotification(`${textImportKind} appears empty — no text extracted`, "error"); return; }
 
     if (!hasAIProvider()) {
       hideImportProgress('error');
-      showAINeededDialog('import');
+      showAINeededDialog(textAction);
       return;
     }
 
@@ -925,8 +935,8 @@ export async function handlePDFFile(file, forceImageMode = false, preExtractedTe
     result.importHash = hashString(pdfText);
     result._importProfileId = _startProfileId;
     if (isDebugMode()) { result.privacyOriginal = privacyOriginal; result.privacyObfuscated = textForAI; }
-    if (!result.date) { showNotification("Could not find collection date in PDF", "error"); }
-    if (result.markers.length === 0) { hideImportProgress('error'); showNotification("No biomarkers found in PDF", "error"); return; }
+    if (!result.date) { showNotification(`Could not find collection date in ${textImportKind}`, "error"); }
+    if (result.markers.length === 0) { hideImportProgress('error'); showNotification(`No biomarkers found in ${textImportKind}`, "error"); return; }
     await showImportProgress(4, file.name);
     showImportPreview(result);
     hideImportProgress();
@@ -1148,7 +1158,8 @@ export async function handleImageFile(file) {
 // ═══════════════════════════════════════════════
 export async function handleTextFile(file) {
   const text = await file.text();
-  if (!text.trim()) { showNotification("Text file is empty", "error"); return; }
+  const isCsv = /\.(csv)$/i.test(file.name) || file.type === 'text/csv';
+  if (!text.trim()) { showNotification(`${isCsv ? 'CSV' : 'Text file'} is empty`, "error"); return; }
   await handlePDFFile(file, false, text);
 }
 
