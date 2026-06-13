@@ -200,19 +200,24 @@ test('light environment action delegates route DOM events and attrs in browser',
     const docKeysBeforeStop = callCount('document-keydown');
     const screenSpaceAllowed = keydown('screen-toggle', ' ');
     const docKeysAfterStop = callCount('document-keydown');
-    keydown('room-toggle', 'Enter');
+    const roomEnterAllowed = keydown('room-toggle', 'Enter');
     outcomes.keyboardRoutesRoleButtonActionsAndStopsConfiguredPropagation =
       screenSpaceAllowed === false
+      && roomEnterAllowed === false
       && called('toggleLightEnvScreenExpanded', call => call[1] === 'screen-1' && call[2] === 'keydown')
       && docKeysAfterStop === docKeysBeforeStop
       && called('toggleLightEnvRoomExpanded', call => call[1] === 'room-1' && call[2] === 'keydown')
       && callCount('document-keydown') === docKeysBeforeStop;
 
-    click('delete-screen');
-    click('delete-room');
-    outcomes.captureStoppingDeleteActionsRoute =
-      called('deleteLightEnvScreenConfirm', call => call[1] === 'screen-1')
-      && called('deleteLightEnvRoomConfirm', call => call[1] === 'room-1');
+    const docClicksBeforeDelete = callCount('document-click');
+    const deleteScreenAllowed = click('delete-screen');
+    const deleteRoomAllowed = click('delete-room');
+    outcomes.captureStoppingDeleteActionsPreventDefaultAndStopDocumentBubble =
+      deleteScreenAllowed === false
+      && deleteRoomAllowed === false
+      && called('deleteLightEnvScreenConfirm', call => call[1] === 'screen-1')
+      && called('deleteLightEnvRoomConfirm', call => call[1] === 'room-1')
+      && callCount('document-click') === docClicksBeforeDelete;
 
     return outcomes;
   }, {
