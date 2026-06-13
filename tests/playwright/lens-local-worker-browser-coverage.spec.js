@@ -1,5 +1,21 @@
 import { expect, test } from './coverage-fixture.js';
 
+const TRANSFORMERS_STUB = `
+export const env = { backends: { onnx: { wasm: {} } } };
+
+export async function pipeline(task, modelId, options = {}) {
+  const dim = modelId.includes('bge-base') ? 768 : 384;
+  return async function embed(text, embedOptions = {}) {
+    const data = new Float32Array(dim);
+    const seed = Array.from(String(text || '')).reduce((sum, ch) => sum + ch.charCodeAt(0), 0) || 1;
+    for (let i = 0; i < dim; i += 1) {
+      data[i] = ((seed + i * 17) % 97) / 97;
+    }
+    return { data };
+  };
+}
+`;
+
 test('lens local worker browser coverage exercises mocked protocol and libraries', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
@@ -160,6 +176,91 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
       failures.push(error?.message || String(error));
     }
 
+    return failures;
+  });
+
+  expect(failures, failures.join('\n')).toEqual([]);
+});
+
+test('lens local worker browser coverage exercises production embedder loading with stubbed transformers', async ({ page, context }) => {
+  await context.route('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.1.0', route => route.fulfill({
+    status: 200,
+    contentType: 'text/javascript',
+    headers: {
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+    },
+    body: TRANSFORMERS_STUB,
+  }));
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const failures = await page.evaluate(async () => {
+    const failures = [];
+    const check = (name, condition, detail = '') => {
+      if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
+    };
+    const checkEqual = (name, actual, expected) => {
+      if (actual !== expected) failures.push(`${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    };
+    try {
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry('lens-local', { recursive: true }).catch(() => {});
+    } catch (error) {
+      failures.push(`opfs setup failed: ${error?.message || String(error)}`);
+      return failures;
+    }
+
+    const worker = new Worker('/js/lens-local-worker.js', { type: 'module' });
+    const roundTrip = (msg, expectedType, timeoutMs = 5000) => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        worker.removeEventListener('message', onMessage);
+        reject(new Error(`worker did not respond with ${expectedType}`));
+      }, timeoutMs);
+      const onMessage = (event) => {
+        const data = event.data || {};
+        if (data.type === 'progress') return;
+        clearTimeout(timer);
+        worker.removeEventListener('message', onMessage);
+        if (data.type === 'error') reject(new Error(data.message || 'worker error'));
+        else if (data.type === expectedType) resolve(data);
+        else reject(new Error(`expected ${expectedType}, got ${data.type || 'unknown'}`));
+      };
+      worker.addEventListener('message', onMessage);
+      worker.postMessage(msg);
+    });
+
+    try {
+      const ready = await roundTrip({ type: 'init' }, 'ready', 10000);
+      checkEqual('production init active library', ready.activeId, 'default');
+      checkEqual('production init active model', ready.activeModel, 'all-minilm');
+      checkEqual('production init embedder model key', ready.embedder?.modelKey, 'all-minilm');
+      checkEqual('production init embedder model id', ready.embedder?.modelId, 'Xenova/all-MiniLM-L6-v2');
+      checkEqual('production init embedder dimension', ready.embedder?.dim, 384);
+      check('production init benchmark is finite', Number.isFinite(ready.embedder?.msPerEmbed));
+      checkEqual('production model catalog exposes BGE-base dimension', ready.models?.['bge-base-en']?.dim, 768);
+
+      const bge = await roundTrip({ type: 'create_library', name: 'BGE Base', model: 'bge-base-en' }, 'library_created');
+      const activeBge = await roundTrip({ type: 'activate_library', libraryId: bge.id }, 'ready', 10000);
+      const bgeStats = await roundTrip({ type: 'stats' }, 'stats_result');
+      checkEqual('created library model key', bge.model, 'bge-base-en');
+      checkEqual('activated BGE library id', activeBge.activeId, bge.id);
+      checkEqual('activated BGE model key', activeBge.activeModel, 'bge-base-en');
+      checkEqual('activated BGE embedder model key', activeBge.embedder?.modelKey, 'bge-base-en');
+      checkEqual('activated BGE embedder model id', activeBge.embedder?.modelId, 'Xenova/bge-base-en-v1.5');
+      checkEqual('activated BGE embedder dimension', activeBge.embedder?.dim, 768);
+      checkEqual('BGE stats dimension', bgeStats.dim, 768);
+      checkEqual('BGE stats model id', bgeStats.model, 'Xenova/bge-base-en-v1.5');
+
+      await roundTrip({ type: 'clear' }, 'clear_done');
+    } catch (error) {
+      failures.push(error?.message || String(error));
+    } finally {
+      worker.terminate();
+      try {
+        const root = await navigator.storage.getDirectory();
+        await root.removeEntry('lens-local', { recursive: true }).catch(() => {});
+      } catch {}
+    }
     return failures;
   });
 
