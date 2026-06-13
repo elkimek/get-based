@@ -12,6 +12,7 @@ import {
 } from './data-merge.js';
 import { callClaudeAPI, getAIProvider, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
+import { openModalOverlay } from './modal-lifecycle.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import {
   computeAllImpacts,
@@ -587,7 +588,7 @@ export function openSupplementsEditor(editIdx) {
   modal.dataset.syncRefreshKind = 'supplements';
   modal.dataset.syncRefreshEditIdx = isEdit ? String(editIdx) : '';
   modal.dataset.syncRefreshItemId = isEdit ? (getConfiguredArrayItemId('supplements', supps[editIdx]) || '') : '';
-  overlay.classList.add("show");
+  openModalOverlay(overlay);
   if (isEdit) {
     const expanded = document.querySelector('.supp-list-expanded');
     if (expanded) setTimeout(() => expanded.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
