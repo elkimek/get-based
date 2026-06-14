@@ -714,6 +714,7 @@ initSupplementActionDelegates({
   addPeriod: addPeriodRow,
   removePeriod: removePeriodRow,
   fetchUrl: fetchSupplementFromURL,
+  triggerLabelPicker: () => document.getElementById('supp-label-input')?.click(),
   scanLabel: scanSupplementLabel,
   save: saveSupplement,
   delete: deleteSupplement,

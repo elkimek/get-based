@@ -56,6 +56,7 @@ function hasNestedInteractiveTarget(actionEl, target) {
  *   addPeriod: () => void,
  *   removePeriod: (btn: Element) => void,
  *   fetchUrl: () => Promise<void> | void,
+ *   triggerLabelPicker: () => void,
  *   scanLabel: (input: HTMLInputElement) => Promise<void> | void,
  *   save: (idx: number) => void,
  *   delete: (idx: number) => void,
@@ -107,7 +108,7 @@ function makeClickHandler(actions) {
         void actions.fetchUrl();
         break;
       case 'scan-label':
-        document.getElementById('supp-label-input')?.click();
+        actions.triggerLabelPicker();
         break;
       case 'save':
         actions.save(idx);

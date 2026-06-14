@@ -151,7 +151,8 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
   assert('Supplement editor actions are delegated',
     suppSrc.includes("from './supplement-action-delegates.js'") &&
       suppSrc.includes("suppActionAttrs('save'") &&
-      delegateSrc.includes("document.addEventListener('click'"));
+      delegateSrc.includes("document.addEventListener('click'") &&
+      delegateSrc.includes('actions.triggerLabelPicker()'));
   assert('Supplement impact refresh uses delegated action',
     impactSrc.includes('data-supp-action="refresh-impact"'));
   assert('Supplement surface has no inline event attributes',
