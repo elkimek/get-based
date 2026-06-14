@@ -105,6 +105,10 @@ test('compare dates browser contract renders date controls table and updates sta
         && select2?.value === '2026-03-01'
         && document.querySelectorAll('#compare-select-1 option').length === 3
         && document.querySelector('.compare-swap-btn')?.getAttribute('aria-label') === 'Swap dates';
+      outcomes.compareControlsEmitDelegatedAttributesOnly =
+        document.querySelectorAll('#main-content [onclick], #main-content [onchange], #main-content [oninput], #main-content [onfocus]').length === 0
+        && select1?.getAttribute('data-compare-change-action') === 'set-date'
+        && document.querySelector('.compare-swap-btn')?.getAttribute('data-compare-action') === 'swap-dates';
       outcomes.compareTableUsesInjectedShellAndRendersMarkers =
         document.querySelector('[data-kind="compare"] .compare-table')
         && document.querySelector('colgroup')?.getAttribute('data-cols')?.includes('gb-col-marker')
@@ -112,6 +116,18 @@ test('compare dates browser contract renders date controls table and updates sta
         && rows.some(row => row.textContent.includes('LDL Cholesterol'))
         && !!document.querySelector('[data-glyph="biochemistry"]')
         && !!document.querySelector('.compare-improved');
+
+      select1.value = '2026-02-01';
+      select1.dispatchEvent(new Event('change', { bubbles: true }));
+      select2.value = '2026-01-01';
+      select2.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelector('.compare-swap-btn')?.click();
+      outcomes.delegatedCompareControlsUpdateStateSelectsAndTable =
+        state.compareDate1 === '2026-01-01'
+        && state.compareDate2 === '2026-02-01'
+        && select1.value === '2026-01-01'
+        && select2.value === '2026-02-01'
+        && document.getElementById('compare-results')?.textContent.includes('+1.7');
 
       compare.setCompareDate1('2026-02-01');
       outcomes.setCompareDate1RebuildsTable =
@@ -152,7 +168,9 @@ test('compare dates browser contract renders date controls table and updates sta
 
   const expectedOutcomeKeys = [
     'initialCompareControlsAndDefaults',
+    'compareControlsEmitDelegatedAttributesOnly',
     'compareTableUsesInjectedShellAndRendersMarkers',
+    'delegatedCompareControlsUpdateStateSelectsAndTable',
     'setCompareDate1RebuildsTable',
     'setCompareDate2RebuildsTable',
     'swapUpdatesStateSelectsAndTable',
@@ -253,12 +271,22 @@ test('correlations browser contract filters markers toggles chips and builds cha
       const expectedLdlPct = ((2.3 - ldlMarker.refMin) / (ldlMarker.refMax - ldlMarker.refMin)) * 100;
       const optionCount = document.querySelectorAll('.corr-option').length;
       const dropdown = document.getElementById('corr-options');
+      const search = document.getElementById('corr-search');
+      let askCount = 0;
+      window.askAIAboutCorrelations = () => { askCount += 1; };
+      outcomes.correlationControlsEmitDelegatedAttributesOnly =
+        document.querySelectorAll('#main-content [onclick], #main-content [onchange], #main-content [oninput], #main-content [onfocus]').length === 0
+        && search?.getAttribute('data-compare-input-action') === 'filter-options'
+        && search?.getAttribute('data-compare-focus-action') === 'show-dropdown'
+        && document.querySelector('.corr-preset-btn')?.getAttribute('data-compare-action') === 'apply-preset'
+        && document.querySelector('.corr-ask-ai-btn')?.getAttribute('data-compare-action') === 'ask-ai-correlations'
+        && document.querySelector('.corr-option')?.getAttribute('data-compare-action') === 'toggle-marker';
       dropdown?.classList.remove('show');
-      compare.showCorrelationDropdown();
+      search?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       outcomes.showCorrelationDropdownOpensOptions = dropdown?.classList.contains('show') === true;
       dropdown?.classList.remove('show');
-      document.getElementById('corr-search').value = 'vitamin';
-      compare.filterCorrelationOptions();
+      search.value = 'vitamin';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
       const vitaminOption = Array.from(document.querySelectorAll('.corr-option'))
         .find(option => option.dataset.key === 'vitamins.vitaminD');
       const glucoseOption = Array.from(document.querySelectorAll('.corr-option'))
@@ -268,15 +296,18 @@ test('correlations browser contract filters markers toggles chips and builds cha
         && document.getElementById('corr-options')?.classList.contains('show') === true
         && vitaminOption?.style.display === ''
         && glucoseOption?.style.display === 'none';
+      search.value = '';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
 
-      compare.toggleCorrelationMarker('lipids.ldl');
-      outcomes.singleMarkerRendersChipWithoutChart =
+      const ldlOption = document.querySelector('[data-compare-key="lipids.ldl"]');
+      ldlOption?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      outcomes.delegatedKeyboardOptionRendersChipWithoutChart =
         state.selectedCorrelationMarkers.join(',') === 'lipids.ldl'
         && document.querySelectorAll('.corr-chip').length === 1
         && document.getElementById('corr-chart-container')?.style.display === 'none'
         && chartCaptures.length === 0;
 
-      compare.toggleCorrelationMarker('proteins.hsCRP');
+      document.querySelector('[data-compare-key="proteins.hsCRP"]')?.click();
       const firstChart = chartCaptures.at(-1);
       const firstDataset = firstChart?.config?.data?.datasets?.[0];
       const tooltipLabel = firstChart?.config?.options?.plugins?.tooltip?.callbacks?.label({
@@ -300,7 +331,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
         && firstChart.config.plugins.length === 3;
 
       const lipidPresetIndex = schemaModule.CORRELATION_PRESETS.findIndex(p => p.label === 'Lipid Panel');
-      compare.applyCorrelationPreset(lipidPresetIndex);
+      Array.from(document.querySelectorAll('.corr-preset-btn'))[lipidPresetIndex]?.click();
       const presetChart = chartCaptures.at(-1);
       outcomes.presetRendersFourChipsAndRefreshesChart =
         lipidPresetIndex !== -1
@@ -309,14 +340,17 @@ test('correlations browser contract filters markers toggles chips and builds cha
         && presetChart?.config?.data?.datasets?.length === 4
         && presetChart.config.data.datasets.some(dataset => dataset.label === 'Triglycerides');
 
-      compare.toggleCorrelationMarker('lipids.hdl');
-      compare.toggleCorrelationMarker('lipids.ldl');
-      compare.toggleCorrelationMarker('lipids.triglycerides');
+      document.querySelector('[data-compare-key="lipids.hdl"].chip-remove')?.click();
+      document.querySelector('[data-compare-key="lipids.ldl"].chip-remove')?.click();
+      document.querySelector('[data-compare-key="lipids.triglycerides"].chip-remove')?.click();
       outcomes.removingBelowTwoHidesChartAndDestroysInstance =
         state.selectedCorrelationMarkers.join('|') === 'lipids.cholesterol'
         && document.getElementById('corr-chart-container')?.style.display === 'none'
         && destroyCount >= 1
         && state.chartInstances.correlation === undefined;
+
+      document.querySelector('.corr-ask-ai-btn')?.click();
+      outcomes.askAiButtonUsesDelegatedAction = askCount === 1;
 
       state.selectedCorrelationMarkers = [
         'lipids.cholesterol',
@@ -348,12 +382,14 @@ test('correlations browser contract filters markers toggles chips and builds cha
   });
 
   const expectedOutcomeKeys = [
+    'correlationControlsEmitDelegatedAttributesOnly',
     'showCorrelationDropdownOpensOptions',
     'searchDropdownFiltersByMarkerOrCategory',
-    'singleMarkerRendersChipWithoutChart',
+    'delegatedKeyboardOptionRendersChipWithoutChart',
     'secondMarkerBuildsNormalizedChart',
     'presetRendersFourChipsAndRefreshesChart',
     'removingBelowTwoHidesChartAndDestroysInstance',
+    'askAiButtonUsesDelegatedAction',
     'selectionLimitStopsNinthMarker',
   ];
   expect(Object.keys(results)).toEqual(expectedOutcomeKeys);

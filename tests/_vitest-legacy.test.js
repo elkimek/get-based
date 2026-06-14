@@ -170,6 +170,7 @@ const LEGACY_TESTS = [
   './test-lens-page-shell-delegated-actions.js',
   './test-light-page-view-delegated-actions.js',
   './test-light-env-delegated-actions.js',
+  './test-compare-correlations-delegated-actions.js',
   './test-sun-session-ui-delegated-actions.js',
   './test-marker-detail-delegated-actions.js',
   './test-wearables-delegated-actions.js',
