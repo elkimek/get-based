@@ -15,7 +15,12 @@ import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirm
 import { saveImportedData } from './data.js';
 import { getProfileLocation } from './profile.js';
 import { COUNTRY_LATITUDES, COUNTRY_CENTROIDS } from './constants.js';
-import { wireBackdropClose as _wireBackdropClose, trapModalFocus } from './modal-lifecycle.js';
+import {
+  wireBackdropClose as _wireBackdropClose,
+  trapModalFocus,
+  openAppendedModalOverlay,
+  removeModalOverlay,
+} from './modal-lifecycle.js';
 import {
   BODY_REGIONS,
   renderBodySilhouette,
@@ -378,25 +383,27 @@ export async function changeCoverageMidSession(id) {
 
   const currentRegions = new Set(sess.bodyExposure?.regions || []);
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Change coverage">
     <div class="modal-header">
       <h3>Update coverage mid-session</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button type="button" class="modal-close" data-sun-coverage-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Tap each body region that's uncovered <strong>now</strong>. The dose accrued under the previous coverage stays — the change applies from this moment forward.</p>
       <div class="sun-silhouette-wrap" id="sun-coverage-silhouette-slot">${renderBodySilhouette(currentRegions)}</div>
       <div class="sun-silhouette-hint" id="sun-coverage-hint"></div>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button type="button" class="import-btn import-btn-secondary" data-sun-coverage-close>Cancel</button>
         <button class="import-btn import-btn-primary" id="coverage-confirm">Apply coverage</button>
       </div>
     </div>
   </div>`;
-  _wireBackdropClose(overlay);
-  document.body.appendChild(overlay);
-  trapModalFocus(overlay);
+  const closeDialog = () => removeModalOverlay(overlay);
+  overlay.querySelectorAll('[data-sun-coverage-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
+  openAppendedModalOverlay(overlay, closeDialog);
 
   const selected = new Set(currentRegions);
   const slot = overlay.querySelector('#sun-coverage-silhouette-slot');
@@ -424,7 +431,7 @@ export async function changeCoverageMidSession(id) {
     const regions = Array.from(selected);
     const updated = await setSessionCoverage(id, regions);
     const fraction = updated?.bodyExposure?.fraction || 0;
-    overlay.remove();
+    closeDialog();
     if (!updated) return;
     showNotification(
       updated.bodyExposure?.regions?.length === 0
@@ -1051,8 +1058,6 @@ configureSunSessionUI({
   hydrateSession,
   getSunCoords,
   refreshSurfaces: _refreshSurfaces,
-  wireBackdropClose: _wireBackdropClose,
-  trapModalFocus,
   summarizeBodyExposure: _summarizeBodyExposure,
   formatElapsed: _formatElapsed,
   exposurePresets: EXPOSURE_PRESETS,

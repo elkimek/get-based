@@ -10,7 +10,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { SKIN_TYPE } from './constants.js';
 
@@ -496,11 +496,11 @@ function renderSetupEditor({ includeActions = true } = {}) {
 function openSunSetupOverlay() {
   if (typeof document === 'undefined') return;
   const existing = document.getElementById(LIGHT_SETUP_OVERLAY_ID);
-  if (existing) existing.remove();
+  if (existing) removeModalOverlay(existing);
 
   const overlay = document.createElement('div');
   overlay.id = LIGHT_SETUP_OVERLAY_ID;
-  overlay.className = 'modal-overlay show light-setup-focus-overlay';
+  overlay.className = 'modal-overlay light-setup-focus-overlay';
   overlay.innerHTML = `<div class="modal light-setup-focus-modal" data-setup-step="core" role="dialog" aria-modal="true" aria-labelledby="light-setup-focus-title">
     <header class="light-setup-focus-head">
       <div>
@@ -508,7 +508,7 @@ function openSunSetupOverlay() {
         <h3 id="light-setup-focus-title">Light setup</h3>
         <p>Calibrate burn math, indoor-light context, and circadian assumptions for this profile.</p>
       </div>
-      <button type="button" class="modal-close" aria-label="Close light setup" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">&times;</button>
+      <button type="button" class="modal-close" aria-label="Close light setup" data-light-setup-close>&times;</button>
     </header>
     <div class="light-setup-focus-body" tabindex="-1">
       ${renderSetupEditor({ includeActions: false })}
@@ -516,9 +516,8 @@ function openSunSetupOverlay() {
     ${renderSetupActions()}
   </div>`;
 
-  try { wireBackdropClose(overlay, closeSunSetupOverlay); } catch (_) {}
-
-  document.body.appendChild(overlay);
+  overlay.querySelector('[data-light-setup-close]')?.addEventListener('click', closeSunSetupOverlay);
+  openAppendedModalOverlay(overlay, closeSunSetupOverlay);
 
   const obs = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
@@ -528,7 +527,6 @@ function openSunSetupOverlay() {
   });
   obs.observe(document.body, { childList: true, subtree: true });
 
-  try { trapModalFocus(overlay); } catch (_) {}
   setLightSetupStep('core', { focus: false });
   const focusBody = () => {
     const body = /** @type {HTMLElement | null} */ (overlay.querySelector('.light-setup-focus-body'));
@@ -545,7 +543,7 @@ function closeSunSetupOverlay() {
   const overlay = typeof document !== 'undefined'
     ? document.getElementById(LIGHT_SETUP_OVERLAY_ID)
     : null;
-  if (overlay) overlay.remove();
+  if (overlay) removeModalOverlay(overlay);
   _setupForceOpen = false;
 }
 

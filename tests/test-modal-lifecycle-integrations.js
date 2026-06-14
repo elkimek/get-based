@@ -32,6 +32,11 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.j
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
+const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
+const sunActiveSessionSrc = fs.readFileSync(path.join(root, 'js/sun-active-session.js'), 'utf8');
+const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const sunSessionActionsSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
+const sunSessionUiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const syncDiagnoseIdentitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-identity-actions.js'), 'utf8');
 const syncDiagnoseRenderSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-render.js'), 'utf8');
 const syncDiagnoseUiSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-ui.js'), 'utf8');
@@ -239,6 +244,27 @@ assert('light device and session modals use shared overlay lifecycle helpers',
         !src.includes("this.closest('.modal-overlay').remove()") &&
         !src.includes('overlay.remove()') &&
         !src.includes('wireBackdropClose') &&
+        !src.includes('trapModalFocus')));
+
+assert('sun session and setup modals use shared overlay lifecycle helpers',
+  sunSrc.includes('openAppendedModalOverlay') &&
+    sunSrc.includes('removeModalOverlay') &&
+    sunActiveSessionSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    sunDefaultsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    sunSessionActionsSrc.includes("import { removeModalOverlay } from './modal-lifecycle.js';") &&
+    sunSessionUiSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    (sunSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (sunActiveSessionSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (sunDefaultsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (sunSessionUiSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 2 &&
+    sunSessionActionsSrc.includes('removeModalOverlay(overlay)') &&
+    !sunSessionActionsSrc.includes("closest('.modal-overlay')?.remove()") &&
+    [sunSrc, sunActiveSessionSrc, sunDefaultsSrc, sunSessionUiSrc].every(src =>
+      !src.includes('modal-overlay show') &&
+        !src.includes("this.closest('.modal-overlay').remove()") &&
+        !src.includes('overlay.remove()')) &&
+    [sunActiveSessionSrc, sunDefaultsSrc, sunSessionUiSrc].every(src =>
+      !src.includes('wireBackdropClose') &&
         !src.includes('trapModalFocus')));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

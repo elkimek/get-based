@@ -2,6 +2,7 @@
 // sun-session-actions.js - delegated action contract for sun session UI.
 
 import { escapeAttr } from './utils.js';
+import { removeModalOverlay } from './modal-lifecycle.js';
 
 const sunSessionActionDelegateRoots = new WeakSet();
 const SUN_SESSION_KEYBOARD_ACTIONS = new Set([
@@ -32,7 +33,8 @@ function closestSunSessionAction(event) {
 }
 
 function closeContainingOverlay(actionEl) {
-  actionEl.closest('.modal-overlay')?.remove();
+  const overlay = actionEl.closest('.modal-overlay');
+  if (overlay) removeModalOverlay(overlay);
 }
 
 function handleSunSessionAction(actionEl, actions) {

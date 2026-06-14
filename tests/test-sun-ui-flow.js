@@ -247,9 +247,11 @@ return (async function() {
   assert('modal-lifecycle.js owns modal backdrop and focus helpers',
     /export function wireBackdropClose/.test(modalLifecycleSrc)
       && /export function trapModalFocus/.test(modalLifecycleSrc));
-  assert('sun-active-session.js imports shared modal lifecycle helpers',
+  assert('sun-active-session.js opens through shared appended modal lifecycle helpers',
     /from '\.\/modal-lifecycle\.js'/.test(sunActiveSrc)
-      && /wireBackdropClose\s*\(/.test(sunActiveSrc));
+      && /openAppendedModalOverlay\(overlay/.test(sunActiveSrc)
+      && /removeModalOverlay\(overlay\)/.test(sunActiveSrc)
+      && !/wireBackdropClose\s*\(/.test(sunActiveSrc));
   {
     const globalModalDeps = [];
     for (const file of [
