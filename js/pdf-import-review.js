@@ -12,6 +12,7 @@ import {
   getActiveModelDisplay,
   getOllamaPIIModel,
 } from './api.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { buildMarkerReference, normalizeToSI } from './pdf-import-marker-mapping.js';
 
 function clearPendingImport() {
@@ -25,7 +26,7 @@ function restoreDropZoneVisibility() {
 }
 
 function hideImportOverlay() {
-  document.getElementById('import-modal-overlay')?.classList.remove('show');
+  closeModalOverlay('import-modal-overlay');
 }
 
 export function getPendingImport() {
@@ -212,7 +213,7 @@ export function showImportPreview(parseResult) {
   window._pendingImport = parseResult;
   window._pendingImportRefLookup = refLookup;
   modal.innerHTML = html;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
   applyImportReviewFilters();
 }
 
