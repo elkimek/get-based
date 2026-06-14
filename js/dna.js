@@ -6,6 +6,7 @@ import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
 /** @typedef {Window & typeof globalThis & {
  *   _pendingDNAImport?: any,
  *   _pendingMtDNA?: any,
@@ -714,7 +715,7 @@ export function renderGeneticsSection() {
   // DNA step have an in-context path back. Below the fold on first paint
   // but appears for any user scrolling past supplements/charts.
   if (!hasSnps && !hasMtdna) {
-    return `<div class="genetics-empty-stub" onclick="triggerDNAFilePicker()" role="button" tabindex="0" aria-label="Add DNA data" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+    return `<div class="genetics-empty-stub" ${dnaActionAttrs('import-file')} role="button" tabindex="0" aria-label="Add DNA data">
       <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
       <span class="genetics-empty-stub-body">
         <span class="genetics-empty-stub-title">Add your DNA data</span>
@@ -799,7 +800,7 @@ export function renderGeneticsSection() {
   if (latestDate) metaParts.push(latestDate);
 
   let html = `<div class="dashboard-section genetics-section" id="genetics-section">
-    <div class="section-header" role="button" tabindex="0" aria-label="Expand or collapse genetics section" onclick="toggleGeneticsCollapse()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" style="cursor:pointer">
+    <div class="section-header" role="button" tabindex="0" aria-label="Expand or collapse genetics section" ${dnaActionAttrs('toggle-genetics-collapse')} style="cursor:pointer">
       <span>\uD83E\uDDEC Genetics</span>
       <span class="section-meta">${metaParts.join(' \u00B7 ')}
         <span class="genetics-collapse-arrow${collapsed ? ' collapsed' : ''}">\u25BE</span></span>
@@ -855,7 +856,7 @@ export function renderGeneticsSection() {
       html += `<div class="genetics-mtdna-match">${escapeHTML(mismatch.message)}</div>`;
     }
     html += `<div class="genetics-mtdna-refs">Wallace 2015 (<a href="https://pubmed.ncbi.nlm.nih.gov/26406369/" target="_blank" rel="noopener">PMID: 26406369</a>)
-      \u00B7 <a href="#" onclick="window.deleteMtDNAData();return false" style="color:var(--text-muted)">remove</a></div>`;
+      \u00B7 <button type="button" ${dnaActionAttrs('delete-mtdna')}>remove</button></div>`;
     html += `</div>`;
   }
 
@@ -908,7 +909,7 @@ export function renderGeneticsSection() {
       html += `</div>`;
     }
     if (totalFindings > INITIAL_LIMIT) {
-      html += `<button class="genetics-show-all" onclick="toggleGeneticsExpand(this)">${totalFindings - INITIAL_LIMIT} more findings</button>`;
+      html += `<button class="genetics-show-all" ${dnaActionAttrs('toggle-genetics-expand')}>${totalFindings - INITIAL_LIMIT} more findings</button>`;
     }
     html += `</div>`;
   }
@@ -946,8 +947,8 @@ export function renderGeneticsSection() {
   }
 
   html += `<div class="genetics-actions">
-    <label class="genetics-action-link" onclick="reimportDNA()">Re-import</label>
-    <label class="genetics-action-link genetics-action-delete" onclick="window.confirmDeleteDNA()">Delete</label>
+    <button type="button" class="genetics-action-link" ${dnaActionAttrs('reimport-dna')}>Re-import</button>
+    <button type="button" class="genetics-action-link genetics-action-delete" ${dnaActionAttrs('delete-dna')}>Delete</button>
   </div>`;
   html += `</div></div>`;
 
@@ -1050,7 +1051,7 @@ function showDNAImportPreview(result, fileName) {
   function renderCollapsedGroup(items, label) {
     if (items.length === 0) return '';
     return `<div class="dna-preview-group">
-      <div class="dna-preview-group-title dna-preview-collapsible" role="button" tabindex="0" onclick="this.parentElement.classList.toggle('expanded')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.parentElement.classList.toggle('expanded')}">
+      <div class="dna-preview-group-title dna-preview-collapsible" role="button" tabindex="0" ${dnaActionAttrs('toggle-preview-group')}>
         ${label} (${items.length}) <span class="dna-preview-expand-hint">show</span>
       </div>
       <div class="dna-preview-collapsed-items">
@@ -1080,8 +1081,8 @@ function showDNAImportPreview(result, fileName) {
       Processed locally \u2014 your DNA file was never transmitted. Only matched SNPs are stored.
     </div>
     <div class="dna-preview-actions">
-      <button class="import-btn import-btn-secondary" onclick="closeDNAImportPreview()">Cancel</button>
-      <button class="import-btn import-btn-primary" onclick="confirmDNAImport()">Import ${result.coverage.found} SNPs</button>
+      <button class="import-btn import-btn-secondary" ${dnaActionAttrs('close-preview')}>Cancel</button>
+      <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-import')}>Import ${result.coverage.found} SNPs</button>
     </div>`;
 
   // Use a dedicated overlay — don't clobber the PDF import modal
@@ -1361,8 +1362,8 @@ function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
   html += `</div>
   <div class="dna-preview-disclaimer">Processed locally. Coupling classification follows the Wallace mitochondrial paradigm — a research framework, not an established clinical standard.</div>
   <div class="dna-preview-actions">
-    <button class="import-btn import-btn-secondary" onclick="window.closeMtDNAPreview()">Cancel</button>
-    <button class="import-btn import-btn-primary" onclick="window.confirmMtDNAImport()">Import Haplogroup ${escapeHTML(resolved.haplogroup)}</button>
+    <button class="import-btn import-btn-secondary" ${dnaActionAttrs('close-mtdna-preview')}>Cancel</button>
+    <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-mtdna-import')}>Import Haplogroup ${escapeHTML(resolved.haplogroup)}</button>
   </div>`;
 
   let overlay = document.getElementById('dna-modal-overlay');
@@ -1470,6 +1471,8 @@ async function confirmDeleteDNA() {
     await dnaWindow._saveAndRefresh();
   }
 }
+
+initDnaActionDelegates({ triggerDNAFilePicker: () => window.triggerDNAFilePicker?.(), closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, reimportDNA, toggleGeneticsCollapse, toggleGeneticsExpand });
 
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS
