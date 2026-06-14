@@ -133,8 +133,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       const disabledHtml = widget.renderDashboardRecommendationsWidget(activeCtx);
       outcomes.disabledStateLinksToPrivacySettings =
         disabledHtml.includes('Recommendations are off')
-        && disabledHtml.includes("openSettingsModal")
-        && disabledHtml.includes("'privacy'");
+        && disabledHtml.includes('data-dashboard-rec-action="open-privacy-settings"');
 
       productRecsEnabled = true;
       fixture.innerHTML = `
@@ -218,11 +217,11 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       outcomes.renderCardsEscapeMarkupAndBuildActionHandlers =
         escapedCard.includes('&lt;script&gt;')
         && escapedCard.includes('Reason &lt;b&gt;bold&lt;/b&gt;')
-        && escapedCard.includes('window.showDetailModal')
-        && escapedCard.includes('window.openRecommendationDetail')
-        && escapedCard.includes('window.discussRecommendation')
-        && escapedCard.includes('window.saveRecommendation')
-        && escapedCard.includes('window.dismissRecommendation')
+        && escapedCard.includes('data-dashboard-rec-action="view-marker"')
+        && escapedCard.includes('data-dashboard-rec-action="open-detail"')
+        && escapedCard.includes('data-dashboard-rec-action="discuss"')
+        && escapedCard.includes('data-dashboard-rec-action="save"')
+        && escapedCard.includes('data-dashboard-rec-action="dismiss"')
         && compactCard.includes('rec-next-card-compact')
         && compactCard.includes('Bookmarked')
         && !compactCard.includes('Hidden when compact')
@@ -233,7 +232,7 @@ test('dashboard recommendation widget browser coverage exercises candidates rend
       const customEmptyHtml = widget.renderRecommendationsEmpty('Nothing <ready>');
       outcomes.emptyStatesRenderSafeFallbackActions =
         emptyHtml.includes('No data-linked recommendations yet.')
-        && emptyHtml.includes("window.navigate('labs')")
+        && emptyHtml.includes('data-dashboard-rec-route="labs"')
         && customEmptyHtml.includes('Nothing &lt;ready&gt;')
         && customEmptyHtml.includes('Import labs');
     } finally {

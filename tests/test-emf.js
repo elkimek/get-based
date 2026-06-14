@@ -284,7 +284,7 @@ assert('92. Empty for null/empty text', recsMod.detectMitigationsInText('').leng
 // ── Coupon click-to-copy renders as button, not <code> ──
 localStorage.setItem('labcharts-show-product-recs', 'true');
 const couponHtml = recsMod.renderEMFMeterRecs(emfCat);
-assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('copyCouponCode'));
+assert('93. Coupon renders as clickable button', couponHtml.includes('rec-coupon-code') && couponHtml.includes('data-rec-action="copy-coupon"'));
 assert('94. copyCouponCode exposed on window', typeof window.copyCouponCode === 'function');
 assert('94a. Coupon button has aria-label', /aria-label="Copy coupon code/.test(couponHtml));
 assert('94b. Coupon wrapper announces flash via aria-live', /aria-live="polite"/.test(couponHtml));
@@ -420,7 +420,7 @@ localStorage.setItem('labcharts-show-product-recs', 'true');
 const discMeterHtml = recsMod.renderEMFMeterRecs(emfCat);
 assert('94am. Disclosure footer renders region indicator', /Showing for /.test(discMeterHtml));
 assert('94an. Disclosure footer renders change link', /class="rec-region-edit"/.test(discMeterHtml));
-assert('94ao. Change link calls openProfileLocationEditor on click', /openProfileLocationEditor/.test(discMeterHtml));
+assert('94ao. Change link delegates location editor action', /data-rec-action="edit-region"/.test(discMeterHtml));
 
 // Vendor-name rendering in EMF row (was hardcoded to "Safe Living Technologies")
 assertCatalog('94ap. EMF row link copy uses vendor name (not hardcoded)', /View on Safe Living Technologies/.test(discMeterHtml));

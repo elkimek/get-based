@@ -7,6 +7,54 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
 
+let dashboardRecommendationDelegatesInstalled = false;
+
+export function dashboardRecommendationActionAttrs(action, attrs = {}) {
+  return [
+    `data-dashboard-rec-action="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-dashboard-rec-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
+
+function handleDashboardRecommendationClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-dashboard-rec-action]'));
+  if (!actionEl || !actionEl.closest('.rec-next-widget, .rec-next-card, .db-correlation-empty')) return;
+  const appWindow = /** @type {any} */ (window);
+  const action = actionEl.dataset.dashboardRecAction || '';
+  event.preventDefault();
+
+  if (action === 'view-marker') {
+    const markerId = actionEl.dataset.dashboardRecMarkerId || '';
+    if (markerId) appWindow.showDetailModal?.(markerId, { scrollToRec: true });
+  } else if (action === 'open-detail') {
+    appWindow.openRecommendationDetail?.(
+      actionEl.dataset.dashboardRecSlotKey || '',
+      actionEl.dataset.dashboardRecLabel || 'Recommendation',
+      actionEl.dataset.dashboardRecMarkerStatus || '',
+    );
+  } else if (action === 'discuss') {
+    appWindow.discussRecommendation?.(actionEl.dataset.dashboardRecId || '');
+  } else if (action === 'save') {
+    appWindow.saveRecommendation?.(actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
+  } else if (action === 'dismiss') {
+    appWindow.dismissRecommendation?.(actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
+  } else if (action === 'navigate') {
+    appWindow.navigate?.(actionEl.dataset.dashboardRecRoute || '');
+  } else if (action === 'open-privacy-settings') {
+    appWindow.openSettingsModal?.('privacy');
+  }
+}
+
+export function initDashboardRecommendationDelegates() {
+  if (dashboardRecommendationDelegatesInstalled) return;
+  document.addEventListener('click', handleDashboardRecommendationClick);
+  dashboardRecommendationDelegatesInstalled = true;
+}
+
 export function createDashboardRecommendationWidget({
   markerHasData,
   buildDashboardWidgetContext,
@@ -78,14 +126,6 @@ export function createDashboardRecommendationWidget({
       return `${name} is ${readable}; trend signal: ${code}.`;
     }
     return `${name} is ${readable} versus its active reference range.`;
-  }
-
-  function inlineJsString(value) {
-    return JSON.stringify(String(value ?? '')).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
-  }
-
-  function inlineHandlerCall(fnName, ...args) {
-    return escapeAttr(`window.${fnName}(${args.map(inlineJsString).join(', ')})`);
   }
 
   function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
@@ -188,15 +228,8 @@ export function createDashboardRecommendationWidget({
   function renderRecommendationCard(candidate, { compact = false } = {}) {
     const savedClass = candidate.saved ? ' is-saved' : '';
     const primaryAction = candidate.primaryAction ? `<div class="rec-next-primary">${escapeHTML(candidate.primaryAction)}</div>` : '';
-    const markerCall = candidate.markerId
-      ? escapeAttr(`window.showDetailModal(${inlineJsString(candidate.markerId)}, { scrollToRec: true })`)
-      : '';
-    const detailCall = inlineHandlerCall('openRecommendationDetail', candidate.slotKey, candidate.label, candidate.markerStatus || '');
-    const discussCall = inlineHandlerCall('discussRecommendation', candidate.id);
-    const saveCall = escapeAttr(`window.saveRecommendation(${inlineJsString(candidate.id)}, ${candidate.saved ? 'false' : 'true'})`);
-    const dismissCall = escapeAttr(`window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})`);
     const markerBtn = candidate.markerId
-      ? `<button type="button" class="dashboard-action-btn" onclick="${markerCall}">View marker</button>`
+      ? `<button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('view-marker', { 'marker-id': candidate.markerId })}>View marker</button>`
       : '';
     const saveLabel = candidate.saved ? 'Bookmarked' : 'Bookmark';
     const dismissLabel = candidate.dismissed ? 'Restore' : 'Dismiss';
@@ -209,17 +242,17 @@ export function createDashboardRecommendationWidget({
       ${candidate.meta ? `<div class="rec-next-meta">${escapeHTML(candidate.meta)}</div>` : ''}
       ${compact ? '' : primaryAction}
       <div class="rec-next-actions">
-        <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="${detailCall}">View options</button>
+        <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('open-detail', { 'slot-key': candidate.slotKey, label: candidate.label, 'marker-status': candidate.markerStatus || '' })}>View options</button>
         ${markerBtn}
-        <button type="button" class="dashboard-action-btn" onclick="${discussCall}">Discuss</button>
-        <button type="button" class="dashboard-action-btn" onclick="${saveCall}">${saveLabel}</button>
-        ${compact ? '' : `<button type="button" class="dashboard-action-btn" onclick="${dismissCall}">${dismissLabel}</button>`}
+        <button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('discuss', { id: candidate.id })}>Discuss</button>
+        <button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('save', { id: candidate.id, on: candidate.saved ? 'false' : 'true' })}>${saveLabel}</button>
+        ${compact ? '' : `<button type="button" class="dashboard-action-btn" ${dashboardRecommendationActionAttrs('dismiss', { id: candidate.id, on: candidate.dismissed ? 'false' : 'true' })}>${dismissLabel}</button>`}
       </div>
     </article>`;
   }
 
   function renderRecommendationsEmpty(message = 'No data-linked recommendations yet.') {
-    return `<button type="button" class="db-correlation-empty" onclick="window.navigate('labs')">
+    return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('navigate', { route: 'labs' })}>
       <strong>${escapeHTML(message)}</strong>
       <span>Import labs, connect body data, log light exposure, or add DNA to generate recommendation candidates.</span>
     </button>`;
@@ -227,7 +260,7 @@ export function createDashboardRecommendationWidget({
 
   function renderDashboardRecommendationsWidget(ctx) {
     if (!window.isProductRecsEnabled?.()) {
-      return `<button type="button" class="db-correlation-empty" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">
+      return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
         <strong>Recommendations are off</strong>
         <span>Enable Tips & Recommendations in settings to show data-linked next steps.</span>
       </button>`;
@@ -241,7 +274,7 @@ export function createDashboardRecommendationWidget({
     if (!candidates.length) return renderRecommendationsEmpty();
     return `<div class="rec-next-widget">
       ${candidates.map(c => renderRecommendationCard(c, { compact: true })).join('')}
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.navigate('recommendations')">View all recommendations</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${dashboardRecommendationActionAttrs('navigate', { route: 'recommendations' })}>View all recommendations</button>
     </div>`;
   }
 
@@ -255,3 +288,5 @@ export function createDashboardRecommendationWidget({
     setRecommendationState,
   };
 }
+
+initDashboardRecommendationDelegates();
