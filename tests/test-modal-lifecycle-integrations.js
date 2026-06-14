@@ -16,6 +16,8 @@ const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboar
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
+const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
@@ -199,6 +201,21 @@ assert('light environment assessment uses shared overlay lifecycle before remova
     lightEnvSrc.includes('overlay.remove()') &&
     !lightEnvSrc.includes("overlay.className = 'modal-overlay show light-env-assessment-overlay'") &&
     !lightEnvSrc.includes("overlay.classList.add('show')"));
+
+assert('light tool modals use shared overlay lifecycle helpers',
+  lightToolCameraModalsSrc.includes("from './modal-lifecycle.js'") &&
+    lightToolCameraModalsSrc.includes('openModalOverlay(overlay)') &&
+    lightToolCameraModalsSrc.includes('closeModalOverlay(overlay)') &&
+    (lightToolCameraModalsSrc.match(/openLightToolOverlay\(overlay/g) || []).length >= 6 &&
+    (lightToolCameraModalsSrc.match(/removeLightToolOverlay\(overlay\)/g) || []).length >= 6 &&
+    lightToolsSrc.includes("from './modal-lifecycle.js'") &&
+    lightToolsSrc.includes('openModalOverlay(overlay)') &&
+    lightToolsSrc.includes('closeModalOverlay(overlay)') &&
+    (lightToolsSrc.match(/openLightToolOverlay\(overlay/g) || []).length >= 2 &&
+    (lightToolsSrc.match(/removeLightToolOverlay\(overlay\)/g) || []).length >= 2 &&
+    !lightToolCameraModalsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
+    !lightToolsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
+    !lightToolsSrc.includes("this.closest('.modal-overlay').remove()"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

@@ -2,7 +2,7 @@
 // light-tool-camera-modals.js — Camera-backed Light tool modal flows.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { closeModalOverlay, openModalOverlay, trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import {
   aimingGuideHTML,
   lockCameraForMeasurement,
@@ -29,6 +29,18 @@ function getSaveMeasurement(deps = {}) {
   return fn;
 }
 
+function openLightToolOverlay(overlay, closeFn) {
+  try { wireBackdropClose(overlay, closeFn); } catch (e) {}
+  document.body.appendChild(overlay);
+  openModalOverlay(overlay);
+  try { trapModalFocus(overlay); } catch (e) {}
+}
+
+function removeLightToolOverlay(overlay) {
+  closeModalOverlay(overlay);
+  overlay.remove();
+}
+
 // ─── Tool 1: Lux Meter ─────────────────────────────────────────────────
 
 const LUX_ZONES = [
@@ -53,7 +65,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Lux meter">
     <div class="modal-header">
       <h3>Lux Meter</h3>
@@ -99,11 +111,9 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     if (_luxState.sensor) { try { _luxState.sensor.stop(); } catch (e) {} _luxState.sensor = null; }
     if (_luxState.stream) { try { _luxState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _luxState.stream = null; }
     _luxState.video = null;
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
-  try { wireBackdropClose(overlay, () => window._closeLuxMeter()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeLuxMeter());
 
   let currentLux = null;
   // Snapshot of the LATEST raw camera luma (before calibration multiply).
@@ -319,7 +329,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Flicker detector">
     <div class="modal-header">
       <h3>Flicker Detector</h3>
@@ -341,11 +351,9 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     closed = true;
     _flickerState.running = false;
     if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
-  try { wireBackdropClose(overlay, () => window._closeFlicker()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeFlicker());
 
   let lastResult = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#flicker-result'));
@@ -478,7 +486,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sleep darkness meter">
     <div class="modal-header">
       <h3>Sleep Darkness Meter</h3>
@@ -494,9 +502,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       </div>
     </div>
   </div>`;
-  try { wireBackdropClose(overlay, () => window._closeDark()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeDark());
 
   let result = null;
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
@@ -625,7 +631,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   window._closeDark = () => {
     _darkState.running = false;
     if (_darkState.stream) { try { _darkState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _darkState.stream = null; }
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
 }
 
@@ -637,7 +643,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Color temperature meter">
     <div class="modal-header">
       <h3>Color Temperature</h3>
@@ -663,11 +669,9 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     closed = true;
     _cctState.running = false;
     if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
-  try { wireBackdropClose(overlay, () => window._closeCCT()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeCCT());
 
   let currentCCT = null;
   let currentMelanopic = null;
@@ -796,7 +800,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Spectrum classifier">
     <div class="modal-header">
       <h3>What kind of light is this?</h3>
@@ -818,11 +822,9 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     closed = true;
     _specState.running = false;
     if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
-  try { wireBackdropClose(overlay, () => window._closeSpec()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeSpec());
 
   let result = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#spec-result'));
@@ -977,7 +979,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Glass transmission test">
     <div class="modal-header">
       <h3>Window / Glass Transmission</h3>
@@ -1012,11 +1014,9 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
     }
     activeGlassStreams.clear();
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
-  try { wireBackdropClose(overlay, () => window._closeGlass()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeGlass());
 
   _glassReadings = { inside: null, outside: null };
 

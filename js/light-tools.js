@@ -21,7 +21,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { closeModalOverlay, openModalOverlay, trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import {
@@ -214,6 +214,18 @@ export async function deleteMeasurement(id) {
   return true;
 }
 
+function openLightToolOverlay(overlay, closeFn) {
+  try { wireBackdropClose(overlay, closeFn); } catch (e) {}
+  document.body.appendChild(overlay);
+  openModalOverlay(overlay);
+  try { trapModalFocus(overlay); } catch (e) {}
+}
+
+function removeLightToolOverlay(overlay) {
+  closeModalOverlay(overlay);
+  overlay.remove();
+}
+
 
 // ─── Camera-backed tool modal facade ──────────────────────────────────
 
@@ -312,7 +324,7 @@ export function normalizeGoldenHourMinutes(value) {
 
 export function openSunriseLogger() {
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   const coords = (window.getSunCoords && window.getSunCoords()) || null;
   const cls = _classifyDayWindow(coords, new Date());
   const subtitleHtml = cls.kind === 'unknown'
@@ -329,7 +341,7 @@ export function openSunriseLogger() {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
     <div class="modal-header">
       <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(cls.label)}</span></h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" id="sunrise-close" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">${headerHint}</p>
@@ -338,14 +350,15 @@ export function openSunriseLogger() {
         <input type="number" id="sunrise-duration" class="ctx-input" min="1" max="120" value="15" />
       </label>
       <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" id="sunrise-cancel">Cancel</button>
         <button class="import-btn import-btn-primary" id="sunrise-save">Log session</button>
       </div>
     </div>
   </div>`;
-  try { wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  const closeSunriseLogger = () => removeLightToolOverlay(overlay);
+  openLightToolOverlay(overlay, closeSunriseLogger);
+  queryRequired(overlay, '#sunrise-close').addEventListener('click', closeSunriseLogger);
+  queryRequired(overlay, '#sunrise-cancel').addEventListener('click', closeSunriseLogger);
 
   queryRequired(overlay, '#sunrise-save').addEventListener('click', async () => {
     const durationInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#sunrise-duration'));
@@ -363,7 +376,7 @@ export function openSunriseLogger() {
       if (id && window.hydrateSession) await window.hydrateSession(id);
     }
     showNotification(`${cls.label} logged: ${minutes} min`);
-    overlay.remove();
+    closeSunriseLogger();
     if (window.navigate && state.currentView === 'light') window.navigate('light');
   });
 }
@@ -374,7 +387,7 @@ let _auditState = { running: false, stream: null, samples: [] };
 
 export async function openEyeLevelAudit() {
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-tool-overlay';
+  overlay.className = 'modal-overlay light-tool-overlay';
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Home audit">
     <div class="modal-header">
       <h3>Home audit <span style="font-weight:400;color:var(--text-muted);font-size:13px">— 10 min walkthrough</span></h3>
@@ -391,9 +404,7 @@ export async function openEyeLevelAudit() {
       </div>
     </div>
   </div>`;
-  try { wireBackdropClose(overlay, () => window._closeAudit()); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openLightToolOverlay(overlay, () => window._closeAudit());
 
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
@@ -556,7 +567,7 @@ export async function openEyeLevelAudit() {
   window._closeAudit = () => {
     _auditState.running = false;
     if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
-    overlay.remove();
+    removeLightToolOverlay(overlay);
   };
 }
 
