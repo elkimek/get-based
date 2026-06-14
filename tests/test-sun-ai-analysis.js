@@ -231,7 +231,8 @@ const {
   assert('inline render emits tip text escaped',
     inlineGreen.includes('Solid 25-min midday hit, 42% MED.'),
     inlineGreen);
-  assert('inline render includes refresh button', inlineGreen.includes('refreshSessionAIAnalysis'));
+  assert('inline render includes delegated refresh action',
+    inlineGreen.includes('data-ai-action="refresh-sun-session"'));
 
   const inlineRed = renderSessionAIInline(makeSess({
     aiAnalysis: { dot: 'red', tip: 'Over MED at 105%.', status: 'ok', fingerprint: 'x', generatedAt: Date.now() },

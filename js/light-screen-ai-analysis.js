@@ -14,6 +14,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getScreens() { return state.importedData?.lightEnvironment?.screens || []; }
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
@@ -163,7 +164,7 @@ export function renderScreenAIBlock(s) {
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
           <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-          <button class="sun-session-ai-refresh" onclick="window.refreshScreenAIAnalysis('${escapeAttr(s.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
+          <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-screen', s.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
         </div>
         ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
       </div>
@@ -176,7 +177,7 @@ export function renderScreenAIBlock(s) {
       <div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshScreenAIAnalysis('${escapeAttr(s.id)}')">Try again</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-screen', s.id)}>Try again</button>
       </div>
     </div>`;
   }
@@ -185,7 +186,7 @@ export function renderScreenAIBlock(s) {
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get a circadian-impact verdict for this screen.</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshScreenAIAnalysis('${escapeAttr(s.id)}')">Analyze screen</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-screen', s.id)}>Analyze screen</button>
     </div>
   </div>`;
 }

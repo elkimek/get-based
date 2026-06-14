@@ -23,6 +23,7 @@ import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeDeficitAxes, computeIndoorBurden, isActiveToday } from './light-env.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getEnv() {
   if (!state.importedData) return null;
@@ -237,14 +238,14 @@ export function renderBurdenInterp(burden) {
     return `<div class="light-env-summary-ai light-env-summary-ai-${dot}">
       <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
       <span class="light-env-summary-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshBurdenAIAnalysis()" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-burden')} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
       ${a.detail ? `<div class="light-env-summary-ai-detail">${escapeHTML(a.detail)}</div>` : ''}
     </div>`;
   }
   if (status === 'error') {
     return `<div class="light-env-summary-ai">
       <p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>
-      <button class="sun-session-ai-refresh light-env-summary-ai-cta" onclick="window.refreshBurdenAIAnalysis()">AI verdict failed — retry</button>
+      <button class="sun-session-ai-refresh light-env-summary-ai-cta" ${aiActionAttrs('refresh-burden')}>AI verdict failed — retry</button>
     </div>`;
   }
   // Idle, OR cached but stale (env changed since last analyze). Show the
@@ -253,7 +254,7 @@ export function renderBurdenInterp(burden) {
   const ctaLabel = stale ? 'Refresh AI verdict (your setup changed)' : '✨ Get AI verdict';
   return `<div class="light-env-summary-ai">
     <p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>
-    <button class="sun-session-ai-refresh light-env-summary-ai-cta" onclick="window.refreshBurdenAIAnalysis()">${escapeHTML(ctaLabel)}</button>
+    <button class="sun-session-ai-refresh light-env-summary-ai-cta" ${aiActionAttrs('refresh-burden')}>${escapeHTML(ctaLabel)}</button>
   </div>`;
 }
 

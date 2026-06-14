@@ -13,6 +13,7 @@ import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, tierLabel } from './su
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
@@ -386,7 +387,7 @@ export function renderLightTodayHero() {
     return `<div class="light-today-hero light-today-hero-${dot}">
       <div class="light-today-hero-head">
         <span class="light-today-hero-label">Today's light</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshDayAIAnalysis()" title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
       </div>
       <div class="sun-detail-ai sun-detail-ai-${dot}">
         <div class="sun-detail-ai-head">
@@ -405,7 +406,7 @@ export function renderLightTodayHero() {
       <div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshDayAIAnalysis()">Try again</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Try again</button>
       </div>
       ${trendBar}
     </div>`;
@@ -415,7 +416,7 @@ export function renderLightTodayHero() {
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get an AI read on today's full picture — sun, devices, environment, trends.</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshDayAIAnalysis()">Run today's verdict</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Run today's verdict</button>
     </div>
     ${trendBar}
   </div>`;
@@ -469,7 +470,7 @@ export function renderLightTodayDashboardChip() {
       <div class="light-today-dash-ai-row">
         <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
         <span class="light-today-dash-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshDayAIAnalysis()" title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
       </div>
       ${cached.detail ? `<div class="light-today-dash-ai-body">
         <p>${escapeHTML(cached.detail)}</p>
@@ -478,12 +479,12 @@ export function renderLightTodayDashboardChip() {
   }
   if (status === 'error') {
     const msg = cached?.errorMessage || 'AI verdict failed — retry';
-    return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()">
+    return `<button class="light-today-dash-ai light-today-dash-ai-cta" ${aiActionAttrs('refresh-day')}>
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span class="light-today-dash-ai-tip">${escapeHTML(msg)}</span>
     </button>`;
   }
-  return `<button class="light-today-dash-ai light-today-dash-ai-cta" onclick="window.refreshDayAIAnalysis()">
+  return `<button class="light-today-dash-ai light-today-dash-ai-cta" ${aiActionAttrs('refresh-day')}>
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
     <span class="light-today-dash-ai-tip">✨ Get today's AI verdict</span>
   </button>`;

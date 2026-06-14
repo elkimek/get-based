@@ -14,6 +14,7 @@ import { getDevices, getDeviceSessions } from './light-devices.js';
 import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 
@@ -251,16 +252,16 @@ export function renderDeviceSessionAIInline(sess) {
   if (!hasAIProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(sess);
   const a = sess.aiAnalysis;
-  const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
+  const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
   if (status === 'analyzing') {
-    return `<div class="sun-session-ai" onclick="event.stopPropagation()">
+    return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
       <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
       <span class="sun-session-ai-tip">Analyzing…</span>
     </div>`;
   }
   if (status === 'ok') {
     const dot = a.dot;
-    return `<div class="sun-session-ai" onclick="event.stopPropagation()">
+    return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
       <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
       <span class="sun-session-ai-tip sun-session-ai-tip-${escapeAttr(dot)}"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
       ${refreshBtn}
@@ -268,15 +269,15 @@ export function renderDeviceSessionAIInline(sess) {
   }
   if (status === 'error') {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed';
-    return `<div class="sun-session-ai sun-session-ai-error" onclick="event.stopPropagation()">
+    return `<div class="sun-session-ai sun-session-ai-error" ${aiActionAttrs('stop-propagation')}>
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span class="sun-session-ai-tip" title="${escapeAttr(msg)}">${escapeHTML(msg)}</span>
       ${refreshBtn}
     </div>`;
   }
-  return `<div class="sun-session-ai sun-session-ai-idle" onclick="event.stopPropagation()">
+  return `<div class="sun-session-ai sun-session-ai-idle" ${aiActionAttrs('stop-propagation')}>
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')">Analyze this session</button>
+    <button class="sun-session-ai-cta" ${aiActionAttrs('refresh-device-session', sess.id, { stopPropagation: true })}>Analyze this session</button>
   </div>`;
 }
 
@@ -296,14 +297,14 @@ export function renderDeviceSessionAIDetail(sess) {
     return `<div class="sun-detail-ai sun-detail-ai-error">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>${escapeHTML(msg)}</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')">Try again</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id)}>Try again</button>
     </div>`;
   }
   if (status !== 'ok') {
     return `<div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Not analyzed yet.</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')">Analyze now</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id)}>Analyze now</button>
     </div>`;
   }
   const dot = a.dot;
@@ -313,7 +314,7 @@ export function renderDeviceSessionAIDetail(sess) {
     <div class="sun-detail-ai-head">
       <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
       <span class="sun-detail-ai-tip">${escapeHTML(tip)}</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshDeviceSessionAIAnalysis('${escapeAttr(sess.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
     </div>
     ${detail ? `<div class="sun-detail-ai-body">${escapeHTML(detail)}</div>` : ''}
   </div>`;

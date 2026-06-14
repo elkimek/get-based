@@ -19,6 +19,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getMix() {
   return state.importedData?.channelMixAI || null;
@@ -235,7 +236,7 @@ export function renderChannelMixVerdict(staticFallback) {
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
           <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-          <button class="sun-session-ai-refresh" onclick="window.refreshChannelMixAI()" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
+          <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-channel-mix')} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
         </div>
         ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
       </div>
@@ -245,14 +246,14 @@ export function renderChannelMixVerdict(staticFallback) {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
     return `<div class="light-channel-mix-ai">
       ${staticFallback || ''}
-      <button class="sun-session-ai-refresh light-channel-mix-ai-cta" onclick="window.refreshChannelMixAI()">${escapeHTML(msg)} — retry</button>
+      <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(msg)} — retry</button>
     </div>`;
   }
   // Idle, OR cached but stale (channels shifted since last run).
   const ctaLabel = stale ? '✨ Refresh AI verdict (your mix changed)' : '✨ Get AI synthesis of your mix';
   return `<div class="light-channel-mix-ai">
     ${staticFallback || ''}
-    <button class="sun-session-ai-refresh light-channel-mix-ai-cta" onclick="window.refreshChannelMixAI()">${escapeHTML(ctaLabel)}</button>
+    <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(ctaLabel)}</button>
   </div>`;
 }
 

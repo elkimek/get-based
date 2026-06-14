@@ -13,6 +13,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
 
@@ -204,7 +205,7 @@ export function renderOnboardingAIBlock() {
     return `<div class="light-setup-ai-block light-setup-ai-block-${dot}">
       <div class="light-setup-ai-head">
         <span class="light-setup-ai-head-label">Your light context</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshOnboardingAIAnalysis()" title="Re-run analysis" aria-label="Re-run">↻</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')} title="Re-run analysis" aria-label="Re-run">↻</button>
       </div>
       <div class="sun-detail-ai sun-detail-ai-${dot}">
         <div class="sun-detail-ai-head">
@@ -223,7 +224,7 @@ export function renderOnboardingAIBlock() {
       <div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshOnboardingAIAnalysis()">Try again</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Try again</button>
       </div>
     </div>`;
   }
@@ -232,7 +233,7 @@ export function renderOnboardingAIBlock() {
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get a contextual read on your skin type, lighting environment, and goals.</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshOnboardingAIAnalysis()">Generate plan</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Generate plan</button>
     </div>
   </div>`;
 }
