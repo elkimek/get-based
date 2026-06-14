@@ -110,6 +110,7 @@ function handleDataClick(event) {
   if (action === 'switch-range-mode') {
     event.preventDefault();
     switchRangeMode(actionEl.getAttribute(DATA_RANGE_ATTR) || 'optimal');
+    return;
   }
 }
 
@@ -820,6 +821,8 @@ function _getActiveNavCategory() {
 }
 
 export function toggleChartLayersDropdown(e) {
+  // Direct callers still rely on this; delegated clicks add
+  // stopImmediatePropagation() at document level after this returns.
   e.stopPropagation();
   const dd = document.getElementById('chart-layers-dropdown');
   if (!dd) return;

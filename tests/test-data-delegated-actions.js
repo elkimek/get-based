@@ -73,7 +73,7 @@ assert('range mode buttons keep data-range and use delegated actions',
   dataSrc.includes('data-range="${m}"')
   && dataSrc.includes("dataActionAttrs('switch-range-mode', { range: m })")
   && dataSrc.includes("action === 'switch-range-mode'")
-  && dataSrc.includes("switchRangeMode(actionEl.getAttribute(DATA_RANGE_ATTR) || 'optimal')"));
+  && /action === 'switch-range-mode'[\s\S]{0,220}switchRangeMode\(actionEl\.getAttribute\(DATA_RANGE_ATTR\) \|\| 'optimal'\);[\s\S]{0,60}return;/.test(dataSrc));
 
 console.log(`\nData delegated actions tests: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
