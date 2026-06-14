@@ -14,7 +14,7 @@
 import { escapeHTML, showNotification } from './utils.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
-import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
@@ -137,7 +137,8 @@ export function openImageLightbox(src) {
   };
   overlay.addEventListener('click', closeLightbox);
   document.addEventListener('keydown', onKeydown);
-  openAppendedModalOverlay(overlay, closeLightbox);
+  document.body.appendChild(overlay);
+  openModalOverlay(overlay);
 }
 
 export function clearAttachments() {

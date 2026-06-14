@@ -110,10 +110,10 @@ assert('chat summary modal participates in global keyboard modal handling',
   appEventsSrc.includes('"summary-modal-overlay"') &&
     appEventsSrc.includes('window.closeSummaryModal?.()'));
 
-assert('chat image lightbox uses shared appended overlay lifecycle helpers',
-  chatImagesSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+assert('chat image lightbox uses shared overlay lifecycle helpers',
+  chatImagesSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     chatImagesSrc.includes("overlay.className = 'chat-lightbox'") &&
-    chatImagesSrc.includes('openAppendedModalOverlay(overlay, closeLightbox)') &&
+    chatImagesSrc.includes('openModalOverlay(overlay)') &&
     chatImagesSrc.includes('removeModalOverlay(overlay)') &&
     !chatImagesSrc.includes('overlay.remove()'));
 
