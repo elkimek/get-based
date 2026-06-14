@@ -6,6 +6,9 @@
 // Run: node tests/test-sun-defaults.js  (or via npm test)
 
 import './_node-shim.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -14,6 +17,10 @@ function assert(name, condition, detail) {
 }
 
 console.log('=== Sun Defaults Tests ===\n');
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '..');
+const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
 
 await import('../js/state.js');
 const mod = await import('../js/sun-defaults.js');
@@ -31,6 +38,16 @@ const {
 
   // Stash importedData so we don't pollute the host page.
   const orig = window._labState.importedData;
+
+  // ─── 0. Light setup delegated events ─────────────────────────────────
+  console.log('%c 0. Light setup delegated events ', 'font-weight:bold;color:#f59e0b');
+
+  assert('sun-defaults renders setup controls without inline event attributes',
+    !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsSrc));
+  assert('sun-defaults installs shared Light setup delegates',
+    sunDefaultsSrc.includes('installLightSetupDelegates();') &&
+    sunDefaultsSrc.includes("data-light-setup-action=") &&
+    sunDefaultsSrc.includes("data-light-setup-input="));
 
   // ─── 1. Fitzpatrick options shape ─────────────────────────────────────
   console.log('%c 1. Fitzpatrick options ', 'font-weight:bold;color:#f59e0b');
