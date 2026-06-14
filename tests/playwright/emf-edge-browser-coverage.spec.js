@@ -291,7 +291,12 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         && imported.interpretation.inputTokens === 80
         && imported.interpretation.outputTokens === 24
         && window.__emfApiCalls.some(call => call.hasStream && call.signalPresent)
-        && !!document.querySelector('#emf-interp-overlay button.import-btn-secondary');
+        && !!document.querySelector('#emf-interp-overlay [data-emf-interp-action="discuss"]');
+      const interpHtml = document.getElementById('emf-interp-overlay')?.innerHTML || '';
+      outcomes.interpretationOverlayUsesDelegatedControls =
+        !/\bon(?:click|keydown|submit|change|input)=/.test(interpHtml)
+        && !!document.querySelector('#emf-interp-overlay [data-emf-interp-action="close"]')
+        && !!document.querySelector('#emf-interp-overlay [data-emf-interp-action="generate"]');
 
       await waitUntil(() => document.getElementById('emf-interp-recs')?.textContent.includes('Products to consider'), 'mitigation recs');
       outcomes.productRecsLoadForMitigationTags = window.__emfCatalogLoads >= 1;

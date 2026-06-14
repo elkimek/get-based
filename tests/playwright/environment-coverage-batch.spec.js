@@ -194,7 +194,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       window.closeModal = () => calls.push(['close-modal']);
       window.interpretEMFComparison();
       await waitFor('#emf-interp-overlay.show .emf-interp-modal', 'EMF existing interpretation modal');
-      document.querySelector('#emf-interp-overlay button[onclick*="discussEMFInterpretation"]')?.click();
+      document.querySelector('#emf-interp-overlay [data-emf-interp-action="discuss"]')?.click();
       await waitUntil(() => calls.some(call => call[0] === 'chat'), 'EMF discuss chat handoff');
       outcomes.existingComparisonInterpretationDiscussesInChat =
         calls.some(call => call[0] === 'close-modal')

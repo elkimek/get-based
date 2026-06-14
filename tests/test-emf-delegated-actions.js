@@ -31,6 +31,7 @@ function section(start, end) {
 const editorSrc = section('let _editingAssessmentId = null;', '// ═══════════════════════════════════════════════\n// CRUD OPERATIONS');
 const importPreviewSrc = section('function showEMFImportPreview(parsed)', '// ═══════════════════════════════════════════════\n// BEFORE / AFTER COMPARISON');
 const compareSrc = section('function renderComparisonView(sorted)', '// ═══════════════════════════════════════════════\n// AI INTERPRETATION');
+const interpretationSrc = section('function _handleEMFInterpretationMouseDown', 'function _collectMitigationTags');
 const closePreviewSrc = section('function closeEMFPreviewModal()', 'function closeEMFEditorModal()');
 const migratedEditorSurface = `${editorSrc}\n${importPreviewSrc}\n${compareSrc}`;
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
@@ -39,6 +40,8 @@ console.log('=== EMF Delegated Actions ===');
 
 assert('EMF editor migrated surface renders no inline event attributes',
   migratedEditorSurface.length > 0 && !inlineHandlerRe.test(migratedEditorSurface));
+assert('EMF interpretation modal renders no inline event attributes',
+  interpretationSrc.length > 0 && !inlineHandlerRe.test(interpretationSrc));
 assert('EMF editor imports shared tag toggle instead of inline global handler',
   emfSrc.includes("import { toggleCtxTag } from './context-card-editor-ui.js';") &&
     migratedEditorSurface.includes("if (action === 'toggle-tag') { toggleCtxTag(actionEl); return; }"));
@@ -76,6 +79,19 @@ assert('EMF editor delegates can be explicitly removed',
     emfSrc.includes("document.removeEventListener('click', _handleEMFEditorClick)") &&
     emfSrc.includes("document.removeEventListener('change', _handleEMFEditorChange)") &&
     emfSrc.includes("document.removeEventListener('keydown', _handleEMFEditorKeydown)"));
+assert('EMF interpretation modal installs scoped action delegates',
+  emfSrc.includes('function emfInterpActionAttrs') &&
+    interpretationSrc.includes('data-emf-interp-action') &&
+    interpretationSrc.includes('installEMFInterpretationDelegates(overlay);') &&
+    interpretationSrc.includes("overlay.addEventListener('mousedown', _handleEMFInterpretationMouseDown)") &&
+    interpretationSrc.includes("overlay.addEventListener('click', _handleEMFInterpretationClick)") &&
+    interpretationSrc.includes("if (action === 'close')") &&
+    interpretationSrc.includes("if (action === 'discuss')") &&
+    interpretationSrc.includes("if (action === 'generate')"));
+assert('EMF interpretation streamed discuss button uses delegated action',
+  interpretationSrc.includes("querySelector('[data-emf-interp-action=\"discuss\"]')") &&
+    interpretationSrc.includes("dataset.emfInterpAction = 'discuss'") &&
+    !interpretationSrc.includes('discussBtn.onclick'));
 
 [
   'close-editor',
