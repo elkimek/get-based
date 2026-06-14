@@ -100,8 +100,8 @@ function handleMedicalHistoryClick(event) {
   }
 }
 
-/** @param {InputEvent} event */
-function handleMedicalHistoryInput(event) {
+/** @param {Event} event */
+function handleMedicalHistoryFieldActivity(event) {
   const input = closestMedicalHistoryElement(event.target, '#condition-input, #fh-condition');
   if (!input) return;
   if (input.id === 'condition-input') {
@@ -111,15 +111,14 @@ function handleMedicalHistoryInput(event) {
   }
 }
 
+/** @param {InputEvent} event */
+function handleMedicalHistoryInput(event) {
+  handleMedicalHistoryFieldActivity(event);
+}
+
 /** @param {FocusEvent} event */
 function handleMedicalHistoryFocusIn(event) {
-  const input = closestMedicalHistoryElement(event.target, '#condition-input, #fh-condition');
-  if (!input) return;
-  if (input.id === 'condition-input') {
-    filterConditionSuggestions();
-  } else {
-    filterFamilyConditionSuggestions();
-  }
+  handleMedicalHistoryFieldActivity(event);
 }
 
 /** @param {KeyboardEvent} event */
@@ -153,6 +152,7 @@ function initMedicalHistoryActionDelegates() {
   if (medicalHistoryDelegatesBound || typeof document === 'undefined') return;
   medicalHistoryDelegatesBound = true;
   document.addEventListener('click', handleMedicalHistoryClick);
+  document.addEventListener('click', closeSuggestionsOnClickOutside);
   document.addEventListener('input', handleMedicalHistoryInput);
   document.addEventListener('focusin', handleMedicalHistoryFocusIn);
   document.addEventListener('keydown', handleMedicalHistoryKeydown);
@@ -337,8 +337,6 @@ export function renderDiagnosesModal(modal, current) {
     ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${medicalHistoryActionAttrs('clear')}>Clear</button>` : ''}
   </div>`;
   renderContextEditorModal(modal, 'Medical History', 'Your diagnoses and family history. The AI considers both when interpreting your labs.', html, 'closeDiagnoses');
-  document.removeEventListener('click', closeSuggestionsOnClickOutside);
-  document.addEventListener('click', closeSuggestionsOnClickOutside);
 }
 
 export function filterConditionSuggestions() {
