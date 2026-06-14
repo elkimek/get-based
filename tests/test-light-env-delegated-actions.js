@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const envSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'utf8');
+const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
 let passed = 0;
@@ -26,11 +27,13 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Light Environment Delegated Actions ===');
 
-const inlineHandlerRe = /\bon(?:click|keydown|change|input|submit)=/g;
+const inlineHandlerRe = /\bon(?:click|keydown|change|input|submit|blur|toggle)=/g;
 const directAssignmentRe = /\.(?:onclick|onchange|oninput|onkeydown)\s*=/;
 
 assert('light-env.js has no inline event attributes',
   !inlineHandlerRe.test(envSrc));
+assert('light-env-audits.js has no inline event attributes',
+  !inlineHandlerRe.test(auditSrc));
 assert('light-env.js avoids direct event property assignment',
   !directAssignmentRe.test(envSrc));
 assert('light-env.js imports and installs the delegated action helper',
@@ -44,19 +47,23 @@ assert('light-env-actions defines one shared action attribute helper',
     actionSrc.includes("replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)") &&
     actionSrc.includes('Boolean false means "absent but false"') &&
     actionSrc.includes("value !== false"));
-assert('light-env-actions installs idempotent click, keyboard, change, and input delegates',
+assert('light-env-actions installs idempotent click, keyboard, change, input, and toggle delegates',
   actionSrc.includes('const lightEnvActionDelegateRoots = new WeakSet();') &&
     actionSrc.includes("root.addEventListener('click', event => handleLightEnvCapturedClick(event, actions), true)") &&
     actionSrc.includes("root.addEventListener('click', event => handleLightEnvClick(event, actions))") &&
     actionSrc.includes("root.addEventListener('keydown', event => handleLightEnvCapturedKeydown(event, actions), true)") &&
     actionSrc.includes("root.addEventListener('keydown', event => handleLightEnvKeydown(event, actions))") &&
     actionSrc.includes("root.addEventListener('change', event => handleLightEnvChange(event, actions))") &&
-    actionSrc.includes("root.addEventListener('input', event => handleLightEnvInput(event, actions))"));
+    actionSrc.includes("root.addEventListener('input', event => handleLightEnvInput(event, actions))") &&
+    actionSrc.includes("root.addEventListener('toggle', event => handleLightEnvToggle(event, actions), true)"));
 assert('light-env-actions preserves old stop-propagation semantics in capture phase',
   actionSrc.includes('const PROPAGATION_STOPPING_CLICK_ACTIONS = new Set') &&
     actionSrc.includes("'set-today-active'") &&
     actionSrc.includes("'delete-screen-confirm'") &&
     actionSrc.includes("'delete-room-confirm'") &&
+    actionSrc.includes("'toggle-audit-compare'") &&
+    actionSrc.includes("'save-audit'") &&
+    actionSrc.includes("'toggle-audit-history'") &&
     actionSrc.includes('function handleLightEnvCapturedClick') &&
     actionSrc.includes('if (!PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;') &&
     actionSrc.includes('if (PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;') &&
@@ -67,13 +74,25 @@ assert('light-env delegated actions are scoped to the installed root',
 assert('light-env keyboard delegate supports role-button rows and ignores form controls',
   actionSrc.includes("event.target?.closest?.('button, a, input, textarea, select')") &&
     actionSrc.includes("actionEl.getAttribute('role') === 'button'"));
+assert('light-env click delegate ignores toggle-only details actions',
+  actionSrc.includes('const NON_CLICK_ACTIONS = new Set') &&
+    actionSrc.includes("'set-audits-block-open'") &&
+    actionSrc.includes('!NON_CLICK_ACTIONS.has(actionName(actionEl))'));
 assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
-    actionSrc.includes("'update-screen-blue-blocker'"));
+    actionSrc.includes("'update-screen-blue-blocker'") &&
+    actionSrc.includes("'update-audit-field'"));
 assert('light-env.js captures saveLightAuditFromUI when installing delegates',
   envSrc.includes("const saveLightAuditFromUI = typeof globalThis.saveLightAuditFromUI === 'function'") &&
     envSrc.includes('saveLightAuditFromUI,') &&
     !envSrc.includes('saveLightAuditFromUI: () => globalThis.saveLightAuditFromUI?.()'));
+assert('light-env.js captures light audit callbacks when installing delegates',
+  envSrc.includes("const toggleLightAudit = typeof globalThis.toggleLightAudit === 'function'") &&
+    envSrc.includes("const updateLightAuditField = typeof globalThis.updateLightAuditField === 'function'") &&
+    envSrc.includes('toggleLightAudit,') &&
+    envSrc.includes('updateLightAuditField,') &&
+    envSrc.includes('deleteLightAuditConfirm,') &&
+    envSrc.includes('interpretLightAuditCompare,'));
 assert('service worker precaches light-env-actions.js',
   swSrc.includes("'/js/light-env-actions.js'"));
 
@@ -103,6 +122,13 @@ assert('service worker precaches light-env-actions.js',
   'update-room-name',
   'open-tool',
   'add-room',
+  'toggle-audit',
+  'update-audit-field',
+  'delete-audit-confirm',
+  'interpret-audit-compare',
+  'toggle-audit-compare',
+  'save-audit',
+  'toggle-audit-history',
 ].forEach(action => {
   assert(`light environment action ${action} is handled`,
     actionSrc.includes(`action === '${action}'`));
@@ -137,6 +163,21 @@ assert('service worker precaches light-env-actions.js',
 ].forEach(renderedAction => {
   assert(`light-env.js renders ${renderedAction}`,
     envSrc.includes(renderedAction));
+});
+
+[
+  "lightEnvActionAttrs('toggle-audit', { id: a.id })",
+  "lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'date' })",
+  "lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'label' })",
+  "lightEnvActionAttrs('delete-audit-confirm', { id: a.id })",
+  "lightEnvActionAttrs('interpret-audit-compare', { oldId: a1.id, newId: a2.id })",
+  "lightEnvActionAttrs('toggle-audit-compare')",
+  "lightEnvActionAttrs('set-audits-block-open')",
+  "lightEnvActionAttrs('save-audit')",
+  "lightEnvActionAttrs('toggle-audit-history')",
+].forEach(renderedAction => {
+  assert(`light-env-audits.js renders ${renderedAction}`,
+    auditSrc.includes(renderedAction));
 });
 
 [

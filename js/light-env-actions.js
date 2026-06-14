@@ -10,10 +10,16 @@ const PROPAGATION_STOPPING_CLICK_ACTIONS = new Set([
   'delete-screen-confirm',
   'toggle-room-expanded',
   'delete-room-confirm',
+  'toggle-audit-compare',
+  'save-audit',
+  'toggle-audit-history',
 ]);
 const PROPAGATION_STOPPING_KEYDOWN_ACTIONS = new Set([
   'toggle-screen-expanded',
   'toggle-room-expanded',
+]);
+const NON_CLICK_ACTIONS = new Set([
+  'set-audits-block-open',
 ]);
 
 function dataAttrName(name) {
@@ -51,7 +57,7 @@ function actionName(actionEl) {
 }
 
 function shouldHandleClick(actionEl) {
-  return actionEl && !actionEl.matches?.('input, select, textarea');
+  return actionEl && !NON_CLICK_ACTIONS.has(actionName(actionEl)) && !actionEl.matches?.('input, select, textarea');
 }
 
 function shouldHandleRoleButtonKeydown(actionEl, event) {
@@ -68,6 +74,9 @@ function handleLightEnvAction(actionEl, event, actions) {
   const kind = actionEl.dataset.lightEnvKind || '';
   const device = actionEl.dataset.lightEnvDevice || '';
   const tool = actionEl.dataset.lightEnvTool || '';
+  const field = actionEl.dataset.lightEnvField || '';
+  const oldId = actionEl.dataset.lightEnvOldId || '';
+  const newId = actionEl.dataset.lightEnvNewId || '';
 
   if (action === 'set-room-source-archetype') {
     void actions.setLightEnvRoomSourceArchetype?.(id, key);
@@ -120,6 +129,20 @@ function handleLightEnvAction(actionEl, event, actions) {
     actions.openLightEnvTool?.(tool, id);
   } else if (action === 'add-room') {
     void actions.addLightEnvRoom?.();
+  } else if (action === 'toggle-audit') {
+    actions.toggleLightAudit?.(id);
+  } else if (action === 'update-audit-field') {
+    void actions.updateLightAuditField?.(id, field, actionEl.value);
+  } else if (action === 'delete-audit-confirm') {
+    void actions.deleteLightAuditConfirm?.(id);
+  } else if (action === 'interpret-audit-compare') {
+    actions.interpretLightAuditCompare?.(oldId, newId);
+  } else if (action === 'toggle-audit-compare') {
+    actions.toggleLightAuditCompare?.();
+  } else if (action === 'save-audit') {
+    void actions.saveLightAuditFromUI?.();
+  } else if (action === 'toggle-audit-history') {
+    actions.toggleLightAuditHistory?.();
   }
 }
 
@@ -165,6 +188,7 @@ function handleLightEnvChange(event, actions) {
     'update-screen-room',
     'update-screen-device',
     'update-screen-blue-blocker',
+    'update-audit-field',
   ].includes(actionEl.dataset.lightEnvAction || '')) return;
   handleLightEnvAction(actionEl, event, actions);
 }
@@ -176,6 +200,12 @@ function handleLightEnvInput(event, actions) {
   handleLightEnvAction(actionEl, event, actions);
 }
 
+function handleLightEnvToggle(event, actions) {
+  const actionEl = closestLightEnvAction(event);
+  if (!actionEl || actionName(actionEl) !== 'set-audits-block-open') return;
+  actions.setLightAuditsBlockOpen?.(!!actionEl.open);
+}
+
 export function installLightEnvActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
   if (!root || lightEnvActionDelegateRoots.has(root)) return;
   lightEnvActionDelegateRoots.add(root);
@@ -185,4 +215,5 @@ export function installLightEnvActionDelegates(actions = {}, root = (typeof docu
   root.addEventListener('keydown', event => handleLightEnvKeydown(event, actions));
   root.addEventListener('change', event => handleLightEnvChange(event, actions));
   root.addEventListener('input', event => handleLightEnvInput(event, actions));
+  root.addEventListener('toggle', event => handleLightEnvToggle(event, actions), true);
 }

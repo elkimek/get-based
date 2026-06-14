@@ -429,7 +429,8 @@ const {
   const manuallyOpenAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block can stay open without an expanded audit card',
     manuallyOpenAudits.includes('class="light-env-block light-audits-block" open') &&
-    manuallyOpenAudits.includes('ontoggle="window.setLightAuditsBlockOpen(this.open)"'));
+    manuallyOpenAudits.includes('data-light-env-action="set-audits-block-open"') &&
+    !manuallyOpenAudits.includes('ontoggle='));
   window.setLightAuditsBlockOpen(false);
   const manuallyClosedAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block open state can be manually collapsed',
@@ -537,6 +538,8 @@ const {
     !modelSrc.includes('renderEnvironmentSection') &&
     !envSrc.includes('function _hasAnyRoomSignal'));
   const auditSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  assert('Light audit renderer emits no inline event attributes',
+    !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light audit storage/rendering lives in its own module',
     auditSrc.includes('configureLightEnvAudits') &&
     auditSrc.includes('renderLightAuditsBlock') &&

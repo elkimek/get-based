@@ -483,6 +483,10 @@ test('Light audit history covers save expand update compare interpret and delete
       });
 
       const host = renderHost();
+      outcomes.auditRenderUsesDelegatedActions =
+        host.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit],[ontoggle]') === null
+        && host.querySelector('[data-light-env-action="save-audit"]') !== null
+        && host.querySelector('[data-light-env-action="toggle-audit-history"]') !== null;
       outcomes.initialHistoryCapsAtTwoAndShowsMore =
         host.querySelectorAll('.light-audit-card').length === 2
         && host.querySelector('.light-audit-show-more')?.textContent.includes('Show 1 older audit') === true;
@@ -506,7 +510,7 @@ test('Light audit history covers save expand update compare interpret and delete
         && document.querySelector('.light-audit-card[data-id="audit_old"].expanded') !== null
         && calls.some(call => call[0] === 'refresh' && String(call[1]).includes('audit_old'));
 
-      document.querySelector('#light-audit-test-host .light-audit-actions button[onclick*="saveLightAuditFromUI"]')?.click();
+      document.querySelector('#light-audit-test-host .light-audit-actions [data-light-env-action="save-audit"]')?.click();
       await waitFor('#prompt-dialog-input', 'audit save prompt');
       document.getElementById('prompt-dialog-input').value = 'Post cleanup';
       document.getElementById('prompt-ok').click();
