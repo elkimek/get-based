@@ -103,6 +103,23 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && badge.includes('data-lifestyle-action="show-diet-contaminants"')
         && !badge.includes('onclick=');
 
+      let openedDietEditor = false;
+      window.openDietEditor = () => { openedDietEditor = true; };
+      const fixture = document.getElementById('fixture');
+      fixture.innerHTML = '';
+      const contextCard = document.createElement('div');
+      contextCard.className = 'context-card';
+      contextCard.setAttribute('onclick', 'window.openDietEditor()');
+      contextCard.innerHTML = badge;
+      fixture.append(contextCard);
+      contextCard.querySelector('.diet-contaminants')?.click();
+      outcomes.dashboardBadgeClickBypassesParentCard =
+        openedDietEditor === false
+        && document.getElementById('modal-overlay')?.classList.contains('show') === true
+        && (document.getElementById('detail-modal')?.textContent || '').includes('Food Contaminant Signals');
+      document.getElementById('modal-overlay')?.classList.remove('show');
+      document.getElementById('detail-modal').innerHTML = '';
+
       state.importedData.diet = { breakfast: 'avocado and pineapple' };
       outcomes.cleanOnlyDietDoesNotRenderBadge = lifestyle.renderDietContaminantsBadge() === '';
 
@@ -152,6 +169,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
     'scanUsesWordBoundaries',
     'scanDeduplicatesVariantsPerWarning',
     'dietBadgeCountsOnlyFlaggedSignals',
+    'dashboardBadgeClickBypassesParentCard',
     'cleanOnlyDietDoesNotRenderBadge',
     'contaminantsModalGroupsSourcesAndActions',
     'emptyWarningsLeaveModalUntouched',

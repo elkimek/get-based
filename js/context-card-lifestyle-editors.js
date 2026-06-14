@@ -134,7 +134,9 @@ function lifestyleActionAttrs(action, extra = '') { return `data-lifestyle-actio
 
 function closestLifestyleElement(target, selector) {
   const el = target instanceof Element ? target.closest(selector) : null;
-  return el instanceof HTMLElement && el.closest('#detail-modal') ? el : null;
+  if (!(el instanceof HTMLElement)) return null;
+  if (el.closest('#detail-modal')) return el;
+  return el.dataset.lifestyleAction === 'show-diet-contaminants' ? el : null;
 }
 
 function getLifestyleIndex(el) {
@@ -163,7 +165,7 @@ function handleLifestyleContextClick(event) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
-    case 'show-diet-contaminants': event.stopPropagation(); showDietContaminantsModal(); break;
+    case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
     case 'open-light-setup': openLightSetupFromContext(); break;
     case 'delete-health-goal': { const idx = getLifestyleIndex(actionEl); if (idx >= 0) deleteHealthGoal(idx); break; }
     case 'add-health-goal': addHealthGoal(); break;
@@ -197,7 +199,7 @@ function initLifestyleContextDelegates() {
   const appWindow = getAppWindow();
   if (appWindow.__lifestyleContextDelegatesBound) return;
   appWindow.__lifestyleContextDelegatesBound = true;
-  document.addEventListener('click', handleLifestyleContextClick);
+  document.addEventListener('click', handleLifestyleContextClick, true);
   document.addEventListener('keydown', handleLifestyleContextKeydown);
 }
 
