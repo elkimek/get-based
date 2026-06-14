@@ -446,10 +446,13 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-diagnose-ui.js'"));
   assert('sync-diagnose-render.js owns Sync Diagnose panel markup',
     syncDiagnoseRenderSrc.includes('export function renderSyncDiagnoseModal')
+      && syncDiagnoseRenderSrc.includes('export function syncDiagnoseActionAttrs')
+      && syncDiagnoseRenderSrc.includes('data-sync-diagnose-action')
       && syncDiagnoseRenderSrc.includes('function renderRelayHealthPanel')
       && syncDiagnoseRenderSrc.includes('function renderRelayStoragePanel')
       && syncDiagnoseRenderSrc.includes('function renderDeltaTelemetryPanel')
-      && syncDiagnoseRenderSrc.includes('function renderCutoverPanel'));
+      && syncDiagnoseRenderSrc.includes('function renderCutoverPanel')
+      && !/\son(?:click|change|input|keydown|submit)=["']/.test(syncDiagnoseRenderSrc));
   assert('service worker precaches sync-diagnose-render.js',
     serviceWorkerSrc.includes("'/js/sync-diagnose-render.js'"));
   assert('sync-diagnose-actions.js is the Sync Diagnose action facade',
@@ -782,11 +785,17 @@ await import('../js/settings.js');
   assert('sync-ui.js owns header sync status UI helpers',
     syncSrc.includes("from './sync-ui.js'")
       && syncUiSrc.includes('export function configureSyncUI')
+      && syncUiSrc.includes('export function syncUiActionAttrs')
+      && syncUiSrc.includes('export function initSyncUIDelegates')
       && syncUiSrc.includes('export function bindSyncUIStatusUpdates')
       && syncUiSrc.includes('export function renderSyncIndicator')
       && syncUiSrc.includes('export function updateSyncIndicator')
       && syncUiSrc.includes('export function toggleSyncDetail')
       && syncUiSrc.includes('export async function copySyncEvents')
+      && syncUiSrc.includes('data-sync-ui-action')
+      && syncConfigureSrc.includes('initSyncUIDelegates();')
+      && !syncUiSrc.includes('\ninitSyncUIDelegates();')
+      && !/\son(?:click|change|input|keydown|submit)=["']/.test(syncUiSrc)
       && exportBlockIncludes(syncSrc, ['renderSyncIndicator', 'updateSyncIndicator', 'toggleSyncDetail', 'copySyncEvents']));
   assert('service worker precaches sync-ui.js',
     serviceWorkerSrc.includes("'/js/sync-ui.js'"));
@@ -988,9 +997,13 @@ await import('../js/settings.js');
   // without SSH access. Refresh probes /self/owner-storage to replace
   // the local estimate with the relay's authoritative value.
   assert('Sync diagnose modal wires the self-serve Compact storage button',
-    /confirmCompactRelay\(this\)/.test(syncDiagnoseRenderSrc));
+    syncDiagnoseRenderSrc.includes("syncDiagnoseActionAttrs('compact-relay')")
+      && syncDiagnoseUiSrc.includes("action === 'compact-relay'")
+      && syncDiagnoseUiSrc.includes('confirmCompactRelay(actionEl)'));
   assert('Sync diagnose modal wires the Refresh-from-relay button',
-    /refreshRelayStorage\(this\)/.test(syncDiagnoseRenderSrc));
+    syncDiagnoseRenderSrc.includes("syncDiagnoseActionAttrs('refresh-relay-storage')")
+      && syncDiagnoseUiSrc.includes("action === 'refresh-relay-storage'")
+      && syncDiagnoseUiSrc.includes('refreshRelayStorage(actionEl)'));
   assert('Sync diagnose relay health is described as local outbound health',
     syncDiagnoseRenderSrc.includes('device pushed')
       && syncDiagnoseRenderSrc.includes('This verdict is local/outbound')
@@ -2139,7 +2152,7 @@ await import('../js/settings.js');
   assert('confirmEnablePhase2 re-checks readiness as defence-in-depth',
     /confirmEnablePhase2[\s\S]{0,400}getDeltaCutoverReadiness\(state\.currentProfile\)[\s\S]{0,200}!r\?\.ready/.test(deltaSearchSrc));
   assert('Cutover modal button gated when not ready (disabled attribute)',
-    /confirmEnablePhase2\(this\)[\s\S]{0,300}disabled/.test(syncDiagnoseRenderSrc));
+    /syncDiagnoseActionAttrs\('enable-phase2'\)[\s\S]{0,320}disabled/.test(syncDiagnoseRenderSrc));
   assert('Cutover modal shows lean-mode ON badge when enabled',
     /cutoverBadge\s*=\s*cutoverEnabled[\s\S]{0,400}>ON</.test(deltaSearchSrc));
   assert('Cutover handlers exposed on window',

@@ -11,7 +11,7 @@ import { configureSyncMessenger } from './sync-messenger.js';
 import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import { configureSyncIdentity, restoreFromMnemonic } from './sync-identity.js';
 import { configureSyncDiagnostics } from './sync-diagnostics.js';
-import { bindSyncUIStatusUpdates, configureSyncUI } from './sync-ui.js';
+import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
 import { configureSyncDiagnoseUI } from './sync-diagnose-ui.js';
 import { configureSyncActions, pushAllProfiles, pushCurrentProfile } from './sync-actions.js';
 import { bindSyncSaveHookEvents, configureSyncSaveHooks } from './sync-save-hooks.js';
@@ -118,6 +118,7 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
   configureSyncUI({
     isSyncEnabled,
   });
+  initSyncUIDelegates();
   bindSyncUIStatusUpdates();
 
   configureSyncDiagnoseUI({
