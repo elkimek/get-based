@@ -133,6 +133,8 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
     const originalProfile = state.currentProfile;
     const dropZone = document.getElementById('drop-zone');
     const originalDropDisplay = dropZone?.style.display || '';
+    const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
+    const dispatchInput = el => el?.dispatchEvent(new Event('input', { bubbles: true }));
     const baseMarkers = [
       {
         rawName: 'Glucose <fasting>',
@@ -183,50 +185,57 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         && !!modal.querySelector('.import-review-date-warning')
         && !!modal.querySelector('.import-review-warning:not(.import-review-date-warning)');
       outcomes.missingDateDisablesImport = confirmBtn?.disabled === true;
+      outcomes.renderedControlsUseDelegatedActions = modal?.querySelectorAll('[onclick],[onchange],[oninput]').length === 0
+        && modal?.querySelectorAll('[data-import-review-action]').length >= 13;
 
-      review.applyManualImportDate('2026-06-01');
+      const dateInput = document.getElementById('import-manual-date');
+      dateInput.value = '2026-06-01';
+      dispatchChange(dateInput);
       outcomes.manualDateUpdatesPendingAndButton = review.getPendingImport()?.date === '2026-06-01'
         && confirmBtn?.disabled === false;
-      review.applyManualImportDate('');
+      dateInput.value = '';
+      dispatchChange(dateInput);
       outcomes.emptyManualDateDisablesImport = review.getPendingImport()?.date === ''
         && confirmBtn?.disabled === true;
-      review.applyManualImportDate('2026-06-01');
+      dateInput.value = '2026-06-01';
+      dispatchChange(dateInput);
 
-      review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="unmatched"]'));
+      document.querySelector('.import-filter-btn[data-filter="unmatched"]').click();
       outcomes.unmatchedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '11/13 shown';
 
       const searchInput = document.getElementById('import-review-search');
       searchInput.value = 'mystery marker 7';
-      review.applyImportReviewFilters();
+      dispatchInput(searchInput);
       outcomes.searchNarrowsFilteredRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
 
       searchInput.value = '';
-      review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="all"]'));
+      dispatchInput(searchInput);
+      document.querySelector('.import-filter-btn[data-filter="all"]').click();
       const mapInput = document.querySelector('tr[data-import-status="unmatched"] .import-map-input');
       mapInput.value = 'Glucose (biochemistry.glucose)';
-      review.mapUnmatchedMarkerInput(mapInput);
+      dispatchChange(mapInput);
       outcomes.mapUnmatchedByLabel = mapInput.value === 'biochemistry.glucose'
         && mapInput.closest('tr')?.dataset.importStatus === 'matched'
         && review.getPendingImport().markers[2].mappedKey === 'biochemistry.glucose';
 
       const invalidInput = document.querySelector('tr[data-import-status="unmatched"] .import-map-input');
       invalidInput.value = 'Not a real marker';
-      review.mapUnmatchedMarkerInput(invalidInput);
+      dispatchChange(invalidInput);
       outcomes.invalidMappingClearsAndNotifies = invalidInput.value === ''
         && Array.from(document.querySelectorAll('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Choose a marker from the list'));
 
       const excludeBtn = document.querySelector('tr[data-import-idx="0"] .import-exclude-btn');
-      review.toggleImportRow(excludeBtn);
+      excludeBtn.click();
       outcomes.excludeUpdatesRowAndCount = excludeBtn.textContent === 'Include'
         && excludeBtn.closest('tr')?.classList.contains('import-excluded') === true
         && confirmBtn?.textContent === 'Import 2 Markers'
         && review.getExcludedImportIndices().has(0) === true;
 
-      review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="excluded"]'));
+      document.querySelector('.import-filter-btn[data-filter="excluded"]').click();
       outcomes.excludedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
 
-      review.setImportReviewFilter(document.querySelector('.import-filter-btn[data-filter="all"]'));
+      document.querySelector('.import-filter-btn[data-filter="all"]').click();
       const selectRow = document.querySelector('tr[data-import-status="unmatched"]');
       const select = document.createElement('select');
       select.dataset.markerIdx = selectRow.dataset.importIdx;
@@ -238,7 +247,7 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         && review.getPendingImport().markers[Number(select.dataset.markerIdx)].mappedKey === 'iron.ferritin'
         && confirmBtn?.textContent === 'Import 3 Markers';
 
-      review.closeImportModal();
+      document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]').click();
       outcomes.closeClearsPending = overlay?.classList.contains('show') === false
         && review.getPendingImport() === null;
 
@@ -251,7 +260,7 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       }, 2, 5);
       outcomes.asyncPreviewHidesDropZone = dropZone?.style.display === 'none'
         && document.getElementById('import-modal')?.textContent.includes('File 2 of 5') === true;
-      review.closeImportModal();
+      document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]').click();
       outcomes.asyncCloseResolvesSkip = await batchPromise === 'skip'
         && dropZone?.style.display === '';
 
@@ -294,6 +303,8 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
     const review = await import(reviewUrl);
     const outcomes = {};
     const savedStorage = {};
+    const savedPIIDiffViewer = window.showPIIDiffViewer;
+    let piiDiffArgs = null;
     const storageKeys = [
       'labcharts-debug',
       'labcharts-ai-provider',
@@ -307,6 +318,9 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'llama-debug');
       localStorage.setItem('labcharts-ollama-pii-model', 'pii-debug');
+      window.showPIIDiffViewer = (originalText, obfuscatedText) => {
+        piiDiffArgs = [originalText, obfuscatedText];
+      };
 
       review.showImportPreview({
         date: '2026-06-04',
@@ -341,8 +355,12 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
       outcomes.debugDetailsRenderTimingAndPrivacyButton = modal?.textContent.includes('PII: 2s (pii-debug)') === true
         && modal?.textContent.includes('Analysis: 3s (llama-debug)') === true
         && modal?.querySelector('.import-privacy-details-btn') !== null;
+      modal?.querySelector('.import-privacy-details-btn')?.click();
+      outcomes.privacyDetailsButtonDelegatesToViewer = piiDiffArgs?.[0] === 'Patient: Jane Example'
+        && piiDiffArgs?.[1] === 'Patient: [NAME]';
       outcomes.rangeAdoptionOptionRendersWhenLabRangesDiffer = modal?.querySelector('#import-adopt-ranges') !== null;
     } finally {
+      window.showPIIDiffViewer = savedPIIDiffViewer;
       for (const key of storageKeys) {
         if (savedStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, savedStorage[key]);

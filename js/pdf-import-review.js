@@ -29,6 +29,81 @@ function hideImportOverlay() {
   closeModalOverlay('import-modal-overlay');
 }
 
+function importReviewActionAttrs(action, extra = '') {
+  return `data-import-review-action="${action}"${extra ? ` ${extra}` : ''}`;
+}
+
+function closestImportReviewElement(target, selector) {
+  const el = target instanceof Element ? target.closest(selector) : null;
+  return el instanceof HTMLElement && el.closest('#import-modal') ? el : null;
+}
+
+function getImportReviewWindow() {
+  return typeof window !== 'undefined' ? /** @type {any} */ (window) : {};
+}
+
+/** @param {MouseEvent} event */
+function handleImportReviewClick(event) {
+  const actionEl = closestImportReviewElement(event.target, '[data-import-review-action]');
+  if (!actionEl) return;
+  switch (actionEl.dataset.importReviewAction || '') {
+    case 'close':
+      closeImportModal();
+      break;
+    case 'filter':
+      setImportReviewFilter(actionEl);
+      break;
+    case 'toggle-row':
+      toggleImportRow(actionEl);
+      break;
+    case 'privacy-details': {
+      const appWindow = getImportReviewWindow();
+      const pending = getPendingImport();
+      if (typeof appWindow.showPIIDiffViewer === 'function' && pending?.privacyOriginal && pending?.privacyObfuscated) {
+        appWindow.showPIIDiffViewer(pending.privacyOriginal, pending.privacyObfuscated);
+      }
+      break;
+    }
+    case 'confirm': {
+      const appWindow = getImportReviewWindow();
+      if (typeof appWindow.confirmImport === 'function') appWindow.confirmImport();
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/** @param {Event} event */
+function handleImportReviewInput(event) {
+  if (closestImportReviewElement(event.target, '[data-import-review-action="search"]')) {
+    applyImportReviewFilters();
+  }
+}
+
+/** @param {Event} event */
+function handleImportReviewChange(event) {
+  const dateInput = closestImportReviewElement(event.target, '[data-import-review-action="manual-date"]');
+  if (dateInput instanceof HTMLInputElement) {
+    applyManualImportDate(dateInput.value);
+    return;
+  }
+  const mapInput = closestImportReviewElement(event.target, '[data-import-review-action="map-marker"]');
+  if (mapInput instanceof HTMLInputElement) mapUnmatchedMarkerInput(mapInput);
+}
+
+function initImportReviewDelegates() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const appWindow = getImportReviewWindow();
+  if (appWindow.__importReviewDelegatesBound) return;
+  appWindow.__importReviewDelegatesBound = true;
+  document.addEventListener('click', handleImportReviewClick);
+  document.addEventListener('input', handleImportReviewInput);
+  document.addEventListener('change', handleImportReviewChange);
+}
+
+initImportReviewDelegates();
+
 export function getPendingImport() {
   return window._pendingImport || null;
 }
@@ -61,7 +136,7 @@ export function showImportPreview(parseResult) {
       <div class="gb-modal-kicker">${escapeHTML(batchLabel)}</div>
       <div class="gb-modal-title">Review &amp; Edit Import</div>
     </div>
-    <button type="button" class="modal-close" onclick="closeImportModal()" aria-label="Close import review">&times;</button>
+    <button type="button" class="modal-close" ${importReviewActionAttrs('close')} aria-label="Close import review">&times;</button>
   </div>
   <div class="gb-form-body import-review-body">
     <div class="import-review-summary">
@@ -71,7 +146,7 @@ export function showImportPreview(parseResult) {
       </div>
       <div class="import-review-file">
         <span class="import-review-label">Collection date</span>
-        <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" onchange="applyManualImportDate(this.value)" aria-label="Collection date">
+        <input type="date" id="import-manual-date" value="${escapeHTML(date || '')}" ${importReviewActionAttrs('manual-date')} aria-label="Collection date">
       </div>
       <div class="import-review-stats" aria-label="Import mapping summary">
         <span class="import-review-stat import-review-stat-matched"><strong>${matched.length}</strong> matched</span>
@@ -100,15 +175,15 @@ export function showImportPreview(parseResult) {
 
   html += `<div class="import-review-controls">
     <div class="import-filter-group" role="group" aria-label="Filter import rows">
-      <button type="button" class="import-filter-btn active" data-filter="all" onclick="setImportReviewFilter(this)">All</button>
-      <button type="button" class="import-filter-btn" data-filter="matched" onclick="setImportReviewFilter(this)">Matched</button>
-      <button type="button" class="import-filter-btn" data-filter="new" onclick="setImportReviewFilter(this)">New</button>
-      <button type="button" class="import-filter-btn" data-filter="unmatched" onclick="setImportReviewFilter(this)">Unmatched</button>
-      <button type="button" class="import-filter-btn" data-filter="excluded" onclick="setImportReviewFilter(this)">Excluded</button>
+      <button type="button" class="import-filter-btn active" data-filter="all" ${importReviewActionAttrs('filter')}>All</button>
+      <button type="button" class="import-filter-btn" data-filter="matched" ${importReviewActionAttrs('filter')}>Matched</button>
+      <button type="button" class="import-filter-btn" data-filter="new" ${importReviewActionAttrs('filter')}>New</button>
+      <button type="button" class="import-filter-btn" data-filter="unmatched" ${importReviewActionAttrs('filter')}>Unmatched</button>
+      <button type="button" class="import-filter-btn" data-filter="excluded" ${importReviewActionAttrs('filter')}>Excluded</button>
     </div>
     <label class="import-review-search-wrap">
       <span class="sr-only">Search import rows</span>
-      <input type="search" id="import-review-search" class="import-review-search" placeholder="Search markers" oninput="applyImportReviewFilters()" autocomplete="off">
+      <input type="search" id="import-review-search" class="import-review-search" placeholder="Search markers" ${importReviewActionAttrs('search')} autocomplete="off">
     </label>
     <span class="import-visible-count" id="import-visible-count" aria-live="polite"></span>
   </div>`;
@@ -123,7 +198,7 @@ export function showImportPreview(parseResult) {
       <td data-label="Value">${escapeHTML(String(m.value))}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
       <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.mappedKey)}</td>
-      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" onclick="toggleImportRow(this)" title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
+      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
     </tr>`;
   }
   for (const m of newMarkers) {
@@ -135,7 +210,7 @@ export function showImportPreview(parseResult) {
       <td data-label="Value">${escapeHTML(String(m.value))}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
       <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.suggestedKey)}</td>
-      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" onclick="toggleImportRow(this)" title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
+      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
     </tr>`;
   }
   if (unmatched.length > 0) {
@@ -148,7 +223,7 @@ export function showImportPreview(parseResult) {
         <td data-label="Value">${escapeHTML(String(m.value))}</td>
         <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
         <td class="import-map-cell" data-label="Maps to">
-          <input type="text" class="import-map-input" list="import-marker-options" data-marker-idx="${origIdx}" onchange="mapUnmatchedMarkerInput(this)" placeholder="Search marker" autocomplete="off" aria-label="Map ${escapeHTML(m.rawName)} to an existing marker">
+          <input type="text" class="import-map-input" list="import-marker-options" data-marker-idx="${origIdx}" ${importReviewActionAttrs('map-marker')} placeholder="Search marker" autocomplete="off" aria-label="Map ${escapeHTML(m.rawName)} to an existing marker">
         </td>
         <td class="import-row-action" data-label="Action"><span class="import-skip-note">Skipped unless mapped</span></td>
       </tr>`;
@@ -198,7 +273,7 @@ export function showImportPreview(parseResult) {
       html += `<div class="import-debug-note">&#9202; ${piiLabel} &nbsp;|&nbsp; Analysis: ${t.analysis}s (${modelLabel})</div>`;
     }
     if (parseResult.privacyOriginal && parseResult.privacyObfuscated) {
-      html += '<button type="button" class="import-btn import-btn-secondary import-privacy-details-btn" onclick="showPIIDiffViewer(window._pendingImport.privacyOriginal, window._pendingImport.privacyObfuscated)">&#128269; View privacy details</button>';
+      html += `<button type="button" class="import-btn import-btn-secondary import-privacy-details-btn" ${importReviewActionAttrs('privacy-details')}>&#128269; View privacy details</button>`;
     }
   }
 
@@ -206,8 +281,8 @@ export function showImportPreview(parseResult) {
   const importDisabled = !date ? ' disabled' : '';
   html += `</div>
     <div class="import-review-actions">
-      <button type="button" class="import-btn import-btn-secondary" onclick="closeImportModal()">${cancelLabel}</button>
-      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" onclick="confirmImport()"${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button>
+      <button type="button" class="import-btn import-btn-secondary" ${importReviewActionAttrs('close')}>${cancelLabel}</button>
+      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button>
     </div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   window._pendingImport = parseResult;
@@ -273,7 +348,7 @@ function applyImportMarkerMapping(controlEl, key) {
         statusCell.innerHTML = '<span class="import-status-pill">Matched</span>';
       }
       if (actionCell && !actionCell.querySelector('.import-exclude-btn')) {
-        actionCell.innerHTML = '<button type="button" class="import-exclude-btn" onclick="toggleImportRow(this)" title="Exclude from import" aria-label="Exclude from import">Exclude</button>';
+        actionCell.innerHTML = `<button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude from import">Exclude</button>`;
       }
     } else {
       row.dataset.importStatus = 'unmatched';

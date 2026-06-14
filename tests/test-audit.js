@@ -635,6 +635,10 @@ console.log('8. Code Cleanup');
 assert('pdf-import-review.js imports formatCost from schema', pdfReviewSrc.includes('formatCost') && pdfReviewSrc.includes("from './schema.js'"));
 const localFormatCost = `${pdfSrc}\n${pdfReviewSrc}`.match(/^function formatCost/m);
 assert('PDF import modules have no local formatCost', !localFormatCost);
+assert('PDF import review modal uses delegated actions',
+  pdfReviewSrc.includes('function initImportReviewDelegates()') &&
+  pdfReviewSrc.includes('data-import-review-action') &&
+  !/\son(?:click|change|input)\s*=/.test(pdfReviewSrc));
 
 // ═══════════════════════════════════════
 // 9. OpenRouter curated prefixes
