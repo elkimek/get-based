@@ -100,6 +100,7 @@ const APP_SHELL = [
   '/js/pii.js',
   '/js/charts.js',
   '/js/notes.js',
+  '/js/supplement-action-delegates.js',
   '/js/supplements.js',
   '/js/supplement-impact.js',
   '/js/cycle.js',

@@ -143,10 +143,19 @@ const { computeSupplementImpact, computeAllImpacts, parseAmount, ingredientDaily
 
   const suppSrc = read('js/supplements.js');
   const impactSrc = read('js/supplement-impact.js');
+  const delegateSrc = read('js/supplement-action-delegates.js');
   assert('renderSupplementImpact exists', impactSrc.includes('function renderSupplementImpact'));
   assert('Wired into openSupplementsEditor', suppSrc.includes('renderSupplementImpact(s,'));
   assert('Detects overlapping supplements', impactSrc.includes('getOverlappingSupplements'));
   assert('computeAllImpacts on window', suppSrc.includes('computeAllImpacts'));
+  assert('Supplement editor actions are delegated',
+    suppSrc.includes("from './supplement-action-delegates.js'") &&
+      suppSrc.includes("suppActionAttrs('save'") &&
+      delegateSrc.includes("document.addEventListener('click'"));
+  assert('Supplement impact refresh uses delegated action',
+    impactSrc.includes('data-supp-action="refresh-impact"'));
+  assert('Supplement surface has no inline event attributes',
+    !/\son[a-z]+\s*=/.test(suppSrc) && !/\son[a-z]+\s*=/.test(impactSrc));
 
   // AI-driven display (health dots pattern)
   assert('Uses callClaudeAPI', impactSrc.includes('callClaudeAPI'));
