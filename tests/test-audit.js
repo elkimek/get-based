@@ -286,10 +286,19 @@ assert('marker rename refreshes the backing view before reopening modal',
 console.log('3c. innerHTML sanitizer sweep');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
+const contextCardLifestyleSrc = read('js/context-card-lifestyle-editors.js');
 assert('Context select field escapes label text',
   /function renderSelectField[\s\S]{0,220}<label class="ctx-field-label">\$\{escapeHTML\(label\)\}<\/label>/.test(contextCardEditorSrc));
 assert('Context tags field escapes label text',
   /function renderTagsField[\s\S]{0,220}<label class="ctx-field-label">\$\{escapeHTML\(label\)\}<\/label>/.test(contextCardEditorSrc));
+assert('Context editor controls use delegated data actions',
+  contextCardEditorSrc.includes('initContextEditorDelegates')
+    && contextCardEditorSrc.includes('contextEditorActionAttrs')
+    && !/\son(?:click|keydown|input|change)\s*=/.test(contextCardEditorSrc));
+assert('Lifestyle context actions use delegated handlers',
+  contextCardLifestyleSrc.includes('initLifestyleContextDelegates')
+    && contextCardLifestyleSrc.includes('lifestyleActionAttrs')
+    && !/\son(?:click|keydown)\s*=/.test(contextCardLifestyleSrc));
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([

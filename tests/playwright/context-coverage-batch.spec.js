@@ -20,14 +20,18 @@ test('context editor select option helper toggles active buttons', async ({ page
         && editor.getSelectedOption('ctx-select-coverage') === 'major'
         && buttons[0].classList.contains('active');
 
-      editor.selectCtxOption(buttons[1], 'ctx-select-coverage');
+      outcomes.renderSelectFieldUsesDelegatedActions =
+        !host.querySelector('[onclick]')
+        && buttons.every(button => button.dataset.ctxEditorAction === 'select-option');
+
+      buttons[1]?.click();
       outcomes.selectCtxOptionMovesActiveState =
         editor.getSelectedOption('ctx-select-coverage') === 'mild'
         && !buttons[0].classList.contains('active')
         && buttons[1].classList.contains('active')
         && !buttons[2].classList.contains('active');
 
-      editor.selectCtxOption(buttons[1], 'ctx-select-coverage');
+      buttons[1]?.click();
       outcomes.selectCtxOptionTogglesActiveButtonOff =
         editor.getSelectedOption('ctx-select-coverage') === null
         && buttons.every(button => !button.classList.contains('active'));
@@ -210,14 +214,14 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const btn = document.querySelectorAll(`#${id} .ctx-btn-option`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('option', id, index)] = !!btn && !!label;
-      btn?.classList.add('active');
+      btn?.click();
       return label;
     };
     const setTag = (id, index = 0) => {
       const btn = document.querySelectorAll(`#${id} .ctx-tag`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('tag', id, index)] = !!btn && !!label;
-      btn?.classList.add('active');
+      btn?.click();
       return label;
     };
 
@@ -254,6 +258,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       state.importedData.healthGoals = [{ text: 'Initial sync goal', severity: 'major' }];
       lifestyle.openHealthGoalsEditor();
       outcomes.healthGoalsModalStartsWithInitialSyncGoal = modal.textContent.includes('Initial sync goal');
+      outcomes.healthGoalsModalUsesDelegatedActions = !modal.querySelector('[onclick], [onkeydown]');
       state.importedData.healthGoals = [{ text: 'Synced goal from sync', severity: 'minor' }];
       window.dispatchEvent(new CustomEvent('labcharts-sync-applied'));
       await delay(0);
@@ -283,10 +288,14 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const contaminantBadge = lifestyle.renderDietContaminantsBadge();
       outcomes.dietContaminantsBadgeCountsFlaggedSignals = contaminantBadge.includes('food contaminant signal')
         && contaminantBadge.includes('detected');
+      outcomes.dietContaminantsBadgeUsesDelegatedActions = contaminantBadge.includes('data-lifestyle-action="show-diet-contaminants"')
+        && !contaminantBadge.includes('onclick=')
+        && !contaminantBadge.includes('onkeydown=');
       lifestyle.showDietContaminantsModal();
       outcomes.dietContaminantsModalGroupsWarnings = modal.textContent.includes('Pesticide Residues')
         && modal.textContent.includes('Plastic Chemicals')
         && modal.textContent.includes('Low Contamination');
+      outcomes.dietContaminantsModalUsesDelegatedActions = !modal.querySelector('[onclick]');
       modal.querySelector('.contaminant-actions .import-btn-primary')?.click();
       await delay(350);
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
@@ -376,30 +385,33 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.openHealthGoalsEditor();
       document.getElementById('goal-text-input').value = 'Improve sleep timing';
       document.querySelectorAll('#goal-severity-select .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('#goal-severity-select .ctx-btn-option')[1]?.classList.add('active');
-      lifestyle.addHealthGoal();
+      document.querySelectorAll('#goal-severity-select .ctx-btn-option')[1]?.click();
+      document.querySelector('[data-lifestyle-action="add-health-goal"]')?.click();
       outcomes.addHealthGoalAppendsSeverity = state.importedData.healthGoals?.[0]?.text === 'Improve sleep timing'
         && state.importedData.healthGoals?.[0]?.severity === 'mild';
-      lifestyle.deleteHealthGoal(0);
+      document.querySelector('[data-lifestyle-action="delete-health-goal"][data-lifestyle-index="0"]')?.click();
       outcomes.deleteHealthGoalRemovesByIndex = state.importedData.healthGoals?.length === 0;
       document.getElementById('goal-text-input').value = 'Reduce eye strain';
-      lifestyle.addHealthGoal();
-      lifestyle.closeHealthGoals();
+      document.getElementById('goal-text-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      document.querySelector('[data-lifestyle-action="close-health-goals"]')?.click();
       outcomes.closeHealthGoalsClosesAndNavigates = calls.some(call => call[0] === 'close')
         && calls.some(call => call[0] === 'navigate');
       lifestyle.openHealthGoalsEditor();
-      lifestyle.clearHealthGoals();
+      document.querySelector('[data-lifestyle-action="clear-health-goals"]')?.click();
       outcomes.clearHealthGoalsEmptiesArray = Array.isArray(state.importedData.healthGoals)
         && state.importedData.healthGoals.length === 0;
 
       lifestyle.openInterpretiveLensEditor();
       document.getElementById('interpretive-lens-textarea').value = 'Functional endocrinology';
-      lifestyle.saveInterpretiveLens();
+      document.querySelector('[data-lifestyle-action="save-interpretive-lens"]')?.click();
       outcomes.saveInterpretiveLensStoresTrimmedText = state.importedData.interpretiveLens === 'Functional endocrinology';
       lifestyle.openInterpretiveLensEditor();
-      lifestyle.clearInterpretiveLens();
+      document.querySelector('[data-lifestyle-action="clear-interpretive-lens"]')?.click();
       outcomes.clearInterpretiveLensBlanksText = state.importedData.interpretiveLens === '';
 
+      lifestyle.openHealthGoalsEditor();
+      document.getElementById('goal-text-input').value = 'Callback coverage goal';
+      lifestyle.addHealthGoal();
       outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'diet')
         && calls.some(call => call[0] === 'record' && call[1] === 'healthGoals');
     } finally {

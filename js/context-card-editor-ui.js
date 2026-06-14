@@ -3,6 +3,68 @@
 
 import { escapeHTML } from './utils.js';
 
+/**
+ * @param {string} action
+ * @param {string} [extra]
+ * @returns {string}
+ */
+export function contextEditorActionAttrs(action, extra = '') {
+  return `data-ctx-editor-action="${action}"${extra ? ` ${extra}` : ''}`;
+}
+
+/**
+ * @param {EventTarget | null} target
+ * @param {string} selector
+ * @returns {HTMLElement | null}
+ */
+function closestContextEditorElement(target, selector) {
+  if (!(target instanceof Element)) return null;
+  const el = target.closest(selector);
+  return el instanceof HTMLElement ? el : null;
+}
+
+/**
+ * @param {string | undefined} fnName
+ */
+function invokeContextEditorWindowFn(fnName) {
+  if (!fnName || typeof window === 'undefined') return;
+  const fn = /** @type {any} */ (window)[fnName];
+  if (typeof fn === 'function') fn();
+}
+
+/** @param {MouseEvent} event */
+function handleContextEditorClick(event) {
+  const actionEl = closestContextEditorElement(event.target, '[data-ctx-editor-action]');
+  if (!actionEl) return;
+  const action = actionEl.dataset.ctxEditorAction || '';
+  switch (action) {
+    case 'close':
+      invokeContextEditorWindowFn(actionEl.dataset.ctxEditorFn || 'closeModal');
+      break;
+    case 'invoke':
+      invokeContextEditorWindowFn(actionEl.dataset.ctxEditorFn);
+      break;
+    case 'select-option':
+      selectCtxOption(actionEl, actionEl.dataset.ctxEditorGroup || actionEl.parentElement?.id || '');
+      break;
+    case 'toggle-tag':
+      toggleCtxTag(actionEl);
+      break;
+    default:
+      break;
+  }
+}
+
+function initContextEditorDelegates() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.__contextEditorDelegatesBound) return;
+  appWindow.__contextEditorDelegatesBound = true;
+  document.addEventListener('click', handleContextEditorClick);
+}
+
+initContextEditorDelegates();
+
 export function renderContextEditorModal(modal, title, subtitle, bodyHtml, closeFn = 'closeModal') {
   if (!modal) return;
   modal.className = 'modal gb-form-modal ctx-editor-modal';
@@ -12,7 +74,7 @@ export function renderContextEditorModal(modal, title, subtitle, bodyHtml, close
       <div class="gb-modal-kicker">Profile context</div>
       <h3 class="gb-modal-title">${escapeHTML(title)}</h3>
     </div>
-    <button type="button" class="modal-close" onclick="${closeFn}()" aria-label="Close ${escapeHTML(title)}">&times;</button>
+    <button type="button" class="modal-close" ${contextEditorActionAttrs('close', `data-ctx-editor-fn="${escapeHTML(closeFn)}"`)} aria-label="Close ${escapeHTML(title)}">&times;</button>
   </div>
   <div class="gb-form-body ctx-editor-body">
     ${subtitle ? `<div class="modal-unit">${escapeHTML(subtitle)}</div>` : ''}
@@ -23,7 +85,7 @@ export function renderContextEditorModal(modal, title, subtitle, bodyHtml, close
 export function renderSelectField(label, id, options, current) {
   return `<div class="ctx-field-group"><label class="ctx-field-label">${escapeHTML(label)}</label>
     <div class="ctx-btn-group" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-btn-option${current === o ? ' active' : ''}" onclick="selectCtxOption(this,'${id}')">${escapeHTML(o)}</button>`).join('')}
+      ${options.map(o => `<button type="button" class="ctx-btn-option${current === o ? ' active' : ''}" ${contextEditorActionAttrs('select-option', `data-ctx-editor-group="${escapeHTML(id)}"`)}>${escapeHTML(o)}</button>`).join('')}
     </div></div>`;
 }
 
@@ -46,7 +108,7 @@ export function renderTagsField(label, id, options, selected) {
   const sel = selected || [];
   return `<div class="ctx-field-group"><label class="ctx-field-label">${escapeHTML(label)}</label>
     <div class="ctx-tags" id="${id}">
-      ${options.map(o => `<button type="button" class="ctx-tag${sel.includes(o) ? ' active' : ''}" onclick="toggleCtxTag(this)">${escapeHTML(o)}</button>`).join('')}
+      ${options.map(o => `<button type="button" class="ctx-tag${sel.includes(o) ? ' active' : ''}" ${contextEditorActionAttrs('toggle-tag')}>${escapeHTML(o)}</button>`).join('')}
     </div></div>`;
 }
 
@@ -96,8 +158,8 @@ export function renderNoteField(value) {
 
 export function contextEditorActions(hasCurrent, saveFn, clearFn) {
   return `<div class="ctx-editor-actions">
-    <button class="import-btn import-btn-primary" onclick="${saveFn}()">Save</button>
-    <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
-    ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="${clearFn}()">Clear</button>` : ''}
+    <button class="import-btn import-btn-primary" ${contextEditorActionAttrs('invoke', `data-ctx-editor-fn="${escapeHTML(saveFn)}"`)}>Save</button>
+    <button class="import-btn import-btn-secondary" ${contextEditorActionAttrs('close')}>Cancel</button>
+    ${hasCurrent ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${contextEditorActionAttrs('invoke', `data-ctx-editor-fn="${escapeHTML(clearFn)}"`)}>Clear</button>` : ''}
   </div>`;
 }

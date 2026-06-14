@@ -130,12 +130,87 @@ function getActiveNavCategory() {
   return activeNav?.dataset.category || "dashboard";
 }
 
+function lifestyleActionAttrs(action, extra = '') { return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`; }
+
+function closestLifestyleElement(target, selector) {
+  const el = target instanceof Element ? target.closest(selector) : null;
+  if (!(el instanceof HTMLElement)) return null;
+  if (el.closest('#detail-modal')) return el;
+  return el.dataset.lifestyleAction === 'show-diet-contaminants' ? el : null;
+}
+
+function getLifestyleIndex(el) {
+  const idx = Number.parseInt(el.dataset.lifestyleIndex || '', 10);
+  return Number.isInteger(idx) ? idx : -1;
+}
+
+function getAppWindow() { return typeof window !== 'undefined' ? /** @type {any} */ (window) : {}; }
+
+function openLightSetupFromContext() {
+  const appWindow = getAppWindow();
+  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
+  if (typeof appWindow.navigate === 'function') appWindow.navigate('light');
+  setTimeout(() => { if (typeof appWindow.reopenSunSetup === 'function') appWindow.reopenSunSetup(); }, 200);
+}
+
+function discussDietContaminants() {
+  const appWindow = getAppWindow();
+  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
+  if (typeof appWindow.openChatPanel === 'function') appWindow.openChatPanel();
+  setTimeout(() => { if (typeof appWindow.useChatPrompt === 'function') appWindow.useChatPrompt('What food contaminants should I be concerned about based on my diet?'); }, 300);
+}
+
+/** @param {MouseEvent} event */
+function handleLifestyleContextClick(event) {
+  const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
+  if (!actionEl) return;
+  switch (actionEl.dataset.lifestyleAction || '') {
+    case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
+    case 'open-light-setup': openLightSetupFromContext(); break;
+    case 'delete-health-goal': { const idx = getLifestyleIndex(actionEl); if (idx >= 0) deleteHealthGoal(idx); break; }
+    case 'add-health-goal': addHealthGoal(); break;
+    case 'select-goal-severity': selectCtxOption(actionEl, 'goal-severity-select'); break;
+    case 'close-health-goals': closeHealthGoals(); break;
+    case 'clear-health-goals': clearHealthGoals(); break;
+    case 'save-interpretive-lens': saveInterpretiveLens(); break;
+    case 'clear-interpretive-lens': clearInterpretiveLens(); break;
+    case 'discuss-diet-contaminants': discussDietContaminants(); break;
+    case 'close-modal': { const appWindow = getAppWindow(); if (typeof appWindow.closeModal === 'function') appWindow.closeModal(); break; }
+    default:
+      break;
+  }
+}
+
+/** @param {KeyboardEvent} event */
+function handleLifestyleContextKeydown(event) {
+  const badge = closestLifestyleElement(event.target, '[data-lifestyle-action="show-diet-contaminants"]');
+  if (badge && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault();
+    event.stopPropagation();
+    showDietContaminantsModal();
+    return;
+  }
+  const goalInput = closestLifestyleElement(event.target, '#goal-text-input');
+  if (goalInput && event.key === 'Enter') { event.preventDefault(); addHealthGoal(); }
+}
+
+function initLifestyleContextDelegates() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const appWindow = getAppWindow();
+  if (appWindow.__lifestyleContextDelegatesBound) return;
+  appWindow.__lifestyleContextDelegatesBound = true;
+  document.addEventListener('click', handleLifestyleContextClick, true);
+  document.addEventListener('keydown', handleLifestyleContextKeydown);
+}
+
+initLifestyleContextDelegates();
+
 export function renderDietContaminantsBadge() {
   const warnings = scanDietForContaminants(state.importedData.diet);
   if (warnings.length === 0) return '';
   const flagged = warnings.filter(w => w.type !== 'clean').length;
   if (flagged === 0) return '';
-  return `<div class="diet-contaminants" role="button" tabindex="0" onclick="event.stopPropagation(); showDietContaminantsModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
+  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}>\u26A0\uFE0F ${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</div>`;
 }
 
 function getTimePlaceholder() {
@@ -319,7 +394,7 @@ function renderLightSetupMirror(current) {
       <label class="ctx-field-label">Light lens setup</label>
       <div class="ctx-lightsetup-empty">
         <span>Not set yet — covers skin type, home lighting, eyewear, and indoor/outdoor lifestyle.</span>
-        <button type="button" class="ctx-lightsetup-edit" onclick="closeModal();window.navigate&&window.navigate('light');setTimeout(()=>window.reopenSunSetup&&window.reopenSunSetup(),200);">Set up Light lens →</button>
+        <button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Set up Light lens →</button>
       </div>
     </div>`;
   }
@@ -327,7 +402,7 @@ function renderLightSetupMirror(current) {
   return `<div class="ctx-field-group ctx-lightsetup-mirror">
     <div class="ctx-lightsetup-head">
       <label class="ctx-field-label" style="margin:0">Light lens setup</label>
-      <button type="button" class="ctx-lightsetup-edit" onclick="closeModal();window.navigate&&window.navigate('light');setTimeout(()=>window.reopenSunSetup&&window.reopenSunSetup(),200);">Edit →</button>
+      <button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Edit →</button>
     </div>
     <div class="ctx-lightsetup-grid">
       <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Skin type</span><span class="ctx-lightsetup-value">${skin ? escapeHTML(skin) : '—'}</span></div>
@@ -569,7 +644,7 @@ export function renderHealthGoalsModal(modal) {
       html += `<div class="goals-list-item">
         <span class="goals-severity-badge severity-${g.severity}">${g.severity}</span>
         <span class="goals-text">${escapeHTML(g.text)}</span>
-        <button class="goals-delete-btn" onclick="deleteHealthGoal(${i})" title="Remove">&times;</button>
+        <button class="goals-delete-btn" ${lifestyleActionAttrs('delete-health-goal', `data-lifestyle-index="${i}"`)} title="Remove">&times;</button>
       </div>`;
     }
     html += `</div>`;
@@ -577,25 +652,22 @@ export function renderHealthGoalsModal(modal) {
   html += `<div class="ctx-field-group"><label class="ctx-field-label">Add goal</label>
     <div class="goals-add-row">
       <input type="text" class="ctx-note-input" id="goal-text-input" placeholder="e.g. Improve insulin sensitivity, Optimize thyroid function" style="flex:1">
-      <button class="import-btn import-btn-primary" onclick="addHealthGoal()">Add</button>
+      <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('add-health-goal')}>Add</button>
     </div>
     <div class="ctx-btn-group" id="goal-severity-select" style="margin-top:8px">
-      <button type="button" class="ctx-btn-option active" onclick="selectCtxOption(this,'goal-severity-select')">major</button>
-      <button type="button" class="ctx-btn-option" onclick="selectCtxOption(this,'goal-severity-select')">mild</button>
-      <button type="button" class="ctx-btn-option" onclick="selectCtxOption(this,'goal-severity-select')">minor</button>
+      <button type="button" class="ctx-btn-option active" ${lifestyleActionAttrs('select-goal-severity')}>major</button>
+      <button type="button" class="ctx-btn-option" ${lifestyleActionAttrs('select-goal-severity')}>mild</button>
+      <button type="button" class="ctx-btn-option" ${lifestyleActionAttrs('select-goal-severity')}>minor</button>
     </div>
   </div>
   <div class="ctx-editor-actions">
-    <button class="import-btn import-btn-secondary" onclick="closeHealthGoals()">Done</button>
-    ${goals.length > 0 ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearHealthGoals()">Clear All</button>` : ''}
+    <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-health-goals')}>Done</button>
+    ${goals.length > 0 ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-health-goals')}>Clear All</button>` : ''}
   </div>`;
   renderContextEditorModal(modal, 'Health Goals', 'List things you want to solve or improve. The AI will prioritize analysis around your stated goals.', html);
   setTimeout(() => {
     const input = getTextInput('goal-text-input');
-    if (input) {
-      input.focus();
-      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addHealthGoal(); } };
-    }
+    if (input) input.focus();
   }, 50);
 }
 
@@ -644,9 +716,9 @@ export function openInterpretiveLensEditor() {
   renderContextEditorModal(modal, 'Interpretive Lens', 'List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.', `
     <textarea class="note-editor" id="interpretive-lens-textarea" placeholder="e.g. Longevity medicine, quantum biology, functional endocrinology framework...">${escapeHTML(current)}</textarea>
     <div class="ctx-editor-actions">
-      <button class="import-btn import-btn-primary" onclick="saveInterpretiveLens()">Save</button>
-      <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
-      ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="clearInterpretiveLens()">Clear</button>` : ''}
+      <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('save-interpretive-lens')}>Save</button>
+      <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Cancel</button>
+      ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-interpretive-lens')}>Clear</button>` : ''}
     </div>`);
   openModalOverlay(overlay);
   setTimeout(() => {
@@ -684,7 +756,7 @@ export function showDietContaminantsModal() {
   const pesticide = warnings.filter(w => w.type === 'pesticide');
   const plastic = warnings.filter(w => w.type === 'plastic');
   const clean = warnings.filter(w => w.type === 'clean');
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  let html = `<button class="modal-close" ${lifestyleActionAttrs('close-modal')}>&times;</button>
     <h3>Food Contaminant Signals</h3>
     <div class="modal-unit">Based on foods mentioned in your diet card, cross-referenced against public contaminant databases.</div>`;
   if (pesticide.length > 0) {
@@ -709,8 +781,8 @@ export function showDietContaminantsModal() {
     html += `</div>`;
   }
   html += `<div class="contaminant-actions">
-    <button class="import-btn import-btn-primary" onclick="closeModal(); window.openChatPanel(); setTimeout(() => window.useChatPrompt('What food contaminants should I be concerned about based on my diet?'), 300)">Discuss with AI</button>
-    <button class="import-btn import-btn-secondary" onclick="closeModal()">Close</button>
+    <button class="import-btn import-btn-primary" ${lifestyleActionAttrs('discuss-diet-contaminants')}>Discuss with AI</button>
+    <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Close</button>
   </div>
   <div class="contaminant-attribution">Sources: <a href="https://www.ewg.org/foodnews/" target="_blank" rel="noopener">EWG Shopper's Guide 2025</a> · <a href="https://www.plasticlist.org/report" target="_blank" rel="noopener">PlasticList</a></div>`;
   modal.innerHTML = html;

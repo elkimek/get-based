@@ -100,7 +100,25 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
       outcomes.dietBadgeCountsOnlyFlaggedSignals =
         badge.includes('2 food contaminant signals detected')
         && badge.includes('role="button"')
-        && badge.includes('showDietContaminantsModal()');
+        && badge.includes('data-lifestyle-action="show-diet-contaminants"')
+        && !badge.includes('onclick=');
+
+      let openedDietEditor = false;
+      window.openDietEditor = () => { openedDietEditor = true; };
+      const fixture = document.getElementById('fixture');
+      fixture.innerHTML = '';
+      const contextCard = document.createElement('div');
+      contextCard.className = 'context-card';
+      contextCard.setAttribute('onclick', 'window.openDietEditor()');
+      contextCard.innerHTML = badge;
+      fixture.append(contextCard);
+      contextCard.querySelector('.diet-contaminants')?.click();
+      outcomes.dashboardBadgeClickBypassesParentCard =
+        openedDietEditor === false
+        && document.getElementById('modal-overlay')?.classList.contains('show') === true
+        && (document.getElementById('detail-modal')?.textContent || '').includes('Food Contaminant Signals');
+      document.getElementById('modal-overlay')?.classList.remove('show');
+      document.getElementById('detail-modal').innerHTML = '';
 
       state.importedData.diet = { breakfast: 'avocado and pineapple' };
       outcomes.cleanOnlyDietDoesNotRenderBadge = lifestyle.renderDietContaminantsBadge() === '';
@@ -124,7 +142,8 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && modalText.includes('EWG Shopper')
         && modalText.includes('PlasticList')
         && modal?.querySelectorAll('a[target="_blank"][rel="noopener"]').length >= 3
-        && modal?.innerHTML.includes('window.openChatPanel()');
+        && modal?.querySelector('[data-lifestyle-action="discuss-diet-contaminants"]')
+        && !modal?.querySelector('[onclick]');
 
       state.importedData.diet = { breakfast: '' };
       document.getElementById('detail-modal').innerHTML = 'unchanged';
@@ -150,6 +169,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
     'scanUsesWordBoundaries',
     'scanDeduplicatesVariantsPerWarning',
     'dietBadgeCountsOnlyFlaggedSignals',
+    'dashboardBadgeClickBypassesParentCard',
     'cleanOnlyDietDoesNotRenderBadge',
     'contaminantsModalGroupsSourcesAndActions',
     'emptyWarningsLeaveModalUntouched',
