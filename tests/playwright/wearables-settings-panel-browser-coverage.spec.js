@@ -27,8 +27,10 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
 
     const profileId = `wearables-settings-render-${Date.now()}`;
     const hiddenKey = `wearables-strip-hidden-${profileId}`;
+    const betaFlagKey = 'labcharts-show-beta-wearables';
     const oldActiveProfile = localStorage.getItem('labcharts-active-profile');
     const oldHiddenValue = localStorage.getItem(hiddenKey);
+    const oldBetaFlag = localStorage.getItem(betaFlagKey);
     const oldCurrentProfile = state.currentProfile;
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
@@ -36,11 +38,13 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     const oldCloseSettings = window.closeSettings;
     const oldScrollIntoView = Element.prototype.scrollIntoView;
     const navigations = [];
+    const docsClicks = [];
     let closedSettings = 0;
     let scrolledToStrip = 0;
 
     try {
       localStorage.setItem('labcharts-active-profile', profileId);
+      localStorage.setItem(betaFlagKey, 'true');
       localStorage.removeItem(hiddenKey);
       state.currentProfile = profileId;
       state.profiles = [{
@@ -115,6 +119,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       const toggle = document.getElementById('wearables-strip-hidden-toggle');
       const ouraRow = section.querySelector('[data-adapter="oura"]');
       const fitbitRow = section.querySelector('[data-adapter="fitbit"]');
+      const ultrahumanRow = section.querySelector('[data-adapter="ultrahuman"]');
       const manualRow = section.querySelector('[data-adapter="manual"]');
       const appleRow = section.querySelector('[data-adapter="apple_health"]');
       const manualCounts = section.querySelector('[data-role="manual-counts"]')?.textContent || '';
@@ -124,6 +129,11 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         ouraRow?.textContent.includes('connected') && ouraRow?.textContent.includes('oura@example.test'));
       check('needs reauth row renders reconnect action',
         fitbitRow?.textContent.includes('needs reconnection') && fitbitRow?.textContent.includes('Reconnect'));
+      const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
+      check('pending client row renders native docs link in detail drawer',
+        ultrahumanRow?.textContent.includes('waiting on partner credentials')
+        && ultrahumanDocsLink?.getAttribute('href') === 'https://vision.ultrahuman.com/developer-docs?type=oauth'
+        && !ultrahumanRow?.querySelector('summary a[href]'));
       check('manual row renders browser-populated counts',
         manualRow?.textContent.includes('Manual')
         && manualCounts.includes('1 weight')
@@ -134,22 +144,39 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         && appleRow?.textContent.includes('42 days')
         && !!section.querySelector('#apple-health-file-input'));
 
-      settings.setWearableStripHidden(true);
-      check('setWearableStripHidden stores per-profile hidden preference',
+      toggle.checked = false;
+      toggle.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      check('delegated strip visibility toggle stores per-profile hidden preference',
         settings.isWearableStripHidden() === true && localStorage.getItem(hiddenKey) === '1');
-      settings.setWearableStripHidden(false);
-      check('setWearableStripHidden removes hidden preference',
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      check('delegated strip visibility toggle removes hidden preference',
         settings.isWearableStripHidden() === false && localStorage.getItem(hiddenKey) == null);
 
       const dashboardNavBefore = navigations.filter(route => route === 'dashboard').length;
-      window.handleManualOpenDashboard();
+      section.querySelector('[data-wearable-settings-action="manual-dashboard"]')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       await new Promise(resolve => requestAnimationFrame(resolve));
       const dashboardNavAfter = navigations.filter(route => route === 'dashboard').length;
-      check('manual dashboard handler closes settings navigates and scrolls strip',
+      check('delegated manual dashboard action closes settings navigates and scrolls strip',
         closedSettings === 1
         && dashboardNavAfter === dashboardNavBefore + 1
         && scrolledToStrip === 1,
         JSON.stringify({ closedSettings, navigations, dashboardNavBefore, dashboardNavAfter, scrolledToStrip }));
+
+      ultrahumanDocsLink?.addEventListener('click', event => {
+        docsClicks.push({
+          defaultPrevented: event.defaultPrevented,
+          currentTarget: event.currentTarget === ultrahumanDocsLink,
+        });
+      });
+      ultrahumanDocsLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      check('pending docs link reaches target uncanceled without toggling row',
+        docsClicks.length === 1
+        && docsClicks[0].currentTarget === true
+        && docsClicks[0].defaultPrevented === false
+        && !ultrahumanRow?.hasAttribute('open'),
+        JSON.stringify({ docsClicks, rowOpen: ultrahumanRow?.hasAttribute('open') }));
     } finally {
       document.getElementById('wearables-section')?.remove();
       document.getElementById('wearable-strip')?.remove();
@@ -158,6 +185,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       else localStorage.setItem('labcharts-active-profile', oldActiveProfile);
       if (oldHiddenValue == null) localStorage.removeItem(hiddenKey);
       else localStorage.setItem(hiddenKey, oldHiddenValue);
+      if (oldBetaFlag == null) localStorage.removeItem(betaFlagKey);
+      else localStorage.setItem(betaFlagKey, oldBetaFlag);
       state.currentProfile = oldCurrentProfile;
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
@@ -179,6 +208,15 @@ test('wearables settings panel browser coverage deletes manual data after confir
     const failures = [];
     const check = (name, condition, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
+    };
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate, label) => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        if (predicate()) return true;
+        await wait(25);
+      }
+      failures.push(`Timed out waiting for ${label}`);
+      return false;
     };
 
     const [{ state }, settings, store] = await Promise.all([
@@ -248,7 +286,14 @@ test('wearables settings panel browser coverage deletes manual data after confir
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
 
-      await window.handleManualDisconnect();
+      document.querySelector('[data-wearable-settings-action="manual-disconnect"]')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await waitUntil(
+        () => state.importedData.wearableConnections?.manual == null
+          && navigations.includes('dashboard')
+          && (document.getElementById('notification-container')?.textContent || '').includes('All manual entries deleted'),
+        'delegated manual disconnect to finish'
+      );
 
       const rows = await store.getDailyRange(profileId, 'manual', '2000-01-01', '2099-12-31');
       const sectionText = document.getElementById('wearables-section')?.textContent || '';
