@@ -82,13 +82,12 @@ const ctxSrc = await fetch('js/context-cards.js').then(r => r.text());
 const ctxSummarySrc = await fetch('js/context-card-summaries.js').then(r => r.text());
 const ctxMedicalSrc = await fetch('js/context-card-medical-history-editor.js').then(r => r.text());
 const ctxCardSrc = `${ctxSrc}\n${ctxSummarySrc}\n${ctxMedicalSrc}`;
-// filterConditionSuggestions must wrap the inline call arg in JSON.stringify
-// so apostrophes survive the HTML-attribute → JS-string round-trip. The
-// live DOM round-trip probe lives in tests/playwright/family-history-dom.spec.js.
-assert("filterConditionSuggestions uses JSON.stringify(m) for inline onclick arg",
-  /selectConditionSuggestion\(\$\{escapeHTML\(JSON\.stringify\(m\)\)\}\)/.test(ctxMedicalSrc));
-assert("filterFamilyConditionSuggestions uses JSON.stringify(m) for inline onclick arg",
-  /selectFamilyConditionSuggestion\(\$\{escapeHTML\(JSON\.stringify\(m\)\)\}\)/.test(ctxMedicalSrc));
+assert('Condition suggestions use delegated data values',
+  /data-medical-history-suggestion="condition" data-medical-history-value="\$\{escapeHTML\(m\)\}"/.test(ctxMedicalSrc));
+assert('Family condition suggestions use delegated data values',
+  /data-medical-history-suggestion="family-condition" data-medical-history-value="\$\{escapeHTML\(m\)\}"/.test(ctxMedicalSrc));
+assert('Medical history editor has no inline event attributes',
+  !/\son[a-z]+\s*=/.test(ctxMedicalSrc));
 
 // ═══════════════════════════════════════
 // 3. FAMILY_RELATIVES allowlist + addFamilyHistoryEntry guards (source)
@@ -213,10 +212,10 @@ assert('Relative chip emoji mapping defined',
   /RELATIVE_EMOJI\s*=\s*\{/.test(ctxMedicalSrc));
 assert("Closing-suggestions handler also clears fh-condition-suggestions",
   /fh-condition-suggestions[\s\S]{0,200}fhContainer\.innerHTML\s*=\s*''/.test(ctxMedicalSrc));
-assert('Condition rows expose edit action',
-  ctxMedicalSrc.includes('onclick="editCondition(${i})"'));
-assert('Family rows expose edit action',
-  ctxMedicalSrc.includes('onclick="editFamilyHistoryEntry(${i})"'));
+assert('Condition rows expose delegated edit action',
+  ctxMedicalSrc.includes("medicalHistoryActionAttrs('edit-condition'"));
+assert('Family rows expose delegated edit action',
+  ctxMedicalSrc.includes("medicalHistoryActionAttrs('edit-family-history'"));
 assert('Condition edit updates existing row instead of appending',
   /diagnoses\.conditions\[editingConditionIndex\] = cond/.test(ctxMedicalSrc));
 assert('Family history edit updates existing row instead of appending',

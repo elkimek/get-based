@@ -672,7 +672,9 @@ console.log('11. Event Listener Leak Fix');
 
 const ctxSrc = read('js/context-cards.js');
 const ctxMedicalHistorySrc = read('js/context-card-medical-history-editor.js');
-assert('Diagnoses editor removes old listener before adding', ctxMedicalHistorySrc.includes("document.removeEventListener('click', closeSuggestionsOnClickOutside)"));
+assert('Diagnoses editor binds suggestion closer once with delegates',
+  /function initMedicalHistoryActionDelegates[\s\S]{0,500}document\.addEventListener\('click', closeSuggestionsOnClickOutside\)/.test(ctxMedicalHistorySrc) &&
+    !ctxMedicalHistorySrc.includes("document.removeEventListener('click', closeSuggestionsOnClickOutside)"));
 
 // ═══════════════════════════════════════
 // 12. Cycle stats NaN guard

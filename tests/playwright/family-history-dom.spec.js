@@ -117,26 +117,6 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
     const { state } = await import('/js/state.js');
     const outcomes = {};
 
-    const probe = document.createElement('div');
-    probe.innerHTML = '<input id="probe-cond-input"><div id="probe-target"></div>';
-    document.body.appendChild(probe);
-    try {
-      const condition = "Alzheimer's Disease";
-      const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-      }[c]));
-      const target = document.getElementById('probe-target');
-      target.innerHTML = `<div class="ctx-suggestion-item" id="probe-suggest" onmousedown="document.getElementById('probe-cond-input').value = ${escapeHTML(JSON.stringify(condition))}">${escapeHTML(condition)}</div>`;
-      document.getElementById('probe-suggest').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      outcomes.apostropheConditionRoundTrips = document.getElementById('probe-cond-input').value === condition;
-    } finally {
-      probe.remove();
-    }
-
     const originalDiagnoses = state.importedData?.diagnoses;
     state.importedData = state.importedData || {};
     state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
@@ -147,6 +127,15 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
       detachedModal.id = 'detail-modal';
       document.body.appendChild(detachedModal);
     }
+
+    cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
+    const conditionInput = document.getElementById('condition-input');
+    conditionInput.value = 'Alzheimer';
+    conditionInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    const suggestion = document.querySelector('#condition-suggestions .ctx-suggestion-item');
+    suggestion.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    outcomes.apostropheConditionRoundTrips = conditionInput.value === "Alzheimer's Disease";
+    document.getElementById('detail-modal').innerHTML = '';
 
     const probe2 = document.createElement('div');
     document.body.appendChild(probe2);
@@ -324,11 +313,9 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         'ctx-note-input',
       ].every(id => document.getElementById(id)));
       if (!editorReady) throw new Error('Medical history editor controls did not render');
-      const editorHooksReady = await waitFor(() =>
-        typeof byId('condition-input').onkeydown === 'function'
-          && typeof byId('fh-condition').onkeydown === 'function'
-      );
-      if (!editorHooksReady) throw new Error('Medical history editor deferred handlers did not install');
+      outcomes.medicalHistoryInputsUseDelegatedKeydown =
+        byId('condition-input').onkeydown === null &&
+        byId('fh-condition').onkeydown === null;
       outcomes.openDiagnosesEditorShowsSeededModal = overlay.classList.contains('show') === true
         && modal.getAttribute('aria-label') === 'Medical History'
         && modal.textContent.includes('Hypertension')
@@ -465,10 +452,6 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       outcomes.closeDiagnosesDelegatesToCloseModal = overlay.classList.contains('show') === false
         && calls.some(call => call[0] === 'close');
     } finally {
-      await waitFor(() => {
-        const input = document.getElementById('condition-input');
-        return !input || typeof input.onkeydown === 'function';
-      }, 20);
       document.removeEventListener('click', editor.closeSuggestionsOnClickOutside);
       state.importedData = saved.importedData;
       state.profileSex = saved.profileSex;
