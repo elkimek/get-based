@@ -22,6 +22,16 @@ console.log('=== Sun Defaults Tests ===\n');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const originalDelegateDomGlobals = {
+  document: globalThis.document,
+  HTMLElement: globalThis.HTMLElement,
+  Element: globalThis.Element,
+  Event: globalThis.Event,
+  KeyboardEvent: globalThis.KeyboardEvent,
+  MouseEvent: globalThis.MouseEvent,
+  MutationObserver: globalThis.MutationObserver,
+  Node: globalThis.Node,
+};
 const delegateDom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/' });
 globalThis.document = delegateDom.window.document;
 globalThis.HTMLElement = delegateDom.window.HTMLElement;
@@ -31,6 +41,16 @@ globalThis.KeyboardEvent = delegateDom.window.KeyboardEvent;
 globalThis.MouseEvent = delegateDom.window.MouseEvent;
 globalThis.MutationObserver = delegateDom.window.MutationObserver;
 globalThis.Node = delegateDom.window.Node;
+
+function restoreDelegateDomGlobals() {
+  for (const [key, value] of Object.entries(originalDelegateDomGlobals)) {
+    if (value === undefined) {
+      delete globalThis[key];
+    } else {
+      globalThis[key] = value;
+    }
+  }
+}
 
 await import('../js/state.js');
 const mod = await import('../js/sun-defaults.js');
@@ -108,6 +128,7 @@ const {
     document.getElementById('ott-running-value')?.textContent === '1/10' &&
     document.getElementById('ott-summary-score')?.textContent === '9/10 aligned');
   document.body.innerHTML = '';
+  restoreDelegateDomGlobals();
 
   // ─── 1. Fitzpatrick options shape ─────────────────────────────────────
   console.log('%c 1. Fitzpatrick options ', 'font-weight:bold;color:#f59e0b');
