@@ -11,6 +11,7 @@ const renderSrc = fs.readFileSync(path.join(root, 'js/provider-panel-renderers.j
 const modelControlsSrc = fs.readFileSync(path.join(root, 'js/provider-model-controls.js'), 'utf8');
 const delegatesSrc = fs.readFileSync(path.join(root, 'js/provider-panel-delegates.js'), 'utf8');
 const panelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
+const ppqSrc = fs.readFileSync(path.join(root, 'js/provider-ppq-panels.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
 let passed = 0;
@@ -33,6 +34,10 @@ assert('provider-panel-renderers.js renders no inline event attributes',
   !inlineHandlerRe.test(renderSrc));
 assert('provider-model-controls.js renders no inline event attributes',
   !inlineHandlerRe.test(modelControlsSrc));
+assert('provider-panels.js renders no inline event attributes',
+  !inlineHandlerRe.test(panelsSrc));
+assert('provider-ppq-panels.js renders no inline event attributes',
+  !inlineHandlerRe.test(ppqSrc));
 assert('provider panel renderers emit delegated action attributes',
   renderSrc.includes('data-provider-panel-action') &&
     renderSrc.includes('data-provider-panel-change') &&
@@ -85,6 +90,18 @@ assert('service worker precaches provider panel delegate module',
   'create-ppq-account',
   'save-ppq-key',
   'remove-ppq-key',
+  'copy-ppq-key-reveal',
+  'dismiss-ppq-key-reveal',
+  'select-ppq-method',
+  'ppq-topup-preset',
+  'show-ppq-custom-input',
+  'copy-ppq-payment',
+  'cancel-ppq-topup',
+  'recover-pending-deposit',
+  'recover-pending-withdraw',
+  'copy-provider-panel-clipboard',
+  'select-provider-panel-text',
+  'acknowledge-routstr-key',
   'apply-custom-api-model',
   'save-custom-api',
   'remove-custom-api',

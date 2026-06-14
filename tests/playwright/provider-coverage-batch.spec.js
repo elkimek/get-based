@@ -621,6 +621,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
 
   const results = await page.evaluate(async ({ ppqUrl }) => {
     const ppq = await import(ppqUrl);
+    const delegates = await import('/js/provider-panel-delegates.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -642,8 +643,10 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       setInterval: window.setInterval,
       clearInterval: window.clearInterval,
       openSettingsModal: window.openSettingsModal,
+      clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
     const intervals = [];
+    const copied = [];
     let nextIntervalId = 1;
     let returnToChatCount = 0;
     let settingsOpened = 0;
@@ -689,10 +692,23 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         if (href.includes('/topup/status/invoice-expired')) return jsonResponse({ status: 'expired' });
         return oldGlobals.fetch.call(window, url);
       };
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async text => { copied.push(String(text || '')); } },
+      });
+      delegates.installProviderPanelDelegates({
+        copyPpqKeyReveal: ppq.copyPpqKeyReveal,
+        dismissPpqKeyReveal: ppq.dismissPpqKeyReveal,
+        handleSelectPpqMethod: ppq.handleSelectPpqMethod,
+        handlePpqTopupPreset: ppq.handlePpqTopupPreset,
+        ppqShowCustomInput: ppq.ppqShowCustomInput,
+        copyPpqPayment: ppq.copyPpqPayment,
+        cancelPpqTopup: ppq.cancelPpqTopup,
+      });
 
       document.body.insertAdjacentHTML('beforeend', `
         <div id="ai-provider-panel">
-          <button onclick="handleCreatePpqAccount()">Create Account (instant, no signup)</button>
+          <button data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button>
           <div id="ppq-key-status"></div>
         </div>
       `);
@@ -736,24 +752,35 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       });
 
       panel.innerHTML = `
-        <button onclick="handleCreatePpqAccount()">Create Account (instant, no signup)</button>
+        <button data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button>
         <div id="ppq-key-status"></div>
       `;
 
       await ppq.handleCreatePpqAccount();
-      const accountReveal = document.getElementById('ai-provider-panel')?.textContent.includes('Save your account details')
-        && document.getElementById('ai-provider-panel')?.textContent.includes('credit-123');
-      ppq.dismissPpqKeyReveal();
+      const revealPanel = document.getElementById('ai-provider-panel');
+      const accountReveal = revealPanel?.textContent.includes('Save your account details')
+        && revealPanel?.textContent.includes('credit-123')
+        && !revealPanel.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
+        && !!revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')
+        && !!revealPanel.querySelector('[data-provider-panel-action="dismiss-ppq-key-reveal"]');
+      revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')?.click();
+      await wait(0);
+      const accountRevealCopyDelegates = copied.some(text => text.includes('API Key: sk-created') && text.includes('Credit ID: credit-123'))
+        && revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')?.textContent.includes('Copied');
+      revealPanel.querySelector('[data-provider-panel-action="dismiss-ppq-key-reveal"]')?.click();
+      await wait(0);
       await ppq.refreshPpqBalance();
       await wait(0);
       const dismissRerendersTopup = document.getElementById('ppq-topup-area')?.style.display === 'block'
         && document.getElementById('ppq-topup-toggle')?.textContent === 'Close'
         && document.getElementById('ppq-balance')?.textContent.includes('$1.25');
 
-      ppq.selectPpqMethod('xmr');
+      document.querySelector('[data-provider-panel-action="select-ppq-method"][data-ppq-method="xmr"]')?.click();
+      await wait(0);
       const methodSelected = document.querySelector('.ppq-method-btn.active .ppq-method-label')?.textContent === 'Monero'
         && (document.getElementById('ppq-topup-area')?.textContent || '').includes('min $5');
-      ppq.ppqShowCustomInput();
+      document.querySelector('[data-provider-panel-action="show-ppq-custom-input"]')?.click();
+      await wait(0);
       const customInputRenders = !!document.getElementById('ppq-custom-amount');
       document.getElementById('ppq-custom-amount').value = '4';
       ppq.doPpqTopupCustom();
@@ -766,6 +793,13 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       const invoiceRenders = (document.getElementById('ppq-topup-area')?.textContent || '').includes('Monero')
         && document.querySelector('#ppq-topup-area a[href^="monero:"]') !== null
         && (document.getElementById('ppq-topup-area')?.textContent || '').includes('Show address');
+      const topupArea = document.getElementById('ppq-topup-area');
+      const invoiceUsesDelegatedActions = !topupArea.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
+        && !!topupArea.querySelector('[data-provider-panel-action="copy-ppq-payment"]')
+        && !!topupArea.querySelector('[data-provider-panel-action="cancel-ppq-topup"]');
+      document.querySelector('#ppq-topup-area [data-provider-panel-action="copy-ppq-payment"]')?.click();
+      await wait(0);
+      const invoiceCopyDelegates = copied.includes('44AFFq5kSiGBoZ');
       const paidPoll = intervals.find(item => item.ms === 3000 && !item.cleared);
       const paidPollIntervalScheduled = !!paidPoll;
       if (paidPoll) await paidPoll.fn();
@@ -787,7 +821,8 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       await ppq.doPpqTopup(2);
       const cancelPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
       const cancelPollIntervalScheduled = !!cancelPoll;
-      ppq.cancelPpqTopup();
+      document.querySelector('#ppq-topup-area [data-provider-panel-action="cancel-ppq-topup"]')?.click();
+      await wait(0);
       const cancelHidesArea = document.getElementById('ppq-topup-area')?.style.display === 'none'
         && !!cancelPoll
         && intervals.find(item => item.id === cancelPoll.id)?.cleared === true;
@@ -796,11 +831,14 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         defaultSaveUsesNoopReturnCallback,
         removePpqKeyClearsFundsWarningAndState,
         accountReveal,
+        accountRevealCopyDelegates,
         dismissRerendersTopup,
         methodSelected,
         customInputRenders,
         rejectsLowCustom,
         invoiceRenders,
+        invoiceUsesDelegatedActions,
+        invoiceCopyDelegates,
         paidPollIntervalScheduled,
         paidInvoiceUpdatesBalance,
         expiredPollIntervalScheduled,
@@ -816,6 +854,8 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       window.setInterval = oldGlobals.setInterval;
       window.clearInterval = oldGlobals.clearInterval;
       window.openSettingsModal = oldGlobals.openSettingsModal;
+      if (oldGlobals.clipboard) Object.defineProperty(navigator, 'clipboard', oldGlobals.clipboard);
+      else delete navigator.clipboard;
       ppq.configurePpqPanels({ returnToChatIfOnboarding: () => {} });
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);

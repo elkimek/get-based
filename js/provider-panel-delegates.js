@@ -19,6 +19,18 @@ const CLICK_ACTIONS = Object.freeze({
   'create-ppq-account': 'handleCreatePpqAccount',
   'save-ppq-key': 'handleSavePpqKey',
   'remove-ppq-key': 'handleRemovePpqKey',
+  'copy-ppq-key-reveal': 'copyPpqKeyReveal',
+  'dismiss-ppq-key-reveal': 'dismissPpqKeyReveal',
+  'select-ppq-method': 'handleSelectPpqMethod',
+  'ppq-topup-preset': 'handlePpqTopupPreset',
+  'show-ppq-custom-input': 'ppqShowCustomInput',
+  'copy-ppq-payment': 'copyPpqPayment',
+  'cancel-ppq-topup': 'cancelPpqTopup',
+  'recover-pending-deposit': 'recoverPendingDeposit',
+  'recover-pending-withdraw': 'recoverPendingWithdraw',
+  'copy-provider-panel-clipboard': 'copyProviderPanelClipboard',
+  'select-provider-panel-text': 'selectProviderPanelText',
+  'acknowledge-routstr-key': 'acknowledgeRoutstrKey',
   'apply-custom-api-model': 'applyCustomApiManualModel',
   'save-custom-api': 'handleSaveCustomApi',
   'remove-custom-api': 'handleRemoveCustomApi',
@@ -81,7 +93,7 @@ function _handleProviderPanelClick(event) {
 
   if (!callbackName) return _warnProviderPanelDelegate(`Unknown provider panel click action: ${action}`);
   if (el.matches('a, button')) event.preventDefault();
-  return _call(callbackName);
+  return _call(callbackName, el);
 }
 
 function _handleProviderPanelChange(event) {

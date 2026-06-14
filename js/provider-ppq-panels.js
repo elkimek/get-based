@@ -34,6 +34,48 @@ export function clearPpqTopupTimers() {
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
 }
 
+function _setCopiedText(actionEl, fallback = '✓ Copied') {
+  if (actionEl instanceof HTMLElement) {
+    actionEl.textContent = actionEl.dataset.copiedText || fallback;
+  }
+}
+
+async function _copyPanelText(text, actionEl) {
+  if (!text) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    _setCopiedText(actionEl);
+    return true;
+  } catch (e) {
+    showNotification(`Copy failed: ${e?.message || e}`, 'error');
+    return false;
+  }
+}
+
+export function copyPpqKeyReveal(actionEl) {
+  const text = actionEl?.dataset?.clipboardText || '';
+  const appWindow = /** @type {any} */ (window);
+  void _copyPanelText(text, actionEl).then((copied) => {
+    if (!copied) return;
+    clearTimeout(appWindow._ppqClipTimer);
+    appWindow._ppqClipTimer = setTimeout(() => navigator.clipboard?.writeText?.(''), 60000);
+  });
+}
+
+export function handleSelectPpqMethod(actionEl) {
+  const methodId = actionEl?.dataset?.ppqMethod || '';
+  if (methodId) selectPpqMethod(methodId);
+}
+
+export function handlePpqTopupPreset(actionEl) {
+  const amount = Number(actionEl?.dataset?.amount);
+  if (Number.isFinite(amount)) void doPpqTopup(amount);
+}
+
+export function copyPpqPayment(actionEl) {
+  void _copyPanelText(actionEl?.dataset?.clipboardText || '', actionEl);
+}
+
 function _ppqBalanceHtml(balance) {
   const v = parseFloat(balance);
   const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
@@ -58,7 +100,7 @@ export function initSettingsPpqPanel() {
 export async function handleCreatePpqAccount() {
   if (_ppqCreating) return;
   _ppqCreating = true;
-  const createBtn = /** @type {HTMLButtonElement | null} */ (document.querySelector('[onclick="handleCreatePpqAccount()"]'));
+  const createBtn = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-provider-panel-action="create-ppq-account"]'));
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = 'Creating\u2026'; }
   const status = document.getElementById('ppq-key-status');
   if (status) status.innerHTML = '<span style="color:var(--text-muted)">Creating account\u2026</span>';
@@ -79,8 +121,8 @@ export async function handleCreatePpqAccount() {
           <label style="font-size:11px;color:var(--text-muted);margin-top:8px;display:block">Credit ID <span style="font-size:10px">(enter at <a href="https://ppq.ai/invite/8f3017cd" target="_blank" rel="noopener" style="color:var(--accent)">ppq.ai</a> to access your account on the web)</span></label>
           <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(result.credit_id)}</div>
           <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="import-btn import-btn-primary" style="font-size:12px" onclick="navigator.clipboard.writeText('API Key: ${escapeAttr(result.api_key)}\\nCredit ID: ${escapeAttr(result.credit_id)}');this.textContent='\u2713 Copied (clears in 60s)';clearTimeout(window._ppqClipTimer);window._ppqClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Both</button>
-            <button class="import-btn import-btn-secondary" style="font-size:12px" onclick="dismissPpqKeyReveal()">I\u2019ve saved it</button>
+            <button class="import-btn import-btn-primary" style="font-size:12px" data-provider-panel-action="copy-ppq-key-reveal" data-clipboard-text="API Key: ${escapeAttr(result.api_key)}&#10;Credit ID: ${escapeAttr(result.credit_id)}" data-copied-text="\u2713 Copied (clears in 60s)">Copy Both</button>
+            <button class="import-btn import-btn-secondary" style="font-size:12px" data-provider-panel-action="dismiss-ppq-key-reveal">I\u2019ve saved it</button>
           </div>
         </div>
       </div>`;
@@ -177,7 +219,7 @@ const PPQ_METHODS = [
 let _ppqSelectedMethod = 'btc-lightning';
 
 function _ppqMethodBtn(m, active) {
-  return `<button class="${active ? 'ppq-method-btn active' : 'ppq-method-btn'}" onclick="selectPpqMethod('${m.id}')"><span class="ppq-method-icon">${m.svg}</span><span class="ppq-method-label">${m.label}</span></button>`;
+  return `<button class="${active ? 'ppq-method-btn active' : 'ppq-method-btn'}" data-provider-panel-action="select-ppq-method" data-ppq-method="${escapeAttr(m.id)}"><span class="ppq-method-icon">${m.svg}</span><span class="ppq-method-label">${m.label}</span></button>`;
 }
 
 export function showPpqTopup() {
@@ -215,8 +257,8 @@ function _renderPpqTopupPicker(area) {
   area.innerHTML = `<div style="margin-top:8px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
     <div style="display:flex;gap:6px;margin-bottom:10px">${PPQ_METHODS.map(function(m) { return _ppqMethodBtn(m, m.id === _ppqSelectedMethod); }).join('')}</div>
     <div style="display:flex;gap:6px">${method.amounts.map(function(v) {
-      return '<button class="ppq-amt-btn" onclick="doPpqTopup(' + v + ')">$' + v + '</button>';
-    }).join('')}<div id="ppq-custom-slot" style="flex:1;display:flex"><button class="ppq-amt-btn" style="width:100%;color:var(--text-muted)" onclick="ppqShowCustomInput()">$\u2026</button></div></div>
+      return '<button class="ppq-amt-btn" data-provider-panel-action="ppq-topup-preset" data-amount="' + v + '">$' + v + '</button>';
+    }).join('')}<div id="ppq-custom-slot" style="flex:1;display:flex"><button class="ppq-amt-btn" style="width:100%;color:var(--text-muted)" data-provider-panel-action="show-ppq-custom-input">$\u2026</button></div></div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">$2 is enough for onboarding, a few imports, and chats \u00b7 min $${method.min}</div>
   </div>`;
 }
@@ -230,9 +272,23 @@ export function selectPpqMethod(methodId) {
 export function ppqShowCustomInput() {
   const slot = document.getElementById('ppq-custom-slot');
   if (!slot) return;
-  slot.innerHTML = '<input type="text" inputmode="decimal" id="ppq-custom-amount" class="ppq-amt-btn" style="width:100%;text-align:center;cursor:text" placeholder="$" onkeydown="if(event.key===\'Enter\')doPpqTopupCustom();if(event.key===\'Escape\')selectPpqMethod(\'' + _ppqSelectedMethod + '\')" onblur="if(this.value.trim())doPpqTopupCustom()">';
+  slot.innerHTML = '<input type="text" inputmode="decimal" id="ppq-custom-amount" class="ppq-amt-btn" style="width:100%;text-align:center;cursor:text" placeholder="$">';
   const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-custom-amount'));
-  if (input) input.focus();
+  if (input) {
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        doPpqTopupCustom();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        selectPpqMethod(_ppqSelectedMethod);
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (input.value.trim()) doPpqTopupCustom();
+    });
+    input.focus();
+  }
 }
 
 export function doPpqTopupCustom() {
@@ -282,9 +338,9 @@ export async function doPpqTopup(amount) {
           <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:2px;display:flex;align-items:center;gap:4px"><span style="width:16px;height:16px;display:inline-block">${method.svg}</span> ${method.label} \u2014 $${parseFloat(amount).toFixed(2)}</div>
           ${cryptoHint}
           <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">
-            <button class="import-btn import-btn-primary" style="font-size:11px;padding:4px 10px" onclick="navigator.clipboard.writeText('${escapeAttr(payString)}');this.textContent='\u2713 Copied!'">${copyLabel}</button>
+            <button class="import-btn import-btn-primary" style="font-size:11px;padding:4px 10px" data-provider-panel-action="copy-ppq-payment" data-clipboard-text="${escapeAttr(payString)}" data-copied-text="\u2713 Copied!">${copyLabel}</button>
             <a href="${walletUri}" class="import-btn import-btn-secondary" style="font-size:11px;padding:4px 10px;text-decoration:none;text-align:center">Open in Wallet</a>
-            <button class="import-btn import-btn-secondary" style="font-size:11px;padding:4px 10px" onclick="cancelPpqTopup()">Cancel</button>
+            <button class="import-btn import-btn-secondary" style="font-size:11px;padding:4px 10px" data-provider-panel-action="cancel-ppq-topup">Cancel</button>
           </div>
           <div id="ppq-topup-status" style="margin-top:6px;font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px"><span id="ppq-topup-dot" style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;animation:ppq-pulse 1.5s ease-in-out infinite"></span> <span id="ppq-topup-countdown"></span></div>
         </div>
