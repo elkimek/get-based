@@ -22,6 +22,54 @@ function queryOptional(root, selector) {
   return /** @type {T | null} */ (root.querySelector(selector));
 }
 
+function lightToolModalActionAttrs(action) {
+  return `data-light-tool-modal-action="${action}"`;
+}
+
+function _handleLightToolModalClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const actionEl = target.closest('[data-light-tool-modal-action]');
+  if (!(actionEl instanceof HTMLElement)) return;
+  const overlay = event.currentTarget;
+  if (!(overlay instanceof HTMLElement) || !overlay.contains(actionEl)) return;
+
+  const action = actionEl.dataset.lightToolModalAction || '';
+  if (action === 'close-lux') {
+    event.preventDefault();
+    window._closeLuxMeter?.();
+    return;
+  }
+  if (action === 'close-flicker') {
+    event.preventDefault();
+    window._closeFlicker?.();
+    return;
+  }
+  if (action === 'close-dark') {
+    event.preventDefault();
+    window._closeDark?.();
+    return;
+  }
+  if (action === 'close-cct') {
+    event.preventDefault();
+    window._closeCCT?.();
+    return;
+  }
+  if (action === 'close-spec') {
+    event.preventDefault();
+    window._closeSpec?.();
+    return;
+  }
+  if (action === 'close-glass') {
+    event.preventDefault();
+    window._closeGlass?.();
+  }
+}
+
+function installLightToolModalDelegates(overlay) {
+  overlay.addEventListener('click', _handleLightToolModalClick);
+}
+
 /** @param {{ saveMeasurement?: AnyFunction }} [deps] */
 function getSaveMeasurement(deps = {}) {
   const fn = deps.saveMeasurement || (typeof window !== 'undefined' ? window.saveMeasurement : null);
@@ -57,7 +105,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Lux meter">
     <div class="modal-header">
       <h3>Lux Meter</h3>
-      <button class="modal-close" onclick="window._closeLuxMeter()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-lux')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('lux')}
@@ -87,11 +135,12 @@ export async function openLuxMeter(opts = {}, deps = {}) {
         </div>
       </details>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeLuxMeter()">Done</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-lux')}>Done</button>
         <button class="import-btn import-btn-primary" id="lux-save">Save reading</button>
       </div>
     </div>
   </div>`;
+  installLightToolModalDelegates(overlay);
   let closed = false;
   window._closeLuxMeter = () => {
     closed = true;
@@ -321,7 +370,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Flicker detector">
     <div class="modal-header">
       <h3>Flicker Detector</h3>
-      <button class="modal-close" onclick="window._closeFlicker()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-flicker')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('flicker')}
@@ -329,11 +378,12 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
       <video id="flicker-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px"></video>
       <div class="flicker-result" id="flicker-result">Hold camera on a light for 5 seconds…</div>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeFlicker()">Done</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-flicker')}>Done</button>
         <button class="import-btn import-btn-primary" id="flicker-save">Save reading</button>
       </div>
     </div>
     </div>`;
+  installLightToolModalDelegates(overlay);
   let closed = false;
   window._closeFlicker = () => {
     closed = true;
@@ -478,18 +528,19 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sleep darkness meter">
     <div class="modal-header">
       <h3>Sleep Darkness Meter</h3>
-      <button class="modal-close" onclick="window._closeDark()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-dark')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('darkness')}
       <p class="modal-body-hint">Lights as you'll actually sleep — door cracked, hallway light on, etc.</p>
       <div class="dark-status" id="dark-status">Press Start when ready.</div>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeDark()">Cancel</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-dark')}>Cancel</button>
         <button class="import-btn import-btn-primary" id="dark-start">Start 30-second read</button>
       </div>
     </div>
   </div>`;
+  installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, () => window._closeDark());
 
   let result = null;
@@ -635,7 +686,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Color temperature meter">
     <div class="modal-header">
       <h3>Color Temperature</h3>
-      <button class="modal-close" onclick="window._closeCCT()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-cct')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('cct')}
@@ -647,11 +698,12 @@ export async function openCCTMeter(opts = {}, deps = {}) {
         <div class="cct-coherence" id="cct-coherence"></div>
       </div>
       <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeCCT()">Done</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-cct')}>Done</button>
         <button class="import-btn import-btn-primary" id="cct-save">Save reading</button>
       </div>
     </div>
     </div>`;
+  installLightToolModalDelegates(overlay);
   let closed = false;
   window._closeCCT = () => {
     closed = true;
@@ -792,7 +844,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Spectrum classifier">
     <div class="modal-header">
       <h3>What kind of light is this?</h3>
-      <button class="modal-close" onclick="window._closeSpec()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-spec')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('spectrum')}
@@ -800,11 +852,12 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
       <video id="spec-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
       <div class="spec-result" id="spec-result">Reading…</div>
       <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeSpec()">Done</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-spec')}>Done</button>
         <button class="import-btn import-btn-primary" id="spec-save">Save reading</button>
       </div>
     </div>
     </div>`;
+  installLightToolModalDelegates(overlay);
   let closed = false;
   window._closeSpec = () => {
     closed = true;
@@ -971,7 +1024,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Glass transmission test">
     <div class="modal-header">
       <h3>Window / Glass Transmission</h3>
-      <button class="modal-close" onclick="window._closeGlass()" aria-label="Close">×</button>
+      <button class="modal-close" ${lightToolModalActionAttrs('close-glass')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('glass-transmission')}
@@ -988,11 +1041,12 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       </div>
       <div class="glass-result" id="glass-result"></div>
       <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeGlass()">Done</button>
+        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-glass')}>Done</button>
         <button class="import-btn import-btn-primary" id="glass-save" disabled>Save reading</button>
       </div>
     </div>
     </div>`;
+  installLightToolModalDelegates(overlay);
   let closed = false;
   /** @type {Set<MediaStream>} */
   const activeGlassStreams = new Set();

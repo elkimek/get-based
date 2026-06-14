@@ -41,6 +41,17 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       return false;
     };
     const dispatchInput = input => input.dispatchEvent(new Event('input', { bubbles: true }));
+    const delegatedModalChecks = [];
+    const recordDelegatedClose = (label, action) => {
+      const overlay = document.querySelector('.light-tool-overlay');
+      const html = overlay?.innerHTML || '';
+      delegatedModalChecks.push({
+        label,
+        ok: !!overlay
+          && !/\bon(?:click|keydown|submit|change|input)=/.test(html)
+          && overlay.querySelectorAll(`[data-light-tool-modal-action="${action}"]`).length >= 2,
+      });
+    };
 
     const deps = {
       saveMeasurement: async (kind, value, meta) => {
@@ -142,6 +153,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'lux-camera';
       await modals.openLuxMeter({ roomId: 'camera-room' }, deps);
+      recordDelegatedClose('lux camera modal', 'close-lux');
       await waitFor(
         () => document.getElementById('lux-value')?.textContent !== '\u2014',
         'camera lux reading'
@@ -177,6 +189,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'lux-manual';
       await modals.openLuxMeter({ roomId: 'manual-room' }, deps);
+      recordDelegatedClose('lux manual modal', 'close-lux');
       await waitFor(() => !!document.getElementById('lux-manual-input'), 'manual lux input');
       const manualInput = document.getElementById('lux-manual-input');
       manualInput.value = '55';
@@ -192,6 +205,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'flicker';
       await modals.openFlickerDetector({ roomId: 'flicker-room' }, deps);
+      recordDelegatedClose('flicker modal', 'close-flicker');
       await waitFor(
         () => /flicker|banding/i.test(document.getElementById('flicker-result')?.textContent || ''),
         'flicker result'
@@ -210,6 +224,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'cct';
       await modals.openCCTMeter({ roomId: 'cct-room' }, deps);
+      recordDelegatedClose('cct modal', 'close-cct');
       await waitFor(() => /\d+\s*K$/.test(document.getElementById('cct-value')?.textContent || ''), 'cct result');
       document.getElementById('cct-save')?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'cct'), 'cct save');
@@ -223,6 +238,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'spectrum-camera';
       await modals.openSpectrumClassifier({ roomId: 'spectrum-camera-room' }, deps);
+      recordDelegatedClose('spectrum camera modal', 'close-spec');
       await waitFor(
         () => /Fluorescent|confidence/i.test(document.getElementById('spec-result')?.textContent || ''),
         'spectrum camera classification'
@@ -241,6 +257,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'spectrum-manual';
       await modals.openSpectrumClassifier({ roomId: 'spectrum-room' }, deps);
+      recordDelegatedClose('spectrum manual modal', 'close-spec');
       await waitFor(() => !!document.querySelector('[data-spec-manual="Cool LED (4000K+)"]'), 'spectrum manual choices');
       document.querySelector('[data-spec-manual="Cool LED (4000K+)"]')?.click();
       document.getElementById('spec-save')?.click();
@@ -254,6 +271,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
 
       mode = 'glass';
       await modals.openGlassTransmission({ roomId: 'glass-room' }, deps);
+      recordDelegatedClose('glass modal', 'close-glass');
       document.getElementById('glass-measure-inside')?.click();
       await waitFor(() => /lux/.test(document.getElementById('glass-reading-inside')?.textContent || ''), 'glass inside reading');
       document.getElementById('glass-measure-outside')?.click();
@@ -267,6 +285,10 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
         && glass.meta.roomId === 'glass-room'
         && glass.meta.confidence === 0.7
         && glass.meta.extra.inside < glass.meta.extra.outside);
+      const failedDelegatedChecks = delegatedModalChecks.filter(item => !item.ok);
+      check('Camera tool modals render delegated close controls without inline handlers',
+        failedDelegatedChecks.length === 0,
+        failedDelegatedChecks.map(item => item.label).join(', '));
     } finally {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,

@@ -1,7 +1,7 @@
 // @ts-check
 // light-tool-camera.js — Shared camera/runtime helpers for Light tools.
 
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 
 // Per-tool "where to aim the camera" guide. Spelt out because the
 // difference between "what hits you" tools (lux, sleep darkness, eye-
@@ -50,6 +50,27 @@ const _AIMING_GUIDES = {
   },
 };
 
+let aimingGuideDelegatesInstalled = false;
+
+function _handleAimingGuideClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const actionEl = target.closest('[data-aiming-guide-action]');
+  if (!(actionEl instanceof HTMLElement)) return;
+  const action = actionEl.dataset.aimingGuideAction || '';
+  if (action !== 'dismiss') return;
+  const toolKey = actionEl.dataset.tool || '';
+  if (!toolKey) return;
+  event.preventDefault();
+  window._dismissAimingGuide?.(toolKey);
+}
+
+function installAimingGuideDelegates() {
+  if (aimingGuideDelegatesInstalled || typeof document === 'undefined') return;
+  aimingGuideDelegatesInstalled = true;
+  document.addEventListener('click', _handleAimingGuideClick);
+}
+
 // Returns a small expandable info card for the tool modal. Persists per-
 // tool dismissal in localStorage so users who've internalized the
 // guidance don't have to dismiss it on every open.
@@ -64,7 +85,7 @@ export function aimingGuideHTML(toolKey) {
     <div class="tool-aiming-guide-head">
       <span class="tool-aiming-guide-icon">📐</span>
       <span class="tool-aiming-guide-mode">${escapeHTML(g.mode)}</span>
-      <button type="button" class="tool-aiming-guide-dismiss" onclick="window._dismissAimingGuide && window._dismissAimingGuide('${escapeHTML(toolKey)}')" aria-label="Dismiss aiming guide">×</button>
+      <button type="button" class="tool-aiming-guide-dismiss" data-aiming-guide-action="dismiss" data-tool="${escapeAttr(toolKey)}" aria-label="Dismiss aiming guide">×</button>
     </div>
     <div class="tool-aiming-guide-body">${g.body}</div>
     ${g.webcam ? `<div class="tool-aiming-guide-webcam">${g.webcam}</div>` : ''}
@@ -72,6 +93,7 @@ export function aimingGuideHTML(toolKey) {
 }
 
 if (typeof window !== 'undefined') {
+  installAimingGuideDelegates();
   window._dismissAimingGuide = (toolKey) => {
     try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
     // Hide the currently-rendered guide without re-rendering the whole modal.
