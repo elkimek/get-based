@@ -27,7 +27,9 @@ const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
 const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
+const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
+const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
 const profileShareSrc = fs.readFileSync(path.join(root, 'js/profile-share.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
@@ -283,6 +285,20 @@ assert('report builder, profile share, and dashboard widget picker use shared ov
         !src.includes('modal show') &&
         !src.includes('insertAdjacentHTML') &&
         !src.includes('?.remove()')));
+
+assert('PDF import dialogs and review modal use shared overlay lifecycle helpers',
+  pdfImportSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
+    pdfImportReviewSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
+    pdfImportSrc.includes("openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 })") &&
+    pdfImportSrc.includes("openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 })") &&
+    (pdfImportSrc.match(/closeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    pdfImportReviewSrc.includes("closeModalOverlay('import-modal-overlay')") &&
+    pdfImportReviewSrc.includes('openModalOverlay(overlay)') &&
+    [pdfImportSrc, pdfImportReviewSrc].every(src =>
+      !src.includes("overlay.classList.add('show')") &&
+        !src.includes("overlay.classList.remove('show')") &&
+        !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")) &&
+    !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

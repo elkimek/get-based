@@ -11,6 +11,7 @@ import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker, syncLabEntryInsulinMirror } from './lab-entry.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { runPreflightChecks } from './pdf-import-preflight.js';
 import { normalizeParsedImportMarkers } from './pdf-import-marker-normalization.js';
 import {
@@ -172,8 +173,8 @@ export function showAINeededDialog(action = 'import') {
       <button class="confirm-btn confirm-btn-cancel" id="ai-needed-cancel">Not now</button>
     </div>
   </div>`;
-  overlay.classList.add('show');
-  const close = () => overlay.classList.remove('show');
+  openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 });
+  const close = () => closeModalOverlay(overlay);
   document.getElementById('ai-needed-or').onclick = () => { close(); if (pdfImportWindow.startOpenRouterOAuth) pdfImportWindow.startOpenRouterOAuth(); };
   document.getElementById('ai-needed-key').onclick = () => { close(); if (pdfImportWindow.openSettingsModal) pdfImportWindow.openSettingsModal('ai'); };
   document.getElementById('ai-needed-demo').onclick = () => {
@@ -185,7 +186,6 @@ export function showAINeededDialog(action = 'import') {
   };
   document.getElementById('ai-needed-cancel').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  document.getElementById('ai-needed-or').focus();
 }
 
 // ═══════════════════════════════════════════════
@@ -797,19 +797,25 @@ async function _showImageModeDialog() {
         <button class="btn" style="padding:7px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);cursor:pointer">Try text anyway</button>
         <button class="btn" style="padding:7px 16px;border-radius:6px;border:none;background:var(--accent-gradient);color:white;cursor:pointer;font-weight:500">Use image mode</button>
       </div>`;
-    const onKey = (e) => { if (e.key === 'Escape') { overlay.classList.remove('show'); resolve('cancel'); } };
+    let settled = false;
+    const closeWithChoice = (choice) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener('keydown', onKey);
+      closeModalOverlay(overlay);
+      resolve(choice);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') closeWithChoice('cancel'); };
     document.addEventListener('keydown', onKey, { once: true });
     dialog.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.removeEventListener('keydown', onKey);
         const action = btn.textContent.trim();
-        overlay.classList.remove('show');
-        if (action === 'Cancel') resolve('cancel');
-        else if (action === 'Try text anyway') resolve('text');
-        else resolve('image');
+        if (action === 'Cancel') closeWithChoice('cancel');
+        else if (action === 'Try text anyway') closeWithChoice('text');
+        else closeWithChoice('image');
       }, { once: true });
     });
-    overlay.classList.add('show');
+    openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 });
   });
 }
 
