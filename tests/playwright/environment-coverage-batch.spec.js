@@ -180,8 +180,8 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         date: '2026-06-16T00:00:00.000Z',
       };
       await window.openEMFAssessmentEditor();
-      await waitFor('.emf-editor-actions button[onclick*="toggleEMFCompare"]', 'EMF compare button');
-      document.querySelector('.emf-editor-actions button[onclick*="toggleEMFCompare"]')?.click();
+      await waitFor('.emf-editor-actions button[data-emf-action="toggle-compare"]', 'EMF compare button');
+      document.querySelector('.emf-editor-actions button[data-emf-action="toggle-compare"]')?.click();
       await waitFor('.emf-compare-table', 'EMF compare table');
       outcomes.compareShowsBeforeAfterDeltas =
         document.querySelector('.emf-compare-header')?.textContent.includes('Before: Jun 1, 2026') === true
@@ -201,13 +201,12 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         && calls.some(call => call[0] === 'chat' && call[1].includes('RF improved'));
 
       window.toggleEMFCompare();
-      await waitFor(`.emf-assessment-header[onclick*="${id}"]`, 'old assessment header');
-      document.querySelector(`.emf-assessment-header[onclick*="${id}"]`)?.click();
-      await waitFor('.emf-assessment-card.expanded button[onclick*="deleteEMFAssessment"]', 'delete EMF assessment button');
-      const deletePromise = window.deleteEMFAssessment(id);
+      await waitFor(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`, 'old assessment header');
+      document.querySelector(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`)?.click();
+      await waitFor('.emf-assessment-card.expanded button[data-emf-action="delete-assessment"]', 'delete EMF assessment button');
+      document.querySelector('.emf-assessment-card.expanded button[data-emf-action="delete-assessment"]')?.click();
       await waitFor('#confirm-ok', 'EMF delete confirm');
       document.getElementById('confirm-ok').click();
-      await deletePromise;
       await waitUntil(() => !assessments().some(a => a.id === id), 'EMF assessment deleted');
       outcomes.deleteConfirmsRemovesAndKeepsListUsable =
         !assessments().some(a => a.id === id)
