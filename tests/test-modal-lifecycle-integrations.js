@@ -28,6 +28,7 @@ const lightSessionsViewSrc = fs.readFileSync(path.join(root, 'js/light-sessions-
 const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
+const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
@@ -149,6 +150,13 @@ assert('settings tweaks panel uses shared overlay lifecycle helpers',
     /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*window\.matchMedia\?\.\(['"]\(max-width: 768px\)['"]\)\.matches === true[\s\S]*\}\s*\)/.test(settingsSrc) &&
     !settingsSrc.includes('_tweaksPriorBodyOverflow') &&
     !settingsSrc.includes("document.body.style.overflow = 'hidden'"));
+
+assert('mobile sidebar uses shared scroll lock lifecycle helpers',
+  navSrc.includes("from './modal-lifecycle.js'") &&
+    navSrc.includes('openModalOverlay(backdrop, { scrollLock: true })') &&
+    navSrc.includes("closeModalOverlay('sidebar-backdrop', { restoreFocus: false })") &&
+    !navSrc.includes("document.body.style.overflow = 'hidden'") &&
+    !navSrc.includes("document.body.style.overflow = ''"));
 
 assert('sync setup and restore dialogs use shared lifecycle helpers',
   settingsSyncPanelSrc.includes("from './modal-lifecycle.js'") &&
