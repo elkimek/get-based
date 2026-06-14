@@ -211,6 +211,30 @@ return (async function () {
     assert('body overflow restored after cross-instance modals closed',
       document.body.style.overflow === baseline);
 
+    // Persistent overlays close by hiding rather than DOM removal. Their
+    // scroll locks still need to share the same registry as trapModalFocus.
+    document.body.style.overflow = baseline;
+    const persistentOverlay = document.createElement('div');
+    persistentOverlay.className = 'modal-overlay';
+    persistentOverlay.innerHTML = '<button>Persistent</button>';
+    document.body.appendChild(persistentOverlay);
+    modalLifecycle.openModalOverlay(persistentOverlay, { scrollLock: true });
+    assert('openModalOverlay scrollLock locks body for persistent overlay',
+      document.body.style.overflow === 'hidden');
+    const nestedTrapOverlay = document.createElement('div');
+    nestedTrapOverlay.className = 'modal-overlay';
+    nestedTrapOverlay.innerHTML = '<button>Nested</button>';
+    document.body.appendChild(nestedTrapOverlay);
+    modalLifecycle.trapModalFocus(nestedTrapOverlay);
+    modalLifecycle.closeModalOverlay(persistentOverlay);
+    assert('closing persistent scrollLock overlay keeps nested trap locked',
+      document.body.style.overflow === 'hidden');
+    nestedTrapOverlay.remove();
+    await waitFor(() => document.body.style.overflow === baseline);
+    assert('persistent overlay scrollLock restores after nested trap closes',
+      document.body.style.overflow === baseline);
+    persistentOverlay.remove();
+
     // Detached-previouslyFocused guard — focus a button that's then removed
     // before the overlay is. The restore must not throw.
     const stash = document.createElement('button');
