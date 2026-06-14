@@ -88,11 +88,19 @@ globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 const { aiActionAttrs } = await import('../js/ai-action-delegates.js');
 
-let dayCalls = 0;
-window.refreshDayAIAnalysis = () => { dayCalls++; };
+let dayArgs = null;
+window.refreshDayAIAnalysis = (...args) => { dayArgs = args; };
 document.body.innerHTML = `<button id="day" ${aiActionAttrs('refresh-day')}>Run</button>`;
 document.getElementById('day')?.click();
-assert('delegated click routes action without a target id', dayCalls === 1);
+assert('delegated click routes action without a target id',
+  Array.isArray(dayArgs) && dayArgs.length === 0);
+
+let channelArgs = null;
+window.refreshChannelMixAI = (...args) => { channelArgs = args; };
+document.body.innerHTML = `<button id="channel" ${aiActionAttrs('refresh-channel-mix')}>Run</button>`;
+document.getElementById('channel')?.click();
+assert('delegated singleton action calls without an empty string argument',
+  Array.isArray(channelArgs) && channelArgs.length === 0);
 
 let routedSessionId = '';
 let rowOpened = false;

@@ -5,9 +5,10 @@ import { escapeAttr } from './utils.js';
 
 let aiActionDelegatesInstalled = false;
 
-function callWindowAction(name, targetId = '') {
+function callWindowAction(name, targetId) {
   const fn = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (window))[name];
   if (typeof fn !== 'function') return undefined;
+  if (targetId === undefined) return fn();
   return fn(targetId);
 }
 
@@ -53,6 +54,8 @@ function _handleAIActionClick(event) {
 export function installAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {
   if (!root || aiActionDelegatesInstalled) return;
   aiActionDelegatesInstalled = true;
+  // Capture is intentional for data-ai-stop-propagation controls nested in
+  // clickable rows: it blocks row-level bubble delegates before they open.
   root.addEventListener('click', _handleAIActionClick, true);
 }
 
