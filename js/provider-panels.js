@@ -50,12 +50,16 @@ import {
   cancelPpqTopup,
   clearPpqTopupTimers,
   configurePpqPanels,
+  copyPpqKeyReveal,
+  copyPpqPayment,
   dismissPpqKeyReveal,
   doPpqTopup,
   doPpqTopupCustom,
+  handlePpqTopupPreset,
   handleCreatePpqAccount,
   handleRemovePpqKey,
   handleSavePpqKey,
+  handleSelectPpqMethod,
   initSettingsPpqPanel,
   ppqShowCustomInput,
   refreshPpqBalance,
@@ -246,10 +250,10 @@ export function initSettingsModelFetch() {
         area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
           '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending deposit recovery</div>' +
           '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit failed. Your sats are safe in this token:</div>' +
-          '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly onclick="this.select()">' + escapeHTML(token) + '</textarea>' +
+          '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
           '<div style="display:flex;gap:4px;margin-top:4px">' +
-          '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="cashuImportWallet(document.querySelector(\'#routstr-wallet-fund-area textarea\').value).then(()=>{cashuClearPendingDeposit();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
-          '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-token="' + escapeAttr(token) + '" onclick="navigator.clipboard.writeText(this.dataset.token);this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+          '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
+          '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
           '</div></div>';
       }
     });
@@ -262,10 +266,10 @@ export function initSettingsModelFetch() {
       area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
         '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending withdraw recovery</div>' +
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous Lightning withdrawal failed mid-operation. Your sats are safe in this token:</div>' +
-        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly onclick="this.select()">' + escapeHTML(token) + '</textarea>' +
+        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
         '<div style="display:flex;gap:4px;margin-top:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" onclick="cashuImportWallet(document.querySelector(\'#routstr-wallet-fund-area textarea\').value).then(()=>{cashuClearPendingWithdraw();showNotification(\'Recovered!\',\'success\');location.reload()}).catch(e=>showNotification(e.message,\'error\'))">Recover to Wallet</button>' +
-        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" onclick="navigator.clipboard.writeText(document.querySelector(\'#routstr-wallet-fund-area textarea\').value);this.textContent=\'\u2713 Copied\'">Copy Token</button>' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-withdraw" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
         '</div></div>';
     });
   }
@@ -289,6 +293,74 @@ function _returnToChatIfOnboarding() {
   if (!window.hasAIProvider?.()) return;
   window.closeSettingsModal?.();
   setTimeout(() => window.openChatPanel?.(), 300);
+}
+
+function _setActionText(actionEl) {
+  if (actionEl instanceof HTMLElement) {
+    actionEl.textContent = actionEl.dataset.copiedText || '✓ Copied';
+  }
+}
+
+function _clipboardTextFromAction(actionEl) {
+  return actionEl?.dataset?.clipboardText || actionEl?.dataset?.token || '';
+}
+
+async function _copyProviderPanelText(text, actionEl) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    _setActionText(actionEl);
+    const timerKey = actionEl?.dataset?.clearTimerKey || '';
+    const clearMs = Number(actionEl?.dataset?.clearClipboardAfter || 0);
+    if (timerKey && clearMs > 0) {
+      const appWindow = /** @type {any} */ (window);
+      clearTimeout(appWindow[timerKey]);
+      appWindow[timerKey] = setTimeout(() => navigator.clipboard?.writeText?.(''), clearMs);
+    }
+  } catch (e) {
+    showNotification(`Copy failed: ${e?.message || e}`, 'error');
+  }
+}
+
+export function copyProviderPanelClipboard(actionEl) {
+  void _copyProviderPanelText(_clipboardTextFromAction(actionEl), actionEl);
+}
+
+export function selectProviderPanelText(actionEl) {
+  if (typeof actionEl?.select === 'function') actionEl.select();
+}
+
+async function _recoverPendingToken(actionEl, clearName) {
+  const appWindow = /** @type {any} */ (window);
+  const fallbackInput = /** @type {HTMLTextAreaElement | null} */ (
+    document.querySelector('#routstr-wallet-fund-area textarea')
+  );
+  const token = actionEl?.dataset?.token || fallbackInput?.value || '';
+  try {
+    if (typeof appWindow.cashuImportWallet !== 'function' || typeof appWindow[clearName] !== 'function') {
+      throw new Error('Wallet recovery is unavailable');
+    }
+    await appWindow.cashuImportWallet(token);
+    await appWindow[clearName]();
+    showNotification('Recovered!', 'success');
+    window.location.reload();
+  } catch (e) {
+    showNotification(e?.message || String(e), 'error');
+  }
+}
+
+export function recoverPendingDeposit(actionEl) {
+  void _recoverPendingToken(actionEl, 'cashuClearPendingDeposit');
+}
+
+export function recoverPendingWithdraw(actionEl) {
+  void _recoverPendingToken(actionEl, 'cashuClearPendingWithdraw');
+}
+
+export function acknowledgeRoutstrKey() {
+  const panel = document.getElementById('ai-provider-panel');
+  if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
+  initSettingsModelFetch();
 }
 
 // ═══════════════════════════════════════════════
@@ -489,8 +561,8 @@ export async function handleSaveRoutstrKey() {
             <label style="font-size:11px;color:var(--text-muted)">Session Key</label>
             <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(finalKey)}</div>
             <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="import-btn import-btn-primary" style="font-size:12px" onclick="navigator.clipboard.writeText('${escapeAttr(finalKey)}');this.textContent='\u2713 Copied (clears in 60s)';clearTimeout(window._rsClipTimer);window._rsClipTimer=setTimeout(()=>navigator.clipboard.writeText(''),60000)">Copy Key</button>
-              <button class="import-btn import-btn-secondary" style="font-size:12px" onclick="var p=document.getElementById('ai-provider-panel');if(p)p.innerHTML=renderAIProviderPanel('routstr');initSettingsModelFetch()">I\u2019ve saved it</button>
+              <button class="import-btn import-btn-primary" style="font-size:12px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="${escapeAttr(finalKey)}" data-copied-text="\u2713 Copied (clears in 60s)" data-clear-timer-key="_rsClipTimer" data-clear-clipboard-after="60000">Copy Key</button>
+              <button class="import-btn import-btn-secondary" style="font-size:12px" data-provider-panel-action="acknowledge-routstr-key">I\u2019ve saved it</button>
             </div>
           </div>
         </div>`;
@@ -588,6 +660,18 @@ installProviderPanelDelegates({
   handleCreatePpqAccount,
   handleSavePpqKey,
   handleRemovePpqKey,
+  copyPpqKeyReveal,
+  dismissPpqKeyReveal,
+  handleSelectPpqMethod,
+  handlePpqTopupPreset,
+  ppqShowCustomInput,
+  copyPpqPayment,
+  cancelPpqTopup,
+  recoverPendingDeposit,
+  recoverPendingWithdraw,
+  copyProviderPanelClipboard,
+  selectProviderPanelText,
+  acknowledgeRoutstrKey,
   applyCustomApiManualModel,
   handleSaveCustomApi,
   handleRemoveCustomApi,

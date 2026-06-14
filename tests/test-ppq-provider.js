@@ -28,6 +28,7 @@ const swSrc = read('service-worker.js');
 
 console.log('1. Extraction boundary');
 assert('PPQ panel module exists', ppqSrc.includes('provider-ppq-panels.js'));
+assert('PPQ panel module renders no inline event attributes', !/\bon(?:click|change|input|search|keydown|keyup|submit|blur)=/.test(ppqSrc));
 assert('provider-panels imports PPQ module', panelsSrc.includes("from './provider-ppq-panels.js'"));
 assert('provider-panels configures PPQ onboarding callback', panelsSrc.includes('configurePpqPanels({'));
 assert('provider-panels delegates PPQ init', panelsSrc.includes('initSettingsPpqPanel();'));
