@@ -1040,19 +1040,21 @@ function _handleEMFInterpretationClick(event) {
 
   const actionEl = target.closest('[data-emf-interp-action]');
   if (actionEl instanceof HTMLElement && overlay.contains(actionEl)) {
-    event.preventDefault();
     const action = actionEl.dataset.emfInterpAction || '';
     if (action === 'close') {
+      event.preventDefault();
       overlay._mouseDownInside = false;
       closeEMFInterpretation();
       return;
     }
     if (action === 'discuss') {
+      event.preventDefault();
       overlay._mouseDownInside = false;
       discussEMFInterpretation();
       return;
     }
     if (action === 'generate') {
+      event.preventDefault();
       overlay._mouseDownInside = false;
       if (!overlay._onGenerate) return;
       const btn = actionEl instanceof HTMLButtonElement ? actionEl : null;
