@@ -4,6 +4,7 @@
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   DEFAULT_REPORT_PRESET,
   REPORT_BUILDER_OVERLAY_ID,
@@ -101,8 +102,8 @@ function renderReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
     `<option value="${escapeAttr(option.value)}" ${preset.dateRange === option.value ? 'selected' : ''}>${escapeHTML(option.label)}</option>`
   ).join('');
 
-  return `<div class="modal-overlay show" id="${REPORT_BUILDER_OVERLAY_ID}" data-report-builder-overlay data-report-preset="${escapeAttr(presetId)}">
-    <div class="modal show gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
+  return `<div class="modal-overlay" id="${REPORT_BUILDER_OVERLAY_ID}" data-report-builder-overlay data-report-preset="${escapeAttr(presetId)}">
+    <div class="modal gb-form-modal report-builder-modal" role="dialog" aria-modal="true" aria-labelledby="report-builder-title">
       <div class="gb-modal-head">
         <div>
           <div class="gb-modal-kicker">Export</div>
@@ -323,13 +324,14 @@ export function openReportBuilder(presetId = DEFAULT_REPORT_PRESET) {
   const normalizedPresetId = REPORT_PRESETS[presetId] ? presetId : DEFAULT_REPORT_PRESET;
   closeReportBuilder();
   installReportBuilderDelegates();
-  document.body.insertAdjacentHTML('beforeend', renderReportBuilder(normalizedPresetId));
-  setTimeout(() => {
-    const activePreset = /** @type {HTMLElement | null} */ (document.querySelector(`#${REPORT_BUILDER_OVERLAY_ID} .report-preset-btn.active`));
-    activePreset?.focus();
-  }, 0);
+  const template = document.createElement('template');
+  template.innerHTML = renderReportBuilder(normalizedPresetId).trim();
+  const overlay = template.content.firstElementChild;
+  if (!(overlay instanceof HTMLElement)) return;
+  openAppendedModalOverlay(overlay, closeReportBuilder, { initialFocus: '.report-preset-btn.active', focusDelay: 50 });
 }
 
 export function closeReportBuilder() {
-  document.getElementById(REPORT_BUILDER_OVERLAY_ID)?.remove();
+  const overlay = document.getElementById(REPORT_BUILDER_OVERLAY_ID);
+  if (overlay) removeModalOverlay(overlay);
 }

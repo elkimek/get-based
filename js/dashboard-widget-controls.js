@@ -3,6 +3,7 @@
 
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
   'open-biometric-manual-log',
@@ -494,6 +495,15 @@ export function createDashboardWidgetControls(deps) {
     rerenderDashboardFromWidgetChange();
   }
 
+  function openDashboardWidgetPickerOverlay(html, options = {}) {
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    const overlay = template.content.firstElementChild;
+    if (!(overlay instanceof HTMLElement)) return null;
+    openAppendedModalOverlay(overlay, closeDashboardWidgetPicker, options);
+    return overlay;
+  }
+
   function openDashboardWidgetPicker() {
     closeDashboardWidgetPicker();
     const prefs = getDashboardWidgetPrefs();
@@ -503,8 +513,8 @@ export function createDashboardWidgetControls(deps) {
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
     const markerOptions = getDashboardMarkerWidgetOptions(getActiveData(), prefs);
     const markerList = markerOptions.length ? markerOptions.map(renderDashboardMarkerWidgetOption).join('') : '';
-    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
-      <div class="modal show dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
+    openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
+      <div class="modal dashboard-widget-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-widget-picker-title">
         <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
         <h3 id="dashboard-widget-picker-title">Add dashboard widget</h3>
         <div class="dashboard-widget-picker-section">
@@ -536,8 +546,8 @@ export function createDashboardWidgetControls(deps) {
     const prefs = getDashboardWidgetPrefs();
     const biometricOptions = getDashboardBiometricWidgetOptions(prefs);
     const biometricList = biometricOptions.length ? biometricOptions.map(renderDashboardBiometricWidgetOption).join('') : '';
-    document.body.insertAdjacentHTML('beforeend', `<div class="modal-overlay show" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
-      <div class="modal show dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">
+    openDashboardWidgetPickerOverlay(`<div class="modal-overlay" id="dashboard-widget-picker-overlay" data-dashboard-widget-overlay>
+      <div class="modal dashboard-widget-picker dashboard-biometric-picker" role="dialog" aria-modal="true" aria-labelledby="dashboard-biometric-picker-title">
         <button class="modal-close" aria-label="Close" ${dashboardWidgetActionAttrs('close-picker')}>&times;</button>
         <h3 id="dashboard-biometric-picker-title">Add biometric metrics</h3>
         <div class="dashboard-widget-picker-section">
@@ -550,12 +560,12 @@ export function createDashboardWidgetControls(deps) {
           <button type="button" class="dashboard-action-btn" ${dashboardWidgetActionAttrs('connect-source')}>Connect source</button>
         </div>
       </div>
-    </div>`);
-    setTimeout(() => document.getElementById('dashboard-biometric-widget-search')?.focus(), 0);
+    </div>`, { initialFocus: '#dashboard-biometric-widget-search', focusDelay: 50 });
   }
 
   function closeDashboardWidgetPicker() {
-    document.getElementById('dashboard-widget-picker-overlay')?.remove();
+    const overlay = document.getElementById('dashboard-widget-picker-overlay');
+    if (overlay) removeModalOverlay(overlay);
   }
 
   function startDashboardWidgetDrag(event, id, dragEl = event.currentTarget) {

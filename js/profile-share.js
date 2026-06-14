@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { getProfiles } from './profile.js';
 import { buildClientExportObject, importDataJSON } from './export.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 export const PROFILE_SHARE_SCHEMA = 'getbased-profile-share';
 export const PROFILE_SHARE_VERSION = 1;
@@ -540,21 +541,24 @@ function renderLoadShareBody(id) {
 
 function renderProfileShareShell({ title, kicker = 'Share Profile', body }) {
   closeProfileShareModal();
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="modal-overlay show" id="${SHARE_OVERLAY_ID}">
+  const template = document.createElement('template');
+  template.innerHTML = `
+    <div class="modal-overlay" id="${SHARE_OVERLAY_ID}">
       <div class="modal gb-form-modal profile-share-modal" role="dialog" aria-modal="true" aria-label="${escapeAttr(title)}">
         <div class="gb-modal-head">
           <div>
             <div class="gb-modal-kicker">${escapeHTML(kicker)}</div>
             <div class="gb-modal-title">${escapeHTML(title)}</div>
           </div>
-          <button class="modal-close" aria-label="Close" data-profile-share-action="close">&times;</button>
+          <button type="button" class="modal-close" aria-label="Close" data-profile-share-action="close">&times;</button>
         </div>
         ${body}
       </div>
     </div>
-  `);
-  const overlay = document.getElementById(SHARE_OVERLAY_ID);
+  `.trim();
+  const overlay = template.content.firstElementChild;
+  if (!(overlay instanceof HTMLElement)) return;
+  openAppendedModalOverlay(overlay, closeProfileShareModal);
   installProfileShareDelegates(overlay);
   const firstControl = /** @type {HTMLElement | null} */ (overlay?.querySelector('input, button, select'));
   firstControl?.focus();
@@ -568,7 +572,8 @@ export function openProfileShareModal(profileId = state.currentProfile) {
 }
 
 export function closeProfileShareModal() {
-  document.getElementById(SHARE_OVERLAY_ID)?.remove();
+  const overlay = document.getElementById(SHARE_OVERLAY_ID);
+  if (overlay) removeModalOverlay(overlay);
 }
 
 export function openSharedProfileImportModal(id) {
