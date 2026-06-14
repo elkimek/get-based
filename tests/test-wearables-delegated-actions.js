@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const stripSrc = fs.readFileSync(path.join(root, 'js/wearables.js'), 'utf8');
 const detailSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-modal.js'), 'utf8');
+const settingsPanelSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-panel.js'), 'utf8');
 const stripImportsSharedActionHelper = /import\s*{[^}]*\bwearableActionAttrs\b[^}]*}\s*from\s+'\.\/wearables-detail-modal\.js';/s.test(stripSrc);
 
 let passed = 0;
@@ -32,6 +33,8 @@ assert('wearables strip renders no inline event attributes',
   !inlineHandlerRe.test(stripSrc));
 assert('wearables detail modal renders no inline event attributes',
   !inlineHandlerRe.test(detailSrc));
+assert('wearables settings panel renders no inline event attributes',
+  !inlineHandlerRe.test(settingsPanelSrc));
 assert('wearables strip renders delegated action attributes',
   stripImportsSharedActionHelper &&
     stripSrc.includes("wearableActionAttrs('open-manual-log'") &&
@@ -71,6 +74,20 @@ assert('wearables delegated manual log open bypasses only the legacy inline-card
     !stripSrc.includes("if (event?.target?.closest?.('[data-wearable-action]')) return;"));
 assert('wearables delegated keyboard ignores form controls',
   stripSrc.includes("target.closest('input, textarea, select, button, a')"));
+assert('wearables settings panel installs delegated click change and drop handlers',
+  settingsPanelSrc.includes('let wearableSettingsDelegatesInstalled = false') &&
+    settingsPanelSrc.includes("root.addEventListener('click', handleWearableSettingsClick, true)") &&
+    settingsPanelSrc.includes("root.addEventListener('change', handleWearableSettingsChange)") &&
+    settingsPanelSrc.includes("root.addEventListener('drop', handleWearableSettingsDrop)") &&
+    settingsPanelSrc.includes('installWearableSettingsDelegates();'));
+assert('wearables settings panel renders delegated action and input attributes',
+  settingsPanelSrc.includes('function wearableSettingsActionAttrs') &&
+    settingsPanelSrc.includes('function wearableSettingsInputAttrs') &&
+    settingsPanelSrc.includes('data-wearable-settings-action=') &&
+    settingsPanelSrc.includes('data-wearable-settings-input=') &&
+    settingsPanelSrc.includes("wearableSettingsActionAttrs('manual-dashboard'") &&
+    settingsPanelSrc.includes("wearableSettingsActionAttrs('sync-now'") &&
+    settingsPanelSrc.includes("wearableSettingsInputAttrs('apple-health-file'"));
 
 [
   'open-manual-log',

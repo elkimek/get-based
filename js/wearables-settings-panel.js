@@ -3,7 +3,7 @@
 // Keeps provider rows, connection actions, Apple Health import controls, and
 // manual-source management out of the dashboard strip renderer.
 
-import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
 import { adapterById, visibleAdapters, getOAuthClientId } from './wearable-adapters.js';
 import { brandMarkMono } from './brand-assets.js';
@@ -17,6 +17,123 @@ import {
 } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
+
+let wearableSettingsDelegatesInstalled = false;
+
+function wearableSettingsActionAttrs(action, data = {}, opts = {}) {
+  const attrs = [`data-wearable-settings-action="${escapeAttr(action)}"`];
+  for (const [key, value] of Object.entries(data)) {
+    if (value != null && value !== '') attrs.push(`data-wearable-settings-${key}="${escapeAttr(String(value))}"`);
+  }
+  if (opts.stopPropagation) attrs.push('data-wearable-settings-stop-propagation="true"');
+  return attrs.join(' ');
+}
+
+function wearableSettingsInputAttrs(input) {
+  return `data-wearable-settings-input="${escapeAttr(input)}"`;
+}
+
+function clickAppleHealthFileInput() {
+  document.getElementById('apple-health-file-input')?.click();
+}
+
+function handleWearableSettingsClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-wearable-settings-action]'));
+  if (!actionEl?.dataset) return;
+
+  const action = actionEl.dataset.wearableSettingsAction || '';
+  if (actionEl.dataset.wearableSettingsStopPropagation === 'true') {
+    event.stopPropagation();
+  }
+
+  const adapterId = actionEl.dataset.wearableSettingsAdapter || '';
+  switch (action) {
+    case 'connect':
+      event.preventDefault();
+      handleWearableConnect(adapterId);
+      break;
+    case 'pick-apple-health-file':
+      event.preventDefault();
+      clickAppleHealthFileInput();
+      break;
+    case 'sync-now':
+      event.preventDefault();
+      handleWearableSyncNow(adapterId, /** @type {HTMLButtonElement} */ (actionEl));
+      break;
+    case 'backfill':
+      event.preventDefault();
+      handleWearableBackfill(adapterId);
+      break;
+    case 'disconnect':
+      event.preventDefault();
+      handleWearableDisconnect(adapterId);
+      break;
+    case 'manual-dashboard':
+      event.preventDefault();
+      handleManualOpenDashboard();
+      break;
+    case 'manual-disconnect':
+      event.preventDefault();
+      handleManualDisconnect();
+      break;
+  }
+}
+
+function handleWearableSettingsChange(event) {
+  const target = event.target;
+  const inputEl = /** @type {HTMLInputElement | null} */ (target);
+  if (!inputEl?.dataset?.wearableSettingsInput) return;
+
+  switch (inputEl.dataset.wearableSettingsInput) {
+    case 'strip-hidden':
+      setWearableStripHidden(!inputEl.checked);
+      break;
+    case 'apple-health-file':
+      handleAppleHealthFilePick(inputEl);
+      break;
+  }
+}
+
+function appleHealthDropzoneFromEvent(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return null;
+  return /** @type {HTMLElement | null} */ (target.closest('[data-wearable-settings-dropzone="apple-health"]'));
+}
+
+function handleWearableSettingsDragOver(event) {
+  const dropzone = appleHealthDropzoneFromEvent(event);
+  if (!dropzone) return;
+  event.preventDefault();
+  dropzone.classList.add('drag-over');
+}
+
+function handleWearableSettingsDragLeave(event) {
+  const dropzone = appleHealthDropzoneFromEvent(event);
+  if (!dropzone) return;
+  dropzone.classList.remove('drag-over');
+}
+
+function handleWearableSettingsDrop(event) {
+  const dropzone = appleHealthDropzoneFromEvent(event);
+  if (!dropzone) return;
+  event.preventDefault();
+  dropzone.classList.remove('drag-over');
+  handleAppleHealthDrop(/** @type {DragEvent} */ (event));
+}
+
+export function installWearableSettingsDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || wearableSettingsDelegatesInstalled) return;
+  wearableSettingsDelegatesInstalled = true;
+  // Capture is required for action buttons nested inside <summary>; stopping
+  // at document capture prevents the summary disclosure from toggling.
+  root.addEventListener('click', handleWearableSettingsClick, true);
+  root.addEventListener('change', handleWearableSettingsChange);
+  root.addEventListener('dragover', handleWearableSettingsDragOver);
+  root.addEventListener('dragleave', handleWearableSettingsDragLeave);
+  root.addEventListener('drop', handleWearableSettingsDrop);
+}
 
 function formatAgo(ts) {
   if (!ts) return 'never';
@@ -71,7 +188,7 @@ export function renderWearablesSettingsSection() {
       <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Show data from connected wearables (Oura, Withings, Fitbit, etc.) on the dashboard. Off keeps the strip as a Biometrics strip — your manual weight, BP, and pulse entries still appear.</div>
     </div>
     <label class="toggle-switch">
-      <input type="checkbox" id="wearables-strip-hidden-toggle" ${hidden ? '' : 'checked'} onchange="window.setWearableStripHidden(!this.checked)">
+      <input type="checkbox" id="wearables-strip-hidden-toggle" ${hidden ? '' : 'checked'} ${wearableSettingsInputAttrs('strip-hidden')}>
       <span class="toggle-slider"></span>
     </label>
   </div>
@@ -171,19 +288,16 @@ function renderRowAction(adapter, conn, { isPendingClient, isFileImport }) {
     return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
   }
   if (conn && conn.needsReauth) {
-    return `<button type="button" class="wearable-action-row-btn" onclick="event.stopPropagation();handleWearableConnect('${escapeHTML(adapter.id)}')" aria-label="Reconnect ${escapeHTML(adapter.displayName)}">Reconnect</button>`;
+    return `<button type="button" class="wearable-action-row-btn" ${wearableSettingsActionAttrs('connect', { adapter: adapter.id }, { stopPropagation: true })} aria-label="Reconnect ${escapeHTML(adapter.displayName)}">Reconnect</button>`;
   }
   if (isPendingClient) {
-    const docs = adapter.authDocsUrl
-      ? `<a class="wearable-row-link" href="${escapeHTML(adapter.authDocsUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">docs&nbsp;↗</a>`
-      : '';
-    return docs;
+    return `<span class="wearable-row-chevron" aria-hidden="true">▾</span>`;
   }
   if (isFileImport) {
-    return `<button type="button" class="wearable-action-row-btn" onclick="event.stopPropagation();document.getElementById('apple-health-file-input').click()">Import</button>`;
+    return `<button type="button" class="wearable-action-row-btn" ${wearableSettingsActionAttrs('pick-apple-health-file', {}, { stopPropagation: true })}>Import</button>`;
   }
   if (adapter.authType === 'oauth2') {
-    return `<button type="button" class="wearable-action-row-btn" onclick="event.stopPropagation();handleWearableConnect('${escapeHTML(adapter.id)}')" aria-label="Connect ${escapeHTML(adapter.displayName)}">Connect</button>`;
+    return `<button type="button" class="wearable-action-row-btn" ${wearableSettingsActionAttrs('connect', { adapter: adapter.id }, { stopPropagation: true })} aria-label="Connect ${escapeHTML(adapter.displayName)}">Connect</button>`;
   }
   return '';
 }
@@ -209,12 +323,12 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
     return `<div class="wearable-adapter-identity">${identity}</div>
       <div class="wearable-adapter-meta">Last sync: ${escapeHTML(when)}</div>
       <div class="wearable-adapter-actions">
-        <button class="wearable-action wearable-action-primary" title="Refetches the last 7 days — catches today's reading even if you synced earlier." onclick="handleWearableSyncNow('${escapeHTML(adapter.id)}', this)" aria-label="Sync ${escapeHTML(adapter.displayName)} now">
+        <button class="wearable-action wearable-action-primary" title="Refetches the last 7 days — catches today's reading even if you synced earlier." ${wearableSettingsActionAttrs('sync-now', { adapter: adapter.id })} aria-label="Sync ${escapeHTML(adapter.displayName)} now">
           <svg class="wearable-action-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 12 13 12"/></svg>
           <span>Sync now <span class="wearable-action-hint">(catches today)</span></span>
         </button>
-        <button class="wearable-action wearable-action-secondary" title="Refetches 90 days of history — useful after a long absence or to recover missing days. May take 30s+." onclick="handleWearableBackfill('${escapeHTML(adapter.id)}')">Backfill 90 days <span class="wearable-action-hint">(slower, fills gaps)</span></button>
-        <button class="wearable-action wearable-action-danger" onclick="handleWearableDisconnect('${escapeHTML(adapter.id)}')">Disconnect</button>
+        <button class="wearable-action wearable-action-secondary" title="Refetches 90 days of history — useful after a long absence or to recover missing days. May take 30s+." ${wearableSettingsActionAttrs('backfill', { adapter: adapter.id })}>Backfill 90 days <span class="wearable-action-hint">(slower, fills gaps)</span></button>
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Disconnect</button>
       </div>`;
   }
   // Apple Health connected — different actions
@@ -224,14 +338,14 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
     return `<div class="wearable-adapter-identity">Imported from ${fileName}</div>
       <div class="wearable-adapter-meta">Last import: ${escapeHTML(when)} · ${conn.coverageDays ?? '?'} days</div>
       <div class="wearable-adapter-actions">
-        <button class="wearable-action wearable-action-primary" onclick="document.getElementById('apple-health-file-input').click()">Re-import new export</button>
-        <button class="wearable-action wearable-action-danger" onclick="handleWearableDisconnect('${escapeHTML(adapter.id)}')">Remove data</button>
+        <button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('pick-apple-health-file')}>Re-import new export</button>
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('disconnect', { adapter: adapter.id })}>Remove data</button>
       </div>
       <div id="apple-health-progress" class="apple-health-progress" style="display:none">
         <div class="apple-health-progress-bar"><div class="apple-health-progress-fill"></div></div>
         <div class="apple-health-progress-text"></div>
       </div>
-      <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" onchange="handleAppleHealthFilePick(this)">`;
+      <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" ${wearableSettingsInputAttrs('apple-health-file')}>`;
   }
   // Apple Health disconnected — full how-to-export + dropzone
   if (isFileImport) {
@@ -247,10 +361,8 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         <p class="apple-health-privacy">Parsing runs entirely in your browser — the file never leaves this device.</p>
       </details>
       <div class="apple-health-dropzone"
-           ondragover="event.preventDefault();this.classList.add('drag-over')"
-           ondragleave="this.classList.remove('drag-over')"
-           ondrop="event.preventDefault();this.classList.remove('drag-over');handleAppleHealthDrop(event)"
-           onclick="document.getElementById('apple-health-file-input').click()">
+           data-wearable-settings-dropzone="apple-health"
+           ${wearableSettingsActionAttrs('pick-apple-health-file')}>
         <div class="apple-health-dropzone-icon">📂</div>
         <div class="apple-health-dropzone-text">Drop <code>export.zip</code> or <code>export.xml</code> here — or click to pick a file</div>
       </div>
@@ -258,11 +370,14 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         <div class="apple-health-progress-bar"><div class="apple-health-progress-fill"></div></div>
         <div class="apple-health-progress-text"></div>
       </div>
-      <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" onchange="handleAppleHealthFilePick(this)">`;
+      <input type="file" id="apple-health-file-input" accept=".zip,.xml,application/zip,application/xml" style="display:none" ${wearableSettingsInputAttrs('apple-health-file')}>`;
   }
   // Pending OAuth client — explanation
   if (isPendingClient) {
-    return `<p class="wearable-adapter-hint">${escapeHTML(adapter.displayName)} support is in progress — still waiting on partner credentials. Check back soon or watch the changelog.</p>`;
+    const docs = adapter.authDocsUrl
+      ? ` <a class="wearable-row-link" href="${escapeAttr(adapter.authDocsUrl)}" target="_blank" rel="noopener">docs&nbsp;↗</a>`
+      : '';
+    return `<p class="wearable-adapter-hint">${escapeHTML(adapter.displayName)} support is in progress — still waiting on partner credentials. Check back soon or watch the changelog.${docs}</p>`;
   }
   // Manual source — entry counts + entry points + disconnect. Unlike OAuth,
   // manual has no credential to reconnect; "disconnect" means wipe all rows.
@@ -276,8 +391,8 @@ function renderRowDetail(adapter, conn, { isPendingClient, isFileImport }) {
         weight / BP / resting HR card to open its detail view.
       </p>
       <div class="wearable-adapter-actions">
-        <button class="wearable-action wearable-action-primary" onclick="handleManualOpenDashboard()">Open dashboard</button>
-        <button class="wearable-action wearable-action-danger" onclick="handleManualDisconnect()">Delete all manual entries</button>
+        <button class="wearable-action wearable-action-primary" ${wearableSettingsActionAttrs('manual-dashboard')}>Open dashboard</button>
+        <button class="wearable-action wearable-action-danger" ${wearableSettingsActionAttrs('manual-disconnect')}>Delete all manual entries</button>
       </div>`;
   }
   // Disconnected OAuth (default) — no detail to expand. The Connect button
@@ -456,6 +571,8 @@ function refreshSettingsWearables() {
   const section = document.getElementById('wearables-section');
   if (section) section.innerHTML = renderWearablesSettingsSection();
 }
+
+installWearableSettingsDelegates();
 
 Object.assign(window, {
   setWearableStripHidden,
