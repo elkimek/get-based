@@ -31,6 +31,7 @@ const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const pdfImportReviewSrc = fs.readFileSync(path.join(root, 'js/pdf-import-review.js'), 'utf8');
+const piiSrc = fs.readFileSync(path.join(root, 'js/pii.js'), 'utf8');
 const profileShareSrc = fs.readFileSync(path.join(root, 'js/profile-share.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
@@ -307,6 +308,16 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
         !src.includes("overlay.classList.remove('show')") &&
         !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")) &&
     !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
+
+assert('PII diff and review overlays use shared overlay lifecycle helpers',
+  piiSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    piiSrc.includes('function openPIIOverlay(overlay, options = {})') &&
+    piiSrc.includes('openModalOverlay(overlay, options)') &&
+    piiSrc.includes('function closePIIOverlay(overlay)') &&
+    (piiSrc.match(/closePIIOverlay\(overlay\)/g) || []).length >= 5 &&
+    !piiSrc.includes("overlay.classList.add('show')") &&
+    !piiSrc.includes('overlay.remove()') &&
+    !piiSrc.includes("this.closest('.pii-warning-overlay').remove()"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
