@@ -3,13 +3,98 @@
 
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
-import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isVeniceE2EEActive } from './api.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
+
+const CHAT_PERSONALITY_ACTION_ATTR = 'data-chat-personality-action';
+const CHAT_PERSONALITY_INPUT_ATTR = 'data-chat-personality-input';
+const CHAT_PERSONALITY_ID_ATTR = 'data-chat-personality-id';
+const CHAT_PERSONALITY_ACTION_SELECTOR = `[${CHAT_PERSONALITY_ACTION_ATTR}]`;
+const CHAT_PERSONALITY_INPUT_SELECTOR = `[${CHAT_PERSONALITY_INPUT_ATTR}]`;
+const chatPersonalityDelegateRoots = new WeakSet();
+
+function chatPersonalityAttrName(name) {
+  return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
+}
+
+function chatPersonalityAttrs(kind, action, attrs = {}) {
+  let html = `data-chat-personality-${kind}="${escapeAttr(action)}"`;
+  for (const [name, value] of Object.entries(attrs)) {
+    if (value === undefined || value === null || value === false) continue;
+    html += ` data-chat-personality-${escapeAttr(chatPersonalityAttrName(name))}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+export function chatPersonalityActionAttrs(action, attrs = {}) {
+  return chatPersonalityAttrs('action', action, attrs);
+}
+
+export function chatPersonalityInputAttrs(action, attrs = {}) {
+  return chatPersonalityAttrs('input', action, attrs);
+}
+
+function closestChatPersonalityElement(target, selector) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function' ? target.closest(selector) : null
+  );
+}
+
+function rootContains(root, el) {
+  return !!(root && typeof root.contains === 'function' && root.contains(el));
+}
+
+function containPersonalityClick(event) {
+  event.stopPropagation();
+  if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+}
+
+function handleChatPersonalityClick(event) {
+  const actionEl = closestChatPersonalityElement(event.target, CHAT_PERSONALITY_ACTION_SELECTOR);
+  if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
+  const action = actionEl.getAttribute(CHAT_PERSONALITY_ACTION_ATTR);
+  const id = actionEl.getAttribute(CHAT_PERSONALITY_ID_ATTR) || '';
+  event.preventDefault();
+  if (action === 'edit-custom') {
+    containPersonalityClick(event);
+    if (id) editCustomPersonality(id);
+  } else if (action === 'delete-custom') {
+    containPersonalityClick(event);
+    if (id) void deleteCustomPersonality(id);
+  } else if (action === 'start-new-custom') {
+    startNewCustomPersonality();
+  } else if (action === 'generate-custom') {
+    void generateCustomPersonality();
+  } else if (action === 'save-custom') {
+    saveCustomPersonality();
+  }
+}
+
+function handleChatPersonalityInput(event) {
+  const actionEl = closestChatPersonalityElement(event.target, CHAT_PERSONALITY_INPUT_SELECTOR);
+  if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
+  const action = actionEl.getAttribute(CHAT_PERSONALITY_INPUT_ATTR);
+  if (action === 'mark-dirty') {
+    markPersonalityDirty();
+  } else if (action === 'resize-and-mark-dirty') {
+    autoResizePersonaTextarea();
+    markPersonalityDirty();
+  }
+}
+
+export function installChatPersonalityActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || chatPersonalityDelegateRoots.has(root)) return;
+  chatPersonalityDelegateRoots.add(root);
+  root.addEventListener('click', handleChatPersonalityClick);
+  root.addEventListener('input', handleChatPersonalityInput);
+}
+
+installChatPersonalityActionDelegates();
 
 /** @param {string} selector */
 function htmlBySelector(selector) {
@@ -211,7 +296,7 @@ export function updatePersonalityBar() {
   for (const cp of customs) {
     const isActive = cp.id === state.currentChatPersonality;
     html += `<div class="chat-personality-opt-wrapper">
-      <button class="chat-personality-opt${isActive ? ' active' : ''}" data-personality="${escapeHTML(cp.id)}" onclick="setChatPersonality('${escapeHTML(cp.id)}')">
+      <button class="chat-personality-opt${isActive ? ' active' : ''}" type="button" data-personality="${escapeAttr(cp.id)}" data-chat-action="set-personality">
         <span class="chat-personality-opt-icon">${cp.icon}</span>
         <div class="chat-personality-opt-info">
           <span class="chat-personality-opt-name">${escapeHTML(cp.name)}</span>
@@ -219,20 +304,20 @@ export function updatePersonalityBar() {
         </div>
         <span class="chat-personality-opt-check">&#10003;</span>
       </button>
-      <button class="chat-personality-edit" onclick="event.stopPropagation(); editCustomPersonality('${escapeHTML(cp.id)}')" title="Edit personality" aria-label="Edit personality">${CHAT_ICON_EDIT}</button>
-      <button class="chat-personality-delete" onclick="event.stopPropagation(); deleteCustomPersonality('${escapeHTML(cp.id)}')" title="Delete personality" aria-label="Delete personality">${CHAT_ICON_X}</button>
+      <button class="chat-personality-edit" type="button" ${chatPersonalityActionAttrs('edit-custom', { id: cp.id })} title="Edit personality" aria-label="Edit personality">${CHAT_ICON_EDIT}</button>
+      <button class="chat-personality-delete" type="button" ${chatPersonalityActionAttrs('delete-custom', { id: cp.id })} title="Delete personality" aria-label="Delete personality">${CHAT_ICON_X}</button>
     </div>`;
   }
-  html += '<button class="chat-personality-add-btn" onclick="startNewCustomPersonality()">+ New Personality</button>';
+  html += `<button class="chat-personality-add-btn" type="button" ${chatPersonalityActionAttrs('start-new-custom')}>+ New Personality</button>`;
   html += `<div class="chat-personality-custom-area" style="display:${showEditor ? 'block' : 'none'}">
     <div class="chat-personality-custom-header">
-      <input type="text" id="chat-personality-custom-name" class="chat-personality-custom-name-input" placeholder="e.g. A longevity researcher" maxlength="60" oninput="markPersonalityDirty()">
-      <button id="chat-personality-generate-btn" class="chat-personality-generate-btn" onclick="generateCustomPersonality()">Generate</button>
+      <input type="text" id="chat-personality-custom-name" class="chat-personality-custom-name-input" placeholder="e.g. A longevity researcher" maxlength="60" ${chatPersonalityInputAttrs('mark-dirty')}>
+      <button id="chat-personality-generate-btn" class="chat-personality-generate-btn" type="button" ${chatPersonalityActionAttrs('generate-custom')}>Generate</button>
     </div>
-    <textarea class="chat-personality-custom-textarea" placeholder="Describe how you want the AI to communicate, or type a name above and click Generate..." oninput="autoResizePersonaTextarea(); markPersonalityDirty()"></textarea>
+    <textarea class="chat-personality-custom-textarea" placeholder="Describe how you want the AI to communicate, or type a name above and click Generate..." ${chatPersonalityInputAttrs('resize-and-mark-dirty')}></textarea>
     <div class="chat-personality-custom-footer">
       <span class="chat-personality-disclaimer">Custom personas are for personal use. Don't impersonate real individuals without their consent.</span>
-      <button class="chat-personality-custom-save" onclick="saveCustomPersonality()" disabled>Save</button>
+      <button class="chat-personality-custom-save" type="button" ${chatPersonalityActionAttrs('save-custom')} disabled>Save</button>
     </div>
   </div>`;
   section.innerHTML = html;
