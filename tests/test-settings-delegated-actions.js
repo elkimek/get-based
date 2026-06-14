@@ -35,6 +35,7 @@ const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\
 const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderThemeButton[\s\S]*?\n}\n\nfunction getAccentOverride/);
 
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
+const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*window\.matchMedia\?\.\(['"]\(max-width: 768px\)['"]\)\.matches === true[\s\S]*\}\s*\)/;
 
 assert('settings.js has no inline event attributes',
   !inlineHandlerRe.test(src));
@@ -53,6 +54,12 @@ assert('Tweaks panel installs delegated click listener',
   /overlay\.addEventListener\('click', handleTweaksClick\)/.test(src));
 assert('Tweaks panel installs delegated change listener',
   /overlay\.addEventListener\('change', handleTweaksChange\)/.test(src));
+assert('Tweaks panel uses shared overlay lifecycle helpers',
+  src.includes("from './modal-lifecycle.js'") &&
+    tweaksBlock &&
+    tweaksLifecycleOpenRe.test(tweaksBlock) &&
+    /removeModalOverlay\(overlay\)/.test(src) &&
+    !tweaksBlock.includes('document.body.style.overflow'));
 
 [
   'switch-unit',
