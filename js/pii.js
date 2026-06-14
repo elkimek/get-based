@@ -4,7 +4,7 @@
 import { showNotification, escapeHTML } from './utils.js';
 import { getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
-import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
 
 // ═══════════════════════════════════════════════
@@ -525,12 +525,14 @@ export function buildPIIDiffHTML(originalText, obfuscatedText) {
 
 function openPIIOverlay(overlay, options = {}) {
   document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-  openModalOverlay(overlay, options);
+  requestAnimationFrame(() => {
+    if (!overlay.isConnected) return;
+    openModalOverlay(overlay, options);
+    try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
+  });
 }
 
 function closePIIOverlay(overlay) {
-  document.body.style.overflow = '';
   removeModalOverlay(overlay);
 }
 

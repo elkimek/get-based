@@ -230,6 +230,8 @@ assert('light environment assessment uses shared overlay lifecycle before remova
 assert('light tool modals use shared overlay lifecycle helpers',
   modalLifecycleSrc.includes('export function openAppendedModalOverlay') &&
     modalLifecycleSrc.includes('export function removeModalOverlay') &&
+    modalLifecycleSrc.includes('const closeOnEscape = options.closeOnEscape !== false;') &&
+    modalLifecycleSrc.includes("if (closeOnEscape && e.key === 'Escape'") &&
     lightToolCameraModalsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
     (lightToolCameraModalsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 6 &&
     (lightToolCameraModalsSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 6 &&
@@ -310,11 +312,16 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
     !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 
 assert('PII diff and review overlays use shared overlay lifecycle helpers',
-  piiSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+  piiSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
     piiSrc.includes('function openPIIOverlay(overlay, options = {})') &&
+    piiSrc.includes('requestAnimationFrame(() => {') &&
+    piiSrc.includes('if (!overlay.isConnected) return;') &&
     piiSrc.includes('openModalOverlay(overlay, options)') &&
+    piiSrc.includes('trapModalFocus(overlay, { closeOnEscape: false })') &&
     piiSrc.includes('function closePIIOverlay(overlay)') &&
     (piiSrc.match(/closePIIOverlay\(overlay\)/g) || []).length >= 5 &&
+    !piiSrc.includes("document.body.style.overflow = 'hidden'") &&
+    !piiSrc.includes("document.body.style.overflow = ''") &&
     !piiSrc.includes("overlay.classList.add('show')") &&
     !piiSrc.includes('overlay.remove()') &&
     !piiSrc.includes("this.closest('.pii-warning-overlay').remove()"));
