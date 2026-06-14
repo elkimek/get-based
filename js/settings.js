@@ -13,7 +13,7 @@ import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } f
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
-import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
@@ -677,14 +677,9 @@ export function updateTweaksUI() {
   });
 }
 
-let _tweaksPriorBodyOverflow = null;
-
 export function closeTweaksPanel() {
-  document.getElementById('tweaks-panel-overlay')?.remove();
-  if (_tweaksPriorBodyOverflow !== null) {
-    document.body.style.overflow = _tweaksPriorBodyOverflow;
-    _tweaksPriorBodyOverflow = null;
-  }
+  const overlay = document.getElementById('tweaks-panel-overlay');
+  if (overlay) removeModalOverlay(overlay);
 }
 
 export function openTweaksPanel() {
@@ -703,7 +698,7 @@ export function openTweaksPanel() {
     </button>`;
   }).join('');
   document.body.insertAdjacentHTML('beforeend', `
-    <div class="tweaks-overlay show" id="tweaks-panel-overlay">
+    <div class="tweaks-overlay" id="tweaks-panel-overlay">
       <aside class="tweaks-panel" id="tweaks-panel" role="dialog" aria-modal="true" aria-label="Tweaks">
         <div class="tweaks-head">
           <div>
@@ -757,13 +752,16 @@ export function openTweaksPanel() {
       </aside>
     </div>
   `);
-  if (window.matchMedia?.('(max-width: 768px)').matches) {
-    _tweaksPriorBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-  }
-  installTweaksDelegates(document.getElementById('tweaks-panel-overlay'));
+  const overlay = document.getElementById('tweaks-panel-overlay');
+  installTweaksDelegates(overlay);
   updateTweaksUI();
-  /** @type {HTMLButtonElement | null} */ (document.querySelector('#tweaks-panel button'))?.focus();
+  if (overlay) {
+    openModalOverlay(overlay, {
+      initialFocus: '#tweaks-panel button',
+      focusDelay: 0,
+      scrollLock: window.matchMedia?.('(max-width: 768px)').matches === true,
+    });
+  }
 }
 
 applyAccentOverride();

@@ -143,6 +143,13 @@ assert('settings modal opens and closes through shared overlay lifecycle helpers
     !settingsSrc.includes("overlay.classList.add('show')") &&
     !settingsSrc.includes("document.getElementById('settings-modal-overlay').classList.remove('show')"));
 
+assert('settings tweaks panel uses shared overlay lifecycle helpers',
+  settingsSrc.includes("from './modal-lifecycle.js'") &&
+    settingsSrc.includes('removeModalOverlay(overlay)') &&
+    /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*window\.matchMedia\?\.\(['"]\(max-width: 768px\)['"]\)\.matches === true[\s\S]*\}\s*\)/.test(settingsSrc) &&
+    !settingsSrc.includes('_tweaksPriorBodyOverflow') &&
+    !settingsSrc.includes("document.body.style.overflow = 'hidden'"));
+
 assert('sync setup and restore dialogs use shared lifecycle helpers',
   settingsSyncPanelSrc.includes("from './modal-lifecycle.js'") &&
     settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action=\"setup-new\"]', focusDelay: 50 })") &&

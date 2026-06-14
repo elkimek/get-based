@@ -121,3 +121,22 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
   });
   await expect(crtInput).not.toBeChecked();
 });
+
+test('Tweaks panel uses lifecycle scroll lock on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await preparePage(page);
+
+  await page.evaluate(() => {
+    if (typeof window.openTweaksPanel !== 'function') throw new Error('window.openTweaksPanel unavailable');
+    document.body.style.overflow = 'auto';
+    window.openTweaksPanel();
+  });
+
+  const tweaksOverlay = page.locator('#tweaks-panel-overlay');
+  await expect(tweaksOverlay).toHaveClass(SHOW_CLASS_TOKEN);
+  await expect.poll(async () => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+
+  await page.evaluate(() => window.closeTweaksPanel?.());
+  await expect(tweaksOverlay).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => document.body.style.overflow)).toBe('auto');
+});
