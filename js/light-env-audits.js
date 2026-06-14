@@ -10,6 +10,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
+import { lightEnvActionAttrs } from './light-env-actions.js';
 
 // Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
 // immutable snapshot of the rooms + screens + recent measurements at
@@ -184,7 +185,7 @@ function renderLightAuditCard(a, expanded) {
   const measCount = (a.measurements || []).length;
   const cardAriaLabel = `${fmtAuditDate(a.date)}${a.label ? ' — ' + a.label : ''} — ${roomsCount} room${roomsCount === 1 ? '' : 's'}, ${measCount} measurement${measCount === 1 ? '' : 's'}, ${sev.label}${expanded ? ', expanded' : ', collapsed'}`;
   let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}" data-id="${escapeAttr(a.id)}">
-    <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" onclick="window.toggleLightAudit('${escapeAttr(a.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleLightAudit('${escapeAttr(a.id)}')}">
+    <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" ${lightEnvActionAttrs('toggle-audit', { id: a.id })}>
       <div class="light-audit-info">
         <div class="light-audit-info-top">
           ${typeof window !== 'undefined' && window.renderAuditAIDot ? window.renderAuditAIDot(a) : ''}
@@ -221,16 +222,15 @@ function _auditRoomChannels(audit, room) {
 }
 
 function renderLightAuditDetail(a) {
-  const auditIdAttr = escapeAttr(a.id);
   let html = `<div class="light-audit-detail">
     <div class="light-audit-meta-row">
       <label class="light-audit-meta-field light-audit-meta-field--date">
         <span class="light-audit-meta-field-text">Date</span>
-        <input type="date" class="ctx-input" value="${escapeAttr(a.date)}" aria-label="Audit date" onchange="window.updateLightAuditField('${auditIdAttr}','date',this.value)">
+        <input type="date" class="ctx-input" value="${escapeAttr(a.date)}" aria-label="Audit date" ${lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'date' })}>
       </label>
       <label class="light-audit-meta-field light-audit-meta-field--label">
         <span class="light-audit-meta-field-text">Label</span>
-        <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" onchange="window.updateLightAuditField('${auditIdAttr}','label',this.value)">
+        <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" ${lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'label' })}>
       </label>
     </div>
     ${typeof window !== 'undefined' && window.renderAuditAIBlock ? window.renderAuditAIBlock(a) : ''}`;
@@ -267,7 +267,7 @@ function renderLightAuditDetail(a) {
   }
 
   html += `<div class="light-audit-footer">
-      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="window.deleteLightAuditConfirm('${escapeAttr(a.id)}')">Delete audit</button>
+      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${lightEnvActionAttrs('delete-audit-confirm', { id: a.id })}>Delete audit</button>
     </div>
   </div>`;
   return html;
@@ -376,7 +376,7 @@ function renderLightAuditCompare(audits) {
     <span class="light-audit-compare-label">Before: ${escapeHTML(fmtAuditDate(a1.date))}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
     <span class="light-audit-compare-arrow">→</span>
     <span class="light-audit-compare-label">After: ${escapeHTML(fmtAuditDate(a2.date))}${a2.label ? ' — ' + escapeHTML(a2.label) : ''}</span>
-    ${hasAI ? `<button class="import-btn import-btn-secondary light-audit-interpret-btn" onclick="window.interpretLightAuditCompare('${escapeAttr(a1.id)}','${escapeAttr(a2.id)}')" title="Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.">✨ Interpret changes</button>` : ''}
+    ${hasAI ? `<button class="import-btn import-btn-secondary light-audit-interpret-btn" ${lightEnvActionAttrs('interpret-audit-compare', { oldId: a1.id, newId: a2.id })} title="Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.">✨ Interpret changes</button>` : ''}
   </div>`;
 
   if (sorted.length > 2) {
@@ -490,15 +490,15 @@ export function renderLightAuditsBlock() {
   // Bumped to import-btn-primary so it is visually weighted ahead of
   // "Save audit".
   const compareBtn = audits.length >= 2
-    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditCompare()">${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
+    ? `<button class="import-btn ${_auditCompareMode ? 'import-btn-secondary' : 'import-btn-primary'}" ${lightEnvActionAttrs('toggle-audit-compare')}>${_auditCompareMode ? 'Exit compare' : '⇄ Compare'}</button>`
     : '';
   const openAttr = (_auditsBlockOpen || _auditCompareMode || _expandedAuditId) ? ' open' : '';
-  let html = `<details class="light-env-block light-audits-block"${openAttr} ontoggle="window.setLightAuditsBlockOpen(this.open)">
+  let html = `<details class="light-env-block light-audits-block"${openAttr} ${lightEnvActionAttrs('set-audits-block-open')}>
     <summary class="light-env-block-head light-audits-summary">
       <strong>Light audits</strong>
       <div class="light-audit-actions">
         ${compareBtn}
-        <button class="import-btn import-btn-secondary" onclick="event.preventDefault();event.stopPropagation();window.saveLightAuditFromUI()" title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
+        <button class="import-btn import-btn-secondary" ${lightEnvActionAttrs('save-audit')} title="Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.">+ Save audit</button>
       </div>
     </summary>`;
 
@@ -519,11 +519,11 @@ export function renderLightAuditsBlock() {
       html += renderLightAuditCard(a, _expandedAuditId === a.id);
     }
     if (hiddenCount > 0) {
-      html += `<button class="light-audit-show-more" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditHistory()">
+      html += `<button class="light-audit-show-more" ${lightEnvActionAttrs('toggle-audit-history')}>
         Show ${hiddenCount} older audit${hiddenCount === 1 ? '' : 's'}
       </button>`;
     } else if (_showAllAudits && sorted.length > AUDITS_DEFAULT_CAP) {
-      html += `<button class="light-audit-show-more" onclick="event.preventDefault();event.stopPropagation();window.toggleLightAuditHistory()">
+      html += `<button class="light-audit-show-more" ${lightEnvActionAttrs('toggle-audit-history')}>
         Show only latest ${AUDITS_DEFAULT_CAP} audits
       </button>`;
     }

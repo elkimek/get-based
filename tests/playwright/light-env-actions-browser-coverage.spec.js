@@ -46,6 +46,11 @@ test('light environment action delegates route DOM events and attrs in browser',
       if (checked !== undefined) el.checked = checked;
       el.dispatchEvent(new Event('change', { bubbles: true }));
     };
+    const toggle = (id, open) => {
+      const el = byId(id);
+      el.open = open;
+      el.dispatchEvent(new Event('toggle', { bubbles: false }));
+    };
     const called = (name, predicate = () => true) => calls.some(call => call[0] === name && predicate(call));
     const callCount = name => calls.filter(call => call[0] === name).length;
 
@@ -80,6 +85,13 @@ test('light environment action delegates route DOM events and attrs in browser',
       <button id="open-save-audit" ${actionsModule.lightEnvActionAttrs('open-assessment-save-audit')}>Open and save</button>
       <button id="close-assessment" ${actionsModule.lightEnvActionAttrs('close-assessment')}>Close</button>
       <button id="open-tool" ${actionsModule.lightEnvActionAttrs('open-tool', { id: 'room-1', tool: 'flicker' })}>Tool</button>
+      <div id="audit-toggle" role="button" tabindex="0" ${actionsModule.lightEnvActionAttrs('toggle-audit', { id: 'audit-1' })}>Audit</div>
+      <button id="audit-delete" ${actionsModule.lightEnvActionAttrs('delete-audit-confirm', { id: 'audit-1' })}>Delete audit</button>
+      <button id="audit-interpret" ${actionsModule.lightEnvActionAttrs('interpret-audit-compare', { oldId: 'audit-1', newId: 'audit-2' })}>Interpret audit</button>
+      <button id="audit-compare" ${actionsModule.lightEnvActionAttrs('toggle-audit-compare')}>Compare</button>
+      <button id="audit-save" ${actionsModule.lightEnvActionAttrs('save-audit')}>Save audit</button>
+      <button id="audit-history" ${actionsModule.lightEnvActionAttrs('toggle-audit-history')}>History</button>
+      <details id="audit-details" ${actionsModule.lightEnvActionAttrs('set-audits-block-open')}><summary id="audit-summary">Audits</summary></details>
       <select id="room-source" ${actionsModule.lightEnvActionAttrs('update-room-primary-source', { id: 'room-1' })}>
         <option value="unknown">Unknown</option>
         <option value="led-warm">Warm LED</option>
@@ -95,6 +107,7 @@ test('light environment action delegates route DOM events and attrs in browser',
         <option value="laptop">Laptop</option>
       </select>
       <input id="blue-blocker" type="checkbox" ${actionsModule.lightEnvActionAttrs('update-screen-blue-blocker', { id: 'screen-1' })} />
+      <input id="audit-label" ${actionsModule.lightEnvActionAttrs('update-audit-field', { id: 'audit-1', field: 'label' })} />
       <input id="ignored-click-input" ${actionsModule.lightEnvActionAttrs('add-room')} />
     `;
 
@@ -124,6 +137,13 @@ test('light environment action delegates route DOM events and attrs in browser',
       deleteLightEnvRoomConfirm: id => push('deleteLightEnvRoomConfirm', id),
       openLightEnvTool: (tool, id) => push('openLightEnvTool', tool, id),
       addLightEnvRoom: () => push('addLightEnvRoom'),
+      toggleLightAudit: id => push('toggleLightAudit', id),
+      updateLightAuditField: (id, field, value) => push('updateLightAuditField', id, field, value),
+      deleteLightAuditConfirm: id => push('deleteLightAuditConfirm', id),
+      interpretLightAuditCompare: (oldId, newId) => push('interpretLightAuditCompare', oldId, newId),
+      toggleLightAuditCompare: () => push('toggleLightAuditCompare'),
+      toggleLightAuditHistory: () => push('toggleLightAuditHistory'),
+      setLightAuditsBlockOpen: open => push('setLightAuditsBlockOpen', open),
     };
 
     actionsModule.installLightEnvActionDelegates(actions, root);
@@ -164,6 +184,9 @@ test('light environment action delegates route DOM events and attrs in browser',
     await new Promise(resolve => setTimeout(resolve, 0));
     click('close-assessment');
     click('open-tool');
+    click('audit-toggle');
+    click('audit-delete');
+    click('audit-interpret');
     outcomes.clickRoutesRemainingButtonActions =
       called('setLightEnvRoomHoursBucket', call => call[1] === 'room-1' && call[2] === 'workday')
       && called('setLightEnvRoomEveningBucket', call => call[1] === 'room-1' && call[2] === 'gt3')
@@ -177,7 +200,24 @@ test('light environment action delegates route DOM events and attrs in browser',
       && callCount('openLightEnvironmentAssessment') === 2
       && called('saveLightAuditFromUI')
       && called('closeLightEnvironmentAssessment')
-      && called('openLightEnvTool', call => call[1] === 'flicker' && call[2] === 'room-1');
+      && called('openLightEnvTool', call => call[1] === 'flicker' && call[2] === 'room-1')
+      && called('toggleLightAudit', call => call[1] === 'audit-1')
+      && called('deleteLightAuditConfirm', call => call[1] === 'audit-1')
+      && called('interpretLightAuditCompare', call => call[1] === 'audit-1' && call[2] === 'audit-2');
+
+    const docClicksBeforeAuditStop = callCount('document-click');
+    const saveCallsBeforeAuditStop = callCount('saveLightAuditFromUI');
+    const compareDefaultAllowed = click('audit-compare');
+    const saveDefaultAllowed = click('audit-save');
+    const historyDefaultAllowed = click('audit-history');
+    outcomes.captureStoppingAuditActionsPreventDefaultAndStopDocumentBubble =
+      compareDefaultAllowed === false
+      && saveDefaultAllowed === false
+      && historyDefaultAllowed === false
+      && called('toggleLightAuditCompare')
+      && callCount('saveLightAuditFromUI') === saveCallsBeforeAuditStop + 1
+      && called('toggleLightAuditHistory')
+      && callCount('document-click') === docClicksBeforeAuditStop;
 
     const ignoredBefore = callCount('addLightEnvRoom');
     click('ignored-click-input');
@@ -189,13 +229,21 @@ test('light environment action delegates route DOM events and attrs in browser',
     change('screen-room', '');
     change('screen-device', 'laptop');
     change('blue-blocker', undefined, true);
+    change('audit-label', 'After blackout curtains');
+    const docClicksBeforeSummary = callCount('document-click');
+    const summaryDefaultAllowed = click('audit-summary');
+    toggle('audit-details', true);
     outcomes.inputAndChangeRouteFormActions =
       called('updateLightEnvRoomAndRender', call => call[1] === 'room-1' && call[2].primarySource === 'led-warm')
       && called('updateLightEnvRoom', call => call[1] === 'room-1' && call[2].hoursOccupiedPerDay === 7.5)
       && called('updateLightEnvRoom', call => call[1] === 'room-1' && call[2].name === 'Office')
       && called('updateLightEnvScreenAndRender', call => call[1] === 'screen-1' && call[2].roomId === null)
       && called('updateLightEnvScreenAndRender', call => call[1] === 'screen-1' && call[2].device === 'laptop')
-      && called('updateLightEnvScreenAndRender', call => call[1] === 'screen-1' && call[2].blueBlockerEnabled === true);
+      && called('updateLightEnvScreenAndRender', call => call[1] === 'screen-1' && call[2].blueBlockerEnabled === true)
+      && called('updateLightAuditField', call => call[1] === 'audit-1' && call[2] === 'label' && call[3] === 'After blackout curtains')
+      && summaryDefaultAllowed === true
+      && callCount('document-click') === docClicksBeforeSummary + 1
+      && called('setLightAuditsBlockOpen', call => call[1] === true);
 
     const docKeysBeforeStop = callCount('document-keydown');
     const screenSpaceAllowed = keydown('screen-toggle', ' ');
