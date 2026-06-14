@@ -178,8 +178,8 @@ function goToStep(index) {
 
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-  // Position after scroll settles
-  requestAnimationFrame(() => {
+  const positionTargetStep = () => {
+    if (!activeTour || activeTour.steps[activeTour.currentStep] !== step) return;
     const rect = el.getBoundingClientRect();
     const pad = 8;
 
@@ -193,7 +193,10 @@ function goToStep(index) {
     // Position tooltip
     tooltip.style.transform = 'none';
     positionTooltip(rect, step.position);
-  });
+  };
+
+  positionTargetStep();
+  requestAnimationFrame(positionTargetStep);
 }
 
 function positionTooltip(rect, position) {
