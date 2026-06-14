@@ -122,11 +122,12 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       cycle.openMenstrualCycleEditor();
       const statusSelect = document.getElementById('mc-cycle-status');
       statusSelect.value = 'postmenopause';
-      window._toggleCycleEditorFields();
-      outcomes.statusToggleHidesActiveFields = document.getElementById('mc-active-fields')?.hidden === true
+      statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      outcomes.statusToggleHidesActiveFields = statusSelect.getAttribute('data-cycle-action') === 'toggle-fields'
+        && document.getElementById('mc-active-fields')?.hidden === true
         && document.getElementById('mc-period-log-section')?.hidden === true;
       statusSelect.value = 'regular';
-      window._toggleCycleEditorFields();
+      statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
 
       const startInput = document.getElementById('mc-period-start');
       const endInput = document.getElementById('mc-period-end');
@@ -155,7 +156,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       const symptomButtons = Array.from(document.querySelectorAll('#mc-period-symptoms .ctx-tag'));
       symptomButtons[0]?.click();
       symptomButtons[1]?.click();
-      cycle.addPeriodEntry();
+      document.querySelector('.cycle-add-btn')?.click();
       const added = state.importedData.menstrualCycle.periods.find(p => p.startDate === '2026-06-20');
       outcomes.addPeriodCollectsSymptomsAndReopensEditor = added?.flow === 'light'
         && added.symptoms.length === 2
@@ -163,7 +164,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         && overlay()?.classList.contains('show')
         && modal()?.textContent.includes('Jun 20, 2026');
 
-      cycle.deletePeriodEntry('2026-06-20');
+      document.querySelector('[data-cycle-action="delete-period"][data-cycle-start-date="2026-06-20"]')?.click();
       outcomes.deletePeriodRemovesEntryAndReopensEditor = !state.importedData.menstrualCycle.periods.some(p => p.startDate === '2026-06-20')
         && overlay()?.classList.contains('show');
 
