@@ -230,8 +230,8 @@ const {
     inlineGreen.includes('sun-session-ai-dot-green'));
   assert('inline emits the tip text',
     inlineGreen.includes('On-protocol UVB hit'));
-  assert('inline includes refresh button',
-    inlineGreen.includes('refreshDeviceSessionAIAnalysis'));
+  assert('inline includes delegated refresh action',
+    inlineGreen.includes('data-ai-action="refresh-device-session"'));
 
   // Yellow + red
   const inlineYellow = renderDeviceSessionAIInline(makeSess({

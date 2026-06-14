@@ -19,6 +19,7 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getAudits() {
   if (!state.importedData) return [];
@@ -245,7 +246,7 @@ export function renderAuditAIBlock(a) {
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
           <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(verdict.tip || '')}</span>
-          <button class="sun-session-ai-refresh" onclick="window.refreshAuditAIAnalysis('${escapeAttr(a.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
+          <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
         </div>
         ${verdict.detail ? `<div class="sun-detail-ai-body">${escapeHTML(verdict.detail)}</div>` : ''}
       </div>
@@ -258,7 +259,7 @@ export function renderAuditAIBlock(a) {
       <div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" onclick="window.refreshAuditAIAnalysis('${escapeAttr(a.id)}')">Try again</button>
+        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)}>Try again</button>
       </div>
     </div>`;
   }
@@ -267,7 +268,7 @@ export function renderAuditAIBlock(a) {
     <div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get a circadian-friendliness verdict for this entire snapshot.</span>
-      <button class="sun-session-ai-refresh" onclick="window.refreshAuditAIAnalysis('${escapeAttr(a.id)}')">Analyze audit</button>
+      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)}>Analyze audit</button>
     </div>
   </div>`;
 }

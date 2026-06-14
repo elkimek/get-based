@@ -13,6 +13,7 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
 function _getMeasurementsForRoom(roomId) {
@@ -236,7 +237,7 @@ export function renderRoomAIBlock(r) {
       <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
       <span class="light-env-room-ai-label">AI read</span>
       <span class="light-env-room-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-      <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`);
+      <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`);
   }
   if (status === 'error') {
     const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
@@ -244,13 +245,13 @@ export function renderRoomAIBlock(r) {
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span class="light-env-room-ai-label">AI read</span>
       <span class="light-env-room-ai-tip">${escapeHTML(msg)}</span>
-      <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Try again</button>`);
+      <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)}>Try again</button>`);
   }
   return renderInline('idle', `
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
     <span class="light-env-room-ai-label">AI read</span>
     <span class="light-env-room-ai-tip">Circadian-friendliness check for this room.</span>
-    <button class="sun-session-ai-refresh light-env-room-ai-refresh" onclick="window.refreshRoomAIAnalysis('${escapeAttr(r.id)}')">Analyze</button>`);
+    <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)}>Analyze</button>`);
 }
 
 Object.assign(window, {

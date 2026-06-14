@@ -13,6 +13,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
+import { aiActionAttrs } from './ai-action-delegates.js';
 
 function _formatNumber(n, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -221,7 +222,7 @@ export function renderMeasurementAIInline(m) {
   if (!hasAIProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(m);
   const a = m.aiAnalysis;
-  const refreshBtn = `<button class="sun-session-ai-refresh" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
+  const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
   if (status === 'analyzing') {
     return `<div class="light-env-reading-ai">
       <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
@@ -245,7 +246,7 @@ export function renderMeasurementAIInline(m) {
   }
   return `<div class="light-env-reading-ai sun-session-ai-idle">
     <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" onclick="event.stopPropagation();window.refreshMeasurementAIAnalysis('${escapeAttr(m.id)}')" title="Run an AI verdict on this measurement — flags significant issues and suggests fixes">Get AI verdict</button>
+    <button class="sun-session-ai-cta" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Run an AI verdict on this measurement — flags significant issues and suggests fixes">Get AI verdict</button>
   </div>`;
 }
 
