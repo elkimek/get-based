@@ -52,6 +52,10 @@ assert('sun-session-actions keyboard delegate supports role-button rows and igno
 assert('sun-session-actions expands chips via the owning chips container',
   actionSrc.includes("actionEl.closest('.sun-channel-chips')?.classList.toggle('sun-chips-expanded')") &&
     !actionSrc.includes("actionEl.parentElement?.classList.toggle('sun-chips-expanded')"));
+assert('sun-session-actions closes overlays through the shared lifecycle removal helper',
+  actionSrc.includes("import { removeModalOverlay } from './modal-lifecycle.js';") &&
+    actionSrc.includes('removeModalOverlay(overlay)') &&
+    !actionSrc.includes("closest('.modal-overlay')?.remove()"));
 assert('sun-session-ui direct module actions no longer route through window globals',
   !uiSrc.includes('window.openSunSessionDetail') &&
     !uiSrc.includes('window.deleteSunSession') &&

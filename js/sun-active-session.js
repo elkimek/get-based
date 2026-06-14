@@ -6,7 +6,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
@@ -139,11 +139,11 @@ export async function openStartSunSessionDialog() {
   let latestPreflightUvi = null;
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Start sun session">
     <div class="modal-header">
       <h3>Start a sun session</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button type="button" class="modal-close" data-sun-start-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
@@ -200,14 +200,16 @@ export async function openStartSunSessionDialog() {
       </details>
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button type="button" class="import-btn import-btn-secondary" data-sun-start-close>Cancel</button>
         <button class="import-btn import-btn-primary" id="start-confirm">☀ Start session</button>
       </div>
     </div>
   </div>`;
-  wireBackdropClose(overlay);
-  document.body.appendChild(overlay);
-  trapModalFocus(overlay);
+  const closeDialog = () => removeModalOverlay(overlay);
+  overlay.querySelectorAll('[data-sun-start-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
+  openAppendedModalOverlay(overlay, closeDialog);
 
   const selected = new Set(lastRegions);
   const slot = overlay.querySelector('#sun-start-silhouette-slot');
@@ -261,7 +263,7 @@ export async function openStartSunSessionDialog() {
     }
     const coords = activeDeps.getSunCoords();
     const id = await activeDeps.startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides, location: coords });
-    overlay.remove();
+    closeDialog();
     showNotification(_buildStartSessionToast({
       regionCount: regions.length,
       uvi: latestPreflightUvi,

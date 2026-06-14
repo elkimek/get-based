@@ -6,6 +6,7 @@
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
 
@@ -18,8 +19,6 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
  * @property {() => any} getSunCoords
  * @property {() => void} refreshSurfaces
- * @property {(overlay: HTMLElement) => void} wireBackdropClose
- * @property {(overlay: HTMLElement) => void} trapModalFocus
  * @property {(sess: any) => string} summarizeBodyExposure
  * @property {(ms: number) => string} formatElapsed
  * @property {Array<{ key: string, label: string }>} exposurePresets
@@ -43,8 +42,6 @@ const uiDeps = {
   hydrateSession: async () => null,
   getSunCoords: () => null,
   refreshSurfaces: () => {},
-  wireBackdropClose: () => {},
-  trapModalFocus: () => {},
   summarizeBodyExposure: () => 'Body unset',
   formatElapsed: () => '0:00',
   exposurePresets: [],
@@ -324,7 +321,7 @@ export function openSunSessionDetail(id) {
     : 'Location not recorded';
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   // Body summary — combine fraction + regions onto one line so the section
   // doesn't flag the percent as a label decoration. Also consolidate Eyes
   // + Modifiers into the same section when both fit cleanly.
@@ -411,9 +408,8 @@ export function openSunSessionDetail(id) {
       </div>
     </div>
   </div>`;
-  uiDeps.wireBackdropClose(overlay);
-  document.body.appendChild(overlay);
-  uiDeps.trapModalFocus(overlay);
+  const closeDialog = () => removeModalOverlay(overlay);
+  openAppendedModalOverlay(overlay, closeDialog);
   bindDetachedModalSyncRefresh({
     overlay,
     id,
@@ -519,7 +515,7 @@ export function renderChannelChips(doses, sess = null) {
 
 export function openDetailedSessionDialog() {
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
   const lastUsed = uiDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
   const eyeMode = lastUsed?.eyeExposure?.mode || 'direct';
   const lensTint = lastUsed?.eyeExposure?.lensTint || 'clear';
@@ -613,9 +609,8 @@ export function openDetailedSessionDialog() {
       </div>
     </div>
   </div>`;
-  uiDeps.wireBackdropClose(overlay);
-  document.body.appendChild(overlay);
-  uiDeps.trapModalFocus(overlay);
+  const closeDialog = () => removeModalOverlay(overlay);
+  openAppendedModalOverlay(overlay, closeDialog);
 
   const selected = new Set(lastRegions);
   const slot = overlay.querySelector('#sun-silhouette-slot');
@@ -713,7 +708,7 @@ export function openDetailedSessionDialog() {
       notes,
     });
     if (sessId) await uiDeps.hydrateSession(sessId);
-    overlay.remove();
+    closeDialog();
     showNotification(`Detailed session saved: ${durationMin} min, ${regions.length} regions.`);
     if (window.navigate && state.currentView === 'light') window.navigate('light');
   });
