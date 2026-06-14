@@ -41,6 +41,8 @@ function _handleAIActionClick(event) {
   const action = actionEl.dataset.aiAction || '';
   if (!action) return;
   if (action === 'stop-propagation' || actionEl.dataset.aiStopPropagation === 'true') {
+    // This document-level capture listener intentionally stops downstream
+    // capture/target handlers as well as row-level bubble delegates.
     event.stopPropagation();
   }
   if (action === 'stop-propagation') return;
@@ -54,8 +56,6 @@ function _handleAIActionClick(event) {
 export function installAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {
   if (!root || aiActionDelegatesInstalled) return;
   aiActionDelegatesInstalled = true;
-  // Capture is intentional for data-ai-stop-propagation controls nested in
-  // clickable rows: it blocks row-level bubble delegates before they open.
   root.addEventListener('click', _handleAIActionClick, true);
 }
 
