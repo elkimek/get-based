@@ -314,21 +314,27 @@ console.log('=== Phase 3 A11y Tests ===\n');
     lightDevSetupSrc.includes('if (!res.ok) throw new Error(`Proxy error ${res.status}`);'));
   assert('custom-device async extraction suppresses stale detached-overlay notifications',
     (lightDevSetupSrc.match(/if \(!overlay\.isConnected\) return;/g) || []).length >= 3);
-  // Browse modals get backdrop-close listeners guarded by `e.target === overlay`
-  // so child clicks don't bubble out. Add-device lives in the setup module;
-  // the quick-log device picker remains in light-devices.js.
-  const setupBackdropMatches = lightDevSetupSrc.match(/overlay\.addEventListener\('click', \(e\) => \{\s*if \(e\.target === overlay\) overlay\.remove\(\);/g) || [];
-  const deviceBackdropMatches = lightDevSrc.match(/overlay\.addEventListener\('click', \(e\) => \{\s*if \(e\.target === overlay\) overlay\.remove\(\);/g) || [];
-  assert('Add-device + device-picker modals each have backdrop-click close',
-    setupBackdropMatches.length >= 1 && deviceBackdropMatches.length >= 1,
-    `setup=${setupBackdropMatches.length}, device=${deviceBackdropMatches.length}`);
-  // openDeviceSessionDialog is a form modal — must NOT have backdrop-close
-  // (would lose typed duration/distance/notes on stray click).
+  // Browse modals delegate backdrop close through the shared modal
+  // lifecycle helper, so child clicks stay guarded by wireBackdropClose
+  // while close buttons and save paths share the same close handler.
+  const setupLifecycleMatches = (lightDevSetupSrc.match(/setupDeps\.wireModal\(overlay, closeDialog\)/g) || []).length;
+  const devicePickerStart = lightDevSrc.indexOf('function _openDevicePicker');
+  const devicePickerBody = lightDevSrc.slice(devicePickerStart);
+  assert('Add-device + device-picker modals route close through shared lifecycle',
+    setupLifecycleMatches >= 2 &&
+      lightDevSetupSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+      devicePickerBody.includes('const closeDialog = () => removeModalOverlay(overlay);') &&
+      devicePickerBody.includes('_wireModal(overlay, closeDialog)'),
+    `setup=${setupLifecycleMatches}`);
+  // openDeviceSessionDialog is a form modal; it should not hand-roll an
+  // overlay click listener, and should route closure through the same
+  // lifecycle close handler as the explicit controls.
   const sessionDialogStart = lightDevSessionSrc.indexOf('export async function openDeviceSessionDialog');
   const sessionDialogEnd = lightDevSessionSrc.indexOf('export', sessionDialogStart + 1);
   const sessionDialogBody = lightDevSessionSrc.slice(sessionDialogStart, sessionDialogEnd > 0 ? sessionDialogEnd : undefined);
-  assert('openDeviceSessionDialog (form modal) has NO backdrop-close listener',
-    !/overlay\.addEventListener\('click'/.test(sessionDialogBody));
+  assert('openDeviceSessionDialog routes closure through shared lifecycle handler',
+    sessionDialogBody.includes('_wireDeviceSessionModal(overlay, closeDialog)') &&
+      !/overlay\.addEventListener\('click'/.test(sessionDialogBody));
 
   // ─── 13. Light-page channel pill drill-down a11y ───
   // Pills are <button>s (native focusable + Enter/Space) with aria-expanded

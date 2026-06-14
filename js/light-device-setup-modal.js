@@ -9,6 +9,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 /**
  * @param {ParentNode} root
@@ -42,7 +43,7 @@ const setupDeps = {
   loadPresets: async () => ({ presets: [], types: {} }),
   addDeviceFromPreset: async () => null,
   addCustomDevice: async () => null,
-  wireModal: (overlay) => document.body.appendChild(overlay),
+  wireModal: (overlay, closeFn) => openAppendedModalOverlay(overlay, closeFn),
   refreshLightView: () => {},
 };
 
@@ -90,11 +91,12 @@ export async function openAddDeviceDialog() {
     : 'Don\'t see your device? Set up an AI provider in Settings to auto-extract specs from a URL or photo, or click below to enter manually.';
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal light-device-add-modal" role="dialog" aria-label="Add light device">
     <div class="modal-header">
       <h3>Add a light device</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-light-device-setup-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>
@@ -102,7 +104,7 @@ export async function openAddDeviceDialog() {
         ${presetSections}
       </div>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" data-light-device-setup-close>Cancel</button>
         <button class="import-btn import-btn-primary" id="add-device-confirm" disabled>Add device</button>
       </div>
 
@@ -112,20 +114,16 @@ export async function openAddDeviceDialog() {
       <button type="button" class="import-btn import-btn-secondary" id="add-device-custom" style="width:100%;margin-top:8px">+ Custom device (paste link or scan photo)</button>
     </div>
   </div>`;
-  setupDeps.wireModal(overlay);
+  setupDeps.wireModal(overlay, closeDialog);
+  overlay.querySelectorAll('[data-light-device-setup-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
 
   overlay.querySelector('#add-device-custom').addEventListener('click', () => {
-    overlay.remove();
+    closeDialog();
     openCustomDeviceDialog();
   });
 
-  // Backdrop-click closes — this is a browse/pick modal (single select, no
-  // typed input), so accidental dismissal doesn't lose any data the user
-  // hasn't already chosen via dropdown. Escape is handled globally in
-  // main.js's anonymous-overlay fallback.
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
   overlay.addEventListener('wheel', (event) => {
     const modal = overlay.querySelector('.light-device-add-modal');
     if (!modal) return;
@@ -155,7 +153,7 @@ export async function openAddDeviceDialog() {
     const presetId = selectedPresetId;
     if (!presetId) return;
     await setupDeps.addDeviceFromPreset(presetId);
-    overlay.remove();
+    closeDialog();
     showNotification('Device added.');
     setupDeps.refreshLightView();
   });
@@ -184,11 +182,12 @@ export async function openCustomDeviceDialog() {
   const hasAI = hasAIProvider();
   const hasVision = hasAI && supportsVision();
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Add custom light device">
     <div class="modal-header">
       <h3>Add a custom device</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-light-device-custom-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${hasAI ? `
@@ -246,12 +245,15 @@ export async function openCustomDeviceDialog() {
         </label>
       </div>
       <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button type="button" class="import-btn import-btn-secondary" data-light-device-custom-close>Cancel</button>
         <button type="button" class="import-btn import-btn-primary" id="custom-dev-save">Add device</button>
       </div>
     </div>
   </div>`;
-  setupDeps.wireModal(overlay);
+  setupDeps.wireModal(overlay, closeDialog);
+  overlay.querySelectorAll('[data-light-device-custom-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
 
   // Per-field unit toggle on the Vendor reference distance input — same
   // in-place conversion as the session dialog.
@@ -292,7 +294,7 @@ export async function openCustomDeviceDialog() {
       return;
     }
     await setupDeps.addCustomDevice(spec);
-    overlay.remove();
+    closeDialog();
     showNotification('Device added.');
     setupDeps.refreshLightView();
   });

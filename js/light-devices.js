@@ -20,7 +20,7 @@
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
@@ -66,11 +66,9 @@ let _PRESET_TYPES = null;
 
 // Standard modal-mount pattern shared by every modal opener in this file:
 // wire backdrop-click close, append, then trap focus.
-function _wireModal(overlay) {
+function _wireModal(overlay, closeFn) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
-  try { wireBackdropClose(overlay); } catch (_) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (_) {}
+  openAppendedModalOverlay(overlay, closeFn);
 }
 
 async function loadPresets() {
@@ -138,11 +136,12 @@ export async function editDeviceSessionMode(id) {
   }
   const currentMode = sess.mode || (device.modes.find(m => m.default) || device.modes[0])?.id;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Edit session mode">
     <div class="modal-header">
       <h3>Edit mode — ${escapeHTML(device.brand)} ${escapeHTML(device.model)}</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-device-mode-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Pick the LED-group mode that actually fired during this session. Doses will be recomputed on save.</p>
@@ -152,15 +151,18 @@ export async function editDeviceSessionMode(id) {
         </select>
       </label>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" data-device-mode-close>Cancel</button>
         <button class="import-btn import-btn-primary" id="dev-edit-mode-save">Save</button>
       </div>
     </div>
   </div>`;
-  _wireModal(overlay);
+  _wireModal(overlay, closeDialog);
+  overlay.querySelectorAll('[data-device-mode-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
   overlay.querySelector('#dev-edit-mode-save').addEventListener('click', async () => {
     const next = _select(overlay, '#dev-edit-mode')?.value || '';
-    overlay.remove();
+    closeDialog();
     if (next === sess.mode) return;
     await updateDeviceSession(id, { mode: next });
     showNotification('Mode updated. Doses recomputed.', 'success');
@@ -224,6 +226,7 @@ export function openDeviceSessionDetail(id) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return;
+  const appWindow = /** @type {any} */ (window);
   const device = getDevices().find(d => d.id === sess.deviceId) || null;
   /** @type {(value: any, channelKey?: string) => number} */
   const channelTier = window.channelTier || (() => 0);
@@ -289,7 +292,7 @@ export function openDeviceSessionDetail(id) {
       const tlabel = tierLabel(t);
       const unitText = formatChannelUnit(k, v, sess.durationMin || 0, 'III', null, null, false, _sessBodyFrac);
       const ariaLabel = `${meta.label || k} — ${tlabel}${unitText ? ', ' + unitText : ''}. Open channel details.`;
-      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}" onclick="this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.closest('.modal-overlay')?.remove();window._openChannelOnLightPage && window._openChannelOnLightPage('${escapeAttr(k)}')}">
+      return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
         <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
         <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
         <span class="sun-detail-channel-value">${escapeHTML(unitText || '')}</span>
@@ -299,11 +302,12 @@ export function openDeviceSessionDetail(id) {
     }).join('') : '';
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal sun-detail-modal" data-session-kind="device" role="dialog" aria-label="Device session details">
     <div class="modal-header">
       <h3>Device session — ${escapeHTML(start)}</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-device-session-detail-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${window.renderDeviceSessionAIDetail ? window.renderDeviceSessionAIDetail(sess) : ''}
@@ -355,13 +359,52 @@ export function openDeviceSessionDetail(id) {
       ` : ''}
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionDuration('${escapeAttr(sess.id)}')" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
-        ${canEditMode ? `<button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove();window.editDeviceSessionMode && window.editDeviceSessionMode('${escapeAttr(sess.id)}')" title="Change which LED-group mode the session ran in. Doses recompute on save.">Edit mode</button>` : ''}
-        <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="this.closest('.modal-overlay').remove();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')">Delete session</button>
+        <button class="import-btn import-btn-secondary" id="device-detail-edit-duration" title="Override the session duration. Use when you forgot to stop the timer or stopped late.">Edit duration</button>
+        ${canEditMode ? `<button class="import-btn import-btn-secondary" id="device-detail-edit-mode" title="Change which LED-group mode the session ran in. Doses recompute on save.">Edit mode</button>` : ''}
+        <button class="import-btn import-btn-secondary" id="device-detail-delete" style="color:var(--red);border-color:var(--red)">Delete session</button>
       </div>
     </div>
   </div>`;
-  _wireModal(overlay);
+  _wireModal(overlay, closeDialog);
+  overlay.addEventListener('click', (event) => {
+    const target = /** @type {Element|null} */ (event.target instanceof Element ? event.target : null);
+    if (!target) return;
+    if (target.closest('[data-device-session-detail-close]')) {
+      closeDialog();
+      return;
+    }
+    const channelRow = target.closest('.sun-detail-channel-row-clickable[data-channel]');
+    if (channelRow && overlay.contains(channelRow)) {
+      const channel = channelRow.getAttribute('data-channel') || '';
+      closeDialog();
+      appWindow._openChannelOnLightPage?.(channel);
+      return;
+    }
+    if (target.closest('#device-detail-edit-duration')) {
+      closeDialog();
+      appWindow.editDeviceSessionDuration?.(sess.id);
+      return;
+    }
+    if (target.closest('#device-detail-edit-mode')) {
+      closeDialog();
+      appWindow.editDeviceSessionMode?.(sess.id);
+      return;
+    }
+    if (target.closest('#device-detail-delete')) {
+      closeDialog();
+      appWindow.deleteDeviceSession?.(sess.id);
+    }
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = /** @type {Element|null} */ (event.target instanceof Element ? event.target : null);
+    const channelRow = target?.closest?.('.sun-detail-channel-row-clickable[data-channel]');
+    if (!channelRow || !overlay.contains(channelRow)) return;
+    event.preventDefault();
+    const channel = channelRow.getAttribute('data-channel') || '';
+    closeDialog();
+    appWindow._openChannelOnLightPage?.(channel);
+  });
   bindDetachedModalSyncRefresh({
     overlay,
     id,
@@ -629,7 +672,8 @@ function _openDevicePicker(devices) {
   // embeds Date.now() base36, monotonically increasing.)
   const ordered = devices.slice().sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   let rows = '';
   for (const dev of ordered) {
     const meta = `${escapeHTML(dev.type || '')}${dev.peakWavelengths?.length ? ' · ' + dev.peakWavelengths.join('/') + 'nm' : ''}${dev.mwPerCm2At15cm ? ' · ' + dev.mwPerCm2At15cm + ' mW/cm²' : ''}`;
@@ -641,24 +685,23 @@ function _openDevicePicker(devices) {
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Pick a device to log a session">
     <div class="modal-header">
       <h3>Which device?</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-device-picker-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       <div class="light-device-picker-list">${rows}</div>
       <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" data-device-picker-close>Cancel</button>
       </div>
     </div>
   </div>`;
-  _wireModal(overlay);
-  // Backdrop-click closes — browse-style modal, no user-entered data.
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
+  _wireModal(overlay, closeDialog);
+  overlay.querySelectorAll('[data-device-picker-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
   });
   for (const btn of overlay.querySelectorAll('.light-device-picker-row')) {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-device-id');
-      overlay.remove();
+      closeDialog();
       openDeviceSessionDialog(id);
     });
   }
