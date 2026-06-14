@@ -13,7 +13,9 @@ const contextCardsSrc = fs.readFileSync(path.join(root, 'js/context-cards.js'), 
 const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
 const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medical-history-editor.js'), 'utf8');
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
+const dashboardWidgetControlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
+const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report-builder.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
 const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-device-session-modal.js'), 'utf8');
@@ -26,6 +28,7 @@ const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
 const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
+const profileShareSrc = fs.readFileSync(path.join(root, 'js/profile-share.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
 const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendation-actions.js'), 'utf8');
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
@@ -266,6 +269,20 @@ assert('sun session and setup modals use shared overlay lifecycle helpers',
     [sunActiveSessionSrc, sunDefaultsSrc, sunSessionUiSrc].every(src =>
       !src.includes('wireBackdropClose') &&
         !src.includes('trapModalFocus')));
+
+assert('report builder, profile share, and dashboard widget picker use shared overlay lifecycle helpers',
+  exportReportBuilderSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    profileShareSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    dashboardWidgetControlsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    exportReportBuilderSrc.includes("openAppendedModalOverlay(overlay, closeReportBuilder, { initialFocus: '.report-preset-btn.active', focusDelay: 50 })") &&
+    profileShareSrc.includes('openAppendedModalOverlay(overlay, closeProfileShareModal)') &&
+    dashboardWidgetControlsSrc.includes('openAppendedModalOverlay(overlay, closeDashboardWidgetPicker, options)') &&
+    dashboardWidgetControlsSrc.includes("initialFocus: '#dashboard-biometric-widget-search', focusDelay: 50") &&
+    [exportReportBuilderSrc, profileShareSrc, dashboardWidgetControlsSrc].every(src =>
+      !src.includes('modal-overlay show') &&
+        !src.includes('modal show') &&
+        !src.includes('insertAdjacentHTML') &&
+        !src.includes('?.remove()')));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
