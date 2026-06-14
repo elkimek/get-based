@@ -299,8 +299,9 @@ test('correlations browser contract filters markers toggles chips and builds cha
       search.value = '';
       search.dispatchEvent(new Event('input', { bubbles: true }));
 
-      document.querySelector('[data-compare-key="lipids.ldl"]')?.click();
-      outcomes.singleMarkerRendersChipWithoutChart =
+      const ldlOption = document.querySelector('[data-compare-key="lipids.ldl"]');
+      ldlOption?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      outcomes.delegatedKeyboardOptionRendersChipWithoutChart =
         state.selectedCorrelationMarkers.join(',') === 'lipids.ldl'
         && document.querySelectorAll('.corr-chip').length === 1
         && document.getElementById('corr-chart-container')?.style.display === 'none'
@@ -384,7 +385,7 @@ test('correlations browser contract filters markers toggles chips and builds cha
     'correlationControlsEmitDelegatedAttributesOnly',
     'showCorrelationDropdownOpensOptions',
     'searchDropdownFiltersByMarkerOrCategory',
-    'singleMarkerRendersChipWithoutChart',
+    'delegatedKeyboardOptionRendersChipWithoutChart',
     'secondMarkerBuildsNormalizedChart',
     'presetRendersFourChipsAndRefreshesChart',
     'removingBelowTwoHidesChartAndDestroysInstance',

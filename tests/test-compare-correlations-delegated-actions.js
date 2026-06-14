@@ -37,8 +37,9 @@ assert('compare action attribute helper is exported',
   /export function compareActionAttrs\(action, attrs = \{\}\)/.test(compareSrc)
   && compareSrc.includes('data-compare-action'));
 
-assert('compare delegates install click change input and focusin listeners',
+assert('compare delegates install click keydown change input and focusin listeners',
   compareSrc.includes("root.addEventListener('click', handleCompareClick)")
+  && compareSrc.includes("root.addEventListener('keydown', handleCompareKeydown)")
   && compareSrc.includes("root.addEventListener('change', handleCompareChange)")
   && compareSrc.includes("root.addEventListener('input', handleCompareInput)")
   && compareSrc.includes("root.addEventListener('focusin', handleCompareFocus)")
@@ -64,6 +65,10 @@ assert('compare click delegate routes all rendered actions',
   && compareSrc.includes("action === 'apply-preset'")
   && compareSrc.includes("action === 'toggle-marker'")
   && compareSrc.includes("action === 'ask-ai-correlations'"));
+
+assert('compare keydown delegate activates non-native action elements',
+  /function handleCompareKeydown\(event\)[\s\S]{0,400}event\.preventDefault\(\);[\s\S]{0,80}actionEl\.click\(\);/.test(compareSrc)
+  && compareSrc.includes("['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(actionEl.tagName)"));
 
 console.log(`\nCompare correlations delegated actions tests: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

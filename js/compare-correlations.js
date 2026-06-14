@@ -91,6 +91,15 @@ function handleCompareClick(event) {
   }
 }
 
+function handleCompareKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestCompareTarget(event, '[data-compare-action]');
+  if (!actionEl) return;
+  if (['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(actionEl.tagName)) return;
+  event.preventDefault();
+  actionEl.click();
+}
+
 function handleCompareChange(event) {
   const actionEl = closestCompareTarget(event, '[data-compare-change-action]');
   if (!actionEl || actionEl.dataset.compareChangeAction !== 'set-date') return;
@@ -117,6 +126,7 @@ export function installCompareCorrelationDelegates(root = (typeof document !== '
   if (!root || typeof root.addEventListener !== 'function' || compareDelegateRoots.has(root)) return;
   compareDelegateRoots.add(root);
   root.addEventListener('click', handleCompareClick);
+  root.addEventListener('keydown', handleCompareKeydown);
   root.addEventListener('change', handleCompareChange);
   root.addEventListener('input', handleCompareInput);
   root.addEventListener('focusin', handleCompareFocus);
