@@ -21,7 +21,7 @@ import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-li
 
 /**
  * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
- * @typedef {HTMLElement & { _interpretText?: string, _onSave?: ((interp: EMFInterpretation) => void) | null }} EMFInterpretationOverlay
+ * @typedef {HTMLElement & { _interpretText?: string, _onGenerate?: ((onSave: (((interp: EMFInterpretation) => void) | null)) => void), _onSave?: ((interp: EMFInterpretation) => void) | null, _mouseDownInside?: boolean, _delegatesInstalled?: boolean }} EMFInterpretationOverlay
  */
 
 // ═══════════════════════════════════════════════
@@ -136,6 +136,10 @@ function emfActionAttrs(action, attrs = {}) {
 
 function emfChangeAttrs(action, attrs = {}) {
   return emfAttrString({ 'data-emf-change-action': action, ...attrs });
+}
+
+function emfInterpActionAttrs(action, attrs = {}) {
+  return emfAttrString({ 'data-emf-interp-action': action, ...attrs });
 }
 
 function isEMFEditorTarget(el) {
@@ -1018,6 +1022,62 @@ function stripThinking(text) {
 
 const EMF_SYSTEM = `You are a Baubiologie (Building Biology) consultant interpreting EMF assessment data rated against SBM-2015 standards. Be specific about health implications, prioritize concerns by severity (sleeping areas are most critical), and suggest actionable mitigations in priority order. Keep the response concise and practical. Use markdown formatting with headers and bullet points.`;
 
+function _handleEMFInterpretationMouseDown(event) {
+  const overlay = /** @type {EMFInterpretationOverlay | null} */ (event.currentTarget instanceof HTMLElement ? event.currentTarget : null);
+  if (!overlay) return;
+  overlay._mouseDownInside = event.target !== overlay;
+}
+
+function _handleEMFInterpretationClick(event) {
+  const overlay = /** @type {EMFInterpretationOverlay | null} */ (event.currentTarget instanceof HTMLElement ? event.currentTarget : null);
+  if (!overlay) return;
+
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    overlay._mouseDownInside = false;
+    return;
+  }
+
+  const actionEl = target.closest('[data-emf-interp-action]');
+  if (actionEl instanceof HTMLElement && overlay.contains(actionEl)) {
+    const action = actionEl.dataset.emfInterpAction || '';
+    if (action === 'close') {
+      event.preventDefault();
+      overlay._mouseDownInside = false;
+      closeEMFInterpretation();
+      return;
+    }
+    if (action === 'discuss') {
+      event.preventDefault();
+      overlay._mouseDownInside = false;
+      discussEMFInterpretation();
+      return;
+    }
+    if (action === 'generate') {
+      event.preventDefault();
+      overlay._mouseDownInside = false;
+      if (!overlay._onGenerate) return;
+      const btn = actionEl instanceof HTMLButtonElement ? actionEl : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Interpreting…';
+      }
+      overlay._onGenerate(overlay._onSave || null);
+      return;
+    }
+  }
+
+  if (target === overlay && !overlay._mouseDownInside) closeEMFInterpretation();
+  overlay._mouseDownInside = false;
+}
+
+function installEMFInterpretationDelegates(overlay) {
+  if (overlay._delegatesInstalled) return;
+  overlay._delegatesInstalled = true;
+  overlay.addEventListener('mousedown', _handleEMFInterpretationMouseDown);
+  overlay.addEventListener('click', _handleEMFInterpretationClick);
+}
+
 function openInterpretationModal(title, existingInterp, onGenerate, onSave, mitigationTags = []) {
   // Create overlay that sits on top of the EMF editor (z-index above modal-overlay)
   let overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
@@ -1032,7 +1092,7 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   let html = `<div class="emf-interp-modal">
     <div class="emf-interp-header">
       <h3>${escapeHTML(title)}</h3>
-      <button class="modal-close" aria-label="Close" onclick="closeEMFInterpretation()">&times;</button>
+      <button class="modal-close" aria-label="Close" ${emfInterpActionAttrs('close')}>&times;</button>
     </div>
     <div class="emf-interp-body" id="emf-interp-body">
       ${hasExisting ? renderMarkdown(existingInterp.text) : '<div class="emf-interp-placeholder">Click Interpret to get an AI interpretation of this assessment.</div>'}
@@ -1043,9 +1103,9 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
         ${hasExisting ? buildMetaLine(existingInterp) : ''}
       </div>
       <div class="emf-interp-actions">
-        <button class="import-btn import-btn-primary" id="emf-interp-generate">${hasExisting ? 'Re-interpret' : 'Interpret'}</button>
-        ${hasExisting ? `<button class="import-btn import-btn-secondary" onclick="discussEMFInterpretation()">Discuss in Chat</button>` : ''}
-        <button class="import-btn import-btn-secondary" onclick="closeEMFInterpretation()">Close</button>
+        <button class="import-btn import-btn-primary" id="emf-interp-generate" ${emfInterpActionAttrs('generate')}>${hasExisting ? 'Re-interpret' : 'Interpret'}</button>
+        ${hasExisting ? `<button class="import-btn import-btn-secondary" ${emfInterpActionAttrs('discuss')}>Discuss in Chat</button>` : ''}
+        <button class="import-btn import-btn-secondary" ${emfInterpActionAttrs('close')}>Close</button>
       </div>
     </div>
   </div>`;
@@ -1056,26 +1116,12 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   openModalOverlay(overlay);
   if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
 
-  // Close on backdrop click (but not drag-from-inside, #87)
-  let mdInside = false;
-  overlay.onmousedown = (e) => { mdInside = e.target !== overlay; };
-  overlay.onclick = (e) => {
-    if (e.target === overlay && !mdInside) closeEMFInterpretation();
-    mdInside = false;
-  };
-
   // Store context for discuss button
   overlay._interpretText = hasExisting ? existingInterp.text : '';
+  overlay._onGenerate = onGenerate;
   overlay._onSave = onSave;
-
-  const generateBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
-  generateBtn?.addEventListener('click', () => {
-    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('emf-interp-generate'));
-    if (!btn) return;
-    btn.disabled = true;
-    btn.textContent = 'Interpreting…';
-    onGenerate(onSave);
-  });
+  overlay._mouseDownInside = false;
+  installEMFInterpretationDelegates(overlay);
 
   // Populate mitigation product recs alongside the AI interpretation
   if (mitigationTags && mitigationTags.length && isProductRecsEnabled()) {
@@ -1158,17 +1204,18 @@ function streamInterpretation(prompt, onComplete) {
     if (btn) { btn.disabled = false; btn.textContent = 'Re-interpret'; }
 
     // Add discuss button if not present
-    const actions = document.querySelector('.emf-interp-actions');
-    if (actions && !actions.querySelector('[onclick*="discussEMF"]')) {
+    const overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
+    const actions = overlay?.querySelector('.emf-interp-actions');
+    if (actions && !actions.querySelector('[data-emf-interp-action="discuss"]')) {
       const discussBtn = document.createElement('button');
+      discussBtn.type = 'button';
       discussBtn.className = 'import-btn import-btn-secondary';
+      discussBtn.dataset.emfInterpAction = 'discuss';
       discussBtn.textContent = 'Discuss in Chat';
-      discussBtn.onclick = () => discussEMFInterpretation();
       actions.appendChild(discussBtn);
     }
 
     // Store for discuss
-    const overlay = /** @type {EMFInterpretationOverlay | null} */ (document.getElementById('emf-interp-overlay'));
     if (overlay) overlay._interpretText = finalText;
 
     if (onComplete) onComplete(interp);
