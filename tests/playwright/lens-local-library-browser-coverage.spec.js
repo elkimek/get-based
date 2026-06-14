@@ -311,12 +311,15 @@ test('knowledge base modal covers local document ingest and library controls', a
       const libraryOptions = [...document.querySelectorAll('#lens-library-select option')].map(option => option.textContent);
       outcomes.modalHydratesLocalStatsDocsAndLibraries = initialRendered
         && libraryOptions.includes('Alpha Papers')
-        && document.querySelector('.kb-doc-delete')?.getAttribute('aria-label') === 'Delete alpha "quote".md';
+        && document.querySelector('.kb-doc-delete')?.getAttribute('aria-label') === 'Delete alpha "quote".md'
+        && !document.querySelector('#kb-modal [onclick], #kb-modal [onchange], #kb-modal [oninput]')
+        && document.querySelector('.kb-doc-delete')?.dataset.lensSource === 'alpha "quote".md';
 
       const drop = document.getElementById('lens-local-drop');
       const picker = document.getElementById('lens-local-filepick');
       let pickerClicked = false;
       picker.click = () => { pickerClicked = true; };
+      drop.click();
       drop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       drop.dispatchEvent(new Event('dragenter', { bubbles: true, cancelable: true }));
       drop.dispatchEvent(new Event('dragleave', { bubbles: true, cancelable: true }));
@@ -332,22 +335,19 @@ test('knowledge base modal covers local document ingest and library controls', a
         && progressHidden
         && calls.some(call => call.type === 'ingest' && call.files?.[0]?.name === 'berberine.md');
 
-      await lens.handleLocalLensDeleteDoc('');
-      const deletePromise = lens.handleLocalLensDeleteDoc('alpha "quote".md');
+      document.querySelector('.kb-doc-delete')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       const deletePrompt = document.getElementById('confirm-dialog-overlay')?.textContent || '';
       document.getElementById('confirm-ok')?.click();
-      await deletePromise;
       const deletedRendered = await waitFor(() => !document.getElementById('lens-local-doc-list')?.textContent.includes('alpha "quote".md'));
 
-      const clearCancelPromise = lens.handleLocalLensClear();
+      document.querySelector('[data-lens-action="clear-local"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-cancel')?.click();
-      await clearCancelPromise;
-      const clearPromise = lens.handleLocalLensClear();
+      await waitFor(() => !document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
+      document.querySelector('[data-lens-action="clear-local"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
-      await clearPromise;
       const clearedRendered = await waitFor(() => document.getElementById('lens-local-stats')?.textContent.includes('No documents indexed yet'));
       outcomes.deleteAndClearConfirmFlows = deletePrompt.includes('alpha "quote".md')
         && deletedRendered
@@ -355,26 +355,26 @@ test('knowledge base modal covers local document ingest and library controls', a
         && calls.some(call => call.type === 'delete' && call.source === 'alpha "quote".md')
         && calls.filter(call => call.type === 'clear').length === 1;
 
-      const createPromise = lens.handleLibraryNew();
+      document.querySelector('[data-lens-action="new-library"]')?.click();
       await waitFor(() => document.getElementById('lens-library-create-overlay')?.classList.contains('show'));
       const recommended = document.querySelector('input[name="lens-create-model"]:checked')?.value;
       document.getElementById('lens-create-name').value = 'Protocols';
       document.getElementById('lens-create-ok')?.click();
-      await createPromise;
       const createdRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent.includes('Protocols'));
 
-      await lens.handleLibraryActivate('lib-beta');
-      const renamePromise = lens.handleLibraryRename();
+      const librarySelect = document.getElementById('lens-library-select');
+      librarySelect.value = 'lib-beta';
+      librarySelect.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitFor(() => calls.some(call => call.type === 'activate_library' && call.libraryId === 'lib-beta'));
+      document.querySelector('[data-lens-action="rename-library"]')?.click();
       await waitFor(() => document.getElementById('prompt-dialog-overlay')?.classList.contains('show'));
       document.getElementById('prompt-dialog-input').value = 'Renamed Beta';
       document.getElementById('prompt-ok')?.click();
-      await renamePromise;
       const renamedRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
 
-      const deleteLibraryPromise = lens.handleLibraryDelete();
+      document.querySelector('[data-lens-action="delete-library"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
-      await deleteLibraryPromise;
       const deletedLibraryRendered = await waitFor(() => !document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
       outcomes.libraryCreateActivateRenameDeleteFlows = recommended === 'bge-en'
         && createdRendered

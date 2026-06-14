@@ -417,12 +417,23 @@ test('in-browser lens render covers local panel status and backend switching wit
         && summary.displayName === 'Local Papers'
         && summary.aiAvailable === false
         && summary.multiQueryOn === false;
+      outcomes.customLensSettingsUseDelegatedActions = !section.querySelector('[onclick], [onchange], [oninput]')
+        && !!section.querySelector('[data-lens-action="set-backend"][data-lens-backend="external-server"]')
+        && !!section.querySelector('#lens-enabled-toggle[data-lens-action="toggle-enabled"]')
+        && !!section.querySelector('[data-lens-action="save-config"]');
 
-      lens.handleToggleLens(false);
+      const enabledToggle = /** @type {HTMLInputElement | null} */ (section.querySelector('#lens-enabled-toggle'));
+      if (enabledToggle) {
+        enabledToggle.checked = false;
+        enabledToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       outcomes.toggleUpdatesConfigAndStatusChipWithoutRerender = lens.getLensConfig().enabled === false
         && document.getElementById('lens-status-chip')?.textContent.includes('Configured (disabled)');
 
-      lens.handleLensBackendChange('external-server');
+      section.querySelector('[data-lens-action="clear-cache"]')?.click();
+      outcomes.clearCacheKeepsStatusCallable = typeof lens.getLensStatus().state === 'string';
+
+      section.querySelector('[data-lens-action="set-backend"][data-lens-backend="external-server"]')?.click();
       const remoteFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-remote-fields'));
       const localFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-local-fields'));
       outcomes.backendSwitchRerendersRemoteFieldsAndIndicator = lens.getLensConfig().backend === 'external-server'
@@ -434,9 +445,6 @@ test('in-browser lens render covers local panel status and backend switching wit
         && localFieldsAfterSwitch
         && getComputedStyle(localFieldsAfterSwitch).display === 'none'
         && document.getElementById('chat-lens-indicator')?.style.display === 'none';
-
-      lens.handleClearLensCache();
-      outcomes.clearCacheKeepsStatusCallable = typeof lens.getLensStatus().state === 'string';
     } finally {
       window.requestAnimationFrame = originalRAF;
       section.remove();

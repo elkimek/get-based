@@ -73,6 +73,7 @@ assert('SW APP_SHELL includes PDF import support modules',
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
+assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
@@ -193,6 +194,9 @@ console.log('3. XSS Prevention');
 const viewsSrc = read('js/views.js');
 const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 const lensPageShellSrc = read('js/lens-page-shell.js');
+const lensSrc = read('js/lens.js');
+const lensActionsSrc = read('js/lens-actions.js');
+const lensPagesSrc = read('js/lens-pages.js');
 const categoryPageViewSrc = read('js/category-page-view.js');
 const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const categoryCustomizationSrc = read('js/category-customization.js');
@@ -299,6 +303,17 @@ assert('Lifestyle context actions use delegated handlers',
   contextCardLifestyleSrc.includes('initLifestyleContextDelegates')
     && contextCardLifestyleSrc.includes('lifestyleActionAttrs')
     && !/\son(?:click|keydown)\s*=/.test(contextCardLifestyleSrc));
+assert('Lens settings controls use delegated handlers',
+  lensSrc.includes("from './lens-actions.js'")
+    && lensActionsSrc.includes('function handleLensActionClick')
+    && lensActionsSrc.includes('function handleLensActionChange')
+    && lensActionsSrc.includes('export function lensActionAttrs')
+    && !/\son(?:click|change|input)\s*=/.test(lensSrc));
+assert('Lens page controls use delegated shell actions',
+  lensPagesSrc.includes('lensPageActionAttrs')
+    && lensPageShellSrc.includes('open-wearables-settings')
+    && lensPageShellSrc.includes('open-privacy-settings')
+    && !/\son(?:click|change|input)\s*=/.test(lensPagesSrc));
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([

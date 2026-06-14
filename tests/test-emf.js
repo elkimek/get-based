@@ -165,7 +165,7 @@ assert('45j. EMF launcher has dedicated context CSS',
   contextProfileCss.includes('.ctx-emf-launcher-action') &&
   contextProfileCss.includes('.ctx-emf-launcher.has-data'));
 assert('45k. Insight lens exposes EMF assessment action',
-  lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes('window.openEMFAssessmentEditor'));
+  lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes("lensPageActionAttrs('open-emf-assessment')"));
 assert('45l. EMF PII review streams current PDF text',
   emfSrc.includes('streamFn: (onChunk, signal, onThinking) => sanitizeWithOllamaStreaming(pdfText, onChunk, signal, onThinking)'));
 assert('45m. EMF PII review provides regex fallback text',
