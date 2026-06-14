@@ -19,10 +19,10 @@ const AI_ACTIONS = {
   'refresh-audit': (targetId) => callWindowAction('refreshAuditAIAnalysis', targetId),
   'refresh-room': (targetId) => callWindowAction('refreshRoomAIAnalysis', targetId),
   'refresh-screen': (targetId) => callWindowAction('refreshScreenAIAnalysis', targetId),
-  'refresh-day': (targetId) => callWindowAction('refreshDayAIAnalysis', targetId || undefined),
-  'refresh-channel-mix': () => callWindowAction('refreshChannelMixAI'),
-  'refresh-burden': () => callWindowAction('refreshBurdenAIAnalysis'),
-  'refresh-onboarding': () => callWindowAction('refreshOnboardingAIAnalysis'),
+  'refresh-day': (targetId) => callWindowAction('refreshDayAIAnalysis', targetId),
+  'refresh-channel-mix': () => callWindowAction('refreshChannelMixAI', undefined),
+  'refresh-burden': () => callWindowAction('refreshBurdenAIAnalysis', undefined),
+  'refresh-onboarding': () => callWindowAction('refreshOnboardingAIAnalysis', undefined),
 };
 
 export function aiActionAttrs(action, targetId = '', opts = {}) {
@@ -48,7 +48,7 @@ function _handleAIActionClick(event) {
   const handler = AI_ACTIONS[action];
   if (!handler) return;
   event.preventDefault();
-  handler(actionEl.dataset.aiTarget || '');
+  handler(actionEl.dataset.aiTarget);
 }
 
 export function installAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {
