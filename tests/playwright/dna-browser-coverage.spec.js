@@ -170,6 +170,13 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     };
     const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
     const wait = () => new Promise(resolve => setTimeout(resolve, 0));
+    const waitFor = async (predicate) => {
+      for (let i = 0; i < 30; i++) {
+        if (predicate()) return true;
+        await wait();
+      }
+      return false;
+    };
 
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
@@ -212,17 +219,20 @@ rs999999\t1\t100\tAG
     let overlay = document.getElementById('dna-modal-overlay');
     check('valid file opens DNA preview', overlay?.classList.contains('show') === true);
     check('preview stores pending import', window._pendingDNAImport?.coverage?.found > 0);
+    check('DNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
     overlay?.querySelector('.dna-preview-collapsible')?.click();
     check('collapsible preview group toggles', overlay?.querySelector('.dna-preview-group.expanded') != null);
-    window.closeDNAImportPreview();
+    overlay?.querySelector('[data-dna-action="close-preview"]')?.click();
+    await wait();
     check('close preview clears pending import', window._pendingDNAImport == null && !overlay?.classList.contains('show'));
 
     await window.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
     await wait();
-    await window.confirmDNAImport();
     overlay = document.getElementById('dna-modal-overlay');
+    overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
+    const importFinished = await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
     check('confirmDNAImport stores genetics', state.importedData.genetics?.snps?.rs1801133?.genotype === 'GA');
-    check('confirmDNAImport closes preview and refreshes', !overlay?.classList.contains('show') && calls.includes('sidebar') && calls.includes('navigate:dashboard'));
+    check('confirmDNAImport closes preview and refreshes', importFinished && calls.includes('sidebar'));
     check('chat onboarding confirmation updated', document.querySelector('.chat-onboard-dna')?.textContent.includes('SNPs imported'));
 
     const html = dna.renderGeneticsSection();
@@ -230,13 +240,14 @@ rs999999\t1\t100\tAG
     check('renderGeneticsSection returns populated genetics UI',
       document.querySelector('.genetics-section') != null &&
       document.querySelector('.genetics-overview-card')?.textContent.includes('Imported SNPs'));
-    window.toggleGeneticsCollapse();
+    check('renderGeneticsSection uses delegated actions', !document.querySelector('.genetics-section')?.querySelector('[onclick], [onkeydown]'));
+    document.querySelector('.section-header')?.click();
     check('toggleGeneticsCollapse hides body', document.querySelector('.genetics-body')?.classList.contains('hidden'));
-    window.toggleGeneticsCollapse();
+    document.querySelector('.section-header')?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     check('toggleGeneticsCollapse shows body', !document.querySelector('.genetics-body')?.classList.contains('hidden'));
 
-    document.body.insertAdjacentHTML('beforeend', '<div class="genetics-findings"></div><button id="expand">More</button>');
-    window.toggleGeneticsExpand(document.getElementById('expand'));
+    document.querySelector('.genetics-section')?.insertAdjacentHTML('beforeend', '<button id="expand" data-dna-action="toggle-genetics-expand">More</button>');
+    document.getElementById('expand')?.click();
     check('toggleGeneticsExpand expands fixture', document.querySelector('.genetics-findings')?.classList.contains('expanded') && document.getElementById('expand').textContent === 'Show less');
 
     const originalCreateElement = document.createElement.bind(document);
@@ -248,15 +259,15 @@ rs999999\t1\t100\tAG
       }
       return el;
     };
-    window.reimportDNA();
+    document.querySelector('[data-dna-action="reimport-dna"]')?.click();
     document.createElement = originalCreateElement;
     check('reimportDNA opens file picker', clickedSyntheticInput);
 
-    const confirmPromise = window.confirmDeleteDNA();
+    document.querySelector('[data-dna-action="delete-dna"]')?.click();
     await wait();
     document.getElementById('confirm-ok')?.click();
-    await confirmPromise;
-    check('confirmDeleteDNA deletes genetics and refreshes', state.importedData.genetics === undefined && calls.filter(item => item === 'navigate:dashboard').length >= 2);
+    const deleteFinished = await waitFor(() => state.importedData.genetics === undefined && calls.filter(item => item === 'navigate:dashboard').length >= 2);
+    check('confirmDeleteDNA deletes genetics and refreshes', deleteFinished);
 
     const toastText = document.getElementById('notification-container')?.textContent || '';
     check('notifications rendered during flow', /DNA import|Imported|health-relevant/.test(toastText));
@@ -277,6 +288,13 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     };
     const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
     const wait = () => new Promise(resolve => setTimeout(resolve, 0));
+    const waitFor = async (predicate) => {
+      for (let i = 0; i < 30; i++) {
+        if (predicate()) return true;
+        await wait();
+      }
+      return false;
+    };
 
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`);
@@ -329,20 +347,26 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     let overlay = document.getElementById('dna-modal-overlay');
     check('handleMtDNAFile opens preview', overlay?.classList.contains('show') === true && window._pendingMtDNA?.resolved?.haplogroup === 'J');
     check('mtDNA preview includes mismatch', overlay?.textContent.includes('Environment mismatch'));
-    window.closeMtDNAPreview();
+    check('mtDNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
+    overlay?.querySelector('[data-dna-action="close-mtdna-preview"]')?.click();
+    await wait();
     check('closeMtDNAPreview clears pending', window._pendingMtDNA == null && !overlay?.classList.contains('show'));
 
     await window.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     await wait();
-    await window.confirmMtDNAImport();
-    check('confirmMtDNAImport stores mtdna', state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
+    overlay = document.getElementById('dna-modal-overlay');
+    overlay?.querySelector('[data-dna-action="confirm-mtdna-import"]')?.click();
+    const mtImportFinished = await waitFor(() => state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
+    check('confirmMtDNAImport stores mtdna', mtImportFinished);
     const context = window._buildGeneticsContext(state.importedData.genetics, null);
     check('mtDNA context includes mismatch detail', context.includes('mtDNA Haplogroup: J') && context.includes('ENVIRONMENT MISMATCH'));
     const rendered = dna.renderGeneticsSection();
     document.getElementById('fixture').innerHTML = rendered;
     check('renderGeneticsSection includes mtDNA card', document.querySelector('.genetics-mtdna-hg')?.textContent.includes('J'));
+    check('mtDNA remove action is a semantic button', document.querySelector('[data-dna-action="delete-mtdna"]')?.tagName === 'BUTTON');
 
-    await window.deleteMtDNAData();
+    document.querySelector('[data-dna-action="delete-mtdna"]')?.click();
+    await wait();
     check('deleteMtDNAData removes mtdna only', state.importedData.genetics?.mtdna == null && state.importedData.genetics?.snps != null);
 
     await window.setManualHaplogroup('bad');
@@ -374,7 +398,11 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
 
     state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     const emptyHtml = dna.renderGeneticsSection();
-    check('empty renderer returns upload stub', emptyHtml.includes('genetics-empty-stub') && emptyHtml.includes('Add your DNA data'));
+    check('empty renderer returns delegated upload stub',
+      emptyHtml.includes('genetics-empty-stub') &&
+      emptyHtml.includes('Add your DNA data') &&
+      emptyHtml.includes('data-dna-action="import-file"') &&
+      !emptyHtml.includes('onclick='));
 
     state.importedData.genetics = {
       source: 'Imported',

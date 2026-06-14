@@ -32,8 +32,8 @@ await import('../js/context-cards.js');
         /Add your DNA data/i.test(html));
       assert('no DNA: CTA mentions privacy assurance',
         /stay on this device|locally/i.test(html));
-      assert('no DNA: click target wired to triggerDNAFilePicker',
-        html.includes('triggerDNAFilePicker()'));
+      assert('no DNA: click target uses delegated DNA action',
+        html.includes('data-dna-action="import-file"') && !html.includes('onclick='));
       assert('no DNA: keyboard-activatable (role + tabindex)',
         /role="button"/.test(html) && /tabindex="0"/.test(html));
     }
@@ -60,7 +60,7 @@ await import('../js/context-cards.js');
         !html.includes('genetics-empty-stub'));
     }
 
-    // ─── 4. window.triggerDNAFilePicker exists (used by stub onclick) ───
+    // ─── 4. window.triggerDNAFilePicker exists (used by stub delegate) ───
     {
       assert('window.triggerDNAFilePicker is a function',
         typeof window.triggerDNAFilePicker === 'function');

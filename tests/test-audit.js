@@ -74,6 +74,7 @@ assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes(
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
+assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
@@ -197,6 +198,7 @@ const lensPageShellSrc = read('js/lens-page-shell.js');
 const lensSrc = read('js/lens.js');
 const lensActionsSrc = read('js/lens-actions.js');
 const lensPagesSrc = read('js/lens-pages.js');
+const dnaActionsSrc = read('js/dna-actions.js');
 const categoryPageViewSrc = read('js/category-page-view.js');
 const categoryViewRenderersSrc = read('js/category-view-renderers.js');
 const categoryCustomizationSrc = read('js/category-customization.js');
@@ -314,6 +316,12 @@ assert('Lens page controls use delegated shell actions',
     && lensPageShellSrc.includes('open-wearables-settings')
     && lensPageShellSrc.includes('open-privacy-settings')
     && !/\son(?:click|change|input)\s*=/.test(lensPagesSrc));
+assert('DNA controls use delegated actions',
+  dnaSrc.includes("from './dna-actions.js'")
+    && dnaActionsSrc.includes('function handleDnaActionClick')
+    && dnaActionsSrc.includes('function handleDnaActionKeydown')
+    && dnaActionsSrc.includes('export function dnaActionAttrs')
+    && !/\son(?:click|keydown|change|input)\s*=/.test(dnaSrc));
 
 const _SANITIZER_RE = /(escapeHTML|safeMarkerId|escapeAttr|applyInlineMarkdown|renderMarkdown)\s*\(/;
 const _SAFE_HELPERS = new Set([

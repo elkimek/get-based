@@ -203,6 +203,7 @@ const APP_SHELL = [
   '/js/provider-panel-renderers.js',
   '/js/provider-model-controls.js',
   '/js/provider-panels.js',
+  '/js/dna-actions.js',
   '/js/dna.js',
   '/js/hardware.js',
   '/js/sync.js',
