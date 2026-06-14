@@ -15,6 +15,18 @@ export function wireBackdropClose(overlay, closeFn) {
 
 export const _wireBackdropClose = wireBackdropClose;
 
+/**
+ * @param {Element} overlay
+ * @param {Function} [closeFn]
+ * @param {object} [options]
+ */
+export function openAppendedModalOverlay(overlay, closeFn, options = {}) {
+  try { wireBackdropClose(overlay, closeFn); } catch (_) {}
+  document.body.appendChild(overlay);
+  openModalOverlay(overlay, options);
+  try { trapModalFocus(overlay); } catch (_) {}
+}
+
 const _modalScrollState = (() => {
   const fallback = { locks: new Set(), priorOverflow: '' };
   if (typeof window === 'undefined') return fallback;
@@ -116,6 +128,12 @@ export function closeModalOverlay(overlayOrId, options = {}) {
   }
 
   return overlay;
+}
+
+/** @param {Element} overlay */
+export function removeModalOverlay(overlay) {
+  closeModalOverlay(overlay);
+  overlay.remove();
 }
 
 function _pruneDetachedModalScrollLocks() {

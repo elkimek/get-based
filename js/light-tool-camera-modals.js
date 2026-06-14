@@ -2,7 +2,7 @@
 // light-tool-camera-modals.js — Camera-backed Light tool modal flows.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
-import { closeModalOverlay, openModalOverlay, trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   aimingGuideHTML,
   lockCameraForMeasurement,
@@ -27,18 +27,6 @@ function getSaveMeasurement(deps = {}) {
   const fn = deps.saveMeasurement || (typeof window !== 'undefined' ? window.saveMeasurement : null);
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
   return fn;
-}
-
-function openLightToolOverlay(overlay, closeFn) {
-  try { wireBackdropClose(overlay, closeFn); } catch (e) {}
-  document.body.appendChild(overlay);
-  openModalOverlay(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
-}
-
-function removeLightToolOverlay(overlay) {
-  closeModalOverlay(overlay);
-  overlay.remove();
 }
 
 // ─── Tool 1: Lux Meter ─────────────────────────────────────────────────
@@ -111,9 +99,9 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     if (_luxState.sensor) { try { _luxState.sensor.stop(); } catch (e) {} _luxState.sensor = null; }
     if (_luxState.stream) { try { _luxState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _luxState.stream = null; }
     _luxState.video = null;
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
-  openLightToolOverlay(overlay, () => window._closeLuxMeter());
+  openAppendedModalOverlay(overlay, () => window._closeLuxMeter());
 
   let currentLux = null;
   // Snapshot of the LATEST raw camera luma (before calibration multiply).
@@ -351,9 +339,9 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     closed = true;
     _flickerState.running = false;
     if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
-  openLightToolOverlay(overlay, () => window._closeFlicker());
+  openAppendedModalOverlay(overlay, () => window._closeFlicker());
 
   let lastResult = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#flicker-result'));
@@ -502,7 +490,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       </div>
     </div>
   </div>`;
-  openLightToolOverlay(overlay, () => window._closeDark());
+  openAppendedModalOverlay(overlay, () => window._closeDark());
 
   let result = null;
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
@@ -631,7 +619,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   window._closeDark = () => {
     _darkState.running = false;
     if (_darkState.stream) { try { _darkState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _darkState.stream = null; }
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
 }
 
@@ -669,9 +657,9 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     closed = true;
     _cctState.running = false;
     if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
-  openLightToolOverlay(overlay, () => window._closeCCT());
+  openAppendedModalOverlay(overlay, () => window._closeCCT());
 
   let currentCCT = null;
   let currentMelanopic = null;
@@ -822,9 +810,9 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     closed = true;
     _specState.running = false;
     if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
-  openLightToolOverlay(overlay, () => window._closeSpec());
+  openAppendedModalOverlay(overlay, () => window._closeSpec());
 
   let result = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#spec-result'));
@@ -1014,9 +1002,9 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
     }
     activeGlassStreams.clear();
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
-  openLightToolOverlay(overlay, () => window._closeGlass());
+  openAppendedModalOverlay(overlay, () => window._closeGlass());
 
   _glassReadings = { inside: null, outside: null };
 

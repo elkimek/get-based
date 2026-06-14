@@ -18,6 +18,7 @@ const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
+const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
 const markerDetailSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
 const providerPanelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
@@ -203,16 +204,16 @@ assert('light environment assessment uses shared overlay lifecycle before remova
     !lightEnvSrc.includes("overlay.classList.add('show')"));
 
 assert('light tool modals use shared overlay lifecycle helpers',
-  lightToolCameraModalsSrc.includes("from './modal-lifecycle.js'") &&
-    lightToolCameraModalsSrc.includes('openModalOverlay(overlay)') &&
-    lightToolCameraModalsSrc.includes('closeModalOverlay(overlay)') &&
-    (lightToolCameraModalsSrc.match(/openLightToolOverlay\(overlay/g) || []).length >= 6 &&
-    (lightToolCameraModalsSrc.match(/removeLightToolOverlay\(overlay\)/g) || []).length >= 6 &&
-    lightToolsSrc.includes("from './modal-lifecycle.js'") &&
-    lightToolsSrc.includes('openModalOverlay(overlay)') &&
-    lightToolsSrc.includes('closeModalOverlay(overlay)') &&
-    (lightToolsSrc.match(/openLightToolOverlay\(overlay/g) || []).length >= 2 &&
-    (lightToolsSrc.match(/removeLightToolOverlay\(overlay\)/g) || []).length >= 2 &&
+  modalLifecycleSrc.includes('export function openAppendedModalOverlay') &&
+    modalLifecycleSrc.includes('export function removeModalOverlay') &&
+    lightToolCameraModalsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    (lightToolCameraModalsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 6 &&
+    (lightToolCameraModalsSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 6 &&
+    lightToolsSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    (lightToolsSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 2 &&
+    (lightToolsSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    !lightToolCameraModalsSrc.includes('function openLightToolOverlay') &&
+    !lightToolsSrc.includes('function openLightToolOverlay') &&
     !lightToolCameraModalsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
     !lightToolsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
     !lightToolsSrc.includes("this.closest('.modal-overlay').remove()"));

@@ -21,7 +21,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils.js';
-import { closeModalOverlay, openModalOverlay, trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import {
@@ -214,19 +214,6 @@ export async function deleteMeasurement(id) {
   return true;
 }
 
-function openLightToolOverlay(overlay, closeFn) {
-  try { wireBackdropClose(overlay, closeFn); } catch (e) {}
-  document.body.appendChild(overlay);
-  openModalOverlay(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
-}
-
-function removeLightToolOverlay(overlay) {
-  closeModalOverlay(overlay);
-  overlay.remove();
-}
-
-
 // ─── Camera-backed tool modal facade ──────────────────────────────────
 
 export async function openLuxMeter(opts = {}) {
@@ -355,8 +342,8 @@ export function openSunriseLogger() {
       </div>
     </div>
   </div>`;
-  const closeSunriseLogger = () => removeLightToolOverlay(overlay);
-  openLightToolOverlay(overlay, closeSunriseLogger);
+  const closeSunriseLogger = () => removeModalOverlay(overlay);
+  openAppendedModalOverlay(overlay, closeSunriseLogger);
   queryRequired(overlay, '#sunrise-close').addEventListener('click', closeSunriseLogger);
   queryRequired(overlay, '#sunrise-cancel').addEventListener('click', closeSunriseLogger);
 
@@ -404,7 +391,7 @@ export async function openEyeLevelAudit() {
       </div>
     </div>
   </div>`;
-  openLightToolOverlay(overlay, () => window._closeAudit());
+  openAppendedModalOverlay(overlay, () => window._closeAudit());
 
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
@@ -567,7 +554,7 @@ export async function openEyeLevelAudit() {
   window._closeAudit = () => {
     _auditState.running = false;
     if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
-    removeLightToolOverlay(overlay);
+    removeModalOverlay(overlay);
   };
 }
 
