@@ -6,6 +6,7 @@ import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { hashString, showNotification, showConfirmDialog, showPromptDialog, isDebugMode, escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider, callClaudeAPI } from './api.js';
 import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-lifecycle.js';
+import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
 /** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
@@ -556,8 +557,8 @@ export function renderCustomLensSection() {
     <div style="margin-top:10px">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Where to run it</div>
       <div class="ctx-btn-group" role="radiogroup" aria-label="Knowledge Base engine">
-        <button type="button" class="ctx-btn-option ${isBrowser ? 'active' : ''}" role="radio" aria-checked="${isBrowser}" onclick="handleLensBackendChange('in-browser')">On this device</button>
-        <button type="button" class="ctx-btn-option ${isExternal ? 'active' : ''}" role="radio" aria-checked="${isExternal}" onclick="handleLensBackendChange('external-server')">External server</button>
+        <button type="button" class="ctx-btn-option ${isBrowser ? 'active' : ''}" role="radio" aria-checked="${isBrowser}" ${lensActionAttrs('set-backend', { backend: 'in-browser' })}>On this device</button>
+        <button type="button" class="ctx-btn-option ${isExternal ? 'active' : ''}" role="radio" aria-checked="${isExternal}" ${lensActionAttrs('set-backend', { backend: 'external-server' })}>External server</button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
         ${isBrowser
@@ -568,7 +569,7 @@ export function renderCustomLensSection() {
 
     <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
       <label class="toggle-switch" for="lens-enabled-toggle">
-        <input type="checkbox" id="lens-enabled-toggle" ${cfg.enabled ? 'checked' : ''} onchange="handleToggleLens(this.checked)">
+        <input type="checkbox" id="lens-enabled-toggle" ${cfg.enabled ? 'checked' : ''} ${lensActionAttrs('toggle-enabled')}>
         <span class="toggle-slider"></span>
       </label>
       <label for="lens-enabled-toggle" style="font-size:13px;cursor:pointer">Enable Knowledge Source</label>
@@ -582,13 +583,13 @@ export function renderCustomLensSection() {
     <div id="lens-library-picker" style="margin-top:12px">
       <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px" for="lens-library-select">Library</label>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <select id="lens-library-select" onchange="handleLibraryActivate(this.value)"
+        <select id="lens-library-select" ${lensActionAttrs('activate-library')}
                 style="flex:1;min-width:180px;padding:6px 8px;background:var(--select-surface);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;font-size:13px">
           <option value="">Loading…</option>
         </select>
-        <button class="import-btn import-btn-secondary" onclick="handleLibraryNew()" style="font-size:12px;padding:6px 10px" title="New library">+ New</button>
-        <button class="import-btn import-btn-secondary" onclick="handleLibraryRename()" style="font-size:12px;padding:6px 10px" title="Rename active library">Rename</button>
-        <button class="import-btn import-btn-secondary" onclick="handleLibraryDelete()" style="font-size:12px;padding:6px 10px" title="Delete active library">Delete</button>
+        <button class="import-btn import-btn-secondary" ${lensActionAttrs('new-library')} style="font-size:12px;padding:6px 10px" title="New library">+ New</button>
+        <button class="import-btn import-btn-secondary" ${lensActionAttrs('rename-library')} style="font-size:12px;padding:6px 10px" title="Rename active library">Rename</button>
+        <button class="import-btn import-btn-secondary" ${lensActionAttrs('delete-library')} style="font-size:12px;padding:6px 10px" title="Delete active library">Delete</button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Keep different collections separate — research papers, clinical guides, personal notes. Chat grounds its answers in the active library only.</div>
     </div>
@@ -668,7 +669,7 @@ export function renderCustomLensSection() {
            role="button" tabindex="0"
            aria-label="Add documents — drop files here or press Enter to open the file picker"
            style="margin-top:10px;padding:18px;border:2px dashed var(--border);border-radius:8px;text-align:center;font-size:13px;color:var(--text-muted);cursor:pointer;transition:border-color 0.15s"
-           onclick="document.getElementById('lens-local-filepick').click()">
+           ${lensActionAttrs('open-local-filepick')}>
         <div style="font-size:20px;pointer-events:none" aria-hidden="true">📁</div>
         <div style="margin-top:4px;pointer-events:none">Drop documents or click to add</div>
         <div style="font-size:11px;margin-top:2px;opacity:0.7;pointer-events:none">PDF · Markdown · Text · Word · JSON · ZIP</div>
@@ -700,9 +701,9 @@ export function renderCustomLensSection() {
     </div>
 
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-      <button class="import-btn import-btn-primary" onclick="handleSaveLensConfig()">${isExternal ? 'Save + connect' : 'Save'}</button>
-      ${connected ? '<button class="import-btn import-btn-secondary" onclick="handleClearLensCache()">Clear cache</button>' : ''}
-      ${connected ? '<button class="import-btn import-btn-secondary" onclick="handleRemoveLens()">Remove</button>' : ''}
+      <button class="import-btn import-btn-primary" ${lensActionAttrs('save-config')}>${isExternal ? 'Save + connect' : 'Save'}</button>
+      ${connected ? `<button class="import-btn import-btn-secondary" ${lensActionAttrs('clear-cache')}>Clear cache</button>` : ''}
+      ${connected ? `<button class="import-btn import-btn-secondary" ${lensActionAttrs('remove-lens')}>Remove</button>` : ''}
     </div>
 
     <div class="api-key-notice" style="margin-top:12px">
@@ -748,7 +749,7 @@ export function openKnowledgeBaseModal() {
         <div class="gb-modal-kicker">Local context</div>
         <div class="gb-modal-title">Knowledge Base</div>
       </div>
-      <button class="modal-close" onclick="closeKnowledgeBaseModal()" aria-label="Close">&times;</button>
+      <button class="modal-close" ${lensActionAttrs('close-kb')} aria-label="Close">&times;</button>
     </div>
     <div class="gb-form-body">
     <div class="settings-section" id="custom-lens-section">
@@ -961,13 +962,13 @@ function _renderLocalDocList(docs) {
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px">
       <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeAttr(d.source)}">${escapeHTML(d.source)}</span>
       <span style="color:var(--text-muted);margin:0 10px;font-variant-numeric:tabular-nums">${d.chunks}</span>
-      <button class="kb-doc-delete" onclick="handleLocalLensDeleteDoc(${JSON.stringify(d.source).replace(/"/g, '&quot;')})" aria-label="Delete ${escapeAttr(d.source)}" title="Delete" style="background:transparent;border:0;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
+      <button class="kb-doc-delete" ${lensActionAttrs('delete-doc', { source: d.source })} aria-label="Delete ${escapeAttr(d.source)}" title="Delete" style="background:transparent;border:0;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
     </div>
   `).join('');
   return `
     <div style="margin-top:4px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">${rows}</div>
     <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-      <button class="import-btn import-btn-secondary" onclick="handleLocalLensClear()" style="font-size:12px;padding:4px 10px">Clear all</button>
+      <button class="import-btn import-btn-secondary" ${lensActionAttrs('clear-local')} style="font-size:12px;padding:4px 10px">Clear all</button>
     </div>
   `;
 }
@@ -1489,6 +1490,14 @@ export async function handleRemoveLens() {
     );
   }
 }
+
+// Register delegates after handler declarations so this wiring does not rely on hoisting.
+initLensActionDelegates({
+  closeKnowledgeBaseModal, handleClearLensCache, handleLensBackendChange,
+  handleLibraryActivate, handleLibraryDelete, handleLibraryNew, handleLibraryRename,
+  handleLocalLensClear, handleLocalLensDeleteDoc, handleRemoveLens, handleSaveLensConfig,
+  handleToggleLens, openLocalFilePicker: () => document.getElementById('lens-local-filepick')?.click(),
+});
 
 Object.assign(window, {
   getLensConfig, saveLensConfig, getLensKey, saveLensKey,

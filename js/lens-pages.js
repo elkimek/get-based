@@ -21,7 +21,7 @@ function hasAnyLabData(data) {
   );
 }
 
-function renderGenomeImportDetailsWidget() {
+function renderGenomeImportDetailsWidget(lensPageActionAttrs) {
   const genetics = state.importedData?.genetics;
   const snps = genetics?.snps || {};
   const snpCount = Object.keys(snps).length;
@@ -69,18 +69,18 @@ function renderGenomeImportDetailsWidget() {
     </div>
     ${mtdnaDetail}
     <div class="dashboard-widget-inline-controls">
-      <button type="button" class="dashboard-action-btn" onclick="window.reimportDNA ? window.reimportDNA() : (window.triggerDNAFilePicker && window.triggerDNAFilePicker())">Re-import</button>
-      <button type="button" class="dashboard-action-btn" onclick="window.confirmDeleteDNA && window.confirmDeleteDNA()">Delete genome data</button>
+      <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('reimport-dna')}>Re-import</button>
+      <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('delete-dna')}>Delete genome data</button>
     </div>
   </div>`;
 }
 
-function renderBodySourcesWidget() {
+function renderBodySourcesWidget(lensPageActionAttrs) {
   const connections = state.importedData?.wearableConnections || {};
   const summary = state.importedData?.wearableSummary || null;
   const ids = Object.keys(connections);
   if (!ids.length && !summary?.sources) {
-    return `<button type="button" class="db-correlation-empty" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">
+    return `<button type="button" class="db-correlation-empty" ${lensPageActionAttrs('open-wearables-settings')}>
       <strong>Connect body data</strong>
       <span>Oura, Withings, Fitbit, Polar, Apple Health, or manual logging can feed HRV, sleep, recovery, blood pressure, and body composition.</span>
     </button>`;
@@ -90,7 +90,7 @@ function renderBodySourcesWidget() {
     const source = connections[id] || summary?.sources?.[id] || {};
     const lastSync = source.lastSyncAt ? new Date(source.lastSyncAt).toLocaleDateString() : 'not synced';
     const coverage = source.coverageDays ? `${source.coverageDays}d coverage` : 'coverage pending';
-    return `<button type="button" class="dashboard-widget-picker-card" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">
+    return `<button type="button" class="dashboard-widget-picker-card" ${lensPageActionAttrs('open-wearables-settings')}>
       <span class="dashboard-widget-picker-title">${escapeHTML(id === 'manual' ? 'Manual logs' : id)}</span>
       <span class="dashboard-widget-picker-sub">${escapeHTML(lastSync)} · ${escapeHTML(coverage)}</span>
       <span class="dashboard-widget-picker-action">Manage source</span>
@@ -157,9 +157,9 @@ export function createLensPageHandlers(deps) {
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
-    const importDetails = renderGenomeImportDetailsWidget();
+    const importDetails = renderGenomeImportDetailsWidget(lensPageActionAttrs);
     let html = renderLensHeader('Genome', 'Dedicated DNA workspace: actionable genetic modifiers, import status, mtDNA, and lab-linked context.',
-      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.triggerDNAFilePicker && window.triggerDNAFilePicker()">Import DNA</button>`);
+      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import DNA</button>`);
     html += renderLensPageWidgets('genome', [
       { id: 'genome', title: 'Actionable Genetic Modifiers', description: 'Priority SNP context relevant to labs and goals', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
       importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,
@@ -172,11 +172,11 @@ export function createLensPageHandlers(deps) {
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     let html = renderLensHeader('Body', 'Dedicated biometrics workspace: wearable signals, manual body metrics, sync state, and metric history.',
-      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openSettingsModal && window.openSettingsModal('wearables')">Connect source</button>
-       <button type="button" class="dashboard-action-btn" onclick="window.openDashboardBiometricPicker && window.openDashboardBiometricPicker()">Choose metrics</button>`);
+      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-wearables-settings')}>Connect source</button>
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-biometric-picker')}>Choose metrics</button>`);
     html += renderLensPageWidgets('body', [
       { id: 'wearables', title: 'Biometrics Overview', description: 'User-selected body signal tiles', body: renderDashboardWearableTilesWidget(), size: 'full', opts: { source: 'Body' } },
-      { id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', body: renderBodySourcesWidget(), size: 'full', opts: { source: 'Body', dashboardId: '' } },
+      { id: 'body-sources', title: 'Connected Sources', description: 'Wearable and manual sources feeding body context', body: renderBodySourcesWidget(lensPageActionAttrs), size: 'full', opts: { source: 'Body', dashboardId: '' } },
       { id: 'supplements', title: 'Supplements & Meds', description: 'Tracked supplements and medications that feed lab and AI context', body: renderSupplementsSection(), size: 'full', opts: { source: 'Body' } },
       state.profileSex === 'female' ? { id: 'cycle', title: 'Cycle', description: 'Menstrual cycle context for hormone, iron, and inflammation interpretation', body: renderMenstrualCycleSection(getActiveData()), size: 'full', opts: { source: 'Body' } } : null,
     ]);
@@ -190,9 +190,9 @@ export function createLensPageHandlers(deps) {
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
     let html = renderLensHeader('Insight', 'Dedicated synthesis workspace: AI focus, trend interpretation, context, and next-step surfaces.',
-      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openChatPanel && window.openChatPanel()">Open AI chat</button>
-       <button type="button" class="dashboard-action-btn" onclick="window.openEMFAssessmentEditor && window.openEMFAssessmentEditor()">EMF assessment</button>
-       <button type="button" class="dashboard-action-btn" onclick="window.navigate && window.navigate('recommendations')">Recommendations</button>`);
+      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-ai-chat')}>Open AI chat</button>
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-emf-assessment')}>EMF assessment</button>
+       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-recommendations')}>Recommendations</button>`);
     html += renderLensPageWidgets('insight', [
       { id: 'focus', title: 'Current Focus', description: 'One synthesized read on the latest data', body: renderFocusCard(), size: 'full', opts: { source: 'Insight' } },
       { id: 'recommendations', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', body: renderDashboardRecommendationsWidget(ctx), size: 'half', opts: { source: 'Insight' } },
@@ -247,11 +247,11 @@ export function createLensPageHandlers(deps) {
     const dashboardAction = recommendationsVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget';
     const dashboardLabel = recommendationsVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
     const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs(dashboardAction, { id: 'recommendations' })}>${dashboardLabel}</button>
-      <button type="button" class="dashboard-action-btn" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">Disclosure & settings</button>`;
+      <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-privacy-settings')}>Disclosure & settings</button>`;
     let html = `<div id="recommendations-page">`;
     html += renderLensHeader('Recommendations', 'A global action plan built from Labs, Body, Light, Genome, and Insight signals. Product links stay behind the existing disclosure.', actions);
     if (!window.isProductRecsEnabled?.()) {
-      html += renderLensWidget('recommendations-disabled', 'Recommendations are off', 'Enable Tips & Recommendations to build this action surface', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="window.openSettingsModal && window.openSettingsModal('privacy')">Open settings</button>`, 'full', { source: 'Recommendations', dashboardId: '' });
+      html += renderLensWidget('recommendations-disabled', 'Recommendations are off', 'Enable Tips & Recommendations to build this action surface', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-privacy-settings')}>Open settings</button>`, 'full', { source: 'Recommendations', dashboardId: '' });
       html += `</div>`;
       main.innerHTML = html;
       return;

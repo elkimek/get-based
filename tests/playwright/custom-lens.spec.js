@@ -40,7 +40,8 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
   await expect(page.locator('#lens-key-input')).toHaveCount(1);
   await expect(page.locator('#lens-topk-input')).toHaveCount(1);
   await expect(page.locator('#lens-enabled-toggle')).toHaveCount(1);
-  expect(await lensSection.evaluate((section) => section.innerHTML.includes('handleSaveLensConfig'))).toBe(true);
+  await expect(lensSection.locator('[data-lens-action="save-config"]')).toHaveCount(1);
+  expect(await lensSection.evaluate((section) => !section.querySelector('[onclick], [onchange], [oninput]'))).toBe(true);
 
   await page.evaluate(() => {
     window.closeKnowledgeBaseModal?.();

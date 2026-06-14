@@ -59,6 +59,14 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     const originalView = state.currentView;
     const originalAddDashboard = window.addDashboardWidgetFromLens;
     const originalRemoveDashboard = window.removeDashboardWidgetFromLens;
+    const originalTriggerDNA = window.triggerDNAFilePicker;
+    const originalReimportDNA = window.reimportDNA;
+    const originalConfirmDeleteDNA = window.confirmDeleteDNA;
+    const originalOpenSettings = window.openSettingsModal;
+    const originalOpenBiometricPicker = window.openDashboardBiometricPicker;
+    const originalOpenChat = window.openChatPanel;
+    const originalOpenEMF = window.openEMFAssessmentEditor;
+    const originalNavigate = window.navigate;
     const profileId = window.getActiveProfileId?.() || state.currentProfile || 'default';
     const labsOrderKey = `labcharts-${profileId}-lensPageOrder-labs-v1`;
     const savedLabsOrder = localStorage.getItem(labsOrderKey);
@@ -93,6 +101,31 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       dashboardToggle?.click();
       await delay(50);
 
+      window.triggerDNAFilePicker = () => calls.push(['trigger-dna']);
+      window.reimportDNA = () => calls.push(['reimport-dna']);
+      window.confirmDeleteDNA = () => calls.push(['delete-dna']);
+      window.openSettingsModal = pane => calls.push(['settings', pane]);
+      window.openDashboardBiometricPicker = () => calls.push(['biometrics']);
+      window.openChatPanel = () => calls.push(['chat']);
+      window.openEMFAssessmentEditor = () => calls.push(['emf']);
+      window.navigate = route => calls.push(['navigate', route]);
+      const actionFixture = document.createElement('div');
+      actionFixture.className = 'lens-page-header';
+      actionFixture.innerHTML = `
+        <button type="button" data-lens-page-action="import-dna"></button>
+        <button type="button" data-lens-page-action="reimport-dna"></button>
+        <button type="button" data-lens-page-action="delete-dna"></button>
+        <button type="button" data-lens-page-action="open-wearables-settings"></button>
+        <button type="button" data-lens-page-action="open-biometric-picker"></button>
+        <button type="button" data-lens-page-action="open-ai-chat"></button>
+        <button type="button" data-lens-page-action="open-emf-assessment"></button>
+        <button type="button" data-lens-page-action="open-recommendations"></button>
+        <button type="button" data-lens-page-action="open-privacy-settings"></button>`;
+      document.body.appendChild(actionFixture);
+      actionFixture.querySelectorAll('button').forEach(button => button.click());
+      actionFixture.remove();
+      await delay(50);
+
       return {
         shellRenders: !!widgets,
         noInlineHandlers: !!widgets && !widgets.querySelector('.dashboard-widget-tools [onclick], .dashboard-widget-tools [onkeydown]'),
@@ -100,13 +133,32 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
         moveReordersSections: !!beforeFirst && !!afterFirst && beforeFirst !== afterFirst,
         dashboardToggleCallsBridge: !!toggleAction && !!toggleId
           && calls.some(([kind, id]) => id === toggleId && `${kind}-dashboard-widget` === toggleAction),
+        headerActionsCallBridges: [
+          ['trigger-dna'],
+          ['reimport-dna'],
+          ['delete-dna'],
+          ['settings', 'wearables'],
+          ['biometrics'],
+          ['chat'],
+          ['emf'],
+          ['navigate', 'recommendations'],
+          ['settings', 'privacy'],
+        ].every(expected => calls.some(call => call[0] === expected[0] && (expected.length < 2 || call[1] === expected[1]))),
       };
     } finally {
       window.addDashboardWidgetFromLens = originalAddDashboard;
       window.removeDashboardWidgetFromLens = originalRemoveDashboard;
+      window.triggerDNAFilePicker = originalTriggerDNA;
+      window.reimportDNA = originalReimportDNA;
+      window.confirmDeleteDNA = originalConfirmDeleteDNA;
+      window.openSettingsModal = originalOpenSettings;
+      window.openDashboardBiometricPicker = originalOpenBiometricPicker;
+      window.openChatPanel = originalOpenChat;
+      window.openEMFAssessmentEditor = originalOpenEMF;
+      window.navigate = originalNavigate;
       if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
       else localStorage.setItem(labsOrderKey, savedLabsOrder);
-      if (originalView) window.navigate?.(originalView);
+      if (originalView) originalNavigate?.(originalView);
     }
   });
 
@@ -228,7 +280,9 @@ test('lens page browser coverage renders genome details and marker-backed labs',
         genomeCoverageAndMtdnaRender: genomeText.includes('1,234 / 5,678 catalog SNPs matched')
           && genomeText.includes('mtDNA H1')
           && genomeText.includes('Stored maternal lineage'),
-        genomeControlsRender: genomeHtml.includes('window.reimportDNA') && genomeHtml.includes('window.confirmDeleteDNA'),
+        genomeControlsRender: genomeHtml.includes('data-lens-page-action="reimport-dna"')
+          && genomeHtml.includes('data-lens-page-action="delete-dna"')
+          && !genomeHtml.includes('onclick='),
         emptyGenomeOmitsImportDetails: !emptyGenomeHtml.includes('genome-import-details'),
         markerBackedLabsSkipDropZone: markerBackedLabsHtml.includes('data-testid="labs-priority"')
           && !markerBackedLabsHtml.includes('id="drop-zone"'),

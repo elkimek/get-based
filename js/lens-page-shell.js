@@ -44,6 +44,25 @@ function handleLensPageShellClick(event) {
     appWindow.addDashboardWidgetFromLens?.(id);
   } else if (action === 'remove-dashboard-widget') {
     appWindow.removeDashboardWidgetFromLens?.(id);
+  } else if (action === 'import-dna') {
+    appWindow.triggerDNAFilePicker?.();
+  } else if (action === 'reimport-dna') {
+    if (typeof appWindow.reimportDNA === 'function') appWindow.reimportDNA();
+    else appWindow.triggerDNAFilePicker?.();
+  } else if (action === 'delete-dna') {
+    appWindow.confirmDeleteDNA?.();
+  } else if (action === 'open-wearables-settings') {
+    appWindow.openSettingsModal?.('wearables');
+  } else if (action === 'open-biometric-picker') {
+    appWindow.openDashboardBiometricPicker?.();
+  } else if (action === 'open-ai-chat') {
+    appWindow.openChatPanel?.();
+  } else if (action === 'open-emf-assessment') {
+    appWindow.openEMFAssessmentEditor?.();
+  } else if (action === 'open-recommendations') {
+    appWindow.navigate?.('recommendations');
+  } else if (action === 'open-privacy-settings') {
+    appWindow.openSettingsModal?.('privacy');
   }
 }
 
