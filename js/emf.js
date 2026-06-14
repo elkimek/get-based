@@ -16,6 +16,7 @@ import { renderMarkdown } from './markdown.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
+import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 
 /**
  * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
@@ -125,10 +126,10 @@ export function openEMFAssessmentEditor() {
   const overlay = document.getElementById('modal-overlay');
   _editingAssessmentId = null;
   renderEMFEditor(modal);
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
   // Save tags when modal closes (before DOM is torn down)
   const closeBtn = modal.querySelector('.modal-close');
-  if (closeBtn) closeBtn.addEventListener('click', () => { collectActiveAssessmentState(); saveImportedData(); document.querySelectorAll('.emf-lightbox').forEach(el => el.remove()); }, { once: true });
+  if (closeBtn) closeBtn.addEventListener('click', () => { collectActiveAssessmentState(); saveImportedData(); document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el)); }, { once: true });
 }
 
 function renderEMFEditor(modal) {
@@ -702,7 +703,7 @@ function showEMFImportPreview(parsed) {
   </div>`;
 
   modal.innerHTML = html;
-  overlay.classList.add('show');
+  openModalOverlay(overlay);
 
   document.getElementById('emf-confirm-btn').addEventListener('click', () => {
     const assessments = ensureAssessments();
@@ -862,7 +863,6 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
     overlay = /** @type {EMFInterpretationOverlay} */ (document.createElement('div'));
     overlay.id = 'emf-interp-overlay';
     overlay.className = 'emf-interp-overlay';
-    document.body.appendChild(overlay);
   }
 
   const hasExisting = existingInterp && existingInterp.text;
@@ -889,7 +889,10 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   </div>`;
 
   overlay.innerHTML = html;
-  overlay.classList.add('show');
+  const wasConnected = overlay.isConnected;
+  if (!wasConnected) document.body.appendChild(overlay);
+  openModalOverlay(overlay);
+  if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
 
   // Close on backdrop click (but not drag-from-inside, #87)
   let mdInside = false;
@@ -1019,7 +1022,7 @@ function streamInterpretation(prompt, onComplete) {
 export function closeEMFInterpretation() {
   if (_aiAbortController) { _aiAbortController.abort(); _aiAbortController = null; }
   const overlay = document.getElementById('emf-interp-overlay');
-  if (overlay) { overlay.classList.remove('show'); overlay.innerHTML = ''; }
+  if (overlay) removeModalOverlay(overlay);
 }
 
 export function discussEMFInterpretation() {
@@ -1140,9 +1143,11 @@ export function viewEMFPhoto(assessmentId, roomIdx, photoIdx) {
   // Simple lightbox using the existing modal overlay pattern
   const overlay = document.createElement('div');
   overlay.className = 'emf-lightbox';
-  overlay.onclick = () => overlay.remove();
+  overlay.addEventListener('click', () => removeModalOverlay(overlay));
   overlay.innerHTML = `<img src="data:${safeMediaType(photo.mediaType)};base64,${photo.base64}" alt="${escapeHTML(photo.name || 'Photo')}">`;
   document.body.appendChild(overlay);
+  openModalOverlay(overlay);
+  try { trapModalFocus(overlay); } catch (_) {}
 }
 
 // ═══════════════════════════════════════════════

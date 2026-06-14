@@ -16,6 +16,7 @@ const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medic
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
 const dashboardWidgetControlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
+const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report-builder.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
@@ -226,6 +227,20 @@ assert('light environment assessment uses shared overlay lifecycle before remova
     lightEnvSrc.includes('overlay.remove()') &&
     !lightEnvSrc.includes("overlay.className = 'modal-overlay show light-env-assessment-overlay'") &&
     !lightEnvSrc.includes("overlay.classList.add('show')"));
+
+assert('EMF editor, interpretation, and photo overlays use shared lifecycle helpers',
+  emfSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
+    (emfSrc.match(/openModalOverlay\(overlay\)/g) || []).length >= 4 &&
+    (emfSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    emfSrc.includes('const wasConnected = overlay.isConnected;') &&
+    emfSrc.includes('if (!wasConnected) document.body.appendChild(overlay);') &&
+    emfSrc.includes("if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}") &&
+    emfSrc.includes("trapModalFocus(overlay, { closeOnEscape: false })") &&
+    emfSrc.includes('trapModalFocus(overlay)') &&
+    emfSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el))") &&
+    !emfSrc.includes("overlay.classList.add('show')") &&
+    !emfSrc.includes("overlay.classList.remove('show')") &&
+    !emfSrc.includes('overlay.onclick = () => overlay.remove()'));
 
 assert('light tool modals use shared overlay lifecycle helpers',
   modalLifecycleSrc.includes('export function openAppendedModalOverlay') &&
