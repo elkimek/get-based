@@ -142,9 +142,10 @@ function _pruneDetachedModalScrollLocks() {
   }
 }
 
-export function trapModalFocus(overlay) {
+export function trapModalFocus(overlay, options = {}) {
   _pruneDetachedModalScrollLocks();
   const previouslyFocused = document.activeElement;
+  const closeOnEscape = options.closeOnEscape !== false;
   if (_modalScrollLocks.size === 0) {
     _modalScrollState.priorOverflow = document.body.style.overflow;
   }
@@ -159,7 +160,7 @@ export function trapModalFocus(overlay) {
     if (firstFocusable) try { firstFocusable.focus(); } catch (e) {}
   }, 30);
   const onKeydown = (e) => {
-    if (e.key === 'Escape' && document.body.contains(overlay)) {
+    if (closeOnEscape && e.key === 'Escape' && document.body.contains(overlay)) {
       e.preventDefault();
       try { overlay.remove(); } catch (_) {}
     }

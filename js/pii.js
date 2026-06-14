@@ -4,6 +4,7 @@
 import { showNotification, escapeHTML } from './utils.js';
 import { getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
+import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
 
 // ═══════════════════════════════════════════════
@@ -522,25 +523,39 @@ export function buildPIIDiffHTML(originalText, obfuscatedText) {
   return { leftHtml, rightHtml };
 }
 
+function openPIIOverlay(overlay, options = {}) {
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => {
+    if (!overlay.isConnected) return;
+    openModalOverlay(overlay, options);
+    try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
+  });
+}
+
+function closePIIOverlay(overlay) {
+  removeModalOverlay(overlay);
+}
+
 export function showPIIDiffViewer(originalText, obfuscatedText) {
   const overlay = document.createElement('div');
   overlay.className = 'pii-warning-overlay';
   const { leftHtml, rightHtml } = buildPIIDiffHTML(originalText, obfuscatedText);
   overlay.innerHTML = `
     <div class="pii-diff-modal" role="dialog" aria-modal="true" aria-label="Privacy Diff">
-      <button type="button" class="modal-close" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()" aria-label="Close privacy diff">&times;</button>
+      <button type="button" class="modal-close" aria-label="Close privacy diff">&times;</button>
       <h3>&#128269; Privacy Diff — Before / After</h3>
       <div class="pii-diff-viewer">
         <div class="pii-diff-left"><div class="pii-diff-header">Original</div>${leftHtml}</div>
         <div class="pii-diff-right"><div class="pii-diff-header">Obfuscated</div>${rightHtml}</div>
       </div>
       <div class="pii-review-actions pii-review-actions-simple">
-        <button type="button" class="import-btn import-btn-secondary" onclick="document.body.style.overflow='';this.closest('.pii-warning-overlay').remove()">Close</button>
+        <button type="button" class="import-btn import-btn-secondary" data-pii-diff-close>Close</button>
       </div>
     </div>`;
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => overlay.classList.add('show'));
+  const close = () => closePIIOverlay(overlay);
+  overlay.querySelector('.modal-close')?.addEventListener('click', close);
+  overlay.querySelector('[data-pii-diff-close]')?.addEventListener('click', close);
+  openPIIOverlay(overlay);
 }
 
 // extractPatientName dropped — too unreliable across PDF layouts
@@ -600,10 +615,8 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
           <button type="button" class="import-btn import-btn-primary" id="pii-review-send"${isStreaming ? ' disabled' : ''}>Send to AI</button>
         </div>
       </div>`;
-    document.body.appendChild(overlay);
-    document.body.style.overflow = 'hidden';
     wirePIIOverlayNudge(overlay);
-    requestAnimationFrame(() => overlay.classList.add('show'));
+    openPIIOverlay(overlay);
 
     const searchInput = /** @type {HTMLInputElement} */ (overlay.querySelector('#pii-search-input'));
     const searchCount = /** @type {HTMLElement} */ (overlay.querySelector('#pii-search-count'));
@@ -715,12 +728,11 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
     });
 
     // Send & cancel
-    sendBtn.addEventListener('click', () => { document.body.style.overflow = ''; overlay.remove(); resolve(textarea.value); });
+    sendBtn.addEventListener('click', () => { closePIIOverlay(overlay); resolve(textarea.value); });
     /** @type {HTMLButtonElement} */ (overlay.querySelector('#pii-review-cancel')).addEventListener('click', () => {
       if (abortController) abortController.abort();
       unloadOllamaPIIModel();
-      document.body.style.overflow = '';
-      overlay.remove();
+      closePIIOverlay(overlay);
       resolve('cancel');
     });
 
@@ -728,15 +740,13 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
     let abortController = null;
     if (isStreaming) {
       if (!statusEl || !stopBtn) {
-        document.body.style.overflow = '';
-        overlay.remove();
+        closePIIOverlay(overlay);
         resolve('cancel');
         return;
       }
       const retryBtn = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#pii-stream-retry'));
       if (!retryBtn) {
-        document.body.style.overflow = '';
-        overlay.remove();
+        closePIIOverlay(overlay);
         resolve('cancel');
         return;
       }
