@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
+const chatImagesSrc = fs.readFileSync(path.join(root, 'js/chat-images.js'), 'utf8');
 const chatSummariesSrc = fs.readFileSync(path.join(root, 'js/chat-summaries.js'), 'utf8');
 const contextCardsSrc = fs.readFileSync(path.join(root, 'js/context-cards.js'), 'utf8');
 const contextLifestyleSrc = fs.readFileSync(path.join(root, 'js/context-card-lifestyle-editors.js'), 'utf8');
@@ -108,6 +109,13 @@ assert('chat summary modal uses shared overlay lifecycle helpers',
 assert('chat summary modal participates in global keyboard modal handling',
   appEventsSrc.includes('"summary-modal-overlay"') &&
     appEventsSrc.includes('window.closeSummaryModal?.()'));
+
+assert('chat image lightbox uses shared appended overlay lifecycle helpers',
+  chatImagesSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    chatImagesSrc.includes("overlay.className = 'chat-lightbox'") &&
+    chatImagesSrc.includes('openAppendedModalOverlay(overlay, closeLightbox)') &&
+    chatImagesSrc.includes('removeModalOverlay(overlay)') &&
+    !chatImagesSrc.includes('overlay.remove()'));
 
 assert('card tips modal closes through shared detail modal close path',
   recommendationsSrc.includes('onclick="window.closeModal()"') &&
