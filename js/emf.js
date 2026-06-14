@@ -8,11 +8,12 @@ import { SBM_2015_THRESHOLDS, getEMFSeverity, calculateCost, formatCost, trackUs
 const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 function safeMediaType(t) { return SAFE_IMAGE_TYPES.includes(t) ? t : 'image/png'; }
 import { EMF_ROOM_PRESETS, EMF_SOURCES, EMF_MITIGATIONS, EMF_METER_PRESETS } from './constants.js';
-import { escapeHTML, showNotification, showConfirmDialog, isPIIReviewEnabled } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isPIIReviewEnabled } from './utils.js';
 import { saveImportedData } from './data.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId, getActiveModelDisplay } from './api.js';
 import { renderMarkdown } from './markdown.js';
+import { toggleCtxTag } from './context-card-editor-ui.js';
 import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { loadEMFCatalog, renderEMFMeterRecs, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
@@ -120,31 +121,191 @@ function severityBadge(assessment) {
 // ═══════════════════════════════════════════════
 let _editingAssessmentId = null;
 let _activeRoomIdx = 0;
+let emfEditorDelegatesInstalled = false;
+
+function emfAttrString(attrs) {
+  return Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
+    .join(' ');
+}
+
+function emfActionAttrs(action, attrs = {}) {
+  return emfAttrString({ 'data-emf-action': action, ...attrs });
+}
+
+function emfChangeAttrs(action, attrs = {}) {
+  return emfAttrString({ 'data-emf-change-action': action, ...attrs });
+}
+
+function isEMFEditorTarget(el) {
+  return !!el.closest('#detail-modal');
+}
+
+function removeEMFEditorDelegates() {
+  if (!emfEditorDelegatesInstalled) return;
+  emfEditorDelegatesInstalled = false;
+  document.removeEventListener('click', _handleEMFEditorClick);
+  document.removeEventListener('change', _handleEMFEditorChange);
+  document.removeEventListener('keydown', _handleEMFEditorKeydown);
+}
+
+function closeEMFPreviewModal() {
+  removeEMFEditorDelegates();
+  window.closeModal?.();
+}
+
+function closeEMFEditorModal() {
+  collectActiveAssessmentState();
+  saveImportedData();
+  document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el));
+  removeEMFEditorDelegates();
+  window.closeModal?.();
+}
+
+function _emfNumberAttr(el, name, fallback = 0) {
+  const raw = el.dataset[name];
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function _handleEMFEditorClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const actionEl = target.closest('[data-emf-action]');
+  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
+
+  const action = actionEl.dataset.emfAction || '';
+  const assessmentId = actionEl.dataset.emfAssessmentId || '';
+  const roomIdx = _emfNumberAttr(actionEl, 'emfRoomIdx');
+  const photoIdx = _emfNumberAttr(actionEl, 'emfPhotoIdx');
+
+  if (actionEl.matches('button, a')) event.preventDefault();
+
+  if (action === 'close-editor') { closeEMFEditorModal(); return; }
+  if (action === 'close-preview') { closeEMFPreviewModal(); return; }
+  if (action === 'add-assessment') { addEMFAssessment(); return; }
+  if (action === 'trigger-pdf-import') {
+    document.getElementById('emf-pdf-input')?.click();
+    return;
+  }
+  if (action === 'toggle-compare') { toggleEMFCompare(); return; }
+  if (action === 'toggle-assessment') { if (assessmentId) toggleEMFAssessment(assessmentId); return; }
+  if (action === 'select-room') { if (assessmentId) selectEMFRoom(assessmentId, roomIdx); return; }
+  if (action === 'add-room') { if (assessmentId) addEMFRoom(assessmentId); return; }
+  if (action === 'remove-room') { if (assessmentId) removeEMFRoom(assessmentId, roomIdx); return; }
+  if (action === 'save') { saveEMFExplicit(); return; }
+  if (action === 'interpret-assessment') { if (assessmentId) interpretEMFAssessment(assessmentId); return; }
+  if (action === 'delete-assessment') { if (assessmentId) void deleteEMFAssessment(assessmentId); return; }
+  if (action === 'toggle-tag') { toggleCtxTag(actionEl); return; }
+  if (action === 'view-photo') { if (assessmentId) viewEMFPhoto(assessmentId, roomIdx, photoIdx); return; }
+  if (action === 'remove-photo') { if (assessmentId) removeEMFPhoto(assessmentId, roomIdx, photoIdx); return; }
+  if (action === 'interpret-comparison') { interpretEMFComparison(); return; }
+}
+
+function _handleEMFEditorChange(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const actionEl = target.closest('[data-emf-change-action]');
+  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
+
+  const action = actionEl.dataset.emfChangeAction || '';
+  const assessmentId = actionEl.dataset.emfAssessmentId || '';
+  const roomIdx = _emfNumberAttr(actionEl, 'emfRoomIdx');
+
+  if (action === 'pdf-input') {
+    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
+    const file = input?.files?.[0];
+    if (file) void handleEMFPDF(file);
+    return;
+  }
+
+  if (!assessmentId) return;
+
+  if (action === 'field') {
+    const input = actionEl instanceof HTMLInputElement || actionEl instanceof HTMLTextAreaElement ? actionEl : null;
+    const field = actionEl.dataset.emfField || '';
+    if (input && field) updateEMFField(assessmentId, field, input.value);
+    return;
+  }
+
+  if (action === 'room-dropdown') {
+    const select = actionEl instanceof HTMLSelectElement ? actionEl : null;
+    if (select) void handleEMFRoomDropdown(assessmentId, roomIdx, select.value, select);
+    return;
+  }
+
+  if (action === 'room-field') {
+    const field = actionEl.dataset.emfRoomField || '';
+    let value;
+    if (actionEl instanceof HTMLInputElement && actionEl.type === 'checkbox') value = actionEl.checked;
+    else if (actionEl instanceof HTMLInputElement || actionEl instanceof HTMLTextAreaElement) value = actionEl.value;
+    if (field && value !== undefined) updateEMFRoom(assessmentId, roomIdx, field, value);
+    return;
+  }
+
+  if (action === 'measurement') {
+    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
+    const type = actionEl.dataset.emfMeasurementType || '';
+    if (input && type) updateEMFMeasurement(assessmentId, roomIdx, type, input.value);
+    return;
+  }
+
+  if (action === 'meter') {
+    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
+    const type = actionEl.dataset.emfMeterType || '';
+    if (input && type) updateEMFMeter(assessmentId, roomIdx, type, input.value);
+    return;
+  }
+
+  if (action === 'photos') {
+    const input = actionEl instanceof HTMLInputElement ? actionEl : null;
+    if (input?.files?.length) void addEMFPhotos(assessmentId, roomIdx, input.files);
+  }
+}
+
+function _handleEMFEditorKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const actionEl = target.closest('[data-emf-action]');
+  if (!(actionEl instanceof HTMLElement) || !isEMFEditorTarget(actionEl)) return;
+  if (target.closest('input, textarea, select')) return;
+  if (actionEl.matches('button, a')) return;
+  event.preventDefault();
+  actionEl.click();
+}
+
+function installEMFEditorDelegates() {
+  if (emfEditorDelegatesInstalled) return;
+  emfEditorDelegatesInstalled = true;
+  document.addEventListener('click', _handleEMFEditorClick);
+  document.addEventListener('change', _handleEMFEditorChange);
+  document.addEventListener('keydown', _handleEMFEditorKeydown);
+}
 
 export function openEMFAssessmentEditor() {
+  installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   _editingAssessmentId = null;
   renderEMFEditor(modal);
   openModalOverlay(overlay);
-  // Save tags when modal closes (before DOM is torn down)
-  const closeBtn = modal.querySelector('.modal-close');
-  if (closeBtn) closeBtn.addEventListener('click', () => { collectActiveAssessmentState(); saveImportedData(); document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el)); }, { once: true });
 }
 
 function renderEMFEditor(modal) {
   const assessments = ensureAssessments();
   const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
 
-  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-editor')}>&times;</button>
     <h3>Baubiologie EMF Assessment</h3>
     <div class="modal-unit">Room-by-room electromagnetic field measurements rated against SBM-2015 sleeping area standards.</div>
     <div class="emf-editor-actions">
-      <button class="import-btn import-btn-primary" onclick="addEMFAssessment()">+ New Assessment</button>
-      ${hasAIProvider() ? `<button class="import-btn import-btn-secondary" onclick="document.getElementById('emf-pdf-input').click()">Import PDF</button>
-      <input type="file" id="emf-pdf-input" accept=".pdf" style="display:none" onchange="if(this.files[0])handleEMFPDF(this.files[0])">` : ''}
+      <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('add-assessment')}>+ New Assessment</button>
+      ${hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('trigger-pdf-import')}>Import PDF</button>
+      <input type="file" id="emf-pdf-input" accept=".pdf" style="display:none" ${emfChangeAttrs('pdf-input')}>` : ''}
       <a href="data/emf-assessment-template.html" target="_blank" class="import-btn import-btn-secondary">Printable Template</a>
-      ${sorted.length >= 2 ? `<button class="import-btn import-btn-secondary" onclick="toggleEMFCompare()">${_compareMode ? 'Exit Compare' : 'Compare'}</button>` : ''}
+      ${sorted.length >= 2 ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('toggle-compare')}>${_compareMode ? 'Exit Compare' : 'Compare'}</button>` : ''}
     </div>`;
 
   if (sorted.length === 0) {
@@ -157,7 +318,7 @@ function renderEMFEditor(modal) {
       const isExpanded = _editingAssessmentId === a.id;
       const fmtDate = new Date(a.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       html += `<div class="emf-assessment-card${isExpanded ? ' expanded' : ''}">
-        <div class="emf-assessment-header" onclick="toggleEMFAssessment('${a.id}')">
+        <div class="emf-assessment-header" role="button" tabindex="0" ${emfActionAttrs('toggle-assessment', { 'data-emf-assessment-id': a.id })}>
           <div class="emf-assessment-info">
             <span class="emf-assessment-date">${fmtDate}</span>
             ${a.label ? `<span class="emf-assessment-label">${escapeHTML(a.label)}</span>` : ''}
@@ -195,9 +356,9 @@ function renderAssessmentDetail(a) {
 
   let html = `<div class="emf-assessment-detail">
     <div class="emf-meta-row">
-      <label>Date <input type="date" class="emf-input" data-emf-field="date" value="${a.date}" onchange="updateEMFField('${a.id}','date',this.value)"></label>
-      <label>Label <input type="text" class="emf-input" data-emf-field="label" value="${escapeHTML(a.label)}" placeholder="e.g. Pre-mitigation" onchange="updateEMFField('${a.id}','label',this.value)"></label>
-      <label>Consultant <input type="text" class="emf-input" data-emf-field="consultant" value="${escapeHTML(a.consultant)}" placeholder="Optional" onchange="updateEMFField('${a.id}','consultant',this.value)"></label>
+      <label>Date <input type="date" class="emf-input" data-emf-field="date" value="${escapeAttr(a.date)}" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
+      <label>Label <input type="text" class="emf-input" data-emf-field="label" value="${escapeAttr(a.label)}" placeholder="e.g. Pre-mitigation" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
+      <label>Consultant <input type="text" class="emf-input" data-emf-field="consultant" value="${escapeAttr(a.consultant)}" placeholder="Optional" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
     </div>`;
 
   // Room tabs
@@ -206,22 +367,22 @@ function renderAssessmentDetail(a) {
     const room = a.rooms[i];
     const worst = getRoomWorstSeverity(room);
     const dot = worst ? `<span class="emf-severity-dot" style="background:var(--${worst.color})"></span>` : '';
-    html += `<button class="emf-room-tab${i === ri ? ' active' : ''}" onclick="selectEMFRoom('${a.id}',${i})">${escapeHTML(room.name || 'Room ' + (i + 1))} ${dot}</button>`;
+    html += `<button type="button" class="emf-room-tab${i === ri ? ' active' : ''}" ${emfActionAttrs('select-room', { 'data-emf-assessment-id': a.id, 'data-emf-room-idx': i })}>${escapeHTML(room.name || 'Room ' + (i + 1))} ${dot}</button>`;
   }
-  html += `<button class="emf-room-tab emf-room-tab-add" onclick="addEMFRoom('${a.id}')" title="Add room">+</button>`;
+  html += `<button type="button" class="emf-room-tab emf-room-tab-add" ${emfActionAttrs('add-room', { 'data-emf-assessment-id': a.id })} title="Add room">+</button>`;
   html += `</div>`;
 
   // Active room content
   html += renderRoomContent(a.id, ri, a.rooms[ri], a.rooms.length);
 
   html += `<div class="emf-meta-row" style="margin-top:12px">
-      <label style="flex:1">Notes <input type="text" class="emf-input" data-emf-field="note" value="${escapeHTML(a.note)}" placeholder="General assessment notes" onchange="updateEMFField('${a.id}','note',this.value)"></label>
+      <label style="flex:1">Notes <input type="text" class="emf-input" data-emf-field="note" value="${escapeAttr(a.note)}" placeholder="General assessment notes" ${emfChangeAttrs('field', { 'data-emf-assessment-id': a.id })}></label>
     </div>
     <div class="emf-assessment-footer">
-      <button class="import-btn import-btn-primary" onclick="saveEMFExplicit()">Save</button>
-      ${hasAIProvider() ? `<button class="import-btn import-btn-secondary" onclick="interpretEMFAssessment('${a.id}')">Interpret</button>` : ''}
+      <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('save')}>Save</button>
+      ${hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-assessment', { 'data-emf-assessment-id': a.id })}>Interpret</button>` : ''}
       <span style="flex:1"></span>
-      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" onclick="deleteEMFAssessment('${a.id}')">Delete Assessment</button>
+      <button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${emfActionAttrs('delete-assessment', { 'data-emf-assessment-id': a.id })}>Delete Assessment</button>
     </div>
   </div>`;
   return html;
@@ -248,22 +409,22 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
   if (availablePresets.length) {
     options += `<option disabled>──────────</option>`;
     for (const r of availablePresets) {
-      options += `<option value="_new_${escapeHTML(r)}">+ ${escapeHTML(r)}</option>`;
+      options += `<option value="_new_${escapeAttr(r)}">+ ${escapeHTML(r)}</option>`;
     }
   }
   options += `<option value="_custom">+ Custom...</option>`;
 
   let html = `<div class="emf-room-content">
     <div class="emf-room-header">
-      <select class="emf-input emf-room-select" onchange="handleEMFRoomDropdown('${assessmentId}',${roomIdx},this.value,this)">
+      <select class="emf-input emf-room-select" ${emfChangeAttrs('room-dropdown', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
         ${options}
       </select>
-      <input type="text" class="emf-input emf-location" data-emf-room-field="location" value="${escapeHTML(room.location)}" placeholder="Location (e.g. bed pillow area)" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'location',this.value)">
+      <input type="text" class="emf-input emf-location" data-emf-room-field="location" value="${escapeAttr(room.location)}" placeholder="Location (e.g. bed pillow area)" ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
       <label class="emf-sleeping-toggle" title="Sleeping areas use stricter SBM-2015 thresholds">
-        <input type="checkbox" data-emf-room-field="sleeping" ${room.sleeping !== false ? 'checked' : ''} onchange="updateEMFRoom('${assessmentId}',${roomIdx},'sleeping',this.checked)">
+        <input type="checkbox" data-emf-room-field="sleeping" ${room.sleeping !== false ? 'checked' : ''} ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
         Sleeping area
       </label>
-      ${roomCount > 1 ? `<button class="emf-remove-room" onclick="removeEMFRoom('${assessmentId}',${roomIdx})" title="Remove room">&times;</button>` : ''}
+      ${roomCount > 1 ? `<button type="button" class="emf-remove-room" ${emfActionAttrs('remove-room', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })} title="Remove room">&times;</button>` : ''}
     </div>
     <div class="emf-measurements">`;
 
@@ -274,15 +435,15 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
     const val = m.value != null ? m.value : '';
     html += `<div class="emf-measurement-row">
       <span class="emf-measurement-label">${mt.short}</span>
-      <input type="number" class="emf-input emf-value-input" value="${val}" step="any" placeholder="—"
+      <input type="number" class="emf-input emf-value-input" value="${escapeAttr(String(val))}" step="any" placeholder="—"
         data-emf-measurement-type="${mt.key}"
-        onchange="updateEMFMeasurement('${assessmentId}',${roomIdx},'${mt.key}',this.value)">
+        ${emfChangeAttrs('measurement', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
       <span class="emf-measurement-unit">${def.unit}</span>
       ${val !== '' ? severityDot(mt.key, parseFloat(val), sleeping) : '<span class="emf-severity-dot-placeholder"></span>'}
-      <input type="text" class="emf-input emf-meter-input" value="${escapeHTML(m.meter || '')}" placeholder="Meter"
+      <input type="text" class="emf-input emf-meter-input" value="${escapeAttr(m.meter || '')}" placeholder="Meter"
         list="emf-meters-${mt.key}"
         data-emf-meter-type="${mt.key}"
-        onchange="updateEMFMeter('${assessmentId}',${roomIdx},'${mt.key}',this.value)">
+        ${emfChangeAttrs('meter', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
     </div>`;
   }
 
@@ -298,17 +459,17 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
   html += `<div class="emf-tags-section">
     <label class="emf-tags-label">Sources identified</label>
     <div class="ctx-tags" id="emf-sources-${assessmentId}-${roomIdx}">
-      ${EMF_SOURCES.map(s => `<button type="button" class="ctx-tag${(room.sources || []).includes(s) ? ' active' : ''}" onclick="toggleCtxTag(this)">${escapeHTML(s)}</button>`).join('')}
+      ${EMF_SOURCES.map(s => `<button type="button" class="ctx-tag${(room.sources || []).includes(s) ? ' active' : ''}" ${emfActionAttrs('toggle-tag')}>${escapeHTML(s)}</button>`).join('')}
     </div></div>`;
 
   // Mitigations
   html += `<div class="emf-tags-section">
     <label class="emf-tags-label">Mitigations applied</label>
     <div class="ctx-tags" id="emf-mits-${assessmentId}-${roomIdx}">
-      ${EMF_MITIGATIONS.map(s => `<button type="button" class="ctx-tag${(room.mitigations || []).includes(s) ? ' active' : ''}" onclick="toggleCtxTag(this)">${escapeHTML(s)}</button>`).join('')}
+      ${EMF_MITIGATIONS.map(s => `<button type="button" class="ctx-tag${(room.mitigations || []).includes(s) ? ' active' : ''}" ${emfActionAttrs('toggle-tag')}>${escapeHTML(s)}</button>`).join('')}
     </div></div>`;
 
-  html += `<input type="text" class="emf-input emf-room-note" data-emf-room-field="note" value="${escapeHTML(room.note)}" placeholder="Room notes" onchange="updateEMFRoom('${assessmentId}',${roomIdx},'note',this.value)">`;
+  html += `<input type="text" class="emf-input emf-room-note" data-emf-room-field="note" value="${escapeAttr(room.note)}" placeholder="Room notes" ${emfChangeAttrs('room-field', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>`;
 
   // Photos
   const photos = room.photos || [];
@@ -316,11 +477,11 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
     <label class="emf-tags-label">Photos</label>
     <div class="emf-photos-grid">
       ${photos.map((p, pi) => `<div class="emf-photo-thumb">
-        <img src="data:${safeMediaType(p.mediaType)};base64,${p.base64}" alt="${escapeHTML(p.name || 'Photo')}" onclick="viewEMFPhoto('${assessmentId}',${roomIdx},${pi})">
-        <button class="emf-photo-remove" onclick="removeEMFPhoto('${assessmentId}',${roomIdx},${pi})" title="Remove">&times;</button>
+        <img src="data:${safeMediaType(p.mediaType)};base64,${p.base64}" alt="${escapeAttr(p.name || 'Photo')}" role="button" tabindex="0" ${emfActionAttrs('view-photo', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx, 'data-emf-photo-idx': pi })}>
+        <button type="button" class="emf-photo-remove" ${emfActionAttrs('remove-photo', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx, 'data-emf-photo-idx': pi })} title="Remove">&times;</button>
       </div>`).join('')}
       <label class="emf-photo-add" title="Add photo">
-        <input type="file" accept="image/*" multiple style="display:none" onchange="addEMFPhotos('${assessmentId}',${roomIdx},this.files)">
+        <input type="file" accept="image/*" multiple style="display:none" ${emfChangeAttrs('photos', { 'data-emf-assessment-id': assessmentId, 'data-emf-room-idx': roomIdx })}>
         +
       </label>
     </div>
@@ -659,11 +820,12 @@ export async function handleEMFPDF(file) {
 }
 
 function showEMFImportPreview(parsed) {
+  installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   const fmtDate = parsed.date ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date';
 
-  let html = `<button class="modal-close" aria-label="Close" onclick="closeModal()">&times;</button>
+  let html = `<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-preview')}>&times;</button>
     <h3>EMF Report Preview</h3>
     <div class="modal-unit">${fmtDate}${parsed.consultant ? ' — by ' + escapeHTML(parsed.consultant) : ''}</div>`;
 
@@ -698,8 +860,8 @@ function showEMFImportPreview(parsed) {
   }
 
   html += `<div class="ctx-editor-actions">
-    <button class="import-btn import-btn-primary" id="emf-confirm-btn">Confirm Import</button>
-    <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
+    <button type="button" class="import-btn import-btn-primary" id="emf-confirm-btn">Confirm Import</button>
+    <button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('close-preview')}>Cancel</button>
   </div>`;
 
   modal.innerHTML = html;
@@ -818,7 +980,7 @@ function renderComparisonView(sorted) {
 
   if (hasAIProvider()) {
     html += `<div style="margin-top:12px">
-      <button class="import-btn import-btn-secondary" onclick="interpretEMFComparison()">Interpret Changes</button>
+      <button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-comparison')}>Interpret Changes</button>
     </div>`;
   }
   return html;

@@ -184,16 +184,58 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       window.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector('#detail-modal .emf-editor-actions'), 'EMF editor');
       document.querySelector('#detail-modal .modal-close')?.click();
-      outcomes.closeButtonOnceHandlerSavesEditorState =
-        window.__emfDataSaves >= 1
-        && !document.getElementById('modal-overlay')?.classList.contains('show');
+      outcomes.closeEditorActionClosesEmptyEditor =
+        !document.getElementById('modal-overlay')?.classList.contains('show');
 
       window.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector('.emf-editor-actions'), 'reopened EMF editor');
       document.querySelector('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'manual assessment created');
       const manualId = assessments()[0].id;
-      window.addEMFRoom(manualId);
+      const editorHtml = document.getElementById('detail-modal')?.innerHTML || '';
+      outcomes.emfEditorRendersDelegatedControls =
+        !/\bon(?:click|keydown|submit|change|input)=/.test(editorHtml)
+        && !!document.querySelector('[data-emf-action="add-assessment"]')
+        && !!document.querySelector('[data-emf-action="add-room"]')
+        && !!document.querySelector('[data-emf-change-action="measurement"]');
+
+      const labelInput = document.querySelector('[data-emf-field="label"]');
+      if (labelInput) {
+        labelInput.value = 'Delegated Label';
+        labelInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      document.querySelector(`#emf-sources-${manualId}-0 [data-emf-action="toggle-tag"]`)?.click();
+      document.querySelector('[data-emf-action="save"]')?.click();
+      const acInput = document.querySelector('[data-emf-measurement-type="acElectric"]');
+      if (acInput) {
+        acInput.value = '9';
+        acInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      await waitUntil(() => assessments()[0].rooms[0].measurements?.acElectric?.value === 9, 'delegated measurement saved');
+      outcomes.delegatedEMFEditorControlsUpdateState =
+        assessments()[0].label === 'Delegated Label'
+        && assessments()[0].rooms[0].sources.length === 1
+        && assessments()[0].rooms[0].measurements.acElectric.unit === 'V/m';
+
+      document.querySelector('#detail-modal .modal-close')?.click();
+      outcomes.closeEditorActionTearsDownAndCloses =
+        !document.getElementById('modal-overlay')?.classList.contains('show');
+      window.openEMFAssessmentEditor();
+      await waitUntil(() => !!document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`), 'reopened delegated EMF editor');
+      document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`)?.click();
+      await waitUntil(() => !!document.querySelector('[data-emf-action="add-room"]'), 'reopened expanded EMF editor');
+
+      document.querySelector(`#emf-mits-${manualId}-0 [data-emf-action="toggle-tag"]:not(.active)`)?.click();
+      document.querySelector('#detail-modal .modal-close')?.click();
+      outcomes.closeEditorCollectsTagOnlyChanges =
+        assessments()[0].rooms[0].mitigations.length === 1
+        && !document.getElementById('modal-overlay')?.classList.contains('show');
+      window.openEMFAssessmentEditor();
+      await waitUntil(() => !!document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`), 'reopened after tag close');
+      document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`)?.click();
+      await waitUntil(() => !!document.querySelector('[data-emf-action="add-room"]'), 'reopened expanded after tag close');
+
+      document.querySelector('[data-emf-action="add-room"]')?.click();
       await waitUntil(() => assessments()[0].rooms.length === 2, 'explicit EMF room added');
       outcomes.addEMFRoomAddsBlankRoomAndSelectsIt =
         assessments()[0].rooms[1].name === 'Bedroom'
