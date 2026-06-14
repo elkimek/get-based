@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
-import { hashString, showNotification } from './utils.js';
+import { escapeAttr, hashString, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
@@ -44,6 +44,98 @@ export {
  */
 
 const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (window);
+
+const DATA_ACTION_ATTR = 'data-lab-data-action';
+const DATA_CHANGE_ATTR = 'data-lab-data-change';
+const DATA_RANGE_ATTR = 'data-lab-data-range';
+const DATA_ACTION_SELECTOR = `[${DATA_ACTION_ATTR}]`;
+const DATA_CHANGE_SELECTOR = `[${DATA_CHANGE_ATTR}]`;
+const dataActionDelegateRoots = new WeakSet();
+
+function dataAttrName(name) {
+  return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
+}
+
+function dataControlAttrs(kind, action, attrs = {}) {
+  let html = `data-lab-data-${kind}="${escapeAttr(action)}"`;
+  for (const [name, value] of Object.entries(attrs)) {
+    if (value === undefined || value === null || value === false) continue;
+    html += ` data-lab-data-${escapeAttr(dataAttrName(name))}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+export function dataActionAttrs(action, attrs = {}) {
+  return dataControlAttrs('action', action, attrs);
+}
+
+export function dataChangeAttrs(action, attrs = {}) {
+  return dataControlAttrs('change', action, attrs);
+}
+
+function closestDataElement(target, selector) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function' ? target.closest(selector) : null
+  );
+}
+
+function rootContains(root, el) {
+  return !!(root && typeof root.contains === 'function' && root.contains(el));
+}
+
+function containChartLayersClick(event) {
+  event.stopPropagation();
+  if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+}
+
+function handleDataClick(event) {
+  const actionEl = closestDataElement(event.target, DATA_ACTION_SELECTOR);
+  if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
+  const action = actionEl.getAttribute(DATA_ACTION_ATTR);
+  if (action === 'chart-layers-row') {
+    containChartLayersClick(event);
+    return;
+  }
+  if (action === 'set-date-range') {
+    event.preventDefault();
+    setDateRange(actionEl.getAttribute(DATA_RANGE_ATTR) || 'all');
+    return;
+  }
+  if (action === 'toggle-chart-layers') {
+    event.preventDefault();
+    toggleChartLayersDropdown(event);
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    return;
+  }
+  if (action === 'switch-range-mode') {
+    event.preventDefault();
+    switchRangeMode(actionEl.getAttribute(DATA_RANGE_ATTR) || 'optimal');
+  }
+}
+
+function handleDataChange(event) {
+  const actionEl = closestDataElement(event.target, DATA_CHANGE_SELECTOR);
+  if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
+  const action = actionEl.getAttribute(DATA_CHANGE_ATTR);
+  const checked = /** @type {{ checked?: boolean }} */ (event.target || {}).checked === true;
+  const mode = checked ? 'on' : 'off';
+  if (action === 'set-note-overlay') {
+    setNoteOverlay(mode);
+  } else if (action === 'set-supp-overlay') {
+    setSuppOverlay(mode);
+  } else if (action === 'set-phase-overlay') {
+    setPhaseOverlay(mode);
+  }
+}
+
+export function installDataActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || dataActionDelegateRoots.has(root)) return;
+  dataActionDelegateRoots.add(root);
+  root.addEventListener('click', handleDataClick);
+  root.addEventListener('change', handleDataChange);
+}
+
+installDataActionDelegates();
 
 // ═══════════════════════════════════════════════
 // PRIVATE CYCLE PHASE HELPER (avoids circular dep with cycle.js)
@@ -681,7 +773,7 @@ export function renderDateRangeFilter() {
     { key: 'all', label: 'All' }
   ];
   return `<div class="date-range-filter">${ranges.map(r =>
-    `<button class="range-btn${state.dateRangeFilter === r.key ? ' active' : ''}" onclick="setDateRange('${r.key}')">${r.label}</button>`
+    `<button class="range-btn${state.dateRangeFilter === r.key ? ' active' : ''}" type="button" ${dataActionAttrs('set-date-range', { range: r.key })}>${r.label}</button>`
   ).join('')}</div>`;
 }
 
@@ -704,18 +796,18 @@ export function renderChartLayersDropdown() {
   const hasCycle = state.profileSex === 'female' && state.importedData.menstrualCycle?.periods?.length > 0;
   if (!hasNotes && !hasSupps && !hasCycle) return '';
   return `<div class="chart-layers-wrapper">
-    <button class="view-btn chart-layers-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="chart-layers-dropdown" onclick="toggleChartLayersDropdown(event)">Layers \u25BE</button>
+    <button class="view-btn chart-layers-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="chart-layers-dropdown" ${dataActionAttrs('toggle-chart-layers')}>Layers \u25BE</button>
     <div class="chart-layers-dropdown" id="chart-layers-dropdown" role="menu">
-      ${hasNotes ? `<label class="chart-layers-row" onclick="event.stopPropagation()">
-        <input type="checkbox" ${state.noteOverlayMode === 'on' ? 'checked' : ''} onchange="setNoteOverlay(this.checked?'on':'off')">
+      ${hasNotes ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
+        <input type="checkbox" ${state.noteOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-note-overlay')}>
         <span>\uD83D\uDCDD Notes</span>
       </label>` : ''}
-      ${hasSupps ? `<label class="chart-layers-row" onclick="event.stopPropagation()">
-        <input type="checkbox" ${state.suppOverlayMode === 'on' ? 'checked' : ''} onchange="setSuppOverlay(this.checked?'on':'off')">
+      ${hasSupps ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
+        <input type="checkbox" ${state.suppOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-supp-overlay')}>
         <span>\uD83D\uDC8A Supplements</span>
       </label>` : ''}
-      ${hasCycle ? `<label class="chart-layers-row" onclick="event.stopPropagation()">
-        <input type="checkbox" ${state.phaseOverlayMode === 'on' ? 'checked' : ''} onchange="setPhaseOverlay(this.checked?'on':'off')">
+      ${hasCycle ? `<label class="chart-layers-row" ${dataActionAttrs('chart-layers-row')}>
+        <input type="checkbox" ${state.phaseOverlayMode === 'on' ? 'checked' : ''} ${dataChangeAttrs('set-phase-overlay')}>
         <span>\uD83D\uDD34 Cycle Phases</span>
       </label>` : ''}
     </div>
@@ -909,7 +1001,7 @@ export function updateHeaderRangeToggle() {
   const canPatch = buttons.length === modes.length && modes.every(m => buttons.some(btn => btn.dataset.range === m));
   if (!canPatch) {
     el.innerHTML = modes.map(m =>
-      `<button class="range-toggle-btn${state.rangeMode === m ? ' active' : ''}" data-range="${m}" aria-pressed="${state.rangeMode === m ? 'true' : 'false'}" onclick="switchRangeMode('${m}')">${m.charAt(0).toUpperCase() + m.slice(1)}</button>`
+      `<button class="range-toggle-btn${state.rangeMode === m ? ' active' : ''}" type="button" data-range="${m}" aria-pressed="${state.rangeMode === m ? 'true' : 'false'}" ${dataActionAttrs('switch-range-mode', { range: m })}>${m.charAt(0).toUpperCase() + m.slice(1)}</button>`
     ).join('');
     return;
   }

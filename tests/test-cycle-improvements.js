@@ -134,7 +134,8 @@ await import('../js/charts.js');
   {
     const src = read('js/data.js');
     assert('Layers dropdown checks for cycle data', src.includes('hasCycle'));
-    assert('Layers dropdown has setPhaseOverlay', src.includes("setPhaseOverlay(this.checked"));
+    assert('Layers dropdown delegates setPhaseOverlay changes',
+      src.includes("dataChangeAttrs('set-phase-overlay')") && src.includes('setPhaseOverlay(mode)'));
     assert('Layers dropdown shows Cycle Phases label', src.includes('Cycle Phases'));
   }
 

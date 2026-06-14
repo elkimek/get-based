@@ -36,6 +36,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       unitSystem: state.unitSystem,
       showAltUnits: state.showAltUnits,
       dateRangeFilter: state.dateRangeFilter,
+      profileSex: state.profileSex,
       phaseOverlayMode: state.phaseOverlayMode,
       rangeMode: state.rangeMode,
       activeDetailMarkerId: state._activeDetailMarkerId,
@@ -66,6 +67,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       state.unitSystem = 'EU';
       state.showAltUnits = false;
       state.dateRangeFilter = 'all';
+      state.profileSex = 'female';
       state.phaseOverlayMode = 'off';
       state.rangeMode = 'optimal';
       state._activeDetailMarkerId = 'metabolic_glucose';
@@ -92,29 +94,42 @@ test('data browser coverage exercises display toggles range refresh and helpers'
         menstrualCycle: { periods: [{ startDate: '2025-12-28' }], cycleStatus: 'regular' },
       };
 
-      dataMod.setDateRange('6m');
+      const fixture = document.getElementById('fixture');
+      fixture.innerHTML = dataMod.renderDateRangeFilter();
+      const dateRangeBtn = fixture.querySelector('[data-lab-data-action="set-date-range"][data-lab-data-range="6m"]');
+      dateRangeBtn?.click();
       outcomes.setDateRangePersistsStateAndUsesCurrentView = state.dateRangeFilter === '6m'
+        && fixture.querySelectorAll('[onclick]').length === 0
         && calls.some(call => call[0] === 'buildSidebar')
         && calls.some(call => call[0] === 'navigate' && call[1] === 'metabolic');
 
-      const layersHost = document.getElementById('fixture');
+      const layersHost = fixture;
       layersHost.innerHTML = dataMod.renderChartLayersDropdown();
-      const stopCalls = [];
-      dataMod.toggleChartLayersDropdown({ stopPropagation: () => stopCalls.push('stop') });
+      const leakedLayerClicks = [];
+      document.addEventListener('click', () => leakedLayerClicks.push('click'));
+      const layerTrigger = layersHost.querySelector('[data-lab-data-action="toggle-chart-layers"]');
+      layerTrigger?.click();
       await wait(0);
       const dropdown = document.getElementById('chart-layers-dropdown');
       const trigger = document.querySelector('.chart-layers-trigger');
       const opened = dropdown?.classList.contains('open') === true && trigger?.getAttribute('aria-expanded') === 'true';
+      const phaseCheckbox = layersHost.querySelector('[data-lab-data-change="set-phase-overlay"]');
+      const phaseCallStart = calls.length;
+      phaseCheckbox?.click();
+      await wait(0);
+      const phaseChanged = state.phaseOverlayMode === 'on'
+        && localStorage.getItem(`labcharts-${profileId}-phaseOverlay`) === 'on'
+        && calls.slice(phaseCallStart).some(call => call[0] === 'navigate' && call[1] === 'metabolic');
+      const stayedOpenAfterLayerClick = dropdown?.classList.contains('open') === true
+        && trigger?.getAttribute('aria-expanded') === 'true'
+        && leakedLayerClicks.length === 0;
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       const closed = dropdown?.classList.contains('open') === false && trigger?.getAttribute('aria-expanded') === 'false';
-      outcomes.chartLayersDropdownOpensAndClosesFromKeyboard = stopCalls.length === 1
+      outcomes.chartLayersDropdownOpensAndClosesFromKeyboard = layersHost.querySelectorAll('[onclick],[onchange]').length === 0
         && opened
+        && phaseChanged
+        && stayedOpenAfterLayerClick
         && closed;
-
-      dataMod.setPhaseOverlay('on');
-      outcomes.setPhaseOverlayPersistsAndNavigatesActiveCategory = state.phaseOverlayMode === 'on'
-        && localStorage.getItem(`labcharts-${profileId}-phaseOverlay`) === 'on'
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'metabolic');
 
       const homaEntry = { markers: { 'biochemistry.glucose': 5, 'hormones.insulin': 8 } };
       dataMod.recalculateHOMAIR(homaEntry);
@@ -162,11 +177,13 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       const prebuiltToggle = document.getElementById('header-range-toggle');
       const hasInitialRangeButtons = prebuiltToggle?.querySelectorAll('.range-toggle-btn').length === 3;
       calls.length = 0;
-      dataMod.switchRangeMode('both');
+      const rangeModeBtn = prebuiltToggle?.querySelector('[data-lab-data-action="switch-range-mode"][data-lab-data-range="both"]');
+      rangeModeBtn?.click();
       await wait(0);
       await wait(0);
       const activeBoth = document.querySelector('.range-toggle-btn[data-range="both"]');
       outcomes.switchRangeModeCapturesCardOrderAndRefreshesAfterPaint = hasInitialRangeButtons
+        && prebuiltToggle?.querySelectorAll('[onclick]').length === 0
         && state.rangeMode === 'both'
         && localStorage.getItem(`labcharts-${profileId}-rangeMode`) === 'both'
         && activeBoth?.classList.contains('active') === true
@@ -184,6 +201,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       state.unitSystem = saved.unitSystem;
       state.showAltUnits = saved.showAltUnits;
       state.dateRangeFilter = saved.dateRangeFilter;
+      state.profileSex = saved.profileSex;
       state.phaseOverlayMode = saved.phaseOverlayMode;
       state.rangeMode = saved.rangeMode;
       if (saved.activeDetailMarkerId === undefined) delete state._activeDetailMarkerId;
