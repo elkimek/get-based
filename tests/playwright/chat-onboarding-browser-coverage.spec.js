@@ -374,6 +374,9 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       getActiveData: window.getActiveData,
       renderSupplementsSection: window.renderSupplementsSection,
       navigate: window.navigate,
+      openSettingsModal: window.openSettingsModal,
+      switchAIProvider: window.switchAIProvider,
+      startOpenRouterOAuth: window.startOpenRouterOAuth,
     };
     const host = document.createElement('div');
     const calls = [];
@@ -386,6 +389,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
         if (key && value != null) storage.setItem(key, value);
       }
     };
+    const waitForProviderTimer = () => new Promise(resolve => setTimeout(resolve, 350));
 
     try {
       host.innerHTML = `
@@ -450,6 +454,9 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
         return '<div class="supp-timeline-section">supps refreshed</div>';
       };
       window.navigate = view => { calls.push(`navigate:${view}`); };
+      window.openSettingsModal = tab => { calls.push(`settings:${tab}`); };
+      window.switchAIProvider = provider => { calls.push(`provider:${provider}`); };
+      window.startOpenRouterOAuth = () => { calls.push('oauth'); };
 
       const crumbs = onboarding._renderOnboardCrumbs(3, 5);
       const quizRoot = onboarding._renderProviderQuiz(null, '<Ada>');
@@ -464,6 +471,43 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
         && quizLocal.includes('Local AI setup')
         && quizBitcoin.includes('Routstr')
         && quizBitcoin.includes('PPQ');
+
+      const quizHost = document.createElement('div');
+      host.appendChild(quizHost);
+      quizHost.innerHTML = quizRoot + quizCard + quizLocal + quizBitcoin;
+      const delegatedMarkup = !quizHost.querySelector('[onclick], [onkeydown], [onchange], [oninput]')
+        && quizHost.querySelectorAll('[data-chat-onboarding-action]').length >= 13;
+      quizHost.innerHTML = quizRoot;
+      quizHost.querySelector('[data-chat-onboarding-action="set-provider-branch"][data-chat-provider-branch="card"]')?.click();
+      const delegatedBranchClick = sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === 'card';
+      quizHost.innerHTML = quizCard;
+      quizHost.querySelector('[data-chat-onboarding-action="back-to-provider-quiz"]')?.click();
+      const delegatedBackClick = sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null;
+      quizHost.querySelector('[data-chat-onboarding-action="start-openrouter-oauth"]')?.click();
+      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="openrouter"]')?.click();
+      await waitForProviderTimer();
+      quizHost.innerHTML = quizLocal;
+      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ollama"]')?.click();
+      await waitForProviderTimer();
+      quizHost.innerHTML = quizBitcoin;
+      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="routstr"]')?.click();
+      await waitForProviderTimer();
+      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ppq"]')?.click();
+      await waitForProviderTimer();
+      quizHost.innerHTML = quizRoot;
+      quizHost.querySelector('[data-chat-onboarding-action="open-ai-settings"]')?.click();
+      await waitForProviderTimer();
+      quizHost.querySelector('[data-chat-onboarding-action="skip-provider-setup"]')?.click();
+      outcomes.providerQuizDelegatesAllActions = delegatedMarkup
+        && delegatedBranchClick
+        && delegatedBackClick
+        && calls.includes('oauth')
+        && calls.includes('provider:openrouter')
+        && calls.includes('provider:ollama')
+        && calls.includes('provider:routstr')
+        && calls.includes('provider:ppq')
+        && calls.filter(call => call === 'settings:ai').length >= 5
+        && localStorage.getItem(`labcharts-onboard-provider-skipped-${profileId}`) === '1';
 
       onboarding.setProviderQuizBranch('bitcoin');
       outcomes.providerBranchPersistsInSession =

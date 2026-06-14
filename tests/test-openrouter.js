@@ -318,7 +318,9 @@ assert('provider renderer renders or-oauth-btn in OpenRouter panel', providerRen
 assert('provider renderer renders or-oauth-divider', providerRenderSrc.includes('or-oauth-divider'));
 assert('OAuth button conditional on !currentKey', providerRenderSrc.includes("currentKey ? '' : '<button class=\"or-oauth-btn\""));
 assert('Chat setup guide has or-oauth-btn', chatOnboardingSrc.includes('or-oauth-btn'));
-assert('Chat setup guide has startOpenRouterOAuth onclick', chatOnboardingSrc.includes("onclick=\"startOpenRouterOAuth()\""));
+assert('Chat setup guide has delegated startOpenRouterOAuth action',
+  chatOnboardingSrc.includes('data-chat-onboarding-action') &&
+  chatOnboardingSrc.includes('start-openrouter-oauth'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
