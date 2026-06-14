@@ -297,7 +297,8 @@ assert('PDF import dialogs and review modal use shared overlay lifecycle helpers
     [pdfImportSrc, pdfImportReviewSrc].every(src =>
       !src.includes("overlay.classList.add('show')") &&
         !src.includes("overlay.classList.remove('show')") &&
-        !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")));
+        !src.includes("document.getElementById('import-modal-overlay')?.classList.remove('show')")) &&
+    !pdfImportSrc.includes("document.getElementById('ai-needed-or').focus()"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

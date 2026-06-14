@@ -186,7 +186,6 @@ export function showAINeededDialog(action = 'import') {
   };
   document.getElementById('ai-needed-cancel').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  document.getElementById('ai-needed-or').focus();
 }
 
 // ═══════════════════════════════════════════════
