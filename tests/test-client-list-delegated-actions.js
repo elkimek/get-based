@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const clientListSrc = fs.readFileSync(path.join(root, 'js/client-list.js'), 'utf8');
+const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);
+const clientListClosesOverlay = /closeModalOverlay\s*\(\s*['"]client-list-overlay['"]\s*\)/.test(clientListSrc);
 
 let passed = 0;
 let failed = 0;
@@ -50,8 +52,8 @@ assert('client-list can open share modal for selected profile',
     clientListSrc.includes('window.openProfileShareModal?.(id)'));
 assert('client-list modal uses shared overlay lifecycle helpers',
   clientListSrc.includes("from './modal-lifecycle.js'") &&
-    clientListSrc.includes("openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true })") &&
-    clientListSrc.includes("closeModalOverlay('client-list-overlay')") &&
+    clientListUsesScrollLockedOverlay &&
+    clientListClosesOverlay &&
     !clientListSrc.includes("document.body.style.overflow = 'hidden'") &&
     !clientListSrc.includes("document.body.style.overflow = ''"));
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
