@@ -15,7 +15,12 @@ const contextMedicalSrc = fs.readFileSync(path.join(root, 'js/context-card-medic
 const dashboardAiSrc = fs.readFileSync(path.join(root, 'js/context-card-dashboard-ai.js'), 'utf8');
 const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
+const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
+const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-device-session-modal.js'), 'utf8');
+const lightDeviceSetupModalSrc = fs.readFileSync(path.join(root, 'js/light-device-setup-modal.js'), 'utf8');
+const lightDevicesSrc = fs.readFileSync(path.join(root, 'js/light-devices.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const lightSessionsViewSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view.js'), 'utf8');
 const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
 const modalLifecycleSrc = fs.readFileSync(path.join(root, 'js/modal-lifecycle.js'), 'utf8');
@@ -217,6 +222,24 @@ assert('light tool modals use shared overlay lifecycle helpers',
     !lightToolCameraModalsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
     !lightToolsSrc.includes("overlay.className = 'modal-overlay show light-tool-overlay'") &&
     !lightToolsSrc.includes("this.closest('.modal-overlay').remove()"));
+
+assert('light device and session modals use shared overlay lifecycle helpers',
+  lightDeviceSessionModalSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    lightDeviceSetupModalSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    lightDevicesSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    lightConditionsNowSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    lightSessionsViewSrc.includes("import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
+    (lightDeviceSessionModalSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (lightDeviceSetupModalSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (lightDevicesSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (lightConditionsNowSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    (lightSessionsViewSrc.match(/openAppendedModalOverlay\(overlay/g) || []).length >= 1 &&
+    [lightDeviceSessionModalSrc, lightDeviceSetupModalSrc, lightDevicesSrc, lightConditionsNowSrc, lightSessionsViewSrc]
+      .every(src => !src.includes('modal-overlay show') &&
+        !src.includes("this.closest('.modal-overlay').remove()") &&
+        !src.includes('overlay.remove()') &&
+        !src.includes('wireBackdropClose') &&
+        !src.includes('trapModalFocus')));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

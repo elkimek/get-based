@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS } from './sun.js';
 
 /**
@@ -15,11 +15,9 @@ function _input(root, selector) {
   return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
 }
 
-function _wireDeviceSessionModal(overlay) {
+function _wireDeviceSessionModal(overlay, closeFn) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
-  try { wireBackdropClose(overlay); } catch (_) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (_) {}
+  openAppendedModalOverlay(overlay, closeFn);
 }
 
 function _defaultRegionsForLastSession(last) {
@@ -107,11 +105,12 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   }
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Log device session">
     <div class="modal-header">
       <h3>Log session — ${escapeHTML(device.brand)} ${escapeHTML(device.model)}</h3>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()" aria-label="Close">×</button>
+      <button class="modal-close" data-device-session-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${showModePicker ? `
@@ -163,13 +162,16 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       </div>
       <p class="modal-body-hint" style="margin-top:8px">Save now to log a finished session, or Start to run a live timer (matches the sun-session pattern — handy when you want to walk away and come back).</p>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button class="import-btn import-btn-secondary" data-device-session-close>Cancel</button>
         <button class="import-btn import-btn-secondary" id="dev-session-start">Start timer</button>
         <button class="import-btn import-btn-primary" id="dev-session-save">Save session</button>
       </div>
     </div>
   </div>`;
-  _wireDeviceSessionModal(overlay);
+  _wireDeviceSessionModal(overlay, closeDialog);
+  overlay.querySelectorAll('[data-device-session-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
 
   let lastModePointerActivation = 0;
   /**
@@ -273,7 +275,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
     const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
     await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
-    overlay.remove();
+    closeDialog();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
     if (window.navigate) window.navigate('light');
   });
@@ -293,7 +295,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const eyesProtected = !!_input(overlay, '#dev-session-eyes')?.checked;
     const mode = showModePicker ? _input(overlay, '#dev-session-mode')?.value || null : null;
     await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
-    overlay.remove();
+    closeDialog();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
     ensureActiveDeviceTicker();
     if (window.navigate) window.navigate('light');

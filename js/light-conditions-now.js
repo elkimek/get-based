@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
   const conditionsOpts = { variant };
@@ -275,7 +275,8 @@ export function _inspectConditionsNow() {
   const atm = (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
   const warnings = atm ? _sanityCheckAtmosphere(atm, coords) : [];
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show';
+  overlay.className = 'modal-overlay';
+  const closeDialog = () => removeModalOverlay(overlay);
   const cacheKeys = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -286,7 +287,7 @@ export function _inspectConditionsNow() {
   overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Inspect conditions data" style="max-width:640px">
     <div class="modal-header">
       <h3>Inspect conditions data</h3>
-      <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      <button class="modal-close" aria-label="Close" data-conditions-inspect-close>×</button>
     </div>
     <div class="modal-body">
       <p class="modal-body-hint">Last response from the conditions provider, exactly as parsed. Use this to verify the math is using the values you expect.</p>
@@ -363,14 +364,19 @@ export function _inspectConditionsNow() {
       </div>
 
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
-        <button class="import-btn import-btn-primary" onclick="this.closest('.modal-overlay').remove();window._refreshConditionsNow();">↻ Force refresh</button>
+        <button class="import-btn import-btn-secondary" data-conditions-inspect-close>Close</button>
+        <button class="import-btn import-btn-primary" id="conditions-inspect-refresh">↻ Force refresh</button>
       </div>
     </div>
   </div>`;
-  try { wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openAppendedModalOverlay(overlay, closeDialog);
+  overlay.querySelectorAll('[data-conditions-inspect-close]').forEach(btn => {
+    btn.addEventListener('click', closeDialog);
+  });
+  overlay.querySelector('#conditions-inspect-refresh')?.addEventListener('click', () => {
+    closeDialog();
+    /** @type {any} */ (window)._refreshConditionsNow?.();
+  });
   // Manually drive scroll + halt propagation on the Raw payload <pre>.
   // CSS-only `overflow:auto`/`overscroll-behavior:contain` couldn't beat
   // the modal's own scroll container — wheel deltas were being claimed

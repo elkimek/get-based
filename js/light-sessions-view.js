@@ -2,7 +2,7 @@
 // light-sessions-view.js — Unified Light & Sun session list and modal
 
 import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';
-import { trapModalFocus, wireBackdropClose } from './modal-lifecycle.js';
+import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
 // Inline cap on the historical sessions list. 3 is enough for
 // at-a-glance context ("what did I do recently"); the full history
@@ -129,12 +129,22 @@ export function renderUnifiedSessionsList() {
 // renderer as the inline list.
 export function _openAllSessionsModal() {
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay show light-sessions-modal-overlay';
+  overlay.className = 'modal-overlay light-sessions-modal-overlay';
   let _detach = () => {};
+  let _detached = false;
+  const detachListeners = () => {
+    if (_detached) return;
+    _detached = true;
+    _detach();
+  };
   const _removeOverlay = overlay.remove.bind(overlay);
   overlay.remove = () => {
-    _detach();
+    detachListeners();
     _removeOverlay();
+  };
+  const closeOverlay = () => {
+    detachListeners();
+    removeModalOverlay(overlay);
   };
   const renderInto = () => {
     const { rows, hasDeviceRows } = _collectUnifiedSessionRows();
@@ -150,7 +160,7 @@ export function _openAllSessionsModal() {
           <h3 id="light-all-sessions-title">${escapeHTML(title)}</h3>
           <p>Outdoor sun and therapy device history</p>
         </div>
-        <button class="modal-close" aria-label="Close" onclick="this.closest('.modal-overlay').remove()">×</button>
+        <button class="modal-close" aria-label="Close" data-light-sessions-close>×</button>
       </header>
       <div class="light-sessions-modal-summary" aria-label="Session summary">
         <div><span>Total</span><strong>${rows.length}</strong></div>
@@ -191,17 +201,21 @@ export function _openAllSessionsModal() {
   };
   overlay.addEventListener('click', (event) => {
     const target = eventElement(event.target);
+    if (target?.closest?.('[data-light-sessions-close]')) {
+      closeOverlay();
+      return;
+    }
     const row = target?.closest?.('.sun-session[role="button"]');
     if (!row || !overlay.contains(row)) return;
     if (target?.closest?.('button, a, input, select, textarea, [role="menuitem"]')) return;
-    setTimeout(() => overlay.remove(), 0);
+    setTimeout(closeOverlay, 0);
   });
   overlay.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const target = eventElement(event.target);
     const row = target?.closest?.('.sun-session[role="button"]');
     if (!row || !overlay.contains(row)) return;
-    setTimeout(() => overlay.remove(), 0);
+    setTimeout(closeOverlay, 0);
   });
   overlay.addEventListener('wheel', (event) => {
     const body = overlay.querySelector('.light-sessions-modal-body');
@@ -216,7 +230,5 @@ export function _openAllSessionsModal() {
     });
     event.preventDefault();
   }, { passive: false });
-  try { wireBackdropClose(overlay); } catch (e) {}
-  document.body.appendChild(overlay);
-  try { trapModalFocus(overlay); } catch (e) {}
+  openAppendedModalOverlay(overlay, closeOverlay);
 }
