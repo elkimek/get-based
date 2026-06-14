@@ -32,6 +32,16 @@
   font-size: 12px; cursor: pointer; padding: 0 0 8px;
 }
 .chat-quiz-back:hover { color: var(--accent); }
+.chat-quiz-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+}
+.chat-quiz-link:hover { color: var(--accent); }
+.chat-quiz-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 .chat-quiz-skip { text-align: center; margin-top: 14px; }
 .chat-quiz-skip-btn {
   background: transparent; border: 1px solid var(--border); border-radius: 8px;

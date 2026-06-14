@@ -294,12 +294,15 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     'Onboarding cards should stay readable in glass/synth themes');
   assert('Chat onboarding has OpenRouter OAuth', chatOnboardingSrc.includes('startOpenRouterOAuth') && chatOnboardingSrc.includes('paste a key manually'),
     'Should have OAuth button and manual key option for API step');
-  assert('Chat onboarding has PPQ', chatOnboardingSrc.includes("switchAIProvider('ppq')"),
+  const hasDelegatedProviderSetup = (provider) =>
+    chatOnboardingSrc.includes(`chatOnboardingActionAttrs('open-provider-settings', { provider: '${provider}' })`) &&
+    chatOnboardingSrc.includes(`'${provider}'`);
+  assert('Chat onboarding has PPQ', hasDelegatedProviderSetup('ppq'),
     'Should have PPQ setup link');
   // Venice is intentionally NOT in the onboarding quiz — its
   // uncensored/E2EE positioning hurts non-tech onboarding clarity.
   // Reachable from Settings → AI (provider-panels.js + settings.js).
-  assert('Chat onboarding has Local AI', chatOnboardingSrc.includes("switchAIProvider('ollama')"),
+  assert('Chat onboarding has Local AI', hasDelegatedProviderSetup('ollama'),
     'Should have Local AI setup link');
   assert('Chat onboarding has settings opener', chatOnboardingSrc.includes("openSettingsModal('ai')"),
     'Should have link that opens AI settings tab directly');
