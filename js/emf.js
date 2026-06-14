@@ -889,9 +889,10 @@ function openInterpretationModal(title, existingInterp, onGenerate, onSave, miti
   </div>`;
 
   overlay.innerHTML = html;
-  if (!overlay.isConnected) document.body.appendChild(overlay);
+  const wasConnected = overlay.isConnected;
+  if (!wasConnected) document.body.appendChild(overlay);
   openModalOverlay(overlay);
-  try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
+  if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}
 
   // Close on backdrop click (but not drag-from-inside, #87)
   let mdInside = false;

@@ -232,6 +232,9 @@ assert('EMF editor, interpretation, and photo overlays use shared lifecycle help
   emfSrc.includes("import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';") &&
     (emfSrc.match(/openModalOverlay\(overlay\)/g) || []).length >= 4 &&
     (emfSrc.match(/removeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    emfSrc.includes('const wasConnected = overlay.isConnected;') &&
+    emfSrc.includes('if (!wasConnected) document.body.appendChild(overlay);') &&
+    emfSrc.includes("if (!wasConnected) try { trapModalFocus(overlay, { closeOnEscape: false }); } catch (_) {}") &&
     emfSrc.includes("trapModalFocus(overlay, { closeOnEscape: false })") &&
     emfSrc.includes('trapModalFocus(overlay)') &&
     emfSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el))") &&
