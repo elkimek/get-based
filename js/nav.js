@@ -6,6 +6,7 @@ import { escapeHTML, escapeAttr, hashString } from './utils.js';
 import { getActiveData, filterDatesByRange } from './data.js';
 import { countFlagged } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
+import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 function _iconSvg(name) {
   const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -426,15 +427,13 @@ export function toggleMobileSidebar() {
     closeMobileSidebar();
   } else {
     sidebar.classList.add('mobile-open');
-    backdrop.classList.add('show');
-    document.body.style.overflow = 'hidden';
+    openModalOverlay(backdrop, { scrollLock: true });
   }
 }
 
 export function closeMobileSidebar() {
   document.getElementById('sidebar-nav').classList.remove('mobile-open');
-  document.getElementById('sidebar-backdrop').classList.remove('show');
-  document.body.style.overflow = '';
+  closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
 
 Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });

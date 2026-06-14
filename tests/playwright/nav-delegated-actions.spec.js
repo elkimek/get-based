@@ -164,3 +164,31 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     expect(passed, name).toBe(true);
   }
 });
+
+test('mobile sidebar uses shared lifecycle scroll lock', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await prepareApp(page);
+
+  const results = await page.evaluate(() => {
+    const sidebar = document.getElementById('sidebar-nav');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar || !backdrop) throw new Error('mobile sidebar fixture missing');
+
+    document.body.style.overflow = 'auto';
+    window.toggleMobileSidebar?.();
+    const opened = sidebar.classList.contains('mobile-open')
+      && backdrop.classList.contains('show')
+      && document.body.style.overflow === 'hidden';
+
+    window.closeMobileSidebar?.();
+    const closed = !sidebar.classList.contains('mobile-open')
+      && !backdrop.classList.contains('show')
+      && document.body.style.overflow === 'auto';
+
+    document.body.style.overflow = '';
+    return { opened, closed };
+  });
+
+  expect(results.opened, 'opens sidebar and locks body scroll').toBe(true);
+  expect(results.closed, 'closes sidebar and restores body scroll').toBe(true);
+});
