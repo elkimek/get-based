@@ -560,8 +560,6 @@ function renderProfileShareShell({ title, kicker = 'Share Profile', body }) {
   if (!(overlay instanceof HTMLElement)) return;
   openAppendedModalOverlay(overlay, closeProfileShareModal);
   installProfileShareDelegates(overlay);
-  const firstControl = /** @type {HTMLElement | null} */ (overlay?.querySelector('input, button, select'));
-  firstControl?.focus();
 }
 
 export function openProfileShareModal(profileId = state.currentProfile) {
