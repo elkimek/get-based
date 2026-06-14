@@ -65,8 +65,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
     cycleSrc.includes('<button type="button" class="cycle-prompt"'));
   assert('cycle-summary is a semantic button',
     cycleSrc.includes('<button type="button" class="cycle-summary-card"'));
-  assert('cycle editable cards keep keyboard activation handler',
-    cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
+  assert('cycle editable cards use delegated button actions',
+    cycleSrc.includes("cycleActionAttrs('open-editor')") &&
+      !cycleSrc.includes('CYCLE_KEY_ACTIVATE_EDITOR'));
 
   const suppSrc = read('/js/supplements.js');
   assert('supp-bar-row has role+tabindex',

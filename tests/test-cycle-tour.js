@@ -104,7 +104,7 @@ await import('../js/tour.js');
   // --- 12. Tour button in renderMenstrualCycleSection ---
   console.log('%c[12] Tour button in cycle section', 'font-weight:bold');
   assert('Renders cycle icon button', cycleSrc.includes('class="cycle-icon-btn"'));
-  assert('Button calls startCycleTour(false)', cycleSrc.includes('startCycleTour(false)'));
+  assert('Tour button uses delegated start action', cycleSrc.includes("cycleActionAttrs('start-tour')") && cycleSrc.includes('startCycleTour(false)'));
   assert('Button only shown when mc exists', /\$\{mc\s*\?\s*`<button type="button" class="cycle-icon-btn"/.test(cycleSrc));
   assert('Button has accessible tour label', cycleSrc.includes('aria-label="Take the cycle feature tour"'));
 

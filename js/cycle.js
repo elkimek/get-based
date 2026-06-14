@@ -7,7 +7,6 @@ import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
-const CYCLE_KEY_ACTIVATE_EDITOR = "if(event.key==='Enter'||event.key===' '){event.preventDefault();openMenstrualCycleEditor()}";
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
   droplet: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.5 6.9 9.1a8 8 0 1 0 10.2 0L12 2.5Z"></path></svg>',
@@ -24,8 +23,74 @@ const appWindow = /** @type {Window & typeof globalThis & {
   closeModal: () => void,
   navigate: (category: string) => void,
   recordChange: (field: string) => void,
-  startCycleTour?: (fromSave?: boolean) => void
+  startCycleTour?: (fromSave?: boolean) => void,
+  __cycleDelegatesBound?: boolean
 }} */ (window);
+
+function cycleActionAttrs(action, extra = '') {
+  return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
+}
+
+/**
+ * @param {EventTarget | null} target
+ * @param {string} selector
+ * @returns {HTMLElement | null}
+ */
+function closestCycleElement(target, selector) {
+  if (!(target instanceof Element)) return null;
+  const el = target.closest(selector);
+  return el instanceof HTMLElement ? el : null;
+}
+
+/** @param {MouseEvent} event */
+function handleCycleClick(event) {
+  const actionEl = closestCycleElement(event.target, '[data-cycle-action]');
+  if (!actionEl) return;
+  switch (actionEl.dataset.cycleAction || '') {
+    case 'close':
+      appWindow.closeModal();
+      break;
+    case 'delete-period':
+      deletePeriodEntry(actionEl.dataset.cycleStartDate || '');
+      break;
+    case 'toggle-symptom':
+      toggleCycleSymptomTag(actionEl);
+      break;
+    case 'add-period':
+      addPeriodEntry();
+      break;
+    case 'clear':
+      clearMenstrualCycle();
+      break;
+    case 'save':
+      saveMenstrualCycle();
+      break;
+    case 'start-tour':
+      if (appWindow.startCycleTour) appWindow.startCycleTour(false);
+      break;
+    case 'open-editor':
+      openMenstrualCycleEditor();
+      break;
+    default:
+      break;
+  }
+}
+
+/** @param {Event} event */
+function handleCycleChange(event) {
+  const actionEl = closestCycleElement(event.target, '[data-cycle-action="toggle-fields"]');
+  if (!actionEl) return;
+  _toggleCycleEditorFields();
+}
+
+function initCycleActionDelegates() {
+  if (appWindow.__cycleDelegatesBound || typeof document === 'undefined') return;
+  appWindow.__cycleDelegatesBound = true;
+  document.addEventListener('click', handleCycleClick);
+  document.addEventListener('change', handleCycleChange);
+}
+
+initCycleActionDelegates();
 
 /**
  * @param {string | null | undefined} id
@@ -354,7 +419,7 @@ export function openMenstrualCycleEditor() {
         <div class="gb-modal-kicker">Body context</div>
         <div class="gb-modal-title">Menstrual Cycle</div>
       </div>
-      <button type="button" class="modal-close cycle-icon-btn" onclick="window.closeModal()" aria-label="Close cycle editor">${CYCLE_ICONS.x}</button>
+      <button type="button" class="modal-close cycle-icon-btn" ${cycleActionAttrs('close')} aria-label="Close cycle editor">${CYCLE_ICONS.x}</button>
     </div>
     <div class="cycle-modal-body">
       <p class="cycle-modal-intro">Track cycle status, period history, and symptoms so hormone, iron, and inflammation markers can be interpreted against cycle phase.</p>
@@ -363,7 +428,7 @@ export function openMenstrualCycleEditor() {
         <div class="cycle-form-grid cycle-form-grid-single">
           <label class="cycle-field">
             <span>Cycle Status</span>
-          <select id="mc-cycle-status" onchange="window._toggleCycleEditorFields()">
+          <select id="mc-cycle-status" ${cycleActionAttrs('toggle-fields')}>
             <option value="regular"${mc.cycleStatus === 'regular' || !mc.cycleStatus ? ' selected' : ''}>Active - regular cycling</option>
             <option value="perimenopause"${mc.cycleStatus === 'perimenopause' ? ' selected' : ''}>Perimenopause / irregular</option>
             <option value="postmenopause"${mc.cycleStatus === 'postmenopause' ? ' selected' : ''}>Postmenopause / no periods</option>
@@ -444,7 +509,7 @@ export function openMenstrualCycleEditor() {
             ${p.notes ? `<span class="cycle-period-note">${escapeHTML(p.notes)}</span>` : ''}
           </div>
         </div>
-        <button type="button" class="cycle-icon-btn cycle-delete-btn" onclick="deletePeriodEntry('${escapeHTML(p.startDate)}')" aria-label="Delete period starting ${escapeHTML(fmtCycleDate(p.startDate))}" title="Delete period">${CYCLE_ICONS.trash}</button>
+        <button type="button" class="cycle-icon-btn cycle-delete-btn" ${cycleActionAttrs('delete-period', `data-cycle-start-date="${escapeHTML(p.startDate)}"`)} aria-label="Delete period starting ${escapeHTML(fmtCycleDate(p.startDate))}" title="Delete period">${CYCLE_ICONS.trash}</button>
       </div>`;
     }
     html += `</div>`;
@@ -473,7 +538,7 @@ export function openMenstrualCycleEditor() {
         <label class="cycle-field cycle-field-wide">
           <span>Symptoms</span>
           <div class="ctx-tags cycle-symptom-grid" id="mc-period-symptoms">
-            ${PERIOD_SYMPTOMS.map(s => `<button type="button" class="ctx-tag cycle-symptom-chip" data-value="${escapeHTML(s)}" aria-pressed="false" onclick="toggleCycleSymptomTag(this)">${escapeHTML(s)}</button>`).join('')}
+            ${PERIOD_SYMPTOMS.map(s => `<button type="button" class="ctx-tag cycle-symptom-chip" data-value="${escapeHTML(s)}" aria-pressed="false" ${cycleActionAttrs('toggle-symptom')}>${escapeHTML(s)}</button>`).join('')}
           </div>
         </label>
         <div class="cycle-add-row">
@@ -481,15 +546,15 @@ export function openMenstrualCycleEditor() {
             <span>Notes (optional)</span>
           <input type="text" id="mc-period-notes" placeholder="e.g. spotting, unusual pain">
           </label>
-          <button type="button" class="dashboard-action-btn dashboard-action-btn-primary cycle-add-btn" onclick="addPeriodEntry()">${CYCLE_ICONS.plus}<span>Add period</span></button>
+          <button type="button" class="dashboard-action-btn dashboard-action-btn-primary cycle-add-btn" ${cycleActionAttrs('add-period')}>${CYCLE_ICONS.plus}<span>Add period</span></button>
         </div>
       </div>
       </section>
     </div>
     <div class="cycle-modal-footer">
-      ${state.importedData.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" onclick="clearMenstrualCycle()">Clear All</button>` : ''}
-      <button type="button" class="dashboard-action-btn" onclick="window.closeModal()">Cancel</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" onclick="saveMenstrualCycle()">Save</button>
+      ${state.importedData.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" ${cycleActionAttrs('clear')}>Clear All</button>` : ''}
+      <button type="button" class="dashboard-action-btn" ${cycleActionAttrs('close')}>Cancel</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${cycleActionAttrs('save')}>Save</button>
     </div>`;
   modal.innerHTML = html;
   openModalOverlay(overlay);
@@ -629,13 +694,13 @@ export function renderMenstrualCycleSection(data, opts = {}) {
         <span class="cycle-widget-title">Menstrual cycle</span>
       </div>
       <div class="cycle-widget-actions">
-        ${mc ? `<button type="button" class="cycle-icon-btn" onclick="startCycleTour(false)" title="Cycle feature tour" aria-label="Take the cycle feature tour">${CYCLE_ICONS.help}</button>` : ''}
-        <button type="button" class="cycle-action-btn" onclick="openMenstrualCycleEditor()">${mc ? CYCLE_ICONS.edit : CYCLE_ICONS.plus}<span>${mc ? 'Edit' : 'Set up'}</span></button>
+        ${mc ? `<button type="button" class="cycle-icon-btn" ${cycleActionAttrs('start-tour')} title="Cycle feature tour" aria-label="Take the cycle feature tour">${CYCLE_ICONS.help}</button>` : ''}
+        <button type="button" class="cycle-action-btn" ${cycleActionAttrs('open-editor')}>${mc ? CYCLE_ICONS.edit : CYCLE_ICONS.plus}<span>${mc ? 'Edit' : 'Set up'}</span></button>
       </div>
     </div>`;
   }
   if (!mc) {
-    html += `<button type="button" class="cycle-prompt" aria-label="Set up cycle tracking" onclick="openMenstrualCycleEditor()" onkeydown="${CYCLE_KEY_ACTIVATE_EDITOR}">
+    html += `<button type="button" class="cycle-prompt" aria-label="Set up cycle tracking" ${cycleActionAttrs('open-editor')}>
       <span class="cycle-prompt-icon">${CYCLE_ICONS.droplet}</span>
       <span class="cycle-prompt-copy">
         <strong>Track your cycle for better lab interpretation</strong>
@@ -661,7 +726,7 @@ export function renderMenstrualCycleSection(data, opts = {}) {
     const sortedPeriods = (mc.periods || []).slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
     if (compact && sortedPeriods[0]?.startDate) summaryMeta.push(`Last ${fmtCycleDate(sortedPeriods[0].startDate)}`);
     const summaryAria = [summaryPrimary, ...summaryMeta].filter(Boolean).join(', ');
-    html += `<button type="button" class="cycle-summary-card" aria-label="Edit cycle: ${escapeHTML(summaryAria)}" onclick="openMenstrualCycleEditor()" onkeydown="${CYCLE_KEY_ACTIVATE_EDITOR}">
+    html += `<button type="button" class="cycle-summary-card" aria-label="Edit cycle: ${escapeHTML(summaryAria)}" ${cycleActionAttrs('open-editor')}>
       <span class="cycle-summary-icon">${CYCLE_ICONS.droplet}</span>
       <span class="cycle-summary-copy">
         <span class="cycle-summary-label">Current profile</span>

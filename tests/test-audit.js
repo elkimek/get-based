@@ -691,6 +691,10 @@ assert('Cycle editor uses dedicated modal shell', cycleSrc.includes("modal.class
 assert('Cycle cards use semantic buttons',
   cycleSrc.includes('<button type="button" class="cycle-prompt"') &&
   cycleSrc.includes('<button type="button" class="cycle-summary-card"'));
+assert('Cycle renderer delegates actions instead of inline handlers',
+  cycleSrc.includes('initCycleActionDelegates') &&
+    cycleSrc.includes('cycleActionAttrs') &&
+    !/\son(?:click|change|keydown)\s*=/.test(cycleSrc));
 assert('Cycle mobile modal uses full-height layout',
   cssSrc.includes('.cycle-modal') && cssSrc.includes('height: calc(100dvh - 24px)'));
 const themeExtraSrc = read('themes-extra.css');
