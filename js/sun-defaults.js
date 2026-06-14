@@ -52,6 +52,111 @@ function getInitialFitzpatrick() {
   return skinTypeToFitzpatrick(lc);
 }
 
+let lightSetupDelegatesInstalled = false;
+
+function lightSetupActionAttrs(action, data = {}) {
+  const attrs = [`data-light-setup-action="${escapeAttr(action)}"`];
+  for (const [key, value] of Object.entries(data)) {
+    if (value != null && value !== '') attrs.push(`data-light-setup-${key}="${escapeAttr(String(value))}"`);
+  }
+  return attrs.join(' ');
+}
+
+function lightSetupInputAttrs(input) {
+  return `data-light-setup-input="${escapeAttr(input)}"`;
+}
+
+function parseSetupIndex(value) {
+  const idx = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(idx) ? idx : null;
+}
+
+function selectSetupSkinIndex(rawIdx) {
+  const idx = parseSetupIndex(rawIdx);
+  if (idx == null) return;
+  const range = /** @type {HTMLInputElement | null} */ (document.getElementById('setup-skin-range'));
+  if (range) range.value = String(idx);
+  _updateSetupSkinSlider(idx);
+}
+
+function handleLightSetupClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-light-setup-action]'));
+  if (!actionEl?.dataset) return;
+
+  switch (actionEl.dataset.lightSetupAction || '') {
+    case 'reopen':
+      event.preventDefault();
+      reopenSunSetup();
+      break;
+    case 'dismiss':
+      event.preventDefault();
+      dismissSunSetup();
+      break;
+    case 'cancel-reopen':
+      event.preventDefault();
+      cancelReopenSunSetup();
+      break;
+    case 'set-step':
+      event.preventDefault();
+      setLightSetupStep(actionEl.dataset.lightSetupStep || 'core');
+      break;
+    case 'save':
+      event.preventDefault();
+      saveSunSetup();
+      break;
+    case 'select-choice':
+      event.preventDefault();
+      _selectSetupChoice(actionEl);
+      break;
+    case 'select-skin':
+      event.preventDefault();
+      selectSetupSkinIndex(actionEl.dataset.lightSetupSkinIdx);
+      break;
+    case 'open-profile-location':
+      event.preventDefault();
+      openLightSetupProfileLocation();
+      break;
+    case 'request-precise-location':
+      event.preventDefault();
+      requestLightSetupPreciseLocation();
+      break;
+  }
+}
+
+function handleLightSetupInput(event) {
+  const target = event.target;
+  const inputEl = /** @type {HTMLInputElement} */ (target);
+  if (!inputEl?.dataset?.lightSetupInput) return;
+  switch (inputEl.dataset.lightSetupInput) {
+    case 'ott-score':
+      _updateOttRunningScore();
+      break;
+    case 'skin-range':
+      _updateSetupSkinSlider(inputEl.value);
+      break;
+  }
+}
+
+function handleLightSetupKeydown(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-light-setup-action="select-skin"]'));
+  if (!actionEl?.dataset) return;
+  const idx = parseSetupIndex(actionEl.dataset.lightSetupSkinIdx);
+  if (idx == null) return;
+  _skinFaceKeydown(event, idx);
+}
+
+export function installLightSetupDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightSetupDelegatesInstalled) return;
+  lightSetupDelegatesInstalled = true;
+  root.addEventListener('click', handleLightSetupClick);
+  root.addEventListener('input', handleLightSetupInput);
+  root.addEventListener('keydown', handleLightSetupKeydown);
+}
+
 // ─── Fitzpatrick skin types ───────────────────────────────────────────
 
 export const FITZPATRICK_OPTIONS = [
@@ -286,7 +391,7 @@ function renderSavedSummary() {
         <span class="light-setup-summary-tick">✓</span>
         Your light setup
       </span>
-      <button class="import-btn import-btn-secondary light-setup-summary-edit" onclick="window.reopenSunSetup && window.reopenSunSetup()">Edit</button>
+      <button class="import-btn import-btn-secondary light-setup-summary-edit" ${lightSetupActionAttrs('reopen')}>Edit</button>
     </div>
     ${photoBanner}
     <div class="light-setup-chips-grid">
@@ -328,8 +433,8 @@ function renderSetupPrompt() {
       <p>Skin type, home lighting, and eyewear drive burn math and channel estimates.</p>
     </div>
     <div class="light-setup-prompt-actions">
-      <button type="button" class="dashboard-action-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">Later</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" onclick="window.reopenSunSetup && window.reopenSunSetup()">Set up</button>
+      <button type="button" class="dashboard-action-btn" ${lightSetupActionAttrs('dismiss')}>Later</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" ${lightSetupActionAttrs('reopen')}>Set up</button>
     </div>
   </div>`;
 }
@@ -347,16 +452,16 @@ function getSetupFilledCount() {
 function renderSetupActions(filledCount = getSetupFilledCount()) {
   return `<div class="light-setup-actions" data-setup-actions="core">
     ${isOnboardingComplete()
-      ? `<button class="import-btn import-btn-secondary" onclick="window.cancelReopenSunSetup && window.cancelReopenSunSetup()">Cancel</button>
-         <button class="import-btn import-btn-primary light-setup-next-btn" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">Next: Light score</button>`
-      : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" onclick="window.dismissSunSetup && window.dismissSunSetup()">I'll do this later</button>
-         <button class="import-btn import-btn-primary light-setup-next-btn" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">Next: Light score</button>`}
+      ? `<button class="import-btn import-btn-secondary" ${lightSetupActionAttrs('cancel-reopen')}>Cancel</button>
+         <button class="import-btn import-btn-primary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Next: Light score</button>`
+      : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" ${lightSetupActionAttrs('dismiss')}>I'll do this later</button>
+         <button class="import-btn import-btn-primary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Next: Light score</button>`}
   </div>
   <div class="light-setup-actions" data-setup-actions="score">
-    <button class="import-btn import-btn-secondary" onclick="window.setLightSetupStep && window.setLightSetupStep('core')">Back</button>
+    <button class="import-btn import-btn-secondary" ${lightSetupActionAttrs('set-step', { step: 'core' })}>Back</button>
     ${isOnboardingComplete()
-      ? `<button class="import-btn import-btn-primary light-setup-save-btn" onclick="window.saveSunSetup()">Save changes</button>`
-      : `<button class="import-btn import-btn-primary light-setup-save-btn" onclick="window.saveSunSetup()">Save setup</button>`}
+      ? `<button class="import-btn import-btn-primary light-setup-save-btn" ${lightSetupActionAttrs('save')}>Save changes</button>`
+      : `<button class="import-btn import-btn-primary light-setup-save-btn" ${lightSetupActionAttrs('save')}>Save setup</button>`}
   </div>`;
 }
 
@@ -365,7 +470,7 @@ function renderSetupChoiceGroup(id, options, selected, className = '') {
     <div class="light-setup-choice-grid ${className}" role="group">
       ${options.map(o => {
         const active = selected === o.key;
-        return `<button type="button" class="light-setup-choice${active ? ' active' : ''}" data-choice-group="${escapeAttr(id)}" data-value="${escapeAttr(o.key)}" aria-pressed="${active ? 'true' : 'false'}" onclick="window._selectSetupChoice && window._selectSetupChoice(this)">
+        return `<button type="button" class="light-setup-choice${active ? ' active' : ''}" data-choice-group="${escapeAttr(id)}" data-value="${escapeAttr(o.key)}" aria-pressed="${active ? 'true' : 'false'}" ${lightSetupActionAttrs('select-choice')}>
           <span class="light-setup-choice-label">${escapeHTML(o.label)}</span>
           ${o.sub ? `<span class="light-setup-choice-sub">${escapeHTML(o.sub)}</span>` : ''}
         </button>`;
@@ -395,7 +500,7 @@ function renderOttScoreMeter(score) {
 
 function renderOttQuestion(q, index, checked) {
   return `<label class="light-setup-ott-q light-setup-ott-card${checked ? ' is-flagged' : ''}">
-    <input class="light-setup-ott-input" type="checkbox" data-ott="${escapeAttr(q.key)}"${checked ? ' checked' : ''} oninput="window._updateOttRunningScore && window._updateOttRunningScore()">
+    <input class="light-setup-ott-input" type="checkbox" data-ott="${escapeAttr(q.key)}"${checked ? ' checked' : ''} ${lightSetupInputAttrs('ott-score')}>
     <span class="light-setup-ott-card-mark" aria-hidden="true"><span>${index + 1}</span></span>
     <span class="light-setup-ott-q-body">
       <span class="light-setup-ott-q-top">
@@ -415,11 +520,11 @@ function renderSetupEditor({ includeActions = true } = {}) {
 
   let html = `<div class="light-setup-card light-setup-card-editor">
     <div class="light-setup-step-tabs" role="tablist" aria-label="Light setup steps">
-      <button type="button" class="light-setup-step-tab active" data-setup-tab="core" role="tab" aria-selected="true" onclick="window.setLightSetupStep && window.setLightSetupStep('core')">
+      <button type="button" class="light-setup-step-tab active" data-setup-tab="core" role="tab" aria-selected="true" ${lightSetupActionAttrs('set-step', { step: 'core' })}>
         <span class="light-setup-step-tab-index">1</span>
         <span>Core assumptions</span>
       </button>
-      <button type="button" class="light-setup-step-tab" data-setup-tab="score" role="tab" aria-selected="false" onclick="window.setLightSetupStep && window.setLightSetupStep('score')">
+      <button type="button" class="light-setup-step-tab" data-setup-tab="score" role="tab" aria-selected="false" ${lightSetupActionAttrs('set-step', { step: 'score' })}>
         <span class="light-setup-step-tab-index">2</span>
         <span>Light score check</span>
       </button>
@@ -444,9 +549,9 @@ function renderSetupEditor({ includeActions = true } = {}) {
           // group. Default to index 2 (median III) when nothing is set.
           const fallbackIdx = getInitialFitzpatrick() ? null : 2;
           const inTabOrder = isActive || (fallbackIdx === i);
-          return `<span class="ctx-skin-face${isActive ? ' active' : ''}" data-idx="${i}" data-roman="${ROMAN[i]}" role="radio" tabindex="${inTabOrder ? '0' : '-1'}" aria-checked="${isActive ? 'true' : 'false'}" aria-label="Fitzpatrick ${escapeAttr(SKIN_TYPE[i])}" onclick="document.getElementById('setup-skin-range').value=${i};window._updateSetupSkinSlider && window._updateSetupSkinSlider(${i})" onkeydown="window._skinFaceKeydown && window._skinFaceKeydown(event, ${i})">${e}</span>`;
+          return `<span class="ctx-skin-face${isActive ? ' active' : ''}" data-idx="${i}" data-roman="${ROMAN[i]}" role="radio" tabindex="${inTabOrder ? '0' : '-1'}" aria-checked="${isActive ? 'true' : 'false'}" aria-label="Fitzpatrick ${escapeAttr(SKIN_TYPE[i])}" ${lightSetupActionAttrs('select-skin', { 'skin-idx': i })}>${e}</span>`;
         }).join('')}</div>
-        <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" oninput="window._updateSetupSkinSlider && window._updateSetupSkinSlider(this.value)" data-set="${getInitialFitzpatrick() ? '1' : '0'}" aria-valuetext="${getInitialFitzpatrick() ? escapeAttr(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'not set — tap a face'}">
+        <input type="range" min="0" max="5" value="${(getInitialFitzpatrick() ? fitzpatrickToSkinTypeIndex(getInitialFitzpatrick()) : 2)}" class="ctx-skin-range" id="setup-skin-range" ${lightSetupInputAttrs('skin-range')} data-set="${getInitialFitzpatrick() ? '1' : '0'}" aria-valuetext="${getInitialFitzpatrick() ? escapeAttr(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())]) : 'not set — tap a face'}">
         <div class="ctx-skin-label" id="setup-skin-label">${getInitialFitzpatrick() ? `${escapeHTML(SKIN_TYPE[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}<span class="ctx-skin-label-detail" id="setup-skin-label-detail">${escapeHTML(FITZPATRICK_DESCRIPTOR[fitzpatrickToSkinTypeIndex(getInitialFitzpatrick())])}</span>` : 'Tap a face or drag the slider'}</div>
       </div>
     </div>
@@ -628,8 +733,8 @@ function renderSetupLocationStatus() {
       <p>${escapeHTML(status.detail)}</p>
     </div>
     <div class="light-setup-location-actions">
-      <button type="button" class="import-btn import-btn-secondary" onclick="window.openLightSetupProfileLocation && window.openLightSetupProfileLocation()">Edit profile</button>
-      <button type="button" class="import-btn import-btn-secondary" onclick="window.requestLightSetupPreciseLocation && window.requestLightSetupPreciseLocation()">${escapeHTML(status.preciseLabel)}</button>
+      <button type="button" class="import-btn import-btn-secondary" ${lightSetupActionAttrs('open-profile-location')}>Edit profile</button>
+      <button type="button" class="import-btn import-btn-secondary" ${lightSetupActionAttrs('request-precise-location')}>${escapeHTML(status.preciseLabel)}</button>
     </div>
   </div>`;
 }
@@ -843,6 +948,7 @@ async function dismissSunSetup() {
 }
 
 if (typeof window !== 'undefined') {
+  installLightSetupDelegates();
   Object.assign(window, {
     getSunDefaults,
     saveSunDefaults,

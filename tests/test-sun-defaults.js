@@ -6,6 +6,10 @@
 // Run: node tests/test-sun-defaults.js  (or via npm test)
 
 import './_node-shim.js';
+import fs from 'fs';
+import { JSDOM } from 'jsdom';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -14,6 +18,39 @@ function assert(name, condition, detail) {
 }
 
 console.log('=== Sun Defaults Tests ===\n');
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '..');
+const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const originalDelegateDomGlobals = {
+  document: globalThis.document,
+  HTMLElement: globalThis.HTMLElement,
+  Element: globalThis.Element,
+  Event: globalThis.Event,
+  KeyboardEvent: globalThis.KeyboardEvent,
+  MouseEvent: globalThis.MouseEvent,
+  MutationObserver: globalThis.MutationObserver,
+  Node: globalThis.Node,
+};
+const delegateDom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/' });
+globalThis.document = delegateDom.window.document;
+globalThis.HTMLElement = delegateDom.window.HTMLElement;
+globalThis.Element = delegateDom.window.Element;
+globalThis.Event = delegateDom.window.Event;
+globalThis.KeyboardEvent = delegateDom.window.KeyboardEvent;
+globalThis.MouseEvent = delegateDom.window.MouseEvent;
+globalThis.MutationObserver = delegateDom.window.MutationObserver;
+globalThis.Node = delegateDom.window.Node;
+
+function restoreDelegateDomGlobals() {
+  for (const [key, value] of Object.entries(originalDelegateDomGlobals)) {
+    if (value === undefined) {
+      delete globalThis[key];
+    } else {
+      globalThis[key] = value;
+    }
+  }
+}
 
 await import('../js/state.js');
 const mod = await import('../js/sun-defaults.js');
@@ -31,6 +68,67 @@ const {
 
   // Stash importedData so we don't pollute the host page.
   const orig = window._labState.importedData;
+
+  // ─── 0. Light setup delegated events ─────────────────────────────────
+  console.log('%c 0. Light setup delegated events ', 'font-weight:bold;color:#f59e0b');
+
+  assert('sun-defaults renders setup controls without inline event attributes',
+    !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsSrc));
+  assert('sun-defaults installs shared Light setup delegates',
+    sunDefaultsSrc.includes('installLightSetupDelegates();') &&
+    sunDefaultsSrc.includes("data-light-setup-action=") &&
+    sunDefaultsSrc.includes("data-light-setup-input="));
+
+  document.body.innerHTML = `<div class="light-setup-focus-modal" data-setup-step="core">
+    <button type="button" data-setup-tab="core" aria-selected="true"></button>
+    <button type="button" data-setup-tab="score" aria-selected="false" data-light-setup-action="set-step" data-light-setup-step="score"></button>
+    <section data-setup-pane="core"><div class="light-setup-title" tabindex="-1"></div></section>
+    <section data-setup-pane="score" hidden><h4 tabindex="-1"></h4></section>
+    <div class="light-setup-focus-body"></div>
+  </div>`;
+  document.querySelector('[data-light-setup-step="score"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert('delegated setup step click switches panes',
+    document.querySelector('.light-setup-focus-modal')?.dataset.setupStep === 'score' &&
+    document.querySelector('[data-setup-tab="score"]')?.getAttribute('aria-selected') === 'true' &&
+    document.querySelector('[data-setup-pane="core"]')?.hasAttribute('hidden'));
+
+  document.body.innerHTML = `<div class="light-setup-card">
+    <span class="light-setup-progress"></span>
+    <input type="hidden" id="setup-homelight" value="">
+    <button type="button" data-light-setup-action="select-choice" data-choice-group="setup-homelight" data-value="led-warm" aria-pressed="false"></button>
+  </div>`;
+  document.querySelector('[data-choice-group="setup-homelight"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert('delegated setup choice click updates hidden input and pressed state',
+    document.getElementById('setup-homelight')?.value === 'led-warm' &&
+    document.querySelector('[data-choice-group="setup-homelight"]')?.getAttribute('aria-pressed') === 'true');
+
+  document.body.innerHTML = `<div class="light-setup-card">
+    <span class="light-setup-progress"></span>
+    <input id="setup-skin-range" value="2" data-set="0">
+    <div id="setup-skin-label"></div>
+    ${[0, 1, 2, 3, 4, 5].map(i => `<span class="ctx-skin-face" data-idx="${i}" role="radio" aria-checked="false" data-light-setup-action="select-skin" data-light-setup-skin-idx="${i}"></span>`).join('')}
+  </div>`;
+  document.querySelector('[data-light-setup-skin-idx="4"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert('delegated skin click updates range and active state',
+    document.getElementById('setup-skin-range')?.value === '4' &&
+    document.getElementById('setup-skin-range')?.dataset.set === '1' &&
+    document.querySelector('[data-idx="4"]')?.getAttribute('aria-checked') === 'true');
+
+  document.body.innerHTML = `<div class="light-setup-card">
+    <label class="light-setup-ott-card"><input type="checkbox" data-ott="morning-light-deficit" data-light-setup-input="ott-score" checked></label>
+    <span id="ott-running-value"></span>
+    <span id="ott-running-aligned"></span>
+    <span id="ott-running-label" data-tier="0"></span>
+    <span id="ott-summary-score"></span>
+    <span id="ott-running-score"></span>
+    <span id="ott-score-fill"></span>
+  </div>`;
+  document.querySelector('[data-light-setup-input="ott-score"]')?.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+  assert('delegated setup input updates running light score',
+    document.getElementById('ott-running-value')?.textContent === '1/10' &&
+    document.getElementById('ott-summary-score')?.textContent === '9/10 aligned');
+  document.body.innerHTML = '';
+  restoreDelegateDomGlobals();
 
   // ─── 1. Fitzpatrick options shape ─────────────────────────────────────
   console.log('%c 1. Fitzpatrick options ', 'font-weight:bold;color:#f59e0b');
