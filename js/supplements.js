@@ -13,6 +13,7 @@ import {
 import { callClaudeAPI, getAIProvider, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import {
   computeAllImpacts,
@@ -125,7 +126,7 @@ export function renderSupplementsSection() {
   let html = `<div class="supp-timeline-section">
     <div class="supp-timeline-header">
       <span class="context-section-title">Supplements & Medications</span>
-      <button class="supp-add-btn" onclick="openSupplementsEditor()">+ Add</button>
+      <button class="supp-add-btn" ${suppActionAttrs('open-editor')}>+ Add</button>
     </div>`;
   if (supps.length > 0) {
     const today = new Date().toISOString().slice(0, 10);
@@ -189,7 +190,7 @@ export function renderSupplementsSection() {
       }
       const fullLabel = s.name + (s.dosage ? ' · ' + s.dosage : '');
       const shortName = s.name.replace(/,?\s*\d+\s*x?\s*(?:ml|g|kg|oz|fl\.?\s*oz|caps(?:ules?)?|tabs?|tablets?|softgels?|ct)\b.*$/i, '').trim() || s.name;
-      html += `<div class="supp-bar-row" role="button" tabindex="0" aria-label="Edit ${escapeHTML(fullLabel)}" onclick="openSupplementsEditor(${i})">
+      html += `<div class="supp-bar-row" role="button" tabindex="0" aria-label="Edit ${escapeHTML(fullLabel)}" ${suppActionAttrs('open-editor', `data-supp-index="${i}"`)}>
         <span class="supp-bar-label" title="${escapeHTML(fullLabel)}">${escapeHTML(shortName)}</span>
         <div class="supp-bar-track">${barsHtml}</div>
       </div>`;
@@ -199,7 +200,7 @@ export function renderSupplementsSection() {
     const mitoWarnings = scanSupplementsForWarnings(supps);
     if (mitoWarnings.length > 0) {
       html += `<div class="supp-mitotox">`;
-      html += `<div class="supp-mitotox-header">Mitochondrial effects \u2014 <span class="supp-mitotox-ask" onclick="askAIMitoContext()">ask AI for context</span></div>`;
+      html += `<div class="supp-mitotox-header">Mitochondrial effects \u2014 <span class="supp-mitotox-ask" ${suppActionAttrs('ask-mito')}>ask AI for context</span></div>`;
       for (const w of mitoWarnings) {
         const top = w.effects.slice(0, 2).map(e => humanizeEffect(e, { showContext: true })).join(' and ');
         html += `<div class="supp-mitotox-item">\u26A0\uFE0F <strong>${escapeHTML(w.match)}</strong>: ${escapeHTML(top)} <a href="${w.url}" target="_blank" rel="noopener" class="supp-mitotox-link">primary study</a> <a href="${w.searchUrl}" target="_blank" rel="noopener" class="supp-mitotox-link">more studies</a></div>`;
@@ -226,10 +227,10 @@ function _ingredientRowHtml(idx, name = '', amount = '', timesPerDay = '', outer
   const total = effective ? ingredientDailyTotal({ amount, timesPerDay: effective }) : null;
   return `<div class="supp-ingredient-row" data-idx="${idx}">
     <input type="text" class="supp-ing-name" placeholder="Ingredient" value="${escapeHTML(name)}">
-    <input type="text" class="supp-ing-amount" placeholder="Per dose" value="${escapeHTML(amount)}" oninput="updateIngTotal(this)">
-    <input type="number" class="supp-ing-times" placeholder="×/day" min="0" max="99" step="0.5" value="${escapeHTML(rowTimes)}" oninput="updateIngTotal(this)">
+    <input type="text" class="supp-ing-amount" placeholder="Per dose" value="${escapeHTML(amount)}">
+    <input type="number" class="supp-ing-times" placeholder="×/day" min="0" max="99" step="0.5" value="${escapeHTML(rowTimes)}">
     <span class="supp-ing-total">${total ? escapeHTML(formatSupplementTotal(total)) : ''}</span>
-    <button class="supp-ing-remove" onclick="removeIngredientRow(this)" title="Remove">&times;</button>
+    <button class="supp-ing-remove" ${suppActionAttrs('remove-ingredient')} title="Remove">&times;</button>
   </div>`;
 }
 
@@ -282,7 +283,7 @@ function _periodRowHtml(idx, start = '', end = '', showRemove = true) {
     <input type="date" class="supp-period-start" value="${start}">
     <span class="supp-period-arrow">&rarr;</span>
     <input type="date" class="supp-period-end" value="${end}" placeholder="ongoing">
-    <button class="supp-period-remove" onclick="removePeriodRow(this)" title="Remove"${showRemove ? '' : ' style="display:none"'}>&times;</button>
+    <button class="supp-period-remove" ${suppActionAttrs('remove-period')} title="Remove"${showRemove ? '' : ' style="display:none"'}>&times;</button>
   </div>`;
 }
 
@@ -455,7 +456,7 @@ function _suppFormHtml(editIdx, s) {
       <div class="supp-form-field"><label>Product URL <span style="font-weight:normal;color:var(--text-muted)">(saved for reference${hasAIProvider() ? '; Fetch auto-fills' : ''})</span></label>
         <div class="supp-url-input-row">
           <input type="url" id="supp-url" placeholder="https://..." autocomplete="off" value="${escapeHTML(sourceUrl)}">
-          ${hasAIProvider() ? `<button class="supp-url-fetch" onclick="fetchSupplementFromURL()">Fetch</button>` : ''}
+          ${hasAIProvider() ? `<button class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Fetch</button>` : ''}
         </div>
       </div>
     </div>
@@ -467,7 +468,7 @@ function _suppFormHtml(editIdx, s) {
         <input type="text" id="supp-dosage" placeholder="e.g. with food, before bed" value="${editing ? escapeHTML(s.dosage || '') : ''}">
       </div>
       <div class="supp-form-field supp-form-field-compact"><label>Doses/day</label>
-        <input type="number" id="supp-times" placeholder="e.g. 2" min="0" max="99" step="0.5" value="${editing && s.timesPerDay != null ? escapeHTML(String(s.timesPerDay)) : ''}" oninput="updateAllIngTotals()">
+        <input type="number" id="supp-times" placeholder="e.g. 2" min="0" max="99" step="0.5" value="${editing && s.timesPerDay != null ? escapeHTML(String(s.timesPerDay)) : ''}">
       </div>
     </div>
     <div class="supp-form-row">
@@ -479,16 +480,16 @@ function _suppFormHtml(editIdx, s) {
       </div>
       <div class="supp-form-field supp-form-field-wide"><label>Periods <span style="font-weight:normal;color:var(--text-muted)">(blank end = ongoing)</span></label>
         <div id="supp-periods">${periods.map((p, i) => _periodRowHtml(i, p.start, p.end || '', periods.length > 1)).join('')}</div>
-        <div class="supp-period-actions"><button class="supp-period-add" onclick="addPeriodRow()">+ Add period</button></div>
+        <div class="supp-period-actions"><button class="supp-period-add" ${suppActionAttrs('add-period')}>+ Add period</button></div>
       </div>
     </div>
     <div class="supp-form-row">
       <div class="supp-form-field"><label>Ingredients</label>
         <div id="supp-ingredients">${ingredients.map((ing, i) => _ingredientRowHtml(i, ing.name, ing.amount, ing.timesPerDay, editing && s.timesPerDay ? s.timesPerDay : '')).join('')}</div>
         <div class="supp-ingredient-actions">
-          <button class="supp-ingredient-add" onclick="addIngredientRow()">+ Add</button>
-          ${hasAIProvider() && supportsVision() ? `<button class="supp-ingredient-add supp-scan-label" onclick="document.getElementById('supp-label-input').click()">Scan label</button>
-          <input type="file" id="supp-label-input" accept="image/*" capture="environment" style="display:none" onchange="scanSupplementLabel(this)">` : ''}
+          <button class="supp-ingredient-add" ${suppActionAttrs('add-ingredient')}>+ Add</button>
+          ${hasAIProvider() && supportsVision() ? `<button class="supp-ingredient-add supp-scan-label" ${suppActionAttrs('scan-label')}>Scan label</button>
+          <input type="file" id="supp-label-input" accept="image/*" capture="environment" style="display:none">` : ''}
         </div>
       </div>
     </div>
@@ -498,9 +499,9 @@ function _suppFormHtml(editIdx, s) {
       </div>
     </div>
     <div class="note-editor-actions">
-      <button class="import-btn import-btn-primary" onclick="saveSupplement(${editIdx})">${editing ? 'Update' : 'Add'}</button>
-      ${editing ? `<button class="import-btn import-btn-secondary" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)" onclick="deleteSupplement(${editIdx})">Delete</button>` : ''}
-      <button class="import-btn import-btn-secondary" onclick="${editing ? `toggleSuppAccordion(${editIdx})` : 'showAddSuppForm()'}">Cancel</button>
+      <button class="import-btn import-btn-primary" ${suppActionAttrs('save', `data-supp-index="${editIdx}"`)}>${editing ? 'Update' : 'Add'}</button>
+      ${editing ? `<button class="import-btn import-btn-secondary" style="color:var(--danger,#ef4444);border-color:var(--danger,#ef4444)" ${suppActionAttrs('delete', `data-supp-index="${editIdx}"`)}>Delete</button>` : ''}
+      <button class="import-btn import-btn-secondary" ${editing ? suppActionAttrs('toggle-accordion', `data-supp-index="${editIdx}"`) : suppActionAttrs('toggle-add-form')}>Cancel</button>
     </div>
   </div>`;
 }
@@ -539,7 +540,7 @@ export function openSupplementsEditor(editIdx) {
   const overlay = document.getElementById("modal-overlay");
   const supps = state.importedData.supplements || [];
   const isEdit = typeof editIdx === 'number' && !!supps[editIdx];
-  let html = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  let html = `<button class="modal-close" ${suppActionAttrs('close-modal')}>&times;</button>
     <h3>Supplements & Medications</h3>
     <div class="modal-unit">Track what you're taking and when. Click a supplement to edit it.</div>`;
   if (supps.length > 0) {
@@ -554,11 +555,11 @@ export function openSupplementsEditor(editIdx) {
         ? `${fmtDate(pds[0].start)} \u2192 ${pds[0].end ? fmtDate(pds[0].end) : 'ongoing'}`
         : pds.map(p => `${fmtDate(p.start)}\u2192${p.end ? fmtDate(p.end) : 'now'}`).join(' \u00b7 ');
       const source = _sourceUrlParts(s.sourceUrl);
-      html += `<div class="supp-list-item${isEdit && editIdx === i ? ' supp-list-item-active' : ''}" data-idx="${i}" onclick="toggleSuppAccordion(${i})">
+      html += `<div class="supp-list-item${isEdit && editIdx === i ? ' supp-list-item-active' : ''}" data-idx="${i}" ${suppActionAttrs('toggle-accordion', `data-supp-index="${i}"`)}>
         <span class="supp-list-icon">${icon}</span>
         <div class="supp-list-info">
           <div class="supp-list-name">${escapeHTML(s.name)}${s.dosage ? ` <span class="supp-list-meta">${escapeHTML(s.dosage)}</span>` : ''}</div>
-          <div class="supp-list-meta">${dateRange}${source ? ` &middot; <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="supp-list-source">${escapeHTML(source.host)} ↗</a>` : ''}</div>
+          <div class="supp-list-meta">${dateRange}${source ? ` &middot; <a href="${escapeHTML(source.url)}" target="_blank" rel="noopener noreferrer" class="supp-list-source">${escapeHTML(source.host)} ↗</a>` : ''}</div>
           ${s.ingredients?.length ? `<div class="supp-list-ingredients">${s.ingredients.map(ing => {
             const total = ingredientDailyTotal(ing, s);
             const times = effectiveTimesPerDay(ing, s);
@@ -581,7 +582,7 @@ export function openSupplementsEditor(editIdx) {
   }
   // Add New button — opens form at end
   html += `<div class="supp-add-section">
-    <button class="supp-add-btn" onclick="showAddSuppForm()">+ Add New</button>
+    <button class="supp-add-btn" ${suppActionAttrs('toggle-add-form')}>+ Add New</button>
     <div id="supp-add-form-area"></div>
   </div>`;
   modal.innerHTML = html;
@@ -701,5 +702,25 @@ function askAIMitoContext() {
     }
   }, 500);
 }
+
+initSupplementActionDelegates({
+  openEditor: openSupplementsEditor,
+  toggleAccordion: toggleSuppAccordion,
+  toggleAddForm: showAddSuppForm,
+  closeModal: () => appWindow.closeModal(),
+  askMito: askAIMitoContext,
+  addIngredient: addIngredientRow,
+  removeIngredient: removeIngredientRow,
+  addPeriod: addPeriodRow,
+  removePeriod: removePeriodRow,
+  fetchUrl: fetchSupplementFromURL,
+  triggerLabelPicker: () => document.getElementById('supp-label-input')?.click(),
+  scanLabel: scanSupplementLabel,
+  save: saveSupplement,
+  delete: deleteSupplement,
+  refreshImpact: refreshSupplementImpact,
+  updateIngredientTotal: updateIngTotal,
+  updateAllIngredientTotals: updateAllIngTotals,
+});
 
 Object.assign(window, { renderSupplementsSection, openSupplementsEditor, toggleSuppAccordion, showAddSuppForm, saveSupplement, deleteSupplement, askAIMitoContext, computeAllImpacts, getSupplementPeriods, addIngredientRow, removeIngredientRow, addPeriodRow, removePeriodRow, scanSupplementLabel, fetchSupplementFromURL, refreshSupplementImpact, updateIngTotal, updateAllIngTotals, ingredientDailyTotal });

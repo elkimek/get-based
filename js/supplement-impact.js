@@ -179,7 +179,7 @@ export function renderSupplementImpact(supplement, editIdx) {
     <div class="supp-impact-header">
       <span class="ctx-health-dot ${dotColor}" id="supp-impact-dot-${editIdx}"></span>
       <span>Impact Analysis</span>
-      ${cached && hasAI ? `<button class="supp-impact-refresh" onclick="refreshSupplementImpact(${editIdx})" title="Re-analyze with current data">refresh</button>` : ''}
+      ${cached && hasAI ? `<button class="supp-impact-refresh" data-supp-action="refresh-impact" data-supp-index="${editIdx}" title="Re-analyze with current data">refresh</button>` : ''}
     </div>
     <div class="supp-impact-summary ${summaryClass}" id="supp-impact-summary-${editIdx}">${summaryText}</div>
   </div>`;
