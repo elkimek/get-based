@@ -130,13 +130,11 @@ export function openClientList() {
   const overlay = document.getElementById('client-list-overlay');
   if (!overlay) return;
   renderClientList();
-  openModalOverlay(overlay, { initialFocus: '#cl-search' });
-  document.body.style.overflow = 'hidden';
+  openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true });
 }
 
 export function closeClientList() {
   closeModalOverlay('client-list-overlay');
-  document.body.style.overflow = '';
   _editingId = null;
 }
 

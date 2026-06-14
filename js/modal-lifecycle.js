@@ -47,6 +47,24 @@ const _modalScrollState = (() => {
 
 const _modalScrollLocks = _modalScrollState.locks;
 
+const _modalOverlayScrollLockTokens = (() => {
+  if (typeof window === 'undefined') return new WeakMap();
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow.__labModalOverlayScrollLockTokens instanceof WeakMap) {
+    return appWindow.__labModalOverlayScrollLockTokens;
+  }
+  const tokens = new WeakMap();
+  try {
+    Object.defineProperty(appWindow, '__labModalOverlayScrollLockTokens', {
+      value: tokens,
+      configurable: true,
+    });
+  } catch (_) {
+    appWindow.__labModalOverlayScrollLockTokens = tokens;
+  }
+  return tokens;
+})();
+
 const _overlayFocusTargets = (() => {
   if (typeof window === 'undefined') return new WeakMap();
   const appWindow = /** @type {any} */ (window);
@@ -97,6 +115,7 @@ export function openModalOverlay(overlayOrId, options = {}) {
     _overlayFocusTargets.set(overlay, activeElement);
   }
   overlay.classList.add(showClass);
+  if (options.scrollLock === true) _acquireOverlayScrollLock(overlay);
 
   if (options.initialFocus) {
     const delay = Number.isFinite(options.focusDelay) ? Math.max(0, options.focusDelay) : 30;
@@ -118,6 +137,7 @@ export function closeModalOverlay(overlayOrId, options = {}) {
   if (!overlay) return null;
   const showClass = options.showClass || 'show';
   overlay.classList.remove(showClass);
+  _releaseOverlayScrollLock(overlay);
 
   if (options.restoreFocus !== false) {
     const focusTarget = _overlayFocusTargets.get(overlay);
@@ -136,21 +156,62 @@ export function removeModalOverlay(overlay) {
   overlay.remove();
 }
 
+function _modalScrollLockOverlay(lock) {
+  if (typeof Element !== 'undefined' && lock instanceof Element) return lock;
+  return lock?.overlay || null;
+}
+
 function _pruneDetachedModalScrollLocks() {
   for (const lock of Array.from(_modalScrollLocks)) {
-    if (!document.body.contains(lock)) _modalScrollLocks.delete(lock);
+    const overlay = _modalScrollLockOverlay(lock);
+    if (overlay && !document.body.contains(overlay)) {
+      _modalScrollLocks.delete(lock);
+      if (lock?.overlay === overlay) _modalOverlayScrollLockTokens.delete(overlay);
+    }
   }
 }
 
-export function trapModalFocus(overlay, options = {}) {
+function _restoreModalScrollLock() {
   _pruneDetachedModalScrollLocks();
-  const previouslyFocused = document.activeElement;
-  const closeOnEscape = options.closeOnEscape !== false;
+  if (_modalScrollLocks.size === 0) {
+    document.body.style.overflow = _modalScrollState.priorOverflow;
+  } else {
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function _acquireModalScrollLock(lock) {
+  _pruneDetachedModalScrollLocks();
   if (_modalScrollLocks.size === 0) {
     _modalScrollState.priorOverflow = document.body.style.overflow;
   }
-  _modalScrollLocks.add(overlay);
+  _modalScrollLocks.add(lock);
   document.body.style.overflow = 'hidden';
+}
+
+function _releaseModalScrollLock(lock) {
+  _modalScrollLocks.delete(lock);
+  _restoreModalScrollLock();
+}
+
+function _acquireOverlayScrollLock(overlay) {
+  if (_modalOverlayScrollLockTokens.has(overlay)) return;
+  const token = { overlay };
+  _modalOverlayScrollLockTokens.set(overlay, token);
+  _acquireModalScrollLock(token);
+}
+
+function _releaseOverlayScrollLock(overlay) {
+  const token = _modalOverlayScrollLockTokens.get(overlay);
+  if (!token) return;
+  _modalOverlayScrollLockTokens.delete(overlay);
+  _releaseModalScrollLock(token);
+}
+
+export function trapModalFocus(overlay, options = {}) {
+  const previouslyFocused = document.activeElement;
+  const closeOnEscape = options.closeOnEscape !== false;
+  _acquireModalScrollLock(overlay);
   let teardown = false;
   setTimeout(() => {
     const focusables = overlay.querySelectorAll(
@@ -170,13 +231,7 @@ export function trapModalFocus(overlay, options = {}) {
     if (teardown) return;
     teardown = true;
     document.removeEventListener('keydown', onKeydown);
-    _modalScrollLocks.delete(overlay);
-    _pruneDetachedModalScrollLocks();
-    if (_modalScrollLocks.size === 0) {
-      document.body.style.overflow = _modalScrollState.priorOverflow;
-    } else {
-      document.body.style.overflow = 'hidden';
-    }
+    _releaseModalScrollLock(overlay);
     const previousFocusTarget = /** @type {HTMLElement | null} */ (previouslyFocused instanceof HTMLElement ? previouslyFocused : null);
     if (previousFocusTarget && document.contains(previousFocusTarget)) {
       try { previousFocusTarget.focus(); } catch (e) {}

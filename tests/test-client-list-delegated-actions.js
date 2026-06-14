@@ -50,8 +50,10 @@ assert('client-list can open share modal for selected profile',
     clientListSrc.includes('window.openProfileShareModal?.(id)'));
 assert('client-list modal uses shared overlay lifecycle helpers',
   clientListSrc.includes("from './modal-lifecycle.js'") &&
-    clientListSrc.includes('openModalOverlay(') &&
-    clientListSrc.includes('closeModalOverlay('));
+    clientListSrc.includes("openModalOverlay(overlay, { initialFocus: '#cl-search', scrollLock: true })") &&
+    clientListSrc.includes("closeModalOverlay('client-list-overlay')") &&
+    !clientListSrc.includes("document.body.style.overflow = 'hidden'") &&
+    !clientListSrc.includes("document.body.style.overflow = ''"));
 assert('dynamic avatar and tag buttons avoid direct onclick assignment',
   clientListSrc.includes("btn.setAttribute('data-cl-action', 'remove-avatar')") &&
     !clientListSrc.includes('.onclick'));
