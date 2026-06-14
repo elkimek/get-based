@@ -387,6 +387,36 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && couponBtn?.textContent === 'SK12';
       window.setTimeout = saved.setTimeout;
 
+      localStorage.removeItem('labcharts-rec-disclosure');
+      const chatWrapper = document.createElement('details');
+      chatWrapper.className = 'rec-chat-wrapper';
+      chatWrapper.open = true;
+      let chatWrapperStoppedBubble = false;
+      chatWrapper.onclick = event => {
+        chatWrapperStoppedBubble = true;
+        event.stopPropagation();
+      };
+      const chatBody = document.createElement('div');
+      chatBody.innerHTML = rec.renderRecommendationSectionSync('magnesium', { label: 'Chat recommendations' });
+      chatWrapper.appendChild(chatBody);
+      document.body.appendChild(chatWrapper);
+      copiedCode = '';
+      couponFlashCleanup = null;
+      window.setTimeout = (fn, _ms, ...args) => {
+        couponFlashCleanup = () => fn(...args);
+        return 1;
+      };
+      chatWrapper.querySelector('.rec-coupon-code')?.click();
+      await wait(0);
+      chatWrapper.querySelector('.rec-disclosure-btn')?.click();
+      outcomes.chatWrappedRecommendationActionsSurviveStopPropagation = chatWrapperStoppedBubble
+        && copiedCode === 'SK12'
+        && localStorage.getItem('labcharts-rec-disclosure') === 'seen'
+        && !chatWrapper.querySelector('.rec-section-gated');
+      couponFlashCleanup?.();
+      chatWrapper.remove();
+      window.setTimeout = saved.setTimeout;
+
       const asyncHtml = await rec.renderRecommendationSection('magnesium', { label: 'Async recommendations' });
       outcomes.asyncRenderUsesLoadedCatalog = asyncHtml.includes('Async recommendations')
         && asyncHtml.includes('Magnesium Glycinate');

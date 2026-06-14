@@ -246,7 +246,8 @@ globalThis.fetch = async (url, opts) => {
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('dismissed recommendations render a Restore action',
     dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&
-    dashboardRecommendationWidgetSrc.includes("window.dismissRecommendation(${inlineJsString(candidate.id)}, ${candidate.dismissed ? 'false' : 'true'})"));
+    dashboardRecommendationWidgetSrc.includes("dashboardRecommendationActionAttrs('dismiss'") &&
+    dashboardRecommendationWidgetSrc.includes("on: candidate.dismissed ? 'false' : 'true'"));
   assert('dismissRecommendation can restore a dismissed recommendation',
     /function dismissRecommendation\(id, on = true\)[\s\S]{0,120}setRecommendationState\('dismissed', id, !!on\)/.test(recommendationActionsSrc));
   assert('Recommendations page header directly toggles its dashboard widget',

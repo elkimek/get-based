@@ -1,7 +1,7 @@
 // @ts-check
 // recommendations.js — Catalog loading, slot matching, HTML rendering for supplement & lifestyle recs
 
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 import { getProfileLocation } from './profile.js';
 import { state } from './state.js';
 import { findGenotypeInfo, findSnpHint } from './dna.js';
@@ -11,6 +11,64 @@ import { findGenotypeInfo, findSnpHint } from './dna.js';
 // ═══════════════════════════════════════════════
 let _catalog = undefined; // undefined = not loaded, null = load failed
 let _catalogPromise = null; // deduplicates concurrent loads
+let _recommendationDelegatesInstalled = false;
+
+export function recActionAttrs(action, attrs = {}) {
+  return [
+    `data-rec-action="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `data-rec-${escapeAttr(name)}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
+
+function handleRecommendationSectionGuardClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+
+  const guardedSection = target.closest('[data-rec-section-click-guard]');
+  if (guardedSection && !target.closest('a,button')) event.stopPropagation();
+}
+
+function handleRecommendationActionClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-rec-action]'));
+  if (!actionEl) return;
+  const appWindow = /** @type {any} */ (window);
+  const action = actionEl.dataset.recAction || '';
+
+  if (action === 'copy-coupon') {
+    event.preventDefault();
+    copyCouponCode(actionEl);
+  } else if (action === 'close-modal') {
+    event.preventDefault();
+    appWindow.closeModal?.();
+  } else if (action === 'open-emf-assessment') {
+    event.preventDefault();
+    appWindow.closeModal?.();
+    setTimeout(() => appWindow.openEMFAssessmentEditor?.(), 100);
+  } else if (action === 'edit-region') {
+    event.preventDefault();
+    (appWindow.openProfileLocationEditor || (() => {}))();
+  } else if (action === 'accept-disclosure') {
+    event.preventDefault();
+    event.stopPropagation();
+    markDisclosureSeen();
+    actionEl.closest('.rec-disclosure-banner')?.remove();
+    for (const el of document.querySelectorAll('.rec-section-gated')) el.classList.remove('rec-section-gated');
+  } else if (action === 'open-privacy-settings') {
+    event.preventDefault();
+    appWindow.openSettingsTab?.('privacy');
+  }
+}
+
+export function initRecommendationDelegates() {
+  if (_recommendationDelegatesInstalled) return;
+  document.addEventListener('click', handleRecommendationActionClick, true);
+  document.addEventListener('click', handleRecommendationSectionGuardClick);
+  _recommendationDelegatesInstalled = true;
+}
 
 export async function loadCatalog() {
   if (_catalog !== undefined) return _catalog;
@@ -338,10 +396,8 @@ function _buildCouponLine(catalogOrVendor, region) {
   const c = _resolveCouponForRegion(rawCoupon, region);
   if (!c?.code) return '';
   const code = escapeHTML(c.code);
-  // Click-to-copy: a global helper handles the work. Inline onclick stays
-  // tiny and safe to embed in an attribute (no quotes, no arrow funcs).
   // aria-live on the wrapper so the "✓ Copied" flash is announced to SR users.
-  return `<div class="rec-coupon" aria-live="polite" aria-atomic="true">Use code <button type="button" class="rec-coupon-code" onclick="copyCouponCode(this)" data-code="${code}" aria-label="Copy coupon code ${code} to clipboard" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
+  return `<div class="rec-coupon" aria-live="polite" aria-atomic="true">Use code <button type="button" class="rec-coupon-code" ${recActionAttrs('copy-coupon')} data-code="${escapeAttr(c.code)}" aria-label="Copy coupon code ${code} to clipboard" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
 }
 
 function copyCouponCode(btn) {
@@ -506,7 +562,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
   const eventPrefix = opts.eventPrefix || 'meter-rec';
   const body = meters.map(m => _buildEMFProductRow(m, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, meters);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" data-rec-section-click-guard>
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
@@ -529,7 +585,7 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   const eventPrefix = opts.eventPrefix || 'mitigation-rec';
   const body = products.map(p => _buildEMFProductRow(p, eventPrefix, getUserRegion(), catalog)).join('');
   const vendor = _resolveVendorForCoupon(catalog, products);
-  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section rec-emf-section${gated}" data-rec-section-click-guard>
     <div class="rec-section-header">${heading}</div>
     <div class="rec-content">
       ${body}
@@ -616,7 +672,7 @@ export function renderCardTipsModal(cardKey) {
   }
   if (cardKey === 'environment') items += _buildEMFNudge();
   if (!items) return '';
-  return `<button class="modal-close" onclick="window.closeModal()">\u00D7</button>
+  return `<button type="button" class="modal-close" ${recActionAttrs('close-modal')} aria-label="Close">\u00D7</button>
     <div class="ctx-tips-modal-header">${cardInfo.emoji} ${escapeHTML(cardInfo.label)} \u2014 Tips</div>
     <div class="ctx-tips-modal-body">${items}</div>
     <div class="rec-mini-disclaimer" style="margin-top:12px">For informational purposes only. Not medical advice. Consult your healthcare provider before starting any supplement.</div>`;
@@ -627,9 +683,8 @@ export function renderCardTipsModal(cardKey) {
 // than 120d. Empty otherwise so we don't nag users keeping up.
 function _buildEMFNudge() {
   const assessments = state.importedData?.emfAssessment?.assessments || [];
-  const openHandler = `event.preventDefault();window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);`;
   if (!assessments.length) {
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" ${recActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
   }
   const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
   const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
@@ -639,7 +694,7 @@ function _buildEMFNudge() {
   if (ageDays > 120) {
     const months = Math.round(ageDays / 30);
     const span = months >= 12 ? 'over a year' : `${months} ${months === 1 ? 'month' : 'months'}`;
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-env-tips-stale">Re-check the room →</a></div>`;
+    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" ${recActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-env-tips-stale">Re-check the room →</a></div>`;
   }
   return '';
 }
@@ -752,7 +807,7 @@ function buildDisclosureFooter() {
   // Link points to wherever the user can change their country. Click handler
   // delegates to the host app via a global (window.openProfileLocationEditor)
   // so this module stays decoupled. Falls back to '#' if no host is wired.
-  const editLink = `<a href="#" class="rec-region-edit" onclick="event.preventDefault();(window.openProfileLocationEditor||(()=>{}))()" aria-label="Change country for product recommendations">change</a>`;
+  const editLink = `<a href="#" class="rec-region-edit" ${recActionAttrs('edit-region')} aria-label="Change country for product recommendations">change</a>`;
   return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
 }
 
@@ -764,7 +819,7 @@ function _buildDisclosureBanner() {
   if (hasSeenDisclosure()) return '';
   return `<div class="rec-disclosure-banner">
     For informational purposes only. This is not a medical device and does not diagnose, treat, or prevent disease. Consult your healthcare provider before starting any supplement, especially if pregnant, nursing, or taking medications. Intended for adults. Affiliate links are marked \u2014 brands cannot pay for placement.
-    <button class="rec-disclosure-btn" onclick="event.stopPropagation();markRecDisclosureSeen();this.closest('.rec-disclosure-banner').remove();for(const el of document.querySelectorAll('.rec-section-gated'))el.classList.remove('rec-section-gated')">Got it</button>
+    <button class="rec-disclosure-btn" ${recActionAttrs('accept-disclosure')}>Got it</button>
   </div>`;
 }
 
@@ -886,7 +941,7 @@ function _renderRecSection(slotKey, opts = {}) {
   // surface it where their products surface.
   const vendor = _resolveVendorForCoupon(_catalog, products);
   const couponLine = vendor && hasProducts ? _buildCouponLine(vendor, region) : '';
-  return `${_buildDisclosureBanner()}<div class="rec-section${gated}" onclick="if(!event.target.closest('a,button'))event.stopPropagation()">
+  return `${_buildDisclosureBanner()}<div class="rec-section${gated}" data-rec-section-click-guard>
     <div class="rec-section-header">${escapeHTML(label)}</div>
     <div class="rec-content">${statusNote}${inner}${couponLine}${suggestLink}${buildDisclosureFooter()}${_buildMiniDisclaimer()}</div>
   </div>`;
@@ -1177,13 +1232,15 @@ export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opt
   return `<div class="rec-channel-deficit" role="region" aria-label="${humanLabel} channel device recommendations">
     <div class="rec-channel-deficit-head">Fill the ${humanLabel} channel with a device</div>
     <div class="rec-channel-deficit-list">${rows.join('')}</div>
-    <div class="rec-channel-deficit-foot">Affiliate links · <a href="#" onclick="event.preventDefault();window.openSettingsTab&&window.openSettingsTab('privacy')">turn off</a></div>
+    <div class="rec-channel-deficit-foot">Affiliate links · <a href="#" ${recActionAttrs('open-privacy-settings')}>turn off</a></div>
   </div>`;
 }
 
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS
 // ═══════════════════════════════════════════════
+initRecommendationDelegates();
+
 Object.assign(window, {
   isProductRecsEnabled,
   setProductRecsEnabled,

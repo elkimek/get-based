@@ -121,8 +121,8 @@ assert('chat image lightbox uses shared overlay lifecycle helpers',
     !chatImagesSrc.includes('overlay.remove()'));
 
 assert('card tips modal closes through shared detail modal close path',
-  recommendationsSrc.includes('onclick="window.closeModal()"') &&
-    recommendationsSrc.includes('event.preventDefault();window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor(),100);') &&
+  recommendationsSrc.includes("recActionAttrs('close-modal')") &&
+    recommendationsSrc.includes("recActionAttrs('open-emf-assessment')") &&
     !recommendationsSrc.includes("document.getElementById('modal-overlay').classList.remove('show')"));
 
 assert('recommendation detail modal opens through shared overlay lifecycle helper',
