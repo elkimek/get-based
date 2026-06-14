@@ -335,6 +335,10 @@ test('knowledge base modal covers local document ingest and library controls', a
         && progressHidden
         && calls.some(call => call.type === 'ingest' && call.files?.[0]?.name === 'berberine.md');
 
+      await lens.handleLocalLensDeleteDoc('');
+      outcomes.emptySourceDeleteGuard = !document.getElementById('confirm-dialog-overlay')?.classList.contains('show')
+        && !calls.some(call => call.type === 'delete' && call.source === '');
+
       document.querySelector('.kb-doc-delete')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       const deletePrompt = document.getElementById('confirm-dialog-overlay')?.textContent || '';

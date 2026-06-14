@@ -50,13 +50,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 20;
 const MAX_CHUNKS = 10;
 const MAX_RESPONSE_BYTES = 32 * 1024;
-initLensActionDelegates({
-  closeKnowledgeBaseModal, handleClearLensCache, handleLensBackendChange,
-  handleLibraryActivate, handleLibraryDelete, handleLibraryNew, handleLibraryRename,
-  handleLocalLensClear, handleLocalLensDeleteDoc, handleRemoveLens, handleSaveLensConfig,
-  handleToggleLens,
-  openLocalFilePicker: () => document.getElementById('lens-local-filepick')?.click(),
-});
 // ─── Config storage ───────────────────────────────────────────
 export function getLensConfig() {
   try {
@@ -1497,6 +1490,14 @@ export async function handleRemoveLens() {
     );
   }
 }
+
+// Register delegates after handler declarations so this wiring does not rely on hoisting.
+initLensActionDelegates({
+  closeKnowledgeBaseModal, handleClearLensCache, handleLensBackendChange,
+  handleLibraryActivate, handleLibraryDelete, handleLibraryNew, handleLibraryRename,
+  handleLocalLensClear, handleLocalLensDeleteDoc, handleRemoveLens, handleSaveLensConfig,
+  handleToggleLens, openLocalFilePicker: () => document.getElementById('lens-local-filepick')?.click(),
+});
 
 Object.assign(window, {
   getLensConfig, saveLensConfig, getLensKey, saveLensKey,
