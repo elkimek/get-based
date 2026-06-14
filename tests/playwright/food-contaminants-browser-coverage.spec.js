@@ -100,7 +100,8 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
       outcomes.dietBadgeCountsOnlyFlaggedSignals =
         badge.includes('2 food contaminant signals detected')
         && badge.includes('role="button"')
-        && badge.includes('showDietContaminantsModal()');
+        && badge.includes('data-lifestyle-action="show-diet-contaminants"')
+        && !badge.includes('onclick=');
 
       state.importedData.diet = { breakfast: 'avocado and pineapple' };
       outcomes.cleanOnlyDietDoesNotRenderBadge = lifestyle.renderDietContaminantsBadge() === '';
@@ -124,7 +125,8 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && modalText.includes('EWG Shopper')
         && modalText.includes('PlasticList')
         && modal?.querySelectorAll('a[target="_blank"][rel="noopener"]').length >= 3
-        && modal?.innerHTML.includes('window.openChatPanel()');
+        && modal?.querySelector('[data-lifestyle-action="discuss-diet-contaminants"]')
+        && !modal?.querySelector('[onclick]');
 
       state.importedData.diet = { breakfast: '' };
       document.getElementById('detail-modal').innerHTML = 'unchanged';
