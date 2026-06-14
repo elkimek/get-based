@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { CORRELATION_PRESETS, CHIP_COLORS } from './schema.js';
-import { escapeHTML, getStatus, formatValue } from './utils.js';
+import { escapeHTML, escapeAttr, getStatus, formatValue } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
@@ -32,6 +32,95 @@ function renderScrollableTableShell(...args) {
 function renderCategoryGlyph(...args) {
   return compareCorrelationDeps.renderCategoryGlyph(...args);
 }
+
+function dataAttrName(name) {
+  return String(name).replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+}
+
+function compareAttrs(actionAttr, action, attrs = {}) {
+  return [
+    `${actionAttr}="${escapeAttr(action)}"`,
+    ...Object.entries(attrs)
+      .filter(([, value]) => value !== null && value !== undefined)
+      .map(([name, value]) => `data-compare-${escapeAttr(dataAttrName(name))}="${escapeAttr(String(value))}"`),
+  ].join(' ');
+}
+
+export function compareActionAttrs(action, attrs = {}) {
+  return compareAttrs('data-compare-action', action, attrs);
+}
+
+function compareChangeAttrs(action, attrs = {}) {
+  return compareAttrs('data-compare-change-action', action, attrs);
+}
+
+function compareInputAttrs(action, attrs = {}) {
+  return compareAttrs('data-compare-input-action', action, attrs);
+}
+
+function compareFocusAttrs(action, attrs = {}) {
+  return compareAttrs('data-compare-focus-action', action, attrs);
+}
+
+function closestCompareTarget(event, selector) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return null;
+  return /** @type {HTMLElement | null} */ (target.closest(selector));
+}
+
+function handleCompareClick(event) {
+  const actionEl = closestCompareTarget(event, '[data-compare-action]');
+  if (!actionEl) return;
+  const action = actionEl.dataset.compareAction || '';
+  if (action === 'swap-dates') {
+    event.preventDefault();
+    swapCompareDates();
+  } else if (action === 'apply-preset') {
+    event.preventDefault();
+    const index = Number.parseInt(actionEl.dataset.compareIndex || '', 10);
+    if (Number.isInteger(index)) applyCorrelationPreset(index);
+  } else if (action === 'toggle-marker') {
+    event.preventDefault();
+    if (actionEl.dataset.compareKey) toggleCorrelationMarker(actionEl.dataset.compareKey);
+  } else if (action === 'ask-ai-correlations') {
+    event.preventDefault();
+    const askAIAboutCorrelations = typeof window !== 'undefined'
+      ? /** @type {any} */ (window).askAIAboutCorrelations
+      : null;
+    if (typeof askAIAboutCorrelations === 'function') askAIAboutCorrelations();
+  }
+}
+
+function handleCompareChange(event) {
+  const actionEl = closestCompareTarget(event, '[data-compare-change-action]');
+  if (!actionEl || actionEl.dataset.compareChangeAction !== 'set-date') return;
+  const value = 'value' in actionEl ? String(actionEl.value) : '';
+  if (actionEl.dataset.compareIndex === '1') setCompareDate1(value);
+  else if (actionEl.dataset.compareIndex === '2') setCompareDate2(value);
+}
+
+function handleCompareInput(event) {
+  const actionEl = closestCompareTarget(event, '[data-compare-input-action]');
+  if (!actionEl || actionEl.dataset.compareInputAction !== 'filter-options') return;
+  filterCorrelationOptions();
+}
+
+function handleCompareFocus(event) {
+  const actionEl = closestCompareTarget(event, '[data-compare-focus-action]');
+  if (!actionEl || actionEl.dataset.compareFocusAction !== 'show-dropdown') return;
+  showCorrelationDropdown();
+}
+
+const compareDelegateRoots = new WeakSet();
+
+export function installCompareCorrelationDelegates(root = (typeof document !== 'undefined' ? document : null)) {
+  if (!root || typeof root.addEventListener !== 'function' || compareDelegateRoots.has(root)) return;
+  compareDelegateRoots.add(root);
+  root.addEventListener('click', handleCompareClick);
+  root.addEventListener('change', handleCompareChange);
+  root.addEventListener('input', handleCompareInput);
+  root.addEventListener('focusin', handleCompareFocus);
+}
 // Compare Dates
 
 export function showCompare(data) {
@@ -53,11 +142,11 @@ export function showCompare(data) {
   };
   html += `<div class="compare-controls">
     <label class="compare-date-field" for="compare-select-1"><span>Date 1:</span>
-      <select id="compare-select-1" onchange="setCompareDate1(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+      <select id="compare-select-1" ${compareChangeAttrs('set-date', { index: '1' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
     </label>
-    <button class="compare-swap-btn" onclick="swapCompareDates()" title="Swap dates" aria-label="Swap dates">\u21C4</button>
+    <button class="compare-swap-btn" ${compareActionAttrs('swap-dates')} title="Swap dates" aria-label="Swap dates">\u21C4</button>
     <label class="compare-date-field" for="compare-select-2"><span>Date 2:</span>
-      <select id="compare-select-2" onchange="setCompareDate2(this.value)">${data.dates.map(d => fmtOpt(d)).join('')}</select>
+      <select id="compare-select-2" ${compareChangeAttrs('set-date', { index: '2' })}>${data.dates.map(d => fmtOpt(d)).join('')}</select>
     </label>
   </div>`;
   html += `<div id="compare-results"></div>`;
@@ -164,7 +253,7 @@ export function showCorrelations(data) {
     <div class="corr-select-row">
       <div class="corr-dropdown">
         <input type="text" class="corr-search" id="corr-search" placeholder="Search biomarkers..."
-          oninput="filterCorrelationOptions()" onfocus="showCorrelationDropdown()">
+          ${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
         <div class="corr-options" id="corr-options"></div>
       </div>
     </div>
@@ -172,12 +261,12 @@ export function showCorrelations(data) {
     <div class="corr-presets">
       <div class="corr-presets-label">Quick Presets:</div>`;
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
-    html += `<button class="corr-preset-btn" onclick="applyCorrelationPreset(${i})">${CORRELATION_PRESETS[i].label}</button>`;
+    html += `<button class="corr-preset-btn" ${compareActionAttrs('apply-preset', { index: i })}>${CORRELATION_PRESETS[i].label}</button>`;
   }
   html += `</div></div>`;
   html += `<div class="corr-chart-container" id="corr-chart-container" style="display:none">
     <h3>Normalized Comparison (% of Reference Range)
-      <button class="corr-ask-ai-btn" onclick="askAIAboutCorrelations()" title="Ask AI about these correlations">Ask AI</button>
+      <button class="corr-ask-ai-btn" ${compareActionAttrs('ask-ai-correlations')} title="Ask AI about these correlations">Ask AI</button>
     </h3>
     <div class="corr-chart"><canvas id="chart-correlation"></canvas></div></div>`;
   main.innerHTML = html;
@@ -197,8 +286,8 @@ export function populateCorrelationOptions(data) {
       const fullKey = `${catKey}.${markerKey}`;
       const selected = state.selectedCorrelationMarkers.includes(fullKey);
       html += `<div class="corr-option ${selected ? 'selected' : ''}"
-        data-key="${fullKey}" data-name="${escapeHTML(marker.name)}" data-cat="${escapeHTML(cat.label)}"
-        onclick="toggleCorrelationMarker('${fullKey}')">
+        data-key="${escapeAttr(fullKey)}" data-name="${escapeHTML(marker.name)}" data-cat="${escapeHTML(cat.label)}"
+        role="button" tabindex="0" ${compareActionAttrs('toggle-marker', { key: fullKey })}>
         ${escapeHTML(marker.name)} <span class="opt-cat">${escapeHTML(cat.label)}</span></div>`;
     }
   }
@@ -253,7 +342,7 @@ export function renderCorrelationChips() {
     if (!marker) return;
     const color = CHIP_COLORS[i % CHIP_COLORS.length];
     html += `<span class="corr-chip" style="background:${color}20;border-color:${color};color:${color}">
-      ${escapeHTML(marker.name)} <span class="chip-remove" onclick="toggleCorrelationMarker('${key}')">&times;</span></span>`;
+      ${escapeHTML(marker.name)} <span class="chip-remove" ${compareActionAttrs('toggle-marker', { key })}>&times;</span></span>`;
   });
   container.innerHTML = html;
 }
@@ -328,3 +417,5 @@ export function renderCorrelationChart() {
     plugins: [refBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
   });
 }
+
+installCompareCorrelationDelegates();
