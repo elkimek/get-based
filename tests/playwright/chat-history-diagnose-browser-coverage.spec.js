@@ -264,6 +264,13 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
         value,
       });
     };
+    const waitFor = async (predicate, label) => {
+      for (let attempt = 0; attempt < 60; attempt += 1) {
+        if (predicate()) return true;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      throw new Error(`Timed out waiting for ${label}`);
+    };
 
     try {
       localStorage.clear();
@@ -313,10 +320,20 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       outcomes.cutoverConfigFlowsIntoModal = overlay?.textContent.includes('Lean sync mode') === true
         && overlay.textContent.includes('ON') === true
         && overlay.textContent.includes('Disable') === true;
+      outcomes.modalUsesDelegatedDiagnoseActions =
+        !overlay.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
+        && !!overlay.querySelector('[data-sync-diagnose-action="refresh-relay-storage"]')
+        && !!overlay.querySelector('[data-sync-diagnose-action="compact-relay"]')
+        && !!overlay.querySelector('[data-sync-diagnose-action="rotate-identity"]')
+        && !!overlay.querySelector('[data-sync-diagnose-action="disable-phase2"]')
+        && !!overlay.querySelector('[data-sync-diagnose-action="copy-snapshot"]')
+        && !overlay.querySelector('[data-sync-diagnose-action="enable-phase2"]')
+        && !overlay.querySelector('[data-sync-diagnose-action="reset-delta-telemetry"]');
 
       const copied = [];
       setClipboard({ writeText: async text => { copied.push(text); } });
-      await diagnoseUi.copySyncDiagnose(copyButton);
+      copyButton.click();
+      await waitFor(() => copied.length === 1, 'delegated diagnose copy');
       outcomes.clipboardCopyUsesOverlayText = copied[0] === overlay.dataset.copyText
         && copyButton.textContent === 'Copied';
 

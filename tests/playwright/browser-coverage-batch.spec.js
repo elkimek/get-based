@@ -384,6 +384,16 @@ test('discussion round and sync diagnose render helpers cover active and empty s
         && fullHtml.includes('Lean sync mode')
         && fullHtml.includes('profileId column empty')
         && fullHtml.includes('notes(1/1/0)');
+      outcomes.syncDiagnoseRendererUsesDelegatedActions =
+        !/\son(?:click|change|input|keydown|submit)=["']/.test(fullHtml)
+        && fullHtml.includes('data-sync-diagnose-action="refresh-relay-storage"')
+        && fullHtml.includes('data-sync-diagnose-action="compact-relay"')
+        && fullHtml.includes('data-sync-diagnose-action="rotate-identity"')
+        && fullHtml.includes('data-sync-diagnose-action="reset-delta-telemetry"')
+        && fullHtml.includes('data-sync-diagnose-action="backfill-blockers"')
+        && fullHtml.includes('data-sync-diagnose-action="copy-snapshot"')
+        && fullHtml.includes('title="Push the pending items below first."')
+        && !fullHtml.includes('data-sync-diagnose-action="enable-phase2"');
 
       const emptyRowsHtml = syncRender.renderSyncDiagnoseModal({
         diagnostics: {

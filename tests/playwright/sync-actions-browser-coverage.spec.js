@@ -359,15 +359,33 @@ test('sync indicator popover renders debug actions and copies activity', async (
     const saved = {
       debug: localStorage.getItem('labcharts-debug'),
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
+      syncNow: window.syncNow,
+      forceResendCurrentProfile: window.forceResendCurrentProfile,
+      cleanStorage: window.cleanStorage,
+      checkRelayConnection: window.checkRelayConnection,
+      showSyncDiagnose: window.showSyncDiagnose,
+      openSettingsModal: window.openSettingsModal,
     };
     let enabled = false;
     const slot = document.getElementById('sync-indicator-slot') || document.createElement('div');
+    const actionCalls = [];
 
     try {
+      window.syncNow = () => { actionCalls.push('sync-now'); };
+      window.forceResendCurrentProfile = () => { actionCalls.push('force-resend'); };
+      window.cleanStorage = async () => { actionCalls.push('clean-storage'); };
+      window.checkRelayConnection = async () => {
+        actionCalls.push('test-relay');
+        return true;
+      };
+      window.showSyncDiagnose = () => { actionCalls.push('diagnose'); };
+      window.openSettingsModal = tab => { actionCalls.push(`settings:${tab}`); };
+
       slot.id = 'sync-indicator-slot';
       if (!slot.parentNode) document.body.appendChild(slot);
       localStorage.setItem('labcharts-debug', 'true');
       syncState.resetSyncStatus();
+      syncUi.initSyncUIDelegates();
 
       slot.innerHTML = '<span>stale</span>';
       syncUi.renderSyncIndicator();
@@ -402,6 +420,14 @@ test('sync indicator popover renders debug actions and copies activity', async (
         && popover?.textContent.includes('Force resend') === true
         && popover?.textContent.includes('Reload') === true
         && popover?.textContent.includes('Diagnose') === true;
+      outcomes.popoverUsesDelegatedActions =
+        !popover.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
+        && !!popover.querySelector('[data-sync-ui-action="copy-events"]')
+        && !!popover.querySelector('[data-sync-ui-action="sync-now"]')
+        && !!popover.querySelector('[data-sync-ui-action="force-resend"]')
+        && !!popover.querySelector('[data-sync-ui-action="clean-storage"]')
+        && !!popover.querySelector('[data-sync-ui-action="test-relay"]')
+        && !!popover.querySelector('[data-sync-ui-action="show-diagnose"]');
 
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
@@ -409,7 +435,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
       });
       const copyBtn = popover.querySelector('button[title="Copy events to clipboard"]');
       if (!copyBtn) throw new Error('sync activity copy button did not render');
-      await syncUi.copySyncEvents(copyBtn);
+      copyBtn.click();
       await waitFor(() => copied.length === 1, 'clipboard write');
       outcomes.copySyncEventsUsesClipboard = copied[0].includes('Sync activity')
         && copied[0].includes('profile abc pushed')
@@ -422,6 +448,47 @@ test('sync indicator popover renders debug actions and copies activity', async (
           .some(toast => toast.textContent.includes('Auto-copy blocked'));
       document.querySelector('textarea')?.dispatchEvent(new Event('blur'));
 
+      const clickPopoverAction = async action => {
+        const btn = document.querySelector(`#sync-popover [data-sync-ui-action="${action}"]`);
+        if (!btn) throw new Error(`missing sync popover action: ${action}`);
+        btn.click();
+        await Promise.resolve();
+      };
+      await clickPopoverAction('test-relay');
+      await waitFor(() => actionCalls.includes('test-relay'), 'test-relay delegate');
+      await waitFor(
+        () => Array.from(document.querySelectorAll('.notification-toast'))
+          .some(toast => toast.textContent.includes('Relay reachable')),
+        'test-relay success notification'
+      );
+      window.checkRelayConnection = async () => {
+        actionCalls.push('test-relay-error');
+        throw new Error('relay offline');
+      };
+      await clickPopoverAction('test-relay');
+      await waitFor(
+        () => Array.from(document.querySelectorAll('.notification-toast.error'))
+          .some(toast => toast.textContent.includes('Relay check failed: relay offline')),
+        'test-relay error notification'
+      );
+      await clickPopoverAction('show-diagnose');
+      await waitFor(() => actionCalls.includes('diagnose'), 'diagnose delegate');
+      await clickPopoverAction('open-settings');
+      await waitFor(() => !document.getElementById('sync-popover'), 'settings delegate closes popover');
+      syncUi.toggleSyncDetail();
+      await clickPopoverAction('sync-now');
+      await waitFor(() => actionCalls.includes('sync-now') && !document.getElementById('sync-popover'), 'sync-now delegate');
+      syncUi.toggleSyncDetail();
+      await clickPopoverAction('force-resend');
+      await waitFor(() => actionCalls.includes('force-resend') && !document.getElementById('sync-popover'), 'force-resend delegate');
+      syncUi.toggleSyncDetail();
+      await clickPopoverAction('clean-storage');
+      await waitFor(() => actionCalls.includes('clean-storage') && !document.getElementById('sync-popover'), 'clean-storage delegate');
+      outcomes.popoverDelegatesRouteActions = ['test-relay', 'diagnose', 'settings:data', 'sync-now', 'force-resend', 'clean-storage']
+        .every(action => actionCalls.includes(action));
+      outcomes.popoverRelayDelegateSurfacesErrors = actionCalls.includes('test-relay-error');
+
+      syncUi.toggleSyncDetail();
       syncUi.toggleSyncDetail();
       outcomes.secondToggleClosesPopover = !document.getElementById('sync-popover');
 
@@ -454,6 +521,12 @@ test('sync indicator popover renders debug actions and copies activity', async (
       else localStorage.setItem('labcharts-debug', saved.debug);
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
       else delete navigator.clipboard;
+      window.syncNow = saved.syncNow;
+      window.forceResendCurrentProfile = saved.forceResendCurrentProfile;
+      window.cleanStorage = saved.cleanStorage;
+      window.checkRelayConnection = saved.checkRelayConnection;
+      window.showSyncDiagnose = saved.showSyncDiagnose;
+      window.openSettingsModal = saved.openSettingsModal;
       document.getElementById('sync-popover')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       document.querySelectorAll('.notification-container').forEach(el => el.remove());

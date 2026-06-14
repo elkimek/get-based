@@ -1,7 +1,11 @@
 // @ts-check
 // sync-diagnose-render.js - Pure HTML render helpers for Sync Diagnose.
 
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
+
+export function syncDiagnoseActionAttrs(action) {
+  return `data-sync-diagnose-action="${escapeAttr(action)}"`;
+}
 
 function renderRowsHtml(rows) {
   if (!rows.length) {
@@ -49,9 +53,9 @@ function renderRelayStoragePanel(q) {
     ? 'Approaching the per-account storage cap. No action needed yet — keeps trimming on its own as data ages.'
     : 'Healthy.';
   const buttons = `
-    <button class="ctx-btn-option" style="font-size:11px" onclick="window.refreshRelayStorage(this)" title="Probe the relay for the actual storedBytes for this owner — replaces the local estimate.">Refresh</button>
-    <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmCompactRelay(this)" title="Drops every Evolu message row for this owner on the relay and resets storedBytes to 0. Devices re-establish their state on the next push.">Compact storage</button>
-    <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmRotateIdentity(this)" title="Generate a fresh 24-word mnemonic for this owner. Use when this device's relay-health verdict shows 'wedged' (silent-reject pattern). You'll need to enter the new mnemonic on every other device.">Rotate identity</button>`;
+    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('refresh-relay-storage')} title="Probe the relay for the actual storedBytes for this owner — replaces the local estimate.">Refresh</button>
+    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('compact-relay')} title="Drops every Evolu message row for this owner on the relay and resets storedBytes to 0. Devices re-establish their state on the next push.">Compact storage</button>
+    <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('rotate-identity')} title="Generate a fresh 24-word mnemonic for this owner. Use when this device's relay-health verdict shows 'wedged' (silent-reject pattern). You'll need to enter the new mnemonic on every other device.">Rotate identity</button>`;
   return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px;flex-wrap:wrap">
       <b>Relay storage:</b>
@@ -89,7 +93,7 @@ function renderDeltaTelemetryPanel(t, isDebug) {
   return `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:8px">
       <b>Push efficiency <span style="font-weight:normal;color:var(--text-muted);font-size:11px">(last ${s.count} pushes — lower % = leaner sync)</span></b>
-      <button class="ctx-btn-option" style="font-size:11px;flex-shrink:0" onclick="window.confirmResetDeltaTelemetry(this)" title="Clears just the recent-push log shown here. Your data and relay state aren't touched.">Reset</button>
+      <button class="ctx-btn-option" style="font-size:11px;flex-shrink:0" ${syncDiagnoseActionAttrs('reset-delta-telemetry')} title="Clears just the recent-push log shown here. Your data and relay state aren't touched.">Reset</button>
     </div>
     <div style="margin-bottom:4px">
       <span style="color:${ratioColor};font-weight:600">${pct}%</span>
@@ -115,7 +119,7 @@ function renderCutoverPanel(r, isDebug, cutoverEnabled) {
     <div style="margin-top:6px;padding:8px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
         <div style="color:var(--orange);font-weight:600;font-size:12px">These bits of data haven't been re-pushed yet:</div>
-        <button class="ctx-btn-option" style="font-size:11px" onclick="window.confirmBackfillBlockers(this)" title="Forces a fresh push so each pending item ships as new. Safe — no data loss.">Push now</button>
+        <button class="ctx-btn-option" style="font-size:11px" ${syncDiagnoseActionAttrs('backfill-blockers')} title="Forces a fresh push so each pending item ships as new. Safe — no data loss.">Push now</button>
       </div>
       <table style="width:100%;font-size:11px">
         ${blockers.map(([name, v]) => `<tr><td style="font-family:monospace;padding:2px 6px">${escapeHTML(name)}</td><td style="padding:2px 6px;color:var(--text-muted)">${escapeHTML(v.shape)}</td><td style="padding:2px 6px;text-align:right">local=${v.localCount} rows=${v.rowCount}</td></tr>`).join('')}
@@ -123,9 +127,9 @@ function renderCutoverPanel(r, isDebug, cutoverEnabled) {
       <div style="color:var(--text-muted);font-size:10px;margin-top:4px">Tap <b>Push now</b> to take care of all of them at once.</div>
     </div>`;
   const buttonHtml = cutoverEnabled
-    ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--orange);border-color:var(--orange)" onclick="window.confirmDisablePhase2(this)" title="Switches back to full-blob sync. Use this if a peer device shows missing data.">Disable</button>`
+    ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--orange);border-color:var(--orange)" ${syncDiagnoseActionAttrs('disable-phase2')} title="Switches back to full-blob sync. Use this if a peer device shows missing data.">Disable</button>`
     : (r.ready
-      ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="window.confirmEnablePhase2(this)" title="Switch this device to lean sync (per-row deltas only). Reversible.">Enable</button>`
+      ? `<button class="ctx-btn-option" style="font-size:11px;color:var(--green);border-color:var(--green)" ${syncDiagnoseActionAttrs('enable-phase2')} title="Switch this device to lean sync (per-row deltas only). Reversible.">Enable</button>`
       : `<button class="ctx-btn-option" style="font-size:11px;opacity:0.5;cursor:not-allowed" disabled title="Push the pending items below first.">Enable</button>`);
   const cutoverBadge = cutoverEnabled
     ? `<span style="color:var(--green);font-size:10px;font-weight:600;padding:2px 6px;border:1px solid var(--green);border-radius:3px;margin-left:6px">ON</span>`
@@ -180,7 +184,7 @@ export function renderSyncDiagnoseModal({
         <div style="color:var(--text-muted);font-size:11px;margin-top:6px">Compare this table on phone vs desktop. Same profileId, same deleted state, same syncedAt(ms), same sun/dev counts → both devices already have the same data and the issue is rendering. Different counts → relay-replication isn't propagating between Evolu instances. <b>fmt</b> column: <span style="color:var(--green)">gz</span> = v1.6.4 gzip envelope, plain = pre-v1.6.4. <span style="color:var(--orange)">*</span> next to a profileId means it was recovered from the payload because the column was empty.</div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
-        <button class="ctx-btn-option" onclick="window.copySyncDiagnose(this)" title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>
+        <button class="ctx-btn-option" ${syncDiagnoseActionAttrs('copy-snapshot')} title="Copy this snapshot to the clipboard so you can paste it elsewhere">Copy</button>
         <button class="ctx-btn-option" data-sync-diagnose-close>Close</button>
       </div>
     </div>

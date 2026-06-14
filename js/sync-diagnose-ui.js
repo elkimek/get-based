@@ -4,7 +4,16 @@
 import { showNotification, isDebugMode } from './utils.js';
 import { _evoluDiagnosticsText, getEvoluDiagnostics } from './sync-diagnostics.js';
 import { getRelayQuotaEstimate, verifyPushLanded } from './sync-relay-health.js';
-import { configureSyncDiagnoseActions } from './sync-diagnose-actions.js';
+import {
+  configureSyncDiagnoseActions,
+  confirmBackfillBlockers,
+  confirmCompactRelay,
+  confirmDisablePhase2,
+  confirmEnablePhase2,
+  confirmResetDeltaTelemetry,
+  confirmRotateIdentity,
+  refreshRelayStorage,
+} from './sync-diagnose-actions.js';
 import { renderSyncDiagnoseModal } from './sync-diagnose-render.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
@@ -16,6 +25,33 @@ export {
 
 /** @type {(profileId?: any) => boolean} */
 let _isPhase2CutoverEnabled = () => false;
+
+function handleSyncDiagnoseActionClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-sync-diagnose-action]'));
+  if (!actionEl) return;
+  event.preventDefault();
+
+  const action = actionEl.dataset.syncDiagnoseAction || '';
+  if (action === 'refresh-relay-storage') {
+    void refreshRelayStorage(actionEl);
+  } else if (action === 'compact-relay') {
+    void confirmCompactRelay(actionEl);
+  } else if (action === 'rotate-identity') {
+    void confirmRotateIdentity(actionEl);
+  } else if (action === 'reset-delta-telemetry') {
+    void confirmResetDeltaTelemetry(actionEl);
+  } else if (action === 'backfill-blockers') {
+    void confirmBackfillBlockers(actionEl);
+  } else if (action === 'disable-phase2') {
+    void confirmDisablePhase2(actionEl);
+  } else if (action === 'enable-phase2') {
+    void confirmEnablePhase2(actionEl);
+  } else if (action === 'copy-snapshot') {
+    void copySyncDiagnose(actionEl);
+  }
+}
 
 /** @param {{
  *   enableSync?: (...args: any[]) => any,
@@ -80,6 +116,7 @@ export async function showSyncDiagnose() {
   overlay.querySelectorAll('[data-sync-diagnose-close]').forEach((btn) => {
     btn.addEventListener('click', close);
   });
+  overlay.addEventListener('click', handleSyncDiagnoseActionClick);
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
   });

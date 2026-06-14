@@ -1,7 +1,7 @@
 // @ts-check
 // sync-ui.js - header sync badge, popover, and activity-log copy helpers.
 
-import { showNotification, isDebugMode, escapeHTML } from './utils.js';
+import { showNotification, isDebugMode, escapeAttr, escapeHTML } from './utils.js';
 import { getSyncRelay } from './sync-environment.js';
 import { getRelayQuotaEstimate } from './sync-relay-health.js';
 import {
@@ -13,6 +13,55 @@ import {
 
 let _isSyncEnabled = () => false;
 let _statusBound = false;
+const SYNC_UI_DELEGATE_KEY = '__getbasedSyncUIDelegatesInstalled';
+
+export function syncUiActionAttrs(action) {
+  return `data-sync-ui-action="${escapeAttr(action)}"`;
+}
+
+function handleSyncUIClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-sync-ui-action]'));
+  if (!actionEl) return;
+
+  event.preventDefault();
+  const appWindow = /** @type {any} */ (window);
+  const action = actionEl.dataset.syncUiAction || '';
+  if (action === 'toggle-detail') {
+    toggleSyncDetail();
+  } else if (action === 'copy-events') {
+    void copySyncEvents(actionEl);
+  } else if (action === 'sync-now') {
+    void appWindow.syncNow?.();
+    toggleSyncDetail();
+  } else if (action === 'reload') {
+    appWindow.location?.reload?.();
+  } else if (action === 'open-settings') {
+    toggleSyncDetail();
+    appWindow.openSettingsModal?.('data');
+  } else if (action === 'force-resend') {
+    void appWindow.forceResendCurrentProfile?.();
+    toggleSyncDetail();
+  } else if (action === 'clean-storage') {
+    Promise.resolve(appWindow.cleanStorage?.()).then(() => toggleSyncDetail());
+  } else if (action === 'test-relay') {
+    Promise.resolve(appWindow.checkRelayConnection?.()).then(ok => {
+      showNotification(ok ? 'Relay reachable' : 'Relay UNREACHABLE', ok ? 'success' : 'error');
+    }).catch(err => {
+      showNotification(`Relay check failed: ${err?.message || err}`, 'error');
+    });
+  } else if (action === 'show-diagnose') {
+    appWindow.showSyncDiagnose?.();
+  }
+}
+
+export function initSyncUIDelegates() {
+  const appWindow = /** @type {any} */ (window);
+  if (appWindow[SYNC_UI_DELEGATE_KEY]) return;
+  document.addEventListener('click', handleSyncUIClick);
+  appWindow[SYNC_UI_DELEGATE_KEY] = true;
+}
 
 /** @param {{ isSyncEnabled?: () => boolean }} [deps] */
 export function configureSyncUI({ isSyncEnabled } = {}) {
@@ -43,7 +92,7 @@ export function renderSyncIndicator() {
   if (!currentSyncEnabled()) { slot.innerHTML = ''; return; }
   const ds = getSyncDisplayState();
   const titles = { synced: 'Synced', syncing: 'Syncing\u2026', offline: 'Offline \u2014 changes saved locally', error: 'Sync error', disabled: '' };
-  slot.innerHTML = `<button class="sync-indicator" id="sync-indicator-btn" onclick="toggleSyncDetail()" title="${titles[ds]}" aria-label="Sync status"><span class="sync-dot sync-dot-${ds}"></span></button>`;
+  slot.innerHTML = `<button class="sync-indicator" id="sync-indicator-btn" ${syncUiActionAttrs('toggle-detail')} title="${titles[ds]}" aria-label="Sync status"><span class="sync-dot sync-dot-${ds}"></span></button>`;
 }
 
 export function updateSyncIndicator() {
@@ -92,7 +141,7 @@ export function toggleSyncDetail() {
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <span style="font-weight:600;color:var(--text-secondary);flex:1">Recent activity</span>
-        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" onclick="window.copySyncEvents(this)" title="Copy events to clipboard">Copy</button>
+        <button class="ctx-btn-option" style="font-size:10px;padding:2px 8px" ${syncUiActionAttrs('copy-events')} title="Copy events to clipboard">Copy</button>
       </div>
       ${events.map(e => `<div style="margin-bottom:3px"><span style="color:${eventColor[e.kind] || 'var(--text-muted)'};font-weight:600">${e.kind}</span> · ${_timeAgo(e.at)} · <span style="font-family:monospace;font-size:10px">${escapeHTML(e.text)}</span></div>`).join('')}
     </div>` : '';
@@ -118,14 +167,14 @@ export function toggleSyncDetail() {
     ${debugMode ? errorLine : ''}
     ${eventsHtml}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="ctx-btn-option" style="font-size:12px" onclick="syncNow();toggleSyncDetail()">Sync now</button>
-      ${stuckPush ? `<button class="ctx-btn-option" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="window.location.reload()" title="Reloads the page to re-init the sync worker.">Reload</button>` : ''}
-      <button class="ctx-btn-option" style="font-size:12px" onclick="toggleSyncDetail();openSettingsModal('data')">Settings</button>
+      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('sync-now')}>Sync now</button>
+      ${stuckPush ? `<button class="ctx-btn-option" style="font-size:12px;color:var(--red);border-color:var(--red)" ${syncUiActionAttrs('reload')} title="Reloads the page to re-init the sync worker.">Reload</button>` : ''}
+      <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('open-settings')}>Settings</button>
       ${isDebugMode() ? `
-        <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" onclick="forceResendCurrentProfile();toggleSyncDetail()" title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
-        <button class="ctx-btn-option" style="font-size:12px" onclick="cleanStorage().then(()=>toggleSyncDetail())" title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
-        <button class="ctx-btn-option" style="font-size:12px" onclick="checkRelayConnection().then(ok=>showNotification(ok?'Relay reachable':'Relay UNREACHABLE',ok?'success':'error'))">Test relay</button>
-        <button class="ctx-btn-option" style="font-size:12px" onclick="showSyncDiagnose()">Diagnose</button>
+        <button class="ctx-btn-option" style="font-size:12px${stuckPush ? ';color:var(--orange);border-color:var(--orange)' : ''}" ${syncUiActionAttrs('force-resend')} title="Bypasses the in-flight guard. Use when Sync now isn't reaching the relay (typically because a prior push got stuck and the worker still thinks it's running).">Force resend</button>
+        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('clean-storage')} title="Trim changeHistory to its 200-entry cap and clear cached AI model lists. Use when localStorage is full and pushes throw QuotaExceededError silently.">Clean storage</button>
+        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('test-relay')}>Test relay</button>
+        <button class="ctx-btn-option" style="font-size:12px" ${syncUiActionAttrs('show-diagnose')}>Diagnose</button>
       ` : ''}
     </div>`;
   btn.parentElement.style.position = 'relative';
