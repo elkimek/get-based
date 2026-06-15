@@ -11,7 +11,7 @@ const BASELINE_PATH = path.join(ROOT, 'scripts', 'quality-baseline.json');
 const SYNTAX_DIRS = ['js', 'api', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
-const WINDOW_REF_RE = /\bwindow\./g;
+const WINDOW_REF_RE = /\bwindow(?:\.|\s*\[)/g;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -117,7 +117,7 @@ function main() {
   const metrics = collectAppMetrics();
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
-  compareBudget('window.* references in js/', metrics.windowReferences, baseline.windowReferences);
+  compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
