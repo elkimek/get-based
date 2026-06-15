@@ -22,25 +22,34 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
 
       feedback.openFeedbackModal();
       const overlay = document.getElementById('feedback-modal-overlay');
+      const modal = document.getElementById('feedback-modal');
+      const form = document.querySelector('.feedback-form');
       const typeSelect = document.getElementById('feedback-type');
       const titleInput = document.getElementById('feedback-title');
       const descInput = document.getElementById('feedback-desc');
 
       outcomes.opensOverlay = overlay?.classList.contains('show') === true;
+      outcomes.usesDelegatedFeedbackActions =
+        modal?.querySelector('[data-feedback-action="close"]')
+        && form?.getAttribute('data-feedback-action') === 'submit'
+        && typeSelect?.getAttribute('data-feedback-action') === 'placeholder'
+        && !modal.innerHTML.includes('onclick=')
+        && !modal.innerHTML.includes('onsubmit=')
+        && !modal.innerHTML.includes('onchange=');
       outcomes.rendersTypeChoices = typeSelect?.querySelectorAll('option').length === 4;
       outcomes.defaultPlaceholder = titleInput?.getAttribute('placeholder') === 'Brief description of the bug';
 
       typeSelect.value = 'feature';
-      window._updateFeedbackPlaceholder();
+      typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
       outcomes.placeholderFollowsType = titleInput.getAttribute('placeholder') === 'What feature would you like?';
 
-      feedback.submitFeedback();
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       outcomes.emptyTitleKeepsModalOpen = overlay?.classList.contains('show') === true
         && document.activeElement === titleInput;
 
       titleInput.value = 'Batch coverage affordance';
       descInput.value = 'Please group browser coverage improvements.';
-      feedback.submitFeedback();
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
       const issueUrl = new URL(openedUrl);
       outcomes.issueUrlTargetsGitHub = issueUrl.origin === 'https://github.com'
         && issueUrl.pathname === '/elkimek/get-based/issues/new';
@@ -50,7 +59,7 @@ test('feedback modal browser contract builds and submits GitHub issue URLs', asy
       outcomes.submitClosesOverlay = overlay?.classList.contains('show') === false;
 
       feedback.openFeedbackModal();
-      feedback.closeFeedbackModal();
+      document.querySelector('[data-feedback-action="close"]')?.click();
       outcomes.closeHidesOverlay = overlay?.classList.contains('show') === false;
     } finally {
       window.open = originalOpen;
@@ -98,12 +107,17 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
       window.navigate = (category) => { navCalls.push(category); };
 
       notes.openNoteEditor('2026-06-07');
+      const addModal = document.getElementById('detail-modal');
       outcomes.addEditorOpens = document.getElementById('modal-overlay')?.classList.contains('show') === true
         && document.getElementById('note-date-input')?.value === '2026-06-07'
         && document.getElementById('note-textarea')?.value === '';
+      outcomes.usesDelegatedNoteActions =
+        addModal?.querySelector('[data-note-action="close"]')
+        && addModal?.querySelector('[data-note-action="save"]')
+        && !addModal.innerHTML.includes('onclick=');
 
       document.getElementById('note-textarea').value = 'Started coverage batching';
-      notes.saveNote(null);
+      document.querySelector('[data-note-action="save"]')?.click();
       outcomes.saveAddsNote = state.importedData.notes.length === 1
         && state.importedData.notes[0].date === '2026-06-07'
         && state.importedData.notes[0].text === 'Started coverage batching'
@@ -115,7 +129,7 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
         && document.getElementById('detail-modal')?.dataset.syncRefreshKind === 'note';
 
       document.getElementById('note-textarea').value = 'Edited coverage batch note';
-      notes.saveNote(0);
+      document.querySelector('[data-note-action="save"]')?.click();
       outcomes.saveEditsInPlace = state.importedData.notes.length === 1
         && state.importedData.notes[0].text === 'Edited coverage batch note';
 
@@ -149,10 +163,10 @@ test('notes editor browser contract adds edits and deletes notes', async ({ page
 
       state.importedData.notes = [{ date: '2026-06-09', text: 'Delete coverage note' }];
       notes.openNoteEditor(null, 0);
-      const deletePromise = notes.deleteNote(0);
+      document.querySelector('[data-note-action="delete"]')?.click();
       await Promise.resolve();
       document.getElementById('confirm-ok')?.click();
-      await deletePromise;
+      await waitFor(() => state.importedData.notes.length === 0);
       outcomes.deleteRemovesNote = state.importedData.notes.length === 0;
     } finally {
       if (originalNotes === undefined) delete state.importedData.notes;
