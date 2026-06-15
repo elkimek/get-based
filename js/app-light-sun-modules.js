@@ -9,6 +9,7 @@ import './sun-session-ai-render-hooks.js';
 import './sun-context.js';
 import './light-devices.js';
 import './light-device-ai-analysis.js';
+import './light-sessions-view-hooks.js';
 import './light-sun-ai-hooks.js';
 import './light-tools.js';
 import './light-tools-ai-analysis.js';
