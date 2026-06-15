@@ -8,6 +8,59 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 const LIGHT_CONDITIONS_ACTION_ATTR = 'data-light-conditions-action';
 const LIGHT_CONDITIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightConditionsActionDelegatesInstalled');
 const lightConditionsActionDelegateRoots = new WeakSet();
+/** @type {Record<string, any>} */
+const lightConditionsDeps = {
+  applyAtmOverrides: atm => atm,
+  computeUVConfidence: null,
+  fetchAtmosphere: null,
+  getSunCoords: () => null,
+  isDebugMode: () => false,
+  purgeMeteoCache: () => {},
+  saveImportedData: null,
+  showNotification: null,
+  solarZenithAngle: null,
+};
+
+export function configureLightConditionsNow(deps = {}) {
+  const previous = { ...lightConditionsDeps };
+  for (const [key, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(lightConditionsDeps, key)) {
+      lightConditionsDeps[key] = value;
+    } else {
+      _debugWarn('[light-conditions-now] ignoring unknown dependency key', key);
+    }
+  }
+  return previous;
+}
+
+function _debugWarn(...args) {
+  if (typeof lightConditionsDeps.isDebugMode === 'function' && lightConditionsDeps.isDebugMode()) {
+    console.warn(...args);
+  }
+}
+
+function _getSunCoords() {
+  try {
+    return lightConditionsDeps.getSunCoords() || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function _solarZenithAngle(date, coords) {
+  if (!coords || typeof lightConditionsDeps.solarZenithAngle !== 'function') return null;
+  try {
+    return lightConditionsDeps.solarZenithAngle(date, coords.lat, coords.lon);
+  } catch (_) {
+    return null;
+  }
+}
+
+function _notify(...args) {
+  if (typeof lightConditionsDeps.showNotification === 'function') {
+    lightConditionsDeps.showNotification(...args);
+  }
+}
 
 function closestLightConditionsAction(target) {
   if (!target || !target.closest) return null;
@@ -64,8 +117,8 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
 }
 
 // "Conditions now" strip — renders current UVI / ozone / AQI / sun-angle
-// for the user's resolved coords. Lazy-fetches via window.fetchAtmosphere
-// (which has its own 1hr cache layer). On fetch failure, falls back to
+// for the user's resolved coords. Lazy-fetches via the injected atmosphere
+// provider, which has its own 1hr cache layer. On fetch failure, falls back to
 // cached or zenith-only estimate and shows a "stale" indicator. Designed
 // to work fully offline once any earlier fetch has populated the cache.
 //
@@ -96,7 +149,7 @@ function _coordKey(coords) {
 }
 
 export function getCachedConditionsAtmosphere() {
-  const coords = (typeof window !== 'undefined' && window.getSunCoords && window.getSunCoords()) || null;
+  const coords = _getSunCoords();
   const key = _coordKey(coords);
   return (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
 }
@@ -145,7 +198,7 @@ export function renderConditionsNow(opts = {}) {
   // "Loading current conditions…" spinner before the cache resolved
   // ~50ms later, which the user perceived as "conditions not persistent."
   try {
-    const coords = (typeof window !== 'undefined' && window.getSunCoords && window.getSunCoords()) || null;
+    const coords = _getSunCoords();
     if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
         && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
       setTimeout(() => _centerConditionsNowMarker(slotId), 0);
@@ -170,7 +223,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
   // aria-busy="true" so screen readers don't announce intermediate
   // values. Whatever path resolves first must clear it.
   const _resolveBusy = () => slot.setAttribute('aria-busy', 'false');
-  const coords = (window.getSunCoords && window.getSunCoords()) || null;
+  const coords = _getSunCoords();
   if (!coords) {
     _resolveBusy();
     slot.innerHTML = `<div class="conditions-now-msg">Set a country in your profile to see current sun conditions.</div>`;
@@ -212,14 +265,19 @@ async function _refreshConditions(slotId, variant, opts = {}) {
     if (opts.force) _bustMeteoCacheForCoords(coords);
     let atm = null, online = true, fetchError = null;
     try {
-      atm = await window.fetchAtmosphere({
+      if (typeof lightConditionsDeps.fetchAtmosphere !== 'function') {
+        throw new Error('fetchAtmosphere unavailable');
+      }
+      atm = await lightConditionsDeps.fetchAtmosphere({
         lat: coords.lat,
         lon: coords.lon,
         isoTime: new Date().toISOString(),
         noCache: !!opts.force, // user-triggered refresh skips both fresh + stale cache
       });
       if (atm?._stale) online = false;
-      if (atm && window._applyAtmOverrides) atm = window._applyAtmOverrides(atm);
+      if (atm && typeof lightConditionsDeps.applyAtmOverrides === 'function') {
+        atm = lightConditionsDeps.applyAtmOverrides(atm);
+      }
     } catch (e) {
       online = false;
       fetchError = String(e?.message || e);
@@ -249,9 +307,7 @@ async function _refreshConditions(slotId, variant, opts = {}) {
         src.classList.add('just-refreshed');
         setTimeout(() => src.classList.remove('just-refreshed'), 1500);
       }
-      if (typeof window.showNotification === 'function') {
-        window.showNotification(online ? '✓ Conditions refreshed' : '✓ Cached values reloaded (offline)');
-      }
+      _notify(online ? '✓ Conditions refreshed' : '✓ Cached values reloaded (offline)');
     }
   } finally {
     _conditionsFetchInFlight = false;
@@ -266,8 +322,8 @@ async function _refreshConditions(slotId, variant, opts = {}) {
 // during a relay-side outage) can recover without tab-killing — the
 // next fetch hits the provider chain fresh.
 export function _refreshConditionsNow() {
-  if (typeof window.purgeMeteoCache === 'function') {
-    try { window.purgeMeteoCache(); } catch {}
+  if (typeof lightConditionsDeps.purgeMeteoCache === 'function') {
+    try { lightConditionsDeps.purgeMeteoCache(); } catch {}
   }
   document.querySelectorAll('.conditions-now').forEach(el => {
     const slot = /** @type {HTMLElement} */ (el);
@@ -282,7 +338,7 @@ export async function _setManualUvi() {
   if (!input) return;
   const v = parseFloat(input.value);
   if (!Number.isFinite(v) || v < 0 || v > 20) {
-    if (window.showNotification) window.showNotification('UVI must be between 0 and 20', 'error');
+    _notify('UVI must be between 0 and 20', 'error');
     return;
   }
   const data = state.importedData;
@@ -290,12 +346,12 @@ export async function _setManualUvi() {
   if (!data.sunDefaults) data.sunDefaults = {};
   if (!data.sunDefaults.overrides) data.sunDefaults.overrides = {};
   data.sunDefaults.overrides.uvIndex = v;
-  if (window.saveImportedData) await window.saveImportedData();
+  if (typeof lightConditionsDeps.saveImportedData === 'function') await lightConditionsDeps.saveImportedData();
   // Bust the in-memory conditions cache so the next render re-renders with
   // the override applied. Fetch isn't re-issued — the override is applied
   // to whatever atm we have cached.
   _conditionsCache = null;
-  if (window.showNotification) window.showNotification(`Manual UVI ${v.toFixed(1)} applied — used for burn-time + vit-D-threshold math until cleared. (Spectrum stays driven by ozone + zenith + cloud cover.)`, 'success', 5000);
+  _notify(`Manual UVI ${v.toFixed(1)} applied — used for burn-time + vit-D-threshold math until cleared. (Spectrum stays driven by ozone + zenith + cloud cover.)`, 'success', 5000);
   _refreshConditionsNow();
 }
 
@@ -303,9 +359,9 @@ export async function _clearManualUvi() {
   const data = state.importedData;
   if (!data?.sunDefaults?.overrides) return;
   delete data.sunDefaults.overrides.uvIndex;
-  if (window.saveImportedData) await window.saveImportedData();
+  if (typeof lightConditionsDeps.saveImportedData === 'function') await lightConditionsDeps.saveImportedData();
   _conditionsCache = null;
-  if (window.showNotification) window.showNotification('Manual UVI cleared — back to live atmosphere data.');
+  _notify('Manual UVI cleared — back to live atmosphere data.');
   _refreshConditionsNow();
 }
 
@@ -313,7 +369,7 @@ export async function _clearManualUvi() {
 // user can verify what the provider returned, what we parsed, and what the
 // engine will use. Pure inspection — no side effects.
 export function _inspectConditionsNow() {
-  const coords = (window.getSunCoords && window.getSunCoords()) || null;
+  const coords = _getSunCoords();
   const key = _coordKey(coords);
   const atm = (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
   const warnings = atm ? _sanityCheckAtmosphere(atm, coords) : [];
@@ -353,13 +409,11 @@ export function _inspectConditionsNow() {
           // Computed real-time confidence — weights snapshot age, cloud
           // cover, solar elevation, and UVI band so a low-sun heavy-cloud
           // CAMS reading isn't dishonestly reported as 95%.
-          const computed = window.computeUVConfidence ? window.computeUVConfidence({
+          const computed = typeof lightConditionsDeps.computeUVConfidence === 'function' ? lightConditionsDeps.computeUVConfidence({
             source: atm?.source,
             snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
             cloudCover: atm?.cloudCover ?? null,
-            zenithDeg: coords && atm?.fetchedAt && window.solarZenithAngle
-              ? window.solarZenithAngle(new Date(atm.fetchedAt), coords.lat, coords.lon)
-              : null,
+            zenithDeg: coords && atm?.fetchedAt ? _solarZenithAngle(new Date(atm.fetchedAt), coords) : null,
             uvIndex: atm?.uvIndex ?? null,
             isStale: !!atm?._stale,
             manualOverridden: !!atm?._uvOverridden,
@@ -418,7 +472,7 @@ export function _inspectConditionsNow() {
   });
   overlay.querySelector('#conditions-inspect-refresh')?.addEventListener('click', () => {
     closeDialog();
-    /** @type {any} */ (window)._refreshConditionsNow?.();
+    _refreshConditionsNow();
   });
   // Manually drive scroll + halt propagation on the Raw payload <pre>.
   // CSS-only `overflow:auto`/`overscroll-behavior:contain` couldn't beat
@@ -481,7 +535,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // Solar zenith angle — degrees from vertical. 0 = sun directly overhead.
   let zenith = null;
   try {
-    if (window.solarZenithAngle) zenith = window.solarZenithAngle(new Date(), coords.lat, coords.lon);
+    zenith = _solarZenithAngle(new Date(), coords);
   } catch (e) {}
   const sunAngle = zenith != null ? Math.round(90 - zenith) : null; // elevation above horizon
 
@@ -869,7 +923,7 @@ function _sunPositionSub(elevDeg) {
 // Threshold: 5° elevation. Reference: Hattar / Lambert eye-skin axis
 // literature; OZONE-corrected UV-A penetration models (Madronich 1998).
 function _computeUvaWindow(coords, dateLike) {
-  if (!coords || !window.solarZenithAngle) return { firstUVA: null, lastUVA: null };
+  if (!coords || typeof lightConditionsDeps.solarZenithAngle !== 'function') return { firstUVA: null, lastUVA: null };
   const baseDate = dateLike ? new Date(dateLike) : new Date();
   const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
   const SAMPLE_STEP_MIN = 1;
@@ -881,7 +935,8 @@ function _computeUvaWindow(coords, dateLike) {
   // conditions cache, so amortized cost is trivial.
   for (let m = 0; m < 24 * 60; m += SAMPLE_STEP_MIN) {
     const t = new Date(day.getTime() + m * 60_000);
-    const zenith = window.solarZenithAngle(t, coords.lat, coords.lon);
+    const zenith = _solarZenithAngle(t, coords);
+    if (zenith == null) continue;
     const elevation = 90 - zenith;
     if (elevation >= ELEVATION_THRESHOLD_DEG) {
       if (!firstUVA) firstUVA = t;
@@ -1042,8 +1097,8 @@ function _sanityCheckAtmosphere(atm, coords) {
     }
     // UVI should be near zero when sun is below horizon
     try {
-      if (window.solarZenithAngle && coords) {
-        const z = window.solarZenithAngle(new Date(), coords.lat, coords.lon);
+      if (coords) {
+        const z = _solarZenithAngle(new Date(), coords);
         if (z > 95 && atm.uvIndex > 0.3) {
           warnings.push(`UVI ${atm.uvIndex} reported but sun is ${Math.round(z - 90)}° below horizon`);
         }

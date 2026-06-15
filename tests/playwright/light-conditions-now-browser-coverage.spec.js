@@ -22,15 +22,8 @@ test('conditions now browser coverage covers refresh cache manual override and i
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const saved = {
       importedData: clone(state.importedData),
-      getSunCoords: window.getSunCoords,
-      fetchAtmosphere: window.fetchAtmosphere,
-      applyAtmOverrides: window._applyAtmOverrides,
-      solarZenithAngle: window.solarZenithAngle,
-      computeUVConfidence: window.computeUVConfidence,
-      purgeMeteoCache: window.purgeMeteoCache,
-      showNotification: window.showNotification,
-      saveImportedData: window.saveImportedData,
     };
+    let restoreDeps = null;
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
       return [key, localStorage.getItem(key)];
@@ -82,26 +75,28 @@ test('conditions now browser coverage covers refresh cache manual override and i
     }, label);
 
     try {
+      restoreDeps = conditions.configureLightConditionsNow({
+        getSunCoords: () => coords,
+        solarZenithAngle: () => 38,
+        computeUVConfidence: opts => {
+          calls.push(['confidence', opts]);
+          return 0.73;
+        },
+        purgeMeteoCache: () => calls.push(['purge']),
+        showNotification: (message, tone) => calls.push(['notification', message, tone]),
+        saveImportedData: async () => calls.push(['save']),
+        applyAtmOverrides: atm => ({ ...atm, _appliedByTest: true }),
+        fetchAtmosphere: async opts => {
+          calls.push(['fetch', opts]);
+          await wait(0);
+          return makeAtmosphere();
+        },
+      });
       document.body.append(host);
       state.importedData = {
         ...(state.importedData || {}),
         sunDefaults: { fitzpatrick: 'II' },
         lightCircadian: { skinType: 'II - fair' },
-      };
-      window.getSunCoords = () => coords;
-      window.solarZenithAngle = () => 38;
-      window.computeUVConfidence = opts => {
-        calls.push(['confidence', opts]);
-        return 0.73;
-      };
-      window.purgeMeteoCache = () => calls.push(['purge']);
-      window.showNotification = (message, tone) => calls.push(['notification', message, tone]);
-      window.saveImportedData = async () => calls.push(['save']);
-      window._applyAtmOverrides = atm => ({ ...atm, _appliedByTest: true });
-      window.fetchAtmosphere = async opts => {
-        calls.push(['fetch', opts]);
-        await wait(0);
-        return makeAtmosphere();
       };
 
       host.innerHTML = conditions.renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-coverage-full' });
@@ -160,31 +155,33 @@ test('conditions now browser coverage covers refresh cache manual override and i
 
       await waitForFullSlotIdle('forced refresh settle');
       calls.length = 0;
-      window.fetchAtmosphere = async opts => {
+      conditions.configureLightConditionsNow({ fetchAtmosphere: async opts => {
         calls.push(['fetch-error', opts]);
         throw new Error('offline now');
-      };
+      } });
       conditions._refreshConditionsNow();
       await waitUntil(() => slotText('cond-now-coverage-full').includes('offline') || slotText('cond-now-coverage-full').includes('cached'), 'offline cached render');
       outcomes.offlineRefreshFallsBackToCache = slotText('cond-now-coverage-full').includes('cached');
       outcomes.offlineRefreshCallsFetch = calls.some(call => call[0] === 'fetch-error');
 
       const warningCoords = { lat: 51.08, lon: 15.43, source: 'profile-precise' };
-      window.getSunCoords = () => warningCoords;
-      window.solarZenithAngle = () => 100;
-      window.fetchAtmosphere = async () => makeAtmosphere({
-        uvIndex: 17,
-        cloudCover: 130,
-        ozoneDU: 50,
-        source: 'manual_override',
-        daily: { sunrise: isoAt(-240), sunset: isoAt(240), peakAt: isoAt(20), uvIndexMax: 10 },
-        airQuality: {
-          pm25: -2,
-          pm10: -1,
-          no2: -1,
-          surfaceOzoneUgM3: 1200,
-          european_aqi: 600,
-        },
+      conditions.configureLightConditionsNow({
+        getSunCoords: () => warningCoords,
+        solarZenithAngle: () => 100,
+        fetchAtmosphere: async () => makeAtmosphere({
+          uvIndex: 17,
+          cloudCover: 130,
+          ozoneDU: 50,
+          source: 'manual_override',
+          daily: { sunrise: isoAt(-240), sunset: isoAt(240), peakAt: isoAt(20), uvIndexMax: 10 },
+          airQuality: {
+            pm25: -2,
+            pm10: -1,
+            no2: -1,
+            surfaceOzoneUgM3: 1200,
+            european_aqi: 600,
+          },
+        }),
       });
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-warning' });
       await waitUntil(() => document.getElementById('cond-now-coverage-warning')?.getAttribute('aria-busy') === 'false', 'warning render');
@@ -192,39 +189,32 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.warningRenderUsesManualProviderLabel = slotText('cond-now-coverage-warning').includes('manual entry');
 
       const surfaceOzoneCoords = { lat: 52.08, lon: 16.43, source: 'profile-precise' };
-      window.getSunCoords = () => surfaceOzoneCoords;
-      window.solarZenithAngle = () => 38;
-      window.fetchAtmosphere = async () => makeAtmosphere({
-        ozoneDU: null,
-        airQuality: {
-          pm25: 8,
-          pm10: 20,
-          no2: 20,
-          surfaceOzoneUgM3: 245,
-          european_aqi: 18,
-        },
+      conditions.configureLightConditionsNow({
+        getSunCoords: () => surfaceOzoneCoords,
+        solarZenithAngle: () => 38,
+        fetchAtmosphere: async () => makeAtmosphere({
+          ozoneDU: null,
+          airQuality: {
+            pm25: 8,
+            pm10: 20,
+            no2: 20,
+            surfaceOzoneUgM3: 245,
+            european_aqi: 18,
+          },
+        }),
       });
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-surface-ozone' });
       await waitUntil(() => document.getElementById('cond-now-coverage-surface-ozone')?.getAttribute('aria-busy') === 'false', 'surface ozone render');
       outcomes.surfaceOzoneFallbackShowsHazardLabel = slotText('cond-now-coverage-surface-ozone').includes('Hazardous');
       outcomes.surfaceOzoneFallbackShowsAction = slotText('cond-now-coverage-surface-ozone').includes('avoid outdoor exercise');
 
-      window.getSunCoords = () => null;
+      conditions.configureLightConditionsNow({ getSunCoords: () => null });
       host.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-coverage-no-coords' });
       await waitUntil(() => slotText('cond-now-coverage-no-coords').includes('Set a country'), 'no coords render');
       outcomes.noCoordsRenderShowsProfilePrompt = slotText('cond-now-coverage-no-coords').includes('Set a country');
     } finally {
+      if (restoreDeps) conditions.configureLightConditionsNow(restoreDeps);
       state.importedData = saved.importedData;
-      Object.assign(window, {
-        getSunCoords: saved.getSunCoords,
-        fetchAtmosphere: saved.fetchAtmosphere,
-        _applyAtmOverrides: saved.applyAtmOverrides,
-        solarZenithAngle: saved.solarZenithAngle,
-        computeUVConfidence: saved.computeUVConfidence,
-        purgeMeteoCache: saved.purgeMeteoCache,
-        showNotification: saved.showNotification,
-        saveImportedData: saved.saveImportedData,
-      });
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
