@@ -501,6 +501,8 @@ const {
   const sunSrc = await fs.readFile(new URL('../js/sun.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
   const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
+  const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
+  const aiHooksSrc = await fs.readFile(new URL('../js/light-sun-ai-hooks.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   assert('Sun session model owns shared option/safety constants',
     sunSrc.includes("from './sun-session-model.js'") &&
@@ -514,9 +516,16 @@ const {
     storeSrc.includes('export function getSessions') &&
     !storeSrc.includes('showPromptDialog') &&
     !storeSrc.includes('renderBodySilhouette'));
+  assert('Sun sessions store routes analyzer hook through startup wiring',
+    !storeSrc.includes('window.maybeAnalyzeSessionAfterFinish') &&
+    aiHooksSrc.includes("import { configureSunSessionsStore } from './sun-sessions-store.js';") &&
+    aiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
+    aiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
+    appLightSunSrc.includes("import './light-sun-ai-hooks.js';"));
   assert('Service worker precaches extracted sun session modules',
     swSrc.includes("'/js/sun-session-model.js'") &&
-    swSrc.includes("'/js/sun-sessions-store.js'"));
+    swSrc.includes("'/js/sun-sessions-store.js'") &&
+    swSrc.includes("'/js/light-sun-ai-hooks.js'"));
 
   // Restore
   window._labState.importedData = orig;

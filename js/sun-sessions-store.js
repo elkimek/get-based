@@ -22,6 +22,7 @@ import {
  * @property {(id: any, state: any) => void} setLiveState
  * @property {(id: any) => void} clearLiveState
  * @property {(ms: number) => string} formatElapsed
+ * @property {(session: any) => void} maybeAnalyzeSessionAfterFinish
  */
 
 /** @type {SunSessionsStoreDeps} */
@@ -30,11 +31,16 @@ const storeDeps = {
   setLiveState: () => {},
   clearLiveState: () => {},
   formatElapsed: (ms) => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
+  maybeAnalyzeSessionAfterFinish: () => {},
 };
 
 /** @param {Partial<SunSessionsStoreDeps>} [deps] */
 export function configureSunSessionsStore(deps = {}) {
   Object.assign(storeDeps, deps);
+}
+
+function runSessionAnalysis(session) {
+  try { storeDeps.maybeAnalyzeSessionAfterFinish(session); } catch (_) {}
 }
 
 export function getSessions() {
@@ -141,9 +147,7 @@ export async function stopSession(id) {
     });
   }
   await saveImportedData();
-  if (typeof window !== 'undefined' && window.maybeAnalyzeSessionAfterFinish) {
-    try { window.maybeAnalyzeSessionAfterFinish(sess); } catch (_) {}
-  }
+  runSessionAnalysis(sess);
   return sess;
 }
 
@@ -165,9 +169,7 @@ export async function logCompletedSession(payload) {
   if (!session.durationMin) session.durationMin = Math.max(0, (session.endedAt - session.startedAt) / 60000);
   getSessions().push(session);
   await saveImportedData();
-  if (typeof window !== 'undefined' && window.maybeAnalyzeSessionAfterFinish) {
-    try { window.maybeAnalyzeSessionAfterFinish(session); } catch (_) {}
-  }
+  runSessionAnalysis(session);
   return id;
 }
 

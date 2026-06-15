@@ -32,10 +32,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, store] = await Promise.all([
+    const [{ state }, data, store, ai] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-devices-store.js'),
+      import('/js/light-device-ai-analysis.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -63,7 +64,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       getOllamaConfig: window.getOllamaConfig,
       navigate: window.navigate,
       showConfirmDialog: window.showConfirmDialog,
-      maybeAnalyzeDeviceSessionAfterFinish: window.maybeAnalyzeDeviceSessionAfterFinish,
+      maybeAnalyzeDeviceSessionAfterFinish: ai.maybeAnalyzeDeviceSessionAfterFinish,
       loadCatalog: window.loadCatalog,
       renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       scrollIntoView: Element.prototype.scrollIntoView,
@@ -119,7 +120,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         calls.push(['confirm', message]);
         return true;
       };
-      window.maybeAnalyzeDeviceSessionAfterFinish = session => calls.push(['analyze', session.id]);
+      store.configureLightDevicesStore({
+        maybeAnalyzeDeviceSessionAfterFinish: session => calls.push(['analyze', session.id]),
+      });
       window.loadCatalog = async () => ({ products: [] });
       window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
 
@@ -291,8 +294,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       else delete window.navigate;
       if (saved.showConfirmDialog) window.showConfirmDialog = saved.showConfirmDialog;
       else delete window.showConfirmDialog;
-      if (saved.maybeAnalyzeDeviceSessionAfterFinish) window.maybeAnalyzeDeviceSessionAfterFinish = saved.maybeAnalyzeDeviceSessionAfterFinish;
-      else delete window.maybeAnalyzeDeviceSessionAfterFinish;
+      store.configureLightDevicesStore({
+        maybeAnalyzeDeviceSessionAfterFinish: saved.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
+      });
       if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
       else delete window.loadCatalog;
       if (saved.renderLightDeviceAffiliateRow) window.renderLightDeviceAffiliateRow = saved.renderLightDeviceAffiliateRow;

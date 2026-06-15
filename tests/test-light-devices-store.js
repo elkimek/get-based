@@ -22,6 +22,7 @@ const { state } = await import('../js/state.js');
 const {
   addCustomDevice,
   addDeviceFromPresetRecord,
+  configureLightDevicesStore,
   deleteDevice,
   deleteDeviceSession,
   getActiveDeviceSession,
@@ -37,8 +38,9 @@ const {
 
 state.currentProfile = 'light-devices-store-test';
 let analysisCalls = 0;
-const originalAnalyzer = window.maybeAnalyzeDeviceSessionAfterFinish;
-window.maybeAnalyzeDeviceSessionAfterFinish = () => { analysisCalls++; };
+configureLightDevicesStore({
+  maybeAnalyzeDeviceSessionAfterFinish: () => { analysisCalls++; },
+});
 
 function reset(seed = {}) {
   analysisCalls = 0;
@@ -187,6 +189,8 @@ assert('rollingDeviceTotals sums only in-window finite doses',
 console.log('%c 3. Boundary ownership ', 'font-weight:bold;color:#f59e0b');
 const uiSrc = read('js/light-devices.js');
 const storeSrc = read('js/light-devices-store.js');
+const appLightSunSrc = read('js/app-light-sun-modules.js');
+const aiHooksSrc = read('js/light-sun-ai-hooks.js');
 assert('light-devices imports the store boundary',
   uiSrc.includes("from './light-devices-store.js'"));
 assert('light-devices no longer persists device/session mutations directly',
@@ -198,9 +202,17 @@ assert('light-devices-store owns synced persistence for devices and sessions',
     && /deleteImportedArrayItem\(state\.importedData, 'lightDevices'/.test(storeSrc)
     && /deleteImportedArrayItem\(state\.importedData, 'deviceSessions'/.test(storeSrc)
     && /computeDeviceSessionDoses/.test(storeSrc));
+assert('light-devices-store routes analyzer hook through injected deps',
+  storeSrc.includes('configureLightDevicesStore')
+    && storeSrc.includes('maybeAnalyzeDeviceSessionAfterFinish: () => {}')
+    && !storeSrc.includes('window.maybeAnalyzeDeviceSessionAfterFinish'));
+assert('light-sun AI hooks wire device analyzer into store deps',
+  aiHooksSrc.includes("import { configureLightDevicesStore } from './light-devices-store.js';")
+    && aiHooksSrc.includes("import { maybeAnalyzeDeviceSessionAfterFinish } from './light-device-ai-analysis.js';")
+    && aiHooksSrc.includes('configureLightDevicesStore({ maybeAnalyzeDeviceSessionAfterFinish })')
+    && appLightSunSrc.includes("import './light-sun-ai-hooks.js';"));
 
-if (originalAnalyzer) window.maybeAnalyzeDeviceSessionAfterFinish = originalAnalyzer;
-else delete window.maybeAnalyzeDeviceSessionAfterFinish;
+configureLightDevicesStore({ maybeAnalyzeDeviceSessionAfterFinish: () => {} });
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);
