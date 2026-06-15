@@ -405,6 +405,10 @@ test('marker detail editing covers range overrides and marker note editor paths'
       outcomes.editRefRangeSwapsInlineInputs =
         document.getElementById('ref-edit-min')?.value === '35'
         && document.getElementById('ref-edit-max')?.value === '52';
+      outcomes.editRefRangeRendersDelegatedControls =
+        document.querySelectorAll('[data-marker-detail-action="clear-ref-edit-field"]').length === 2
+        && !!document.querySelector('[data-marker-detail-action="save-ref-range"]')
+        && !document.querySelector('.ref-edit-form')?.innerHTML.includes('onclick=');
       document.getElementById('ref-edit-min').value = '36';
       document.getElementById('ref-edit-max').value = '';
       await editing.saveRefRange(id, 'ref');

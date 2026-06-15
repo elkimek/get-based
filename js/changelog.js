@@ -5,6 +5,9 @@
 import { escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
+const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
+const changelogDelegateRoots = new WeakSet();
+
 const CHANGELOG = [
   {
     version: '1.8.455', date: '2026-06-13', title: 'XLSX lab imports and improvements',
@@ -280,7 +283,7 @@ export function openChangelog(showAll) {
       <div class="gb-modal-kicker">Release notes</div>
       <div class="gb-modal-title">What's New</div>
     </div>
-    <button class="modal-close" aria-label="Close" onclick="closeChangelog()">&times;</button>
+    <button type="button" class="modal-close" aria-label="Close" ${CHANGELOG_ACTION_ATTR}="close">&times;</button>
   </div>
   <div class="gb-form-body">`;
 
@@ -296,7 +299,26 @@ export function openChangelog(showAll) {
 
   html += `</div>`;
   modal.innerHTML = html;
+  installChangelogDelegates(modal);
   openModalOverlay(overlay);
+}
+
+function handleChangelogActionClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = target.closest(`[${CHANGELOG_ACTION_ATTR}]`);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(CHANGELOG_ACTION_ATTR) === 'close') {
+    event.preventDefault();
+    event.stopPropagation();
+    closeChangelog();
+  }
+}
+
+function installChangelogDelegates(root) {
+  if (!root || changelogDelegateRoots.has(root)) return;
+  changelogDelegateRoots.add(root);
+  root.addEventListener('click', handleChangelogActionClick);
 }
 
 export function closeChangelog() {

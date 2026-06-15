@@ -127,8 +127,10 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
       const banner = document.getElementById('analytics-consent-banner');
       const analyticsBannerRendersOnce = document.querySelectorAll('#analytics-consent-banner').length === 1
         && banner?.getAttribute('role') === 'region'
+        && !!banner?.querySelector('[data-analytics-consent-action="dismiss"]')
+        && !!banner?.querySelector('[data-analytics-consent-action="disable"]')
         && document.body.classList.contains('analytics-consent-visible');
-      utils.dismissAnalyticsConsent();
+      banner?.querySelector('[data-analytics-consent-action="dismiss"]')?.click();
       const analyticsDismissMarksSeenAndRemovesBanner =
         localStorage.getItem('labcharts-analytics-consent-seen') === '1'
         && !document.getElementById('analytics-consent-banner')
@@ -141,7 +143,7 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
 
       for (const key of analyticsKeys) localStorage.removeItem(key);
       utils.maybeShowAnalyticsConsent();
-      utils.dismissAnalyticsConsentAndDisable();
+      document.querySelector('#analytics-consent-banner [data-analytics-consent-action="disable"]')?.click();
       outcomes.analyticsConsentHelpersCoverStorageBannerAndDisable =
         analyticsCanEnable
         && analyticsCanDisable

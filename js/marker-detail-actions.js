@@ -49,6 +49,15 @@ function handleMarkerDetailAction(actionEl, event, actions) {
 
   if (action === 'close-modal') {
     actions.closeModal?.();
+  } else if (action === 'clear-ref-edit-field') {
+    const field = actionEl.dataset.markerDetailField === 'max' ? 'max' : 'min';
+    const input = document.getElementById(`ref-edit-${field}`);
+    if (input instanceof HTMLInputElement) {
+      input.value = '';
+      input.focus();
+    }
+  } else if (action === 'save-ref-range') {
+    void actions.saveRefRange?.(id, type);
   } else if (action === 'quick-pin') {
     actions.toggleDashboardQuickMarkerPin?.(id);
   } else if (action === 'edit-ref-range') {
@@ -90,6 +99,15 @@ function handleMarkerDetailAction(actionEl, event, actions) {
     void actions.saveManualEntry?.(id);
   } else if (action === 'save-and-add-manual-entry') {
     void actions.saveAndAddAnotherManualEntry?.(id);
+  } else if (action === 'toggle-custom-marker-category') {
+    const row = document.getElementById('cm-new-cat-row');
+    if (row instanceof HTMLElement && actionEl instanceof HTMLSelectElement) {
+      row.style.display = actionEl.value === '__new__' ? 'flex' : 'none';
+    }
+  } else if (action === 'pick-new-cat-icon') {
+    actions.pickNewCatIcon?.(actionEl);
+  } else if (action === 'save-custom-marker') {
+    actions.saveCustomMarker?.();
   }
 }
 
@@ -112,9 +130,17 @@ function handleMarkerDetailKeydown(event, actions) {
   handleMarkerDetailAction(actionEl, event, actions);
 }
 
+function handleMarkerDetailChange(event, actions) {
+  const actionEl = closestMarkerDetailAction(event);
+  if (!actionEl || actionEl.dataset.markerDetailAction !== 'toggle-custom-marker-category') return;
+  event.stopPropagation();
+  handleMarkerDetailAction(actionEl, event, actions);
+}
+
 export function installMarkerDetailActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
   if (!root || markerDetailActionDelegateRoots.has(root)) return;
   markerDetailActionDelegateRoots.add(root);
   root.addEventListener('click', event => handleMarkerDetailClick(event, actions));
   root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions));
+  root.addEventListener('change', event => handleMarkerDetailChange(event, actions));
 }

@@ -56,6 +56,10 @@ assert('changelog.js uses shared modal overlay lifecycle helpers',
   changelogSrc.includes("from './modal-lifecycle.js'")
     && changelogSrc.includes('openModalOverlay(')
     && changelogSrc.includes('closeModalOverlay('));
+assert('changelog.js delegates modal close button without inline handlers',
+  changelogSrc.includes('data-changelog-action') &&
+    changelogSrc.includes('installChangelogDelegates(modal)') &&
+    !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(changelogSrc));
 assert('changelog.js has getMajorMinor helper', changelogSrc.includes('function getMajorMinor'));
 assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('getMajorMinor(seen) !== getMajorMinor('));
 // forceShow patch-bump escape hatch — when a maintainer flags an entry as

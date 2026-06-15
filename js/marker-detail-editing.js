@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { getAlternateUnit, convertUserInputToSI } from './schema.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
+import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import {
   deleteManualMarkerValue,
   editManualMarkerValue,
@@ -252,7 +253,7 @@ export function editRefRange(id, type, evt) {
   // Replace span with inline inputs
   const form = document.createElement('span');
   form.className = 'ref-edit-form';
-  form.innerHTML = `${escapeHTML(label)}: <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMin ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-min"><button type="button" class="ref-edit-clear" onclick="document.getElementById('ref-edit-min').value='';document.getElementById('ref-edit-min').focus()" title="Clear (open-ended)">\u00d7</button></span> \u2013 <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMax ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-max"><button type="button" class="ref-edit-clear" onclick="document.getElementById('ref-edit-max').value='';document.getElementById('ref-edit-max').focus()" title="Clear (open-ended)">\u00d7</button></span> <button class="ref-edit-save" onclick="saveRefRange('${id}','${type}')">Save</button>`;
+  form.innerHTML = `${escapeHTML(label)}: <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMin ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-min"><button type="button" class="ref-edit-clear" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'min' })} title="Clear (open-ended)">\u00d7</button></span> \u2013 <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMax ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-max"><button type="button" class="ref-edit-clear" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'max' })} title="Clear (open-ended)">\u00d7</button></span> <button type="button" class="ref-edit-save" ${markerDetailActionAttrs('save-ref-range', { id, type })}>Save</button>`;
   span.replaceWith(form);
   /** @type {HTMLElement | null} */ (form.querySelector('#ref-edit-min'))?.focus();
 
