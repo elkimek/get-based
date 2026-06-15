@@ -433,21 +433,19 @@ export function showLight(_data) {
   // environment + trends) into one read. Sits above active-session and
   // conditions so the user gets the "how am I doing?" answer before the
   // raw inputs.
-  if (lightPageDeps.renderLightTodayHero) {
-    try {
-      const todayBody = lightPageDeps.renderLightTodayHero() || '';
-      if (todayBody) {
-        widgets.push({
-          id: 'light-today',
-          title: 'Today',
-          description: 'Current light synthesis across sun, devices, and environment',
-          body: todayBody,
-          size: 'full',
-          opts: { source: 'Light', dashboardId: 'light-today' },
-        });
-      }
-    } catch (_) {}
-  }
+  try {
+    const todayBody = lightPageDeps.renderLightTodayHero() || '';
+    if (todayBody) {
+      widgets.push({
+        id: 'light-today',
+        title: 'Today',
+        description: 'Current light synthesis across sun, devices, and environment',
+        body: todayBody,
+        size: 'full',
+        opts: { source: 'Light', dashboardId: 'light-today' },
+      });
+    }
+  } catch (_) {}
 
   // Active sun session card — pinned at the very top of the page so the
   // live timer + channel chips + Pause/Flip/Sunscreen controls are the
@@ -462,11 +460,9 @@ export function showLight(_data) {
   // Same pattern for active device-therapy sessions (PBM panels, SAD
   // lamps, dawn simulators). Pinned above the conditions panel so the
   // stop button is always one tap away.
-  if (lightPageDeps.renderActiveDeviceSessionCard) {
-    const _activeDevHtml = lightPageDeps.renderActiveDeviceSessionCard();
-    if (_activeDevHtml) {
-      activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
-    }
+  const _activeDevHtml = lightPageDeps.renderActiveDeviceSessionCard();
+  if (_activeDevHtml) {
+    activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
   }
   if (activeSessionBody) {
     widgets.push({
@@ -718,21 +714,14 @@ export function showLight(_data) {
     }
   }
 
-  if (lightPageDeps.renderDevicesSection) {
-    Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
-      const slot = document.getElementById(devicesSlotId);
-      if (!slot) return;
-      const devices = lightPageDeps.getDevices() || [];
-      slot.outerHTML = devices.length > 0
-        ? devHtml
-        : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
-    }).catch(() => {});
-  } else {
+  Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
     const slot = document.getElementById(devicesSlotId);
-    if (slot) {
-      slot.outerHTML = renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
-    }
-  }
+    if (!slot) return;
+    const devices = lightPageDeps.getDevices() || [];
+    slot.outerHTML = devices.length > 0
+      ? devHtml
+      : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
+  }).catch(() => {});
   const envSlot = document.getElementById(environmentSlotId);
   if (envSlot) {
     const envHtml = lightPageDeps.renderEnvironmentAssessmentSummary() || '';
