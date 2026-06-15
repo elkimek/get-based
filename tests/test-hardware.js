@@ -184,6 +184,10 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   assert('Provider local AI controls calls renderModelAdvisor', localAiControlsSrc.includes('renderModelAdvisor'));
   assert('Provider panels exports copyOllamaPullCmd', ppSrc.includes('copyOllamaPullCmd'));
   assert('Provider local AI controls validates base URL before fetch', localAiControlsSrc.includes('normalizeLocalAiBaseUrl'));
+  assert('Provider local AI advisor delegates rendered controls without inline handlers',
+    localAiControlsSrc.includes('data-local-ai-action') &&
+      localAiControlsSrc.includes('installLocalAiControlDelegates') &&
+      !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(localAiControlsSrc));
 
   // ═══════════════════════════════════════
   // 9. Local AI URL validation

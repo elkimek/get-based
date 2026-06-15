@@ -171,16 +171,25 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       await wait(0);
       const copyPullCommand = writes.includes('ollama pull qwen2.5:14b');
 
-      controls.applyHardwareOverride('16');
-      await wait(0);
+      const overrideToggle = document.querySelector('[data-local-ai-action="toggle-override"]');
+      overrideToggle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      const hardwareOverrideKeyboardToggle = document.querySelector('.model-advisor-override-body')?.style.display === 'flex'
+        && overrideToggle?.getAttribute('aria-expanded') === 'true';
+      document.getElementById('hw-vram-override-input').value = '16';
+      document.querySelector('[data-local-ai-action="apply-hardware-override"]')?.click();
+      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('16 GB'); i += 1) {
+        await wait(10);
+      }
       const hardwareOverrideApplied = localStorage.getItem('labcharts-hw-vram-override') === '16'
         && document.getElementById('local-ai-advisor')?.textContent.includes('16 GB');
       controls.applyHardwareOverride('0');
       await wait(0);
       const invalidHardwareOverride = [...document.querySelectorAll('.notification-toast')]
         .some(el => el.textContent.includes('valid VRAM'));
-      controls.clearHardwareOverride();
-      await wait(0);
+      document.querySelector('[data-local-ai-action="clear-hardware-override"]')?.click();
+      for (let i = 0; i < 20 && localStorage.getItem('labcharts-hw-vram-override'); i += 1) {
+        await wait(10);
+      }
       const hardwareOverrideCleared = !localStorage.getItem('labcharts-hw-vram-override');
 
       document.getElementById('pii-local-url-input').value = 'http://localhost:11434';
@@ -208,6 +217,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         localConnectSuccess,
         refreshModelAdvisorRerendersCachedDetails,
         copyPullCommand,
+        hardwareOverrideKeyboardToggle,
         hardwareOverrideApplied,
         invalidHardwareOverride,
         hardwareOverrideCleared,

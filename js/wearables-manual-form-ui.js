@@ -1,6 +1,9 @@
 // @ts-check
 
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
+
+const WEARABLE_LOG_ACTION_ATTR = 'data-wearable-log-action';
+const wearableManualFormDelegateRoots = new WeakSet();
 
 // Chip row for optional context tags. Tags are informational; sensors cannot
 // infer whether a manual BP/RHR reading was resting, post-workout, etc.
@@ -13,13 +16,36 @@ export function _renderTagChips(metricId) {
   const tags = TAG_CHIPS[metricId];
   if (!tags) return '';
   return `<div class="wearable-log-tags" role="group" aria-label="Optional context">
-    ${tags.map(t => `<button type="button" class="wearable-log-chip" data-tag="${escapeHTML(t)}" onclick="toggleManualLogChip(this,event)">${escapeHTML(t)}</button>`).join('')}
+    ${tags.map(t => `<button type="button" class="wearable-log-chip" ${WEARABLE_LOG_ACTION_ATTR}="toggle-chip" data-tag="${escapeAttr(t)}">${escapeHTML(t)}</button>`).join('')}
   </div>`;
 }
 
 export function toggleManualLogChip(btn, event) {
   if (event) event.stopPropagation();
   btn.classList.toggle('active');
+}
+
+function closestWearableLogAction(target) {
+  if (!target || typeof target.closest !== 'function') return null;
+  return target.closest(`[${WEARABLE_LOG_ACTION_ATTR}]`);
+}
+
+function handleWearableLogActionClick(event) {
+  const actionEl = closestWearableLogAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(WEARABLE_LOG_ACTION_ATTR) === 'toggle-chip') {
+    toggleManualLogChip(actionEl, event);
+  }
+}
+
+export function installWearablesManualFormDelegates(root = (typeof document !== 'undefined' ? document : null)) {
+  if (!root || wearableManualFormDelegateRoots.has(root)) return;
+  wearableManualFormDelegateRoots.add(root);
+  root.addEventListener('click', handleWearableLogActionClick);
+}
+
+if (typeof document !== 'undefined') {
+  installWearablesManualFormDelegates(document);
 }
 
 export function _collectActiveChips(card) {
