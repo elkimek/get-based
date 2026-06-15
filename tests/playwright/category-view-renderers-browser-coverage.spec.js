@@ -69,6 +69,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
       outcomes.chartCardEscapesMarkerStoresRegistryAndShowsLatest =
         state.markerRegistry.lipids_apob === apoBMarker
         && card?.getAttribute('aria-label') === 'ApoB <script> - Normal'
+        && card.getAttribute('data-marker-detail-action') === 'show-detail-modal'
+        && card.getAttribute('data-marker-detail-id') === 'lipids_apob'
+        && !card.hasAttribute('onclick')
         && card.querySelector('.chart-card-title-text')?.textContent === 'ApoB <script>'
         && card.querySelector('.chart-card-latest-value')?.textContent === '90'
         && card.querySelector('#chart-rec-lipids_apob')
@@ -96,6 +99,8 @@ test('category view renderers browser coverage exercises chart table heatmap and
       const syncedScroll = tinyShell?.style.getPropertyValue('--gb-table-scroll-x');
       outcomes.scrollableTableShellClampsWidthEscapesColsAndSyncsScroll =
         tinyShell?.style.getPropertyValue('--gb-table-min-width') === '660px'
+        && tinyScroll.hasAttribute('data-gb-table-scroll-sync')
+        && !tinyScroll.hasAttribute('onscroll')
         && syncedScroll === `${tinyScroll.scrollLeft}px`
         && tinyScroll.scrollLeft > 0
         && fixture.querySelectorAll('col').length === 4
@@ -109,9 +114,10 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && tableText.includes('ApoB <script>')
         && !tableText.includes('Empty Marker')
         && !fixture.querySelector('script')
-        && emptyValueCell?.getAttribute('onclick')?.includes('openManualEntryForm')
-        && emptyValueCell.getAttribute('onclick')?.includes('lipids_apob')
-        && emptyValueCell.getAttribute('onclick')?.includes('2026-02-01');
+        && !fixture.innerHTML.includes('onclick=')
+        && emptyValueCell?.getAttribute('data-marker-detail-action') === 'open-manual-entry'
+        && emptyValueCell.getAttribute('data-marker-detail-id') === 'lipids_apob'
+        && emptyValueCell.getAttribute('data-marker-detail-date') === '2026-02-01';
 
       fixture.innerHTML = renderers.renderTableView({ singleDate: false, markers: {} }, dateLabels, 'empty', dates);
       outcomes.tableViewEmptyStateExplainsNoData =
@@ -126,7 +132,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && !!fixture.querySelector('.gb-table-shell-heatmap')
         && highHeatmapCell?.textContent === '130'
         && missingHeatmapCell?.textContent?.charCodeAt(0) === 8212
-        && highHeatmapCell.getAttribute('onclick')?.includes('lipids_apob')
+        && highHeatmapCell.getAttribute('data-marker-detail-action') === 'show-detail-modal'
+        && highHeatmapCell.getAttribute('data-marker-detail-id') === 'lipids_apob'
+        && !fixture.innerHTML.includes('onclick=')
         && highHeatmapCell.getAttribute('aria-label')?.includes('ApoB <script> Mar 1: 130');
 
       fixture.innerHTML = renderers.renderHeatmapView({ singleDate: false, markers: {} }, dateLabels, dates, 'empty');
@@ -172,7 +180,9 @@ test('category view renderers browser coverage exercises chart table heatmap and
         && fixture.textContent.includes('Optimal: 8')
         && fixture.textContent.includes('12')
         && !fixture.textContent.includes('Unsafe')
-        && fixture.querySelector('.fa-card')?.getAttribute('onclick')?.includes('fatty_omega3');
+        && fixture.querySelector('.fa-card')?.getAttribute('data-marker-detail-action') === 'show-detail-modal'
+        && fixture.querySelector('.fa-card')?.getAttribute('data-marker-detail-id') === 'fatty_omega3'
+        && !fixture.innerHTML.includes('onclick=');
       outcomes.fattyAcidsViewRejectsUnsafeCategoryKey =
         renderers.renderFattyAcidsView(fattyAcids, 'bad"cat') === '';
 

@@ -90,6 +90,7 @@ const state = (await import('../js/state.js')).state;
 
   const viewsSrc = read('js/views.js');
   const categoryViewRenderersSrc = read('js/category-view-renderers.js');
+  const markerDetailActionsSrc = read('js/marker-detail-actions.js');
   const markerDetailSrc = read('js/marker-detail-modal.js');
   const markerDetailEditingSrc = read('js/marker-detail-editing.js');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
@@ -181,10 +182,9 @@ const state = (await import('../js/state.js')).state;
       && /saveMarkerValueNote[\s\S]{0,500}writeMarkerValueNote\(dotKey, date, noteText\)/.test(markerDetailStoreSrc)
       && /writeMarkerValueNote[\s\S]{0,900}insulinMirrorMapKey\(dotKey, date\)/.test(markerDetailStoreSrc));
 
-  // CodeQL js/xss-through-dom: empty-cell onclick must use JSON.stringify
-  // so interpolated id/date survive the HTML-attr → JS-string round-trip.
-  assert('Empty-cell onclick uses JSON.stringify(id), JSON.stringify(colDate)',
-    /openManualEntryForm\(\$\{escapeHTML\(JSON\.stringify\(id\)\)\},\$\{escapeHTML\(JSON\.stringify\(colDate\)\)\}\)/.test(categoryViewRenderersSrc));
+  assert('Empty-cell manual entry uses delegated id/date attrs',
+    categoryViewRenderersSrc.includes("markerDetailActionAttrs('open-manual-entry', { id, date: colDate })") &&
+    /open-manual-entry'[\s\S]{0,180}openManualEntryForm\?\.\(id, date \|\| undefined\)/.test(markerDetailActionsSrc));
 
   // ═══════════════════════════════════════
   // 7. Value-card rendering

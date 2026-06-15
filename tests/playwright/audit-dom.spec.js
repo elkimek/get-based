@@ -14,6 +14,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
     const originalSex = state.profileSex;
     const originalDob = state.profileDob;
     const originalView = state.currentView;
+    const originalRenameCategory = window.renameCategory;
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
@@ -29,6 +30,19 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       window.showCategory('biochemistry');
       await delay(50);
       const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
+      const tableBtn = document.querySelector('[data-category-page-action="switch-view"][data-category-page-view="table"]');
+      tableBtn?.click();
+      await delay(30);
+      const categoryDelegatesSwitchViews =
+        tableBtn?.classList.contains('active') === true
+        && !!document.querySelector('.gb-table-shell-data')
+        && !document.querySelector('.view-toggle')?.innerHTML.includes('onclick=');
+
+      let renameCategoryKey = '';
+      window.renameCategory = key => { renameCategoryKey = key; };
+      document.querySelector('[data-category-page-action="rename-category"]')?.click();
+      await delay(10);
+      const categoryDelegatesRename = renameCategoryKey === 'biochemistry';
 
       let quoteInjectionNoop = false;
       let protoNoop = false;
@@ -52,6 +66,8 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         controlCategoryRendered: !!beforeHeading,
         quoteInjectionNoop,
         protoNoop,
+        categoryDelegatesSwitchViews,
+        categoryDelegatesRename,
         detailModalInjectionNoop: !!overlay?.classList.contains('show') === openBefore,
         unsafeChartCardEmpty: window.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '',
         safeChartCardRenders: safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'),
@@ -60,6 +76,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       state.importedData = originalData;
       state.profileSex = originalSex;
       state.profileDob = originalDob;
+      window.renameCategory = originalRenameCategory;
       if (originalView) window.navigate?.(originalView);
     }
   });

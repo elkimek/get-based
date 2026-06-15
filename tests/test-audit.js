@@ -240,7 +240,7 @@ assert('Clipboard has navigator.clipboard guard', chatActionsSrc.includes('if (!
 // ═══════════════════════════════════════
 // PDF AI extraction is sanitized at the parse boundary by _sanitizeAIMarker,
 // but legacy data and sync pulls can still feed unsafe keys into category
-// views — five entry points interpolate keys into onclick="…('${id}')" handlers.
+// views — category marker ids flow into delegated data attributes.
 // safeMarkerId in utils.js gates each one. The *functional* proof that the
 // guards no-op on adversarial input lives in tests/playwright/audit-dom.spec.js (needs a
 // live DOM); here we pin the guard *wiring*.

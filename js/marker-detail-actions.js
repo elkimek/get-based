@@ -75,7 +75,7 @@ function handleMarkerDetailAction(actionEl, event, actions) {
   } else if (action === 'show-detail-modal') {
     actions.showDetailModal?.(id, showDetailOptions(actionEl));
   } else if (action === 'open-manual-entry') {
-    actions.openManualEntryForm?.(id);
+    actions.openManualEntryForm?.(id, date || undefined);
   } else if (action === 'ask-ai') {
     actions.askAIAboutMarker?.(id);
   } else if (action === 'toggle-marker-note-editor') {
