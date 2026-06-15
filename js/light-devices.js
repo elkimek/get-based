@@ -110,7 +110,7 @@ function _wireModal(overlay, closeFn) {
   openAppendedModalOverlay(overlay, closeFn);
 }
 
-async function loadPresets() {
+export async function loadLightDevicePresets() {
   if (_PRESETS) return { presets: _PRESETS, types: _PRESET_TYPES };
   try {
     const res = await fetch('data/light-device-presets.json');
@@ -127,7 +127,7 @@ async function loadPresets() {
 // ─── Public API ────────────────────────────────────────────────────────
 
 export async function addDeviceFromPreset(presetId, overrides = {}) {
-  const { presets } = await loadPresets();
+  const { presets } = await loadLightDevicePresets();
   const preset = presets.find(p => p.id === presetId);
   return addDeviceFromPresetRecord(preset, overrides);
 }
@@ -138,7 +138,7 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
 // once at boot so existing localStorage devices light up the mode picker
 // without requiring re-add.
 export async function hydrateDevicesFromPresets() {
-  const { presets } = await loadPresets();
+  const { presets } = await loadLightDevicePresets();
   return hydrateDevicesFromPresetRecords(presets);
 }
 
@@ -537,7 +537,7 @@ export async function renderDevicesSection() {
   } catch { /* offline / 404 — page still renders without affiliate row */ }
   let typesMeta = {};
   try {
-    const presetData = await loadPresets();
+    const presetData = await loadLightDevicePresets();
     typesMeta = presetData.types || {};
   } catch { /* presets file unreachable; fallback uses raw type strings */ }
 
@@ -668,7 +668,7 @@ function _relativeTimeShort(ts) {
 }
 
 configureLightDeviceSetup({
-  loadPresets,
+  loadPresets: loadLightDevicePresets,
   addDeviceFromPreset,
   addCustomDevice,
   wireModal: _wireModal,
@@ -758,7 +758,7 @@ export async function deleteDeviceSessionWithConfirm(id) {
 
 if (typeof window !== 'undefined') {
   Object.assign(window, {
-    loadLightDevicePresets: loadPresets,
+    loadLightDevicePresets,
     getDevices,
     getDeviceSessions,
     addDeviceFromPreset,
