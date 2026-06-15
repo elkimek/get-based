@@ -15,6 +15,7 @@ import { escapeHTML, showNotification } from './utils.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
@@ -109,7 +110,7 @@ export function renderAttachmentPreview() {
   container.innerHTML = _pendingAttachments.map((att, i) =>
     `<div class="chat-attach-thumb" title="${escapeHTML(att.name)}">` +
     `<img src="${att.previewUrl}" alt="${escapeHTML(att.name)}">` +
-    `<button class="chat-attach-remove" onclick="removeImageAttachment(${i})" aria-label="Remove">&times;</button>` +
+    `<button class="chat-attach-remove" type="button" ${chatMessageActionAttrs('remove-image-attachment', { index: i })} aria-label="Remove">&times;</button>` +
     `</div>`
   ).join('') +
   `<span class="chat-attach-count">${_pendingAttachments.length}/${MAX_ATTACHMENTS}</span>`;
@@ -217,8 +218,8 @@ export function initChatImageHandlers() {
   }
 }
 
-// HTML onclicks call these names directly; main.js / chat.js init also
-// wires initChatImageHandlers() on DOMContentLoaded.
+// Keep legacy window exports; main.js / chat.js init also wires
+// initChatImageHandlers() on DOMContentLoaded.
 Object.assign(window, {
   toggleHDMode,
   addImageAttachment,

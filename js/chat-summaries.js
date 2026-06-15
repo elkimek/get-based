@@ -9,6 +9,7 @@ import { callClaudeAPI, getActiveModelDisplay, getActiveModelId, getAIProvider, 
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import {
   appendImportedArrayItem,
   deleteImportedArrayItems,
@@ -237,7 +238,7 @@ export function renderSavedSummaries() {
     summaries.map(s => {
       const date = new Date(s.createdAt);
       const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return `<div class="chat-saved-summary-item" onclick="viewSavedSummary('${escapeHTML(s.id)}')">
+      return `<div class="chat-saved-summary-item" role="button" tabindex="0" ${chatMessageActionAttrs('view-summary', { summaryId: s.id })}>
         <div class="chat-saved-summary-name">${escapeHTML(s.threadName)}</div>
         <div class="chat-saved-summary-meta">${dateStr}${s.model ? ' \u00b7 ' + escapeHTML(s.model) : ''}</div>
       </div>`;
@@ -253,7 +254,10 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
     overlay.className = 'modal-overlay';
     let mdInside = false;
     overlay.addEventListener('mousedown', (e) => { mdInside = e.target !== overlay; });
-    overlay.onclick = (e) => { if (e.target === overlay && !mdInside) _closeSummaryModal(); mdInside = false; };
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay && !mdInside) _closeSummaryModal();
+      mdInside = false;
+    });
     document.body.appendChild(overlay);
   } else if (!overlay.classList.contains('show')) {
     overlay.className = 'modal-overlay';
@@ -283,15 +287,15 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
   }
 
   overlay.innerHTML = `<div class="modal">
-    <button class="modal-close" onclick="closeSummaryModal()" aria-label="Close">&times;</button>
+    <button class="modal-close" type="button" ${chatMessageActionAttrs('close-summary')} aria-label="Close">&times;</button>
     <h3>Summary</h3>
     <div class="summary-modal-meta">${threadName}${dateStr ? ' \u00b7 ' + dateStr : ''}${modelStr}${costLine}</div>
     <div id="summary-modal-body" class="summary-modal-body">${bodyContent}</div>
     <div class="summary-modal-actions"${loading ? ' style="display:none"' : ''}>
-      <button class="summary-action-btn" onclick="copySummary()" title="Copy as markdown">Copy</button>
-      <button class="summary-action-btn" onclick="downloadSummary()" title="Download as .md file">Download</button>
-      <button class="summary-action-btn" onclick="printSummary()" title="Print">Print</button>
-      ${thread?._savedId ? `<button class="summary-action-btn secondary delete" onclick="deleteSavedSummary('${escapeHTML(thread._savedId)}')" title="Delete summary">Delete</button>` : ''}
+      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('copy-summary')} title="Copy as markdown">Copy</button>
+      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('download-summary')} title="Download as .md file">Download</button>
+      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('print-summary')} title="Print">Print</button>
+      ${thread?._savedId ? `<button class="summary-action-btn secondary delete" type="button" ${chatMessageActionAttrs('delete-summary', { summaryId: thread._savedId })} title="Delete summary">Delete</button>` : ''}
     </div>
   </div>`;
   openModalOverlay(overlay);

@@ -62,6 +62,69 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       } finally {
         testDiv.remove();
       }
+
+      const keyDiv = document.createElement('div');
+      keyDiv.innerHTML = '<div id="chat-ctx-details-42" style="display:none">content</div>' +
+        '<span id="chat-ctx-arrow-42">▸</span>' +
+        '<div id="chat-ctx-key-42" role="button" tabindex="0" data-chat-message-action="toggle-context-details" data-chat-message-index="42">Context</div>';
+      document.body.appendChild(keyDiv);
+      try {
+        const keyToggle = document.getElementById('chat-ctx-key-42');
+        const details = document.getElementById('chat-ctx-details-42');
+        const enterPrevented = keyToggle
+          ? !keyToggle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+          : false;
+        const opens = details?.style.display === 'flex';
+        const spacePrevented = keyToggle
+          ? !keyToggle.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+          : false;
+        outcomes.roleButtonContextKeyboardDelegates = enterPrevented
+          && opens
+          && spacePrevented
+          && details?.style.display === 'none';
+      } finally {
+        keyDiv.remove();
+      }
+
+      const savedViewSavedSummary = window.viewSavedSummary;
+      const summaryButton = document.createElement('div');
+      let viewedSummaryId = null;
+      summaryButton.setAttribute('role', 'button');
+      summaryButton.setAttribute('tabindex', '0');
+      summaryButton.setAttribute('data-chat-message-action', 'view-summary');
+      summaryButton.setAttribute('data-chat-message-summary-id', 'summary-keyboard');
+      document.body.appendChild(summaryButton);
+      try {
+        window.viewSavedSummary = id => { viewedSummaryId = id; };
+        const summaryPrevented = !summaryButton.dispatchEvent(
+          new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+        );
+        outcomes.roleButtonSummaryKeyboardDelegates = summaryPrevented
+          && viewedSummaryId === 'summary-keyboard';
+      } finally {
+        window.viewSavedSummary = savedViewSavedSummary;
+        summaryButton.remove();
+      }
+
+      if (realContainer) {
+        let bubbled = 0;
+        const onBubble = () => { bubbled += 1; };
+        realContainer.addEventListener('click', onBubble);
+        try {
+          state.chatHistory = [{
+            role: 'assistant',
+            content: 'Answer',
+            lensSources: [{ source: 'notes.md', score: 0.75, text: 'Relevant excerpt' }],
+            lensSourceName: 'notes',
+          }];
+          window.renderChatMessages();
+          const lensSummary = realContainer.querySelector('.chat-lens-source-summary');
+          lensSummary?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          outcomes.renderedContainClickStopsAtElement = !!lensSummary && bubbled === 0;
+        } finally {
+          realContainer.removeEventListener('click', onBubble);
+        }
+      }
     } finally {
       state.chatHistory = originalHistory;
     }
@@ -131,7 +194,9 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       outcomes.buildActionBarEscapesContextAndAddsLastRegenerate = (() => {
         const html = chatActions.buildActionBar(1);
         return html.includes('Regenerate')
-          && html.includes('copyMessage(1)')
+          && html.includes('data-chat-message-action="copy-message"')
+          && html.includes('data-chat-message-index="1"')
+          && !html.includes('onclick=')
           && html.includes('&lt;Labs&gt;')
           && html.includes('5 &gt; 3')
           && chatActions.buildActionBar(0) === ''

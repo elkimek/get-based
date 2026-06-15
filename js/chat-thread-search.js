@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { escapeHTML } from './utils.js';
+import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 
 /** @type {{
  *   getChatThreadKey: (threadId: string) => string,
@@ -104,7 +105,7 @@ function showSearchResults(query, results) {
   list.innerHTML = `<div class="chat-search-results-label">Messages</div>` +
     visibleResults.map(r => {
       const icon = r.role === 'user' ? '\uD83D\uDCDD' : '\uD83E\uDD16';
-      return `<div class="chat-search-result" data-prefix="${escapeHTML(r.contentPrefix)}" onclick="jumpToSearchResult('${escapeHTML(r.threadId)}',${r.msgIndex},this.dataset.prefix)">
+      return `<div class="chat-search-result" ${chatMessageActionAttrs('jump-search-result', { threadId: r.threadId, index: r.msgIndex, prefix: r.contentPrefix })}>
         <div class="chat-search-result-thread">${escapeHTML(r.threadName)}</div>
         <div class="chat-search-result-snippet">${icon} ${escapeHTML(r.pre)}<mark>${escapeHTML(r.match)}</mark>${escapeHTML(r.post)}</div>
       </div>`;
