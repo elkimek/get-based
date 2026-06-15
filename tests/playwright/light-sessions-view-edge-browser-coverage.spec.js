@@ -99,6 +99,7 @@ test('light sessions view edge coverage handles empty and compact device history
       ];
       const mixedHost = document.createElement('div');
       mixedHost.innerHTML = sessionsView.renderUnifiedSessionsList();
+      sessionsView.installLightSessionsActionDelegates(mixedHost);
       const nirRow = mixedHost.querySelector('.light-session-device[data-id="dev-nir"]');
       const removedRow = mixedHost.querySelector('.light-session-device[data-id="dev-removed"]');
       outcomes.deviceInlineRendersEscapedModeChipsAndFallbacks =
@@ -111,6 +112,11 @@ test('light sessions view edge coverage handles empty and compact device history
         && nirRow?.querySelectorAll('.sun-chip').length === 1
         && removedRow?.textContent.includes('Removed device') === true
         && removedRow?.textContent.includes('— @ 30cm') === true;
+      outcomes.deviceInlineRowsUseDelegatedActions =
+        nirRow?.getAttribute('data-light-sessions-action') === 'open-device-session'
+        && nirRow?.querySelector('.sun-session-delete')?.getAttribute('data-light-sessions-action') === 'delete-device-session'
+        && !mixedHost.innerHTML.includes('onclick=')
+        && !mixedHost.innerHTML.includes('onkeydown=');
 
       nirRow?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       nirRow?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
@@ -118,6 +124,7 @@ test('light sessions view edge coverage handles empty and compact device history
 
       sessionsView._openAllSessionsModal();
       overlay = document.querySelector('.light-sessions-modal-overlay');
+      if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
       const modalRow = overlay?.querySelector('.light-session-device[data-id="dev-nir"]');
       const detailCallsBeforeModalEnter = calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length;
       modalRow?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));

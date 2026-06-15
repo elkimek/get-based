@@ -38,6 +38,56 @@ import {
   openGlassTransmission as openGlassTransmissionModal,
 } from './light-tool-camera-modals.js';
 
+const LIGHT_TOOLS_ACTION_ATTR = 'data-light-tools-action';
+const LIGHT_TOOL_ID_ATTR = 'data-light-tool-id';
+const LIGHT_TOOLS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightToolsActionDelegatesInstalled');
+const lightToolsActionDelegateRoots = new WeakSet();
+
+function closestLightToolsAction(target) {
+  if (!target || !target.closest) return null;
+  return target.closest(`[${LIGHT_TOOLS_ACTION_ATTR}]`);
+}
+
+function openLightToolById(toolId) {
+  const openers = {
+    spectrum: openSpectrumClassifier,
+    lux: openLuxMeter,
+    cct: openCCTMeter,
+    flicker: openFlickerDetector,
+    darkness: openDarknessMeter,
+    glass: openGlassTransmission,
+    audit: openEyeLevelAudit,
+    golden: openSunriseLogger,
+  };
+  const opener = openers[toolId];
+  if (opener) opener();
+}
+
+function handleLightToolsActionClick(event) {
+  const actionEl = closestLightToolsAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(LIGHT_TOOLS_ACTION_ATTR);
+  if (action === 'close-audit') {
+    window._closeAudit?.();
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'open-tool') {
+    const toolId = actionEl.getAttribute(LIGHT_TOOL_ID_ATTR) || '';
+    openLightToolById(toolId);
+    event.stopPropagation();
+  }
+}
+
+export function installLightToolsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightToolsActionDelegateRoots.has(root) || root[LIGHT_TOOLS_ACTION_DELEGATE_KEY]) return;
+  lightToolsActionDelegateRoots.add(root);
+  Object.defineProperty(root, LIGHT_TOOLS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleLightToolsActionClick);
+}
+
+if (typeof document !== 'undefined') installLightToolsActionDelegates();
+
 export {
   aimingGuideHTML,
   lockCameraForMeasurement,
@@ -378,7 +428,7 @@ export async function openEyeLevelAudit() {
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Home audit">
     <div class="modal-header">
       <h3>Home audit <span style="font-weight:400;color:var(--text-muted);font-size:13px">— 10 min walkthrough</span></h3>
-      <button class="modal-close" onclick="window._closeAudit()" aria-label="Close">×</button>
+      <button type="button" class="modal-close" data-light-tools-action="close-audit" aria-label="Close">×</button>
     </div>
     <div class="modal-body">
       ${aimingGuideHTML('audit')}
@@ -386,8 +436,8 @@ export async function openEyeLevelAudit() {
       <div class="audit-status" id="audit-status" aria-live="polite" aria-atomic="true">Press Start when ready.</div>
       <ol class="audit-room-list" id="audit-room-list" style="margin-top:12px;list-style:decimal inside;color:var(--text-secondary)"></ol>
       <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" onclick="window._closeAudit()">Cancel</button>
-        <button class="import-btn import-btn-primary" id="audit-toggle">Start audit</button>
+        <button type="button" class="import-btn import-btn-secondary" data-light-tools-action="close-audit">Cancel</button>
+        <button type="button" class="import-btn import-btn-primary" id="audit-toggle">Start audit</button>
       </div>
     </div>
   </div>`;
@@ -571,56 +621,48 @@ export function renderLightTools() {
 
   const tools = {
     spectrum: {
-      handler: 'window.openSpectrumClassifier()',
       icon: '🔬',
       name: 'What is this light?',
       desc: 'Classify LED, fluorescent, daylight, or incandescent and estimate melanopic load.',
       short: 'Bulb type + spectrum',
     },
     lux: {
-      handler: 'window.openLuxMeter()',
       icon: '📏',
       name: 'Lux meter',
       desc: 'Measure room brightness with daylight comparison and per-device calibration.',
       short: 'Brightness baseline',
     },
     cct: {
-      handler: 'window.openCCTMeter()',
       icon: '🎨',
       name: 'Color temp',
       desc: 'Check warm/cool kelvin, solar-time match, and dimming warning signs.',
       short: 'Warm vs cool',
     },
     flicker: {
-      handler: 'window.openFlickerDetector()',
       icon: '⚡',
       name: 'Flicker detector',
       desc: 'Find PWM and rolling-shutter banding up to 25 kHz.',
       short: 'PWM risk',
     },
     darkness: {
-      handler: 'window.openDarknessMeter()',
       icon: '🌙',
       name: 'Sleep darkness',
       desc: 'Measure mean and peak lux at the pillow.',
       short: 'Bedroom night check',
     },
     glass: {
-      handler: 'window.openGlassTransmission()',
       icon: '🪟',
       name: 'Window check',
       desc: 'Compare two readings with and without glass for a better behind-glass estimate.',
       short: 'Glass transmission',
     },
     audit: {
-      handler: 'window.openEyeLevelAudit()',
       icon: '🚶',
       name: 'Home audit',
       desc: 'Walk through rooms and capture a per-room snapshot in about 10 minutes.',
       short: 'Room sweep',
     },
     golden: {
-      handler: 'window.openSunriseLogger()',
       icon: '🌅',
       name: 'Golden hour log',
       desc: 'After-the-fact log for sunrise or sunset sessions.',
@@ -632,7 +674,7 @@ export function renderLightTools() {
     const t = tools[id];
     if (!t) return '';
     const reason = opts.reason || t.short;
-    return `<button class="light-tool-action${opts.primary ? ' light-tool-action-primary' : ''}" onclick="${t.handler}" title="${escapeAttr(t.desc)}">
+    return `<button type="button" class="light-tool-action${opts.primary ? ' light-tool-action-primary' : ''}" data-light-tools-action="open-tool" data-light-tool-id="${escapeAttr(id)}" title="${escapeAttr(t.desc)}">
       <span class="light-tool-action-icon" aria-hidden="true">${t.icon}</span>
       <span class="light-tool-action-copy">
         <span class="light-tool-action-name">${escapeHTML(t.name)}</span>

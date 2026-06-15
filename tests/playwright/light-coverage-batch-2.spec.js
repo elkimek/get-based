@@ -356,11 +356,14 @@ test('light channel view covers pills detail panels suggestions and light-page r
       const totals7d = { vitamin_d: 260, circadian: 25, nir_solar: 140, no_cv: 120, pomc: 110, violet_eye: 0 };
       const totals30d = { vitamin_d: 500, circadian: 900, nir_solar: 300, no_cv: 100, pomc: 100, violet_eye: 10 };
       host.innerHTML = channel.renderChannelPills(totals7d, totals30d);
+      channel.installLightChannelActionDelegates(host);
       const pills = Array.from(host.querySelectorAll('.light-pill'));
       outcomes.pillsRenderSixSparklinesAndTrendData = pills.length === 6
         && !!host.querySelector('.light-pill-sparkline')
         && pills.some(pill => pill.dataset.channel === 'vitamin_d' && pill.dataset.trend === 'up')
         && pills.some(pill => pill.querySelector('.light-pill-daycount')?.textContent.includes('/7'));
+      outcomes.channelPillsUseDelegatedActions = pills.every(pill => pill.getAttribute('data-light-channel-action') === 'toggle-detail')
+        && !host.innerHTML.includes('onclick=');
 
       const dayCount = channel._channelDayCount('circadian');
       outcomes.dayCountUsesThresholdAndConsistentLabel = /^\d\/7$/.test(dayCount.txt)
@@ -382,6 +385,10 @@ test('light channel view covers pills detail panels suggestions and light-page r
         && !!detail.querySelector('.light-channel-mix')
         && !!detail.querySelector('.light-channel-weekchart svg')
         && host.querySelector('.light-pill[data-channel="vitamin_d"]')?.getAttribute('aria-expanded') === 'true';
+      outcomes.detailActionsUseDelegatedActions = !!detail?.querySelector('[data-light-channel-action="quick-log-sun"]')
+        && !!detail?.querySelector('[data-light-channel-action="quick-log-device"]')
+        && !!detail?.querySelector('.light-channel-detail-close[data-light-channel-action="toggle-detail"]')
+        && !detail.innerHTML.includes('onclick=');
       detail?.querySelector('.light-channel-cta-btn.import-btn-primary')?.click();
       detail?.querySelector('.light-channel-cta-btn.import-btn-secondary')?.click();
       outcomes.detailActionButtonsCallSunAndDeviceLoggers = calls.some(call => call[0] === 'quick-sun')
