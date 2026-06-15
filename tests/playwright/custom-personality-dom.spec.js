@@ -7,6 +7,7 @@ function moduleUrl(path) {
 test('custom personality DOM renders editor controls and delegated discuss action', async ({ page }) => {
   const expectedOutcomeKeys = [
     'customSectionRenders',
+    'customSectionHasNoInlineHandlers',
     'customButtonsRender',
     'customEditorControlsRender',
     'customEditorFieldsPopulate',
@@ -54,20 +55,29 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       const saveBtn = section?.querySelector('.chat-personality-custom-save');
 
       outcomes.customSectionRenders = !!section;
+      outcomes.customSectionHasNoInlineHandlers =
+        section?.querySelectorAll('[onclick],[oninput]').length === 0;
       outcomes.customButtonsRender = customBtns.length === 2
         && customBtns[0]?.dataset.personality === 'custom_abc'
+        && customBtns[0]?.getAttribute('data-chat-action') === 'set-personality'
         && customBtns[1]?.dataset.personality === 'custom_def'
+        && customBtns[1]?.getAttribute('data-chat-action') === 'set-personality'
         && customBtns[0]?.classList.contains('active') === true
         && customBtns[1]?.classList.contains('active') === false;
       outcomes.customEditorControlsRender = !!addBtn
         && addBtn.textContent.includes('New Personality')
+        && addBtn.getAttribute('data-chat-personality-action') === 'start-new-custom'
         && deleteBtns.length === 2
+        && deleteBtns[0]?.getAttribute('data-chat-personality-action') === 'delete-custom'
         && !!customArea
         && nameInput?.type === 'text'
+        && nameInput.getAttribute('data-chat-personality-input') === 'mark-dirty'
         && nameInput.placeholder.toLowerCase().includes('longevity')
         && genBtn?.textContent.trim() === 'Generate'
+        && genBtn?.getAttribute('data-chat-personality-action') === 'generate-custom'
         && !!textarea
-        && !!saveBtn;
+        && textarea.getAttribute('data-chat-personality-input') === 'resize-and-mark-dirty'
+        && saveBtn?.getAttribute('data-chat-personality-action') === 'save-custom';
       outcomes.customEditorFieldsPopulate = nameInput?.value === 'Longevity Expert'
         && textarea?.value === 'Expert prompt';
 
@@ -191,6 +201,7 @@ test('custom personality generator fills prompt and preserves selected custom te
           "'": '&#39;',
         })[ch]);
       }
+      export const escapeAttr = escapeHTML;
       export function showNotification() {}
       export async function showConfirmDialog() { return true; }
     `,
@@ -363,16 +374,19 @@ test('custom personality save path updates picker, header, and persisted state',
 
       state.chatHistory = [];
       window.updateChatHeaderTitle();
-      window.startNewCustomPersonality();
+      window.updatePersonalityBar();
+      document.querySelector('.chat-personality-add-btn')?.click();
+      await waitFor(() => !!document.getElementById('chat-personality-custom-name'));
       const nameInput = document.getElementById('chat-personality-custom-name');
       const textarea = document.querySelector('.chat-personality-custom-textarea');
       nameInput.value = 'Methodical Reviewer';
+      nameInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
       textarea.value = 'Prefer careful concise lab review.';
-      window.markPersonalityDirty();
+      textarea.dispatchEvent(new InputEvent('input', { bubbles: true }));
       outcomes.newCustomEditorEnablesSave =
         document.querySelector('.chat-personality-custom-save')?.disabled === false;
 
-      window.saveCustomPersonality();
+      document.querySelector('.chat-personality-custom-save')?.click();
       const savedCustoms = JSON.parse(localStorage.getItem(customKey) || '[]');
       const created = savedCustoms.find(personality => personality.name === 'Methodical Reviewer');
       outcomes.saveNewCustomPersistsSelectsAndUpdatesDisplay =
