@@ -185,6 +185,8 @@ const APP_SHELL = [
   '/js/marker-detail-store.js',
   '/js/light-conditions-now.js',
   '/js/light-page-view.js',
+  '/js/light-page-view-hooks.js',
+  '/js/light-page-view-ui-hooks.js',
   '/js/light-channel-view.js',
   '/js/light-sessions-view.js',
   '/js/light-sessions-view-hooks.js',

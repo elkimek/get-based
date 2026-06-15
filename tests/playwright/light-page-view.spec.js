@@ -9,51 +9,41 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
   await page.waitForFunction(() => typeof window.navigate === 'function');
 
   const results = await page.evaluate(async () => {
-    const { renderDashboardLightChannelPills, renderLightSessionLogActions } = await import('/js/light-page-view.js');
+    const { configureLightPageView, renderDashboardLightChannelPills, renderLightSessionLogActions } = await import('/js/light-page-view.js');
     const savedFns = {
-      getSessions: window.getSessions,
-      getDevices: window.getDevices,
-      getDeviceSessions: window.getDeviceSessions,
-      getActiveSession: window.getActiveSession,
-      _openChannelOnLightPage: window._openChannelOnLightPage,
-      quickLogSunSession: window.quickLogSunSession,
-      quickLogDeviceSession: window.quickLogDeviceSession,
-      openAddDeviceDialog: window.openAddDeviceDialog,
-      openDetailedSessionDialog: window.openDetailedSessionDialog,
-      navigate: window.navigate,
-      requestPreciseLocation: window.requestPreciseLocation,
-      openLightEnvironmentAssessment: window.openLightEnvironmentAssessment,
-      renderLightTools: window.renderLightTools,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      weeklyChannelTier: window.weeklyChannelTier,
       dailyChannelBreakdown: window.dailyChannelBreakdown,
     };
     const calls = [];
     const host = document.createElement('div');
+    const channelDisplay = {
+      vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'Vitamin D', dailyTarget: 100 },
+      circadian: { label: 'Circadian', icon: 'C', what: 'Circadian', dailyTarget: 100 },
+      nir_solar: { label: 'NIR', icon: 'N', what: 'NIR', dailyTarget: 100 },
+      no_cv: { label: 'NO', icon: 'NO', what: 'Nitric oxide', dailyTarget: 100 },
+      pomc: { label: 'POMC', icon: 'P', what: 'POMC', dailyTarget: 100 },
+      violet_eye: { label: 'Violet', icon: 'V', what: 'Violet', dailyTarget: 100 },
+    };
 
     try {
-      window.getSessions = () => [];
-      window.getDevices = () => [];
-      window.getDeviceSessions = () => [];
-      window.getActiveSession = () => null;
-      window._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
-      window.quickLogSunSession = () => calls.push(['quick-log-sun']);
-      window.quickLogDeviceSession = () => calls.push(['quick-log-device']);
-      window.openAddDeviceDialog = () => calls.push(['open-add-device']);
-      window.openDetailedSessionDialog = () => calls.push(['open-detailed-session']);
-      window.navigate = route => calls.push(['navigate', route]);
-      window.requestPreciseLocation = () => calls.push(['request-precise-location']);
-      window.openLightEnvironmentAssessment = () => calls.push(['open-light-environment']);
-      window.renderLightTools = () => '<section id="light-tools-expanded-test">Expanded tools</section>';
-      window.CHANNEL_DISPLAY = {
-        vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'Vitamin D', dailyTarget: 100 },
-        circadian: { label: 'Circadian', icon: 'C', what: 'Circadian', dailyTarget: 100 },
-        nir_solar: { label: 'NIR', icon: 'N', what: 'NIR', dailyTarget: 100 },
-        no_cv: { label: 'NO', icon: 'NO', what: 'Nitric oxide', dailyTarget: 100 },
-        pomc: { label: 'POMC', icon: 'P', what: 'POMC', dailyTarget: 100 },
-        violet_eye: { label: 'Violet', icon: 'V', what: 'Violet', dailyTarget: 100 },
-      };
-      window.weeklyChannelTier = () => 0;
+      configureLightPageView({
+        channelDisplay,
+        weeklyChannelTier: () => 0,
+        getSessions: () => [],
+        getDevices: () => [],
+        getDeviceSessions: () => [],
+        getActiveSession: () => null,
+        rollingChannelTotals: () => ({}),
+        rollingDeviceTotals: () => ({}),
+        openChannelOnLightPage: channel => calls.push(['open-channel', channel]),
+        quickLogSunSession: () => calls.push(['quick-log-sun']),
+        quickLogDeviceSession: () => calls.push(['quick-log-device']),
+        openAddDeviceDialog: () => calls.push(['open-add-device']),
+        openDetailedSessionDialog: () => calls.push(['open-detailed-session']),
+        navigate: route => calls.push(['navigate', route]),
+        requestPreciseLocation: () => calls.push(['request-precise-location']),
+        openLightEnvironmentAssessment: () => calls.push(['open-light-environment']),
+        renderLightTools: () => '<section id="light-tools-expanded-test">Expanded tools</section>',
+      });
       window.dailyChannelBreakdown = () => Array.from({ length: 7 }, (_, i) => ({
         sun: i === 0 ? 10 : 0,
         device: 0,
@@ -104,7 +94,26 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
           && !!document.getElementById('light-tools-expanded-test'),
       };
     } finally {
-      Object.assign(window, savedFns);
+      configureLightPageView({
+        channelDisplay: {},
+        weeklyChannelTier: () => 0,
+        getSessions: () => [],
+        getDevices: () => [],
+        getDeviceSessions: () => [],
+        getActiveSession: () => null,
+        rollingChannelTotals: () => ({}),
+        rollingDeviceTotals: () => ({}),
+        openChannelOnLightPage: () => {},
+        quickLogSunSession: () => {},
+        quickLogDeviceSession: () => {},
+        openAddDeviceDialog: () => {},
+        openDetailedSessionDialog: () => {},
+        navigate: () => {},
+        requestPreciseLocation: () => {},
+        openLightEnvironmentAssessment: () => {},
+        renderLightTools: () => '',
+      });
+      window.dailyChannelBreakdown = savedFns.dailyChannelBreakdown;
       host.remove();
       document.getElementById('light-tools-expanded-test')?.remove();
     }
@@ -153,6 +162,28 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderEnvironmentAssessmentSummary: window.renderEnvironmentAssessmentSummary,
       renderLightTools: window.renderLightTools,
     };
+    const syncLightPageDeps = () => lightPage.configureLightPageView({
+      channelDisplay: window.CHANNEL_DISPLAY || {},
+      weeklyChannelTier: typeof window.weeklyChannelTier === 'function' ? window.weeklyChannelTier : () => 0,
+      channelTier: typeof window.channelTier === 'function' ? window.channelTier : () => 0,
+      getSessions: typeof window.getSessions === 'function' ? window.getSessions : () => [],
+      getDevices: typeof window.getDevices === 'function' ? window.getDevices : () => [],
+      getDeviceSessions: typeof window.getDeviceSessions === 'function' ? window.getDeviceSessions : () => [],
+      getActiveSession: typeof window.getActiveSession === 'function' ? window.getActiveSession : () => null,
+      rollingChannelTotals: typeof window.rollingChannelTotals === 'function' ? window.rollingChannelTotals : () => ({}),
+      rollingDeviceTotals: typeof window.rollingDeviceTotals === 'function' ? window.rollingDeviceTotals : () => ({}),
+      cumulativeMEDToday: typeof window.cumulativeMEDToday === 'function' ? window.cumulativeMEDToday : () => 0,
+      cumulativeMEDYesterday: typeof window.cumulativeMEDYesterday === 'function' ? window.cumulativeMEDYesterday : () => 0,
+      rollingVitaminDIU: typeof window.rollingVitaminDIU === 'function' ? window.rollingVitaminDIU : () => 0,
+      vitaminDBudgetStatus: typeof window.vitaminDBudgetStatus === 'function' ? window.vitaminDBudgetStatus : () => null,
+      getSunCoords: typeof window.getSunCoords === 'function' ? window.getSunCoords : () => null,
+      renderLightTodayDashboardChip: typeof window.renderLightTodayDashboardChip === 'function' ? window.renderLightTodayDashboardChip : () => '',
+      renderLightTodayHero: typeof window.renderLightTodayHero === 'function' ? window.renderLightTodayHero : () => '',
+      renderSunSetupCard: typeof window.renderSunSetupCard === 'function' ? window.renderSunSetupCard : () => '',
+      renderDevicesSection: typeof window.renderDevicesSection === 'function' ? window.renderDevicesSection : () => '',
+      renderEnvironmentAssessmentSummary: typeof window.renderEnvironmentAssessmentSummary === 'function' ? window.renderEnvironmentAssessmentSummary : () => '',
+      renderLightTools: typeof window.renderLightTools === 'function' ? window.renderLightTools : () => '',
+    });
     const setHour = (hour) => {
       const fixed = new RealDate(`2026-06-11T${String(hour).padStart(2, '0')}:15:00`);
       class FixedDate extends RealDate {
@@ -206,6 +237,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       });
       window.getSunCoords = () => ({ lat: 50, lon: 14, altitudeM: 1700, source: 'profile-precise' });
       window.renderLightTodayDashboardChip = () => '<div class="light-dashboard-chip-test">chip</div>';
+      syncLightPageDeps();
 
       setHour(6);
       const morning = lightPage.renderLightTodayStrip();
@@ -230,10 +262,13 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       };
       setHour(22);
       window.getDevices = () => [{ brand: 'Joovv', model: 'Solo' }];
+      syncLightPageDeps();
       const oneDevice = lightPage.renderLightTodayStrip();
       window.getDevices = () => [{ brand: 'Joovv', model: 'Solo' }, { brand: 'SAD', model: 'Desk' }];
+      syncLightPageDeps();
       const manyDevices = lightPage.renderLightTodayStrip();
       window.getDevices = () => [];
+      syncLightPageDeps();
       const noDevices = lightPage.renderLightTodayStrip();
       outcomes.nonSolarCtasAdaptToDeviceAndRoomState =
         oneDevice.includes('Joovv Solo')
@@ -243,6 +278,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
 
       setHour(10);
       window.getActiveSession = () => ({ id: 'active-sun', startedAt: Date.now() - 95_000 });
+      syncLightPageDeps();
       const activeStrip = lightPage.renderLightTodayStrip();
       outcomes.activeSessionStripShowsStopElapsed =
         activeStrip.includes('Stop session')
@@ -258,12 +294,14 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.getSessions = () => [];
       window.getDeviceSessions = () => [];
       window.getSunCoords = () => null;
+      syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPagePromptsForMissingCoords =
         main?.textContent.includes('set your country in the profile editor') === true
         && main?.querySelector('[data-light-page-action="request-precise-location"]') !== null;
 
       window.getSunCoords = () => ({ source: 'country-band', lat: 49.2, lon: 16.6 });
+      syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPageShowsCountryBandHint =
         main?.textContent.includes('Calculations use your country (~49.2° lat)') === true;
@@ -292,6 +330,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.renderDevicesSection = saved.renderDevicesSection;
       window.renderEnvironmentAssessmentSummary = saved.renderEnvironmentAssessmentSummary;
       window.renderLightTools = saved.renderLightTools;
+      syncLightPageDeps();
     }
 
     return outcomes;
