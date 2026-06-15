@@ -1,7 +1,7 @@
 // @ts-check
 // notes.js — Standalone note editor
 import { state } from './state.js';
-import { bindDetailModalSyncRefresh, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { bindDetailModalSyncRefresh, escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import {
   appendImportedArrayItem,
@@ -10,6 +10,66 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+
+let _noteActionDelegatesInstalled = false;
+
+const NOTE_ACTION_ATTR = 'data-note-action';
+const NOTE_ACTION_SELECTOR = `[${NOTE_ACTION_ATTR}]`;
+const appWindow = /** @type {Window & typeof globalThis & {
+  closeModal?: () => void,
+  saveNote?: (idx?: number | null) => void,
+  deleteNote?: (idx: number) => Promise<void>,
+  __noteActionDelegatesBound?: boolean,
+}} */ (typeof window !== 'undefined' ? window : {});
+
+function noteActionAttrs(action, attrs = {}) {
+  let html = `${NOTE_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-note-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestNoteAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(NOTE_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function parseNoteIndex(actionEl) {
+  if (!actionEl.dataset.noteIndex) return null;
+  const idx = Number.parseInt(actionEl.dataset.noteIndex, 10);
+  return Number.isInteger(idx) ? idx : null;
+}
+
+function handleNoteActionClick(event) {
+  const actionEl = closestNoteAction(event.target);
+  if (!actionEl) return;
+  const action = actionEl.getAttribute(NOTE_ACTION_ATTR);
+  if (action === 'close') {
+    appWindow.closeModal?.();
+  } else if (action === 'save') {
+    appWindow.saveNote?.(parseNoteIndex(actionEl));
+  } else if (action === 'delete') {
+    const idx = parseNoteIndex(actionEl);
+    if (idx === null) return;
+    appWindow.deleteNote?.(idx);
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
+export function installNoteActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || _noteActionDelegatesInstalled || appWindow.__noteActionDelegatesBound) return;
+  _noteActionDelegatesInstalled = true;
+  appWindow.__noteActionDelegatesBound = true;
+  root.addEventListener('click', handleNoteActionClick);
+}
 
 /** @param {{ modal: HTMLElement }} context */
 function refreshOpenNoteEditorOnSync({ modal }) {
@@ -34,6 +94,7 @@ function refreshOpenNoteEditorOnSync({ modal }) {
 
 if (typeof window !== 'undefined') {
   bindDetailModalSyncRefresh('note', refreshOpenNoteEditorOnSync);
+  installNoteActionDelegates();
 }
 
 /**
@@ -50,18 +111,18 @@ export function openNoteEditor(date, existingIdx) {
   const defaultDate = existing ? existing.date : (date || new Date().toISOString().slice(0, 10));
   const currentText = existing ? existing.text : '';
   const title = isEditing ? 'Edit Note' : 'Add Note';
-  modal.innerHTML = `<button class="modal-close" onclick="closeModal()">&times;</button>
+  modal.innerHTML = `<button type="button" class="modal-close" ${noteActionAttrs('close')}>&times;</button>
     <h3>${title}</h3>
     <div class="modal-unit">Add context: medication changes, supplements, symptoms, lifestyle changes</div>
     <div style="margin:16px 0">
       <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">Date</label>
-      <input type="date" id="note-date-input" value="${defaultDate}" style="padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit">
+      <input type="date" id="note-date-input" value="${escapeAttr(defaultDate)}" style="padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-size:13px;font-family:inherit">
     </div>
     <textarea class="note-editor" id="note-textarea" placeholder="e.g. Started creatine supplement, switched to low-carb diet...">${escapeHTML(currentText)}</textarea>
     <div class="note-editor-actions">
-      <button class="import-btn import-btn-primary" onclick="saveNote(${isEditing ? existingIdx : 'null'})">Save</button>
-      <button class="import-btn import-btn-secondary" onclick="closeModal()">Cancel</button>
-      ${isEditing ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" onclick="deleteNote(${existingIdx})">Delete</button>` : ''}
+      <button type="button" class="import-btn import-btn-primary" ${noteActionAttrs('save', { index: isEditing ? existingIdx : null })}>Save</button>
+      <button type="button" class="import-btn import-btn-secondary" ${noteActionAttrs('close')}>Cancel</button>
+      ${isEditing ? `<button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${noteActionAttrs('delete', { index: existingIdx })}>Delete</button>` : ''}
     </div>`;
   modal.dataset.syncRefreshKind = 'note';
   modal.dataset.syncRefreshMode = isEditing ? 'edit' : 'add';

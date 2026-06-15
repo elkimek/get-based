@@ -1,7 +1,7 @@
 // @ts-check
 // feedback.js — Bug report / feedback modal (opens GitHub issue)
 
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -12,6 +12,60 @@ const FEEDBACK_TYPES = [
   { value: 'idea', label: 'Idea / Suggestion', prefix: '[Idea]', ghLabel: 'idea', placeholder: 'Describe your idea' },
   { value: 'other', label: 'Other', prefix: '', ghLabel: '', placeholder: 'What\'s on your mind?' },
 ];
+
+let _feedbackActionDelegatesInstalled = false;
+
+const FEEDBACK_ACTION_ATTR = 'data-feedback-action';
+const FEEDBACK_ACTION_SELECTOR = `[${FEEDBACK_ACTION_ATTR}]`;
+const appWindow = /** @type {Window & typeof globalThis & {
+  closeFeedbackModal?: () => void,
+  submitFeedback?: () => void,
+  _updateFeedbackPlaceholder?: () => void,
+  __feedbackActionDelegatesBound?: boolean,
+}} */ (typeof window !== 'undefined' ? window : {});
+
+function feedbackActionAttrs(action) {
+  return `${FEEDBACK_ACTION_ATTR}="${escapeAttr(action)}"`;
+}
+
+function closestFeedbackAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(FEEDBACK_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleFeedbackActionClick(event) {
+  const actionEl = closestFeedbackAction(event.target);
+  if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'close') return;
+  appWindow.closeFeedbackModal?.();
+  event.preventDefault();
+}
+
+function handleFeedbackActionSubmit(event) {
+  const actionEl = closestFeedbackAction(event.target);
+  if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'submit') return;
+  event.preventDefault();
+  appWindow.submitFeedback?.();
+}
+
+function handleFeedbackActionChange(event) {
+  const actionEl = closestFeedbackAction(event.target);
+  if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'placeholder') return;
+  appWindow._updateFeedbackPlaceholder?.();
+}
+
+export function installFeedbackActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || _feedbackActionDelegatesInstalled || appWindow.__feedbackActionDelegatesBound) return;
+  _feedbackActionDelegatesInstalled = true;
+  appWindow.__feedbackActionDelegatesBound = true;
+  root.addEventListener('click', handleFeedbackActionClick);
+  root.addEventListener('submit', handleFeedbackActionSubmit);
+  root.addEventListener('change', handleFeedbackActionChange);
+}
+
+if (typeof window !== 'undefined') installFeedbackActionDelegates();
 
 export function openFeedbackModal() {
   const modal = document.getElementById('feedback-modal');
@@ -25,13 +79,13 @@ export function openFeedbackModal() {
         <div class="gb-modal-kicker">GitHub issue</div>
         <div class="gb-modal-title">Send Feedback</div>
       </div>
-      <button type="button" class="modal-close" aria-label="Close" onclick="closeFeedbackModal()">&times;</button>
+      <button type="button" class="modal-close" aria-label="Close" ${feedbackActionAttrs('close')}>&times;</button>
     </div>
     <div class="gb-form-body feedback-form-body">
-    <form class="feedback-form" onsubmit="event.preventDefault();submitFeedback()">
+    <form class="feedback-form" ${feedbackActionAttrs('submit')}>
       <div class="feedback-field">
         <label class="feedback-label" for="feedback-type">Type</label>
-        <select class="feedback-select" id="feedback-type" onchange="window._updateFeedbackPlaceholder()">
+        <select class="feedback-select" id="feedback-type" ${feedbackActionAttrs('placeholder')}>
           ${typeOptions}
         </select>
       </div>
@@ -45,7 +99,7 @@ export function openFeedbackModal() {
       </div>
       <p class="feedback-notice">Opens a GitHub issue in a new tab. Requires a GitHub account.</p>
       <div class="feedback-actions">
-        <button type="button" class="feedback-action-btn feedback-action-secondary" onclick="closeFeedbackModal()">Cancel</button>
+        <button type="button" class="feedback-action-btn feedback-action-secondary" ${feedbackActionAttrs('close')}>Cancel</button>
         <button type="submit" class="feedback-action-btn feedback-action-primary">Submit</button>
       </div>
     </form>
