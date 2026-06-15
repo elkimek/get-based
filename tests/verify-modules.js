@@ -674,6 +674,9 @@
     const hasLightConditionsNowJs = sw.includes('/js/light-conditions-now.js');
     assert('Service worker caches js/light-conditions-now.js', hasLightConditionsNowJs);
 
+    const hasLightConditionsNowHooksJs = sw.includes('/js/light-conditions-now-hooks.js');
+    assert('Service worker caches js/light-conditions-now-hooks.js', hasLightConditionsNowHooksJs);
+
     const hasLightPageViewJs = sw.includes('/js/light-page-view.js');
     assert('Service worker caches js/light-page-view.js', hasLightPageViewJs);
 

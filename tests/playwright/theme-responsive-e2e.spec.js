@@ -78,7 +78,7 @@ async function seedDemoData(page) {
     localStorage.setItem(`labcharts-onboard-provider-skipped-${profileId}`, '1');
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
     localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION || 'test');
-    window.fetchAtmosphere = async () => {
+    const fetchAtmosphereStub = async () => {
       const now = Date.now();
       return {
         uvIndex: 6,
@@ -98,6 +98,9 @@ async function seedDemoData(page) {
         fetchedAt: now,
       };
     };
+    window.fetchAtmosphere = fetchAtmosphereStub;
+    const conditionsNow = await import('/js/light-conditions-now.js');
+    conditionsNow.configureLightConditionsNow?.({ fetchAtmosphere: fetchAtmosphereStub });
     window._labState.importedData = demo;
     window._labState.profileSex = 'male';
     window._labState.profileDob = '1987-11-22';
