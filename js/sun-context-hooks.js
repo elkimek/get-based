@@ -1,0 +1,40 @@
+// @ts-check
+// sun-context-hooks.js - wire Sun AI context dependencies at startup.
+
+import {
+  BODY_REGIONS,
+  CHANNEL_DISPLAY,
+  cumulativeMEDToday,
+  rollingChannelTotals,
+  tierLabel,
+  weeklyChannelTier,
+} from './sun.js';
+import {
+  VITD_DAILY_SATURATION_IU,
+  circadianMelanopicLux,
+  pbmJoulesPerCm2,
+  vitaminDIUPerSession,
+} from './sun-spectrum.js';
+import { getMeteoConfig } from './sun-uvdata.js';
+import { rollingDeviceTotals } from './light-devices-store.js';
+import { computeDeficitAxes, computeIndoorBurden } from './light-env.js';
+import { isDebugMode } from './utils.js';
+import { configureSunContext } from './sun-context.js';
+
+configureSunContext({
+  bodyRegions: BODY_REGIONS,
+  channelDisplay: CHANNEL_DISPLAY,
+  circadianMelanopicLux,
+  computeDeficitAxes,
+  computeIndoorBurden,
+  cumulativeMEDToday,
+  getMeteoConfig,
+  isDebugMode,
+  pbmJoulesPerCm2,
+  rollingChannelTotals,
+  rollingDeviceTotals,
+  tierLabel,
+  vitaminDDailySaturationIU: VITD_DAILY_SATURATION_IU,
+  vitaminDIUPerSession,
+  weeklyChannelTier,
+});

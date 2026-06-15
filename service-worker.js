@@ -324,6 +324,7 @@ const APP_SHELL = [
   '/js/sun-body-silhouette.js',
   '/js/sun-ai-analysis.js',
   '/js/sun-context.js',
+  '/js/sun-context-hooks.js',
   '/js/sun-correlations.js',
   '/js/sun-defaults.js',
   '/js/sun-onboarding-ai.js',
