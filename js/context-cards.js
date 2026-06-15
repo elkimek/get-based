@@ -2,7 +2,7 @@
 // context-cards.js - dashboard context card facade and shared lifecycle
 
 import { state } from './state.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
@@ -109,6 +109,86 @@ import {
   showDietContaminantsModal,
 } from './context-card-lifestyle-editors.js';
 
+const contextCardActionDelegateRoots = new WeakSet();
+const CONTEXT_CARD_ACTION_ATTR = 'data-context-card-action';
+const CONTEXT_CARD_ACTION_SELECTOR = `[${CONTEXT_CARD_ACTION_ATTR}]`;
+const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
+  openHealthGoalsEditor,
+  openDiagnosesEditor,
+  openDietEditor,
+  openExerciseEditor,
+  openSleepRestEditor,
+  openLightCircadianEditor,
+  openStressEditor,
+  openLoveLifeEditor,
+  openEnvironmentEditor,
+});
+const contextCardWindow = /** @type {Window & typeof globalThis & {
+  closeModal?: () => void,
+  openEMFAssessmentEditor?: () => void,
+}} */ (typeof window !== 'undefined' ? window : {});
+
+function contextCardActionAttrs(action, attrs = {}) {
+  let html = `${CONTEXT_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-context-card-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestContextCardAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(CONTEXT_CARD_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleContextCardClick(event) {
+  const actionEl = closestContextCardAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR);
+  if (action === 'refresh-all-health-dots') {
+    refreshAllHealthDots();
+  } else if (action === 'open-editor') {
+    const editor = actionEl.dataset.contextCardEditor || '';
+    const runEditor = contextCardEditorActions[editor];
+    if (!runEditor) return;
+    runEditor();
+  } else if (action === 'open-emf-assessment') {
+    const openAssessment = () => contextCardWindow.openEMFAssessmentEditor?.();
+    if (actionEl.dataset.contextCardCloseModal === 'true') {
+      contextCardWindow.closeModal?.();
+      setTimeout(openAssessment, 100);
+    } else {
+      openAssessment();
+    }
+  } else {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleContextCardInput(event) {
+  const actionEl = closestContextCardAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR) === 'context-notes-input') {
+    debounceContextNotes();
+  }
+}
+
+export function installContextCardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || contextCardActionDelegateRoots.has(root)) return;
+  contextCardActionDelegateRoots.add(root);
+  root.addEventListener('click', handleContextCardClick);
+  root.addEventListener('input', handleContextCardInput);
+}
+
+if (typeof document !== 'undefined') installContextCardActionDelegates();
+
 export {
   getConditionsSummary,
   getDietSummary,
@@ -210,7 +290,7 @@ export function renderProfileContextCards() {
   } else if (!_ccHasLabs) {
     _ccSubtitle = `<div class="context-section-subtitle">${_ccMissingDemo ? 'Set your sex and date of birth in Settings, then open' : 'All filled \u2014 open'} the chat to get personalized test recommendations based on your profile.</div>`;
   }
-  const _refreshBtn = hasAIProvider() ? `<button class="ctx-refresh-all-btn" onclick="event.stopPropagation();refreshAllHealthDots()" title="Refresh all AI insights">&#x21bb;</button>` : '';
+  const _refreshBtn = hasAIProvider() ? `<button class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} title="Refresh all AI insights">&#x21bb;</button>` : '';
   let html = `<div style="margin-top:16px"><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
   html += `<div class="profile-context-cards">`;
   for (const c of cardDefs) {
@@ -220,12 +300,12 @@ export function renderProfileContextCards() {
     // KEYBOARD interactivity now lives only on the Edit button below.
     // Both fire the same editor — keyboard users tab to Edit, mouse
     // users still get the whole-card click affordance.
-    html += `<div class="context-card" onclick="${c.editor}()" style="cursor:pointer">
+    html += `<div class="context-card" ${contextCardActionAttrs('open-editor', { editor: c.editor })} style="cursor:pointer">
       <div class="context-card-header">
         <span class="ctx-health-dot ctx-health-dot-gray" id="ctx-dot-${c.key}"></span>
         <span class="context-card-label">${c.emoji} ${c.label}</span>
         <span class="context-info-icon">i<span class="context-tooltip">${c.tooltip}</span></span>
-        <span id="ctx-tips-${c.key}"></span><button class="diagnoses-edit-btn" aria-label="${filled ? 'Edit' : 'Add'} ${escapeHTML(c.label)}" onclick="event.stopPropagation();${c.editor}()">${filled ? 'Edit' : '+ Add'}</button>
+        <span id="ctx-tips-${c.key}"></span><button class="diagnoses-edit-btn" aria-label="${filled ? 'Edit' : 'Add'} ${escapeHTML(c.label)}" ${contextCardActionAttrs('open-editor', { editor: c.editor })}>${filled ? 'Edit' : '+ Add'}</button>
       </div>
       ${summary
         ? `<div class="context-card-body">${escapeHTML(summary)}</div>`
@@ -238,7 +318,7 @@ export function renderProfileContextCards() {
   // Additional Notes textarea
   const notes = state.importedData.contextNotes || '';
   html += `<div class="ctx-notes-section">
-    <textarea class="ctx-notes-textarea" id="ctx-notes-textarea" placeholder="Additional notes for AI context (anything else that might affect your labs...)" oninput="debounceContextNotes()">${escapeHTML(notes)}</textarea>
+    <textarea class="ctx-notes-textarea" id="ctx-notes-textarea" placeholder="Additional notes for AI context (anything else that might affect your labs...)" ${contextCardActionAttrs('context-notes-input')}>${escapeHTML(notes)}</textarea>
   </div>`;
   return html;
 }

@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { trackUsage } from './schema.js';
-import { hasCardContent, getStatus } from './utils.js';
+import { escapeAttr, hasCardContent, getStatus } from './utils.js';
 import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
@@ -12,6 +12,38 @@ import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
 import { computeAllImpacts } from './supplement-impact.js';
+
+const focusCardActionDelegateRoots = new WeakSet();
+const FOCUS_CARD_ACTION_ATTR = 'data-focus-card-action';
+
+function focusCardActionAttrs(action) {
+  return `${FOCUS_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
+}
+
+function closestFocusCardAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(`[${FOCUS_CARD_ACTION_ATTR}]`)
+      : null
+  );
+}
+
+function handleFocusCardActionClick(event) {
+  const actionEl = closestFocusCardAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(FOCUS_CARD_ACTION_ATTR) !== 'refresh') return;
+  refreshFocusCard();
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+export function installFocusCardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || focusCardActionDelegateRoots.has(root)) return;
+  focusCardActionDelegateRoots.add(root);
+  root.addEventListener('click', handleFocusCardActionClick);
+}
+
+if (typeof document !== 'undefined') installFocusCardActionDelegates();
 
 export function renderFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
@@ -23,7 +55,7 @@ export function renderFocusCard() {
     <div class="focus-card-body" id="focus-card-body">${text
       ? `<span class="focus-card-text">${applyInlineMarkdown(text)}</span>`
       : `<span class="focus-card-shimmer"></span>`}</div>
-    <button class="focus-card-refresh" onclick="refreshFocusCard()" aria-label="Regenerate insight" title="Regenerate insight">\u21BB</button>
+    <button class="focus-card-refresh" ${focusCardActionAttrs('refresh')} aria-label="Regenerate insight" title="Regenerate insight">\u21BB</button>
   </div>`;
 }
 
