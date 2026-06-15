@@ -52,6 +52,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       for (const key of keys) localStorage.removeItem(key);
       document.getElementById('passphrase-overlay')?.remove();
       document.body.insertAdjacentHTML('beforeend', '<section id="encryption-section"></section>');
+      cryptoStore.installCryptoActionDelegates(document.getElementById('encryption-section'));
       window.__WEARABLES_TEST = true;
 
       outcomes.startsLocked = cryptoStore.isUnlocked() === false
@@ -101,7 +102,10 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       localStorage.removeItem('labcharts-encryption-salt');
       localStorage.setItem('labcharts-venice-key', 'plain-venice-key');
       document.getElementById('encryption-section').innerHTML = cryptoStore.renderEncryptionSection();
-      cryptoStore.showEnableEncryptionModal();
+      outcomes.renderEncryptionSectionUsesDelegatedActions =
+        !!document.querySelector('[data-crypto-action="enable-encryption"]')
+        && !document.getElementById('encryption-section').innerHTML.includes('onclick=');
+      click('[data-crypto-action="enable-encryption"]');
       await waitFor(() => !!document.getElementById('passphrase-set-btn'), 'enable modal');
 
       click('#passphrase-set-btn');
@@ -474,6 +478,12 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       backupHost.id = 'crypto-backup-coverage-host';
       backupHost.innerHTML = cryptoStore.renderBackupSection();
       document.body.appendChild(backupHost);
+      cryptoStore.installCryptoActionDelegates(backupHost);
+      outcomes.renderBackupSectionUsesDelegatedActions =
+        !!backupHost.querySelector('[data-crypto-action="export-backup"]')
+        && !!backupHost.querySelector('[data-crypto-action="import-backup"]')
+        && !!backupHost.querySelector('[data-crypto-action="toggle-backup-snapshots"]')
+        && !/on(click|change)=/.test(backupHost.innerHTML);
       await cryptoStore.loadBackupSnapshots();
       outcomes.emptySnapshotsHideList =
         document.getElementById('backup-snapshot-list')?.style.display === 'none';
@@ -490,17 +500,22 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
         tx.onerror = () => reject(tx.error);
       });
       await cryptoStore.loadBackupSnapshots();
-      cryptoStore.toggleBackupSnapshots();
+      document.getElementById('backup-snapshots-toggle')?.click();
       const openedDisplay = document.getElementById('backup-snapshot-list')?.style.display;
       const openedArrow = document.getElementById('backup-snapshots-arrow')?.innerHTML;
-      cryptoStore.toggleBackupSnapshots();
-      outcomes.snapshotsRenderAndToggle =
+      document.getElementById('backup-snapshots-toggle')?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      const restoreBtn = document.querySelector('[data-crypto-action="restore-auto-backup"]');
+      outcomes.snapshotsRenderDelegatedRestoreButton =
         document.querySelectorAll('.backup-snapshot-item').length === 1
+        && !!restoreBtn?.dataset.cryptoSnapshotId
+        && ['number', 'string'].includes(restoreBtn?.dataset.cryptoSnapshotIdType || '')
         && document.querySelector('.backup-snapshot-meta')?.textContent.includes('1 profile(s)') === true
-        && document.querySelector('.backup-snapshot-meta')?.textContent.includes('encrypted') === true
-        && openedDisplay === 'flex'
-        && openedArrow === '\u25bc'
-        && document.getElementById('backup-snapshot-list')?.style.display === 'none'
+        && document.querySelector('.backup-snapshot-meta')?.textContent.includes('encrypted') === true;
+      outcomes.snapshotsDelegatedClickToggleOpens =
+        openedDisplay === 'flex'
+        && openedArrow === '\u25bc';
+      outcomes.snapshotsDelegatedKeyboardToggleCloses =
+        document.getElementById('backup-snapshot-list')?.style.display === 'none'
         && document.getElementById('backup-snapshots-arrow')?.innerHTML === '\u25b6';
     } finally {
       state.currentProfile = saved.profile;
