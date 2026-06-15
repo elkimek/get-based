@@ -20,7 +20,8 @@ await import('../js/state.js');
 // gates on its presence. Importing it makes the gate fire.
 await import('../js/lab-context.js');
 const ctxMod = await import('../js/sun-context.js');
-const { buildSunContext } = ctxMod;
+await import('../js/sun-context-hooks.js');
+const { buildSunContext, configureSunContext } = ctxMod;
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -193,6 +194,17 @@ const { buildSunContext } = ctxMod;
   const { getSunSessionsSlice, getSunSessionDetail } = ctxMod;
   assert('getSunSessionsSlice exported', typeof getSunSessionsSlice === 'function');
   assert('getSunSessionDetail exported', typeof getSunSessionDetail === 'function');
+  let unknownDepWarned = false;
+  const restoreUnknownDeps = configureSunContext({ isDebugMode: () => true });
+  const origConsoleWarn = console.warn;
+  try {
+    console.warn = (...args) => { unknownDepWarned ||= String(args[0] || '').includes('unknown dependency key'); };
+    configureSunContext({ notARealSunContextDep: true });
+  } finally {
+    console.warn = origConsoleWarn;
+    configureSunContext(restoreUnknownDeps);
+  }
+  assert('configureSunContext warns on unknown dependency keys in debug mode', unknownDepWarned);
 
   // Default slice — last 30 days, default field set
   const slice = getSunSessionsSlice();
@@ -257,20 +269,17 @@ const { buildSunContext } = ctxMod;
   // ─── 6. Privacy: location rounding (slice + detail honor config) ────
   console.log('%c 6. Privacy-aware location rounding ', 'font-weight:bold;color:#f59e0b');
 
-  const origGetMeteoConfig = window.getMeteoConfig;
-  window.getMeteoConfig = () => ({ privacyRounding: 0.1 });
+  const restoreMeteoDeps = configureSunContext({ getMeteoConfig: () => ({ privacyRounding: 0.1 }) });
   const detailCoarse = getSunSessionDetail('locked');
   assert('Detail rounds lat to 0.1° privacy',
     detailCoarse.location.lat === 50.1 && detailCoarse.location.lon === 14.4);
 
-  window.getMeteoConfig = () => ({ privacyRounding: 0.01 });
+  configureSunContext({ getMeteoConfig: () => ({ privacyRounding: 0.01 }) });
   const detailSharp = getSunSessionDetail('locked');
   assert('Detail rounds lat to 0.01° privacy',
     detailSharp.location.lat === 50.07 && detailSharp.location.lon === 14.44);
 
-  // restore
-  if (origGetMeteoConfig) window.getMeteoConfig = origGetMeteoConfig;
-  else delete window.getMeteoConfig;
+  configureSunContext(restoreMeteoDeps);
 
   // ─── 7. Section markers always present ───────────────────────────────
   console.log('%c 7. Section marker discipline ', 'font-weight:bold;color:#f59e0b');
@@ -384,13 +393,15 @@ const { buildSunContext } = ctxMod;
   // Stub the burden helper. Helper returns 3 tiers (0=Light/1=Moderate/
   // 2=Heavy load); the AI line surfaces the helper's label verbatim so
   // it matches the page UI rather than inventing a parallel scale.
-  window.computeIndoorBurden = () => ({ tier: 2, label: 'Heavy load', note: 'high' });
+  const restoreBurdenDeps = configureSunContext({
+    computeIndoorBurden: () => ({ tier: 2, label: 'Heavy load', note: 'high' }),
+  });
   const withRubric = buildSunContext({ tier: 'always' });
   assert('Burden line names the qualitative tier',
     /tier 2\/2/.test(withRubric) && /Heavy load/.test(withRubric));
   assert('Burden line carries inline 0=light … 2=heavy rubric',
     /0=light, 2=heavy/.test(withRubric));
-  delete window.computeIndoorBurden;
+  configureSunContext(restoreBurdenDeps);
 
   // ─── 10. Room-name resolution in tool warnings ───────────────────────
   console.log('%c 10. Tool warning roomId → name ', 'font-weight:bold;color:#f59e0b');
