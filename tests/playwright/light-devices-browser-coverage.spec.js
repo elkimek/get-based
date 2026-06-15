@@ -63,7 +63,6 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       getOllamaConfig: window.getOllamaConfig,
       navigate: window.navigate,
       showConfirmDialog: window.showConfirmDialog,
-      maybeAnalyzeDeviceSessionAfterFinish: window.maybeAnalyzeDeviceSessionAfterFinish,
       loadCatalog: window.loadCatalog,
       renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       scrollIntoView: Element.prototype.scrollIntoView,
@@ -119,7 +118,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         calls.push(['confirm', message]);
         return true;
       };
-      window.maybeAnalyzeDeviceSessionAfterFinish = session => calls.push(['analyze', session.id]);
+      store.configureLightDevicesStore({
+        maybeAnalyzeDeviceSessionAfterFinish: session => calls.push(['analyze', session.id]),
+      });
       window.loadCatalog = async () => ({ products: [] });
       window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
 
@@ -291,8 +292,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       else delete window.navigate;
       if (saved.showConfirmDialog) window.showConfirmDialog = saved.showConfirmDialog;
       else delete window.showConfirmDialog;
-      if (saved.maybeAnalyzeDeviceSessionAfterFinish) window.maybeAnalyzeDeviceSessionAfterFinish = saved.maybeAnalyzeDeviceSessionAfterFinish;
-      else delete window.maybeAnalyzeDeviceSessionAfterFinish;
+      store.configureLightDevicesStore({
+        maybeAnalyzeDeviceSessionAfterFinish: window.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
+      });
       if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
       else delete window.loadCatalog;
       if (saved.renderLightDeviceAffiliateRow) window.renderLightDeviceAffiliateRow = saved.renderLightDeviceAffiliateRow;
