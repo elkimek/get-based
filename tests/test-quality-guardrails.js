@@ -33,8 +33,10 @@ assert('quality guardrail syntax-checks JS/MJS files',
   guardrailSrc.includes("execFileSync(process.execPath, ['--check', file]"));
 assert('quality guardrail tracks inline event attribute budget',
   guardrailSrc.includes('INLINE_EVENT_RE') && Object.hasOwn(baseline, 'inlineEventAttributes'));
-assert('quality guardrail tracks window.* coupling budget',
-  guardrailSrc.includes('WINDOW_REF_RE') && Object.hasOwn(baseline, 'windowReferences'));
+assert('quality guardrail tracks window global coupling budget',
+  guardrailSrc.includes('WINDOW_REF_RE') &&
+    guardrailSrc.includes('window(?:\\.|\\s*\\[)') &&
+    Object.hasOwn(baseline, 'windowReferences'));
 assert('quality guardrail tracks large-module budget',
   guardrailSrc.includes('LARGE_FILE_LINE_LIMIT') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&

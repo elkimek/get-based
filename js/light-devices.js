@@ -22,7 +22,8 @@ import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
-import { BODY_REGIONS } from './sun-body-silhouette.js';
+import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
+import { validateModeCoupling } from './sun-spectrum.js';
 import {
   addCustomDevice,
   addDeviceFromPresetRecord,
@@ -39,11 +40,7 @@ import {
   updateDeviceSession,
 } from './light-devices-store.js';
 import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
-import {
-  configureLightDeviceSetup,
-  openAddDeviceDialog,
-  openCustomDeviceDialog,
-} from './light-device-setup-modal.js';
+import { configureLightDeviceSetup, openAddDeviceDialog, openCustomDeviceDialog } from './light-device-setup-modal.js';
 
 const LIGHT_DEVICES_ACTION_ATTR = 'data-light-devices-action';
 const LIGHT_DEVICE_ID_ATTR = 'data-light-device-id';
@@ -170,8 +167,7 @@ export async function editDeviceSessionMode(id) {
     showNotification('This device has no selectable modes.', 'info');
     return;
   }
-  const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
-  const validModes = device.modes.filter(m => validateMode(device, m.id).ok);
+  const validModes = device.modes.filter(m => validateModeCoupling(device, m.id).ok);
   if (validModes.length < 2) {
     showNotification('Only one mode is available for this device.', 'info');
     return;
@@ -312,8 +308,7 @@ export function openDeviceSessionDetail(id) {
       || device.modes.find(m => m.default)
       || device.modes[0];
     modeLabel = resolved ? (resolved.label || resolved.id) : null;
-    const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
-    canEditMode = device.modes.filter(m => validateMode(device, m.id).ok).length > 1;
+    canEditMode = device.modes.filter(m => validateModeCoupling(device, m.id).ok).length > 1;
   }
 
   // Body-fraction for the per-session vit-D cap (Audit P1 #8). Computed
@@ -692,6 +687,10 @@ export async function openDeviceSessionDialog(deviceId) {
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
+    validateModeCoupling,
+    renderBodySilhouette,
+    bindBodySilhouette,
+    navigate: route => window.navigate?.(route),
   });
 }
 

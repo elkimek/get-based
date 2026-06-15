@@ -7,6 +7,31 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { BODY_REGIONS } from './sun.js';
 
 /**
+ * @param {string} name
+ * @param {any} [fallback]
+ * @returns {any}
+ */
+function _windowDep(name, fallback = null) {
+  if (typeof window === 'undefined') return fallback;
+  const value = window[name];
+  return typeof value === 'function' ? value : fallback;
+}
+
+/**
+ * @param {Record<string, any>} [deps]
+ * @returns {Record<string, any>}
+ */
+function _resolveSessionDialogDeps(deps = {}) {
+  return {
+    ...deps,
+    validateModeCoupling: deps.validateModeCoupling || _windowDep('validateModeCoupling', () => ({ ok: true })),
+    renderBodySilhouette: deps.renderBodySilhouette || _windowDep('renderBodySilhouette'),
+    bindBodySilhouette: deps.bindBodySilhouette || _windowDep('bindBodySilhouette'),
+    navigate: deps.navigate || _windowDep('navigate'),
+  };
+}
+
+/**
  * @param {ParentNode} root
  * @param {string} selector
  * @returns {HTMLInputElement|null}
@@ -67,6 +92,7 @@ function _showEmptyRegionError(updateAreaHint, selectedRegions, hintEl) {
 }
 
 export async function openDeviceSessionDialog(deviceId, deps = {}) {
+  const resolvedDeps = _resolveSessionDialogDeps(deps);
   const {
     hydrateDevicesFromPresets,
     getDevices,
@@ -74,7 +100,11 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     getActiveDeviceSession,
     startDeviceSession,
     ensureActiveDeviceTicker,
-  } = deps;
+    validateModeCoupling,
+    renderBodySilhouette,
+    bindBodySilhouette,
+    navigate,
+  } = resolvedDeps;
 
   // Lazy hydrate covers page-opened-mid-init / cold preset cache cases so
   // the dialog renders with the latest mode/coupling schema.
@@ -93,9 +123,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   const defaultRegions = _defaultRegionsForLastSession(last);
 
   // Mode picker renders only for devices with multiple valid modes.
-  const validateMode = window.validateModeCoupling || (() => ({ ok: true }));
   const validModes = Array.isArray(device.modes)
-    ? device.modes.filter(m => validateMode(device, m.id).ok)
+    ? device.modes.filter(m => validateModeCoupling(device, m.id).ok)
     : [];
   const showModePicker = validModes.length > 1;
   let defaultMode = null;
@@ -147,7 +176,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
       })()}
       <div class="ctx-label" style="display:block">
         <span>Body area treated</span>
-        <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${(typeof window !== 'undefined' && window.renderBodySilhouette) ? window.renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
+        <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${renderBodySilhouette ? renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
         <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
           <button type="button" class="ctx-btn-option" id="dev-session-clear" style="padding:2px 10px;font-size:11px">Clear</button>
@@ -226,8 +255,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const more = set.size > 4 ? ` +${set.size - 4} more` : '';
     hint.textContent = `${set.size} region${set.size === 1 ? '' : 's'} (~${Math.round(frac * 100)}% of skin) — ${labels}${more}`;
   };
-  if (silhouetteSlot && typeof window !== 'undefined' && window.bindBodySilhouette) {
-    window.bindBodySilhouette(silhouetteSlot, selectedRegions, (set) => {
+  if (silhouetteSlot && bindBodySilhouette) {
+    bindBodySilhouette(silhouetteSlot, selectedRegions, (set) => {
       updateAreaHint(set);
     });
   }
@@ -235,8 +264,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
 
   overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => {
     selectedRegions.clear();
-    if (silhouetteSlot && typeof window !== 'undefined' && window.renderBodySilhouette) {
-      silhouetteSlot.innerHTML = window.renderBodySilhouette(selectedRegions);
+    if (silhouetteSlot && renderBodySilhouette) {
+      silhouetteSlot.innerHTML = renderBodySilhouette(selectedRegions);
     }
     updateAreaHint(selectedRegions);
   });
@@ -277,7 +306,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
     closeDialog();
     showNotification(`${durationMin} min ${escapeHTML(device.brand)} session saved.`);
-    if (window.navigate) window.navigate('light');
+    navigate?.('light');
   });
 
   overlay.querySelector('#dev-session-start').addEventListener('click', async () => {
@@ -298,7 +327,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     closeDialog();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
     ensureActiveDeviceTicker();
-    if (window.navigate) window.navigate('light');
+    navigate?.('light');
   });
 }
 
