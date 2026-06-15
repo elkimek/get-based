@@ -15,6 +15,52 @@ import {
   renderSuggestion,
 } from './light-channel-view.js';
 
+/** @type {Record<string, any>} */
+const lightPageDeps = {
+  channelDisplay: {},
+  weeklyChannelTier: () => 0,
+  channelTier: () => 0,
+  getSessions: () => [],
+  getDevices: () => [],
+  getDeviceSessions: () => [],
+  getActiveSession: () => null,
+  rollingChannelTotals: () => ({}),
+  rollingDeviceTotals: () => ({}),
+  cumulativeMEDToday: () => 0,
+  cumulativeMEDYesterday: () => 0,
+  rollingVitaminDIU: () => 0,
+  vitaminDBudgetStatus: () => null,
+  getSunCoords: () => null,
+  resumeActiveTickerIfNeeded: () => {},
+  ensureActiveDeviceTicker: () => {},
+  openChannelOnLightPage: () => {},
+  quickLogDeviceSession: () => {},
+  openAddDeviceDialog: () => {},
+  quickLogSunSession: () => {},
+  openDetailedSessionDialog: () => {},
+  navigate: () => {},
+  requestPreciseLocation: () => {},
+  openLightEnvironmentAssessment: () => {},
+  renderSunDataSourceSettings: () => '',
+  renderLightTodayDashboardChip: () => '',
+  renderLightTodayHero: () => '',
+  renderSunSessionRow: () => '',
+  renderActiveDeviceSessionCard: () => '',
+  renderSunSetupCard: () => '',
+  renderChannelMixVerdict: staticFallback => staticFallback,
+  renderChannelDeficitDeviceRecs: () => '',
+  loadCatalog: async () => null,
+  loadLightDevicePresets: async () => null,
+  renderDevicesSection: async () => '',
+  renderEnvironmentAssessmentSummary: () => '',
+  renderLightTools: () => '',
+};
+
+/** @param {Partial<typeof lightPageDeps>} [deps] */
+export function configureLightPageView(deps = {}) {
+  Object.assign(lightPageDeps, deps);
+}
+
 function closestLightPageAction(event) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
@@ -32,21 +78,21 @@ function handleLightPageActionClick(event) {
   if (typeof HTMLAnchorElement !== 'undefined' && actionEl instanceof HTMLAnchorElement) event.preventDefault();
 
   if (action === 'open-channel') {
-    window._openChannelOnLightPage?.(actionEl.dataset.channel || '');
+    lightPageDeps.openChannelOnLightPage(actionEl.dataset.channel || '');
   } else if (action === 'quick-log-device') {
-    window.quickLogDeviceSession?.();
+    lightPageDeps.quickLogDeviceSession();
   } else if (action === 'open-add-device') {
-    window.openAddDeviceDialog?.();
+    lightPageDeps.openAddDeviceDialog();
   } else if (action === 'quick-log-sun') {
-    window.quickLogSunSession?.();
+    lightPageDeps.quickLogSunSession();
   } else if (action === 'open-detailed-session') {
-    window.openDetailedSessionDialog?.();
+    lightPageDeps.openDetailedSessionDialog();
   } else if (action === 'navigate-light') {
-    window.navigate?.('light');
+    lightPageDeps.navigate('light');
   } else if (action === 'request-precise-location') {
-    window.requestPreciseLocation?.();
+    lightPageDeps.requestPreciseLocation();
   } else if (action === 'open-light-environment') {
-    window.openLightEnvironmentAssessment?.();
+    lightPageDeps.openLightEnvironmentAssessment();
   } else if (action === 'expand-light-tools') {
     _expandLightToolsSection();
   }
@@ -66,13 +112,13 @@ if (typeof document !== 'undefined') installLightPageActionDelegates();
 // ═══════════════════════════════════════════════
 
 export function renderDashboardLightChannelPills() {
-  const ch = window.CHANNEL_DISPLAY || {};
+  const ch = lightPageDeps.channelDisplay || {};
   // Dashboard pills represent a 7-day rolling total; classify with the
   // weekly tier so optional Light widgets agree with the Light page pills.
-  const tier = window.weeklyChannelTier || (() => 0);
+  const tier = lightPageDeps.weeklyChannelTier || (() => 0);
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
-  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
+  const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
   const combinedTotals7d = mergeTotals(totals7d, devTotals7d);
   return `<div class="light-pills-row">
     ${order.map(k => {
@@ -91,9 +137,9 @@ export function renderDashboardLightChannelPills() {
 }
 
 export function renderLightSessionLogActions() {
-  const sessions = (window.getSessions && window.getSessions()) || [];
-  const devices = (window.getDevices && window.getDevices()) || [];
-  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const sessions = lightPageDeps.getSessions() || [];
+  const devices = lightPageDeps.getDevices() || [];
+  const deviceSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const hasDevices = devices.length > 0;
   const totalSessions = sessions.length + deviceSessionsAll.length;
   const sunCount = sessions.length;
@@ -101,7 +147,7 @@ export function renderLightSessionLogActions() {
   const tallyDetail = (sunCount > 0 || devCount > 0)
     ? `${sunCount} sun + ${devCount} device`
     : '';
-  const sunActive = !!(window.getActiveSession && window.getActiveSession());
+  const sunActive = !!lightPageDeps.getActiveSession();
   let ctaButtons = '';
   if (sunActive) {
     // Stop controls live in the pinned active-session card; this widget keeps
@@ -149,23 +195,24 @@ function renderLightMethodsWidgetBody() {
       <p><strong>Want the math?</strong> See <a href="https://github.com/elkimek/get-based/blob/main/dev-docs/sun-spectrum-model.md" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
     </div>
   </details>`;
-  if (typeof window !== 'undefined' && typeof window.renderSunDataSourceSettings === 'function') {
+  const dataSourceSettings = lightPageDeps.renderSunDataSourceSettings();
+  if (dataSourceSettings) {
     html += `<details class="light-data-source-details">
       <summary>Sun data source</summary>
-      <div class="light-data-source-body">${window.renderSunDataSourceSettings()}</div>
+      <div class="light-data-source-body">${dataSourceSettings}</div>
     </details>`;
   }
   return `<div class="light-methods-stack">${html}</div>`;
 }
 
 export function renderLightTodayStrip() {
-  const sessions = (window.getSessions && window.getSessions()) || [];
+  const sessions = lightPageDeps.getSessions() || [];
   const inSolarWindow = isSolarWindow();
   // Always render — even a fresh user outside a solar window needs to see
   // that the Light lens exists. The CTA copy adapts to the situation.
 
-  const active = (window.getActiveSession && window.getActiveSession()) || null;
-  const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
+  const active = lightPageDeps.getActiveSession() || null;
+  const medToday = lightPageDeps.cumulativeMEDToday() || 0;
 
   // CTA — adaptive to whether the user has therapy devices set up. A
   // winter user with a Joovv but no recent sun should see the device
@@ -175,7 +222,7 @@ export function renderLightTodayStrip() {
   // applies once to the GROUP — without the wrapper each individual
   // CTA's margin-left:auto pushed every button to the right edge,
   // spreading them apart instead of clustering them.
-  const devicesArr = (window.getDevices && window.getDevices()) || [];
+  const devicesArr = lightPageDeps.getDevices() || [];
   const hasDevices = devicesArr.length > 0;
   // Device button copy adapts to how many devices the user owns. With
   // 1 device, name it inline so the click goes straight to that
@@ -248,14 +295,14 @@ export function renderLightTodayStrip() {
   // its window (it was actually counting all-time sun sessions).
   const weekCutoff = Date.now() - 7 * 86400 * 1000;
   const sunWeek = sessions.filter(s => (s.startedAt || 0) >= weekCutoff).length;
-  const devSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const devSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const devWeek = devSessionsAll.filter(s => (s.startedAt || 0) >= weekCutoff).length;
   const weekTotal = sunWeek + devWeek;
   // Rolling 7-day vitamin D total in IU — sums per-session yields with
   // each session's 20k saturation cap, so a week of three good sessions
   // doesn't get clipped to one session's maximum. Hidden when the total
   // is essentially zero (cloudy week / no UVB exposure / device-only).
-  const weeklyIU = (window.rollingVitaminDIU && window.rollingVitaminDIU(7)) || 0;
+  const weeklyIU = lightPageDeps.rollingVitaminDIU(7) || 0;
   let weeklyIUStr = '';
   if (weeklyIU >= 100) {
     // Surface the same uncertainty band as session detail. The weekly
@@ -276,8 +323,8 @@ export function renderLightTodayStrip() {
   // context — clinicians treating high serum 25(OH)D look at total daily
   // input.
   let vitDBudgetChip = '';
-  if (typeof window.vitaminDBudgetStatus === 'function') {
-    const b = window.vitaminDBudgetStatus();
+  const b = lightPageDeps.vitaminDBudgetStatus();
+  if (b) {
     const fmtIU = (n) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
     if (b.exceedsSupplementUL) {
       vitDBudgetChip = `<span class="light-today-vitd-warn" title="IOM 2010 Tolerable Upper Intake Level for vitamin D from supplements alone is 4000 IU/d. Today: ${fmtIU(b.supplementIU)} IU supplement + ~${fmtIU(b.sunIU)} IU sun = ~${fmtIU(b.total)} IU total. Supplement above UL — flag this with your clinician.">⚠ Vit D today: ${fmtIU(b.supplementIU)} IU supplement above 4000 IU UL (+${fmtIU(b.sunIU)} sun)</span>`;
@@ -289,7 +336,7 @@ export function renderLightTodayStrip() {
   // High-altitude UV chip — UV irradiance climbs ~10% per 1000m above sea
   // level (WHO/INTERSUN). At >1500m it's a meaningful safety modifier the
   // user should see before going outside.
-  const altCoords = (window.getSunCoords && window.getSunCoords()) || null;
+  const altCoords = lightPageDeps.getSunCoords() || null;
   const altM = altCoords?.altitudeM || 0;
   const altChip = altM > 1500
     ? `<span class="light-today-altitude" title="UV irradiance climbs ~10% per 1000m above sea level. At ${Math.round(altM)}m, expect ~${Math.round((altM / 1000) * 10)}% more UV than sea-level estimates.">⛰ +${Math.round((altM / 1000) * 10)}% UV (altitude ${Math.round(altM)}m)</span>`
@@ -302,7 +349,7 @@ export function renderLightTodayStrip() {
       ${altChip}
       <a href="#" class="light-today-link" data-light-page-action="navigate-light">Open Light &amp; Sun →</a>
     </div>
-    ${typeof window !== 'undefined' && window.renderLightTodayDashboardChip ? window.renderLightTodayDashboardChip() : ''}
+    ${lightPageDeps.renderLightTodayDashboardChip() || ''}
     ${renderConditionsNow({ variant: 'compact' })}
     ${renderDashboardLightChannelPills()}
     ${weeklyIUStr || vitDBudgetChip ? `<div class="light-today-vitd-row">${weeklyIUStr}${vitDBudgetChip ? ' ' + vitDBudgetChip : ''}</div>` : ''}
@@ -323,10 +370,10 @@ export function renderLightTodayStrip() {
 export function renderLightChannelsLive() {
   const section = document.querySelector('.light-channels-section');
   if (!section) return;
-  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
-  const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
-  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
-  const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
+  const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
+  const totals30d = lightPageDeps.rollingChannelTotals(30) || {};
+  const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
+  const devTotals30d = lightPageDeps.rollingDeviceTotals(30) || {};
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
   const row = section.querySelector('.light-pills-row');
@@ -367,14 +414,14 @@ export function showLight(_data) {
   // Resume the live-session ticker if a session was started before this
   // page loaded — without this, hard-reload while outside leaves the card
   // static until you explicitly tap something else.
-  if (window._resumeActiveTickerIfNeeded) try { window._resumeActiveTickerIfNeeded(); } catch (e) {}
-  if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
+  try { lightPageDeps.resumeActiveTickerIfNeeded(); } catch (e) {}
+  try { lightPageDeps.ensureActiveDeviceTicker(); } catch (e) {}
   const main = document.getElementById("main-content");
-  const sessions = (window.getSessions && window.getSessions()) || [];
-  const totals7d = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
-  const totals30d = (window.rollingChannelTotals && window.rollingChannelTotals(30)) || {};
-  const medToday = (window.cumulativeMEDToday && window.cumulativeMEDToday()) || 0;
-  const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+  const sessions = lightPageDeps.getSessions() || [];
+  const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
+  const totals30d = lightPageDeps.rollingChannelTotals(30) || {};
+  const medToday = lightPageDeps.cumulativeMEDToday() || 0;
+  const deviceSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const totalSessions = sessions.length + deviceSessionsAll.length;
   const sunCount = sessions.length;
   const widgets = [];
@@ -386,9 +433,9 @@ export function showLight(_data) {
   // environment + trends) into one read. Sits above active-session and
   // conditions so the user gets the "how am I doing?" answer before the
   // raw inputs.
-  if (typeof window !== 'undefined' && window.renderLightTodayHero) {
+  if (lightPageDeps.renderLightTodayHero) {
     try {
-      const todayBody = window.renderLightTodayHero() || '';
+      const todayBody = lightPageDeps.renderLightTodayHero() || '';
       if (todayBody) {
         widgets.push({
           id: 'light-today',
@@ -407,16 +454,16 @@ export function showLight(_data) {
   // first thing the user sees when a session is running. Renders above
   // Conditions / Setup / Stop CTA. Filtered out of the historical
   // sessions list further down so the same row doesn't render twice.
-  const _activeSunSess = (window.getActiveSession && window.getActiveSession()) || null;
+  const _activeSunSess = lightPageDeps.getActiveSession() || null;
   let activeSessionBody = '';
-  if (_activeSunSess && typeof window.renderSunSessionRow === 'function') {
-    activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active sun session">${window.renderSunSessionRow(_activeSunSess)}</div>`;
+  if (_activeSunSess) {
+    activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active sun session">${lightPageDeps.renderSunSessionRow(_activeSunSess)}</div>`;
   }
   // Same pattern for active device-therapy sessions (PBM panels, SAD
   // lamps, dawn simulators). Pinned above the conditions panel so the
   // stop button is always one tap away.
-  if (typeof window.renderActiveDeviceSessionCard === 'function') {
-    const _activeDevHtml = window.renderActiveDeviceSessionCard();
+  if (lightPageDeps.renderActiveDeviceSessionCard) {
+    const _activeDevHtml = lightPageDeps.renderActiveDeviceSessionCard();
     if (_activeDevHtml) {
       activeSessionBody += `<div class="light-active-session-pinned" aria-label="Active device session">${_activeDevHtml}</div>`;
     }
@@ -439,9 +486,7 @@ export function showLight(_data) {
   // when onboarding is incomplete or the user has reopened to edit, and a
   // compact "Light setup saved" summary with an Edit button otherwise.
   let setupHtml = '';
-  if (typeof window.renderSunSetupCard === 'function') {
-    try { setupHtml = window.renderSunSetupCard() || ''; } catch (_) {}
-  }
+  try { setupHtml = lightPageDeps.renderSunSetupCard() || ''; } catch (_) {}
   const conditionsBody = renderLightConditionsWidgetBody({ variant: 'full' });
   widgets.push({
     id: 'light-conditions-now',
@@ -478,8 +523,8 @@ export function showLight(_data) {
   let deficitRecSlotId = null;
 
   // Combine sun + device totals so channels reflect every light source
-  const devTotals7d = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
-  const devTotals30d = (window.rollingDeviceTotals && window.rollingDeviceTotals(30)) || {};
+  const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
+  const devTotals30d = lightPageDeps.rollingDeviceTotals(30) || {};
   const combined7d = mergeTotals(totals7d, devTotals7d);
   const combined30d = mergeTotals(totals30d, devTotals30d);
 
@@ -498,7 +543,7 @@ export function showLight(_data) {
   //   • At least one channel has a meaningful tier → invite drill-down
   //     with realistic copy
   const channelKeysOrdered = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  const _wkTier = window.weeklyChannelTier || window.channelTier || (() => 0);
+  const _wkTier = lightPageDeps.weeklyChannelTier || lightPageDeps.channelTier || (() => 0);
   const litChannels = channelKeysOrdered.filter(k => _wkTier(combined7d[k] || 0, k) > 0).length;
   let lead;
   if (isEmpty) {
@@ -530,7 +575,7 @@ export function showLight(_data) {
     // is part of the routine.
     if (sunCount > 0) {
       const medPct = Math.round(medToday * 100);
-      const medY = (window.cumulativeMEDYesterday && window.cumulativeMEDYesterday()) || 0;
+      const medY = lightPageDeps.cumulativeMEDYesterday() || 0;
       const combinedMED = medToday + medY;
       let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your burn threshold.';
       if (medToday >= 1) { medCls = 'over'; medTitle = 'Burn threshold reached'; medMsg = 'You\'ve crossed your burn threshold for the day. Avoid more direct sun until tomorrow.'; }
@@ -560,9 +605,7 @@ export function showLight(_data) {
     // baseline content under the "Get AI synthesis" CTA before the
     // user has clicked it.
     const _staticSuggestion = renderSuggestion(combined7d);
-    guidanceBody += (typeof window !== 'undefined' && window.renderChannelMixVerdict)
-      ? window.renderChannelMixVerdict(_staticSuggestion)
-      : _staticSuggestion;
+    guidanceBody += lightPageDeps.renderChannelMixVerdict(_staticSuggestion) || _staticSuggestion;
 
     // Channel-deficit device recommendations — async slot. Surfaces a
     // CTA card with matching catalog devices when (a) the user has a
@@ -653,9 +696,7 @@ export function showLight(_data) {
   // channels only — sun-derived deficits (vit_d, circadian, etc.) get
   // suggested actions via renderSuggestion above; we don't try to sell
   // a panel as a sun substitute.
-  if (deficitRecSlotId && totalSessions >= 7 && typeof window.renderChannelDeficitDeviceRecs === 'function'
-      && typeof window.loadCatalog === 'function'
-      && typeof window.loadLightDevicePresets === 'function') {
+  if (deficitRecSlotId && totalSessions >= 7) {
     const slot = document.getElementById(deficitRecSlotId);
     if (slot) {
       const DEVICE_CHANNELS = [
@@ -664,11 +705,11 @@ export function showLight(_data) {
       ];
       const empty = DEVICE_CHANNELS.filter(c => (combined30d[c.key] || 0) === 0);
       if (empty.length) {
-        Promise.all([window.loadCatalog(), window.loadLightDevicePresets()])
+        Promise.all([lightPageDeps.loadCatalog(), lightPageDeps.loadLightDevicePresets()])
           .then(([catalog, presetData]) => {
             if (!catalog || !presetData?.presets) return;
             const blocks = empty
-              .map(c => window.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: escapeHTML(c.label) }))
+              .map(c => lightPageDeps.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: escapeHTML(c.label) }))
               .filter(Boolean);
             if (blocks.length && slot.isConnected) slot.innerHTML = blocks.join('');
           })
@@ -677,11 +718,11 @@ export function showLight(_data) {
     }
   }
 
-  if (typeof window.renderDevicesSection === 'function') {
-    Promise.resolve(window.renderDevicesSection()).then((devHtml) => {
+  if (lightPageDeps.renderDevicesSection) {
+    Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
       const slot = document.getElementById(devicesSlotId);
       if (!slot) return;
-      const devices = (window.getDevices && window.getDevices()) || [];
+      const devices = lightPageDeps.getDevices() || [];
       slot.outerHTML = devices.length > 0
         ? devHtml
         : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
@@ -694,15 +735,15 @@ export function showLight(_data) {
   }
   const envSlot = document.getElementById(environmentSlotId);
   if (envSlot) {
-    envSlot.outerHTML = window.renderEnvironmentAssessmentSummary
-      ? (window.renderEnvironmentAssessmentSummary() || '')
-      : renderLightWidgetPrompt('No rooms mapped', 'Open assessment', 'open-light-environment', 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
+    const envHtml = lightPageDeps.renderEnvironmentAssessmentSummary() || '';
+    envSlot.outerHTML = envHtml
+      || renderLightWidgetPrompt('No rooms mapped', 'Open assessment', 'open-light-environment', 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
   }
   const toolsSlot = document.getElementById(toolsSlotId);
   if (toolsSlot) {
-    toolsSlot.outerHTML = window.renderLightTools
-      ? (window.renderLightTools() || '')
-      : renderLightWidgetPrompt('No measurements yet', 'Open light tools', 'expand-light-tools', 'Run lux, flicker, color temperature, glass, and sleep-darkness checks on this device. Camera frames stay local.', 'light-tools-section-collapsed');
+    const toolsHtml = lightPageDeps.renderLightTools() || '';
+    toolsSlot.outerHTML = toolsHtml
+      || renderLightWidgetPrompt('No measurements yet', 'Open light tools', 'expand-light-tools', 'Run lux, flicker, color temperature, glass, and sleep-darkness checks on this device. Camera frames stay local.', 'light-tools-section-collapsed');
   }
 }
 
@@ -710,15 +751,14 @@ export function showLight(_data) {
 // Named function so delegated Light page actions can expand the placeholder.
 export function _expandLightToolsSection() {
   const collapsed = document.querySelector('.light-tools-section-collapsed');
-  if (!collapsed || typeof window.renderLightTools !== 'function') return;
+  if (!collapsed) return;
   const wrap = document.createElement('div');
-  wrap.innerHTML = window.renderLightTools() || '';
+  wrap.innerHTML = lightPageDeps.renderLightTools() || '';
   if (wrap.firstElementChild) collapsed.replaceWith(wrap.firstElementChild);
 }
 
 function getSunCoordsHint() {
-  if (typeof window === 'undefined' || !window.getSunCoords) return '';
-  const c = window.getSunCoords();
+  const c = lightPageDeps.getSunCoords();
   if (!c) {
     return `<p class="light-intro-hint">Tip: set your country in the profile editor for accurate sun calculations, or <a href="#" data-light-page-action="request-precise-location">share your precise location</a> once.</p>`;
   }
