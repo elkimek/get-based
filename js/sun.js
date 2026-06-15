@@ -1070,6 +1070,17 @@ configureSunSessionUI({
   tierLabel,
   formatChannelUnit,
   tooShortForChannelVerdictMin: TOO_SHORT_FOR_CHANNEL_VERDICT_MIN,
+  quickLogSunSession,
+  pauseSunSession,
+  resumeSunSession,
+  flipSidesMidSession,
+  changeCoverageMidSession,
+  applySunscreenMidSession,
+  setOzoneOverrideMidSession,
+  forgotStopPrompt: _forgotStopPrompt,
+  openChannelOnLightPage: channel => {
+    if (typeof window !== 'undefined') window._openChannelOnLightPage?.(channel);
+  },
 });
 
 // Reset all sun.js module-singleton state. Called on profile switch so

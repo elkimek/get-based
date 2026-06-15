@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const uiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
+const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -37,7 +38,8 @@ assert('sun-session-actions defines one shared action attribute helper',
     actionSrc.includes("value !== false"));
 assert('sun-session-ui imports and installs idempotent action delegates',
   uiSrc.includes("from './sun-session-actions.js'") &&
-    uiSrc.includes('installSunSessionActionDelegates({') &&
+    uiSrc.includes('const sunSessionDelegateActions = {') &&
+    uiSrc.includes('installSunSessionActionDelegates(sunSessionDelegateActions)') &&
     actionSrc.includes('const sunSessionActionDelegateRoots = new WeakSet();') &&
     actionSrc.includes("root.addEventListener('click', event => handleSunSessionClick(event, actions))") &&
     actionSrc.includes("root.addEventListener('keydown', event => handleSunSessionKeydown(event, actions))"));
@@ -56,10 +58,31 @@ assert('sun-session-actions closes overlays through the shared lifecycle removal
   actionSrc.includes("import { removeModalOverlay } from './modal-lifecycle.js';") &&
     actionSrc.includes('removeModalOverlay(overlay)') &&
     !actionSrc.includes("closest('.modal-overlay')?.remove()"));
+assert('sun-session-actions routes active controls through injected actions',
+  !actionSrc.includes('window.') &&
+    actionSrc.includes('actions.quickLogSunSession') &&
+    actionSrc.includes('actions.pauseSunSession') &&
+    actionSrc.includes('actions.resumeSunSession') &&
+    actionSrc.includes('actions.flipSidesMidSession') &&
+    actionSrc.includes('actions.changeCoverageMidSession') &&
+    actionSrc.includes('actions.applySunscreenMidSession') &&
+    actionSrc.includes('actions.setOzoneOverrideMidSession') &&
+    actionSrc.includes('actions.forgotStopPrompt') &&
+    actionSrc.includes('actions.openChannelOnLightPage'));
 assert('sun-session-ui direct module actions no longer route through window globals',
   !uiSrc.includes('window.openSunSessionDetail') &&
     !uiSrc.includes('window.deleteSunSession') &&
     !uiSrc.includes('window.editSunSessionDuration'));
+assert('sun.js configures active sun-session delegated actions',
+  sunSrc.includes('quickLogSunSession,') &&
+    sunSrc.includes('pauseSunSession,') &&
+    sunSrc.includes('resumeSunSession,') &&
+    sunSrc.includes('flipSidesMidSession,') &&
+    sunSrc.includes('changeCoverageMidSession,') &&
+    sunSrc.includes('applySunscreenMidSession,') &&
+    sunSrc.includes('setOzoneOverrideMidSession,') &&
+    sunSrc.includes('forgotStopPrompt: _forgotStopPrompt') &&
+    sunSrc.includes('openChannelOnLightPage: channel =>'));
 
 [
   'ignore',
