@@ -20,6 +20,24 @@ import { SKIN_TYPE } from './constants.js';
 //   lightCircadian.skinType : 'I — very fair' | ...         (used by context card)
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
+/** @type {{ maybeAnalyzeOnboardingAfterSave: AnyFunction, renderOnboardingAIBlock: AnyFunction }} */
+const sunDefaultsDeps = {
+  maybeAnalyzeOnboardingAfterSave: () => {},
+  renderOnboardingAIBlock: () => '',
+};
+
+export function configureSunDefaults(deps = {}) {
+  Object.assign(sunDefaultsDeps, deps);
+}
+
+function maybeAnalyzeOnboardingAfterSave() {
+  try { sunDefaultsDeps.maybeAnalyzeOnboardingAfterSave(); } catch (_) {}
+}
+
+function renderOnboardingAIBlock() {
+  try { return sunDefaultsDeps.renderOnboardingAIBlock() || ''; } catch (_) { return ''; }
+}
+
 // Map legacy boolean photosensitiveMeds storage to tier key for the
 // rendered select. true → 'moderate' (matches the previous fixed ×2.5
 // MED reduction), false / null → 'none'. New string-tier storage passes
@@ -418,7 +436,7 @@ function renderSavedSummary() {
       </div>
       ${ottChip}
     </div>
-    ${typeof window !== 'undefined' && window.renderOnboardingAIBlock ? window.renderOnboardingAIBlock() : ''}
+    ${renderOnboardingAIBlock()}
   </div>`;
 }
 
@@ -820,9 +838,7 @@ async function saveSunSetup() {
   await saveImportedData();
   closeSunSetupOverlay();
   showNotification(`Setup saved · light burden ${ottScore}/10`);
-  if (typeof window !== 'undefined' && window.maybeAnalyzeOnboardingAfterSave) {
-    try { window.maybeAnalyzeOnboardingAfterSave(); } catch (_) {}
-  }
+  maybeAnalyzeOnboardingAfterSave();
   if (window.navigate) window.navigate('light');
 }
 

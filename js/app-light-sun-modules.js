@@ -19,5 +19,6 @@ import './light-burden-ai-analysis.js';
 import './light-channels-ai-analysis.js';
 import './sun-defaults.js';
 import './sun-onboarding-ai.js';
+import './light-ai-save-hooks.js';
 import './sun-correlations.js';
 import './light-today-ai.js';
