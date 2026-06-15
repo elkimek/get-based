@@ -497,18 +497,18 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
     const calls = [];
     const base = Date.UTC(2026, 5, 7, 12, 0);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const saved = {
-      getSessions: window.getSessions,
-      getDeviceSessions: window.getDeviceSessions,
-      getDevices: window.getDevices,
-      renderSunSessionRow: window.renderSunSessionRow,
-      openDeviceSessionDetail: window.openDeviceSessionDetail,
-      deleteDeviceSession: window.deleteDeviceSession,
-      renderDeviceSessionAIInline: window.renderDeviceSessionAIInline,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      channelTier: window.channelTier,
-      formatChannelUnit: window.formatChannelUnit,
-    };
+    const resetDeps = () => sessionsView.configureLightSessionsView({
+      getSessions: () => [],
+      getDeviceSessions: () => [],
+      getDevices: () => [],
+      renderSunSessionRow: () => '',
+      openDeviceSessionDetail: () => {},
+      deleteDeviceSession: () => {},
+      renderDeviceSessionAIInline: () => '',
+      channelDisplay: {},
+      channelTier: () => 0,
+      formatChannelUnit: () => '',
+    });
 
     let sunSessions = [
       { id: 'sun-a', startedAt: base - 60000, endedAt: base, durationMin: 15, doses: { vitamin_d: 2 } },
@@ -522,26 +522,28 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
     ];
 
     try {
-      window.getSessions = () => sunSessions;
-      window.getDeviceSessions = () => deviceSessions;
-      window.getDevices = () => [{
-        id: 'panel-a',
-        brand: 'PanelCo',
-        model: 'Red 900',
-        modes: [{ id: 'red', label: 'Red only', default: true }, { id: 'nir', label: 'NIR' }],
-      }];
-      window.CHANNEL_DISPLAY = {
-        pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
-        pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
-      };
-      window.channelTier = value => value > 0 ? 2 : 0;
-      window.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
-      window.renderSunSessionRow = sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button" tabindex="0" aria-label="Sun ${sess.id}">
-        <div class="sun-session-head"><span class="sun-session-date">${sess.id}</span></div>
-      </div>`;
-      window.openDeviceSessionDetail = id => calls.push(['detail', id]);
-      window.deleteDeviceSession = id => calls.push(['delete', id]);
-      window.renderDeviceSessionAIInline = sess => `<span class="ai-inline">AI ${sess.id}</span>`;
+      sessionsView.configureLightSessionsView({
+        getSessions: () => sunSessions,
+        getDeviceSessions: () => deviceSessions,
+        getDevices: () => [{
+          id: 'panel-a',
+          brand: 'PanelCo',
+          model: 'Red 900',
+          modes: [{ id: 'red', label: 'Red only', default: true }, { id: 'nir', label: 'NIR' }],
+        }],
+        channelDisplay: {
+          pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
+          pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
+        },
+        channelTier: value => value > 0 ? 2 : 0,
+        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        renderSunSessionRow: sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button" tabindex="0" aria-label="Sun ${sess.id}">
+          <div class="sun-session-head"><span class="sun-session-date">${sess.id}</span></div>
+        </div>`,
+        openDeviceSessionDetail: id => calls.push(['detail', id]),
+        deleteDeviceSession: id => calls.push(['delete', id]),
+        renderDeviceSessionAIInline: sess => `<span class="ai-inline">AI ${sess.id}</span>`,
+      });
 
       const inlineHost = document.createElement('div');
       inlineHost.innerHTML = sessionsView.renderUnifiedSessionsList();
@@ -604,7 +606,7 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
       await delay(0);
       outcomes.deviceRowKeyboardClosesModal = !document.body.contains(overlay);
     } finally {
-      Object.assign(window, saved);
+      resetDeps();
       document.querySelectorAll('.light-sessions-modal-overlay').forEach(el => el.remove());
     }
 
