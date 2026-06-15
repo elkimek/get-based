@@ -107,6 +107,8 @@ describe('service worker update prompt', () => {
     expect(showVersionUpdateBanner(registration)).toBe(true);
     const banner = document.getElementById('version-update-banner');
     expect(banner).not.toBeNull();
+    expect(banner.querySelector('.version-update-copy-short')).toBeNull();
+    expect(banner.textContent).toContain('New version available. Update when you are ready.');
     expect(document.body.classList.contains('version-update-visible')).toBe(true);
     expect(waiting.postMessage).not.toHaveBeenCalled();
 
