@@ -31,7 +31,6 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
-      maybeAnalyzeSessionAfterFinish: window.maybeAnalyzeSessionAfterFinish,
       fetchAtmosphere: window.fetchAtmosphere,
       reconstructSpectrum: window.reconstructSpectrum,
       computeChannelDoses: window.computeChannelDoses,
@@ -240,14 +239,12 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         setLiveState: () => {},
         clearLiveState: () => {},
         formatElapsed: ms => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
-        maybeAnalyzeSessionAfterFinish: saved.maybeAnalyzeSessionAfterFinish || (() => {}),
+        maybeAnalyzeSessionAfterFinish: () => {},
       });
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       data.invalidateActiveDataCache();
-      if (saved.maybeAnalyzeSessionAfterFinish === undefined) delete window.maybeAnalyzeSessionAfterFinish;
-      else window.maybeAnalyzeSessionAfterFinish = saved.maybeAnalyzeSessionAfterFinish;
       window.fetchAtmosphere = saved.fetchAtmosphere;
       window.reconstructSpectrum = saved.reconstructSpectrum;
       window.computeChannelDoses = saved.computeChannelDoses;
@@ -288,7 +285,6 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
-      maybeAnalyzeSessionAfterFinish: window.maybeAnalyzeSessionAfterFinish,
     };
     const results = {};
 
@@ -312,7 +308,6 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
         sunSessions: [],
       };
       data.invalidateActiveDataCache();
-      delete window.maybeAnalyzeSessionAfterFinish;
       store.configureSunSessionsStore({
         commitCurrentSlice: () => {},
         setLiveState: () => {},
@@ -335,25 +330,22 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
       document.body.appendChild(elapsed);
       const stopped = await store.stopSession(id);
       const expectedElapsed = `${Math.max(0, Math.floor((stopped.endedAt - stopped.startedAt) / 60000))}m`;
-      results.noopStopDepsFreezeElapsedAndSkipAiHook =
+      results.noopStopDepsFreezeElapsed =
         stopped?.endedAt
         && stopped.durationMin >= 2
         && stopped.eyeExposure?.durationSec >= 120
         && !elapsed.hasAttribute('data-live-elapsed-for')
-        && elapsed.textContent === expectedElapsed
-        && window.maybeAnalyzeSessionAfterFinish === undefined;
+        && elapsed.textContent === expectedElapsed;
       elapsed.remove();
     } finally {
       document.querySelectorAll('[data-live-elapsed-for]').forEach(el => el.remove());
       store.configureSunSessionsStore({
-        maybeAnalyzeSessionAfterFinish: saved.maybeAnalyzeSessionAfterFinish || (() => {}),
+        maybeAnalyzeSessionAfterFinish: () => {},
       });
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       data.invalidateActiveDataCache();
-      if (saved.maybeAnalyzeSessionAfterFinish === undefined) delete window.maybeAnalyzeSessionAfterFinish;
-      else window.maybeAnalyzeSessionAfterFinish = saved.maybeAnalyzeSessionAfterFinish;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -365,7 +357,7 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
 
   const expectedOutcomes = [
     'defaultPauseDepsAreNoopsButStatePersists',
-    'noopStopDepsFreezeElapsedAndSkipAiHook',
+    'noopStopDepsFreezeElapsed',
   ];
   for (const key of expectedOutcomes) {
     expect(outcomes, `outcome key '${key}' was never set`).toHaveProperty(key);

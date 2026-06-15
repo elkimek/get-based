@@ -32,10 +32,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, store] = await Promise.all([
+    const [{ state }, data, store, ai] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-devices-store.js'),
+      import('/js/light-device-ai-analysis.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -63,6 +64,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       getOllamaConfig: window.getOllamaConfig,
       navigate: window.navigate,
       showConfirmDialog: window.showConfirmDialog,
+      maybeAnalyzeDeviceSessionAfterFinish: ai.maybeAnalyzeDeviceSessionAfterFinish,
       loadCatalog: window.loadCatalog,
       renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       scrollIntoView: Element.prototype.scrollIntoView,
@@ -293,7 +295,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       if (saved.showConfirmDialog) window.showConfirmDialog = saved.showConfirmDialog;
       else delete window.showConfirmDialog;
       store.configureLightDevicesStore({
-        maybeAnalyzeDeviceSessionAfterFinish: window.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
+        maybeAnalyzeDeviceSessionAfterFinish: saved.maybeAnalyzeDeviceSessionAfterFinish || (() => {}),
       });
       if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
       else delete window.loadCatalog;
