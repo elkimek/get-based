@@ -19,6 +19,50 @@ import {
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
 
+const DEFAULT_TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
+
+/** @type {Record<string, any>} */
+const sunContextDeps = {
+  bodyRegions: [],
+  channelDisplay: {},
+  circadianMelanopicLux: null,
+  computeDeficitAxes: null,
+  computeIndoorBurden: null,
+  cumulativeMEDToday: () => 0,
+  getMeteoConfig: () => ({ privacyRounding: 0.01 }),
+  isDebugMode: () => false,
+  pbmJoulesPerCm2: null,
+  rollingChannelTotals: () => ({}),
+  rollingDeviceTotals: () => ({}),
+  tierLabel: tier => DEFAULT_TIER_LABELS[tier] || 'none',
+  vitaminDDailySaturationIU: 20000,
+  vitaminDIUPerSession: null,
+  weeklyChannelTier: null,
+};
+
+export function configureSunContext(deps = {}) {
+  const previous = { ...sunContextDeps };
+  for (const [key, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(sunContextDeps, key)) {
+      sunContextDeps[key] = value;
+    } else {
+      _debugWarn('[sun-context] ignoring unknown dependency key', key);
+    }
+  }
+  return previous;
+}
+
+function _debugWarn(...args) {
+  if (typeof sunContextDeps.isDebugMode === 'function' && sunContextDeps.isDebugMode()) {
+    console.warn(...args);
+  }
+}
+
+function _bodyRegionFractionByKey() {
+  const regions = Array.isArray(sunContextDeps.bodyRegions) ? sunContextDeps.bodyRegions : [];
+  return Object.fromEntries(regions.map(r => [r.key, r.fraction]));
+}
+
 // Sanitize user-supplied strings before interpolating into AI prompts.
 // Mirrors the helper in light-env-ai-analysis.js / light-today-ai.js.
 // User-typed device.brand / device.model / room.name reach the always-
@@ -190,13 +234,13 @@ function _trimToBudget(ctx, budget, aggressive = false) {
 function alwaysTierBlock(sessions) {
   // Combine outdoor sun + indoor device contributions — channels reflect the
   // full biological state, not just one source class.
-  const sunTot7 = window.rollingChannelTotals ? window.rollingChannelTotals(7) : {};
-  const sunTot30 = window.rollingChannelTotals ? window.rollingChannelTotals(30) : {};
-  const devTot7 = window.rollingDeviceTotals ? window.rollingDeviceTotals(7) : {};
-  const devTot30 = window.rollingDeviceTotals ? window.rollingDeviceTotals(30) : {};
+  const sunTot7 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? sunContextDeps.rollingChannelTotals(7) : null) || {};
+  const sunTot30 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? sunContextDeps.rollingChannelTotals(30) : null) || {};
+  const devTot7 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? sunContextDeps.rollingDeviceTotals(7) : null) || {};
+  const devTot30 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? sunContextDeps.rollingDeviceTotals(30) : null) || {};
   const totals7d = mergeTotalsCtx(sunTot7, devTot7);
   const totals30d = mergeTotalsCtx(sunTot30, devTot30);
-  const medToday = window.cumulativeMEDToday ? window.cumulativeMEDToday() : 0;
+  const medToday = typeof sunContextDeps.cumulativeMEDToday === 'function' ? sunContextDeps.cumulativeMEDToday() : 0;
   const lastSession = sessions.filter(s => s.endedAt).slice(-1)[0];
   const activeSession = sessions.find(s => !s.endedAt);
 
@@ -491,9 +535,9 @@ function lightEnvironmentBlock() {
   }
   // Indoor burden tier + deficit axes — collapsed onto one line. Burden is
   // the qualitative summary, d2/d3 are the components that drove it.
-  if (typeof window.computeIndoorBurden === 'function') {
+  if (typeof sunContextDeps.computeIndoorBurden === 'function') {
     try {
-      const burden = window.computeIndoorBurden();
+      const burden = sunContextDeps.computeIndoorBurden();
       if (burden && typeof burden === 'object') {
         // Use the helper's own label so the AI surface matches the
         // page UI verbatim. The helper returns 3 tiers (0/1/2 →
@@ -501,20 +545,20 @@ function lightEnvironmentBlock() {
         // map that didn't exist anywhere else.
         const burdenLabel = burden.label || ['Light load', 'Moderate load', 'Heavy load'][burden.tier] || 'unknown';
         let line = `- Indoor light burden: ${burdenLabel} (tier ${burden.tier}/2 · 0=light, 2=heavy across screens/sleep/daylight)`;
-        if (typeof window.computeDeficitAxes === 'function') {
+        if (typeof sunContextDeps.computeDeficitAxes === 'function') {
           try {
-            const axes = window.computeDeficitAxes();
+            const axes = sunContextDeps.computeDeficitAxes();
             if (axes && (axes.d2 != null || axes.d3 != null)) {
               line += ` · d2=${(axes.d2 ?? 0).toFixed(2)} (intensity gap, 0=no gap, 5+=severe) · d3=${(axes.d3 ?? 0).toFixed(2)} (after-sunset blue, 0=clean, 3+=heavy)`;
             }
           } catch (e) {
-            if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] computeDeficitAxes failed', e);
+            _debugWarn('[sun-context] computeDeficitAxes failed', e);
           }
         }
         s += line + '\n';
       }
     } catch (e) {
-      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] indoor-burden line build failed', e);
+      _debugWarn('[sun-context] indoor-burden line build failed', e);
     }
   }
   // Concrete tool measurements that warrant the AI's attention. We
@@ -629,10 +673,8 @@ function standardTierBlock(sessions) {
   // (without this, raw channel-au sums to nonsense for vit-D).
   const _genetics = state.importedData?.genetics || null;
   const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-  const _perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
-  const _fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
-    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
-    : {};
+  const _perSession = typeof sunContextDeps.vitaminDIUPerSession === 'function' ? sunContextDeps.vitaminDIUPerSession : null;
+  const _fracByKey = _bodyRegionFractionByKey();
   const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
   const _devBodyFrac = (s) => {
     if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
@@ -678,8 +720,8 @@ function standardTierBlock(sessions) {
     // pattern but on a representative 1-hour basis. The AI cares about
     // shape week-to-week, not absolute lux-h here (always-tier already
     // shows the absolute 7d total).
-    if (typeof window.circadianMelanopicLux === 'function') {
-      return Math.round(window.circadianMelanopicLux(weeklyAu, 60) * 1); // 60-min basis
+    if (typeof sunContextDeps.circadianMelanopicLux === 'function') {
+      return Math.round(sunContextDeps.circadianMelanopicLux(weeklyAu, 60) * 1); // 60-min basis
     }
     return Math.round(weeklyAu);
   };
@@ -704,7 +746,7 @@ function standardTierBlock(sessions) {
     } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
       formatted = b.map(v => {
         if (v <= 0) return '0';
-        const j = typeof window.pbmJoulesPerCm2 === 'function' ? window.pbmJoulesPerCm2(v) : v / 10000;
+        const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(v) : v / 10000;
         return fmtJ(j);
       }).join('→');
     } else {
@@ -748,7 +790,7 @@ function _correlationsBlock() {
   let corr = state.importedData?.sunCorrelations;
   if (!corr || !corr.pairs) {
     try { corr = getSunCorrelations(); } catch (e) {
-      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] getSunCorrelations failed', e);
+      _debugWarn('[sun-context] getSunCorrelations failed', e);
     }
   }
   if (corr && corr.pairs) {
@@ -842,8 +884,11 @@ function _projectSession(sess, fields) {
   if (fields.includes('location') && sess.location) {
     // Honor the user's network privacyRounding setting; default to 0.01°.
     let p = 0.01;
-    try { p = (window.getMeteoConfig && window.getMeteoConfig().privacyRounding) || 0.01; } catch (e) {
-      if (window.isDebugMode && window.isDebugMode()) console.warn('[sun-context] getMeteoConfig failed', e);
+    try {
+      const cfg = typeof sunContextDeps.getMeteoConfig === 'function' ? sunContextDeps.getMeteoConfig() : null;
+      p = cfg?.privacyRounding || 0.01;
+    } catch (e) {
+      _debugWarn('[sun-context] getMeteoConfig failed', e);
     }
     const f = 1 / p;
     out.location = {
@@ -932,20 +977,24 @@ function formatChannelTotals(totals) {
   // Targets are daily; rolling window is 7d, so weekly target is ×7. Use
   // the canonical weeklyChannelTier so the AI rollup, the dashboard
   // strip, and the per-channel drill-down all agree.
-  const tierLabel = window.tierLabel || ((t) => ['none','low','moderate','good','strong'][t] || 'none');
-  const channelTier = window.weeklyChannelTier || ((v, k) => {
-    const meta = (window.CHANNEL_DISPLAY || {})[k];
-    if (!meta || !meta.dailyTarget) return 0;
-    const target = meta.dailyTarget * 7;
-    if (!Number.isFinite(v) || v <= 0) return 0;
-    const r = v / target;
-    if (r < 0.20) return 1;
-    if (r < 0.55) return 2;
-    if (r < 1.00) return 3;
-    return 4;
-  });
+  const tierLabel = typeof sunContextDeps.tierLabel === 'function'
+    ? sunContextDeps.tierLabel
+    : (t) => DEFAULT_TIER_LABELS[t] || 'none';
+  const channelTier = typeof sunContextDeps.weeklyChannelTier === 'function'
+    ? sunContextDeps.weeklyChannelTier
+    : ((v, k) => {
+      const meta = (sunContextDeps.channelDisplay || {})[k];
+      if (!meta || !meta.dailyTarget) return 0;
+      const target = meta.dailyTarget * 7;
+      if (!Number.isFinite(v) || v <= 0) return 0;
+      const r = v / target;
+      if (r < 0.20) return 1;
+      if (r < 0.55) return 2;
+      if (r < 1.00) return 3;
+      return 4;
+    });
 
-  // Per-unit rollup helpers. Walk recent sessions/devices in window so
+  // Per-unit rollup helpers. Walk recent sessions/devices so
   // per-session conversions (UVI gate, Fitzpatrick, IU saturation) apply
   // correctly. Sum afterwards rather than scaling the channel-au total.
   const cutoff = Date.now() - 7 * 86400 * 1000;
@@ -956,8 +1005,8 @@ function formatChannelTotals(totals) {
   // body-fraction cap → per-day saturation cap → sum capped days. Both
   // functions are user-visible 7-day totals and must agree.
   const _gx = state.importedData?.genetics || null;
-  const _perSession = (typeof window !== 'undefined' && typeof window.vitaminDIUPerSession === 'function') ? window.vitaminDIUPerSession : null;
-  const _cap = (typeof window !== 'undefined' && Number.isFinite(window.VITD_DAILY_SATURATION_IU)) ? window.VITD_DAILY_SATURATION_IU : 20000;
+  const _perSession = typeof sunContextDeps.vitaminDIUPerSession === 'function' ? sunContextDeps.vitaminDIUPerSession : null;
+  const _cap = Number.isFinite(sunContextDeps.vitaminDDailySaturationIU) ? sunContextDeps.vitaminDDailySaturationIU : 20000;
   const _localDayKey = (ts) => {
     const d = new Date(ts);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -977,9 +1026,7 @@ function formatChannelTotals(totals) {
   // UVB device sessions. uvi=null (device IS the UVB source);
   // rotatedSides=false (devices track skin% on bodyAreas, not anatomical sides).
   const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-  const _fracByKey = (typeof window !== 'undefined' && window.BODY_REGIONS)
-    ? Object.fromEntries(window.BODY_REGIONS.map(r => [r.key, r.fraction]))
-    : {};
+  const _fracByKey = _bodyRegionFractionByKey();
   const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
   for (const s of deviceSessions) {
     const au = s.doses?.vitamin_d;
@@ -1004,8 +1051,8 @@ function formatChannelTotals(totals) {
     const au = s.doses?.circadian;
     const dur = s.durationMin || 0;
     if (!Number.isFinite(au) || au <= 0 || dur <= 0) continue;
-    if (typeof window.circadianMelanopicLux === 'function') {
-      const lux = window.circadianMelanopicLux(au, dur);
+    if (typeof sunContextDeps.circadianMelanopicLux === 'function') {
+      const lux = sunContextDeps.circadianMelanopicLux(au, dur);
       totalLuxHours += lux * (dur / 60);
     }
   }
@@ -1015,7 +1062,7 @@ function formatChannelTotals(totals) {
     for (const s of [...sunSessions, ...deviceSessions]) {
       const au = s.doses?.[k];
       if (!Number.isFinite(au) || au <= 0) continue;
-      j += typeof window.pbmJoulesPerCm2 === 'function' ? window.pbmJoulesPerCm2(au) : au / 10000;
+      j += typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(au) : au / 10000;
     }
     return j;
   };

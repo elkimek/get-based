@@ -14,6 +14,7 @@ import './light-sun-ai-hooks.js';
 import './light-tools.js';
 import './light-tools-ai-analysis.js';
 import './light-env.js';
+import './sun-context-hooks.js';
 import './light-env-ai-analysis.js';
 import './light-screen-ai-analysis.js';
 import './light-audit-ai-analysis.js';

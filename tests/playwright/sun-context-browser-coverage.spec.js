@@ -23,18 +23,6 @@ test('sun context browser coverage handles consent slices deficits and trimming'
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      BODY_REGIONS: window.BODY_REGIONS,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      rollingChannelTotals: window.rollingChannelTotals,
-      rollingDeviceTotals: window.rollingDeviceTotals,
-      cumulativeMEDToday: window.cumulativeMEDToday,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      VITD_DAILY_SATURATION_IU: window.VITD_DAILY_SATURATION_IU,
-      circadianMelanopicLux: window.circadianMelanopicLux,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      computeIndoorBurden: window.computeIndoorBurden,
-      computeDeficitAxes: window.computeDeficitAxes,
-      getMeteoConfig: window.getMeteoConfig,
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -46,6 +34,12 @@ test('sun context browser coverage handles consent slices deficits and trimming'
     const profileId = `sun-context-${Date.now()}`;
     const channels = ['vitamin_d', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir', 'no_cv', 'pomc', 'violet_eye'];
     const zeroTotals = Object.fromEntries(channels.map(key => [key, 0]));
+    const bodyRegions = [
+      { key: 'face', fraction: 0.04 },
+      { key: 'chest', fraction: 0.13 },
+      { key: 'arms', fraction: 0.10 },
+    ];
+    let restoreDeps = null;
     const makeSession = (index, overrides = {}) => ({
       id: `sun-session-${index}`,
       startedAt: now - (index + 1) * day + 9 * 3600000,
@@ -69,25 +63,23 @@ test('sun context browser coverage handles consent slices deficits and trimming'
     });
 
     try {
+      restoreDeps = sunContext.configureSunContext({
+        bodyRegions,
+        channelDisplay: Object.fromEntries(channels.map(key => [key, { dailyTarget: 1000 }])),
+        rollingChannelTotals: days => days >= 30 ? zeroTotals : { ...zeroTotals, vitamin_d: 300, circadian: 500 },
+        rollingDeviceTotals: () => ({}),
+        cumulativeMEDToday: () => 1.15,
+        vitaminDIUPerSession: au => au * 40,
+        vitaminDDailySaturationIU: 20000,
+        circadianMelanopicLux: (au, min) => au / Math.max(1, min),
+        pbmJoulesPerCm2: au => au / 1000,
+        computeIndoorBurden: () => ({ tier: 2, label: 'Heavy load' }),
+        computeDeficitAxes: () => ({ d2: 6.25, d3: 3.5 }),
+        getMeteoConfig: () => ({ privacyRounding: 0.1 }),
+      });
       localStorage.setItem('labcharts-active-profile', profileId);
       localStorage.removeItem(`labcharts-${profileId}-ai-include-body-regions`);
       state.currentProfile = profileId;
-      window.BODY_REGIONS = [
-        { key: 'face', fraction: 0.04 },
-        { key: 'chest', fraction: 0.13 },
-        { key: 'arms', fraction: 0.10 },
-      ];
-      window.CHANNEL_DISPLAY = Object.fromEntries(channels.map(key => [key, { dailyTarget: 1000 }]));
-      window.rollingChannelTotals = days => days >= 30 ? zeroTotals : { ...zeroTotals, vitamin_d: 300, circadian: 500 };
-      window.rollingDeviceTotals = () => ({});
-      window.cumulativeMEDToday = () => 1.15;
-      window.vitaminDIUPerSession = au => au * 40;
-      window.VITD_DAILY_SATURATION_IU = 20000;
-      window.circadianMelanopicLux = (au, min) => au / Math.max(1, min);
-      window.pbmJoulesPerCm2 = au => au / 1000;
-      window.computeIndoorBurden = () => ({ tier: 2, label: 'Heavy load' });
-      window.computeDeficitAxes = () => ({ d2: 6.25, d3: 3.5 });
-      window.getMeteoConfig = () => ({ privacyRounding: 0.1 });
 
       const rooms = Array.from({ length: 7 }, (_, i) => ({
         id: `room-${i}`,
@@ -203,20 +195,7 @@ test('sun context browser coverage handles consent slices deficits and trimming'
     } finally {
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
-      Object.assign(window, {
-        BODY_REGIONS: saved.BODY_REGIONS,
-        CHANNEL_DISPLAY: saved.CHANNEL_DISPLAY,
-        rollingChannelTotals: saved.rollingChannelTotals,
-        rollingDeviceTotals: saved.rollingDeviceTotals,
-        cumulativeMEDToday: saved.cumulativeMEDToday,
-        vitaminDIUPerSession: saved.vitaminDIUPerSession,
-        VITD_DAILY_SATURATION_IU: saved.VITD_DAILY_SATURATION_IU,
-        circadianMelanopicLux: saved.circadianMelanopicLux,
-        pbmJoulesPerCm2: saved.pbmJoulesPerCm2,
-        computeIndoorBurden: saved.computeIndoorBurden,
-        computeDeficitAxes: saved.computeDeficitAxes,
-        getMeteoConfig: saved.getMeteoConfig,
-      });
+      if (restoreDeps) sunContext.configureSunContext(restoreDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
