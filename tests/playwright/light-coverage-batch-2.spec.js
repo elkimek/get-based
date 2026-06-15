@@ -262,22 +262,8 @@ test('light channel view covers pills detail panels suggestions and light-page r
     const outcomes = {};
     const calls = [];
     const host = document.createElement('section');
-    const saved = {
-      currentView: state.currentView,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      dailyChannelBreakdown: window.dailyChannelBreakdown,
-      dailyVitaminDIUBreakdown: window.dailyVitaminDIUBreakdown,
-      rollingVitaminDIU: window.rollingVitaminDIU,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      rollingChannelTotals: window.rollingChannelTotals,
-      rollingDeviceTotals: window.rollingDeviceTotals,
-      weeklyChannelTier: window.weeklyChannelTier,
-      tierLabel: window.tierLabel,
-      getDevices: window.getDevices,
-      quickLogSunSession: window.quickLogSunSession,
-      quickLogDeviceSession: window.quickLogDeviceSession,
-      navigate: window.navigate,
-    };
+    const saved = { currentView: state.currentView };
+    let restoreDeps = null;
     const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
 
     const makeDays = (channelKey, count) => Array.from({ length: count }, (_, i) => {
@@ -335,7 +321,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
         calls.push(['navigate', route]);
         state.currentView = route;
       };
-      channel.configureLightChannelView({
+      restoreDeps = channel.configureLightChannelView({
         channelDisplay,
         dailyChannelBreakdown: makeDays,
         dailyVitaminDIUBreakdown,
@@ -410,21 +396,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
         && !!routedDetail
         && host.querySelector('.light-pill[data-channel="circadian"]')?.getAttribute('aria-expanded') === 'true';
     } finally {
-      channel.configureLightChannelView({
-        channelDisplay: saved.CHANNEL_DISPLAY || {},
-        dailyChannelBreakdown: saved.dailyChannelBreakdown || null,
-        dailyVitaminDIUBreakdown: saved.dailyVitaminDIUBreakdown || null,
-        getDevices: saved.getDevices || (() => []),
-        navigate: saved.navigate || (() => {}),
-        pbmJoulesPerCm2: saved.pbmJoulesPerCm2 || null,
-        quickLogDeviceSession: saved.quickLogDeviceSession || (() => {}),
-        quickLogSunSession: saved.quickLogSunSession || (() => {}),
-        rollingChannelTotals: saved.rollingChannelTotals || (() => ({})),
-        rollingDeviceTotals: saved.rollingDeviceTotals || (() => ({})),
-        rollingVitaminDIU: saved.rollingVitaminDIU || (() => 0),
-        tierLabel: saved.tierLabel || (() => 'none'),
-        weeklyChannelTier: saved.weeklyChannelTier || (() => 0),
-      });
+      if (restoreDeps) channel.configureLightChannelView(restoreDeps);
       state.currentView = saved.currentView;
       host.remove();
     }

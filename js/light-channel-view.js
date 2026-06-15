@@ -11,7 +11,7 @@ const lightChannelDeps = {
   tierLabel: () => 'none', rollingChannelTotals: () => ({}), rollingDeviceTotals: () => ({}), rollingVitaminDIU: () => 0,
   pbmJoulesPerCm2: null, getDevices: () => [], navigate: () => {}, quickLogSunSession: () => {}, quickLogDeviceSession: () => {},
 };
-export function configureLightChannelView(deps = {}) { Object.assign(lightChannelDeps, deps); }
+export function configureLightChannelView(deps = {}) { const previous = { ...lightChannelDeps }; Object.assign(lightChannelDeps, deps); return previous; }
 const getChannelDisplay = () => lightChannelDeps.channelDisplay || {};
 
 const LIGHT_CHANNEL_ACTION_ATTR = 'data-light-channel-action';
@@ -657,8 +657,8 @@ function _renderChannelDetailPanel(channelKey) {
   // Drill-down hero stat is a 7-day total — classify against the weekly
   // target so the badge agrees with the pill (and the AI rollup).
   const tier = lightChannelDeps.weeklyChannelTier;
-  const sunTot7 = lightChannelDeps.rollingChannelTotals(7) || {};
-  const devTot7 = lightChannelDeps.rollingDeviceTotals(7) || {};
+  const sunTot7 = (typeof lightChannelDeps.rollingChannelTotals === 'function' ? lightChannelDeps.rollingChannelTotals(7) : null) || {};
+  const devTot7 = (typeof lightChannelDeps.rollingDeviceTotals === 'function' ? lightChannelDeps.rollingDeviceTotals(7) : null) || {};
   const sun7 = sunTot7[channelKey] || 0;
   const dev7 = devTot7[channelKey] || 0;
   const totalCurrent = sun7 + dev7;
