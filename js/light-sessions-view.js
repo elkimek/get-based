@@ -158,7 +158,7 @@ function _renderSessionRowsHTML(rows) {
   const renderSunRow = viewDeps.renderSunSessionRow;
   let html = '';
   for (const row of rows) {
-    if (row.kind === 'sun' && renderSunRow) {
+    if (row.kind === 'sun') {
       html += renderSunRow(row.sess);
     } else if (row.kind === 'device') {
       const sess = row.sess;
