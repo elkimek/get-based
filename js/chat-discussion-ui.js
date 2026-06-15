@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { getThreadPersonaCount } from './chat-discussion-state.js';
+import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 
 export {
   readDiscussPersonaPickerSelection,
@@ -36,10 +37,10 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
 
   const prompt = document.createElement('div');
   prompt.className = 'chat-discuss-continue';
-  prompt.innerHTML = '<input type="text" class="chat-discuss-steer" id="chat-discuss-steer" autocomplete="off" placeholder="Steer the debate (optional)..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();continueDiscussion()}">' +
+  prompt.innerHTML = '<input type="text" class="chat-discuss-steer" id="chat-discuss-steer" autocomplete="off" placeholder="Steer the debate (optional)..." data-chat-message-key-action="continue-discussion">' +
     '<div class="chat-discuss-continue-actions">' +
-    '<button class="chat-discuss-continue-btn" onclick="continueDiscussion()">Continue</button>' +
-    '<button class="chat-discuss-done-btn" onclick="endDiscussion()">Done</button>' +
+    `<button class="chat-discuss-continue-btn" type="button" ${chatMessageActionAttrs('continue-discussion')}>Continue</button>` +
+    `<button class="chat-discuss-done-btn" type="button" ${chatMessageActionAttrs('end-discussion')}>Done</button>` +
     '</div>';
   container.appendChild(prompt);
   container.scrollTop = container.scrollHeight;

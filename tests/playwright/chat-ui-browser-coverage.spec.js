@@ -228,6 +228,9 @@ test('chat thread search covers message results clearing and jump highlighting',
       outcomes.searchShowsEscapedMessageResult = !!result
         && result.querySelector('.chat-search-result-thread')?.textContent === 'Ferritin <Plan>'
         && result.querySelector('mark')?.textContent.toLowerCase() === 'ferritin'
+        && result.getAttribute('data-chat-message-action') === 'jump-search-result'
+        && result.getAttribute('data-chat-message-thread-id') === 'thread_a'
+        && !result.hasAttribute('onclick')
         && renderCalls.includes('ferritin');
 
       await threadSearch.jumpToSearchResult('thread_a', 0, messagesByThread.thread_a[0].content.slice(0, 50));
@@ -464,7 +467,9 @@ test('chat summaries cover saved summary modal actions without network calls', a
       const savedItems = [...document.querySelectorAll('.chat-saved-summary-item')];
       outcomes.savedSummariesRenderNewestFirstEscaped = savedItems.length === 2
         && savedItems[0].querySelector('.chat-saved-summary-name')?.textContent === 'Wellness <Plan>'
-        && savedItems[0].getAttribute('onclick')?.includes('s_new');
+        && savedItems[0].getAttribute('data-chat-message-action') === 'view-summary'
+        && savedItems[0].getAttribute('data-chat-message-summary-id') === 's_new'
+        && !savedItems[0].hasAttribute('onclick');
 
       await summaries.summarizeThread();
       outcomes.existingThreadSummaryOpensModal = document.getElementById('summary-modal-overlay')?.classList.contains('show') === true
@@ -585,6 +590,8 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       firstInputs[1].click();
       outcomes.newDiscussionPickerRequiresTwoSelections =
         firstPicker.querySelector('.discuss-picker-start')?.disabled === false
+        && firstPicker.querySelector('.discuss-picker-start')?.getAttribute('data-chat-message-action') === 'start-discussion-from-picker'
+        && !firstPicker.querySelector('.discuss-picker-start')?.hasAttribute('onclick')
         && picker.readDiscussPersonaPickerSelection()?.allPersonas.length === 2
         && firstInputs.slice(2).every(input => input.disabled);
 
@@ -603,6 +610,9 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
 
       lifecycle.showDiscussContinuePrompt(personas, 'default');
       outcomes.continuePromptPersistsThreadState = !!document.querySelector('.chat-discuss-continue')
+        && document.querySelector('.chat-discuss-steer')?.getAttribute('data-chat-message-key-action') === 'continue-discussion'
+        && document.querySelector('.chat-discuss-continue-btn')?.getAttribute('data-chat-message-action') === 'continue-discussion'
+        && document.querySelector('.chat-discuss-done-btn')?.getAttribute('data-chat-message-action') === 'end-discussion'
         && state.chatThreads[0].discussionPersonas?.length === 2
         && state._discussionPersonas?.length === 2;
 

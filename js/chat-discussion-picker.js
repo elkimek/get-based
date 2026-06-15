@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { escapeHTML } from './utils.js';
 import { getCustomPersonalities } from './chat-personalities.js';
+import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 
 export function removeDiscussPersonaPicker() {
   const picker = document.querySelector('.discuss-persona-picker');
@@ -75,7 +76,7 @@ export function showDiscussPersonaPicker() {
       </label>`;
       }).join('')}
     </div>
-    <button class="discuss-picker-start" disabled onclick="startDiscussionFromPicker()">${addingToExisting ? 'Add to Discussion' : 'Start Debate'}</button>`;
+    <button class="discuss-picker-start" type="button" disabled ${chatMessageActionAttrs('start-discussion-from-picker')}>${addingToExisting ? 'Add to Discussion' : 'Start Debate'}</button>`;
 
   function updatePickerState() {
     const checkedCount = picker.querySelectorAll('input:checked:not([data-locked="1"])').length;

@@ -131,7 +131,9 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       outcomes.buildActionBarEscapesContextAndAddsLastRegenerate = (() => {
         const html = chatActions.buildActionBar(1);
         return html.includes('Regenerate')
-          && html.includes('copyMessage(1)')
+          && html.includes('data-chat-message-action="copy-message"')
+          && html.includes('data-chat-message-index="1"')
+          && !html.includes('onclick=')
           && html.includes('&lt;Labs&gt;')
           && html.includes('5 &gt; 3')
           && chatActions.buildActionBar(0) === ''
