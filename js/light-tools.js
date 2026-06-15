@@ -58,15 +58,25 @@ const lightToolsDeps = {
   addRoom: async () => null,
 };
 
-export function configureLightTools(deps = {}) { Object.assign(lightToolsDeps, deps); }
+export function configureLightTools(deps = {}) {
+  Object.assign(lightToolsDeps, deps);
+}
 
-function maybeAnalyzeMeasurementAfterSave(entry) { try { lightToolsDeps.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {} }
+function maybeAnalyzeMeasurementAfterSave(entry) {
+  try { lightToolsDeps.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {}
+}
 
-function refreshLightEnvironmentAssessment() { try { lightToolsDeps.refreshLightEnvironmentAssessment(); } catch (_) {} }
+function refreshLightEnvironmentAssessment() {
+  try { lightToolsDeps.refreshLightEnvironmentAssessment(); } catch (_) {}
+}
 
-function navigateLight(options) { try { lightToolsDeps.navigate('light', options); } catch (_) {} }
+function navigateLight(options) {
+  try { lightToolsDeps.navigate('light', options); } catch (_) {}
+}
 
-function getSunCoords() { try { return lightToolsDeps.getSunCoords() || null; } catch (_) { return null; } }
+function getSunCoords() {
+  try { return lightToolsDeps.getSunCoords() || null; } catch (_) { return null; }
+}
 
 function getSunSessions() {
   try { const sessions = lightToolsDeps.getSessions(); return Array.isArray(sessions) ? sessions : []; } catch (_) { return []; }
