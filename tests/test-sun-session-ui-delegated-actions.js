@@ -10,6 +10,11 @@ const root = path.resolve(__dirname, '..');
 const uiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
+const aiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ai-render-hooks.js'), 'utf8');
+const uiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui-hooks.js'), 'utf8');
+const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
+const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
+const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -72,7 +77,25 @@ assert('sun-session-actions routes active controls through injected actions',
 assert('sun-session-ui direct module actions no longer route through window globals',
   !uiSrc.includes('window.openSunSessionDetail') &&
     !uiSrc.includes('window.deleteSunSession') &&
-    !uiSrc.includes('window.editSunSessionDuration'));
+    !uiSrc.includes('window.editSunSessionDuration') &&
+    !uiSrc.includes('window.renderSessionAIInline') &&
+    !uiSrc.includes('window.renderSessionAIDetail') &&
+    !uiSrc.includes('window.navigate'));
+assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
+  uiSrc.includes('renderSessionAIInline: () =>') &&
+    uiSrc.includes('renderSessionAIDetail: () =>') &&
+    uiSrc.includes('navigate: () =>') &&
+    uiSrc.includes('uiDeps.renderSessionAIInline(sess)') &&
+    uiSrc.includes('uiDeps.renderSessionAIDetail(sess)') &&
+    uiSrc.includes('function refreshLightView()') &&
+    aiHookSrc.includes("import { renderSessionAIDetail, renderSessionAIInline } from './sun-ai-analysis.js';") &&
+    aiHookSrc.includes('configureSunSessionUI({ renderSessionAIDetail, renderSessionAIInline })') &&
+    uiHookSrc.includes("import { navigate } from './views.js';") &&
+    uiHookSrc.includes('configureSunSessionUI({ navigate })') &&
+    appLightSunSrc.includes("import './sun-session-ai-render-hooks.js';") &&
+    appUiShellSrc.includes("import './sun-session-ui-hooks.js';") &&
+    swSrc.includes("'/js/sun-session-ai-render-hooks.js'") &&
+    swSrc.includes("'/js/sun-session-ui-hooks.js'"));
 assert('sun.js configures active sun-session delegated actions',
   sunSrc.includes('quickLogSunSession,') &&
     sunSrc.includes('pauseSunSession,') &&

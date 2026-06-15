@@ -28,8 +28,6 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       pbmJoulesPerCm2: window.pbmJoulesPerCm2,
       circadianMelanopicLux: window.circadianMelanopicLux,
       geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
-      renderSessionAIInline: window.renderSessionAIInline,
-      renderSessionAIDetail: window.renderSessionAIDetail,
     };
     const now = Date.now();
     const sessions = [
@@ -113,6 +111,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
       formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
       tooShortForChannelVerdictMin: 2,
+      renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
+      renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
     };
 
     try {
@@ -126,8 +126,6 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       window.pbmJoulesPerCm2 = () => 8.4;
       window.circadianMelanopicLux = () => 5200;
       window.geneticVitaminDMultiplier = () => ({ mult: 1, contributors: [] });
-      window.renderSessionAIInline = () => '<span class="ai-inline-test">AI inline</span>';
-      window.renderSessionAIDetail = () => '<section class="ai-detail-test">AI detail</section>';
 
       sunUI.configureSunSessionUI({ ...baseDeps, getSessions: () => [] });
       const emptyHost = document.createElement('div');
@@ -218,8 +216,6 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       window.pbmJoulesPerCm2 = saved.pbmJoulesPerCm2;
       window.circadianMelanopicLux = saved.circadianMelanopicLux;
       window.geneticVitaminDMultiplier = saved.geneticVitaminDMultiplier;
-      window.renderSessionAIInline = saved.renderSessionAIInline;
-      window.renderSessionAIDetail = saved.renderSessionAIDetail;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
         deleteSession: async () => false,
@@ -242,6 +238,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
+        renderSessionAIInline: () => '',
+        renderSessionAIDetail: () => '',
       });
       document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
     }
@@ -264,7 +262,6 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
     const calls = [];
     const saved = {
       currentView: state.currentView,
-      navigate: window.navigate,
     };
     const sessions = [{
       id: 'editable-session',
@@ -320,6 +317,7 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
       tierLabel: () => 'none',
       formatChannelUnit: () => '',
       tooShortForChannelVerdictMin: 2,
+      navigate: route => calls.push(['navigate', route]),
       ...overrides,
     });
 
@@ -342,7 +340,6 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
 
     try {
       state.currentView = 'dashboard';
-      window.navigate = route => calls.push(['navigate', route]);
       configure({ getSessions: () => [] });
 
       sunUI.openDetailedSessionDialog();
@@ -494,8 +491,6 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
         && !successCalls.some(call => call[0] === 'navigate');
     } finally {
       state.currentView = saved.currentView;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
         deleteSession: async () => false,
@@ -518,6 +513,7 @@ test('sun session UI covers detailed dialog and edit delete guard rails', async 
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
+        navigate: () => {},
       });
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
     }

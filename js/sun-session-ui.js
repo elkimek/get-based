@@ -40,6 +40,9 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {() => Promise<any> | any} setOzoneOverrideMidSession
  * @property {(id: any) => Promise<any> | any} forgotStopPrompt
  * @property {(channel: string) => void} openChannelOnLightPage
+ * @property {(sess: any) => string} renderSessionAIInline
+ * @property {(sess: any) => string} renderSessionAIDetail
+ * @property {(route: string, data?: any) => void} navigate
  */
 
 /** @type {SunSessionUIDeps} */
@@ -72,6 +75,9 @@ const uiDeps = {
   setOzoneOverrideMidSession: () => {},
   forgotStopPrompt: () => {},
   openChannelOnLightPage: () => {},
+  renderSessionAIInline: () => '',
+  renderSessionAIDetail: () => '',
+  navigate: () => {},
 };
 
 const sunSessionDelegateActions = {
@@ -96,6 +102,10 @@ if (typeof document !== 'undefined') {
 /** @param {Partial<SunSessionUIDeps>} [deps] */
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
+}
+
+function refreshLightView() {
+  if (state.currentView === 'light') uiDeps.navigate('light');
 }
 
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
@@ -167,7 +177,7 @@ export function renderSunSessionRow(sess) {
     ${forgotBanner}
     ${activeControls}
     ${channelChips}
-    ${typeof window !== 'undefined' && window.renderSessionAIInline ? window.renderSessionAIInline(sess) : ''}
+    ${uiDeps.renderSessionAIInline(sess)}
   </div>`;
 }
 
@@ -375,7 +385,7 @@ export function openSunSessionDetail(id) {
       <button type="button" class="modal-close" ${sunSessionActionAttrs('close-modal')} aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      ${typeof window !== 'undefined' && window.renderSessionAIDetail ? window.renderSessionAIDetail(sess) : ''}
+      ${uiDeps.renderSessionAIDetail(sess)}
       <div class="sun-detail-grid">
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
@@ -739,7 +749,7 @@ export function openDetailedSessionDialog() {
     if (sessId) await uiDeps.hydrateSession(sessId);
     closeDialog();
     showNotification(`Detailed session saved: ${durationMin} min, ${regions.length} regions.`);
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    refreshLightView();
   });
 }
 
@@ -778,5 +788,5 @@ export async function editSunSessionDuration(id) {
   if (next === current) return; // nothing to do
   await uiDeps.updateSession(id, { durationMin: next });
   showNotification(`Session duration set to ${next} min. Other devices will pull this on next sync.`, 'success');
-  if (window.navigate && state.currentView === 'light') window.navigate('light');
+  refreshLightView();
 }
