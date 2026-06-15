@@ -748,6 +748,12 @@ function _openDevicePicker(devices) {
   }
 }
 
+export async function deleteDeviceSessionWithConfirm(id) {
+  if (!await showConfirmDialog("Delete this device session? This can't be undone.")) return;
+  await deleteDeviceSession(id);
+  if (window.navigate && state.currentView === 'light') window.navigate('light');
+}
+
 // ─── Window export ─────────────────────────────────────────────────────
 
 if (typeof window !== 'undefined') {
@@ -779,12 +785,7 @@ if (typeof window !== 'undefined') {
       }
       if (window.navigate && state.currentView === 'light') window.navigate('light');
     },
-    deleteDeviceSession: async (id) => {
-      if (await showConfirmDialog("Delete this device session? This can't be undone.")) {
-        await deleteDeviceSession(id);
-        if (window.navigate && state.currentView === 'light') window.navigate('light');
-      }
-    },
+    deleteDeviceSession: deleteDeviceSessionWithConfirm,
     rollingDeviceTotals,
     renderDevicesSection,
     openDeviceSessionDetail,

@@ -13,34 +13,36 @@ test('light sessions view edge coverage handles empty and compact device history
     const outcomes = {};
     const calls = [];
     const base = Date.UTC(2026, 5, 10, 10, 0);
-    const saved = {
-      getSessions: window.getSessions,
-      getDeviceSessions: window.getDeviceSessions,
-      getDevices: window.getDevices,
-      renderSunSessionRow: window.renderSunSessionRow,
-      openDeviceSessionDetail: window.openDeviceSessionDetail,
-      deleteDeviceSession: window.deleteDeviceSession,
-      renderDeviceSessionAIInline: window.renderDeviceSessionAIInline,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      channelTier: window.channelTier,
-      formatChannelUnit: window.formatChannelUnit,
-    };
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const resetDeps = () => sessionsView.configureLightSessionsView({
+      getSessions: () => [],
+      getDeviceSessions: () => [],
+      getDevices: () => [],
+      renderSunSessionRow: () => '',
+      openDeviceSessionDetail: () => {},
+      deleteDeviceSession: () => {},
+      renderDeviceSessionAIInline: () => '',
+      channelDisplay: {},
+      channelTier: () => 0,
+      formatChannelUnit: () => '',
+    });
 
     try {
-      window.getSessions = () => [];
-      window.getDeviceSessions = () => [];
-      window.getDevices = () => [];
-      window.renderSunSessionRow = sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button">${sess.id}</div>`;
-      window.openDeviceSessionDetail = id => calls.push(['detail', id]);
-      window.deleteDeviceSession = id => calls.push(['delete', id]);
-      window.renderDeviceSessionAIInline = sess => `<span class="ai-inline">AI ${sess.id}</span>`;
-      window.CHANNEL_DISPLAY = {
-        pbm_red: { icon: 'R', label: 'Red <unsafe>', what: 'Red channel' },
-        pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
-      };
-      window.channelTier = (value, key) => key === 'pbm_nir' && value > 0 ? 3 : 0;
-      window.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
+      sessionsView.configureLightSessionsView({
+        getSessions: () => [],
+        getDeviceSessions: () => [],
+        getDevices: () => [],
+        renderSunSessionRow: sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button">${sess.id}</div>`,
+        openDeviceSessionDetail: id => calls.push(['detail', id]),
+        deleteDeviceSession: id => calls.push(['delete', id]),
+        renderDeviceSessionAIInline: sess => `<span class="ai-inline">AI ${sess.id}</span>`,
+        channelDisplay: {
+          pbm_red: { icon: 'R', label: 'Red <unsafe>', what: 'Red channel' },
+          pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
+        },
+        channelTier: (value, key) => key === 'pbm_nir' && value > 0 ? 3 : 0,
+        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+      });
 
       outcomes.emptyInlineReturnsBlank = sessionsView.renderUnifiedSessionsList() === '';
       sessionsView._openAllSessionsModal();
@@ -50,53 +52,57 @@ test('light sessions view edge coverage handles empty and compact device history
         && overlay?.querySelectorAll('.sun-session').length === 0;
       overlay?.remove();
 
-      window.getSessions = () => [
-        { id: 'sun-only-a', startedAt: base - 60000, endedAt: base, durationMin: 10 },
-        { id: 'sun-active', startedAt: base + 1000, endedAt: null, durationMin: 0 },
-      ];
-      window.getDeviceSessions = () => [];
+      sessionsView.configureLightSessionsView({
+        getSessions: () => [
+          { id: 'sun-only-a', startedAt: base - 60000, endedAt: base, durationMin: 10 },
+          { id: 'sun-active', startedAt: base + 1000, endedAt: null, durationMin: 0 },
+        ],
+        getDeviceSessions: () => [],
+      });
       const sunOnlyHost = document.createElement('div');
       sunOnlyHost.innerHTML = sessionsView.renderUnifiedSessionsList();
       outcomes.sunOnlyInlineHasNoUnifiedClassOrShowMore = sunOnlyHost.querySelectorAll('.sun-session').length === 1
         && !sunOnlyHost.querySelector('.light-sessions-list-unified')
         && !sunOnlyHost.querySelector('.light-sessions-show-more');
 
-      window.getSessions = () => [];
-      window.getDevices = () => [{
-        id: 'panel-a',
-        brand: 'Panel <Co>',
-        model: 'Red & NIR',
-        modes: [
-          { id: 'red', label: 'Red only', default: true },
-          { id: 'nir', label: 'NIR boost' },
+      sessionsView.configureLightSessionsView({
+        getSessions: () => [],
+        getDevices: () => [{
+          id: 'panel-a',
+          brand: 'Panel <Co>',
+          model: 'Red & NIR',
+          modes: [
+            { id: 'red', label: 'Red only', default: true },
+            { id: 'nir', label: 'NIR boost' },
+          ],
+        }],
+        getDeviceSessions: () => [
+          {
+            id: 'dev-nir',
+            deviceId: 'panel-a',
+            startedAt: base,
+            endedAt: base + 60000,
+            durationMin: 9.6,
+            distanceCm: 18,
+            bodyArea: 'hands',
+            eyesProtected: true,
+            doses: { pbm_red: 0, pbm_nir: 4.2 },
+            mode: 'nir',
+          },
+          {
+            id: 'dev-removed',
+            deviceId: 'missing-panel',
+            startedAt: base - 60000,
+            endedAt: base,
+            durationMin: 0,
+            distanceCm: 30,
+            bodyArea: '',
+            eyesProtected: false,
+            doses: {},
+          },
+          { id: 'dev-active', deviceId: 'panel-a', startedAt: base + 1000, endedAt: null },
         ],
-      }];
-      window.getDeviceSessions = () => [
-        {
-          id: 'dev-nir',
-          deviceId: 'panel-a',
-          startedAt: base,
-          endedAt: base + 60000,
-          durationMin: 9.6,
-          distanceCm: 18,
-          bodyArea: 'hands',
-          eyesProtected: true,
-          doses: { pbm_red: 0, pbm_nir: 4.2 },
-          mode: 'nir',
-        },
-        {
-          id: 'dev-removed',
-          deviceId: 'missing-panel',
-          startedAt: base - 60000,
-          endedAt: base,
-          durationMin: 0,
-          distanceCm: 30,
-          bodyArea: '',
-          eyesProtected: false,
-          doses: {},
-        },
-        { id: 'dev-active', deviceId: 'panel-a', startedAt: base + 1000, endedAt: null },
-      ];
+      });
       const mixedHost = document.createElement('div');
       mixedHost.innerHTML = sessionsView.renderUnifiedSessionsList();
       sessionsView.installLightSessionsActionDelegates(mixedHost);
@@ -132,7 +138,7 @@ test('light sessions view edge coverage handles empty and compact device history
       outcomes.modalEnterClosesAfterOpeningDetail = !document.body.contains(overlay)
         && calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length === detailCallsBeforeModalEnter + 1;
     } finally {
-      Object.assign(window, saved);
+      resetDeps();
       document.querySelectorAll('.light-sessions-modal-overlay').forEach(el => el.remove());
     }
 

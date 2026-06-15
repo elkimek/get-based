@@ -9,6 +9,51 @@ const LIGHT_SESSION_ID_ATTR = 'data-light-session-id';
 const LIGHT_SESSIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightSessionsActionDelegatesInstalled');
 const lightSessionsActionDelegateRoots = new WeakSet();
 
+/**
+ * @typedef {object} LightSessionsViewDeps
+ * @property {() => any[]} getSessions
+ * @property {() => any[]} getDeviceSessions
+ * @property {() => any[]} getDevices
+ * @property {(sess: any) => string} renderSunSessionRow
+ * @property {(sess: any) => string} renderDeviceSessionAIInline
+ * @property {(id: string) => void | Promise<any>} openDeviceSessionDetail
+ * @property {(id: string) => void | Promise<any>} deleteDeviceSession
+ * @property {Record<string, any>} channelDisplay
+ * @property {(value: number, key: string) => number} channelTier
+ * @property {(key: string, value: number, durationMin?: number, fitzpatrick?: string, uvi?: any, zenith?: any, rotatedSides?: boolean, bodyFraction?: any) => string} formatChannelUnit
+ * @property {(type: string, listener: EventListener) => void} addEventListener
+ * @property {(type: string, listener: EventListener) => void} removeEventListener
+ */
+
+/** @type {LightSessionsViewDeps} */
+const viewDeps = {
+  getSessions: () => [],
+  getDeviceSessions: () => [],
+  getDevices: () => [],
+  renderSunSessionRow: () => '',
+  renderDeviceSessionAIInline: () => '',
+  openDeviceSessionDetail: () => {},
+  deleteDeviceSession: () => {},
+  channelDisplay: {},
+  channelTier: () => 0,
+  formatChannelUnit: () => '',
+  addEventListener: (type, listener) => {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
+      globalThis.addEventListener(type, listener);
+    }
+  },
+  removeEventListener: (type, listener) => {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.removeEventListener === 'function') {
+      globalThis.removeEventListener(type, listener);
+    }
+  },
+};
+
+/** @param {Partial<LightSessionsViewDeps>} [deps] */
+export function configureLightSessionsView(deps = {}) {
+  Object.assign(viewDeps, deps);
+}
+
 function closestLightSessionsAction(target) {
   if (!target || !target.closest) return null;
   return target.closest(`[${LIGHT_SESSIONS_ACTION_ATTR}]`);
@@ -19,15 +64,14 @@ function handleLightSessionsActionClick(event) {
   if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_SESSIONS_ACTION_ATTR);
   const sessionId = actionEl.getAttribute(LIGHT_SESSION_ID_ATTR) || '';
-  const appWindow = /** @type {any} */ (window);
   if (action === 'open-device-session') {
-    if (sessionId) appWindow.openDeviceSessionDetail?.(sessionId);
+    if (sessionId) viewDeps.openDeviceSessionDetail(sessionId);
     event.stopPropagation();
     return;
   }
   if (action === 'delete-device-session') {
     event.stopPropagation();
-    if (sessionId) appWindow.deleteDeviceSession?.(sessionId);
+    if (sessionId) viewDeps.deleteDeviceSession(sessionId);
     return;
   }
   if (action === 'show-all') {
@@ -71,10 +115,10 @@ function _collectUnifiedSessionRows() {
   // Active sun session is pinned at the top of the page (showLight
   // renders it before the quicklog row), so filter it out of the
   // historical-sessions list to avoid the same row appearing twice.
-  const sunSessions = ((window.getSessions && window.getSessions()) || []).filter(s => !!s.endedAt);
+  const sunSessions = viewDeps.getSessions().filter(s => !!s.endedAt);
   // Active device sessions are pinned above (renderActiveDeviceSessionCard);
   // filter them out here so the same row doesn't render twice.
-  const devSessions = ((window.getDeviceSessions && window.getDeviceSessions()) || []).filter(s => !!s.endedAt);
+  const devSessions = viewDeps.getDeviceSessions().filter(s => !!s.endedAt);
   const rows = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
   for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
@@ -84,9 +128,9 @@ function _collectUnifiedSessionRows() {
 
 function _renderLightSessionChannelChips(doses, durationMin = 0) {
   if (!doses) return '';
-  const ch = window.CHANNEL_DISPLAY || {};
-  const tier = window.channelTier || (() => 0);
-  const formatUnit = window.formatChannelUnit || (() => '');
+  const ch = viewDeps.channelDisplay || {};
+  const tier = viewDeps.channelTier;
+  const formatUnit = viewDeps.formatChannelUnit;
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
   const ranked = order
     .map(key => ({ key, v: doses[key] || 0, tier: tier(doses[key] || 0, key) }))
@@ -109,9 +153,9 @@ function _renderLightSessionChannelChips(doses, durationMin = 0) {
 }
 
 function _renderSessionRowsHTML(rows) {
-  const devices = (window.getDevices && window.getDevices()) || [];
+  const devices = viewDeps.getDevices();
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
-  const renderSunRow = window.renderSunSessionRow;
+  const renderSunRow = viewDeps.renderSunSessionRow;
   let html = '';
   for (const row of rows) {
     if (row.kind === 'sun' && renderSunRow) {
@@ -152,7 +196,7 @@ function _renderSessionRowsHTML(rows) {
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>
         ${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}
-        ${window.renderDeviceSessionAIInline ? window.renderDeviceSessionAIInline(sess) : ''}
+        ${viewDeps.renderDeviceSessionAIInline(sess)}
       </div>`;
     }
   }
@@ -242,9 +286,9 @@ export function _openAllSessionsModal() {
   };
   _detach = () => {
     detachSyncRefresh();
-    window.removeEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
+    viewDeps.removeEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
   };
-  window.addEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
+  viewDeps.addEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
   const eventElement = (target) => {
     if (!target) return null;
     if (target.closest) return target;

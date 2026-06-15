@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
+const appLightSunModulesSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
 const chatImagesSrc = fs.readFileSync(path.join(root, 'js/chat-images.js'), 'utf8');
 const chatSummariesSrc = fs.readFileSync(path.join(root, 'js/chat-summaries.js'), 'utf8');
@@ -24,6 +25,7 @@ const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-dev
 const lightDeviceSetupModalSrc = fs.readFileSync(path.join(root, 'js/light-device-setup-modal.js'), 'utf8');
 const lightDevicesSrc = fs.readFileSync(path.join(root, 'js/light-devices.js'), 'utf8');
 const lightEnvSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const lightSessionsViewHooksSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view-hooks.js'), 'utf8');
 const lightSessionsViewSrc = fs.readFileSync(path.join(root, 'js/light-sessions-view.js'), 'utf8');
 const lightToolCameraModalsSrc = fs.readFileSync(path.join(root, 'js/light-tool-camera-modals.js'), 'utf8');
 const lightToolsSrc = fs.readFileSync(path.join(root, 'js/light-tools.js'), 'utf8');
@@ -40,6 +42,7 @@ const recommendationActionsSrc = fs.readFileSync(path.join(root, 'js/recommendat
 const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.js'), 'utf8');
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
+const serviceWorkerSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
 const sunActiveSessionSrc = fs.readFileSync(path.join(root, 'js/sun-active-session.js'), 'utf8');
@@ -291,6 +294,16 @@ assert('light device and session modals use shared overlay lifecycle helpers',
         !src.includes('overlay.remove()') &&
         !src.includes('wireBackdropClose') &&
         !src.includes('trapModalFocus')));
+
+assert('light sessions view runtime dependencies are startup-wired',
+  lightSessionsViewSrc.includes('export function configureLightSessionsView') &&
+    !lightSessionsViewSrc.includes('window.') &&
+    lightDevicesSrc.includes('export async function deleteDeviceSessionWithConfirm') &&
+    lightSessionsViewHooksSrc.includes("import { CHANNEL_DISPLAY, channelTier, formatChannelUnit, getSessions } from './sun.js';") &&
+    lightSessionsViewHooksSrc.includes("import { deleteDeviceSessionWithConfirm, openDeviceSessionDetail } from './light-devices.js';") &&
+    lightSessionsViewHooksSrc.includes('configureLightSessionsView({') &&
+    appLightSunModulesSrc.includes("import './light-sessions-view-hooks.js';") &&
+    serviceWorkerSrc.includes("'/js/light-sessions-view-hooks.js'"));
 
 assert('sun session and setup modals use shared overlay lifecycle helpers',
   sunSrc.includes('openAppendedModalOverlay') &&
