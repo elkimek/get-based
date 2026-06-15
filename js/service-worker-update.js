@@ -66,8 +66,7 @@ export function showVersionUpdateBanner(registration) {
     banner.setAttribute('aria-live', 'polite');
     banner.innerHTML = `
       <div class="version-update-body">
-        <span class="version-update-copy version-update-copy-long"><strong>New version available.</strong> Update when you are ready.</span>
-        <span class="version-update-copy version-update-copy-short"><strong>Update available.</strong></span>
+        <span class="version-update-copy"><strong>New version available.</strong> Update when you are ready.</span>
       </div>
       <div class="version-update-actions">
         <button type="button" class="version-update-btn version-update-btn-primary" ${UPDATE_ACTION_ATTR}="apply">Update</button>
@@ -84,19 +83,16 @@ export function showVersionUpdateBanner(registration) {
 }
 
 function renderVersionUpdateBanner(banner) {
-  const longCopy = banner.querySelector('.version-update-copy-long');
-  const shortCopy = banner.querySelector('.version-update-copy-short');
+  const copy = banner.querySelector('.version-update-copy');
   const primaryButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="apply"]`);
   if (reloadAvailable) {
-    if (longCopy) longCopy.innerHTML = '<strong>New version installed.</strong> Reload when you are ready.';
-    if (shortCopy) shortCopy.innerHTML = '<strong>Reload available.</strong>';
+    if (copy) copy.innerHTML = '<strong>New version installed.</strong> Reload when you are ready.';
     if (primaryButton) primaryButton.textContent = 'Reload';
     banner.setAttribute('aria-label', 'App update ready to reload');
     return;
   }
 
-  if (longCopy) longCopy.innerHTML = '<strong>New version available.</strong> Update when you are ready.';
-  if (shortCopy) shortCopy.innerHTML = '<strong>Update available.</strong>';
+  if (copy) copy.innerHTML = '<strong>New version available.</strong> Update when you are ready.';
   if (primaryButton) primaryButton.textContent = 'Update';
   banner.setAttribute('aria-label', 'App update available');
 }
