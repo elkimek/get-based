@@ -53,9 +53,6 @@ function getEMFSummary() {
 export function renderEMFAssessmentLauncher({ inModal = false, surface = 'environment-editor' } = {}) {
   const assessments = getEMFAssessments();
   const hasAssessments = assessments.length > 0;
-  const action = inModal
-    ? 'window.closeModal&&window.closeModal();setTimeout(()=>window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor(),100)'
-    : 'window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor()';
   const summary = hasAssessments
     ? getEMFSummary()
     : 'Room-by-room Baubiologie workflow with readings, photos, comparison, and AI interpretation.';
@@ -64,7 +61,7 @@ export function renderEMFAssessmentLauncher({ inModal = false, surface = 'enviro
     : 'Environment tool';
   const title = hasAssessments ? 'Open EMF assessment' : 'Start EMF assessment';
   const cta = hasAssessments ? 'Open' : 'Start';
-  return `<button type="button" class="ctx-emf-launcher${hasAssessments ? ' has-data' : ''}" onclick="${escapeAttr(action)}" data-umami-event="${escapeAttr('emf-launcher-' + surface)}">
+  return `<button type="button" class="ctx-emf-launcher${hasAssessments ? ' has-data' : ''}" data-context-card-action="open-emf-assessment" data-context-card-close-modal="${inModal ? 'true' : 'false'}" data-umami-event="${escapeAttr('emf-launcher-' + surface)}">
     <span class="ctx-emf-launcher-mark" aria-hidden="true">EMF</span>
     <span class="ctx-emf-launcher-copy">
       <span class="ctx-emf-launcher-kicker">${escapeHTML(kicker)}</span>

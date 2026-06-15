@@ -100,7 +100,11 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         && host.textContent.includes('query rewriting on')
         && !lensHtml.includes('Dr <Lens>')
         && !lensHtml.includes('Research <Vault>')
-        && host.querySelectorAll('.lens-section').length === 2;
+        && host.querySelectorAll('.lens-section').length === 2
+        && host.querySelector('[data-dashboard-ai-action="open-interpretive-lens"]')
+        && host.querySelector('[data-dashboard-ai-action="open-knowledge-base"]')
+        && !host.innerHTML.includes('onclick=')
+        && !host.innerHTML.includes('onkeydown=');
       outcomes.renderInterpretiveLensHidesPersonalizeCtaWhenConfigured =
         !host.textContent.includes('Personalize how AI answers');
       outcomes.renderInterpretiveLensIncludesDataProtectionCta =
@@ -154,10 +158,28 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       };
       outcomes.renderDataProtectionCtaCoversStatusMatrix = ctaCases.allProtected === ''
         && ctaCases.encryptionOnly.includes('Enable encryption')
+        && ctaCases.encryptionOnly.includes('data-dashboard-ai-action="enable-encryption"')
         && ctaCases.syncOnly.includes('Sync to other devices')
+        && ctaCases.syncOnly.includes('data-dashboard-ai-action="setup-sync"')
         && ctaCases.backupOnly.includes('Set up auto-backup')
+        && ctaCases.backupOnly.includes('data-dashboard-ai-action="setup-backup"')
         && ctaCases.backupUnsupported === ''
-        && ctaCases.multipleMissing.includes('Protect your data');
+        && ctaCases.multipleMissing.includes('Protect your data')
+        && ctaCases.multipleMissing.includes('data-dashboard-ai-action="open-data-protection-picker"')
+        && !Object.values(ctaCases).some(html => html.includes('onclick='));
+
+      host.innerHTML = ctaCases.encryptionOnly + ctaCases.syncOnly + ctaCases.backupOnly + ctaCases.multipleMissing;
+      host.querySelector('[data-dashboard-ai-action="enable-encryption"]')?.click();
+      host.querySelector('[data-dashboard-ai-action="setup-sync"]')?.click();
+      host.querySelector('[data-dashboard-ai-action="setup-backup"]')?.click();
+      host.querySelector('[data-dashboard-ai-action="open-data-protection-picker"]')?.click();
+      await Promise.resolve();
+      outcomes.dashboardAiDelegatedCtasRouteClicks =
+        calls.includes('encryption')
+        && calls.includes('sync')
+        && calls.includes('backup')
+        && !!document.querySelector('#data-protection-picker-overlay.show');
+      document.querySelector('#data-protection-picker-overlay')?.remove();
 
       const clickPickerCard = async (openPicker, selector) => {
         openPicker();

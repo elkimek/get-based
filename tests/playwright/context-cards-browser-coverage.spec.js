@@ -89,12 +89,17 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
 
       host.innerHTML = cards.renderProfileContextCards();
+      outcomes.profileContextCardsUseDelegatedActions =
+        !!host.querySelector('[data-context-card-action="refresh-all-health-dots"], [data-context-card-action="open-editor"]')
+        && !!host.querySelector('#ctx-notes-textarea[data-context-card-action="context-notes-input"]')
+        && !host.innerHTML.includes('onclick=')
+        && !host.innerHTML.includes('oninput=');
       const notes = document.getElementById('ctx-notes-textarea');
       notes.value = 'Extra context for AI';
-      cards.debounceContextNotes();
+      notes.dispatchEvent(new InputEvent('input', { bubbles: true }));
       await waitFor(() => state.importedData.contextNotes === 'Extra context for AI'
         && (state.importedData.changeHistory || []).some(entry => entry.field === 'contextNotes'));
-      outcomes.debounceContextNotesPersistsAndRecordsChange = state.importedData.contextNotes === 'Extra context for AI'
+      outcomes.delegatedContextNotesPersistsAndRecordsChange = state.importedData.contextNotes === 'Extra context for AI'
         && (state.importedData.changeHistory || []).some(entry => entry.field === 'contextNotes');
 
       details = document.createElement('details');

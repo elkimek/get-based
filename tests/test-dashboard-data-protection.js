@@ -59,35 +59,36 @@ const make = (overrides) => ({
 {
   const html = cards.renderDataProtectionCta(make({ encryption: false, sync: true, backup: true }));
   assert('only encryption missing: direct CTA',
-    /Enable encryption/.test(html) && /showEnableEncryptionModal/.test(html));
+    /Enable encryption/.test(html) && /data-dashboard-ai-action="enable-encryption"/.test(html));
   assert('direct CTA does NOT open picker',
-    !/openDataProtectionPicker/.test(html));
+    !/data-dashboard-ai-action="open-data-protection-picker"/.test(html));
 }
 {
   const html = cards.renderDataProtectionCta(make({ encryption: true, sync: false, backup: true }));
   assert('only sync missing: direct Sync to other devices CTA',
-    /Sync to other devices/.test(html) && /showSyncSetupModal/.test(html));
+    /Sync to other devices/.test(html) && /data-dashboard-ai-action="setup-sync"/.test(html));
 }
 {
   const html = cards.renderDataProtectionCta(make({ encryption: true, sync: true, backup: false }));
   assert('only backup missing: direct Set up auto-backup CTA',
-    /Set up auto-backup/.test(html) && /pickFolderForBackup/.test(html));
+    /Set up auto-backup/.test(html) && /data-dashboard-ai-action="setup-backup"/.test(html));
 }
 
 // ─── 4. Two missing → generic picker CTA ─────────────────
 {
   const html = cards.renderDataProtectionCta(make({ encryption: false, sync: false, backup: true }));
   assert('two missing: generic Protect your data CTA',
-    /Protect your data/.test(html) && /openDataProtectionPicker/.test(html));
+    /Protect your data/.test(html) && /data-dashboard-ai-action="open-data-protection-picker"/.test(html));
   assert('two missing: NOT a feature-specific direct CTA',
-    !/onclick="showEnableEncryptionModal\(\)"/.test(html) && !/onclick="showSyncSetupModal\(\)"/.test(html));
+    !/data-dashboard-ai-action="enable-encryption"/.test(html) && !/data-dashboard-ai-action="setup-sync"/.test(html));
 }
 
 // ─── 5. All missing → picker CTA ─────────────────────────
 {
   const html = cards.renderDataProtectionCta(make({ encryption: false, sync: false, backup: false }));
   assert('all missing: picker CTA renders',
-    /Protect your data/.test(html) && /openDataProtectionPicker/.test(html));
+    /Protect your data/.test(html) && /data-dashboard-ai-action="open-data-protection-picker"/.test(html));
+  assert('data protection CTA renders without inline handlers', !/on(click|keydown)=/.test(html));
 }
 
 // Section 6 (picker open/dismiss — live DOM) lives in

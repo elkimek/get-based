@@ -160,6 +160,9 @@ assert('45h. Environment context card counts saved EMF assessments',
   contextCardSummariesSrc.includes("key === 'environment'") && contextCardSummariesSrc.includes('getEMFAssessments().length > 0'));
 assert('45i. Environment editor uses the EMF assessment launcher',
   contextCardLifestyleEditorsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardSummariesSrc.includes('ctx-emf-launcher'));
+assert('45i2. EMF assessment launcher uses delegated context-card action',
+  contextCardSummariesSrc.includes('data-context-card-action="open-emf-assessment"') &&
+  !contextCardSummariesSrc.includes('onclick="${escapeAttr(action)}"'));
 assert('45j. EMF launcher has dedicated context CSS',
   contextProfileCss.includes('.ctx-emf-launcher') &&
   contextProfileCss.includes('.ctx-emf-launcher-action') &&

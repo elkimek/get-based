@@ -86,7 +86,7 @@ try {
       !/lens-section-label[^>]*>Knowledge Base/.test(html));
     assert('both unset: CTA pill present', html.includes('dashboard-cta'));
     assert('both unset: picker opener wired',
-      html.includes('openPersonalizeAIPicker()'));
+      html.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
     assert('both unset: generic copy used',
       /Personalize how AI answers/i.test(html));
   }
@@ -102,11 +102,11 @@ try {
     assert('only lens: KB row absent',
       !/lens-section-label[^>]*>Knowledge Base/.test(html));
     assert('only lens: CTA opens KB modal directly',
-      html.includes('dashboard-cta') && html.includes('openKnowledgeBaseModal()'));
+      html.includes('dashboard-cta') && html.includes('data-dashboard-ai-action="open-knowledge-base"'));
     assert('only lens: CTA copy is KB-specific',
       /Connect a knowledge base/i.test(html));
     assert('only lens: CTA does NOT open picker',
-      !html.includes('openPersonalizeAIPicker()'));
+      !html.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
   }
 
   // ─── 3. Only KB set → Lens-direct CTA ───
@@ -122,7 +122,7 @@ try {
     assert('only KB: KB row present', /lens-section-label[^>]*>Knowledge Base/.test(html));
     assert('only KB: KB row shows library name', html.includes('Research Notes'));
     assert('only KB: CTA opens lens editor directly',
-      html.includes('dashboard-cta') && html.includes('openInterpretiveLensEditor()'));
+      html.includes('dashboard-cta') && html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
     assert('only KB: CTA copy is lens-specific',
       /Set an interpretive lens/i.test(html));
   }
@@ -140,8 +140,12 @@ try {
     assert('both set: KB row present',
       /lens-section-label[^>]*>Knowledge Base/.test(html));
     assert('both set: AI-personalize CTA absent',
-      !html.includes('openPersonalizeAIPicker') &&
-      !/dashboard-cta[^>]*onclick="openKnowledgeBaseModal/.test(html));
+      !html.includes('data-dashboard-ai-action="open-personalize-ai-picker"') &&
+      !/dashboard-cta[^>]*data-dashboard-ai-action="open-knowledge-base"/.test(html));
+    assert('both set: lens and KB rows use delegated actions',
+      !/on(click|keydown)=/.test(html) &&
+      html.includes('data-dashboard-ai-action="open-interpretive-lens"') &&
+      html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
   // Section 5 (picker open/dismiss — live DOM) lives in
