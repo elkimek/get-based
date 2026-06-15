@@ -6,10 +6,31 @@ import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTr
 import { getChartColors } from './theme.js';
 import { ensureChartJs } from './charts.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
+import { markerDetailActionAttrs } from './marker-detail-actions.js';
+
+const categoryRendererDelegateRoots = new WeakSet();
+
+function handleTableScrollSync(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const scrollEl = /** @type {HTMLElement | null} */ (target.closest('[data-gb-table-scroll-sync]'));
+  if (!scrollEl || !event.currentTarget?.contains?.(scrollEl)) return;
+  const shell = /** @type {HTMLElement | null} */ (scrollEl.closest('.gb-table-shell'));
+  shell?.style.setProperty('--gb-table-scroll-x', `${scrollEl.scrollLeft}px`);
+}
+
+export function installCategoryRendererDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || categoryRendererDelegateRoots.has(root)) return;
+  categoryRendererDelegateRoots.add(root);
+  root.addEventListener('scroll', handleTableScrollSync, { capture: true, passive: true });
+}
+
+if (typeof document !== 'undefined') installCategoryRendererDelegates();
 
 export function renderChartCard(id, marker, dateLabels) {
-  // id is interpolated into onclick handlers and DOM ids below. Single
-  // chokepoint guard for every caller (dashboard, showCategory, switchView).
+  // id is interpolated into delegated data attributes and DOM ids below.
+  // Single chokepoint guard for every caller (dashboard, showCategory,
+  // switchView).
   if (!safeMarkerId(id)) return '';
   state.markerRegistry[id] = marker;
   const latestIdx = getLatestValueIndex(marker.values);
@@ -36,7 +57,7 @@ export function renderChartCard(id, marker, dateLabels) {
     ? `${latestDateLabel}${latestUnit ? ' · ' + latestUnit : ''}`
     : 'Add a value to start the trend';
 
-  let html = `<div class="chart-card chart-card-${status}" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" onclick="showDetailModal('${id}')">
+  let html = `<div class="chart-card chart-card-${status}" role="button" tabindex="0" aria-label="${escapeAttr(markerName + ' - ' + statusLabel)}" ${markerDetailActionAttrs('show-detail-modal', { id })}>
     <div class="chart-card-header">
       <div class="chart-card-title-block">
         <div class="chart-card-title" title="${escapeAttr(markerName)}">
@@ -99,14 +120,13 @@ export function renderTableColgroup(cols) {
 
 export function renderScrollableTableShell(kind, wrapperClass, tableClass, colgroup, headHtml, bodyHtml, minWidth) {
   const shellClass = `gb-table-shell gb-table-shell-${kind}`;
-  const syncScroll = "this.parentElement&&this.parentElement.style.setProperty('--gb-table-scroll-x',this.scrollLeft+'px')";
   return `<div class="${shellClass}" style="--gb-table-min-width:${Math.max(660, Math.round(minWidth))}px">
     <div class="gb-table-sticky-head" aria-hidden="true">
       <div class="gb-table-sticky-head-scroll">
         <table class="${tableClass}">${colgroup}<thead>${headHtml}</thead></table>
       </div>
     </div>
-    <div class="${wrapperClass}" onscroll="${syncScroll}">
+    <div class="${wrapperClass}" data-gb-table-scroll-sync>
       <table class="${tableClass}">${colgroup}<thead>${headHtml}</thead><tbody>${bodyHtml}</tbody></table>
     </div>
   </div>`;
@@ -144,7 +164,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
     if (state.rangeMode === 'both') {
       if (marker.optimalMin != null || marker.optimalMax != null) refCell = `${formatValue(marker.refMin)} – ${formatValue(marker.refMax)}<br><span style="color:var(--green);font-size:11px">opt: ${formatValue(marker.optimalMin)} – ${formatValue(marker.optimalMax)}</span>`;
     }
-    const rowClick = id ? ` onclick="showDetailModal('${id}')" style="cursor:pointer"` : '';
+    const rowClick = id ? ` ${markerDetailActionAttrs('show-detail-modal', { id })} style="cursor:pointer"` : '';
     bodyHtml += `<tr${rowClick}><td class="marker-name">${escapeHTML(marker.name)}</td>
       <td class="unit-col">${escapeHTML(marker.unit)}</td>
       <td class="ref-col">${refCell}</td>`;
@@ -155,14 +175,8 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       // Empty cells: click → add a value for THIS column's date (not today).
       // Skip for singleDate categories where the "date" is a synthetic label.
       const colDate = (dates && !cat.singleDate) ? dates[i] : null;
-      // JSON.stringify + escapeHTML so the interpolated values survive
-      // the HTML-attribute → JS-string-literal round-trip even if they
-      // ever contain quotes or HTML meta-chars (CodeQL js/xss-through-dom).
-      // Same trick as filterConditionSuggestions for apostrophe-bearing
-      // condition names — defense in depth on top of the marker-key /
-      // ISO-date validators upstream.
       const emptyClick = (v === null && id && colDate)
-        ? ` onclick="event.stopPropagation();openManualEntryForm(${escapeHTML(JSON.stringify(id))},${escapeHTML(JSON.stringify(colDate))})" style="cursor:cell" title="Add value for ${dateLabels[i] || escapeHTML(colDate)}"`
+        ? ` ${markerDetailActionAttrs('open-manual-entry', { id, date: colDate })} style="cursor:cell" title="Add value for ${dateLabels[i] || escapeHTML(colDate)}"`
         : '';
       bodyHtml += `<td class="value-cell val-${s}"${emptyClick}>${v !== null ? formatValue(v) : "—"}</td>`;
     }
@@ -203,13 +217,13 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
   for (const [key, marker] of markerEntries) {
     const id = categoryKey + "_" + key;
     state.markerRegistry[id] = marker;
-    bodyHtml += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" onclick="showDetailModal('${id}')">${escapeHTML(marker.name)}</td>`;
+    bodyHtml += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" ${markerDetailActionAttrs('show-detail-modal', { id })}>${escapeHTML(marker.name)}</td>`;
     for (let i = 0; i < marker.values.length; i++) {
       const v = marker.values[i];
       const ri = getEffectiveRangeForDate(marker, i);
       const s = v !== null ? getStatus(v, ri.min, ri.max) : "missing";
       const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${v !== null ? formatValue(v) : 'no value'}`;
-      bodyHtml += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" onclick="showDetailModal('${id}')">${v !== null ? formatValue(v) : "—"}</td>`;
+      bodyHtml += `<td class="heatmap-${s}" role="button" tabindex="0" aria-label="${cellLabel}" ${markerDetailActionAttrs('show-detail-modal', { id })}>${v !== null ? formatValue(v) : "—"}</td>`;
     }
     bodyHtml += `</tr>`;
   }
@@ -218,7 +232,7 @@ export function renderHeatmapView(cat, dateLabels, dates, categoryKey) {
 }
 
 export function renderFattyAcidsView(cat, categoryKey) {
-  // categoryKey + per-marker key flow into inline-onclick handlers below.
+  // categoryKey + per-marker key flow into delegated data attributes below.
   if (!safeMarkerId(categoryKey)) return '';
   let html = `<div style="background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--border)">
     <h3 style="margin-bottom:16px;font-size:16px">Fatty Acid Profile${cat.singleDate ? ' — ' + new Date(cat.singleDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''}</h3>
@@ -236,7 +250,7 @@ export function renderFattyAcidsView(cat, categoryKey) {
       const rangeLabel = state.rangeMode === 'optimal' && (marker.optimalMin != null || marker.optimalMax != null) ? 'Optimal' : 'Ref';
       faRangeText = `${rangeLabel}: ${formatValue(r.min)} – ${formatValue(r.max)}`;
     }
-    html += `<div class="fa-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} ${formatValue(v)}${marker.unit ? ' ' + escapeHTML(marker.unit) : ''}" onclick="showDetailModal('${categoryKey}_${key}')" style="cursor:pointer"><div class="fa-card-name">${escapeHTML(marker.name)}</div>
+    html += `<div class="fa-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} ${formatValue(v)}${marker.unit ? ' ' + escapeHTML(marker.unit) : ''}" ${markerDetailActionAttrs('show-detail-modal', { id: categoryKey + '_' + key })} style="cursor:pointer"><div class="fa-card-name">${escapeHTML(marker.name)}</div>
       <div class="fa-card-value val-${s}">${formatValue(v)}${marker.unit ? " " + escapeHTML(marker.unit) : ""}</div>
       <div class="fa-card-ref">${faRangeText}</div>
       <div class="range-bar" style="margin-top:8px;width:100%"><div class="range-bar-fill" style="left:0;width:100%"></div>

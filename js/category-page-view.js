@@ -2,7 +2,7 @@
 // category-page-view.js — category route orchestration and view-mode switching
 
 import { state } from './state.js';
-import { escapeHTML, getStatus, safeMarkerId } from './utils.js';
+import { escapeAttr, escapeHTML, getStatus, safeMarkerId } from './utils.js';
 import {
   getActiveData,
   filterDatesByRange,
@@ -21,6 +21,69 @@ import {
   renderFattyAcidsView,
   renderFattyAcidsCharts,
 } from './category-view-renderers.js';
+import { markerDetailActionAttrs } from './marker-detail-actions.js';
+
+const categoryPageActionDelegateRoots = new WeakSet();
+
+const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
+const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
+const appWindow = /** @type {Window & typeof globalThis & {
+  renameCategory?: (categoryKey: string) => void,
+}} */ (typeof window !== 'undefined' ? window : {});
+
+function categoryPageActionAttrs(action, attrs = {}) {
+  let html = `${CATEGORY_PAGE_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-category-page-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestCategoryPageAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(CATEGORY_PAGE_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleCategoryPageActionClick(event) {
+  const actionEl = closestCategoryPageAction(event.target);
+  if (!actionEl) return;
+  const action = actionEl.getAttribute(CATEGORY_PAGE_ACTION_ATTR);
+  const categoryKey = actionEl.dataset.categoryPageCategory || '';
+  if (!safeMarkerId(categoryKey)) return;
+  if (action === 'rename-category') {
+    appWindow.renameCategory?.(categoryKey);
+  } else if (action === 'switch-view') {
+    const view = actionEl.dataset.categoryPageView || '';
+    if (view !== 'charts' && view !== 'table' && view !== 'heatmap') return;
+    switchView(view, categoryKey, actionEl);
+  } else {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleCategoryPageActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestCategoryPageAction(event.target);
+  if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
+  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  handleCategoryPageActionClick(event);
+}
+
+export function installCategoryPageActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || categoryPageActionDelegateRoots.has(root)) return;
+  categoryPageActionDelegateRoots.add(root);
+  root.addEventListener('click', handleCategoryPageActionClick);
+  root.addEventListener('keydown', handleCategoryPageActionKeydown);
+}
+
+if (typeof document !== 'undefined') installCategoryPageActionDelegates();
 
 function markerHasData(m) { return m.values?.some(v => v !== null) ?? false; }
 
@@ -52,10 +115,9 @@ function sortCategoryChartEntries(entries, categoryKey) {
 }
 
 export function showCategory(categoryKey, preData) {
-  // categoryKey is interpolated into inline-onclick handlers below (rename,
-  // switchView, showDetailModal). Reject anything that doesn't
-  // match the strict allowlist so a poisoned customMarker key can't break
-  // out of the JS string context.
+  // categoryKey is interpolated into delegated data attributes below. Reject
+  // anything that doesn't match the strict allowlist so a poisoned
+  // customMarker key can't break out of the HTML attribute context.
   if (!safeMarkerId(categoryKey)) return;
   // Ensure catalog is preloaded for sorting and rec links
   if (window.loadCatalog && !window._cachedCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
@@ -66,15 +128,15 @@ export function showCategory(categoryKey, preData) {
   const allEntries = Object.entries(cat.markers).filter(([, m]) => !m.hidden);
   const withData = allEntries.filter(([, m]) => markerHasData(m));
   const countLabel = withData.length < allEntries.length ? `${withData.length} of ${allEntries.length} biomarkers with data` : `${allEntries.length} biomarkers tracked`;
-  const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" onclick="event.stopPropagation();renameCategory('${categoryKey}')" style="cursor:pointer;font-size:12px">rename</span>`;
+  const renameBtn = ` <span class="ref-edited-badge" role="button" tabindex="0" aria-label="Rename category" title="Rename category" ${categoryPageActionAttrs('rename-category', { category: categoryKey })} style="cursor:pointer;font-size:12px">rename</span>`;
   let html = `<div class="category-header"><h2>${renderCategoryGlyph(categoryKey, cat.label)}<span class="category-title-text">${escapeHTML(cat.label)}</span>${renameBtn}</h2>
     <p>${countLabel}</p></div>`;
 
   html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">`;
   html += `<div class="view-toggle" role="tablist" aria-label="View mode" style="margin-bottom:0">
-    <button class="view-btn active" role="tab" aria-selected="true" tabindex="0" onclick="switchView('charts','${categoryKey}',this)">Charts</button>
-    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" onclick="switchView('table','${categoryKey}',this)">Table</button>
-    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" onclick="switchView('heatmap','${categoryKey}',this)">Heatmap</button></div>`;
+    <button class="view-btn active" role="tab" aria-selected="true" tabindex="0" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'charts' })}>Charts</button>
+    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'table' })}>Table</button>
+    <button class="view-btn" role="tab" aria-selected="false" tabindex="-1" ${categoryPageActionAttrs('switch-view', { category: categoryKey, view: 'heatmap' })}>Heatmap</button></div>`;
   html += renderDateRangeFilter();
   html += renderChartLayersDropdown();
   html += `</div>`;
@@ -102,7 +164,7 @@ export function showCategory(categoryKey, preData) {
       for (const [key, marker] of noData) {
         if (!safeMarkerId(key)) continue;
         const id = categoryKey + '_' + key;
-        html += `<div class="chart-card" role="button" tabindex="0" aria-label="Add value for ${escapeHTML(marker.name)}" onclick="showDetailModal('${id}')" style="cursor:pointer;padding:12px 16px;min-height:auto;flex:0 0 auto">
+        html += `<div class="chart-card" role="button" tabindex="0" aria-label="Add value for ${escapeHTML(marker.name)}" ${markerDetailActionAttrs('show-detail-modal', { id })} style="cursor:pointer;padding:12px 16px;min-height:auto;flex:0 0 auto">
           <span style="color:var(--text-secondary)">${escapeHTML(marker.name)}</span>
           <span style="color:var(--text-muted);font-size:11px;margin-left:6px">+ add value</span></div>`;
       }
@@ -130,7 +192,7 @@ export function showCategory(categoryKey, preData) {
 }
 
 export function switchView(view, categoryKey, btn) {
-  // categoryKey reaches inline-onclick handlers via renderChartCard /
+  // categoryKey reaches delegated data attributes via renderChartCard /
   // renderFattyAcidsView / renderTableView / renderHeatmapView. Same
   // allowlist guard as showCategory.
   if (!safeMarkerId(categoryKey)) return;
@@ -152,8 +214,8 @@ export function switchView(view, categoryKey, btn) {
   // (js/xss-through-dom) doesn't trace sanitizers across function calls, so
   // even though renderTableView/renderHeatmapView re-escape internally,
   // escaping here closes the call-site taint flow. Date arrays stay raw
-  // because they're consumed by JSON.stringify in inline-onclick attrs
-  // (escapeHTML would double-escape the JSON literal).
+  // because renderers treat them as values and escape at the attribute/text
+  // boundary where needed.
   const safeLabels = Array.isArray(data.dateLabels) ? data.dateLabels.map(escapeHTML) : data.dateLabels;
   if (view === "table") {
     container.innerHTML = renderTableView(cat, safeLabels, categoryKey, data.dates);
