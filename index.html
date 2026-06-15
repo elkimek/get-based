@@ -276,6 +276,7 @@
   <div class="notification-container" id="notification-container" aria-live="polite" role="status"></div>
 
   <script src="version.js" defer></script>
+  <script type="module" src="js/service-worker-update.js"></script>
   <script type="module" src="js/main.js"></script>
   <script>
     // Cookieless Umami analytics — opt-out via Settings → Privacy. Skips on
@@ -296,46 +297,6 @@
       s.dataset.websiteId = '6272072c-97a9-47b0-99e7-c52e7a4ca481';
       document.head.appendChild(s);
     }
-  </script>
-  <script>
-  // Skip SW registration on dev hosts by default — even though the SW's fetch
-  // handler can handle same-origin localhost, WebKit's HTTP cache layer still
-  // serves stale module bytes after a normal F5 reload (no "hard reload" bypass
-  // exists in Tauri's webkit2gtk webview). Net effect: developer edits a JS
-  // file, dev-server returns the new bytes, but the Tauri window keeps running
-  // the old version forever until manual cache purge. Skipping registration
-  // here means normal dev mode is never SW-controlled. Use ?dev-sw=1 for an
-  // explicit local offline smoke test.
-  // Production hosts (anything not localhost / 127.0.0.1 / .local — Tauri
-  // bundled apps use https://tauri.localhost) get the normal registration.
-  var _isDevHost = location.hostname === 'localhost'
-                || location.hostname === '127.0.0.1'
-                || location.hostname.endsWith('.local');
-  var _allowDevSW = /(?:^|[?&])dev-sw=1(?:&|$)/.test(location.search);
-  if ('serviceWorker' in navigator && (!_isDevHost || _allowDevSW)) {
-    navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
-      // When a new SW takes over, reload to get fresh assets
-      var refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!refreshing) { refreshing = true; location.reload(); }
-      });
-    }).catch(function() {});
-  } else if ('serviceWorker' in navigator && _isDevHost) {
-    // Tauri dev windows that previously registered the SW (before this skip
-    // landed) have a controlling SW that intercepts our requests. Unregister
-    // it so future F5s actually fetch fresh JS from the dev server.
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      var changed = false;
-      regs.forEach(function(r) { r.unregister(); changed = true; });
-      if (changed) {
-        // Also nuke whatever the SW already cached. CacheStorage isn't
-        // governed by the SW lifecycle so it survives unregister.
-        if (window.caches && caches.keys) {
-          caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); });
-        }
-      }
-    }).catch(function() {});
-  }
   </script>
 </body>
 </html>

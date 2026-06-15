@@ -89,6 +89,7 @@ assert('SW imports version.js', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses template literal', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes version.js', swSrc.includes("'/version.js'"));
 assert('index.html loads version.js', indexSrc.includes('src="version.js"'));
+assert('index.html loads service worker update module', indexSrc.includes('src="js/service-worker-update.js"'));
 assert('modal-lifecycle.js exports overlay show/hide helpers',
   modalLifecycleSrc.includes('export function openModalOverlay')
     && modalLifecycleSrc.includes('export function closeModalOverlay'));
@@ -186,6 +187,7 @@ assert('No hasCardContent(lc)', !labCtxSrc.includes('hasCardContent(lc)'));
 console.log('9. Service Worker');
 
 assert('APP_SHELL includes /js/changelog.js', swSrc.includes('/js/changelog.js'));
+assert('APP_SHELL includes /js/service-worker-update.js', swSrc.includes('/js/service-worker-update.js'));
 
 // ═══════════════════════════════════════
 // 10. Changelog data integrity

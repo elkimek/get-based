@@ -64,6 +64,7 @@ const APP_SHELL = [
   '/css/redesign-shell.css',
   '/css/chat-redesign.css',
   '/themes-extra.css',
+  '/js/service-worker-update.js',
   '/js/main.js',
   '/js/shell-actions.js',
   '/js/app-feature-modules.js',
@@ -437,7 +438,21 @@ self.addEventListener('install', (event) => {
       caches.open(name).then((cache) => cache.addAll(APP_SHELL))
     )
   );
-  self.skipWaiting();
+});
+
+function isSameOriginMessage(event) {
+  try {
+    const origin = event.origin || (event.source?.url ? new URL(event.source.url).origin : '');
+    return origin === self.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
+    self.skipWaiting();
+  }
 });
 
 // Activate: delete old caches (any key that isn't this build's)
