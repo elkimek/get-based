@@ -298,10 +298,17 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       outcomes.bannerRendersProfileStep =
         !!host.querySelector('#onboarding-banner')
         && host.querySelector('.onboarding-title')?.textContent.includes('Set up your profile');
+      outcomes.bannerUsesDelegatedActions =
+        host.querySelector('.onboarding-sex-btn[data-onboarding-sex="female"]')?.getAttribute('data-onboarding-action') === 'set-sex'
+        && host.querySelector('.onboarding-save-btn')?.getAttribute('data-onboarding-action') === 'save-profile'
+        && host.querySelector('.onboarding-skip-btn')?.getAttribute('data-onboarding-action') === 'dismiss-profile'
+        && !host.querySelector('.onboarding-sex-btn')?.hasAttribute('onclick')
+        && !host.querySelector('.onboarding-save-btn')?.hasAttribute('onclick')
+        && !host.innerHTML.includes('onclick=');
 
-      onboarding.completeOnboardingSex('female');
+      host.querySelector('.onboarding-sex-btn[data-onboarding-sex="female"]')?.click();
       host.querySelector('#onboarding-dob').value = '1990-04-05';
-      onboarding.completeOnboardingProfile();
+      host.querySelector('.onboarding-save-btn')?.click();
       outcomes.profileSavePersistsAndNavigates =
         localStorage.getItem(onboardedKey) === 'profile-set'
         && state.profileSex === 'female'
@@ -316,7 +323,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       state.profileSex = null;
       state.profileDob = null;
       host.innerHTML = onboarding.renderOnboardingBanner();
-      onboarding.dismissOnboarding();
+      host.querySelector('.onboarding-skip-btn')?.click();
       outcomes.dismissOnboardingStoresChoiceAndAnimates =
         localStorage.getItem(onboardedKey) === 'dismissed'
         && host.querySelector('#onboarding-banner')?.style.opacity === '0';
@@ -332,13 +339,17 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       host.innerHTML = onboarding.renderAIConnectionReminder();
       outcomes.aiReminderRendersWhenProviderSkipped =
         !!host.querySelector('#ai-reminder-banner')
-        && host.querySelector('.ai-reminder-cta')?.textContent.includes('Connect now');
+        && host.querySelector('.ai-reminder-cta')?.textContent.includes('Connect now')
+        && host.querySelector('.ai-reminder-cta')?.getAttribute('data-onboarding-action') === 'open-provider-quiz'
+        && host.querySelector('.ai-reminder-dismiss')?.getAttribute('data-onboarding-action') === 'dismiss-ai-reminder'
+        && !host.querySelector('.ai-reminder-cta')?.hasAttribute('onclick')
+        && !host.innerHTML.includes('onclick=');
 
       window.openChatPanel = () => calls.push(['open-chat']);
       window.toggleChatPanel = () => calls.push(['toggle-chat']);
       window.renderChatMessages = () => calls.push(['render-chat']);
       sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, 'manual');
-      onboarding.openChatProviderQuiz();
+      host.querySelector('.ai-reminder-cta')?.click();
       outcomes.providerQuizClearsSkipAndOpensChat =
         localStorage.getItem(providerSkipKey) == null
         && sessionStorage.getItem(`chat-onboard-provider-requested-${state.currentProfile}`) === '1'
@@ -349,7 +360,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       localStorage.setItem(providerSkipKey, '1');
       localStorage.removeItem(reminderDismissKey);
       host.innerHTML = onboarding.renderAIConnectionReminder();
-      onboarding.dismissAIReminder();
+      host.querySelector('.ai-reminder-dismiss')?.click();
       outcomes.dismissAiReminderStoresDismissal =
         localStorage.getItem(reminderDismissKey) === '1'
         && host.querySelector('#ai-reminder-banner')?.style.opacity === '0';
@@ -430,6 +441,149 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
 
     return outcomes;
   }, { onboardingUrl: moduleUrl('/js/onboarding-view.js') });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('dashboard welcome hero uses delegated actions for chat import settings and demos', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#main-content', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ dashboardPageUrl }) => {
+    const [dashboardPage, { state }, profile, data] = await Promise.all([
+      import(dashboardPageUrl),
+      import('/js/state.js'),
+      import('/js/profile.js'),
+      import('/js/data.js'),
+    ]);
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const saved = {
+      importedData: clone(state.importedData),
+      currentProfile: state.currentProfile,
+      chatHistory: clone(state.chatHistory),
+      demoLoadingProfileId: window._demoLoadingProfileId,
+      openChatPanel: window.openChatPanel,
+      closeChatPanel: window.closeChatPanel,
+      openSettingsModal: window.openSettingsModal,
+      loadDemoData: window.loadDemoData,
+      startEmptyTour: window.startEmptyTour,
+      mainHtml: document.getElementById('main-content')?.innerHTML || '',
+    };
+    const calls = [];
+    const outcomes = {};
+    let hadPdfInput = false;
+
+    try {
+      state.currentProfile = 'dashboard-welcome-delegates';
+      state.importedData = profile.createDefaultProfileData();
+      state.chatHistory = [{ role: 'user', content: 'existing setup thread' }];
+      data.invalidateActiveDataCache();
+      delete window._demoLoadingProfileId;
+
+      localStorage.setItem(profile.profileStorageKey(state.currentProfile, 'emptyTour'), 'completed');
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ai-paused', 'false');
+
+      window.openChatPanel = () => calls.push(['open-chat']);
+      window.closeChatPanel = () => calls.push(['close-chat']);
+      window.openSettingsModal = tab => calls.push(['settings', tab]);
+      window.loadDemoData = sex => calls.push(['demo', sex]);
+      window.startEmptyTour = () => calls.push(['tour']);
+
+      let pdfInput = document.getElementById('pdf-input');
+      hadPdfInput = !!pdfInput;
+      if (!pdfInput) {
+        pdfInput = document.createElement('input');
+        pdfInput.id = 'pdf-input';
+        pdfInput.type = 'file';
+        pdfInput.hidden = true;
+        document.body.appendChild(pdfInput);
+      }
+      pdfInput.addEventListener('click', () => calls.push(['pdf-input']));
+
+      const view = dashboardPage.createDashboardPageView({
+        setupDropZone: () => calls.push(['setup-drop-zone']),
+        markerHasData: () => false,
+        buildDashboardWidgetContext: activeData => ({ data: activeData }),
+        getDashboardWidgetPrefs: () => ({}),
+        getVisibleDashboardWidgetEntries: () => [],
+        renderOnboardingBanner: () => '',
+        renderAIConnectionReminder: () => '',
+        renderDashboardStickyControls: () => '',
+        renderDashboardControlButtons: () => '',
+        renderDashboardWidget: () => '',
+        isDashboardOrganizeMode: () => false,
+        loadFocusCard: () => calls.push(['focus-card']),
+      });
+
+      view.showDashboard({ dates: [], categories: {} });
+      const main = document.getElementById('main-content');
+      const primary = main.querySelector('.welcome-action-primary');
+      const directImport = main.querySelector('.welcome-direct-import-btn');
+      const demoCards = main.querySelectorAll('.demo-card');
+
+      primary?.click();
+      directImport?.click();
+      demoCards[0]?.click();
+      demoCards[1]?.click();
+
+      outcomes.importReadyWelcomeActionsDelegate =
+        primary?.getAttribute('data-dashboard-welcome-action') === 'open-chat'
+        && directImport?.getAttribute('data-dashboard-welcome-action') === 'direct-import'
+        && demoCards[0]?.getAttribute('data-dashboard-welcome-action') === 'load-demo'
+        && demoCards[0]?.getAttribute('data-dashboard-welcome-demo') === 'female'
+        && demoCards[1]?.getAttribute('data-dashboard-welcome-demo') === 'male'
+        && calls.some(call => call[0] === 'open-chat')
+        && calls.some(call => call[0] === 'pdf-input')
+        && calls.some(call => call[0] === 'demo' && call[1] === 'female')
+        && calls.some(call => call[0] === 'demo' && call[1] === 'male')
+        && !primary?.hasAttribute('onclick')
+        && !directImport?.hasAttribute('onclick')
+        && !Array.from(demoCards).some(card => card.hasAttribute('onclick'))
+        && !main.innerHTML.includes('onclick=');
+
+      localStorage.setItem('labcharts-ai-paused', 'true');
+      view.showDashboard({ dates: [], categories: {} });
+      const reenable = main.querySelector('.welcome-action-btn:not(.welcome-action-primary)');
+      reenable?.click();
+      outcomes.pausedWelcomeActionDelegatesSettings =
+        reenable?.getAttribute('data-dashboard-welcome-action') === 'open-ai-settings'
+        && calls.some(call => call[0] === 'close-chat')
+        && calls.some(call => call[0] === 'settings' && call[1] === 'ai')
+        && !reenable?.hasAttribute('onclick')
+        && !main.innerHTML.includes('onclick=');
+    } finally {
+      const main = document.getElementById('main-content');
+      if (main) main.innerHTML = saved.mainHtml;
+      if (!hadPdfInput) document.getElementById('pdf-input')?.remove();
+      state.importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
+      state.chatHistory = saved.chatHistory;
+      data.invalidateActiveDataCache();
+      if (saved.demoLoadingProfileId === undefined) delete window._demoLoadingProfileId;
+      else window._demoLoadingProfileId = saved.demoLoadingProfileId;
+      Object.assign(window, {
+        openChatPanel: saved.openChatPanel,
+        closeChatPanel: saved.closeChatPanel,
+        openSettingsModal: saved.openSettingsModal,
+        loadDemoData: saved.loadDemoData,
+        startEmptyTour: saved.startEmptyTour,
+      });
+      document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
+      localStorage.clear();
+      for (const [key, value] of storage) {
+        if (key && value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    return outcomes;
+  }, { dashboardPageUrl: moduleUrl('/js/dashboard-page-view.js') });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);

@@ -5,9 +5,61 @@ import { state } from './state.js';
 import { getActiveData, updateHeaderDates } from './data.js';
 import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
 import { hasAIProvider } from './api.js';
-import { showNotification } from './utils.js';
+import { escapeAttr, showNotification } from './utils.js';
 
 let _navigate = null;
+let _onboardingActionsInstalled = false;
+
+const ONBOARDING_ACTION_ATTR = 'data-onboarding-action';
+const ONBOARDING_ACTION_SELECTOR = `[${ONBOARDING_ACTION_ATTR}]`;
+
+function onboardingActionAttrs(action, attrs = {}) {
+  let html = `${ONBOARDING_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-onboarding-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestOnboardingAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(ONBOARDING_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleOnboardingActionClick(event) {
+  const actionEl = closestOnboardingAction(event.target);
+  if (!actionEl) return;
+  const action = actionEl.getAttribute(ONBOARDING_ACTION_ATTR);
+  if (action === 'set-sex') {
+    const sex = actionEl.dataset.onboardingSex;
+    if (sex === 'male' || sex === 'female') completeOnboardingSex(sex);
+    else return;
+  } else if (action === 'save-profile') {
+    completeOnboardingProfile();
+  } else if (action === 'dismiss-profile') {
+    dismissOnboarding();
+  } else if (action === 'open-provider-quiz') {
+    openChatProviderQuiz();
+  } else if (action === 'dismiss-ai-reminder') {
+    dismissAIReminder();
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
+export function installOnboardingActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || _onboardingActionsInstalled) return;
+  _onboardingActionsInstalled = true;
+  root.addEventListener('click', handleOnboardingActionClick);
+}
+
+installOnboardingActionDelegates();
 
 export function configureOnboardingView(options = {}) {
   _navigate = typeof options.navigate === 'function' ? options.navigate : null;
@@ -39,8 +91,8 @@ export function renderOnboardingBanner() {
       <div class="onboarding-field">
         <label class="onboarding-label">Sex</label>
         <div class="onboarding-sex-toggle">
-          <button class="onboarding-sex-btn${state.profileSex === 'male' ? ' active' : ''}" onclick="completeOnboardingSex('male')">Male</button>
-          <button class="onboarding-sex-btn${state.profileSex === 'female' ? ' active' : ''}" onclick="completeOnboardingSex('female')">Female</button>
+          <button type="button" class="onboarding-sex-btn${state.profileSex === 'male' ? ' active' : ''}" ${onboardingActionAttrs('set-sex', { sex: 'male' })}>Male</button>
+          <button type="button" class="onboarding-sex-btn${state.profileSex === 'female' ? ' active' : ''}" ${onboardingActionAttrs('set-sex', { sex: 'female' })}>Female</button>
         </div>
       </div>
       <div class="onboarding-field">
@@ -48,8 +100,8 @@ export function renderOnboardingBanner() {
         <input type="date" class="onboarding-dob-input" id="onboarding-dob" value="${state.profileDob || ''}" />
       </div>
       <div class="onboarding-actions">
-        <button class="onboarding-save-btn" onclick="completeOnboardingProfile()">Save & Continue</button>
-        <button class="onboarding-skip-btn" onclick="dismissOnboarding()">Skip for now</button>
+        <button type="button" class="onboarding-save-btn" ${onboardingActionAttrs('save-profile')}>Save & Continue</button>
+        <button type="button" class="onboarding-skip-btn" ${onboardingActionAttrs('dismiss-profile')}>Skip for now</button>
       </div>
     </div>
   </div>`;
@@ -102,8 +154,8 @@ export function renderAIConnectionReminder() {
       <strong>Connect AI to unlock lab analysis</strong>
       <span>PDF import, trend insights, and chat all need an AI provider. About 30 seconds.</span>
     </span>
-    <button type="button" class="ai-reminder-cta" onclick="window.openChatProviderQuiz()">Connect now</button>
-    <button type="button" class="ai-reminder-dismiss" onclick="window.dismissAIReminder()" aria-label="Dismiss">&times;</button>
+    <button type="button" class="ai-reminder-cta" ${onboardingActionAttrs('open-provider-quiz')}>Connect now</button>
+    <button type="button" class="ai-reminder-dismiss" ${onboardingActionAttrs('dismiss-ai-reminder')} aria-label="Dismiss">&times;</button>
   </div>`;
 }
 
