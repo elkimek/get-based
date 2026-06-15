@@ -23,14 +23,6 @@ test('light tools browser coverage exercises storage render and modal flows', as
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
-      suggestRoomSourceFromSpectrum: window.suggestRoomSourceFromSpectrum,
-      refreshLightEnvironmentAssessment: window.refreshLightEnvironmentAssessment,
-      navigate: window.navigate,
-      getSunCoords: window.getSunCoords,
-      solarZenithAngle: window.solarZenithAngle,
-      logCompletedSession: window.logCompletedSession,
-      getSessions: window.getSessions,
-      hydrateSession: window.hydrateSession,
       mediaDevices: navigator.mediaDevices,
       play: HTMLMediaElement.prototype.play,
       getContext: HTMLCanvasElement.prototype.getContext,
@@ -56,6 +48,9 @@ test('light tools browser coverage exercises storage render and modal flows', as
     const navigateCalls = [];
     const loggedSessions = [];
     const hydrateCalls = [];
+    let testSunCoords = null;
+    let testSolarZenithAngle = null;
+    let testSessions = [];
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitUntil = async (predicate, timeoutMs = 1000) => {
       const started = Date.now();
@@ -88,12 +83,27 @@ test('light tools browser coverage exercises storage render and modal flows', as
       };
       lightTools.configureLightTools({
         maybeAnalyzeMeasurementAfterSave: entry => analyzeCalls.push(entry.tool),
+        suggestRoomSourceFromSpectrum: async (roomId, value) => {
+          spectrumCalls.push({ roomId, value });
+        },
+        refreshLightEnvironmentAssessment: () => refreshCalls.push('refresh'),
+        navigate: (...args) => navigateCalls.push(args),
+        getSunCoords: () => testSunCoords,
+        solarZenithAngle: (...args) => testSolarZenithAngle ? testSolarZenithAngle(...args) : null,
+        logCompletedSession: async payload => {
+          loggedSessions.push(payload);
+          return null;
+        },
+        getSessions: () => testSessions,
+        hydrateSession: async id => hydrateCalls.push(id),
+        getRooms: () => state.importedData?.lightEnvironment?.rooms || [],
+        addRoom: async label => {
+          const id = `test-room-${label.toLowerCase().replace(/\s+/g, '-')}`;
+          if (!state.importedData.lightEnvironment) state.importedData.lightEnvironment = { rooms: [], screens: [] };
+          state.importedData.lightEnvironment.rooms.push({ id, name: label });
+          return id;
+        },
       });
-      window.suggestRoomSourceFromSpectrum = async (roomId, value) => {
-        spectrumCalls.push({ roomId, value });
-      };
-      window.refreshLightEnvironmentAssessment = () => refreshCalls.push('refresh');
-      window.navigate = (...args) => navigateCalls.push(args);
 
       const migrated = lightTools.getMeasurements();
       results.migrationKeepsLatestRoomTool = migrated.some(item => item.id === 'new-lux')
@@ -170,11 +180,9 @@ test('light tools browser coverage exercises storage render and modal flows', as
         && lightTools.normalizeGoldenHourMinutes('500') === 120
         && lightTools.normalizeGoldenHourMinutes('45') === 45;
 
-      window.getSunCoords = () => null;
-      window.solarZenithAngle = undefined;
-      window.logCompletedSession = async payload => loggedSessions.push(payload);
-      window.getSessions = () => [{ id: 'session-one' }];
-      window.hydrateSession = async id => hydrateCalls.push(id);
+      testSunCoords = null;
+      testSolarZenithAngle = null;
+      testSessions = [{ id: 'session-one' }];
       const sunriseNavigateStart = navigateCalls.length;
       lightTools.openSunriseLogger();
       const sunriseOverlay = document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay');
@@ -190,8 +198,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
         .some(call => call[0] === 'light' && !call[1]);
       sunriseOverlay?.remove();
 
-      window.getSunCoords = () => ({ lat: 50.08, lon: 14.43 });
-      window.solarZenithAngle = date => {
+      testSunCoords = { lat: 50.08, lon: 14.43 };
+      testSolarZenithAngle = date => {
         const hour = date.getHours() + date.getMinutes() / 60;
         return hour >= 6 && hour < 18 ? 80 : 100;
       };
@@ -337,16 +345,18 @@ test('light tools browser coverage exercises storage render and modal flows', as
     } finally {
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
-      lightTools.configureLightTools({ maybeAnalyzeMeasurementAfterSave: () => {} });
-      Object.assign(window, {
-        suggestRoomSourceFromSpectrum: saved.suggestRoomSourceFromSpectrum,
-        refreshLightEnvironmentAssessment: saved.refreshLightEnvironmentAssessment,
-        navigate: saved.navigate,
-        getSunCoords: saved.getSunCoords,
-        solarZenithAngle: saved.solarZenithAngle,
-        logCompletedSession: saved.logCompletedSession,
-        getSessions: saved.getSessions,
-        hydrateSession: saved.hydrateSession,
+      lightTools.configureLightTools({
+        maybeAnalyzeMeasurementAfterSave: () => {},
+        suggestRoomSourceFromSpectrum: async () => {},
+        refreshLightEnvironmentAssessment: () => {},
+        navigate: () => {},
+        getSunCoords: () => null,
+        solarZenithAngle: null,
+        logCompletedSession: null,
+        getSessions: () => [],
+        hydrateSession: async () => {},
+        getRooms: () => [],
+        addRoom: async () => null,
       });
       HTMLMediaElement.prototype.play = saved.play;
       HTMLCanvasElement.prototype.getContext = saved.getContext;
