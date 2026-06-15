@@ -20,9 +20,6 @@ test('sun session UI covers list detail edit delete and past-session save paths'
       pbmJoulesPerCm2: window.pbmJoulesPerCm2,
       circadianMelanopicLux: window.circadianMelanopicLux,
       geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
-      renderSessionAIInline: window.renderSessionAIInline,
-      renderSessionAIDetail: window.renderSessionAIDetail,
-      navigate: window.navigate,
     };
     let sessions = [
       {
@@ -87,10 +84,6 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         mult: 0.82,
         contributors: [{ gene: 'GC', genotype: 'TT', multiplier: 0.82 }],
       });
-      window.renderSessionAIInline = () => '<span class="ai-inline-test">AI inline</span>';
-      window.renderSessionAIDetail = () => '<section class="ai-detail-test">AI detail</section>';
-      window.navigate = route => calls.push(['navigate', route]);
-
       sunUI.configureSunSessionUI({
         getSessions: () => sessions,
         deleteSession: async id => {
@@ -136,6 +129,9 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
         formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
+        renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
+        renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
+        navigate: route => calls.push(['navigate', route]),
       });
 
       const listHost = document.createElement('div');
@@ -231,6 +227,9 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
+        renderSessionAIInline: () => '',
+        renderSessionAIDetail: () => '',
+        navigate: () => {},
       });
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
     }

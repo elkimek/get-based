@@ -5,6 +5,7 @@ import './sun-uvdata.js';
 import './sun-spectrum.js';
 import './sun.js';
 import './sun-ai-analysis.js';
+import './sun-session-ai-render-hooks.js';
 import './sun-context.js';
 import './light-devices.js';
 import './light-device-ai-analysis.js';

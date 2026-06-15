@@ -7,3 +7,4 @@ import './touch-tooltip.js';
 import './client-list.js';
 import './views.js';
 import './light-tools-ui-hooks.js';
+import './sun-session-ui-hooks.js';
