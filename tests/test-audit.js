@@ -50,10 +50,14 @@ console.log('2. Service Worker Registration');
 
 // Original test fetched '/app' (dev-server alias for index.html).
 const indexSrc = read('index.html');
-assert('SW registration uses absolute path', indexSrc.includes("'/service-worker.js'") || indexSrc.includes('"/service-worker.js"'));
-assert('SW registration has catch handler', indexSrc.includes('.catch('));
+const serviceWorkerUpdateSrc = read('js/service-worker-update.js');
+assert('index loads service worker update module', indexSrc.includes('src="js/service-worker-update.js"'));
+assert('SW registration uses absolute path', serviceWorkerUpdateSrc.includes("'/service-worker.js'") || serviceWorkerUpdateSrc.includes('"/service-worker.js"'));
+assert('SW registration failures are handled',
+  serviceWorkerUpdateSrc.includes("serviceWorkerContainer.register('/service-worker.js')")
+    && serviceWorkerUpdateSrc.includes('} catch {'));
 assert('SW has explicit dev-host offline test opt-in',
-  indexSrc.includes('dev-sw=1') && indexSrc.includes("(!_isDevHost || _allowDevSW)"));
+  serviceWorkerUpdateSrc.includes('dev-sw=1') && serviceWorkerUpdateSrc.includes('shouldRegisterServiceWorker'));
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
@@ -75,6 +79,7 @@ assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.include
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
 assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));
+assert('SW APP_SHELL includes service worker update module', swAuditSrc.includes("'/js/service-worker-update.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
 assert('app shell CSS loads after core CSS and before feature CSS',

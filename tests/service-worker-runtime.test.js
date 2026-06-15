@@ -119,7 +119,8 @@ describe('service worker runtime cache behavior', () => {
     expect(cache.addAll).toHaveBeenCalled();
     expect(cache.addAll.mock.calls[0][0]).toContain('/app');
     expect(cache.addAll.mock.calls[0][0]).toContain('/js/main.js');
-    expect(self.skipWaiting).toHaveBeenCalled();
+    expect(cache.addAll.mock.calls[0][0]).toContain('/js/service-worker-update.js');
+    expect(self.skipWaiting).not.toHaveBeenCalled();
 
     const activate = makeWaitEvent();
     listeners.get('activate')(activate);
@@ -180,5 +181,19 @@ describe('service worker runtime cache behavior', () => {
 
     expect(caches.open).toHaveBeenCalledWith('labcharts-v9.9.9');
     expect(globalThis.fetch).not.toHaveBeenCalledWith('/api/commit', { cache: 'no-store' });
+  });
+
+  it('only skips waiting after an explicit update message', async () => {
+    const { listeners, self } = await loadServiceWorker();
+
+    expect(listeners.has('message')).toBe(true);
+    listeners.get('message')({ data: { type: 'NOOP' }, origin: 'https://preview.getbased.health' });
+    expect(self.skipWaiting).not.toHaveBeenCalled();
+
+    listeners.get('message')({ data: { type: 'SKIP_WAITING' }, origin: 'https://evil.example' });
+    expect(self.skipWaiting).not.toHaveBeenCalled();
+
+    listeners.get('message')({ data: { type: 'SKIP_WAITING' }, origin: 'https://preview.getbased.health' });
+    expect(self.skipWaiting).toHaveBeenCalledTimes(1);
   });
 });
