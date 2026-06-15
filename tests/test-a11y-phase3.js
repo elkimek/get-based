@@ -57,8 +57,10 @@ console.log('=== Phase 3 A11y Tests ===\n');
     categoryViewRenderersSrc.includes('class="fa-card" role="button" tabindex="0"'));
   assert('ref-editable span has role+tabindex',
     markerDetailSrc.includes('class="ref-editable" role="button" tabindex="0"'));
-  assert('focus-card refresh has aria-label',
-    focusCardSrc.includes('class="focus-card-refresh" onclick="refreshFocusCard()" aria-label="Regenerate insight"'));
+  assert('focus-card refresh has aria-label and delegated action',
+    focusCardSrc.includes('class="focus-card-refresh"') &&
+    focusCardSrc.includes('aria-label="Regenerate insight"') &&
+    focusCardSrc.includes('data-focus-card-action'));
 
   const cycleSrc = read('/js/cycle.js');
   assert('cycle-prompt is a semantic button',

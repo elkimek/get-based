@@ -600,6 +600,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       const focusFp = data.getFocusCardFingerprint();
       localStorage.setItem(focusCacheKey, JSON.stringify({ fingerprint: focusFp, text: '**ApoB** is the priority.' }));
       outcomes.renderFocusCardUsesCachedMarkdown = focus.renderFocusCard().includes('<strong>ApoB</strong>');
+      outcomes.renderFocusCardUsesDelegatedRefresh =
+        focus.renderFocusCard().includes('data-focus-card-action="refresh"')
+        && !focus.renderFocusCard().includes('onclick=');
       const focusShell = document.createElement('div');
       focusShell.innerHTML = focus.renderFocusCard();
       const renderedFocusBody = focusShell.querySelector('#focus-card-body');
@@ -658,10 +661,14 @@ test('context health dots and focus card cover cache fallback and empty states',
       outcomes.loadFocusCardShowsEnableAIWithoutConnectedProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
       localStorage.setItem(focusCacheKey, JSON.stringify({ fingerprint: focusFp, text: 'Temporary focus cache' }));
       document.getElementById('focus-card-body').innerHTML = '<span>Temporary focus cache</span>';
-      focus.refreshFocusCard();
+      const focusRefreshBtn = document.createElement('button');
+      focusRefreshBtn.setAttribute('data-focus-card-action', 'refresh');
+      document.body.appendChild(focusRefreshBtn);
+      focusRefreshBtn.click();
       await delay(0);
       outcomes.refreshFocusCardClearsCacheAndReloadsProviderGate = localStorage.getItem(focusCacheKey) === null
         && document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
+      focusRefreshBtn.remove();
 
       state.importedData = { entries: [] };
       data.invalidateActiveDataCache();

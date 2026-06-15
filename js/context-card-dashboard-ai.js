@@ -6,8 +6,70 @@ import { getEncryptionEnabled } from './crypto.js';
 import { getLensSummary } from './lens.js';
 import { state } from './state.js';
 import { isSyncEnabled } from './sync.js';
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+
+const dashboardAIActionDelegateRoots = new WeakSet();
+const DASHBOARD_AI_ACTION_ATTR = 'data-dashboard-ai-action';
+const DASHBOARD_AI_ACTION_SELECTOR = `[${DASHBOARD_AI_ACTION_ATTR}]`;
+const appWindow = /** @type {Window & typeof globalThis & {
+  openInterpretiveLensEditor?: () => void,
+  openKnowledgeBaseModal?: () => void,
+  showEnableEncryptionModal?: () => void,
+  showSyncSetupModal?: () => void,
+  pickFolderForBackup?: () => void,
+  handleDNAFile?: (file: File) => void,
+}} */ (typeof window !== 'undefined' ? window : {});
+
+function dashboardAIActionAttrs(action) {
+  return `${DASHBOARD_AI_ACTION_ATTR}="${escapeAttr(action)}"`;
+}
+
+function closestDashboardAIAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(DASHBOARD_AI_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function runDashboardAIAction(action) {
+  if (action === 'open-interpretive-lens') appWindow.openInterpretiveLensEditor?.();
+  else if (action === 'open-knowledge-base') appWindow.openKnowledgeBaseModal?.();
+  else if (action === 'open-personalize-ai-picker') openPersonalizeAIPicker();
+  else if (action === 'enable-encryption') appWindow.showEnableEncryptionModal?.();
+  else if (action === 'setup-sync') appWindow.showSyncSetupModal?.();
+  else if (action === 'setup-backup') appWindow.pickFolderForBackup?.();
+  else if (action === 'open-data-protection-picker') openDataProtectionPicker();
+  else return false;
+  return true;
+}
+
+function handleDashboardAIActionClick(event) {
+  const actionEl = closestDashboardAIAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(DASHBOARD_AI_ACTION_ATTR);
+  if (!runDashboardAIAction(action)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleDashboardAIActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestDashboardAIAction(event.target);
+  if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
+  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  handleDashboardAIActionClick(event);
+}
+
+export function installDashboardAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || dashboardAIActionDelegateRoots.has(root)) return;
+  dashboardAIActionDelegateRoots.add(root);
+  root.addEventListener('click', handleDashboardAIActionClick);
+  root.addEventListener('keydown', handleDashboardAIActionKeydown);
+}
+
+if (typeof document !== 'undefined') installDashboardAIActionDelegates();
 
 // Dashboard "AI personalization" zone:
 //   - Full-width row for the Interpretive Lens, only if it is set.
@@ -24,7 +86,7 @@ export function renderInterpretiveLensSection() {
   const kbConfigured = !!(summary && summary.configured);
 
   const lensRow = lens
-    ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" onclick="openInterpretiveLensEditor()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Interpretive Lens - click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
+    ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" ${dashboardAIActionAttrs('open-interpretive-lens')} title="Interpretive Lens - click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
     : '';
   const kbRow = kbConfigured ? renderKnowledgeBaseRow(summary) : '';
   const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
@@ -44,8 +106,8 @@ export function triggerDNAFilePicker() {
     newInput.style.display = 'none';
     newInput.addEventListener('change', () => {
       const f = newInput.files && newInput.files[0];
-      if (f && typeof window.handleDNAFile === 'function') {
-        window.handleDNAFile(f);
+      if (f && typeof appWindow.handleDNAFile === 'function') {
+        appWindow.handleDNAFile(f);
       }
       newInput.value = '';
     });
@@ -72,7 +134,7 @@ function renderKnowledgeBaseRow(s) {
     ? ` &middot; query rewriting ${s.multiQueryOn ? 'on' : 'off'}`
     : '';
   const detail = `${escapeHTML(s.displayName)}${docFragment}${rewriteFragment}`;
-  return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" onclick="openKnowledgeBaseModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" title="Knowledge Base - click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
+  return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" ${dashboardAIActionAttrs('open-knowledge-base')} title="Knowledge Base - click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
 }
 
 // Inline CTA pill that adapts to which feature is missing. Both missing opens
@@ -84,17 +146,17 @@ function renderPersonalizeAICta(lensSet, kbSet) {
   if (!lensSet && !kbSet) {
     icon = '&#10024;';
     label = 'Personalize how AI answers';
-    action = 'openPersonalizeAIPicker()';
+    action = 'open-personalize-ai-picker';
   } else if (!kbSet) {
     icon = '&#128218;';
     label = 'Connect a knowledge base';
-    action = 'openKnowledgeBaseModal()';
+    action = 'open-knowledge-base';
   } else {
     icon = '&#129694;';
     label = 'Set an interpretive lens';
-    action = 'openInterpretiveLensEditor()';
+    action = 'open-interpretive-lens';
   }
-  return `<button type="button" class="dashboard-cta" onclick="${action}" aria-label="${escapeHTML(label)}">
+  return `<button type="button" class="dashboard-cta" ${dashboardAIActionAttrs(action)} aria-label="${escapeHTML(label)}">
     <span class="dashboard-cta-icon" aria-hidden="true">${icon}</span>
     <span class="dashboard-cta-plus" aria-hidden="true">+</span>
     <span>${escapeHTML(label)}</span>
@@ -132,27 +194,27 @@ export function renderDataProtectionCta(stateOverride) {
   if (missing.length === 1) {
     const only = missing[0];
     if (only === 'encryption') {
-      return `<button type="button" class="dashboard-cta" onclick="showEnableEncryptionModal()" aria-label="Enable encryption">
+      return `<button type="button" class="dashboard-cta" ${dashboardAIActionAttrs('enable-encryption')} aria-label="Enable encryption">
         <span class="dashboard-cta-icon" aria-hidden="true">&#128274;</span>
         <span class="dashboard-cta-plus" aria-hidden="true">+</span>
         <span>Enable encryption</span>
       </button>`;
     }
     if (only === 'sync') {
-      return `<button type="button" class="dashboard-cta" onclick="showSyncSetupModal()" aria-label="Set up cross-device sync">
+      return `<button type="button" class="dashboard-cta" ${dashboardAIActionAttrs('setup-sync')} aria-label="Set up cross-device sync">
         <span class="dashboard-cta-icon" aria-hidden="true">&#128225;</span>
         <span class="dashboard-cta-plus" aria-hidden="true">+</span>
         <span>Sync to other devices</span>
       </button>`;
     }
-    return `<button type="button" class="dashboard-cta" onclick="pickFolderForBackup()" aria-label="Set up auto-backup">
+    return `<button type="button" class="dashboard-cta" ${dashboardAIActionAttrs('setup-backup')} aria-label="Set up auto-backup">
       <span class="dashboard-cta-icon" aria-hidden="true">&#128190;</span>
       <span class="dashboard-cta-plus" aria-hidden="true">+</span>
       <span>Set up auto-backup</span>
     </button>`;
   }
 
-  return `<button type="button" class="dashboard-cta" onclick="openDataProtectionPicker()" aria-label="Protect your data">
+  return `<button type="button" class="dashboard-cta" ${dashboardAIActionAttrs('open-data-protection-picker')} aria-label="Protect your data">
     <span class="dashboard-cta-icon" aria-hidden="true">&#128737;</span>
     <span class="dashboard-cta-plus" aria-hidden="true">+</span>
     <span>Protect your data</span>
