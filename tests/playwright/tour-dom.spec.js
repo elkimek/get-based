@@ -90,16 +90,18 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       const welcomeDots = tooltip?.querySelectorAll('.tour-dot').length === 5
         && tooltip?.querySelectorAll('.tour-dot')[0]?.classList.contains('active') === true
         && tooltip?.querySelectorAll('.tour-dot')[1]?.classList.contains('active') === false;
-      // Tour buttons are rendered by tour.js as HTML strings with inline onclick handlers.
       const welcomeButtons = tooltip?.querySelectorAll('.tour-btn').length === 2
         && tooltip?.querySelectorAll('.tour-btn')[0]?.textContent.trim() === 'Skip'
         && tooltip?.querySelectorAll('.tour-btn')[0]?.classList.contains('tour-btn-secondary') === true
         && tooltip?.querySelectorAll('.tour-btn')[1]?.textContent.trim() === 'Next'
         && tooltip?.querySelectorAll('.tour-btn')[1]?.classList.contains('tour-btn-primary') === true
-        && tooltip?.querySelectorAll('.tour-btn')[0]?.getAttribute('onclick')?.includes('endTour') === true
-        && tooltip?.querySelectorAll('.tour-btn')[1]?.getAttribute('onclick')?.includes('_tourGoToStep(1)') === true;
+        && tooltip?.querySelectorAll('.tour-btn')[0]?.getAttribute('data-tour-action') === 'end'
+        && tooltip?.querySelectorAll('.tour-btn')[1]?.getAttribute('data-tour-action') === 'go'
+        && tooltip?.querySelectorAll('.tour-btn')[1]?.getAttribute('data-tour-index') === '1'
+        && !tooltip?.querySelectorAll('.tour-btn')[0]?.hasAttribute('onclick')
+        && !tooltip?.querySelectorAll('.tour-btn')[1]?.hasAttribute('onclick');
 
-      window._tourGoToStep(1);
+      tooltip?.querySelectorAll('.tour-btn')[1]?.click();
       const stepOneNavigation = await waitFor(() => {
         const tooltip2 = document.getElementById('tour-tooltip');
         const dots2 = tooltip2?.querySelectorAll('.tour-dot') || [];
@@ -109,8 +111,12 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
           && dots2[0]?.classList.contains('active') === false
           && btns2[0]?.textContent.trim() === 'Back'
           && btns2[1]?.textContent.trim() === 'Next'
-          && btns2[0]?.getAttribute('onclick')?.includes('_tourGoToStep(0)') === true
-          && btns2[1]?.getAttribute('onclick')?.includes('_tourGoToStep(2)') === true
+          && btns2[0]?.getAttribute('data-tour-action') === 'go'
+          && btns2[0]?.getAttribute('data-tour-index') === '0'
+          && btns2[1]?.getAttribute('data-tour-action') === 'go'
+          && btns2[1]?.getAttribute('data-tour-index') === '2'
+          && !btns2[0]?.hasAttribute('onclick')
+          && !btns2[1]?.hasAttribute('onclick')
           && document.getElementById('tour-spotlight')?.style.display === 'block';
       });
 
@@ -130,7 +136,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
           && Math.abs(parseFloat(sl2.style.height) - (targetRect.height + 16)) < 2;
       }
 
-      window._tourGoToStep(0);
+      document.getElementById('tour-tooltip')?.querySelectorAll('.tour-btn')[0]?.click();
       await wait(50);
       const tooltip3 = document.getElementById('tour-tooltip');
       const backReturnsToWelcome = tooltip3?.querySelector('h4')?.textContent === 'Welcome to getbased'
@@ -145,8 +151,11 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       const lastStepDoneState = tooltip4?.querySelector('h4')?.textContent === 'Settings & Connections'
         && btns4[0]?.textContent.trim() === 'Back'
         && btns4[1]?.textContent.trim() === 'Done'
-        && btns4[1]?.getAttribute('onclick')?.includes('endTour') === true
-        && btns4[0]?.getAttribute('onclick')?.includes('_tourGoToStep(3)') === true
+        && btns4[1]?.getAttribute('data-tour-action') === 'end'
+        && btns4[0]?.getAttribute('data-tour-action') === 'go'
+        && btns4[0]?.getAttribute('data-tour-index') === '3'
+        && !btns4[0]?.hasAttribute('onclick')
+        && !btns4[1]?.hasAttribute('onclick')
         && dots4[4]?.classList.contains('active') === true;
 
       window.endTour();

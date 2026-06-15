@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
+import { escapeAttr } from './utils.js';
 
 const EMPTY_TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.', position: 'center' },
@@ -37,6 +38,43 @@ const CYCLE_TOUR_STEPS = [
 
 // Active tour state
 let activeTour = null;
+
+const TOUR_ACTION_ATTR = 'data-tour-action';
+const TOUR_ACTION_SELECTOR = `[${TOUR_ACTION_ATTR}]`;
+
+function tourActionAttrs(action, attrs = {}) {
+  let html = `${TOUR_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-tour-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestTourAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(TOUR_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleTourActionClick(event) {
+  const actionEl = closestTourAction(event.target);
+  if (!actionEl) return;
+  const action = actionEl.getAttribute(TOUR_ACTION_ATTR);
+  if (action === 'end') {
+    endTour();
+  } else if (action === 'go') {
+    const index = Number(actionEl.dataset.tourIndex);
+    if (!Number.isInteger(index)) return;
+    goToStep(index);
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
 
 function profileKey(suffix) {
   return profileStorageKey(state.currentProfile, suffix);
@@ -118,6 +156,7 @@ function runTour(steps, storageKey, auto) {
     tooltip.setAttribute('role', 'dialog');
     tooltip.setAttribute('aria-modal', 'true');
     tooltip.setAttribute('aria-labelledby', 'tour-tooltip-heading');
+    tooltip.addEventListener('click', handleTourActionClick);
     document.body.appendChild(tooltip);
   }
 
@@ -149,11 +188,11 @@ function goToStep(index) {
   dotsHtml += '</div>';
 
   const backBtn = isFirst
-    ? `<button class="tour-btn tour-btn-secondary" onclick="endTour()">Skip</button>`
-    : `<button class="tour-btn tour-btn-secondary" onclick="window._tourGoToStep(${index - 1})">Back</button>`;
+    ? `<button type="button" class="tour-btn tour-btn-secondary" ${tourActionAttrs('end')}>Skip</button>`
+    : `<button type="button" class="tour-btn tour-btn-secondary" ${tourActionAttrs('go', { index: index - 1 })}>Back</button>`;
   const nextBtn = isLast
-    ? `<button class="tour-btn tour-btn-primary" onclick="endTour()">Done</button>`
-    : `<button class="tour-btn tour-btn-primary" onclick="window._tourGoToStep(${index + 1})">Next</button>`;
+    ? `<button type="button" class="tour-btn tour-btn-primary" ${tourActionAttrs('end')}>Done</button>`
+    : `<button type="button" class="tour-btn tour-btn-primary" ${tourActionAttrs('go', { index: index + 1 })}>Next</button>`;
 
   tooltip.innerHTML = `<h4 id="tour-tooltip-heading">${step.title}</h4><p>${step.text}</p>
     <div class="tour-nav">${dotsHtml}<div class="tour-btns">${backBtn}${nextBtn}</div></div>`;
@@ -287,8 +326,8 @@ export function endTour() {
   }
 }
 
-// Internal navigation helper exposed for onclick
-// @ts-expect-error - custom window export for inline tour navigation handlers.
+// Internal navigation helper remains exposed for tests and legacy callers.
+// @ts-expect-error - custom window export for tour navigation.
 window._tourGoToStep = goToStep;
 
 Object.assign(window, { startEmptyTour, startTour, startGuidedTour, startCycleTour, endTour });

@@ -23,6 +23,10 @@ const MOBILE_WEARABLE_PRIORITY = [
 
 let _mobileDashboardManualTabLockUntil = 0;
 let _mobileChromeStateObserver = null;
+let _mobileDashboardActionsInstalled = false;
+
+const MOBILE_DASHBOARD_ACTION_ATTR = 'data-mobile-dashboard-action';
+const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
 
 /**
  * @typedef {{ data: any, filteredData: any, keyMarkers?: any[], trendAlerts?: any[], criticalFlags?: any[] }} MobileDashboardWidgetContext
@@ -60,6 +64,51 @@ export function configureMobileDashboardView(deps = {}) {
 function markerHasData(m) {
   return m.values?.some(v => v !== null) ?? false;
 }
+
+function mobileDashboardActionAttrs(action, attrs = {}) {
+  let html = `${MOBILE_DASHBOARD_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-mobile-dashboard-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestMobileDashboardAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(MOBILE_DASHBOARD_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleMobileDashboardActionClick(event) {
+  const actionEl = closestMobileDashboardAction(event.target);
+  if (!actionEl) return;
+  const action = actionEl.getAttribute(MOBILE_DASHBOARD_ACTION_ATTR);
+  if (action === 'navigate-tab') {
+    const tab = actionEl.dataset.mobileDashboardTab || 'dashboard';
+    const route = actionEl.dataset.mobileDashboardRoute || tab;
+    mobileDashboardSetTab(tab);
+    window.navigate?.(route);
+  } else if (action === 'open-chat') {
+    window.openChatPanel?.();
+  } else if (action === 'open-search') {
+    openMobileDashboardSearch();
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
+export function installMobileDashboardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || _mobileDashboardActionsInstalled) return;
+  _mobileDashboardActionsInstalled = true;
+  root.addEventListener('click', handleMobileDashboardActionClick);
+}
+
+installMobileDashboardActionDelegates();
 
 export function isMobileDashboardViewport() {
   return typeof window !== 'undefined'
@@ -360,7 +409,7 @@ function renderMobileSectionHead(title, count, actionLabel = '', action = '') {
       <span class="m-section-title">${escapeHTML(title)}</span>
       ${count ? `<span class="m-section-count">${escapeHTML(count)}</span>` : ''}
     </div>
-    ${actionLabel && action ? `<button type="button" onclick="${escapeAttr(action)}">${escapeHTML(actionLabel)}</button>` : ''}
+    ${actionLabel && action ? `<button type="button" ${mobileDashboardActionAttrs(action)}>${escapeHTML(actionLabel)}</button>` : ''}
   </div>`;
 }
 
@@ -394,11 +443,11 @@ function renderMobileBottomTabs(activeTab = 'dashboard', { id = '' } = {}) {
   const navId = id ? ` id="${id}"` : '';
   const tabAttrs = tab => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
   return `<nav${navId} class="m-tabbar" aria-label="Mobile primary navigation">
-    <button type="button" ${tabAttrs('dashboard')} onclick="window.mobileDashboardSetTab('dashboard');window.navigate('dashboard')" aria-label="Dashboard"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
-    <button type="button" ${tabAttrs('labs')} onclick="window.mobileDashboardSetTab('labs');window.navigate('labs')" aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
-    <button type="button" ${tabAttrs('body')} onclick="window.mobileDashboardSetTab('body');window.navigate('body')" aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
-    <button type="button" ${tabAttrs('light')} onclick="window.mobileDashboardSetTab('light');window.navigate('light')" aria-label="Light"><span class="m-tab-icon">${renderMobileIcon('light')}</span><small>Light</small></button>
-    <button type="button" ${tabAttrs('insight')} onclick="window.mobileDashboardSetTab('insight');window.navigate('insight')" aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
+    <button type="button" ${tabAttrs('dashboard')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'dashboard', route: 'dashboard' })} aria-label="Dashboard"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
+    <button type="button" ${tabAttrs('labs')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'labs', route: 'labs' })} aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
+    <button type="button" ${tabAttrs('body')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'body', route: 'body' })} aria-label="Body"><span class="m-tab-icon">${renderMobileIcon('body')}</span><small>Body</small></button>
+    <button type="button" ${tabAttrs('light')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'light', route: 'light' })} aria-label="Light"><span class="m-tab-icon">${renderMobileIcon('light')}</span><small>Light</small></button>
+    <button type="button" ${tabAttrs('insight')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'insight', route: 'insight' })} aria-label="Insight"><span class="m-tab-icon">${renderMobileIcon('insight')}</span><small>Insight</small></button>
   </nav>`;
 }
 
@@ -456,7 +505,7 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
         ${mobileWidgetStack}
       </div>
     </div>
-    <button type="button" class="m-chat-fab" onclick="window.openChatPanel && window.openChatPanel()" aria-label="Ask AI">${renderMobileIcon('chat')}</button>
+    <button type="button" class="m-chat-fab" ${mobileDashboardActionAttrs('open-chat')} aria-label="Ask AI">${renderMobileIcon('chat')}</button>
     ${renderMobileBottomTabs('dashboard')}`;
 
   if (resetScroll && typeof window.scrollTo === 'function') {

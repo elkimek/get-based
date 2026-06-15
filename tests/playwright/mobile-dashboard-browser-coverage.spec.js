@@ -20,6 +20,7 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       matchMedia: window.matchMedia,
       navigate: window.navigate,
       toggleMobileSidebar: window.toggleMobileSidebar,
+      openChatPanel: window.openChatPanel,
       loadContextCardTips: window.loadContextCardTips,
       loadCatalog: window.loadCatalog,
       scrollTo: window.scrollTo,
@@ -39,6 +40,7 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
     });
     window.navigate = route => calls.push(['navigate', route]);
     window.toggleMobileSidebar = () => calls.push(['toggleMobileSidebar']);
+    window.openChatPanel = () => calls.push(['openChatPanel']);
     window.scrollTo = (...args) => calls.push(['scrollTo', ...args]);
 
     const mobileDashboard = await import(mobileDashboardUrl);
@@ -149,6 +151,20 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         && activeLabs?.getAttribute('aria-current') === 'page'
         && activeDashboard?.getAttribute('aria-current') === 'false';
 
+      document.querySelector('.m-tab[data-tab="light"]')?.click();
+      const activeLight = document.querySelector('.m-tab[data-tab="light"]');
+      outcomes.mobileDashboardTabsUseDelegatedActions = activeLight?.classList.contains('active') === true
+        && activeLight?.getAttribute('data-mobile-dashboard-action') === 'navigate-tab'
+        && activeLight?.getAttribute('data-mobile-dashboard-route') === 'light'
+        && calls.some(call => call[0] === 'navigate' && call[1] === 'light')
+        && !document.querySelector('.m-tab[data-tab="light"]')?.hasAttribute('onclick')
+        && !firstRenderHtml.includes('onclick=');
+
+      document.querySelector('.m-chat-fab')?.click();
+      outcomes.mobileChatFabUsesDelegatedAction = calls.some(call => call[0] === 'openChatPanel')
+        && document.querySelector('.m-chat-fab')?.getAttribute('data-mobile-dashboard-action') === 'open-chat'
+        && !document.querySelector('.m-chat-fab')?.hasAttribute('onclick');
+
       mobileDashboard.openMobileDashboardSearch();
       await wait(100);
       outcomes.openMobileDashboardSearchTogglesSidebarAndFocusesSearch = calls.some(call => call[0] === 'toggleMobileSidebar')
@@ -175,6 +191,8 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       else delete window.navigate;
       if (saved.toggleMobileSidebar) window.toggleMobileSidebar = saved.toggleMobileSidebar;
       else delete window.toggleMobileSidebar;
+      if (saved.openChatPanel) window.openChatPanel = saved.openChatPanel;
+      else delete window.openChatPanel;
       if (saved.loadContextCardTips) window.loadContextCardTips = saved.loadContextCardTips;
       else delete window.loadContextCardTips;
       if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
