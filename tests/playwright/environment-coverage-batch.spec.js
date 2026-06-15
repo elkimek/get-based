@@ -253,7 +253,6 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      maybeAnalyzeAuditAfterSave: window.maybeAnalyzeAuditAfterSave,
     };
     const calls = [];
     const outcomes = {};
@@ -287,9 +286,10 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
         }],
       };
       data.invalidateActiveDataCache();
-      window.maybeAnalyzeAuditAfterSave = audit => calls.push(['default-auto-audit', audit.id]);
 
-      audits.configureLightEnvAudits({});
+      audits.configureLightEnvAudits({
+        maybeAnalyzeAuditAfterSave: audit => calls.push(['default-auto-audit', audit.id]),
+      });
       const defaultSavedAudit = await audits.saveLightAudit('Default deps snapshot');
       const host = document.createElement('div');
       host.innerHTML = audits.renderLightAuditsBlock();
@@ -313,7 +313,7 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       data.invalidateActiveDataCache();
-      window.maybeAnalyzeAuditAfterSave = saved.maybeAnalyzeAuditAfterSave;
+      audits.configureLightEnvAudits({ maybeAnalyzeAuditAfterSave: () => {} });
     }
 
     return outcomes;
@@ -371,11 +371,7 @@ test('Light audit history covers save expand update compare interpret and delete
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
-      renderAuditAIDot: window.renderAuditAIDot,
-      renderAuditAIBlock: window.renderAuditAIBlock,
-      hasAIProvider: window.hasAIProvider,
       openChatPanel: window.openChatPanel,
-      maybeAnalyzeAuditAfterSave: window.maybeAnalyzeAuditAfterSave,
     };
     const outcomes = {};
     const calls = [];
@@ -456,11 +452,7 @@ test('Light audit history covers save expand update compare interpret and delete
         lightAudits: [oldAudit, midAudit, newAudit],
       };
       data.invalidateActiveDataCache();
-      window.renderAuditAIDot = audit => `<span class="light-audit-ai-dot" data-audit="${audit.id}"></span>`;
-      window.renderAuditAIBlock = audit => `<div class="light-audit-ai-block">AI note for ${audit.label}</div>`;
-      window.hasAIProvider = () => true;
       window.openChatPanel = prompt => calls.push(['chat', prompt]);
-      window.maybeAnalyzeAuditAfterSave = audit => calls.push(['auto-audit', audit.id]);
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
 
@@ -480,6 +472,10 @@ test('Light audit history covers save expand update compare interpret and delete
           calls.push(['refresh', options?.scrollAnchor || null, options?.fallbackScrollAnchor || null]);
           renderHost();
         },
+        hasAIProvider: () => true,
+        maybeAnalyzeAuditAfterSave: audit => calls.push(['auto-audit', audit.id]),
+        renderAuditAIDot: audit => `<span class="light-audit-ai-dot" data-audit="${audit.id}"></span>`,
+        renderAuditAIBlock: audit => `<div class="light-audit-ai-block">AI note for ${audit.label}</div>`,
       });
 
       const host = renderHost();
@@ -535,7 +531,7 @@ test('Light audit history covers save expand update compare interpret and delete
       document.querySelector('.light-audit-interpret-btn')?.click();
       await waitUntil(() => calls.some(call => call[0] === 'chat'), 'audit compare chat handoff');
       outcomes.interpretComparePrefillsChat =
-        calls.some(call => call[0] === 'chat' && call[1].includes('Light Environment audit comparison'));
+        calls.some(call => call[0] === 'chat' && String(call[1] || '').includes('Light Environment audit comparison'));
 
       const deletePromise = window.deleteLightAuditConfirm('audit_mid');
       await waitFor('#confirm-ok', 'delete audit confirm');
@@ -552,11 +548,13 @@ test('Light audit history covers save expand update compare interpret and delete
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       data.invalidateActiveDataCache();
-      window.renderAuditAIDot = saved.renderAuditAIDot;
-      window.renderAuditAIBlock = saved.renderAuditAIBlock;
-      window.hasAIProvider = saved.hasAIProvider;
+      audits.configureLightEnvAudits({
+        hasAIProvider: () => false,
+        maybeAnalyzeAuditAfterSave: () => {},
+        renderAuditAIDot: () => '',
+        renderAuditAIBlock: () => '',
+      });
       window.openChatPanel = saved.openChatPanel;
-      window.maybeAnalyzeAuditAfterSave = saved.maybeAnalyzeAuditAfterSave;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

@@ -50,8 +50,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       openProfileLocationEditor: window.openProfileLocationEditor,
       openClientList: window.openClientList,
       requestPreciseLocation: window.requestPreciseLocation,
-      maybeAnalyzeOnboardingAfterSave: window.maybeAnalyzeOnboardingAfterSave,
-      renderOnboardingAIBlock: window.renderOnboardingAIBlock,
     };
     const calls = [];
     const outcomes = {};
@@ -83,8 +81,10 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         precise = true;
         return { lat: 50.087, lon: 14.421 };
       };
-      window.maybeAnalyzeOnboardingAfterSave = () => calls.push(['onboarding-ai']);
-      window.renderOnboardingAIBlock = () => '<div id="setup-ai-block">AI setup block</div>';
+      sunDefaults.configureSunDefaults({
+        maybeAnalyzeOnboardingAfterSave: () => calls.push(['onboarding-ai']),
+        renderOnboardingAIBlock: () => '<div id="setup-ai-block">AI setup block</div>',
+      });
 
       const promptHost = document.createElement('div');
       promptHost.id = 'setup-prompt-render-host';
@@ -211,8 +211,10 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         openProfileLocationEditor: saved.openProfileLocationEditor,
         openClientList: saved.openClientList,
         requestPreciseLocation: saved.requestPreciseLocation,
-        maybeAnalyzeOnboardingAfterSave: saved.maybeAnalyzeOnboardingAfterSave,
-        renderOnboardingAIBlock: saved.renderOnboardingAIBlock,
+      });
+      sunDefaults.configureSunDefaults({
+        maybeAnalyzeOnboardingAfterSave: () => {},
+        renderOnboardingAIBlock: () => '',
       });
       localStorage.clear();
       for (const [key, value] of storage) {

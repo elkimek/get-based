@@ -23,7 +23,7 @@ import { lightEnvActionAttrs } from './light-env-actions.js';
 //     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
 //     createdAt, updatedAt? }
 
-/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction }} */
+/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction, hasAIProvider: AnyFunction, maybeAnalyzeAuditAfterSave: AnyFunction, renderAuditAIBlock: AnyFunction, renderAuditAIDot: AnyFunction }} */
 const auditDeps = {
   getEnvironment: () => state.importedData?.lightEnvironment || null,
   computeRoomSeverity: () => ({
@@ -33,6 +33,10 @@ const auditDeps = {
     reason: 'Light environment unavailable',
   }),
   refreshLightEnvironmentUI: () => {},
+  hasAIProvider: () => false,
+  maybeAnalyzeAuditAfterSave: () => {},
+  renderAuditAIBlock: () => '',
+  renderAuditAIDot: () => '',
 };
 
 const LIGHT_AUDITS_ANCHOR = '.light-audits-block';
@@ -58,6 +62,22 @@ function computeRoomSeverity(room, measurements) {
 
 function refreshLightEnvironmentUI(options = {}) {
   auditDeps.refreshLightEnvironmentUI(options);
+}
+
+function maybeAnalyzeAuditAfterSave(audit) {
+  try { auditDeps.maybeAnalyzeAuditAfterSave(audit); } catch (_) {}
+}
+
+function renderAuditAIBlock(audit) {
+  try { return auditDeps.renderAuditAIBlock(audit) || ''; } catch (_) { return ''; }
+}
+
+function renderAuditAIDot(audit) {
+  try { return auditDeps.renderAuditAIDot(audit) || ''; } catch (_) { return ''; }
+}
+
+function hasAuditAIProvider() {
+  try { return !!auditDeps.hasAIProvider(); } catch (_) { return false; }
 }
 
 function refreshAuditsUI() {
@@ -116,9 +136,7 @@ export async function saveLightAudit(label = '') {
   // verdict so the snapshot is interpretable from the moment it lands,
   // same way session-stop and onboarding-save do. Manual refresh on the
   // card re-rolls. Best-effort, no-throw — sync push handles propagation.
-  if (typeof window !== 'undefined' && window.maybeAnalyzeAuditAfterSave) {
-    try { window.maybeAnalyzeAuditAfterSave(audit); } catch (_) {}
-  }
+  maybeAnalyzeAuditAfterSave(audit);
   return audit;
 }
 
@@ -188,7 +206,7 @@ function renderLightAuditCard(a, expanded) {
     <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" ${lightEnvActionAttrs('toggle-audit', { id: a.id })}>
       <div class="light-audit-info">
         <div class="light-audit-info-top">
-          ${typeof window !== 'undefined' && window.renderAuditAIDot ? window.renderAuditAIDot(a) : ''}
+          ${renderAuditAIDot(a)}
           <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
           ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
         </div>
@@ -233,7 +251,7 @@ function renderLightAuditDetail(a) {
         <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" ${lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'label' })}>
       </label>
     </div>
-    ${typeof window !== 'undefined' && window.renderAuditAIBlock ? window.renderAuditAIBlock(a) : ''}`;
+    ${renderAuditAIBlock(a)}`;
 
   if (!(a.rooms || []).length) {
     html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
@@ -369,9 +387,7 @@ function renderLightAuditCompare(audits) {
   // user can ask the AI what shifted + what to try next. Mirrors EMF
   // assessment's Interpret Comparison flow without the heavyweight
   // streaming overlay (the chat panel already serves the same purpose).
-  const hasAI = (typeof window !== 'undefined' && typeof window.hasAIProvider === 'function')
-    ? window.hasAIProvider()
-    : false;
+  const hasAI = hasAuditAIProvider();
   let html = `<div class="light-audit-compare-head">
     <span class="light-audit-compare-label">Before: ${escapeHTML(fmtAuditDate(a1.date))}${a1.label ? ' — ' + escapeHTML(a1.label) : ''}</span>
     <span class="light-audit-compare-arrow">→</span>
