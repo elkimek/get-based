@@ -334,10 +334,6 @@ test('device session dialog covers validation unit mode start and save paths', a
     const calls = [];
     const saved = {
       unitSystem: state.unitSystem,
-      navigate: window.navigate,
-      validateModeCoupling: window.validateModeCoupling,
-      renderBodySilhouette: window.renderBodySilhouette,
-      bindBodySilhouette: window.bindBodySilhouette,
     };
     let activeSession = null;
     const devices = [{
@@ -374,13 +370,12 @@ test('device session dialog covers validation unit mode start and save paths', a
 
     try {
       state.unitSystem = 'US';
-      window.navigate = route => calls.push(['navigate', route]);
-      window.validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
-      window.renderBodySilhouette = selected => `
+      const validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
+      const renderBodySilhouette = selected => `
         <button type="button" class="body-region-test" data-region="legs-front" aria-pressed="${selected.has('legs-front')}">Legs front</button>
         <button type="button" class="body-region-test" data-region="arms-front" aria-pressed="${selected.has('arms-front')}">Arms front</button>
       `;
-      window.bindBodySilhouette = (slot, selected, callback) => {
+      const bindBodySilhouette = (slot, selected, callback) => {
         slot.querySelectorAll('[data-region]').forEach(btn => {
           btn.addEventListener('click', () => {
             const region = btn.dataset.region;
@@ -406,6 +401,10 @@ test('device session dialog covers validation unit mode start and save paths', a
           activeSession = { id: 'active-device' };
         },
         ensureActiveDeviceTicker: () => calls.push(['ticker']),
+        validateModeCoupling,
+        renderBodySilhouette,
+        bindBodySilhouette,
+        navigate: route => calls.push(['navigate', route]),
       };
 
       await deviceSessionModal.openDeviceSessionDialog('panel-coverage', deps);
@@ -417,6 +416,7 @@ test('device session dialog covers validation unit mode start and save paths', a
         && overlay.querySelector('#dev-session-mode')?.value === 'red'
         && modeButtons.length === 3
         && !overlay.textContent.includes('Blocked')
+        && !!overlay.querySelector('.body-region-test')
         && overlay.querySelector('#dev-session-eyes')?.checked === false
         && overlay.querySelector('#dev-session-area-hint')?.textContent.includes('Legs');
 
@@ -477,14 +477,6 @@ test('device session dialog covers validation unit mode start and save paths', a
       outcomes.hydratesDevicesOnEachOpen = calls.filter(call => call[0] === 'hydrate-devices').length === 3;
     } finally {
       state.unitSystem = saved.unitSystem;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
-      if (saved.validateModeCoupling) window.validateModeCoupling = saved.validateModeCoupling;
-      else delete window.validateModeCoupling;
-      if (saved.renderBodySilhouette) window.renderBodySilhouette = saved.renderBodySilhouette;
-      else delete window.renderBodySilhouette;
-      if (saved.bindBodySilhouette) window.bindBodySilhouette = saved.bindBodySilhouette;
-      else delete window.bindBodySilhouette;
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 

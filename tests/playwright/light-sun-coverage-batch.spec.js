@@ -775,7 +775,6 @@ test('light devices cover session detail edit log active card and rendered list 
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
     const savedWindow = {
-      validateModeCoupling: window.validateModeCoupling,
       channelTier: window.channelTier,
       tierLabel: window.tierLabel,
       formatChannelUnit: window.formatChannelUnit,
@@ -804,10 +803,11 @@ test('light devices cover session detail edit log active card and rendered list 
         recommendedDistanceCm: 20,
         channels: ['vitamin_d', 'circadian', 'pbm_red', 'pbm_nir'],
         modes: [
-          { id: 'combo', label: 'Combo', default: true },
-          { id: 'red', label: 'Red only' },
-          { id: 'blocked', label: 'Blocked' },
+          { id: 'combo', label: 'Combo', groups: ['red', 'nir'], default: true },
+          { id: 'red', label: 'Red only', groups: ['red'] },
+          { id: 'blocked', label: 'Blocked', groups: ['blocked'] },
         ],
+        coupling: [{ if: 'blocked', requires: ['missing'], reason: 'blocked test mode' }],
         catalogSlug: 'testlight-panel-900',
         addedAt: Date.now() - 9 * 86400000,
         lastSession: {
@@ -837,7 +837,6 @@ test('light devices cover session detail edit log active card and rendered list 
         lightDevices: [device],
         deviceSessions: [session],
       };
-      window.validateModeCoupling = (_device, mode) => ({ ok: mode !== 'blocked' });
       window.channelTier = value => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0;
       window.tierLabel = tier => ['none', 'low', 'moderate', 'high'][tier] || 'none';
       window.formatChannelUnit = (key, value) => `${Math.round(value)} ${key}`;
