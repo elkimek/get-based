@@ -14,6 +14,21 @@ import {
   resolveDeviceMode,
 } from './light-device-session-engine.js';
 
+/**
+ * @typedef {object} LightDevicesStoreDeps
+ * @property {(session: any) => void} maybeAnalyzeDeviceSessionAfterFinish
+ */
+
+/** @type {LightDevicesStoreDeps} */
+const storeDeps = {
+  maybeAnalyzeDeviceSessionAfterFinish: () => {},
+};
+
+/** @param {Partial<LightDevicesStoreDeps>} [deps] */
+export function configureLightDevicesStore(deps = {}) {
+  Object.assign(storeDeps, deps);
+}
+
 function randomSuffix(chars = 4) {
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
     const bytes = new Uint8Array(Math.ceil(chars * 0.75) + 1);
@@ -28,9 +43,7 @@ function makeId(prefix, now = Date.now()) {
 }
 
 function runDeviceSessionAnalysis(session) {
-  if (typeof window !== 'undefined' && window.maybeAnalyzeDeviceSessionAfterFinish) {
-    try { window.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
-  }
+  try { storeDeps.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
 }
 
 export function getDevices() {
