@@ -403,13 +403,17 @@ export function getMobileWearableTiles() {
   return tiles;
 }
 
-function renderMobileSectionHead(title, count, actionLabel = '', action = '') {
+/**
+ * @param {string} actionKey Delegated mobile dashboard action key; raw JavaScript expressions are not supported.
+ * @param {Record<string, string | number | boolean>} actionAttrs Additional action payload attributes.
+ */
+function renderMobileSectionHead(title, count, actionLabel = '', actionKey = '', actionAttrs = {}) {
   return `<div class="m-section-head">
     <div class="m-section-labels">
       <span class="m-section-title">${escapeHTML(title)}</span>
       ${count ? `<span class="m-section-count">${escapeHTML(count)}</span>` : ''}
     </div>
-    ${actionLabel && action ? `<button type="button" ${mobileDashboardActionAttrs(action)}>${escapeHTML(actionLabel)}</button>` : ''}
+    ${actionLabel && actionKey ? `<button type="button" ${mobileDashboardActionAttrs(actionKey, actionAttrs)}>${escapeHTML(actionLabel)}</button>` : ''}
   </div>`;
 }
 

@@ -120,6 +120,13 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
           && document.getElementById('tour-spotlight')?.style.display === 'block';
       });
 
+      const beforeInvalidIndexTitle = document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent;
+      window._tourGoToStep(99);
+      window._tourGoToStep(-1);
+      await wait(50);
+      const invalidTourIndexNoops = document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent === beforeInvalidIndexTitle
+        && document.getElementById('tour-tooltip')?.querySelectorAll('.tour-dot')[1]?.classList.contains('active') === true;
+
       const startTarget = firstVisible('.welcome-primary-panel');
       let stepOneSpotlightTargetsPanel = false;
       if (startTarget) {
@@ -269,6 +276,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         welcomeDots,
         welcomeButtons,
         stepOneNavigation,
+        invalidTourIndexNoops,
         stepOneSpotlightTargetsPanel,
         backReturnsToWelcome,
         lastStepDoneState,

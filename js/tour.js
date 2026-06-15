@@ -170,8 +170,9 @@ function runTour(steps, storageKey, auto) {
 
 function goToStep(index) {
   if (!activeTour) return;
-  activeTour.currentStep = index;
   const steps = activeTour.steps;
+  if (!Number.isInteger(index) || index < 0 || index >= steps.length) return;
+  activeTour.currentStep = index;
   const step = steps[index];
   const spotlight = document.getElementById('tour-spotlight');
   const tooltip = document.getElementById('tour-tooltip');
