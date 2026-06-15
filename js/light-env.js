@@ -979,7 +979,7 @@ async function setLightEnvRoomHoursBucket(id, bucketKey) {
 // classification — only when the user hasn't picked one yet, so
 // we don't silently overwrite a manual answer. Mapping mirrors
 // light-tools.js classifyLight() label values.
-async function suggestRoomSourceFromSpectrum(roomId, spectrumLabel) {
+export async function suggestRoomSourceFromSpectrum(roomId, spectrumLabel) {
   const env = getEnvironment();
   const room = (env?.rooms || []).find(r => r.id === roomId);
   if (!room) return;
@@ -1135,7 +1135,7 @@ async function setLightEnvTodayActive(kind, id, active) {
   refreshLightEnvironmentUI();
 }
 
-function getRooms() {
+export function getRooms() {
   return (getEnvironment()?.rooms) || [];
 }
 

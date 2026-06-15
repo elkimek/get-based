@@ -345,6 +345,7 @@ const APP_SHELL = [
   '/js/light-tool-camera.js',
   '/js/light-tool-camera-modals.js',
   '/js/light-tools.js',
+  '/js/light-tools-ui-hooks.js',
   '/js/light-tools-ai-analysis.js',
   '/js/lighting-hardware-caveats.js',
   '/js/silhouette-paths.js',
