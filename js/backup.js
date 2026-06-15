@@ -1,7 +1,7 @@
 // @ts-check
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 
-import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
+import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 
@@ -13,6 +13,43 @@ const appWindow = /** @type {Window & typeof globalThis & {
 }} */ (window);
 const getEncryptionEnabled = () => appWindow.getEncryptionEnabled?.() || false;
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
+const backupActionDelegateRoots = new WeakSet();
+const BACKUP_ACTION_DELEGATE_KEY = Symbol.for('getbased.backupActionDelegatesInstalled');
+const BACKUP_ACTION_ATTR = 'data-backup-action';
+const BACKUP_ACTION_SELECTOR = `[${BACKUP_ACTION_ATTR}]`;
+
+function backupActionAttrs(action) {
+  return `${BACKUP_ACTION_ATTR}="${escapeAttr(action)}"`;
+}
+
+function closestBackupAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(BACKUP_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleBackupActionClick(event) {
+  const actionEl = closestBackupAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(BACKUP_ACTION_ATTR);
+  if (action === 'pick-folder') pickFolderForBackup();
+  else if (action === 'reauthorize-folder') reauthorizeFolderBackup();
+  else if (action === 'remove-folder') removeFolderBackup();
+  else return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+export function installBackupActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || backupActionDelegateRoots.has(root) || root[BACKUP_ACTION_DELEGATE_KEY]) return;
+  backupActionDelegateRoots.add(root);
+  Object.defineProperty(root, BACKUP_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleBackupActionClick);
+}
+
+if (typeof document !== 'undefined') installBackupActionDelegates();
 
 // Read the RAW stored value (encrypted-if-encryption-on, plaintext-if-off)
 // for any key. Big-blob `-imported` keys live in IndexedDB now; everything
@@ -665,20 +702,20 @@ export function renderFolderBackupSection() {
   let html = '<div class="backup-folder-section">';
   html += '<div class="backup-folder-desc">Sync backups to a local folder (Proton Drive, Dropbox, NAS, etc.)</div>';
   if (!st.folderName) {
-    html += '<button class="import-btn import-btn-secondary" onclick="pickFolderForBackup()">Set backup folder</button>';
+    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('pick-folder')}>Set backup folder</button>`;
   } else if (st.permissionLost) {
     html += `<div class="backup-folder-status backup-folder-status-warn">Folder: ${escapeHTML(st.folderName)} — access lost</div>`;
     html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-    html += '<button class="import-btn import-btn-primary" onclick="reauthorizeFolderBackup()">Restore access</button>';
-    html += '<button class="import-btn import-btn-secondary" onclick="removeFolderBackup()">Remove</button>';
+    html += `<button class="import-btn import-btn-primary" ${backupActionAttrs('reauthorize-folder')}>Restore access</button>`;
+    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('remove-folder')}>Remove</button>`;
     html += '</div>';
   } else {
     const lastLabel = st.lastBackup ? new Date(st.lastBackup).toLocaleString() : 'never';
     html += `<div class="backup-folder-status backup-folder-status-ok">Folder: ${escapeHTML(st.folderName)}</div>`;
     html += `<div class="backup-folder-meta">Last folder backup: ${escapeHTML(lastLabel)}</div>`;
     html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-    html += '<button class="import-btn import-btn-secondary" onclick="pickFolderForBackup()">Change folder</button>';
-    html += '<button class="import-btn import-btn-secondary" onclick="removeFolderBackup()">Remove</button>';
+    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('pick-folder')}>Change folder</button>`;
+    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('remove-folder')}>Remove</button>`;
     html += '</div>';
   }
   html += '</div>';

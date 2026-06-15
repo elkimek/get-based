@@ -2,7 +2,7 @@
 // crypto.js — Encryption at rest, backup/restore, cross-tab sync
 
 import { state } from './state.js';
-import { showNotification, showConfirmDialog, escapeHTML } from './utils.js';
+import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
@@ -14,6 +14,89 @@ const appWindow = /** @type {Window & typeof globalThis & {
   migrateProfileData: (data: any) => void,
   navigate: (view: string) => void,
 }} */ (window);
+const cryptoActionDelegateRoots = new WeakSet();
+const CRYPTO_ACTION_DELEGATE_KEY = Symbol.for('getbased.cryptoActionDelegatesInstalled');
+const CRYPTO_ACTION_ATTR = 'data-crypto-action';
+const CRYPTO_ACTION_SELECTOR = `[${CRYPTO_ACTION_ATTR}]`;
+
+function cryptoActionAttrs(action, attrs = {}) {
+  let html = `${CRYPTO_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-crypto-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestCryptoAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(CRYPTO_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function readSnapshotActionId(actionEl) {
+  const raw = actionEl.dataset.cryptoSnapshotId;
+  if (raw == null) return null;
+  if (actionEl.dataset.cryptoSnapshotIdType === 'number') {
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : null;
+  }
+  return raw;
+}
+
+function handleCryptoActionClick(event) {
+  const actionEl = closestCryptoAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(CRYPTO_ACTION_ATTR);
+  if (action === 'change-passphrase') changePassphrase();
+  else if (action === 'disable-encryption') disableEncryption();
+  else if (action === 'enable-encryption') showEnableEncryptionModal();
+  else if (action === 'export-backup') exportEncryptedBackup();
+  else if (action === 'toggle-backup-snapshots') toggleBackupSnapshots();
+  else if (action === 'restore-auto-backup') {
+    const id = readSnapshotActionId(actionEl);
+    if (id == null) return;
+    restoreAutoBackup(id);
+  } else {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleCryptoActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestCryptoAction(event.target);
+  if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
+  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  handleCryptoActionClick(event);
+}
+
+function handleCryptoActionChange(event) {
+  const actionEl = closestCryptoAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute(CRYPTO_ACTION_ATTR) !== 'import-backup') return;
+  const fileInput = /** @type {HTMLInputElement} */ (actionEl);
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+  importEncryptedBackup(file);
+  fileInput.value = '';
+  event.stopPropagation();
+}
+
+export function installCryptoActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || cryptoActionDelegateRoots.has(root) || root[CRYPTO_ACTION_DELEGATE_KEY]) return;
+  cryptoActionDelegateRoots.add(root);
+  Object.defineProperty(root, CRYPTO_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleCryptoActionClick);
+  root.addEventListener('keydown', handleCryptoActionKeydown);
+  root.addEventListener('change', handleCryptoActionChange);
+}
+
+if (typeof document !== 'undefined') installCryptoActionDelegates();
 
 // ═══════════════════════════════════════════════
 // SENSITIVE KEY PATTERNS
@@ -885,8 +968,8 @@ export function renderEncryptionSection() {
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-      <button class="import-btn import-btn-secondary" onclick="changePassphrase()">Change Passphrase</button>
-      <button class="import-btn import-btn-secondary" onclick="disableEncryption()">Disable Encryption</button>
+      <button class="import-btn import-btn-secondary" ${cryptoActionAttrs('change-passphrase')}>Change Passphrase</button>
+      <button class="import-btn import-btn-secondary" ${cryptoActionAttrs('disable-encryption')}>Disable Encryption</button>
     </div>`;
   }
   return `<div class="encryption-status-card encryption-status-off">
@@ -896,7 +979,7 @@ export function renderEncryptionSection() {
       <div class="encryption-status-detail">Your data is stored as plaintext in localStorage. Browser extensions and anyone with filesystem access can read it.</div>
     </div>
   </div>
-  <button class="import-btn import-btn-primary" style="margin-top:12px" onclick="showEnableEncryptionModal()">Enable Encryption</button>`;
+  <button class="import-btn import-btn-primary" style="margin-top:12px" ${cryptoActionAttrs('enable-encryption')}>Enable Encryption</button>`;
 }
 
 export function renderBackupSection() {
@@ -906,14 +989,14 @@ export function renderBackupSection() {
     : 'No auto-backups yet';
   return `<div class="ai-provider-desc" style="margin-bottom:10px">Create a full backup of all profiles, data, and chat history. ${getEncryptionEnabled() ? 'Backups inherit encryption \u2014 same passphrase required to restore.' : 'Backups are unencrypted unless encryption is enabled.'}</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="import-btn import-btn-primary" onclick="exportEncryptedBackup()">Download Backup</button>
+    <button class="import-btn import-btn-primary" ${cryptoActionAttrs('export-backup')}>Download Backup</button>
     <label class="import-btn import-btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center">
       Restore Backup
-      <input type="file" accept=".json" style="display:none" onchange="if(this.files[0])importEncryptedBackup(this.files[0])">
+      <input type="file" accept=".json" style="display:none" ${cryptoActionAttrs('import-backup')}>
     </label>
   </div>
   <div class="backup-auto-status">${escapeHTML(autoStatus)}</div>
-  <div class="backup-snapshots-toggle" onclick="toggleBackupSnapshots()" id="backup-snapshots-toggle" style="display:none">
+  <div class="backup-snapshots-toggle" ${cryptoActionAttrs('toggle-backup-snapshots')} id="backup-snapshots-toggle" role="button" tabindex="0" style="display:none">
     <span class="privacy-configure-arrow" id="backup-snapshots-arrow">&#9654;</span>
     Recent snapshots
   </div>
@@ -936,12 +1019,16 @@ export async function loadBackupSnapshots() {
   list.innerHTML = shown.map(s => {
     const date = new Date(s.createdAt).toLocaleString();
     const profileCount = (s.snapshot && s.snapshot.profiles) ? s.snapshot.profiles.length : '?';
+    const actionAttrs = cryptoActionAttrs('restore-auto-backup', {
+      snapshotId: s.id,
+      snapshotIdType: typeof s.id === 'number' ? 'number' : 'string',
+    });
     return `<div class="backup-snapshot-item">
       <div class="backup-snapshot-info">
         <span class="backup-snapshot-date">${escapeHTML(date)}</span>
         <span class="backup-snapshot-meta">${profileCount} profile(s)${s.encrypted ? ' \u2022 encrypted' : ''}</span>
       </div>
-      <button class="import-btn import-btn-secondary" style="padding:4px 10px;font-size:12px" onclick="restoreAutoBackup(${s.id})">Restore</button>
+      <button class="import-btn import-btn-secondary" style="padding:4px 10px;font-size:12px" ${actionAttrs}>Restore</button>
     </div>`;
   }).join('');
 }

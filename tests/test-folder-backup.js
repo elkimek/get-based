@@ -78,7 +78,8 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
     const st = window.getFolderBackupState();
     if (st.supported) {
       assert('Folder section has description text', html.includes('backup-folder-desc'));
-      assert('Folder section has set/change button', html.includes('pickFolderForBackup'));
+      assert('Folder section has delegated set/change button', html.includes('data-backup-action="pick-folder"'));
+      assert('Folder section has no inline click handlers', !html.includes('onclick='));
     } else {
       assert('Folder section hidden on unsupported browser', !html.includes('backup-folder-desc'));
     }
