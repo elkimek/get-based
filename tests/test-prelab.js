@@ -409,7 +409,7 @@ const onboardingViewSrc = read('js/onboarding-view.js');
   })(), 'Hidden drop zone should remain inside welcome hero');
   assert('Welcome hero has a chat-first start panel', dashboardPageViewSrc.includes('welcome-chat-panel') && dashboardPageViewSrc.includes('Start guided chat'),
     'Empty state should lead with guided chat');
-  assert('Welcome guided chat button opens chat, not provider setup', dashboardPageViewSrc.includes('const chatAction = "window.openChatPanel && window.openChatPanel()"'),
+  assert('Welcome guided chat button opens chat through delegated action', dashboardPageViewSrc.includes("dashboardWelcomeActionAttrs('open-chat')"),
     'AI setup should be routed from chat only when needed');
   assert('Demo cards inside welcome hero', (() => {
     const heroStart = dashboardPageViewSrc.indexOf('welcome-hero');

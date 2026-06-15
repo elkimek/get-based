@@ -2,7 +2,7 @@
 // dashboard-page-view.js — dashboard route shell and empty-state orchestration
 
 import { state } from './state.js';
-import { escapeHTML, formatDate } from './utils.js';
+import { escapeAttr, escapeHTML, formatDate } from './utils.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './context-cards.js';
@@ -15,6 +15,57 @@ import {
   getMobileGreetingName,
   getMobileDashboardCounts,
 } from './mobile-dashboard.js';
+
+let _dashboardWelcomeActionsInstalled = false;
+
+const DASHBOARD_WELCOME_ACTION_ATTR = 'data-dashboard-welcome-action';
+const DASHBOARD_WELCOME_ACTION_SELECTOR = `[${DASHBOARD_WELCOME_ACTION_ATTR}]`;
+
+function dashboardWelcomeActionAttrs(action, attrs = {}) {
+  let html = `${DASHBOARD_WELCOME_ACTION_ATTR}="${escapeAttr(action)}"`;
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    const attr = key.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+    html += ` data-dashboard-welcome-${attr}="${escapeAttr(String(value))}"`;
+  }
+  return html;
+}
+
+function closestDashboardWelcomeAction(target) {
+  return /** @type {HTMLElement | null} */ (
+    target && typeof target.closest === 'function'
+      ? target.closest(DASHBOARD_WELCOME_ACTION_SELECTOR)
+      : null
+  );
+}
+
+function handleDashboardWelcomeActionClick(event) {
+  const actionEl = closestDashboardWelcomeAction(event.target);
+  if (!actionEl) return;
+  const appWindow = /** @type {any} */ (window);
+  const action = actionEl.getAttribute(DASHBOARD_WELCOME_ACTION_ATTR);
+  if (action === 'open-chat') {
+    appWindow.openChatPanel?.();
+  } else if (action === 'open-ai-settings') {
+    appWindow.closeChatPanel?.();
+    appWindow.openSettingsModal?.('ai');
+  } else if (action === 'direct-import') {
+    document.getElementById('pdf-input')?.click();
+  } else if (action === 'load-demo') {
+    appWindow.loadDemoData?.(actionEl.dataset.dashboardWelcomeDemo || 'female');
+  } else {
+    return;
+  }
+  event.preventDefault();
+}
+
+export function installDashboardWelcomeActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || _dashboardWelcomeActionsInstalled) return;
+  _dashboardWelcomeActionsInstalled = true;
+  root.addEventListener('click', handleDashboardWelcomeActionClick);
+}
+
+installDashboardWelcomeActionDelegates();
 
 function getDashboardProfileName() {
   const profile = getMobileDashboardProfile();
@@ -139,7 +190,6 @@ export function createDashboardPageView(deps) {
       const aiPaused = isAIPaused();
       const importReady = aiReady && !aiPaused;
       const heroClass = importReady ? 'welcome-hero welcome-hero-ready' : 'welcome-hero welcome-hero-noai';
-      const chatAction = "window.openChatPanel && window.openChatPanel()";
       const primaryTitle = aiPaused ? 'Resume guided chat' : 'Start with guided chat';
       const primaryCopy = aiPaused
         ? 'Chat will walk you through re-enabling AI before you add files, connect sources, or ask for recommendations.'
@@ -147,16 +197,16 @@ export function createDashboardPageView(deps) {
           ? 'Chat will ask for context only when it helps, then route you to labs, DNA, wearables, light, or first-test planning.'
           : 'Chat starts with the basics, then guides AI setup only when it is needed for import or recommendations.');
       const secondaryAction = aiPaused
-        ? `<button type="button" class="welcome-action-btn" onclick="closeChatPanel();window.openSettingsModal('ai')">Re-enable AI</button>`
+        ? `<button type="button" class="welcome-action-btn" ${dashboardWelcomeActionAttrs('open-ai-settings')}>Re-enable AI</button>`
         : (importReady
-          ? `<button type="button" class="welcome-action-btn welcome-direct-import-btn" onclick="document.getElementById('pdf-input')?.click()">Import directly</button>`
+          ? `<button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import directly</button>`
           : '');
       const primaryPanel = `<div class="welcome-primary-panel welcome-chat-panel">
           <span class="welcome-primary-kicker">Start here</span>
           <strong>${escapeHTML(primaryTitle)}</strong>
           <p>${escapeHTML(primaryCopy)}</p>
           <div class="welcome-primary-actions">
-            <button type="button" class="welcome-action-btn welcome-action-primary" onclick="${chatAction}">Start guided chat</button>
+            <button type="button" class="welcome-action-btn welcome-action-primary" ${dashboardWelcomeActionAttrs('open-chat')}>Start guided chat</button>
             ${secondaryAction}
           </div>
         </div>
@@ -168,12 +218,12 @@ export function createDashboardPageView(deps) {
         <div class="welcome-demo-section">
           <span class="welcome-section-label">Preview with demo data</span>
           <div class="demo-cards">
-            <button class="demo-card" onclick="loadDemoData('female')">
+            <button type="button" class="demo-card" ${dashboardWelcomeActionAttrs('load-demo', { demo: 'female' })}>
               <span class="demo-card-avatar">\uD83D\uDC69</span>
               <span class="demo-card-name">Sarah, 34</span>
               <span class="demo-card-desc">Iron + Oura: overtraining clues</span>
             </button>
-            <button class="demo-card" onclick="loadDemoData('male')">
+            <button type="button" class="demo-card" ${dashboardWelcomeActionAttrs('load-demo', { demo: 'male' })}>
               <span class="demo-card-avatar">\uD83D\uDC68</span>
               <span class="demo-card-name">Alex, 38</span>
               <span class="demo-card-desc">Metabolic + Withings body comp</span>
