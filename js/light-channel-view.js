@@ -5,6 +5,28 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 
+const LIGHT_CHANNEL_ACTION_ATTR = 'data-light-channel-action';
+const LIGHT_CHANNEL_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightChannelActionDelegatesInstalled'), lightChannelActionDelegateRoots = new WeakSet();
+function closestLightChannelAction(target) { return target?.closest?.(`[${LIGHT_CHANNEL_ACTION_ATTR}]`) || null; }
+function handleLightChannelActionClick(event) {
+  const actionEl = closestLightChannelAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(LIGHT_CHANNEL_ACTION_ATTR);
+  const channelKey = /** @type {HTMLElement} */ (actionEl).dataset.channel || '';
+  let handled = true;
+  if (action === 'toggle-detail' && channelKey) _toggleChannelDetail(channelKey);
+  else if (action === 'quick-log-sun') window.quickLogSunSession?.();
+  else if (action === 'quick-log-device') window.quickLogDeviceSession?.();
+  else handled = false;
+  if (handled) event.stopPropagation();
+}
+export function installLightChannelActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightChannelActionDelegateRoots.has(root) || root[LIGHT_CHANNEL_ACTION_DELEGATE_KEY]) return;
+  lightChannelActionDelegateRoots.add(root);
+  Object.defineProperty(root, LIGHT_CHANNEL_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleLightChannelActionClick);
+}
+if (typeof document !== 'undefined') installLightChannelActionDelegates();
 export function mergeTotals(a, b) {
   const out = { ...a };
   for (const [k, v] of Object.entries(b || {})) out[k] = (out[k] || 0) + v;
@@ -110,7 +132,7 @@ export function renderChannelPills(totals7d, totals30d) {
     const dc = _channelDayCount(k);
     const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week.`;
     const detailId = `light-pill-detail-${k}`;
-    html += `<button type="button" class="light-pill light-pill-tier-${t7} light-pill-interactive" data-channel="${escapeAttr(k)}" data-trend="${trendDir}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(k)}')">
+    html += `<button type="button" class="light-pill light-pill-tier-${t7} light-pill-interactive" data-light-channel-action="toggle-detail" data-channel="${escapeAttr(k)}" data-trend="${trendDir}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}">
       <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
       ${_channelSparkline(k)}
@@ -609,8 +631,8 @@ function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
   const showSun = true; // every channel can be filled with sun
   const showDev = !!matchingDevice;
   const buttons = `
-    ${showSun ? `<button type="button" class="import-btn import-btn-primary light-channel-cta-btn" onclick="window.quickLogSunSession && window.quickLogSunSession()">☀ Log a sun session</button>` : ''}
-    ${showDev ? `<button type="button" class="import-btn import-btn-secondary light-channel-cta-btn" onclick="window.quickLogDeviceSession && window.quickLogDeviceSession()">🔴 Log device session</button>` : ''}`;
+    ${showSun ? `<button type="button" class="import-btn import-btn-primary light-channel-cta-btn" data-light-channel-action="quick-log-sun">☀ Log a sun session</button>` : ''}
+    ${showDev ? `<button type="button" class="import-btn import-btn-secondary light-channel-cta-btn" data-light-channel-action="quick-log-device">🔴 Log device session</button>` : ''}`;
   return `<section class="light-channel-nextmove">
     <div class="light-channel-nextmove-label">Next move</div>
     <p class="light-channel-nextmove-text">${txt}</p>
@@ -668,7 +690,7 @@ function _renderChannelDetailPanel(channelKey) {
     <header class="light-channel-detail-head">
       <span class="light-channel-detail-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <h4 class="light-channel-detail-title">${escapeHTML(meta.label || channelKey)}</h4>
-      <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" onclick="window._toggleChannelDetail && window._toggleChannelDetail('${escapeAttr(channelKey)}')">×</button>
+      <button type="button" class="light-channel-detail-close" aria-label="Close ${escapeAttr(meta.label || channelKey)} detail" data-light-channel-action="toggle-detail" data-channel="${escapeAttr(channelKey)}">×</button>
     </header>
 
     ${_channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, t7)}

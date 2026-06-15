@@ -553,15 +553,20 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
 
       const inlineHost = document.createElement('div');
       inlineHost.innerHTML = sessionsView.renderUnifiedSessionsList();
+      sessionsView.installLightSessionsActionDelegates(inlineHost);
       // Active sessions are pinned elsewhere, so history sees four completed
       // rows (2 sun + 2 device) and caps the inline list to the first three.
       const inlineRows = inlineHost.querySelectorAll('.sun-session');
       outcomes.inlineListCapsAndShowsMore = inlineRows.length === 3
         && inlineHost.textContent.includes('View all 4 sessions')
         && !!inlineHost.querySelector('.light-sessions-list-unified');
+      outcomes.inlineListUsesDelegatedActions = !!inlineHost.querySelector('[data-light-sessions-action="show-all"]')
+        && !inlineHost.innerHTML.includes('onclick=')
+        && !inlineHost.innerHTML.includes('onkeydown=');
 
       sessionsView._openAllSessionsModal();
       let overlay = document.querySelector('.light-sessions-modal-overlay');
+      if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
       outcomes.modalSummaryCountsBothKinds = overlay?.textContent.includes('All sessions (4)') === true
         && overlay?.textContent.includes('Sun') === true
         && overlay?.textContent.includes('Device') === true
@@ -601,6 +606,7 @@ test('light sessions view covers all-sessions modal refresh scroll and row event
 
       sessionsView._openAllSessionsModal();
       overlay = document.querySelector('.light-sessions-modal-overlay');
+      if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
       const keyRow = overlay?.querySelector('.light-session-device[role="button"]');
       keyRow?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
       await delay(0);

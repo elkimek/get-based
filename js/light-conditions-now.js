@@ -5,6 +5,49 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
+const LIGHT_CONDITIONS_ACTION_ATTR = 'data-light-conditions-action';
+const LIGHT_CONDITIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightConditionsActionDelegatesInstalled');
+const lightConditionsActionDelegateRoots = new WeakSet();
+
+function closestLightConditionsAction(target) {
+  if (!target || !target.closest) return null;
+  return target.closest(`[${LIGHT_CONDITIONS_ACTION_ATTR}]`);
+}
+
+function handleLightConditionsActionClick(event) {
+  const actionEl = closestLightConditionsAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(LIGHT_CONDITIONS_ACTION_ATTR);
+  if (action === 'refresh') {
+    _refreshConditionsNow();
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'inspect') {
+    _inspectConditionsNow();
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'set-manual-uvi') {
+    _setManualUvi();
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'clear-manual-uvi') {
+    _clearManualUvi();
+    event.stopPropagation();
+  }
+}
+
+export function installLightConditionsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightConditionsActionDelegateRoots.has(root) || root[LIGHT_CONDITIONS_ACTION_DELEGATE_KEY]) return;
+  lightConditionsActionDelegateRoots.add(root);
+  Object.defineProperty(root, LIGHT_CONDITIONS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleLightConditionsActionClick);
+}
+
+if (typeof document !== 'undefined') installLightConditionsActionDelegates();
+
 export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
   const conditionsOpts = { variant };
   if (slotId) conditionsOpts.slotId = slotId;
@@ -12,8 +55,8 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
       <div class="light-conditions-now-head">
         <span class="light-conditions-now-title">Conditions now</span>
         <span class="light-conditions-now-actions">
-          <button type="button" class="conditions-now-refresh light-widget-mini-btn" aria-label="Refresh conditions data — bypasses cache" onclick="window._refreshConditionsNow && window._refreshConditionsNow()"${_conditionsTooltipAttr('Force a fresh fetch, bypassing the short cache')}>Refresh</button>
-          <button type="button" class="conditions-now-inspect light-widget-mini-btn" aria-label="Show raw conditions response, source, cache, and sanity check" onclick="window._inspectConditionsNow && window._inspectConditionsNow()"${_conditionsTooltipAttr('See raw response, source, cache age, and sanity checks')}>Details</button>
+          <button type="button" class="conditions-now-refresh light-widget-mini-btn" data-light-conditions-action="refresh" aria-label="Refresh conditions data — bypasses cache"${_conditionsTooltipAttr('Force a fresh fetch, bypassing the short cache')}>Refresh</button>
+          <button type="button" class="conditions-now-inspect light-widget-mini-btn" data-light-conditions-action="inspect" aria-label="Show raw conditions response, source, cache, and sanity check"${_conditionsTooltipAttr('See raw response, source, cache age, and sanity checks')}>Details</button>
         </span>
       </div>
       ${renderConditionsNow(conditionsOpts)}
@@ -614,8 +657,8 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
     <span class="conditions-now-override"${_conditionsTooltipAttr('Manual UVI override — feeds your own UV-meter reading into the spectrum reconstruction. Leave blank to use the live atmosphere fetch.')}>
       <label for="manual-uvi-input">Manual UVI:</label>
       <input type="number" min="0" max="20" step="0.1" inputmode="decimal" id="manual-uvi-input" value="${Number.isFinite(ovStored) ? ovStored : ''}" placeholder="${atm.uvIndex != null && !atm._uvOverridden ? atm.uvIndex.toFixed(1) : '—'}">
-      <button type="button" onclick="window._setManualUvi && window._setManualUvi()">Apply</button>
-      ${Number.isFinite(ovStored) ? `<button type="button" onclick="window._clearManualUvi && window._clearManualUvi()"${_conditionsTooltipAttr('Clear the manual override')} aria-label="Clear manual UVI override">×</button>` : ''}
+      <button type="button" data-light-conditions-action="set-manual-uvi">Apply</button>
+      ${Number.isFinite(ovStored) ? `<button type="button" data-light-conditions-action="clear-manual-uvi"${_conditionsTooltipAttr('Clear the manual override')} aria-label="Clear manual UVI override">×</button>` : ''}
     </span>
   </div>`;
 

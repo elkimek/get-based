@@ -4,6 +4,58 @@
 import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 
+const LIGHT_SESSIONS_ACTION_ATTR = 'data-light-sessions-action';
+const LIGHT_SESSION_ID_ATTR = 'data-light-session-id';
+const LIGHT_SESSIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightSessionsActionDelegatesInstalled');
+const lightSessionsActionDelegateRoots = new WeakSet();
+
+function closestLightSessionsAction(target) {
+  if (!target || !target.closest) return null;
+  return target.closest(`[${LIGHT_SESSIONS_ACTION_ATTR}]`);
+}
+
+function handleLightSessionsActionClick(event) {
+  const actionEl = closestLightSessionsAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(LIGHT_SESSIONS_ACTION_ATTR);
+  const sessionId = actionEl.getAttribute(LIGHT_SESSION_ID_ATTR) || '';
+  const appWindow = /** @type {any} */ (window);
+  if (action === 'open-device-session') {
+    if (sessionId) appWindow.openDeviceSessionDetail?.(sessionId);
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'delete-device-session') {
+    event.stopPropagation();
+    if (sessionId) appWindow.deleteDeviceSession?.(sessionId);
+    return;
+  }
+  if (action === 'show-all') {
+    event.stopPropagation();
+    _openAllSessionsModal();
+  }
+}
+
+function handleLightSessionsActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestLightSessionsAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (actionEl.getAttribute('role') !== 'button') return;
+  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  event.preventDefault();
+  handleLightSessionsActionClick(event);
+}
+
+export function installLightSessionsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightSessionsActionDelegateRoots.has(root) || root[LIGHT_SESSIONS_ACTION_DELEGATE_KEY]) return;
+  lightSessionsActionDelegateRoots.add(root);
+  Object.defineProperty(root, LIGHT_SESSIONS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleLightSessionsActionClick);
+  root.addEventListener('keydown', handleLightSessionsActionKeydown);
+}
+
+if (typeof document !== 'undefined') installLightSessionsActionDelegates();
+
 // Inline cap on the historical sessions list. 3 is enough for
 // at-a-glance context ("what did I do recently"); the full history
 // opens in a modal so the rest of the Light & Sun page (Devices,
@@ -89,14 +141,14 @@ function _renderSessionRowsHTML(rows) {
         }
       }
       const devAriaLabel = `Open ${date} device session details — ${devName}${modeAria}`;
-      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}" onclick="window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDeviceSessionDetail && window.openDeviceSessionDetail('${escapeAttr(sess.id)}')}">
+      html += `<div class="sun-session light-session-row light-session-device" data-id="${escapeAttr(sess.id)}" data-light-sessions-action="open-device-session" data-light-session-id="${escapeAttr(sess.id)}" role="button" tabindex="0" aria-label="${escapeAttr(devAriaLabel)}">
         <div class="sun-session-head">
           <span class="light-session-icon" aria-hidden="true">🔴</span>
           <span class="sun-session-date">${escapeHTML(date)}</span>
           <span class="sun-session-duration">${escapeHTML(dur)}</span>
           <span class="light-session-kind">${escapeHTML(devName)}</span>
           ${modeBadge}
-          <button class="sun-session-delete" onclick="event.stopPropagation();window.deleteDeviceSession && window.deleteDeviceSession('${escapeAttr(sess.id)}')" title="Delete session" aria-label="Delete session">×</button>
+          <button type="button" class="sun-session-delete" data-light-sessions-action="delete-device-session" data-light-session-id="${escapeAttr(sess.id)}" title="Delete session" aria-label="Delete session">×</button>
         </div>
         <div class="sun-session-meta">${escapeHTML(meta)}</div>
         ${_renderLightSessionChannelChips(sess.doses, sess.durationMin || 0)}
@@ -119,7 +171,7 @@ export function renderUnifiedSessionsList() {
   html += _renderSessionRowsHTML(visibleRows);
   html += `</div>`;
   if (hiddenCount > 0) {
-    html += `<button class="light-sessions-show-more" onclick="window._openAllSessionsModal()">View all ${totalCount} sessions</button>`;
+    html += `<button type="button" class="light-sessions-show-more" data-light-sessions-action="show-all">View all ${totalCount} sessions</button>`;
   }
   return html;
 }

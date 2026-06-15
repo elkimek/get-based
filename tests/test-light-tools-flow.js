@@ -90,6 +90,10 @@ await import('../js/light-tools.js');
   }
   assert('renderLightTools drawers contain only secondary tools',
     html.includes('Specialized checks') && html.includes('Color temp') && html.includes('Sleep darkness') && html.includes('Window check'));
+  assert('renderLightTools uses delegated tool actions',
+    html.includes('data-light-tools-action="open-tool"') && html.includes('data-light-tool-id="lux"'));
+  assert('renderLightTools has no inline onclick handlers',
+    !html.includes('onclick='));
 
   // ── 5. Camera-dependent openers (all 8) ──────────────────────────────
   // These need getUserMedia which isn't available in the test page. They

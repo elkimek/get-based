@@ -144,6 +144,9 @@ test('light tools browser coverage exercises storage render and modal flows', as
       results.renderShowsMeasuredStatus = populatedHtml.includes('measurements')
         && populatedHtml.includes('2 rooms mapped')
         && populatedHtml.includes('Recommended next');
+      results.renderUsesDelegatedToolActions = populatedHtml.includes('data-light-tools-action="open-tool"')
+        && populatedHtml.includes('data-light-tool-id="lux"')
+        && !populatedHtml.includes('onclick=');
       const guideHost = document.createElement('div');
       guideHost.innerHTML = lightTools.aimingGuideHTML('lux');
       document.body.append(guideHost);
