@@ -34,15 +34,13 @@ function containChatMessageEvent(event) {
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
 
-function handleChatMessageClick(event) {
-  const actionEl = closestChatMessageAction(event.target);
-  if (!actionEl) return;
+function runChatMessageAction(actionEl, event) {
   const action = actionEl.getAttribute(CHAT_MESSAGE_ACTION_ATTR);
   const appWindow = /** @type {any} */ (window);
 
   if (action === 'contain-click') {
     containChatMessageEvent(event);
-    return;
+    return true;
   }
 
   if (action === 'regenerate-last-message') {
@@ -93,19 +91,32 @@ function handleChatMessageClick(event) {
   } else if (action === 'end-discussion') {
     appWindow.endDiscussion?.();
   } else {
-    return;
+    return false;
   }
 
   event.preventDefault();
+  return true;
+}
+
+function handleChatMessageClick(event) {
+  const actionEl = closestChatMessageAction(event.target);
+  if (!actionEl) return;
+  runChatMessageAction(actionEl, event);
 }
 
 function handleChatMessageKeydown(event) {
-  if (event.key !== 'Enter') return;
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
-  if (target.dataset.chatMessageKeyAction !== 'continue-discussion') return;
-  event.preventDefault();
-  void /** @type {any} */ (window).continueDiscussion?.();
+  if (event.key === 'Enter' && target.dataset.chatMessageKeyAction === 'continue-discussion') {
+    event.preventDefault();
+    void /** @type {any} */ (window).continueDiscussion?.();
+    return;
+  }
+
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestChatMessageAction(target);
+  if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
+  runChatMessageAction(actionEl, event);
 }
 
 export function installChatMessageActionDelegates(root = typeof document !== 'undefined' ? document : null) {

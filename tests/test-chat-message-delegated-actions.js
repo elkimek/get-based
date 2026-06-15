@@ -73,12 +73,22 @@ assert('chat-actions delegates dynamic chat controls',
   ].every(action => actionsSrc.includes(`action === '${action}'`)));
 
 const renderSrc = read('js/chat-render.js');
+const sendSrc = read('js/chat-send.js');
 const summariesSrc = read('js/chat-summaries.js');
 const discussionUiSrc = read('js/chat-discussion-ui.js');
+assert('chat-actions keyboard activates delegated role button actions',
+  actionsSrc.includes("event.key !== 'Enter' && event.key !== ' '")
+    && actionsSrc.includes("actionEl.getAttribute('role') !== 'button'")
+    && actionsSrc.includes('runChatMessageAction(actionEl, event)'));
 assert('chat render uses delegated image emf lens and recommendation actions',
   renderSrc.includes("chatMessageActionAttrs('open-image-lightbox')")
     && renderSrc.includes("chatMessageActionAttrs('open-emf-assessment')")
-    && renderSrc.includes("chatMessageActionAttrs('contain-click')"));
+    && renderSrc.includes("chatMessageActionAttrs('contain-click')")
+    && renderSrc.includes("el.addEventListener('click', event => event.stopPropagation())")
+    && renderSrc.includes('bindRenderedChatContainClicks(container)'));
+assert('dynamic recommendation wrapper keeps direct containment without dead delegated attr',
+  sendSrc.includes("wrapper.addEventListener('click', e => e.stopPropagation())")
+    && !sendSrc.includes("wrapper.setAttribute('data-chat-message-action', 'contain-click')"));
 assert('summary list and modal use delegated summary actions',
   summariesSrc.includes("chatMessageActionAttrs('view-summary', { summaryId: s.id })")
     && summariesSrc.includes("chatMessageActionAttrs('close-summary')")

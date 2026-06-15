@@ -387,7 +387,6 @@ export async function sendChatMessage() {
         const wrapper = document.createElement('details');
         wrapper.className = 'rec-chat-wrapper';
         wrapper.open = true;
-        wrapper.setAttribute('data-chat-message-action', 'contain-click');
         wrapper.addEventListener('click', e => e.stopPropagation());
         const summary = document.createElement('summary');
         summary.className = 'rec-chat-summary';

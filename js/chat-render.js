@@ -18,6 +18,12 @@ import { renderEmptyChatState } from './chat-empty-state.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
+function bindRenderedChatContainClicks(container) {
+  container.querySelectorAll('[data-chat-message-action="contain-click"]').forEach(el => {
+    el.addEventListener('click', event => event.stopPropagation());
+  });
+}
+
 /**
  * Render the collapsible "Sources" block under an assistant message.
  * Shows the excerpts the lens returned for this question — filename, score,
@@ -133,6 +139,7 @@ export function renderChatMessages() {
     html += '</div>';
   }
   container.innerHTML = html;
+  bindRenderedChatContainClicks(container);
   container.scrollTop = container.scrollHeight;
   updateDiscussButton();
   updateChatHeaderTitle();
