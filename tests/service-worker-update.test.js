@@ -59,6 +59,46 @@ describe('service worker update prompt', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it('registers with fresh update checks for open tabs', async () => {
+    const { registerServiceWorkerUpdates } = serviceWorkerUpdate;
+    let intervalCallback = null;
+    const registration = {
+      waiting: null,
+      addEventListener: vi.fn(),
+      update: vi.fn(async () => {}),
+    };
+    const win = {
+      location: { hostname: 'getbased.health', search: '', reload: vi.fn() },
+      document: {
+        visibilityState: 'visible',
+        addEventListener: vi.fn(),
+      },
+      addEventListener: vi.fn(),
+      setInterval: vi.fn((callback) => {
+        intervalCallback = callback;
+        return 1;
+      }),
+    };
+    const serviceWorkerContainer = {
+      controller: {},
+      register: vi.fn(async () => registration),
+      addEventListener: vi.fn(),
+    };
+
+    await registerServiceWorkerUpdates({
+      win,
+      serviceWorkerContainer,
+      cacheStorage: null,
+    });
+
+    expect(serviceWorkerContainer.register).toHaveBeenCalledWith('/service-worker.js', { updateViaCache: 'none' });
+    expect(registration.update).toHaveBeenCalledTimes(1);
+    expect(win.addEventListener).toHaveBeenCalledWith('focus', expect.any(Function));
+    expect(win.document.addEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    expect(win.setInterval).toHaveBeenCalledWith(expect.any(Function), 60 * 1000);
+    expect(intervalCallback).toEqual(expect.any(Function));
+  });
+
   it('shows a banner and activates only from the update action', () => {
     const { showVersionUpdateBanner } = serviceWorkerUpdate;
     const waiting = { postMessage: vi.fn() };
