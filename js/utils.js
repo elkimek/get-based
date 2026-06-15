@@ -70,7 +70,7 @@ export function queryRequired(root, selector) {
 }
 
 // Marker keys are interpolated into inline-onclick JS string literals
-// (e.g. `onclick="showDetailModal('${id}')"`), where escapeHTML is not
+// (for example, old inline click attribute strings), where escapeHTML is not
 // enough — a key containing `'` or `\` would close the JS string and
 // inject. Custom marker keys come from PDF AI extraction, so the only
 // way to be sure is an allowlist + proto-pollution guard. Returns the
@@ -364,10 +364,31 @@ export function isPIIReviewEnabled() { return localStorage.getItem('labcharts-pi
 export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-review', on ? 'true' : 'false'); }
 // Analytics: opt-out, default ON. Setting `analytics-disabled=true` suppresses
 // the Umami snippet on next page load. Cookieless, no personal data, no IP.
+const ANALYTICS_CONSENT_ACTION_ATTR = 'data-analytics-consent-action';
+
 export function isAnalyticsEnabled() { return localStorage.getItem('labcharts-analytics-disabled') !== 'true'; }
 export function setAnalyticsEnabled(on) { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
 function hasSeenAnalyticsConsent() { return localStorage.getItem('labcharts-analytics-consent-seen') === '1'; }
 function markAnalyticsConsentSeen() { localStorage.setItem('labcharts-analytics-consent-seen', '1'); }
+
+function handleAnalyticsConsentActionClick(event) {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+  const actionEl = target.closest(`[${ANALYTICS_CONSENT_ACTION_ATTR}]`);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(ANALYTICS_CONSENT_ACTION_ATTR);
+  if (action === 'dismiss') {
+    event.preventDefault();
+    event.stopPropagation();
+    dismissAnalyticsConsent();
+    return;
+  }
+  if (action === 'disable') {
+    event.preventDefault();
+    event.stopPropagation();
+    dismissAnalyticsConsentAndDisable();
+  }
+}
 
 // One-time transparency banner shown to first-time users. Default state is
 // analytics-on (preserves the maintainer's product signal) but the user is
@@ -394,9 +415,10 @@ export function maybeShowAnalyticsConsent() {
       <span class="analytics-consent-copy analytics-consent-copy-short">Anonymous, cookieless stats are <strong>on</strong>. No health data.</span>
     </div>
     <div class="analytics-consent-actions">
-      <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" onclick="dismissAnalyticsConsent()">Got it</button>
-      <button type="button" class="analytics-consent-btn" onclick="dismissAnalyticsConsentAndDisable()">Turn off</button>
+      <button type="button" class="analytics-consent-btn analytics-consent-btn-primary" ${ANALYTICS_CONSENT_ACTION_ATTR}="dismiss">Got it</button>
+      <button type="button" class="analytics-consent-btn" ${ANALYTICS_CONSENT_ACTION_ATTR}="disable">Turn off</button>
     </div>`;
+  banner.addEventListener('click', handleAnalyticsConsentActionClick);
   document.body.appendChild(banner);
   document.body.classList.add('analytics-consent-visible');
 }

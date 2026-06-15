@@ -100,6 +100,8 @@ if (typeof document !== 'undefined') {
     deleteCustomMarker,
     saveManualEntry,
     saveAndAddAnotherManualEntry,
+    pickNewCatIcon,
+    saveCustomMarker,
   });
 }
 
@@ -443,7 +445,7 @@ export function showDetailModal(id, opts = {}) {
         <button type="button" class="gb-detail-pin-btn${quickMarkerPinned ? ' is-pinned' : ''}" aria-pressed="${quickMarkerPinned ? 'true' : 'false'}" title="${escapeAttr(quickMarkerPinTitle)}" ${markerDetailActionAttrs('quick-pin', { id })}>${escapeHTML(quickMarkerPinText)}</button>
         <span class="gb-detail-status gb-detail-status-${escapeAttr(latestStatus)}">${escapeHTML(statusText)}</span>
       </div>
-      <button class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
+      <button type="button" class="modal-close" aria-label="Close" ${markerDetailActionAttrs('close-modal')}>&times;</button>
     </div>
     <div class="marker-description" id="marker-desc"></div>
     <div class="gb-detail-summary">
@@ -897,12 +899,12 @@ export function openCreateMarkerModal() {
       <div class="me-field">
         <label>Category</label>
         <div class="cm-cat-row">
-          <select id="cm-category" onchange="document.getElementById('cm-new-cat-row').style.display=this.value==='__new__'?'flex':'none'">
+          <select id="cm-category" ${markerDetailActionAttrs('toggle-custom-marker-category')}>
             ${catOptions}
             <option value="__new__">+ New category...</option>
           </select>
           <div id="cm-new-cat-row" style="display:none;margin-top:6px;gap:8px;align-items:center">
-            <span id="cm-new-cat-icon" title="Pick icon" style="cursor:pointer;font-size:20px;min-width:28px;text-align:center" data-custom="" onclick="pickNewCatIcon(this)">\uD83D\uDD16</span>
+            <span id="cm-new-cat-icon" title="Pick icon" style="cursor:pointer;font-size:20px;min-width:28px;text-align:center" role="button" tabindex="0" data-custom="" ${markerDetailActionAttrs('pick-new-cat-icon')}>\uD83D\uDD16</span>
             <input type="text" id="cm-new-cat" placeholder="Category name" style="flex:1">
           </div>
         </div>
@@ -932,8 +934,8 @@ export function openCreateMarkerModal() {
         </div>
       </div>
       <div class="gb-form-actions">
-        <button class="import-btn import-btn-primary" onclick="saveCustomMarker()">Create</button>
-        <button class="import-btn import-btn-secondary" ${markerDetailActionAttrs('close-modal')}>Cancel</button>
+        <button type="button" class="import-btn import-btn-primary" ${markerDetailActionAttrs('save-custom-marker')}>Create</button>
+        <button type="button" class="import-btn import-btn-secondary" ${markerDetailActionAttrs('close-modal')}>Cancel</button>
       </div>
     </div>
     </div>`;

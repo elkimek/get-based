@@ -15,6 +15,9 @@ import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSug
 
 let returnToChatIfOnboarding = function() {};
 const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
+const LOCAL_AI_ACTION_ATTR = 'data-local-ai-action';
+const LOCAL_AI_COMMAND_ATTR = 'data-local-ai-command';
+const localAiControlDelegateRoots = new WeakSet();
 
 export function configureLocalAiControls(options = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
@@ -86,6 +89,68 @@ function isLocalUrl(url) {
   } catch { return true; }
 }
 
+function closestLocalAiAction(target) {
+  if (!target || typeof target.closest !== 'function') return null;
+  return target.closest(`[${LOCAL_AI_ACTION_ATTR}]`);
+}
+
+function toggleHardwareOverride(actionEl) {
+  const body = actionEl.nextElementSibling;
+  if (!(body instanceof HTMLElement)) return;
+  const shouldOpen = body.style.display === 'none';
+  body.style.display = shouldOpen ? 'flex' : 'none';
+  actionEl.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+function handleLocalAiAction(actionEl) {
+  const action = actionEl.getAttribute(LOCAL_AI_ACTION_ATTR) || '';
+  if (action === 'copy-pull') {
+    const command = actionEl.getAttribute(LOCAL_AI_COMMAND_ATTR) || '';
+    if (command) copyOllamaPullCmd(command);
+    return true;
+  }
+  if (action === 'toggle-override') {
+    toggleHardwareOverride(actionEl);
+    return true;
+  }
+  if (action === 'apply-hardware-override') {
+    const input = document.getElementById('hw-vram-override-input');
+    applyHardwareOverride(input instanceof HTMLInputElement ? input.value : '');
+    return true;
+  }
+  if (action === 'clear-hardware-override') {
+    clearHardwareOverride();
+    return true;
+  }
+  return false;
+}
+
+function handleLocalAiActionClick(event) {
+  const actionEl = closestLocalAiAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!handleLocalAiAction(actionEl)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleLocalAiActionKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const actionEl = closestLocalAiAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (event.target?.closest?.('button, input, select, textarea')) return;
+  if (actionEl.getAttribute('role') !== 'button') return;
+  if (!handleLocalAiAction(actionEl)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function installLocalAiControlDelegates(root) {
+  if (!root || localAiControlDelegateRoots.has(root)) return;
+  localAiControlDelegateRoots.add(root);
+  root.addEventListener('click', handleLocalAiActionClick);
+  root.addEventListener('keydown', handleLocalAiActionKeydown);
+}
+
 /**
  * @param {any[]} modelDetails
  * @param {HTMLSelectElement | null} modelSelect
@@ -94,6 +159,7 @@ function isLocalUrl(url) {
 export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = false) {
   const advisorEl = document.getElementById('local-ai-advisor');
   if (!advisorEl) return;
+  installLocalAiControlDelegates(advisorEl);
   const serverUrl = getOllamaConfig().url;
   const isLocal = isLocalUrl(serverUrl);
   const hw = isLocal
@@ -156,7 +222,7 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
       <div class="model-advisor-suggest-title">Upgrade recommendation</div>
       ${isOllama ? `<div class="model-advisor-pull-row">
         <code class="model-advisor-pull-cmd">ollama pull ${escapeHTML(upgrade.model)}</code>
-        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" onclick="copyOllamaPullCmd('ollama pull ${escapeAttr(upgrade.model)}')">Copy</button>
+        <button type="button" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" ${LOCAL_AI_ACTION_ATTR}="copy-pull" ${LOCAL_AI_COMMAND_ATTR}="${escapeAttr(`ollama pull ${upgrade.model}`)}">Copy</button>
       </div>` : `<div class="model-advisor-pull-row">
         <code class="model-advisor-pull-cmd">${escapeHTML(upgrade.model)}</code>
       </div>`}
@@ -168,14 +234,14 @@ export async function renderModelAdvisor(modelDetails, modelSelect, isOllama = f
   const overrideLabel = isLocal ? 'Override VRAM' : 'Server VRAM';
   const overrideHtml = `
     <div class="model-advisor-override">
-      <div class="model-advisor-override-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'flex' : 'none'">
+      <div class="model-advisor-override-toggle" role="button" tabindex="0" aria-expanded="${overrideOpen === 'flex' ? 'true' : 'false'}" ${LOCAL_AI_ACTION_ATTR}="toggle-override">
         \u25B8 ${overrideLabel}${overrideVal ? ` (${overrideVal} GB)` : ''}
       </div>
       <div class="model-advisor-override-body" style="display:${overrideOpen}">
         <input type="number" id="hw-vram-override-input" placeholder="${hw.gpu.vram || 'GB'}" value="${overrideVal || ''}" min="1" max="256" step="1">
         <span style="font-size:12px;color:var(--text-muted)">GB</span>
-        <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" onclick="applyHardwareOverride(document.getElementById('hw-vram-override-input').value)">Apply</button>
-        ${overrideVal ? '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" onclick="clearHardwareOverride()">Reset</button>' : ''}
+        <button type="button" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" ${LOCAL_AI_ACTION_ATTR}="apply-hardware-override">Apply</button>
+        ${overrideVal ? `<button type="button" class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 8px" ${LOCAL_AI_ACTION_ATTR}="clear-hardware-override">Reset</button>` : ''}
       </div>
     </div>`;
 

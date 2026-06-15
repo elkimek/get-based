@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const modalSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
+const editingSrc = fs.readFileSync(path.join(root, 'js/marker-detail-editing.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/marker-detail-actions.js'), 'utf8');
 const dashboardSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
@@ -29,13 +30,14 @@ console.log('=== Marker Detail Delegated Actions ===');
 
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/g;
 const inlineHandlers = modalSrc.match(inlineHandlerRe) || [];
+const editingInlineHandlers = editingSrc.match(inlineHandlerRe) || [];
 
-assert('marker-detail-modal only keeps the custom marker creation form inline handlers',
-  inlineHandlers.length === 3 &&
-    modalSrc.includes('onchange="document.getElementById') &&
-    modalSrc.includes('onclick="pickNewCatIcon(this)"') &&
-    modalSrc.includes('onclick="saveCustomMarker()"'),
+assert('marker-detail-modal renders no inline event attributes',
+  inlineHandlers.length === 0,
   `found ${inlineHandlers.length}`);
+assert('marker-detail-editing renders no inline event attributes',
+  editingInlineHandlers.length === 0,
+  `found ${editingInlineHandlers.length}`);
 assert('marker-detail-modal imports and installs the delegated action helper',
   modalSrc.includes("from './marker-detail-actions.js'") &&
     modalSrc.includes('installMarkerDetailActionDelegates({') &&
@@ -49,7 +51,8 @@ assert('marker-detail-actions defines one shared action attribute helper',
 assert('marker-detail-actions installs idempotent click and keyboard delegates',
   actionSrc.includes('const markerDetailActionDelegateRoots = new WeakSet();') &&
     actionSrc.includes("root.addEventListener('click', event => handleMarkerDetailClick(event, actions))") &&
-    actionSrc.includes("root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions))"));
+    actionSrc.includes("root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions))") &&
+    actionSrc.includes("root.addEventListener('change', event => handleMarkerDetailChange(event, actions))"));
 assert('marker-detail delegated actions are scoped to the installed root',
   actionSrc.includes("event.currentTarget.contains(actionEl)"));
 assert('marker-detail open manual entry action preserves optional prefill date',
@@ -68,6 +71,8 @@ assert('service worker precaches marker-detail-actions.js',
 
 [
   'close-modal',
+  'clear-ref-edit-field',
+  'save-ref-range',
   'quick-pin',
   'edit-ref-range',
   'revert-ref-range',
@@ -88,6 +93,9 @@ assert('service worker precaches marker-detail-actions.js',
   'delete-custom-marker',
   'save-manual-entry',
   'save-and-add-manual-entry',
+  'toggle-custom-marker-category',
+  'pick-new-cat-icon',
+  'save-custom-marker',
 ].forEach(action => {
   assert(`marker detail action ${action} is handled`,
     actionSrc.includes(`action === '${action}'`));
@@ -96,6 +104,9 @@ assert('service worker precaches marker-detail-actions.js',
 [
   "markerDetailActionAttrs('revert-ref-range', { id, type })",
   "markerDetailActionAttrs('edit-ref-range', { id, type })",
+  "markerDetailActionAttrs('clear-ref-edit-field', { field: 'min' })",
+  "markerDetailActionAttrs('clear-ref-edit-field', { field: 'max' })",
+  "markerDetailActionAttrs('save-ref-range', { id, type })",
   "markerDetailActionAttrs('revert-marker-name', { id })",
   "markerDetailActionAttrs('rename-marker', { id })",
   "markerDetailActionAttrs('quick-pin', { id })",
@@ -114,9 +125,12 @@ assert('service worker precaches marker-detail-actions.js',
   "markerDetailActionAttrs('delete-custom-marker', { id })",
   "markerDetailActionAttrs('save-manual-entry', { id })",
   "markerDetailActionAttrs('save-and-add-manual-entry', { id })",
+  "markerDetailActionAttrs('toggle-custom-marker-category')",
+  "markerDetailActionAttrs('pick-new-cat-icon')",
+  "markerDetailActionAttrs('save-custom-marker')",
 ].forEach(renderedAction => {
-  assert(`marker-detail-modal renders ${renderedAction}`,
-    modalSrc.includes(renderedAction));
+  assert(`marker detail renders ${renderedAction}`,
+    modalSrc.includes(renderedAction) || editingSrc.includes(renderedAction));
 });
 
 [

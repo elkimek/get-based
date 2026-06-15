@@ -85,10 +85,15 @@ const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
 const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
 const manualFormUiSrc = await fetch('js/wearables-manual-form-ui.js').then(r => r.text());
 const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
+const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 assert('wearables.js renders empty manual cards',
   wearablesSrc.includes('renderEmptyManualCard') && wearablesSrc.includes('wearable-card-empty'));
 assert('wearables.js MANUAL_EMPTY_METRICS covers weight/bp/rhr',
   /MANUAL_EMPTY_METRICS\s*=\s*\[[^\]]*weight[^\]]*bp_systolic[^\]]*rhr/.test(wearablesSrc));
+assert('wearables manual form UI delegates tag chip actions',
+  manualFormUiSrc.includes('data-wearable-log-action') &&
+    manualFormUiSrc.includes('installWearablesManualFormDelegates') &&
+    !inlineHandlerRe.test(manualFormUiSrc));
 
 const clSrc = await fetch('js/client-list.js').then(r => r.text());
 assert('Edit Client modal no longer renders the cl-bio-weight container',
