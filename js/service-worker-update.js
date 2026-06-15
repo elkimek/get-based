@@ -4,11 +4,13 @@
 const UPDATE_BANNER_ID = 'version-update-banner';
 const UPDATE_ACTION_ATTR = 'data-version-update-action';
 const DEV_SW_QUERY_RE = /(?:^|[?&])dev-sw=1(?:&|$)/;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 
 let pendingRegistration = null;
 let dismissedWaitingWorker = null;
 let updateRequested = false;
 let reloadAvailable = false;
+let lastUpdateCheckAt = 0;
 let reloadPage = () => {
   if (typeof window !== 'undefined') window.location.reload();
 };
@@ -159,6 +161,36 @@ export function watchServiceWorkerRegistration(
   });
 }
 
+function requestServiceWorkerUpdate(registration, serviceWorkerContainer, { force = false } = {}) {
+  if (!registration?.update) return;
+
+  const now = Date.now();
+  if (!force && now - lastUpdateCheckAt < UPDATE_CHECK_INTERVAL_MS) return;
+  lastUpdateCheckAt = now;
+
+  registration.update().then(() => {
+    if (canPromptForUpdate(registration, serviceWorkerContainer)) {
+      showVersionUpdateBanner(registration);
+    }
+  }).catch(() => {});
+}
+
+function scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer, win) {
+  if (!registration?.update || !win) return;
+
+  const check = (force = false) => {
+    if (win.document?.visibilityState === 'hidden') return;
+    requestServiceWorkerUpdate(registration, serviceWorkerContainer, { force });
+  };
+
+  check(true);
+  win.addEventListener?.('focus', () => check());
+  win.document?.addEventListener?.('visibilitychange', () => {
+    if (win.document?.visibilityState === 'visible') check();
+  });
+  win.setInterval?.(() => check(), UPDATE_CHECK_INTERVAL_MS);
+}
+
 async function unregisterDevServiceWorkers(serviceWorkerContainer, cacheStorage) {
   const registrations = await serviceWorkerContainer.getRegistrations();
   let changed = false;
@@ -188,7 +220,7 @@ export async function registerServiceWorkerUpdates({
   }
 
   try {
-    const registration = await serviceWorkerContainer.register('/service-worker.js');
+    const registration = await serviceWorkerContainer.register('/service-worker.js', { updateViaCache: 'none' });
     reloadPage = () => win.location.reload();
     let refreshing = false;
     serviceWorkerContainer.addEventListener('controllerchange', () => {
@@ -202,6 +234,7 @@ export async function registerServiceWorkerUpdates({
       win.location.reload();
     });
     watchServiceWorkerRegistration(registration, serviceWorkerContainer);
+    scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer, win);
     return registration;
   } catch {
     return null;

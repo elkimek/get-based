@@ -1,11 +1,11 @@
 importScripts('/version.js');
 
 // Cache key strategy:
-//   Production (getbased.health) → labcharts-v${APP_VERSION}
+//   Production (app.getbased.health) → labcharts-v${APP_VERSION}
 //   Anywhere else (Vercel previews, local dev) → labcharts-v${APP_VERSION}-${sha8}
 // This way feature-branch deploys auto-bust the SW cache on every commit
 // without burning patch versions, while production stays clean.
-const PROD_HOSTS = new Set(['getbased.health', 'www.getbased.health']);
+const PROD_HOSTS = new Set(['app.getbased.health', 'getbased.health', 'www.getbased.health']);
 const IS_PROD = PROD_HOSTS.has(self.location.hostname);
 
 let _cacheNamePromise = null;

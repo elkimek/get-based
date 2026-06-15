@@ -54,13 +54,16 @@ const serviceWorkerUpdateSrc = read('js/service-worker-update.js');
 assert('index loads service worker update module', indexSrc.includes('src="js/service-worker-update.js"'));
 assert('SW registration uses absolute path', serviceWorkerUpdateSrc.includes("'/service-worker.js'") || serviceWorkerUpdateSrc.includes('"/service-worker.js"'));
 assert('SW registration failures are handled',
-  serviceWorkerUpdateSrc.includes("serviceWorkerContainer.register('/service-worker.js')")
+  serviceWorkerUpdateSrc.includes("serviceWorkerContainer.register('/service-worker.js'")
     && serviceWorkerUpdateSrc.includes('} catch {'));
+assert('SW registration bypasses cached import scripts for version detection',
+  serviceWorkerUpdateSrc.includes("updateViaCache: 'none'"));
 assert('SW has explicit dev-host offline test opt-in',
   serviceWorkerUpdateSrc.includes('dev-sw=1') && serviceWorkerUpdateSrc.includes('shouldRegisterServiceWorker'));
 const swAuditSrc = read('service-worker.js');
 assert('SW uses importScripts for version', swAuditSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_VERSION}`'));
+assert('SW treats app.getbased.health as production host', swAuditSrc.includes("'app.getbased.health'"));
 assert('SW APP_SHELL includes API provider storage module', swAuditSrc.includes("'/js/api-provider-storage.js'"));
 assert('SW APP_SHELL includes provider model controls module', swAuditSrc.includes("'/js/provider-model-controls.js'"));
 assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.includes("'/js/provider-local-ai-controls.js'"));

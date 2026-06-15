@@ -174,7 +174,7 @@ describe('service worker runtime cache behavior', () => {
   });
 
   it('uses plain versioned cache names on production hosts', async () => {
-    const { caches, listeners } = await loadServiceWorker({ hostname: 'getbased.health' });
+    const { caches, listeners } = await loadServiceWorker({ hostname: 'app.getbased.health' });
     const install = makeWaitEvent();
     listeners.get('install')(install);
     await install.done();
