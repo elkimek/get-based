@@ -70,7 +70,7 @@ function handleRoleButtonKeydown(e) {
   const tag = t.tagName;
   if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
   // Don't fire twice if the element already has its own keydown wiring.
-  if (t.hasAttribute('onkeydown') || t.hasAttribute('data-chat-key-action')) return;
+  if (t.hasAttribute('onkeydown') || t.hasAttribute('data-chat-key-action') || t.hasAttribute('data-chat-message-action')) return;
   e.preventDefault();
   t.click();
 }

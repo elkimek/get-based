@@ -227,13 +227,26 @@ if (hasState) {
   assert('Non-last AI msg has NO Regenerate', !bar1.includes('Regenerate'), 'no Regenerate for non-last');
   assert('AI msg has NO Read button (removed)', !bar1.includes('Read'), 'no Read button');
   assert('AI msg has Copy button', bar1.includes('Copy'), 'contains Copy');
+  assert('AI msg copy button uses delegated action',
+    bar1.includes('data-chat-message-action="copy-message"')
+      && bar1.includes('data-chat-message-index="1"')
+      && !bar1.includes('onclick='),
+    'delegated copy');
 
   const bar3 = buildActionBar(3);
   assert('Last AI msg has Regenerate', bar3.includes('Regenerate'), 'contains Regenerate');
   assert('Last AI msg has Copy', bar3.includes('Copy'), 'contains Copy');
   assert('Last AI msg has NO Read', !bar3.includes('Read'), 'no Read');
+  assert('Last AI msg regenerate button uses delegated action',
+    bar3.includes('data-chat-message-action="regenerate-last-message"'),
+    'delegated regenerate');
 
   assert('AI msg with context has context toggle', bar1.includes('chat-context-toggle'), 'contains toggle');
+  assert('AI msg context toggle uses delegated action',
+    bar1.includes('data-chat-message-action="toggle-context-details"')
+      && bar1.includes('role="button"')
+      && bar1.includes('tabindex="0"'),
+    'delegated context');
   assert('Context shows area count', bar1.includes('1 area'), 'shows 1 area');
   assert('Context details are hidden by default', bar1.includes('display:none'), 'hidden');
   assert('Context item has checkmark', bar1.includes('✓'), 'has checkmark');
@@ -334,6 +347,7 @@ console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatActionsSrc = read('js/chat-actions.js');
+const chatMessageActionAttrsSrc = read('js/chat-message-action-attrs.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
 const chatIconsSrc = read('js/chat-icons.js');
 const chatSummariesSrc = read('js/chat-summaries.js');
@@ -366,6 +380,18 @@ assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-w
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
 assert('chat-actions.js exports buildActionBar', chatActionsSrc.includes('export function buildActionBar'), 'found');
 assert('chat-actions.js keeps buildActionBar off window', !chatActionsSrc.includes('  buildActionBar,'), 'not a window handler');
+assert('chat-actions.js installs delegated chat message actions',
+  chatActionsSrc.includes("from './chat-message-action-attrs.js'")
+    && chatActionsSrc.includes("export { chatMessageActionAttrs } from './chat-message-action-attrs.js'")
+    && chatActionsSrc.includes('installChatMessageActionDelegates();')
+    && chatActionsSrc.includes("root.addEventListener('click', handleChatMessageClick)")
+    && chatActionsSrc.includes("root.addEventListener('keydown', handleChatMessageKeydown)"),
+  'found');
+assert('chat message action attrs helper stays dependency-light',
+  chatMessageActionAttrsSrc.includes('export function chatMessageActionAttrs(action, attrs = {})')
+    && chatMessageActionAttrsSrc.includes("import { escapeAttr } from './utils.js'")
+    && !chatMessageActionAttrsSrc.includes("from './chat-actions.js'"),
+  'found');
 assert('chat-actions.js exports regenerateLastMessage', chatActionsSrc.includes('export function regenerateLastMessage'), 'found');
 assert('chat.js does NOT have readAloud', !chatSrc.includes('function readAloud'), 'removed');
 assert('chat-actions.js exports copyMessage', chatActionsSrc.includes('export function copyMessage'), 'found');
@@ -617,8 +643,8 @@ if (hasState) {
 
   const bar0 = buildActionBar(1); // first AI msg
   const barLast = buildActionBar(3); // last AI msg
-  assert('First AI msg (non-last) has no Regenerate', !bar0.includes('regenerateLastMessage'), 'no regenerate');
-  assert('Last AI msg has Regenerate', barLast.includes('regenerateLastMessage'), 'has regenerate');
+  assert('First AI msg (non-last) has no Regenerate', !bar0.includes('regenerate-last-message'), 'no regenerate');
+  assert('Last AI msg has Regenerate', barLast.includes('regenerate-last-message'), 'has regenerate');
 } else {
   console.warn('Skipping regenerate placement tests — _labState not available');
 }

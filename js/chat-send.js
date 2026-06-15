@@ -30,7 +30,7 @@ import {
   getActivePersonality, getCustomPersonality, updateChatHeaderTitle,
 } from './chat-personalities.js';
 import { saveChatHistory } from './chat-history.js';
-import { buildActionBar } from './chat-actions.js';
+import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
 import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
@@ -355,7 +355,7 @@ export async function sendChatMessage() {
         if (!aiMsgEl?.isConnected) return;
         const hintEl = document.createElement('div');
         hintEl.className = 'chat-emf-hint';
-        hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();" data-umami-event="emf-nudge-chat">Open the assessment →</a>`;
+        hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a>`;
         const actionBar = aiMsgEl.querySelector('.chat-action-bar');
         if (actionBar) aiMsgEl.insertBefore(hintEl, actionBar);
         else aiMsgEl.appendChild(hintEl);
@@ -387,7 +387,7 @@ export async function sendChatMessage() {
         const wrapper = document.createElement('details');
         wrapper.className = 'rec-chat-wrapper';
         wrapper.open = true;
-        wrapper.onclick = (e) => e.stopPropagation();
+        wrapper.addEventListener('click', e => e.stopPropagation());
         const summary = document.createElement('summary');
         summary.className = 'rec-chat-summary';
         summary.textContent = 'What can help';

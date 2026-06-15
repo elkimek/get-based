@@ -8,7 +8,7 @@ import {
   getAIProvider, getActiveModelDisplay, getActiveModelId,
 } from './api.js';
 import { renderMarkdown } from './markdown.js';
-import { buildActionBar } from './chat-actions.js';
+import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
 import { responseLimitNote } from './chat-continuation.js';
 import { e2eeLockFootnote } from './chat-attestation.js';
 import { updateChatHeaderTitle } from './chat-personalities.js';
@@ -17,6 +17,12 @@ import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
+
+function bindRenderedChatContainClicks(container) {
+  container.querySelectorAll('[data-chat-message-action="contain-click"]').forEach(el => {
+    el.addEventListener('click', event => event.stopPropagation());
+  });
+}
 
 /**
  * Render the collapsible "Sources" block under an assistant message.
@@ -34,7 +40,7 @@ export function _renderLensSources(chunks, sourceName) {
       ? `<span class="chat-lens-source-score" title="Cosine similarity">${c.score.toFixed(2)}</span>`
       : '';
     const text = c.text ? escapeHTML(c.text).replace(/\n/g, '<br>') : '';
-    return `<details class="chat-lens-source" onclick="event.stopPropagation()">
+    return `<details class="chat-lens-source" ${chatMessageActionAttrs('contain-click')}>
       <summary class="chat-lens-source-summary">
         <span class="chat-lens-source-name">${escapeHTML(src)}</span>
         ${score}
@@ -42,7 +48,7 @@ export function _renderLensSources(chunks, sourceName) {
       <div class="chat-lens-source-text">${text}</div>
     </details>`;
   }).join('');
-  return `<details class="chat-lens-sources" onclick="event.stopPropagation()">
+  return `<details class="chat-lens-sources" ${chatMessageActionAttrs('contain-click')}>
     <summary class="chat-lens-sources-summary">📎 ${chunks.length} excerpt${chunks.length !== 1 ? 's' : ''} from ${sourceLabel}</summary>
     <div class="chat-lens-sources-body">${items}</div>
   </details>`;
@@ -82,7 +88,7 @@ export function renderChatMessages() {
     if (msg.hasImages) {
       if (msg.thumbnails && msg.thumbnails.length > 0) {
         imageBadge = '<div class="chat-image-thumbs">' + msg.thumbnails.map(t =>
-          `<img src="${t}" class="chat-image-thumb" alt="attached image" onclick="openImageLightbox(this.src)">`
+          `<img src="${t}" class="chat-image-thumb" alt="attached image" ${chatMessageActionAttrs('open-image-lightbox')}>`
         ).join('') + '</div>';
       } else {
         imageBadge = `<div class="chat-image-badge">\uD83D\uDDBC ${msg.imageCount} image${msg.imageCount !== 1 ? 's' : ''} attached</div>`;
@@ -111,8 +117,7 @@ export function renderChatMessages() {
       }
       // EMF hint (persisted, single-line link to assessment editor)
       if (msg.emfHint && window.isProductRecsEnabled?.()) {
-        const openHandler = `event.preventDefault();window.openEMFAssessmentEditor&&window.openEMFAssessmentEditor();`;
-        html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" onclick="${openHandler}" data-umami-event="emf-nudge-chat">Open the assessment →</a></div>`;
+        html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a></div>`;
       }
       // Rec slots (persisted on message, rendered from catalog)
       if (msg.recSlots?.length && window.isProductRecsEnabled?.() && window.renderRecommendationSectionSync && window._cachedCatalog?.slots) {
@@ -121,7 +126,7 @@ export function renderChatMessages() {
           return window.renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
         }).filter(Boolean);
         if (recSections.length) {
-          html += `<details class="rec-chat-wrapper" onclick="event.stopPropagation()"><summary class="rec-chat-summary">What can help</summary>`;
+          html += `<details class="rec-chat-wrapper" ${chatMessageActionAttrs('contain-click')}><summary class="rec-chat-summary">What can help</summary>`;
           let recBody = recSections.map(s => s.replace('rec-section-header', 'rec-chat-subheading')).join('');
           // Deduplicate disclosure banners (each renderRecommendationSectionSync prepends one)
           let bannerCount = 0;
@@ -134,6 +139,7 @@ export function renderChatMessages() {
     html += '</div>';
   }
   container.innerHTML = html;
+  bindRenderedChatContainClicks(container);
   container.scrollTop = container.scrollHeight;
   updateDiscussButton();
   updateChatHeaderTitle();
