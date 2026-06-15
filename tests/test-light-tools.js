@@ -25,6 +25,8 @@ const tools = await import('../js/light-tools.js');
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
+    const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
+    const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
     const lightToolCameraModalsSrc = fs.readFileSync(new URL('../js/light-tool-camera-modals.js', import.meta.url), 'utf8');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
@@ -226,6 +228,14 @@ const tools = await import('../js/light-tools.js');
     assert('light-tools.js delegates camera-backed tools to extracted module',
       lightToolsSrc.includes("from './light-tool-camera-modals.js'") &&
       lightToolsSrc.includes('return openLuxMeterModal(opts, { saveMeasurement });'));
+    assert('light-tools AI save hook routes through startup wiring',
+      lightToolsSrc.includes('export function configureLightTools') &&
+      lightToolsSrc.includes('maybeAnalyzeMeasurementAfterSave: () => {}') &&
+      !lightToolsSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
+      lightAiSaveHooksSrc.includes("import { configureLightTools } from './light-tools.js';") &&
+      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave } from './light-tools-ai-analysis.js';") &&
+      lightAiSaveHooksSrc.includes('configureLightTools({ maybeAnalyzeMeasurementAfterSave })') &&
+      appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
     assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
       lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&
       lightToolCameraSrc.includes('export function computeRowBanding'));

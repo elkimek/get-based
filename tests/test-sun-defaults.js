@@ -22,6 +22,9 @@ console.log('=== Sun Defaults Tests ===\n');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
+const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.js'), 'utf8');
+const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const originalDelegateDomGlobals = {
   document: globalThis.document,
   HTMLElement: globalThis.HTMLElement,
@@ -60,6 +63,7 @@ const {
   EYEWEAR_OPTIONS,
   OTT_QUESTIONS,
   getSunDefaults,
+  configureSunDefaults,
   saveSunDefaults,
   isOnboardingComplete,
   ottScoreToLabel,
@@ -78,6 +82,16 @@ const {
     sunDefaultsSrc.includes('installLightSetupDelegates();') &&
     sunDefaultsSrc.includes("data-light-setup-action=") &&
     sunDefaultsSrc.includes("data-light-setup-input="));
+  assert('sun-defaults AI hooks route through startup wiring',
+    typeof configureSunDefaults === 'function' &&
+    sunDefaultsSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
+    !sunDefaultsSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
+    !sunDefaultsSrc.includes('window.renderOnboardingAIBlock') &&
+    aiSaveHooksSrc.includes("import { configureSunDefaults } from './sun-defaults.js';") &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-onboarding-ai.js';") &&
+    aiSaveHooksSrc.includes('configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock })') &&
+    appLightSunSrc.includes("import './light-ai-save-hooks.js';") &&
+    swSrc.includes("'/js/light-ai-save-hooks.js'"));
 
   document.body.innerHTML = `<div class="light-setup-focus-modal" data-setup-step="core">
     <button type="button" data-setup-tab="core" aria-selected="true"></button>

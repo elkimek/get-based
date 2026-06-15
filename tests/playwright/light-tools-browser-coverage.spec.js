@@ -23,7 +23,6 @@ test('light tools browser coverage exercises storage render and modal flows', as
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
-      maybeAnalyzeMeasurementAfterSave: window.maybeAnalyzeMeasurementAfterSave,
       suggestRoomSourceFromSpectrum: window.suggestRoomSourceFromSpectrum,
       refreshLightEnvironmentAssessment: window.refreshLightEnvironmentAssessment,
       navigate: window.navigate,
@@ -87,7 +86,9 @@ test('light tools browser coverage exercises storage render and modal flows', as
           screens: [],
         },
       };
-      window.maybeAnalyzeMeasurementAfterSave = entry => analyzeCalls.push(entry.tool);
+      lightTools.configureLightTools({
+        maybeAnalyzeMeasurementAfterSave: entry => analyzeCalls.push(entry.tool),
+      });
       window.suggestRoomSourceFromSpectrum = async (roomId, value) => {
         spectrumCalls.push({ roomId, value });
       };
@@ -336,8 +337,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
     } finally {
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
+      lightTools.configureLightTools({ maybeAnalyzeMeasurementAfterSave: () => {} });
       Object.assign(window, {
-        maybeAnalyzeMeasurementAfterSave: saved.maybeAnalyzeMeasurementAfterSave,
         suggestRoomSourceFromSpectrum: saved.suggestRoomSourceFromSpectrum,
         refreshLightEnvironmentAssessment: saved.refreshLightEnvironmentAssessment,
         navigate: saved.navigate,

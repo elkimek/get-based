@@ -537,7 +537,10 @@ const {
     !modelSrc.includes('saveImportedData') &&
     !modelSrc.includes('renderEnvironmentSection') &&
     !envSrc.includes('function _hasAnyRoomSignal'));
-  const auditSrc = await (await import('node:fs/promises')).readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  const fs = await import('node:fs/promises');
+  const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
+  const aiSaveHooksSrc = await fs.readFile(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light audit storage/rendering lives in its own module',
@@ -552,15 +555,25 @@ const {
     auditSrc.includes('sortAuditsNewestFirst(getLightAudits())[0]?.id') &&
     envSrc.includes('modal.scrollTop') &&
     !envSrc.includes('function renderLightAuditCompare'));
-  const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
-  const fs = await import('node:fs/promises');
+  assert('Light audit AI hooks route through startup wiring',
+    !auditSrc.includes('window.maybeAnalyzeAuditAfterSave') &&
+    !auditSrc.includes('window.renderAuditAIBlock') &&
+    !auditSrc.includes('window.renderAuditAIDot') &&
+    !auditSrc.includes('window.hasAIProvider') &&
+    aiSaveHooksSrc.includes("import { configureLightEnvAudits } from './light-env-audits.js';") &&
+    aiSaveHooksSrc.includes("import { hasAIProvider } from './api.js';") &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot })') &&
+    appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
+  const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
     await fs.readFile(new URL('../css/light-env.css', import.meta.url), 'utf8'),
   ].join('\n');
   assert('Service worker precaches the light environment model module',
-    swSrc.includes("'/js/light-env-model.js'"));
+    swSrc.includes("'/js/light-env-model.js'") &&
+    swSrc.includes("'/js/light-ai-save-hooks.js'"));
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
     navSrc.includes("key: 'light-env-assessment'") &&
