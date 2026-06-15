@@ -31,6 +31,15 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {(tier: any) => string} tierLabel
  * @property {(...args: any[]) => string} formatChannelUnit
  * @property {number} tooShortForChannelVerdictMin
+ * @property {() => Promise<any> | any} quickLogSunSession
+ * @property {(id: any) => Promise<any> | any} pauseSunSession
+ * @property {(id: any) => Promise<any> | any} resumeSunSession
+ * @property {(id: any) => Promise<any> | any} flipSidesMidSession
+ * @property {(id: any) => Promise<any> | any} changeCoverageMidSession
+ * @property {(id: any) => Promise<any> | any} applySunscreenMidSession
+ * @property {() => Promise<any> | any} setOzoneOverrideMidSession
+ * @property {(id: any) => Promise<any> | any} forgotStopPrompt
+ * @property {(channel: string) => void} openChannelOnLightPage
  */
 
 /** @type {SunSessionUIDeps} */
@@ -54,14 +63,34 @@ const uiDeps = {
   tierLabel: () => 'none',
   formatChannelUnit: () => '',
   tooShortForChannelVerdictMin: 2,
+  quickLogSunSession: () => {},
+  pauseSunSession: () => {},
+  resumeSunSession: () => {},
+  flipSidesMidSession: () => {},
+  changeCoverageMidSession: () => {},
+  applySunscreenMidSession: () => {},
+  setOzoneOverrideMidSession: () => {},
+  forgotStopPrompt: () => {},
+  openChannelOnLightPage: () => {},
+};
+
+const sunSessionDelegateActions = {
+  openSunSessionDetail,
+  deleteSunSession,
+  editSunSessionDuration,
+  quickLogSunSession: () => uiDeps.quickLogSunSession(),
+  pauseSunSession: id => uiDeps.pauseSunSession(id),
+  resumeSunSession: id => uiDeps.resumeSunSession(id),
+  flipSidesMidSession: id => uiDeps.flipSidesMidSession(id),
+  changeCoverageMidSession: id => uiDeps.changeCoverageMidSession(id),
+  applySunscreenMidSession: id => uiDeps.applySunscreenMidSession(id),
+  setOzoneOverrideMidSession: () => uiDeps.setOzoneOverrideMidSession(),
+  forgotStopPrompt: id => uiDeps.forgotStopPrompt(id),
+  openChannelOnLightPage: channel => uiDeps.openChannelOnLightPage(channel),
 };
 
 if (typeof document !== 'undefined') {
-  installSunSessionActionDelegates({
-    openSunSessionDetail,
-    deleteSunSession,
-    editSunSessionDuration,
-  });
+  installSunSessionActionDelegates(sunSessionDelegateActions);
 }
 
 /** @param {Partial<SunSessionUIDeps>} [deps] */
