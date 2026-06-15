@@ -188,6 +188,8 @@ const APP_SHELL = [
   '/js/light-page-view-hooks.js',
   '/js/light-page-view-ui-hooks.js',
   '/js/light-channel-view.js',
+  '/js/light-channel-view-hooks.js',
+  '/js/light-channel-view-ui-hooks.js',
   '/js/light-sessions-view.js',
   '/js/light-sessions-view-hooks.js',
   '/js/compare-correlations.js',
