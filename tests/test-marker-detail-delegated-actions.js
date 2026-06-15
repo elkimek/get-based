@@ -52,6 +52,8 @@ assert('marker-detail-actions installs idempotent click and keyboard delegates',
     actionSrc.includes("root.addEventListener('keydown', event => handleMarkerDetailKeydown(event, actions))"));
 assert('marker-detail delegated actions are scoped to the installed root',
   actionSrc.includes("event.currentTarget.contains(actionEl)"));
+assert('marker-detail open manual entry action preserves optional prefill date',
+  actionSrc.includes('actions.openManualEntryForm?.(id, date || undefined)'));
 assert('marker-detail keyboard delegate supports role-button spans and ignores form controls',
   actionSrc.includes("event.target?.closest?.('button, a, input, textarea, select')") &&
     actionSrc.includes("actionEl.getAttribute('role') !== 'button'"));
