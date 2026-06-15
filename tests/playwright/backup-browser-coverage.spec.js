@@ -242,13 +242,20 @@ test('backup browser coverage exercises export import auto backup and folder sta
         }),
       });
       const folderHtml = backup.renderFolderBackupSection();
-      await backup.pickFolderForBackup();
+      const folderHost = document.createElement('section');
+      folderHost.innerHTML = folderHtml;
+      document.body.appendChild(folderHost);
+      backup.installBackupActionDelegates(folderHost);
+      folderHost.querySelector('[data-backup-action="pick-folder"]')?.click();
       await waitFor(() => toasts().some(text => text.includes('Could not set backup folder')));
       outcomes.folderBackupSupportedPickerAndCloneFailurePath =
         backup.getFolderBackupState().supported === true
         && folderHtml.includes('Set backup folder')
+        && folderHtml.includes('data-backup-action="pick-folder"')
+        && !folderHtml.includes('onclick=')
         && folderWrites.some(entry => entry.name === 'getbased-backup-latest.json' && String(entry.content || '').includes('labcharts-backup'))
         && toasts().some(text => text.includes('Could not set backup folder'));
+      folderHost.remove();
       clearToasts();
 
       localStorage.setItem('labcharts-folder-backup-last', '2026-06-10T09:00:00.000Z');

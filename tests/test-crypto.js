@@ -251,10 +251,12 @@ try {
   const html = window.renderEncryptionSection();
   assert('renderEncryptionSection returns HTML', typeof html === 'string' && html.length > 50);
   assert('Encryption section has status card', html.includes('encryption-status-card'));
+  assert('Encryption section uses delegated actions', html.includes('data-crypto-action=') && !html.includes('onclick='));
   const backupHtml = window.renderBackupSection();
   assert('renderBackupSection returns HTML', typeof backupHtml === 'string' && backupHtml.length > 50);
   assert('Backup section has download button', backupHtml.includes('Download Backup'));
   assert('Backup section has restore button', backupHtml.includes('Restore Backup'));
+  assert('Backup section uses delegated actions', backupHtml.includes('data-crypto-action=') && !/on(click|change)=/.test(backupHtml));
 } catch (e) {
   assert('Settings section rendering', false, e.message);
 }
@@ -283,6 +285,7 @@ console.log('11. Encryption section reflects state');
   const offHtml = window.renderEncryptionSection();
   assert('OFF state shows Enable button', offHtml.includes('Enable Encryption'));
   assert('OFF state shows encryption-status-off', offHtml.includes('encryption-status-off'));
+  assert('OFF state enable button is delegated', offHtml.includes('data-crypto-action="enable-encryption"'));
 
   localStorage.setItem('labcharts-encryption-enabled', 'true');
   const onHtml = window.renderEncryptionSection();
@@ -290,6 +293,10 @@ console.log('11. Encryption section reflects state');
   assert('ON state shows Disable Encryption', onHtml.includes('Disable Encryption'));
   assert('ON state shows encryption-status-on', onHtml.includes('encryption-status-on'));
   assert('ON state mentions API keys encrypted', onHtml.includes('API keys are encrypted'));
+  assert('ON state action buttons are delegated',
+    onHtml.includes('data-crypto-action="change-passphrase"') &&
+    onHtml.includes('data-crypto-action="disable-encryption"') &&
+    !onHtml.includes('onclick='));
 
   if (wasEnabled) localStorage.setItem('labcharts-encryption-enabled', wasEnabled);
   else localStorage.removeItem('labcharts-encryption-enabled');
@@ -542,6 +549,10 @@ try {
   const html = window.renderBackupSection();
   assert('Backup section has auto-backup status', html.includes('backup-auto-status'));
   assert('Backup section has snapshot list container', html.includes('backup-snapshot-list'));
+  assert('Backup section has delegated snapshot toggle and import',
+    html.includes('data-crypto-action="toggle-backup-snapshots"') &&
+    html.includes('data-crypto-action="import-backup"') &&
+    !/on(click|change)=/.test(html));
 } catch (e) {
   assert('Backup section auto-backup UI', false, e.message);
 }
