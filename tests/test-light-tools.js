@@ -21,12 +21,17 @@ const tools = await import('../js/light-tools.js');
   const {
     computeRowBanding,
     cameraLockStatusLine,
+    configureLightTools,
     getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
     normalizeGoldenHourMinutes,
     } = tools;
     const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
     const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
+    const lightToolsUiHooksSrc = fs.readFileSync(new URL('../js/light-tools-ui-hooks.js', import.meta.url), 'utf8');
     const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
+    const appUiShellSrc = fs.readFileSync(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
+    const lightEnvSrc = fs.readFileSync(new URL('../js/light-env.js', import.meta.url), 'utf8');
+    const swSrc = fs.readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
     const lightToolCameraModalsSrc = fs.readFileSync(new URL('../js/light-tool-camera-modals.js', import.meta.url), 'utf8');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
@@ -182,15 +187,16 @@ const tools = await import('../js/light-tools.js');
   // ─── 8. Spectrum tool auto-fill suggestion fires ─────────────────────
   console.log('%c 8. Spectrum tool fires suggestRoomSourceFromSpectrum ', 'font-weight:bold;color:#f59e0b');
 
-  // Stub the suggestion so we can confirm the call without touching real
-  // light-env state.
+  // Stub the suggestion through the module dependency seam so we can
+  // confirm the call without touching real light-env state.
   let suggestionCalls = 0;
   let lastArgs = null;
-  const origSuggest = window.suggestRoomSourceFromSpectrum;
-  window.suggestRoomSourceFromSpectrum = async (roomId, value) => {
-    suggestionCalls++;
-    lastArgs = { roomId, value };
-  };
+  configureLightTools({
+    suggestRoomSourceFromSpectrum: async (roomId, value) => {
+      suggestionCalls++;
+      lastArgs = { roomId, value };
+    },
+  });
 
   await saveMeasurement('spectrum', 'fluorescent', { roomId: 'r99' });
   assert('Spectrum + roomId fires the auto-fill hook exactly once',
@@ -209,6 +215,7 @@ const tools = await import('../js/light-tools.js');
   await saveMeasurement('lux', 500, { roomId: 'r99' });
     assert('Non-spectrum tool does not fire the hook',
       suggestionCalls === 0);
+    configureLightTools({ suggestRoomSourceFromSpectrum: async () => {} });
 
     // ─── 9. Golden-hour duration guard ──────────────────────────────────
     console.log('%c 9. Golden-hour duration clamp ', 'font-weight:bold;color:#f59e0b');
@@ -234,8 +241,33 @@ const tools = await import('../js/light-tools.js');
       !lightToolsSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
       lightAiSaveHooksSrc.includes("import { configureLightTools } from './light-tools.js';") &&
       lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave } from './light-tools-ai-analysis.js';") &&
-      lightAiSaveHooksSrc.includes('configureLightTools({ maybeAnalyzeMeasurementAfterSave })') &&
+      lightAiSaveHooksSrc.includes('configureLightTools({') &&
+      lightAiSaveHooksSrc.includes('maybeAnalyzeMeasurementAfterSave') &&
       appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
+    assert('light-tools runtime callbacks route through startup wiring',
+      !lightToolsSrc.includes('window.suggestRoomSourceFromSpectrum') &&
+      !lightToolsSrc.includes('window.refreshLightEnvironmentAssessment') &&
+      !lightToolsSrc.includes('window.getSunCoords') &&
+      !lightToolsSrc.includes('window.solarZenithAngle') &&
+      !lightToolsSrc.includes('window.logCompletedSession') &&
+      !lightToolsSrc.includes('window.getSessions') &&
+      !lightToolsSrc.includes('window.hydrateSession') &&
+      !lightToolsSrc.includes('window.getRooms') &&
+      !lightToolsSrc.includes('window.addRoom') &&
+      !lightToolsSrc.includes('window.navigate') &&
+      lightEnvSrc.includes('export async function suggestRoomSourceFromSpectrum') &&
+      lightEnvSrc.includes('export function getRooms') &&
+      lightAiSaveHooksSrc.includes("import { addRoom, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
+      lightAiSaveHooksSrc.includes("import { getSunCoords } from './sun.js';") &&
+      lightAiSaveHooksSrc.includes("import { getSessions, hydrateSession, logCompletedSession } from './sun-sessions-store.js';") &&
+      lightAiSaveHooksSrc.includes("import { solarZenithAngle } from './sun-uvdata.js';") &&
+      lightAiSaveHooksSrc.includes('suggestRoomSourceFromSpectrum') &&
+      lightAiSaveHooksSrc.includes('refreshLightEnvironmentAssessment') &&
+      lightAiSaveHooksSrc.includes('solarZenithAngle') &&
+      lightToolsUiHooksSrc.includes("import { navigate } from './views.js';") &&
+      lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
+      appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&
+      swSrc.includes("'/js/light-tools-ui-hooks.js'"));
     assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
       lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&
       lightToolCameraSrc.includes('export function computeRowBanding'));
@@ -282,9 +314,7 @@ const tools = await import('../js/light-tools.js');
       !lightSunCss.includes('.lux-dial-value') &&
       !lightSunCss.includes('.tool-aiming-guide'));
 
-  // restore
-  if (origSuggest) window.suggestRoomSourceFromSpectrum = origSuggest;
-  else delete window.suggestRoomSourceFromSpectrum;
+  configureLightTools({ suggestRoomSourceFromSpectrum: async () => {} });
 
   // Restore
   window._labState.importedData = orig;

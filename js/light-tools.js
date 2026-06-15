@@ -43,17 +43,37 @@ const LIGHT_TOOL_ID_ATTR = 'data-light-tool-id';
 const LIGHT_TOOLS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightToolsActionDelegatesInstalled');
 const lightToolsActionDelegateRoots = new WeakSet();
 
-/** @type {{ maybeAnalyzeMeasurementAfterSave: AnyFunction }} */
+/** @type {{ maybeAnalyzeMeasurementAfterSave: AnyFunction, suggestRoomSourceFromSpectrum: AnyFunction, refreshLightEnvironmentAssessment: AnyFunction, navigate: AnyFunction, getSunCoords: AnyFunction, solarZenithAngle: AnyFunction | null, logCompletedSession: AnyFunction | null, getSessions: AnyFunction, hydrateSession: AnyFunction, getRooms: AnyFunction, addRoom: AnyFunction }} */
 const lightToolsDeps = {
   maybeAnalyzeMeasurementAfterSave: () => {},
+  suggestRoomSourceFromSpectrum: async () => {},
+  refreshLightEnvironmentAssessment: () => {},
+  navigate: () => {},
+  getSunCoords: () => null,
+  solarZenithAngle: null,
+  logCompletedSession: null,
+  getSessions: () => [],
+  hydrateSession: async () => {},
+  getRooms: () => [],
+  addRoom: async () => null,
 };
 
-export function configureLightTools(deps = {}) {
-  Object.assign(lightToolsDeps, deps);
+export function configureLightTools(deps = {}) { Object.assign(lightToolsDeps, deps); }
+
+function maybeAnalyzeMeasurementAfterSave(entry) { try { lightToolsDeps.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {} }
+
+function refreshLightEnvironmentAssessment() { try { lightToolsDeps.refreshLightEnvironmentAssessment(); } catch (_) {} }
+
+function navigateLight(options) { try { lightToolsDeps.navigate('light', options); } catch (_) {} }
+
+function getSunCoords() { try { return lightToolsDeps.getSunCoords() || null; } catch (_) { return null; } }
+
+function getSunSessions() {
+  try { const sessions = lightToolsDeps.getSessions(); return Array.isArray(sessions) ? sessions : []; } catch (_) { return []; }
 }
 
-function maybeAnalyzeMeasurementAfterSave(entry) {
-  try { lightToolsDeps.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {}
+function getLightRooms() {
+  try { const rooms = lightToolsDeps.getRooms(); return Array.isArray(rooms) ? rooms : []; } catch (_) { return []; }
 }
 
 function closestLightToolsAction(target) {
@@ -232,12 +252,10 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // user hasn't picked one yet — saves a redundant question, since
   // the classifier knows warm vs cool vs fluorescent. Only fires when
   // a roomId is bound; only updates when source is unset/unknown.
-  if (tool === 'spectrum' && opts.roomId && typeof window !== 'undefined' && typeof window.suggestRoomSourceFromSpectrum === 'function') {
-    try { await window.suggestRoomSourceFromSpectrum(opts.roomId, value); } catch (e) {}
+  if (tool === 'spectrum' && opts.roomId) {
+    try { await lightToolsDeps.suggestRoomSourceFromSpectrum(opts.roomId, value); } catch (e) {}
   }
-  if (typeof window !== 'undefined' && typeof window.refreshLightEnvironmentAssessment === 'function') {
-    try { window.refreshLightEnvironmentAssessment(); } catch (e) {}
-  }
+  refreshLightEnvironmentAssessment();
   // Re-render the Light & Sun page if the user is on it so per-room
   // detail panels pick up the new reading + recompute severity dots.
   // Skip when any modal is still open — the tool may not have torn down
@@ -247,13 +265,13 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // Pass scrollAnchor so the rebuild keeps the room the user was looking
   // at pinned to the viewport — without it, navigate's auto-pick can
   // grab a session card visible above the room and the page jumps up.
-  if (typeof window !== 'undefined' && window.navigate && state.currentView === 'light') {
+  if (state.currentView === 'light') {
     setTimeout(() => {
       if (document.querySelector('.modal-overlay.show')) return;
       const anchor = opts.roomId
         ? `[data-id="${CSS.escape(opts.roomId)}"]`
         : null;
-      window.navigate('light', anchor ? { scrollAnchor: anchor } : undefined);
+      navigateLight(anchor ? { scrollAnchor: anchor } : undefined);
     }, 50);
   }
   return entry;
@@ -309,7 +327,8 @@ export async function openGlassTransmission(opts = {}) {
 // midnight; returns null when the sun never rises or never sets at the
 // given latitude on the given date (high-latitude polar day/night).
 function _computeSunriseSunset(coords, date) {
-  if (!coords || !window.solarZenithAngle) return { sunrise: null, sunset: null };
+  const solarZenithAngle = lightToolsDeps.solarZenithAngle;
+  if (!coords || typeof solarZenithAngle !== 'function') return { sunrise: null, sunset: null };
   const baseDate = date ? new Date(date) : new Date();
   const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
   const STEP_MIN = 5;
@@ -317,7 +336,8 @@ function _computeSunriseSunset(coords, date) {
   let prevAbove = null;
   for (let m = 0; m < 24 * 60; m += STEP_MIN) {
     const t = new Date(day.getTime() + m * 60_000);
-    const zenith = window.solarZenithAngle(t, coords.lat, coords.lon);
+    const zenith = solarZenithAngle(t, coords.lat, coords.lon);
+    if (!Number.isFinite(zenith)) continue;
     const above = zenith < 90.83; // sun above horizon (refraction-corrected)
     if (prevAbove != null && above !== prevAbove) {
       if (above && !sunrise) sunrise = t;
@@ -373,7 +393,7 @@ export function normalizeGoldenHourMinutes(value) {
 export function openSunriseLogger() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  const coords = (window.getSunCoords && window.getSunCoords()) || null;
+  const coords = getSunCoords();
   const cls = _classifyDayWindow(coords, new Date());
   const subtitleHtml = cls.kind === 'unknown'
     ? `<span style="color:var(--orange);font-size:11px">No location coords — set country in profile for accurate sunrise/sunset windows.</span>`
@@ -411,21 +431,23 @@ export function openSunriseLogger() {
   queryRequired(overlay, '#sunrise-save').addEventListener('click', async () => {
     const durationInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#sunrise-duration'));
     const minutes = normalizeGoldenHourMinutes(durationInput.value);
-    if (window.logCompletedSession) {
+    if (typeof lightToolsDeps.logCompletedSession === 'function') {
       const start = Date.now() - minutes * 60 * 1000;
-      await window.logCompletedSession({
+      const loggedId = await lightToolsDeps.logCompletedSession({
         startedAt: start,
         endedAt: Date.now(),
         bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: [], glassBetween: false },
         eyeExposure: { mode: 'direct', lensTint: 'clear', durationSec: minutes * 60 },
         notes: cls.label,
       });
-      const id = window.getSessions().slice(-1)[0]?.id;
-      if (id && window.hydrateSession) await window.hydrateSession(id);
+      const id = loggedId || getSunSessions().slice(-1)[0]?.id;
+      if (id) {
+        try { await lightToolsDeps.hydrateSession(id); } catch (e) {}
+      }
     }
     showNotification(`${cls.label} logged: ${minutes} min`);
     closeSunriseLogger();
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    if (state.currentView === 'light') navigateLight();
   });
 }
 
@@ -574,8 +596,7 @@ export async function openEyeLevelAudit() {
         // one if no match. Both `getRooms` and `addRoom` are exposed
         // on window via light-env.js's bottom-of-file Object.assign.
         let bound = 0;
-        const existingRooms = (typeof window.getRooms === 'function')
-          ? (window.getRooms() || []) : [];
+        const existingRooms = getLightRooms();
         const byLabel = new Map();
         for (const r of existingRooms) {
           if (r && typeof r.name === 'string') byLabel.set(r.name.toLowerCase().trim(), r.id);
@@ -585,9 +606,9 @@ export async function openEyeLevelAudit() {
           const label = (p.label || '').trim();
           if (!label) continue; // unlabeled pauses stay in the bulk record only
           let roomId = byLabel.get(label.toLowerCase());
-          if (!roomId && typeof window.addRoom === 'function') {
+          if (!roomId) {
             try {
-              roomId = await window.addRoom(label);
+              roomId = await lightToolsDeps.addRoom(label);
               if (roomId) byLabel.set(label.toLowerCase(), roomId);
             } catch (e) {}
           }
