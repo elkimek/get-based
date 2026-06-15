@@ -565,7 +565,7 @@ const {
     aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
     aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
-  const navSrc = await (await import('node:fs/promises')).readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
+  const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
