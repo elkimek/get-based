@@ -24,4 +24,5 @@ import './sun-onboarding-ai.js';
 import './light-ai-save-hooks.js';
 import './sun-correlations.js';
 import './light-today-ai.js';
+import './light-channel-view-hooks.js';
 import './light-page-view-hooks.js';

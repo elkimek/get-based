@@ -686,6 +686,12 @@
     const hasLightChannelViewJs = sw.includes('/js/light-channel-view.js');
     assert('Service worker caches js/light-channel-view.js', hasLightChannelViewJs);
 
+    const hasLightChannelViewHooksJs = sw.includes('/js/light-channel-view-hooks.js');
+    assert('Service worker caches js/light-channel-view-hooks.js', hasLightChannelViewHooksJs);
+
+    const hasLightChannelViewUiHooksJs = sw.includes('/js/light-channel-view-ui-hooks.js');
+    assert('Service worker caches js/light-channel-view-ui-hooks.js', hasLightChannelViewUiHooksJs);
+
     const hasLightSessionsViewJs = sw.includes('/js/light-sessions-view.js');
     assert('Service worker caches js/light-sessions-view.js', hasLightSessionsViewJs);
 

@@ -5,6 +5,15 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 
+/** @type {Record<string, any>} */
+const lightChannelDeps = {
+  channelDisplay: {}, dailyChannelBreakdown: null, dailyVitaminDIUBreakdown: null, weeklyChannelTier: () => 0,
+  tierLabel: () => 'none', rollingChannelTotals: () => ({}), rollingDeviceTotals: () => ({}), rollingVitaminDIU: () => 0,
+  pbmJoulesPerCm2: null, getDevices: () => [], navigate: () => {}, quickLogSunSession: () => {}, quickLogDeviceSession: () => {},
+};
+export function configureLightChannelView(deps = {}) { const previous = { ...lightChannelDeps }; Object.assign(lightChannelDeps, deps); return previous; }
+const getChannelDisplay = () => lightChannelDeps.channelDisplay || {};
+
 const LIGHT_CHANNEL_ACTION_ATTR = 'data-light-channel-action';
 const LIGHT_CHANNEL_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightChannelActionDelegatesInstalled'), lightChannelActionDelegateRoots = new WeakSet();
 function closestLightChannelAction(target) { return target?.closest?.(`[${LIGHT_CHANNEL_ACTION_ATTR}]`) || null; }
@@ -15,8 +24,8 @@ function handleLightChannelActionClick(event) {
   const channelKey = /** @type {HTMLElement} */ (actionEl).dataset.channel || '';
   let handled = true;
   if (action === 'toggle-detail' && channelKey) _toggleChannelDetail(channelKey);
-  else if (action === 'quick-log-sun') window.quickLogSunSession?.();
-  else if (action === 'quick-log-device') window.quickLogDeviceSession?.();
+  else if (action === 'quick-log-sun') lightChannelDeps.quickLogSunSession();
+  else if (action === 'quick-log-device') lightChannelDeps.quickLogDeviceSession();
   else handled = false;
   if (handled) event.stopPropagation();
 }
@@ -33,20 +42,12 @@ export function mergeTotals(a, b) {
   return out;
 }
 
-// Mini 7-day sparkline rendered as inline SVG. Bars are heightless when a
-// day's combined dose is sub-meaningful (~5% of daily target) — a faint
-// stub so the day position stays readable without inflating an empty
-// week. Replaces the prior ●○○○ dots metaphor which (a) implied a
-// "fillable container" mental model that contradicts the daily-beats-
-// banking framing and (b) had ~4 bits of resolution loss vs the
-// continuous channel-au value.
-//
-// Width: 7 bars × 5px + 6 gaps × 2px = 47px in viewBox. Renders crisply
-// at any pill height because we use viewBox + width 100%.
+// Mini 7-day sparkline rendered as inline SVG; sub-meaningful days get a faint stub.
 export function _channelSparkline(channelKey, totals = null) {
-  if (!window.dailyChannelBreakdown) return '';
-  const days = window.dailyChannelBreakdown(channelKey, 7);
-  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const breakdown = lightChannelDeps.dailyChannelBreakdown;
+  if (!breakdown) return '';
+  const days = breakdown(channelKey, 7);
+  const meta = getChannelDisplay()[channelKey] || {};
   const dailyTarget = meta.dailyTarget || 0;
   const observedMax = Math.max(0, ...days.map(d => d.sun + d.device));
   const max = Math.max(observedMax, dailyTarget * 1.05, 0.001);
@@ -75,12 +76,12 @@ export function _channelSparkline(channelKey, totals = null) {
   return `<svg class="light-pill-sparkline" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>`;
 }
 
-// "X days" label for the pill — count of days that hit the channel's
-// meaningful-dose threshold. Returns "—" when no day qualified.
+// "X days" label for the pill — count of days that hit the meaningful-dose threshold.
 export function _channelDayCount(channelKey) {
-  if (!window.dailyChannelBreakdown) return { txt: '—', n: 0 };
-  const days = window.dailyChannelBreakdown(channelKey, 7);
-  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const breakdown = lightChannelDeps.dailyChannelBreakdown;
+  if (!breakdown) return { txt: '—', n: 0 };
+  const days = breakdown(channelKey, 7);
+  const meta = getChannelDisplay()[channelKey] || {};
   const target = meta.dailyTarget || 0;
   const threshold = (typeof _CHANNEL_DAY_THRESHOLD !== 'undefined' && _CHANNEL_DAY_THRESHOLD[channelKey]) || 0.30;
   const floor = target * threshold;
@@ -102,15 +103,13 @@ export function _channelDayCount(channelKey) {
 // sparklines; bars fill in as data accumulates. One renderer for both
 // states.
 export function renderChannelPills(totals7d, totals30d) {
-  const ch = window.CHANNEL_DISPLAY || {};
-  // Tier classifiers: weekly for v7 (the canonical "this week" headline),
-  // and a 30-day equivalent for v30 by scaling the threshold band to the
-  // longer window. Mixing daily-target classification on a multi-day total
+  const ch = getChannelDisplay();
+  // Tier classifiers: weekly for v7 and 30-day equivalent for v30 by scaling the threshold band to the longer span. Mixing daily-target classification on a multi-day total
   // double-counts and wrecks the trend arrow (t30 ALWAYS scored higher
   // than t7 because totals scale with window even when the daily rate is
   // identical, so the trend read "down" on every flat pattern).
-  const tlabel = window.tierLabel || (() => 'none');
-  const tier7 = window.weeklyChannelTier || ((v, k) => 0);
+  const tlabel = lightChannelDeps.tierLabel;
+  const tier7 = lightChannelDeps.weeklyChannelTier;
   const tier30 = (v, k) => {
     const target = ((ch[k] && ch[k].dailyTarget) || 1000) * 30;
     if (!Number.isFinite(v) || v <= 0) return 0;
@@ -246,7 +245,7 @@ const CHANNEL_CITATIONS = {
 function _renderChannelCitations(channelKey) {
   const cit = CHANNEL_CITATIONS[channelKey];
   if (!cit) return '';
-  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const meta = getChannelDisplay()[channelKey] || {};
   const channelName = meta.label || channelKey;
   const refs = cit.refs.map(({ cite, href, why }) => `<li>
     <a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(cite)}</a>
@@ -282,17 +281,18 @@ function _renderChannelCitations(channelKey) {
 // like. Numeric labels above each bar surface the actual numbers when
 // non-zero.
 function _renderChannelWeekChart(channelKey) {
-  if (!window.dailyChannelBreakdown) return '';
-  const days = window.dailyChannelBreakdown(channelKey, 7);
+  const breakdown = lightChannelDeps.dailyChannelBreakdown;
+  if (!breakdown) return '';
+  const days = breakdown(channelKey, 7);
   // For vit-D, pull a per-day IU breakdown that uses the same per-session
   // math as rollingVitaminDIU (real Fitz/UVI/rotation/genetics/body-frac
   // cap). Bar height + tier color still use channel-au from `days` for
   // continuity with the sparkline; only the numeric label switches to
   // per-session-accurate IU so it agrees with the session-row IU readout.
-  const iuDays = (channelKey === 'vitamin_d' && window.dailyVitaminDIUBreakdown)
-    ? window.dailyVitaminDIUBreakdown(7)
+  const iuDays = (channelKey === 'vitamin_d' && lightChannelDeps.dailyVitaminDIUBreakdown)
+    ? lightChannelDeps.dailyVitaminDIUBreakdown(7)
     : null;
-  const ch = window.CHANNEL_DISPLAY || {};
+  const ch = getChannelDisplay();
   const meta = ch[channelKey] || {};
   const dailyTarget = meta.dailyTarget || 0;
   const dailyTargetSlice = dailyTarget; // chart is per-day, so target IS the daily target
@@ -331,8 +331,8 @@ function _renderChannelWeekChart(channelKey) {
       if (iu >= 100) return String(Math.round(iu / 10) * 10);
       return String(Math.round(iu));
     }
-    if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
-      const j = window.pbmJoulesPerCm2(n);
+    if (channelKey === 'nir_solar' && lightChannelDeps.pbmJoulesPerCm2) {
+      const j = lightChannelDeps.pbmJoulesPerCm2(n);
       if (j < 0.05) return '';
       if (j >= 10) return String(Math.round(j));
       if (j >= 1) return j.toFixed(1);
@@ -450,10 +450,10 @@ function _meaningfulDayCount(days, dailyTarget, threshold) {
 // the cumulative real-unit (IU / J/cm²) when defensible is shown as
 // a sub-line for completeness.
 function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, weeklyTier = 0) {
-  const meta = (window.CHANNEL_DISPLAY || {})[channelKey] || {};
+  const meta = getChannelDisplay()[channelKey] || {};
   const target = meta.dailyTarget || 0;
   const threshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
-  const tierLabelFor = window.tierLabel || (() => 'none');
+  const tierLabelFor = lightChannelDeps.tierLabel;
   const tierColors = ['muted', 'tier1', 'tier2', 'tier3', 'tier4'];
   const tierPill = `<span class="light-channel-detail-tierpill ${tierColors[weeklyTier] || 'muted'}">${escapeHTML(tierLabelFor(weeklyTier))} this week</span>`;
   const fmtIntK = (n) => {
@@ -468,11 +468,11 @@ function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, wee
 
   // Cumulative real-unit summary (always computed; only shown if defensible).
   let cumulative = '';
-  if (channelKey === 'vitamin_d' && window.rollingVitaminDIU) {
-    const iu = window.rollingVitaminDIU(7);
+  if (channelKey === 'vitamin_d' && lightChannelDeps.rollingVitaminDIU) {
+    const iu = lightChannelDeps.rollingVitaminDIU(7);
     if (iu >= 30) cumulative = `· ~${fmtIntK(iu)} IU total`;
-  } else if (channelKey === 'nir_solar' && window.pbmJoulesPerCm2) {
-    const j = window.pbmJoulesPerCm2(totalCurrent);
+  } else if (channelKey === 'nir_solar' && lightChannelDeps.pbmJoulesPerCm2) {
+    const j = lightChannelDeps.pbmJoulesPerCm2(totalCurrent);
     if (j >= 0.1) cumulative = `· ${j >= 10 ? Math.round(j) : j.toFixed(1)} J/cm² total`;
   }
 
@@ -652,14 +652,13 @@ function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
 //   6. Next move: channel-specific concrete recipe + action button
 //   7. Action spectrum + paper citations (expandable)
 function _renderChannelDetailPanel(channelKey) {
-  const ch = window.CHANNEL_DISPLAY || {};
+  const ch = getChannelDisplay();
   const meta = ch[channelKey] || {};
   // Drill-down hero stat is a 7-day total — classify against the weekly
   // target so the badge agrees with the pill (and the AI rollup).
-  const tier = window.weeklyChannelTier || (() => 0);
-  const tlabel = window.tierLabel || (() => 'none');
-  const sunTot7 = (window.rollingChannelTotals && window.rollingChannelTotals(7)) || {};
-  const devTot7 = (window.rollingDeviceTotals && window.rollingDeviceTotals(7)) || {};
+  const tier = lightChannelDeps.weeklyChannelTier;
+  const sunTot7 = (typeof lightChannelDeps.rollingChannelTotals === 'function' ? lightChannelDeps.rollingChannelTotals(7) : null) || {};
+  const devTot7 = (typeof lightChannelDeps.rollingDeviceTotals === 'function' ? lightChannelDeps.rollingDeviceTotals(7) : null) || {};
   const sun7 = sunTot7[channelKey] || 0;
   const dev7 = devTot7[channelKey] || 0;
   const totalCurrent = sun7 + dev7;
@@ -672,15 +671,16 @@ function _renderChannelDetailPanel(channelKey) {
   let days7 = [];
   let daysPrev7 = [];
   try {
-    if (window.dailyChannelBreakdown) {
-      const days14 = window.dailyChannelBreakdown(channelKey, 14);
+    const breakdown = lightChannelDeps.dailyChannelBreakdown;
+    if (breakdown) {
+      const days14 = breakdown(channelKey, 14);
       daysPrev7 = days14.slice(0, 7);
       days7 = days14.slice(7);
       totalPrev = daysPrev7.reduce((s, d) => s + d.sun + d.device, 0);
     }
   } catch (e) {}
 
-  const devices = (window.getDevices && window.getDevices()) || [];
+  const devices = lightChannelDeps.getDevices() || [];
 
   // Pull the Conditions Now atm if in cache so the next-move can quote
   // today's UV-peak time — way more actionable than "spend time outdoors."
@@ -731,7 +731,7 @@ export function _openChannelOnLightPage(channelKey) {
     requestAnimationFrame(() => requestAnimationFrame(flashPanel));
     return;
   }
-  if (window.navigate) window.navigate('light');
+  lightChannelDeps.navigate('light');
   // Light page renders synchronously; the pill row is in the DOM by
   // the next animation frame. Defer the toggle so the section exists.
   // Two rAFs to make sure the async devices/env/tools slot doesn't
@@ -778,7 +778,7 @@ export function renderSuggestion(totals7d) {
   // Suggestion picks the lowest-tier channel from a 7-day total, so use
   // the weekly classifier — otherwise it nudges every channel as "low"
   // because each one is being compared to a daily target.
-  const tier = window.weeklyChannelTier || (() => 0);
+  const tier = lightChannelDeps.weeklyChannelTier;
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const SUGGESTIONS = {
     vitamin_d:  'Get 10–15 minutes of midday sun on bare skin if your latitude allows — UVB drops sharply after 2 pm.',

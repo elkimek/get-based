@@ -262,24 +262,8 @@ test('light channel view covers pills detail panels suggestions and light-page r
     const outcomes = {};
     const calls = [];
     const host = document.createElement('section');
-    const saved = {
-      currentView: state.currentView,
-      CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
-      dailyChannelBreakdown: window.dailyChannelBreakdown,
-      dailyVitaminDIUBreakdown: window.dailyVitaminDIUBreakdown,
-      rollingVitaminDIU: window.rollingVitaminDIU,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      rollingChannelTotals: window.rollingChannelTotals,
-      rollingDeviceTotals: window.rollingDeviceTotals,
-      weeklyChannelTier: window.weeklyChannelTier,
-      tierLabel: window.tierLabel,
-      getDevices: window.getDevices,
-      quickLogSunSession: window.quickLogSunSession,
-      quickLogDeviceSession: window.quickLogDeviceSession,
-      navigate: window.navigate,
-      _toggleChannelDetail: window._toggleChannelDetail,
-      _openChannelOnLightPage: window._openChannelOnLightPage,
-    };
+    const saved = { currentView: state.currentView };
+    let restoreDeps = null;
     const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
 
     const makeDays = (channelKey, count) => Array.from({ length: count }, (_, i) => {
@@ -297,7 +281,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
     });
 
     try {
-      window.CHANNEL_DISPLAY = {
+      const channelDisplay = {
         vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'UVB synthesis', dailyTarget: 100 },
         circadian: { label: 'Circadian', icon: 'C', what: 'Melanopic entrainment', dailyTarget: 100 },
         nir_solar: { label: 'NIR', icon: 'N', what: 'Mitochondrial red/NIR signal', dailyTarget: 100 },
@@ -305,15 +289,12 @@ test('light channel view covers pills detail panels suggestions and light-page r
         pomc: { label: 'POMC', icon: 'P', what: 'Skin POMC pathway', dailyTarget: 100 },
         violet_eye: { label: 'Violet eye', icon: 'V', what: 'Outdoor violet at the eye', dailyTarget: 100 },
       };
-      window.dailyChannelBreakdown = makeDays;
-      window.dailyVitaminDIUBreakdown = count => makeDays('vitamin_d', count).map(day => ({
+      const dailyVitaminDIUBreakdown = count => makeDays('vitamin_d', count).map(day => ({
         date: day.date,
         sun: day.sun * 12,
         device: day.device * 3,
       }));
-      window.rollingVitaminDIU = () => 2480;
-      window.pbmJoulesPerCm2 = value => value / 40;
-      window.rollingChannelTotals = () => ({
+      const rollingChannelTotals = () => ({
         vitamin_d: 260,
         circadian: 180,
         nir_solar: 240,
@@ -321,7 +302,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
         pomc: 190,
         violet_eye: 120,
       });
-      window.rollingDeviceTotals = () => ({
+      const rollingDeviceTotals = () => ({
         vitamin_d: 80,
         circadian: 15,
         nir_solar: 70,
@@ -329,23 +310,32 @@ test('light channel view covers pills detail panels suggestions and light-page r
         pomc: 10,
         violet_eye: 8,
       });
-      window.weeklyChannelTier = value => {
+      const weeklyChannelTier = value => {
         if (value >= 300) return 4;
         if (value >= 200) return 3;
         if (value >= 100) return 2;
         if (value > 0) return 1;
         return 0;
       };
-      window.tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
-      window.getDevices = () => [{ brand: 'TestLight', model: 'Panel', channels: ['vitamin_d', 'nir_solar'] }];
-      window.quickLogSunSession = () => calls.push(['quick-sun']);
-      window.quickLogDeviceSession = () => calls.push(['quick-device']);
-      window.navigate = route => {
+      const navigate = route => {
         calls.push(['navigate', route]);
         state.currentView = route;
       };
-      window._toggleChannelDetail = channel._toggleChannelDetail;
-      window._openChannelOnLightPage = channel._openChannelOnLightPage;
+      restoreDeps = channel.configureLightChannelView({
+        channelDisplay,
+        dailyChannelBreakdown: makeDays,
+        dailyVitaminDIUBreakdown,
+        getDevices: () => [{ brand: 'TestLight', model: 'Panel', channels: ['vitamin_d', 'nir_solar'] }],
+        navigate,
+        pbmJoulesPerCm2: value => value / 40,
+        quickLogDeviceSession: () => calls.push(['quick-device']),
+        quickLogSunSession: () => calls.push(['quick-sun']),
+        rollingChannelTotals,
+        rollingDeviceTotals,
+        rollingVitaminDIU: () => 2480,
+        tierLabel: tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none',
+        weeklyChannelTier,
+      });
 
       document.body.appendChild(host);
       const merged = channel.mergeTotals({ vitamin_d: 10, circadian: 5 }, { vitamin_d: 7, nir_solar: 3 });
@@ -406,23 +396,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
         && !!routedDetail
         && host.querySelector('.light-pill[data-channel="circadian"]')?.getAttribute('aria-expanded') === 'true';
     } finally {
-      Object.assign(window, {
-        CHANNEL_DISPLAY: saved.CHANNEL_DISPLAY,
-        dailyChannelBreakdown: saved.dailyChannelBreakdown,
-        dailyVitaminDIUBreakdown: saved.dailyVitaminDIUBreakdown,
-        rollingVitaminDIU: saved.rollingVitaminDIU,
-        pbmJoulesPerCm2: saved.pbmJoulesPerCm2,
-        rollingChannelTotals: saved.rollingChannelTotals,
-        rollingDeviceTotals: saved.rollingDeviceTotals,
-        weeklyChannelTier: saved.weeklyChannelTier,
-        tierLabel: saved.tierLabel,
-        getDevices: saved.getDevices,
-        quickLogSunSession: saved.quickLogSunSession,
-        quickLogDeviceSession: saved.quickLogDeviceSession,
-        navigate: saved.navigate,
-        _toggleChannelDetail: saved._toggleChannelDetail,
-        _openChannelOnLightPage: saved._openChannelOnLightPage,
-      });
+      if (restoreDeps) channel.configureLightChannelView(restoreDeps);
       state.currentView = saved.currentView;
       host.remove();
     }
