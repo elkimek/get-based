@@ -88,20 +88,19 @@ test('sun session action delegates route clicks keyboard and modal actions in br
 
     document.addEventListener('click', () => push('document-click'));
     document.addEventListener('keydown', () => push('document-keydown'));
-    window.quickLogSunSession = () => push('quickLogSunSession');
-    window.pauseSunSession = id => push('pauseSunSession', id);
-    window.resumeSunSession = id => push('resumeSunSession', id);
-    window.flipSidesMidSession = id => push('flipSidesMidSession', id);
-    window.changeCoverageMidSession = id => push('changeCoverageMidSession', id);
-    window.applySunscreenMidSession = id => push('applySunscreenMidSession', id);
-    window.setOzoneOverrideMidSession = () => push('setOzoneOverrideMidSession');
-    window._forgotStopPrompt = id => push('_forgotStopPrompt', id);
-    window._openChannelOnLightPage = channel => push('_openChannelOnLightPage', channel);
-
     const delegateActions = {
       openSunSessionDetail: id => push('openSunSessionDetail', id),
       deleteSunSession: id => push('deleteSunSession', id),
       editSunSessionDuration: id => push('editSunSessionDuration', id),
+      quickLogSunSession: () => push('quickLogSunSession'),
+      pauseSunSession: id => push('pauseSunSession', id),
+      resumeSunSession: id => push('resumeSunSession', id),
+      flipSidesMidSession: id => push('flipSidesMidSession', id),
+      changeCoverageMidSession: id => push('changeCoverageMidSession', id),
+      applySunscreenMidSession: id => push('applySunscreenMidSession', id),
+      setOzoneOverrideMidSession: () => push('setOzoneOverrideMidSession'),
+      forgotStopPrompt: id => push('_forgotStopPrompt', id),
+      openChannelOnLightPage: channel => push('_openChannelOnLightPage', channel),
     };
     actionsModule.installSunSessionActionDelegates(delegateActions, root);
     actionsModule.installSunSessionActionDelegates(delegateActions, root);
@@ -128,7 +127,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
     click('sunscreen');
     click('ozone');
     click('forgot-stop');
-    outcomes.clickRoutesWindowBackedActions =
+    outcomes.clickRoutesInjectedActions =
       called('quickLogSunSession')
       && called('pauseSunSession', call => call[1] === 'sun-1')
       && called('resumeSunSession', call => call[1] === 'sun-1')

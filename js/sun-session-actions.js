@@ -50,24 +50,24 @@ function handleSunSessionAction(actionEl, actions) {
     if (actionEl.dataset.sunSessionCloseModal === 'true') closeContainingOverlay(actionEl);
     void actions.deleteSunSession?.(id);
   } else if (action === 'quick-log-sun') {
-    window.quickLogSunSession?.();
+    void actions.quickLogSunSession?.();
   } else if (action === 'pause-session') {
-    window.pauseSunSession?.(id);
+    void actions.pauseSunSession?.(id);
   } else if (action === 'resume-session') {
-    window.resumeSunSession?.(id);
+    void actions.resumeSunSession?.(id);
   } else if (action === 'flip-sides') {
-    window.flipSidesMidSession?.(id);
+    void actions.flipSidesMidSession?.(id);
   } else if (action === 'change-coverage') {
-    window.changeCoverageMidSession?.(id);
+    void actions.changeCoverageMidSession?.(id);
   } else if (action === 'apply-sunscreen') {
-    window.applySunscreenMidSession?.(id);
+    void actions.applySunscreenMidSession?.(id);
   } else if (action === 'override-ozone') {
-    window.setOzoneOverrideMidSession?.();
+    void actions.setOzoneOverrideMidSession?.();
   } else if (action === 'forgot-stop') {
-    window._forgotStopPrompt?.(id);
+    void actions.forgotStopPrompt?.(id);
   } else if (action === 'open-channel') {
     closeContainingOverlay(actionEl);
-    window._openChannelOnLightPage?.(channel);
+    actions.openChannelOnLightPage?.(channel);
   } else if (action === 'close-modal') {
     closeContainingOverlay(actionEl);
   } else if (action === 'edit-duration') {
