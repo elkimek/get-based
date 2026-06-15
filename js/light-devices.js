@@ -45,6 +45,48 @@ import {
   openCustomDeviceDialog,
 } from './light-device-setup-modal.js';
 
+const LIGHT_DEVICES_ACTION_ATTR = 'data-light-devices-action';
+const LIGHT_DEVICE_ID_ATTR = 'data-light-device-id';
+const LIGHT_DEVICE_SESSION_ID_ATTR = 'data-light-device-session-id';
+const LIGHT_DEVICES_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightDevicesActionDelegatesInstalled'), lightDevicesActionDelegateRoots = new WeakSet();
+
+function closestLightDevicesAction(target) { return target?.closest?.(`[${LIGHT_DEVICES_ACTION_ATTR}]`) || null; }
+
+function handleLightDevicesActionClick(event) {
+  const actionEl = closestLightDevicesAction(event.target);
+  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  const action = actionEl.getAttribute(LIGHT_DEVICES_ACTION_ATTR);
+  const appWindow = /** @type {any} */ (window);
+  if (action === 'suppress') {
+    event.stopPropagation();
+    return;
+  }
+  if (action === 'stop-device-session') {
+    event.stopPropagation();
+    const sessionId = actionEl.getAttribute(LIGHT_DEVICE_SESSION_ID_ATTR) || '';
+    if (sessionId) appWindow.stopDeviceSessionAndNotify?.(sessionId);
+    return;
+  }
+  if (action === 'add-device') { appWindow.openAddDeviceDialog?.(); return; }
+  if (action === 'delete-device') {
+    const deviceId = actionEl.getAttribute(LIGHT_DEVICE_ID_ATTR) || '';
+    if (deviceId) appWindow.deleteLightDevice?.(deviceId);
+    return;
+  }
+  if (action === 'log-device-session') {
+    const deviceId = actionEl.getAttribute(LIGHT_DEVICE_ID_ATTR) || '';
+    if (deviceId) appWindow.openDeviceSessionDialog?.(deviceId);
+  }
+}
+
+export function installLightDevicesActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightDevicesActionDelegateRoots.has(root) || root[LIGHT_DEVICES_ACTION_DELEGATE_KEY]) return;
+  lightDevicesActionDelegateRoots.add(root);
+  Object.defineProperty(root, LIGHT_DEVICES_ACTION_DELEGATE_KEY, { value: true, configurable: true });
+  root.addEventListener('click', handleLightDevicesActionClick);
+}
+if (typeof document !== 'undefined') installLightDevicesActionDelegates();
+
 export { openAddDeviceDialog, openCustomDeviceDialog };
 export {
   addCustomDevice,
@@ -455,9 +497,9 @@ export function renderActiveDeviceSessionCard() {
       <span class="sun-session-paused" title="Live device-therapy session">LIVE</span>
     </div>
     <div class="sun-session-meta">${escapeHTML(distLine)}${distLine && areaLine ? ' · ' : ''}${escapeHTML(areaLine)}${areaLine ? ' · ' : ''}${escapeHTML(eyesLine)}</div>
-    <div class="sun-session-active-controls" onclick="event.stopPropagation()">
+    <div class="sun-session-active-controls" data-light-devices-action="suppress">
       <div class="sun-session-ctl-primary">
-        <button class="sun-session-ctl sun-session-ctl-stop" onclick="event.stopPropagation();window.stopDeviceSessionAndNotify('${escapeAttr(sess.id)}')" title="Stop and save the session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
+        <button type="button" class="sun-session-ctl sun-session-ctl-stop" data-light-devices-action="stop-device-session" data-light-device-session-id="${escapeAttr(sess.id)}" title="Stop and save the session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
       </div>
     </div>
   </section>`;
@@ -519,7 +561,7 @@ export async function renderDevicesSection() {
   let html = `<div class="light-devices-section">
     <div class="light-devices-head">
       <h3 class="light-section-title">Light devices</h3>
-      <button class="import-btn import-btn-secondary" onclick="window.openAddDeviceDialog()">+ Add device</button>
+      <button type="button" class="import-btn import-btn-secondary" data-light-devices-action="add-device">+ Add device</button>
     </div>`;
 
   if (devices.length === 0) {
@@ -554,7 +596,7 @@ export async function renderDevicesSection() {
           <span class="light-device-name">${escapeHTML(dev.brand)} ${escapeHTML(dev.model)}</span>
           <span class="light-device-typeline">${escapeHTML(typeLabel)}${wavelengthStr ? ` · ${escapeHTML(wavelengthStr)}` : ''}${intensityStr ? ` · ${escapeHTML(intensityStr)}` : ''}</span>
         </div>
-        <button class="light-device-delete" onclick="window.deleteLightDevice('${escapeAttr(dev.id)}')" title="Remove device" aria-label="Remove device">×</button>
+        <button type="button" class="light-device-delete" data-light-devices-action="delete-device" data-light-device-id="${escapeAttr(dev.id)}" title="Remove device" aria-label="Remove device">×</button>
       </div>
       ${channelChips ? `<div class="light-device-feeds">
         <span class="light-device-feeds-label">Feeds</span>
@@ -562,7 +604,7 @@ export async function renderDevicesSection() {
       </div>` : ''}
       <div class="light-device-stats">${escapeHTML(statsLine)}</div>
       <div class="light-device-actions">
-        <button class="import-btn import-btn-secondary light-device-log" onclick="window.openDeviceSessionDialog('${escapeAttr(dev.id)}')">▶ Log session</button>
+        <button type="button" class="import-btn import-btn-secondary light-device-log" data-light-devices-action="log-device-session" data-light-device-id="${escapeAttr(dev.id)}">▶ Log session</button>
         ${affRow}
       </div>
     </div>`;

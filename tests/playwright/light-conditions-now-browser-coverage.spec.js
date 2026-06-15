@@ -105,8 +105,12 @@ test('conditions now browser coverage covers refresh cache manual override and i
       };
 
       host.innerHTML = conditions.renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-coverage-full' });
+      conditions.installLightConditionsActionDelegates(host);
       outcomes.widgetBodyRendersRefreshButton = !!host.querySelector('.conditions-now-refresh');
       outcomes.widgetBodyRendersInspectButton = !!host.querySelector('.conditions-now-inspect');
+      outcomes.widgetBodyUsesDelegatedActions = !!host.querySelector('[data-light-conditions-action="refresh"]')
+        && !!host.querySelector('[data-light-conditions-action="inspect"]')
+        && !host.innerHTML.includes('onclick=');
       await waitUntil(() => document.getElementById('cond-now-coverage-full')?.getAttribute('aria-busy') === 'false', 'initial conditions render');
       outcomes.initialRefreshFetchesCoords = calls.some(call => call[0] === 'fetch' && call[1].lat === coords.lat && call[1].lon === coords.lon);
       outcomes.fullRenderShowsUvIndex = slotText('cond-now-coverage-full').includes('UV index');

@@ -859,12 +859,17 @@ test('light devices cover session detail edit log active card and rendered list 
       const devicesHtml = await lightDevices.renderDevicesSection();
       const devicesHost = document.createElement('div');
       devicesHost.innerHTML = devicesHtml;
+      lightDevices.installLightDevicesActionDelegates(devicesHost);
       outcomes.renderDevicesSectionShowsStatsAndAffiliate = devicesHost.textContent.includes('TestLight Panel 900')
         && devicesHost.textContent.includes('1 session')
         && !!devicesHost.querySelector('.affiliate-test')
         && devicesHost.textContent.includes('630')
         && devicesHost.textContent.includes('850')
         && !!devicesHost.querySelector('.light-device-feed-chip');
+      outcomes.renderDevicesSectionUsesDelegatedActions = !!devicesHost.querySelector('[data-light-devices-action="add-device"]')
+        && !!devicesHost.querySelector('[data-light-devices-action="delete-device"][data-light-device-id="dev-panel"]')
+        && !!devicesHost.querySelector('[data-light-devices-action="log-device-session"][data-light-device-id="dev-panel"]')
+        && !devicesHost.innerHTML.includes('onclick=');
 
       lightDevices.openDeviceSessionDetail('devsess-one');
       let detailOverlay = document.querySelector('[data-session-kind="device"]')?.closest('.modal-overlay');
