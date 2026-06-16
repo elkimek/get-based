@@ -97,6 +97,7 @@ export function renderScoreDetail(score, options = {}) {
   return `<section class="biology-score-detail${showHeading ? '' : ' biology-score-detail-embedded'}" id="biology-score-${escapeAttr(score.id)}">
     ${detailHead}
     ${renderScoreQuestion(score)}
+    ${renderScoreAIAnswer(score)}
     ${renderScoreRail(score.score, score.tone)}
     ${renderScoreStatusMeta(score, { weighted: true })}
     <details class="biology-score-debug"><summary><span>See what’s driving this</span></summary><div class="biology-score-detail-grid">
@@ -109,7 +110,7 @@ export function renderScoreDetail(score, options = {}) {
         <div class="biology-score-input-label">Useful missing labs</div>
         <div class="biology-score-missing-list">${missing}</div>
       </div>
-    </div>${flags}${renderScoreAIAnswer(score)}</details>
+    </div>${flags}</details>
   </section>`;
 }
 
