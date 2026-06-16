@@ -76,7 +76,7 @@ async function runEmbeddedScoreAI(el) {
 export const SCORE_DEFINITIONS = [
   {
     id: 'biologicalCoherence', title: 'Biological Coherence', kicker: 'System-level signal', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'overview',
-    summary: 'Overall system coherence built from minimum-panel Biology Score domains; extended markers improve depth but do not punish the baseline.', compute: (data, def) => computeBiologicalCoherence(data, def, SCORE_DEFINITIONS, computeBiologyScoresInternal),
+    summary: 'A single read across your marker patterns. Strong domains show where your system is coherent; strained ones point to where retesting or deeper context helps.', compute: (data, def) => computeBiologicalCoherence(data, def, SCORE_DEFINITIONS, computeBiologyScoresInternal),
   },
   {
     id: 'metabolicFlexibility', title: 'Metabolic Flexibility', kicker: 'Glucose-insulin strain', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'metabolic', coherenceWeight: 1.2,

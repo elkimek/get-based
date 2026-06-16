@@ -62,11 +62,11 @@ export function renderScoreAIAnswer(score) {
   return `<section class="biology-score-ai" data-biology-score-ai-panel="${escapeAttr(score.id)}">
     <div class="biology-score-ai-head">
       <div>
-        <div class="biology-score-question-kicker">Plain-English explanation</div>
-        <p>Ask AI to translate this score into a short, non-diagnostic explanation.</p>
+        <div class="biology-score-question-kicker">What this means</div>
+        <p>A short, non-diagnostic read of what this pattern suggests and what to check next.</p>
       </div>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh answer' : 'Generate answer'}</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain this score'}</button>
     </div>
-    <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? escapeHTML(cached) : 'Generate a concise explanation of what this score suggests, what may be driving it, and what to check next.'}</div>
+    <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? escapeHTML(cached) : 'Tap “Explain this score” for a concise interpretation based on the current marker pattern.'}</div>
   </section>`;
 }

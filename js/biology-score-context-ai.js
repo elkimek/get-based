@@ -107,7 +107,8 @@ export function renderBiologyScoreContextAI() {
   const review = state.importedData?.biologyScoreContextAI;
   const suggestions = Array.isArray(review?.suggestions) ? review.suggestions : [];
   return `<section class="biology-context-ai-panel">
-    <div class="biology-context-ai-head"><div><div class="biology-scores-eyebrow">Personal context check</div><p>Some labs mean different things with training, illness, hormones, cycle state, age, or low muscle mass. AI can suggest flags; you choose what to apply.</p></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="analyze-context-ai">${suggestions.length ? 'Refresh context review' : 'Analyze context with AI'}</button></div>
+    <div class="biology-context-ai-head"><div><div class="biology-scores-eyebrow">Personal context check</div><p>Some labs mean different things with training, illness, hormones, cycle state, age, or low muscle mass. AI can suggest scoring flags; you choose what to apply.</p></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="analyze-context-ai">${suggestions.length ? 'Refresh context review' : 'Analyze context with AI'}</button></div>
+    <p class="biology-scores-note">This sends diagnoses, notes, cycle/training context, supplements/meds, and selected labs to your configured AI provider. No answer is applied automatically.</p>
     ${review?.summary ? `<p class="biology-context-ai-summary">${escapeHTML(review.summary)}</p>` : ''}
     ${suggestions.length ? `<div class="biology-context-suggestions">${suggestions.map(renderSuggestion).join('')}</div>` : `<p class="biology-scores-note">Optional. Use this when training, illness, hormone therapy, cycle status, low muscle mass, or unusual creatinine could change how a score should be read.</p>`}
   </section>`;

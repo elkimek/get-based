@@ -273,7 +273,7 @@ assert('lens render includes drilldown stack', lensHtml.includes('biology-score-
 assert('lens pins Biological Coherence as a distinguished hero before score details', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && lensHtml.includes('System-level score'));
 assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Does the thyroid signal look metabolically expressed'));
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
-assert('lens keeps evidence labels out of app UI', !lensHtml.includes('Evidence-backed') && !lensHtml.includes('Experimental'));
+assert('lens surfaces evidence strength as compact meta labels', lensHtml.includes('Experimental pattern') || lensHtml.includes('Contextual pattern'));
 assert('lens keeps marker table behind friendly driver disclosure without formula weights', lensHtml.includes('See what’s driving this') && lensHtml.includes('Inputs affecting the score') && lensHtml.includes('Impact') && !lensHtml.includes('<th title="Relative influence'));
 
 const lensWidgets = getBiologyScoreLensWidgets({ data });

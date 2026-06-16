@@ -36,8 +36,15 @@ function renderScoreStatusMeta(score, { weighted = false } = {}) {
   const recencyInvalid = score.recencyStatus && score.recencyStatus !== 'fresh';
   const parts = [];
   if (!recencyInvalid) parts.push(renderScoreStatusItem('tone', 'Pattern', score.tone ? TONE_LABELS[score.tone] : 'Need inputs', score.tone || 'unknown'));
-  parts.push(renderScoreStatusItem('coverage', 'Coverage', `${Math.round((score.coverage || 0) * 100)}%${weighted ? ' weighted' : ''}`, score.coverageLabel || 'low'));
+  const coveragePct = Math.round((score.coverage || 0) * 100);
+  const coverageLabel = score.coverageLabel || 'low';
+  let coverageValue = `${coveragePct}%${weighted ? ' weighted' : ''}`;
+  if (coveragePct < 45 && !recencyInvalid) coverageValue += ' · partial panel';
+  else if (coveragePct >= 80) coverageValue += ' · full panel';
+  parts.push(renderScoreStatusItem('coverage', 'Coverage', coverageValue, coverageLabel));
   if (recencyInvalid) parts.push(renderScoreStatusItem('recency', 'Recency', score.recencyBadge || 'Retest needed', score.recencyStatus || 'stale'));
+  const evidenceBadge = score.evidence === 'experimental' ? 'Experimental pattern' : score.evidence === 'contextual' ? 'Contextual pattern' : null;
+  if (evidenceBadge) parts.push(renderScoreStatusItem('evidence', 'Kind', evidenceBadge, 'unknown'));
   return `<div class="biology-score-meta">${parts.join('')}</div>`;
 }
 
@@ -78,6 +85,14 @@ export function renderScoreDetail(score, options = {}) {
   const missing = score.missing.length
     ? score.missing.map((item) => renderMarkerToken(item, true)).join('')
     : '<span class="biology-score-token biology-score-token-muted">None</span>';
+  const topDrag = score.available
+    .filter(item => !item.profileContextOnly && Number.isFinite(item.partial) && item.partial < 100)
+    .sort((a, b) => impactFor(b) - impactFor(a))[0];
+  const dragSummary = topDrag
+    ? `<p class="biology-score-input-help"><strong>Main drag:</strong> ${escapeHTML(topDrag.label)} at ${Math.round(topDrag.partial)}/100 fit is pulling the score down most right now.</p>`
+    : score.missing.length > 0
+      ? `<p class="biology-score-input-help"><strong>Main gap:</strong> ${score.missing.length} mapped input${score.missing.length === 1 ? '' : 's'} missing. Filling ${escapeHTML(score.missing[0]?.label || 'the missing markers')} would improve this score most.</p>`
+      : '';
   const flags = score.flags?.length
     ? `<div class="biology-score-flags"><div class="biology-score-input-label">Interpretation flags</div>${score.flags.map((flag) => `<p>${escapeHTML(flag)}</p>`).join('')}</div>`
     : '';
@@ -103,6 +118,7 @@ export function renderScoreDetail(score, options = {}) {
     <details class="biology-score-debug"><summary><span>See what’s driving this</span></summary><div class="biology-score-detail-grid">
       <div>
         <div class="biology-score-input-label">Inputs affecting the score</div>
+        ${dragSummary}
         <p class="biology-score-input-help">Fit means how well each marker matches the active range. Impact shows what is pulling the score down. Context rows are visible for interpretation but excluded from the math.</p>
         <div class="biology-score-table-wrap"><table class="biology-score-input-table"><thead><tr><th>Marker</th><th>Latest</th><th>Date</th><th title="Marker fit against the active range before weighting">Fit</th><th title="Weighted points this marker pulls from the composite score">Impact</th></tr></thead><tbody>${used}</tbody></table></div>
       </div>
