@@ -722,8 +722,11 @@
   width: 100%; min-height: 130px; padding: 18px; border-radius: var(--radius-sm);
   border: 1px dashed var(--border); background: transparent; color: var(--text-primary);
   display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-  gap: 6px; text-align: left; font: inherit; cursor: pointer;
+  gap: 6px; text-align: left; font: inherit;
 }
+.db-genome-empty { cursor: default; }
+button.db-genome-empty,
+button.db-correlation-empty { cursor: pointer; }
 .db-genome-empty span,
 .db-correlation-empty span { color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
 .db-genome-loading { cursor: default; }
