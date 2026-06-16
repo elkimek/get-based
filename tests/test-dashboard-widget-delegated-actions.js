@@ -72,9 +72,10 @@ assert('dashboard biometric overview renders delegated widget actions',
 assert('dashboard renderer body actions use the shared dashboard delegate contract',
   renderersSrc.includes("dashboardWidgetActionAttrs('open-marker-detail'") &&
     renderersSrc.includes("dashboardWidgetActionAttrs('navigate'") &&
-    renderersSrc.includes("dashboardWidgetActionAttrs('trigger-dna-picker'") &&
     renderersSrc.includes("dashboardWidgetActionAttrs('open-note-editor'") &&
     renderersSrc.includes("dashboardWidgetActionAttrs('delete-note'"));
+assert('dashboard renderer no longer duplicates the Genome lens DNA import CTA',
+  !renderersSrc.includes("dashboardWidgetActionAttrs('trigger-dna-picker'"));
 assert('dashboard widget click delegate lets nested wearable actions handle inline forms',
   controlsSrc.includes("target.closest('[data-wearable-action]')") &&
     controlsSrc.includes('actionEl.contains(wearableActionEl)') &&
