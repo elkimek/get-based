@@ -934,10 +934,10 @@ export function createDashboardWidgetRenderers(deps) {
       .filter(f => f.gene || f.variant || f.genotype)
       .sort((a, b) => (a.impactRank - b.impactRank) || String(a.gene || a.rsid).localeCompare(String(b.gene || b.rsid)) || String(a.variant || '').localeCompare(String(b.variant || '')));
     if (!findings.length && !apoe && !genetics?.mtdna) {
-      return `<button type="button" class="db-genome-empty" ${dashboardWidgetActionAttrs('trigger-dna-picker')}>
-        <strong>Add DNA data</strong>
-        <span>Top variants will appear here alongside labs and body signals.</span>
-      </button>`;
+      return `<div class="db-genome-empty">
+        <strong>No DNA data imported yet</strong>
+        <span>Import a raw DNA file above to see actionable variants alongside your labs and body signals.</span>
+      </div>`;
     }
     const visibleFindings = findings.filter(f => DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));
     const secondaryFindings = findings.filter(f => !DASHBOARD_VISIBLE_SNP_TONES.has(f.impactTone));

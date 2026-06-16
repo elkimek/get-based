@@ -73,6 +73,20 @@
 .dashboard-widget-inline-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
 }
+.lens-header-affiliate {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.lens-header-affiliate a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.lens-header-affiliate a:hover {
+  color: var(--accent);
+}
 .dashboard-widget-empty {
   padding: 12px 0; color: var(--text-muted); font-size: 13px; font-style: italic;
 }

@@ -711,9 +711,8 @@ export function renderGeneticsSection() {
   const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps).length > 0;
   const hasMtdna = genetics && genetics.mtdna;
   // Empty-state CTA: lives in the natural conceptual slot (where genetics
-  // *would* render) so users who skipped or never saw the chat onboarding
-  // DNA step have an in-context path back. Below the fold on first paint
-  // but appears for any user scrolling past supplements/charts.
+  // would render) so users who skipped the chat onboarding DNA step have a
+  // path back. Below the fold on first paint but appears after supplements/charts.
   if (!hasSnps && !hasMtdna) {
     return `<div class="genetics-empty-stub" ${dnaActionAttrs('import-file')} role="button" tabindex="0" aria-label="Add DNA data">
       <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
