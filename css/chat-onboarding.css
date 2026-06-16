@@ -231,6 +231,35 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
   border-color: var(--accent);
   color: var(--accent);
 }
+.chat-onboard-mini-btn-secondary {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.chat-onboard-mini-btn-secondary:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.chat-onboard-affiliate-foot {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.chat-onboard-affiliate-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.chat-onboard-affiliate-link:hover {
+  color: var(--accent);
+}
+.chat-onboard-task-foot {
+  display: none;
+}
 .chat-onboard-note {
   margin-top: 10px;
   color: var(--text-muted);

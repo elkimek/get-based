@@ -283,6 +283,12 @@ function renderProviderSetupState(container, panel, { personality, name }) {
   return true;
 }
 
+function renderAffiliateDnaKitLink() {
+  return `<div class="chat-onboard-affiliate-foot">
+    No DNA file? We recommend a <a href="https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447" target="_blank" rel="noopener sponsored" class="chat-onboard-affiliate-link">LivingDNA kit</a>.
+  </div>`;
+}
+
 function renderOptionalContextState(container, panel, { personality }) {
   setOnboardingActive(panel);
   const cards = buildOptionalContextTaskCards();
@@ -291,6 +297,7 @@ function renderOptionalContextState(container, panel, { personality }) {
       ${_renderOnboardCrumbs(3)}
       <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when recommendations or AI imports need it.'} These optional context pieces make later interpretation more useful, but you can skip them and import labs now.</p>
       <div class="chat-onboard-task-grid">${cards}</div>
+      ${renderAffiliateDnaKitLink()}
       <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
       <div class="chat-onboard-actions chat-onboard-actions-row">
         <button type="button" class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to import</button>
@@ -331,7 +338,7 @@ function summarizeGenetics(genetics, hasSnps, hasMtdna) {
   return [
     hasSnps ? `${Object.keys(genetics.snps || {}).length} SNPs` : '',
     hasMtdna ? `mtDNA ${genetics.mtdna?.haplogroup || ''}`.trim() : '',
-  ].filter(Boolean).join(' · ') || 'Optional: import DNA context when you have it.';
+  ].filter(Boolean).join(' · ') || 'Import nuclear DNA (SNPs) or mitochondrial DNA (mtDNA) raw data.';
 }
 
 function renderCycleTask(hasCycle) {
@@ -357,6 +364,7 @@ function renderSupplementsTask(supps, suppSummary) {
 }
 
 function renderGeneticsTask(hasSnps, hasMtdna, dnaSummary) {
+  const bothImported = hasSnps && hasMtdna;
   return `<article class="chat-onboard-task chat-onboard-dna${hasSnps || hasMtdna ? ' is-complete' : ''}">
     <span class="chat-onboard-task-icon" aria-hidden="true">DNA</span>
     <span class="chat-onboard-task-body">
@@ -364,10 +372,11 @@ function renderGeneticsTask(hasSnps, hasMtdna, dnaSummary) {
       <small>${escapeHTML(dnaSummary)}</small>
     </span>
     <span class="chat-onboard-mini-actions">
-      ${!hasSnps ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Import</button>` : ''}
-      ${!hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-mtdna">mtDNA</button>
+      ${!hasSnps ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Import DNA file</button>` : ''}
+      ${!hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-mtdna">Import mtDNA</button>
       <input type="file" id="mtdna-onboard-input" class="sr-only" accept=".txt,.csv" aria-label="Import mtDNA file" data-chat-empty-action="import-mtdna-file">` : ''}
-      ${hasSnps && hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Re-import</button>` : ''}
+      ${hasSnps ? `<button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="import-dna">Re-import DNA</button>` : ''}
+      ${hasMtdna ? `<button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="import-mtdna">Re-import mtDNA</button>` : ''}
     </span>
   </article>`;
 }
