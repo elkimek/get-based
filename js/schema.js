@@ -44,8 +44,7 @@ export const MARKER_SCHEMA = {
       prolactin: { name: "Prolactin", unit: "\u00b5g/l", refMin: 4.0, refMax: 15.2, refMin_f: 4.8, refMax_f: 23.3, desc: "Stimulates milk production; elevated levels can suppress ovulation and indicate pituitary issues." },
       bioactiveTestosterone: { name: "Bioactive Testosterone", unit: "nmol/l", refMin: 4.37, refMax: 14.3, refMin_f: 0.05, refMax_f: 0.60, desc: "The sum of free and weakly albumin-bound testosterone; ready to be utilized by tissues, making it a powerful indicator of bioavailable androgen status." },
       bioactiveTestosteronePercentage: { name: "Bioactive Testosterone %", unit: "%", refMin: 35.0, refMax: 66.3, desc: "The proportion of total testosterone that is biologically active; helps evaluate hormonal availability when SHBG is abnormal." },
-      hCG: { name: "hCG (Chorionic Gonadotropin)", unit: "U/l", refMin: 0.0, refMax: 2.5, desc: "Human chorionic gonadotropin; a hormone produced during pregnancy and also utilized as a highly specific biomarker for certain reproductive conditions." },
-      AFP: { name: "AFP (Alpha-Fetoprotein)", unit: "kU/l", refMin: 0.0, refMax: 7.5, desc: "Alpha-fetoprotein; a plasma protein normally produced by the developing fetus, clinically utilized as a tumor marker and reproductive screening assay." }
+      hCG: { name: "hCG (Chorionic Gonadotropin)", unit: "U/l", refMin: 0.0, refMax: 2.5, desc: "Human chorionic gonadotropin; a hormone produced during pregnancy and also utilized as a highly specific biomarker for certain reproductive conditions." }
     }
   },
   electrolytes: {
@@ -127,7 +126,8 @@ export const MARKER_SCHEMA = {
   tumorMarkers: {
     label: "Tumor Markers", icon: "\uD83D\uDD2C",
     markers: {
-      psa: { name: "PSA", unit: "\u00b5g/l", refMin: 0.003, refMax: 1.400, desc: "Prostate-specific antigen; used to screen for prostate cancer and monitor treatment, though also elevated in benign conditions." }
+      psa: { name: "PSA", unit: "\u00b5g/l", refMin: 0.003, refMax: 1.400, desc: "Prostate-specific antigen; used to screen for prostate cancer and monitor treatment, though also elevated in benign conditions." },
+      afp: { name: "AFP (Alpha-Fetoprotein)", unit: "kU/l", refMin: 0.0, refMax: 7.5, desc: "Alpha-fetoprotein; a plasma protein normally produced by the developing fetus, clinically utilized as a tumor marker and reproductive screening assay." }
     }
   },
   coagulation: {
@@ -279,6 +279,7 @@ export const UNIT_CONVERSIONS = {
   'differential.monocytesPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'boneMetabolism.osteocalcin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'tumorMarkers.psa': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
+  'tumorMarkers.afp': { factor: 0.83, usUnit: 'ng/ml', type: 'multiply' },
   'electrolytes.calciumTotal': { factor: 4.008, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.phosphorus': { factor: 3.097, usUnit: 'mg/dl', type: 'multiply' },
   'electrolytes.magnesium': { factor: 2.431, usUnit: 'mg/dl', type: 'multiply' },
@@ -334,10 +335,12 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mg/l', factor: 180.18, type: 'multiply' },
     { unit: 'g/l', factor: 0.18018, type: 'multiply' }
   ],
+  // Urea: SI unit is mmol/L (urea molecule). Some european mass-concentration units (mg/L, g/L)
+  // express the whole urea molecule (MW 60.06).
+  // "BUN" mg/dL is handled by the PRIMARY UNIT_CONVERSIONS entry.
   'biochemistry.urea': [
     { unit: 'mg/l', factor: 60.06, type: 'multiply' },
-    { unit: 'g/l', factor: 0.06006, type: 'multiply' },
-    { unit: 'mg/dl', factor: 6.006, type: 'multiply' }
+    { unit: 'g/l', factor: 0.06006, type: 'multiply' }
   ],
   'biochemistry.creatinine': [
     { unit: 'mg/l', factor: 0.1131, type: 'multiply' },
@@ -458,7 +461,7 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mIU/ml', factor: 1, type: 'multiply' },
     { unit: 'U/L', factor: 1, type: 'multiply' }
   ],
-  'hormones.AFP': [
+  'tumorMarkers.afp': [
     { unit: 'IU/ml', factor: 1, type: 'multiply' },
     { unit: 'kU/L', factor: 1, type: 'multiply' },
     { unit: 'ng/ml', factor: 0.83, type: 'multiply' }
@@ -587,11 +590,10 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'pmol/L', factor: 1, type: 'multiply' }
   ],
   'thyroid.t4total': [
-    { unit: 'ng/ml', factor: 0.07769, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.77687, type: 'multiply' },
     { unit: 'nmol/L', factor: 1, type: 'multiply' }
   ],
   'thyroid.t3total': [
-    { unit: 'pg/ml', factor: 0.6513, type: 'multiply' },
     { unit: 'nmol/L', factor: 1, type: 'multiply' }
   ],
 
@@ -605,7 +607,7 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'nmol/L', factor: 1, type: 'multiply' }
   ],
   'vitamins.calcitriol': [
-    { unit: 'ng/l', factor: 0.4006, type: 'multiply' },
+    { unit: 'ng/l', factor: 0.4167, type: 'multiply' },
     { unit: 'pmol/L', factor: 1, type: 'multiply' }
   ],
   'vitamins.vitaminA': [

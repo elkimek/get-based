@@ -322,7 +322,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'hormones.fai', 'hormones.freeTestosteronePercentage', 'hormones.bioactiveTestosteronePercentage',
     'iron.transferrinSat', 'lipids.cholHdlRatio',
     // Activity units identical in US/SI
-    'hormones.hCG', 'hormones.AFP',
+    'hormones.hCG',
     'hematology.rdwcv', 'hematology.hematocrit',
     'calculatedRatios.tgHdlRatio', 'calculatedRatios.ldlHdlRatio',
     'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.nlr',
