@@ -7,15 +7,15 @@ export const BIOLOGY_SCORE_COPY = {
     basicInputs: ['Fasting glucose', 'Fasting insulin or HOMA-IR', 'Triglycerides', 'HDL'],
     extendedInputs: ['HbA1c', 'TG/HDL ratio', 'C-peptide', 'Fructosamine'],
   },
-  mitoThyroid: {
-    question: 'Does the thyroid signal look metabolically expressed in fuel handling?',
-    basicInputs: ['Free T3', 'TSH', 'Triglycerides'],
-    extendedInputs: ['Free T4', 'TG/HDL ratio', 'Glucose-insulin context', 'Reverse T3', 'Resting HR/body temperature when available'],
-  },
   thyroidCoherence: {
     question: 'Is the thyroid axis internally coherent, or is the signal distorted by conversion, brake, or autoimmune context?',
     basicInputs: ['TSH', 'Free T4', 'Free T3'],
     extendedInputs: ['Reverse T3', 'TPO antibodies', 'Thyroglobulin antibodies', 'Total T3/T4 when available'],
+  },
+  cardiovascularLipoprotein: {
+    question: 'Is the lipoprotein pattern atherogenic or protective — and what is the residual risk after standard cholesterol?',
+    basicInputs: ['ApoB', 'ApoA1', 'ApoB/ApoA1 ratio', 'LDL cholesterol'],
+    extendedInputs: ['Lp(a)', 'Total cholesterol/HDL ratio', 'Homocysteine', 'hs-CRP', 'Triglycerides'],
   },
   redoxStress: {
     question: 'Is there an inflammatory or liver-metabolic burden pattern that could distort recovery and metabolic signaling?',

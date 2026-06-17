@@ -2,11 +2,6 @@
 // biology-score-mappings.js — audit metadata for non-generic Biology Scores.
 
 export const CUSTOM_BIOLOGY_SCORE_MAPPINGS = {
-  mitoThyroid: [
-    { key: 'ft3', label: 'Free T3', weight: 1, paths: 'thyroid.ft3' },
-    { key: 'tsh', label: 'TSH', weight: 1, paths: 'thyroid.tsh' },
-    { key: 'tag', label: 'Triglycerides', weight: 1, paths: 'lipids.triglycerides' },
-  ],
   thyroidCoherence: [
     { key: 'tsh', label: 'TSH', weight: 1.0, paths: 'thyroid.tsh' },
     { key: 'ft3', label: 'Free T3', weight: 1.3, paths: 'thyroid.ft3' },

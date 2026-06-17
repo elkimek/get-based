@@ -6,6 +6,7 @@ import { resolveCoverageLabel, resolveScoreTone } from './biology-score-engine.j
 const COHERENCE_DOMAIN_LABELS = {
   metabolic: 'Metabolic',
   endocrine: 'Thyroid / endocrine',
+  cardiovascular: 'Cardiovascular',
   inflammation: 'Inflammation',
   membrane: 'Membrane lipids',
   blood: 'Blood / iron',
@@ -20,6 +21,7 @@ const COHERENCE_DOMAIN_LABELS = {
 const COHERENCE_DOMAIN_WEIGHTS = {
   metabolic: 1.25,
   endocrine: 1.0,
+  cardiovascular: 1.1,
   inflammation: 1.05,
   blood: 1.05,
   methylation: 0.85,

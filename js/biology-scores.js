@@ -8,7 +8,7 @@ import { computeBloodFlowSignals } from './biology-score-blood-flow.js';
 import { computeWeightedComposite } from './biology-score-engine.js';
 import { computeIronHandling } from './biology-score-iron.js';
 import { CUSTOM_BIOLOGY_SCORE_MAPPINGS } from './biology-score-mappings.js';
-import { computeMitoThyroid } from './biology-score-mitothyroid.js';
+
 import {
   renderBiologicalCoherenceLensHero as renderBiologicalCoherenceLensHeroImpl,
   renderBiologyScoresLens as renderBiologyScoresLensImpl,
@@ -135,12 +135,24 @@ export const SCORE_DEFINITIONS = [
     ],
   },
   {
-    id: 'mitoThyroid', title: 'Thyroid–Mito Signal', kicker: 'Thyroid × fuel handling', evidence: 'experimental', panelTier: 'minimum', coherenceDomain: 'endocrine', coherenceWeight: 0.8,
-    summary: 'A metabolic expression signal: whether Free T3/TSH pattern appears to translate into triglyceride/fuel-handling context.', compute: computeMitoThyroid,
-  },
-  {
     id: 'thyroidCoherence', title: 'Thyroid Coherence', kicker: 'Signal quality', evidence: 'experimental', panelTier: 'minimum', coherenceDomain: 'endocrine', coherenceWeight: 1.0,
     summary: 'Thyroid regulation, Free T3 activity, and T4-to-T3 conversion coherence.', compute: computeThyroidCoherence,
+  },
+  {
+    id: 'cardiovascularLipoprotein', title: 'Cardiovascular / Lipoprotein', kicker: 'Atherogenic risk pattern', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'cardiovascular', coherenceWeight: 1.1,
+    summary: 'Atherogenic lipoprotein pattern anchored on ApoB and ApoB/ApoA1 ratio; the strongest outcome-predicted cardiovascular risk markers available.',
+    compute: computeWeightedComposite,
+    inputs: [
+      { key: 'apoB', label: 'ApoB atherogenic particles', weight: 2.0, paths: ['lipids.apoB', 'lipids.apoB_'] },
+      { key: 'apoBA1Ratio', label: 'ApoB/ApoA1 ratio', weight: 1.5, paths: 'calculatedRatios.apoBA1Ratio' },
+      { key: 'apoA1', label: 'ApoA1 protective particles', weight: 1.0, paths: ['lipids.apoAI', 'lipids.apoA1'] },
+      { key: 'lpA', label: 'Lp(a) genetic risk', weight: 1.0, paths: ['lipids.lpA', 'lipids.lpa', 'lipids.lp_a'] },
+      { key: 'ldl', label: 'LDL cholesterol', weight: 0.8, paths: ['lipids.ldl', 'lipids.ldlCholesterol', 'calculatedRatios.ldl'] },
+      { key: 'cholHdlRatio', label: 'Total cholesterol/HDL ratio', weight: 0.6, paths: 'calculatedRatios.cholHdlRatio' },
+      { key: 'homocysteine', label: 'Homocysteine vascular context', weight: 0.5, paths: 'coagulation.homocysteine', recencyRequired: false },
+      { key: 'hsCrp', label: 'hs-CRP vascular inflammation', weight: 0.4, paths: ['proteins.hsCRP', 'proteins.crp'], recencyRequired: false },
+      { key: 'triglycerides', label: 'Triglyceride atherogenic context', weight: 0.4, paths: 'lipids.triglycerides', recencyRequired: false },
+    ],
   },
   {
     id: 'redoxStress', title: 'Inflammation & Metabolic Burden', kicker: 'Contextual risk load', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'inflammation', coherenceWeight: 1.0,

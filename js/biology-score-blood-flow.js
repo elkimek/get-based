@@ -2,7 +2,6 @@
 // biology-score-blood-flow.js — Blood Flow Signals (formerly Blood Flow Viscosity).
 
 import {
-  applyScoreRecency,
   finalizeCustomScore,
   getMarkerHit,
   scoreAgainstRange,

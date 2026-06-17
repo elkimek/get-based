@@ -7,6 +7,7 @@ import {
   getMarkerHit,
   lerp,
   resolveCoverageLabel,
+  resolveScoreSeverity,
   resolveScoreTone,
   scoreHighOnly,
 } from './biology-score-engine.js';
@@ -85,5 +86,5 @@ export function computeThyroidCoherence(data, def) {
 
   const score = availableWeight > 0 && tsh && ft3 ? Math.round(scoreSum / availableWeight) : null;
   const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreRecency({ ...def, score, tone: score == null ? null : resolveScoreTone(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing });
+  return applyScoreRecency({ ...def, score, tone: score == null ? null : resolveScoreTone(score), severity: resolveScoreSeverity(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing });
 }

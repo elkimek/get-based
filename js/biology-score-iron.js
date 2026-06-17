@@ -2,7 +2,6 @@
 // biology-score-iron.js — Iron Handling score.
 
 import {
-  applyScoreRecency,
   finalizeCustomScore,
   getMarkerHit,
   scoreAgainstRange,
@@ -44,10 +43,11 @@ export function computeIronHandling(data, def) {
   }
   if (tsat) {
     let partial = scoreAgainstRange(tsat.value, { min: 16, max: 45 });
-    if (tsat.value >= 45) partial = scoreHighOnly(tsat.value, 45, 80);
+    if (tsat.value >= 45) partial = scoreHighOnly(tsat.value, 45, 60);
     if (tsat.value < 16) partial = scoreLowOnly(tsat.value, 16, 4);
     add(tsat, 'transferrinSat', 'Transferrin saturation', 1.25, partial);
     if (tsat.value < 16) flags.push('Low transferrin saturation pattern: iron availability may be constrained.');
+    if (tsat.value >= 50) flags.push('High transferrin saturation pattern: iron overload context, consider hemochromatosis screening if ferritin is also elevated.');
   } else missing.push({ key: 'transferrinSat', label: 'Transferrin saturation', weight: 1.25 });
   add(hgb, 'hgb', 'Hemoglobin utilization', 0.8, hgb ? scoreAgainstRange(hgb.value, hgb.range) : null);
   add(mch, 'mch', 'MCH red-cell ironization', 0.65, mch ? scoreAgainstRange(mch.value, mch.range) : null);
@@ -56,7 +56,7 @@ export function computeIronHandling(data, def) {
   add(transferrin, 'transferrin', 'Transferrin transport', 0.45, transferrin ? scoreAgainstRange(transferrin.value, transferrin.range) : null);
   add(tibc, 'tibc', 'TIBC transport capacity', 0.35, tibc ? scoreAgainstRange(tibc.value, tibc.range) : null);
   add(sTfR, 'sTfR', 'Soluble transferrin receptor', 0.55, sTfR ? scoreAgainstRange(sTfR.value, sTfR.range) : null);
-  add(crp, 'crp', 'Inflammation context for ferritin', 0.45, crp ? scoreHighOnly(crp.value, crp.range?.max ?? 3, (crp.range?.max ?? 3) * 4) : null);
+  add(crp, 'crp', 'Inflammation context for ferritin', 0.65, crp ? scoreHighOnly(crp.value, crp.range?.max ?? 3, (crp.range?.max ?? 3) * 4) : null);
   add(copper, 'copper', 'Copper support', 0.35, copper ? scoreAgainstRange(copper.value, copper.range) : null);
   if (!cerulo) missing.push({ key: 'ceruloplasmin', label: 'Ceruloplasmin', weight: 0.3 });
   else add(cerulo, 'ceruloplasmin', 'Ceruloplasmin', 0.3, scoreAgainstRange(cerulo.value, cerulo.range));

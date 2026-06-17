@@ -64,11 +64,17 @@ const data = {
       triglycerides: marker('Triglycerides', 'mmol/l', 0.45, 1.70, 0.7),
       hdl: marker('HDL', 'mmol/l', 1.0, 2.1, 1.6),
       cholesterol: marker('Total Cholesterol', 'mmol/l', 2.9, 5.0, 4.8),
+      ldl: marker('LDL Cholesterol', 'mmol/l', 0, 3.0, 2.3),
+      apoB: marker('ApoB', 'g/l', 0.6, 1.1, 0.85),
+      apoAI: marker('ApoA1', 'g/l', 1.2, 2.2, 1.6),
+      lpA: marker('Lp(a)', 'nmol/l', 0, 75, 30),
     }},
     calculatedRatios: { label: 'Calculated Ratios', markers: {
       tgHdlRatio: marker('TG/HDL Ratio', '', 0, 1.75, 0.44),
       bunCreatRatio: marker('BUN/Creatinine Ratio', '', 10, 20, 14),
       nlr: marker('Neutrophil-Lymphocyte Ratio', '', 1, 3, 1.6),
+      apoBA1Ratio: marker('ApoB/ApoA1 Ratio', '', 0, 0.7, 0.53),
+      cholHdlRatio: marker('Total Chol/HDL Ratio', '', 0, 4.5, 3.0),
     }},
     thyroid: { label: 'Thyroid', markers: {
       ft3: marker('Free T3', 'pmol/l', 3.1, 6.8, 4.8),
@@ -131,9 +137,14 @@ const byId = Object.fromEntries(scores.map((score) => [score.id, score]));
 assert('computes all score definitions', scores.length === 14, `got ${scores.length}`);
 assert('biological coherence score is live from minimum-panel domains', Number.isFinite(byId.biologicalCoherence.score) && byId.biologicalCoherence.available.length >= 8, JSON.stringify(byId.biologicalCoherence));
 assert('biological coherence excludes extended-only lipid membrane from baseline denominator', byId.biologicalCoherence.flags.some(flag => flag.includes('extended-only')) && !byId.biologicalCoherence.available.some(item => item.label === 'Membrane lipids'), JSON.stringify(byId.biologicalCoherence));
+assert('biological coherence includes cardiovascular domain', byId.biologicalCoherence.available.some(item => item.label === 'Cardiovascular'), JSON.stringify(byId.biologicalCoherence.available.map(a => a.label)));
 assert('metabolic score is live', Number.isFinite(byId.metabolicFlexibility.score), JSON.stringify(byId.metabolicFlexibility));
-assert('mito thyroid score is high on ideal inputs', byId.mitoThyroid.score >= 85, `got ${byId.mitoThyroid.score}`);
+assert('cardiovascular score is live with ApoB data', Number.isFinite(byId.cardiovascularLipoprotein.score), JSON.stringify(byId.cardiovascularLipoprotein));
+assert('cardiovascular score maps ApoB and ApoA1', byId.cardiovascularLipoprotein.available.some(i => i.dotKey === 'lipids.apoB') && byId.cardiovascularLipoprotein.available.some(i => i.dotKey === 'lipids.apoAI'), JSON.stringify(byId.cardiovascularLipoprotein.available.map(a => a.dotKey)));
+assert('mito thyroid score is removed from definitions', !byId.mitoThyroid, 'mitoThyroid should no longer exist');
 assert('redox score has high coverage', byId.redoxStress.coverage > 0.75, `got ${byId.redoxStress.coverage}`);
+assert('severity field is present on scores', byId.metabolicFlexibility.severity != null || byId.metabolicFlexibility.score >= 50, JSON.stringify({ score: byId.metabolicFlexibility.score, severity: byId.metabolicFlexibility.severity }));
+assert('severity is null for good scores', byId.metabolicFlexibility.severity === null, JSON.stringify({ score: byId.metabolicFlexibility.score, severity: byId.metabolicFlexibility.severity }));
 assert('tier 1 scores are live on common panels', ['oneCarbonCoherence', 'fluidFiltrationCoherence', 'liverBileSignal', 'boneMineralSignal'].every(id => Number.isFinite(byId[id].score)), JSON.stringify(Object.fromEntries(['oneCarbonCoherence', 'fluidFiltrationCoherence', 'liverBileSignal', 'boneMineralSignal'].map(id => [id, byId[id]?.score]))));
 assert('one-carbon score maps homocysteine/B12/folate', byId.oneCarbonCoherence.available.some(i => i.dotKey === 'coagulation.homocysteine') && byId.oneCarbonCoherence.available.some(i => i.dotKey === 'vitamins.vitaminB12') && byId.oneCarbonCoherence.available.some(i => i.dotKey === 'vitamins.folate'));
 assert('fluid filtration score maps eGFR and electrolytes', byId.fluidFiltrationCoherence.available.some(i => i.dotKey === 'biochemistry.egfr') && byId.fluidFiltrationCoherence.available.some(i => i.dotKey === 'electrolytes.potassium'));
@@ -209,15 +220,13 @@ const mixedDateData = {
     thyroid: { label: 'Thyroid', markers: {
       ft3: markerValues('Free T3', 'pmol/l', 3.1, 6.8, [4.8, null]),
       tsh: markerValues('TSH', 'mU/l', 0.27, 4.2, [1.5, null]),
-    }},
-    lipids: { label: 'Lipids', markers: {
-      triglycerides: markerValues('Triglycerides', 'mmol/l', 0.45, 1.70, [null, 0.7]),
+      ft4: markerValues('Free T4', 'pmol/l', 11.9, 21.6, [null, 15.5]),
     }},
   },
 };
-const mixedMito = computeBiologyScores(mixedDateData).find(score => score.id === 'mitoThyroid');
-assert('mixed-date MitoThyroid blocks score', mixedMito.score === null && mixedMito.rawScore != null, JSON.stringify(mixedMito));
-assert('mixed-date MitoThyroid asks for retest together', mixedMito.recencyStatus === 'mixed-dates' && mixedMito.recencyBadge === 'Retest together');
+const mixedThyroid = computeBiologyScores(mixedDateData).find(score => score.id === 'thyroidCoherence');
+assert('mixed-date Thyroid Coherence blocks score', mixedThyroid.score === null && mixedThyroid.rawScore != null, JSON.stringify(mixedThyroid));
+assert('mixed-date Thyroid Coherence asks for retest together', mixedThyroid.recencyStatus === 'mixed-dates' && mixedThyroid.recencyBadge === 'Retest together');
 
 const oldMmaMethylationData = {
   dates: ['2023-01-01', '2026-06-01'],
@@ -244,10 +253,10 @@ const thyroidFixture = { entries: [{ date: '2026-06-01', markers: {
 } }], diagnoses: null, contextNotes: '', interpretiveLens: '' };
 state.importedData = thyroidFixture;
 state.unitSystem = 'EU'; invalidateActiveDataCache();
-const euThyroidScores = Object.fromEntries(computeBiologyScores(getActiveData()).filter(s => ['mitoThyroid','thyroidCoherence'].includes(s.id)).map(s => [s.id, s.score]));
+const euThyroidScores = Object.fromEntries(computeBiologyScores(getActiveData()).filter(s => ['thyroidCoherence'].includes(s.id)).map(s => [s.id, s.score]));
 state.unitSystem = 'US'; invalidateActiveDataCache();
-const usThyroidScores = Object.fromEntries(computeBiologyScores(getActiveData()).filter(s => ['mitoThyroid','thyroidCoherence'].includes(s.id)).map(s => [s.id, s.score]));
-assert('custom thyroid formulas are invariant across EU/US display units', euThyroidScores.mitoThyroid === usThyroidScores.mitoThyroid && euThyroidScores.thyroidCoherence === usThyroidScores.thyroidCoherence, JSON.stringify({ euThyroidScores, usThyroidScores }));
+const usThyroidScores = Object.fromEntries(computeBiologyScores(getActiveData()).filter(s => ['thyroidCoherence'].includes(s.id)).map(s => [s.id, s.score]));
+assert('custom thyroid formulas are invariant across EU/US display units', euThyroidScores.thyroidCoherence === usThyroidScores.thyroidCoherence, JSON.stringify({ euThyroidScores, usThyroidScores }));
 state.unitSystem = savedUnitSystem; state.importedData = savedUnitImported; invalidateActiveDataCache();
 
 const savedSinglePointImported = state.importedData;
@@ -294,7 +303,7 @@ const lensHtml = renderBiologyScoresLens({ data });
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
 assert('lens pins Biological Coherence as a distinguished hero before score details', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && lensHtml.includes('System-level score'));
 assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.includes('data-lens-page-action="add-dashboard-widget"') || lensHtml.includes('data-lens-page-action="remove-dashboard-widget"'));
-assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Does the thyroid signal look metabolically expressed'));
+assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
 assert('lens surfaces evidence strength as compact meta labels', lensHtml.includes('Experimental pattern') || lensHtml.includes('Contextual pattern'));
 assert('lens keeps marker table behind friendly driver disclosure without formula weights', lensHtml.includes('See what’s driving this') && lensHtml.includes('Inputs affecting the score') && lensHtml.includes('Impact') && !lensHtml.includes('<th title="Relative influence'));
@@ -331,13 +340,13 @@ const legacyBiologyAIKey = 'biology-score-ai-answer:legacy-sensitive-fingerprint
 localStorage.setItem(legacyBiologyAIKey, 'legacy plaintext health answer');
 const savedBiologyScoreAI = state.importedData.biologyScoreAI;
 state.importedData.biologyScoreAI = {};
-await writeScoreAIAnswer(byId.mitoThyroid, 'sensitive thyroid interpretation');
+await writeScoreAIAnswer(byId.thyroidCoherence, 'sensitive thyroid interpretation');
 assert('Biology Score AI answers persist only in encrypted/profile data, not plaintext localStorage',
   localStorage.getItem(legacyBiologyAIKey) == null
   && localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') == null,
   JSON.stringify({ legacy: localStorage.getItem(legacyBiologyAIKey), stored: localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') }));
 assert('Biology Score AI render reads profile-scoped answer after legacy cleanup',
-  renderScoreAIAnswer(byId.mitoThyroid).includes('sensitive thyroid interpretation'));
+  renderScoreAIAnswer(byId.thyroidCoherence).includes('sensitive thyroid interpretation'));
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData, hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };
@@ -411,6 +420,63 @@ assert('bone-mineral mapping includes D calcium phosphorus', mapping.find(s => s
 assert('tier 2 mapping exports recovery and immune axes', ['immuneCellBalance', 'anabolicRecoverySignal'].every(id => mapping.some(s => s.id === id)));
 assert('immune mapping includes CBC differential and NLR', ['hematology.wbc', 'differential.neutrophils', 'differential.lymphocytes', 'calculatedRatios.nlr'].every(path => mapping.find(s => s.id === 'immuneCellBalance')?.inputs.some(i => i.paths.includes(path))));
 assert('anabolic recovery mapping includes hormones proteins and CK', ['hormones.testosterone', 'hormones.freeTestosterone', 'proteins.albumin', 'proteins.totalProtein', 'biochemistry.creatineKinase'].every(path => mapping.find(s => s.id === 'anabolicRecoverySignal')?.inputs.some(i => i.paths.includes(path))));
+assert('cardiovascular mapping includes ApoB ApoA1 and Lp(a)', ['lipids.apoB', 'lipids.apoAI'].every(path => mapping.find(s => s.id === 'cardiovascularLipoprotein')?.inputs.some(i => i.paths.includes(path))) && mapping.find(s => s.id === 'cardiovascularLipoprotein')?.inputs.some(i => i.paths.includes('lipids.lpA')));
+assert('mito thyroid is removed from mapping', !mapping.some(s => s.id === 'mitoThyroid'));
+
+// Severity sub-bands: resolveScoreTone now distinguishes poor/concerning/severe
+import { resolveScoreTone, resolveScoreSeverity } from '../js/biology-score-engine.js';
+assert('severity sub-band: score 40 → poor tone', resolveScoreTone(40) === 'poor');
+assert('severity sub-band: score 25 → concerning tone', resolveScoreTone(25) === 'concerning');
+assert('severity sub-band: score 10 → severe tone', resolveScoreTone(10) === 'severe');
+assert('severity sub-band: score 40 → mild severity', resolveScoreSeverity(40) === 'mild');
+assert('severity sub-band: score 25 → moderate severity', resolveScoreSeverity(25) === 'moderate');
+assert('severity sub-band: score 10 → severe severity', resolveScoreSeverity(10) === 'severe');
+assert('severity sub-band: score 60 → null severity', resolveScoreSeverity(60) === null);
+
+// Vitamin D sunlight profile modifier: wheelchair context raises D floor to 100 nmol/L
+const savedSunlightState = { importedData: state.importedData };
+state.importedData = {
+  ...data,
+  diagnoses: { conditions: [{ name: 'CMT2A', note: 'wheelchair user' }], flags: {} },
+  contextNotes: 'wheelchair user with minimal outdoor exposure',
+};
+invalidateActiveDataCache();
+const sunlightScores = computeBiologyScores(data);
+const sunlightBoneMineral = sunlightScores.find(s => s.id === 'boneMineralSignal');
+const vitaminDInput = sunlightBoneMineral?.available?.find(i => i.dotKey === 'vitamins.vitaminD');
+assert('low-sunlight profile raises vitamin D floor to 100 nmol/L',
+  vitaminDInput != null && sunlightBoneMineral.flags.some(f => f.includes('minimal sunlight') || f.includes('UVB')),
+  JSON.stringify({ score: sunlightBoneMineral?.score, flags: sunlightBoneMineral?.flags, vitaminDInput }));
+state.importedData = savedSunlightState.importedData; invalidateActiveDataCache();
+
+// TSAT overload is now penalized more aggressively (was 71 at TSAT 55, should be lower now)
+const tsatOverloadData = {
+  dates: ['2026-06-01'],
+  categories: {
+    iron: { label: 'Iron', markers: {
+      ferritin: marker('Ferritin', 'ug/l', 30, 400, 650),
+      transferrinSat: marker('Transferrin saturation', '%', 16, 45, 55),
+      iron: marker('Iron', 'umol/l', 5.8, 34.5, 45),
+      transferrin: marker('Transferrin', 'g/l', 2.0, 3.6, 1.5),
+      tibc: marker('TIBC', 'umol/l', 22.3, 61.7, 18),
+    }},
+    hematology: { label: 'Hematology', markers: {
+      hemoglobin: marker('Hemoglobin', 'g/l', 135, 175, 150),
+      mch: marker('MCH', 'pg', 28, 34, 30),
+      mcv: marker('MCV', 'fl', 82, 98, 90),
+    }},
+    proteins: { label: 'Proteins', markers: {
+      hsCRP: marker('hs-CRP', 'mg/l', 0, 3, 18),
+    }},
+    electrolytes: { label: 'Electrolytes', markers: {
+      copper: marker('Copper', 'umol/l', 11, 24, 15),
+    }},
+  },
+};
+const tsatIronScore = computeBiologyScores(tsatOverloadData).find(s => s.id === 'ironHandling');
+const tsatPartial = tsatIronScore.available.find(i => i.key === 'transferrinSat');
+assert('TSAT 55% with high ferritin gets stricter overload score (< 71)', tsatPartial && tsatPartial.partial < 71, `got ${tsatPartial?.partial}`);
+assert('TSAT >= 50% triggers hemochromatosis screening flag', tsatIronScore.flags.some(f => f.includes('hemochromatosis') || f.includes('overload')), JSON.stringify(tsatIronScore.flags));
 
 console.log(`\nBiology Scores tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

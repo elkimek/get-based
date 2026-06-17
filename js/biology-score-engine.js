@@ -7,7 +7,7 @@ import { getInputProfileModifier, getScoreProfileFlags } from './biology-score-p
 import { UNIT_CONVERSIONS } from './schema.js';
 import { formatValue } from './utils.js';
 
-export const TONE_LABELS = { excellent: 'Strong', good: 'Good', strained: 'Watch', poor: 'Low score' };
+export const TONE_LABELS = { excellent: 'Strong', good: 'Good', strained: 'Watch', poor: 'Low score', concerning: 'Concerning', significant: 'Significant', severe: 'Severe' };
 export const SCORE_STALE_DAYS = 180;
 export const SCORE_DATE_SPAN_DAYS = 90;
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -24,7 +24,17 @@ export function resolveScoreTone(score) {
   if (score >= 85) return 'excellent';
   if (score >= 70) return 'good';
   if (score >= 50) return 'strained';
-  return 'poor';
+  if (score >= 35) return 'poor';
+  if (score >= 15) return 'concerning';
+  return 'severe';
+}
+
+export function resolveScoreSeverity(score) {
+  if (!Number.isFinite(score)) return null;
+  if (score >= 50) return null;
+  if (score >= 35) return 'mild';
+  if (score >= 15) return 'moderate';
+  return 'severe';
 }
 
 export function resolveCoverageLabel(coverage) {
@@ -204,6 +214,7 @@ export function finalizeCustomScore(def, parts, missing, flags = []) {
     ...def,
     score,
     tone: score == null ? null : resolveScoreTone(score),
+    severity: resolveScoreSeverity(score),
     coverage,
     coverageLabel: resolveCoverageLabel(coverage),
     available,
@@ -220,7 +231,8 @@ export function computeWeightedComposite(data, def) {
     const hit = getMarkerHit(data, input.paths);
     const modifier = getInputProfileModifier(hit || {}, input, profileContext);
     const effectiveWeight = input.weight * (modifier.weightScale ?? 1);
-    const partial = hit ? scoreAgainstRange(hit.value, hit.range) : null;
+    const effectiveRange = modifier.rangeOverride ?? hit?.range;
+    const partial = hit ? scoreAgainstRange(hit.value, effectiveRange) : null;
     if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight }); continue; }
     if (modifier.flag && !flags.includes(modifier.flag)) flags.push(modifier.flag);
     if (modifier.score === false) {
@@ -239,6 +251,7 @@ export function computeWeightedComposite(data, def) {
     ...def,
     score,
     tone: score == null ? null : resolveScoreTone(score),
+    severity: resolveScoreSeverity(score),
     coverage,
     coverageLabel: resolveCoverageLabel(coverage),
     available,

@@ -7,6 +7,7 @@ import {
   getMarkerHit,
   lerp,
   resolveCoverageLabel,
+  resolveScoreSeverity,
   resolveScoreTone,
 } from './biology-score-engine.js';
 
@@ -39,5 +40,5 @@ export function computeMitoThyroid(data, def) {
   const tshPenalty = clamp(1 / (1 + Math.abs(tsh.canonicalValue - 1.5) / 1.2), 0.45, 1.0);
   const rawIndex = ft3Factor * tagFactor * tshPenalty;
   const score = mapMitoThyroidRawIndexToScore(rawIndex);
-  return applyScoreRecency({ ...def, score, rawIndex, tone: resolveScoreTone(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing });
+  return applyScoreRecency({ ...def, score, rawIndex, tone: resolveScoreTone(score), severity: resolveScoreSeverity(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing });
 }
