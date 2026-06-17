@@ -77,6 +77,10 @@ const LEGACY_TESTS = [
   './test-prelab.js',
   './test-venice-e2ee.js',
   './test-unit-import.js',
+  // Batch 6b — behavioral coverage for the SECONDARY_UNIT_CONVERSIONS registry
+  // and the expanded normalizeToSI() paths (secondary conv, SI passthrough,
+  // unknown-unit passthrough, urea/BUN edge cases).
+  './test-secondary-unit-conversions.js',
   // Batch 7 — wearables fetchers + hardware advisor.
   './test-wearables-fetchers.js',
   './test-wearables-runtime-config.js',
