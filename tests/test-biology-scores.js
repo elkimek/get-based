@@ -261,16 +261,29 @@ const mmaHit = singlePointScore.available.find(i => i.key === 'mma');
 assert('single-point specialty markers preserve their own panel date for recency', mmaHit?.date === '2025-06-01', JSON.stringify(mmaHit));
 state.importedData = savedSinglePointImported; invalidateActiveDataCache();
 
-const html = renderBiologyScoresWidget({ data });
-assert('render includes native widget class', html.includes('biology-scores-widget'));
-assert('render escapes score titles as text', html.includes('Metabolic Flexibility') && html.includes('Methylation') && html.includes('Immune Cell Balance') && html.includes('Anabolic Recovery Signal') && !html.includes('One-Carbon Coherence'));
-assert('dashboard widget score cards are clickable and jump to their score', html.includes('data-biology-score-action="jump-to-domain"') && html.includes('data-biology-score-id="metabolicFlexibility"'));
-assert('available marker tokens are delegated buttons', html.includes('class="biology-score-token"') && html.includes('data-biology-marker-id="biochemistry_glucose"'));
-assert('biology score UI avoids cropped pill chip class', !html.includes('biology-score-chip'));
+const widgetHtml = renderBiologyScoresWidget({ data });
+assert('render includes native widget class', widgetHtml.includes('biology-scores-widget'));
+assert('render escapes score titles as text', widgetHtml.includes('Metabolic Flexibility') && widgetHtml.includes('Methylation') && widgetHtml.includes('Immune Cell Balance') && widgetHtml.includes('Anabolic Recovery Signal') && !widgetHtml.includes('One-Carbon Coherence'));
+assert('dashboard widget score cards are clickable and jump to their score', widgetHtml.includes('data-biology-score-action="jump-to-domain"') && widgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
+assert('available marker tokens are delegated buttons', widgetHtml.includes('class="biology-score-token"') && widgetHtml.includes('data-biology-marker-id="biochemistry_glucose"'));
+assert('biology score UI avoids cropped pill chip class', !widgetHtml.includes('biology-score-chip'));
+
+import { renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
+const coherenceWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('dashboard coherence hero is full-width', coherenceWidgetHtml.includes('db-bio-coherence-hero'));
+assert('dashboard coherence hero shows score ring and number', coherenceWidgetHtml.includes('db-bio-coherence-ring') && coherenceWidgetHtml.includes('/100'));
+assert('dashboard coherence hero domain rows are clickable', coherenceWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && coherenceWidgetHtml.includes('title="Jump to'));
+assert('dashboard coherence hero includes open-lens CTA', coherenceWidgetHtml.includes('data-biology-score-action="open-lens"'));
+
+import { renderDashboardBiologyScoreWidget } from '../js/biology-scores.js';
+const metabolicWidgetHtml = renderDashboardBiologyScoreWidget({ data }, 'metabolicFlexibility');
+assert('individual dashboard score widget renders score rail with pin and fill', metabolicWidgetHtml.includes('db-hero-bio-bar-track') && metabolicWidgetHtml.includes('db-hero-bio-bar-fill') && metabolicWidgetHtml.includes('db-hero-bio-bar-pin'));
+assert('individual dashboard score widget is clickable', metabolicWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && metabolicWidgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
 
 const lensHtml = renderBiologyScoresLens({ data });
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
 assert('lens pins Biological Coherence as a distinguished hero before score details', lensHtml.includes('biology-coherence-hero') && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-detail-stack') && lensHtml.includes('System-level score'));
+assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.includes('data-lens-page-action="add-dashboard-widget"') || lensHtml.includes('data-lens-page-action="remove-dashboard-widget"'));
 assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Does the thyroid signal look metabolically expressed'));
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
 assert('lens surfaces evidence strength as compact meta labels', lensHtml.includes('Experimental pattern') || lensHtml.includes('Contextual pattern'));
