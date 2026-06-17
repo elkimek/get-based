@@ -177,5 +177,6 @@ Breakpoints: 3000/2000/1600/1400px (chat scaling), 1200px (cards 3→2 col), 102
 - **Security**: `escapeHTML(str)` for all innerHTML. Markdown URLs validated to http/https/mailto
 - **Marker keys**: `category.markerKey` format (e.g., `biochemistry.glucose`) used everywhere
 - **Units**: storage is SI; `UNIT_CONVERSIONS` in `schema.js` keys per dotKey to `{factor, usUnit, type}`. `getAlternateUnit(dotKey, value, isUSMode)` returns the other system for dual-display; `convertUserInputToSI(dotKey, value, inputUnit)` accepts either system at manual-entry time. Per-profile `state.showAltUnits` (Settings → Display) toggles the secondary `≈` line in the detail modal. Add an entry per real numerical conversion AND per label-only US convention (e.g. mU/L ↔ µIU/mL has `factor: 1` so US users can recognize their lab-report unit). Skip true universals (homocysteine µmol/L)
+- **Secondary Units**: global clinical units (e.g. `g/l` or `mU/l` standards) reside in `SECONDARY_UNIT_CONVERSIONS` in `schema.js`. `getValidUnitsForMarker()` systematically deduplicates these for UI review, and `normalizeToSI()` evaluates them mathematically when saving.
 - **Debug**: `isDebugMode()` gates console output. Toggled in Settings → Privacy
 - **Design system**: `--accent-gradient`, `--shadow-lg`/`--shadow-glow`, `.ctx-btn-group`/`.ctx-btn-option` pill buttons
