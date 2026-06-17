@@ -134,7 +134,7 @@ export function renderScoreDetail(score, options = {}) {
 function renderScoreCard(score) {
   const tone = score.tone || 'unknown';
   const scoreValue = Number.isFinite(score.score) ? String(score.score) : '—';
-  return `<article class="biology-score-card biology-score-card-${escapeAttr(tone)}">
+  return `<article class="biology-score-card biology-score-card-${escapeAttr(tone)}" role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(score.id)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
     <div class="biology-score-card-head">
       <div>
         <div class="biology-score-kicker">${escapeHTML(score.kicker)}</div>
@@ -297,7 +297,6 @@ export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScore
     <div class="biology-score-grid">
       ${displayScores.map(renderScoreCard).join('')}
     </div>
-    ${options.hideOpenLens ? '' : `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary biology-scores-open" data-biology-score-action="open-lens">Open full Biology Scores lens</button>`}
     <p class="biology-scores-note">Educational pattern score only. Score tone reflects the current marker pattern, coverage reflects missing inputs, and staleness is tracked separately.</p>
   </div>`;
 }

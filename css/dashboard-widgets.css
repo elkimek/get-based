@@ -472,6 +472,15 @@
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.biology-score-card:hover,
+.biology-score-card:focus-visible {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+  outline: none;
 }
 .biology-score-card-head {
   display: flex;

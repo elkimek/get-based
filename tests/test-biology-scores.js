@@ -264,7 +264,7 @@ state.importedData = savedSinglePointImported; invalidateActiveDataCache();
 const html = renderBiologyScoresWidget({ data });
 assert('render includes native widget class', html.includes('biology-scores-widget'));
 assert('render escapes score titles as text', html.includes('Metabolic Flexibility') && html.includes('Methylation') && html.includes('Immune Cell Balance') && html.includes('Anabolic Recovery Signal') && !html.includes('One-Carbon Coherence'));
-assert('dashboard widget has full-lens CTA', html.includes('data-biology-score-action="open-lens"'));
+assert('dashboard widget score cards are clickable and jump to their score', html.includes('data-biology-score-action="jump-to-domain"') && html.includes('data-biology-score-id="metabolicFlexibility"'));
 assert('available marker tokens are delegated buttons', html.includes('class="biology-score-token"') && html.includes('data-biology-marker-id="biochemistry_glucose"'));
 assert('biology score UI avoids cropped pill chip class', !html.includes('biology-score-chip'));
 
