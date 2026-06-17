@@ -314,6 +314,38 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, var(--border));
 }
+.db-bio-coherence-good .db-bio-coherence-ring {
+  background:
+    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    conic-gradient(
+      var(--tone-good) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--tone-good) 20%, var(--border)) 0
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-good) 25%, var(--border));
+}
+.db-bio-coherence-fair .db-bio-coherence-ring {
+  background:
+    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    conic-gradient(
+      var(--tone-fair) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--tone-fair) 20%, var(--border)) 0
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-fair) 25%, var(--border));
+}
+.db-bio-coherence-poor .db-bio-coherence-ring,
+.db-bio-coherence-bad .db-bio-coherence-ring {
+  background:
+    radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
+    conic-gradient(
+      var(--tone-poor) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--tone-poor) 20%, var(--border)) 0
+    );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-poor) 25%, var(--border));
+}
+.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-good) 16%, var(--bg-card)); color: var(--tone-good); }
+.db-bio-coherence-fair .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-fair) 16%, var(--bg-card)); color: var(--tone-fair); }
+.db-bio-coherence-poor .db-bio-coherence-status,
+.db-bio-coherence-bad .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-poor) 16%, var(--bg-card)); color: var(--tone-poor); }
 .db-bio-coherence-number {
   position: absolute;
   display: grid;

@@ -211,7 +211,6 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
     : score.missing?.length
       ? `${score.missing.length} mapped input${score.missing.length === 1 ? '' : 's'} missing`
       : 'No active marker drag';
-  const railScore = Number.isFinite(score.score) ? clamp(score.score, 0, 100) : 0;
   return `<button type="button" class="db-hero-bio db-hero-biology-score db-hero-biology-score-${escapeAttr(tone)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(scoreId)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
     <div class="db-hero-bio-left">
       <div class="db-hero-bio-num">${escapeHTML(scoreValue)}</div>
@@ -224,7 +223,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
     <div class="db-hero-bio-right">
       <div class="db-hero-row"><span>Inputs</span><strong>${score.available.length}/${score.available.length + score.missing.length || 0}</strong></div>
       <div class="db-hero-row"><span>Recency</span><strong>${escapeHTML(score.recencyBadge || 'Dates aligned')}</strong></div>
-      <div class="db-hero-bio-bar biology-score-rail-mini"><div style="width:${railScore.toFixed(0)}%"></div></div>
+      ${renderScoreRail(score.score, score.tone)}
       <div class="db-hero-scale"><span>0</span><span>50</span><span>100</span></div>
     </div>
   </button>`;
