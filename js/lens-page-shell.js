@@ -33,6 +33,9 @@ function handleLensPageShellClick(event) {
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-page-action]'));
   if (!actionEl) return;
   if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero')) return;
+  // .biology-coherence-hero is included because the Biology Scores lens renders the coherence
+  // hero as a standalone top-section before the regular lens-page-widgets container, and its
+  // dashboard toggle must be handled by the lens page shell.
   event.preventDefault();
   const appWindow = /** @type {any} */ (window);
 

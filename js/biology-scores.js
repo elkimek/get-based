@@ -52,16 +52,11 @@ function installBiologyScoreDelegates() {
       const scoreId = el.dataset.biologyScoreId;
       if (!scoreId) return;
       event.preventDefault();
-      const isSameView = state.currentView === 'biology-scores';
-      if (isSameView) {
-        const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
-        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (state.currentView === 'biology-scores') {
+        jumpToScore(scoreId);
       } else {
         window.navigate?.('biology-scores');
-        setTimeout(() => {
-          const freshTarget = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
-          freshTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 80);
+        setTimeout(() => jumpToScore(scoreId), 80);
       }
     } else if (action === 'open-marker') {
       const markerId = el.dataset.biologyMarkerId;
@@ -81,6 +76,11 @@ function installBiologyScoreDelegates() {
   });
 }
 installBiologyScoreDelegates();
+
+function jumpToScore(scoreId) {
+  const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
@@ -203,7 +203,6 @@ export function getBiologyScoreWidgetDefinitions() {
     title: def.title,
     description: def.summary,
     size: def.id === 'biologicalCoherence' ? 'full' : 'half',
-    isCoherenceHero: def.id === 'biologicalCoherence',
   }));
 }
 

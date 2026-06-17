@@ -40,9 +40,14 @@ export function dashboardBiometricSelectionKey() {
 export function createDashboardWidgetRegistry(renderers, opts = {}) {
   const biologyScoreWidgets = getBiologyScoreWidgetDefinitions().map(def => ({
     ...def,
-    render: (ctx) => def.isCoherenceHero
-      ? renderers.renderDashboardBiologicalCoherenceWidget?.(ctx)
-      : renderers.renderDashboardBiologyScoreWidget(ctx, def.scoreId),
+    render: (ctx) => {
+      if (def.scoreId === 'biologicalCoherence') {
+        const renderer = renderers.renderDashboardBiologicalCoherenceWidget;
+        if (!renderer) throw new Error('Missing renderDashboardBiologicalCoherenceWidget renderer');
+        return renderer(ctx);
+      }
+      return renderers.renderDashboardBiologyScoreWidget(ctx, def.scoreId);
+    },
   }));
   const dashboardWidgets = [
     { id: 'bio-age', source: 'Labs', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderers.renderDashboardBioAgeWidget },
