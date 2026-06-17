@@ -20,6 +20,7 @@ import { renderScoreAIAnswer, writeScoreAIAnswer } from './biology-score-section
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
 import { computeThyroidCoherence } from './biology-score-thyroid.js';
+import { state } from './state.js';
 
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
@@ -46,6 +47,21 @@ function installBiologyScoreDelegates() {
       runEmbeddedScoreAI(el).catch((err) => {
         window.showNotification?.(err?.message || 'Could not generate Biology Score answer', 'error');
       });
+    } else if (action === 'jump-to-domain') {
+      const scoreId = el.dataset.biologyScoreId;
+      if (scoreId) {
+        const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+        if (target) {
+          const isSameView = state.currentView === 'biology-scores';
+          if (isSameView) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            window.navigate?.('biology-scores');
+            setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+          }
+        }
+        event.preventDefault();
+      }
     } else if (action === 'open-marker') {
       const markerId = el.dataset.biologyMarkerId;
       if (markerId) {
@@ -53,6 +69,14 @@ function installBiologyScoreDelegates() {
         event.preventDefault();
       }
     }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = event.target instanceof Element ? event.target : null;
+    const el = /** @type {HTMLElement | null} */ (target?.closest('[data-biology-score-action="jump-to-domain"]'));
+    if (!el) return;
+    event.preventDefault();
+    el.click();
   });
 }
 installBiologyScoreDelegates();

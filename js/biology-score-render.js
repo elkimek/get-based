@@ -5,6 +5,7 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp } from './biology-score-engine.js';
+import { renderLensDashboardToggle } from './lens-page-shell.js';
 
 function getMarkerTitle(item) {
   return item.displayValue != null
@@ -155,13 +156,20 @@ function renderBiologicalCoherenceHero(score) {
   const strongest = domains[0];
   const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
   const missingCount = score.missing?.length || 0;
-  const domainRows = domains.slice(0, 8).map((item) => `<div class="biology-coherence-domain-row"><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`).join('');
+  const domainRows = domains.slice(0, 8).map((item) => {
+    const attrs = item.primaryScoreId
+      ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
+      : '';
+    return `<div class="biology-coherence-domain-row"${attrs}><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`;
+  }).join('');
   const summaryItems = [
     strongest ? ['Strongest', `${strongest.label} (${Math.round(strongest.partial || 0)}/100)`] : null,
     weakest && weakest !== strongest ? ['Most strained', `${weakest.label} (${Math.round(weakest.partial || 0)}/100)`] : null,
     ['Minimum panel', missingCount ? `${missingCount} domain${missingCount === 1 ? '' : 's'} still missing` : 'Domains live'],
   ].filter(Boolean);
+  const dashboardToggle = renderLensDashboardToggle('biology-score-biologicalCoherence');
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
+    ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
     <div class="biology-coherence-copy">
       <div class="biology-scores-eyebrow">System-level score</div>
       <h2>${escapeHTML(score.title)}</h2>

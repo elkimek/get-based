@@ -66,6 +66,7 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
     const liveWeight = live.reduce((sum, item) => sum + item.weight, 0) || 1;
     const domainScore = Math.round(live.reduce((sum, item) => sum + item.score.score * item.weight, 0) / liveWeight);
     const domainCoverage = live.reduce((sum, item) => sum + (item.score.coverage || 0) * item.weight, 0) / liveWeight;
+    const weakest = live.slice().sort((a, b) => a.score.score - b.score.score)[0];
     availableDomainWeight += domainWeight;
     scoreSum += domainScore * domainWeight;
     available.push({
@@ -78,6 +79,7 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
       weight: domainWeight,
       id: '',
       domainCoverage,
+      primaryScoreId: weakest?.score.id || live[0]?.score.id || '',
     });
   }
 

@@ -142,7 +142,7 @@ export function moveLensPageWidget(route, id, direction) {
   if (state.currentView === route) window.navigate?.(route);
 }
 
-function renderLensDashboardToggle(dashboardId) {
+export function renderLensDashboardToggle(dashboardId) {
   if (!dashboardId || !_shellDeps.getAvailableDashboardFixedWidgetIds().includes(dashboardId)) return '';
   const prefs = _shellDeps.getDashboardWidgetPrefs();
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];

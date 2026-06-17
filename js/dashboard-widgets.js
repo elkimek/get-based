@@ -24,6 +24,7 @@ export const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'profile-context',
   'wearables',
   'bio-age',
+  'biology-score-biologicalCoherence',
   'biology-score-metabolicFlexibility',
 ];
 export const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'bp_systolic', 'rhr'];

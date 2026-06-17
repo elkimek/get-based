@@ -573,6 +573,16 @@ button.biology-score-token:focus-visible {
   box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
   overflow: hidden;
 }
+.biology-coherence-tools {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+.biology-coherence-tools .dashboard-widget-tool {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+}
 .biology-coherence-hero::after {
   content: '';
   position: absolute;
@@ -662,6 +672,17 @@ button.biology-score-token:focus-visible {
   padding: 7px 9px;
   color: var(--text-secondary);
   font-size: 12px;
+}
+.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"] {
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:hover,
+.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:focus-visible {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  color: var(--text-primary);
+  outline: none;
 }
 .biology-coherence-domain-row > span {
   overflow: hidden;

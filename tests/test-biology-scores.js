@@ -281,6 +281,14 @@ const liveScoresDesc = scores.filter(s => s.id !== 'biologicalCoherence' && Numb
 assert('lens shows computed scores first in descending score order', lensWidgets.slice(0, liveScoresDesc.length).map(w => w.id).join('|') === liveScoresDesc.map(s => `biology-score-detail-${s.id}`).join('|'));
 assert('lens collapses unavailable biology scores at the end', lensWidgets.at(-1)?.id === 'biology-score-needs-data' && lensWidgets.at(-1)?.body.includes('biology-score-unavailable-group'));
 assert('lens widget dashboard ids match score ids', lensWidgets.some(w => w.id === 'biology-score-detail-metabolicFlexibility' && w.opts.dashboardId === 'biology-score-metabolicFlexibility'));
+const coherenceTopDomains = [...byId.biologicalCoherence.available].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0)).slice(0, 8);
+assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !d.primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${d.primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, d.primaryScoreId])));
+const coherenceDomainRow = coherenceTopDomains.find(d => d.primaryScoreId);
+assert('biological coherence domain row title hints navigation', coherenceDomainRow && lensHtml.includes(`title="Jump to ${coherenceDomainRow.label} score"`), JSON.stringify(coherenceDomainRow));
+
+import { DASHBOARD_WIDGET_DEFAULT_IDS } from '../js/dashboard-widgets.js';
+assert('biological coherence dashboard widget is in default layout', DASHBOARD_WIDGET_DEFAULT_IDS.includes('biology-score-biologicalCoherence'));
+
 const mixedLensHtml = renderBiologyScoresLens({ data: mixedDateData });
 assert('mixed-date scores show retest state only once per score meta row',
   !/biology-score-meta[\s\S]*Retest together[\s\S]*Retest together/.test(mixedLensHtml));

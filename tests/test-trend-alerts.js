@@ -711,6 +711,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
       'profile-context',
       'wearables',
       'bio-age',
+      'biology-score-biologicalCoherence',
       'biology-score-metabolicFlexibility',
     ]) &&
     !dashboardDefaultOrderBlock.includes("'light-today'") &&
