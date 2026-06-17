@@ -340,6 +340,18 @@ export async function parseLabPDFWithAI(pdfText, fileName, onProgress) {
 Here is the complete list of known markers with their keys, expected units, and reference ranges:
 ${JSON.stringify(markerRef)}
 
+IMPORTANT — The lab report may contain test names in Bulgarian, Czech, German, Russian, Ukrainian, or other languages. Before matching, translate every non-English test name into its English medical equivalent. For example: "Креатинин" → "Creatinine", "Урея" → "Urea", "Мочевая кислота" → "Uric Acid", "АСТ" → "AST", "Glukóza" → "Glucose". Use the English name when searching the known markers list.
+IMPORTANT — Use English unit abbreviations only. Do not use Cyrillic or localized unit names, replace them with English instead.
+Examples:
+- Enzyme activity: U/L (not Ед/л)
+- Micromoles per liter: µmol/l (not мкмоль/л)
+- Millimoles per liter: mmol/l (not ммоль/л)
+- Milligrams per deciliter: mg/dl
+- Grams per liter: g/l
+- Microkatals per liter: µkat/l
+
+Don't limit yourself just to the examples and languages provided. Always translate the unit names into the English equivalent.
+
 Your task:
 1. Find the sample collection date in the text. Return it as YYYY-MM-DD. Look for dates near keywords like "collection", "collected", "date", "odběr", "datum", or similar in any language.
 ${dateHint}
@@ -347,7 +359,7 @@ ${dateHint}
    - rawName: the test name exactly as it appears in the PDF
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
    - mappedKey: the matching key from the known markers list (e.g. "biochemistry.glucose"), or null if no match
-   - unit: the unit as shown in the PDF
+   - unit: standard English unit abbreviation (e.g., "µg/l", "nmol/l", "U/l", "mg/dl"). Translate all localized or Cyrillic units (like "мкг/л", "нмоль/л", "МЕ/л") to their English equivalents. Never use localized units.
    - refMin: the lower reference range bound EXACTLY as printed on the PDF (number or null). Do NOT copy from the known markers list above — extract from the actual PDF text
    - refMax: the upper reference range bound EXACTLY as printed on the PDF (number or null). Do NOT copy from the known markers list above — extract from the actual PDF text
 3. Match based on medical/biochemical equivalence, not just string similarity. For example:
@@ -356,6 +368,8 @@ ${dateHint}
    - "Triacylglyceroly" → "lipids.triglycerides"
    - "Trombokrit" / "Plateletcrit" / "PCT" (hematology) → "hematology.pct"
    - CRP: "hs-CRP" / "hsCRP" / "high-sensitivity CRP" / "vysoce senzitivní CRP" → "proteins.hsCRP". Plain "CRP" / "S-CRP" / "C-reaktívny proteín" → "proteins.crp". These are different assays — do not merge them
+   - Testosterone: "Testosterone", "Free Testosterone" and "Bioactive Testosterone" are also different assays — do not merge them either.
+   - Some similar assays might come in both quantitative and percentage measurement (e.g. Bioactive Testosterone and Bioactive Testosterone Percentage). If they do appear in pair, treat them as separated assays, do not skip any.
    - Use the units and reference ranges to help disambiguate
    - IMPORTANT: Many labs prefix marker names with specimen type codes: S- (serum), P- (plasma), B- (blood), U- (urine), fS- (fasting serum), USED- (urine sediment), F- (fecal), FW (sedimentation). Strip these prefixes when matching to known markers. Keep them in rawName for reference
    - Do NOT map urine-prefixed rows to serum/plasma/blood markers. Example: "S Celk.bílkovina" is serum Total Protein → "proteins.totalProtein", but "U Celková bílkovina" is urine total protein and must be a separate urine marker, not "proteins.totalProtein"
@@ -419,7 +433,8 @@ Return ONLY valid JSON in this exact format, no other text:
     messages: [{ role: 'user', content: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}:\n\n${pdfText}` }],
     maxTokens,
     onStream,
-    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS
+    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
+    jsonMode: true
   }, 'PDF text analysis');
 
   // Parse JSON from response (handle markdown code blocks, thinking tags, truncated output)
@@ -702,6 +717,18 @@ export async function parseLabPDFWithAIImages(images, fileName, onProgress) {
 Here is the complete list of known markers with their keys, expected units, and reference ranges:
 ${JSON.stringify(markerRef)}
 
+IMPORTANT — The lab report may contain test names in Bulgarian, Czech, German, Russian, Ukrainian, or other languages. Before matching, translate every non-English test name into its English medical equivalent. For example: "Креатинин" → "Creatinine", "Урея" → "Urea", "Мочевая кислота" → "Uric Acid", "АСТ" → "AST", "Glukóza" → "Glucose". Use the English name when searching the known markers list.
+IMPORTANT — Use English unit abbreviations only. Do not use Cyrillic or localized unit names, replace them with English instead.
+Examples:
+- Enzyme activity: U/L (not Ед/л)
+- Micromoles per liter: µmol/l (not мкмоль/л)
+- Millimoles per liter: mmol/l (not ммоль/л)
+- Milligrams per deciliter: mg/dl
+- Grams per liter: g/l
+- Microkatals per liter: µkat/l
+
+Don't limit yourself just to the examples and languages provided. Always translate the unit names into the English equivalent.
+
 Your task:
 1. Read the lab report page images carefully. Find the sample collection date. Return it as YYYY-MM-DD.
 ${dateHint}
@@ -709,7 +736,7 @@ ${dateHint}
    - rawName: the test name exactly as it appears
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
    - mappedKey: the matching key from the known markers list (e.g. "biochemistry.glucose"), or null if no match
-   - unit: the unit as shown
+   - unit: standard English unit abbreviation (e.g., "µg/l", "nmol/l", "U/l", "mg/dl"). Translate all localized or Cyrillic units (like "мкг/л", "нмоль/л", "МЕ/л") to their English equivalents. Never use localized Cyrillic units.
    - refMin: the lower reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
    - refMax: the upper reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
 3. Match based on medical/biochemical equivalence, not just string similarity. "hs-CRP"/"hsCRP" → "proteins.hsCRP", plain "CRP" → "proteins.crp" (different assays). Strip specimen-type prefixes (S-, P-, B-, U-, fS-, USED-, F-, FW) when matching — keep in rawName. Do NOT map urine-prefixed rows to serum/plasma/blood markers; "U Celková bílkovina" is urine total protein, not serum Total Protein.

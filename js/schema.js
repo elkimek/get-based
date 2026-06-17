@@ -29,6 +29,7 @@ export const MARKER_SCHEMA = {
     markers: {
       testosterone: { name: "Testosterone", unit: "nmol/l", refMin: 8.64, refMax: 29.00, refMin_f: 0.29, refMax_f: 1.67, desc: "The primary male sex hormone; critical for muscle mass, bone density, libido, and mood in both sexes." },
       freeTestosterone: { name: "Free Testosterone", unit: "pmol/l", refMin: 30.70, refMax: 161.70, refMin_f: 0.30, refMax_f: 10.40, desc: "The unbound, biologically active fraction of testosterone; a better indicator of androgen status than total testosterone." },
+      freeTestosteronePercentage: { name: "Free Testosterone %", unit: "%", refMin: 1.53, refMax: 2.88, desc: "The proportion of total testosterone that is entirely unbound in blood; an excellent metric for monitoring true androgen availability." },
       shbg: { name: "SHBG", unit: "nmol/l", refMin: 14.5, refMax: 54.1, refMin_f: 26.1, refMax_f: 110.0, desc: "A protein that binds sex hormones and regulates their availability; high levels reduce free testosterone." },
       dheaS: { name: "DHEA-S", unit: "\u00b5mol/l", refMin: 2.41, refMax: 11.60, refMin_f: 1.77, refMax_f: 9.22, desc: "An adrenal hormone precursor to testosterone and estrogen; declines with age and reflects adrenal function." },
       fai: { name: "Free Androgen Index", unit: "%", refMin: 34.0, refMax: 106.0, refMin_f: 0.5, refMax_f: 6.9, desc: "Ratio of total testosterone to SHBG; estimates bioavailable androgen activity, useful for detecting hormonal imbalances." },
@@ -40,7 +41,11 @@ export const MARKER_SCHEMA = {
       insulin: { name: "Insulin", unit: "mU/l", refMin: 2.6, refMax: 24.9, desc: "The hormone regulating blood sugar uptake into cells; elevated fasting levels indicate insulin resistance." },
       lh: { name: "LH", unit: "U/l", refMin: 1.7, refMax: 8.6, refMin_f: 2.4, refMax_f: 12.6, desc: "Luteinizing hormone; triggers ovulation in women and stimulates testosterone production in men. Surges mid-cycle." },
       fsh: { name: "FSH", unit: "U/l", refMin: 1.5, refMax: 12.4, refMin_f: 3.5, refMax_f: 12.5, desc: "Follicle-stimulating hormone; drives egg maturation in women and sperm production in men. Rises in menopause." },
-      prolactin: { name: "Prolactin", unit: "\u00b5g/l", refMin: 4.0, refMax: 15.2, refMin_f: 4.8, refMax_f: 23.3, desc: "Stimulates milk production; elevated levels can suppress ovulation and indicate pituitary issues." }
+      prolactin: { name: "Prolactin", unit: "\u00b5g/l", refMin: 4.0, refMax: 15.2, refMin_f: 4.8, refMax_f: 23.3, desc: "Stimulates milk production; elevated levels can suppress ovulation and indicate pituitary issues." },
+      bioactiveTestosterone: { name: "Bioactive Testosterone", unit: "nmol/l", refMin: 4.37, refMax: 14.3, refMin_f: 0.05, refMax_f: 0.60, desc: "The sum of free and weakly albumin-bound testosterone; ready to be utilized by tissues, making it a powerful indicator of bioavailable androgen status." },
+      bioactiveTestosteronePercentage: { name: "Bioactive Testosterone %", unit: "%", refMin: 35.0, refMax: 66.3, desc: "The proportion of total testosterone that is biologically active; helps evaluate hormonal availability when SHBG is abnormal." },
+      hCG: { name: "hCG (Chorionic Gonadotropin)", unit: "U/l", refMin: 0.0, refMax: 2.5, desc: "Human chorionic gonadotropin; a hormone produced during pregnancy and also utilized as a highly specific biomarker for certain reproductive conditions." },
+      AFP: { name: "AFP (Alpha-Fetoprotein)", unit: "kU/l", refMin: 0.0, refMax: 7.5, desc: "Alpha-fetoprotein; a plasma protein normally produced by the developing fetus, clinically utilized as a tumor marker and reproductive screening assay." }
     }
   },
   electrolytes: {
@@ -242,6 +247,7 @@ export const UNIT_CONVERSIONS = {
   'proteins.hsCRP': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
   'proteins.crp': { factor: 0.1, usUnit: 'mg/dl', type: 'multiply' },
   'hormones.testosterone': { factor: 28.818, usUnit: 'ng/dl', type: 'multiply' },
+  'hormones.bioactiveTestosterone': { factor: 28.818, usUnit: 'ng/dl', type: 'multiply' },
   'hormones.freeTestosterone': { factor: 0.2885, usUnit: 'pg/ml', type: 'multiply' },
   'hormones.estradiol': { factor: 0.2724, usUnit: 'pg/ml', type: 'multiply' },
   'hormones.progesterone': { factor: 0.3145, usUnit: 'ng/ml', type: 'multiply' },
@@ -315,6 +321,344 @@ export const UNIT_CONVERSIONS = {
   'differential.monocytes':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
   'differential.eosinophils': { factor: 1, usUnit: 'K/µL',    type: 'multiply' },
   'differential.basophils':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' }
+};
+
+// ═══════════════════════════════════════════════
+// SECONDARY CLINICAL UNITS REGISTRY
+// ═══════════════════════════════════════════════
+// Authoritative registry mapping biomarkers to almost all globally recognized secondary clinical units
+// and their exact conversion factors to SI. Factor definition: value_SI = value_secondary / factor.
+export const SECONDARY_UNIT_CONVERSIONS = {
+  // Biochemistry
+  'biochemistry.glucose': [
+    { unit: 'mg/l', factor: 180.18, type: 'multiply' },
+    { unit: 'g/l', factor: 0.18018, type: 'multiply' }
+  ],
+  'biochemistry.urea': [
+    { unit: 'mg/l', factor: 28.01, type: 'multiply' },
+    { unit: 'g/l', factor: 0.06006, type: 'multiply' },
+    { unit: 'mg/dl', factor: 6.006, type: 'multiply' }
+  ],
+  'biochemistry.creatinine': [
+    { unit: 'mg/l', factor: 0.1131, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'biochemistry.uricAcid': [
+    { unit: 'mg/l', factor: 0.1681, type: 'multiply' },
+    { unit: 'mmol/l', factor: 0.001, type: 'multiply' }
+  ],
+  'biochemistry.bilirubinTotal': [
+    { unit: 'mg/l', factor: 0.5848, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'biochemistry.ast': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.alt': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.alp': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.ggt': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.ldh': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.creatineKinase': [
+    { unit: 'mU/ml', factor: 60, type: 'multiply' },
+    { unit: 'IU/l', factor: 60, type: 'multiply' },
+    { unit: 'nkat/l', factor: 1000, type: 'multiply' }
+  ],
+  'biochemistry.cystatinC': [
+    { unit: 'g/l', factor: 0.001, type: 'multiply' },
+    { unit: 'mg/L', factor: 1, type: 'multiply' }
+  ],
+
+  // Hormones
+  'hormones.testosterone': [
+    { unit: 'µg/l', factor: 0.28818, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.28818, type: 'multiply' },
+    { unit: 'pg/ml', factor: 288.18, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.freeTestosterone': [
+    { unit: 'µg/l', factor: 0.0002885, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.0002885, type: 'multiply' },
+    { unit: 'ng/dl', factor: 0.02885, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.estradiol': [
+    { unit: 'ng/l', factor: 0.2724, type: 'multiply' },
+    { unit: 'nmol/l', factor: 0.001, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.progesterone': [
+    { unit: 'µg/l', factor: 0.3145, type: 'multiply' },
+    { unit: 'pg/ml', factor: 314.5, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.dheaS': [
+    { unit: 'mg/l', factor: 0.3687, type: 'multiply' },
+    { unit: 'µg/ml', factor: 0.3687, type: 'multiply' },
+    { unit: 'ng/ml', factor: 368.7, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.dht': [
+    { unit: 'pg/ml', factor: 288.18, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.28818, type: 'multiply' },
+    { unit: 'µg/l', factor: 0.28818, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.igf1': [
+    { unit: 'µg/L', factor: 1, type: 'multiply' },
+    { unit: 'nmol/l', factor: 0.1307, type: 'multiply' }
+  ],
+  'hormones.prolactin': [
+    { unit: 'mU/l', factor: 21.2, type: 'multiply' },
+    { unit: 'mIU/l', factor: 21.2, type: 'multiply' },
+    { unit: 'µIU/ml', factor: 21.2, type: 'multiply' },
+    { unit: 'µg/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.insulin': [
+    { unit: 'pmol/l', factor: 6.0, type: 'multiply' },
+    { unit: 'mU/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.lh': [
+    { unit: 'IU/l', factor: 1, type: 'multiply' },
+    { unit: 'U/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.fsh': [
+    { unit: 'IU/l', factor: 1, type: 'multiply' },
+    { unit: 'U/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.calcitonin': [
+    { unit: 'pmol/l', factor: 0.292, type: 'multiply' },
+    { unit: 'ng/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.bioactiveTestosterone': [
+    { unit: 'µg/l', factor: 0.28818, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.28818, type: 'multiply' },
+    { unit: 'pg/ml', factor: 288.18, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.hCG': [
+    { unit: 'IU/l', factor: 1, type: 'multiply' },
+    { unit: 'mIU/ml', factor: 1, type: 'multiply' },
+    { unit: 'U/L', factor: 1, type: 'multiply' }
+  ],
+  'hormones.AFP': [
+    { unit: 'IU/ml', factor: 1, type: 'multiply' },
+    { unit: 'kU/L', factor: 1, type: 'multiply' },
+    { unit: 'ng/ml', factor: 0.83, type: 'multiply' }
+  ],
+
+  // Electrolytes
+  'electrolytes.calciumTotal': [
+    { unit: 'mg/l', factor: 40.08, type: 'multiply' },
+    { unit: 'mEq/l', factor: 2, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.phosphorus': [
+    { unit: 'mg/l', factor: 30.97, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.magnesium': [
+    { unit: 'mg/l', factor: 24.31, type: 'multiply' },
+    { unit: 'mEq/l', factor: 2, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.magnesiumRBC': [
+    { unit: 'mg/l', factor: 24.31, type: 'multiply' },
+    { unit: 'mEq/l', factor: 2, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.copper': [
+    { unit: 'µg/l', factor: 63.55, type: 'multiply' },
+    { unit: 'mg/l', factor: 0.06355, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'electrolytes.zinc': [
+    { unit: 'µg/l', factor: 65.4, type: 'multiply' },
+    { unit: 'mg/l', factor: 0.0654, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+
+  // Lipids & Proteins
+  'lipids.cholesterol': [
+    { unit: 'mg/l', factor: 386.7, type: 'multiply' },
+    { unit: 'g/l', factor: 0.3867, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.triglycerides': [
+    { unit: 'mg/l', factor: 885.7, type: 'multiply' },
+    { unit: 'g/l', factor: 0.8857, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.hdl': [
+    { unit: 'mg/l', factor: 386.7, type: 'multiply' },
+    { unit: 'g/l', factor: 0.3867, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.ldl': [
+    { unit: 'mg/l', factor: 386.7, type: 'multiply' },
+    { unit: 'g/l', factor: 0.3867, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.nonHdl': [
+    { unit: 'mg/l', factor: 386.7, type: 'multiply' },
+    { unit: 'g/l', factor: 0.3867, type: 'multiply' },
+    { unit: 'mmol/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.apoAI': [
+    { unit: 'mg/l', factor: 1000, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'lipids.apoB': [
+    { unit: 'mg/l', factor: 1000, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'iron.iron': [
+    { unit: 'µg/l', factor: 55.85, type: 'multiply' },
+    { unit: 'mg/l', factor: 0.05585, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'iron.ferritin': [
+    { unit: 'mg/l', factor: 0.001, type: 'multiply' },
+    { unit: 'µg/L', factor: 1, type: 'multiply' }
+  ],
+  'iron.transferrin': [
+    { unit: 'mg/l', factor: 1000, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'iron.tibc': [
+    { unit: 'µg/l', factor: 55.85, type: 'multiply' },
+    { unit: 'mg/l', factor: 0.05585, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'proteins.hsCRP': [
+    { unit: 'µg/ml', factor: 1, type: 'multiply' },
+    { unit: 'mg/L', factor: 1, type: 'multiply' }
+  ],
+  'proteins.crp': [
+    { unit: 'µg/ml', factor: 1, type: 'multiply' },
+    { unit: 'mg/L', factor: 1, type: 'multiply' }
+  ],
+  'proteins.totalProtein': [
+    { unit: 'mg/ml', factor: 1, type: 'multiply' },
+    { unit: 'mg/dl', factor: 100, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'proteins.albumin': [
+    { unit: 'mg/ml', factor: 1, type: 'multiply' },
+    { unit: 'mg/dl', factor: 100, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'proteins.ceruloplasmin': [
+    { unit: 'mg/l', factor: 1000, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+
+  // Thyroid
+  'thyroid.tsh': [
+    { unit: 'mIU/l', factor: 1, type: 'multiply' },
+    { unit: 'mU/L', factor: 1, type: 'multiply' }
+  ],
+  'thyroid.ft4': [
+    { unit: 'ng/l', factor: 0.7769, type: 'multiply' },
+    { unit: 'pg/ml', factor: 0.7769, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'thyroid.ft3': [
+    { unit: 'ng/l', factor: 0.6513, type: 'multiply' },
+    { unit: 'pg/ml', factor: 0.6513, type: 'multiply' },
+    { unit: 'pg/dl', factor: 65.13, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'thyroid.t4total': [
+    { unit: 'ng/ml', factor: 0.07769, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'thyroid.t3total': [
+    { unit: 'pg/ml', factor: 0.6513, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+
+  // Vitamins
+  'vitamins.vitaminD': [
+    { unit: 'µg/l', factor: 0.4006, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'vitamins.vitaminD3': [
+    { unit: 'µg/l', factor: 0.4006, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+  'vitamins.calcitriol': [
+    { unit: 'ng/l', factor: 0.4006, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'vitamins.vitaminA': [
+    { unit: 'µg/l', factor: 286.5, type: 'multiply' },
+    { unit: 'mg/l', factor: 0.2865, type: 'multiply' },
+    { unit: 'µmol/L', factor: 1, type: 'multiply' }
+  ],
+  'vitamins.vitaminB12': [
+    { unit: 'ng/l', factor: 1.355, type: 'multiply' },
+    { unit: 'pmol/L', factor: 1, type: 'multiply' }
+  ],
+  'vitamins.folate': [
+    { unit: 'µg/l', factor: 0.4413, type: 'multiply' },
+    { unit: 'nmol/L', factor: 1, type: 'multiply' }
+  ],
+
+  // Hematology
+  'hematology.wbc': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'hematology.rbc': [
+    { unit: 'T/l', factor: 1, type: 'multiply' },
+    { unit: '10^6/µl', factor: 1, type: 'multiply' }
+  ],
+  'hematology.hemoglobin': [
+    { unit: 'mmol/l', factor: 0.06206, type: 'multiply' },
+    { unit: 'g/L', factor: 1, type: 'multiply' }
+  ],
+  'hematology.platelets': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'differential.neutrophils': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'differential.lymphocytes': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'differential.monocytes': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'differential.eosinophils': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ],
+  'differential.basophils': [
+    { unit: 'G/l', factor: 1, type: 'multiply' },
+    { unit: '10^3/µl', factor: 1, type: 'multiply' }
+  ]
 };
 
 // Returns the converted {value, unit} in the *other* unit system for dual-display,

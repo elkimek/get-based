@@ -135,7 +135,9 @@
   min-width: 0;
 }
 .import-review-search,
-.import-map-input {
+.import-map-input,
+.import-value-input,
+.import-unit-input {
   width: 100%;
   min-width: 0;
   min-height: 34px;
@@ -149,12 +151,16 @@
   font-size: 12px;
 }
 .import-review-search:focus,
-.import-map-input:focus {
+.import-map-input:focus,
+.import-value-input:focus,
+.import-unit-input:focus {
   border-color: var(--accent);
   outline: none;
 }
 .import-review-search::placeholder,
-.import-map-input::placeholder {
+.import-map-input::placeholder,
+.import-value-input::placeholder,
+.import-unit-input::placeholder {
   color: var(--text-muted);
 }
 .import-visible-count {

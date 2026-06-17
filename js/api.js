@@ -672,7 +672,7 @@ export function needsMaxCompletionTokens(modelId) {
   return /^(gpt-5|o[1-9])([-.]|$)/.test(bare);
 }
 
-async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs }, extraHeaders = {}, { useProxy = true, extraBody = {} } = {}) {
+async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode }, extraHeaders = {}, { useProxy = true, extraBody = {} } = {}) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -686,6 +686,11 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
   const tokenLimitField = needsMaxCompletionTokens(model) ? 'max_completion_tokens' : 'max_tokens';
   /** @type {Record<string, any>} */
   const body = { model, messages: apiMessages, [tokenLimitField]: effectiveMaxTokens || 4096, ...extraBody };
+  // Force JSON mode for local providers during structured imports to improve reliability.
+  // Scoped to import requests (jsonMode) so chat and other free-text calls are unaffected.
+  if (jsonMode && providerName === 'Local AI') {
+    body.response_format = { type: 'json_object' };
+  }
   if (onStream) { body.stream = true; body.stream_options = { include_usage: true }; }
 
   let res;

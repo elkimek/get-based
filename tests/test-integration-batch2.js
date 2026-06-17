@@ -319,7 +319,10 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'proteins.hsCRP', 'biochemistry.cystatinC', 'biochemistry.gfrCystatin',
     'coagulation.homocysteine',
     // Unitless or % — no conversion
-    'hormones.fai', 'iron.transferrinSat', 'lipids.cholHdlRatio',
+    'hormones.fai', 'hormones.freeTestosteronePercentage', 'hormones.bioactiveTestosteronePercentage',
+    'iron.transferrinSat', 'lipids.cholHdlRatio',
+    // Activity units identical in US/SI
+    'hormones.hCG', 'hormones.AFP',
     'hematology.rdwcv', 'hematology.hematocrit',
     'calculatedRatios.tgHdlRatio', 'calculatedRatios.ldlHdlRatio',
     'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.nlr',

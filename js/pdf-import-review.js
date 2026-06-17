@@ -13,7 +13,7 @@ import {
   getOllamaPIIModel,
 } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { buildMarkerReference, normalizeToSI } from './pdf-import-marker-mapping.js';
+import { buildMarkerReference, normalizeToSI, getValidUnitsForMarker } from './pdf-import-marker-mapping.js';
 
 function clearPendingImport() {
   window._pendingImport = null;
@@ -90,6 +90,32 @@ function handleImportReviewChange(event) {
   }
   const mapInput = closestImportReviewElement(event.target, '[data-import-review-action="map-marker"]');
   if (mapInput instanceof HTMLInputElement) mapUnmatchedMarkerInput(mapInput);
+  const valueInput = closestImportReviewElement(event.target, '[data-import-review-action="edit-value"]');
+  if (valueInput instanceof HTMLInputElement) updateImportMarkerValue(valueInput);
+
+  const unitInput = closestImportReviewElement(event.target, '[data-import-review-action="edit-unit"]');
+  if (unitInput instanceof HTMLInputElement || unitInput instanceof HTMLSelectElement) {
+    updateImportMarkerUnit(unitInput);
+  }
+}
+
+function updateImportMarkerValue(inputEl) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(inputEl.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  const val = parseFloat(inputEl.value.replace(',', '.'));
+  marker.value = isNaN(val) ? null : val;
+}
+
+function updateImportMarkerUnit(inputEl) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(inputEl.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  marker.unit = inputEl.value.trim() || null;
 }
 
 function initImportReviewDelegates() {
@@ -118,6 +144,30 @@ export function resolveImportPreviewBatch(action) {
   restoreDropZoneVisibility();
   resolve(action);
   return true;
+}
+
+// Render a responsive multi-unit select dropdown
+function renderUnitSelect(marker, idx) {
+  const key = marker.mappedKey || marker.suggestedKey;
+  const validUnits = getValidUnitsForMarker(key);
+  const currentUnit = marker.unit || '';
+
+  if (validUnits.length === 0) {
+    return `<input type="text" class="import-unit-input" data-marker-idx="${idx}" value="${escapeHTML(currentUnit)}" ${importReviewActionAttrs('edit-unit')} aria-label="Unit for ${escapeHTML(marker.rawName)}">`;
+  }
+
+  let options = '';
+  for (const unit of validUnits) {
+    const selected = unit === currentUnit ? ' selected' : '';
+    options += `<option value="${escapeHTML(unit)}"${selected}>${escapeHTML(unit)}</option>`;
+  }
+
+  // Fallback: If an un-translated localized unit slipped through, append it as a selected disabled entry
+  if (currentUnit && !validUnits.includes(currentUnit)) {
+    options = `<option value="${escapeHTML(currentUnit)}" selected disabled>${escapeHTML(currentUnit)}</option>` + options;
+  }
+
+  return `<select class="import-unit-input" data-marker-idx="${idx}" ${importReviewActionAttrs('edit-unit')} aria-label="Unit for ${escapeHTML(marker.rawName)}">${options}</select>`;
 }
 
 export function showImportPreview(parseResult) {
@@ -188,14 +238,17 @@ export function showImportPreview(parseResult) {
     <span class="import-visible-count" id="import-visible-count" aria-live="polite"></span>
   </div>`;
 
-  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th>Status</th><th>Test Name</th><th>Value</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
+  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th>Status</th><th>Test Name</th><th>Value</th><th>Unit</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
   for (const m of matched) {
     const origIdx = markers.indexOf(m);
     const labRange = (m.refMin != null || m.refMax != null) ? `${m.refMin ?? '?'}\u2013${m.refMax ?? '?'}` : '';
     html += `<tr data-import-idx="${origIdx}" data-import-status="matched">
       <td class="import-status-cell matched" data-label="Status"><span class="import-status-pill">Matched</span></td>
       <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-      <td data-label="Value">${escapeHTML(String(m.value))}</td>
+      <td data-label="Value">
+        <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
+      </td>
+      <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
       <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.mappedKey)}</td>
       <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
@@ -207,7 +260,10 @@ export function showImportPreview(parseResult) {
     html += `<tr data-import-idx="${origIdx}" data-import-status="new">
       <td class="import-status-cell new-marker" data-label="Status"><span class="import-status-pill">New</span></td>
       <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-      <td data-label="Value">${escapeHTML(String(m.value))}</td>
+      <td data-label="Value">
+        <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
+      </td>
+      <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
       <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.suggestedKey)}</td>
       <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
@@ -220,7 +276,10 @@ export function showImportPreview(parseResult) {
       html += `<tr data-import-idx="${origIdx}" data-import-status="unmatched">
         <td class="import-status-cell unmatched" data-label="Status"><span class="import-status-pill">Unmatched</span></td>
         <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-        <td data-label="Value">${escapeHTML(String(m.value))}</td>
+        <td data-label="Value">
+          <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
+        </td>
+        <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
         <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
         <td class="import-map-cell" data-label="Maps to">
           <input type="text" class="import-map-input" list="import-marker-options" data-marker-idx="${origIdx}" ${importReviewActionAttrs('map-marker')} placeholder="Search marker" autocomplete="off" aria-label="Map ${escapeHTML(m.rawName)} to an existing marker">
