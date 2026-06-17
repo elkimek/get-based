@@ -14,7 +14,7 @@ const CHANGELOG = [
     items: [
       '<b>Edit values and units in the import review.</b> When a parsed value looks off or the model read the wrong unit, you can now correct the value and switch the unit for any row before confirming an import. Each marker offers a curated list of its valid units, with a fallback for anything unrecognized.',
       '<b>More hormones tracked.</b> Added Free Testosterone %, Bioactive Testosterone (and its percentage), hCG, and AFP (tumor marker), each with reference ranges and unit conversions so they display and convert consistently with the rest of the panel.',
-      '<b>More reliable non-English lab reports.</b> The importer now translates localized test names and units (especially Cirrillic: Bulgarian, Russian, Ukrainian, and more) to their English equivalents before matching, and recognizes a wider set of secondary clinical units (European mass-concentration, katal enzyme activity, and trace-mineral units).',
+      '<b>More reliable non-English lab reports.</b> The importer now translates localized test names and units (especially Cyrillic: Bulgarian, Russian, Ukrainian, and more) to their English equivalents before matching, and recognizes a wider set of secondary clinical units (European mass-concentration, katal enzyme activity, and trace-mineral units).',
     ]
   },
   {
