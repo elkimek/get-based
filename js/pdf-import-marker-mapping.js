@@ -470,6 +470,8 @@ export function normalizeToSI(key, value, unit) {
     const [catKey, markerKey] = key.split('.');
     const siUnit = MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit;
     if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return value;
+    // A unit was provided but matched nothing — return as-is rather than guessing
+    return value;
   }
 
   // Fallback heuristic for unit-less data (only triggers when no unit string was provided)
