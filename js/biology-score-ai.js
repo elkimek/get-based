@@ -1,6 +1,7 @@
-// @ts-nocheck
+// @ts-check
 // biology-score-ai.js — embedded AI interpretation for deterministic Biology Scores.
 
+/** @param {any} score */
 function scoreLine(score) {
   const scoreText = Number.isFinite(score.score) ? `${score.score}/100` : 'not current';
   const toneText = score.tone || 'not scored';
@@ -12,12 +13,13 @@ function scoreLine(score) {
   return `Question: ${score.question || ''}\nScore: ${scoreText}; tone: ${toneText}; ${coverageText}${recency}\nMinimum useful panel: ${(score.basicInputs || []).join(', ')}\nExtended confidence panel: ${(score.extendedInputs || []).join(', ')}\nUsed inputs:\n${used || 'none'}\nMissing inputs: ${missing}\nFlags:\n${flags}`;
 }
 
+/** @param {any} score */
 export async function generateBiologyScoreAIAnswer(score) {
   if (!score) throw new Error('Score not found');
-  const hasProvider = window.hasAIProvider?.();
+  const hasProvider = (/** @type {any} */ (window)).hasAIProvider?.();
   if (!hasProvider) throw new Error('Connect an AI provider first.');
-  if (window.isAIPaused?.()) throw new Error('AI features are paused.');
-  const callAI = window.callClaudeAPI;
+  if ((/** @type {any} */ (window)).isAIPaused?.()) throw new Error('AI features are paused.');
+  const callAI = (/** @type {any} */ (window)).callClaudeAPI;
   if (!callAI) throw new Error('AI engine is not available on this screen.');
   const system = `You explain deterministic getbased Biology Scores. The code already computed the score. Do not recalculate it, diagnose, prescribe, or overclaim. Answer the score question in 3-5 concise bullets. Mention: what the pattern suggests, confidence/coverage limits, missing extended markers if important, and one practical next check/retest direction. Keep it readable for non-expert users.`;
   const { text } = await callAI({

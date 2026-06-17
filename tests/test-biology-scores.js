@@ -279,6 +279,16 @@ import { renderDashboardBiologyScoreWidget } from '../js/biology-scores.js';
 const metabolicWidgetHtml = renderDashboardBiologyScoreWidget({ data }, 'metabolicFlexibility');
 assert('individual dashboard score widget renders score rail with pin and fill', metabolicWidgetHtml.includes('db-hero-bio-bar-track') && metabolicWidgetHtml.includes('db-hero-bio-bar-fill') && metabolicWidgetHtml.includes('db-hero-bio-bar-pin'));
 assert('individual dashboard score widget is clickable', metabolicWidgetHtml.includes('data-biology-score-action="jump-to-domain"') && metabolicWidgetHtml.includes('data-biology-score-id="metabolicFlexibility"'));
+assert('individual dashboard score widget inputs count shows available/total format', /Inputs<\/span><strong>\d+\/\d+/.test(metabolicWidgetHtml));
+
+// Domain rows without primaryScoreId should get a no-jump class and explanatory title
+const coherenceNoJumpDomains = byId.biologicalCoherence.available.filter(d => !d.primaryScoreId);
+if (coherenceNoJumpDomains.length) {
+  assert('dashboard domain rows without primaryScoreId get no-jump class', coherenceWidgetHtml.includes('bc-micro-domain-no-jump'));
+  assert('dashboard domain rows without primaryScoreId get explanatory title', coherenceWidgetHtml.includes('no individual score available yet'));
+} else {
+  assert('dashboard domain rows without primaryScoreId get no-jump class (skipped — all domains have primaryScoreId)', true);
+}
 
 const lensHtml = renderBiologyScoresLens({ data });
 assert('lens render includes drilldown stack', lensHtml.includes('biology-score-detail-stack'));
@@ -298,6 +308,14 @@ const coherenceTopDomains = [...byId.biologicalCoherence.available].sort((a, b) 
 assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !d.primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${d.primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, d.primaryScoreId])));
 const coherenceDomainRow = coherenceTopDomains.find(d => d.primaryScoreId);
 assert('biological coherence domain row title hints navigation', coherenceDomainRow && lensHtml.includes(`title="Jump to ${coherenceDomainRow.label} score"`), JSON.stringify(coherenceDomainRow));
+
+// Lens hero domain rows without primaryScoreId should get a no-jump class
+const lensNoJumpDomains = coherenceTopDomains.filter(d => !d.primaryScoreId);
+if (lensNoJumpDomains.length) {
+  assert('lens domain rows without primaryScoreId get no-jump class', lensHtml.includes('biology-coherence-domain-no-jump'));
+} else {
+  assert('lens domain rows without primaryScoreId get no-jump class (skipped — all domains have primaryScoreId)', true);
+}
 
 import { DASHBOARD_WIDGET_DEFAULT_IDS } from '../js/dashboard-widgets.js';
 assert('biological coherence dashboard widget is in default layout', DASHBOARD_WIDGET_DEFAULT_IDS.includes('biology-score-biologicalCoherence'));

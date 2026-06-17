@@ -399,6 +399,10 @@
 .bc-micro-domain[data-biology-score-action="jump-to-domain"] {
   cursor: pointer;
 }
+.bc-micro-domain-no-jump {
+  opacity: 0.6;
+  cursor: default;
+}
 .bc-micro-domain[data-biology-score-action="jump-to-domain"]:hover,
 .bc-micro-domain[data-biology-score-action="jump-to-domain"]:focus-visible {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
@@ -870,6 +874,10 @@ button.biology-score-token:focus-visible {
 .biology-coherence-domain-row[data-biology-score-action="jump-to-domain"] {
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.biology-coherence-domain-no-jump {
+  opacity: 0.6;
+  cursor: default;
 }
 .biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:hover,
 .biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:focus-visible {

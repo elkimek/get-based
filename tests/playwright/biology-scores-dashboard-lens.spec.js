@@ -110,3 +110,36 @@ test('Biology Scores lens renders coherence hero with dashboard toggle and score
   const unavailableGroup = page.locator('.biology-score-unavailable-group');
   await expect(unavailableGroup).toBeVisible();
 });
+
+test('dashboard domain rows without primaryScoreId get no-jump visual cue', async ({ page }) => {
+  await prepareDemoProfile(page);
+
+  await page.evaluate(async () => {
+    window.navigate?.('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+  });
+
+  // All domain rows should have either jump-to-domain action or no-jump class
+  const allDomainRows = page.locator('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain');
+  await expect(allDomainRows.first()).toBeVisible();
+
+  const results = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain'));
+    return rows.map(row => ({
+      hasJump: row.hasAttribute('data-biology-score-action'),
+      hasNoJumpClass: row.classList.contains('bc-micro-domain-no-jump'),
+      hasTitle: row.hasAttribute('title'),
+    }));
+  });
+
+  for (const row of results) {
+    // Every row should have a title (either "Jump to..." or "...no individual score available yet")
+    expect(row.hasTitle, `domain row missing title`).toBe(true);
+    // Rows with jump action should NOT have no-jump class, and vice versa
+    if (row.hasJump) {
+      expect(row.hasNoJumpClass, `clickable row should not have no-jump class`).toBe(false);
+    } else {
+      expect(row.hasNoJumpClass, `non-clickable row should have no-jump class`).toBe(true);
+    }
+  }
+});

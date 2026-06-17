@@ -157,10 +157,12 @@ function renderBiologicalCoherenceHero(score) {
   const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
   const missingCount = score.missing?.length || 0;
   const domainRows = domains.slice(0, 8).map((item) => {
-    const attrs = item.primaryScoreId
+    const clickable = !!item.primaryScoreId;
+    const attrs = clickable
       ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
-      : '';
-    return `<div class="biology-coherence-domain-row"${attrs}><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`;
+      : ` title="${escapeAttr(item.label)} — no individual score available yet"`;
+    const noJumpClass = clickable ? '' : ' biology-coherence-domain-no-jump';
+    return `<div class="biology-coherence-domain-row${noJumpClass}"${attrs}><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`;
   }).join('');
   const summaryItems = [
     strongest ? ['Strongest', `${strongest.label} (${Math.round(strongest.partial || 0)}/100)`] : null,
@@ -230,7 +232,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
       </div>
     </div>
     <div class="db-hero-bio-right">
-      <div class="db-hero-row"><span>Inputs</span><strong>${score.available.length}/${score.available.length + score.missing.length || 0}</strong></div>
+      <div class="db-hero-row"><span>Inputs</span><strong>${score.available?.length || 0}/${(score.available?.length || 0) + (score.missing?.length || 0)}</strong></div>
       <div class="db-hero-row"><span>Recency</span><strong>${escapeHTML(score.recencyBadge || 'Dates aligned')}</strong></div>
       ${renderDashboardScoreRail(score.score, score.tone)}
       <div class="db-hero-scale"><span>0</span><span>50</span><span>100</span></div>
@@ -250,10 +252,12 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
   const missingCount = score.missing?.length || 0;
   const domainMicroBars = domains.slice(0, 8).map((item) => {
     const pct = clamp(Number(item.partial || 0), 0, 100);
-    const attrs = item.primaryScoreId
+    const clickable = !!item.primaryScoreId;
+    const attrs = clickable
       ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
-      : '';
-    return `<div class="bc-micro-domain"${attrs}>
+      : ` title="${escapeAttr(item.label)} — no individual score available yet"`;
+    const noJumpClass = clickable ? '' : ' bc-micro-domain-no-jump';
+    return `<div class="bc-micro-domain${noJumpClass}"${attrs}>
       <span class="bc-micro-domain-label">${escapeHTML(item.label)}</span>
       <div class="bc-micro-domain-bar" aria-hidden="true"><div style="width:${pct}%" class="bc-micro-domain-fill bc-micro-domain-fill-${pct >= 80 ? 'good' : pct >= 60 ? 'fair' : 'poor'}"></div></div>
       <span class="bc-micro-domain-score">${Math.round(pct)}</span>
@@ -285,6 +289,9 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
   </section>`;
 }
 
+/** Legacy summary widget — still exported for backward compatibility. The dashboard
+ * now uses renderDashboardBiologyScoreWidget for individual score cards and
+ * renderDashboardBiologicalCoherenceWidget for the coherence hero. */
 export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScores) {
   const scores = computeBiologyScores(ctx?.data || {});
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);

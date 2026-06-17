@@ -56,7 +56,7 @@ function installBiologyScoreDelegates() {
         jumpToScore(scoreId);
       } else {
         window.navigate?.('biology-scores');
-        setTimeout(() => jumpToScore(scoreId), 80);
+        jumpToScoreWhenReady(scoreId);
       }
     } else if (action === 'open-marker') {
       const markerId = el.dataset.biologyMarkerId;
@@ -80,6 +80,21 @@ installBiologyScoreDelegates();
 function jumpToScore(scoreId) {
   const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
   target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function jumpToScoreWhenReady(scoreId, maxAttempts = 30) {
+  let attempts = 0;
+  function tryScroll() {
+    const target = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (++attempts < maxAttempts) {
+      requestAnimationFrame(tryScroll);
+    }
+  }
+  requestAnimationFrame(tryScroll);
 }
 
 async function runEmbeddedScoreAI(el) {
