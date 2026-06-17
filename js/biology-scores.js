@@ -58,7 +58,10 @@ function installBiologyScoreDelegates() {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
           } else {
             window.navigate?.('biology-scores');
-            setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+            setTimeout(() => {
+              const freshTarget = document.querySelector(`#biology-score-${CSS.escape(scoreId)}`);
+              freshTarget?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
           }
         }
         event.preventDefault();

@@ -32,7 +32,7 @@ function handleLensPageShellClick(event) {
   if (!target) return;
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-page-action]'));
   if (!actionEl) return;
-  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page')) return;
+  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero')) return;
   event.preventDefault();
   const appWindow = /** @type {any} */ (window);
 
