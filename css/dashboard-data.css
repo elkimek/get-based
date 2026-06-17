@@ -40,8 +40,29 @@
 .db-hero-biology-score .db-hero-bio-label .delta {
   color: var(--text-secondary);
 }
+.db-hero-bio-bar-track {
+  position: relative;
+  overflow: visible;
+  background: var(--bg-hover);
+}
+.db-hero-bio-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  opacity: 0.9;
+  transition: width 0.2s ease;
+}
+.db-hero-bio-bar-pin {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 1px 3px rgba(0,0,0,0.25);
+}
 .db-hero-biology-score .biology-score-rail {
-  margin: 2px 0;
+  display: none;
 }
 .db-spark { width: 100%; height: 100%; color: var(--accent); overflow: visible; }
 .db-spark polyline {

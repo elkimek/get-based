@@ -318,34 +318,34 @@
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
-      var(--tone-good) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--tone-good) 20%, var(--border)) 0
+      var(--green, #22c55e) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--green, #22c55e) 20%, var(--border)) 0
     );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-good) 25%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green, #22c55e) 25%, var(--border));
 }
 .db-bio-coherence-fair .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
-      var(--tone-fair) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--tone-fair) 20%, var(--border)) 0
+      var(--yellow, #f59e0b) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--yellow, #f59e0b) 20%, var(--border)) 0
     );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-fair) 25%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yellow, #f59e0b) 25%, var(--border));
 }
 .db-bio-coherence-poor .db-bio-coherence-ring,
 .db-bio-coherence-bad .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
-      var(--tone-poor) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--tone-poor) 20%, var(--border)) 0
+      var(--red, #ef4444) calc(var(--bc-score) * 1%),
+      color-mix(in srgb, var(--red, #ef4444) 20%, var(--border)) 0
     );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone-poor) 25%, var(--border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red, #ef4444) 25%, var(--border));
 }
-.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-good) 16%, var(--bg-card)); color: var(--tone-good); }
-.db-bio-coherence-fair .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-fair) 16%, var(--bg-card)); color: var(--tone-fair); }
+.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
+.db-bio-coherence-fair .db-bio-coherence-status { background: color-mix(in srgb, var(--yellow, #f59e0b) 16%, var(--bg-card)); color: var(--yellow, #f59e0b); }
 .db-bio-coherence-poor .db-bio-coherence-status,
-.db-bio-coherence-bad .db-bio-coherence-status { background: color-mix(in srgb, var(--tone-poor) 16%, var(--bg-card)); color: var(--tone-poor); }
+.db-bio-coherence-bad .db-bio-coherence-status { background: color-mix(in srgb, var(--red, #ef4444) 16%, var(--bg-card)); color: var(--red, #ef4444); }
 .db-bio-coherence-number {
   position: absolute;
   display: grid;
@@ -421,9 +421,9 @@
   height: 100%;
   border-radius: 2px;
 }
-.bc-micro-domain-fill-good { background: var(--tone-good); }
-.bc-micro-domain-fill-fair { background: var(--tone-fair); }
-.bc-micro-domain-fill-poor { background: var(--tone-poor); }
+.bc-micro-domain-fill-good { background: var(--green, #22c55e); }
+.bc-micro-domain-fill-fair { background: var(--yellow, #f59e0b); }
+.bc-micro-domain-fill-poor { background: var(--red, #ef4444); }
 .bc-micro-domain-score {
   color: var(--text-primary);
   font-family: var(--font-mono);

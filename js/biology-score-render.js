@@ -196,6 +196,15 @@ export function renderBiologicalCoherenceLensHero(ctx, computeBiologyScores) {
   return renderBiologicalCoherenceHero(coherence);
 }
 
+function renderDashboardScoreRail(score, tone) {
+  const pct = Number.isFinite(score) ? clamp(score, 0, 100) : 0;
+  const colorVar = tone === 'good' ? 'var(--green, #22c55e)' : tone === 'fair' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'bad' ? 'var(--red, #ef4444)' : 'var(--accent)';
+  return `<div class="db-hero-bio-bar db-hero-bio-bar-track" aria-hidden="true">
+      <div class="db-hero-bio-bar-fill" style="width:${pct.toFixed(0)}%; background:${colorVar};"></div>
+      <span class="db-hero-bio-bar-pin" style="left:${pct.toFixed(0)}%;"></span>
+    </div>`;
+}
+
 export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologyScores) {
   const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === scoreId);
   if (!score) return '';
@@ -223,7 +232,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
     <div class="db-hero-bio-right">
       <div class="db-hero-row"><span>Inputs</span><strong>${score.available.length}/${score.available.length + score.missing.length || 0}</strong></div>
       <div class="db-hero-row"><span>Recency</span><strong>${escapeHTML(score.recencyBadge || 'Dates aligned')}</strong></div>
-      ${renderScoreRail(score.score, score.tone)}
+      ${renderDashboardScoreRail(score.score, score.tone)}
       <div class="db-hero-scale"><span>0</span><span>50</span><span>100</span></div>
     </div>
   </button>`;
