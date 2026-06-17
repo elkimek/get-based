@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { COMMON_CONDITIONS } from './constants.js';
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import {
@@ -19,6 +19,13 @@ let recordContextChange = () => {};
 let saveContextAndRefresh = () => {};
 let editingConditionIndex = -1;
 let editingFamilyHistoryIndex = -1;
+const INTERPRETATION_FLAGS = [
+  ['lowMuscleMass', 'Low muscle mass / creatinine unreliable', 'Treat creatinine, creatinine eGFR, BUN/Cr, and creatinine-based biological age as context, not scored truth.'],
+  ['hormoneTherapy', 'Hormone therapy / TRT / hormonal contraception', 'Flag sex-hormone markers as treatment/context-sensitive.'],
+  ['postmenopause', 'Postmenopause / no active cycle', 'Do not interpret female hormones as ordinary cycling physiology.'],
+  ['intenseTrainingRecent', 'Recent intense training near blood draw', 'Flag CK, AST/ALT, hs-CRP, urea, and recovery scores as training-load sensitive.'],
+  ['acuteIllnessNearDraw', 'Acute illness / infection / injury near blood draw', 'Flag immune, inflammation, ferritin/iron, and recovery scores as transiently affected.'],
+];
 
 const MEDICAL_HISTORY_ROOT = '#detail-modal';
 
@@ -215,9 +222,10 @@ function _activeClass(value, target) {
 }
 
 function _getDiagnoses() {
-  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
+  if (!state.importedData.diagnoses) state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [], flags: {} };
   if (!Array.isArray(state.importedData.diagnoses.conditions)) state.importedData.diagnoses.conditions = [];
   if (!Array.isArray(state.importedData.diagnoses.familyHistory)) state.importedData.diagnoses.familyHistory = [];
+  if (!state.importedData.diagnoses.flags || typeof state.importedData.diagnoses.flags !== 'object') state.importedData.diagnoses.flags = {};
   return state.importedData.diagnoses;
 }
 
@@ -329,8 +337,13 @@ export function renderDiagnosesModal(modal, current) {
       ${editingFamily ? `<button class="import-btn import-btn-secondary ctx-edit-cancel-btn" ${medicalHistoryActionAttrs('cancel-family-history-edit')}>Cancel edit</button>` : ''}
     </div>
   </div></div>`;
+  html += `<div class="ctx-field-group"><label class="ctx-field-label">Interpretation flags</label>
+    <div class="ctx-modal-hint">Structured flags make Biology Scores deterministic when context changes marker meaning.</div>
+    <div class="ctx-flag-list">${INTERPRETATION_FLAGS.map(([key, label, help]) => `<label class="ctx-checkbox-row" title="${escapeAttr(help)}"><input type="checkbox" id="diagnosis-flag-${escapeAttr(key)}" ${current.flags?.[key] ? 'checked' : ''}> <span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(help)}</small></span></label>`).join('')}</div>
+  </div>`;
   html += renderNoteField(current.note);
-  const hasCurrent = conditions.length > 0 || familyHistory.length > 0 || current.note;
+  const hasFlags = INTERPRETATION_FLAGS.some(([key]) => current.flags?.[key]);
+  const hasCurrent = conditions.length > 0 || familyHistory.length > 0 || current.note || hasFlags;
   html += `<div class="ctx-editor-actions">
     <button class="import-btn import-btn-primary" ${medicalHistoryActionAttrs('save')}>Save</button>
     <button class="import-btn import-btn-secondary" ${medicalHistoryActionAttrs('close')}>Cancel</button>
@@ -381,6 +394,16 @@ export function syncDiagnosesNote() {
   if (noteEl && state.importedData.diagnoses) state.importedData.diagnoses.note = noteEl.value.trim();
 }
 
+function syncDiagnosisFlags(diagnoses = _getDiagnoses()) {
+  const flags = {};
+  for (const [key] of INTERPRETATION_FLAGS) {
+    const el = /** @type {HTMLInputElement | null} */ (document.getElementById(`diagnosis-flag-${key}`));
+    if (el?.checked) flags[key] = true;
+  }
+  diagnoses.flags = flags;
+  return flags;
+}
+
 export function addCondition() {
   const input = getFormControl('condition-input');
   const severity = getSelectedOption('condition-severity') || 'mild';
@@ -389,6 +412,7 @@ export function addCondition() {
   if (!name) return;
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
+  syncDiagnosisFlags(diagnoses);
   /** @type {{ name: string, severity: string, since?: string }} */
   const cond = { name, severity };
   if (since && since.value.trim()) cond.since = since.value.trim();
@@ -442,6 +466,7 @@ export function addFamilyHistoryEntry() {
   const note = (noteEl?.value || '').trim();
   syncDiagnosesNote();
   const diagnoses = _getDiagnoses();
+  syncDiagnosisFlags(diagnoses);
   /** @type {{ relative: string, condition: string, onsetAge?: number, note?: string }} */
   const entry = { relative, condition };
   if (onsetAge != null && Number.isFinite(onsetAge)) entry.onsetAge = onsetAge;
@@ -503,9 +528,11 @@ export function saveDiagnoses() {
   const note = getFormControl('ctx-note-input')?.value || '';
   const diagnoses = _getDiagnoses();
   diagnoses.note = note.trim();
+  syncDiagnosisFlags(diagnoses);
   const condLen = diagnoses.conditions.length;
   const fhLen = diagnoses.familyHistory.length;
-  if (condLen === 0 && !diagnoses.note && fhLen === 0) {
+  const hasFlags = INTERPRETATION_FLAGS.some(([key]) => diagnoses.flags?.[key]);
+  if (condLen === 0 && !diagnoses.note && fhLen === 0 && !hasFlags) {
     state.importedData.diagnoses = null;
   }
   editingConditionIndex = -1;

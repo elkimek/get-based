@@ -321,9 +321,10 @@ export function showDetailModal(id, opts = {}) {
     const effMax = numericOrNull(latestRange.max);
     const optMin = numericOrNull(marker.optimalMin);
     const optMax = numericOrNull(marker.optimalMax);
+    if (effMin == null || effMax == null || latestValue == null || Number(effMax) === Number(effMin)) return '';
     const baseMin = refMin ?? effMin;
     const baseMax = refMax ?? effMax;
-    if (baseMin == null || baseMax == null || latestValue == null || Number(baseMax) === Number(baseMin)) return '';
+    if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return '';
     const hasOptimalBand = optMin != null && optMax != null;
     const goodMin = hasOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
     const goodMax = hasOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);

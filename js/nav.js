@@ -14,6 +14,7 @@ function _iconSvg(name) {
     search: `<svg ${attrs}><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>`,
     dashboard: `<svg ${attrs}><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>`,
     labs: `<svg ${attrs}><path d="M12 2.7s5 6.3 5 11.3a5 5 0 0 1-10 0c0-5 5-11.3 5-11.3z"></path></svg>`,
+    biologyScores: `<svg ${attrs}><path d="M4 17l4-7 4 4 4-8 4 11"></path><path d="M4 20h16"></path><circle cx="8" cy="10" r="1.5"></circle><circle cx="12" cy="14" r="1.5"></circle><circle cx="16" cy="6" r="1.5"></circle></svg>`,
     genome: `<svg ${attrs}><path d="M4 4c4 3 12 3 16 0"></path><path d="M4 8c4 3 12 3 16 0"></path><path d="M4 12c4 3 12 3 16 0"></path><path d="M4 16c4 3 12 3 16 0"></path><path d="M4 20c4 3 12 3 16 0"></path></svg>`,
     body: `<svg ${attrs}><circle cx="12" cy="12" r="6"></circle><path d="M12 9v3l1.5 1.5"></path><path d="M16 4l-2 2"></path><path d="M8 4l2 2"></path><path d="M16 20l-2-2"></path><path d="M8 20l2-2"></path></svg>`,
     light: `<svg ${attrs}><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path><path d="M4.93 19.07l1.41-1.41"></path><path d="M17.66 6.34l1.41-1.41"></path></svg>`,
@@ -179,6 +180,10 @@ export function buildSidebar(data) {
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('labs')}</span>
     <span class="nav-item-label">Labs</span>
     <span class="nav-item-count">${counts}</span></div>`;
+  html += `<div class="nav-item" data-category="biology-scores" tabindex="0" role="button" ${_navNavigateAttrs('biology-scores')}>
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('biologyScores')}</span>
+    <span class="nav-item-label">Biology Scores</span>
+    <span class="nav-item-dot"></span></div>`;
 
   // Lens entries route to dedicated views; compact summary widgets remain
   // available on the dashboard.

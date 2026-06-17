@@ -2,7 +2,7 @@
 // category-view-renderers.js — Category chart, table, heatmap, and fatty-acid render helpers
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, getStatus, getRangePosition, formatValue, getTrend, safeMarkerId } from './utils.js';
+import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs } from './charts.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
@@ -26,6 +26,43 @@ export function installCategoryRendererDelegates(root = typeof document !== 'und
 }
 
 if (typeof document !== 'undefined') installCategoryRendererDelegates();
+
+function clampPct(value) {
+  return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+}
+
+function renderSemanticRangeRail(value, minValue, maxValue, status, style = '') {
+  const valueNum = Number(value);
+  const minNum = Number(minValue);
+  const maxNum = Number(maxValue);
+  if (!Number.isFinite(valueNum) || !Number.isFinite(minNum) || !Number.isFinite(maxNum) || minNum === maxNum) return '—';
+  const goodMin = Math.min(minNum, maxNum);
+  const goodMax = Math.max(minNum, maxNum);
+  const goodSpan = goodMax - goodMin;
+  let railMin = goodMin - goodSpan * 0.1;
+  let railMax = goodMax + goodSpan * 0.1;
+  railMin = Math.min(railMin, valueNum);
+  railMax = Math.max(railMax, valueNum);
+  let railSpan = railMax - railMin;
+  if (railSpan <= 0) return '—';
+  if (valueNum <= railMin) railMin -= railSpan * 0.08;
+  if (valueNum >= railMax) railMax += railSpan * 0.08;
+  railSpan = railMax - railMin;
+  if (railSpan <= 0) return '—';
+  const dot = clampPct(((valueNum - railMin) / railSpan) * 100);
+  const goodLeft = clampPct(((goodMin - railMin) / railSpan) * 100);
+  const goodRight = clampPct(((goodMax - railMin) / railSpan) * 100);
+  const goodWidth = Math.max(0, goodRight - goodLeft);
+  const lowWidth = goodLeft;
+  const highWidth = Math.max(0, 100 - goodRight);
+  const styleAttr = style ? ` style="${style}"` : '';
+  return `<div class="range-bar"${styleAttr}>
+    ${lowWidth ? `<div class="range-bar-zone range-bar-zone-low" style="left:0%;width:${lowWidth}%"></div>` : ''}
+    ${goodWidth ? `<div class="range-bar-fill" style="left:${goodLeft}%;width:${goodWidth}%"></div>` : ''}
+    ${highWidth ? `<div class="range-bar-zone range-bar-zone-high" style="left:${goodRight}%;width:${highWidth}%"></div>` : ''}
+    <div class="range-bar-marker marker-${status}" style="left:${dot}%"></div>
+  </div>`;
+}
 
 export function renderChartCard(id, marker, dateLabels) {
   // id is interpolated into delegated data attributes and DOM ids below.
@@ -186,10 +223,8 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
     bodyHtml += `<td><span class="trend-arrow ${trend.cls}">${trend.arrow}</span></td>`;
     if (li !== -1 && r.min != null && r.max != null) {
       const lr = getEffectiveRangeForDate(marker, li);
-      const pos = Math.max(0, Math.min(100, getRangePosition(marker.values[li], lr.min, lr.max)));
       const s = getStatus(marker.values[li], lr.min, lr.max);
-      bodyHtml += `<td><div class="range-bar"><div class="range-bar-fill" style="left:0;width:100%"></div>
-        <div class="range-bar-marker marker-${s}" style="left:${pos}%"></div></div></td>`;
+      bodyHtml += `<td>${renderSemanticRangeRail(marker.values[li], lr.min, lr.max, s)}</td>`;
     } else bodyHtml += `<td>—</td>`;
     bodyHtml += `</tr>`;
   }
@@ -242,7 +277,6 @@ export function renderFattyAcidsView(cat, categoryKey) {
     if (!safeMarkerId(key)) continue;
     const r = getEffectiveRange(marker);
     const v = marker.values[0], s = getStatus(v, r.min, r.max);
-    const pos = Math.max(0, Math.min(100, getRangePosition(v, r.min, r.max)));
     let faRangeText;
     if (state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) && (marker.refMin != null || marker.refMax != null)) {
       faRangeText = `Ref: ${formatValue(marker.refMin)} – ${formatValue(marker.refMax)} · <span style="color:var(--green)">Opt: ${formatValue(marker.optimalMin)} – ${formatValue(marker.optimalMax)}</span>`;
@@ -253,8 +287,7 @@ export function renderFattyAcidsView(cat, categoryKey) {
     html += `<div class="fa-card" role="button" tabindex="0" aria-label="${escapeHTML(marker.name)} ${formatValue(v)}${marker.unit ? ' ' + escapeHTML(marker.unit) : ''}" ${markerDetailActionAttrs('show-detail-modal', { id: categoryKey + '_' + key })} style="cursor:pointer"><div class="fa-card-name">${escapeHTML(marker.name)}</div>
       <div class="fa-card-value val-${s}">${formatValue(v)}${marker.unit ? " " + escapeHTML(marker.unit) : ""}</div>
       <div class="fa-card-ref">${faRangeText}</div>
-      <div class="range-bar" style="margin-top:8px;width:100%"><div class="range-bar-fill" style="left:0;width:100%"></div>
-      <div class="range-bar-marker marker-${s}" style="left:${pos}%"></div></div></div>`;
+      ${renderSemanticRangeRail(v, r.min, r.max, s, 'margin-top:8px;width:100%')}</div>`;
   }
   html += `</div>`;
   return html;

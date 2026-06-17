@@ -11,6 +11,8 @@ import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
 import { filterDatesByRange, renderDateRangeFilter } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
+import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget } from './biology-scores.js';
+import { getBiologyProfileContext } from './profile-context.js';
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
@@ -159,9 +161,12 @@ export function createDashboardWidgetRenderers(deps) {
     const hit = getDashboardBioAgeMarker(ctx);
     const age = getDashboardAge();
     const value = hit ? Number(hit.value) : null;
-    const display = Number.isFinite(value) ? value.toFixed(1) : (age != null ? String(age) : '—');
-    const delta = Number.isFinite(value) && age != null ? value - age : null;
-    const deltaText = delta == null ? 'Chronological comparison unavailable'
+    const profileContext = getBiologyProfileContext();
+    const hasBioAge = Number.isFinite(value);
+    const display = hasBioAge ? value.toFixed(1) : '—';
+    const delta = hasBioAge && age != null ? value - age : null;
+    const deltaText = delta == null
+      ? (profileContext.lowMuscleMass ? 'Creatinine-based biological age disabled by low-muscle context' : 'Biological-age comparison unavailable')
       : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} yr vs chronological`;
     const pheno = getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')
       || getDashboardMarkerByPath(ctx.data, 'ratios', 'phenoAge');
@@ -1173,6 +1178,8 @@ export function createDashboardWidgetRenderers(deps) {
     renderDashboardRecommendationsWidget,
     getDashboardMarkerById,
     renderDashboardBioAgeWidget,
+    renderBiologyScoresWidget,
+    renderDashboardBiologyScoreWidget,
     renderDashboardQuickMarkersWidget,
     renderDashboardSingleMarkerWidget,
     renderDashboardSpotlightWidget,

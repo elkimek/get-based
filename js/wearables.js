@@ -364,6 +364,13 @@ function renderEmptyManualCard(metricId, canon, opts = {}) {
   </div>`;
 }
 
+function formatStalenessDate(date) {
+  if (!date) return '';
+  const d = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return shortDate(date);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
   const pairedMetric = opts.pairedMetric || null;
   const interactive = opts.interactive !== false;
@@ -394,7 +401,7 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   // {date}" hint so the value reads honestly rather than "fresh."
   const isStale = metric.latestDate && sourceMaxDate && metric.latestDate < sourceMaxDate;
   const stalenessHint = isStale
-    ? `<span class="wearable-staleness" title="Latest sample for this metric is from ${escapeHTML(metric.latestDate)} — your wearable hasn't published a more recent reading yet (some metrics process slower than others).">as of ${escapeHTML(shortDate(metric.latestDate))}</span>`
+    ? `<span class="wearable-staleness" title="Latest sample for this metric is from ${escapeHTML(metric.latestDate)} — your wearable hasn't published a more recent reading yet (some metrics process slower than others).">as of ${escapeHTML(formatStalenessDate(metric.latestDate))}</span>`
     : '';
   const adapter = adapterById(metric.primarySource);
   // Source badge is interactive when >1 wearable is connected — click it to

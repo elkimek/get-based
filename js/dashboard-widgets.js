@@ -9,10 +9,11 @@ import { profileStorageKey } from './profile.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards } from './context-cards.js';
+import { getBiologyScoreWidgetDefinitions } from './biology-scores.js';
 
-const DASHBOARD_WIDGETS_VERSION = 10;
+const DASHBOARD_WIDGETS_VERSION = 11;
 
-export const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
+export const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Biology Scores', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 export const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'focus',
   'cycle',
@@ -23,10 +24,11 @@ export const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'profile-context',
   'wearables',
   'bio-age',
+  'biology-score-metabolicFlexibility',
 ];
 export const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'bp_systolic', 'rhr'];
 
-function dashboardWidgetStorageKey() {
+export function dashboardWidgetStorageKey() {
   return profileStorageKey(state.currentProfile || 'default', `dashboardWidgetsV${DASHBOARD_WIDGETS_VERSION}`);
 }
 
@@ -35,8 +37,13 @@ export function dashboardBiometricSelectionKey() {
 }
 
 export function createDashboardWidgetRegistry(renderers, opts = {}) {
+  const biologyScoreWidgets = getBiologyScoreWidgetDefinitions().map(def => ({
+    ...def,
+    render: (ctx) => renderers.renderDashboardBiologyScoreWidget(ctx, def.scoreId),
+  }));
   const dashboardWidgets = [
     { id: 'bio-age', source: 'Labs', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderers.renderDashboardBioAgeWidget },
+    ...biologyScoreWidgets,
     { id: 'focus', source: 'Insight', title: 'Current Focus', description: 'One synthesized read on the latest data', size: 'half', render: () => renderers.renderFocusCard() },
     { id: 'recommendations', source: 'Insight', title: 'Recommended Next Steps', description: 'Top data-linked actions across lenses', size: 'half', render: renderers.renderDashboardRecommendationsWidget },
     { id: 'spotlight', source: 'Labs', title: 'Current Priority', description: 'Highest-priority marker with the reason it was selected', size: 'half', render: renderers.renderDashboardSpotlightWidget },

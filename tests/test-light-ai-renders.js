@@ -194,6 +194,8 @@ await import('../js/state.js');
     const idle = mod.renderLightTodayHero();
     assert('hero renders with "Today\'s light" header',
       idle.includes("Today's light"));
+    assert('hero explains its AI question and data tiers',
+      idle.includes('Question this AI answers') && idle.includes('Minimum useful data') && idle.includes('Extended confidence data'));
 
     // Add a session so auto-fire gating allows analysis. Use the REAL
     // current-day fingerprint on the cached verdict — post-2026-05-08

@@ -77,6 +77,7 @@ import {
  *   customMarkers: Record<string, any>,
  *   markerNotes: Record<string, any>,
  *   markerValueNotes: Record<string, any>,
+ *   biologyScoreAI: Record<string, any>,
  *   markerLabels?: Record<string, any>,
  *   refOverrides?: Record<string, any>,
  *   changeHistory: any[],
@@ -208,6 +209,7 @@ export function createDefaultProfileData() {
     customMarkers: {},
     markerNotes: {},
     markerValueNotes: {},
+    biologyScoreAI: {},
     changeHistory: [],
     genetics: null,
     biometrics: null,
@@ -559,6 +561,7 @@ export function migrateProfileData(data) {
   if (data.genetics === undefined) data.genetics = null;
   if (data.markerNotes === undefined) data.markerNotes = {};
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
+  if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.biometrics === undefined) data.biometrics = null;
   // Light lens (v1.7+): sun sessions, light devices, light environment, on-device measurements

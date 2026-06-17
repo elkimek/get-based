@@ -146,6 +146,7 @@ export function getInitialView() {
 }
 
 export function showLabs(preData) { return lensPageHandlers.showLabs(preData); }
+export function showBiologyScoresLens(preData) { return lensPageHandlers.showBiologyScores(preData); }
 export function showGenomeLens() { return lensPageHandlers.showGenomeLens(); }
 export function showBodyLens() { return lensPageHandlers.showBodyLens(); }
 export function showInsightLens(preData) { return lensPageHandlers.showInsightLens(preData); }
@@ -162,6 +163,7 @@ const _navigate = createNavigate({
   routeHandlers: {
     dashboard: showDashboard,
     labs: showLabs,
+    biologyScores: showBiologyScoresLens,
     genome: showGenomeLens,
     body: showBodyLens,
     insight: showInsightLens,
@@ -317,6 +319,7 @@ Object.assign(window, {
   getInitialView,
   showDashboard,
   showLabs,
+  showBiologyScoresLens,
   showGenomeLens,
   showBodyLens,
   showInsightLens,

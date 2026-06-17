@@ -206,7 +206,7 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
       registry.resetDashboardWidgetPrefs();
       outcomes.resetPrefsRemovesProfileScopedStorage =
         localStorage.getItem(widgetKey) === null
-        && widgetsModule.DASHBOARD_WIDGET_SOURCE_ORDER.join('|') === 'Labs|Genome|Body|Light|Insight|Tools'
+        && widgetsModule.DASHBOARD_WIDGET_SOURCE_ORDER.join('|') === 'Labs|Biology Scores|Genome|Body|Light|Insight|Tools'
         && widgetsModule.DASHBOARD_MANUAL_BIOMETRIC_METRICS.join('|') === 'weight|bp_systolic|rhr';
     } finally {
       removeWidgetKeys();

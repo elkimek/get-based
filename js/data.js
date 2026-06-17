@@ -2,6 +2,7 @@
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
+import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { escapeAttr, hashString, showNotification } from './utils.js';
 import { profileStorageKey, touchProfileTimestamp } from './profile.js';
@@ -194,6 +195,7 @@ function _activeDataCacheMatches(meta) {
     && prev.wearableSummary === meta.wearableSummary
     && prev.wearableWeightLatest === meta.wearableWeightLatest
     && prev.legacyWeightStamp === meta.legacyWeightStamp
+    && prev.profileContextKey === meta.profileContextKey
     && prev.unitSystem === meta.unitSystem
     && prev.profileSex === meta.profileSex
     && prev.profileDob === meta.profileDob);
@@ -224,6 +226,14 @@ function _makeActiveDataCacheMeta() {
     wearableSummary,
     wearableWeightLatest,
     legacyWeightStamp,
+    profileContextKey: hashString(JSON.stringify({
+      diagnoses: importedData.diagnoses || null,
+      contextNotes: importedData.contextNotes || '',
+      interpretiveLens: importedData.interpretiveLens || '',
+      exercise: importedData.exercise || null,
+      supplements: importedData.supplements || [],
+      menstrualCycle: importedData.menstrualCycle || null,
+    })),
     unitSystem: state.unitSystem,
     profileSex: state.profileSex,
     profileDob: state.profileDob,
@@ -458,6 +468,7 @@ export function getActiveData() {
       cat.singleDateLabel = singleDateLabel;
       for (const [markerKey, marker] of Object.entries(cat.markers)) {
         marker.singlePoint = true;
+        marker.singleDate = singleDate;
         marker.singleDateLabel = singleDateLabel;
         const fullKey = `${catKey}.${markerKey}`;
         if (singleDate && entryLookup[singleDate] && entryLookup[singleDate][fullKey] !== undefined) {
@@ -570,9 +581,12 @@ export function getActiveData() {
     // can't see is contaminated. The detail modal already explains the
     // hs-CRP requirement. Returns null when hs-CRP is missing → row drops.
     const _getCRP = (i) => getVals('proteins', 'hsCRP')?.[i] ?? null;
+    const profileContext = getBiologyProfileContext();
+    const creatinineContaminated = !!profileContext.lowMuscleMass;
 
     // PhenoAge (Levine 2018) — biological age from 9 biomarkers + chronological age
     ratios.markers.phenoAge.values = sortedDates.map((dateStr, i) => {
+      if (creatinineContaminated) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const albumin_si   = getVals('proteins', 'albumin')?.[i];        // g/L
@@ -638,6 +652,7 @@ export function getActiveData() {
     ]);
 
     ratios.markers.bortzAge.values = sortedDates.map((dateStr, i) => {
+      if (creatinineContaminated) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const crp = _getCRP(i);

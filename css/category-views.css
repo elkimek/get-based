@@ -401,19 +401,52 @@
 @keyframes trendUp { from { transform: translateY(3px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes trendDown { from { transform: translateY(-3px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .range-bar {
-  width: 120px; height: 8px; background: var(--bg-primary);
-  border-radius: 4px; position: relative; overflow: visible; margin: 4px 0;
+  width: 132px;
+  height: 7px;
+  background: var(--bg-secondary);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  position: relative;
+  overflow: visible;
+  margin: 5px 0;
+}
+.range-bar-fill,
+.range-bar-zone {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+}
+.range-bar-zone-low {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--yellow, #f59e0b) 74%, var(--bg-secondary) 8%),
+    color-mix(in srgb, var(--green, #22c55e) 42%, var(--accent) 12%));
+}
+.range-bar-zone-high {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--green, #22c55e) 42%, var(--accent) 12%),
+    color-mix(in srgb, var(--red, #ef4444) 78%, var(--bg-secondary) 6%));
 }
 .range-bar-fill {
-  position: absolute; height: 100%; border-radius: 4px; background: var(--ref-border);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--green, #22c55e) 46%, var(--accent) 14%),
+    color-mix(in srgb, var(--green, #22c55e) 68%, var(--accent) 24%),
+    color-mix(in srgb, var(--green, #22c55e) 46%, var(--accent) 14%));
+  opacity: 0.9;
 }
 .range-bar-marker {
-  position: absolute; width: 10px; height: 10px; border-radius: 50%;
-  top: -1px; transform: translateX(-50%); border: 2px solid var(--bg-card);
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 16px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--bg-primary) 80%, black);
+  background: var(--text-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent);
 }
-.range-bar-marker.marker-normal { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
-.range-bar-marker.marker-high { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
-.range-bar-marker.marker-low { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.range-bar-marker.marker-normal { background: var(--green, #22c55e); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--green, #22c55e) 45%, transparent); }
+.range-bar-marker.marker-high { background: var(--red, #ef4444); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--red, #ef4444) 45%, transparent); }
+.range-bar-marker.marker-low { background: var(--yellow, #f59e0b); box-shadow: 0 0 0 2px color-mix(in srgb, var(--bg-card) 65%, transparent), 0 0 10px color-mix(in srgb, var(--yellow, #f59e0b) 45%, transparent); }
 
 .fa-bar-chart-container { height: 400px; }
 @media (max-width: 480px) { .fa-bar-chart-container { height: 280px; } }

@@ -371,6 +371,17 @@
 .ctx-ai-summary-red { color: var(--red); }
 /* Context editor field groups */
 .ctx-field-group { margin-bottom: 16px; }
+.ctx-flag-list { display: grid; gap: 8px; }
+.ctx-checkbox-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card); color: var(--text-primary); cursor: pointer;
+}
+.ctx-checkbox-row:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: var(--bg-hover); }
+.ctx-checkbox-row input { margin-top: 2px; accent-color: var(--accent); }
+.ctx-checkbox-row span { display: grid; gap: 3px; min-width: 0; }
+.ctx-checkbox-row strong { font-size: 13px; font-weight: 650; }
+.ctx-checkbox-row small { color: var(--text-secondary); font-size: 12px; line-height: 1.35; }
 .ctx-field-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-muted); margin-bottom: 8px; display: block;

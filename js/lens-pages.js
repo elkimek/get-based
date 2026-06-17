@@ -8,6 +8,9 @@ import { ensureSNPTable } from './dna.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
+import { getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero } from './biology-scores.js';
+import { getBiologyProfileContext } from './profile-context.js';
+import { renderBiologyScoreContextAI } from './biology-score-context-ai.js';
 
 function markerHasData(marker) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -153,6 +156,29 @@ export function createLensPageHandlers(deps) {
     setupDropZone();
   }
 
+  function renderBiologyScoreContextBanner() {
+    const pc = getBiologyProfileContext();
+    const labels = [[pc.lowMuscleMass, 'Low muscle / creatinine unreliable'], [pc.hormoneTherapy, 'Hormone therapy context'], [pc.cycleStatus && pc.cycleStatus !== 'regular', `Cycle: ${pc.cycleStatus}`], [pc.recentHardTraining, 'Recent hard training'], [pc.acuteInflammationContext, 'Acute illness/injury'], [Number.isFinite(pc.ageYears), `Age: ${pc.ageYears}y`]].filter(x => x[0]).map(x => `<span>${escapeHTML(String(x[1]))}</span>`).join('');
+    return labels ? `<div class="biology-score-context-banner biology-score-context-page"><strong>Active context modifiers</strong>${labels}</div>` : '';
+  }
+
+  function showBiologyScores(preData) {
+    const rawData = preData || getActiveData();
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    document.body.classList.remove('mobile-dashboard-active');
+    const ctx = buildDashboardWidgetContext(rawData);
+    const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Interpret with AI</button>
+      ${renderDateRangeFilter()}`;
+    let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
+    html += renderBiologyScoreContextBanner();
+    html += renderBiologyScoreContextAI();
+    html += renderBiologicalCoherenceLensHero(ctx);
+    html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
+    main.innerHTML = html;
+    setupDropZone();
+  }
+
   function showGenomeLens() {
     const main = document.getElementById("main-content");
     if (!main) return;
@@ -273,5 +299,5 @@ export function createLensPageHandlers(deps) {
     main.innerHTML = html;
   }
 
-  return { showLabs, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };
+  return { showLabs, showBiologyScores, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };
 }
