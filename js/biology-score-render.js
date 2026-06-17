@@ -212,7 +212,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
       ? `${score.missing.length} mapped input${score.missing.length === 1 ? '' : 's'} missing`
       : 'No active marker drag';
   const railScore = Number.isFinite(score.score) ? clamp(score.score, 0, 100) : 0;
-  return `<button type="button" class="db-hero-bio db-hero-biology-score db-hero-biology-score-${escapeAttr(tone)}" data-biology-score-action="open-lens" aria-label="Open Biology Scores lens for ${escapeAttr(score.title)}">
+  return `<button type="button" class="db-hero-bio db-hero-biology-score db-hero-biology-score-${escapeAttr(tone)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(scoreId)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
     <div class="db-hero-bio-left">
       <div class="db-hero-bio-num">${escapeHTML(scoreValue)}</div>
       <div class="db-hero-bio-label">
