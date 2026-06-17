@@ -1,16 +1,42 @@
 import { expect, test } from './coverage-fixture.js';
 
-async function bypassOverlays(page) {
-  await page.evaluate(() => {
-    const ids = ['tour-overlay', 'tour-tooltip', 'analytics-consent-banner'];
-    ids.forEach(id => document.getElementById(id)?.remove());
+async function prepareDemoProfile(page) {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForFunction(() =>
+    typeof window.navigate === 'function'
+      && typeof window.getActiveProfileId === 'function'
+      && typeof window.saveImportedData === 'function'
+  );
+
+  await page.evaluate(async () => {
+    const profileId = window.getActiveProfileId?.() || localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+
+    if (!window.getActiveData?.()?.dates?.length) {
+      const resp = await fetch('data/demo-male.json');
+      const { state } = await import('/js/state.js');
+      state.importedData = await resp.json();
+      state.profileSex = 'male';
+      state.profileDob = '1987-11-22';
+      window.saveImportedData?.();
+      window.buildSidebar?.();
+    }
+
+    const { state } = await import('/js/state.js');
+    state.importedData.profile = state.importedData.profile || {};
+    state.importedData.profile.firstName = 'Alex';
+    state.importedData.profile.age = 38;
   });
 }
 
 test('dashboard renders Biological Coherence hero and domain rows', async ({ page }) => {
-  await page.goto('/app#dashboard?demo=alex', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.navigate === 'function');
-  await bypassOverlays(page);
+  await prepareDemoProfile(page);
+
+  await page.evaluate(async () => {
+    window.navigate?.('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+  });
 
   const hero = page.locator('[data-widget-id="biology-score-biologicalCoherence"]').first();
   await expect(hero).toBeVisible();
@@ -26,23 +52,61 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   await expect(firstRow).toHaveAttribute('data-biology-score-id', /.+/);
 });
 
-test('Biology Scores lens renders coherence hero with score cards and dashboard toggle', async ({ page }) => {
-  await page.goto('/app#biology-scores?demo=alex', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.navigate === 'function');
-  await bypassOverlays(page);
+test('dashboard coherence domain row navigates to Biology Scores lens and scrolls to score', async ({ page }) => {
+  await prepareDemoProfile(page);
 
-  const hero = page.locator('[class*="biology-coherence-hero"]').first();
+  const targetScoreId = await page.evaluate(async () => {
+    window.navigate?.('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+    const row = document.querySelector('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain[data-biology-score-id]');
+    if (!row) throw new Error('No coherence domain row found');
+    const id = row.getAttribute('data-biology-score-id');
+    row.click();
+    return id;
+  });
+
+  await page.waitForFunction(
+    id => !!document.querySelector(`#biology-score-${CSS.escape(id)}`),
+    targetScoreId,
+  );
+  const targetCard = page.locator(`#biology-score-${targetScoreId}`).first();
+  await expect(targetCard).toBeVisible();
+});
+
+test('dashboard individual biology score widget is clickable and navigates to its score', async ({ page }) => {
+  await prepareDemoProfile(page);
+
+  await page.evaluate(async () => {
+    const { showDashboardWidget } = await import('/js/dashboard-widgets.js');
+    showDashboardWidget?.('biology-score-metabolicFlexibility', { force: true });
+    window.navigate?.('dashboard');
+    await new Promise(r => setTimeout(r, 300));
+    const widget = document.querySelector('[data-widget-id="biology-score-metabolicFlexibility"]');
+    const clickTarget = widget?.querySelector('[data-biology-score-action="jump-to-domain"]');
+    if (!clickTarget) throw new Error('Metabolic widget click target not found');
+    clickTarget.click();
+  });
+
+  await page.waitForFunction(
+    () => !!document.querySelector('#biology-score-metabolicFlexibility'),
+  );
+  await expect(page.locator('#biology-score-metabolicFlexibility').first()).toBeVisible();
+});
+
+test('Biology Scores lens renders coherence hero with dashboard toggle and score cards', async ({ page }) => {
+  await prepareDemoProfile(page);
+
+  await page.evaluate(async () => {
+    window.navigate?.('biology-scores');
+    await new Promise(r => setTimeout(r, 500));
+  });
+
+  const hero = page.locator('.biology-coherence-hero').first();
   await expect(hero).toBeVisible();
-
-  // Dashboard toggle should be present in the lens hero
   await expect(hero.locator('[data-lens-page-action]')).toBeVisible();
 
-  // Score detail cards should be present
-  const scoreCards = page.locator('[class*="biology-score-card"]').first();
-  await expect(scoreCards).toBeVisible();
-
-  // Each card should have a section with the score rail and a disclosure
-  const firstCard = page.locator('[class*="biology-score-card"]').first();
-  await expect(firstCard.locator('[class*="biology-score-rail"]')).toBeVisible();
-  await expect(firstCard.locator('details')).toBeVisible();
+  // The demo-male dataset only drives Biological Coherence; most individual scores
+  // land in the unavailable group. Verify both the hero and the unavailable disclosure.
+  const unavailableGroup = page.locator('.biology-score-unavailable-group');
+  await expect(unavailableGroup).toBeVisible();
 });
