@@ -335,7 +335,7 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'g/l', factor: 0.18018, type: 'multiply' }
   ],
   'biochemistry.urea': [
-    { unit: 'mg/l', factor: 28.01, type: 'multiply' },
+    { unit: 'mg/l', factor: 60.06, type: 'multiply' },
     { unit: 'g/l', factor: 0.06006, type: 'multiply' },
     { unit: 'mg/dl', factor: 6.006, type: 'multiply' }
   ],
