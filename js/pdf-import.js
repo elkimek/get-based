@@ -736,7 +736,7 @@ ${dateHint}
    - rawName: the test name exactly as it appears
    - value: the numeric result (parse comma as decimal point). For "< X" or "> X" results, use X as the value (the detection limit) — these are still clinically meaningful for trend tracking
    - mappedKey: the matching key from the known markers list (e.g. "biochemistry.glucose"), or null if no match
-   - unit: standard English unit abbreviation (e.g., "µg/l", "nmol/l", "U/l", "mg/dl"). Translate all localized or Cyrillic units (like "мкг/л", "нмоль/л", "МЕ/л") to their English equivalents. Never use localized Cyrillic units.
+   - unit: standard English unit abbreviation (e.g., "µg/l", "nmol/l", "U/l", "mg/dl"). Translate all localized or Cyrillic units (like "мкг/л", "нмоль/л", "МЕ/л") to their English equivalents. Never use localized units.
    - refMin: the lower reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
    - refMax: the upper reference range bound EXACTLY as printed on the report (number or null). Do NOT copy from the known markers list above
 3. Match based on medical/biochemical equivalence, not just string similarity. "hs-CRP"/"hsCRP" → "proteins.hsCRP", plain "CRP" → "proteins.crp" (different assays). Strip specimen-type prefixes (S-, P-, B-, U-, fS-, USED-, F-, FW) when matching — keep in rawName. Do NOT map urine-prefixed rows to serum/plasma/blood markers; "U Celková bílkovina" is urine total protein, not serum Total Protein.
