@@ -11,21 +11,21 @@ import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards } from './context-cards.js';
 import { getBiologyScoreWidgetDefinitions } from './biology-scores.js';
 
-const DASHBOARD_WIDGETS_VERSION = 11;
+const DASHBOARD_WIDGETS_VERSION = 12;
 
 export const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Biology Scores', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 export const DASHBOARD_WIDGET_DEFAULT_IDS = [
   'focus',
-  'cycle',
   'spotlight',
+  'biology-score-biologicalCoherence',
   'quick-markers',
   'key-trends',
   'recommendations',
   'profile-context',
   'wearables',
   'bio-age',
-  'biology-score-biologicalCoherence',
   'biology-score-metabolicFlexibility',
+  'cycle',
 ];
 export const DASHBOARD_MANUAL_BIOMETRIC_METRICS = ['weight', 'bp_systolic', 'rhr'];
 
@@ -40,7 +40,9 @@ export function dashboardBiometricSelectionKey() {
 export function createDashboardWidgetRegistry(renderers, opts = {}) {
   const biologyScoreWidgets = getBiologyScoreWidgetDefinitions().map(def => ({
     ...def,
-    render: (ctx) => renderers.renderDashboardBiologyScoreWidget(ctx, def.scoreId),
+    render: (ctx) => def.isCoherenceHero
+      ? renderers.renderDashboardBiologicalCoherenceWidget?.(ctx)
+      : renderers.renderDashboardBiologyScoreWidget(ctx, def.scoreId),
   }));
   const dashboardWidgets = [
     { id: 'bio-age', source: 'Labs', title: 'Biological Age', description: 'Age-derived biological readout', size: 'half', render: renderers.renderDashboardBioAgeWidget },

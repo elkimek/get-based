@@ -14,6 +14,7 @@ import {
   renderBiologyScoresLens as renderBiologyScoresLensImpl,
   renderBiologyScoresWidget as renderBiologyScoresWidgetImpl,
   renderDashboardBiologyScoreWidget as renderDashboardBiologyScoreWidgetImpl,
+  renderDashboardBiologicalCoherenceWidget as renderDashboardBiologicalCoherenceWidgetImpl,
   renderScoreDetail,
 } from './biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from './biology-score-sections.js';
@@ -201,7 +202,8 @@ export function getBiologyScoreWidgetDefinitions() {
     source: 'Biology Scores',
     title: def.title,
     description: def.summary,
-    size: 'half',
+    size: def.id === 'biologicalCoherence' ? 'full' : 'half',
+    isCoherenceHero: def.id === 'biologicalCoherence',
   }));
 }
 
@@ -216,6 +218,10 @@ export function getBiologyScoreLensWidgets(ctx) {
 
 export function renderBiologicalCoherenceLensHero(ctx) {
   return renderBiologicalCoherenceLensHeroImpl(ctx, computeBiologyScores);
+}
+
+export function renderDashboardBiologicalCoherenceWidget(ctx) {
+  return renderDashboardBiologicalCoherenceWidgetImpl(ctx, computeBiologyScores);
 }
 
 export function renderDashboardBiologyScoreWidget(ctx, scoreId) {

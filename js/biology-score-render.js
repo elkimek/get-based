@@ -230,6 +230,53 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
   </button>`;
 }
 
+export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScores) {
+  const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === 'biologicalCoherence');
+  if (!score) return '';
+  const scoreValue = Number.isFinite(score.score) ? score.score : 0;
+  const tone = score.tone || 'unknown';
+  const toneLabel = score.tone ? TONE_LABELS[score.tone] : 'Need inputs';
+  const domains = [...(score.available || [])].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
+  const strongest = domains[0];
+  const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
+  const missingCount = score.missing?.length || 0;
+  const domainMicroBars = domains.slice(0, 8).map((item) => {
+    const pct = clamp(Number(item.partial || 0), 0, 100);
+    const attrs = item.primaryScoreId
+      ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
+      : '';
+    return `<div class="bc-micro-domain"${attrs}>
+      <span class="bc-micro-domain-label">${escapeHTML(item.label)}</span>
+      <div class="bc-micro-domain-bar" aria-hidden="true"><div style="width:${pct}%" class="bc-micro-domain-fill bc-micro-domain-fill-${pct >= 80 ? 'good' : pct >= 60 ? 'fair' : 'poor'}"></div></div>
+      <span class="bc-micro-domain-score">${Math.round(pct)}</span>
+    </div>`;
+  }).join('');
+  const insight = strongest
+    ? `Strongest: ${strongest.label} · ${strongest.partial}/100${weakest && weakest !== strongest ? ` · Most strained: ${weakest.label} · ${weakest.partial}/100` : ''}`
+    : missingCount
+      ? `${missingCount} domain${missingCount === 1 ? '' : 's'} waiting for more markers`
+      : 'Add labs to see your system-level coherence';
+  return `<section class="db-bio-coherence-hero db-bio-coherence-${escapeAttr(tone)}">
+    <div class="db-bio-coherence-header">
+      <span class="db-bio-coherence-eyebrow">Biology overview</span>
+      <span class="db-bio-coherence-status">${escapeHTML(toneLabel)}</span>
+    </div>
+    <div class="db-bio-coherence-body">
+      <div class="db-bio-coherence-score">
+        <div class="db-bio-coherence-ring" aria-hidden="true" style="--bc-score:${scoreValue}"></div>
+        <div class="db-bio-coherence-number"><strong>${escapeHTML(String(Math.round(scoreValue)))}</strong><span>/100</span></div>
+      </div>
+      <div class="db-bio-coherence-summary">
+        <h3>${escapeHTML(score.title)}</h3>
+        <p>${escapeHTML(score.summary)}</p>
+        <p class="db-bio-coherence-insight">${escapeHTML(insight)}</p>
+      </div>
+    </div>
+    ${domainMicroBars ? `<div class="db-bio-coherence-domains">${domainMicroBars}</div>` : ''}
+    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary db-bio-coherence-cta" data-biology-score-action="open-lens">Open full Biology Scores lens</button>
+  </section>`;
+}
+
 export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScores) {
   const scores = computeBiologyScores(ctx?.data || {});
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);

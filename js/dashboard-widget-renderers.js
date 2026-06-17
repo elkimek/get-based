@@ -11,7 +11,7 @@ import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, getTrend, safeMarkerId, showNotification } from './utils.js';
 import { filterDatesByRange, renderDateRangeFilter } from './data.js';
 import { detectTrendAlerts, getAllFlaggedMarkers, getEffectiveRange, getEffectiveRangeForDate, getKeyTrendMarkers, getLatestValueIndex } from './marker-analysis.js';
-import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget } from './biology-scores.js';
+import { renderBiologyScoresWidget, renderDashboardBiologyScoreWidget, renderDashboardBiologicalCoherenceWidget } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
@@ -1180,6 +1180,7 @@ export function createDashboardWidgetRenderers(deps) {
     renderDashboardBioAgeWidget,
     renderBiologyScoresWidget,
     renderDashboardBiologyScoreWidget,
+    renderDashboardBiologicalCoherenceWidget,
     renderDashboardQuickMarkersWidget,
     renderDashboardSingleMarkerWidget,
     renderDashboardSpotlightWidget,

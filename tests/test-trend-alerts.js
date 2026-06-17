@@ -700,19 +700,19 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   const dashboardDefaultOrderBlock = (dashboardWidgetsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert('Dashboard default order prioritizes female cycle context and evidence',
+  assert('Dashboard default order prioritizes coherence hero, focus, and evidence-based widgets',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
       'focus',
-      'cycle',
       'spotlight',
+      'biology-score-biologicalCoherence',
       'quick-markers',
       'key-trends',
       'recommendations',
       'profile-context',
       'wearables',
       'bio-age',
-      'biology-score-biologicalCoherence',
       'biology-score-metabolicFlexibility',
+      'cycle',
     ]) &&
     !dashboardDefaultOrderBlock.includes("'light-today'") &&
     !dashboardDefaultOrderBlock.includes("'alerts'") &&
