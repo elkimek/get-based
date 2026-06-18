@@ -65,6 +65,18 @@ test('pdf import marker mapping browser coverage handles percent hints and urine
 
     outcomes.cleanImportedDisplayNameStripsSpecimenAndUnits =
       mapping._cleanImportedMarkerDisplayName('S Kreatinin (umol/l)') === 'Kreatinin';
+    outcomes.convertImportValueUnitHandlesSecondaryUnits =
+      Math.abs(mapping.convertImportValueUnit('biochemistry.glucose', 5.8, 'mmol/l', 'mg/l') - 1045.04) < 0.01
+      && Math.abs(mapping.convertImportValueUnit('biochemistry.glucose', 1045.04, 'mg/l', 'mmol/l') - 5.8) < 0.01;
+    outcomes.convertImportValueUnitIgnoresUnknownSourceUnits =
+      mapping.convertImportValueUnit('biochemistry.glucose', 500, 'wibble', 'mmol/l') === null;
+    outcomes.convertGenericImportValueUnitHandlesSafeFamilies =
+      Math.abs(mapping.convertGenericImportValueUnit(1000, 'mg/l', 'g/l') - 1) < 0.001
+      && Math.abs(mapping.convertGenericImportValueUnit(2, '10^12/l', '10^9/l') - 2000) < 0.001
+      && Math.abs(mapping.convertGenericImportValueUnit(1, '\u00b5kat/l', 'U/l') - 60) < 0.001;
+    outcomes.convertGenericImportValueUnitRejectsIncompatibleFamilies =
+      mapping.convertGenericImportValueUnit(1, 'nmol/l', 'mg/l') === null
+      && mapping.convertGenericImportValueUnit(1, 'arb.j.', 'g/l') === null;
 
     return outcomes;
   }, {

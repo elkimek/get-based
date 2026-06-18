@@ -10,6 +10,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.8.550', date: '2026-06-18', title: 'Better lab import review',
+    items: [
+      '<b>Review imports before saving.</b> Edit values and units, scan rows more easily, and map unfamiliar lab names through a searchable marker picker.',
+      '<b>Smarter unit handling.</b> Known markers use curated units; new markers get flexible unit entry and common shortcuts. Compatible unit changes update values and ranges automatically.',
+      '<b>Your review survives refresh.</b> In-progress import reviews are restored after a page refresh, so you do not have to re-import the same file while checking rows.',
+      '<b>Bugfixes &amp; improvements.</b> Import review, unit menus, row actions, and import progress fit the app layout better, with tighter conversion behavior and broader test coverage.',
+      '<b>Contributor credit.</b> Thanks to <a href="https://github.com/onlikerop">@onlikerop</a> for the original PR.',
+    ]
+  },
+  {
     version: '1.8.540', date: '2026-06-17', title: 'Smarter lab import and a broader hormone panel',
     items: [
       '<b>Edit values and units in the import review.</b> When a parsed value looks off or the model read the wrong unit, you can now correct the value and switch the unit for any row before confirming an import. Each marker offers a curated list of its valid units, with a fallback for anything unrecognized.',

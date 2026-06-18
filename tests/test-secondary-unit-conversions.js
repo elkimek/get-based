@@ -22,7 +22,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Secondary Unit Conversion Behavioral Tests ===\n');
 
-const { SECONDARY_UNIT_CONVERSIONS, UNIT_CONVERSIONS } = await import('../js/schema.js');
+const { UNIT_CONVERSIONS } = await import('../js/schema.js');
+const { SECONDARY_UNIT_CONVERSIONS } = await import('../js/secondary-unit-conversions.js');
 const { normalizeToSI, getValidUnitsForMarker } = await import('../js/pdf-import-marker-mapping.js');
 
 const approx = (a, b, eps = 1e-3) => Math.abs(a - b) <= eps;

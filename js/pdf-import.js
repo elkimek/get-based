@@ -780,7 +780,8 @@ Return ONLY valid JSON in this exact format:
     messages: [{ role: 'user', content }],
     maxTokens,
     onStream,
-    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS
+    requestTimeoutMs: AI_IMPORT_REQUEST_TIMEOUT_MS,
+    jsonMode: true
   }, 'PDF image analysis');
 
   let jsonStr = (response || '').trim();

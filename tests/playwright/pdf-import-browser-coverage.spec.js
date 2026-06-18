@@ -6,7 +6,7 @@ function moduleUrl(path) {
 
 test('PDF import progress and AI-needed dialog cover browser UI states', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#import-status-fab', { state: 'attached' });
+  await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ progressUrl, pdfImportUrl }) => {
     const [progress, pdfImport] = await Promise.all([
@@ -33,18 +33,23 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
 
       await progress.showImportProgress(2, '<cbc>.pdf');
       const dropZone = document.getElementById('drop-zone');
-      const fab = document.getElementById('import-status-fab');
+      const importBtn = document.querySelector('.header-import-btn');
       outcomes.showProgressCreatesHiddenDropZone = dropZone?.classList.contains('drop-zone-hidden') === true;
       outcomes.progressStartsAtStepPercent = dropZone?.querySelector('.import-progress-bar')?.getAttribute('aria-valuenow') === '12'
-        && dropZone?.querySelector('.import-progress-pct')?.textContent === '12%';
+        && dropZone?.querySelector('.import-progress-pct')?.textContent === '12%'
+        && importBtn?.classList.contains('is-import-running') === true
+        && importBtn?.querySelector('.import-button-status-label')?.textContent === '12%';
       outcomes.progressEscapesFileName = dropZone?.textContent.includes('<cbc>.pdf') === true
         && !dropZone?.querySelector('cbc');
 
       progress.updateImportProgressPct(42);
-      outcomes.progressUpdateSyncsBarAndFab = dropZone?.querySelector('.import-progress-bar')?.getAttribute('aria-valuenow') === '42'
+      outcomes.progressUpdateSyncsBarAndImportButton = dropZone?.querySelector('.import-progress-bar')?.getAttribute('aria-valuenow') === '42'
         && dropZone?.querySelector('.import-progress-bar-fill')?.style.width === '42%'
-        && fab?.classList.contains('hidden') === false
-        && fab?.querySelector('.import-status-label')?.textContent === '42%';
+        && importBtn?.classList.contains('is-import-running') === true
+        && importBtn?.querySelector('.import-button-status-label')?.textContent === '42%'
+        && importBtn?.getAttribute('aria-label') === 'Import in progress: 42%'
+        && getComputedStyle(importBtn).animationName === 'importButtonPulse'
+        && document.getElementById('import-status-fab') === null;
 
       const progressBar = dropZone?.querySelector('.import-progress-bar');
       let progressScrolled = false;
@@ -62,9 +67,9 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       outcomes.importStatusClickScrollsRunningProgress = progressScrolled;
 
       await progress.showBatchImportProgress(1, 'batch-two.pdf', 2, 5);
-      outcomes.batchProgressShowsCounterAndFabLabel = dropZone?.querySelector('.batch-progress-counter')?.textContent === 'Processing file 2 of 5'
-        && fab?.querySelector('.import-status-label')?.textContent.includes('2/5') === true
-        && fab?.querySelector('.import-status-label')?.textContent.includes('8%') === true;
+      outcomes.batchProgressShowsCounterAndImportButtonLabel = dropZone?.querySelector('.batch-progress-counter')?.textContent === 'Processing file 2 of 5'
+        && importBtn?.querySelector('.import-button-status-label')?.textContent.includes('2/5') === true
+        && importBtn?.querySelector('.import-button-status-label')?.textContent.includes('8%') === true;
 
       const importOverlay = document.getElementById('import-modal-overlay');
       let previewScrolled = false;
@@ -85,7 +90,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
 
       importOverlay?.classList.add('show');
       progress.syncImportStatusFab();
-      outcomes.previewOverlayHidesStatusFab = fab?.classList.contains('hidden') === true
+      outcomes.previewOverlayKeepsHeaderStatusAndHidesFloatingProgress = importBtn?.classList.contains('is-import-running') === true
         && dropZone?.style.display === 'none';
       importOverlay?.classList.remove('show');
 
@@ -94,7 +99,9 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       outcomes.importStatusClickNavigatesWhenProgressBarIsMissing = calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard');
 
       progress.hideImportProgress('cancel');
-      outcomes.cancelHidesStatusFab = fab?.classList.contains('hidden') === true;
+      outcomes.cancelResetsImportButtonStatus = importBtn?.classList.contains('is-import-active') === false
+        && importBtn?.querySelector('.import-button-status-label')?.textContent === ''
+        && importBtn?.getAttribute('aria-label') === 'Import lab results';
 
       pdfImport.showAINeededDialog('image');
       const aiOverlay = document.getElementById('ai-needed-overlay');
@@ -778,7 +785,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
 
 test('PDF import preflight covers model mismatch and unsupported lab dialogs', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#import-status-fab', { state: 'attached' });
+  await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ preflightUrl }) => {
     const preflight = await import(preflightUrl);
@@ -896,7 +903,7 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
 
 test('PDF import preflight covers duplicate prompts, cancellation, and supported classifications', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#import-status-fab', { state: 'attached' });
+  await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ preflightUrl, utilsUrl }) => {
     const [preflight, utils] = await Promise.all([

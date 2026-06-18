@@ -27,6 +27,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       openTweaksPanel: window.openTweaksPanel,
       openSettingsModal: window.openSettingsModal,
       openFeedbackModal: window.openFeedbackModal,
+      isImportRunning: window.isImportRunning,
       handleImportStatusClick: window.handleImportStatusClick,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
@@ -86,6 +87,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <textarea id="message-input" data-chat-key-action="message-input"></textarea>
       `;
       for (const name of Object.keys(originalFns)) bind(name);
+      window.isImportRunning = () => false;
       document.getElementById('pdf-input').addEventListener('click', () => calls.push(['pdf-input-click']));
       document.getElementById('chat-image-input').addEventListener('click', () => calls.push(['chat-image-input-click']));
 
@@ -116,6 +118,14 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && calls.some(call => call[0] === 'openSettingsModal' && call[1] === 'ai')
         && calls.some(call => call[0] === 'openFeedbackModal')
         && calls.some(call => call[0] === 'handleImportStatusClick');
+
+      const pickerClicksBeforeRunningImport = calls.filter(call => call[0] === 'pdf-input-click').length;
+      const statusClicksBeforeRunningImport = calls.filter(call => call[0] === 'handleImportStatusClick').length;
+      window.isImportRunning = () => true;
+      const runningImportPrevented = click('#trigger-import');
+      outcomes.runningImportClickOpensStatusInsteadOfPicker = runningImportPrevented === true
+        && calls.filter(call => call[0] === 'pdf-input-click').length === pickerClicksBeforeRunningImport
+        && calls.filter(call => call[0] === 'handleImportStatusClick').length === statusClicksBeforeRunningImport + 1;
 
       const chatPrevented = [
         click('#chat-toggle'),
@@ -192,6 +202,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
 
   const expectedOutcomeKeys = [
     'shellActionsDelegateAndPreventDefault',
+    'runningImportClickOpensStatusInsteadOfPicker',
     'chatActionsDelegateAndPreventDefault',
     'inputSearchAndChangeActionsDelegate',
     'keyboardActionsDelegateAndGuardKeys',

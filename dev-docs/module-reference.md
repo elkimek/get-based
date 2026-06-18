@@ -534,13 +534,13 @@ Pre-AI import checks for duplicate PDF hashes, previous-model mismatch prompts, 
 
 ### `pdf-import-progress.js`
 
-Import progress bar, floating import status FAB, and batch progress rendering.
+Import progress bar, header import-button status, and batch progress rendering.
 
 **Key exports:**
 - `showImportProgress(step, fileName)` / `hideImportProgress(reason)` — render and clear the import progress UI
 - `showBatchImportProgress(step, fileName, current, total)` — render per-file batch progress
 - `updateImportProgressPct(pct)` — streaming AI progress update hook
-- `syncImportStatusFab()` / `handleImportStatusClick()` / `isImportRunning()` — status FAB bridge used by `pdf-import.js` window exports
+- `syncImportStatusFab()` / `handleImportStatusClick()` / `isImportRunning()` — status bridge used by `pdf-import.js` window exports; the legacy function name now syncs the header import button
 
 **Window exports:** via `pdf-import.js`
 

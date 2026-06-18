@@ -10,6 +10,7 @@ import { installEMFLazyFacade } from './emf-facade.js';
 import { initializeStartupServices, runPostProfileStartupMaintenance } from './startup-maintenance.js';
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
 import { showNotification } from './utils.js';
+import { restorePendingImportReviewDraft } from './import-loader.js';
 
 let appStarted = false;
 
@@ -25,6 +26,8 @@ async function runStartupSequence() {
   await handleStartupOAuthCallbacks();
 
   renderStartupUI();
+
+  await restorePendingImportReviewDraft();
 }
 
 function handleStartupSequenceError(error) {

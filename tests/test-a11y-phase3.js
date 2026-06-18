@@ -170,7 +170,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const indexSrc = read('/index.html');
   assert('header import button is present and floating import FAB is removed',
     indexSrc.includes('class="header-icon-btn header-import-btn"') &&
-    !indexSrc.includes('id="import-fab"'));
+    !indexSrc.includes('id="import-fab"') &&
+    !indexSrc.includes('id="import-status-fab"'));
   assert('theme-color has light-mode variant',
     indexSrc.includes('media="(prefers-color-scheme: light)"'));
   assert('saved theme applies browser chrome color before app boot',
