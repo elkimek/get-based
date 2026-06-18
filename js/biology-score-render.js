@@ -3,6 +3,7 @@
 
 import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
+import { hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
@@ -33,19 +34,36 @@ function renderScoreStatusItem(kind, label, value, tone = '') {
   return `<span class="biology-score-status biology-score-status-${escapeAttr(kind)}${tone ? ` biology-score-status-${escapeAttr(tone)}` : ''}"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong></span>`;
 }
 
+function getEvidenceBadge(evidence) {
+  if (evidence === 'production') return 'Production';
+  if (evidence === 'contextual') return 'Profile-aware';
+  if (evidence === 'experimental') return 'Early model';
+  return 'Unrated';
+}
+
+function getConfidenceFallback(score) {
+  if (score.scoreConfidenceLabel) return { label: score.scoreConfidenceLabel, tone: score.scoreConfidence || 'unknown' };
+  if ((score.recencyStatus || 'fresh') !== 'fresh') return { label: 'Retest needed', tone: score.recencyStatus || 'stale' };
+  const coverage = Number(score.coverage || 0);
+  if (coverage >= 0.8) return { label: 'High confidence', tone: 'high' };
+  if (coverage >= 0.55) return { label: 'Medium confidence', tone: 'medium' };
+  return { label: 'Low confidence', tone: 'low' };
+}
+
 function renderScoreStatusMeta(score, { weighted = false } = {}) {
   const recencyInvalid = score.recencyStatus && score.recencyStatus !== 'fresh';
   const parts = [];
-  if (!recencyInvalid) parts.push(renderScoreStatusItem('tone', 'Pattern', score.tone ? TONE_LABELS[score.tone] : 'Need inputs', score.tone || 'unknown'));
+  parts.push(renderScoreStatusItem('tone', 'Pattern', recencyInvalid ? 'Retest first' : (score.tone ? TONE_LABELS[score.tone] : 'Need inputs'), recencyInvalid ? (score.recencyStatus || 'stale') : (score.tone || 'unknown')));
   const coveragePct = Math.round((score.coverage || 0) * 100);
   const coverageLabel = score.coverageLabel || 'low';
   let coverageValue = `${coveragePct}%${weighted ? ' weighted' : ''}`;
   if (coveragePct < 45 && !recencyInvalid) coverageValue += ' · partial panel';
   else if (coveragePct >= 80) coverageValue += ' · full panel';
   parts.push(renderScoreStatusItem('coverage', 'Coverage', coverageValue, coverageLabel));
+  const confidence = getConfidenceFallback(score);
+  parts.push(renderScoreStatusItem('confidence', 'Confidence', confidence.label, confidence.tone));
   if (recencyInvalid) parts.push(renderScoreStatusItem('recency', 'Recency', score.recencyBadge || 'Retest needed', score.recencyStatus || 'stale'));
-  const evidenceBadge = score.evidence === 'experimental' ? 'Experimental pattern' : score.evidence === 'contextual' ? 'Contextual pattern' : null;
-  if (evidenceBadge) parts.push(renderScoreStatusItem('evidence', 'Kind', evidenceBadge, 'unknown'));
+  parts.push(renderScoreStatusItem('evidence', 'Evidence', getEvidenceBadge(score.evidence), score.evidence || 'unknown'));
   return `<div class="biology-score-meta">${parts.join('')}</div>`;
 }
 
@@ -55,6 +73,16 @@ function renderScoreRail(score, tone) {
     <div class="biology-score-rail-fill"></div>
     ${Number.isFinite(score) ? `<span class="biology-score-pin biology-score-pin-${escapeAttr(tone || 'unknown')}" style="left: calc(${left}% - 5px)"></span>` : ''}
   </div>`;
+}
+
+function renderBiologyScoreGate(variant = 'lens') {
+  const compact = variant === 'dashboard';
+  return `<section class="biology-score-context-gate biology-score-context-gate-${escapeAttr(variant)}">
+    <div class="biology-scores-eyebrow">Waiting for context check</div>
+    <h3>${compact ? 'Biology Scores locked' : 'Scores unlock after one context check'}</h3>
+    <p>${compact ? 'Open Biology Scores and use the single unlock button there. The check is scoped to the active timeframe.' : 'Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.'}</p>
+    ${compact ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="open-lens">Open Biology Scores</button>' : ''}
+  </section>`;
 }
 
 function renderScoreInputs(score) {
@@ -97,6 +125,9 @@ export function renderScoreDetail(score, options = {}) {
   const flags = score.flags?.length
     ? `<div class="biology-score-flags"><div class="biology-score-input-label">Interpretation flags</div>${score.flags.map((flag) => `<p>${escapeHTML(flag)}</p>`).join('')}</div>`
     : '';
+  const confidenceNote = score.scoreConfidenceWarning && score.scoreConfidence !== 'high'
+    ? `<p class="biology-score-confidence-note biology-score-confidence-${escapeAttr(score.scoreConfidence || 'unknown')}">${escapeHTML(score.scoreConfidenceWarning)}</p>`
+    : '';
   const showHeading = options.showHeading !== false;
   const detailHead = showHeading
     ? `<div class="biology-score-detail-head">
@@ -116,6 +147,7 @@ export function renderScoreDetail(score, options = {}) {
     ${renderScoreRail(score.score, score.tone)}
     ${renderScoreAIAnswer(score)}
     ${renderScoreStatusMeta(score, { weighted: true })}
+    ${confidenceNote}
     <details class="biology-score-debug"><summary><span>See what’s driving this</span></summary><div class="biology-score-detail-grid">
       <div>
         <div class="biology-score-input-label">Inputs affecting the score</div>
@@ -156,7 +188,7 @@ function renderBiologicalCoherenceHero(score) {
   const strongest = domains[0];
   const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
   const missingCount = score.missing?.length || 0;
-  const domainRows = domains.slice(0, 8).map((item) => {
+  const domainRows = domains.map((item) => {
     const clickable = !!item.primaryScoreId;
     const attrs = clickable
       ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
@@ -167,7 +199,7 @@ function renderBiologicalCoherenceHero(score) {
   const summaryItems = [
     strongest ? ['Strongest', `${strongest.label} (${Math.round(strongest.partial || 0)}/100)`] : null,
     weakest && weakest !== strongest ? ['Most strained', `${weakest.label} (${Math.round(weakest.partial || 0)}/100)`] : null,
-    ['Minimum panel', missingCount ? `${missingCount} domain${missingCount === 1 ? '' : 's'} still missing` : 'Domains live'],
+    ['Minimum panel', missingCount ? `${missingCount} domain${missingCount === 1 ? '' : 's'} still missing` : 'Enough data across domains'],
   ].filter(Boolean);
   const dashboardToggle = renderLensDashboardToggle('biology-score-biologicalCoherence');
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
@@ -200,7 +232,7 @@ export function renderBiologicalCoherenceLensHero(ctx, computeBiologyScores) {
 
 function renderDashboardScoreRail(score, tone) {
   const pct = Number.isFinite(score) ? clamp(score, 0, 100) : 0;
-  const colorVar = tone === 'good' ? 'var(--green, #22c55e)' : tone === 'fair' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'bad' ? 'var(--red, #ef4444)' : 'var(--accent)';
+  const colorVar = tone === 'excellent' ? 'var(--green, #22c55e)' : tone === 'good' ? 'var(--accent)' : tone === 'strained' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'concerning' || tone === 'severe' ? 'var(--red, #ef4444)' : 'var(--text-muted)';
   return `<div class="db-hero-bio-bar db-hero-bio-bar-track" aria-hidden="true">
       <div class="db-hero-bio-bar-fill" style="width:${pct.toFixed(0)}%; background:${colorVar};"></div>
       <span class="db-hero-bio-bar-pin" style="left:${pct.toFixed(0)}%;"></span>
@@ -208,6 +240,7 @@ function renderDashboardScoreRail(score, tone) {
 }
 
 export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologyScores) {
+  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === scoreId);
   if (!score) return '';
   const scoreValue = Number.isFinite(score.score) ? String(score.score) : '—';
@@ -215,7 +248,8 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
   const toneLabel = score.tone ? TONE_LABELS[score.tone] : 'Need inputs';
   const coveragePct = Math.round((score.coverage || 0) * 100);
   const strongestImpact = score.available
-    .map(item => ({ item, impact: Number(item.weight || 0) * (100 - Number(item.partial || 0)) }))
+    .filter(item => !item.profileContextOnly && Number.isFinite(item.partial))
+    .map(item => ({ item, impact: Number(item.weight || 0) * (100 - Number(item.partial)) }))
     .sort((a, b) => b.impact - a.impact)[0]?.item;
   const detailLine = strongestImpact && Number(strongestImpact.partial) < 100
     ? `Main drag: ${strongestImpact.label} (${Math.round(strongestImpact.partial)}/100 fit)`
@@ -227,7 +261,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
       <div class="db-hero-bio-num">${escapeHTML(scoreValue)}</div>
       <div class="db-hero-bio-label">
         <span class="top">${escapeHTML(score.title)}</span>
-        <span class="actual">${escapeHTML(toneLabel)} · ${coveragePct}% coverage</span>
+        <span class="actual">${escapeHTML(toneLabel)} · ${coveragePct}% coverage · ${escapeHTML(score.scoreConfidenceLabel || 'Confidence unknown')}</span>
         <span class="delta">${escapeHTML(detailLine)}</span>
       </div>
     </div>
@@ -237,10 +271,12 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
       ${renderDashboardScoreRail(score.score, score.tone)}
       <div class="db-hero-scale"><span>0</span><span>50</span><span>100</span></div>
     </div>
+    ${renderScoreStatusMeta(score)}
   </button>`;
 }
 
 export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScores) {
+  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === 'biologicalCoherence');
   if (!score) return '';
   const scoreValue = Number.isFinite(score.score) ? score.score : 0;
@@ -250,7 +286,7 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
   const strongest = domains[0];
   const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
   const missingCount = score.missing?.length || 0;
-  const domainMicroBars = domains.slice(0, 8).map((item) => {
+  const domainMicroBars = domains.map((item) => {
     const pct = clamp(Number(item.partial || 0), 0, 100);
     const clickable = !!item.primaryScoreId;
     const attrs = clickable
@@ -282,10 +318,10 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
         <h3>${escapeHTML(score.title)}</h3>
         <p>${escapeHTML(score.summary)}</p>
         <p class="db-bio-coherence-insight">${escapeHTML(insight)}</p>
+        ${renderScoreStatusMeta(score)}
       </div>
     </div>
     ${domainMicroBars ? `<div class="db-bio-coherence-domains">${domainMicroBars}</div>` : ''}
-    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary db-bio-coherence-cta" data-biology-score-action="open-lens">Open full Biology Scores lens</button>
   </section>`;
 }
 
@@ -293,6 +329,7 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
  * now uses renderDashboardBiologyScoreWidget for individual score cards and
  * renderDashboardBiologicalCoherenceWidget for the coherence hero. */
 export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScores) {
+  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const scores = computeBiologyScores(ctx?.data || {});
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);
   const displayScores = usefulScores.length ? usefulScores : scores.slice(0, 4);
@@ -316,7 +353,146 @@ export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScore
   </div>`;
 }
 
+
+export function renderBiologyScoresActionSummary(live, waiting) {
+  if (!live.length) return '';
+  const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
+  const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high');
+  const strongest = live.slice().sort((a, b) => b.score - a.score)[0];
+  const nextMissing = lowConfidence[0]?.missing?.find(item => item.core) || lowConfidence[0]?.missing?.[0] || waiting[0]?.missing?.[0];
+  const rows = [
+    weakest ? ['Watch first', `${weakest.title}: ${weakest.score}/100. Open this first; it is the most strained live domain.`] : null,
+    strongest ? ['Looks strongest', `${strongest.title}: ${strongest.score}/100 — still check confidence before calling it “all clear”.`] : null,
+    nextMissing ? ['Next useful lab', `${nextMissing.label} would improve confidence${lowConfidence[0] ? ` for ${lowConfidence[0].title}` : ''}.`] : null,
+  ].filter(Boolean);
+  return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map(([label, text]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(text)}</span></div>`).join('')}</section>`;
+}
+
+function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
+  const seen = new Set();
+  const markers = [];
+  for (const score of scores) {
+    const missing = effectiveMissingMarkers(score).filter(item => !coreOnly || item.core);
+    for (const item of missing) {
+      const key = item.coreGroup || item.key || item.label;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      markers.push({ ...item, scoreTitle: score.title, panelTier: score.panelTier });
+      if (markers.length >= limit) return markers;
+    }
+  }
+  return markers;
+}
+
+function effectiveMissingMarkers(score) {
+  const coveredCoreGroups = new Set((score.available || [])
+    .filter(item => item.coreGroup && item.core !== false)
+    .map(item => item.coreGroup));
+  const seenGroups = new Set();
+  return (score.missing || [])
+    .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup))
+    .map(item => item.coreGroup ? { ...item, label: item.coreGroupLabel || item.label } : item)
+    .filter(item => {
+      if (!item.coreGroup) return true;
+      if (seenGroups.has(item.coreGroup)) return false;
+      seenGroups.add(item.coreGroup);
+      return true;
+    });
+}
+
+function renderCoverageMarkerList(markers, emptyText) {
+  if (!markers.length) return `<span class="biology-score-token biology-score-token-muted">${escapeHTML(emptyText)}</span>`;
+  return markers.map(item => {
+    const label = coverageMarkerDisplayLabel(item);
+    const title = item.scoreTitle ? `${item.scoreTitle}: ${item.label}` : item.label;
+    return `<span class="biology-score-token biology-score-token-muted" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
+  }).join('');
+}
+
+function coverageMarkerDisplayLabel(item) {
+  const byKey = {
+    reverseT3: 'Reverse T3',
+    tpoAb: 'TPO antibodies',
+    tgAb: 'Thyroglobulin antibodies',
+    platelets: 'Platelets',
+    fibrinogen: 'Fibrinogen',
+    dDimer: 'D-dimer',
+    albumin: 'Albumin',
+    sodium: 'Sodium',
+    bunCreatRatio: 'BUN/creatinine ratio',
+    crp: 'CRP / hs-CRP',
+    ferritin: 'Ferritin',
+    iron: 'Serum iron',
+    lh: 'LH',
+    fsh: 'FSH',
+    prolactin: 'Prolactin',
+    lpA: 'Lp(a)',
+    lpa: 'Lp(a)',
+    hct: 'Hematocrit',
+    hgb: 'Hemoglobin',
+    mch: 'MCH',
+    mcv: 'MCV',
+  };
+  if (item?.key && byKey[item.key]) return byKey[item.key];
+  return String(item?.label || '')
+    .replace(/^B12 status \(active or total B12\)$/i, 'Active or total B12')
+    .replace(/\s+pituitary signal$/i, '')
+    .replace(/\s+genetic risk$/i, '')
+    .replace(/\s+concentration$/i, '')
+    .replace(/\s+red-cell ironization$/i, '')
+    .replace(/\s+red-cell size$/i, '')
+    .replace(/\s*\/\s*plasma viscosity context/gi, '')
+    .replace(/\s+brake context$/i, '')
+    .replace(/\s+activation context$/i, '')
+    .replace(/\s+hydration context$/i, '')
+    .replace(/\s+plasma context$/i, '')
+    .replace(/\s+storage context$/i, '')
+    .replace(/\s+context for ferritin$/i, '')
+    .replace(/\s+context$/i, '')
+    .trim();
+}
+
+export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
+  const baselineScores = detailScores.filter(score => score.panelTier !== 'extended');
+  const advancedScores = detailScores.filter(score => score.panelTier === 'extended');
+  const baselineCoverage = Math.round(((coherence?.coverage || 0) * 100));
+  const liveDomains = coherence?.available?.length || 0;
+  const missingDomains = coherence?.missing?.length || 0;
+  const baselineCoreMissing = uniqueMissingMarkers(baselineScores, { coreOnly: true, limit: 14 });
+  const baselineUsefulMissing = uniqueMissingMarkers(baselineScores, { coreOnly: false, limit: 14 });
+  const advancedMissing = uniqueMissingMarkers(advancedScores, { coreOnly: false, limit: 12 });
+  const scoreRows = baselineScores.map(score => {
+    const effectiveMissing = effectiveMissingMarkers(score);
+    const coreMissing = effectiveMissing.filter(item => item.core);
+    const usefulMissing = coreMissing.length ? coreMissing : effectiveMissing.slice(0, 4);
+    const coveragePct = Math.round((score.coverage || 0) * 100);
+    return { score, usefulMissing, coreMissingCount: coreMissing.length, coveragePct };
+  }).filter(row => row.usefulMissing.length).sort((a, b) => (b.coreMissingCount - a.coreMissingCount) || (a.coveragePct - b.coveragePct) || a.score.title.localeCompare(b.score.title)).map(row => {
+    const confidence = Number.isFinite(row.score.score) ? (row.score.scoreConfidenceLabel || 'confidence unknown') : 'Needs markers';
+    const gapLabel = row.coreMissingCount ? `<span>${row.coreMissingCount} core gap${row.coreMissingCount === 1 ? '' : 's'}</span>` : '';
+    return `<div class="biology-coverage-score-row"><div class="biology-coverage-score-name"><strong>${escapeHTML(row.score.title)}</strong>${gapLabel}</div><div class="biology-coverage-score-markers"><div class="biology-coverage-marker-list">${renderCoverageMarkerList(row.usefulMissing, 'Core covered')}</div></div><div class="biology-coverage-score-status"><div class="biology-coverage-row-meter" aria-label="${escapeAttr(row.score.title)} coverage ${row.coveragePct}%"><span style="width:${Math.max(0, Math.min(100, row.coveragePct))}%"></span></div><div><strong>${row.coveragePct}%</strong><span>${escapeHTML(confidence)}</span></div></div></div>`;
+  }).join('');
+  const coreShortlist = baselineCoreMissing.length ? baselineCoreMissing : baselineUsefulMissing.slice(0, 6);
+  const baselineIntro = baselineCoverage >= 80
+    ? 'Good baseline coverage. These are confidence upgrades, not a reason to distrust the current score.'
+    : 'Start here: cover core blood markers first. Missing data lowers confidence, not the score itself.';
+  return `<section class="biology-score-coverage-planner">
+    <div class="biology-score-coverage-head">
+      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div><div class="biology-coverage-marker-list biology-coverage-marker-preview">${renderCoverageMarkerList(coreShortlist.slice(0, 5), 'Baseline core markers covered')}</div></div>
+      <div class="biology-score-coverage-actions"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Ask chat what to order</button></div>
+    </div>
+    <details class="biology-coverage-plan-details"><summary class="dashboard-action-btn dashboard-action-btn-secondary">Show full marker plan</summary>
+      <div class="biology-score-coverage-grid biology-score-coverage-grid-core">
+        <div><div class="biology-coverage-section-kicker">Baseline first</div><strong>Core baseline gaps</strong><p>Highest-value markers for Biological Coherence coverage.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(coreShortlist, 'Baseline core markers covered')}</div></div>
+        <div><div class="biology-coverage-section-kicker">Optional</div><strong>Advanced depth</strong><p>Specialty-panel extras for deeper users. Useful, but not required for baseline coherence.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(advancedMissing.slice(0, 10), 'Advanced scores are optional')}</div></div>
+      </div>
+      <div class="biology-coverage-score-picker"><div class="biology-coverage-score-header"><h4>Score gaps</h4><span>Core gaps first, then lower coverage</span></div><div class="biology-coverage-score-table">${scoreRows || '<div class="biology-coverage-score-empty">Core score gaps are covered.</div>'}</div></div>
+    </details>
+  </section>`;
+}
+
 export function renderBiologyScoresLens(ctx, computeBiologyScores) {
+  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('lens');
   const scores = computeBiologyScores(ctx?.data || {});
   const coherence = scores.find((score) => score.id === 'biologicalCoherence');
   const detailScores = scores.filter((score) => score.id !== 'biologicalCoherence');
@@ -337,7 +513,9 @@ export function renderBiologyScoresLens(ctx, computeBiologyScores) {
       </div>
       <span class="biology-scores-count">${live.length}/${detailScores.length} score signals</span></div>
     ${renderBiologicalCoherenceHero(coherence)}
+    ${renderBiologyScoresActionSummary(live, waiting)}
+    ${renderBiologyScoreCoveragePlanner(detailScores, coherence)}
     <div class="biology-score-detail-stack">${live.map(renderScoreDetail).join('')}${waiting.length ? `<details class="biology-score-unavailable-group"><summary>Show scores that need more markers or a retest</summary>${waiting.map(renderScoreDetail).join('')}</details>` : ''}</div>
-    <p class="biology-scores-note">Educational pattern score only. Score tone reflects the current marker pattern, coverage reflects missing inputs, and staleness is tracked separately.</p>
+    <p class="biology-scores-note">Educational pattern score only. This is reference/target-pattern coherence, not an outcome-validated diagnosis. Score tone reflects the current marker pattern; confidence reflects core-marker coverage; staleness is tracked separately.</p>
   </div>`;
 }

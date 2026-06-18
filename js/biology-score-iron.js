@@ -25,31 +25,31 @@ export function computeIronHandling(data, def) {
   const flags = [];
   const parts = [];
   const missing = [];
-  const add = (hit, key, label, weight, partial) => {
-    if (!hit || partial == null) missing.push({ key, label, weight });
-    else parts.push({ ...hit, key, label, weight, partial: Math.round(partial) });
+  const add = (hit, key, label, weight, partial, core = false) => {
+    if (!hit || partial == null) missing.push({ key, label, weight, core });
+    else parts.push({ ...hit, key, label, weight, partial: Math.round(partial), core });
   };
 
   if (ferritin) {
     const ferritinHighPenalty = scoreHighOnly(ferritin.value, 300, 800);
     const ferritinLowPenalty = scoreLowOnly(ferritin.value, 30, 5);
     const ferritinPartial = Math.min(ferritinHighPenalty, ferritinLowPenalty);
-    add(ferritin, 'ferritin', 'Ferritin storage context', 1.15, ferritinPartial);
+    add(ferritin, 'ferritin', 'Ferritin storage context', 1.15, ferritinPartial, true);
     if (ferritin.value < 30) flags.push('Low ferritin pattern: possible depleted iron stores.');
     if (tsat && tsat.value >= 45 && ferritin.value > 300) flags.push('High TSAT + high ferritin pattern: overload workup context, not a wellness score.');
     if (crp && crp.value > 3 && ferritin.value > 100) flags.push('Ferritin may be inflated by inflammation; interpret storage carefully.');
   } else {
-    missing.push({ key: 'ferritin', label: 'Ferritin storage context', weight: 1.15 });
+    missing.push({ key: 'ferritin', label: 'Ferritin storage context', weight: 1.15, core: true });
   }
   if (tsat) {
     let partial = scoreAgainstRange(tsat.value, { min: 16, max: 45 });
     if (tsat.value >= 45) partial = scoreHighOnly(tsat.value, 45, 60);
     if (tsat.value < 16) partial = scoreLowOnly(tsat.value, 16, 4);
-    add(tsat, 'transferrinSat', 'Transferrin saturation', 1.25, partial);
+    add(tsat, 'transferrinSat', 'Transferrin saturation', 1.25, partial, true);
     if (tsat.value < 16) flags.push('Low transferrin saturation pattern: iron availability may be constrained.');
     if (tsat.value >= 50) flags.push('High transferrin saturation pattern: iron overload context, consider hemochromatosis screening if ferritin is also elevated.');
-  } else missing.push({ key: 'transferrinSat', label: 'Transferrin saturation', weight: 1.25 });
-  add(hgb, 'hgb', 'Hemoglobin utilization', 0.8, hgb ? scoreAgainstRange(hgb.value, hgb.range) : null);
+  } else missing.push({ key: 'transferrinSat', label: 'Transferrin saturation', weight: 1.25, core: true });
+  add(hgb, 'hgb', 'Hemoglobin utilization', 0.8, hgb ? scoreAgainstRange(hgb.value, hgb.range) : null, true);
   add(mch, 'mch', 'MCH red-cell ironization', 0.65, mch ? scoreAgainstRange(mch.value, mch.range) : null);
   add(mcv, 'mcv', 'MCV red-cell size', 0.5, mcv ? scoreAgainstRange(mcv.value, mcv.range) : null);
   add(iron, 'iron', 'Serum iron context', 0.55, iron ? scoreAgainstRange(iron.value, iron.range) : null);

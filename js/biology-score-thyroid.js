@@ -2,6 +2,7 @@
 // biology-score-thyroid.js — Thyroid Coherence score.
 
 import {
+  applyScoreConfidence,
   applyScoreRecency,
   clamp,
   getMarkerHit,
@@ -42,25 +43,25 @@ export function computeThyroidCoherence(data, def) {
 
   if (tsh) {
     const partial = clamp(1 / (1 + Math.abs(tsh.canonicalValue - 1.5) / 1.2), 0.35, 1.0) * 100;
-    available.push({ ...tsh, key: 'tsh', label: 'TSH', partial: Math.round(partial), weight: weights.tsh });
+    available.push({ ...tsh, key: 'tsh', label: 'TSH', partial: Math.round(partial), weight: weights.tsh, core: true });
     availableWeight += weights.tsh;
     scoreSum += partial * weights.tsh;
-  } else missing.push({ key: 'tsh', label: 'TSH', weight: weights.tsh });
+  } else missing.push({ key: 'tsh', label: 'TSH', weight: weights.tsh, core: true });
 
   if (ft3) {
     const partial = scoreFt3Activity(ft3.canonicalValue);
-    available.push({ ...ft3, key: 'ft3', label: 'Free T3', partial, weight: weights.ft3 });
+    available.push({ ...ft3, key: 'ft3', label: 'Free T3', partial, weight: weights.ft3, core: true });
     availableWeight += weights.ft3;
     scoreSum += partial * weights.ft3;
-  } else missing.push({ key: 'ft3', label: 'Free T3', weight: weights.ft3 });
+  } else missing.push({ key: 'ft3', label: 'Free T3', weight: weights.ft3, core: true });
 
   if (ft3 && ft4 && ft4.canonicalValue > 0) {
     const partial = scoreConversionRatio(ft3.canonicalValue / ft4.canonicalValue);
-    available.push({ ...ft4, key: 'ft3Ft4', label: 'FT3/FT4 conversion', partial, weight: weights.conversion });
+    available.push({ ...ft4, key: 'ft3Ft4', label: 'FT3/FT4 conversion', partial, weight: weights.conversion, core: true });
     availableWeight += weights.conversion;
     scoreSum += partial * weights.conversion;
   } else {
-    missing.push({ key: 'ft4', label: ft3 ? 'Free T4' : 'Free T3 + Free T4', weight: weights.conversion });
+    missing.push({ key: 'ft4', label: ft3 ? 'Free T4' : 'Free T3 + Free T4', weight: weights.conversion, core: true });
   }
 
   if (reverseT3) {
@@ -86,5 +87,5 @@ export function computeThyroidCoherence(data, def) {
 
   const score = availableWeight > 0 && tsh && ft3 ? Math.round(scoreSum / availableWeight) : null;
   const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreRecency({ ...def, score, tone: score == null ? null : resolveScoreTone(score), severity: resolveScoreSeverity(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing });
+  return applyScoreConfidence(applyScoreRecency({ ...def, score, tone: score == null ? null : resolveScoreTone(score), severity: resolveScoreSeverity(score), coverage, coverageLabel: resolveCoverageLabel(coverage), available, missing }));
 }

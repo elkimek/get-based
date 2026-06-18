@@ -702,9 +702,9 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
   assert('Dashboard default order prioritizes coherence hero, focus, and evidence-based widgets',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
+      'biology-score-biologicalCoherence',
       'focus',
       'spotlight',
-      'biology-score-biologicalCoherence',
       'quick-markers',
       'key-trends',
       'recommendations',

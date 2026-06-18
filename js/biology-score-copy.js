@@ -39,7 +39,7 @@ export const BIOLOGY_SCORE_COPY = {
   },
   oneCarbonCoherence: {
     question: 'Is methylation demand, B-vitamin status, and homocysteine handling coherent?',
-    basicInputs: ['Homocysteine', 'Vitamin B12', 'Folate'],
+    basicInputs: ['Homocysteine', 'Active or total B12', 'Folate'],
     extendedInputs: ['Methylmalonic acid', 'MCV/MCH/RDW', 'Creatinine/eGFR context', 'B6/PLP when available'],
   },
   fluidFiltrationCoherence: {
@@ -67,4 +67,62 @@ export const BIOLOGY_SCORE_COPY = {
     basicInputs: ['Testosterone or estradiol context', 'Albumin', 'Total protein', 'CBC basics', 'hs-CRP'],
     extendedInputs: ['Free testosterone', 'SHBG', 'DHEA-S', 'IGF-1', 'LH/FSH', 'Vitamin D', 'Thyroid context', 'Creatine kinase'],
   },
+  cellularEnergyCoherence: {
+    question: 'Do mitochondrial-energy and organic-acid patterns look efficient, or are fuel-handling / fatty-acid oxidation clues accumulating?',
+    basicInputs: ['No routine baseline requirement — this is an advanced score'],
+    extendedInputs: ['OAT lactate and pyruvate', 'TCA-cycle organic acids', 'Ethylmalonic/adipic/suberic acids', 'CoQ10 organic-acid clue', 'Carnitine', 'CK', 'Free T3'],
+  },
+  stressResilience: {
+    question: 'Does the HPA/stress axis look resilient, or is stress pressure visible through cortisol, DHEA, inflammation, glucose, and thyroid context?',
+    basicInputs: ['No routine baseline requirement — this is an advanced score'],
+    extendedInputs: ['Cortisol', 'DHEA-S', 'Testosterone/cortisol ratio', 'Glucose/insulin', 'hs-CRP', 'CBC differential', 'Free T3/TSH'],
+  },
+  hormoneAxis: {
+    question: 'Are sex hormones and pituitary feedback coherent for this profile’s sex, age, cycle/menopause, and therapy context?',
+    basicInputs: ['Sex hormone status: total/free testosterone, estradiol, or progesterone', 'SHBG', 'Pituitary feedback: LH and FSH'],
+    extendedInputs: ['Prolactin', 'DHT', 'Androstenedione', 'DHEA-S', 'Cortisol', 'Cycle-day / menopause / contraception / hormone-therapy context'],
+  },
+  gutImmuneSignal: {
+    question: 'Do gut-barrier, microbiome-adjacent, and immune clues suggest a calm gut-immune interface or a strained one?',
+    basicInputs: ['No routine baseline requirement — this is an advanced score'],
+    extendedInputs: ['Calprotectin', 'Zonulin', 'Secretory IgA', 'OAT microbial markers', 'hs-CRP', 'Eosinophils', 'Albumin', 'B12 context'],
+  },
+  nerveMuscleSignal: {
+    question: 'Do nerve-muscle support and stress markers look stable, or are neuromuscular energy, methylation, inflammation, or glycation clues strained?',
+    basicInputs: ['No routine baseline requirement — this is an advanced score'],
+    extendedInputs: ['CK', 'Creatinine/muscle-mass context', 'Active or total B12', 'Homocysteine', 'Vitamin D', 'Magnesium', 'HbA1c/glucose', 'hs-CRP', 'NfL when available'],
+  },
 };
+
+/**
+ * Return profile-aware Biology Score copy without making every renderer know
+ * about sex/cycle-specific marker requirements.
+ * @param {string} scoreId
+ * @param {{sex?: string | null, cycleStatus?: string | null, hormoneTherapy?: boolean}} [profileContext]
+ */
+export function getBiologyScoreCopy(scoreId, profileContext = {}) {
+  const base = BIOLOGY_SCORE_COPY[scoreId] || {};
+  if (scoreId !== 'hormoneAxis') return base;
+  const therapyContext = profileContext.hormoneTherapy
+    ? ['Current hormone therapy / contraception / stimulation context']
+    : ['Medication or hormone-therapy context, if relevant'];
+  if (profileContext.sex === 'female') {
+    return {
+      ...base,
+      basicInputs: ['Estradiol and/or progesterone', 'SHBG', 'Pituitary feedback: LH and FSH', 'Prolactin', 'Cycle day, menopause, contraception, or hormone-therapy context'],
+      extendedInputs: ['Total/free testosterone, DHT, or androstenedione when androgen symptoms or PCOS context matters', 'DHEA-S', 'Cortisol', ...therapyContext],
+    };
+  }
+  if (profileContext.sex === 'male') {
+    return {
+      ...base,
+      basicInputs: ['Total or free testosterone', 'SHBG', 'Pituitary feedback: LH and FSH', 'Prolactin'],
+      extendedInputs: ['Estradiol', 'DHT', 'Androstenedione', 'DHEA-S', 'Cortisol', ...therapyContext],
+    };
+  }
+  return {
+    ...base,
+    basicInputs: ['Sex hormone status appropriate to profile sex', 'SHBG', 'Pituitary feedback: LH and FSH', 'Prolactin'],
+    extendedInputs: ['Estradiol/progesterone or testosterone as appropriate', 'DHT', 'Androstenedione', 'DHEA-S', 'Cortisol', 'Cycle/menopause/therapy context when relevant'],
+  };
+}

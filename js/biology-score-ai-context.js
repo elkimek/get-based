@@ -2,13 +2,7 @@
 // biology-score-ai-context.js — compact Biology Scores context for AI chat.
 
 import { computeBiologyScores } from './biology-scores.js';
-
-const TONE_LABELS = {
-  excellent: 'Strong',
-  good: 'Good',
-  strained: 'Watch',
-  poor: 'Low score',
-};
+import { TONE_LABELS } from './biology-score-engine.js';
 
 export function buildBiologyScoresAIContext(data, options = {}) {
   const scores = computeBiologyScores(data || {});
@@ -27,7 +21,8 @@ export function buildBiologyScoresAIContext(data, options = {}) {
     const coverageText = `${Math.round((score.coverage || 0) * 100)}% coverage`;
     const recencyText = score.recencyStatus && score.recencyStatus !== 'fresh' ? `; ${score.recencyBadge}` : '';
     const impacts = score.available
-      .map(item => ({ item, impact: Number(item.weight || 0) * (100 - Number(item.partial || 0)) }))
+      .filter(item => !item.profileContextOnly && Number.isFinite(item.partial))
+      .map(item => ({ item, impact: Number(item.weight || 0) * (100 - Number(item.partial)) }))
       .sort((a, b) => b.impact - a.impact)
       .filter(row => Number.isFinite(row.impact) && row.impact > 0.05)
       .slice(0, 2)
@@ -37,6 +32,24 @@ export function buildBiologyScoresAIContext(data, options = {}) {
     if (impacts.length) line += `; main drags: ${impacts.join('; ')}`;
     if (missing) line += `; missing: ${missing}${score.missing.length > 3 ? ', …' : ''}`;
     lines.push(line);
+  }
+  const baselineScores = scores.filter(score => score.id !== 'biologicalCoherence' && score.panelTier !== 'extended');
+  const missingCore = [];
+  const seenCore = new Set();
+  for (const score of baselineScores) {
+    for (const item of (score.missing || []).filter(m => m.core)) {
+      const key = item.coreGroup || item.key || item.label;
+      if (!key || seenCore.has(key)) continue;
+      seenCore.add(key);
+      missingCore.push(`${item.label} (${score.title})`);
+      if (missingCore.length >= 10) break;
+    }
+    if (missingCore.length >= 10) break;
+  }
+  if (missingCore.length) {
+    lines.push(`Coverage planning: to improve baseline Biological Coherence first, prioritize missing core markers: ${missingCore.join(', ')}.`);
+  } else {
+    lines.push('Coverage planning: baseline core Biology Score markers appear covered; advanced/specialty markers are optional depth and should not be treated as required for baseline coherence.');
   }
   lines.push('[/section:biologyScores]');
   return lines.join('\n') + '\n\n';

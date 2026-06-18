@@ -73,6 +73,15 @@
 .dashboard-widget-inline-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
 }
+.biology-score-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.biology-score-header-actions .dashboard-action-btn {
+  margin-right: 2px;
+}
 .lens-header-affiliate {
   font-size: 12px;
   color: var(--text-muted);
@@ -314,7 +323,7 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, var(--border));
 }
-.db-bio-coherence-good .db-bio-coherence-ring {
+.db-bio-coherence-excellent .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
@@ -323,7 +332,7 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green, #22c55e) 25%, var(--border));
 }
-.db-bio-coherence-fair .db-bio-coherence-ring {
+.db-bio-coherence-strained .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
@@ -333,7 +342,8 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yellow, #f59e0b) 25%, var(--border));
 }
 .db-bio-coherence-poor .db-bio-coherence-ring,
-.db-bio-coherence-bad .db-bio-coherence-ring {
+.db-bio-coherence-concerning .db-bio-coherence-ring,
+.db-bio-coherence-severe .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
@@ -342,10 +352,12 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red, #ef4444) 25%, var(--border));
 }
-.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
-.db-bio-coherence-fair .db-bio-coherence-status { background: color-mix(in srgb, var(--yellow, #f59e0b) 16%, var(--bg-card)); color: var(--yellow, #f59e0b); }
+.db-bio-coherence-excellent .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
+.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--accent) 16%, var(--bg-card)); color: var(--accent); }
+.db-bio-coherence-strained .db-bio-coherence-status { background: color-mix(in srgb, var(--yellow, #f59e0b) 16%, var(--bg-card)); color: var(--yellow, #f59e0b); }
 .db-bio-coherence-poor .db-bio-coherence-status,
-.db-bio-coherence-bad .db-bio-coherence-status { background: color-mix(in srgb, var(--red, #ef4444) 16%, var(--bg-card)); color: var(--red, #ef4444); }
+.db-bio-coherence-concerning .db-bio-coherence-status,
+.db-bio-coherence-severe .db-bio-coherence-status { background: color-mix(in srgb, var(--red, #ef4444) 16%, var(--bg-card)); color: var(--red, #ef4444); }
 .db-bio-coherence-number {
   position: absolute;
   display: grid;
@@ -434,9 +446,6 @@
   font-size: 12px;
   font-weight: 700;
 }
-.db-bio-coherence-cta {
-  justify-self: start;
-}
 @media (max-width: 720px) {
   .db-bio-coherence-body { grid-template-columns: 1fr; justify-items: start; }
   .db-bio-coherence-score { width: 120px; height: 120px; }
@@ -475,6 +484,12 @@
 .biology-score-context-banner span { padding:3px 7px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-card); }
 .biology-score-context-page { margin: -6px 0 16px; padding: 0 2px; }
 .biology-context-ai-panel { margin: 0 0 16px; padding: 14px; border:1px solid var(--border); border-radius:var(--radius); background:color-mix(in srgb, var(--bg-card) 82%, transparent); display:grid; gap:12px; }
+.biology-context-ai-required,.biology-score-context-gate { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 6%, var(--bg-card)) 0%, var(--bg-card) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }
+.biology-score-context-gate { margin: 0 0 16px; padding: 14px; border-width: 1px; border-style: solid; border-radius: var(--radius); display: grid; gap: 10px; }
+.biology-score-context-gate h3 { margin: 0; color: var(--text-primary); font-family: var(--font-display); }
+.biology-score-context-gate p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.45; }
+.biology-score-context-gate-dashboard { margin: 0; }
+.biology-score-context-gate-dashboard h3 { font-size: 16px; }
 .biology-context-ai-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
 .biology-context-ai-head p,.biology-context-ai-summary,.biology-context-suggestion p { margin:4px 0 0; color:var(--text-secondary); font-size:13px; line-height:1.45; }
 .biology-context-suggestions { display:grid; gap:10px; }
@@ -602,10 +617,18 @@
   line-height: 1.25;
   color: var(--text-primary);
 }
-.biology-score-status-excellent { border-left-color: var(--green, #22c55e); }
-.biology-score-status-good { border-left-color: var(--accent); }
-.biology-score-status-strained { border-left-color: var(--yellow, #f59e0b); }
-.biology-score-status-poor { border-left-color: var(--red, #ef4444); }
+.biology-score-status-excellent,
+.biology-score-status-high,
+.biology-score-status-production { border-left-color: var(--green, #22c55e); }
+.biology-score-status-good,
+.biology-score-status-contextual { border-left-color: var(--accent); }
+.biology-score-status-strained,
+.biology-score-status-medium,
+.biology-score-status-experimental { border-left-color: var(--yellow, #f59e0b); }
+.biology-score-status-poor,
+.biology-score-status-concerning,
+.biology-score-status-severe,
+.biology-score-status-low { border-left-color: var(--red, #ef4444); }
 .biology-score-status-mixed-dates,
 .biology-score-status-stale { border-left-color: var(--yellow, #f59e0b); }
 .biology-score-question,
@@ -736,6 +759,345 @@ button.biology-score-token:focus-visible {
 @media (max-width: 900px) {
   .biology-score-grid { grid-template-columns: 1fr; }
 }
+
+.biology-score-confidence-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: calc(var(--radius) - 6px);
+  border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 42%, var(--border));
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 10%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.biology-score-confidence-low {
+  border-color: color-mix(in srgb, var(--red, #ef4444) 42%, var(--border));
+  background: color-mix(in srgb, var(--red, #ef4444) 9%, var(--bg-secondary));
+}
+.biology-score-action-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
+}
+.biology-score-action-summary .biology-scores-eyebrow {
+  grid-column: 1 / -1;
+}
+.biology-score-action-summary > div:not(.biology-scores-eyebrow) {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.biology-score-action-summary strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.biology-score-action-summary span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.biology-context-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: calc(var(--radius) - 6px);
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+}
+.biology-context-status-strip span {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 13px;
+}
+.biology-context-status-strip small,
+.biology-context-status-strip summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.biology-context-status-strip > div {
+  display: grid;
+  flex: 1 1 180px;
+  gap: 2px;
+}
+.biology-context-status-strip details {
+  flex: 0 0 auto;
+}
+.biology-context-status-strip details[open] {
+  flex-basis: 100%;
+}
+.biology-context-status-strip summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.biology-context-status-strip summary::-webkit-details-marker { display: none; }
+.biology-context-status-strip summary::marker { content: ''; }
+.biology-context-review-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 30px;
+  padding-block: 5px;
+}
+.biology-context-review-cta::after {
+  content: '▾';
+  margin-left: 8px;
+  font-size: 10px;
+  opacity: 0.72;
+}
+.biology-context-status-strip details[open] .biology-context-review-cta::after {
+  content: '▴';
+}
+.biology-context-status-strip .biology-context-ai-panel {
+  width: 100%;
+  margin: 10px 0 0;
+}
+.biology-score-coverage-planner {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 86%, var(--accent) 6%), color-mix(in srgb, var(--bg-secondary) 82%, transparent));
+}
+.biology-score-coverage-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.34fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.biology-score-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.biology-score-coverage-main {
+  min-width: 0;
+}
+.biology-score-coverage-head h3 {
+  margin: 4px 0 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+.biology-score-coverage-head p,
+.biology-score-coverage-grid p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.biology-coverage-progress {
+  width: 100%;
+  height: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+}
+.biology-coverage-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 58%, var(--green, #22c55e)));
+}
+.biology-score-coverage-metric {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.biology-score-coverage-metric strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 0.95;
+}
+.biology-score-coverage-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  align-content: start;
+}
+.biology-score-coverage-actions .dashboard-action-btn {
+  white-space: nowrap;
+}
+.biology-coverage-mini-stats {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.biology-coverage-mini-stats b {
+  color: var(--text-primary);
+}
+.biology-score-coverage-grid > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: calc(var(--radius) - 4px);
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+}
+.biology-score-coverage-grid strong,
+.biology-coverage-score-row span,
+.biology-coverage-score-picker h4 {
+  color: var(--text-primary);
+}
+.biology-coverage-section-kicker,
+.biology-coverage-score-header > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.biology-coverage-marker-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.biology-coverage-marker-preview {
+  margin-top: 10px;
+}
+.biology-coverage-score-picker {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 12px;
+}
+.biology-coverage-score-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.biology-coverage-score-picker h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.biology-coverage-plan-details {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  padding-top: 10px;
+}
+.biology-coverage-plan-details > summary {
+  cursor: pointer;
+  width: fit-content;
+  list-style: none;
+}
+.biology-coverage-plan-details > summary::-webkit-details-marker { display: none; }
+.biology-coverage-plan-details > summary::marker { content: ''; }
+.biology-coverage-plan-details > summary::after {
+  content: '▾';
+  margin-left: 8px;
+  font-size: 10px;
+  opacity: 0.72;
+}
+.biology-coverage-plan-details[open] > summary::after {
+  content: '▴';
+}
+.biology-coverage-plan-details .biology-score-coverage-grid {
+  margin-top: 12px;
+}
+.biology-coverage-score-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.24fr) minmax(0, 1fr) minmax(150px, 0.2fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  border-radius: calc(var(--radius) - 8px);
+}
+.biology-coverage-score-row:nth-child(even) {
+  background: color-mix(in srgb, var(--bg-card) 52%, transparent);
+}
+.biology-coverage-score-name {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.biology-coverage-score-name > strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.biology-coverage-score-name > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.biology-coverage-score-markers {
+  min-width: 0;
+}
+.biology-coverage-score-status {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.biology-coverage-row-meter {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+.biology-coverage-row-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 72%, var(--green, #22c55e));
+}
+.biology-coverage-score-status > div:last-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.biology-coverage-score-status strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.biology-coverage-score-status span {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: right;
+}
+.biology-coverage-score-empty {
+  padding: 10px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .biology-context-status-strip { flex-direction: column; }
+  .biology-context-status-strip details { width: 100%; }
+  .biology-score-action-summary,
+  .biology-score-coverage-head,
+  .biology-score-coverage-grid { grid-template-columns: 1fr; }
+  .biology-coverage-score-row { grid-template-columns: 1fr; gap: 8px; }
+  .biology-coverage-score-status span { text-align: left; }
+  .biology-score-coverage-metric,
+  .biology-score-coverage-actions,
+  .biology-coverage-mini-stats { justify-items: start; }
+}
+
 @media (max-width: 560px) {
   .biology-scores-hero,
   .biology-score-card-head {
@@ -839,7 +1201,7 @@ button.biology-score-token:focus-visible {
 }
 .biology-coherence-metric {
   display: grid;
-  justify-items: start;
+  justify-items: stretch;
   gap: 9px;
   min-width: 0;
   padding-right: 0;
@@ -848,13 +1210,14 @@ button.biology-score-token:focus-visible {
   color: var(--text-muted);
 }
 .biology-coherence-metric > strong {
+  justify-self: start;
   font-size: clamp(44px, 6vw, 68px);
   line-height: 0.9;
   color: var(--text-primary);
   letter-spacing: -0.05em;
 }
-.biology-coherence-metric > span { margin-top: -8px; font-size: 13px; }
-.biology-coherence-metric .biology-score-rail { width: min(260px, 100%); }
+.biology-coherence-metric > span { justify-self: start; margin-top: -8px; font-size: 13px; }
+.biology-coherence-metric .biology-score-rail { width: 100%; }
 .biology-coherence-metric .biology-score-meta { justify-content: flex-start; }
 .biology-coherence-domains {
   grid-column: 1 / -1;
@@ -988,6 +1351,9 @@ button.biology-score-token:focus-visible {
   display: grid;
   gap: 12px;
 }
+.biology-score-unavailable-group[open] {
+  gap: 16px;
+}
 .biology-score-unavailable-group > summary {
   cursor: pointer;
   padding: 10px 12px;
@@ -1004,6 +1370,7 @@ button.biology-score-token:focus-visible {
 .biology-score-unavailable-group[open] > summary::before { content: '−'; color: var(--accent); }
 .biology-score-unavailable-group[open] > summary { color: var(--text-primary); }
 .biology-score-unavailable-group .biology-score-detail { box-shadow: none; }
+.biology-score-unavailable-group .biology-score-detail + .biology-score-detail { margin-top: 16px; }
 .biology-score-detail-grid > * {
   min-width: 0;
 }

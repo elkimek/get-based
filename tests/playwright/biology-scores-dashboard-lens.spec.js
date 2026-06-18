@@ -19,6 +19,9 @@ async function prepareDemoProfile(page) {
       state.importedData = await resp.json();
       state.profileSex = 'male';
       state.profileDob = '1987-11-22';
+      const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('/js/biology-score-context-ai.js');
+      const activeData = window.getActiveData?.() || {};
+      state.importedData.biologyScoreContextAI = { summary: 'Context checked for Playwright demo', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(activeData), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData), unlockedRanges: ['all', '1y', '6m', '3m'], range: 'all', updatedAt: Date.now() };
       window.saveImportedData?.();
       window.buildSidebar?.();
     }
@@ -27,6 +30,9 @@ async function prepareDemoProfile(page) {
     state.importedData.profile = state.importedData.profile || {};
     state.importedData.profile.firstName = 'Alex';
     state.importedData.profile.age = 38;
+    const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('/js/biology-score-context-ai.js');
+    const activeData = window.getActiveData?.() || {};
+    state.importedData.biologyScoreContextAI = { summary: 'Context checked for Playwright demo', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(activeData), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData), unlockedRanges: ['all', '1y', '6m', '3m'], range: 'all', updatedAt: Date.now() };
   });
 }
 
@@ -45,7 +51,7 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   await expect(hero.locator('.db-bio-coherence-number')).toContainText('/100');
 
   const domainRows = hero.locator('.bc-micro-domain');
-  await expect(domainRows).toHaveCount(8);
+  await expect(domainRows).toHaveCount(12);
 
   const firstRow = domainRows.first();
   await expect(firstRow).toHaveAttribute('data-biology-score-action', 'jump-to-domain');

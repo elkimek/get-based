@@ -99,6 +99,20 @@ function importedDataMatches(snapshot, importedData) {
   return snapshot !== null && next !== null && snapshot === next;
 }
 
+function getUpdatedAt(value) {
+  const n = Number(value?.updatedAt || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function preserveFreshLocalBiologyScoreContextAI(merged, localImported, remoteImported) {
+  const localReview = localImported?.biologyScoreContextAI;
+  if (!localReview || typeof localReview !== 'object') return false;
+  const remoteReview = remoteImported?.biologyScoreContextAI;
+  if (remoteReview && getUpdatedAt(remoteReview) >= getUpdatedAt(localReview)) return false;
+  merged.biologyScoreContextAI = localReview;
+  return true;
+}
+
 function withoutLocalTombstones(importedData) {
   if (!importedData || typeof importedData !== 'object') return importedData;
   if (!importedData._deleted && !importedData._deletedAt && !importedData._deletedClearedAt) return importedData;
@@ -146,9 +160,10 @@ export async function mergePulledImportedData(profileId, importedData, options =
     console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
   }
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
+  const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, importedData);
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
-  const needsRebroadcast = preservedFreshLocalEntries
+  const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI
     || (!!localImportedForMerge && !!importedData
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData

@@ -739,8 +739,9 @@ export function applyUnitConversion(data) {
 // ═══════════════════════════════════════════════
 // DATE RANGE FILTER
 // ═══════════════════════════════════════════════
-export function filterDatesByRange(data) {
+export function filterDatesByRange(data, options = {}) {
   if (state.dateRangeFilter === 'all') return data;
+  const fallbackToAll = options.fallbackToAll !== false;
   const months = state.dateRangeFilter === '3m' ? 3 : state.dateRangeFilter === '6m' ? 6 : 12;
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
@@ -749,10 +750,10 @@ export function filterDatesByRange(data) {
   for (let i = 0; i < data.dates.length; i++) {
     if (data.dates[i] >= cutoffStr) indices.push(i);
   }
-  if (indices.length === 0) return data; // fallback: show all if no dates in range
+  if (indices.length === 0 && fallbackToAll) return data; // fallback: show all if no dates in range
   const filtered = {
     dates: indices.map(i => data.dates[i]),
-    dateLabels: indices.map(i => data.dateLabels[i]),
+    dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates?.[i] || ''),
     ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
     categories: {}
   };

@@ -3,14 +3,14 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { getActiveData, renderDateRangeFilter } from './data.js';
+import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data.js';
 import { ensureSNPTable } from './dna.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
-import { getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero } from './biology-scores.js';
+import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { renderBiologyScoreContextAI } from './biology-score-context-ai.js';
+import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 
 function markerHasData(marker) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -162,18 +162,44 @@ export function createLensPageHandlers(deps) {
     return labels ? `<div class="biology-score-context-banner biology-score-context-page"><strong>Active context modifiers</strong>${labels}</div>` : '';
   }
 
+  function renderBiologyScoreContextStatus(scoreData) {
+    const review = state.importedData?.biologyScoreContextAI;
+    const suggestions = Array.isArray(review?.suggestions) ? review.suggestions.length : 0;
+    const status = hasCurrentBiologyScoreContextReview(scoreData) ? 'Context checked' : 'Context needs refresh';
+    const detailLabel = suggestions ? `Review ${suggestions} flag${suggestions === 1 ? '' : 's'}` : 'Review';
+    return `<section class="biology-context-status-strip">
+      <div><span>${escapeHTML(status)}</span></div>
+      <details><summary class="dashboard-action-btn dashboard-action-btn-secondary biology-context-review-cta">${escapeHTML(detailLabel)}</summary>${renderBiologyScoreContextAI(scoreData)}</details>
+    </section>`;
+  }
+
   function showBiologyScores(preData) {
     const rawData = preData || getActiveData();
     const main = document.getElementById("main-content");
     if (!main) return;
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
-    const actions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Interpret with AI</button>
-      ${renderDateRangeFilter()}`;
+    const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+    const contextReady = hasCurrentBiologyScoreContextReview(scoreData);
+    const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Interpret with AI</button>' : ''}
+      ${renderDateRangeFilter()}</div>`;
     let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
     html += renderBiologyScoreContextBanner();
-    html += renderBiologyScoreContextAI();
+    if (!contextReady) {
+      html += renderBiologyScoreContextAI(scoreData);
+      html += `<section class="biology-score-context-gate biology-score-context-gate-lens"><div class="biology-scores-eyebrow">Waiting for context check</div><h3>Scores unlock after one context check</h3><p>Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.</p></section>`;
+      main.innerHTML = html;
+      setupDropZone();
+      return;
+    }
+    const biologyScores = computeBiologyScores(scoreData);
+    const biologyDetailScores = biologyScores.filter((score) => score.id !== 'biologicalCoherence');
+    const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score);
+    const waitingBiologyScores = biologyDetailScores.filter((score) => !Number.isFinite(score.score));
+    html += renderBiologyScoreContextStatus(scoreData);
     html += renderBiologicalCoherenceLensHero(ctx);
+    html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores);
+    html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologyScores.find((score) => score.id === 'biologicalCoherence'));
     html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
     main.innerHTML = html;
     setupDropZone();

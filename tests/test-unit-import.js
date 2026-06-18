@@ -331,8 +331,8 @@ const settingsSrc = read('js/settings.js');
       importMarkers[0].matched && importMarkers[0].mappedKey === 'biochemistry.glucose');
     assert('Erythrocyte magnesium reconciles to magnesium RBC',
       importMarkers[1].matched && importMarkers[1].mappedKey === 'electrolytes.magnesiumRBC');
-    assert('Same-name custom marker reconciles to previous custom key',
-      importMarkers[2].matched && importMarkers[2].mappedKey === 'custom.activeB12');
+    assert('Active B12 reconciles to the standard vitamins schema marker',
+      importMarkers[2].matched && importMarkers[2].mappedKey === 'vitamins.activeB12');
     assert('Differential # value reconciles to absolute-count marker',
       importMarkers[3].matched && importMarkers[3].mappedKey === 'differential.neutrophils');
     assert('Urine glucose is not incorrectly merged into blood glucose',

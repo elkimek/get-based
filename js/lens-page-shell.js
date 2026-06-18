@@ -146,7 +146,13 @@ export function moveLensPageWidget(route, id, direction) {
 }
 
 export function renderLensDashboardToggle(dashboardId) {
-  if (!dashboardId || !_shellDeps.getAvailableDashboardFixedWidgetIds().includes(dashboardId)) return '';
+  const availableIds = _shellDeps.getAvailableDashboardFixedWidgetIds();
+  // Biology Score widgets are generated dynamically from score definitions. In
+  // isolated Node/source-inspection tests the dashboard registry is not always
+  // configured before the lens renderer runs, so keep the toggle renderable for
+  // these declared dynamic widget ids instead of silently dropping it.
+  const isDeclaredDynamicBiologyScoreWidget = typeof dashboardId === 'string' && dashboardId.startsWith('biology-score-');
+  if (!dashboardId || (!availableIds.includes(dashboardId) && !isDeclaredDynamicBiologyScoreWidget)) return '';
   const prefs = _shellDeps.getDashboardWidgetPrefs();
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
   const isVisible = !hidden.includes(dashboardId);

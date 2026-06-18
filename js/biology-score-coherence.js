@@ -1,21 +1,22 @@
 // @ts-check
 // biology-score-coherence.js — Biological Coherence aggregator.
 
-import { resolveCoverageLabel, resolveScoreTone } from './biology-score-engine.js';
+import { applyScoreConfidence, resolveCoverageLabel, resolveScoreTone } from './biology-score-engine.js';
 
 const COHERENCE_DOMAIN_LABELS = {
-  metabolic: 'Metabolic',
-  endocrine: 'Thyroid / endocrine',
-  cardiovascular: 'Cardiovascular',
+  metabolic: 'Metabolic health',
+  endocrine: 'Thyroid hormones',
+  cardiovascular: 'Cardiovascular risk',
   inflammation: 'Inflammation',
-  membrane: 'Membrane lipids',
-  blood: 'Blood / iron',
+  membrane: 'Cell membrane fats',
+  blood: 'Iron and blood health',
   methylation: 'Methylation',
-  kidney: 'Fluid / filtration',
-  liver: 'Liver / bile',
-  mineral: 'Bone / mineral',
+  kidney: 'Kidney and hydration',
+  liver: 'Liver and bile flow',
+  mineral: 'Bone and mineral balance',
   immune: 'Immune balance',
-  recovery: 'Recovery',
+  recovery: 'Recovery capacity',
+  hormones: 'Hormone axis',
 };
 
 const COHERENCE_DOMAIN_WEIGHTS = {
@@ -30,6 +31,7 @@ const COHERENCE_DOMAIN_WEIGHTS = {
   mineral: 0.85,
   immune: 0.9,
   recovery: 0.8,
+  hormones: 0.95,
 };
 
 /**
@@ -69,8 +71,9 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
     const domainScore = Math.round(live.reduce((sum, item) => sum + item.score.score * item.weight, 0) / liveWeight);
     const domainCoverage = live.reduce((sum, item) => sum + (item.score.coverage || 0) * item.weight, 0) / liveWeight;
     const weakest = live.slice().sort((a, b) => a.score.score - b.score.score)[0];
-    availableDomainWeight += domainWeight;
-    scoreSum += domainScore * domainWeight;
+    const effectiveDomainWeight = domainWeight * Math.max(0.25, Math.min(1, domainCoverage || 0));
+    availableDomainWeight += effectiveDomainWeight;
+    scoreSum += domainScore * effectiveDomainWeight;
     available.push({
       key: domain,
       label,
@@ -79,6 +82,7 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
       date: '—',
       partial: domainScore,
       weight: domainWeight,
+      effectiveWeight: effectiveDomainWeight,
       id: '',
       domainCoverage,
       primaryScoreId: weakest?.score.id || live[0]?.score.id || '',
@@ -93,7 +97,7 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
     `${available.length}/${available.length + missing.length} minimum domains live.`,
   ];
   if (extendedTotal) flags.push(`${extendedTotal} extended-only score${extendedTotal === 1 ? '' : 's'} are outside the baseline coherence denominator.`);
-  return {
+  return applyScoreConfidence({
     ...def,
     score,
     tone: score == null ? null : resolveScoreTone(score),
@@ -104,5 +108,5 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
     flags,
     recencyStatus: 'fresh',
     recencyBadge: 'Domain snapshot',
-  };
+  });
 }

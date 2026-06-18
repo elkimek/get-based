@@ -29,8 +29,19 @@ export function getInputProfileModifier(hit, input, profileContext) {
  * @param {any} profileContext
  */
 export function getScoreProfileFlags(scoreId, profileContext) {
-  if (scoreId !== 'anabolicRecoverySignal') return [];
   const flags = [];
+  if (scoreId === 'hormoneAxis') {
+    if (!profileContext.sex) flags.push('Hormone-axis context: set profile sex before treating this score as reliable; hormone meaning changes strongly by sex.');
+    if (!Number.isFinite(profileContext.ageYears)) flags.push('Hormone-axis context: set date of birth before treating this score as reliable; hormone ranges and feedback patterns are age-sensitive.');
+    if (profileContext.sex === 'female') {
+      if (profileContext.cycleStatus) flags.push(`Female hormone context: cycle status is ${profileContext.cycleStatus}; interpret estradiol, progesterone, LH, and FSH against that state, not a generic range alone.`);
+      else flags.push('Female hormone context: add menstrual-cycle or menopause status so estradiol, progesterone, LH, and FSH are interpreted in the right biological phase.');
+    }
+    if (profileContext.hormoneTherapy) flags.push('Hormone-medication context detected; sex-hormone markers may reflect therapy, contraception, or stimulation rather than endogenous axis tone.');
+    if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; sex-hormone and pituitary feedback patterns need age/menopause/therapy context.`);
+    return flags;
+  }
+  if (scoreId !== 'anabolicRecoverySignal') return [];
   if (profileContext.sex === 'female' && profileContext.cycleStatus && !['regular', 'perimenopause'].includes(profileContext.cycleStatus)) {
     flags.push(`Female hormone context: cycle status is ${profileContext.cycleStatus}; interpret sex-hormone recovery markers with that state, not ordinary cycling assumptions.`);
   }

@@ -15,8 +15,8 @@ export function renderScoreQuestion(score) {
     <div class="biology-score-question-kicker">What this score is checking</div>
     <p>${escapeHTML(question)}</p>
     <div class="biology-score-panel-levels" aria-label="Labs used for this score">
-      <div><span>Enough to start</span><strong>${renderInlineList(score.basicInputs || [])}</strong></div>
-      <div><span>Better confidence</span><strong>${renderInlineList(score.extendedInputs || [])}</strong></div>
+      <div><span>Core markers</span><strong>${renderInlineList(score.basicInputs || [])}</strong></div>
+      <div><span>Add for better confidence</span><strong>${renderInlineList(score.extendedInputs || [])}</strong></div>
     </div>
   </section>`;
 }
@@ -45,7 +45,7 @@ function cleanupLegacyScoreAIAnswerCache() {
 function readScoreAIAnswer(score) {
   cleanupLegacyScoreAIAnswerCache();
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id];
-  if (profileAnswer?.text) return profileAnswer.text;
+  if (profileAnswer?.text && profileAnswer.fingerprint === getScoreAICacheKey(score)) return profileAnswer.text;
   return '';
 }
 

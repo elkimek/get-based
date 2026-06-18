@@ -43,6 +43,47 @@ export function resolveCoverageLabel(coverage) {
   return 'low';
 }
 
+export function resolveScoreConfidence(result) {
+  const coverage = Number(result?.coverage || 0);
+  const coveredCoreGroups = new Set((result?.available || [])
+    .filter(item => item.coreGroup && item.core !== false)
+    .map(item => item.coreGroup));
+  const missingCoreRaw = (result?.missing || [])
+    .filter(item => item.core === true)
+    .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup));
+  const missingCore = [];
+  const seenCoreGroups = new Set();
+  for (const item of missingCoreRaw) {
+    if (item.coreGroup) {
+      if (seenCoreGroups.has(item.coreGroup)) continue;
+      seenCoreGroups.add(item.coreGroup);
+      missingCore.push({ ...item, label: item.coreGroupLabel || item.label });
+      continue;
+    }
+    missingCore.push(item);
+  }
+  if (!Number.isFinite(result?.score)) {
+    return { level: 'not-current', label: 'Not current', warning: result?.recencyMessage || 'This score is not currently computed.' };
+  }
+  if (missingCore.length) {
+    return { level: 'low', label: 'Low confidence', warning: `Missing core marker${missingCore.length === 1 ? '' : 's'}: ${missingCore.slice(0, 3).map(i => i.label).join(', ')}${missingCore.length > 3 ? ', …' : ''}. Treat the number as provisional.` };
+  }
+  if (coverage < 0.45) return { level: 'low', label: 'Low confidence', warning: 'Thin marker coverage. Treat the number as a rough clue, not a reliable score.' };
+  if (coverage < 0.8) return { level: 'medium', label: 'Medium confidence', warning: 'Partial panel. Useful for direction, but missing markers can change this score.' };
+  return { level: 'high', label: 'High confidence', warning: '' };
+}
+
+export function applyScoreConfidence(result) {
+  const confidence = resolveScoreConfidence(result);
+  const flags = [...(result.flags || [])];
+  if (confidence.warning && !flags.includes(confidence.warning)) flags.unshift(confidence.warning);
+  if (Number.isFinite(result.score) && result.score >= 85 && confidence.level !== 'high') {
+    const warning = 'High numeric score with incomplete evidence: do not treat this as “all clear” until the core/extended panel is filled.';
+    if (!flags.includes(warning)) flags.unshift(warning);
+  }
+  return { ...result, scoreConfidence: confidence.level, scoreConfidenceLabel: confidence.label, scoreConfidenceWarning: confidence.warning, flags };
+}
+
 export function parsePath(path) {
   if (Array.isArray(path)) return path;
   const idx = String(path).indexOf('.');
@@ -84,7 +125,107 @@ export function getMarkerHit(data, paths) {
       range,
     };
   }
+  const derived = getDerivedMarkerHit(data, candidates);
+  if (derived) return derived;
   return null;
+}
+
+function getDerivedMarkerHit(data, candidates) {
+  for (const path of candidates) {
+    const [catKey, markerKey] = parsePath(path);
+    if (!catKey) continue;
+    if (catKey === 'calculatedRatios' && markerKey === 'cholHdlRatio') {
+      const derived = deriveTotalCholesterolHdlRatio(data);
+      if (!derived) continue;
+      const { value, date, ageDays } = derived;
+      return {
+        id: 'calculatedRatios_cholHdlRatio',
+        dotKey: 'calculatedRatios.cholHdlRatio',
+        label: 'Total cholesterol/HDL ratio',
+        value,
+        canonicalValue: value,
+        displayValue: formatValue(value),
+        unit: '',
+        date,
+        ageDays,
+        range: { min: 0, max: 5 },
+        derivedFrom: ['lipids.cholesterol', 'lipids.hdl'],
+      };
+    }
+    if (!['aaEpaRatio', 'omega3Index'].includes(markerKey)) continue;
+    const category = data?.categories?.[catKey];
+    const derived = markerKey === 'aaEpaRatio'
+      ? deriveRatioFromMarkers(data, category, 'arachidonicC20_4', 'epaC20_5', (aa, epa) => epa > 0 ? aa / epa : null)
+      : (deriveRatioFromMarkers(data, category, 'epaC20_5', 'dhaC22_6', (epa, dha) => epa + dha)
+        || deriveRatioFromMarkers(data, category, 'epa', 'dha', (epa, dha) => epa + dha, valuesLookLikeFattyAcidPercent));
+    if (!derived) continue;
+    const { value, date, ageDays } = derived;
+    const label = markerKey === 'aaEpaRatio' ? 'AA/EPA ratio' : 'Omega-3 index';
+    const range = markerKey === 'aaEpaRatio' ? { min: 10, max: 86 } : { min: 8, max: 12 };
+    const derivedFrom = markerKey === 'aaEpaRatio'
+      ? [`${catKey}.arachidonicC20_4`, `${catKey}.epaC20_5`]
+      : [`${catKey}.epaC20_5`, `${catKey}.dhaC22_6`];
+    return {
+      id: `${catKey}_${markerKey}`,
+      dotKey: `${catKey}.${markerKey}`,
+      label,
+      value,
+      canonicalValue: value,
+      displayValue: formatValue(value),
+      unit: '',
+      date,
+      ageDays,
+      range,
+      derivedFrom,
+    };
+  }
+  return null;
+}
+
+function deriveTotalCholesterolHdlRatio(data) {
+  const category = data?.categories?.lipids;
+  const totalMarker = category?.markers?.cholesterol;
+  const hdlMarker = category?.markers?.hdl;
+  if (!totalMarker || !hdlMarker) return null;
+  const totalIdx = getLatestValueIndex(totalMarker.values || []);
+  const hdlIdx = getLatestValueIndex(hdlMarker.values || []);
+  if (totalIdx < 0 || hdlIdx < 0) return null;
+  const totalRaw = Number(totalMarker.values[totalIdx]);
+  const hdlRaw = Number(hdlMarker.values[hdlIdx]);
+  if (!Number.isFinite(totalRaw) || !Number.isFinite(hdlRaw)) return null;
+  const total = canonicalMarkerValue('lipids.cholesterol', totalMarker, totalRaw);
+  const hdl = canonicalMarkerValue('lipids.hdl', hdlMarker, hdlRaw);
+  if (!Number.isFinite(total) || !Number.isFinite(hdl) || hdl <= 0) return null;
+  const totalDate = totalMarker.singleDate || category.singleDate || data?.dates?.[totalIdx] || '';
+  const hdlDate = hdlMarker.singleDate || category.singleDate || data?.dates?.[hdlIdx] || '';
+  const date = hdlDate && totalDate && hdlDate !== totalDate ? hdlDate : (totalDate || hdlDate);
+  return { value: parseFloat((total / hdl).toPrecision(6)), date, ageDays: getAgeDays(date) };
+}
+
+function deriveRatioFromMarkers(data, category, leftKey, rightKey, compute, valuesOk = null) {
+  const leftMarker = category?.markers?.[leftKey];
+  const rightMarker = category?.markers?.[rightKey];
+  if (!leftMarker || !rightMarker) return null;
+  const leftIdx = getLatestValueIndex(leftMarker.values || []);
+  const rightIdx = getLatestValueIndex(rightMarker.values || []);
+  if (leftIdx < 0 || rightIdx < 0) return null;
+  const left = Number(leftMarker.values[leftIdx]);
+  const right = Number(rightMarker.values[rightIdx]);
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+  if (valuesOk && !valuesOk(left, right, leftMarker, rightMarker)) return null;
+  const raw = compute(left, right);
+  if (!Number.isFinite(raw)) return null;
+  const leftDate = leftMarker.singleDate || category.singleDate || data?.dates?.[leftIdx] || '';
+  const rightDate = rightMarker.singleDate || category.singleDate || data?.dates?.[rightIdx] || '';
+  const date = rightDate && leftDate && rightDate !== leftDate ? rightDate : (leftDate || rightDate);
+  return { value: parseFloat(raw.toPrecision(6)), date, ageDays: getAgeDays(date) };
+}
+
+function valuesLookLikeFattyAcidPercent(left, right, leftMarker, rightMarker) {
+  const units = `${leftMarker?.unit || ''} ${rightMarker?.unit || ''}`.toLowerCase();
+  if (units.includes('µmol') || units.includes('umol') || units.includes('mg/') || units.includes('mmol')) return false;
+  if (units.includes('%') || units.trim() === '') return left >= 0 && right >= 0 && left <= 20 && right <= 20 && left + right <= 25;
+  return false;
 }
 
 export function scoreAgainstRange(value, range) {
@@ -210,7 +351,7 @@ export function finalizeCustomScore(def, parts, missing, flags = []) {
   const scoreSum = available.reduce((sum, p) => sum + p.partial * p.weight, 0);
   const score = availableWeight > 0 ? Math.round(scoreSum / availableWeight) : null;
   const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreRecency({
+  return applyScoreConfidence(applyScoreRecency({
     ...def,
     score,
     tone: score == null ? null : resolveScoreTone(score),
@@ -220,7 +361,22 @@ export function finalizeCustomScore(def, parts, missing, flags = []) {
     available,
     missing,
     flags,
-  });
+  }));
+}
+
+
+function clinicalGuardrailForHit(hit) {
+  if (!hit || !Number.isFinite(hit.value)) return '';
+  const dot = hit.dotKey;
+  const max = Number.isFinite(hit.range?.max) ? Number(hit.range.max) : null;
+  const min = Number.isFinite(hit.range?.min) ? Number(hit.range.min) : null;
+  const high = max != null && hit.value > max;
+  const low = min != null && hit.value < min;
+  if (!high && !low) return '';
+  if (['electrolytes.potassium', 'electrolytes.sodium'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; electrolyte abnormalities are not wellness signals and deserve clinical context.`;
+  if (['biochemistry.egfr', 'biochemistry.eGFR', 'biochemistry.gfrCystatin'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; kidney-filtration flags should not be hidden inside a composite score.`;
+  if (['hematology.platelets', 'hematology.wbc', 'hematology.hemoglobin'].includes(dot)) return `Clinical guardrail: ${hit.label} is outside range; review the raw CBC result, not only this score.`;
+  return '';
 }
 
 export function computeWeightedComposite(data, def) {
@@ -231,23 +387,26 @@ export function computeWeightedComposite(data, def) {
     const hit = getMarkerHit(data, input.paths);
     const modifier = getInputProfileModifier(hit || {}, input, profileContext);
     const effectiveWeight = input.weight * (modifier.weightScale ?? 1);
+    const coreApplies = input.core === true && (!Array.isArray(input.coreSex) || !profileContext?.sex || input.coreSex.includes(profileContext.sex));
     const effectiveRange = modifier.rangeOverride ?? hit?.range;
     const partial = hit ? scoreAgainstRange(hit.value, effectiveRange) : null;
-    if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight }); continue; }
+    if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight, core: coreApplies, coreGroup: input.coreGroup || '', coreGroupLabel: input.coreGroupLabel || '' }); continue; }
     if (modifier.flag && !flags.includes(modifier.flag)) flags.push(modifier.flag);
+    const guardrail = clinicalGuardrailForHit(hit);
+    if (guardrail && !flags.includes(guardrail)) flags.unshift(guardrail);
     if (modifier.score === false) {
-      available.push({ ...hit, key: input.key, label: input.label, partial: null, weight: 0, profileContextOnly: true, recencyRequired: false });
+      available.push({ ...hit, key: input.key, label: input.label, partial: null, weight: 0, profileContextOnly: true, recencyRequired: false, core: coreApplies, coreGroup: input.coreGroup || '' });
       continue;
     }
     totalWeight += effectiveWeight;
-    available.push({ ...hit, key: input.key, label: input.label, partial, weight: effectiveWeight, recencyRequired: input.recencyRequired !== false });
+    available.push({ ...hit, key: input.key, label: input.label, partial, weight: effectiveWeight, recencyRequired: input.recencyRequired !== false, core: coreApplies, coreGroup: input.coreGroup || '' });
     availableWeight += effectiveWeight;
     scoreSum += partial * effectiveWeight;
   }
 
   const score = availableWeight > 0 ? Math.round(scoreSum / availableWeight) : null;
   const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;
-  return applyScoreRecency({
+  return applyScoreConfidence(applyScoreRecency({
     ...def,
     score,
     tone: score == null ? null : resolveScoreTone(score),
@@ -257,5 +416,5 @@ export function computeWeightedComposite(data, def) {
     available,
     missing,
     flags,
-  });
+  }));
 }

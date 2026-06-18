@@ -21,13 +21,13 @@ export function computeBloodFlowSignals(data, def) {
   const flags = [];
   const parts = [];
   const missing = [];
-  const add = (hit, key, label, weight, partial) => {
-    if (!hit || partial == null) missing.push({ key, label, weight });
-    else parts.push({ ...hit, key, label, weight, partial: Math.round(partial) });
+  const add = (hit, key, label, weight, partial, core = false) => {
+    if (!hit || partial == null) missing.push({ key, label, weight, core });
+    else parts.push({ ...hit, key, label, weight, partial: Math.round(partial), core });
   };
-  add(hct, 'hct', 'Hematocrit concentration', 1.15, hct ? scoreAgainstRange(hct.value, hct.range) : null);
-  add(hgb, 'hgb', 'Hemoglobin concentration', 0.75, hgb ? scoreAgainstRange(hgb.value, hgb.range) : null);
-  add(platelets, 'platelets', 'Platelet count context', 0.55, platelets ? scoreAgainstRange(platelets.value, platelets.range) : null);
+  add(hct, 'hct', 'Hematocrit concentration', 1.15, hct ? scoreAgainstRange(hct.value, hct.range) : null, true);
+  add(hgb, 'hgb', 'Hemoglobin concentration', 0.75, hgb ? scoreAgainstRange(hgb.value, hgb.range) : null, true);
+  add(platelets, 'platelets', 'Platelet count context', 0.55, platelets ? scoreAgainstRange(platelets.value, platelets.range) : null, true);
   add(fibrinogen, 'fibrinogen', 'Fibrinogen / plasma viscosity context', 0.95, fibrinogen ? scoreHighOnly(fibrinogen.value, fibrinogen.range?.max ?? 4, (fibrinogen.range?.max ?? 4) * 2) : null);
   add(dDimer, 'dDimer', 'D-dimer activation context', 0.8, dDimer ? scoreHighOnly(dDimer.value, dDimer.range?.max ?? 0.5, (dDimer.range?.max ?? 0.5) * 4) : null);
   add(albumin, 'albumin', 'Albumin plasma context', 0.35, albumin ? scoreAgainstRange(albumin.value, albumin.range) : null);
@@ -36,6 +36,9 @@ export function computeBloodFlowSignals(data, def) {
   add(crp, 'crp', 'Inflammation context', 0.35, crp ? scoreHighOnly(crp.value, crp.range?.max ?? 3, (crp.range?.max ?? 3) * 4) : null);
   if (hct && hct.range?.max != null && hct.value > hct.range.max) flags.push('High hematocrit pattern: hemoconcentration/viscosity context, not a direct viscosity measurement.');
   if (fibrinogen) flags.push('Fibrinogen is the strongest mapped plasma-viscosity context marker here.');
-  if (dDimer) flags.push('D-dimer is acute/contextual; elevated results need clinical context rather than wellness scoring.');
+  if (dDimer) {
+    flags.push('D-dimer is acute/contextual; elevated results need clinical context rather than wellness scoring.');
+    if (dDimer.range?.max != null && dDimer.value > dDimer.range.max) flags.unshift('Clinical guardrail: elevated D-dimer is not a wellness signal; consider timely clinical review in context.');
+  }
   return finalizeCustomScore(def, parts, missing, flags);
 }

@@ -64,6 +64,9 @@
 .db-hero-biology-score .biology-score-rail {
   display: none;
 }
+.db-hero-biology-score .biology-score-meta {
+  grid-column: 1 / -1;
+}
 .db-spark { width: 100%; height: 100%; color: var(--accent); overflow: visible; }
 .db-spark polyline {
   fill: none; stroke: currentColor; stroke-width: 2;

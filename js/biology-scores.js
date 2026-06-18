@@ -1,9 +1,10 @@
 // @ts-check
 // biology-scores.js — Biology Scores orchestrator and public API.
 
+import { filterDatesByRange } from './data.js';
 import { generateBiologyScoreAIAnswer } from './biology-score-ai.js';
 import { computeBiologicalCoherence } from './biology-score-coherence.js';
-import { BIOLOGY_SCORE_COPY } from './biology-score-copy.js';
+import { getBiologyScoreCopy } from './biology-score-copy.js';
 import { computeBloodFlowSignals } from './biology-score-blood-flow.js';
 import { computeWeightedComposite } from './biology-score-engine.js';
 import { computeIronHandling } from './biology-score-iron.js';
@@ -11,6 +12,8 @@ import { CUSTOM_BIOLOGY_SCORE_MAPPINGS } from './biology-score-mappings.js';
 
 import {
   renderBiologicalCoherenceLensHero as renderBiologicalCoherenceLensHeroImpl,
+  renderBiologyScoreCoveragePlanner,
+  renderBiologyScoresActionSummary,
   renderBiologyScoresLens as renderBiologyScoresLensImpl,
   renderBiologyScoresWidget as renderBiologyScoresWidgetImpl,
   renderDashboardBiologyScoreWidget as renderDashboardBiologyScoreWidgetImpl,
@@ -21,7 +24,9 @@ import { renderScoreAIAnswer, writeScoreAIAnswer } from './biology-score-section
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
 import { computeThyroidCoherence } from './biology-score-thyroid.js';
+import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
+import { createNewThread } from './chat-threads.js';
 
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
@@ -42,6 +47,10 @@ function installBiologyScoreDelegates() {
         const usePrompt = (/** @type {any} */ (window)).useChatPrompt;
         usePrompt?.('Interpret my Biology Scores. Focus on the strongest and most strained patterns, any stale or mixed-date scores that need retesting, and the most useful next checks. Treat the scores as deterministic pattern summaries, not diagnoses.');
       }, 250);
+      event.preventDefault();
+    } else if (action === 'plan-coverage-chat') {
+      createNewThread();
+      (/** @type {any} */ (globalThis)).openChatPanel?.('What markers should I order to improve my Biology Scores coverage? Prioritize baseline Biological Coherence first, avoid advanced or specialty tests unless they materially improve coverage, and explain which missing markers map to which scores.');
       event.preventDefault();
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();
@@ -123,11 +132,11 @@ export const SCORE_DEFINITIONS = [
     summary: 'A practical fasting-lab proxy for fuel flexibility, anchored on glucose-insulin pressure and triglyceride/HDL handling.',
     compute: computeWeightedComposite,
     inputs: [
-      { key: 'homaIR', label: 'HOMA-IR', weight: 1.7, paths: 'diabetes.homaIR' },
-      { key: 'insulin', label: 'Fasting insulin', weight: 1.45, paths: ['hormones.insulin', 'diabetes.insulin_d'] },
-      { key: 'glucose', label: 'Fasting glucose', weight: 0.95, paths: 'biochemistry.glucose' },
+      { key: 'homaIR', label: 'HOMA-IR', weight: 1.7, paths: 'diabetes.homaIR', core: true },
+      { key: 'insulin', label: 'Fasting insulin', weight: 1.45, paths: ['hormones.insulin', 'diabetes.insulin_d'], core: true },
+      { key: 'glucose', label: 'Fasting glucose', weight: 0.95, paths: 'biochemistry.glucose', core: true },
       { key: 'hba1c', label: 'HbA1c', weight: 0.85, paths: 'diabetes.hba1c' },
-      { key: 'tgHdlRatio', label: 'TG/HDL ratio', weight: 1.15, paths: 'calculatedRatios.tgHdlRatio' },
+      { key: 'tgHdlRatio', label: 'TG/HDL ratio', weight: 1.15, paths: 'calculatedRatios.tgHdlRatio', core: true },
       { key: 'tag', label: 'Triglycerides', weight: 0.75, paths: 'lipids.triglycerides' },
       { key: 'hdl', label: 'HDL', weight: 0.55, paths: 'lipids.hdl' },
       { key: 'cPeptide', label: 'C-peptide', weight: 0.35, paths: ['diabetes.cPeptide', 'hormones.cPeptide'] },
@@ -135,32 +144,32 @@ export const SCORE_DEFINITIONS = [
     ],
   },
   {
-    id: 'thyroidCoherence', title: 'Thyroid Coherence', kicker: 'Signal quality', evidence: 'experimental', panelTier: 'minimum', coherenceDomain: 'endocrine', coherenceWeight: 1.0,
-    summary: 'Thyroid regulation, Free T3 activity, and T4-to-T3 conversion coherence.', compute: computeThyroidCoherence,
+    id: 'thyroidCoherence', title: 'Thyroid Coherence', kicker: 'Signal quality', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'endocrine', coherenceWeight: 1.0,
+    summary: 'Profile-aware thyroid regulation, Free T3 activity, and T4-to-T3 conversion coherence.', compute: computeThyroidCoherence,
   },
   {
-    id: 'cardiovascularLipoprotein', title: 'Cardiovascular / Lipoprotein', kicker: 'Atherogenic risk pattern', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'cardiovascular', coherenceWeight: 1.1,
+    id: 'cardiovascularLipoprotein', title: 'Cardiovascular Risk', kicker: 'Lipoprotein pattern', evidence: 'production', panelTier: 'minimum', coherenceDomain: 'cardiovascular', coherenceWeight: 1.1,
     summary: 'Atherogenic lipoprotein pattern anchored on ApoB and ApoB/ApoA1 ratio; the strongest outcome-predicted cardiovascular risk markers available.',
     compute: computeWeightedComposite,
     inputs: [
-      { key: 'apoB', label: 'ApoB atherogenic particles', weight: 2.0, paths: ['lipids.apoB', 'lipids.apoB_'] },
-      { key: 'apoBA1Ratio', label: 'ApoB/ApoA1 ratio', weight: 1.5, paths: 'calculatedRatios.apoBA1Ratio' },
+      { key: 'apoB', label: 'ApoB atherogenic particles', weight: 2.0, paths: ['lipids.apoB', 'lipids.apoB_'], core: true },
+      { key: 'apoBA1Ratio', label: 'ApoB/ApoA1 ratio', weight: 1.5, paths: ['calculatedRatios.apoBapoAIRatio', 'calculatedRatios.apoBA1Ratio'], core: true },
       { key: 'apoA1', label: 'ApoA1 protective particles', weight: 1.0, paths: ['lipids.apoAI', 'lipids.apoA1'] },
       { key: 'lpA', label: 'Lp(a) genetic risk', weight: 1.0, paths: ['lipids.lpA', 'lipids.lpa', 'lipids.lp_a'] },
       { key: 'ldl', label: 'LDL cholesterol', weight: 0.8, paths: ['lipids.ldl', 'lipids.ldlCholesterol', 'calculatedRatios.ldl'] },
-      { key: 'cholHdlRatio', label: 'Total cholesterol/HDL ratio', weight: 0.6, paths: 'calculatedRatios.cholHdlRatio' },
+      { key: 'cholHdlRatio', label: 'Total cholesterol/HDL ratio', weight: 0.6, paths: ['calculatedRatios.cholHdlRatio', 'lipids.cholHdlRatio'] },
       { key: 'homocysteine', label: 'Homocysteine vascular context', weight: 0.5, paths: 'coagulation.homocysteine', recencyRequired: false },
       { key: 'hsCrp', label: 'hs-CRP vascular inflammation', weight: 0.4, paths: ['proteins.hsCRP', 'proteins.crp'], recencyRequired: false },
       { key: 'triglycerides', label: 'Triglyceride atherogenic context', weight: 0.4, paths: 'lipids.triglycerides', recencyRequired: false },
     ],
   },
   {
-    id: 'redoxStress', title: 'Inflammation & Metabolic Burden', kicker: 'Contextual risk load', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'inflammation', coherenceWeight: 1.0,
+    id: 'redoxStress', title: 'Inflammatory Load', kicker: 'Metabolic burden context', evidence: 'contextual', panelTier: 'minimum', coherenceDomain: 'inflammation', coherenceWeight: 1.0,
     summary: 'Inflammation and liver-metabolic burden anchored on hs-CRP and GGT; other markers are context, not direct redox measurement.', compute: computeWeightedComposite,
     inputs: [
-      { key: 'hsCrp', label: 'hs-CRP', weight: 1.55, paths: 'proteins.hsCRP' },
+      { key: 'hsCrp', label: 'hs-CRP', weight: 1.55, paths: 'proteins.hsCRP', core: true },
       { key: 'crp', label: 'CRP', weight: 0.55, paths: 'proteins.crp' },
-      { key: 'ggt', label: 'GGT', weight: 1.25, paths: 'biochemistry.ggt' },
+      { key: 'ggt', label: 'GGT', weight: 1.25, paths: 'biochemistry.ggt', core: true },
       { key: 'uricAcid', label: 'Uric acid', weight: 0.6, paths: 'biochemistry.uricAcid' },
       { key: 'ferritin', label: 'Ferritin context', weight: 0.45, paths: 'iron.ferritin' },
       { key: 'homocysteine', label: 'Homocysteine', weight: 0.55, paths: 'coagulation.homocysteine' },
@@ -173,7 +182,7 @@ export const SCORE_DEFINITIONS = [
     id: 'lipidMembrane', title: 'Lipid Membrane', kicker: 'Fatty-acid architecture', evidence: 'contextual', panelTier: 'extended', coherenceDomain: 'membrane', coherenceWeight: 1.0,
     summary: 'Cell-membrane lipid quality with emphasis on omega-3/DHA and inflammatory fatty-acid balance.', compute: computeWeightedComposite,
     inputs: [
-      { key: 'omega3Index', label: 'Omega-3 index', weight: 2.0, paths: ['fattyAcids.omega3Index', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index'] },
+      { key: 'omega3Index', label: 'Omega-3 index', weight: 2.0, core: true, paths: ['fattyAcids.omega3Index', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index'] },
       { key: 'dha', label: 'DHA', weight: 1.15, paths: ['fattyAcids.dhaC22_6', 'spadiaFA.dhaC22_6', 'omegaquantFA.dhaC22_6', 'zinzinoFA.dhaC22_6', 'metabolomixFA.dhaC22_6', 'fattyAcidsTest.dhaC22_6', 'biostarksFA.dha'] },
       { key: 'epa', label: 'EPA', weight: 0.9, paths: ['fattyAcids.epaC20_5', 'spadiaFA.epaC20_5', 'omegaquantFA.epaC20_5', 'zinzinoFA.epaC20_5', 'metabolomixFA.epaC20_5', 'fattyAcidsTest.epaC20_5', 'biostarksFA.epa'] },
       { key: 'aaEpa', label: 'AA/EPA ratio', weight: 0.55, paths: ['fattyAcids.aaEpaRatio', 'spadiaFA.aaEpaRatio', 'omegaquantFA.aaEpaRatio', 'zinzinoFA.aaEpaRatio', 'metabolomixFA.aaEpaRatio', 'fattyAcidsTest.aaEpaRatio'] },
@@ -184,7 +193,7 @@ export const SCORE_DEFINITIONS = [
     ],
   },
   {
-    id: 'bloodFlowViscosity', title: 'Blood Flow Signals', kicker: 'Flow context', evidence: 'experimental', panelTier: 'minimum', coherenceDomain: 'blood', coherenceWeight: 0.8,
+    id: 'bloodFlowViscosity', title: 'Blood Flow Context', kicker: 'Flow context', evidence: 'experimental', panelTier: 'minimum', coherenceDomain: 'blood', coherenceWeight: 0.8,
     summary: 'Blood concentration and clotting-context signals; experimental and not a direct blood-viscosity measurement.', compute: computeBloodFlowSignals,
   },
   {
@@ -196,7 +205,8 @@ export const SCORE_DEFINITIONS = [
 ];
 
 export function computeBiologyScoresInternal(data, definitions) {
-  return definitions.map((def) => ({ ...def.compute(data, def), ...(BIOLOGY_SCORE_COPY[def.id] || {}) }));
+  const profileContext = getBiologyProfileContext();
+  return definitions.map((def) => ({ ...def.compute(data, def), ...getBiologyScoreCopy(def.id, profileContext) }));
 }
 
 export function computeBiologyScores(data) {
@@ -217,6 +227,9 @@ export function getBiologyScoreMapping() {
       weight: input.weight,
       paths: Array.isArray(input.paths) ? input.paths : [input.paths],
       recencyRequired: input.recencyRequired !== false,
+      core: input.core === true,
+      coreGroup: input.coreGroup || '',
+      coreSex: Array.isArray(input.coreSex) ? input.coreSex : [],
     })),
     formula: def.compute === computeWeightedComposite ? 'weighted-range-composite' : def.id,
   }));
@@ -233,8 +246,18 @@ export function getBiologyScoreWidgetDefinitions() {
   }));
 }
 
+function contextScoreData(ctx) {
+  if (!ctx) return {};
+  return filterDatesByRange(ctx.data || {}, { fallbackToAll: false });
+}
+
+function contextForScores(ctx) {
+  return ctx ? { ...ctx, data: contextScoreData(ctx) } : ctx;
+}
+
 export function getBiologyScoreLensWidgets(ctx) {
-  const scores = computeBiologyScores(ctx?.data || {}).filter(score => score.id !== 'biologicalCoherence');
+  const scoreCtx = contextForScores(ctx);
+  const scores = computeBiologyScores(scoreCtx?.data || {}).filter(score => score.id !== 'biologicalCoherence');
   const live = scores.filter(s => Number.isFinite(s.score)).sort((a, b) => b.score - a.score);
   const waiting = scores.filter(s => !Number.isFinite(s.score));
   const widgets = live.map(score => ({ id: `biology-score-detail-${score.id}`, title: score.title, description: score.summary, body: renderScoreDetail(score, { showHeading: false }), size: 'full', opts: { source: 'Biology Scores', dashboardId: `biology-score-${score.id}` } }));
@@ -243,29 +266,31 @@ export function getBiologyScoreLensWidgets(ctx) {
 }
 
 export function renderBiologicalCoherenceLensHero(ctx) {
-  return renderBiologicalCoherenceLensHeroImpl(ctx, computeBiologyScores);
+  return renderBiologicalCoherenceLensHeroImpl(contextForScores(ctx), computeBiologyScores);
 }
 
 export function renderDashboardBiologicalCoherenceWidget(ctx) {
-  return renderDashboardBiologicalCoherenceWidgetImpl(ctx, computeBiologyScores);
+  return renderDashboardBiologicalCoherenceWidgetImpl(contextForScores(ctx), computeBiologyScores);
 }
 
 export function renderDashboardBiologyScoreWidget(ctx, scoreId) {
-  return renderDashboardBiologyScoreWidgetImpl(ctx, scoreId, computeBiologyScores);
+  return renderDashboardBiologyScoreWidgetImpl(contextForScores(ctx), scoreId, computeBiologyScores);
 }
 
 export function renderBiologyScoresWidget(ctx, options = {}) {
-  return renderBiologyScoresWidgetImpl(ctx, options, computeBiologyScores);
+  return renderBiologyScoresWidgetImpl(contextForScores(ctx), options, computeBiologyScores);
 }
 
 export function renderBiologyScoresLens(ctx) {
-  return renderBiologyScoresLensImpl(ctx, computeBiologyScores);
+  return renderBiologyScoresLensImpl(contextForScores(ctx), computeBiologyScores);
 }
 
 // Re-export the render implementations for callers that want the injected-compute variant.
 export {
   renderBiologicalCoherenceLensHeroImpl as renderBiologicalCoherenceLensHeroCompute,
+  renderBiologyScoreCoveragePlanner,
   renderBiologyScoresLensImpl as renderBiologyScoresLensCompute,
+  renderBiologyScoresActionSummary,
   renderBiologyScoresWidgetImpl as renderBiologyScoresWidgetCompute,
   renderDashboardBiologyScoreWidgetImpl as renderDashboardBiologyScoreWidgetCompute,
 };

@@ -231,6 +231,12 @@ try {
   const duplicatePull = await mergePulledImportedData(profileId, null);
   assert('pull merge reports duplicate v4 per-row overlay as no-op',
     duplicatePull.localDataChanged === false && duplicatePull.merged.manualValues?.[rawKey] === 8);
+
+  state.importedData = { entries: [], biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-fp', updatedAt: 2000 } };
+  const staleRemotePull = await mergePulledImportedData(profileId, { entries: [], biologyScoreContextAI: { summary: 'stale remote review', fingerprint: 'remote-fp', updatedAt: 1000 } });
+  assert('pull merge preserves fresher local Biology Scores context review over stale remote blob',
+    staleRemotePull.merged.biologyScoreContextAI?.fingerprint === 'local-fp'
+    && staleRemotePull.needsRebroadcast === true);
 } finally {
   configureSyncDelta({
     getEvolu: () => null,

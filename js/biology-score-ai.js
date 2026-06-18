@@ -7,7 +7,10 @@ function scoreLine(score) {
   const toneText = score.tone || 'not scored';
   const coverageText = `${Math.round((score.coverage || 0) * 100)}% coverage`;
   const recency = score.recencyStatus && score.recencyStatus !== 'fresh' ? `; recency: ${score.recencyBadge}` : '';
-  const used = score.available.map(item => `${item.label}: ${item.displayValue}${item.unit ? ` ${item.unit}` : ''}, fit ${Math.round(item.partial)}/100, date ${item.date || 'unknown'}`).join('\n');
+  const used = score.available.map(item => {
+    const fit = item.profileContextOnly || !Number.isFinite(item.partial) ? 'context only / excluded from score' : `fit ${Math.round(item.partial)}/100`;
+    return `${item.label}: ${item.displayValue}${item.unit ? ` ${item.unit}` : ''}, ${fit}, date ${item.date || 'unknown'}`;
+  }).join('\n');
   const missing = score.missing.map(item => item.label).join(', ') || 'none';
   const flags = score.flags?.join('\n') || 'none';
   return `Question: ${score.question || ''}\nScore: ${scoreText}; tone: ${toneText}; ${coverageText}${recency}\nMinimum useful panel: ${(score.basicInputs || []).join(', ')}\nExtended confidence panel: ${(score.extendedInputs || []).join(', ')}\nUsed inputs:\n${used || 'none'}\nMissing inputs: ${missing}\nFlags:\n${flags}`;

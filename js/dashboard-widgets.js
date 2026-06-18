@@ -11,13 +11,13 @@ import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards } from './context-cards.js';
 import { getBiologyScoreWidgetDefinitions } from './biology-scores.js';
 
-const DASHBOARD_WIDGETS_VERSION = 12;
+const DASHBOARD_WIDGETS_VERSION = 13;
 
 export const DASHBOARD_WIDGET_SOURCE_ORDER = ['Labs', 'Biology Scores', 'Genome', 'Body', 'Light', 'Insight', 'Tools'];
 export const DASHBOARD_WIDGET_DEFAULT_IDS = [
+  'biology-score-biologicalCoherence',
   'focus',
   'spotlight',
-  'biology-score-biologicalCoherence',
   'quick-markers',
   'key-trends',
   'recommendations',
