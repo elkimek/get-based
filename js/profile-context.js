@@ -30,6 +30,7 @@ export function getBiologyProfileContext() {
   const exercise = data.exercise || {};
   const exerciseText = `${exercise.frequency || ''} ${exercise.intensity || ''} ${(exercise.types || []).join(' ')} ${exercise.note || ''}`;
   const mc = data.menstrualCycle || null;
+  const menopauseStatus = flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null);
   const notes = [diagnoses.note, data.contextNotes, data.interpretiveLens, supplements, exerciseText].filter(Boolean).join(' ');
   const allText = `${conditionText} ${notes}`;
   const lowMuscleMass = !!flags.lowMuscleMass || textMatchesAny(allText, LOW_MUSCLE_TERMS);
@@ -40,7 +41,7 @@ export function getBiologyProfileContext() {
   const cycleStatus = sex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc ? (mc.cycleStatus || 'regular') : null)) : null;
   const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && !!mc?.contraceptive);
   return {
-    sex, ageYears: getProfileAgeYears(), cycleStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
+    sex, ageYears: getProfileAgeYears(), cycleStatus, menopauseStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
     lowMuscleReason: lowMuscleMass ? 'Profile context suggests low muscle mass / neuromuscular disease, so creatinine-derived markers are treated as context rather than scored signal.' : '',
     lowSunlightExposure,
     lowSunlightReason: lowSunlightExposure ? 'Profile context suggests minimal sunlight/UVB exposure. Vitamin D target is raised to 100 nmol/L (40 ng/mL) as a sufficiency floor rather than a bare minimum.' : '',

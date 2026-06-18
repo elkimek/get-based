@@ -437,6 +437,15 @@ const S = window._labState;
     const ldlHdl = ratios.markers.ldlHdlRatio;
     assert('ldlHdlRatio marker exists', !!ldlHdl);
 
+    // Total cholesterol/HDL ratio
+    const cholHdl = ratios.markers.cholHdlRatio;
+    assert('cholHdlRatio marker exists', !!cholHdl);
+    if (cholHdl) {
+      const v = cholHdl.values[ratioIdx];
+      assert(`cholHdlRatio @ ${ANCHOR_DATE} is computed from total cholesterol and HDL`, v !== null, `got ${v}`);
+      assert('cholHdlRatio carries optimal range', cholHdl.optimalMin === 0 && cholHdl.optimalMax === 3.5, `got ${cholHdl.optimalMin}-${cholHdl.optimalMax}`);
+    }
+
     // De Ritis ratio (AST/ALT)
     const deRitis = ratios.markers.deRitisRatio;
     assert('deRitisRatio marker exists', !!deRitis);

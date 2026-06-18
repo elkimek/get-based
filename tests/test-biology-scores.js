@@ -10,9 +10,10 @@ import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
 import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, generateBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
 import { renderScoreDetail } from '../js/biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from '../js/biology-score-sections.js';
-import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
+import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoreCoveragePlanner, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
 import { getActiveData, invalidateActiveDataCache, filterDatesByRange } from '../js/data.js';
 import { state } from '../js/state.js';
+import { MARKER_SCHEMA, OPTIMAL_RANGES, SPECIALTY_MARKER_DEFS } from '../js/schema.js';
 
 let pass = 0, fail = 0;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -177,11 +178,11 @@ const savedProfileSexForWeights = state.profileSex;
 state.profileSex = 'female';
 const femaleAnabolic = computeBiologyScores(data).find(score => score.id === 'anabolicRecoverySignal');
 state.profileSex = savedProfileSexForWeights;
-assert('female anabolic recovery downweights androgen markers and upweights estradiol',
+assert('female anabolic recovery downweights androgen markers and gates estradiol until cycle context is known',
   femaleAnabolic.available.find(i => i.key === 'testosterone')?.weight < byId.anabolicRecoverySignal.available.find(i => i.key === 'testosterone')?.weight
   && femaleAnabolic.available.find(i => i.key === 'freeTestosterone')?.weight < byId.anabolicRecoverySignal.available.find(i => i.key === 'freeTestosterone')?.weight
-  && femaleAnabolic.available.find(i => i.key === 'estradiol')?.weight > byId.anabolicRecoverySignal.available.find(i => i.key === 'estradiol')?.weight,
-  JSON.stringify(femaleAnabolic.available.filter(i => ['testosterone','freeTestosterone','estradiol'].includes(i.key)).map(i => [i.key, i.weight])));
+  && femaleAnabolic.available.find(i => i.key === 'estradiol')?.profileContextOnly === true,
+  JSON.stringify(femaleAnabolic.available.filter(i => ['testosterone','freeTestosterone','estradiol'].includes(i.key)).map(i => [i.key, i.weight, i.profileContextOnly])));
 const savedContextForFlags = { sex: state.profileSex, dob: state.profileDob, importedData: state.importedData };
 state.profileSex = 'female'; state.profileDob = '1960-01-01';
 state.importedData = { ...state.importedData, diagnoses: { conditions: [], flags: { hormoneTherapy: true, postmenopause: true, intenseTrainingRecent: true, acuteIllnessNearDraw: true } }, menstrualCycle: null, exercise: null, supplements: [], contextNotes: '' };
@@ -201,6 +202,53 @@ assert('hormone axis copy is sex-aware for male and female profiles',
   && !maleHormoneCopyScore.basicInputs.some(text => /cycle|menopause|contraception/i.test(text))
   && femaleHormoneCopyScore.basicInputs.some(text => /cycle day|menopause|contraception/i.test(text)),
   JSON.stringify({ male: maleHormoneCopyScore.basicInputs, female: femaleHormoneCopyScore.basicInputs }));
+const savedHormoneContextState = { sex: state.profileSex, dob: state.profileDob, importedData: state.importedData };
+state.profileSex = 'female'; state.profileDob = '1990-01-01';
+state.importedData = { entries: [{ date: '2026-06-21', markers: {
+  'hormones.estradiol': 420, 'hormones.progesterone': 35, 'hormones.lh': 4.5, 'hormones.fsh': 4.0, 'hormones.shbg': 70, 'hormones.prolactin': 12
+} }], menstrualCycle: { periods: [{ startDate: '2026-06-01' }], cycleLength: 28, periodLength: 5, cycleStatus: 'regular' }, diagnoses: null, contextNotes: '', interpretiveLens: '' };
+invalidateActiveDataCache();
+const lutealHormoneScore = computeBiologyScores(getActiveData()).find(score => score.id === 'hormoneAxis');
+assert('cycling female hormone axis scores phase-resolved progesterone/LH/FSH when cycle phase is known',
+  ['progesterone', 'lh', 'fsh'].every(key => lutealHormoneScore.available.some(i => i.key === key && i.profileContextOnly !== true && i.phaseRange))
+  && lutealHormoneScore.flags.some(flag => /cycle-phase range|luteal/i.test(flag)),
+  JSON.stringify(lutealHormoneScore.available.filter(i => ['progesterone','lh','fsh'].includes(i.key))));
+state.importedData = { entries: [{ date: '2026-06-21', markers: {
+  'hormones.estradiol': 420, 'hormones.progesterone': 35, 'hormones.lh': 4.5, 'hormones.fsh': 4.0, 'hormones.shbg': 70, 'hormones.prolactin': 12
+} }], diagnoses: null, contextNotes: '', interpretiveLens: '' };
+invalidateActiveDataCache();
+const missingPhaseHormoneScore = computeBiologyScores(getActiveData()).find(score => score.id === 'hormoneAxis');
+assert('cycling female hormone axis makes phase-critical hormones context-only when cycle phase is missing',
+  ['estradiol', 'progesterone', 'lh', 'fsh'].every(key => missingPhaseHormoneScore.available.some(i => i.key === key && i.profileContextOnly === true && i.weight === 0))
+  && missingPhaseHormoneScore.scoreConfidenceLabel === 'Needs context',
+  JSON.stringify({ available: missingPhaseHormoneScore.available, confidence: missingPhaseHormoneScore.scoreConfidenceLabel }));
+const missingPhaseScores = computeBiologyScores(getActiveData());
+const missingPhasePlannerHtml = renderBiologyScoreCoveragePlanner(missingPhaseScores.filter(score => score.id !== 'biologicalCoherence'), missingPhaseScores.find(score => score.id === 'biologicalCoherence'));
+assert('coverage planner surfaces hormone context-needed rows instead of only lab gaps',
+  missingPhasePlannerHtml.includes('context needed') && missingPhasePlannerHtml.includes('Hormone Axis'),
+  missingPhasePlannerHtml.slice(0, 600));
+state.importedData = { entries: [{ date: '2026-06-21', markers: {
+  'hormones.estradiol': 35, 'hormones.progesterone': 0.3, 'hormones.lh': 42, 'hormones.fsh': 78, 'hormones.shbg': 70, 'hormones.prolactin': 12
+} }], diagnoses: { conditions: [], flags: { postmenopause: true } }, menstrualCycle: null, contextNotes: '', interpretiveLens: '' };
+invalidateActiveDataCache();
+const postmenoHormoneScore = computeBiologyScores(getActiveData()).find(score => score.id === 'hormoneAxis');
+assert('postmenopause hormone axis does not punish expected high LH/FSH with cycling ranges',
+  ['estradiol', 'progesterone', 'lh', 'fsh'].every(key => postmenoHormoneScore.available.some(i => i.key === key && i.profileContextOnly === true))
+  && postmenoHormoneScore.flags.some(flag => /postmenopause context only/i.test(flag)),
+  JSON.stringify(postmenoHormoneScore.available.filter(i => ['estradiol','progesterone','lh','fsh'].includes(i.key))));
+state.profileSex = 'male';
+state.importedData = { entries: [{ date: '2026-06-21', markers: { 'hormones.cortisol': 500, 'hormones.dheaS': 6, 'biochemistry.glucose': 4.8 } }], diagnoses: null, contextNotes: '', interpretiveLens: '' };
+invalidateActiveDataCache();
+const noTimeStressScore = computeBiologyScores(getActiveData()).find(score => score.id === 'stressResilience');
+state.importedData = { entries: [{ date: '2026-06-21', context: { sampleTime: '08:30' }, markers: { 'hormones.cortisol': 500, 'hormones.dheaS': 6, 'biochemistry.glucose': 4.8 } }], diagnoses: null, contextNotes: '', interpretiveLens: '' };
+invalidateActiveDataCache();
+const timedStressScore = computeBiologyScores(getActiveData()).find(score => score.id === 'stressResilience');
+assert('single-point cortisol is context-only without sample time and scored with sample-time context',
+  noTimeStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly === true)
+  && timedStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly !== true && i.partial > 0)
+  && timedStressScore.flags.some(flag => /sample-time range/i.test(flag)),
+  JSON.stringify({ noTime: noTimeStressScore.available, timed: timedStressScore.available, flags: timedStressScore.flags }));
+state.profileSex = savedHormoneContextState.sex; state.profileDob = savedHormoneContextState.dob; state.importedData = savedHormoneContextState.importedData; invalidateActiveDataCache();
 const savedDiagnoses = state.importedData.diagnoses;
 const savedContextNotes = state.importedData.contextNotes;
 state.importedData.diagnoses = { conditions: [], flags: { lowMuscleMass: true }, note: '' };
@@ -506,6 +554,13 @@ assert('coverage planner marker chips use lab-orderable marker names instead of 
   && !coveragePlannerHtml.includes('>TPO antibody context<')
   && !coveragePlannerHtml.includes('>D-dimer activation context<'),
   coveragePlannerHtml);
+const thyroidDetailHtml = renderScoreDetail(byId.thyroidCoherence);
+assert('score detail marker chips and tables use lab-orderable marker names instead of explanatory context labels',
+  thyroidDetailHtml.includes('>Reverse T3<')
+  && thyroidDetailHtml.includes('>TPO antibodies<')
+  && !thyroidDetailHtml.includes('>Reverse T3 brake context<')
+  && !thyroidDetailHtml.includes('>TPO antibody context<'),
+  thyroidDetailHtml);
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
 assert('lens surfaces evidence strength as compact meta labels', lensHtml.includes('Production') && lensHtml.includes('Profile-aware') && lensHtml.includes('Early model'));
 const statusKinds = ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'];
@@ -544,6 +599,27 @@ const aiContext = buildBiologyScoresAIContext(data);
 assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Metabolic Flexibility') && aiContext.length < 2200);
 assert('AI context does not expose formula weights', !/weight/i.test(aiContext));
 assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning:') && aiContext.includes('baseline'), aiContext);
+const ambiguousMarkerLabelTerms = /(\bcontext\b|\bsignal\b|\bload\b|\bstress\b|\bsupport\b|\breserve\b|\bprotective\b|\batherogenic\b|\bdrag\b|\bskew\b|\bclue\b|\bavailability\b|\bbrake\b|\bactivation\b|\bconcentration\b|\butilization\b|\bironization\b|\btransport\b|\bsufficiency\b|\bvascular\b|\bmetabolic\b|\bliver\b|\bmuscle\b|\bbone\b|\bbile\b|\binflammation\b)/i;
+const badMarkerLabelPhrases = [
+  'Homocysteine load', 'Homocysteine vascular context', 'Triglyceride atherogenic context',
+  'hs-CRP vascular inflammation', 'CRP / hs-CRP', 'AST liver/muscle signal', 'ALP bile/bone context',
+  'Reverse T3 brake context', 'TPO antibody context', 'D-dimer activation context',
+];
+const ambiguousBiologyLabels = getBiologyScoreMapping()
+  .flatMap(score => score.inputs.map(input => `${score.id}: ${input.label}`))
+  .filter(label => ambiguousMarkerLabelTerms.test(label));
+assert('biology score input labels are lab-orderable marker names, not explanatory aliases',
+  ambiguousBiologyLabels.length === 0,
+  JSON.stringify(ambiguousBiologyLabels));
+const crpMixedInputs = getBiologyScoreMapping()
+  .flatMap(score => score.inputs.map(input => ({ score: score.id, label: input.label, paths: input.paths || [] })))
+  .filter(input => input.paths.includes('proteins.hsCRP') && input.paths.includes('proteins.crp'));
+assert('CRP and hs-CRP are not mixed through fallback paths in biology scores',
+  crpMixedInputs.length === 0,
+  JSON.stringify(crpMixedInputs));
+assert('AI biology score context does not leak explanatory marker-label aliases',
+  badMarkerLabelPhrases.every(phrase => !aiContext.includes(phrase)),
+  aiContext);
 
 const legacyBiologyAIKey = 'biology-score-ai-answer:legacy-sensitive-fingerprint';
 localStorage.setItem(legacyBiologyAIKey, 'legacy plaintext health answer');
@@ -634,15 +710,56 @@ assert('actual Biology Scores page shows compact context status before coherence
   && !/renderBiologicalCoherenceLensHero\(ctx\);\s*html \+= renderBiologyScoreContextAI\(scoreData\)/.test(lensPagesSrc));
 
 const mapping = getBiologyScoreMapping();
+const schemaMarkerKeys = new Set(Object.entries(MARKER_SCHEMA).flatMap(([cat, def]) => Object.keys(def.markers || {}).map(key => `${cat}.${key}`)));
+const specialtyMarkerKeys = new Set(Object.keys(SPECIALTY_MARKER_DEFS || {}));
+const derivableScoreKeys = new Set([
+  'calculatedRatios.cholHdlRatio',
+  'fattyAcids.aaEpaRatio', 'spadiaFA.aaEpaRatio', 'omegaquantFA.aaEpaRatio', 'zinzinoFA.aaEpaRatio', 'metabolomixFA.aaEpaRatio', 'fattyAcidsTest.aaEpaRatio',
+  'fattyAcids.omega3Index', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index',
+]);
+const unresolvedScoreInputs = [];
+const fallbackOnlyScoreInputs = [];
+for (const score of mapping) {
+  for (const input of score.inputs) {
+    const paths = (Array.isArray(input.paths) ? input.paths : [input.paths]).filter(Boolean);
+    const statuses = paths.map(path => schemaMarkerKeys.has(path) || specialtyMarkerKeys.has(path) || derivableScoreKeys.has(path));
+    if (!statuses.some(Boolean)) unresolvedScoreInputs.push(`${score.id}:${input.label} → ${paths.join('|')}`);
+    if (statuses.some(Boolean) && !statuses[0]) fallbackOnlyScoreInputs.push(`${score.id}:${input.label} → ${paths.join('|')}`);
+  }
+}
+assert('every Biology Score input has a schema, specialty-adapter, or deterministic derived source', unresolvedScoreInputs.length === 0, JSON.stringify(unresolvedScoreInputs));
+assert('primary Biology Score paths are canonical before legacy fallbacks', fallbackOnlyScoreInputs.length === 0, JSON.stringify(fallbackOnlyScoreInputs));
+assert('Gut–Immune specialty stool markers are available to imports and score wiring', ['stool.calprotectin', 'stool.zonulin', 'stool.secretoryIgA'].every(key => specialtyMarkerKeys.has(key) && mapping.find(s => s.id === 'gutImmuneSignal')?.inputs.some(i => i.paths.includes(key))));
 assert('mapping export includes all scores', mapping.length === scores.length, `got ${mapping.length}`);
 assert('mapping marks metabolic as evidence-backed', mapping.find(s => s.id === 'metabolicFlexibility')?.evidence === 'production');
 assert('mapping promotes thyroid coherence to profile-aware evidence', mapping.find(s => s.id === 'thyroidCoherence')?.evidence === 'contextual');
 assert('mapping exposes marker candidate paths', mapping.find(s => s.id === 'redoxStress')?.inputs.some(i => i.paths.includes('proteins.hsCRP')));
 assert('thyroid coherence mapping includes production-upgrade context markers', mapping.find(s => s.id === 'thyroidCoherence')?.inputs.some(i => i.paths.includes('thyroid.reverseT3')) && mapping.find(s => s.id === 'thyroidCoherence')?.inputs.some(i => i.paths.includes('thyroid.antiTPO')));
-assert('iron handling mapping includes inflammation and sTfR guardrails', mapping.find(s => s.id === 'ironHandling')?.inputs.some(i => i.paths.includes('proteins.hsCRP')) && mapping.find(s => s.id === 'ironHandling')?.inputs.some(i => i.paths.includes('iron.solubleTransferrinReceptor')));
+assert('iron handling mapping includes CRP and sTfR guardrails', mapping.find(s => s.id === 'ironHandling')?.inputs.some(i => i.paths.includes('proteins.crp')) && mapping.find(s => s.id === 'ironHandling')?.inputs.some(i => i.paths.includes('iron.solubleTransferrinReceptor')));
 assert('tier 1 mapping exports new biology axes', ['oneCarbonCoherence', 'fluidFiltrationCoherence', 'liverBileSignal', 'boneMineralSignal'].every(id => mapping.some(s => s.id === id)));
 assert('one-carbon mapping includes B12 folate homocysteine', mapping.find(s => s.id === 'oneCarbonCoherence')?.inputs.some(i => i.paths.includes('vitamins.vitaminB12')) && mapping.find(s => s.id === 'oneCarbonCoherence')?.inputs.some(i => i.paths.includes('vitamins.activeB12')) && mapping.find(s => s.id === 'oneCarbonCoherence')?.inputs.some(i => i.paths.includes('vitamins.folate')) && mapping.find(s => s.id === 'oneCarbonCoherence')?.inputs.some(i => i.paths.includes('coagulation.homocysteine')));
 assert('fluid filtration mapping includes cystatin and electrolytes', mapping.find(s => s.id === 'fluidFiltrationCoherence')?.inputs.some(i => i.paths.includes('biochemistry.cystatinC')) && mapping.find(s => s.id === 'fluidFiltrationCoherence')?.inputs.some(i => i.paths.includes('electrolytes.sodium')));
+const optimalRangeKeys = new Set(Object.keys(OPTIMAL_RANGES));
+const minimumScoreInputs = mapping
+  .filter(score => score.id !== 'biologicalCoherence' && score.panelTier === 'minimum')
+  .flatMap(score => score.inputs.map(input => ({ score: score.id, input, paths: (Array.isArray(input.paths) ? input.paths : [input.paths]).filter(Boolean) })))
+  .filter(row => row.paths.some(path => typeof path === 'string' && !path.startsWith('custom.') && path.includes('.')));
+const minimumOptimalCovered = minimumScoreInputs.filter(row => row.paths.some(path => optimalRangeKeys.has(path))).length;
+assert('minimum-panel Biology Score inputs have high optimal-range coverage',
+  minimumOptimalCovered / minimumScoreInputs.length >= 0.85,
+  `${minimumOptimalCovered}/${minimumScoreInputs.length}`);
+assert('new high-impact optimal target ranges cover ratios and common baseline gaps',
+  ['calculatedRatios.tgHdlRatio', 'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.cholHdlRatio', 'calculatedRatios.nlr', 'biochemistry.alp', 'biochemistry.gfrCystatin', 'electrolytes.phosphorus', 'electrolytes.copper', 'hematology.hematocrit', 'iron.tibc', 'coagulation.fibrinogen', 'coagulation.dDimer', 'proteins.crp', 'lipids.lpA', 'fattyAcids.omega3Index', 'fattyAcids.aaEpaRatio', 'stool.calprotectin', 'stool.zonulin', 'nutrientElements.selenium']
+    .every(key => optimalRangeKeys.has(key)),
+  JSON.stringify(Object.keys(OPTIMAL_RANGES).filter(key => key.includes('Ratio') || key === 'lipids.lpA')));
+assert('Lp(a) is a first-class lipid marker for cardiovascular score imports',
+  MARKER_SCHEMA.lipids?.markers?.lpA?.name === 'Lp(a)' && mapping.find(s => s.id === 'cardiovascularLipoprotein')?.inputs.some(i => i.paths.includes('lipids.lpA')));
+const unresolvedStaticOptimalInputs = minimumScoreInputs
+  .filter(row => !row.paths.some(path => optimalRangeKeys.has(path)))
+  .map(row => `${row.score}:${row.input.label}`);
+assert('remaining minimum optimal gaps are timing/cycle/specialty-context markers, not routine baseline holes',
+  unresolvedStaticOptimalInputs.every(label => /(Progesterone|LH|FSH|DHT|Androstenedione|Cortisol|Free androgen index|Creatine kinase|Cystatin-C eGFR|TIBC|Copper|Selenium)/.test(label)),
+  JSON.stringify(unresolvedStaticOptimalInputs));
 assert('liver-bile mapping includes ALT AST GGT ALP', ['biochemistry.alt', 'biochemistry.ast', 'biochemistry.ggt', 'biochemistry.alp'].every(path => mapping.find(s => s.id === 'liverBileSignal')?.inputs.some(i => i.paths.includes(path))));
 assert('bone-mineral mapping includes D calcium phosphorus', mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('vitamins.vitaminD')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.calciumTotal')) && mapping.find(s => s.id === 'boneMineralSignal')?.inputs.some(i => i.paths.includes('electrolytes.phosphorus')));
 assert('tier 2 mapping exports recovery and immune axes', ['immuneCellBalance', 'anabolicRecoverySignal'].every(id => mapping.some(s => s.id === id)));
@@ -736,8 +853,8 @@ state.profileSex = 'female';
 const femaleHormoneScoreThin = computeBiologyScores(femaleHormoneData).find(score => score.id === 'hormoneAxis');
 state.profileSex = savedSexForFemaleHormone;
 assert('female hormone axis does not require male testosterone core group',
-  femaleHormoneScoreThin.flags.some(flag => flag.includes('LH pituitary signal'))
-  && femaleHormoneScoreThin.flags.some(flag => flag.includes('FSH pituitary signal'))
+  femaleHormoneScoreThin.flags.some(flag => flag.includes('LH'))
+  && femaleHormoneScoreThin.flags.some(flag => flag.includes('FSH'))
   && !femaleHormoneScoreThin.flags.some(flag => flag.includes('Male androgen status')),
   JSON.stringify(femaleHormoneScoreThin));
 

@@ -459,6 +459,15 @@ function _normalizeBiostarks(markers) {
 }
 
 // ═══════════════════════════════════════════════
+// Gut/Stool Adapter — GI barrier + inflammatory stool markers
+// ═══════════════════════════════════════════════
+const GUT_STOOL_MARKERS = {
+  "stool.calprotectin": { name: "Calprotectin", unit: "µg/g", refMin: null, refMax: 50, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+  "stool.zonulin": { name: "Zonulin", unit: "ng/ml", refMin: null, refMax: 60, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+  "stool.secretoryIgA": { name: "Secretory IgA", unit: "µg/g", refMin: 510, refMax: 2040, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+};
+
+// ═══════════════════════════════════════════════
 // Adapter Registry
 // ═══════════════════════════════════════════════
 const ADAPTERS = [
@@ -480,6 +489,11 @@ const ADAPTERS = [
     id: 'oat',
     testTypes: ['OAT'],
     markers: OAT_MARKERS,
+  },
+  {
+    id: 'gutStool',
+    testTypes: ['stool', 'gut', 'giMap', 'GI-MAP', 'GI Effects'],
+    markers: GUT_STOOL_MARKERS,
   },
   {
     id: 'biostarks',

@@ -287,7 +287,10 @@ const settingsSrc = read('js/settings.js');
   assert('Czech/Spadia alias table includes key labels',
     mappingSrc.includes("'glukoza', 'biochemistry.glucose'")
     && mappingSrc.includes("'horcikvery', 'electrolytes.magnesiumRBC'")
-    && mappingSrc.includes("'homocystein', 'coagulation.homocysteine'"));
+    && mappingSrc.includes("'homocystein', 'coagulation.homocysteine'")
+    && mappingSrc.includes("'reverset3', 'thyroid.reverseT3'")
+    && mappingSrc.includes("'ddimer', 'coagulation.dDimer'")
+    && mappingSrc.includes("'cortisol', 'hormones.cortisol'"));
 
   const { reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
   const { state } = await import('../js/state.js');
@@ -324,7 +327,11 @@ const settingsSrc = read('js/settings.js');
       { rawName: 'Unknown Marker', value: 42, unit: 'x', matched: true, mappedKey: 'custom.unknownMarker', suggestedKey: null },
       { rawName: 'Lymphocytes %', value: 36.8, unit: '%', matched: true, mappedKey: 'differential.lymphocytes', suggestedKey: null },
       { rawName: 'Monocytes_PERCENTAGE', value: 7.4, unit: 'PERCENTAGE', matched: true, mappedKey: 'differential.monocytes', suggestedKey: null },
-      { rawName: 'Eosinophils %', value: 4.1, unit: '%', matched: true, mappedKey: 'differential.eosinophils', suggestedKey: null }
+      { rawName: 'Eosinophils %', value: 4.1, unit: '%', matched: true, mappedKey: 'differential.eosinophils', suggestedKey: null },
+      { rawName: 'Reverse T3', value: 0.33, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.reverseT3' },
+      { rawName: 'D-dimer', value: 0.22, unit: 'mg/l FEU', matched: false, mappedKey: null, suggestedKey: 'custom.dDimer' },
+      { rawName: 'Cortisol', value: 390, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.cortisol' },
+      { rawName: 'Lp(a)', value: 42, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.lpa' }
     ];
     reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
     assert('Czech glucose reconciles to existing schema marker',
@@ -363,6 +370,23 @@ const settingsSrc = read('js/settings.js');
       importMarkers[14].matched && importMarkers[14].mappedKey === 'differential.monocytesPct');
     assert('Unsupported differential percent does not overwrite absolute-count or stale custom marker',
       !importMarkers[15].matched && importMarkers[15].mappedKey === null && importMarkers[15].suggestedKey === 'differential.eosinophilsPct');
+    assert('Biology-score specialty-adjacent blood markers reconcile to standard schema keys',
+      importMarkers[16].matched && importMarkers[16].mappedKey === 'thyroid.reverseT3'
+      && importMarkers[17].matched && importMarkers[17].mappedKey === 'coagulation.dDimer'
+      && importMarkers[18].matched && importMarkers[18].mappedKey === 'hormones.cortisol'
+      && importMarkers[19].matched && importMarkers[19].mappedKey === 'lipids.lpA',
+      JSON.stringify(importMarkers.slice(16, 20)));
+    const gutMarkers = [
+      { rawName: 'Fecal Calprotectin', value: 20, unit: 'µg/g', matched: false, mappedKey: null, suggestedKey: 'custom.fecalCalprotectin' },
+      { rawName: 'Zonulin', value: 40, unit: 'ng/ml', matched: false, mappedKey: null, suggestedKey: 'custom.zonulin' },
+      { rawName: 'Secretory IgA', value: 900, unit: 'µg/g', matched: false, mappedKey: null, suggestedKey: 'custom.secretoryIgA' },
+    ];
+    reconcileImportMarkerMappings(gutMarkers, { testType: 'stool' });
+    assert('Gut/stool specialty markers reconcile to adapter keys for Biology Scores',
+      gutMarkers[0].matched && gutMarkers[0].mappedKey === 'stool.calprotectin'
+      && gutMarkers[1].matched && gutMarkers[1].mappedKey === 'stool.zonulin'
+      && gutMarkers[2].matched && gutMarkers[2].mappedKey === 'stool.secretoryIgA',
+      JSON.stringify(gutMarkers));
   } finally {
     state.importedData = originalImportedData;
   }
@@ -430,6 +454,46 @@ const settingsSrc = read('js/settings.js');
     urineProteinUnitDecorated.entries[0].markers['urinalysis.totalProteinGl'] === 0.142
     && urineProteinUnitDecorated.entries[0].markers['proteins.totalProtein'] === undefined
     && urineProteinUnitDecorated.customMarkers['urinalysis.totalProteinGl']);
+  const cPeptideAlias = {
+    entries: [{ date: '2026-05-01', markers: { 'hormones.cPeptide': 1.4 } }],
+    customMarkers: { 'hormones.cPeptide': { name: 'C-peptide', unit: 'µg/l' } },
+    markerValueNotes: { 'hormones.cPeptide:2026-05-01': 'legacy category' }
+  };
+  migrateProfileData(cPeptideAlias);
+  assert('Profile migration canonicalizes legacy hormones.cPeptide to diabetes.cPeptide',
+    cPeptideAlias.entries[0].markers['diabetes.cPeptide'] === 1.4
+    && cPeptideAlias.entries[0].markers['hormones.cPeptide'] === undefined
+    && cPeptideAlias.customMarkers['hormones.cPeptide'] === undefined
+    && cPeptideAlias.markerValueNotes['diabetes.cPeptide:2026-05-01'] === 'legacy category');
+
+  const lipidAliases = {
+    entries: [{ date: '2026-05-01', markers: { 'lipids.lpa': 42, 'lipids.totalCholesterol': 4.6, 'lipids.hdlCholesterol': 1.4, 'lipids.cholHdlRatio': 3.3 } }],
+    customMarkers: {
+      'lipids.lpa': { name: 'Lipoprotein A (Lp(a))', unit: 'nmol/l' },
+      'lipids.totalCholesterol': { name: 'Total Cholesterol', unit: 'mmol/l' },
+      'lipids.hdlCholesterol': { name: 'HDL Cholesterol', unit: 'mmol/l' },
+      'lipids.cholHdlRatio': { name: 'Total cholesterol/HDL ratio', unit: '' },
+    },
+    markerValueNotes: { 'lipids.lpa:2026-05-01': 'duplicate alias' }
+  };
+  migrateProfileData(lipidAliases);
+  assert('Profile migration canonicalizes duplicate lipid aliases onto schema keys',
+    lipidAliases.entries[0].markers['lipids.lpA'] === 42
+    && lipidAliases.entries[0].markers['lipids.cholesterol'] === 4.6
+    && lipidAliases.entries[0].markers['lipids.hdl'] === 1.4
+    && lipidAliases.entries[0].markers['calculatedRatios.cholHdlRatio'] === 3.3
+    && lipidAliases.entries[0].markers['lipids.lpa'] === undefined
+    && lipidAliases.customMarkers['lipids.lpa'] === undefined
+    && lipidAliases.markerValueNotes['lipids.lpA:2026-05-01'] === 'duplicate alias');
+
+  const lipidNameAlias = {
+    entries: [{ date: '2026-05-01', markers: { 'lipids.lipoproteinMarker': 55 } }],
+    customMarkers: { 'lipids.lipoproteinMarker': { name: 'Lipoprotein A', unit: 'nmol/l' } }
+  };
+  migrateProfileData(lipidNameAlias);
+  assert('Profile migration canonicalizes named Lipoprotein A custom duplicates',
+    lipidNameAlias.entries[0].markers['lipids.lpA'] === 55
+    && lipidNameAlias.customMarkers['lipids.lipoproteinMarker'] === undefined);
 
   // ═══════════════════════════════════════
   // Results

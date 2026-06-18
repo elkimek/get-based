@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { escapeAttr, hashString, showNotification } from './utils.js';
-import { profileStorageKey, touchProfileTimestamp } from './profile.js';
+import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
@@ -246,6 +246,10 @@ function _makeActiveDataCacheMeta() {
 export async function saveImportedData(options = {}) {
   invalidateActiveDataCache();
   try {
+    // Persist the canonical schema shape, not just the current in-memory shape.
+    // Otherwise a legacy key can be migrated for display but saved/synced again
+    // in its old form, creating repeated cross-device "updated" loops.
+    if (state.importedData && typeof state.importedData === 'object') migrateProfileData(state.importedData);
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
     // Always route through encryptedSetItem — it skips encryption when
@@ -401,11 +405,20 @@ export function getActiveData() {
   const entries = (state.importedData && state.importedData.entries) ? state.importedData.entries : [];
   const hasEntries = entries.length > 0;
 
-  // Build entry lookup: date → merged markers
+  // Build entry lookup: date → merged markers + per-draw context.
+  // Hormone scoring needs draw-level context because cycle day / sample time can
+  // differ between lab entries for the same profile.
   const entryLookup = {};
+  const entryContextByDate = {};
+  const ENTRY_CONTEXT_KEYS = ['sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
   for (const entry of entries) {
     if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
     Object.assign(entryLookup[entry.date], entry.markers);
+    const context = { ...(entry.context || {}) };
+    for (const key of ENTRY_CONTEXT_KEYS) {
+      if (entry[key] !== undefined && context[key] === undefined) context[key] = entry[key];
+    }
+    if (Object.keys(context).length) entryContextByDate[entry.date] = { ...(entryContextByDate[entry.date] || {}), ...context };
   }
 
   // Identify singlePoint categories
@@ -429,6 +442,7 @@ export function getActiveData() {
 
   const sortedDates = [...regularDates].sort();
   data.dates = sortedDates;
+  data.entryContextByDate = entryContextByDate;
   data.dateLabels = sortedDates.map(d => {
     const dt = new Date(d + 'T00:00:00');
     return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -523,6 +537,7 @@ export function getActiveData() {
     };
     ratios.markers.tgHdlRatio.values = divide(getVals('lipids', 'triglycerides'), getVals('lipids', 'hdl'));
     ratios.markers.ldlHdlRatio.values = divide(getVals('lipids', 'ldl'), getVals('lipids', 'hdl'));
+    ratios.markers.cholHdlRatio.values = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
     ratios.markers.apoBapoAIRatio.values = divide(getVals('lipids', 'apoB'), getVals('lipids', 'apoAI'));
     ratios.markers.nlr.values = divide(getVals('differential', 'neutrophils'), getVals('differential', 'lymphocytes'));
     ratios.markers.plr.values = divide(getVals('hematology', 'platelets'), getVals('differential', 'lymphocytes'));

@@ -237,6 +237,22 @@ try {
   assert('pull merge preserves fresher local Biology Scores context review over stale remote blob',
     staleRemotePull.merged.biologyScoreContextAI?.fingerprint === 'local-fp'
     && staleRemotePull.needsRebroadcast === true);
+
+  configureSyncDelta({
+    getEvolu: () => ({ getQueryRows: () => [] }),
+    getItemRowQuery: () => ({}),
+  });
+  const legacyRemote = { entries: [{ date: '2026-01-01', markers: { 'hormones.cPeptide': 1 } }], customMarkers: { 'hormones.cPeptide': { name: 'C-peptide' } } };
+  state.importedData = JSON.parse(JSON.stringify(legacyRemote));
+  const legacyFirstPull = await mergePulledImportedData(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  state.importedData = legacyFirstPull.merged;
+  const legacyDuplicatePull = await mergePulledImportedData(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  assert('pull merge persists schema migrations before change detection so stale remote rows do not retrigger update toasts',
+    legacyFirstPull.localDataChanged === true
+    && legacyFirstPull.merged.entries?.[0]?.markers?.['diabetes.cPeptide'] === 1
+    && !('hormones.cPeptide' in (legacyFirstPull.merged.entries?.[0]?.markers || {}))
+    && legacyDuplicatePull.localDataChanged === false,
+    JSON.stringify({ firstChanged: legacyFirstPull.localDataChanged, duplicateChanged: legacyDuplicatePull.localDataChanged, merged: legacyDuplicatePull.merged }));
 } finally {
   configureSyncDelta({
     getEvolu: () => null,

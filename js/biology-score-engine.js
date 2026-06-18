@@ -52,6 +52,8 @@ export function resolveScoreConfidence(result) {
     .filter(item => item.core === true)
     .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup));
   const missingCore = [];
+  const contextCore = (result?.available || []).filter(item => item.profileContextOnly && item.core === true);
+  const contextOnly = (result?.available || []).filter(item => item.profileContextOnly);
   const seenCoreGroups = new Set();
   for (const item of missingCoreRaw) {
     if (item.coreGroup) {
@@ -67,6 +69,12 @@ export function resolveScoreConfidence(result) {
   }
   if (missingCore.length) {
     return { level: 'low', label: 'Low confidence', warning: `Missing core marker${missingCore.length === 1 ? '' : 's'}: ${missingCore.slice(0, 3).map(i => i.label).join(', ')}${missingCore.length > 3 ? ', …' : ''}. Treat the number as provisional.` };
+  }
+  if (contextCore.length) {
+    return { level: 'low', label: 'Needs context', warning: `Core marker${contextCore.length === 1 ? '' : 's'} need biological context before scoring: ${contextCore.slice(0, 3).map(i => i.label).join(', ')}${contextCore.length > 3 ? ', …' : ''}.` };
+  }
+  if (contextOnly.length) {
+    return { level: 'medium', label: 'Context-limited', warning: `${contextOnly.length} marker${contextOnly.length === 1 ? '' : 's'} shown as context only because timing, cycle, therapy, or training context changes interpretation.` };
   }
   if (coverage < 0.45) return { level: 'low', label: 'Low confidence', warning: 'Thin marker coverage. Treat the number as a rough clue, not a reliable score.' };
   if (coverage < 0.8) return { level: 'medium', label: 'Medium confidence', warning: 'Partial panel. Useful for direction, but missing markers can change this score.' };
@@ -112,6 +120,7 @@ export function getMarkerHit(data, paths) {
     if (!Number.isFinite(value)) continue;
     const range = getEffectiveRangeForDate(marker, latestIdx);
     const date = marker.singleDate || category.singleDate || data?.dates?.[latestIdx] || '';
+    const entryContext = date ? (data?.entryContextByDate?.[date] || {}) : {};
     return {
       id: `${catKey}_${markerKey}`,
       dotKey: `${catKey}.${markerKey}`,
@@ -121,8 +130,12 @@ export function getMarkerHit(data, paths) {
       displayValue: formatValue(value),
       unit: marker.unit || '',
       date,
+      dateIndex: latestIdx,
       ageDays: getAgeDays(date),
       range,
+      entryContext,
+      phaseLabel: marker.phaseLabels?.[latestIdx] || null,
+      phaseRange: marker.phaseRefRanges?.[latestIdx] || null,
     };
   }
   const derived = getDerivedMarkerHit(data, candidates);
@@ -148,7 +161,7 @@ function getDerivedMarkerHit(data, candidates) {
         unit: '',
         date,
         ageDays,
-        range: { min: 0, max: 5 },
+        range: { min: 0, max: 3.5 },
         derivedFrom: ['lipids.cholesterol', 'lipids.hdl'],
       };
     }
@@ -184,8 +197,9 @@ function getDerivedMarkerHit(data, candidates) {
 
 function deriveTotalCholesterolHdlRatio(data) {
   const category = data?.categories?.lipids;
-  const totalMarker = category?.markers?.cholesterol;
-  const hdlMarker = category?.markers?.hdl;
+  const pickMarker = (keys) => keys.map(key => category?.markers?.[key]).find(Boolean);
+  const totalMarker = pickMarker(['cholesterol', 'totalCholesterol', 'cholesterolTotal', 'total_cholesterol', 'totalChol']);
+  const hdlMarker = pickMarker(['hdl', 'hdlCholesterol', 'hdl_cholesterol']);
   if (!totalMarker || !hdlMarker) return null;
   const totalIdx = getLatestValueIndex(totalMarker.values || []);
   const hdlIdx = getLatestValueIndex(hdlMarker.values || []);
@@ -395,7 +409,7 @@ export function computeWeightedComposite(data, def) {
     const guardrail = clinicalGuardrailForHit(hit);
     if (guardrail && !flags.includes(guardrail)) flags.unshift(guardrail);
     if (modifier.score === false) {
-      available.push({ ...hit, key: input.key, label: input.label, partial: null, weight: 0, profileContextOnly: true, recencyRequired: false, core: coreApplies, coreGroup: input.coreGroup || '' });
+      available.push({ ...hit, key: input.key, label: input.label, partial: null, weight: 0, profileContextOnly: true, contextReason: modifier.flag || '', recencyRequired: false, core: coreApplies, coreGroup: input.coreGroup || '' });
       continue;
     }
     totalWeight += effectiveWeight;

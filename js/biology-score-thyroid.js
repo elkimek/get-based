@@ -66,24 +66,24 @@ export function computeThyroidCoherence(data, def) {
 
   if (reverseT3) {
     const partial = scoreHighOnly(reverseT3.value, reverseT3.range?.max ?? 0.54, (reverseT3.range?.max ?? 0.54) * 2.4);
-    available.push({ ...reverseT3, key: 'reverseT3', label: 'Reverse T3 brake context', partial, weight: weights.reverseT3 });
+    available.push({ ...reverseT3, key: 'reverseT3', label: 'Reverse T3', partial, weight: weights.reverseT3 });
     availableWeight += weights.reverseT3;
     scoreSum += partial * weights.reverseT3;
-  } else missing.push({ key: 'reverseT3', label: 'Reverse T3 brake context', weight: weights.reverseT3 });
+  } else missing.push({ key: 'reverseT3', label: 'Reverse T3', weight: weights.reverseT3 });
 
   if (tpoAb) {
     const partial = scoreHighOnly(tpoAb.value, tpoAb.range?.max ?? 34, (tpoAb.range?.max ?? 34) * 5);
-    available.push({ ...tpoAb, key: 'tpoAb', label: 'TPO antibody context', partial, weight: weights.tpoAb });
+    available.push({ ...tpoAb, key: 'tpoAb', label: 'TPO antibodies', partial, weight: weights.tpoAb });
     availableWeight += weights.tpoAb;
     scoreSum += partial * weights.tpoAb;
-  } else missing.push({ key: 'tpoAb', label: 'TPO antibody context', weight: weights.tpoAb });
+  } else missing.push({ key: 'tpoAb', label: 'TPO antibodies', weight: weights.tpoAb });
 
   if (tgAb) {
     const partial = scoreHighOnly(tgAb.value, tgAb.range?.max ?? 115, (tgAb.range?.max ?? 115) * 4);
-    available.push({ ...tgAb, key: 'tgAb', label: 'Thyroglobulin antibody context', partial, weight: weights.tgAb });
+    available.push({ ...tgAb, key: 'tgAb', label: 'Thyroglobulin antibodies', partial, weight: weights.tgAb });
     availableWeight += weights.tgAb;
     scoreSum += partial * weights.tgAb;
-  } else missing.push({ key: 'tgAb', label: 'Thyroglobulin antibody context', weight: weights.tgAb });
+  } else missing.push({ key: 'tgAb', label: 'Thyroglobulin antibodies', weight: weights.tgAb });
 
   const score = availableWeight > 0 && tsh && ft3 ? Math.round(scoreSum / availableWeight) : null;
   const coverage = totalWeight > 0 ? availableWeight / totalWeight : 0;

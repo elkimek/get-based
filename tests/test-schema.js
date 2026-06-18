@@ -49,6 +49,18 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   for (const cat of standardCats) {
     assert(`MARKER_SCHEMA has ${cat}`, schemaBlock.includes(`  ${cat}:`));
   }
+  const biologyScoreStandardMarkers = [
+    'lactate', 'pyruvate', 'cortisol', 'androstenedione', 'solubleTransferrinReceptor',
+    'neurofilamentLight', 'reverseT3', 'tpoAb', 'tgAb', 'methylmalonicAcid',
+    'fructosamine', 'fibrinogen', 'dDimer', 'cholHdlRatio'
+  ];
+  for (const marker of biologyScoreStandardMarkers) {
+    assert(`MARKER_SCHEMA has biology-score marker ${marker}`, schemaBlock.includes(`${marker}: {`));
+  }
+  const hormonesBlock = schemaBlock.substring(schemaBlock.indexOf('  hormones:'), schemaBlock.indexOf('  electrolytes:'));
+  const diabetesBlock = schemaBlock.substring(schemaBlock.indexOf('  diabetes:'), schemaBlock.indexOf('  tumorMarkers:'));
+  assert('C-peptide has one canonical standard schema home under diabetes',
+    diabetesBlock.includes('cPeptide: {') && !hormonesBlock.includes('cPeptide: {'));
 
   // ═══════════════════════════════════════
   // 2. SPECIALTY_MARKER_DEFS re-exported from adapters.js
@@ -60,7 +72,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
 
   // Count entries in adapters.js (the single source of truth)
   const entryCount = (adaptersSrc.match(/"[a-zA-Z]+\.\w+": \{/g) || []).length;
-  assert('Adapter markers have 217 entries', entryCount === 217, `found ${entryCount}`);
+  assert('Adapter markers have 220 entries', entryCount === 220, `found ${entryCount}`);
 
   // Each entry has required fields
   assert('Entries have name field', adaptersSrc.includes('name:'));

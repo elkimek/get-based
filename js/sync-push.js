@@ -9,6 +9,7 @@ import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
 import { getDeltaCutoverReadiness } from './sync-delta.js';
+import { migrateProfileData } from './profile.js';
 import { applyCommittedDeltas, planProfileDeltas } from './sync-push-deltas.js';
 
 let _getEvolu = () => null;
@@ -56,6 +57,20 @@ export function isSyncPushInFlight() {
   return _syncing;
 }
 
+function normalizedImportedDataForPush(importedData) {
+  if (!importedData || typeof importedData !== 'object') return importedData;
+  let normalized;
+  try {
+    normalized = typeof structuredClone === 'function'
+      ? structuredClone(importedData)
+      : JSON.parse(JSON.stringify(importedData));
+  } catch {
+    normalized = { ...importedData };
+  }
+  migrateProfileData(normalized);
+  return normalized;
+}
+
 export async function pushProfile(profileId, importedData, opts = {}) {
   const evolu = _getEvolu();
   const profileQuery = _getProfileQuery();
@@ -77,6 +92,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   if (opts.force && _syncing) console.warn('[sync] pushProfile force-overriding in-flight flag');
   _syncing = true;
   _syncingSince = Date.now();
+  const outboundData = normalizedImportedDataForPush(importedData);
   updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
   // Post-enable schema-drift detection. enablePhase2Cutover gates ON
   // readiness AT FLIP TIME, but if a future commit adds a new write site
@@ -89,7 +105,7 @@ export async function pushProfile(profileId, importedData, opts = {}) {
   // log the event for the diagnose modal, and reload the cutover flag
   // for the rest of this push so it ships v3 too. Cost: one walk of 37
   // surfaces, ~1-3 ms — paid only when cutover is on.
-  if (_isPhase2CutoverEnabled(profileId) && importedData && typeof importedData === 'object') {
+  if (_isPhase2CutoverEnabled(profileId) && outboundData && typeof outboundData === 'object') {
     try {
       const driftCheck = getDeltaCutoverReadiness(profileId);
       if (driftCheck && !driftCheck.ready) {
@@ -105,17 +121,17 @@ export async function pushProfile(profileId, importedData, opts = {}) {
     } catch (e) { /* readiness check failures are non-fatal */ }
   }
   try {
-    const dataJson = await buildSyncPayload(profileId, importedData);
+    const dataJson = await buildSyncPayload(profileId, outboundData);
     const syncedAt = new Date().toISOString();
 
-    const sunCount = Array.isArray(importedData?.sunSessions) ? importedData.sunSessions.length : 0;
-    const devCount = Array.isArray(importedData?.lightDevices) ? importedData.lightDevices.length : 0;
+    const sunCount = Array.isArray(outboundData?.sunSessions) ? outboundData.sunSessions.length : 0;
+    const devCount = Array.isArray(outboundData?.lightDevices) ? outboundData.lightDevices.length : 0;
     const queueMsg = `Queued ${profileId.slice(0,8)} — sun=${sunCount} dev=${devCount}`;
     const queuedAt = Date.now();
     _debug(`${queueMsg} @ ${queuedAt}`);
     logSyncEvent('queue', queueMsg);
 
-    const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, importedData);
+    const { deltaPlans, deltaOpCount } = await planProfileDeltas(profileId, outboundData);
 
     return await new Promise((resolve) => {
       let completed = false;

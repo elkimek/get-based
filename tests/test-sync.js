@@ -1075,7 +1075,7 @@ await import('../js/settings.js');
 
   // Push integration in pushProfile
   assert('pushProfile plans deltas before evolu.update on profileData',
-    /const \{ deltaPlans,\s*deltaOpCount \}\s*=\s*await planProfileDeltas\(profileId,\s*importedData\)[\s\S]{0,5000}evolu\.update\("profileData"/.test(syncPushSrc)
+    /const \{ deltaPlans,\s*deltaOpCount \}\s*=\s*await planProfileDeltas\(profileId,\s*outboundData\)[\s\S]{0,5000}evolu\.update\("profileData"/.test(syncPushSrc)
       && /planProfileDeltas[\s\S]{0,1200}for \(const arrayName of DELTA_ARRAYS\)[\s\S]{0,500}_planArrayDelta/.test(syncPushDeltasSrc));
   // Anchor on "Push committed" — unique to the onComplete arrow function,
   // unlike "onComplete" which also appears in evolu.update call sites.

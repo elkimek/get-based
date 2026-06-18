@@ -848,6 +848,7 @@ async function _importDatabaseBundle(json) {
         }
       }
       // Save
+      migrateProfileData(current);
       const value = JSON.stringify(current);
       await encryptedSetItem(storageKey, value);
       if (bp.chat) await _importChatData(existing.id, bp.chat);
@@ -865,6 +866,7 @@ async function _importDatabaseBundle(json) {
       if (bp.pinned) updateProfileMeta(id, { pinned: true });
       // Write data
       const storageKey = profileStorageKey(id, 'imported');
+      migrateProfileData(importData);
       const value = JSON.stringify(importData);
       await encryptedSetItem(storageKey, value);
       if (bp.chat) await _importChatData(id, bp.chat);

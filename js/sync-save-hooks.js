@@ -2,7 +2,7 @@
 // sync-save-hooks.js - Save/chat/profile sync debounce hooks.
 
 import { state } from './state.js';
-import { profileStorageKey, createDefaultProfileData } from './profile.js';
+import { profileStorageKey, createDefaultProfileData, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
@@ -74,14 +74,18 @@ export function clearSyncSaveTimers() {
  * @param {any} [fallback]
  */
 export async function readProfileImportedData(profileId, fallback = null) {
-  if (fallback && typeof fallback === 'object') return fallback;
-  if (profileId === state.currentProfile && state.importedData) return state.importedData;
+  const normalize = (data) => {
+    if (data && typeof data === 'object') migrateProfileData(data);
+    return data;
+  };
+  if (fallback && typeof fallback === 'object') return normalize(fallback);
+  if (profileId === state.currentProfile && state.importedData) return normalize(state.importedData);
   try {
     const storageKey = profileStorageKey(profileId, 'imported');
     const raw = getEncryptionEnabled()
       ? await encryptedGetItem(storageKey)
       : localStorage.getItem(storageKey);
-    if (raw) return JSON.parse(raw);
+    if (raw) return normalize(JSON.parse(raw));
   } catch (e) {
     console.warn('[sync] Could not read profile importedData for profile sync:', e?.message || e);
   }

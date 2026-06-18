@@ -2,7 +2,7 @@
 // sync-pull-merge.js - inbound row recovery and importedData merge helpers.
 
 import { state } from './state.js';
-import { profileStorageKey, getProfiles, saveProfiles } from './profile.js';
+import { profileStorageKey, getProfiles, saveProfiles, migrateProfileData } from './profile.js';
 import { getEncryptionEnabled, encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntries } from './data-merge.js';
 import { parseSyncPayload } from './sync-payload.js';
@@ -86,9 +86,17 @@ function countArray(b, k) {
   return Array.isArray(b?.[k]) ? b[k].length : 0;
 }
 
+function stableSnapshotValue(value) {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(stableSnapshotValue);
+  const out = {};
+  for (const key of Object.keys(value).sort()) out[key] = stableSnapshotValue(value[key]);
+  return out;
+}
+
 function importedDataSnapshot(importedData) {
   try {
-    return JSON.stringify(importedData || null);
+    return JSON.stringify(stableSnapshotValue(importedData || null));
   } catch {
     return null;
   }
@@ -161,6 +169,12 @@ export async function mergePulledImportedData(profileId, importedData, options =
   }
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
   const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, importedData);
+  // Normalize the merged payload before change detection and persistence. If a
+  // remote row still carries an old schema key/shape, refreshing the active
+  // profile used to migrate only in-memory state after persist; the next pull
+  // then saw the same old remote row as a fresh local change again, causing
+  // repeated "Data updated from another device" toasts and rebroadcast loops.
+  migrateProfileData(merged);
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
   const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI
