@@ -135,6 +135,20 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
     const originalDropDisplay = dropZone?.style.display || '';
     const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
     const dispatchInput = el => el?.dispatchEvent(new Event('input', { bubbles: true }));
+    const openMapModal = row => {
+      row.querySelector('.import-map-picker-btn')?.click();
+      return document.querySelector('.import-marker-map-modal');
+    };
+    const selectMarkerFromMapModal = (row, query, key) => {
+      const mapModal = openMapModal(row);
+      const modalSearch = mapModal?.querySelector('.import-map-modal-search');
+      if (modalSearch && query) {
+        modalSearch.value = query;
+        dispatchInput(modalSearch);
+      }
+      mapModal?.querySelector(`[data-import-map-key="${key}"]`)?.click();
+      return mapModal;
+    };
     const baseMarkers = [
       {
         rawName: 'Glucose <fasting>',
@@ -146,15 +160,15 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         refMax: 5.5,
       },
       {
-        rawName: 'Ferritin',
-        value: 88,
-        unit: 'ug/l',
+        rawName: 'Custom signal',
+        value: 1000,
+        unit: 'mg/l',
         matched: false,
-        suggestedKey: 'iron.ferritin',
-        suggestedName: 'Ferritin',
-        suggestedCategoryLabel: 'Iron',
-        refMin: 30,
-        refMax: 400,
+        suggestedKey: 'customLabs.customSignal',
+        suggestedName: 'Custom signal',
+        suggestedCategoryLabel: 'Custom Labs',
+        refMin: 500,
+        refMax: 1500,
       },
       ...Array.from({ length: 11 }, (_, index) => ({
         rawName: `Mystery marker ${index + 1}`,
@@ -200,6 +214,95 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       dateInput.value = '2026-06-01';
       dispatchChange(dateInput);
 
+      const glucoseRow = document.querySelector('tr[data-import-idx="0"]');
+      const glucoseUnit = glucoseRow.querySelector('.import-unit-input');
+      glucoseUnit.click();
+      const glucoseMgOption = Array.from(document.querySelectorAll('.import-unit-option'))
+        .find(option => option.dataset.importUnitOption === 'mg/l');
+      glucoseMgOption.click();
+      const glucoseValue = Number(glucoseRow.querySelector('.import-value-input').value);
+      const glucoseMarker = review.getPendingImport().markers[0];
+      outcomes.unitChangeRecomputesDisplayedValue = Math.abs(glucoseValue - 1045.04) < 0.01
+        && Math.abs(glucoseMarker.value - 1045.04) < 0.01
+        && glucoseMarker.unit === 'mg/l'
+        && glucoseUnit.textContent.includes('mg/l');
+      outcomes.unitChangeRecomputesLabRange = glucoseRow.querySelector('.import-range-cell')?.textContent.includes('702.702') === true
+        && Math.abs(glucoseMarker.refMin - 702.702) < 0.001
+        && Math.abs(glucoseMarker.refMax - 990.99) < 0.001;
+      outcomes.unitPickerClosesAfterSelection = document.querySelector('.import-unit-menu') === null
+        && glucoseUnit.getAttribute('aria-expanded') === 'false';
+
+      const customRow = document.querySelector('tr[data-import-idx="1"]');
+      outcomes.newMarkerShowsGenericUnitAssist = customRow?.dataset.importStatus === 'new'
+        && customRow.querySelector('.import-unit-text')?.value === 'mg/l'
+        && !!customRow.querySelector('.import-unit-picker-btn')
+        && customRow.querySelector('.import-suggested-key')?.textContent.includes('customLabs.customSignal')
+        && customRow.querySelector('.import-map-input') === null;
+      selectMarkerFromMapModal(customRow, 'glucose', 'biochemistry.glucose');
+      const customMarker = review.getPendingImport().markers[1];
+      outcomes.mapNewMarkerByModal = customRow.dataset.importStatus === 'matched'
+        && customMarker.matched === true
+        && customMarker.mappedKey === 'biochemistry.glucose'
+        && customRow.querySelector('.import-unit-button')?.textContent.includes('mg/l');
+      openMapModal(customRow)?.querySelector('[data-import-map-action="clear"]')?.click();
+      outcomes.clearNewMarkerMappingRestoresNew = customRow.dataset.importStatus === 'new'
+        && customMarker.matched === false
+        && customMarker.mappedKey === null
+        && customMarker.suggestedKey === 'customLabs.customSignal'
+        && !!customRow.querySelector('.import-unit-picker-btn');
+
+      customRow.querySelector('.import-map-picker-btn').click();
+      const mapModal = document.querySelector('.import-marker-map-modal');
+      const modalSearch = mapModal.querySelector('.import-map-modal-search');
+      modalSearch.value = 'ferritin';
+      dispatchInput(modalSearch);
+      const hasIronCategory = Array.from(mapModal.querySelectorAll('.import-map-category'))
+        .some(btn => btn.textContent.includes('Iron'));
+      mapModal.querySelector('[data-import-map-key="iron.ferritin"]').click();
+      outcomes.mapModalSearchesCategoriesAndSelects = hasIronCategory
+        && customRow.dataset.importStatus === 'matched'
+        && customMarker.mappedKey === 'iron.ferritin'
+        && document.querySelector('.import-marker-map-modal') === null
+        && customRow.querySelector('.import-unit-button')?.textContent.includes('mg/l');
+      openMapModal(customRow)?.querySelector('[data-import-map-action="clear"]')?.click();
+      outcomes.clearModalMappingRestoresNew = customRow.dataset.importStatus === 'new'
+        && customMarker.mappedKey === null
+        && customMarker.matched === false
+        && !!customRow.querySelector('.import-map-picker-btn');
+
+      customRow.querySelector('.import-unit-picker-btn').click();
+      const customGramOption = Array.from(document.querySelectorAll('.import-unit-option'))
+        .find(option => option.dataset.importUnitOption === 'g/l');
+      customGramOption.click();
+      const customValue = Number(customRow.querySelector('.import-value-input').value);
+      outcomes.customUnitPickerConvertsGenericMass = Math.abs(customValue - 1) < 0.001
+        && Math.abs(customMarker.value - 1) < 0.001
+        && customMarker.unit === 'g/l'
+        && Math.abs(customMarker.refMin - 0.5) < 0.001
+        && Math.abs(customMarker.refMax - 1.5) < 0.001
+        && customRow.querySelector('.import-range-cell')?.textContent.includes('0.5')
+        && customRow.querySelector('.import-range-cell')?.textContent.includes('1.5');
+      const customUnitText = customRow.querySelector('.import-unit-text');
+      customUnitText.value = 'mg/l';
+      dispatchChange(customUnitText);
+      const customValueAfterTextUnit = Number(customRow.querySelector('.import-value-input').value);
+      outcomes.customUnitTextEditRecomputesAllRowValues = customValueAfterTextUnit === 1000
+        && customMarker.value === 1000
+        && customMarker.unit === 'mg/l'
+        && customMarker.refMin === 500
+        && customMarker.refMax === 1500
+        && customRow.querySelector('.import-range-cell')?.textContent.includes('500')
+        && customRow.querySelector('.import-range-cell')?.textContent.includes('1500');
+      customRow.querySelector('.import-unit-picker-btn').click();
+      const customArbOption = Array.from(document.querySelectorAll('.import-unit-option'))
+        .find(option => option.dataset.importUnitOption === 'arb.j.');
+      customArbOption.click();
+      outcomes.customUnitPickerSkipsIncompatibleConversion = Number(customRow.querySelector('.import-value-input').value) === 1000
+        && customMarker.value === 1000
+        && customMarker.refMin === 500
+        && customMarker.refMax === 1500
+        && customMarker.unit === 'arb.j.';
+
       document.querySelector('.import-filter-btn[data-filter="unmatched"]').click();
       outcomes.unmatchedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '11/13 shown';
 
@@ -211,26 +314,45 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       searchInput.value = '';
       dispatchInput(searchInput);
       document.querySelector('.import-filter-btn[data-filter="all"]').click();
-      const mapInput = document.querySelector('tr[data-import-status="unmatched"] .import-map-input');
-      mapInput.value = 'Glucose (biochemistry.glucose)';
-      dispatchChange(mapInput);
-      outcomes.mapUnmatchedByLabel = mapInput.value === 'biochemistry.glucose'
-        && mapInput.closest('tr')?.dataset.importStatus === 'matched'
+      const mapRow = document.querySelector('tr[data-import-status="unmatched"]');
+      selectMarkerFromMapModal(mapRow, 'glucose', 'biochemistry.glucose');
+      outcomes.mapUnmatchedByModal = mapRow?.dataset.importStatus === 'matched'
         && review.getPendingImport().markers[2].mappedKey === 'biochemistry.glucose';
+      const remappedUnitControl = mapRow?.querySelector('.import-unit-input');
+      remappedUnitControl?.click();
+      outcomes.mapUnmatchedRebuildsUnitPicker = remappedUnitControl?.tagName === 'BUTTON'
+        && Array.from(document.querySelectorAll('.import-unit-option'))
+          .some(option => option.dataset.importUnitOption === 'mg/l');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
-      const invalidInput = document.querySelector('tr[data-import-status="unmatched"] .import-map-input');
-      invalidInput.value = 'Not a real marker';
-      dispatchChange(invalidInput);
-      outcomes.invalidMappingClearsAndNotifies = invalidInput.value === ''
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
-          .some(toast => toast.textContent.includes('Choose a marker from the list'));
+      const stillUnmatchedRow = document.querySelector('tr[data-import-status="unmatched"]');
+      const invalidModal = openMapModal(stillUnmatchedRow);
+      const invalidSearch = invalidModal?.querySelector('.import-map-modal-search');
+      invalidSearch.value = 'Not a real marker';
+      dispatchInput(invalidSearch);
+      outcomes.mapModalNoResultsKeepsUnmatched = invalidModal?.textContent.includes('No markers match this search.') === true
+        && stillUnmatchedRow?.dataset.importStatus === 'unmatched';
+      invalidModal?.querySelector('[data-import-map-action="close"]')?.click();
 
       const excludeBtn = document.querySelector('tr[data-import-idx="0"] .import-exclude-btn');
+      outcomes.rowActionsUseIconButtons = excludeBtn?.querySelector('.import-exclude-icon')?.textContent === '×'
+        && excludeBtn?.getAttribute('aria-label')?.includes('Exclude') === true
+        && !!customRow.querySelector('.import-map-picker-icon');
       excludeBtn.click();
-      outcomes.excludeUpdatesRowAndCount = excludeBtn.textContent === 'Include'
+      outcomes.excludeUpdatesRowAndCount = excludeBtn.getAttribute('aria-label') === 'Include in import'
+        && excludeBtn.querySelector('.import-exclude-icon')?.textContent === '+'
         && excludeBtn.closest('tr')?.classList.contains('import-excluded') === true
         && confirmBtn?.textContent === 'Import 2 Markers'
         && review.getExcludedImportIndices().has(0) === true;
+      const draftAfterExclusion = JSON.parse(sessionStorage.getItem('labcharts-import-review-draft-v1') || '{}');
+      outcomes.importReviewDraftTracksEdits = draftAfterExclusion.parseResult?.date === '2026-06-01'
+        && draftAfterExclusion.parseResult?.markers?.[0]?.unit === 'mg/l'
+        && Math.abs(draftAfterExclusion.parseResult?.markers?.[0]?.value - 1045.04) < 0.01
+        && Math.abs(draftAfterExclusion.parseResult?.markers?.[0]?.refMin - 702.702) < 0.001
+        && draftAfterExclusion.parseResult?.markers?.[1]?.unit === 'arb.j.'
+        && draftAfterExclusion.parseResult?.markers?.[1]?.value === 1000
+        && draftAfterExclusion.parseResult?.markers?.[1]?.refMin === 500
+        && draftAfterExclusion.parseResult?._excludedImportIndices?.includes(0) === true;
 
       document.querySelector('.import-filter-btn[data-filter="excluded"]').click();
       outcomes.excludedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
@@ -249,7 +371,8 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
 
       document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]').click();
       outcomes.closeClearsPending = overlay?.classList.contains('show') === false
-        && review.getPendingImport() === null;
+        && review.getPendingImport() === null
+        && sessionStorage.getItem('labcharts-import-review-draft-v1') === null;
 
       outcomes.resolveWithoutBatchReturnsFalse = review.resolveImportPreviewBatch('import') === false;
 
@@ -293,6 +416,157 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+});
+
+test('PDF import review mobile layout keeps actions compact and visible', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+  });
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  const results = await page.evaluate(async ({ reviewUrl }) => {
+    const review = await import(reviewUrl);
+    const outcomes = {};
+
+    try {
+      review.showImportPreview({
+        date: '2026-06-18',
+        fileName: 'mobile-review.pdf',
+        markers: [
+          {
+            rawName: 'Glucose',
+            value: 5.8,
+            unit: 'mmol/l',
+            matched: true,
+            mappedKey: 'biochemistry.glucose',
+            refMin: 3.9,
+            refMax: 5.5,
+          },
+          {
+            rawName: 'Custom signal',
+            value: 1000,
+            unit: 'mg/l',
+            matched: false,
+            suggestedKey: 'customLabs.customSignal',
+            suggestedName: 'Custom signal',
+            suggestedCategoryLabel: 'Custom Labs',
+            refMin: 500,
+            refMax: 1500,
+          },
+          {
+            rawName: 'Mystery marker',
+            value: 4,
+            unit: 'arb.j.',
+            matched: false,
+          },
+        ],
+      });
+
+      const modal = document.querySelector('.import-preview-modal');
+      const body = document.querySelector('.import-review-body');
+      const firstRow = document.querySelector('tr[data-import-idx="0"]');
+      const newRow = document.querySelector('tr[data-import-idx="1"]');
+      const nameCell = firstRow?.querySelector('.import-name-cell');
+      const statusCell = firstRow?.querySelector('.import-status-cell');
+      const actionCell = firstRow?.querySelector('.import-row-action-btn');
+      const excludeBtn = firstRow?.querySelector('.import-exclude-btn');
+      const mapBtn = newRow?.querySelector('.import-map-picker-btn');
+      const mapBtnRect = mapBtn?.getBoundingClientRect();
+      const modalRect = modal?.getBoundingClientRect();
+      const bodyStyle = body ? getComputedStyle(body) : null;
+      const firstRowStyle = firstRow ? getComputedStyle(firstRow) : null;
+
+      outcomes.mobileModalUsesAvailableWidth = modalRect?.width >= 370 && modalRect.width <= 390;
+      outcomes.mobileBodyUsesCompactPadding = bodyStyle?.paddingTop === '14px'
+        && bodyStyle?.paddingLeft === '12px';
+      outcomes.mobileNameCellBecomesHeading = getComputedStyle(nameCell).display === 'block'
+        && getComputedStyle(nameCell, '::before').display === 'none'
+        && nameCell?.textContent.includes('Glucose') === true;
+      outcomes.mobileStatusUsesRailInsteadOfRepeatedPills = getComputedStyle(statusCell).display === 'none'
+        && document.querySelector('.import-status-pill') === null
+        && firstRowStyle?.borderLeftWidth === '4px';
+      outcomes.mobileActionsAreIconOnlyAndPinned = getComputedStyle(actionCell).position === 'absolute'
+        && excludeBtn?.querySelector('.import-exclude-icon')?.textContent === '×'
+        && excludeBtn?.getAttribute('aria-label')?.includes('Exclude') === true
+        && mapBtn?.querySelector('.import-map-picker-icon') !== null
+        && mapBtn?.title === 'Map marker'
+        && mapBtnRect?.width <= 40;
+    } finally {
+      document.getElementById('import-modal-overlay')?.classList.remove('show');
+      window._pendingImport = null;
+      window._pendingImportRefLookup = null;
+      window._batchImportResolve = null;
+      window._batchImportContext = null;
+    }
+
+    return outcomes;
+  }, {
+    reviewUrl: moduleUrl('/js/pdf-import-review.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('PDF import review draft restores after refresh', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
+
+  await page.evaluate(async ({ reviewUrl }) => {
+    const review = await import(reviewUrl);
+    const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
+    sessionStorage.removeItem('labcharts-import-review-draft-v1');
+    localStorage.setItem('labcharts-active-profile', 'default');
+    window._labState.currentProfile = 'default';
+    review.showImportPreview({
+      date: '2026-06-05',
+      fileName: 'refresh-review.pdf',
+      markers: [
+        {
+          rawName: 'Glucose',
+          value: 5.8,
+          unit: 'mmol/l',
+          matched: true,
+          mappedKey: 'biochemistry.glucose',
+          refMin: 3.9,
+          refMax: 5.5,
+        },
+        {
+          rawName: 'Custom signal',
+          value: 1000,
+          unit: 'mg/l',
+          matched: false,
+          suggestedKey: 'customLabs.customSignal',
+          suggestedName: 'Custom signal',
+          suggestedCategoryLabel: 'Custom Labs',
+        },
+      ],
+    });
+    const valueInput = document.querySelector('tr[data-import-idx="0"] .import-value-input');
+    valueInput.value = '6.2';
+    dispatchChange(valueInput);
+    document.querySelector('tr[data-import-idx="1"] .import-exclude-btn')?.click();
+  }, {
+    reviewUrl: moduleUrl('/js/pdf-import-review.js'),
+  });
+
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('#import-modal-overlay.show');
+
+  await expect(page.locator('#import-modal')).toContainText('refresh-review.pdf');
+  await expect(page.locator('#import-manual-date')).toHaveValue('2026-06-05');
+  await expect(page.locator('tr[data-import-idx="0"] .import-value-input')).toHaveValue('6.2');
+  await expect(page.locator('tr[data-import-idx="1"]')).toHaveClass(/import-excluded/);
+
+  await page.evaluate(() => {
+    document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]')?.click();
+  });
+  await expect(page.locator('#import-modal-overlay')).not.toHaveClass(/show/);
 });
 
 test('PDF import review modal covers privacy cost and debug details', async ({ page }) => {

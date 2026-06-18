@@ -13,11 +13,28 @@ import {
   getOllamaPIIModel,
 } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { buildMarkerReference, normalizeToSI } from './pdf-import-marker-mapping.js';
+import {
+  buildMarkerReference,
+  normalizeToSI,
+  getValidUnitsForMarker,
+  convertImportValueUnit,
+  convertGenericImportValueUnit,
+  GENERIC_IMPORT_UNITS,
+} from './pdf-import-marker-mapping.js';
+import { openImportMarkerMapModal } from './import-marker-map-modal.js';
+import {
+  clearImportReviewDraft, persistImportReviewDraft as saveImportReviewDraft, readImportReviewDraft,
+} from './import-review-draft.js';
+import {
+  renderImportExcludeButton,
+  renderImportMapInput,
+  setImportExcludeButtonState,
+} from './import-review-row-actions.js';
 
 function clearPendingImport() {
   window._pendingImport = null;
   window._pendingImportRefLookup = null;
+  clearImportReviewDraft();
 }
 
 function restoreDropZoneVisibility() {
@@ -42,8 +59,57 @@ function getImportReviewWindow() {
   return typeof window !== 'undefined' ? /** @type {any} */ (window) : {};
 }
 
+function persistImportReviewDraftForState(parseResult = getPendingImport()) {
+  const appWindow = getImportReviewWindow();
+  if (!parseResult) return;
+  if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
+  saveImportReviewDraft(parseResult, {
+    profileId: state.currentProfile || 'default',
+    excludedIndices: Array.from(getExcludedImportIndices()),
+    isBatch: !!appWindow._batchImportContext,
+    debug: isDebugMode(),
+  });
+}
+
+function persistCurrentImportReviewDraft() {
+  persistImportReviewDraftForState();
+}
+
+function getStoredExcludedImportIndices(parseResult) {
+  const raw = Array.isArray(parseResult?._excludedImportIndices) ? parseResult._excludedImportIndices : [];
+  return new Set(raw.map(value => Number(value)).filter(value => Number.isInteger(value) && value >= 0));
+}
+
+function restoreExcludedImportRows(parseResult) {
+  const excluded = getStoredExcludedImportIndices(parseResult);
+  if (excluded.size === 0) return;
+  for (const idx of excluded) {
+    const row = getImportReviewRow(idx);
+    const btn = /** @type {HTMLElement | null} */ (row?.querySelector('.import-exclude-btn'));
+    if (!row || !btn) continue;
+    row.classList.add('import-excluded');
+    setImportExcludeButtonState(btn, true);
+  }
+}
+
+export function restoreImportReviewDraft() {
+  const parseResult = readImportReviewDraft(state.currentProfile || 'default');
+  if (!parseResult) return false;
+  showImportPreview({ ...parseResult, _restoredFromDraft: true });
+  return true;
+}
+
 /** @param {MouseEvent} event */
 function handleImportReviewClick(event) {
+  const unitOption = event.target instanceof Element ? event.target.closest('[data-import-unit-option]') : null;
+  if (unitOption instanceof HTMLElement && unitOption.closest('.import-unit-menu')) {
+    selectImportUnitOption(unitOption);
+    return;
+  }
+  const unitMenuClick = event.target instanceof Element && event.target.closest('.import-unit-menu');
+  const unitButtonClick = event.target instanceof Element && event.target.closest('[data-import-review-action="unit-picker"]');
+  if (!unitMenuClick && !unitButtonClick) closeImportUnitPicker();
+
   const actionEl = closestImportReviewElement(event.target, '[data-import-review-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.importReviewAction || '') {
@@ -55,6 +121,12 @@ function handleImportReviewClick(event) {
       break;
     case 'toggle-row':
       toggleImportRow(actionEl);
+      break;
+    case 'unit-picker':
+      toggleImportUnitPicker(actionEl);
+      break;
+    case 'open-map-modal':
+      openImportMarkerMapPicker(actionEl);
       break;
     case 'privacy-details': {
       const appWindow = getImportReviewWindow();
@@ -90,6 +162,64 @@ function handleImportReviewChange(event) {
   }
   const mapInput = closestImportReviewElement(event.target, '[data-import-review-action="map-marker"]');
   if (mapInput instanceof HTMLInputElement) mapUnmatchedMarkerInput(mapInput);
+  const valueInput = closestImportReviewElement(event.target, '[data-import-review-action="edit-value"]');
+  if (valueInput instanceof HTMLInputElement) updateImportMarkerValue(valueInput);
+
+  const unitInput = closestImportReviewElement(event.target, '[data-import-review-action="edit-unit"]');
+  if (unitInput instanceof HTMLInputElement) {
+    updateImportMarkerUnit(unitInput);
+  }
+}
+
+function updateImportMarkerValue(inputEl) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(inputEl.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  const val = parseFloat(inputEl.value.replace(',', '.'));
+  marker.value = isNaN(val) ? null : val;
+  persistCurrentImportReviewDraft();
+}
+
+function updateImportMarkerUnit(inputEl) {
+  updateImportMarkerUnitValue(inputEl, inputEl.value.trim() || null);
+}
+
+function convertImportReviewUnitValue(marker, value, previousUnit, nextUnit) {
+  if (value == null || isNaN(value)) return null;
+  const key = marker.mappedKey || marker.suggestedKey;
+  const schemaValue = key ? convertImportValueUnit(key, value, previousUnit, nextUnit) : null;
+  return schemaValue != null ? schemaValue : convertGenericImportValueUnit(value, previousUnit, nextUnit);
+}
+
+function updateImportMarkerUnitValue(controlEl, nextUnit) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(controlEl.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  const previousUnit = marker.unit || null;
+  if (previousUnit !== nextUnit) {
+    const row = getImportReviewRow(idx, controlEl);
+    const nextValue = convertImportReviewUnitValue(marker, marker.value, previousUnit, nextUnit);
+    if (nextValue != null) {
+      marker.value = nextValue;
+      const valueInput = /** @type {HTMLInputElement | null} */ (row?.querySelector('.import-value-input'));
+      if (valueInput) valueInput.value = formatImportNumber(nextValue);
+    }
+    const nextRefMin = convertImportReviewUnitValue(marker, marker.refMin, previousUnit, nextUnit);
+    const nextRefMax = convertImportReviewUnitValue(marker, marker.refMax, previousUnit, nextUnit);
+    if (nextRefMin != null || nextRefMax != null) {
+      if (nextRefMin != null) marker.refMin = nextRefMin;
+      if (nextRefMax != null) marker.refMax = nextRefMax;
+      const rangeCell = row?.querySelector('.import-range-cell');
+      if (rangeCell) rangeCell.textContent = formatImportLabRange(marker) || '\u2014';
+    }
+  }
+  marker.unit = nextUnit;
+  updateImportUnitControl(idx, nextUnit);
+  persistCurrentImportReviewDraft();
 }
 
 function initImportReviewDelegates() {
@@ -100,6 +230,7 @@ function initImportReviewDelegates() {
   document.addEventListener('click', handleImportReviewClick);
   document.addEventListener('input', handleImportReviewInput);
   document.addEventListener('change', handleImportReviewChange);
+  document.addEventListener('keydown', handleImportReviewKeydown);
 }
 
 initImportReviewDelegates();
@@ -118,6 +249,177 @@ export function resolveImportPreviewBatch(action) {
   restoreDropZoneVisibility();
   resolve(action);
   return true;
+}
+
+function getImportUnitOptions(marker) {
+  const key = marker.mappedKey || marker.suggestedKey;
+  const validUnits = getValidUnitsForMarker(key);
+  return validUnits.length > 0
+    ? { units: validUnits, schemaBacked: true }
+    : { units: GENERIC_IMPORT_UNITS, schemaBacked: false };
+}
+
+// Render responsive unit controls. Schema-backed markers get a constrained
+// picker; custom markers keep text editing plus the same picker as an assist.
+function renderUnitSelect(marker, idx) {
+  const unitOptions = getImportUnitOptions(marker);
+  const currentUnit = marker.unit || '';
+
+  if (!unitOptions.schemaBacked) {
+    return `<div class="import-unit-combo">
+      <input type="text" class="import-unit-input import-unit-text" data-marker-idx="${idx}" value="${escapeHTML(currentUnit)}" ${importReviewActionAttrs('edit-unit')} aria-label="Unit for ${escapeHTML(marker.rawName)}" autocomplete="off">
+      <button type="button" class="import-unit-picker-btn" data-marker-idx="${idx}" ${importReviewActionAttrs('unit-picker')} aria-haspopup="listbox" aria-expanded="false" title="Choose common unit" aria-label="Choose common unit for ${escapeHTML(marker.rawName)}">
+        <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
+      </button>
+    </div>`;
+  }
+
+  const displayUnit = currentUnit || unitOptions.units[0] || '';
+  return `<button type="button" class="import-unit-input import-unit-button" data-marker-idx="${idx}" ${importReviewActionAttrs('unit-picker')} aria-haspopup="listbox" aria-expanded="false" title="${escapeHTML(displayUnit)}" aria-label="Unit for ${escapeHTML(marker.rawName)}">
+    <span class="import-unit-button-text">${escapeHTML(displayUnit)}</span>
+    <span class="import-unit-button-caret" aria-hidden="true">\u25be</span>
+  </button>`;
+}
+
+/** @param {KeyboardEvent} event */
+function handleImportReviewKeydown(event) {
+  if (event.key !== 'Escape') return;
+  if (document.querySelector('.import-unit-menu')) {
+    event.preventDefault();
+    closeImportUnitPicker();
+  }
+}
+
+function closeImportUnitPicker() {
+  document.querySelector('.import-unit-menu')?.remove();
+  for (const button of document.querySelectorAll('[data-import-review-action="unit-picker"][aria-expanded="true"]')) {
+    button.setAttribute('aria-expanded', 'false');
+  }
+}
+
+/** @param {HTMLElement} button */
+function toggleImportUnitPicker(button) {
+  const existing = document.querySelector('.import-unit-menu');
+  const idx = parseInt(button.dataset.markerIdx, 10);
+  if (existing && existing.getAttribute('data-marker-idx') === String(idx)) {
+    closeImportUnitPicker();
+    return;
+  }
+  openImportUnitPicker(button);
+}
+
+/** @param {HTMLElement} button */
+function openImportUnitPicker(button) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(button.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  const unitOptions = getImportUnitOptions(marker);
+  if (unitOptions.units.length === 0) return;
+  const currentUnit = marker.unit || '';
+  const units = currentUnit && !unitOptions.units.includes(currentUnit)
+    ? [currentUnit, ...unitOptions.units]
+    : unitOptions.units;
+
+  closeImportUnitPicker();
+  const menu = document.createElement('div');
+  menu.className = 'import-unit-menu';
+  menu.setAttribute('role', 'listbox');
+  menu.setAttribute('aria-label', `Unit for ${marker.rawName || 'marker'}`);
+  menu.setAttribute('data-marker-idx', String(idx));
+  menu.innerHTML = units.map((unit, optionIdx) => {
+    const selected = unit === currentUnit || (!currentUnit && optionIdx === 0);
+    const disabled = unitOptions.schemaBacked && optionIdx === 0 && currentUnit && !unitOptions.units.includes(currentUnit);
+    const label = unit || 'No unit';
+    return `<button type="button" class="import-unit-option" data-import-unit-option="${escapeHTML(unit)}" data-marker-idx="${idx}" role="option" aria-selected="${selected ? 'true' : 'false'}"${disabled ? ' disabled' : ''}>${escapeHTML(label)}</button>`;
+  }).join('');
+  document.body.append(menu);
+  positionImportUnitMenu(button, menu);
+  button.setAttribute('aria-expanded', 'true');
+}
+
+/**
+ * @param {HTMLElement} button
+ * @param {HTMLElement} menu
+ */
+function positionImportUnitMenu(button, menu) {
+  const isMobile = matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    menu.classList.add('is-mobile');
+    return;
+  }
+  const rect = button.getBoundingClientRect();
+  const gap = 6;
+  const margin = 12;
+  const viewportWidth = document.documentElement.clientWidth || innerWidth;
+  const viewportHeight = innerHeight || document.documentElement.clientHeight;
+  const width = Math.min(Math.max(rect.width, 220), viewportWidth - margin * 2);
+  const left = Math.min(Math.max(margin, rect.left), viewportWidth - width - margin);
+  let top = rect.bottom + gap;
+  let maxHeight = viewportHeight - top - margin;
+  if (maxHeight < 160 && rect.top > 180) {
+    maxHeight = Math.min(280, rect.top - margin - gap);
+    top = Math.max(margin, rect.top - maxHeight - gap);
+  }
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.style.width = `${width}px`;
+  menu.style.maxHeight = `${Math.max(140, Math.min(280, maxHeight))}px`;
+}
+
+/** @param {HTMLElement} optionEl */
+function selectImportUnitOption(optionEl) {
+  if (optionEl.hasAttribute('disabled')) return;
+  const idx = parseInt(optionEl.dataset.markerIdx, 10);
+  const nextUnit = optionEl.dataset.importUnitOption || null;
+  const row = getImportReviewRow(idx);
+  const control = /** @type {HTMLElement | null} */ (row?.querySelector('.import-unit-text, .import-unit-button, .import-unit-picker-btn'));
+  if (!control) return;
+  updateImportMarkerUnitValue(control, nextUnit);
+  closeImportUnitPicker();
+}
+
+function getImportReviewRow(idx, controlEl = null) {
+  return controlEl?.closest('tr') || document.querySelector(`.import-table tr[data-import-idx="${idx}"]`);
+}
+
+function updateImportUnitControl(idx, unit) {
+  const row = getImportReviewRow(idx);
+  const displayUnit = unit || '';
+  const input = /** @type {HTMLInputElement | null} */ (row?.querySelector('.import-unit-text'));
+  if (input) input.value = displayUnit;
+  const pickerButton = /** @type {HTMLElement | null} */ (row?.querySelector('.import-unit-picker-btn'));
+  if (pickerButton) pickerButton.title = displayUnit ? `Choose common unit (${displayUnit})` : 'Choose common unit';
+  const button = /** @type {HTMLElement | null} */ (row?.querySelector('.import-unit-button'));
+  if (!button) return;
+  button.title = displayUnit;
+  const text = button.querySelector('.import-unit-button-text');
+  if (text) text.textContent = displayUnit;
+}
+
+function formatImportNumber(value) {
+  return value == null || isNaN(value) ? '' : String(value);
+}
+
+function formatImportLabRange(marker) {
+  if (marker.refMin == null && marker.refMax == null) return '';
+  return `${formatImportNumber(marker.refMin) || '?'}\u2013${formatImportNumber(marker.refMax) || '?'}`;
+}
+
+function openImportMarkerMapPicker(controlEl) {
+  const result = getPendingImport();
+  if (!result) return;
+  const idx = parseInt(controlEl.dataset.markerIdx, 10);
+  const marker = result.markers[idx];
+  if (!marker) return;
+  const refLookup = getImportReviewWindow()._pendingImportRefLookup || buildMarkerReference();
+  openImportMarkerMapModal({
+    marker,
+    currentKey: marker.mappedKey || '',
+    refLookup,
+    onSelect: key => applyImportMarkerMapping(controlEl, key || ''),
+  });
 }
 
 export function showImportPreview(parseResult) {
@@ -166,12 +468,6 @@ export function showImportPreview(parseResult) {
   }
 
   const refLookup = buildMarkerReference();
-  const allKeys = Object.entries(refLookup).map(([key, def]) => ({ key, name: def.name }));
-  allKeys.sort((a, b) => a.name.localeCompare(b.name));
-  const optionsHtml = allKeys.map(k => {
-    const label = `${k.name} (${k.key})`;
-    return `<option value="${escapeHTML(k.key)}" label="${escapeHTML(label)}"></option>`;
-  }).join('');
 
   html += `<div class="import-review-controls">
     <div class="import-filter-group" role="group" aria-label="Filter import rows">
@@ -188,51 +484,55 @@ export function showImportPreview(parseResult) {
     <span class="import-visible-count" id="import-visible-count" aria-live="polite"></span>
   </div>`;
 
-  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th>Status</th><th>Test Name</th><th>Value</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
+  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th class="import-state-heading" aria-label="Status"></th><th>Test Name</th><th>Value</th><th>Unit</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
   for (const m of matched) {
     const origIdx = markers.indexOf(m);
-    const labRange = (m.refMin != null || m.refMax != null) ? `${m.refMin ?? '?'}\u2013${m.refMax ?? '?'}` : '';
+    const labRange = formatImportLabRange(m);
     html += `<tr data-import-idx="${origIdx}" data-import-status="matched">
-      <td class="import-status-cell matched" data-label="Status"><span class="import-status-pill">Matched</span></td>
+      <td class="import-status-cell matched" data-label="Status"><span class="import-status-dot" title="Matched" role="img" aria-label="Matched"></span></td>
       <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-      <td data-label="Value">${escapeHTML(String(m.value))}</td>
+      <td data-label="Value">
+        <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
+      </td>
+      <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
       <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.mappedKey)}</td>
-      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
+      <td class="import-row-action import-row-action-btn" data-label="Action">${renderImportExcludeButton(m.rawName)}</td>
     </tr>`;
   }
   for (const m of newMarkers) {
     const origIdx = markers.indexOf(m);
-    const labRange = (m.refMin != null || m.refMax != null) ? `${m.refMin ?? '?'}\u2013${m.refMax ?? '?'}` : '';
+    const labRange = formatImportLabRange(m);
     html += `<tr data-import-idx="${origIdx}" data-import-status="new">
-      <td class="import-status-cell new-marker" data-label="Status"><span class="import-status-pill">New</span></td>
+      <td class="import-status-cell new-marker" data-label="Status"><span class="import-status-dot" title="New" role="img" aria-label="New"></span></td>
       <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-      <td data-label="Value">${escapeHTML(String(m.value))}</td>
+      <td data-label="Value">
+        <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
+      </td>
+      <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
       <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
-      <td class="import-map-cell" data-label="Maps to">${escapeHTML(m.suggestedKey)}</td>
-      <td class="import-row-action" data-label="Action"><button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude ${escapeHTML(m.rawName)} from import">Exclude</button></td>
+      <td class="import-map-cell" data-label="Maps to">${renderImportMapInput(m, origIdx)}</td>
+      <td class="import-row-action import-row-action-btn" data-label="Action">${renderImportExcludeButton(m.rawName)}</td>
     </tr>`;
   }
   if (unmatched.length > 0) {
     for (const m of unmatched) {
       const origIdx = markers.indexOf(m);
-      const labRange = (m.refMin != null || m.refMax != null) ? `${m.refMin ?? '?'}\u2013${m.refMax ?? '?'}` : '';
+      const labRange = formatImportLabRange(m);
       html += `<tr data-import-idx="${origIdx}" data-import-status="unmatched">
-        <td class="import-status-cell unmatched" data-label="Status"><span class="import-status-pill">Unmatched</span></td>
+        <td class="import-status-cell unmatched" data-label="Status"><span class="import-status-dot" title="Unmatched" role="img" aria-label="Unmatched"></span></td>
         <td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
-        <td data-label="Value">${escapeHTML(String(m.value))}</td>
-        <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
-        <td class="import-map-cell" data-label="Maps to">
-          <input type="text" class="import-map-input" list="import-marker-options" data-marker-idx="${origIdx}" ${importReviewActionAttrs('map-marker')} placeholder="Search marker" autocomplete="off" aria-label="Map ${escapeHTML(m.rawName)} to an existing marker">
+        <td data-label="Value">
+          <input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
         </td>
+        <td data-label="Unit">${renderUnitSelect(m, origIdx)}</td>
+        <td class="import-range-cell" data-label="Lab range">${escapeHTML(labRange || '—')}</td>
+        <td class="import-map-cell" data-label="Maps to">${renderImportMapInput(m, origIdx)}</td>
         <td class="import-row-action" data-label="Action"><span class="import-skip-note">Skipped unless mapped</span></td>
       </tr>`;
     }
   }
   html += '</tbody></table></div>';
-  if (unmatched.length > 0) {
-    html += `<datalist id="import-marker-options">${optionsHtml}</datalist>`;
-  }
 
   let rangesDiffCount = 0;
   for (const m of matched) {
@@ -289,7 +589,10 @@ export function showImportPreview(parseResult) {
   window._pendingImportRefLookup = refLookup;
   modal.innerHTML = html;
   openModalOverlay(overlay);
+  restoreExcludedImportRows(parseResult);
+  updateImportConfirmCount();
   applyImportReviewFilters();
+  persistImportReviewDraftForState(parseResult);
 }
 
 /** @param {HTMLSelectElement} selectEl */
@@ -340,28 +643,51 @@ function applyImportMarkerMapping(controlEl, key) {
   const row = controlEl.closest('tr');
   if (row) {
     const statusCell = row.querySelector('td:first-child');
+    const unitCell = row.querySelector('td[data-label="Unit"]');
+    const mapCell = row.querySelector('.import-map-cell');
     const actionCell = row.querySelector('.import-row-action');
     if (key) {
       row.dataset.importStatus = 'matched';
       if (statusCell) {
         statusCell.className = 'import-status-cell matched';
-        statusCell.innerHTML = '<span class="import-status-pill">Matched</span>';
+        statusCell.innerHTML = '<span class="import-status-dot" title="Matched" role="img" aria-label="Matched"></span>';
       }
+      if (unitCell) unitCell.innerHTML = renderUnitSelect(marker, idx);
+      if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
       if (actionCell && !actionCell.querySelector('.import-exclude-btn')) {
-        actionCell.innerHTML = `<button type="button" class="import-exclude-btn" ${importReviewActionAttrs('toggle-row')} title="Exclude from import" aria-label="Exclude from import">Exclude</button>`;
+        actionCell.classList.add('import-row-action-btn');
+        actionCell.innerHTML = renderImportExcludeButton(marker.rawName);
+      }
+    } else if (marker.suggestedKey) {
+      row.dataset.importStatus = 'new';
+      row.classList.remove('import-excluded');
+      if (statusCell) {
+        statusCell.className = 'import-status-cell new-marker';
+        statusCell.innerHTML = '<span class="import-status-dot" title="New" role="img" aria-label="New"></span>';
+      }
+      if (unitCell) unitCell.innerHTML = renderUnitSelect(marker, idx);
+      if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
+      if (actionCell && !actionCell.querySelector('.import-exclude-btn')) {
+        actionCell.classList.add('import-row-action-btn');
+        actionCell.innerHTML = renderImportExcludeButton(marker.rawName);
       }
     } else {
       row.dataset.importStatus = 'unmatched';
       row.classList.remove('import-excluded');
       if (statusCell) {
         statusCell.className = 'import-status-cell unmatched';
-        statusCell.innerHTML = '<span class="import-status-pill">Unmatched</span>';
+        statusCell.innerHTML = '<span class="import-status-dot" title="Unmatched" role="img" aria-label="Unmatched"></span>';
       }
-      if (actionCell) actionCell.innerHTML = '<span class="import-skip-note">Skipped unless mapped</span>';
+      if (mapCell) mapCell.innerHTML = renderImportMapInput(marker, idx);
+      if (actionCell) {
+        actionCell.classList.remove('import-row-action-btn');
+        actionCell.innerHTML = '<span class="import-skip-note">Skipped unless mapped</span>';
+      }
     }
   }
   updateImportConfirmCount();
   applyImportReviewFilters();
+  persistCurrentImportReviewDraft();
 }
 
 function updateImportConfirmCount() {
@@ -393,7 +719,10 @@ export function applyImportReviewFilters() {
   for (const row of rows) {
     const status = row.classList.contains('import-excluded') ? 'excluded' : (row.dataset.importStatus || '');
     const filterMatch = activeFilter === 'all' || activeFilter === status;
-    const controlText = Array.from(row.querySelectorAll('input, select')).map(el => /** @type {HTMLInputElement | HTMLSelectElement} */ (el).value).join(' ');
+    const controlText = Array.from(row.querySelectorAll('input, select, button.import-unit-button')).map(el => {
+      if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) return el.value;
+      return el.textContent || '';
+    }).join(' ');
     const searchMatch = !query || `${row.textContent} ${controlText}`.toLowerCase().includes(query);
     const shouldShow = filterMatch && searchMatch;
     row.hidden = !shouldShow;
@@ -414,6 +743,7 @@ export function applyManualImportDate(dateStr) {
     btn.style.opacity = '';
     btn.style.cursor = '';
   }
+  persistCurrentImportReviewDraft();
 }
 
 /** @param {HTMLElement} btn */
@@ -421,11 +751,10 @@ export function toggleImportRow(btn) {
   const row = btn.closest('tr');
   if (!row) return;
   const excluded = row.classList.toggle('import-excluded');
-  btn.textContent = excluded ? 'Include' : 'Exclude';
-  btn.title = excluded ? 'Include in import' : 'Exclude from import';
-  btn.setAttribute('aria-label', btn.title);
+  setImportExcludeButtonState(btn, excluded);
   updateImportConfirmCount();
   applyImportReviewFilters();
+  persistCurrentImportReviewDraft();
 }
 
 export function getExcludedImportIndices() {

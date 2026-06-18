@@ -583,9 +583,6 @@
   body.mobile-tabs-active #chat-fab {
     bottom: calc(92px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
   }
-  body.mobile-tabs-active #import-status-fab {
-    bottom: calc(148px + env(safe-area-inset-bottom) + var(--mobile-visual-bottom-offset, 0px));
-  }
   [data-theme="cyberterm"] .dashboard-greeting h1::before,
   [data-theme="cyberterm"] .m-greeting h1::before {
     content: "> ";

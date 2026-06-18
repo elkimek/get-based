@@ -97,7 +97,7 @@ const settingsSrc = read('js/settings.js');
   // ═══════════════════════════════════════
   console.log('%c 4. Conversion logic ', 'font-weight:bold;color:#f59e0b');
 
-  assert('divides by factor for multiply type', mappingSrc.includes('value / conv.factor'));
+  assert('divides by factor for multiply type', /value \/ \w+\.factor/.test(mappingSrc));
   assert('handles hba1c inverse', mappingSrc.includes('(value - 2.15) * 10.929'));
 
   // ═══════════════════════════════════════

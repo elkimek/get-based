@@ -1,5 +1,5 @@
 // @ts-check
-// pdf-import-progress.js — PDF import progress UI and floating status state
+// pdf-import-progress.js — PDF import progress UI and header status state
 
 import { IMPORT_STEPS } from './constants.js';
 import { escapeHTML } from './utils.js';
@@ -125,32 +125,72 @@ export function handleImportStatusClick() {
   setImportStatus({ done: false, failed: false });
 }
 
-export function syncImportStatusFab() {
-  const fab = document.getElementById('import-status-fab');
-  if (!fab) return;
+function getImportButton() {
+  return /** @type {HTMLButtonElement | null} */ (document.querySelector('.header-import-btn'));
+}
+
+function ensureImportButtonDefaults(button) {
+  if (!button.dataset.importDefaultTitle) button.dataset.importDefaultTitle = button.getAttribute('title') || 'Import';
+  if (!button.dataset.importDefaultLabel) button.dataset.importDefaultLabel = button.getAttribute('aria-label') || 'Import lab results';
+}
+
+function ensureImportButtonLabel(button) {
+  let label = button.querySelector('.import-button-status-label');
+  if (!label) {
+    label = document.createElement('span');
+    label.className = 'import-button-status-label';
+    label.setAttribute('aria-hidden', 'true');
+    button.append(label);
+  }
+  return label;
+}
+
+function syncImportButtonStatus() {
+  const button = getImportButton();
+  if (!button) return;
+  ensureImportButtonDefaults(button);
+
   const { running, done, failed, pct, batch } = importStatus;
+  const labelEl = ensureImportButtonLabel(button);
+  const active = running || done || failed;
+  let visibleLabel = '';
+  let ariaLabel = button.dataset.importDefaultLabel || 'Import lab results';
+  let title = button.dataset.importDefaultTitle || 'Import';
+
+  if (running) {
+    visibleLabel = batch ? `${batch.current}/${batch.total} \u00b7 ${pct}%` : `${pct}%`;
+    ariaLabel = batch
+      ? `Import in progress: file ${batch.current} of ${batch.total}, ${pct}%`
+      : `Import in progress: ${pct}%`;
+    title = ariaLabel;
+  } else if (done) {
+    visibleLabel = '\u2713';
+    ariaLabel = 'Import complete';
+    title = ariaLabel;
+  } else if (failed) {
+    visibleLabel = '\u2717';
+    ariaLabel = 'Import failed';
+    title = ariaLabel;
+  }
+
+  labelEl.textContent = visibleLabel;
+  button.classList.toggle('is-import-active', active);
+  button.classList.toggle('is-import-running', running);
+  button.classList.toggle('is-import-done', done);
+  button.classList.toggle('is-import-failed', failed);
+  button.setAttribute('aria-label', ariaLabel);
+  button.setAttribute('title', title);
+}
+
+export function syncImportStatusFab() {
+  syncImportButtonStatus();
+  const { running, done, failed } = importStatus;
   const previewOpen = document.getElementById('import-modal-overlay')?.classList.contains('show');
-  const visible = (running || done || failed) && !previewOpen && !progressBarVisible;
-  fab.classList.toggle('hidden', !visible);
+  const statusActive = running || done || failed;
 
   const floatingDz = /** @type {HTMLElement | null} */ (document.querySelector('.drop-zone-hidden'));
-  if (floatingDz && (visible || previewOpen)) floatingDz.style.display = 'none';
-  else if (floatingDz && importStatus.running && progressBarVisible) floatingDz.style.display = '';
-  if (!visible) return;
-
-  let label = '';
-  if (running) {
-    label = batch ? `${batch.current}/${batch.total} \u00b7 ${pct}%` : `${pct}%`;
-  } else if (done) {
-    label = '\u2713';
-  } else if (failed) {
-    label = '\u2717';
-  }
-  const labelEl = fab.querySelector('.import-status-label');
-  if (labelEl) labelEl.textContent = label;
-  fab.classList.toggle('is-running', running);
-  fab.classList.toggle('is-done', done);
-  fab.classList.toggle('is-failed', failed);
+  if (floatingDz && (statusActive || previewOpen)) floatingDz.style.display = 'none';
+  else if (floatingDz && running && progressBarVisible) floatingDz.style.display = '';
 }
 
 export async function showBatchImportProgress(step, fileName, current, total) {

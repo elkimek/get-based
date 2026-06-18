@@ -45,11 +45,14 @@ assert('main installs shell action delegates',
   'open-settings',
   'open-ai-settings',
   'open-feedback',
-  'import-status',
 ].forEach(action => {
   assert(`Shell action ${action} is rendered`, html.includes(`data-shell-action="${action}"`));
   assert(`Shell action ${action} is handled`, shellSrc.includes(`action === '${action}'`));
 });
+
+assert('Shell action import-status is handled for compatibility but not rendered as a floating button',
+  shellSrc.includes("action === 'import-status'")
+    && !html.includes('data-shell-action="import-status"'));
 
 [
   'toggle-panel',

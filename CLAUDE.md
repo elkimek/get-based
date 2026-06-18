@@ -54,7 +54,7 @@ Functions called from inline HTML `onclick` handlers are exposed via `Object.ass
 
 1. **Text extraction** → **PII obfuscation** (Local AI streaming or regex) → **AI analysis** (`parseLabPDFWithAI`, detects testType, maps to `category.markerKey`) → **Import preview** (confirm/exclude per row) → save
 2. Unknown markers become custom markers (AI suggests key/name/unit/refs/group). Manual creation via sidebar "+" button. Specialty data auto-migrated via `SPECIALTY_MARKER_DEFS`
-3. Batch import (`handleBatchPDFs`), sidebar grouping by `group` field, import status FAB. See `pdf-import.js`; review modal rendering/state lives in `pdf-import-review.js`.
+3. Batch import (`handleBatchPDFs`), sidebar grouping by `group` field, and header import-button progress state. See `pdf-import.js`; review modal rendering/state lives in `pdf-import-review.js`.
 
 ### Profile Context Cards
 
@@ -177,5 +177,7 @@ Breakpoints: 3000/2000/1600/1400px (chat scaling), 1200px (cards 3→2 col), 102
 - **Security**: `escapeHTML(str)` for all innerHTML. Markdown URLs validated to http/https/mailto
 - **Marker keys**: `category.markerKey` format (e.g., `biochemistry.glucose`) used everywhere
 - **Units**: storage is SI; `UNIT_CONVERSIONS` in `schema.js` keys per dotKey to `{factor, usUnit, type}`. `getAlternateUnit(dotKey, value, isUSMode)` returns the other system for dual-display; `convertUserInputToSI(dotKey, value, inputUnit)` accepts either system at manual-entry time. Per-profile `state.showAltUnits` (Settings → Display) toggles the secondary `≈` line in the detail modal. Add an entry per real numerical conversion AND per label-only US convention (e.g. mU/L ↔ µIU/mL has `factor: 1` so US users can recognize their lab-report unit). Skip true universals (homocysteine µmol/L)
+- **Secondary Units**: global clinical units (e.g. `g/l` or `mU/l` standards) reside in `SECONDARY_UNIT_CONVERSIONS` in `js/secondary-unit-conversions.js` and are re-exported from `schema.js`. `getValidUnitsForMarker()` systematically deduplicates these for UI review, and `normalizeToSI()` evaluates them mathematically when saving.
+- **Import Mapping**: import review mapping uses `js/import-marker-map-modal.js` for category/search selection; `pdf-import-review.js` owns pending import state and applies the selected key.
 - **Debug**: `isDebugMode()` gates console output. Toggled in Settings → Privacy
 - **Design system**: `--accent-gradient`, `--shadow-lg`/`--shadow-glow`, `.ctx-btn-group`/`.ctx-btn-option` pill buttons

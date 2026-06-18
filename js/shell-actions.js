@@ -23,6 +23,10 @@ function runShellAction(action) {
     window.closeMobileSidebar?.();
     return true;
   } else if (action === 'trigger-import') {
+    if (appWindow.isImportRunning?.()) {
+      appWindow.handleImportStatusClick?.();
+      return true;
+    }
     clickFileInput('pdf-input');
     return true;
   } else if (action === 'share-profile') {

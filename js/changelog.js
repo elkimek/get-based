@@ -10,6 +10,24 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.8.550', date: '2026-06-18', title: 'Better lab import review',
+    items: [
+      '<b>Review imports before saving.</b> Edit values and units, scan rows more easily, and map unfamiliar lab names through a searchable marker picker.',
+      '<b>Smarter unit handling.</b> Known markers use curated units; new markers get flexible unit entry and common shortcuts. Compatible unit changes update values and ranges automatically.',
+      '<b>Your review survives refresh.</b> In-progress import reviews are restored after a page refresh, so you do not have to re-import the same file while checking rows.',
+      '<b>Bugfixes &amp; improvements.</b> Import review, unit menus, row actions, and import progress fit the app layout better, with tighter conversion behavior and broader test coverage.',
+      '<b>Contributor credit.</b> Thanks to <a href="https://github.com/onlikerop">@onlikerop</a> for the original PR.',
+    ]
+  },
+  {
+    version: '1.8.540', date: '2026-06-17', title: 'Smarter lab import and a broader hormone panel',
+    items: [
+      '<b>Edit values and units in the import review.</b> When a parsed value looks off or the model read the wrong unit, you can now correct the value and switch the unit for any row before confirming an import. Each marker offers a curated list of its valid units, with a fallback for anything unrecognized.',
+      '<b>More hormones tracked.</b> Added Free Testosterone %, Bioactive Testosterone (and its percentage), hCG, and AFP (tumor marker), each with reference ranges and unit conversions so they display and convert consistently with the rest of the panel.',
+      '<b>More reliable non-English lab reports.</b> The importer now translates localized test names and units (especially Cyrillic: Bulgarian, Russian, Ukrainian, and more) to their English equivalents before matching, and recognizes a wider set of secondary clinical units (European mass-concentration, katal enzyme activity, and trace-mineral units).',
+    ]
+  },
+  {
     version: '1.8.455', date: '2026-06-13', title: 'XLSX lab imports and improvements',
     items: [
       '<b>XLSX lab import support.</b> Excel lab reports can now be imported alongside PDFs and CSVs.',

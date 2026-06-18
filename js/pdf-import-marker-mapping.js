@@ -3,12 +3,90 @@
 
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS, UNIT_CONVERSIONS } from './schema.js';
+import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
 
 // ═══════════════════════════════════════════════
 // UNIT NORMALIZATION — convert US-unit values to SI before storage
 // ═══════════════════════════════════════════════
 function normalizeUnitStr(s) {
   return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
+}
+
+export const GENERIC_IMPORT_UNITS = [
+  '',
+  '%',
+  'ratio',
+  'arb.j.',
+  'U/l',
+  'IU/l',
+  '\u00b5kat/l',
+  '/\u00b5l',
+  '10^9/l',
+  '10^12/l',
+  'g/l',
+  'mg/l',
+  '\u00b5g/l',
+  'ng/ml',
+  'ng/l',
+  'mol/l',
+  'mmol/l',
+  '\u00b5mol/l',
+  'nmol/l',
+  'pmol/l',
+  'g/mol',
+  'fL',
+  'pg',
+  'mm/h',
+];
+
+function normalizeGenericImportUnit(unit) {
+  return normalizeUnitStr(String(unit || ''))
+    .replace(/^mcg\//, 'ug/')
+    .replace(/^cells\//, '/')
+    .replace(/^x(10\^\d+\/l)$/i, '$1');
+}
+
+const GENERIC_UNIT_FACTORS = new Map([
+  ['g/l', { group: 'mass-concentration', factor: 1 }],
+  ['mg/l', { group: 'mass-concentration', factor: 1e-3 }],
+  ['ug/l', { group: 'mass-concentration', factor: 1e-6 }],
+  ['ng/ml', { group: 'mass-concentration', factor: 1e-6 }],
+  ['ng/l', { group: 'mass-concentration', factor: 1e-9 }],
+  ['mol/l', { group: 'amount-concentration', factor: 1 }],
+  ['mmol/l', { group: 'amount-concentration', factor: 1e-3 }],
+  ['umol/l', { group: 'amount-concentration', factor: 1e-6 }],
+  ['nmol/l', { group: 'amount-concentration', factor: 1e-9 }],
+  ['pmol/l', { group: 'amount-concentration', factor: 1e-12 }],
+  ['/ul', { group: 'cell-count', factor: 1e6 }],
+  ['10^6/l', { group: 'cell-count', factor: 1e6 }],
+  ['10^9/l', { group: 'cell-count', factor: 1e9 }],
+  ['10^12/l', { group: 'cell-count', factor: 1e12 }],
+  ['u/l', { group: 'activity', factor: 1 }],
+  ['iu/l', { group: 'activity', factor: 1 }],
+  ['ukat/l', { group: 'activity', factor: 60 }],
+]);
+
+function getSchemaUnitForMarker(key) {
+  const [catKey, markerKey] = String(key || '').split('.');
+  return MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit || '';
+}
+
+function isRecognizedUnitForMarker(key, unit) {
+  if (!key) return false;
+  if (!unit) return true;
+  const aiUnit = normalizeUnitStr(unit);
+  const siUnit = getSchemaUnitForMarker(key);
+  if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return true;
+  const primaryConv = UNIT_CONVERSIONS[key];
+  if (primaryConv?.type === 'multiply' && primaryConv.usUnit && aiUnit === normalizeUnitStr(primaryConv.usUnit)) return true;
+  if (primaryConv?.type === 'hba1c' && aiUnit === '%') return true;
+  const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
+  if (secondaryList) {
+    for (const sec of secondaryList) {
+      if (sec.unit && aiUnit === normalizeUnitStr(sec.unit)) return true;
+    }
+  }
+  return false;
 }
 
 // Marker keys flow into onclick handlers and dynamic property names. Reject
@@ -111,6 +189,73 @@ function _suggestDifferentialPercentImportKey(marker) {
   if (_hasImportAbsoluteHint(rawName, unit)) return null;
   if (!_hasImportPercentHint(rawName, unit, compactBase)) return null;
   return `differential.${stem}Pct`;
+}
+
+export function getValidUnitsForMarker(key) {
+  if (!key) return [];
+  const [catKey, markerKey] = key.split('.');
+  const schema = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  const units = [];
+  if (schema?.unit) units.push(schema.unit);
+  const conv = UNIT_CONVERSIONS[key];
+  if (conv?.usUnit) units.push(conv.usUnit);
+  const secondaries = SECONDARY_UNIT_CONVERSIONS[key];
+  if (secondaries) {
+    secondaries.forEach(sec => {
+      if (sec.unit) units.push(sec.unit);
+    });
+  }
+  return [...new Set(units)];
+}
+
+export function convertSIToImportUnit(key, value, unit) {
+  if (value == null || isNaN(value)) return null;
+  if (!key || !unit) return value;
+  const aiUnit = normalizeUnitStr(unit);
+  const siUnit = getSchemaUnitForMarker(key);
+  if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return value;
+
+  const primaryConv = UNIT_CONVERSIONS[key];
+  if (primaryConv?.type === 'multiply' && primaryConv.usUnit && aiUnit === normalizeUnitStr(primaryConv.usUnit)) {
+    return parseFloat((value * primaryConv.factor).toPrecision(6));
+  }
+  if (primaryConv?.type === 'hba1c' && aiUnit === '%') {
+    return parseFloat(((value / 10.929) + 2.15).toFixed(1));
+  }
+
+  const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
+  if (secondaryList) {
+    for (const sec of secondaryList) {
+      if (sec.type === 'multiply' && aiUnit === normalizeUnitStr(sec.unit)) {
+        return parseFloat((value * sec.factor).toPrecision(6));
+      }
+      if (sec.type === 'hba1c' && aiUnit === normalizeUnitStr(sec.unit)) {
+        return parseFloat(((value / 10.929) + 2.15).toFixed(1));
+      }
+    }
+  }
+  return null;
+}
+
+export function convertImportValueUnit(key, value, fromUnit, toUnit) {
+  if (value == null || isNaN(value)) return null;
+  if (!key) return null;
+  if (normalizeUnitStr(fromUnit || '') === normalizeUnitStr(toUnit || '')) return value;
+  if (!isRecognizedUnitForMarker(key, fromUnit)) return null;
+  const siValue = normalizeToSI(key, value, fromUnit);
+  return convertSIToImportUnit(key, siValue, toUnit);
+}
+
+export function convertGenericImportValueUnit(value, fromUnit, toUnit) {
+  if (value == null || isNaN(value)) return null;
+  const from = normalizeGenericImportUnit(fromUnit);
+  const to = normalizeGenericImportUnit(toUnit);
+  if (from === to) return value;
+  if (!from || !to) return null;
+  const fromMeta = GENERIC_UNIT_FACTORS.get(from);
+  const toMeta = GENERIC_UNIT_FACTORS.get(to);
+  if (!fromMeta || !toMeta || fromMeta.group !== toMeta.group) return null;
+  return parseFloat(((value * fromMeta.factor) / toMeta.factor).toPrecision(6));
 }
 
 export function _cleanImportedMarkerDisplayName(value) {
@@ -416,38 +561,59 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
 }
 
 export function normalizeToSI(key, value, unit) {
-  if (value == null) return value;
+  if (value == null || isNaN(value)) return null;
+
   // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50)
   if (key === 'hematology.hematocrit' && value < 1.5) {
     return parseFloat((value * 100).toFixed(1));
   }
-  const conv = UNIT_CONVERSIONS[key];
-  if (!conv) return value;
 
-  // When the AI returned a unit string, match it against the expected US unit
+  // When a unit string is present, systematically evaluate all conversion registries
   if (unit) {
     const aiUnit = normalizeUnitStr(unit);
-    if (conv.type === 'multiply') {
-      if (aiUnit === normalizeUnitStr(conv.usUnit)) return parseFloat((value / conv.factor).toPrecision(6));
-    } else if (conv.type === 'hba1c' && aiUnit === '%') {
+
+    // 1. Evaluate primary US conversions
+    const primaryConv = UNIT_CONVERSIONS[key];
+    if (primaryConv && primaryConv.type === 'multiply') {
+      if (aiUnit === normalizeUnitStr(primaryConv.usUnit)) {
+        return parseFloat((value / primaryConv.factor).toPrecision(6));
+      }
+    } else if (primaryConv && primaryConv.type === 'hba1c' && aiUnit === '%') {
       return parseFloat(((value - 2.15) * 10.929).toFixed(1));
     }
+
+    // 2. Evaluate systematic secondary conversions (European, trace mineral, and specialized units)
+    const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
+    if (secondaryList) {
+      for (const sec of secondaryList) {
+        if (sec.type === 'multiply' && aiUnit === normalizeUnitStr(sec.unit)) {
+          return parseFloat((value / sec.factor).toPrecision(6));
+        } else if (sec.type === 'hba1c' && aiUnit === normalizeUnitStr(sec.unit)) {
+          return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+        }
+      }
+    }
+
+    // 3. Exact SI passthrough match
+    const [catKey, markerKey] = key.split('.');
+    const siUnit = MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.unit;
+    if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return value;
+    // A unit was provided but matched nothing — return as-is rather than guessing
     return value;
   }
 
-  // Unit is empty/null — check if value looks like it's in the US/display range
-  // and needs conversion. Use the schema's SI ref range as sanity check.
-  if (conv.type === 'multiply' && conv.factor > 1) {
+  // Fallback heuristic for unit-less data (only triggers when no unit string was provided)
+  const fallbackConv = UNIT_CONVERSIONS[key];
+  if (fallbackConv && fallbackConv.type === 'multiply' && fallbackConv.factor > 1) {
     const [catKey, markerKey] = key.split('.');
-    const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
-    if (marker && marker.refMax != null) {
-      // If value is much larger than the SI ref max, it's likely in US units
-      // Threshold: value > refMax × factor × 0.3 (well above SI range, plausible in US range)
-      if (value > marker.refMax * conv.factor * 0.3) {
-        return parseFloat((value / conv.factor).toPrecision(6));
+    const markerDef = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+    if (markerDef && markerDef.refMax != null) {
+      if (value > markerDef.refMax * fallbackConv.factor * 0.3) {
+        return parseFloat((value / fallbackConv.factor).toPrecision(6));
       }
     }
   }
+
   return value;
 }
 
