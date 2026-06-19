@@ -775,6 +775,10 @@ assert('refreshing a stale Biology Score AI explanation removes the stale warnin
   && /closest\('\.biology-score-ai'\)/.test(biologyScoresSrc)
   && /\.remove\(\)/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('function renderBiologyScoreContext'))),
   biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
+assert('refreshing Biology Score AI uses the active timeframe data so the refreshed material fingerprint matches the rendered card after F5',
+  /filterDatesByRange\([^)]*fallbackToAll:\s*false/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('export const SCORE_DEFINITIONS')))
+  && /computeBiologyScores\(scoreData\)/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('export const SCORE_DEFINITIONS'))),
+  biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 1200));
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData, hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };

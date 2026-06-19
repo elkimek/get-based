@@ -124,7 +124,9 @@ async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
   const answerEl = scoreId ? document.querySelector(`[data-biology-score-ai-answer="${CSS.escape(scoreId)}"]`) : null;
   if (!scoreId || !answerEl) return;
-  const score = computeBiologyScores((/** @type {any} */ (window)).getActiveData?.() || {}).find(item => item.id === scoreId);
+  const rawData = (/** @type {any} */ (window)).getActiveData?.() || {};
+  const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+  const score = computeBiologyScores(scoreData).find(item => item.id === scoreId);
   if (!score) throw new Error('Score not found');
   const button = /** @type {HTMLButtonElement | null} */ (el instanceof HTMLButtonElement ? el : null);
   if (button) { button.disabled = true; button.textContent = 'Generating…'; }
