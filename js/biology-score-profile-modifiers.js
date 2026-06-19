@@ -51,22 +51,24 @@ function parseSampleHour(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value >= 0 && value < 24 ? value : null;
   const text = String(value).trim().toLowerCase();
   if (!text) return null;
-  if (text.includes('morning') || text.includes('am')) {
+  const hasAm = /(^|[^a-z])a\.?m\.?(?=$|[^a-z])/.test(text);
+  const hasPm = /(^|[^a-z])p\.?m\.?(?=$|[^a-z])/.test(text);
+  if (text.includes('morning') || hasAm) {
     const m = text.match(/(\d{1,2})(?::(\d{2}))?/);
     if (m) {
       let h = Number(m[1]);
-      if (text.includes('pm') && h < 12) h += 12;
+      if (hasPm && h < 12) h += 12;
       return h >= 0 && h < 24 ? h : null;
     }
-    return 8;
+    return text.includes('morning') ? 8 : null;
   }
   if (text.includes('afternoon')) return 14;
   if (text.includes('evening')) return 20;
   const m = text.match(/(\d{1,2})(?::(\d{2}))?/);
   if (!m) return null;
   let h = Number(m[1]);
-  if (text.includes('pm') && h < 12) h += 12;
-  if (text.includes('am') && h === 12) h = 0;
+  if (hasPm && h < 12) h += 12;
+  if (hasAm && h === 12) h = 0;
   return h >= 0 && h < 24 ? h : null;
 }
 
@@ -149,12 +151,13 @@ export function getInputProfileModifier(hit, input, profileContext) {
       return contextOnly(`${hit.label || input.label} shown as postmenopause context only; ordinary cycling ranges would mis-score this biology.`, sexScale);
     }
     if (isCyclingFemale(profileContext, entryContext)) {
-      if (!hit?.phaseRange && !entryContext.cyclePhase && !entryContext.cycleDay) {
-        return contextOnly(`${hit.label || input.label} needs cycle day or phase before it can be scored reliably.`, sexScale);
-      }
       if (hit?.phaseRange) {
         return { score: true, flag: `${hit.label || input.label} scored against ${hit.phaseLabel || 'cycle-phase'} range.`, weightScale: sexScale, rangeOverride: hit.phaseRange };
       }
+      if (entryContext.cyclePhase || entryContext.cycleDay) {
+        return contextOnly(`${hit.label || input.label} has cycle timing but no phase-specific range available; shown as context only rather than scored against generic population ranges.`, sexScale);
+      }
+      return contextOnly(`${hit.label || input.label} needs cycle day or phase before it can be scored reliably.`, sexScale);
     }
   }
 

@@ -244,6 +244,22 @@ assert('cycling female hormone axis makes phase-critical hormones context-only w
   ['estradiol', 'progesterone', 'lh', 'fsh'].every(key => missingPhaseHormoneScore.available.some(i => i.key === key && i.profileContextOnly === true && i.weight === 0))
   && missingPhaseHormoneScore.scoreConfidenceLabel === 'Needs context',
   JSON.stringify({ available: missingPhaseHormoneScore.available, confidence: missingPhaseHormoneScore.scoreConfidenceLabel }));
+const cycleMetadataNoRangeScore = computeBiologyScores({
+  dates: ['2026-06-21'],
+  entryContextByDate: { '2026-06-21': { cyclePhase: 'luteal', cycleDay: 21 } },
+  categories: { hormones: { label: 'Hormones', markers: {
+    estradiol: marker('Estradiol', 'pmol/L', 40, 1500, 420),
+    progesterone: marker('Progesterone', 'nmol/L', 0.3, 70, 35),
+    lh: marker('LH', 'IU/L', 1, 95, 4.5),
+    fsh: marker('FSH', 'IU/L', 1, 30, 4.0),
+    shbg: marker('SHBG', 'nmol/L', 20, 120, 70),
+    prolactin: marker('Prolactin', 'µg/L', 4, 23, 12),
+  } } },
+}).find(score => score.id === 'hormoneAxis');
+assert('cycling female hormone axis does not fall back to generic ranges when cycle metadata lacks phase ranges',
+  ['estradiol', 'progesterone', 'lh', 'fsh'].every(key => cycleMetadataNoRangeScore.available.some(i => i.key === key && i.profileContextOnly === true && i.weight === 0))
+    && cycleMetadataNoRangeScore.flags.some(flag => /no phase-specific range|generic population ranges/i.test(flag)),
+  JSON.stringify({ available: cycleMetadataNoRangeScore.available, flags: cycleMetadataNoRangeScore.flags }));
 const missingPhaseScores = computeBiologyScores(getActiveData());
 const missingPhasePlanner = buildBiologyScoreCoveragePlannerModel(
   missingPhaseScores.filter(score => score.id !== 'biologicalCoherence'),
@@ -274,6 +290,13 @@ assert('single-point cortisol is context-only without sample time and scored wit
   && timedStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly !== true && i.partial > 0)
   && timedStressScore.flags.some(flag => /sample-time range/i.test(flag)),
   JSON.stringify({ noTime: noTimeStressScore.available, timed: timedStressScore.available, flags: timedStressScore.flags }));
+const ambiguousSampleStressScore = computeBiologyScores({ dates: ['2026-06-21'], entryContextByDate: { '2026-06-21': { sampleTime: 'sample time unknown' } }, categories: {
+  hormones: { label: 'Hormones', markers: { cortisol: marker('Cortisol', 'nmol/L', 140, 620, 500), dheaS: marker('DHEA-S', 'umol/L', 2.41, 11.6, 6) } },
+  biochemistry: { label: 'Biochemistry', markers: { glucose: marker('Glucose', 'mmol/L', 4.11, 5.6, 4.8) } },
+} }).find(score => score.id === 'stressResilience');
+assert('cortisol sample-time parser does not treat the word sample as AM',
+  ambiguousSampleStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly === true),
+  JSON.stringify(ambiguousSampleStressScore.available.find(i => i.key === 'cortisol')));
 const usCortisolScores = computeBiologyScores({ dates: ['2026-06-21'], entryContextByDate: { '2026-06-21': { sampleTime: '08:30' } }, categories: {
   hormones: { label: 'Hormones', markers: { cortisol: marker('Cortisol', 'µg/dl', 5, 22, 18), dheaS: marker('DHEA-S', 'umol/L', 2.41, 11.6, 6) } },
   biochemistry: { label: 'Biochemistry', markers: { glucose: marker('Glucose', 'mmol/L', 4.11, 5.6, 4.8) } },
