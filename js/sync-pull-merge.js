@@ -121,6 +121,24 @@ function preserveFreshLocalBiologyScoreContextAI(merged, localImported, remoteIm
   return true;
 }
 
+function preserveFreshLocalBiologyScoreAI(merged, localImported, remoteImported) {
+  const localAnswers = localImported?.biologyScoreAI;
+  if (!localAnswers || typeof localAnswers !== 'object') return false;
+  const remoteAnswers = remoteImported?.biologyScoreAI || {};
+  const mergedAnswers = { ...(merged.biologyScoreAI || {}) };
+  let changed = false;
+  for (const [scoreId, localAnswer] of Object.entries(localAnswers)) {
+    if (!localAnswer || typeof localAnswer !== 'object') continue;
+    const remoteAnswer = remoteAnswers?.[scoreId];
+    if (!remoteAnswer || getUpdatedAt(localAnswer) > getUpdatedAt(remoteAnswer)) {
+      mergedAnswers[scoreId] = localAnswer;
+      changed = true;
+    }
+  }
+  if (changed) merged.biologyScoreAI = mergedAnswers;
+  return changed;
+}
+
 function withoutLocalTombstones(importedData) {
   if (!importedData || typeof importedData !== 'object') return importedData;
   if (!importedData._deleted && !importedData._deletedAt && !importedData._deletedClearedAt) return importedData;
@@ -169,6 +187,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
   }
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
   const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, importedData);
+  const preservedFreshLocalScoreAI = preserveFreshLocalBiologyScoreAI(merged, localImportedForMerge, importedData);
   // Normalize the merged payload before change detection and persistence. If a
   // remote row still carries an old schema key/shape, refreshing the active
   // profile used to migrate only in-memory state after persist; the next pull
@@ -177,7 +196,7 @@ export async function mergePulledImportedData(profileId, importedData, options =
   migrateProfileData(merged);
 
   const mergeMsg = `Pull ${profileId.slice(0,8)} — local sun=${countArray(localImportedForMerge,'sunSessions')}/dev=${countArray(localImportedForMerge,'lightDevices')} · remote sun=${countArray(importedData,'sunSessions')}/dev=${countArray(importedData,'lightDevices')} · merged sun=${countArray(merged,'sunSessions')}/dev=${countArray(merged,'lightDevices')}`;
-  const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI
+  const needsRebroadcast = preservedFreshLocalEntries || preservedFreshLocalContextAI || preservedFreshLocalScoreAI
     || (!!localImportedForMerge && !!importedData
       && localHasRowsRemoteLacks(localImportedForMerge, importedData));
   const remoteBroughtNewRows = !preservedFreshLocalEntries && !!localImportedForMerge && !!importedData

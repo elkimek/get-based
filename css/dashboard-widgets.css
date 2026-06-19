@@ -693,6 +693,11 @@
   justify-content: space-between;
   gap: 12px;
 }
+.biology-score-ai-answer:empty { display: none; }
+.biology-score-ai-answer p {
+  margin: 0 0 6px;
+}
+.biology-score-ai-answer p:last-child { margin-bottom: 0; }
 .biology-score-ai-answer {
   color: var(--text-secondary);
   font-size: 13px;

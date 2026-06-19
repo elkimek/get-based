@@ -665,16 +665,17 @@ const legacyBiologyAIKey = 'biology-score-ai-answer:legacy-sensitive-fingerprint
 localStorage.setItem(legacyBiologyAIKey, 'legacy plaintext health answer');
 const savedBiologyScoreAI = state.importedData.biologyScoreAI;
 state.importedData.biologyScoreAI = {};
-await writeScoreAIAnswer(byId.thyroidCoherence, 'sensitive thyroid interpretation');
+await writeScoreAIAnswer(byId.thyroidCoherence, '**sensitive thyroid** interpretation');
 assert('Biology Score AI answers persist only in encrypted/profile data, not plaintext localStorage',
   localStorage.getItem(legacyBiologyAIKey) == null
   && localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') == null,
   JSON.stringify({ legacy: localStorage.getItem(legacyBiologyAIKey), stored: localStorage.getItem(Object.values(state.importedData.biologyScoreAI || {})[0]?.fingerprint || '') }));
-assert('Biology Score AI render reads profile-scoped answer after legacy cleanup',
-  renderScoreAIAnswer(byId.thyroidCoherence).includes('sensitive thyroid interpretation'));
+assert('Biology Score AI render reads profile-scoped answer after legacy cleanup and renders markdown emphasis',
+  renderScoreAIAnswer(byId.thyroidCoherence).includes('<strong>sensitive thyroid</strong> interpretation'),
+  renderScoreAIAnswer(byId.thyroidCoherence));
 const changedThyroidForAI = { ...byId.thyroidCoherence, score: Math.max(0, byId.thyroidCoherence.score - 7) };
 assert('Biology Score AI cache invalidates when score fingerprint changes',
-  !renderScoreAIAnswer(changedThyroidForAI).includes('sensitive thyroid interpretation'),
+  !renderScoreAIAnswer(changedThyroidForAI).includes('sensitive thyroid'),
   renderScoreAIAnswer(changedThyroidForAI));
 const emptyScoreAIHtml = renderScoreAIAnswer(changedThyroidForAI);
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',

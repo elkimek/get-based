@@ -3,6 +3,7 @@
 
 import { saveImportedData } from './data.js';
 import { state } from './state.js';
+import { renderMarkdown } from './markdown.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 
 function renderInlineList(items) {
@@ -66,6 +67,6 @@ export function renderScoreAIAnswer(score) {
       </div>
       <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain this score'}</button>
     </div>
-    <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? escapeHTML(cached) : ''}</div>
+    ${cached ? `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${renderMarkdown(cached)}</div>` : `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}"></div>`}
   </section>`;
 }

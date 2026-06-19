@@ -27,6 +27,7 @@ import { computeThyroidCoherence } from './biology-score-thyroid.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
 import { createNewThread } from './chat-threads.js';
+import { renderMarkdown } from './markdown.js';
 
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
@@ -117,7 +118,8 @@ async function runEmbeddedScoreAI(el) {
   answerEl.textContent = 'Generating AI answer…';
   try {
     const answer = await generateBiologyScoreAIAnswer(score);
-    await writeScoreAIAnswer(score, answer); answerEl.textContent = answer;
+    await writeScoreAIAnswer(score, answer);
+    answerEl.innerHTML = renderMarkdown(answer);
     if (button) button.textContent = 'Refresh answer';
   } finally { if (button) button.disabled = false; }
 }

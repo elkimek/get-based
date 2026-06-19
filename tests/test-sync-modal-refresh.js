@@ -238,6 +238,12 @@ try {
     staleRemotePull.merged.biologyScoreContextAI?.fingerprint === 'local-fp'
     && staleRemotePull.needsRebroadcast === true);
 
+  state.importedData = { entries: [], biologyScoreAI: { thyroidCoherence: { text: '**Fresh** local answer', fingerprint: 'fp-local', updatedAt: 3000 } } };
+  const staleRemoteAnswerPull = await mergePulledImportedData(profileId, { entries: [], biologyScoreAI: { thyroidCoherence: { text: 'stale remote answer', fingerprint: 'fp-remote', updatedAt: 1000 } } });
+  assert('pull merge preserves fresher local Biology Score AI answer over stale remote blob',
+    staleRemoteAnswerPull.merged.biologyScoreAI?.thyroidCoherence?.text === '**Fresh** local answer'
+    && staleRemoteAnswerPull.needsRebroadcast === true);
+
   configureSyncDelta({
     getEvolu: () => ({ getQueryRows: () => [] }),
     getItemRowQuery: () => ({}),
