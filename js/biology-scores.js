@@ -131,7 +131,7 @@ async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
   const answerEl = scoreId ? document.querySelector(`[data-biology-score-ai-answer="${CSS.escape(scoreId)}"]`) : null;
   if (!scoreId || !answerEl) return;
-  const rawData = (/** @type {any} */ (window)).getActiveData?.() || {};
+  const rawData = (/** @type {any} */ (globalThis)).getActiveData?.() || {};
   const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
   const score = computeBiologyScores(scoreData).find(item => item.id === scoreId);
   if (!score) throw new Error('Score not found');
@@ -281,6 +281,37 @@ function contextForScores(ctx) {
   return ctx ? { ...ctx, data: contextScoreData(ctx) } : ctx;
 }
 
+function reconcileBiologyScoreAIPanels() {
+  if (typeof document === 'undefined') return;
+  const panels = Array.from(document.querySelectorAll('[data-biology-score-ai-panel]'));
+  if (!panels.length) return;
+  const rawData = (/** @type {any} */ (globalThis)).getActiveData?.() || {};
+  const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+  const scoreMap = new Map(computeBiologyScores(scoreData).map(score => [score.id, score]));
+  for (const panel of panels) {
+    const scoreId = panel.getAttribute('data-biology-score-ai-panel');
+    const score = scoreId ? scoreMap.get(scoreId) : null;
+    if (!score) continue;
+    const freshHtml = renderScoreAIAnswer(score);
+    if (panel.outerHTML !== freshHtml) panel.outerHTML = freshHtml;
+  }
+}
+
+export function scheduleBiologyScoreAIReconcile() {
+  if (typeof globalThis === 'undefined' || typeof document === 'undefined') return;
+  const run = () => {
+    try { reconcileBiologyScoreAIPanels(); } catch {}
+  };
+  if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(run);
+  else setTimeout(run, 0);
+  setTimeout(run, 250);
+  setTimeout(run, 1000);
+}
+
+if (typeof globalThis !== 'undefined' && typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-sync-applied', scheduleBiologyScoreAIReconcile);
+}
+
 export function getBiologyScoreLensWidgets(ctx) {
   const scoreCtx = contextForScores(ctx);
   const scores = computeBiologyScores(scoreCtx?.data || {}).filter(score => score.id !== 'biologicalCoherence');
@@ -308,7 +339,9 @@ export function renderBiologyScoresWidget(ctx, options = {}) {
 }
 
 export function renderBiologyScoresLens(ctx) {
-  return renderBiologyScoresLensImpl(contextForScores(ctx), computeBiologyScores);
+  const html = renderBiologyScoresLensImpl(contextForScores(ctx), computeBiologyScores);
+  scheduleBiologyScoreAIReconcile();
+  return html;
 }
 
 // Re-export the render implementations for callers that want the injected-compute variant.

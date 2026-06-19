@@ -874,6 +874,10 @@ assert('actual Biology Scores page shows compact context status before coherence
   lensPagesSrc.includes('biology-context-status-strip')
   && lensPagesSrc.indexOf('html += renderBiologyScoreContextStatus(scoreData)') < lensPagesSrc.indexOf('html += renderBiologicalCoherenceLensHero(ctx)')
   && !/renderBiologicalCoherenceLensHero\(ctx\);\s*html \+= renderBiologyScoreContextAI\(scoreData\)/.test(lensPagesSrc));
+assert('actual Biology Scores lens route reconciles embedded AI panels after DOM insert so F5 hydration cannot leave a stale banner mounted',
+  lensPagesSrc.includes('scheduleBiologyScoreAIReconcile')
+  && lensPagesSrc.indexOf('main.innerHTML = html') < lensPagesSrc.indexOf('scheduleBiologyScoreAIReconcile()'),
+  lensPagesSrc.slice(lensPagesSrc.indexOf('function showBiologyScores'), lensPagesSrc.indexOf('function showGenomeLens')));
 
 const mapping = getBiologyScoreMapping();
 const schemaMarkerKeys = new Set(Object.entries(MARKER_SCHEMA).flatMap(([cat, def]) => Object.keys(def.markers || {}).map(key => `${cat}.${key}`)));
