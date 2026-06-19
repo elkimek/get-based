@@ -14,6 +14,7 @@ import { renderScoreDetail } from '../js/biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from '../js/biology-score-sections.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoreCoveragePlanner, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
 import { getActiveData, invalidateActiveDataCache, filterDatesByRange } from '../js/data.js';
+import { getBiologyProfileContext } from '../js/profile-context.js';
 import { state } from '../js/state.js';
 import { MARKER_SCHEMA, OPTIMAL_RANGES, SPECIALTY_MARKER_DEFS } from '../js/schema.js';
 
@@ -141,7 +142,7 @@ const byId = Object.fromEntries(scores.map((score) => [score.id, score]));
 
 assert('computes all score definitions', scores.length === 19, `got ${scores.length}`);
 assert('biological coherence score is live from minimum-panel domains', Number.isFinite(byId.biologicalCoherence.score) && byId.biologicalCoherence.available.length >= 8, JSON.stringify(byId.biologicalCoherence));
-assert('biological coherence excludes extended-only lipid membrane from baseline denominator', byId.biologicalCoherence.flags.some(flag => flag.includes('extended-only')) && !byId.biologicalCoherence.available.some(item => item.label === 'Membrane lipids'), JSON.stringify(byId.biologicalCoherence));
+assert('biological coherence excludes extended-only lipid membrane from baseline denominator', byId.biologicalCoherence.flags.some(flag => flag.includes('extended-only')) && !byId.biologicalCoherence.available.some(item => item.label === 'Cell membrane fats' || item.label === 'Membrane lipids'), JSON.stringify(byId.biologicalCoherence));
 assert('biological coherence includes cardiovascular domain', byId.biologicalCoherence.available.some(item => item.label === 'Cardiovascular risk'), JSON.stringify(byId.biologicalCoherence.available.map(a => a.label)));
 assert('metabolic score is live', Number.isFinite(byId.metabolicFlexibility.score), JSON.stringify(byId.metabolicFlexibility));
 assert('cardiovascular score is live with ApoB data', Number.isFinite(byId.cardiovascularLipoprotein.score), JSON.stringify(byId.cardiovascularLipoprotein));
@@ -317,6 +318,12 @@ assert('SNP context modifies Biology Scores deterministically without becoming i
   && geneticOneCarbon.available.some(item => item.dotKey === 'coagulation.homocysteine' && item.partial < 100)
   && geneticBone.flags.some(flag => /vitamin-D pathway/i.test(flag)),
   JSON.stringify({ oneCarbon: geneticOneCarbon.flags, homocysteine: geneticOneCarbon.available.find(i => i.dotKey === 'coagulation.homocysteine'), bone: geneticBone.flags }));
+state.importedData = { entries: [], genetics: { snps: { rs429358: { gene: 'APOE', genotype: 'TC', category: 'lipids', effect: 'moderate', markers: ['lipids.apob'] } } }, contextNotes: '', interpretiveLens: '' };
+const apoeVariantContext = getBiologyProfileContext();
+assert('APOE context flag does not double-prefix generic APOE variant label',
+  apoeVariantContext.contextFlags.some(flag => flag.includes('APOE variant present may change cardiovascular'))
+    && !apoeVariantContext.contextFlags.some(flag => flag.includes('APOE APOE')),
+  JSON.stringify(apoeVariantContext.contextFlags));
 state.importedData = { entries: [], genetics: { snps: { rs1800562: { gene: 'HFE', genotype: 'AA', category: 'iron', effect: 'moderate', markers: ['iron.transferrinSat'] } } }, contextNotes: '', interpretiveLens: '' };
 const ironGeneticScore = computeBiologyScores(data).find(score => score.id === 'ironHandling');
 assert('iron genetic context applies to canonical transferrin saturation key',
@@ -569,6 +576,22 @@ const savedRangeForBiologyScores = state.dateRangeFilter;
 const oldOnlyData = { ...data, dates: ['2025-01-01'], dateLabels: ['Jan 2025'] };
 state.dateRangeFilter = '3m';
 const strictOldOnly = filterDatesByRange(oldOnlyData, { fallbackToAll: false });
+const contextFilteredData = {
+  dates: ['2025-01-01', '2026-06-01'],
+  dateLabels: ['Jan 2025', 'Jun 2026'],
+  entryContextByDate: {
+    '2025-01-01': { sampleTime: '23:00', cyclePhase: 'follicular' },
+    '2026-06-01': { sampleTime: '08:30', cyclePhase: 'luteal', hormoneTherapy: true },
+  },
+  categories: { hormones: { label: 'Hormones', markers: { cortisol: { name: 'Cortisol', values: [500, 320] } } } },
+};
+const contextFiltered = filterDatesByRange(contextFilteredData, { fallbackToAll: false });
+assert('filterDatesByRange preserves per-draw entry context for active timeframe scoring',
+  contextFiltered.entryContextByDate?.['2026-06-01']?.sampleTime === '08:30'
+    && contextFiltered.entryContextByDate?.['2026-06-01']?.cyclePhase === 'luteal'
+    && contextFiltered.entryContextByDate?.['2026-06-01']?.hormoneTherapy === true
+    && !contextFiltered.entryContextByDate?.['2025-01-01'],
+  JSON.stringify(contextFiltered.entryContextByDate));
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for filtered tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(strictOldOnly), range: state.dateRangeFilter, updatedAt: Date.now() };
 const timeframeLimitedHtml = renderDashboardBiologicalCoherenceWidget({ data: oldOnlyData });
 state.dateRangeFilter = savedRangeForBiologyScores;

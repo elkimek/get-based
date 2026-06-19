@@ -8,7 +8,6 @@ const COHERENCE_DOMAIN_LABELS = {
   endocrine: 'Thyroid hormones',
   cardiovascular: 'Cardiovascular risk',
   inflammation: 'Inflammation',
-  membrane: 'Cell membrane fats',
   blood: 'Iron and blood health',
   methylation: 'Methylation',
   kidney: 'Kidney and hydration',

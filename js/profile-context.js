@@ -56,7 +56,10 @@ function collectGeneticModifiers(data) {
   if (methylationRisk) flags.push('Genetic context: methylation variants are present, so homocysteine and B-vitamin markers deserve tighter confidence review.');
   if (vitaminDRisk) flags.push('Genetic context: vitamin-D pathway variants are present, so 25-OH vitamin D may need stronger sunlight/intake context before calling sufficiency.');
   if (ironRisk) flags.push('Genetic context: iron-regulation variants are present; ferritin, transferrin saturation, and TIBC patterns deserve extra context.');
-  if (lipidRisk) flags.push(`Genetic context: ${apoe ? `APOE ${apoe}` : 'lipid-related variants'} may change cardiovascular/lipoprotein risk interpretation.`);
+  if (lipidRisk) {
+    const apoeLabel = apoe ? (String(apoe).toLowerCase().startsWith('apoe') ? apoe : `APOE ${apoe}`) : 'lipid-related variants';
+    flags.push(`Genetic context: ${apoeLabel} may change cardiovascular/lipoprotein risk interpretation.`);
+  }
   if (fattyAcidRisk) flags.push('Genetic context: fatty-acid desaturase/elongation variants may affect omega-3/omega-6 marker interpretation.');
   if (bilirubinRisk) flags.push('Genetic context: bilirubin-handling variants may explain isolated bilirubin elevation without treating it as generic liver strain.');
   if (hormoneRisk) flags.push('Genetic context: sex-hormone pathway variants may affect SHBG/androgen/estrogen interpretation.');

@@ -766,10 +766,16 @@ export function filterDatesByRange(data, options = {}) {
     if (data.dates[i] >= cutoffStr) indices.push(i);
   }
   if (indices.length === 0 && fallbackToAll) return data; // fallback: show all if no dates in range
+  const filteredDates = new Set(indices.map(i => data.dates[i]));
   const filtered = {
     dates: indices.map(i => data.dates[i]),
     dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates?.[i] || ''),
     ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
+    ...(data.entryContextByDate && {
+      entryContextByDate: Object.fromEntries(
+        Object.entries(data.entryContextByDate).filter(([date]) => filteredDates.has(date))
+      ),
+    }),
     categories: {}
   };
   for (const [catKey, cat] of Object.entries(data.categories)) {
