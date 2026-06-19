@@ -5,117 +5,19 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
 import { hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { TONE_LABELS, clamp, contextOnlyNeedsMoreData } from './biology-score-engine.js';
+import { TONE_LABELS, clamp } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
+import {
+  buildBiologyScoreCoveragePlannerModel,
+  effectiveContextMarkers,
+  effectiveMissingMarkers,
+  markerDisplayLabel,
+} from './biology-score-coverage-planner.js';
 
 function getMarkerTitle(item) {
   return item.displayValue != null
     ? `${item.label}: ${item.displayValue}${item.unit ? ` ${item.unit}` : ''}`
     : item.label;
-}
-
-function markerDisplayLabel(item) {
-  if (item?.dotKey === 'proteins.hsCRP') return 'hs-CRP';
-  if (item?.dotKey === 'proteins.crp') return 'CRP';
-  const byKey = {
-    reverseT3: 'Reverse T3',
-    tpoAb: 'TPO antibodies',
-    tgAb: 'Thyroglobulin antibodies',
-    platelets: 'Platelets',
-    fibrinogen: 'Fibrinogen',
-    dDimer: 'D-dimer',
-    albumin: 'Albumin',
-    sodium: 'Sodium',
-    bunCreatRatio: 'BUN/creatinine ratio',
-    crp: 'CRP',
-    hsCrp: 'hs-CRP',
-    homocysteine: 'Homocysteine',
-    triglycerides: 'Triglycerides',
-    tag: 'Triglycerides',
-    alt: 'ALT',
-    ast: 'AST',
-    alp: 'ALP',
-    ggt: 'GGT',
-    glucose: 'Glucose',
-    insulin: 'Insulin',
-    hba1c: 'HbA1c',
-    urea: 'Urea',
-    creatinine: 'Creatinine',
-    egfr: 'eGFR',
-    wbc: 'WBC',
-    neutrophils: 'Neutrophils',
-    lymphocytes: 'Lymphocytes',
-    eosinophils: 'Eosinophils',
-    linoleic: 'Linoleic acid',
-    arachidonic: 'Arachidonic acid',
-    calcitriol: '1,25-(OH)₂D / calcitriol',
-    magnesiumRBC: 'RBC magnesium',
-    calcium: 'Total calcium',
-    phosphorus: 'Phosphorus',
-    ferritin: 'Ferritin',
-    iron: 'Serum iron',
-    lh: 'LH',
-    fsh: 'FSH',
-    prolactin: 'Prolactin',
-    lpA: 'Lp(a)',
-    lpa: 'Lp(a)',
-    hct: 'Hematocrit',
-    hgb: 'Hemoglobin',
-    mch: 'MCH',
-    mcv: 'MCV',
-    apoB: 'ApoB',
-    apoA1: 'ApoA1',
-    shbg: 'SHBG',
-    dheaS: 'DHEA-S',
-    igf1: 'IGF-1',
-    ft3: 'Free T3',
-    tsh: 'TSH',
-    ck: 'Creatine kinase',
-    vitaminD: '25-OH vitamin D',
-    b12: 'Vitamin B12',
-    activeB12: 'Active B12',
-  };
-  if (item?.key && byKey[item.key]) return byKey[item.key];
-  return String(item?.label || '')
-    .replace(/^B12 status \(active or total B12\)$/i, 'Active or total B12')
-    .replace(/\s+pituitary signal$/i, '')
-    .replace(/\s+genetic risk$/i, '')
-    .replace(/\s+concentration$/i, '')
-    .replace(/\s+red-cell ironization$/i, '')
-    .replace(/\s+red-cell size$/i, '')
-    .replace(/\s*\/\s*plasma viscosity context/gi, '')
-    .replace(/\s+brake context$/i, '')
-    .replace(/\s+activation context$/i, '')
-    .replace(/\s+hydration context$/i, '')
-    .replace(/\s+plasma context$/i, '')
-    .replace(/\s+storage context$/i, '')
-    .replace(/\s+context for ferritin$/i, '')
-    .replace(/\s+availability context$/i, '')
-    .replace(/\s+adrenal reserve context$/i, '')
-    .replace(/\s+repair signal$/i, '')
-    .replace(/\s+recovery\/bone context$/i, '')
-    .replace(/\s+oxygen-carrying context$/i, '')
-    .replace(/\s+metabolic context$/i, '')
-    .replace(/\s+tissue stress$/i, '')
-    .replace(/\s+tissue-energy stress$/i, '')
-    .replace(/\s+protein-turnover context$/i, '')
-    .replace(/\s+muscle\/kidney context$/i, '')
-    .replace(/\s+stress load$/i, '')
-    .replace(/\s+stress skew$/i, '')
-    .replace(/\s+stress suppression context$/i, '')
-    .replace(/\s+stress context$/i, '')
-    .replace(/\s+axis context$/i, '')
-    .replace(/\s+androgen conversion context$/i, '')
-    .replace(/\s+androgen precursor context$/i, '')
-    .replace(/\s+adrenal androgen context$/i, '')
-    .replace(/\s+hormone-axis context$/i, '')
-    .replace(/\s+nerve support$/i, '')
-    .replace(/\s+nerve\/vascular stress$/i, '')
-    .replace(/\s+neuromuscular context$/i, '')
-    .replace(/\s+nerve stress$/i, '')
-    .replace(/\s+nerve context$/i, '')
-    .replace(/\s+context$/i, '')
-    .trim();
 }
 
 function renderMarkerToken(item, muted = false) {
@@ -490,50 +392,6 @@ export function renderBiologyScoresActionSummary(live, waiting) {
   return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map(([label, text]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(text)}</span></div>`).join('')}</section>`;
 }
 
-function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
-  const seen = new Set();
-  const markers = [];
-  for (const score of scores) {
-    const missing = effectiveMissingMarkers(score).filter(item => !coreOnly || item.core);
-    for (const item of missing) {
-      const key = item.coreGroup || item.key || item.label;
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      markers.push({ ...item, scoreTitle: score.title, panelTier: score.panelTier });
-      if (markers.length >= limit) return markers;
-    }
-  }
-  return markers;
-}
-
-function effectiveMissingMarkers(score) {
-  const coveredCoreGroups = new Set((score.available || [])
-    .filter(item => item.coreGroup && item.core !== false)
-    .map(item => item.coreGroup));
-  const seenGroups = new Set();
-  return (score.missing || [])
-    .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup))
-    .map(item => item.coreGroup ? { ...item, label: item.coreGroupLabel || item.label } : item)
-    .filter(item => {
-      if (!item.coreGroup) return true;
-      if (seenGroups.has(item.coreGroup)) return false;
-      seenGroups.add(item.coreGroup);
-      return true;
-    });
-}
-
-function effectiveContextMarkers(score, { unresolvedOnly = false } = {}) {
-  const seen = new Set();
-  return (score.available || [])
-    .filter(item => item.profileContextOnly)
-    .filter(item => !unresolvedOnly || contextOnlyNeedsMoreData(item))
-    .filter(item => {
-      const key = item.coreGroup || item.key || item.label;
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
 
 function renderCoverageMarkerList(markers, emptyText) {
   if (!markers.length) return `<span class="biology-score-token biology-score-token-muted">${escapeHTML(emptyText)}</span>`;
@@ -550,19 +408,6 @@ function renderCoverageBundle(title, kicker, markers, emptyText) {
     <strong>${escapeHTML(title)}</strong>
     <div class="biology-coverage-marker-list">${renderCoverageMarkerList(markers, emptyText)}</div>
   </div>`;
-}
-
-function uniqueByMarker(markers, limit = 8) {
-  const seen = new Set();
-  const out = [];
-  for (const item of markers) {
-    const key = item.coreGroup || item.key || item.label;
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(item);
-    if (out.length >= limit) break;
-  }
-  return out;
 }
 
 function scoreMainIssue(score) {
@@ -619,23 +464,9 @@ export function renderBiologyScoreCompactTable(live, waiting) {
 }
 
 export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
-  const baselineScores = detailScores.filter(score => score.panelTier !== 'extended');
-  const advancedScores = detailScores.filter(score => score.panelTier === 'extended');
-  const baselineCoverage = Math.round(((coherence?.coverage || 0) * 100));
-  const liveDomains = coherence?.available?.length || 0;
-  const missingDomains = coherence?.missing?.length || 0;
-  const baselineCoreMissing = uniqueMissingMarkers(baselineScores, { coreOnly: true, limit: 14 });
-  const baselineUsefulMissing = uniqueMissingMarkers(baselineScores, { coreOnly: false, limit: 14 });
-  const advancedMissing = uniqueMissingMarkers(advancedScores, { coreOnly: false, limit: 12 });
-  const scoreRows = baselineScores.map(score => {
-    const effectiveMissing = effectiveMissingMarkers(score);
-    const contextNeeded = effectiveContextMarkers(score, { unresolvedOnly: true });
-    const coreMissing = effectiveMissing.filter(item => item.core);
-    const coreContext = contextNeeded.filter(item => item.core);
-    const usefulMissing = coreMissing.length ? coreMissing : coreContext.length ? coreContext : effectiveMissing.length ? effectiveMissing.slice(0, 4) : contextNeeded.slice(0, 4);
-    const coveragePct = Math.round((score.coverage || 0) * 100);
-    return { score, usefulMissing, coreMissingCount: coreMissing.length, coreContextCount: coreContext.length, contextCount: contextNeeded.length, coveragePct };
-  }).filter(row => row.usefulMissing.length).sort((a, b) => (b.coreMissingCount - a.coreMissingCount) || (b.coreContextCount - a.coreContextCount) || (a.coveragePct - b.coveragePct) || a.score.title.localeCompare(b.score.title)).map(row => {
+  const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
+  const { baselineCoverage, liveDomains, missingDomains, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
+  const scoreRows = planner.scoreRows.map(row => {
     const confidence = Number.isFinite(row.score.score) ? (row.score.scoreConfidenceLabel || 'confidence unknown') : 'Needs markers';
     const gapLabel = row.coreMissingCount
       ? `<span>${row.coreMissingCount} core gap${row.coreMissingCount === 1 ? '' : 's'}</span>`
@@ -646,15 +477,6 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
           : '';
     return `<div class="biology-coverage-score-row"><div class="biology-coverage-score-name"><strong>${escapeHTML(row.score.title)}</strong>${gapLabel}</div><div class="biology-coverage-score-markers"><div class="biology-coverage-marker-list">${renderCoverageMarkerList(row.usefulMissing, 'Core covered')}</div></div><div class="biology-coverage-score-status"><div class="biology-coverage-row-meter" aria-label="${escapeAttr(row.score.title)} coverage ${row.coveragePct}%"><span style="width:${Math.max(0, Math.min(100, row.coveragePct))}%"></span></div><div><strong>${row.coveragePct}%</strong><span>${escapeHTML(confidence)}</span></div></div></div>`;
   }).join('');
-  const coreShortlist = baselineCoreMissing.length ? baselineCoreMissing : baselineUsefulMissing.slice(0, 6);
-  const optionalUpgrades = uniqueByMarker([
-    ...baselineUsefulMissing.filter(item => !coreShortlist.some(core => (core.coreGroup || core.key || core.label) === (item.coreGroup || item.key || item.label))),
-    ...baselineScores.flatMap(score => effectiveContextMarkers(score, { unresolvedOnly: true }).map(item => ({ ...item, scoreTitle: score.title }))),
-  ], 6);
-  const advancedDepth = uniqueByMarker(advancedMissing, 10);
-  const baselineIntro = baselineCoverage >= 80
-    ? 'Good baseline coverage. These are confidence upgrades, not a reason to distrust the current score.'
-    : 'Start here: cover core blood markers first. Missing data lowers confidence, not the score itself.';
   return `<section class="biology-score-coverage-planner">
     <div class="biology-score-coverage-head">
       <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div><div class="biology-coverage-marker-list biology-coverage-marker-preview">${renderCoverageMarkerList(coreShortlist.slice(0, 5), 'Baseline core markers covered')}</div></div>
@@ -704,3 +526,4 @@ export function renderBiologyScoresLens(ctx, computeBiologyScores) {
     <p class="biology-scores-note">Educational pattern score only. This is reference/target-pattern coherence, not an outcome-validated diagnosis. Score tone reflects the current marker pattern; confidence reflects core-marker coverage; staleness is tracked separately.</p>
   </div>`;
 }
+

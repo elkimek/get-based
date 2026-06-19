@@ -177,6 +177,7 @@ const APP_SHELL = [
   '/js/biology-score-ai-context.js',
   '/js/biology-score-context-ai.js',
   '/js/biology-score-copy.js',
+  '/js/biology-score-coverage-planner.js',
   '/js/biology-score-engine.js',
   '/js/biology-score-mappings.js',
   '/js/biology-score-profile-modifiers.js',

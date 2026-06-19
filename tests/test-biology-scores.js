@@ -5,6 +5,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from '../js/biology-score-coverage-planner.js';
 import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
 import { generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
@@ -654,6 +655,27 @@ assert('lens uses distinct AI CTA labels for overview, planning, and per-score e
   && !lensHtml.includes('Ask chat what to order'),
   `${biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('showBiologyScoresLens'), biologyScoreLensPageSrc.indexOf('showBiologyScoresLens') + 900)}\n---\n${lensHtml.slice(0, 1800)}`);
 const coveragePlannerHtml = lensHtml.match(/biology-score-coverage-planner[\s\S]*?<\/section>/)?.[0] || '';
+const plannerModel = buildBiologyScoreCoveragePlannerModel(scores.filter(score => score.id !== 'biologicalCoherence'), byId.biologicalCoherence);
+const plannerChatPrompt = formatBiologyScoreCoveragePlannerPrompt(plannerModel);
+const plannerContext = buildBiologyScoresAIContext(data);
+const plannerUiLabels = [
+  ...plannerModel.bundles.baselineFirst.labels,
+  ...plannerModel.bundles.optionalUpgrades.labels,
+  ...plannerModel.bundles.advancedDepth.labels,
+].filter(Boolean);
+assert('Coverage Planner chat prompt uses the exact same marker bundles as the static UI',
+  plannerUiLabels.every(label => plannerChatPrompt.includes(label))
+  && plannerChatPrompt.includes('Do not replace it with generic tiers')
+  && plannerChatPrompt.includes('Active B12 satisfies the B12 group')
+  && !plannerChatPrompt.includes('Tier 1')
+  && !/Baseline first[^.]*Total vitamin B12/i.test(plannerChatPrompt)
+  && !/Score-by-score gaps[\s\S]*Total vitamin B12/i.test(plannerChatPrompt),
+  plannerChatPrompt);
+assert('general chat Biology Scores context uses the same Coverage Planner bundles instead of generic missing-core tiers',
+  plannerUiLabels.slice(0, 8).every(label => plannerContext.includes(label))
+  && plannerContext.includes('use the same Coverage Planner as the UI')
+  && !plannerContext.includes('prioritize missing core markers: Total vitamin B12'),
+  plannerContext);
 assert('coverage planner treats active B12 as satisfying the B12 core group',
   !coveragePlannerHtml.includes('Total vitamin B12'),
   coveragePlannerHtml);
@@ -715,7 +737,7 @@ assert('mixed-date scores show retest state only once per score meta row',
 const aiContext = buildBiologyScoresAIContext(data);
 assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Coverage planning:') && aiContext.length < 2600, `length ${aiContext.length}: ${aiContext}`);
 assert('AI context does not expose formula weights', !/weight/i.test(aiContext));
-assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning:') && aiContext.includes('baseline'), aiContext);
+assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning:') && /baseline/i.test(aiContext), aiContext);
 const ambiguousMarkerLabelTerms = /(\bcontext\b|\bsignal\b|\bload\b|\bstress\b|\bsupport\b|\breserve\b|\bprotective\b|\batherogenic\b|\bdrag\b|\bskew\b|\bclue\b|\bavailability\b|\bbrake\b|\bactivation\b|\bconcentration\b|\butilization\b|\bironization\b|\btransport\b|\bsufficiency\b|\bvascular\b|\bmetabolic\b|\bliver\b|\bmuscle\b|\bbone\b|\bbile\b|\binflammation\b)/i;
 const badMarkerLabelPhrases = [
   'Homocysteine load', 'Homocysteine vascular context', 'Triglyceride atherogenic context',
@@ -834,6 +856,7 @@ const biologyScoreShellFiles = [
   '/js/biology-score-ai-context.js',
   '/js/biology-score-context-ai.js',
   '/js/biology-score-copy.js',
+  '/js/biology-score-coverage-planner.js',
   '/js/biology-score-mappings.js',
   '/js/biology-score-profile-modifiers.js',
   '/js/biology-score-sections.js',

@@ -3,6 +3,7 @@
 
 import { computeBiologyScores } from './biology-scores.js';
 import { TONE_LABELS } from './biology-score-engine.js';
+import { buildBiologyScoreCoveragePlannerModel, labelMarkers, markerDisplayLabel } from './biology-score-coverage-planner.js';
 
 export function buildBiologyScoresAIContext(data, options = {}) {
   const scores = computeBiologyScores(data || {});
@@ -27,7 +28,7 @@ export function buildBiologyScoresAIContext(data, options = {}) {
       .filter(row => Number.isFinite(row.impact) && row.impact > 0.05)
       .slice(0, 2)
       .map(row => `${row.item.label} fit ${Math.round(row.item.partial)}/100`);
-    const missing = score.missing?.slice(0, 3).map(item => item.label).join(', ');
+    const missing = score.missing?.slice(0, 3).map(item => markerDisplayLabel(item)).join(', ');
     let line = `- ${score.title}: ${scoreText}, ${toneText}, ${coverageText}${recencyText}`;
     if (impacts.length) line += `; main drags: ${impacts.join('; ')}`;
     const contextFlags = (score.flags || []).filter(flag => /Genetic context|Light context|Body context/i.test(flag)).slice(0, 2);
@@ -35,24 +36,15 @@ export function buildBiologyScoresAIContext(data, options = {}) {
     if (missing) line += `; missing: ${missing}${score.missing.length > 3 ? ', …' : ''}`;
     lines.push(line);
   }
-  const baselineScores = scores.filter(score => score.id !== 'biologicalCoherence' && score.panelTier !== 'extended');
-  const missingCore = [];
-  const seenCore = new Set();
-  for (const score of baselineScores) {
-    for (const item of (score.missing || []).filter(m => m.core)) {
-      const key = item.coreGroup || item.key || item.label;
-      if (!key || seenCore.has(key)) continue;
-      seenCore.add(key);
-      missingCore.push(`${item.label} (${score.title})`);
-      if (missingCore.length >= 10) break;
-    }
-    if (missingCore.length >= 10) break;
-  }
-  if (missingCore.length) {
-    lines.push(`Coverage planning: to improve baseline Biological Coherence first, prioritize missing core markers: ${missingCore.join(', ')}.`);
-  } else {
-    lines.push('Coverage planning: baseline core Biology Score markers appear covered; advanced/specialty markers are optional depth and should not be treated as required for baseline coherence.');
-  }
+  const detailScores = scores.filter(score => score.id !== 'biologicalCoherence');
+  const coherence = scores.find(score => score.id === 'biologicalCoherence');
+  const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
+  const baseline = planner.bundles.baselineFirst.labels.length ? planner.bundles.baselineFirst.labels.join(', ') : planner.bundles.baselineFirst.emptyText;
+  const optional = planner.bundles.optionalUpgrades.labels.length ? planner.bundles.optionalUpgrades.labels.join(', ') : planner.bundles.optionalUpgrades.emptyText;
+  const advanced = planner.bundles.advancedDepth.labels.length ? planner.bundles.advancedDepth.labels.join(', ') : planner.bundles.advancedDepth.emptyText;
+  lines.push(`Coverage planning: use the same Coverage Planner as the UI. Baseline first / best next lab bundle: ${baseline}. Optional upgrades: ${optional}. Advanced depth: ${advanced}. Do not substitute generic tiers or recommend markers already satisfied by equivalent core groups.`);
+  const scoreGapLines = planner.scoreRows.slice(0, 6).map(row => `${row.score.title}: ${labelMarkers(row.usefulMissing).join(', ')} (${row.coveragePct}% coverage)`).join('; ');
+  if (scoreGapLines) lines.push(`Coverage planner score gaps: ${scoreGapLines}.`);
   lines.push('[/section:biologyScores]');
   return lines.join('\n') + '\n\n';
 }

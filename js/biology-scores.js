@@ -29,6 +29,7 @@ import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
 import { createNewThread } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
+import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from './biology-score-coverage-planner.js';
 
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
@@ -63,8 +64,14 @@ function installBiologyScoreDelegates() {
         event.preventDefault();
         return;
       }
+      const rawData = appWindow.getActiveData?.() || {};
+      const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+      const scores = computeBiologyScores(scoreData);
+      const detailScores = scores.filter((score) => score.id !== 'biologicalCoherence');
+      const coherence = scores.find((score) => score.id === 'biologicalCoherence');
+      const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
       createNewThread();
-      appWindow.openChatPanel('What markers should I order to improve my Biology Scores coverage? Prioritize baseline Biological Coherence first, avoid advanced or specialty tests unless they materially improve coverage, and explain which missing markers map to which scores.');
+      appWindow.openChatPanel(formatBiologyScoreCoveragePlannerPrompt(planner));
       event.preventDefault();
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();
