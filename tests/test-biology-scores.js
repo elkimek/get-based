@@ -185,9 +185,9 @@ window.callClaudeAPI = async ({ system, messages }) => {
   return { text: 'ok' };
 };
 await generateBiologyScoreAIAnswer(byId.immuneCellBalance);
-assert('embedded Biology Score AI prompt includes exact active optimal range for hs-CRP instead of letting the model invent <1.0',
-  capturedScoreAIUser.includes('hs-CRP: 0.700 mg/l; active scoring range 0–0.5 mg/l')
-  && capturedScoreAISystem.includes('Use only the provided active scoring ranges')
+assert('embedded Biology Score AI prompt includes exact optimal range for hs-CRP instead of letting the model invent <1.0',
+  capturedScoreAIUser.includes('hs-CRP: 0.700 mg/l; optimal range 0–0.5 mg/l')
+  && capturedScoreAISystem.includes('Use only the provided optimal/reference/cycle-phase ranges')
   && capturedScoreAISystem.includes('never invent alternate cutoffs'),
   JSON.stringify({ system: capturedScoreAISystem, user: capturedScoreAIUser }));
 window.hasAIProvider = savedAIProviderForScorePrompt.hasAIProvider;

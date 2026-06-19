@@ -124,6 +124,12 @@ function markerWithSchemaOptimalFallback(dotKey, marker) {
   return { ...marker, optimalMin: opt.optimalMin, optimalMax: opt.optimalMax };
 }
 
+function getEffectiveRangeLabel(marker, dateIndex) {
+  if (marker?.phaseRefRanges && marker.phaseRefRanges[dateIndex]) return 'cycle-phase range';
+  if ((state.rangeMode === 'optimal' || state.rangeMode === 'both') && (marker?.optimalMin != null || marker?.optimalMax != null)) return 'optimal range';
+  return 'reference range';
+}
+
 export function getMarkerHit(data, paths) {
   const candidates = Array.isArray(paths) ? paths : [paths];
   for (const path of candidates) {
@@ -154,6 +160,7 @@ export function getMarkerHit(data, paths) {
       dateIndex: latestIdx,
       ageDays: getAgeDays(date),
       range,
+      rangeLabel: getEffectiveRangeLabel(effectiveMarker, latestIdx),
       entryContext,
       phaseLabel: marker.phaseLabels?.[latestIdx] || null,
       phaseRange: marker.phaseRefRanges?.[latestIdx] || null,
