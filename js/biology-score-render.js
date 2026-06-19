@@ -309,11 +309,11 @@ function renderBiologicalCoherenceHero(score) {
   ].filter(Boolean);
   const dashboardToggle = renderLensDashboardToggle('biology-score-biologicalCoherence');
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
-    ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
     <div class="biology-coherence-copy">
       <div class="biology-scores-eyebrow">System-level score</div>
       <h2>${escapeHTML(score.title)}</h2>
       <p>${escapeHTML(score.summary)}</p>
+      ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
       <div class="biology-coherence-lines">${summaryItems.map(([label, value]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(value)}</span></div>`).join('')}</div>
     </div>
     <div class="biology-coherence-metric">
@@ -565,7 +565,7 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
       <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div><div class="biology-coverage-marker-list biology-coverage-marker-preview">${renderCoverageMarkerList(coreShortlist.slice(0, 5), 'Baseline core markers covered')}</div></div>
       <div class="biology-score-coverage-actions"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Ask chat what to order</button></div>
     </div>
-    <details class="biology-coverage-plan-details"><summary class="dashboard-action-btn dashboard-action-btn-secondary">Show full marker plan</summary>
+    <details class="biology-coverage-plan-details"><summary class="biology-disclosure-chip">Show full marker plan</summary>
       <div class="biology-score-coverage-grid biology-score-coverage-grid-core">
         <div><div class="biology-coverage-section-kicker">Baseline first</div><strong>Core baseline gaps</strong><p>Highest-value markers for Biological Coherence coverage.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(coreShortlist, 'Baseline core markers covered')}</div></div>
         <div><div class="biology-coverage-section-kicker">Optional</div><strong>Advanced depth</strong><p>Specialty-panel extras for deeper users. Useful, but not required for baseline coherence.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(advancedMissing.slice(0, 10), 'Advanced scores are optional')}</div></div>

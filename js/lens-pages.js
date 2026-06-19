@@ -168,8 +168,8 @@ export function createLensPageHandlers(deps) {
     const status = hasCurrentBiologyScoreContextReview(scoreData) ? 'Context checked' : 'Context needs refresh';
     const detailLabel = suggestions ? `Review ${suggestions} flag${suggestions === 1 ? '' : 's'}` : 'Review';
     return `<section class="biology-context-status-strip">
-      <div><span>${escapeHTML(status)}</span></div>
-      <details><summary class="dashboard-action-btn dashboard-action-btn-secondary biology-context-review-cta">${escapeHTML(detailLabel)}</summary>${renderBiologyScoreContextAI(scoreData)}</details>
+      <div><span>${escapeHTML(status)}</span><small>Profile context is applied to the scores.</small></div>
+      <details><summary class="biology-context-review-cta">${escapeHTML(detailLabel)}</summary>${renderBiologyScoreContextAI(scoreData)}</details>
     </section>`;
   }
 

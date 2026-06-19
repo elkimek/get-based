@@ -811,12 +811,12 @@ button.biology-score-token:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
+  gap: 8px 10px;
+  margin: 0 0 12px;
+  padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  border-radius: calc(var(--radius) - 6px);
-  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 86%, transparent);
 }
 .biology-context-status-strip span {
   color: var(--text-primary);
@@ -829,9 +829,11 @@ button.biology-score-token:focus-visible {
   font-size: 12px;
 }
 .biology-context-status-strip > div {
-  display: grid;
-  flex: 1 1 180px;
-  gap: 2px;
+  display: flex;
+  flex: 1 1 220px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .biology-context-status-strip details {
   flex: 0 0 auto;
@@ -850,22 +852,53 @@ button.biology-score-token:focus-visible {
   align-items: center;
   justify-content: center;
   width: auto;
-  min-height: 30px;
-  padding-block: 5px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.2;
 }
 .biology-context-review-cta::after {
-  content: '▾';
-  margin-left: 8px;
-  font-size: 10px;
+  content: '⌄';
+  margin-left: 6px;
+  font-size: 13px;
   opacity: 0.72;
 }
 .biology-context-status-strip details[open] .biology-context-review-cta::after {
-  content: '▴';
+  content: '⌃';
 }
 .biology-context-status-strip .biology-context-ai-panel {
   width: 100%;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
+  border-radius: var(--radius);
 }
+.biology-disclosure-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.biology-disclosure-chip::-webkit-details-marker { display: none; }
+.biology-disclosure-chip::marker { content: ''; }
+.biology-disclosure-chip::after {
+  content: '⌄';
+  margin-left: 7px;
+  font-size: 13px;
+  opacity: 0.72;
+}
+.biology-coverage-plan-details[open] > .biology-disclosure-chip::after { content: '⌃'; }
 .biology-score-coverage-planner {
   display: grid;
   gap: 12px;
@@ -999,20 +1032,20 @@ button.biology-score-token:focus-visible {
   border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   padding-top: 10px;
 }
-.biology-coverage-plan-details > summary {
+.biology-coverage-plan-details > summary:not(.biology-disclosure-chip) {
   cursor: pointer;
   width: fit-content;
   list-style: none;
 }
-.biology-coverage-plan-details > summary::-webkit-details-marker { display: none; }
-.biology-coverage-plan-details > summary::marker { content: ''; }
-.biology-coverage-plan-details > summary::after {
+.biology-coverage-plan-details > summary:not(.biology-disclosure-chip)::-webkit-details-marker { display: none; }
+.biology-coverage-plan-details > summary:not(.biology-disclosure-chip)::marker { content: ''; }
+.biology-coverage-plan-details > summary:not(.biology-disclosure-chip)::after {
   content: '▾';
   margin-left: 8px;
   font-size: 10px;
   opacity: 0.72;
 }
-.biology-coverage-plan-details[open] > summary::after {
+.biology-coverage-plan-details[open] > summary:not(.biology-disclosure-chip)::after {
   content: '▴';
 }
 .biology-coverage-plan-details .biology-score-coverage-grid {
@@ -1091,8 +1124,10 @@ button.biology-score-token:focus-visible {
   font-size: 13px;
 }
 @media (max-width: 760px) {
-  .biology-context-status-strip { flex-direction: column; }
+  .biology-context-status-strip { border-radius: calc(var(--radius) - 6px); align-items: stretch; }
+  .biology-context-status-strip > div { flex: 1 1 100%; }
   .biology-context-status-strip details { width: 100%; }
+  .biology-context-review-cta { width: 100%; }
   .biology-score-action-summary,
   .biology-score-coverage-head,
   .biology-score-coverage-grid { grid-template-columns: 1fr; }
@@ -1109,6 +1144,8 @@ button.biology-score-token:focus-visible {
     flex-direction: column;
     align-items: stretch;
   }
+  .biology-coherence-title-row { flex-direction: column; align-items: stretch; }
+  .biology-coherence-tools .dashboard-widget-tool { width: 100%; justify-content: center; }
   .biology-score-value strong { font-size: 32px; }
 }
 
@@ -1139,10 +1176,24 @@ button.biology-score-token:focus-visible {
   overflow: hidden;
 }
 .biology-coherence-tools {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
   z-index: 2;
+}
+.biology-coherence-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.biology-coherence-title-row > div:first-child {
+  min-width: 0;
+}
+.biology-coherence-title-row h2 {
+  overflow-wrap: anywhere;
 }
 .biology-coherence-tools .dashboard-widget-tool {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
