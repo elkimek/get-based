@@ -961,10 +961,14 @@ button.biology-score-token:focus-visible {
   font-size: 13px;
   line-height: 1.45;
 }
+.biology-coverage-progress-row {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
 .biology-coverage-progress {
   width: 100%;
   height: 8px;
-  margin-top: 12px;
+  margin-top: 2px;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, var(--border) 55%, transparent);
@@ -973,7 +977,7 @@ button.biology-score-token:focus-visible {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 58%, var(--green, #22c55e)));
+  background: color-mix(in srgb, var(--accent) 72%, var(--green, #22c55e));
 }
 .biology-score-coverage-metric {
   display: grid;
@@ -1338,12 +1342,14 @@ button.biology-score-token:focus-visible {
 .biology-coherence-tools {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 0;
   z-index: 2;
 }
 .biology-coherence-title-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
@@ -1351,6 +1357,9 @@ button.biology-score-token:focus-visible {
 }
 .biology-coherence-title-row > div:first-child {
   min-width: 0;
+}
+.biology-coherence-title-row .biology-coherence-tools {
+  justify-self: end;
 }
 .biology-coherence-title-row h2 {
   overflow-wrap: anywhere;

@@ -224,10 +224,11 @@ function renderBiologicalCoherenceHero(score) {
   const dashboardToggle = renderLensDashboardToggle('biology-score-biologicalCoherence');
   return `<section class="biology-coherence-hero biology-score-card-${escapeAttr(score.tone || 'unknown')}" id="biology-score-${escapeAttr(score.id)}">
     <div class="biology-coherence-copy">
-      <div class="biology-scores-eyebrow">System-level score</div>
-      <h2>${escapeHTML(score.title)}</h2>
+      <div class="biology-coherence-title-row">
+        <div><div class="biology-scores-eyebrow">System-level score</div><h2>${escapeHTML(score.title)}</h2></div>
+        ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
+      </div>
       <p>${escapeHTML(score.summary)}</p>
-      ${dashboardToggle ? `<div class="biology-coherence-tools">${dashboardToggle}</div>` : ''}
       <div class="biology-coherence-lines">${summaryItems.map(([label, value]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(value)}</span></div>`).join('')}</div>
     </div>
     <div class="biology-coherence-metric">
@@ -378,16 +379,16 @@ export function renderBiologyScoresActionSummary(live, waiting) {
   if (!live.length) return '';
   const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
   const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high').sort((a, b) => a.score - b.score);
-  const strongest = live.slice().sort((a, b) => b.score - a.score)[0];
+  const stale = live.find(score => score.recencyStatus && score.recencyStatus !== 'fresh');
   const nextMissing = lowConfidence
     .flatMap(score => effectiveMissingMarkers(score).filter(item => item.core).map(item => ({ ...item, scoreTitle: score.title })))
     [0]
     || lowConfidence.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0]
     || waiting.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0];
   const rows = [
-    weakest ? ['Watch first', `${weakest.title}: ${weakest.score}/100. Open this first; it is the most strained live domain.`] : null,
-    strongest ? ['Looks strongest', `${strongest.title}: ${strongest.score}/100 — still check confidence before calling it “all clear”.`] : null,
-    nextMissing ? ['Best next lab', `${markerDisplayLabel(nextMissing)} would improve confidence${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.`] : null,
+    weakest ? ['Open first', `${weakest.title}: start here if you want the marker-level explanation behind the most strained domain.`] : null,
+    nextMissing ? ['Improve confidence', `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.`] : null,
+    stale ? ['Retest together', `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`] : ['Avoid over-testing', 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.'],
   ].filter(Boolean);
   return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map(([label, text]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(text)}</span></div>`).join('')}</section>`;
 }
@@ -479,8 +480,9 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   }).join('');
   return `<section class="biology-score-coverage-planner">
     <div class="biology-score-coverage-head">
-      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div><div class="biology-coverage-marker-list biology-coverage-marker-preview">${renderCoverageMarkerList(coreShortlist.slice(0, 5), 'Baseline core markers covered')}</div></div>
+      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p></div>
       <div class="biology-score-coverage-actions"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Make lab plan</button></div>
+      <div class="biology-coverage-progress-row"><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div></div>
     </div>
     <div class="biology-coverage-bundle-grid">
       ${renderCoverageBundle('Best next lab bundle', 'Baseline first', coreShortlist, 'Baseline core markers covered')}
