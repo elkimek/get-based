@@ -8,7 +8,7 @@ import { ensureSNPTable } from './dna.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
-import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCompactTable, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
+import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 
@@ -202,7 +202,6 @@ export function createLensPageHandlers(deps) {
     html += renderBiologicalCoherenceLensHero(ctx);
     html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores);
     html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologyScores.find((score) => score.id === 'biologicalCoherence'));
-    html += renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores);
     html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
     main.innerHTML = html;
     setupDropZone();

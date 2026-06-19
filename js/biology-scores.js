@@ -12,7 +12,6 @@ import { CUSTOM_BIOLOGY_SCORE_MAPPINGS } from './biology-score-mappings.js';
 
 import {
   renderBiologicalCoherenceLensHero as renderBiologicalCoherenceLensHeroImpl,
-  renderBiologyScoreCompactTable,
   renderBiologyScoreCoveragePlanner,
   renderBiologyScoresActionSummary,
   renderBiologyScoresLens as renderBiologyScoresLensImpl,
@@ -347,7 +346,6 @@ export function renderBiologyScoresLens(ctx) {
 // Re-export the render implementations for callers that want the injected-compute variant.
 export {
   renderBiologicalCoherenceLensHeroImpl as renderBiologicalCoherenceLensHeroCompute,
-  renderBiologyScoreCompactTable,
   renderBiologyScoreCoveragePlanner,
   renderBiologyScoresLensImpl as renderBiologyScoresLensCompute,
   renderBiologyScoresActionSummary,

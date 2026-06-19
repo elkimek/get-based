@@ -411,59 +411,6 @@ function renderCoverageBundle(title, kicker, markers, emptyText) {
   </div>`;
 }
 
-function scoreMainIssue(score) {
-  if (isDirectionalOnly(score)) return 'Needs advanced markers before the number is trustworthy';
-  if (score.recencyStatus && score.recencyStatus !== 'fresh') return score.recencyBadge || 'Retest together';
-  const coreMissing = effectiveMissingMarkers(score).filter(item => item.core);
-  if (coreMissing.length) return `Missing ${coreMissing.slice(0, 2).map(markerDisplayLabel).join(', ')}${coreMissing.length > 2 ? ` +${coreMissing.length - 2}` : ''}`;
-  const topDrag = (score.available || [])
-    .filter(item => !item.profileContextOnly && Number.isFinite(item.partial) && Number(item.partial) < 100)
-    .sort((a, b) => (Number(a.partial) || 0) - (Number(b.partial) || 0))[0];
-  if (topDrag) return `${markerDisplayLabel(topDrag)} is the main drag`;
-  if ((score.coverage || 0) < 0.8) return 'Useful confidence markers still missing';
-  return 'No obvious coverage gap';
-}
-
-function scoreNextAction(score) {
-  if (isDirectionalOnly(score)) return 'Add specialty depth first';
-  if (score.recencyStatus && score.recencyStatus !== 'fresh') return 'Retest same panel';
-  const missing = effectiveMissingMarkers(score);
-  if (missing.length) return `Add ${markerDisplayLabel(missing[0])}`;
-  return 'Open score';
-}
-
-export function renderBiologyScoreCompactTable(live, waiting) {
-  const rows = [...live, ...waiting]
-    .sort((a, b) => {
-      const aWaiting = Number.isFinite(a.score) ? 0 : 1;
-      const bWaiting = Number.isFinite(b.score) ? 0 : 1;
-      if (aWaiting !== bWaiting) return aWaiting - bWaiting;
-      const aDirectional = isDirectionalOnly(a) ? 1 : 0;
-      const bDirectional = isDirectionalOnly(b) ? 1 : 0;
-      if (aDirectional !== bDirectional) return aDirectional - bDirectional;
-      const aScore = Number.isFinite(a.score) ? a.score : 101;
-      const bScore = Number.isFinite(b.score) ? b.score : 101;
-      return aScore - bScore;
-    })
-    .slice(0, 14)
-    .map((score) => {
-      const scoreLabel = isDirectionalOnly(score) ? 'Directional only' : Number.isFinite(score.score) ? `${score.score}/100` : 'Need inputs';
-      const confidence = score.scoreConfidenceLabel || getConfidenceFallback(score).label;
-      return `<button type="button" class="biology-score-compact-row${isDirectionalOnly(score) ? ' biology-score-compact-row-directional' : ''}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(score.id)}">
-        <span class="biology-score-compact-name"><strong>${escapeHTML(score.title)}</strong><small>${escapeHTML(getEvidenceBadge(score.evidence))}</small></span>
-        <span class="biology-score-compact-score">${escapeHTML(scoreLabel)}</span>
-        <span class="biology-score-compact-confidence">${escapeHTML(confidence)}</span>
-        <span class="biology-score-compact-issue">${escapeHTML(scoreMainIssue(score))}</span>
-        <span class="biology-score-compact-action">${escapeHTML(scoreNextAction(score))}</span>
-      </button>`;
-    }).join('');
-  return `<section class="biology-score-compact-table" aria-label="Biology Score map">
-    <div class="biology-score-compact-head"><div><div class="biology-scores-eyebrow">Score map</div><h3>Scan first, open only what matters</h3></div><p>Compact rows keep the full expert report below without making every score compete for attention.</p></div>
-    <div class="biology-score-compact-grid biology-score-compact-grid-head" aria-hidden="true"><span>Score</span><span>Result</span><span>Confidence</span><span>Main issue</span><span>Next action</span></div>
-    <div class="biology-score-compact-rows">${rows}</div>
-  </section>`;
-}
-
 export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
   const { baselineCoverage, liveDomains, missingDomains, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
@@ -523,7 +470,6 @@ export function renderBiologyScoresLens(ctx, computeBiologyScores) {
     ${renderBiologicalCoherenceHero(coherence)}
     ${renderBiologyScoresActionSummary(live, waiting)}
     ${renderBiologyScoreCoveragePlanner(detailScores, coherence)}
-    ${renderBiologyScoreCompactTable(live, waiting)}
     <div class="biology-score-detail-stack">${live.map(renderScoreDetail).join('')}${waiting.length ? `<details class="biology-score-unavailable-group"><summary>Show scores that need more markers or a retest</summary>${waiting.map(renderScoreDetail).join('')}</details>` : ''}</div>
     <p class="biology-scores-note">Educational pattern score only. This is reference/target-pattern coherence, not an outcome-validated diagnosis. Score tone reflects the current marker pattern; confidence reflects core-marker coverage; staleness is tracked separately.</p>
   </div>`;

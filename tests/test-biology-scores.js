@@ -629,23 +629,16 @@ assert('lens includes a baseline coverage planner before score details',
   && lensHtml.includes('Score gaps')
   && !lensHtml.includes('<details class="biology-coverage-score-picker"')
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'));
-assert('lens inserts a compact score table between planner and full expert detail cards',
-  lensHtml.includes('biology-score-compact-table')
-  && lensHtml.includes('Score map')
-  && lensHtml.includes('Main issue')
-  && lensHtml.includes('Next action')
-  && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-compact-table')
-  && lensHtml.indexOf('biology-score-compact-table') < lensHtml.indexOf('biology-score-detail-stack'),
+assert('lens no longer inserts the redundant Score map between planner and detail cards',
+  !lensHtml.includes('biology-score-compact-table')
+  && !lensHtml.includes('Score map')
+  && !lensHtml.includes('Compact rows keep the full expert report below')
+  && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'),
   lensHtml.slice(lensHtml.indexOf('biology-score-coverage-planner'), lensHtml.indexOf('biology-score-detail-stack')));
-const compactTableHtml = lensHtml.match(/biology-score-compact-table[\s\S]*?<\/section>/)?.[0] || '';
-assert('compact score table leads with live scored rows before waiting/not-current rows',
-  compactTableHtml.indexOf('Need inputs') === -1 || compactTableHtml.indexOf('/100') < compactTableHtml.indexOf('Need inputs'),
-  compactTableHtml);
 const biologyScoreLensPageSrc = await fs.promises.readFile(new URL('../js/lens-pages.js', import.meta.url), 'utf8');
-assert('actual Biology Scores route wires compact score table into the live lens path',
-  biologyScoreLensPageSrc.includes('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)')
-  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCoveragePlanner') < biologyScoreLensPageSrc.indexOf('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)')
-  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)') < biologyScoreLensPageSrc.indexOf("renderLensPageWidgets('biology-scores'"),
+assert('actual Biology Scores route leaves Score map out of the live lens path',
+  !biologyScoreLensPageSrc.includes('renderBiologyScoreCompactTable')
+  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCoveragePlanner') < biologyScoreLensPageSrc.indexOf("renderLensPageWidgets('biology-scores'"),
   biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('function showBiologyScores'), biologyScoreLensPageSrc.indexOf('function showGenomeLens')));
 assert('lens uses distinct AI CTA labels for overview, planning, and per-score explanations',
   biologyScoreLensPageSrc.includes('Explain my Biology Scores')
