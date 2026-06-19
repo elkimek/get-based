@@ -244,10 +244,14 @@ assert('cycling female hormone axis makes phase-critical hormones context-only w
   && missingPhaseHormoneScore.scoreConfidenceLabel === 'Needs context',
   JSON.stringify({ available: missingPhaseHormoneScore.available, confidence: missingPhaseHormoneScore.scoreConfidenceLabel }));
 const missingPhaseScores = computeBiologyScores(getActiveData());
-const missingPhasePlannerHtml = renderBiologyScoreCoveragePlanner(missingPhaseScores.filter(score => score.id !== 'biologicalCoherence'), missingPhaseScores.find(score => score.id === 'biologicalCoherence'));
-assert('coverage planner surfaces hormone context-needed rows instead of only lab gaps',
-  missingPhasePlannerHtml.includes('context needed') && missingPhasePlannerHtml.includes('Hormone Axis'),
-  missingPhasePlannerHtml.slice(0, 600));
+const missingPhasePlanner = buildBiologyScoreCoveragePlannerModel(
+  missingPhaseScores.filter(score => score.id !== 'biologicalCoherence'),
+  missingPhaseScores.find(score => score.id === 'biologicalCoherence'),
+);
+const missingPhaseHormonePlannerRow = missingPhasePlanner.scoreRows.find(row => row.score.id === 'hormoneAxis');
+assert('coverage planner model preserves hormone context-needed gaps for chat and lab planning',
+  missingPhaseHormonePlannerRow?.contextCount > 0 || missingPhaseHormonePlannerRow?.coreContextCount > 0,
+  JSON.stringify(missingPhaseHormonePlannerRow));
 state.importedData = { entries: [{ date: '2026-06-21', markers: {
   'hormones.estradiol': 35, 'hormones.progesterone': 0.3, 'hormones.lh': 42, 'hormones.fsh': 78, 'hormones.shbg': 70, 'hormones.prolactin': 12
 } }], diagnoses: { conditions: [], flags: { postmenopause: true } }, menstrualCycle: null, contextNotes: '', interpretiveLens: '' };
@@ -617,25 +621,20 @@ assert('lens gives normie action summary before detail stack', lensHtml.includes
 assert('lens puts Biological Coherence before supporting explanation cards',
   lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-action-summary')
   && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-coverage-planner'));
-assert('lens includes a baseline coverage planner before score details',
+assert('lens includes a simplified coverage planner before score details',
   lensHtml.includes('biology-score-coverage-planner')
   && lensHtml.includes('Improve coverage without over-testing')
   && lensHtml.includes('Make lab plan')
   && lensHtml.includes('Best next lab bundle')
   && lensHtml.includes('Optional upgrades')
   && lensHtml.includes('Advanced depth')
-  && lensHtml.includes('Full marker plan')
-  && lensHtml.includes('Hide marker plan')
-  && lensHtml.includes('Score gaps')
-  && !lensHtml.includes('<details class="biology-coverage-score-picker"')
+  && lensHtml.includes('Specialty depth')
+  && !lensHtml.includes('Full marker plan')
+  && !lensHtml.includes('Hide marker plan')
+  && !lensHtml.includes('Score gaps')
+  && !lensHtml.includes('Specialty / geek')
+  && !lensHtml.includes('biology-coverage-plan-details')
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'));
-const coveragePlanDetailsHtml = lensHtml.match(/<details class="biology-coverage-plan-details"[\s\S]*?<\/details>/)?.[0] || '';
-assert('expanded Coverage Planner does not repeat baseline and advanced bundle cards',
-  coveragePlanDetailsHtml.includes('Score gaps')
-  && !coveragePlanDetailsHtml.includes('Core baseline gaps')
-  && !coveragePlanDetailsHtml.includes('Highest-value markers for Biological Coherence coverage')
-  && !coveragePlanDetailsHtml.includes('Specialty-panel extras for deeper users'),
-  coveragePlanDetailsHtml);
 assert('lens no longer inserts the redundant Score map between planner and detail cards',
   !lensHtml.includes('biology-score-compact-table')
   && !lensHtml.includes('Score map')
@@ -682,7 +681,10 @@ assert('coverage planner treats active B12 as satisfying the B12 core group',
 assert('coverage planner marker chips use lab-orderable marker names instead of explanatory context labels',
   coveragePlannerHtml.includes('>Reverse T3<')
   && coveragePlannerHtml.includes('>TPO antibodies<')
-  && coveragePlannerHtml.includes('>D-dimer<')
+  && coveragePlannerHtml.includes('>Lactate<')
+  && coveragePlannerHtml.includes('>Pyruvate<')
+  && !coveragePlannerHtml.includes('>Lactate / lactic acid<')
+  && !coveragePlannerHtml.includes('>Pyruvate / pyruvic acid<')
   && !coveragePlannerHtml.includes('>Reverse T3 brake context<')
   && !coveragePlannerHtml.includes('>TPO antibody context<')
   && !coveragePlannerHtml.includes('>D-dimer activation context<'),

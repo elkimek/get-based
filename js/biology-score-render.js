@@ -414,17 +414,6 @@ function renderCoverageBundle(title, kicker, markers, emptyText) {
 export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
   const { baselineCoverage, liveDomains, missingDomains, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
-  const scoreRows = planner.scoreRows.map(row => {
-    const confidence = Number.isFinite(row.score.score) ? (row.score.scoreConfidenceLabel || 'confidence unknown') : 'Needs markers';
-    const gapLabel = row.coreMissingCount
-      ? `<span>${row.coreMissingCount} core gap${row.coreMissingCount === 1 ? '' : 's'}</span>`
-      : row.coreContextCount
-        ? `<span>${row.coreContextCount} context needed</span>`
-        : row.contextCount
-          ? `<span>context needed</span>`
-          : '';
-    return `<div class="biology-coverage-score-row"><div class="biology-coverage-score-name"><strong>${escapeHTML(row.score.title)}</strong>${gapLabel}</div><div class="biology-coverage-score-markers"><div class="biology-coverage-marker-list">${renderCoverageMarkerList(row.usefulMissing, 'Core covered')}</div></div><div class="biology-coverage-score-status"><div class="biology-coverage-row-meter" aria-label="${escapeAttr(row.score.title)} coverage ${row.coveragePct}%"><span style="width:${Math.max(0, Math.min(100, row.coveragePct))}%"></span></div><div><strong>${row.coveragePct}%</strong><span>${escapeHTML(confidence)}</span></div></div></div>`;
-  }).join('');
   return `<section class="biology-score-coverage-planner">
     <div class="biology-score-coverage-head">
       <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><div class="biology-score-coverage-title-row"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p></div></div></div>
@@ -434,11 +423,8 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
     <div class="biology-coverage-bundle-grid">
       ${renderCoverageBundle('Best next lab bundle', 'Baseline first', coreShortlist, 'Baseline core markers covered')}
       ${renderCoverageBundle('Optional upgrades', 'If budget allows', optionalUpgrades, 'No obvious baseline upgrades')}
-      ${renderCoverageBundle('Advanced depth', 'Specialty / geek depth', advancedDepth, 'Advanced scores are optional')}
+      ${renderCoverageBundle('Advanced depth', 'Specialty depth', advancedDepth, 'Advanced scores are optional')}
     </div>
-    <details class="biology-coverage-plan-details"><summary class="biology-disclosure-chip"><span class="biology-disclosure-open">Full marker plan</span><span class="biology-disclosure-close">Hide marker plan</span></summary>
-      <div class="biology-coverage-score-picker"><div class="biology-coverage-score-header"><h4>Score gaps</h4><span>Core gaps first, then lower coverage</span></div><div class="biology-coverage-score-table">${scoreRows || '<div class="biology-coverage-score-empty">Core score gaps are covered.</div>'}</div></div>
-    </details>
   </section>`;
 }
 

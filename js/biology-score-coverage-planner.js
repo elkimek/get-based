@@ -67,6 +67,8 @@ export function markerDisplayLabel(item) {
     cPeptide: 'C-peptide',
     fructosamine: 'Fructosamine',
     selenium: 'Selenium',
+    lactate: 'Lactate',
+    pyruvate: 'Pyruvate',
   };
   if (item?.key && byKey[item.key]) return byKey[item.key];
   return String(item?.label || '')
