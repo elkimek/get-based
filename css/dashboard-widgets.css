@@ -827,12 +827,18 @@ button.biology-score-token:focus-visible {
   color: var(--text-secondary);
   font-size: 12px;
 }
-.biology-context-status-strip > div {
+.biology-context-status-copy {
   display: flex;
   min-width: 0;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
+}
+.biology-context-status-copy small {
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 62%, transparent);
 }
 .biology-context-status-strip details {
   justify-self: end;
@@ -856,8 +862,8 @@ button.biology-score-token:focus-visible {
   align-items: center;
   justify-content: center;
   width: auto;
-  min-height: 26px;
-  padding: 3px 9px;
+  min-height: 28px;
+  padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
@@ -866,17 +872,20 @@ button.biology-score-token:focus-visible {
   line-height: 1.2;
 }
 .biology-context-review-cta::after {
-  content: '⌄';
+  content: '+';
   margin-left: 6px;
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.72;
 }
 .biology-context-status-strip details[open] .biology-context-review-cta::after {
-  content: '⌃';
+  content: '−';
 }
+.biology-context-review-close { display: none; }
+.biology-context-status-strip details[open] .biology-context-review-open { display: none; }
+.biology-context-status-strip details[open] .biology-context-review-close { display: inline; }
 .biology-context-status-strip .biology-context-ai-panel {
   width: 100%;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   border-radius: var(--radius);
 }
 .biology-disclosure-chip {
