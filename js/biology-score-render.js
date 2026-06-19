@@ -387,12 +387,12 @@ export function renderBiologyScoresActionSummary(live, waiting) {
     || lowConfidence.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0]
     || waiting.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0];
   const rows = [
-    weakest ? { label: 'Open first', text: `${weakest.title}: open the marker-level explanation behind the most strained score.`, scoreId: weakest.id } : null,
+    weakest ? { label: 'Open first', text: `${weakest.title}: marker-level explanation behind the most strained score.`, scoreId: weakest.id } : null,
     nextMissing ? { label: 'Improve confidence', text: `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.` } : null,
     stale ? { label: 'Retest together', text: `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`, scoreId: stale.id } : { label: 'Avoid over-testing', text: 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.' },
   ].filter(Boolean);
   return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map((row) => {
-    const inner = `<strong>${escapeHTML(row.label)}</strong><span>${escapeHTML(row.text)}</span>${row.scoreId ? `<em>Open ${escapeHTML(row.text.split(':')[0])}</em>` : ''}`;
+    const inner = `<strong>${escapeHTML(row.label)}</strong><span>${escapeHTML(row.text)}</span>`;
     return row.scoreId
       ? `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(row.scoreId)}">${inner}</button>`
       : `<div>${inner}</div>`;

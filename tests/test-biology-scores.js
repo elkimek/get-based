@@ -623,7 +623,8 @@ assert('What matters now Open first is an actionable jump to the target score',
   openFirstScore
   && lensHtml.includes('data-biology-score-action="jump-to-domain"')
   && lensHtml.includes(`data-biology-score-id="${openFirstScore.id}"`)
-  && lensHtml.includes(`Open ${openFirstScore.title}`),
+  && lensHtml.includes(`${openFirstScore.title}: marker-level explanation`)
+  && !lensHtml.includes(`Open ${openFirstScore.title}`),
   JSON.stringify({ openFirstScore: openFirstScore?.id }));
 assert('lens puts Biological Coherence before supporting explanation cards',
   lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-action-summary')

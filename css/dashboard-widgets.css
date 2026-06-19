@@ -816,20 +816,12 @@ button.biology-score-token:focus-visible {
   cursor: pointer;
 }
 .biology-score-action-summary > button:hover strong,
-.biology-score-action-summary > button:focus-visible strong,
-.biology-score-action-summary > button:hover em,
-.biology-score-action-summary > button:focus-visible em {
+.biology-score-action-summary > button:focus-visible strong {
   color: var(--accent);
 }
 .biology-score-action-summary > button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: 4px;
-}
-.biology-score-action-summary em {
-  color: var(--accent);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
 }
 .biology-score-action-summary strong {
   color: var(--text-primary);
@@ -1221,23 +1213,17 @@ button.biology-score-token:focus-visible {
   color: var(--text-secondary);
   font-size: 12px;
 }
-.biology-coherence-domain-excellent {
-  border-left-color: color-mix(in srgb, var(--green, #22c55e) 58%, var(--border));
-  background: color-mix(in srgb, var(--green, #22c55e) 6%, var(--bg-card));
-}
+.biology-coherence-domain-excellent,
 .biology-coherence-domain-good {
-  border-left-color: color-mix(in srgb, var(--accent) 54%, var(--border));
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+  border-left-color: color-mix(in srgb, var(--green, #22c55e) 58%, var(--border));
 }
 .biology-coherence-domain-strained {
   border-left-color: color-mix(in srgb, var(--yellow, #f59e0b) 62%, var(--border));
-  background: color-mix(in srgb, var(--yellow, #f59e0b) 8%, var(--bg-card));
 }
 .biology-coherence-domain-poor,
 .biology-coherence-domain-concerning,
 .biology-coherence-domain-severe {
   border-left-color: color-mix(in srgb, var(--red, #ef4444) 58%, var(--border));
-  background: color-mix(in srgb, var(--red, #ef4444) 8%, var(--bg-card));
 }
 .biology-coherence-domain-row[data-biology-score-action="jump-to-domain"] {
   cursor: pointer;
