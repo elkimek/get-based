@@ -906,12 +906,15 @@ button.biology-score-token:focus-visible {
 .biology-disclosure-chip::-webkit-details-marker { display: none; }
 .biology-disclosure-chip::marker { content: ''; }
 .biology-disclosure-chip::after {
-  content: '⌄';
+  content: '+';
   margin-left: 7px;
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.72;
 }
-.biology-coverage-plan-details[open] > .biology-disclosure-chip::after { content: '⌃'; }
+.biology-coverage-plan-details[open] > .biology-disclosure-chip::after { content: '−'; }
+.biology-disclosure-close { display: none; }
+.biology-coverage-plan-details[open] .biology-disclosure-open { display: none; }
+.biology-coverage-plan-details[open] .biology-disclosure-close { display: inline; }
 .biology-score-coverage-planner {
   display: grid;
   gap: 12px;

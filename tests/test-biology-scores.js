@@ -598,7 +598,8 @@ assert('lens includes a baseline coverage planner before score details',
   lensHtml.includes('biology-score-coverage-planner')
   && lensHtml.includes('Improve coverage without over-testing')
   && lensHtml.includes('Ask chat what to order')
-  && lensHtml.includes('Show full marker plan')
+  && lensHtml.includes('Full marker plan')
+  && lensHtml.includes('Hide marker plan')
   && lensHtml.includes('Score gaps')
   && !lensHtml.includes('<details class="biology-coverage-score-picker"')
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'));
