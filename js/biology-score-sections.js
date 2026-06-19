@@ -63,10 +63,9 @@ export function renderScoreAIAnswer(score) {
     <div class="biology-score-ai-head">
       <div>
         <div class="biology-score-question-kicker">What this means</div>
-        <p>A short, non-diagnostic read of what this pattern suggests and what to check next.</p>
       </div>
       <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain this score'}</button>
     </div>
-    <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? escapeHTML(cached) : 'Tap “Explain this score” for a concise interpretation based on the current marker pattern.'}</div>
+    <div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${cached ? escapeHTML(cached) : ''}</div>
   </section>`;
 }

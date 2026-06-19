@@ -676,6 +676,12 @@ const changedThyroidForAI = { ...byId.thyroidCoherence, score: Math.max(0, byId.
 assert('Biology Score AI cache invalidates when score fingerprint changes',
   !renderScoreAIAnswer(changedThyroidForAI).includes('sensitive thyroid interpretation'),
   renderScoreAIAnswer(changedThyroidForAI));
+const emptyScoreAIHtml = renderScoreAIAnswer(changedThyroidForAI);
+assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',
+  emptyScoreAIHtml.includes('Explain this score')
+  && !emptyScoreAIHtml.includes('concise interpretation based on the current marker pattern')
+  && !emptyScoreAIHtml.includes('A short, non-diagnostic read'),
+  emptyScoreAIHtml);
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData, hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };
