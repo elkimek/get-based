@@ -259,6 +259,38 @@ assert('low-muscle profile keeps cystatin filtration markers scored', lowMuscleB
 assert('low-muscle profile adds interpretation flag for creatinine context', lowMuscleById.fluidFiltrationCoherence.flags.some(flag => /low muscle mass|neuromuscular/i.test(flag)), JSON.stringify(lowMuscleById.fluidFiltrationCoherence.flags));
 state.importedData.diagnoses = savedDiagnoses;
 state.importedData.contextNotes = savedContextNotes;
+const savedRichContextState = { importedData: state.importedData, sex: state.profileSex, dob: state.profileDob };
+state.profileSex = 'male'; state.profileDob = '1985-01-01';
+state.importedData = { entries: [], genetics: { apoe: 'ε3/ε4', snps: { rs1801133: { gene: 'MTHFR', variant: 'C677T', genotype: 'TT', category: 'methylation', effect: 'significant', markers: ['coagulation.homocysteine'] }, rs2282679: { gene: 'GC', variant: 'Vitamin D binding protein', genotype: 'AC', category: 'vitaminD', effect: 'moderate', markers: ['vitamins.vitaminD'] } } }, contextNotes: '', interpretiveLens: '' };
+const geneticScores = computeBiologyScores({ dates: ['2026-06-01'], categories: {
+  coagulation: { label: 'Coagulation', markers: { homocysteine: marker('Homocysteine', 'µmol/L', 5, 15, 10) } },
+  vitamins: { label: 'Vitamins', markers: { vitaminB12: marker('Vitamin B12', 'pmol/L', 200, 650, 360), folate: marker('Folate', 'nmol/L', 10, 45, 25), vitaminD: marker('25-OH vitamin D', 'nmol/L', 50, 150, 80) } },
+  electrolytes: { label: 'Electrolytes', markers: { calciumTotal: marker('Total calcium', 'mmol/L', 2.2, 2.6, 2.35), phosphorus: marker('Phosphorus', 'mmol/L', 0.8, 1.5, 1.1) } },
+} });
+const geneticOneCarbon = geneticScores.find(score => score.id === 'oneCarbonCoherence');
+const geneticBone = geneticScores.find(score => score.id === 'boneMineralSignal');
+assert('SNP context modifies Biology Scores deterministically without becoming its own score input',
+  geneticOneCarbon.flags.some(flag => /methylation variants/i.test(flag))
+  && geneticOneCarbon.available.some(item => item.dotKey === 'coagulation.homocysteine' && item.partial < 100)
+  && geneticBone.flags.some(flag => /vitamin-D pathway/i.test(flag)),
+  JSON.stringify({ oneCarbon: geneticOneCarbon.flags, homocysteine: geneticOneCarbon.available.find(i => i.dotKey === 'coagulation.homocysteine'), bone: geneticBone.flags }));
+state.importedData = { entries: [], sunDefaults: { completedAt: Date.now() }, sunSessions: [], deviceSessions: [], lightMeasurements: [], contextNotes: '', interpretiveLens: '' };
+const lightScores = computeBiologyScores({ dates: ['2026-06-01'], categories: {
+  vitamins: { label: 'Vitamins', markers: { vitaminD: marker('25-OH vitamin D', 'nmol/L', 50, 150, 80) } },
+  electrolytes: { label: 'Electrolytes', markers: { calciumTotal: marker('Total calcium', 'mmol/L', 2.2, 2.6, 2.35), phosphorus: marker('Phosphorus', 'mmol/L', 0.8, 1.5, 1.1) } },
+} });
+const lightBone = lightScores.find(score => score.id === 'boneMineralSignal');
+assert('Light context is included by default and can raise vitamin D interpretation target when logged sun is absent',
+  lightBone.flags.some(flag => /Light context/i.test(flag))
+  && lightBone.available.some(item => item.dotKey === 'vitamins.vitaminD' && item.partial < 100),
+  JSON.stringify({ flags: lightBone.flags, vitaminD: lightBone.available.find(i => i.dotKey === 'vitamins.vitaminD') }));
+state.importedData = { entries: [], wearableSummary: { metrics: { hrv_rmssd: { rolling: { d7: 24 }, baselineP25: 35 }, rhr: { rolling: { d7: 78 }, baselineP75: 70 }, sleep_score: { rolling: { d7: 62 }, baseline: 78 } } }, contextNotes: '', interpretiveLens: '' };
+const bodyRecovery = computeBiologyScores(data).find(score => score.id === 'anabolicRecoverySignal');
+assert('Body/wearable context flags recovery and hormone-adjacent Biology Scores without diluting marker math',
+  bodyRecovery.flags.some(flag => /Body context/i.test(flag))
+  && Number.isFinite(bodyRecovery.score),
+  JSON.stringify(bodyRecovery.flags));
+state.importedData = savedRichContextState.importedData; state.profileSex = savedRichContextState.sex; state.profileDob = savedRichContextState.dob;
 const savedImportedData = state.importedData;
 const savedDob = state.profileDob;
 const savedSex = state.profileSex;

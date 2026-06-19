@@ -3,6 +3,11 @@
 
 const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'calculatedRatios.bunCreatRatio']);
 const VITAMIN_D_PATHS = new Set(['vitamins.vitaminD', 'vitamins.vitaminD3', 'vitamins.vitaminD2']);
+const METHYLATION_CONTEXT_PATHS = new Set(['coagulation.homocysteine', 'vitamins.vitaminB12', 'vitamins.activeB12', 'vitamins.folate']);
+const IRON_CONTEXT_PATHS = new Set(['iron.ferritin', 'iron.transferrinSaturation', 'iron.tsat', 'iron.iron', 'iron.tibc', 'iron.transferrin']);
+const LIPID_CONTEXT_PATHS = new Set(['lipids.apoB', 'lipids.ldl', 'lipids.hdl', 'lipids.lpA', 'lipids.triglycerides', 'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.cholHdlRatio', 'calculatedRatios.tgHdlRatio']);
+const FATTY_ACID_CONTEXT_PATHS = new Set(['fattyAcids.omega3Index', 'fattyAcids.aaEpaRatio', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index']);
+const BILIRUBIN_CONTEXT_PATHS = new Set(['biochemistry.bilirubinTotal', 'biochemistry.bilirubinDirect', 'biochemistry.bilirubinIndirect']);
 const FEMALE_PHASE_HORMONES = new Set(['hormones.estradiol', 'hormones.progesterone', 'hormones.lh', 'hormones.fsh']);
 const HORMONE_THERAPY_CONTEXT_PATHS = new Set([
   'hormones.testosterone', 'hormones.freeTestosterone', 'hormones.bioactiveTestosterone',
@@ -75,7 +80,7 @@ function isCyclingFemale(profileContext, entryContext) {
 /**
  * @param {{dotKey?: string, label?: string, value?: number, range?: any, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any}} hit
  * @param {any} input
- * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean}} profileContext
+ * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean, genetic?: any, body?: any, light?: any, contextFlags?: string[]}} profileContext
  */
 export function getInputProfileModifier(hit, input, profileContext) {
   const sexScale = input.sexWeightScale?.[profileContext?.sex] ?? 1;
@@ -90,7 +95,32 @@ export function getInputProfileModifier(hit, input, profileContext) {
     const overrideRange = { ...hit?.range };
     const currentMin = Number.isFinite(overrideRange?.min) ? Number(overrideRange.min) : null;
     if (currentMin == null || currentMin < 100) overrideRange.min = 100;
-    return { score: true, flag: profileContext.lowSunlightReason, weightScale: sexScale, rangeOverride: overrideRange };
+    const geneticNote = profileContext?.genetic?.vitaminDRisk ? ' Genetic vitamin-D pathway context is also present.' : '';
+    return { score: true, flag: `${profileContext.lowSunlightReason}${geneticNote}`, weightScale: sexScale, rangeOverride: overrideRange };
+  }
+  if (profileContext?.genetic?.vitaminDRisk && VITAMIN_D_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: vitamin-D pathway variants are present; interpret 25-OH vitamin D with sunlight/intake response context.', weightScale: sexScale };
+  }
+  if (profileContext?.genetic?.methylationRisk && dotKey === 'coagulation.homocysteine') {
+    const overrideRange = { ...hit?.range };
+    const currentMax = Number.isFinite(overrideRange?.max) ? Number(overrideRange.max) : null;
+    if (currentMax == null || currentMax > 8) overrideRange.max = 8;
+    return { score: true, flag: 'Genetic context: methylation variants are present; homocysteine is interpreted with a tighter target ceiling (~8 µmol/L) for confidence.', weightScale: sexScale, rangeOverride: overrideRange };
+  }
+  if (profileContext?.genetic?.methylationRisk && METHYLATION_CONTEXT_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: methylation/B-vitamin variants are present; B12, folate, and homocysteine patterns deserve extra confidence review.', weightScale: sexScale };
+  }
+  if (profileContext?.genetic?.ironRisk && IRON_CONTEXT_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: iron-regulation variants are present; iron markers should be interpreted with overload/deficiency predisposition context.', weightScale: sexScale };
+  }
+  if (profileContext?.genetic?.lipidRisk && LIPID_CONTEXT_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: lipid/APOE-related variants are present; lipoprotein risk may be higher than the lab pattern alone suggests.', weightScale: sexScale };
+  }
+  if (profileContext?.genetic?.fattyAcidRisk && FATTY_ACID_CONTEXT_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: fatty-acid conversion variants are present; omega fatty-acid markers should be interpreted as response/context, not only intake.', weightScale: sexScale };
+  }
+  if (profileContext?.genetic?.bilirubinRisk && BILIRUBIN_CONTEXT_PATHS.has(dotKey)) {
+    return { score: true, flag: 'Genetic context: bilirubin-handling variants are present; isolated bilirubin elevation may reflect UGT1A1/Gilbert-style biology.', weightScale: sexScale };
   }
 
   if (hasHormoneTherapy(profileContext, entryContext) && HORMONE_THERAPY_CONTEXT_PATHS.has(dotKey)) {
@@ -135,6 +165,29 @@ export function getInputProfileModifier(hit, input, profileContext) {
  */
 export function getScoreProfileFlags(scoreId, profileContext) {
   const flags = [];
+  const add = (condition, text) => { if (condition && !flags.includes(text)) flags.push(text); };
+  if (Array.isArray(profileContext?.contextFlags)) {
+    for (const flag of profileContext.contextFlags) {
+      const text = String(flag || '');
+      if (!text) continue;
+      if (scoreId === 'biologicalCoherence'
+        || (scoreId === 'cardiovascularLipoprotein' && /lipid|APOE|Light context|Body context/i.test(text))
+        || (scoreId === 'oneCarbonCoherence' && /methylation|B-vitamin|B12/i.test(text))
+        || (scoreId === 'boneMineralSignal' && /vitamin-D|Light context/i.test(text))
+        || (scoreId === 'redoxStress' && /Light context|Body context|inflammation|vitamin-D|iron/i.test(text))
+        || (scoreId === 'ironHandling' && /iron-regulation/i.test(text))
+        || (scoreId === 'lipidMembrane' && /fatty-acid/i.test(text))
+        || (scoreId === 'liverBileSignal' && /bilirubin/i.test(text))
+        || (scoreId === 'hormoneAxis' && /sex-hormone|Light context|Body context/i.test(text))
+        || (scoreId === 'anabolicRecoverySignal' && /Body context|Light context|sex-hormone/i.test(text))
+        || (scoreId === 'stressResilience' && /Body context|Light context/i.test(text))) {
+        flags.push(text);
+      }
+    }
+  }
+  add(profileContext?.body?.lowRecovery && ['anabolicRecoverySignal', 'stressResilience', 'redoxStress'].includes(scoreId), 'Body context: low HRV/high resting HR suggests recovery pressure; do not read lab scores without current recovery state.');
+  add(profileContext?.body?.sleepStrain && ['anabolicRecoverySignal', 'stressResilience', 'hormoneAxis', 'metabolicFlexibility'].includes(scoreId), 'Body context: low recent sleep can worsen glucose, inflammation, recovery, and hormone patterns.');
+  add(profileContext?.light?.lowCircadianLight && ['stressResilience', 'hormoneAxis', 'metabolicFlexibility', 'anabolicRecoverySignal'].includes(scoreId), 'Light context: low morning/circadian light can affect sleep, cortisol rhythm, glucose handling, and hormone signaling.');
   if (scoreId === 'hormoneAxis') {
     if (!profileContext.sex) flags.push('Hormone-axis context: set profile sex before treating this score as reliable; hormone meaning changes strongly by sex.');
     if (!Number.isFinite(profileContext.ageYears)) flags.push('Hormone-axis context: set date of birth before treating this score as reliable; hormone ranges and feedback patterns are age-sensitive.');

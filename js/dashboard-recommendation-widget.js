@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
+import { computeBiologyScores } from './biology-scores.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
 
@@ -172,9 +173,37 @@ export function createDashboardRecommendationWidget({
           score: (criticalIds.has(markerId) ? 110 : status === 'high' || status === 'low' ? 80 : 45) + (alert ? 25 : 0),
           label: getRecommendationSlotLabel(catalog, slotKey),
           reason: getRecommendationStatusReason(marker.name || markerKey, status, alert),
-          meta: `${category.label || catKey} \u00b7 ${formatValue(value)}${marker.unit ? ` ${marker.unit}` : ''}`,
+          meta: `${category.label || catKey} · ${formatValue(value)}${marker.unit ? ` ${marker.unit}` : ''}`,
         });
       }
+    }
+
+    const biologyScores = computeBiologyScores(ctx.filteredData || ctx.data || {}).filter(score => score.id !== 'biologicalCoherence');
+    const seenBiologySlots = new Set();
+    for (const score of biologyScores) {
+      const coreGap = (score.missing || []).find(item => item.core && item.path && catalog.slots[item.path]);
+      if (!coreGap || seenBiologySlots.has(coreGap.path)) continue;
+      seenBiologySlots.add(coreGap.path);
+      add({
+        id: `biology:${score.id}:${coreGap.path}`,
+        source: 'Biology Scores',
+        slotKey: coreGap.path,
+        score: 86 + Math.round((score.coherenceWeight || 1) * 4),
+        reason: `${coreGap.label} would improve ${score.title} confidence and baseline Biological Coherence coverage.`,
+        meta: `${Math.round((score.coverage || 0) * 100)}% ${score.title} coverage`,
+      });
+    }
+    const weakestBiology = biologyScores.filter(score => Number.isFinite(score.score)).sort((a, b) => a.score - b.score)[0];
+    const weakestDrag = weakestBiology?.available?.filter(item => !item.profileContextOnly && Number.isFinite(item.partial) && item.path && catalog.slots[item.path]).sort((a, b) => (a.partial || 100) - (b.partial || 100))[0];
+    if (weakestBiology && weakestDrag?.path && !seenBiologySlots.has(weakestDrag.path)) {
+      add({
+        id: `biology:${weakestBiology.id}:${weakestDrag.path}:drag`,
+        source: 'Biology Scores',
+        slotKey: weakestDrag.path,
+        score: 74,
+        reason: `${weakestDrag.label} is one of the biggest drags in the weakest biology domain (${weakestBiology.title}).`,
+        meta: `${weakestBiology.score}/100 · ${Math.round(weakestDrag.partial)}/100 marker fit`,
+      });
     }
 
     const sessions = (window.getSessions?.() || []).filter(s => s?.startedAt || s?.endedAt);

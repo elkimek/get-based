@@ -124,6 +124,7 @@ export function getMarkerHit(data, paths) {
     return {
       id: `${catKey}_${markerKey}`,
       dotKey: `${catKey}.${markerKey}`,
+      path: `${catKey}.${markerKey}`,
       label: marker.name || markerKey,
       value,
       canonicalValue: canonicalMarkerValue(`${catKey}.${markerKey}`, marker, value),
@@ -154,6 +155,7 @@ function getDerivedMarkerHit(data, candidates) {
       return {
         id: 'calculatedRatios_cholHdlRatio',
         dotKey: 'calculatedRatios.cholHdlRatio',
+        path: 'calculatedRatios.cholHdlRatio',
         label: 'Total cholesterol/HDL ratio',
         value,
         canonicalValue: value,
@@ -181,6 +183,7 @@ function getDerivedMarkerHit(data, candidates) {
     return {
       id: `${catKey}_${markerKey}`,
       dotKey: `${catKey}.${markerKey}`,
+      path: `${catKey}.${markerKey}`,
       label,
       value,
       canonicalValue: value,
@@ -359,6 +362,8 @@ export function scoreTargetRange(value, min, max, lowFloor = 0, highCeil = null)
 }
 
 export function finalizeCustomScore(def, parts, missing, flags = []) {
+  const profileFlags = getScoreProfileFlags(def.id, getBiologyProfileContext());
+  const allFlags = [...profileFlags, ...flags.filter(flag => !profileFlags.includes(flag))];
   const available = parts.filter(Boolean);
   const totalWeight = available.reduce((sum, p) => sum + p.weight, 0) + missing.reduce((sum, p) => sum + p.weight, 0);
   const availableWeight = available.reduce((sum, p) => sum + p.weight, 0);
@@ -374,7 +379,7 @@ export function finalizeCustomScore(def, parts, missing, flags = []) {
     coverageLabel: resolveCoverageLabel(coverage),
     available,
     missing,
-    flags,
+    flags: allFlags,
   }));
 }
 
@@ -404,7 +409,7 @@ export function computeWeightedComposite(data, def) {
     const coreApplies = input.core === true && (!Array.isArray(input.coreSex) || !profileContext?.sex || input.coreSex.includes(profileContext.sex));
     const effectiveRange = modifier.rangeOverride ?? hit?.range;
     const partial = hit ? scoreAgainstRange(hit.value, effectiveRange) : null;
-    if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight, core: coreApplies, coreGroup: input.coreGroup || '', coreGroupLabel: input.coreGroupLabel || '' }); continue; }
+    if (partial == null) { totalWeight += effectiveWeight; missing.push({ key: input.key, label: input.label, weight: effectiveWeight, core: coreApplies, coreGroup: input.coreGroup || '', coreGroupLabel: input.coreGroupLabel || '', path: Array.isArray(input.paths) ? input.paths[0] : input.paths }); continue; }
     if (modifier.flag && !flags.includes(modifier.flag)) flags.push(modifier.flag);
     const guardrail = clinicalGuardrailForHit(hit);
     if (guardrail && !flags.includes(guardrail)) flags.unshift(guardrail);

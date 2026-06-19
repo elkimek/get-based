@@ -43,6 +43,37 @@ function safeCondition(item) {
   return safeContextText(item, 120);
 }
 
+function geneticsSummary(imported) {
+  const genetics = imported?.genetics || null;
+  const snps = genetics?.snps || {};
+  if (!genetics && !Object.keys(snps).length) return null;
+  const categories = {};
+  for (const stored of Object.values(snps)) {
+    const effect = String(stored?.effect || '').toLowerCase();
+    const valence = String(stored?.valence || '').toLowerCase();
+    if ((effect === 'none' || effect === '') && valence !== 'protective') continue;
+    const cat = stored?.category || 'other';
+    categories[cat] = (categories[cat] || 0) + 1;
+  }
+  return { source: safeContextText(genetics?.source, 80), apoe: safeContextText(genetics?.apoe, 40), snpCount: Object.keys(snps).length, categories };
+}
+
+function lightSummary(imported) {
+  return {
+    lightCircadian: safeStructuredContext(imported?.lightCircadian, ['morningLight','daylight','eveningLight','screenUse','notes'], 120),
+    sunSessions14d: Array.isArray(imported?.sunSessions) ? imported.sunSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
+    deviceSessions14d: Array.isArray(imported?.deviceSessions) ? imported.deviceSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
+    measurements14d: Array.isArray(imported?.lightMeasurements) ? imported.lightMeasurements.filter(m => Number(m?.capturedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
+    includeLightContext: imported?.biologyScoreContextSettings?.includeLightContext !== false,
+  };
+}
+
+function bodySummary(imported) {
+  const metrics = imported?.wearableSummary?.metrics || {};
+  const pick = key => metrics[key] ? { d7: metrics[key].rolling?.d7, baseline: metrics[key].baseline, p25: metrics[key].baselineP25, p75: metrics[key].baselineP75 } : null;
+  return { includeBodyContext: imported?.biologyScoreContextSettings?.includeBodyContext !== false, hrv: pick('hrv_rmssd'), rhr: pick('rhr'), sleep: pick('sleep_score'), readiness: pick('readiness_score') };
+}
+
 function latest(data, cat, key) {
   const m = data?.categories?.[cat]?.markers?.[key];
   if (!m?.values?.length) return '';
@@ -55,7 +86,7 @@ export function buildBiologyScoreContextFingerprint(data, range = state.dateRang
   const imported = /** @type {any} */ (state.importedData || {});
   const diagnoses = imported.diagnoses || {};
   const labs = [];
-  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['biochemistry','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c, k]) => {
+  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c, k]) => {
     const v = latest(data, c, k);
     if (v) labs.push(v);
   });
@@ -70,6 +101,14 @@ export function buildBiologyScoreContextFingerprint(data, range = state.dateRang
     contextNotes: safeContextText(imported.contextNotes, 240),
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
     exercise: safeStructuredContext(imported.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140),
+    sleepRest: safeStructuredContext(imported.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140),
+    light: lightSummary(imported),
+    stress: safeStructuredContext(imported.stress, ['level','workload','recovery','majorStressors','notes'], 140),
+    diet: safeStructuredContext(imported.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100),
+    environment: safeStructuredContext(imported.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120),
+    healthGoals: Array.isArray(imported.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
+    genetics: geneticsSummary(imported),
+    body: bodySummary(imported),
     menstrualCycle: safeStructuredContext(imported.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140),
     labs,
   });
@@ -117,11 +156,19 @@ function buildReviewContext(data) {
     contextNotes: safeContextText(imported.contextNotes, 240),
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
     exercise: safeStructuredContext(imported.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140),
+    sleepRest: safeStructuredContext(imported.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140),
+    light: lightSummary(imported),
+    stress: safeStructuredContext(imported.stress, ['level','workload','recovery','majorStressors','notes'], 140),
+    diet: safeStructuredContext(imported.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100),
+    environment: safeStructuredContext(imported.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120),
+    healthGoals: Array.isArray(imported.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
+    genetics: geneticsSummary(imported),
+    body: bodySummary(imported),
     menstrualCycle: safeStructuredContext(imported.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140),
     supplements: Array.isArray(imported.supplements) ? imported.supplements.slice(0, 30).map(item => safeContextText(JSON.stringify(item), 160)) : [],
     recentLabs: [],
   };
-  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['biochemistry','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c,k]) => { const v = latest(data, c, k); if (v) context.recentLabs.push(v); });
+  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c,k]) => { const v = latest(data, c, k); if (v) context.recentLabs.push(v); });
   return `[section:untrusted-profile-context]\n${JSON.stringify(context, null, 2)}\n[/section:untrusted-profile-context]`;
 }
 

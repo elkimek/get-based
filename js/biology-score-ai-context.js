@@ -30,6 +30,8 @@ export function buildBiologyScoresAIContext(data, options = {}) {
     const missing = score.missing?.slice(0, 3).map(item => item.label).join(', ');
     let line = `- ${score.title}: ${scoreText}, ${toneText}, ${coverageText}${recencyText}`;
     if (impacts.length) line += `; main drags: ${impacts.join('; ')}`;
+    const contextFlags = (score.flags || []).filter(flag => /Genetic context|Light context|Body context/i.test(flag)).slice(0, 2);
+    if (contextFlags.length) line += `; app context: ${contextFlags.join('; ')}`;
     if (missing) line += `; missing: ${missing}${score.missing.length > 3 ? ', …' : ''}`;
     lines.push(line);
   }
