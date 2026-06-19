@@ -4,7 +4,8 @@
 import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { getInputProfileModifier, getScoreProfileFlags } from './biology-score-profile-modifiers.js';
-import { UNIT_CONVERSIONS } from './schema.js';
+import { UNIT_CONVERSIONS, OPTIMAL_RANGES } from './schema.js';
+import { state } from './state.js';
 import { formatValue } from './utils.js';
 
 export const TONE_LABELS = { excellent: 'Strong', good: 'Good', strained: 'Watch', poor: 'Low score', concerning: 'Concerning', significant: 'Significant', severe: 'Severe' };
@@ -112,6 +113,17 @@ export function canonicalMarkerValue(dotKey, marker, value) {
   return value;
 }
 
+function markerWithSchemaOptimalFallback(dotKey, marker) {
+  if (!marker || (state.rangeMode !== 'optimal' && state.rangeMode !== 'both')) return marker;
+  if (marker.optimalMin != null || marker.optimalMax != null) return marker;
+  const opt = OPTIMAL_RANGES[dotKey];
+  if (!opt) return marker;
+  if (state.profileSex === 'female' && opt.optimalMin_f !== undefined) {
+    return { ...marker, optimalMin: opt.optimalMin_f, optimalMax: opt.optimalMax_f };
+  }
+  return { ...marker, optimalMin: opt.optimalMin, optimalMax: opt.optimalMax };
+}
+
 export function getMarkerHit(data, paths) {
   const candidates = Array.isArray(paths) ? paths : [paths];
   for (const path of candidates) {
@@ -124,16 +136,18 @@ export function getMarkerHit(data, paths) {
     if (latestIdx < 0) continue;
     const value = Number(marker.values[latestIdx]);
     if (!Number.isFinite(value)) continue;
-    const range = getEffectiveRangeForDate(marker, latestIdx);
+    const dotKey = `${catKey}.${markerKey}`;
+    const effectiveMarker = markerWithSchemaOptimalFallback(dotKey, marker);
+    const range = getEffectiveRangeForDate(effectiveMarker, latestIdx);
     const date = marker.singleDate || category.singleDate || data?.dates?.[latestIdx] || '';
     const entryContext = date ? (data?.entryContextByDate?.[date] || {}) : {};
     return {
       id: `${catKey}_${markerKey}`,
-      dotKey: `${catKey}.${markerKey}`,
-      path: `${catKey}.${markerKey}`,
+      dotKey,
+      path: dotKey,
       label: marker.name || markerKey,
       value,
-      canonicalValue: canonicalMarkerValue(`${catKey}.${markerKey}`, marker, value),
+      canonicalValue: canonicalMarkerValue(dotKey, marker, value),
       displayValue: formatValue(value),
       unit: marker.unit || '',
       date,

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
+import { generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
 import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, generateBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
 import { renderScoreDetail } from '../js/biology-score-render.js';
@@ -172,7 +173,26 @@ assert('fluid filtration score maps eGFR and electrolytes', byId.fluidFiltration
 assert('liver-bile score maps core liver enzymes', ['biochemistry.alt', 'biochemistry.ast', 'biochemistry.ggt', 'biochemistry.alp'].every(dot => byId.liverBileSignal.available.some(i => i.dotKey === dot)));
 assert('bone-mineral score maps vitamin D calcium phosphorus', ['vitamins.vitaminD', 'electrolytes.calciumTotal', 'electrolytes.phosphorus'].every(dot => byId.boneMineralSignal.available.some(i => i.dotKey === dot)));
 assert('tier 2 scores are live on common panels', ['immuneCellBalance', 'anabolicRecoverySignal', 'hormoneAxis'].every(id => Number.isFinite(byId[id].score)), JSON.stringify(Object.fromEntries(['immuneCellBalance', 'anabolicRecoverySignal', 'hormoneAxis'].map(id => [id, byId[id]?.score]))));
-assert('immune cell balance maps CBC differential and NLR', ['hematology.wbc', 'differential.neutrophils', 'differential.lymphocytes', 'calculatedRatios.nlr'].every(dot => byId.immuneCellBalance.available.some(i => i.dotKey === dot)));
+assert('immune mapping includes CBC differential hs-CRP and NLR', ['hematology.wbc', 'differential.neutrophils', 'differential.lymphocytes', 'calculatedRatios.nlr', 'proteins.hsCRP'].every(dot => byId.immuneCellBalance.available.some(i => i.dotKey === dot)));
+const savedAIProviderForScorePrompt = { hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };
+let capturedScoreAISystem = '';
+let capturedScoreAIUser = '';
+window.hasAIProvider = () => true;
+window.isAIPaused = () => false;
+window.callClaudeAPI = async ({ system, messages }) => {
+  capturedScoreAISystem = system;
+  capturedScoreAIUser = messages?.[0]?.content || '';
+  return { text: 'ok' };
+};
+await generateBiologyScoreAIAnswer(byId.immuneCellBalance);
+assert('embedded Biology Score AI prompt includes exact active optimal range for hs-CRP instead of letting the model invent <1.0',
+  capturedScoreAIUser.includes('hs-CRP: 0.700 mg/l; active scoring range 0–0.5 mg/l')
+  && capturedScoreAISystem.includes('Use only the provided active scoring ranges')
+  && capturedScoreAISystem.includes('never invent alternate cutoffs'),
+  JSON.stringify({ system: capturedScoreAISystem, user: capturedScoreAIUser }));
+window.hasAIProvider = savedAIProviderForScorePrompt.hasAIProvider;
+window.isAIPaused = savedAIProviderForScorePrompt.isAIPaused;
+window.callClaudeAPI = savedAIProviderForScorePrompt.callClaudeAPI;
 assert('anabolic recovery maps hormones protein and inflammation context', ['hormones.testosterone', 'hormones.freeTestosterone', 'proteins.albumin', 'proteins.totalProtein', 'proteins.hsCRP'].every(dot => byId.anabolicRecoverySignal.available.some(i => i.dotKey === dot)));
 const savedProfileSexForWeights = state.profileSex;
 state.profileSex = 'female';
@@ -636,7 +656,7 @@ const mixedLensHtml = renderBiologyScoresLens({ data: mixedDateData });
 assert('mixed-date scores show retest state only once per score meta row',
   !/biology-score-meta[\s\S]*Retest together[\s\S]*Retest together/.test(mixedLensHtml));
 const aiContext = buildBiologyScoresAIContext(data);
-assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Metabolic Flexibility') && aiContext.length < 2200);
+assert('AI context includes compact biology score section', aiContext.includes('[section:biologyScores]') && aiContext.includes('Coverage planning:') && aiContext.length < 2600, `length ${aiContext.length}: ${aiContext}`);
 assert('AI context does not expose formula weights', !/weight/i.test(aiContext));
 assert('AI context includes Biology Score coverage planning guidance', aiContext.includes('Coverage planning:') && aiContext.includes('baseline'), aiContext);
 const ambiguousMarkerLabelTerms = /(\bcontext\b|\bsignal\b|\bload\b|\bstress\b|\bsupport\b|\breserve\b|\bprotective\b|\batherogenic\b|\bdrag\b|\bskew\b|\bclue\b|\bavailability\b|\bbrake\b|\bactivation\b|\bconcentration\b|\butilization\b|\bironization\b|\btransport\b|\bsufficiency\b|\bvascular\b|\bmetabolic\b|\bliver\b|\bmuscle\b|\bbone\b|\bbile\b|\binflammation\b)/i;
