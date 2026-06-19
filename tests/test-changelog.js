@@ -203,6 +203,14 @@ assert('CHANGELOG records report feature overhaul',
     changelogSrc.includes('Report feature overhaul') &&
     changelogSrc.includes('Editable Practitioner Overview') &&
     changelogSrc.includes('Smoother report workflow'));
+assert('CHANGELOG records Biology Scores main release',
+  changelogSrc.includes("version: '1.9.0'")
+    && changelogSrc.includes('Biology Scores and Biological Coherence')
+    && changelogSrc.includes('Biology Scores turn labs into system-level patterns')
+    && changelogSrc.includes('Biological Coherence gives you the whole-body read')
+    && changelogSrc.includes('Coverage Planner helps you order the right markers'));
+assert('APP_VERSION is bumped for Biology Scores main release',
+  versionSrc.includes("APP_VERSION = '1.9.0'"));
 
 // ═══════════════════════════════════════
 // 11. Window exports
