@@ -619,12 +619,40 @@ assert('lens puts Biological Coherence before supporting explanation cards',
 assert('lens includes a baseline coverage planner before score details',
   lensHtml.includes('biology-score-coverage-planner')
   && lensHtml.includes('Improve coverage without over-testing')
-  && lensHtml.includes('Ask chat what to order')
+  && lensHtml.includes('Make lab plan')
+  && lensHtml.includes('Best next lab bundle')
+  && lensHtml.includes('Optional upgrades')
+  && lensHtml.includes('Advanced depth')
   && lensHtml.includes('Full marker plan')
   && lensHtml.includes('Hide marker plan')
   && lensHtml.includes('Score gaps')
   && !lensHtml.includes('<details class="biology-coverage-score-picker"')
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'));
+assert('lens inserts a compact score table between planner and full expert detail cards',
+  lensHtml.includes('biology-score-compact-table')
+  && lensHtml.includes('Score map')
+  && lensHtml.includes('Main issue')
+  && lensHtml.includes('Next action')
+  && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-compact-table')
+  && lensHtml.indexOf('biology-score-compact-table') < lensHtml.indexOf('biology-score-detail-stack'),
+  lensHtml.slice(lensHtml.indexOf('biology-score-coverage-planner'), lensHtml.indexOf('biology-score-detail-stack')));
+const compactTableHtml = lensHtml.match(/biology-score-compact-table[\s\S]*?<\/section>/)?.[0] || '';
+assert('compact score table leads with live scored rows before waiting/not-current rows',
+  compactTableHtml.indexOf('Need inputs') === -1 || compactTableHtml.indexOf('/100') < compactTableHtml.indexOf('Need inputs'),
+  compactTableHtml);
+const biologyScoreLensPageSrc = await fs.promises.readFile(new URL('../js/lens-pages.js', import.meta.url), 'utf8');
+assert('actual Biology Scores route wires compact score table into the live lens path',
+  biologyScoreLensPageSrc.includes('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)')
+  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCoveragePlanner') < biologyScoreLensPageSrc.indexOf('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)')
+  && biologyScoreLensPageSrc.indexOf('renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores)') < biologyScoreLensPageSrc.indexOf("renderLensPageWidgets('biology-scores'"),
+  biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('function showBiologyScores'), biologyScoreLensPageSrc.indexOf('function showGenomeLens')));
+assert('lens uses distinct AI CTA labels for overview, planning, and per-score explanations',
+  biologyScoreLensPageSrc.includes('Explain my Biology Scores')
+  && lensHtml.includes('Make lab plan')
+  && lensHtml.includes('Explain score')
+  && !biologyScoreLensPageSrc.includes('Interpret with AI')
+  && !lensHtml.includes('Ask chat what to order'),
+  `${biologyScoreLensPageSrc.slice(biologyScoreLensPageSrc.indexOf('showBiologyScoresLens'), biologyScoreLensPageSrc.indexOf('showBiologyScoresLens') + 900)}\n---\n${lensHtml.slice(0, 1800)}`);
 const coveragePlannerHtml = lensHtml.match(/biology-score-coverage-planner[\s\S]*?<\/section>/)?.[0] || '';
 assert('coverage planner treats active B12 as satisfying the B12 core group',
   !coveragePlannerHtml.includes('Total vitamin B12'),
@@ -645,14 +673,20 @@ assert('score detail marker chips and tables use lab-orderable marker names inst
   && !thyroidDetailHtml.includes('>TPO antibody context<'),
   thyroidDetailHtml);
 assert('lens exposes embedded AI answer panel', lensHtml.includes('biology-score-ai') && lensHtml.includes('data-biology-score-action="interpret-score-ai"'));
-assert('lens surfaces evidence strength as compact meta labels', lensHtml.includes('Production') && lensHtml.includes('Profile-aware') && lensHtml.includes('Early model'));
+assert('lens surfaces evidence maturity as compact meta labels separate from profile context', lensHtml.includes('Production') && lensHtml.includes('Contextual') && lensHtml.includes('Experimental') && !lensHtml.includes('Early model'));
+const cellularDetailHtml = renderScoreDetail(byId.cellularEnergyCoherence);
+assert('thin experimental score details are downgraded to directional-only instead of a normal score hierarchy',
+  cellularDetailHtml.includes('Directional only')
+  && cellularDetailHtml.includes('Not enough data for a full score')
+  && !cellularDetailHtml.includes('71</strong><span>/100'),
+  cellularDetailHtml);
 const statusKinds = ['biology-score-status-tone', 'biology-score-status-coverage', 'biology-score-status-confidence', 'biology-score-status-evidence'];
 assert('every rendered live biology score card shows pattern coverage confidence and evidence',
   liveScoresDesc.every(score => statusKinds.every(kind => renderScoreDetail(score, { showHeading: false }).includes(kind))),
   JSON.stringify(liveScoresDesc.map(score => [score.id, statusKinds.filter(kind => !renderScoreDetail(score, { showHeading: false }).includes(kind))])));
 assert('production biology scores render a Production evidence badge instead of hiding evidence',
   renderScoreDetail(byId.metabolicFlexibility).includes('Production') && renderScoreDetail(byId.cardiovascularLipoprotein).includes('Production'));
-assert('thyroid coherence is now profile-aware rather than early-model evidence', byId.thyroidCoherence.evidence === 'contextual' && renderScoreDetail(byId.thyroidCoherence).includes('Profile-aware') && !renderScoreDetail(byId.thyroidCoherence).includes('Early model'));
+assert('thyroid coherence is now contextual rather than experimental evidence', byId.thyroidCoherence.evidence === 'contextual' && renderScoreDetail(byId.thyroidCoherence).includes('Contextual') && !renderScoreDetail(byId.thyroidCoherence).includes('Experimental'));
 assert('lens keeps marker table behind friendly driver disclosure without formula weights', lensHtml.includes('See what’s driving this') && lensHtml.includes('Inputs affecting the score') && lensHtml.includes('Impact') && !lensHtml.includes('<th title="Relative influence'));
 
 const lensWidgets = getBiologyScoreLensWidgets({ data });
@@ -727,7 +761,7 @@ assert('Biology Score AI cache keeps last user-generated answer for that score u
   renderScoreAIAnswer(changedThyroidMarkerForAI));
 const emptyScoreAIHtml = renderScoreAIAnswer({ ...changedThyroidMarkerForAI, id: 'differentScoreWithoutAnswer' });
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',
-  emptyScoreAIHtml.includes('Explain this score')
+  emptyScoreAIHtml.includes('Explain score')
   && !emptyScoreAIHtml.includes('concise interpretation based on the current marker pattern')
   && !emptyScoreAIHtml.includes('A short, non-diagnostic read'),
   emptyScoreAIHtml);

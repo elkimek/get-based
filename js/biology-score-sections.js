@@ -76,7 +76,7 @@ export function renderScoreAIAnswer(score) {
       <div>
         <div class="biology-score-question-kicker">What this means</div>
       </div>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain this score'}</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain score'}</button>
     </div>
     ${stale ? '<p class="biology-score-ai-stale">This explanation was generated before the current marker evidence changed. Refresh it for the latest data.</p>' : ''}
     ${cached ? `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${renderMarkdown(cached)}</div>` : `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}"></div>`}

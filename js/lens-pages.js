@@ -8,7 +8,7 @@ import { ensureSNPTable } from './dna.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
-import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary } from './biology-scores.js';
+import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCompactTable, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 
@@ -183,7 +183,7 @@ export function createLensPageHandlers(deps) {
     const ctx = buildDashboardWidgetContext(rawData);
     const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
     const contextReady = hasCurrentBiologyScoreContextReview(scoreData);
-    const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Interpret with AI</button>' : ''}
+    const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Explain my Biology Scores</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
     let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
     html += renderBiologyScoreContextBanner();
@@ -202,6 +202,7 @@ export function createLensPageHandlers(deps) {
     html += renderBiologicalCoherenceLensHero(ctx);
     html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores);
     html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologyScores.find((score) => score.id === 'biologicalCoherence'));
+    html += renderBiologyScoreCompactTable(liveBiologyScores, waitingBiologyScores);
     html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
     main.innerHTML = html;
     setupDropZone();
