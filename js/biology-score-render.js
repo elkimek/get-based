@@ -5,7 +5,7 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
 import { hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { TONE_LABELS, clamp } from './biology-score-engine.js';
+import { TONE_LABELS, clamp, resolveScoreTone } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
 import {
   buildBiologyScoreCoveragePlannerModel,
@@ -214,7 +214,8 @@ function renderBiologicalCoherenceHero(score) {
       ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
       : ` title="${escapeAttr(item.label)} — no individual score available yet"`;
     const noJumpClass = clickable ? '' : ' biology-coherence-domain-no-jump';
-    return `<div class="biology-coherence-domain-row${noJumpClass}"${attrs}><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`;
+    const toneClass = ` biology-coherence-domain-${escapeAttr(resolveScoreTone(Number(item.partial)) || 'unknown')}`;
+    return `<div class="biology-coherence-domain-row${noJumpClass}${toneClass}"${attrs}><span>${escapeHTML(item.label)}</span><strong>${escapeHTML(String(Math.round(item.partial || 0)))}</strong></div>`;
   }).join('');
   const summaryItems = [
     strongest ? ['Strongest', `${strongest.label} (${Math.round(strongest.partial || 0)}/100)`] : null,
@@ -386,11 +387,16 @@ export function renderBiologyScoresActionSummary(live, waiting) {
     || lowConfidence.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0]
     || waiting.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0];
   const rows = [
-    weakest ? ['Open first', `${weakest.title}: start here if you want the marker-level explanation behind the most strained domain.`] : null,
-    nextMissing ? ['Improve confidence', `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.`] : null,
-    stale ? ['Retest together', `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`] : ['Avoid over-testing', 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.'],
+    weakest ? { label: 'Open first', text: `${weakest.title}: open the marker-level explanation behind the most strained score.`, scoreId: weakest.id } : null,
+    nextMissing ? { label: 'Improve confidence', text: `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.` } : null,
+    stale ? { label: 'Retest together', text: `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`, scoreId: stale.id } : { label: 'Avoid over-testing', text: 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.' },
   ].filter(Boolean);
-  return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map(([label, text]) => `<div><strong>${escapeHTML(label)}</strong><span>${escapeHTML(text)}</span></div>`).join('')}</section>`;
+  return `<section class="biology-score-action-summary"><div class="biology-scores-eyebrow">What matters now</div>${rows.map((row) => {
+    const inner = `<strong>${escapeHTML(row.label)}</strong><span>${escapeHTML(row.text)}</span>${row.scoreId ? `<em>Open ${escapeHTML(row.text.split(':')[0])}</em>` : ''}`;
+    return row.scoreId
+      ? `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(row.scoreId)}">${inner}</button>`
+      : `<div>${inner}</div>`;
+  }).join('')}</section>`;
 }
 
 

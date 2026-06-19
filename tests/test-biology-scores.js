@@ -618,6 +618,13 @@ assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.
 assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
 assert('hormone axis copy no longer calls it an advanced no-baseline score', BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('Sex hormone status')) && !BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('No routine baseline')));
 assert('lens gives normie action summary before detail stack', lensHtml.includes('What matters now') && lensHtml.indexOf('What matters now') < lensHtml.indexOf('biology-score-detail-stack'));
+const openFirstScore = scores.filter(score => score.id !== 'biologicalCoherence' && Number.isFinite(score.score)).sort((a, b) => a.score - b.score)[0];
+assert('What matters now Open first is an actionable jump to the target score',
+  openFirstScore
+  && lensHtml.includes('data-biology-score-action="jump-to-domain"')
+  && lensHtml.includes(`data-biology-score-id="${openFirstScore.id}"`)
+  && lensHtml.includes(`Open ${openFirstScore.title}`),
+  JSON.stringify({ openFirstScore: openFirstScore?.id }));
 assert('lens puts Biological Coherence before supporting explanation cards',
   lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-action-summary')
   && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-coverage-planner'));
@@ -719,6 +726,9 @@ assert('lens collapses unavailable biology scores at the end', lensWidgets.at(-1
 assert('lens widget dashboard ids match score ids', lensWidgets.some(w => w.id === 'biology-score-detail-metabolicFlexibility' && w.opts.dashboardId === 'biology-score-metabolicFlexibility'));
 const coherenceTopDomains = [...byId.biologicalCoherence.available].sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
 assert('biological coherence hero domain rows link to primary score anchors', coherenceTopDomains.every(d => !d.primaryScoreId || lensHtml.includes(`data-biology-score-action="jump-to-domain" data-biology-score-id="${d.primaryScoreId}"`)), JSON.stringify(coherenceTopDomains.map(d => [d.label, d.primaryScoreId])));
+assert('biological coherence hero domain rows carry score-tone classes',
+  coherenceTopDomains.some(d => lensHtml.includes(`biology-coherence-domain-${d.partial >= 85 ? 'excellent' : d.partial >= 70 ? 'good' : d.partial >= 50 ? 'strained' : d.partial >= 35 ? 'poor' : d.partial >= 15 ? 'concerning' : 'severe'}`)),
+  lensHtml.slice(lensHtml.indexOf('biology-coherence-domains'), lensHtml.indexOf('</section>', lensHtml.indexOf('biology-coherence-domains'))));
 const coherenceDomainRow = coherenceTopDomains.find(d => d.primaryScoreId);
 assert('biological coherence domain row title hints navigation', coherenceDomainRow && lensHtml.includes(`title="Jump to ${coherenceDomainRow.label} score"`), JSON.stringify(coherenceDomainRow));
 
