@@ -948,6 +948,12 @@ button.biology-score-token:focus-visible {
 .biology-score-coverage-main {
   min-width: 0;
 }
+.biology-score-coverage-title-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
 .biology-score-coverage-head h3 {
   margin: 4px 0 6px;
   color: var(--text-primary);
@@ -982,7 +988,7 @@ button.biology-score-token:focus-visible {
 .biology-score-coverage-metric {
   display: grid;
   gap: 2px;
-  justify-items: end;
+  justify-items: start;
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -1292,7 +1298,10 @@ button.biology-score-token:focus-visible {
   .biology-context-review-cta { width: 100%; }
   .biology-score-action-summary,
   .biology-score-coverage-head,
+  .biology-score-coverage-title-row,
   .biology-score-coverage-grid { grid-template-columns: 1fr; }
+  .biology-score-coverage-title-row { gap: 8px; }
+  .biology-score-coverage-title-row .biology-score-coverage-metric strong { font-size: 34px; }
   .biology-coverage-score-row { grid-template-columns: 1fr; gap: 8px; }
   .biology-coverage-score-status span { text-align: left; }
   .biology-score-coverage-metric,

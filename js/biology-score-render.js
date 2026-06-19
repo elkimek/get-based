@@ -480,8 +480,8 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   }).join('');
   return `<section class="biology-score-coverage-planner">
     <div class="biology-score-coverage-head">
-      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p></div>
-      <div class="biology-score-coverage-actions"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Make lab plan</button></div>
+      <div class="biology-score-coverage-main"><div class="biology-scores-eyebrow">Coverage planner</div><div class="biology-score-coverage-title-row"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div><h3>Improve coverage without over-testing</h3><p>${escapeHTML(baselineIntro)}</p></div></div></div>
+      <div class="biology-score-coverage-actions"><div class="biology-coverage-mini-stats"><span><b>${liveDomains}</b> live core domains</span><span><b>${missingDomains}</b> missing domains</span><span>Advanced depth stays optional</span></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Make lab plan</button></div>
       <div class="biology-coverage-progress-row"><div class="biology-coverage-progress" aria-label="Baseline coverage ${baselineCoverage}%"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div></div>
     </div>
     <div class="biology-coverage-bundle-grid">
