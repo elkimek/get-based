@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^4.1.9",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
