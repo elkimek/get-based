@@ -376,9 +376,18 @@ export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScore
 }
 
 
-export function renderBiologyScoresActionSummary(live, waiting) {
+export function renderBiologyScoresActionSummary(live, waiting, coherence = null) {
   if (!live.length) return '';
   const weakest = live.slice().sort((a, b) => a.score - b.score)[0];
+  const weakestCoherenceDomain = (coherence?.available || [])
+    .filter(item => item.primaryScoreId && Number.isFinite(Number(item.partial)))
+    .slice()
+    .sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
+  const openFirst = weakestCoherenceDomain
+    ? { id: weakestCoherenceDomain.primaryScoreId, title: weakestCoherenceDomain.label }
+    : weakest
+      ? { id: weakest.id, title: weakest.title }
+      : null;
   const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high').sort((a, b) => a.score - b.score);
   const stale = live.find(score => score.recencyStatus && score.recencyStatus !== 'fresh');
   const nextMissing = lowConfidence
@@ -387,7 +396,7 @@ export function renderBiologyScoresActionSummary(live, waiting) {
     || lowConfidence.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0]
     || waiting.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0];
   const rows = [
-    weakest ? { label: 'Open first', text: `${weakest.title}: marker-level explanation behind the most strained score.`, scoreId: weakest.id } : null,
+    openFirst ? { label: 'Open first', text: `${openFirst.title}: marker-level explanation behind the most strained domain.`, scoreId: openFirst.id } : null,
     nextMissing ? { label: 'Improve confidence', text: `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.` } : null,
     stale ? { label: 'Retest together', text: `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`, scoreId: stale.id } : { label: 'Avoid over-testing', text: 'Advanced and specialty markers add depth; they do not lower baseline Biological Coherence when absent.' },
   ].filter(Boolean);
@@ -456,10 +465,9 @@ export function renderBiologyScoresLens(ctx, computeBiologyScores) {
       </div>
       <span class="biology-scores-count">${live.length}/${detailScores.length} score signals</span></div>
     ${renderBiologicalCoherenceHero(coherence)}
-    ${renderBiologyScoresActionSummary(live, waiting)}
+    ${renderBiologyScoresActionSummary(live, waiting, coherence)}
     ${renderBiologyScoreCoveragePlanner(detailScores, coherence)}
     <div class="biology-score-detail-stack">${live.map(renderScoreDetail).join('')}${waiting.length ? `<details class="biology-score-unavailable-group"><summary>Show scores that need more markers or a retest</summary>${waiting.map(renderScoreDetail).join('')}</details>` : ''}</div>
     <p class="biology-scores-note">Educational pattern score only. This is reference/target-pattern coherence, not an outcome-validated diagnosis. Score tone reflects the current marker pattern; confidence reflects core-marker coverage; staleness is tracked separately.</p>
   </div>`;
 }
-

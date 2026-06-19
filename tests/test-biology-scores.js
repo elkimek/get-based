@@ -618,14 +618,16 @@ assert('lens coherence hero has dashboard toggle via lens page shell', lensHtml.
 assert('lens explains what each score checks in plain language', lensHtml.includes('What this score is checking') && lensHtml.includes('Is the thyroid axis internally coherent'));
 assert('hormone axis copy no longer calls it an advanced no-baseline score', BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('Sex hormone status')) && !BIOLOGY_SCORE_COPY.hormoneAxis.basicInputs.some(text => text.includes('No routine baseline')));
 assert('lens gives normie action summary before detail stack', lensHtml.includes('What matters now') && lensHtml.indexOf('What matters now') < lensHtml.indexOf('biology-score-detail-stack'));
-const openFirstScore = scores.filter(score => score.id !== 'biologicalCoherence' && Number.isFinite(score.score)).sort((a, b) => a.score - b.score)[0];
-assert('What matters now Open first is an actionable jump to the target score',
-  openFirstScore
+const weakestCoherenceDomain = [...(byId.biologicalCoherence.available || [])]
+  .filter(item => item.primaryScoreId && Number.isFinite(Number(item.partial)))
+  .sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
+assert('What matters now Open first is an actionable jump to the weakest Biological Coherence domain',
+  weakestCoherenceDomain
   && lensHtml.includes('data-biology-score-action="jump-to-domain"')
-  && lensHtml.includes(`data-biology-score-id="${openFirstScore.id}"`)
-  && lensHtml.includes(`${openFirstScore.title}: marker-level explanation`)
-  && !lensHtml.includes(`Open ${openFirstScore.title}`),
-  JSON.stringify({ openFirstScore: openFirstScore?.id }));
+  && lensHtml.includes(`data-biology-score-id="${weakestCoherenceDomain.primaryScoreId}"`)
+  && lensHtml.includes(`${weakestCoherenceDomain.label}: marker-level explanation behind the most strained domain`)
+  && !lensHtml.includes(`Open ${weakestCoherenceDomain.label}`),
+  JSON.stringify({ weakestCoherenceDomain }));
 assert('lens puts Biological Coherence before supporting explanation cards',
   lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-action-summary')
   && lensHtml.indexOf('biology-coherence-hero') < lensHtml.indexOf('biology-score-coverage-planner'));
