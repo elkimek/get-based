@@ -29,12 +29,12 @@ const schemaSrc = read('js/schema.js');
   // ═══════════════════════════════════════
   console.log('%c 1. Registry Structure ', 'font-weight:bold;color:#f59e0b');
 
-  // ADAPTER_MARKERS total count (217 per CLAUDE.md: 165 OAT + 29 FA + 23 BioStarks)
-  const allMarkerEntries = (adaptersSrc.match(/": \{ name: "/g) || []);
-  assert('ADAPTER_MARKERS has 217 entries', allMarkerEntries.length === 217, `found ${allMarkerEntries.length}`);
+  // ADAPTER_MARKERS total count (220: 165 OAT + 29 FA + 23 BioStarks + 3 gut/stool)
+  const allMarkerEntries = adaptersSrc.match(/"[a-zA-Z]+\.[a-zA-Z0-9_]+":\s*\{/g) || [];
+  assert('ADAPTER_MARKERS has 220 entries', allMarkerEntries.length === 220, `found ${allMarkerEntries.length}`);
 
-  // Four adapters registered
-  const adapterIds = ['fattyAcids', 'metabolomix', 'oat', 'biostarks'];
+  // Five adapters registered
+  const adapterIds = ['fattyAcids', 'metabolomix', 'oat', 'gutStool', 'biostarks'];
   for (const id of adapterIds) {
     assert(`Adapter '${id}' registered`, adaptersSrc.includes(`id: '${id}'`));
   }
@@ -43,6 +43,7 @@ const schemaSrc = read('js/schema.js');
   assert('fattyAcids has testTypes', adaptersSrc.includes("testTypes: ['fattyAcids']"));
   assert('metabolomix has testTypes', adaptersSrc.includes("testTypes: ['metabolomix', 'Metabolomix+']"));
   assert('oat has testTypes', adaptersSrc.includes("testTypes: ['OAT']"));
+  assert('gutStool has testTypes', adaptersSrc.includes("testTypes: ['stool', 'gut', 'giMap', 'GI-MAP', 'GI Effects']"));
   assert('biostarks has testTypes', adaptersSrc.includes("testTypes: ['biostarks']"));
 
   // Public API functions exist
@@ -180,10 +181,10 @@ const schemaSrc = read('js/schema.js');
   assert('getAdapterByTestType checks testTypes array', adaptersSrc.includes("a.testTypes.includes(testType)"));
   assert('getAdapterByTestType returns null for unknown', adaptersSrc.includes("|| null"));
 
-  // ADAPTERS array contains all four adapters
+  // ADAPTERS array contains all five adapters
   assert('ADAPTERS array defined', adaptersSrc.includes('const ADAPTERS = ['));
   const adapterBlocks = (adaptersSrc.match(/id: '\w+'/g) || []);
-  assert('ADAPTERS has 4 entries', adapterBlocks.length === 4, `found ${adapterBlocks.length}`);
+  assert('ADAPTERS has 5 entries', adapterBlocks.length === 5, `found ${adapterBlocks.length}`);
 
   // detectProduct iterates all adapters
   assert('detectProduct loops all adapters', adaptersSrc.includes('for (const adapter of ADAPTERS)'));

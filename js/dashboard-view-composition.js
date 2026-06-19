@@ -67,6 +67,9 @@ export function createDashboardViewComposition({
     renderRecommendationCard,
     renderRecommendationsEmpty,
     renderDashboardBioAgeWidget,
+    renderBiologyScoresWidget,
+    renderDashboardBiologyScoreWidget,
+    renderDashboardBiologicalCoherenceWidget,
     renderDashboardRecommendationsWidget,
     renderDashboardSpotlightWidget,
     renderDashboardWearableTilesWidget,
@@ -115,6 +118,9 @@ export function createDashboardViewComposition({
 
   const dashboardWidgetRegistry = createDashboardWidgetRegistry({
     renderDashboardBioAgeWidget,
+    renderBiologyScoresWidget,
+    renderDashboardBiologyScoreWidget,
+    renderDashboardBiologicalCoherenceWidget,
     renderFocusCard,
     renderDashboardRecommendationsWidget,
     renderDashboardSpotlightWidget,

@@ -44,7 +44,16 @@ async function migrateLegacyProfileStorage() {
     // (`labcharts-default-imported`) lands in IndexedDB rather than
     // localStorage. Otherwise this v1->v2 migration could fail when
     // the legacy blob is large enough to exceed the localStorage cap.
-    await encryptedSetItem(profileStorageKey('default', 'imported'), oldImported);
+    let migratedImported = oldImported;
+    try {
+      const parsed = JSON.parse(oldImported);
+      migrateProfileData(parsed);
+      migratedImported = JSON.stringify(parsed);
+    } catch {
+      // Keep original bytes if legacy data is malformed; loadProfile will
+      // preserve a recoverable corrupt copy rather than destructively fixing.
+    }
+    await encryptedSetItem(profileStorageKey('default', 'imported'), migratedImported);
     localStorage.removeItem('labcharts-imported');
   }
 

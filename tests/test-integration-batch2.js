@@ -317,7 +317,11 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'hormones.shbg', 'hormones.insulin', 'hormones.lh', 'hormones.fsh',
     'thyroid.tsh',
     'proteins.hsCRP', 'biochemistry.cystatinC', 'biochemistry.gfrCystatin',
-    'coagulation.homocysteine',
+    'coagulation.homocysteine', 'coagulation.fibrinogen', 'coagulation.dDimer',
+    'biochemistry.lactate', 'biochemistry.pyruvate',
+    'iron.solubleTransferrinReceptor', 'proteins.neurofilamentLight',
+    'thyroid.reverseT3', 'thyroid.tpoAb', 'thyroid.tgAb',
+    'vitamins.methylmalonicAcid', 'diabetes.fructosamine', 'calculatedRatios.cholHdlRatio',
     // Unitless or % — no conversion
     'hormones.fai', 'hormones.freeTestosteronePercentage', 'hormones.bioactiveTestosteronePercentage',
     'iron.transferrinSat', 'lipids.cholHdlRatio',

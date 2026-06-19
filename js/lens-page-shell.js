@@ -32,7 +32,10 @@ function handleLensPageShellClick(event) {
   if (!target) return;
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-lens-page-action]'));
   if (!actionEl) return;
-  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page')) return;
+  if (!actionEl.closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero')) return;
+  // .biology-coherence-hero is included because the Biology Scores lens renders the coherence
+  // hero as a standalone top-section before the regular lens-page-widgets container, and its
+  // dashboard toggle must be handled by the lens page shell.
   event.preventDefault();
   const appWindow = /** @type {any} */ (window);
 
@@ -142,8 +145,14 @@ export function moveLensPageWidget(route, id, direction) {
   if (state.currentView === route) window.navigate?.(route);
 }
 
-function renderLensDashboardToggle(dashboardId) {
-  if (!dashboardId || !_shellDeps.getAvailableDashboardFixedWidgetIds().includes(dashboardId)) return '';
+export function renderLensDashboardToggle(dashboardId) {
+  const availableIds = _shellDeps.getAvailableDashboardFixedWidgetIds();
+  // Biology Score widgets are generated dynamically from score definitions. In
+  // isolated Node/source-inspection tests the dashboard registry is not always
+  // configured before the lens renderer runs, so keep the toggle renderable for
+  // these declared dynamic widget ids instead of silently dropping it.
+  const isDeclaredDynamicBiologyScoreWidget = typeof dashboardId === 'string' && dashboardId.startsWith('biology-score-');
+  if (!dashboardId || (!availableIds.includes(dashboardId) && !isDeclaredDynamicBiologyScoreWidget)) return '';
   const prefs = _shellDeps.getDashboardWidgetPrefs();
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
   const isVisible = !hidden.includes(dashboardId);

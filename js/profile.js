@@ -77,6 +77,7 @@ import {
  *   customMarkers: Record<string, any>,
  *   markerNotes: Record<string, any>,
  *   markerValueNotes: Record<string, any>,
+ *   biologyScoreAI: Record<string, any>,
  *   markerLabels?: Record<string, any>,
  *   refOverrides?: Record<string, any>,
  *   changeHistory: any[],
@@ -208,6 +209,7 @@ export function createDefaultProfileData() {
     customMarkers: {},
     markerNotes: {},
     markerValueNotes: {},
+    biologyScoreAI: {},
     changeHistory: [],
     genetics: null,
     biometrics: null,
@@ -287,6 +289,95 @@ function _buildProfileStandardMarkerLookup() {
  * @param {ProfileData} data
  * @returns {void}
  */
+function _repairCanonicalMarkerAliases(data) {
+  if (!data.entries?.length) return;
+  const aliases = {
+    'hormones.cPeptide': 'diabetes.cPeptide',
+    'lipids.lpa': 'lipids.lpA',
+    'lipids.lp_a': 'lipids.lpA',
+    'lipids.lipoproteinA': 'lipids.lpA',
+    'lipids.lipoproteina': 'lipids.lpA',
+    'lipids.totalCholesterol': 'lipids.cholesterol',
+    'lipids.cholesterolTotal': 'lipids.cholesterol',
+    'lipids.total_cholesterol': 'lipids.cholesterol',
+    'lipids.totalChol': 'lipids.cholesterol',
+    'lipids.hdlCholesterol': 'lipids.hdl',
+    'lipids.hdl_cholesterol': 'lipids.hdl',
+    'lipids.cholHdlRatio': 'calculatedRatios.cholHdlRatio',
+  };
+  const remapByPrefix = (obj, oldKey, nextKey) => {
+    if (!obj) return;
+    const prefix = oldKey + ':';
+    for (const key of Object.keys(obj)) {
+      if (!key.startsWith(prefix)) continue;
+      const remapped = nextKey + key.slice(oldKey.length);
+      if (obj[remapped] === undefined) obj[remapped] = obj[key];
+      delete obj[key];
+    }
+  };
+  for (const [oldKey, nextKey] of Object.entries(aliases)) {
+    for (const entry of data.entries) renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false });
+    remapByPrefix(data.manualValues, oldKey, nextKey);
+    remapByPrefix(data.markerValueNotes, oldKey, nextKey);
+    if (data.refOverrides?.[oldKey]) {
+      if (!data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
+      delete data.refOverrides[oldKey];
+    }
+    if (data.markerNotes?.[oldKey] && !data.markerNotes[nextKey]) data.markerNotes[nextKey] = data.markerNotes[oldKey];
+    if (data.markerNotes) delete data.markerNotes[oldKey];
+    if (data.markerLabels?.[oldKey] && !data.markerLabels[nextKey]) data.markerLabels[nextKey] = data.markerLabels[oldKey];
+    if (data.markerLabels) delete data.markerLabels[oldKey];
+    if (data.customMarkers) delete data.customMarkers[oldKey];
+  }
+}
+
+function _repairNamedStandardMarkerAliases(data) {
+  if (!data.entries?.length) return;
+  const labelAliases = new Map([
+    ['lpa', 'lipids.lpA'],
+    ['lipoproteina', 'lipids.lpA'],
+    ['lipoproteinapolipoproteina', 'lipids.lpA'],
+    ['totalcholesterol', 'lipids.cholesterol'],
+    ['cholesteroltotal', 'lipids.cholesterol'],
+    ['hdlcholesterol', 'lipids.hdl'],
+    ['cholhdlratio', 'calculatedRatios.cholHdlRatio'],
+    ['totalcholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
+  ]);
+  const remapByPrefix = (obj, oldKey, nextKey) => {
+    if (!obj) return;
+    const prefix = oldKey + ':';
+    for (const key of Object.keys(obj)) {
+      if (!key.startsWith(prefix)) continue;
+      const remapped = nextKey + key.slice(oldKey.length);
+      if (obj[remapped] === undefined) obj[remapped] = obj[key];
+      delete obj[key];
+    }
+  };
+  const candidates = new Set(Object.keys(data.customMarkers || {}));
+  for (const entry of data.entries) for (const key of Object.keys(entry.markers || {})) candidates.add(key);
+  for (const fullKey of candidates) {
+    const [catKey, markerKey] = fullKey.split('.');
+    if (!markerKey || SPECIALTY_MARKER_DEFS[fullKey]) continue;
+    if (MARKER_SCHEMA[catKey]?.markers?.[markerKey]) continue;
+    const def = data.customMarkers?.[fullKey] || {};
+    const target = labelAliases.get(_normalizeProfileMarkerLabel(def?.name))
+      || labelAliases.get(_normalizeProfileMarkerLabel(markerKey));
+    if (!target || target === fullKey) continue;
+    for (const entry of data.entries) renameLabEntryMarker(entry, fullKey, target, { stamp: false });
+    remapByPrefix(data.manualValues, fullKey, target);
+    remapByPrefix(data.markerValueNotes, fullKey, target);
+    if (data.refOverrides?.[fullKey]) {
+      if (!data.refOverrides[target]) data.refOverrides[target] = data.refOverrides[fullKey];
+      delete data.refOverrides[fullKey];
+    }
+    if (data.markerNotes?.[fullKey] && !data.markerNotes[target]) data.markerNotes[target] = data.markerNotes[fullKey];
+    if (data.markerNotes) delete data.markerNotes[fullKey];
+    if (data.markerLabels?.[fullKey] && !data.markerLabels[target]) data.markerLabels[target] = data.markerLabels[fullKey];
+    if (data.markerLabels) delete data.markerLabels[fullKey];
+    if (data.customMarkers) delete data.customMarkers[fullKey];
+  }
+}
+
 function _repairUnitSuffixedStandardMarkers(data) {
   if (!data.entries?.length) return;
   const lookup = _buildProfileStandardMarkerLookup();
@@ -457,6 +548,11 @@ export function migrateProfileData(data) {
       }
     }
   }
+  // Repair canonical marker aliases that briefly existed in the wrong standard category.
+  _repairCanonicalMarkerAliases(data);
+  // Repair custom/AI-imported aliases whose key or label is a common lab name
+  // for an existing schema marker (e.g. duplicate Lp(a) / Lipoprotein(a)).
+  _repairNamedStandardMarkerAliases(data);
   // Repair AI-imported duplicate markers such as `ALP (ukat/l)` that were
   // stored as custom keys instead of the existing standard schema marker.
   _repairUnitSuffixedStandardMarkers(data);
@@ -559,6 +655,7 @@ export function migrateProfileData(data) {
   if (data.genetics === undefined) data.genetics = null;
   if (data.markerNotes === undefined) data.markerNotes = {};
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
+  if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.biometrics === undefined) data.biometrics = null;
   // Light lens (v1.7+): sun sessions, light devices, light environment, on-device measurements

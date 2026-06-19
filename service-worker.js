@@ -172,6 +172,24 @@ const APP_SHELL = [
   '/js/dashboard-page-view.js',
   '/js/lens-pages.js',
   '/js/lens-page-shell.js',
+  '/js/biology-scores.js',
+  '/js/biology-score-ai.js',
+  '/js/biology-score-ai-context.js',
+  '/js/biology-score-context-ai.js',
+  '/js/biology-score-copy.js',
+  '/js/biology-score-coverage-planner.js',
+  '/js/biology-score-engine.js',
+  '/js/biology-score-mappings.js',
+  '/js/biology-score-profile-modifiers.js',
+  '/js/biology-score-sections.js',
+  '/js/biology-score-tier1-definitions.js',
+  '/js/biology-score-tier2-definitions.js',
+  '/js/biology-score-coherence.js',
+  '/js/biology-score-blood-flow.js',
+  '/js/biology-score-iron.js',
+  '/js/biology-score-render.js',
+  '/js/biology-score-thyroid.js',
+  '/js/profile-context.js',
   '/js/dashboard-widgets.js',
   '/js/dashboard-widget-controls.js',
   '/js/dashboard-widget-renderers.js',
@@ -526,7 +544,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate: local app shell files
+  // Non-production builds change without version bumps while branches are dirty.
+  // Prefer network-first there so local/dev browsers don't keep showing stale
+  // JS/CSS from the previous commit-shaped cache.
+  if (!IS_PROD) {
+    event.respondWith(
+      fetchAndCache(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate: production app shell files
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetched = fetchAndCache(event.request).catch(() => cached);

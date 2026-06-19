@@ -232,6 +232,7 @@ const LEGACY_TESTS = [
   // moved to tests/playwright/coverage-stragglers-dom.spec.js.
   './test-coverage-stragglers.js',
   './test-profile-share.js',
+  './test-biology-scores.js',
 ];
 
 for (const path of LEGACY_TESTS) {

@@ -8,6 +8,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import './_node-shim.js';
+import { getAdapterByTestType, normalizeWithAdapter } from '../js/adapters.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
@@ -120,6 +122,17 @@ const normalizationSrc = read('js/pdf-import-marker-normalization.js');
   // FA chemical name aliases
   assert('Has DHA chemical name alias', adaptersSrc.includes("nameLookup.set('docosahexaenoic acid'"));
   assert('Has EPA chemical name alias', adaptersSrc.includes("nameLookup.set('eicosapentaenoic acid'"));
+
+  const biostarksAdapter = getAdapterByTestType('biostarks');
+  const importedMarkers = [
+    { rawName: 'Arginine', mappedKey: 'urineAmino.arginine', unit: 'µmol/L' },
+    { rawName: 'Magnesium', mappedKey: 'electrolytes.magnesium', unit: 'µg/gHb' },
+    { rawName: 'Active vitamin B12', mappedKey: 'vitamins.activeB12', unit: 'pmol/L' },
+  ];
+  normalizeWithAdapter(biostarksAdapter, importedMarkers, 'biostarks.pdf', 'BioStarks report', null);
+  assert('BioStarks amino acids override generic/OAT amino mappings', importedMarkers[0].suggestedKey === 'biostarksAmino.arginine', JSON.stringify(importedMarkers[0]));
+  assert('BioStarks RBC minerals override serum mineral mappings', importedMarkers[1].suggestedKey === 'biostarksMineral.magnesium', JSON.stringify(importedMarkers[1]));
+  assert('BioStarks standard markers stay in standard schema', importedMarkers[2].mappedKey === 'vitamins.activeB12' && !importedMarkers[2].suggestedKey, JSON.stringify(importedMarkers[2]));
 
   // ═══════════════════════════════════════
   // 6. PDF Import Integration

@@ -16,6 +16,7 @@ export const CORE_ROUTES = new Set([
   'correlations',
   'compare',
   'light',
+  'biology-scores',
 ]);
 
 function _lastViewStorageKey() {
@@ -128,6 +129,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     else if (routeCategory === "correlations") routeHandlers.correlations?.(routeData);
     else if (routeCategory === "compare") routeHandlers.compare?.(routeData);
     else if (routeCategory === "light") routeHandlers.light?.(routeData);
+    else if (routeCategory === "biology-scores") routeHandlers.biologyScores?.(routeData);
     else routeHandlers.category?.(routeCategory, routeData);
     state.currentView = routeCategory;
     _persistCurrentView(routeCategory);

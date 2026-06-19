@@ -700,10 +700,10 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   const dashboardDefaultOrderBlock = (dashboardWidgetsSrc.match(/const DASHBOARD_WIDGET_DEFAULT_IDS = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardWidgetsBlock = (dashboardWidgetsSrc.match(/const dashboardWidgets = \[([\s\S]*?)\];/) || [null, ''])[1];
   const dashboardDefaultOrder = [...dashboardDefaultOrderBlock.matchAll(/'([^']+)'/g)].map(match => match[1]);
-  assert('Dashboard default order prioritizes female cycle context and evidence',
+  assert('Dashboard default order prioritizes coherence hero, focus, and evidence-based widgets',
     JSON.stringify(dashboardDefaultOrder) === JSON.stringify([
+      'biology-score-biologicalCoherence',
       'focus',
-      'cycle',
       'spotlight',
       'quick-markers',
       'key-trends',
@@ -711,6 +711,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
       'profile-context',
       'wearables',
       'bio-age',
+      'biology-score-metabolicFlexibility',
+      'cycle',
     ]) &&
     !dashboardDefaultOrderBlock.includes("'light-today'") &&
     !dashboardDefaultOrderBlock.includes("'alerts'") &&
@@ -721,6 +723,12 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !dashboardDefaultOrderBlock.includes("'light-conditions-now'") &&
     !dashboardDefaultOrderBlock.includes("'light-session-log'") &&
     !dashboardDefaultOrderBlock.includes("'light-channels'"));
+  assert('Dashboard exposes Biology Scores as configurable score-level widgets',
+    dashboardWidgetsSrc.includes("'Biology Scores'") &&
+    dashboardWidgetsSrc.includes('getBiologyScoreWidgetDefinitions') &&
+    dashboardWidgetsSrc.includes('renderDashboardBiologyScoreWidget') &&
+    dashboardDefaultOrderBlock.includes("'biology-score-metabolicFlexibility'") &&
+    !dashboardDefaultOrderBlock.includes("'biology-scores'"));
   assert('Dashboard exposes dashboard-safe Light widgets without page-only Light workspaces',
     dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
     dashboardWidgetsBlock.includes("id: 'light-session-log'") &&

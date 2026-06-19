@@ -321,9 +321,10 @@ export function showDetailModal(id, opts = {}) {
     const effMax = numericOrNull(latestRange.max);
     const optMin = numericOrNull(marker.optimalMin);
     const optMax = numericOrNull(marker.optimalMax);
+    if (effMin == null || effMax == null || latestValue == null || Number(effMax) === Number(effMin)) return '';
     const baseMin = refMin ?? effMin;
     const baseMax = refMax ?? effMax;
-    if (baseMin == null || baseMax == null || latestValue == null || Number(baseMax) === Number(baseMin)) return '';
+    if (baseMin == null || baseMax == null || Number(baseMax) === Number(baseMin)) return '';
     const hasOptimalBand = optMin != null && optMax != null;
     const goodMin = hasOptimalBand ? Math.min(optMin, optMax) : Math.min(baseMin, baseMax);
     const goodMax = hasOptimalBand ? Math.max(optMin, optMax) : Math.max(baseMin, baseMax);
@@ -558,7 +559,7 @@ export function showDetailModal(id, opts = {}) {
     'calculatedRatios_deRitisRatio': [['biochemistry', 'ast', 'AST'], ['biochemistry', 'alt', 'ALT']],
     'calculatedRatios_copperZincRatio': [['electrolytes', 'copper', 'Copper'], ['electrolytes', 'zinc', 'Zinc']],
     'calculatedRatios_apoBapoAIRatio': [['lipids', 'apoB', 'ApoB'], ['lipids', 'apoAI', 'ApoA-I']],
-    'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'CRP'], ['lipids', 'hdl', 'HDL']],
+    'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'hs-CRP'], ['lipids', 'hdl', 'HDL']],
   };
   const inputs = calcInputs[id];
   if (inputs) {

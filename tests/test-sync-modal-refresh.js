@@ -231,6 +231,53 @@ try {
   const duplicatePull = await mergePulledImportedData(profileId, null);
   assert('pull merge reports duplicate v4 per-row overlay as no-op',
     duplicatePull.localDataChanged === false && duplicatePull.merged.manualValues?.[rawKey] === 8);
+
+  state.importedData = { entries: [], biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-fp', updatedAt: 2000 } };
+  const staleRemotePull = await mergePulledImportedData(profileId, { entries: [], biologyScoreContextAI: { summary: 'stale remote review', fingerprint: 'remote-fp', updatedAt: 1000 } });
+  assert('pull merge preserves fresher local Biology Scores context review over stale remote blob',
+    staleRemotePull.merged.biologyScoreContextAI?.fingerprint === 'local-fp'
+    && staleRemotePull.needsRebroadcast === true);
+
+  state.importedData = { entries: [], biologyScoreAI: { thyroidCoherence: { text: '**Fresh** local answer', fingerprint: 'fp-local', updatedAt: 3000 } } };
+  const staleRemoteAnswerPull = await mergePulledImportedData(profileId, { entries: [], biologyScoreAI: { thyroidCoherence: { text: 'stale remote answer', fingerprint: 'fp-remote', updatedAt: 1000 } } });
+  assert('pull merge preserves fresher local Biology Score AI answer over stale remote blob',
+    staleRemoteAnswerPull.merged.biologyScoreAI?.thyroidCoherence?.text === '**Fresh** local answer'
+    && staleRemoteAnswerPull.needsRebroadcast === true);
+
+  const staleBiologyRows = [
+    { profileId, arrayName: 'biologyScoreContextAI', itemId: 'biologyScoreContextAI', payload: JSON.stringify({ v: { summary: 'stale row review', fingerprint: 'row-fp', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+    { profileId, arrayName: 'biologyScoreAI', itemId: 'thyroidCoherence', payload: JSON.stringify({ k: 'thyroidCoherence', v: { text: 'stale row answer', fingerprint: 'row-answer', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+  ];
+  configureSyncDelta({
+    getEvolu: () => ({ getQueryRows: () => staleBiologyRows }),
+    getItemRowQuery: () => ({}),
+  });
+  state.importedData = {
+    entries: [],
+    biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-row-fp', updatedAt: 2000 },
+    biologyScoreAI: { thyroidCoherence: { text: '**Fresh row** local answer', fingerprint: 'fp-local-row', updatedAt: 3000 } },
+  };
+  const staleRowOverlayPull = await mergePulledImportedData(profileId, { entries: [], biologyScoreContextAI: { summary: 'fresh remote blob review', fingerprint: 'remote-newer', updatedAt: 2500 }, biologyScoreAI: { thyroidCoherence: { text: 'fresh remote blob answer', fingerprint: 'remote-answer', updatedAt: 3500 } } });
+  assert('pull merge preserves fresher local Biology Score AI/context over stale delta rows, not only stale blobs',
+    staleRowOverlayPull.merged.biologyScoreContextAI?.fingerprint === 'remote-newer'
+    && staleRowOverlayPull.merged.biologyScoreAI?.thyroidCoherence?.text === 'fresh remote blob answer',
+    JSON.stringify(staleRowOverlayPull.merged));
+
+  configureSyncDelta({
+    getEvolu: () => ({ getQueryRows: () => [] }),
+    getItemRowQuery: () => ({}),
+  });
+  const legacyRemote = { entries: [{ date: '2026-01-01', markers: { 'hormones.cPeptide': 1 } }], customMarkers: { 'hormones.cPeptide': { name: 'C-peptide' } } };
+  state.importedData = JSON.parse(JSON.stringify(legacyRemote));
+  const legacyFirstPull = await mergePulledImportedData(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  state.importedData = legacyFirstPull.merged;
+  const legacyDuplicatePull = await mergePulledImportedData(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  assert('pull merge persists schema migrations before change detection so stale remote rows do not retrigger update toasts',
+    legacyFirstPull.localDataChanged === true
+    && legacyFirstPull.merged.entries?.[0]?.markers?.['diabetes.cPeptide'] === 1
+    && !('hormones.cPeptide' in (legacyFirstPull.merged.entries?.[0]?.markers || {}))
+    && legacyDuplicatePull.localDataChanged === false,
+    JSON.stringify({ firstChanged: legacyFirstPull.localDataChanged, duplicateChanged: legacyDuplicatePull.localDataChanged, merged: legacyDuplicatePull.merged }));
 } finally {
   configureSyncDelta({
     getEvolu: () => null,

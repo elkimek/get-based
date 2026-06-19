@@ -42,7 +42,7 @@ assert('lens-page-shell installs an idempotent click delegate',
     shellSrc.includes("document.addEventListener('click', handleLensPageShellClick)") &&
     shellSrc.includes('installLensPageShellDelegates();'));
 assert('lens-page-shell scopes delegated clicks to lens surfaces',
-  shellSrc.includes("closest('.lens-page-header, .lens-page-widgets, #recommendations-page')"));
+  shellSrc.includes("closest('.lens-page-header, .lens-page-widgets, #recommendations-page, .biology-coherence-hero')"));
 
 [
   'move-widget',

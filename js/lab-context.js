@@ -13,6 +13,7 @@ import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warning
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
 import { CANONICAL_METRICS, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
+import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
 
 /**
  * @typedef {{ skipGroupFilter?: boolean }} LabContextOptions
@@ -207,6 +208,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
     const rangeLabel = state.rangeMode === 'optimal' ? 'optimal' : 'reference';
     ctx += `Note: status labels below use ${rangeLabel} ranges.\n\n`;
+    ctx += buildBiologyScoresAIContext(data, { limit: 7 });
     for (const [catKey, cat] of Object.entries(data.categories)) {
       if (!skipGroupFilter && cat.group && !isGroupInAIContext(cat.group)) continue;
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null));

@@ -252,7 +252,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { profileStorageKey } = await import('/js/profile.js');
-    const { dashboardBiometricSelectionKey } = await import('/js/dashboard-widgets.js');
+    const { dashboardBiometricSelectionKey, dashboardWidgetStorageKey } = await import('/js/dashboard-widgets.js');
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeout = 1500) => {
       const started = Date.now();
@@ -361,7 +361,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       },
     };
 
-    const widgetPrefsKey = profileStorageKey(profileId, 'dashboardWidgetsV10');
+    const widgetPrefsKey = dashboardWidgetStorageKey();
     const recSavedKey = profileStorageKey(profileId, 'recommendations-saved-v1');
     const recDismissedKey = profileStorageKey(profileId, 'recommendations-dismissed-v1');
     const biometricKey = dashboardBiometricSelectionKey();

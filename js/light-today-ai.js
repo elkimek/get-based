@@ -318,6 +318,27 @@ export async function refreshDayAIAnalysis(dateKey) {
 // way to re-fire.
 const _autoFiredKeys = new Set();
 
+function renderLightTodayQuestion() {
+  return `<section class="light-ai-question">
+    <div class="light-ai-kicker">Question this AI answers</div>
+    <p>Is today’s light pattern supporting circadian rhythm, sleep, vitamin-D goals, and safe exposure?</p>
+    <div class="light-ai-panel-levels">
+      <div><span>Minimum useful data</span><strong><span>Sun/device sessions</span><span>Time of day</span><span>Duration</span></strong></div>
+      <div><span>Extended confidence data</span><strong><span>UV/MED</span><span>Lux/CCT/flicker</span><span>Sleep room darkness</span><span>7-day trends</span></strong></div>
+    </div>
+  </section>`;
+}
+
+function renderLightAIAnswer(dot, body, action = '') {
+  return `<section class="light-ai-answer light-ai-answer-${escapeHTML(dot || 'gray')}">
+    <div class="light-ai-answer-head">
+      <div><div class="light-ai-kicker">AI answer</div><p>Auto-generated once per day when light data exists. Cached in this profile.</p></div>
+      ${action}
+    </div>
+    ${body}
+  </section>`;
+}
+
 export function renderLightTodayHero() {
   const today = new Date();
   const target = _wrapDate(today);
@@ -369,10 +390,11 @@ export function renderLightTodayHero() {
   if (status === 'analyzing') {
     return `<div class="light-today-hero">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      <div class="sun-detail-ai sun-detail-ai-loading">
+      ${renderLightTodayQuestion()}
+      ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-loading">
         <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
         <span>Synthesizing your day…</span>
-      </div>
+      </div>`)}
       ${trendBar}
     </div>`;
   }
@@ -384,40 +406,41 @@ export function renderLightTodayHero() {
     // in the v1.6.x UX review. Yellow / red verdicts keep the trend
     // bar as supporting context.
     const _showTrendBar = dot !== 'green';
+    const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>`;
     return `<div class="light-today-hero light-today-hero-${dot}">
-      <div class="light-today-hero-head">
-        <span class="light-today-hero-label">Today's light</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
-      </div>
-      <div class="sun-detail-ai sun-detail-ai-${dot}">
+      <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
+      ${renderLightTodayQuestion()}
+      ${renderLightAIAnswer(dot, `<div class="sun-detail-ai sun-detail-ai-${dot}">
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
           <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
         </div>
         ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
-      </div>
+      </div>`, action)}
       ${_showTrendBar ? trendBar : ''}
     </div>`;
   }
   if (status === 'error') {
     const msg = cached?.errorMessage ? `Analysis failed — ${cached.errorMessage}` : 'Analysis failed.';
+    const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Try again</button>`;
     return `<div class="light-today-hero">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      <div class="sun-detail-ai sun-detail-ai-error">
+      ${renderLightTodayQuestion()}
+      ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-error">
         <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
         <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Try again</button>
-      </div>
+      </div>`, action)}
       ${trendBar}
     </div>`;
   }
+  const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Run today's verdict</button>`;
   return `<div class="light-today-hero">
     <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-    <div class="sun-detail-ai sun-detail-ai-idle">
+    ${renderLightTodayQuestion()}
+    ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-idle">
       <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
       <span>Get an AI read on today's full picture — sun, devices, environment, trends.</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Run today's verdict</button>
-    </div>
+    </div>`, action)}
     ${trendBar}
   </div>`;
 }

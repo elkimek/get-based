@@ -343,6 +343,11 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['kreatinkinaza', 'biochemistry.creatineKinase'],
   ['cystatinc', 'biochemistry.cystatinC'],
   ['gfcystatin', 'biochemistry.gfrCystatin'],
+  ['laktat', 'biochemistry.lactate'],
+  ['lactate', 'biochemistry.lactate'],
+  ['kyselinamlecna', 'biochemistry.lactate'],
+  ['pyruvat', 'biochemistry.pyruvate'],
+  ['pyruvate', 'biochemistry.pyruvate'],
   ['sodik', 'electrolytes.sodium'],
   ['draslik', 'electrolytes.potassium'],
   ['chloridy', 'electrolytes.chloride'],
@@ -356,27 +361,68 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['ldlcholesterol', 'lipids.ldl'],
   ['apoai', 'lipids.apoAI'],
   ['apob', 'lipids.apoB'],
+  ['lpa', 'lipids.lpA'],
+  ['lipoproteina', 'lipids.lpA'],
   ['nonhdl', 'lipids.nonHdl'],
   ['cholhdl', 'lipids.cholHdlRatio'],
   ['zelezo', 'iron.iron'],
   ['ferritin', 'iron.ferritin'],
   ['transferin', 'iron.transferrin'],
+  ['solubilnitransferinovyreceptor', 'iron.solubleTransferrinReceptor'],
+  ['solubletransferrinreceptor', 'iron.solubleTransferrinReceptor'],
+  ['stfr', 'iron.solubleTransferrinReceptor'],
   ['crp', 'proteins.crp'],
   ['hscrp', 'proteins.hsCRP'],
+  ['neurofilamentlight', 'proteins.neurofilamentLight'],
+  ['nfl', 'proteins.neurofilamentLight'],
+  ['calprotectin', 'stool.calprotectin'],
+  ['fecalcalprotectin', 'stool.calprotectin'],
+  ['stoolcalprotectin', 'stool.calprotectin'],
+  ['zonulin', 'stool.zonulin'],
+  ['secretoryiga', 'stool.secretoryIgA'],
+  ['siga', 'stool.secretoryIgA'],
   ['celkbilkovina', 'proteins.totalProtein'],
   ['celkovabilkovina', 'proteins.totalProtein'],
   ['albumin', 'proteins.albumin'],
   ['vitamindcelkovy', 'vitamins.vitaminD'],
   ['kyselinalistova', 'vitamins.folate'],
+  ['holotranskobalamin', 'vitamins.activeB12'],
+  ['holotranscobalamin', 'vitamins.activeB12'],
+  ['holotc', 'vitamins.activeB12'],
+  ['activeb12', 'vitamins.activeB12'],
+  ['aktivnib12', 'vitamins.activeB12'],
+  ['methylmalonicacid', 'vitamins.methylmalonicAcid'],
+  ['kyselinamethylmalonova', 'vitamins.methylmalonicAcid'],
+  ['mma', 'vitamins.methylmalonicAcid'],
   ['hba1c', 'diabetes.hba1c'],
+  ['cpeptide', 'diabetes.cPeptide'],
+  ['cpeptid', 'diabetes.cPeptide'],
+  ['fructosamine', 'diabetes.fructosamine'],
+  ['fruktosamin', 'diabetes.fructosamine'],
   ['inzulin', 'hormones.insulin'],
   ['fsh', 'hormones.fsh'],
   ['lh', 'hormones.lh'],
   ['prolaktin', 'hormones.prolactin'],
+  ['kortizol', 'hormones.cortisol'],
+  ['cortisol', 'hormones.cortisol'],
+  ['androstenedion', 'hormones.androstenedione'],
+  ['androstenedione', 'hormones.androstenedione'],
+  ['dihydrotestosteron', 'hormones.dht'],
+  ['dihydrotestosterone', 'hormones.dht'],
+  ['dht', 'hormones.dht'],
   ['shbg', 'hormones.shbg'],
   ['testosteron', 'hormones.testosterone'],
   ['fai', 'hormones.fai'],
   ['igf1', 'hormones.igf1'],
+  ['reverset3', 'thyroid.reverseT3'],
+  ['rt3', 'thyroid.reverseT3'],
+  ['tpoantibodies', 'thyroid.tpoAb'],
+  ['tpoantibody', 'thyroid.tpoAb'],
+  ['thyroidperoxidaseantibodies', 'thyroid.tpoAb'],
+  ['antitpo', 'thyroid.tpoAb'],
+  ['tgantibodies', 'thyroid.tgAb'],
+  ['thyroglobulinantibodies', 'thyroid.tgAb'],
+  ['antitg', 'thyroid.tgAb'],
   ['leukocyty', 'hematology.wbc'],
   ['erytrocyty', 'hematology.rbc'],
   ['hemoglobin', 'hematology.hemoglobin'],
@@ -390,6 +436,10 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['pdw', 'hematology.pdw'],
   ['mpv', 'hematology.mpv'],
   ['homocystein', 'coagulation.homocysteine'],
+  ['fibrinogen', 'coagulation.fibrinogen'],
+  ['ddimer', 'coagulation.dDimer'],
+  ['ddimery', 'coagulation.dDimer'],
+  ['dimerd', 'coagulation.dDimer'],
 ]);
 
 function _standardMarkerShortNames() {
@@ -448,6 +498,38 @@ function _resolveExistingCustomImportKey(marker, nameLookup, testType, refLookup
       const key = nameLookup.get(variant);
       const known = _knownImportKey(key, testType, refLookup, existingKeys, standardCats);
       if (known) return known;
+    }
+  }
+  return null;
+}
+
+function _buildSpecialtyImportNameLookup() {
+  const lookup = new Map();
+  const add = (label, key) => {
+    for (const variant of _compactImportLabelVariants(label)) {
+      if (variant && !lookup.has(variant)) lookup.set(variant, key);
+    }
+  };
+  for (const [fullKey, marker] of Object.entries(SPECIALTY_MARKER_DEFS || {})) {
+    add(fullKey.split('.').pop(), fullKey);
+    add(marker.name, fullKey);
+    if (fullKey === 'stool.calprotectin') {
+      add('Fecal Calprotectin', fullKey);
+      add('Stool Calprotectin', fullKey);
+    }
+  }
+  return lookup;
+}
+
+function _resolveSpecialtyImportKey(marker, refLookup) {
+  const lookup = _buildSpecialtyImportNameLookup();
+  const labels = [marker.rawName, marker.suggestedName];
+  if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
+  if (marker.suggestedKey) labels.push(marker.suggestedKey.split('.').pop());
+  for (const label of labels) {
+    for (const variant of _compactImportLabelVariants(label)) {
+      const key = lookup.get(variant);
+      if (key && refLookup[key]) return key;
     }
   }
   return null;
@@ -537,7 +619,9 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
     const exactSuggestedKey = suggestedSpecimenBad || differentialPercentSuggestedKey ? null : _knownImportKey(marker.suggestedKey, testType, refLookup, existingKeys, standardCats);
     const exactKey = exactMappedKey || exactSuggestedKey;
     const existingCustomKey = exactKey || (differentialPercentSuggestedKey ? null : _resolveExistingCustomImportKey(marker, existingNameLookup, testType, refLookup, existingKeys, standardCats));
-    const aliasKey = testType === 'blood' ? _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey) : null;
+    const aliasKey = testType === 'blood'
+      ? _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSuggestedKey)
+      : _resolveSpecialtyImportKey(marker, refLookup);
     const resolvedKey = aliasKey || existingCustomKey;
     if (resolvedKey) {
       marker.mappedKey = resolvedKey;

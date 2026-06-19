@@ -27,6 +27,7 @@ import {
   isSyncDisableCleanupKey,
 } from '../js/sync-disable-cleanup.js';
 import { clearStaleSyncHashKeysOnce } from '../js/sync-pull-maintenance.js';
+import { parseSyncPayload } from '../js/sync-payload.js';
 import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
 import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
@@ -435,6 +436,22 @@ describe('sync push runtime behavior', () => {
       profileId: PROFILE_ID,
     });
     expect(debug).toHaveBeenCalledWith(expect.stringContaining(`Queued ${PROFILE_ID.slice(0, 8)}`));
+  });
+
+  it('normalizes legacy importedData before writing sync payloads and deltas', async () => {
+    const fake = makeEvolu();
+    configureRuntimeDeps(fake);
+
+    await expect(pushProfile(PROFILE_ID, {
+      entries: [{ date: '2026-01-01', markers: { 'hormones.cPeptide': 1 } }],
+      customMarkers: { 'hormones.cPeptide': { name: 'C-peptide' } },
+    })).resolves.toEqual({ ok: true });
+
+    const profileWrite = fake.calls.insert.find(call => call.table === 'profileData')?.args;
+    const parsed = await parseSyncPayload(profileWrite?.dataJson || '{}');
+    expect(parsed.importedData.entries[0].markers['diabetes.cPeptide']).toBe(1);
+    expect(parsed.importedData.entries[0].markers['hormones.cPeptide']).toBeUndefined();
+    expect(parsed.importedData.customMarkers['hormones.cPeptide']).toBeUndefined();
   });
 
   it('skips concurrent pushes and releases the in-flight flag through the watchdog', async () => {

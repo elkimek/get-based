@@ -418,7 +418,24 @@ function _normalizeBiostarks(markers) {
     // Already correctly mapped to a BioStarks adapter key — skip
     if (biostarksKeys.has(key)) continue;
 
-    // Standard schema mapping — keep, but check for intracellular minerals (µg/gHb ≠ serum)
+    // BioStarks is a hybrid panel: ordinary serum-style markers can stay in the
+    // standard schema, but BioStarks-specific amino acids, fatty acids,
+    // intracellular minerals, vitamin E, and ratio markers must not be left in
+    // lookalike generic/OAT categories just because the AI found a standard name.
+    const match = nameLookup.get(name);
+    if (match) {
+      const def = BIOSTARKS_MARKERS[match];
+      m.mappedKey = null;
+      m.suggestedKey = match;
+      m.suggestedCategoryLabel = def.categoryLabel;
+      m.suggestedGroup = 'BioStarks';
+      if (isDebugMode()) console.log(`[BioStarks] Normalized ${name} → ${match}`);
+      continue;
+    }
+
+    // Standard schema mapping — keep for BioStarks markers not defined in the
+    // adapter (e.g. active B12, vitamin D, ferritin, lipids, glucose), but keep
+    // the old unit-based mineral guard as a fallback for variant RBC labels.
     if (m.mappedKey) {
       const catKey = m.mappedKey.split('.')[0];
       if (standardCats.has(catKey)) {
@@ -438,19 +455,17 @@ function _normalizeBiostarks(markers) {
         continue;
       }
     }
-
-    // Try name match against BioStarks adapter markers
-    const match = nameLookup.get(name);
-    if (match) {
-      const def = BIOSTARKS_MARKERS[match];
-      m.mappedKey = null;
-      m.suggestedKey = match;
-      m.suggestedCategoryLabel = def.categoryLabel;
-      m.suggestedGroup = 'BioStarks';
-      if (isDebugMode()) console.log(`[BioStarks] Normalized ${name} → ${match}`);
-    }
   }
 }
+
+// ═══════════════════════════════════════════════
+// Gut/Stool Adapter — GI barrier + inflammatory stool markers
+// ═══════════════════════════════════════════════
+const GUT_STOOL_MARKERS = {
+  "stool.calprotectin": { name: "Calprotectin", unit: "µg/g", refMin: null, refMax: 50, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+  "stool.zonulin": { name: "Zonulin", unit: "ng/ml", refMin: null, refMax: 60, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+  "stool.secretoryIgA": { name: "Secretory IgA", unit: "µg/g", refMin: 510, refMax: 2040, categoryLabel: "Stool / Gut Barrier", icon: "🧫", group: "Gut" },
+};
 
 // ═══════════════════════════════════════════════
 // Adapter Registry
@@ -474,6 +489,11 @@ const ADAPTERS = [
     id: 'oat',
     testTypes: ['OAT'],
     markers: OAT_MARKERS,
+  },
+  {
+    id: 'gutStool',
+    testTypes: ['stool', 'gut', 'giMap', 'GI-MAP', 'GI Effects'],
+    markers: GUT_STOOL_MARKERS,
   },
   {
     id: 'biostarks',

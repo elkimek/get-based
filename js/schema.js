@@ -20,6 +20,8 @@ export const MARKER_SCHEMA = {
       ggt: { name: "GGT", unit: "\u00b5kat/l", refMin: 0.17, refMax: 1.19, desc: "A liver enzyme sensitive to alcohol and bile duct damage; often the earliest marker of liver stress." },
       ldh: { name: "LDH", unit: "\u00b5kat/l", refMin: 2.25, refMax: 3.75, desc: "A general tissue damage marker found in most organs; elevated in hemolysis, liver disease, heart attack, or cancer." },
       creatineKinase: { name: "Creatine Kinase", unit: "\u00b5kat/l", refMin: 0.65, refMax: 5.14, refMin_f: 0.42, refMax_f: 3.08, desc: "An enzyme released from damaged muscle tissue; elevated after intense exercise, muscle injury, or in myopathy." },
+      lactate: { name: "Lactate", unit: "mmol/l", refMin: 0.5, refMax: 2.2, desc: "Blood lactate reflects glycolytic energy pressure and tissue oxygen balance; sampling conditions matter strongly." },
+      pyruvate: { name: "Pyruvate", unit: "\u00b5mol/l", refMin: 30, refMax: 100, desc: "Pyruvate is a glycolysis/TCA-cycle junction marker; useful with lactate for advanced energy metabolism context." },
       cystatinC: { name: "Cystatin C", unit: "mg/l", refMin: 0.61, refMax: 0.95, desc: "A protein filtered by the kidneys; a more accurate kidney function marker than creatinine, unaffected by muscle mass." },
       gfrCystatin: { name: "GFR Cystatin", unit: "ml/s", refMin: 1.80, refMax: 2.63, desc: "Kidney filtration rate estimated from cystatin C; provides a muscle-mass-independent assessment of renal function." }
     }
@@ -39,6 +41,8 @@ export const MARKER_SCHEMA = {
       dht: { name: "DHT", unit: "nmol/l", refMin: 0.86, refMax: 3.40, refMin_f: 0.12, refMax_f: 0.86, desc: "A potent androgen converted from testosterone; drives male-pattern hair loss and prostate growth." },
       igf1: { name: "IGF-1", unit: "\u00b5g/l", refMin: 96.4, refMax: 227.8, desc: "A growth-factor hormone mediating the effects of growth hormone; reflects GH status and influences tissue repair." },
       insulin: { name: "Insulin", unit: "mU/l", refMin: 2.6, refMax: 24.9, desc: "The hormone regulating blood sugar uptake into cells; elevated fasting levels indicate insulin resistance." },
+      cortisol: { name: "Cortisol", unit: "nmol/l", refMin: 140, refMax: 620, desc: "Primary glucocorticoid stress hormone; interpretation depends strongly on collection time and rhythm." },
+      androstenedione: { name: "Androstenedione", unit: "nmol/l", refMin: 1.4, refMax: 7.4, refMin_f: 1.0, refMax_f: 11.5, desc: "Androgen precursor made by adrenals and gonads; useful for androgen-excess and steroid-pathway context." },
       lh: { name: "LH", unit: "U/l", refMin: 1.7, refMax: 8.6, refMin_f: 2.4, refMax_f: 12.6, desc: "Luteinizing hormone; triggers ovulation in women and stimulates testosterone production in men. Surges mid-cycle." },
       fsh: { name: "FSH", unit: "U/l", refMin: 1.5, refMax: 12.4, refMin_f: 3.5, refMax_f: 12.5, desc: "Follicle-stimulating hormone; drives egg maturation in women and sperm production in men. Rises in menopause." },
       prolactin: { name: "Prolactin", unit: "\u00b5g/l", refMin: 4.0, refMax: 15.2, refMin_f: 4.8, refMax_f: 23.3, desc: "Stimulates milk production; elevated levels can suppress ovulation and indicate pituitary issues." },
@@ -66,12 +70,13 @@ export const MARKER_SCHEMA = {
     markers: {
       cholesterol: { name: "Total Cholesterol", unit: "mmol/l", refMin: 2.90, refMax: 5.00, desc: "The sum of all cholesterol fractions in blood; a basic cardiovascular risk indicator, though HDL/LDL ratio matters more." },
       triglycerides: { name: "Triglycerides", unit: "mmol/l", refMin: 0.45, refMax: 1.70, desc: "Blood fats from dietary intake and liver production; elevated levels increase cardiovascular and pancreatitis risk." },
-      hdl: { name: "HDL Cholesterol", unit: "mmol/l", refMin: 1.00, refMax: 2.10, desc: "Protective cholesterol that transports fat away from arteries back to the liver; higher levels reduce cardiovascular risk." },
+      hdl: { name: "HDL Cholesterol", unit: "mmol/l", refMin: 1.00, refMax: 2.10, refMin_f: 1.20, refMax_f: 2.70, desc: "Protective cholesterol that transports fat away from arteries back to the liver; higher levels reduce cardiovascular risk." },
       ldl: { name: "LDL Cholesterol", unit: "mmol/l", refMin: 1.20, refMax: 3.00, desc: "The primary atherogenic cholesterol that deposits in artery walls; the main target for cardiovascular risk reduction." },
       nonHdl: { name: "Non-HDL Cholesterol", unit: "mmol/l", refMin: 0.00, refMax: 3.80, desc: "All atherogenic cholesterol particles combined (LDL + VLDL + remnants); a better cardiovascular predictor than LDL alone." },
       cholHdlRatio: { name: "Chol/HDL Ratio", unit: "", refMin: 0.0, refMax: 5.0, desc: "Total cholesterol divided by HDL; a simple cardiovascular risk ratio where lower values indicate better lipid balance." },
       apoAI: { name: "Apo A-I", unit: "g/l", refMin: 1.00, refMax: 1.70, desc: "The main protein of HDL particles; reflects protective cholesterol transport capacity and cardiovascular health." },
-      apoB: { name: "Apo B", unit: "g/l", refMin: 0.50, refMax: 1.00, desc: "The protein on each LDL particle; directly counts atherogenic particles, making it a superior cardiovascular risk marker." }
+      apoB: { name: "Apo B", unit: "g/l", refMin: 0.50, refMax: 1.00, desc: "The protein on each LDL particle; directly counts atherogenic particles, making it a superior cardiovascular risk marker." },
+      lpA: { name: "Lp(a)", unit: "nmol/l", refMin: 0, refMax: 125, desc: "Lipoprotein(a), a mostly genetic atherogenic particle. Values above ~125 nmol/L (≈50 mg/dL, assay-dependent) are commonly treated as risk-enhancing." }
     }
   },
   iron: {
@@ -81,7 +86,8 @@ export const MARKER_SCHEMA = {
       ferritin: { name: "Ferritin", unit: "\u00b5g/l", refMin: 30, refMax: 400, refMin_f: 13, refMax_f: 150, desc: "The primary iron storage protein; the most reliable marker for total body iron stores, though elevated by inflammation." },
       transferrin: { name: "Transferrin", unit: "g/l", refMin: 2.0, refMax: 3.6, desc: "The iron transport protein in blood; rises when iron stores are low as the body tries to capture more iron." },
       tibc: { name: "TIBC", unit: "\u00b5mol/l", refMin: 22.3, refMax: 61.7, desc: "Total iron-binding capacity of transferrin; high values suggest iron deficiency, low values suggest iron overload." },
-      transferrinSat: { name: "Transferrin Sat.", unit: "%", refMin: 16.0, refMax: 45.0, desc: "Percentage of transferrin loaded with iron; low values confirm iron deficiency, high values suggest overload risk." }
+      transferrinSat: { name: "Transferrin Sat.", unit: "%", refMin: 16.0, refMax: 45.0, desc: "Percentage of transferrin loaded with iron; low values confirm iron deficiency, high values suggest overload risk." },
+      solubleTransferrinReceptor: { name: "Soluble Transferrin Receptor", unit: "mg/l", refMin: 0.76, refMax: 1.76, desc: "Reflects cellular iron demand and erythropoietic activity; useful when ferritin is distorted by inflammation." }
     }
   },
   proteins: {
@@ -91,7 +97,8 @@ export const MARKER_SCHEMA = {
       crp: { name: "CRP", unit: "mg/l", refMin: 0.00, refMax: 5.00, desc: "C-reactive protein; produced by the liver in response to inflammation. Standard assay with lower sensitivity than hs-CRP. Elevated in infections, autoimmune conditions, and tissue injury." },
       totalProtein: { name: "Total Protein", unit: "g/l", refMin: 64.0, refMax: 83.0, desc: "Sum of albumin and globulins in blood; reflects nutritional status, liver function, and immune system activity." },
       albumin: { name: "Albumin", unit: "g/l", refMin: 35.0, refMax: 52.0, desc: "The most abundant blood protein made by the liver; low levels indicate malnutrition, liver disease, or chronic inflammation." },
-      ceruloplasmin: { name: "Ceruloplasmin", unit: "g/l", refMin: 0.15, refMax: 0.30, desc: "A copper-carrying protein produced by the liver; low levels suggest Wilson disease, high levels indicate inflammation." }
+      ceruloplasmin: { name: "Ceruloplasmin", unit: "g/l", refMin: 0.15, refMax: 0.30, desc: "A copper-carrying protein produced by the liver; low levels suggest Wilson disease, high levels indicate inflammation." },
+      neurofilamentLight: { name: "Neurofilament Light", unit: "pg/ml", refMin: null, refMax: 12, desc: "Axonal injury marker; interpretation is age- and assay-dependent and belongs in clinical neurologic context." }
     }
   },
   thyroid: {
@@ -101,7 +108,10 @@ export const MARKER_SCHEMA = {
       ft4: { name: "Free T4", unit: "pmol/l", refMin: 11.9, refMax: 21.6, desc: "The unbound, active form of thyroxine; reflects actual thyroid hormone available to tissues for metabolism regulation." },
       ft3: { name: "Free T3", unit: "pmol/l", refMin: 3.1, refMax: 6.8, desc: "The most metabolically active thyroid hormone; low levels despite normal T4 may indicate poor T4-to-T3 conversion." },
       t4total: { name: "Total T4", unit: "nmol/l", refMin: 66.0, refMax: 181.0, desc: "Total thyroxine including protein-bound fraction; affected by binding protein levels, making free T4 more reliable." },
-      t3total: { name: "Total T3", unit: "nmol/l", refMin: 1.30, refMax: 3.10, desc: "Total triiodothyronine including bound fraction; useful for diagnosing hyperthyroidism when free T3 is unavailable." }
+      t3total: { name: "Total T3", unit: "nmol/l", refMin: 1.30, refMax: 3.10, desc: "Total triiodothyronine including bound fraction; useful for diagnosing hyperthyroidism when free T3 is unavailable." },
+      reverseT3: { name: "Reverse T3", unit: "nmol/l", refMin: null, refMax: 0.54, desc: "Inactive T3 isomer that can rise with illness, fasting, or stress; optional context for T4-to-T3 conversion." },
+      tpoAb: { name: "TPO antibodies", unit: "kU/l", refMin: 0, refMax: 34, desc: "Thyroid peroxidase antibodies; elevated values support autoimmune thyroiditis context." },
+      tgAb: { name: "Thyroglobulin antibodies", unit: "kU/l", refMin: 0, refMax: 115, desc: "Thyroglobulin antibodies; elevated values support autoimmune thyroid context and can interfere with thyroglobulin measurement." }
     }
   },
   vitamins: {
@@ -111,7 +121,9 @@ export const MARKER_SCHEMA = {
       vitaminD3: { name: "Vitamin D3", unit: "nmol/l", refMin: 50.0, refMax: 175.0, desc: "The form of vitamin D produced by sun exposure and supplements; the most bioactive and clinically relevant form." },
       calcitriol: { name: "Calcitriol (1,25-(OH)\u2082D)", unit: "pmol/l", refMin: 36.5, refMax: 216.2, desc: "The active hormonal form of vitamin D produced by the kidneys; regulates calcium absorption and bone metabolism. Ordered for kidney disease or calcium disorders." },
       vitaminA: { name: "Vitamin A", unit: "\u00b5mol/l", refMin: 1.05, refMax: 2.80, desc: "A fat-soluble vitamin essential for vision, immune defense, and cell growth; both deficiency and excess are harmful." },
-      vitaminB12: { name: "Vitamin B12", unit: "pmol/l", refMin: 145, refMax: 569, desc: "Essential for DNA synthesis, red blood cell formation, and neurological function; deficiency causes macrocytic anemia and neuropathy." },
+      vitaminB12: { name: "Vitamin B12", unit: "pmol/l", refMin: 145, refMax: 569, desc: "Total circulating B12; useful screening marker but can look normal when active B12 delivery or functional markers are strained." },
+      activeB12: { name: "Active B12 (holotranscobalamin)", unit: "pmol/l", refMin: 35, refMax: null, desc: "Holotranscobalamin, the biologically available B12 fraction delivered to cells; often more actionable than total B12 for methylation and neurologic context." },
+      methylmalonicAcid: { name: "Methylmalonic Acid", unit: "nmol/l", refMin: null, refMax: 350, desc: "Functional B12 marker; elevated values suggest impaired B12-dependent metabolism, especially when total B12 looks acceptable." },
       folate: { name: "Folate", unit: "nmol/l", refMin: 7.0, refMax: 45.3, desc: "B-vitamin critical for DNA synthesis and methylation; deficiency causes macrocytic anemia and elevated homocysteine. Key in pregnancy for neural tube prevention." }
     }
   },
@@ -120,6 +132,8 @@ export const MARKER_SCHEMA = {
     markers: {
       hba1c: { name: "HbA1c", unit: "mmol/mol", refMin: 20.0, refMax: 42.0, desc: "Glycated hemoglobin reflecting average blood sugar over 2\u20133 months; the gold standard for long-term glucose control." },
       insulin_d: { name: "Insulin", unit: "mU/l", refMin: 2.6, refMax: 24.9, desc: "Fasting insulin level used in the diabetes context; elevated levels are an early sign of insulin resistance." },
+      cPeptide: { name: "C-peptide", unit: "\u00b5g/l", refMin: 0.8, refMax: 3.1, desc: "Byproduct of endogenous insulin production; helps distinguish pancreatic insulin output from injected insulin exposure." },
+      fructosamine: { name: "Fructosamine", unit: "\u00b5mol/l", refMin: 205, refMax: 285, desc: "Shorter-term glycation marker reflecting roughly 2–3 weeks of glucose exposure; useful when HbA1c is unreliable." },
       homaIR: { name: "HOMA-IR (calc)", unit: "", refMin: 0, refMax: 2.5, desc: "Calculated index of insulin resistance from fasting glucose and insulin; higher values indicate greater resistance." }
     }
   },
@@ -133,7 +147,9 @@ export const MARKER_SCHEMA = {
   coagulation: {
     label: "Coagulation", icon: "\uD83E\uDE78",
     markers: {
-      homocysteine: { name: "Homocysteine", unit: "\u00b5mol/l", refMin: 5.2, refMax: 15.0, refMin_f: 3.7, refMax_f: 10.4, desc: "An amino acid linked to cardiovascular and neurological risk when elevated; lowered by folate, B6, and B12." }
+      homocysteine: { name: "Homocysteine", unit: "\u00b5mol/l", refMin: 5.2, refMax: 15.0, refMin_f: 3.7, refMax_f: 10.4, desc: "An amino acid linked to cardiovascular and neurological risk when elevated; lowered by folate, B6, and B12." },
+      fibrinogen: { name: "Fibrinogen", unit: "g/l", refMin: 1.8, refMax: 4.0, desc: "Coagulation protein and inflammatory acute-phase marker; contributes to clotting and plasma viscosity context." },
+      dDimer: { name: "D-dimer", unit: "mg/l FEU", refMin: 0, refMax: 0.5, desc: "Fibrin breakdown product; elevated values can reflect active clot turnover and need clinical context." }
     }
   },
   hematology: {
@@ -212,6 +228,7 @@ export const MARKER_SCHEMA = {
       tgHdlRatio: { name: "TG/HDL Ratio", unit: "", refMin: 0, refMax: 1.75, desc: "Triglycerides divided by HDL; a strong surrogate marker for insulin resistance and small dense LDL particles." },
       ldlHdlRatio: { name: "LDL/HDL Ratio", unit: "", refMin: 0, refMax: 2.5, refMax_f: 2.0, desc: "Balance of atherogenic to protective cholesterol; a simple predictor of coronary heart disease risk." },
       apoBapoAIRatio: { name: "ApoB/ApoA-I Ratio", unit: "", refMin: 0, refMax: 0.9, refMax_f: 0.8, desc: "Ratio of atherogenic to protective lipoprotein particles; considered the best single lipid marker for cardiovascular risk." },
+      cholHdlRatio: { name: "Total Cholesterol/HDL Ratio", unit: "", refMin: 0, refMax: 5.0, desc: "Total cholesterol divided by HDL; a simple cardiovascular risk ratio where lower values are generally better." },
       nlr: { name: "Neutrophil-Lymphocyte Ratio (NLR)", unit: "", refMin: 1.0, refMax: 3.0, desc: "A marker of systemic inflammation and immune stress; elevated in infections, chronic inflammation, and cancer prognosis." },
       plr: { name: "Platelet-Lymphocyte Ratio (PLR)", unit: "", refMin: 50, refMax: 150, desc: "Reflects the balance between thrombotic and immune responses; elevated in inflammation, cardiovascular disease, and cancer." },
       deRitisRatio: { name: "De Ritis Ratio (AST/ALT)", unit: "", refMin: 0.8, refMax: 1.2, desc: "AST divided by ALT; helps distinguish liver damage types \u2014 values above 2 suggest alcoholic liver disease or cirrhosis." },
@@ -253,6 +270,8 @@ export const UNIT_CONVERSIONS = {
   'hormones.progesterone': { factor: 0.3145, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.dheaS': { factor: 36.87, usUnit: '\u00b5g/dl', type: 'multiply' },
   'hormones.dht': { factor: 28.818, usUnit: 'ng/dl', type: 'multiply' },
+  'hormones.androstenedione': { factor: 28.64, usUnit: 'ng/dl', type: 'multiply' },
+  'hormones.cortisol': { factor: 0.03625, usUnit: '\u00b5g/dl', type: 'multiply' },
   'hormones.igf1': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.prolactin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hormones.calcitonin': { factor: 1, usUnit: 'pg/ml', type: 'multiply' },
@@ -270,7 +289,9 @@ export const UNIT_CONVERSIONS = {
   'vitamins.calcitriol': { factor: 0.4006, usUnit: 'pg/ml', type: 'multiply' },
   'vitamins.vitaminA': { factor: 28.65, usUnit: '\u00b5g/dl', type: 'multiply' },
   'vitamins.vitaminB12': { factor: 1.355, usUnit: 'pg/ml', type: 'multiply' },
+  'vitamins.activeB12': { factor: 1, usUnit: 'pmol/l', type: 'multiply' },
   'vitamins.folate': { factor: 0.4413, usUnit: 'ng/ml', type: 'multiply' },
+  'diabetes.cPeptide': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'hematology.hemoglobin': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
   // hematocrit: stored as % natively (was fraction before v1.6.1, migrated in profile.js)
   'hematology.mchc': { factor: 0.1, usUnit: 'g/dl', type: 'multiply' },
@@ -291,6 +312,7 @@ export const UNIT_CONVERSIONS = {
   'proteins.ceruloplasmin': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
   'lipids.apoB': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
   'lipids.apoAI': { factor: 100, usUnit: 'mg/dl', type: 'multiply' },
+  'lipids.lpA': { factor: 1, usUnit: 'nmol/l', type: 'multiply' },
   'thyroid.ft4': { factor: 0.07769, usUnit: 'ng/dl', type: 'multiply' },
   'thyroid.ft3': { factor: 0.6513, usUnit: 'pg/dl', type: 'multiply' },
   'thyroid.t4total': { factor: 0.07769, usUnit: '\u00b5g/dl', type: 'multiply' },
@@ -515,10 +537,12 @@ export const OPTIMAL_RANGES = {
   'biochemistry.bilirubinTotal': { optimalMin: 8.0, optimalMax: 17.0 },
   'biochemistry.ast': { optimalMin: 0.17, optimalMax: 0.58 },
   'biochemistry.alt': { optimalMin: 0.17, optimalMax: 0.42 },
+  'biochemistry.alp': { optimalMin: 0.67, optimalMax: 1.67 },
   'biochemistry.ggt': { optimalMin: 0.17, optimalMax: 0.42 },
   'biochemistry.ldh': { optimalMin: 2.25, optimalMax: 3.00 },
   'biochemistry.uricAcid': { optimalMin: 200, optimalMax: 350 },
   'biochemistry.cystatinC': { optimalMin: 0.61, optimalMax: 0.82 },
+  'biochemistry.gfrCystatin': { optimalMin: 1.50, optimalMax: null },
   // Hormones
   'hormones.insulin': { optimalMin: 2.6, optimalMax: 10.0 },
   'hormones.testosterone': { optimalMin: 15.0, optimalMax: 25.0, optimalMin_f: 0.5, optimalMax_f: 1.2 },
@@ -527,15 +551,23 @@ export const OPTIMAL_RANGES = {
   'hormones.dheaS': { optimalMin: 4.0, optimalMax: 9.0 },
   'hormones.estradiol': { optimalMin: 70, optimalMax: 130 },
   'hormones.igf1': { optimalMin: 120, optimalMax: 160 },
+  'hormones.prolactin': { optimalMin: 4.0, optimalMax: 12.0, optimalMin_f: 4.8, optimalMax_f: 18.0 },
   // Electrolytes & Minerals
   'electrolytes.sodium': { optimalMin: 139, optimalMax: 142 },
   'electrolytes.potassium': { optimalMin: 4.0, optimalMax: 4.5 },
   'electrolytes.calciumTotal': { optimalMin: 2.20, optimalMax: 2.40 },
   'electrolytes.magnesium': { optimalMin: 0.85, optimalMax: 0.95 },
+  'electrolytes.phosphorus': { optimalMin: 0.90, optimalMax: 1.30 },
+  'electrolytes.chloride': { optimalMin: 100, optimalMax: 106 },
+  'electrolytes.magnesiumRBC': { optimalMin: 2.00, optimalMax: 2.40 },
+  'electrolytes.copper': { optimalMin: 12.6, optimalMax: 18.9 },
   // Iron
   'iron.iron': { optimalMin: 12.0, optimalMax: 25.0 },
   'iron.ferritin': { optimalMin: 40, optimalMax: 200 },
   'iron.transferrinSat': { optimalMin: 25.0, optimalMax: 35.0 },
+  'iron.transferrin': { optimalMin: 2.2, optimalMax: 3.2 },
+  'iron.tibc': { optimalMin: 45.0, optimalMax: 61.0 },
+  'iron.solubleTransferrinReceptor': { optimalMin: 0.8, optimalMax: 1.4 },
   // Lipids
   'lipids.cholesterol': { optimalMin: 3.9, optimalMax: 5.2 },
   'lipids.triglycerides': { optimalMin: 0.45, optimalMax: 1.00 },
@@ -544,8 +576,10 @@ export const OPTIMAL_RANGES = {
   'lipids.nonHdl': { optimalMin: 1.80, optimalMax: 2.60 },
   'lipids.apoB': { optimalMin: 0.40, optimalMax: 0.70 },
   'lipids.apoAI': { optimalMin: 1.40, optimalMax: 1.70 },
+  'lipids.lpA': { optimalMin: 0, optimalMax: 75 },
   // Proteins & Inflammation
   'proteins.hsCRP': { optimalMin: 0.00, optimalMax: 0.50 },
+  'proteins.crp': { optimalMin: 0.00, optimalMax: 1.00 },
   'proteins.totalProtein': { optimalMin: 69.0, optimalMax: 74.0 },
   'proteins.albumin': { optimalMin: 42.0, optimalMax: 50.0 },
   'proteins.ceruloplasmin': { optimalMin: 0.20, optimalMax: 0.30 },
@@ -553,28 +587,42 @@ export const OPTIMAL_RANGES = {
   'thyroid.tsh': { optimalMin: 1.0, optimalMax: 2.5 },
   'thyroid.ft3': { optimalMin: 4.6, optimalMax: 6.0 },
   'thyroid.ft4': { optimalMin: 14.0, optimalMax: 17.0 },
+  'thyroid.reverseT3': { optimalMin: 0, optimalMax: 0.32 },
+  'thyroid.tpoAb': { optimalMin: 0, optimalMax: 9 },
+  'thyroid.tgAb': { optimalMin: 0, optimalMax: 18 },
   // Vitamins
   'vitamins.vitaminD': { optimalMin: 100.0, optimalMax: 200.0 },
   'vitamins.calcitriol': { optimalMin: 60.0, optimalMax: 160.0 },
   'vitamins.vitaminA': { optimalMin: 1.40, optimalMax: 2.10 },
   'vitamins.vitaminB12': { optimalMin: 300, optimalMax: 500 },
+  'vitamins.activeB12': { optimalMin: 70, optimalMax: 160 },
+  'vitamins.methylmalonicAcid': { optimalMin: 0, optimalMax: 270 },
   'vitamins.folate': { optimalMin: 14.0, optimalMax: 36.0 },
   // Diabetes
   'diabetes.hba1c': { optimalMin: 20.0, optimalMax: 36.0 },
   'diabetes.insulin_d': { optimalMin: 2.6, optimalMax: 10.0 },
   'diabetes.homaIR': { optimalMin: 0, optimalMax: 1.5 },
+  'diabetes.cPeptide': { optimalMin: 0.8, optimalMax: 2.5 },
+  'diabetes.fructosamine': { optimalMin: 205, optimalMax: 250 },
   // Hematology
   'hematology.wbc': { optimalMin: 5.0, optimalMax: 7.0 },
   'hematology.rbc': { optimalMin: 4.4, optimalMax: 5.0, optimalMin_f: 4.0, optimalMax_f: 4.5 },
   'hematology.hemoglobin': { optimalMin: 140, optimalMax: 170, optimalMin_f: 125, optimalMax_f: 155 },
+  'hematology.hematocrit': { optimalMin: 42.0, optimalMax: 48.0, optimalMin_f: 37.0, optimalMax_f: 43.0 },
   'hematology.mcv': { optimalMin: 85.0, optimalMax: 92.0 },
+  'hematology.mch': { optimalMin: 29.0, optimalMax: 32.0 },
   'hematology.rdwcv': { optimalMin: 11.5, optimalMax: 13.0 },
   'hematology.platelets': { optimalMin: 200, optimalMax: 300 },
   // WBC Differential
   'differential.neutrophils': { optimalMin: 2.0, optimalMax: 4.0 },
   'differential.lymphocytes': { optimalMin: 1.5, optimalMax: 3.0 },
+  'differential.monocytes': { optimalMin: 0.20, optimalMax: 0.80 },
+  'differential.eosinophils': { optimalMin: 0, optimalMax: 0.30 },
+  'differential.basophils': { optimalMin: 0, optimalMax: 0.10 },
   // Coagulation
   'coagulation.homocysteine': { optimalMin: 5.0, optimalMax: 8.0 },
+  'coagulation.fibrinogen': { optimalMin: 2.0, optimalMax: 3.2 },
+  'coagulation.dDimer': { optimalMin: 0, optimalMax: 0.25 },
   // Body Composition
   'bodyComposition.bodyFatPct': { optimalMin: 8, optimalMax: 19, optimalMin_f: 18, optimalMax_f: 25 },
   'bodyComposition.bmiDexa': { optimalMin: 20.0, optimalMax: 23.0 },
@@ -587,7 +635,30 @@ export const OPTIMAL_RANGES = {
   'boneDensity.zScoreSpine': { optimalMin: 0, optimalMax: null },
   'boneDensity.zScoreFemurTotal': { optimalMin: 0, optimalMax: null },
   'boneDensity.zScoreFemurNeck': { optimalMin: 0, optimalMax: null },
+  // Specialty adapters — only where a static lower-risk/target band is defensible.
+  // Fatty-acid and stool assays remain product-specific; these entries cover the
+  // few widely-used targets rather than pretending every OAT/stool marker has a
+  // universal “optimal” range.
+  'fattyAcids.omega3Index': { optimalMin: 8, optimalMax: 12 },
+  'fattyAcids.omega6to3Ratio': { optimalMin: 1, optimalMax: 4 },
+  'fattyAcids.aaEpaRatio': { optimalMin: 1.5, optimalMax: 3.0 },
+  'fattyAcids.dhaC22_6': { optimalMin: 4.0, optimalMax: 4.64 },
+  'fattyAcids.epaC20_5': { optimalMin: 3.5, optimalMax: 4.72 },
+  'stool.calprotectin': { optimalMin: 0, optimalMax: 50 },
+  'stool.secretoryIgA': { optimalMin: 510, optimalMax: 2040 },
+  'stool.zonulin': { optimalMin: 0, optimalMax: 30 },
+  'nutrientElements.selenium': { optimalMin: 60, optimalMax: 200 },
   // Calculated Ratios
+  // Calculated ratio targets. Conservative target-fit bands based on common
+  // cardiometabolic/inflammatory cut-points: ApoB/ApoA-I and TG/HDL lower-is-better,
+  // TC/HDL <3.5 as a favorable cholesterol balance, NLR 1.0–2.5 as a low-inflammatory
+  // adult zone, BUN/Cr 10–16 as a hydration/renal-context sweet spot.
+  'calculatedRatios.tgHdlRatio': { optimalMin: 0, optimalMax: 0.87 },
+  'calculatedRatios.apoBapoAIRatio': { optimalMin: 0, optimalMax: 0.60, optimalMax_f: 0.50 },
+  'calculatedRatios.cholHdlRatio': { optimalMin: 0, optimalMax: 3.5 },
+  'calculatedRatios.nlr': { optimalMin: 1.0, optimalMax: 2.5 },
+  'calculatedRatios.deRitisRatio': { optimalMin: 0.8, optimalMax: 1.1 },
+  'calculatedRatios.bunCreatRatio': { optimalMin: 10, optimalMax: 16 },
   'calculatedRatios.crpHdlRatio': { optimalMin: 0, optimalMax: 0.24 },
 };
 

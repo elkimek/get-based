@@ -2,9 +2,10 @@
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
+import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { escapeAttr, hashString, showNotification } from './utils.js';
-import { profileStorageKey, touchProfileTimestamp } from './profile.js';
+import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './profile.js';
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
@@ -194,6 +195,7 @@ function _activeDataCacheMatches(meta) {
     && prev.wearableSummary === meta.wearableSummary
     && prev.wearableWeightLatest === meta.wearableWeightLatest
     && prev.legacyWeightStamp === meta.legacyWeightStamp
+    && prev.profileContextKey === meta.profileContextKey
     && prev.unitSystem === meta.unitSystem
     && prev.profileSex === meta.profileSex
     && prev.profileDob === meta.profileDob);
@@ -224,6 +226,14 @@ function _makeActiveDataCacheMeta() {
     wearableSummary,
     wearableWeightLatest,
     legacyWeightStamp,
+    profileContextKey: hashString(JSON.stringify({
+      diagnoses: importedData.diagnoses || null,
+      contextNotes: importedData.contextNotes || '',
+      interpretiveLens: importedData.interpretiveLens || '',
+      exercise: importedData.exercise || null,
+      supplements: importedData.supplements || [],
+      menstrualCycle: importedData.menstrualCycle || null,
+    })),
     unitSystem: state.unitSystem,
     profileSex: state.profileSex,
     profileDob: state.profileDob,
@@ -236,6 +246,10 @@ function _makeActiveDataCacheMeta() {
 export async function saveImportedData(options = {}) {
   invalidateActiveDataCache();
   try {
+    // Persist the canonical schema shape, not just the current in-memory shape.
+    // Otherwise a legacy key can be migrated for display but saved/synced again
+    // in its old form, creating repeated cross-device "updated" loops.
+    if (state.importedData && typeof state.importedData === 'object') migrateProfileData(state.importedData);
     const key = profileStorageKey(state.currentProfile, 'imported');
     const value = JSON.stringify(state.importedData);
     // Always route through encryptedSetItem — it skips encryption when
@@ -391,11 +405,20 @@ export function getActiveData() {
   const entries = (state.importedData && state.importedData.entries) ? state.importedData.entries : [];
   const hasEntries = entries.length > 0;
 
-  // Build entry lookup: date → merged markers
+  // Build entry lookup: date → merged markers + per-draw context.
+  // Hormone scoring needs draw-level context because cycle day / sample time can
+  // differ between lab entries for the same profile.
   const entryLookup = {};
+  const entryContextByDate = {};
+  const ENTRY_CONTEXT_KEYS = ['sampleTime', 'fasting', 'cycleDay', 'cyclePhase', 'cycleStatus', 'menopauseStatus', 'contraception', 'hormoneTherapy', 'recentHardTraining', 'acuteIllness'];
   for (const entry of entries) {
     if (!entryLookup[entry.date]) entryLookup[entry.date] = {};
     Object.assign(entryLookup[entry.date], entry.markers);
+    const context = { ...(entry.context || {}) };
+    for (const key of ENTRY_CONTEXT_KEYS) {
+      if (entry[key] !== undefined && context[key] === undefined) context[key] = entry[key];
+    }
+    if (Object.keys(context).length) entryContextByDate[entry.date] = { ...(entryContextByDate[entry.date] || {}), ...context };
   }
 
   // Identify singlePoint categories
@@ -419,6 +442,7 @@ export function getActiveData() {
 
   const sortedDates = [...regularDates].sort();
   data.dates = sortedDates;
+  data.entryContextByDate = entryContextByDate;
   data.dateLabels = sortedDates.map(d => {
     const dt = new Date(d + 'T00:00:00');
     return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -458,6 +482,7 @@ export function getActiveData() {
       cat.singleDateLabel = singleDateLabel;
       for (const [markerKey, marker] of Object.entries(cat.markers)) {
         marker.singlePoint = true;
+        marker.singleDate = singleDate;
         marker.singleDateLabel = singleDateLabel;
         const fullKey = `${catKey}.${markerKey}`;
         if (singleDate && entryLookup[singleDate] && entryLookup[singleDate][fullKey] !== undefined) {
@@ -512,6 +537,7 @@ export function getActiveData() {
     };
     ratios.markers.tgHdlRatio.values = divide(getVals('lipids', 'triglycerides'), getVals('lipids', 'hdl'));
     ratios.markers.ldlHdlRatio.values = divide(getVals('lipids', 'ldl'), getVals('lipids', 'hdl'));
+    ratios.markers.cholHdlRatio.values = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
     ratios.markers.apoBapoAIRatio.values = divide(getVals('lipids', 'apoB'), getVals('lipids', 'apoAI'));
     ratios.markers.nlr.values = divide(getVals('differential', 'neutrophils'), getVals('differential', 'lymphocytes'));
     ratios.markers.plr.values = divide(getVals('hematology', 'platelets'), getVals('differential', 'lymphocytes'));
@@ -570,9 +596,12 @@ export function getActiveData() {
     // can't see is contaminated. The detail modal already explains the
     // hs-CRP requirement. Returns null when hs-CRP is missing → row drops.
     const _getCRP = (i) => getVals('proteins', 'hsCRP')?.[i] ?? null;
+    const profileContext = getBiologyProfileContext();
+    const creatinineContaminated = !!profileContext.lowMuscleMass;
 
     // PhenoAge (Levine 2018) — biological age from 9 biomarkers + chronological age
     ratios.markers.phenoAge.values = sortedDates.map((dateStr, i) => {
+      if (creatinineContaminated) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const albumin_si   = getVals('proteins', 'albumin')?.[i];        // g/L
@@ -638,6 +667,7 @@ export function getActiveData() {
     ]);
 
     ratios.markers.bortzAge.values = sortedDates.map((dateStr, i) => {
+      if (creatinineContaminated) return null;
       const age = _ageAt(dateStr);
       if (age == null) return null;
       const crp = _getCRP(i);
@@ -724,8 +754,9 @@ export function applyUnitConversion(data) {
 // ═══════════════════════════════════════════════
 // DATE RANGE FILTER
 // ═══════════════════════════════════════════════
-export function filterDatesByRange(data) {
+export function filterDatesByRange(data, options = {}) {
   if (state.dateRangeFilter === 'all') return data;
+  const fallbackToAll = options.fallbackToAll !== false;
   const months = state.dateRangeFilter === '3m' ? 3 : state.dateRangeFilter === '6m' ? 6 : 12;
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
@@ -734,11 +765,17 @@ export function filterDatesByRange(data) {
   for (let i = 0; i < data.dates.length; i++) {
     if (data.dates[i] >= cutoffStr) indices.push(i);
   }
-  if (indices.length === 0) return data; // fallback: show all if no dates in range
+  if (indices.length === 0 && fallbackToAll) return data; // fallback: show all if no dates in range
+  const filteredDates = new Set(indices.map(i => data.dates[i]));
   const filtered = {
     dates: indices.map(i => data.dates[i]),
-    dateLabels: indices.map(i => data.dateLabels[i]),
+    dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates?.[i] || ''),
     ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
+    ...(data.entryContextByDate && {
+      entryContextByDate: Object.fromEntries(
+        Object.entries(data.entryContextByDate).filter(([date]) => filteredDates.has(date))
+      ),
+    }),
     categories: {}
   };
   for (const [catKey, cat] of Object.entries(data.categories)) {

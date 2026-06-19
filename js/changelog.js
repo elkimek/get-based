@@ -10,6 +10,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.9.0', date: '2026-06-19', title: 'Biology Scores and Biological Coherence',
+    items: [
+      '<b>A new lens on your biology.</b> Biology Scores turn your labs into plain-English system patterns across metabolism, thyroid, cardiovascular health, inflammation, methylation, kidney and hydration, liver and bile flow, iron and blood health, hormones, stress resilience, cellular energy, gut-immune terrain, and more.',
+      '<b>Biological Coherence shows the whole-body picture.</b> One overview brings the core domains together so you can see what looks strongest, what is most strained, what is missing, and where your biology deserves attention first.',
+      '<b>Built around your context.</b> Scores can use labs, genome/SNP context, wearables and body signals, light exposure, sex, age, cycle timing, sample timing, specialty tests, and calculated ratios — so the result is more personal than a simple reference-range check.',
+      '<b>Know what to test next.</b> The Coverage Planner turns missing evidence into a clear marker plan, helping you improve score confidence without blindly ordering everything.',
+      '<b>Ask why, not just what.</b> Per-score AI explanations can walk through the marker evidence behind a pattern and help translate the score into practical next questions.',
+    ]
+  },
+  {
     version: '1.8.550', date: '2026-06-18', title: 'Better lab import review',
     items: [
       '<b>Review imports before saving.</b> Edit values and units, scan rows more easily, and map unfamiliar lab names through a searchable marker picker.',

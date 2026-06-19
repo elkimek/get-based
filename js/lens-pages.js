@@ -3,11 +3,14 @@
 
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
-import { getActiveData, renderDateRangeFilter } from './data.js';
+import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data.js';
 import { ensureSNPTable } from './dna.js';
 import { renderSupplementsSection } from './supplements.js';
 import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
+import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
+import { getBiologyProfileContext } from './profile-context.js';
+import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 
 function markerHasData(marker) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -153,6 +156,59 @@ export function createLensPageHandlers(deps) {
     setupDropZone();
   }
 
+  function renderBiologyScoreContextBanner() {
+    const pc = getBiologyProfileContext();
+    const labels = [[pc.lowMuscleMass, 'Low muscle / creatinine unreliable'], [pc.hormoneTherapy, 'Hormone therapy context'], [pc.cycleStatus && pc.cycleStatus !== 'regular', `Cycle: ${pc.cycleStatus}`], [pc.recentHardTraining, 'Recent hard training'], [pc.acuteInflammationContext, 'Acute illness/injury'], [Number.isFinite(pc.ageYears), `Age: ${pc.ageYears}y`]].filter(x => x[0]).map(x => `<span>${escapeHTML(String(x[1]))}</span>`).join('');
+    return labels ? `<div class="biology-score-context-banner biology-score-context-page"><strong>Active context modifiers</strong>${labels}</div>` : '';
+  }
+
+  function renderBiologyScoreContextStatus(scoreData) {
+    const review = state.importedData?.biologyScoreContextAI;
+    const suggestions = Array.isArray(review?.suggestions) ? review.suggestions.length : 0;
+    const status = hasCurrentBiologyScoreContextReview(scoreData) ? 'Context checked' : 'Context needs refresh';
+    const contextMeta = suggestions
+      ? `${suggestions} suggested context ${suggestions === 1 ? 'flag' : 'flags'}`
+      : 'No suggested context flags';
+    return `<section class="biology-context-status-strip">
+      <div class="biology-context-status-copy"><span>${escapeHTML(status)}</span><small>${escapeHTML(contextMeta)}</small></div>
+      <details class="biology-context-review-details"><summary class="biology-context-review-cta"><span class="biology-context-review-open">Details</span><span class="biology-context-review-close">Hide details</span></summary>${renderBiologyScoreContextAI(scoreData)}</details>
+    </section>`;
+  }
+
+  function showBiologyScores(preData) {
+    const rawData = preData || getActiveData();
+    const main = document.getElementById("main-content");
+    if (!main) return;
+    document.body.classList.remove('mobile-dashboard-active');
+    const ctx = buildDashboardWidgetContext(rawData);
+    const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
+    const contextReady = hasCurrentBiologyScoreContextReview(scoreData);
+    const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Explain my Biology Scores</button>' : ''}
+      ${renderDateRangeFilter()}</div>`;
+    let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
+    html += renderBiologyScoreContextBanner();
+    if (!contextReady) {
+      html += renderBiologyScoreContextAI(scoreData);
+      html += `<section class="biology-score-context-gate biology-score-context-gate-lens"><div class="biology-scores-eyebrow">Waiting for context check</div><h3>Scores unlock after one context check</h3><p>Use the unlock button above. After the review finishes, scores render for this timeframe and any suggested context flags remain under your control.</p></section>`;
+      main.innerHTML = html;
+      setupDropZone();
+      return;
+    }
+    const biologyScores = computeBiologyScores(scoreData);
+    const biologyDetailScores = biologyScores.filter((score) => score.id !== 'biologicalCoherence');
+    const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score);
+    const waitingBiologyScores = biologyDetailScores.filter((score) => !Number.isFinite(score.score));
+    html += renderBiologyScoreContextStatus(scoreData);
+    const biologicalCoherence = biologyScores.find((score) => score.id === 'biologicalCoherence');
+    html += renderBiologicalCoherenceLensHero(ctx);
+    html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores, biologicalCoherence);
+    html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologicalCoherence);
+    html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
+    main.innerHTML = html;
+    setupDropZone();
+    scheduleBiologyScoreAIReconcile();
+  }
+
   function showGenomeLens() {
     const main = document.getElementById("main-content");
     if (!main) return;
@@ -273,5 +329,5 @@ export function createLensPageHandlers(deps) {
     main.innerHTML = html;
   }
 
-  return { showLabs, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };
+  return { showLabs, showBiologyScores, showGenomeLens, showBodyLens, showInsightLens, showRecommendations };
 }

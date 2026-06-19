@@ -22,4 +22,5 @@ getbased is a zero-build, native ES module web app — no install step, no compi
 | [Deployment](./deployment.md) | Vercel config, CSP, service worker cache, PWA |
 | [Sun Spectrum Model](./sun-spectrum-model.md) | Bird-Riordan spectral reconstruction for Light sessions |
 | [AI Surfaces Map](./ai-surfaces-map.md) | Canonical map of where AI runs vs deterministic math |
+| [Biology Scores](./biology-scores.md) | Biology Scores internals: score engine, context gate, adapters, sync, UI, tests |
 | [Lens Endpoint Contract](./lens-endpoint-contract.md) | Wire spec for a custom Knowledge Source server |
