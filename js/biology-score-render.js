@@ -254,7 +254,7 @@ export function renderBiologicalCoherenceLensHero(ctx, computeBiologyScores) {
 
 function renderDashboardScoreRail(score, tone) {
   const pct = Number.isFinite(score) ? clamp(score, 0, 100) : 0;
-  const colorVar = tone === 'excellent' ? 'var(--green, #22c55e)' : tone === 'good' ? 'var(--accent)' : tone === 'strained' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'concerning' || tone === 'severe' ? 'var(--red, #ef4444)' : 'var(--text-muted)';
+  const colorVar = tone === 'excellent' || tone === 'good' ? 'var(--green, #22c55e)' : tone === 'strained' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'concerning' || tone === 'severe' ? 'var(--red, #ef4444)' : 'var(--text-muted)';
   return `<div class="db-hero-bio-bar db-hero-bio-bar-track" aria-hidden="true">
       <div class="db-hero-bio-bar-fill" style="width:${pct.toFixed(0)}%; background:${colorVar};"></div>
       <span class="db-hero-bio-bar-pin" style="left:${pct.toFixed(0)}%;"></span>

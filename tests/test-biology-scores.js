@@ -882,6 +882,18 @@ assert('service worker app shell includes full Biology Scores module graph',
   biologyScoreShellFiles.filter(file => !swSrc.includes(`'${file}'`)).join(', '));
 const dashboardWidgetsCss = fs.readFileSync(path.join(ROOT, 'css/dashboard-widgets.css'), 'utf8');
 assert('collapsed scores needing data have explicit spacing between cards', dashboardWidgetsCss.includes('.biology-score-unavailable-group .biology-score-detail + .biology-score-detail') && dashboardWidgetsCss.includes('margin-top: 16px'));
+const biologyScoreRenderSrc = fs.readFileSync(path.join(ROOT, 'js/biology-score-render.js'), 'utf8');
+const biologyScoreRailCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.biology-score-rail-fill'), dashboardWidgetsCss.indexOf('.biology-score-pin'));
+const dashboardCoherenceToneCss = dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('.db-bio-coherence-excellent .db-bio-coherence-ring'), dashboardWidgetsCss.indexOf('.db-bio-coherence-number'));
+const dashboardScoreRailSrc = biologyScoreRenderSrc.slice(biologyScoreRenderSrc.indexOf('function renderDashboardScoreRail'), biologyScoreRenderSrc.indexOf('export function renderDashboardBiologyScoreWidget'));
+assert('Biology Score good-tone visuals use semantic green instead of theme accent blue',
+  dashboardCoherenceToneCss.includes('.db-bio-coherence-good .db-bio-coherence-ring')
+  && dashboardCoherenceToneCss.includes('.db-bio-coherence-good .db-bio-coherence-status')
+  && biologyScoreRailCss.includes('var(--green, #22c55e) 72%')
+  && !biologyScoreRailCss.includes('var(--accent)')
+  && !dashboardCoherenceToneCss.includes('var(--accent)')
+  && !dashboardScoreRailSrc.includes("tone === 'good' ? 'var(--accent)'"),
+  `${biologyScoreRailCss}\n---\n${dashboardCoherenceToneCss}\n---\n${dashboardScoreRailSrc}`);
 const lensPagesSrc = fs.readFileSync(path.join(ROOT, 'js/lens-pages.js'), 'utf8');
 assert('actual Biology Scores page shows compact context status before coherence hero',
   lensPagesSrc.includes('biology-context-status-strip')

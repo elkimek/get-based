@@ -323,7 +323,8 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, var(--border));
 }
-.db-bio-coherence-excellent .db-bio-coherence-ring {
+.db-bio-coherence-excellent .db-bio-coherence-ring,
+.db-bio-coherence-good .db-bio-coherence-ring {
   background:
     radial-gradient(circle, var(--bg-card) 56%, transparent 58%),
     conic-gradient(
@@ -352,8 +353,8 @@
     );
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red, #ef4444) 25%, var(--border));
 }
-.db-bio-coherence-excellent .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
-.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--accent) 16%, var(--bg-card)); color: var(--accent); }
+.db-bio-coherence-excellent .db-bio-coherence-status,
+.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
 .db-bio-coherence-strained .db-bio-coherence-status { background: color-mix(in srgb, var(--yellow, #f59e0b) 16%, var(--bg-card)); color: var(--yellow, #f59e0b); }
 .db-bio-coherence-poor .db-bio-coherence-status,
 .db-bio-coherence-concerning .db-bio-coherence-status,
@@ -577,7 +578,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--red, #ef4444), var(--yellow, #f59e0b) 48%, var(--accent) 72%, var(--green, #22c55e));
+  background: linear-gradient(90deg, var(--red, #ef4444), var(--yellow, #f59e0b) 50%, var(--green, #22c55e) 72%, var(--green, #22c55e));
   opacity: 0.82;
 }
 .biology-score-pin {
