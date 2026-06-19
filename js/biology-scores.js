@@ -131,6 +131,8 @@ async function runEmbeddedScoreAI(el) {
   try {
     const answer = await generateBiologyScoreAIAnswer(score);
     await writeScoreAIAnswer(score, answer);
+    const panel = answerEl.closest('.biology-score-ai');
+    panel?.querySelector('.biology-score-ai-stale')?.remove();
     answerEl.innerHTML = renderMarkdown(answer);
     if (button) button.textContent = 'Refresh answer';
   } finally { if (button) button.disabled = false; }

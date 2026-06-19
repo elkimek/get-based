@@ -735,6 +735,12 @@ const biologyScoreSectionsSrc = await fs.promises.readFile(new URL('../js/biolog
 assert('Biology Score AI answers save with immediate sync so refresh/cross-device does not drop expensive generations',
   biologyScoreSectionsSrc.includes("saveImportedData({ reason: 'biology-score-ai', immediate: true })"),
   biologyScoreSectionsSrc.slice(biologyScoreSectionsSrc.indexOf('export async function writeScoreAIAnswer'), biologyScoreSectionsSrc.indexOf('export function renderScoreAIAnswer')));
+const biologyScoresSrc = await fs.promises.readFile(new URL('../js/biology-scores.js', import.meta.url), 'utf8');
+assert('refreshing a stale Biology Score AI explanation removes the stale warning in-place',
+  /biology-score-ai-stale/.test(biologyScoresSrc)
+  && /closest\('\.biology-score-ai'\)/.test(biologyScoresSrc)
+  && /\.remove\(\)/.test(biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('function renderBiologyScoreContext'))),
+  biologyScoresSrc.slice(biologyScoresSrc.indexOf('async function runEmbeddedScoreAI'), biologyScoresSrc.indexOf('async function runEmbeddedScoreAI') + 900));
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData, hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };
