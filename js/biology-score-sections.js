@@ -22,6 +22,12 @@ export function renderScoreQuestion(score) {
   </section>`;
 }
 
+function getScoreAIMaterialKey(score) {
+  const available = (score.available || []).map(item => `${item.key}:${item.displayValue}:${item.date}`).join('|');
+  const missing = (score.missing || []).map(item => `missing:${item.key}`).join('|');
+  return `biology-score-ai-material:${[score.id, available, missing].join('|')}`;
+}
+
 function getScoreAICacheKey(score) {
   const basis = [score.id, score.score, score.rawScore, score.coverage, score.recencyStatus, score.recencyBadge, ...score.available.map(item => `${item.key}:${item.displayValue}:${item.date}`), ...score.missing.map(item => `missing:${item.key}`)].join('|');
   return `biology-score-ai-answer:${basis}`;
@@ -46,7 +52,9 @@ function cleanupLegacyScoreAIAnswerCache() {
 function readScoreAIAnswer(score) {
   cleanupLegacyScoreAIAnswerCache();
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id];
-  if (profileAnswer?.text && profileAnswer.fingerprint === getScoreAICacheKey(score)) return profileAnswer.text;
+  if (!profileAnswer?.text) return '';
+  if (profileAnswer.fingerprint === getScoreAICacheKey(score)) return profileAnswer.text;
+  if (profileAnswer.materialFingerprint === getScoreAIMaterialKey(score)) return profileAnswer.text;
   return '';
 }
 
@@ -54,7 +62,7 @@ export async function writeScoreAIAnswer(score, text) {
   cleanupLegacyScoreAIAnswerCache();
   const key = getScoreAICacheKey(score);
   state.importedData.biologyScoreAI = state.importedData.biologyScoreAI || {};
-  state.importedData.biologyScoreAI[score.id] = { fingerprint: key, text, updatedAt: Date.now() };
+  state.importedData.biologyScoreAI[score.id] = { fingerprint: key, materialFingerprint: getScoreAIMaterialKey(score), text, updatedAt: Date.now() };
   await saveImportedData({ reason: 'biology-score-ai' });
 }
 

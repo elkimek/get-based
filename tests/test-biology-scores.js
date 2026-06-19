@@ -674,10 +674,14 @@ assert('Biology Score AI render reads profile-scoped answer after legacy cleanup
   renderScoreAIAnswer(byId.thyroidCoherence).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(byId.thyroidCoherence));
 const changedThyroidForAI = { ...byId.thyroidCoherence, score: Math.max(0, byId.thyroidCoherence.score - 7) };
-assert('Biology Score AI cache invalidates when score fingerprint changes',
-  !renderScoreAIAnswer(changedThyroidForAI).includes('sensitive thyroid'),
+assert('Biology Score AI cache survives non-material score/confidence recomputation after reload',
+  renderScoreAIAnswer(changedThyroidForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(changedThyroidForAI));
-const emptyScoreAIHtml = renderScoreAIAnswer(changedThyroidForAI);
+const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, displayValue: `${item.displayValue}-changed` } : item) };
+assert('Biology Score AI cache invalidates when marker pattern changes',
+  !renderScoreAIAnswer(changedThyroidMarkerForAI).includes('sensitive thyroid'),
+  renderScoreAIAnswer(changedThyroidMarkerForAI));
+const emptyScoreAIHtml = renderScoreAIAnswer(changedThyroidMarkerForAI);
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',
   emptyScoreAIHtml.includes('Explain this score')
   && !emptyScoreAIHtml.includes('concise interpretation based on the current marker pattern')
