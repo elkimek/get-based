@@ -12,12 +12,11 @@ const CHANGELOG = [
   {
     version: '1.9.0', date: '2026-06-19', title: 'Biology Scores and Biological Coherence',
     items: [
-      '<b>Biology Scores turn labs into system-level patterns.</b> Nineteen deterministic score cards summarize metabolic flexibility, thyroid coherence, cardiovascular lipoproteins, inflammation, methylation, kidney and hydration, liver and bile flow, iron and blood health, hormone axis, cellular energy, stress resilience, gut-immune terrain, nerve-muscle strain, and more — with coverage and confidence shown beside the score.',
-      '<b>Biological Coherence gives you the whole-body read.</b> A new system-level card combines the core biology domains into one plain-English overview: what looks strongest, what is most strained, what is missing, and where to start. The dashboard widget opens at the top by default and links back into the detailed score page.',
-      '<b>Context-aware, not just reference-range math.</b> Scores now use profile context from labs, SNPs/genome, body and wearable data, light exposure, sex, age, cycle phase, hormone therapy, sample timing, staleness, specialty tests, and calculated ratios. Advanced tests improve confidence without punishing users who only have a routine baseline panel.',
-      '<b>Coverage Planner helps you order the right markers.</b> The planner shows baseline-first gaps, optional advanced depth, score-by-score missing inputs, equivalent markers such as active B12, and a chat handoff that uses the same marker bundles as the static UI.',
-      '<b>AI explanations are wired into the score evidence.</b> Per-score explanations and the context check use exact marker names, optimal ranges, phase/sample-time context, coverage state, and durable encrypted profile storage so generated answers survive refresh and sync.',
-      '<b>UI polish and production hardening.</b> Mobile density, dashboard widgets, color grading, stale explanation banners, cross-device sync, specialty-test adapters, marker naming, CRP/hs-CRP separation, calculated ratios, and Greptile review findings were tightened before release.',
+      '<b>A new lens on your biology.</b> Biology Scores turn your labs into plain-English system patterns across metabolism, thyroid, cardiovascular health, inflammation, methylation, kidney and hydration, liver and bile flow, iron and blood health, hormones, stress resilience, cellular energy, gut-immune terrain, and more.',
+      '<b>Biological Coherence shows the whole-body picture.</b> One overview brings the core domains together so you can see what looks strongest, what is most strained, what is missing, and where your biology deserves attention first.',
+      '<b>Built around your context.</b> Scores can use labs, genome/SNP context, wearables and body signals, light exposure, sex, age, cycle timing, sample timing, specialty tests, and calculated ratios — so the result is more personal than a simple reference-range check.',
+      '<b>Know what to test next.</b> The Coverage Planner turns missing evidence into a clear marker plan, helping you improve score confidence without blindly ordering everything.',
+      '<b>Ask why, not just what.</b> Per-score AI explanations can walk through the marker evidence behind a pattern and help translate the score into practical next questions.',
     ]
   },
   {
