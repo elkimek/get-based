@@ -390,10 +390,6 @@ export function scoreLowOnly(value, threshold, lowFloor = 0) {
   return Math.round(clamp(lerp(clamp(value, lowFloor, threshold), lowFloor, threshold, 0, 99), 0, 99));
 }
 
-export function scoreTargetRange(value, min, max, lowFloor = 0, highCeil = null) {
-  return scoreAgainstRange(value, { min, max: highCeil == null ? max : max });
-}
-
 export function finalizeCustomScore(def, parts, missing, flags = []) {
   const profileFlags = getScoreProfileFlags(def.id, getBiologyProfileContext());
   const allFlags = [...profileFlags, ...flags.filter(flag => !profileFlags.includes(flag))];

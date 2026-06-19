@@ -9,7 +9,6 @@ import { TONE_LABELS, clamp, resolveScoreTone } from './biology-score-engine.js'
 import { renderLensDashboardToggle } from './lens-page-shell.js';
 import {
   buildBiologyScoreCoveragePlannerModel,
-  effectiveContextMarkers,
   effectiveMissingMarkers,
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';

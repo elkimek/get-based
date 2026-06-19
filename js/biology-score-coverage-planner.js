@@ -150,7 +150,7 @@ export function effectiveContextMarkers(score, { unresolvedOnly = false } = {}) 
 }
 
 /** @param {any[]} scores */
-export function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
+function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = {}) {
   const seen = new Set();
   const markers = [];
   for (const score of scores) {
@@ -167,7 +167,7 @@ export function uniqueMissingMarkers(scores, { coreOnly = false, limit = 12 } = 
 }
 
 /** @param {any[]} markers */
-export function uniqueByMarker(markers, limit = 8) {
+function uniqueByMarker(markers, limit = 8) {
   const seen = new Set();
   const out = [];
   for (const item of markers) {

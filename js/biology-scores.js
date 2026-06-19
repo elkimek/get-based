@@ -229,7 +229,7 @@ export const SCORE_DEFINITIONS = [
   ...TIER2_BIOLOGY_SCORE_DEFINITIONS.map(def => ({ ...def, compute: computeWeightedComposite })),
 ];
 
-export function computeBiologyScoresInternal(data, definitions) {
+function computeBiologyScoresInternal(data, definitions) {
   const profileContext = getBiologyProfileContext();
   return definitions.map((def) => ({ ...def.compute(data, def), ...getBiologyScoreCopy(def.id, profileContext) }));
 }
@@ -345,10 +345,6 @@ export function renderBiologyScoresLens(ctx) {
 
 // Re-export the render implementations for callers that want the injected-compute variant.
 export {
-  renderBiologicalCoherenceLensHeroImpl as renderBiologicalCoherenceLensHeroCompute,
   renderBiologyScoreCoveragePlanner,
-  renderBiologyScoresLensImpl as renderBiologyScoresLensCompute,
   renderBiologyScoresActionSummary,
-  renderBiologyScoresWidgetImpl as renderBiologyScoresWidgetCompute,
-  renderDashboardBiologyScoreWidgetImpl as renderDashboardBiologyScoreWidgetCompute,
 };

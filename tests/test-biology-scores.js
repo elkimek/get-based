@@ -882,6 +882,9 @@ const biologyScoreShellFiles = [
 assert('service worker app shell includes full Biology Scores module graph',
   biologyScoreShellFiles.every(file => swSrc.includes(`'${file}'`)),
   biologyScoreShellFiles.filter(file => !swSrc.includes(`'${file}'`)).join(', '));
+assert('removed mito-thyroid experiment is not kept in the service worker app shell',
+  !swSrc.includes('/js/biology-score-mitothyroid.js'),
+  swSrc.slice(swSrc.indexOf('/js/biology-scores.js'), swSrc.indexOf('/js/profile-context.js')));
 const dashboardWidgetsCss = fs.readFileSync(path.join(ROOT, 'css/dashboard-widgets.css'), 'utf8');
 assert('collapsed scores needing data have explicit spacing between cards', dashboardWidgetsCss.includes('.biology-score-unavailable-group .biology-score-detail + .biology-score-detail') && dashboardWidgetsCss.includes('margin-top: 16px'));
 const biologyScoreRenderSrc = fs.readFileSync(path.join(ROOT, 'js/biology-score-render.js'), 'utf8');

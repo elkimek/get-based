@@ -199,9 +199,10 @@ export function createLensPageHandlers(deps) {
     const liveBiologyScores = biologyDetailScores.filter((score) => Number.isFinite(score.score)).sort((a, b) => b.score - a.score);
     const waitingBiologyScores = biologyDetailScores.filter((score) => !Number.isFinite(score.score));
     html += renderBiologyScoreContextStatus(scoreData);
+    const biologicalCoherence = biologyScores.find((score) => score.id === 'biologicalCoherence');
     html += renderBiologicalCoherenceLensHero(ctx);
-    html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores);
-    html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologyScores.find((score) => score.id === 'biologicalCoherence'));
+    html += renderBiologyScoresActionSummary(liveBiologyScores, waitingBiologyScores, biologicalCoherence);
+    html += renderBiologyScoreCoveragePlanner(biologyDetailScores, biologicalCoherence);
     html += renderLensPageWidgets('biology-scores', getBiologyScoreLensWidgets(ctx));
     main.innerHTML = html;
     setupDropZone();

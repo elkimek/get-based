@@ -187,7 +187,6 @@ const APP_SHELL = [
   '/js/biology-score-coherence.js',
   '/js/biology-score-blood-flow.js',
   '/js/biology-score-iron.js',
-  '/js/biology-score-mitothyroid.js',
   '/js/biology-score-render.js',
   '/js/biology-score-thyroid.js',
   '/js/profile-context.js',
