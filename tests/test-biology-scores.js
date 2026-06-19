@@ -257,6 +257,14 @@ const lowMuscleById = Object.fromEntries(computeBiologyScores(data).map((score) 
 assert('low-muscle profile treats creatinine-derived filtration markers as context only', ['biochemistry.creatinine', 'biochemistry.egfr', 'calculatedRatios.bunCreatRatio'].every(dot => lowMuscleById.fluidFiltrationCoherence.available.some(i => i.dotKey === dot && i.profileContextOnly === true && i.weight === 0)), JSON.stringify(lowMuscleById.fluidFiltrationCoherence.available));
 assert('low-muscle profile keeps cystatin filtration markers scored', lowMuscleById.fluidFiltrationCoherence.available.some(i => i.dotKey === 'biochemistry.cystatinC' && i.profileContextOnly !== true && i.weight > 0));
 assert('low-muscle profile adds interpretation flag for creatinine context', lowMuscleById.fluidFiltrationCoherence.flags.some(flag => /low muscle mass|neuromuscular/i.test(flag)), JSON.stringify(lowMuscleById.fluidFiltrationCoherence.flags));
+assert('resolved low-muscle creatinine exclusion is context-limited, not needs-context',
+  lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel === 'Context-limited'
+  && !lowMuscleById.fluidFiltrationCoherence.scoreConfidenceWarning.includes('need biological context before scoring'),
+  JSON.stringify({ confidence: lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel, warning: lowMuscleById.fluidFiltrationCoherence.scoreConfidenceWarning, flags: lowMuscleById.fluidFiltrationCoherence.flags }));
+const lowMusclePlannerHtml = renderBiologyScoreCoveragePlanner(Object.values(lowMuscleById).filter(score => score.id !== 'biologicalCoherence'), lowMuscleById.biologicalCoherence);
+assert('coverage planner does not list resolved low-muscle creatinine/eGFR exclusions as context-needed core gaps',
+  !/Kidney and hydration[\s\S]{0,220}context needed/i.test(lowMusclePlannerHtml),
+  lowMusclePlannerHtml.slice(lowMusclePlannerHtml.indexOf('Kidney'), lowMusclePlannerHtml.indexOf('Kidney') + 500));
 state.importedData.diagnoses = savedDiagnoses;
 state.importedData.contextNotes = savedContextNotes;
 const savedRichContextState = { importedData: state.importedData, sex: state.profileSex, dob: state.profileDob };

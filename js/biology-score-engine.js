@@ -43,6 +43,12 @@ export function resolveCoverageLabel(coverage) {
   return 'low';
 }
 
+export function contextOnlyNeedsMoreData(item) {
+  if (!item?.profileContextOnly) return false;
+  const reason = String(item.contextReason || '').toLowerCase();
+  return /\bneeds?\b|missing|add .*context|before it can be scored|sample time|cycle day|cycle phase/.test(reason);
+}
+
 export function resolveScoreConfidence(result) {
   const coverage = Number(result?.coverage || 0);
   const coveredCoreGroups = new Set((result?.available || [])
@@ -52,7 +58,7 @@ export function resolveScoreConfidence(result) {
     .filter(item => item.core === true)
     .filter(item => !item.coreGroup || !coveredCoreGroups.has(item.coreGroup));
   const missingCore = [];
-  const contextCore = (result?.available || []).filter(item => item.profileContextOnly && item.core === true);
+  const contextCore = (result?.available || []).filter(item => item.profileContextOnly && item.core === true && contextOnlyNeedsMoreData(item));
   const contextOnly = (result?.available || []).filter(item => item.profileContextOnly);
   const seenCoreGroups = new Set();
   for (const item of missingCoreRaw) {

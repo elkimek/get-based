@@ -5,7 +5,7 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
 import { hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { TONE_LABELS, clamp } from './biology-score-engine.js';
+import { TONE_LABELS, clamp, contextOnlyNeedsMoreData } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
 
 function getMarkerTitle(item) {
@@ -506,10 +506,11 @@ function effectiveMissingMarkers(score) {
     });
 }
 
-function effectiveContextMarkers(score) {
+function effectiveContextMarkers(score, { unresolvedOnly = false } = {}) {
   const seen = new Set();
   return (score.available || [])
     .filter(item => item.profileContextOnly)
+    .filter(item => !unresolvedOnly || contextOnlyNeedsMoreData(item))
     .filter(item => {
       const key = item.coreGroup || item.key || item.label;
       if (!key || seen.has(key)) return false;
@@ -538,7 +539,7 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
   const advancedMissing = uniqueMissingMarkers(advancedScores, { coreOnly: false, limit: 12 });
   const scoreRows = baselineScores.map(score => {
     const effectiveMissing = effectiveMissingMarkers(score);
-    const contextNeeded = effectiveContextMarkers(score);
+    const contextNeeded = effectiveContextMarkers(score, { unresolvedOnly: true });
     const coreMissing = effectiveMissing.filter(item => item.core);
     const coreContext = contextNeeded.filter(item => item.core);
     const usefulMissing = coreMissing.length ? coreMissing : coreContext.length ? coreContext : effectiveMissing.length ? effectiveMissing.slice(0, 4) : contextNeeded.slice(0, 4);
