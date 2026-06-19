@@ -1058,6 +1058,9 @@ await import('../js/settings.js');
     /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,400}'sunSessions'[\s\S]{0,400}'lightDevices'/.test(syncDeltaSurfacesSrc));
   assert('DELTA_ARRAYS includes entries + notes (high-importance lab data)',
     /DELTA_ARRAYS\s*=\s*\[[\s\S]{0,800}'entries'[\s\S]{0,400}'notes'/.test(syncDeltaSurfacesSrc));
+  assert('Biology Scores AI/context outputs are covered by phase-2 delta sync',
+    /DELTA_MAPS\s*=\s*\[[\s\S]*'biologyScoreAI'[\s\S]*\]/.test(syncDeltaSurfacesSrc)
+    && /DELTA_SCALARS\s*=\s*\[[\s\S]*'biologyScoreContextAI'[\s\S]*\]/.test(syncDeltaSurfacesSrc));
 
   // Push-side plan/apply contract
   assert('_planArrayDelta diffs against last-pushed snapshot',

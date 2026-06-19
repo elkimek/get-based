@@ -47,6 +47,8 @@ export const DELTA_MAPS = [
   'categoryIcons',
   'markerLabels',
   'wearablePrimaryOverride',
+  // Per-score embedded Biology Score AI answers keyed by score id.
+  'biologyScoreAI',
   // Keep SNPs per-key so independent raw DNA imports compose across devices.
   // The rest of `genetics` remains a scalar.
   'genetics.snps',
@@ -63,6 +65,6 @@ export const DELTA_SCALARS = [
   // Dotted scalar; rooms/screens stay array-shaped above.
   'lightEnvironment.burdenAI',
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
-  'channelMixAI',
+  'channelMixAI', 'biologyScoreContextAI',
   'wearableSummary', 'wearableCardOrder',
 ];

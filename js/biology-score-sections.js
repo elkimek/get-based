@@ -52,10 +52,10 @@ function cleanupLegacyScoreAIAnswerCache() {
 function readScoreAIAnswer(score) {
   cleanupLegacyScoreAIAnswerCache();
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id];
-  if (!profileAnswer?.text) return '';
-  if (profileAnswer.fingerprint === getScoreAICacheKey(score)) return profileAnswer.text;
-  if (profileAnswer.materialFingerprint === getScoreAIMaterialKey(score)) return profileAnswer.text;
-  return '';
+  // User-triggered explanations are expensive and should not vanish after
+  // harmless score/coverage recomputation on refresh. Keep the last answer for
+  // the score until the user explicitly refreshes it.
+  return profileAnswer?.text || '';
 }
 
 export async function writeScoreAIAnswer(score, text) {
@@ -63,7 +63,7 @@ export async function writeScoreAIAnswer(score, text) {
   const key = getScoreAICacheKey(score);
   state.importedData.biologyScoreAI = state.importedData.biologyScoreAI || {};
   state.importedData.biologyScoreAI[score.id] = { fingerprint: key, materialFingerprint: getScoreAIMaterialKey(score), text, updatedAt: Date.now() };
-  await saveImportedData({ reason: 'biology-score-ai' });
+  await saveImportedData({ reason: 'biology-score-ai', immediate: true });
 }
 
 export function renderScoreAIAnswer(score) {

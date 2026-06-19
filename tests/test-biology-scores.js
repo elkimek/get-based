@@ -678,15 +678,19 @@ assert('Biology Score AI cache survives non-material score/confidence recomputat
   renderScoreAIAnswer(changedThyroidForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(changedThyroidForAI));
 const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, displayValue: `${item.displayValue}-changed` } : item) };
-assert('Biology Score AI cache invalidates when marker pattern changes',
-  !renderScoreAIAnswer(changedThyroidMarkerForAI).includes('sensitive thyroid'),
+assert('Biology Score AI cache keeps last user-generated answer for that score until refresh explanation is clicked',
+  renderScoreAIAnswer(changedThyroidMarkerForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(changedThyroidMarkerForAI));
-const emptyScoreAIHtml = renderScoreAIAnswer(changedThyroidMarkerForAI);
+const emptyScoreAIHtml = renderScoreAIAnswer({ ...changedThyroidMarkerForAI, id: 'differentScoreWithoutAnswer' });
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',
   emptyScoreAIHtml.includes('Explain this score')
   && !emptyScoreAIHtml.includes('concise interpretation based on the current marker pattern')
   && !emptyScoreAIHtml.includes('A short, non-diagnostic read'),
   emptyScoreAIHtml);
+const biologyScoreSectionsSrc = await fs.promises.readFile(new URL('../js/biology-score-sections.js', import.meta.url), 'utf8');
+assert('Biology Score AI answers save with immediate sync so refresh/cross-device does not drop expensive generations',
+  biologyScoreSectionsSrc.includes("saveImportedData({ reason: 'biology-score-ai', immediate: true })"),
+  biologyScoreSectionsSrc.slice(biologyScoreSectionsSrc.indexOf('export async function writeScoreAIAnswer'), biologyScoreSectionsSrc.indexOf('export function renderScoreAIAnswer')));
 state.importedData.biologyScoreAI = savedBiologyScoreAI;
 
 const savedContextAIState = { importedData: state.importedData, hasAIProvider: window.hasAIProvider, isAIPaused: window.isAIPaused, callClaudeAPI: window.callClaudeAPI };
