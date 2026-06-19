@@ -437,10 +437,6 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
       ${renderCoverageBundle('Advanced depth', 'Specialty / geek depth', advancedDepth, 'Advanced scores are optional')}
     </div>
     <details class="biology-coverage-plan-details"><summary class="biology-disclosure-chip"><span class="biology-disclosure-open">Full marker plan</span><span class="biology-disclosure-close">Hide marker plan</span></summary>
-      <div class="biology-score-coverage-grid biology-score-coverage-grid-core">
-        <div><div class="biology-coverage-section-kicker">Baseline first</div><strong>Core baseline gaps</strong><p>Highest-value markers for Biological Coherence coverage.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(coreShortlist, 'Baseline core markers covered')}</div></div>
-        <div><div class="biology-coverage-section-kicker">Optional</div><strong>Advanced depth</strong><p>Specialty-panel extras for deeper users. Useful, but not required for baseline coherence.</p><div class="biology-coverage-marker-list">${renderCoverageMarkerList(advancedDepth, 'Advanced scores are optional')}</div></div>
-      </div>
       <div class="biology-coverage-score-picker"><div class="biology-coverage-score-header"><h4>Score gaps</h4><span>Core gaps first, then lower coverage</span></div><div class="biology-coverage-score-table">${scoreRows || '<div class="biology-coverage-score-empty">Core score gaps are covered.</div>'}</div></div>
     </details>
   </section>`;

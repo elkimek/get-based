@@ -629,6 +629,13 @@ assert('lens includes a baseline coverage planner before score details',
   && lensHtml.includes('Score gaps')
   && !lensHtml.includes('<details class="biology-coverage-score-picker"')
   && lensHtml.indexOf('biology-score-coverage-planner') < lensHtml.indexOf('biology-score-detail-stack'));
+const coveragePlanDetailsHtml = lensHtml.match(/<details class="biology-coverage-plan-details"[\s\S]*?<\/details>/)?.[0] || '';
+assert('expanded Coverage Planner does not repeat baseline and advanced bundle cards',
+  coveragePlanDetailsHtml.includes('Score gaps')
+  && !coveragePlanDetailsHtml.includes('Core baseline gaps')
+  && !coveragePlanDetailsHtml.includes('Highest-value markers for Biological Coherence coverage')
+  && !coveragePlanDetailsHtml.includes('Specialty-panel extras for deeper users'),
+  coveragePlanDetailsHtml);
 assert('lens no longer inserts the redundant Score map between planner and detail cards',
   !lensHtml.includes('biology-score-compact-table')
   && !lensHtml.includes('Score map')
