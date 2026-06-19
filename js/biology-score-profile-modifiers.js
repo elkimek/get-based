@@ -4,7 +4,7 @@
 const LOW_MUSCLE_CONTEXT_PATHS = new Set(['biochemistry.creatinine', 'biochemistry.egfr', 'biochemistry.eGFR', 'calculatedRatios.bunCreatRatio']);
 const VITAMIN_D_PATHS = new Set(['vitamins.vitaminD', 'vitamins.vitaminD3', 'vitamins.vitaminD2']);
 const METHYLATION_CONTEXT_PATHS = new Set(['coagulation.homocysteine', 'vitamins.vitaminB12', 'vitamins.activeB12', 'vitamins.folate']);
-const IRON_CONTEXT_PATHS = new Set(['iron.ferritin', 'iron.transferrinSaturation', 'iron.tsat', 'iron.iron', 'iron.tibc', 'iron.transferrin']);
+const IRON_CONTEXT_PATHS = new Set(['iron.ferritin', 'iron.transferrinSat', 'iron.transferrinSaturation', 'iron.tsat', 'iron.iron', 'iron.tibc', 'iron.transferrin']);
 const LIPID_CONTEXT_PATHS = new Set(['lipids.apoB', 'lipids.ldl', 'lipids.hdl', 'lipids.lpA', 'lipids.triglycerides', 'calculatedRatios.apoBapoAIRatio', 'calculatedRatios.cholHdlRatio', 'calculatedRatios.tgHdlRatio']);
 const FATTY_ACID_CONTEXT_PATHS = new Set(['fattyAcids.omega3Index', 'fattyAcids.aaEpaRatio', 'spadiaFA.omega3Index', 'omegaquantFA.omega3Index', 'zinzinoFA.omega3Index', 'metabolomixFA.omega3Index', 'fattyAcidsTest.omega3Index', 'biostarksFA.omega3Index']);
 const BILIRUBIN_CONTEXT_PATHS = new Set(['biochemistry.bilirubinTotal', 'biochemistry.bilirubinDirect', 'biochemistry.bilirubinIndirect']);
@@ -14,6 +14,8 @@ const HORMONE_THERAPY_CONTEXT_PATHS = new Set([
   'hormones.estradiol', 'hormones.progesterone', 'hormones.lh', 'hormones.fsh',
   'hormones.dht', 'hormones.androstenedione', 'hormones.fai', 'hormones.shbg',
 ]);
+const HORMONAL_CONTRACEPTION_TERMS = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection', 'contraceptive pill', 'birth control pill'];
+const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
 
 function contextOnly(flag, weightScale = 1) {
   return { score: false, contextOnly: true, flag, weightScale };
@@ -33,7 +35,15 @@ function isPostmenopause(profileContext, entryContext) {
 }
 
 function hasHormoneTherapy(profileContext, entryContext) {
-  return !!profileContext?.hormoneTherapy || !!entryContext.hormoneTherapy || !!entryContext.contraception;
+  return !!profileContext?.hormoneTherapy || !!entryContext.hormoneTherapy || isHormonalContraception(entryContext.contraception);
+}
+
+function isHormonalContraception(value) {
+  if (value === true) return true;
+  const text = String(value || '').toLowerCase();
+  if (!text) return false;
+  if (NON_HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term))) return false;
+  return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
 }
 
 function parseSampleHour(value) {
@@ -60,12 +70,18 @@ function parseSampleHour(value) {
   return h >= 0 && h < 24 ? h : null;
 }
 
-function cortisolRangeForSampleTime(sampleTime) {
+function cortisolRangeForSampleTime(sampleTime, unit = '') {
   const hour = parseSampleHour(sampleTime);
   if (hour == null) return null;
-  if (hour >= 5 && hour < 11) return { min: 140, max: 620 };
-  if (hour >= 11 && hour < 17) return { min: 70, max: 300 };
-  return { min: 0, max: 150 };
+  const siRange = hour >= 5 && hour < 11
+    ? { min: 140, max: 620 }
+    : hour >= 11 && hour < 17
+      ? { min: 70, max: 300 }
+      : { min: 0, max: 150 };
+  if (String(unit || '').toLowerCase().includes('µg/dl') || String(unit || '').toLowerCase().includes('ug/dl')) {
+    return { min: Number((siRange.min * 0.03625).toPrecision(4)), max: Number((siRange.max * 0.03625).toPrecision(4)) };
+  }
+  return siRange;
 }
 
 function isCyclingFemale(profileContext, entryContext) {
@@ -78,7 +94,7 @@ function isCyclingFemale(profileContext, entryContext) {
 }
 
 /**
- * @param {{dotKey?: string, label?: string, value?: number, range?: any, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any}} hit
+ * @param {{dotKey?: string, label?: string, value?: number, range?: any, phaseLabel?: string | null, phaseRange?: any, entryContext?: any, sampleTime?: any, unit?: string}} hit
  * @param {any} input
  * @param {{lowMuscleMass?: boolean, lowMuscleReason?: string, sex?: string | null, lowSunlightExposure?: boolean, lowSunlightReason?: string, hormoneTherapy?: boolean, cycleStatus?: string | null, menopauseStatus?: string | null, recentHardTraining?: boolean, acuteInflammationContext?: boolean, genetic?: any, body?: any, light?: any, contextFlags?: string[]}} profileContext
  */
@@ -93,8 +109,9 @@ export function getInputProfileModifier(hit, input, profileContext) {
   }
   if (profileContext?.lowSunlightExposure && VITAMIN_D_PATHS.has(dotKey)) {
     const overrideRange = { ...hit?.range };
+    const targetFloor = String(hit?.unit || '').toLowerCase().includes('ng/ml') ? 40 : 100;
     const currentMin = Number.isFinite(overrideRange?.min) ? Number(overrideRange.min) : null;
-    if (currentMin == null || currentMin < 100) overrideRange.min = 100;
+    if (currentMin == null || currentMin < targetFloor) overrideRange.min = targetFloor;
     const geneticNote = profileContext?.genetic?.vitaminDRisk ? ' Genetic vitamin-D pathway context is also present.' : '';
     return { score: true, flag: `${profileContext.lowSunlightReason}${geneticNote}`, weightScale: sexScale, rangeOverride: overrideRange };
   }
@@ -142,7 +159,7 @@ export function getInputProfileModifier(hit, input, profileContext) {
   }
 
   if (dotKey === 'hormones.cortisol' || dotKey === 'biostarksHormone.cortisol') {
-    const range = cortisolRangeForSampleTime(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime);
+    const range = cortisolRangeForSampleTime(entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime || hit?.sampleTime, hit?.unit);
     if (!range) return contextOnly(`${hit.label || input.label} needs sample time before a single-point cortisol value can be scored reliably.`, sexScale);
     return { score: true, flag: `${hit.label || input.label} scored against sample-time range (${entryContext.sampleTime || entryContext.drawTime || entryContext.collectionTime}).`, weightScale: sexScale, rangeOverride: range };
   }
@@ -199,7 +216,7 @@ export function getScoreProfileFlags(scoreId, profileContext) {
     if (Number.isFinite(profileContext.ageYears) && profileContext.ageYears >= 50) flags.push(`Age context: ${profileContext.ageYears}y profile; sex-hormone and pituitary feedback patterns need age/menopause/therapy context.`);
     return flags;
   }
-  if (scoreId !== 'anabolicRecoverySignal') return [];
+  if (scoreId !== 'anabolicRecoverySignal') return flags;
   if (profileContext.sex === 'female' && profileContext.cycleStatus && !['regular', 'perimenopause'].includes(profileContext.cycleStatus)) {
     flags.push(`Female hormone context: cycle status is ${profileContext.cycleStatus}; interpret sex-hormone recovery markers with that state, not ordinary cycling assumptions.`);
   }

@@ -694,6 +694,15 @@
   gap: 12px;
 }
 .biology-score-ai-answer:empty { display: none; }
+.biology-score-ai-stale {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 28%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--yellow, #f59e0b) 7%, var(--bg-card));
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+  line-height: 1.4;
+}
 .biology-score-ai-answer p {
   margin: 0 0 6px;
 }

@@ -54,8 +54,9 @@ function readScoreAIAnswer(score) {
   const profileAnswer = state.importedData?.biologyScoreAI?.[score.id];
   // User-triggered explanations are expensive and should not vanish after
   // harmless score/coverage recomputation on refresh. Keep the last answer for
-  // the score until the user explicitly refreshes it.
-  return profileAnswer?.text || '';
+  // the score until the user explicitly refreshes it, but flag it if the marker
+  // evidence materially changed.
+  return profileAnswer && typeof profileAnswer === 'object' ? profileAnswer : null;
 }
 
 export async function writeScoreAIAnswer(score, text) {
@@ -67,7 +68,9 @@ export async function writeScoreAIAnswer(score, text) {
 }
 
 export function renderScoreAIAnswer(score) {
-  const cached = readScoreAIAnswer(score);
+  const cachedRecord = readScoreAIAnswer(score);
+  const cached = cachedRecord?.text || '';
+  const stale = cached && cachedRecord?.materialFingerprint && cachedRecord.materialFingerprint !== getScoreAIMaterialKey(score);
   return `<section class="biology-score-ai" data-biology-score-ai-panel="${escapeAttr(score.id)}">
     <div class="biology-score-ai-head">
       <div>
@@ -75,6 +78,7 @@ export function renderScoreAIAnswer(score) {
       </div>
       <button type="button" class="dashboard-action-btn dashboard-action-btn-secondary" data-biology-score-action="interpret-score-ai" data-biology-score-id="${escapeAttr(score.id)}">${cached ? 'Refresh explanation' : 'Explain this score'}</button>
     </div>
+    ${stale ? '<p class="biology-score-ai-stale">This explanation was generated before the current marker evidence changed. Refresh it for the latest data.</p>' : ''}
     ${cached ? `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}">${renderMarkdown(cached)}</div>` : `<div class="biology-score-ai-answer" data-biology-score-ai-answer="${escapeAttr(score.id)}"></div>`}
   </section>`;
 }

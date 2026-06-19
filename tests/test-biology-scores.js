@@ -268,6 +268,13 @@ assert('single-point cortisol is context-only without sample time and scored wit
   && timedStressScore.available.some(i => i.key === 'cortisol' && i.profileContextOnly !== true && i.partial > 0)
   && timedStressScore.flags.some(flag => /sample-time range/i.test(flag)),
   JSON.stringify({ noTime: noTimeStressScore.available, timed: timedStressScore.available, flags: timedStressScore.flags }));
+const usCortisolScores = computeBiologyScores({ dates: ['2026-06-21'], entryContextByDate: { '2026-06-21': { sampleTime: '08:30' } }, categories: {
+  hormones: { label: 'Hormones', markers: { cortisol: marker('Cortisol', 'µg/dl', 5, 22, 18), dheaS: marker('DHEA-S', 'umol/L', 2.41, 11.6, 6) } },
+  biochemistry: { label: 'Biochemistry', markers: { glucose: marker('Glucose', 'mmol/L', 4.11, 5.6, 4.8) } },
+} }).find(score => score.id === 'stressResilience');
+assert('cortisol sample-time override respects US µg/dl units',
+  usCortisolScores.available.some(i => i.key === 'cortisol' && i.partial > 80),
+  JSON.stringify(usCortisolScores.available.find(i => i.key === 'cortisol')));
 state.profileSex = savedHormoneContextState.sex; state.profileDob = savedHormoneContextState.dob; state.importedData = savedHormoneContextState.importedData; invalidateActiveDataCache();
 const savedDiagnoses = state.importedData.diagnoses;
 const savedContextNotes = state.importedData.contextNotes;
@@ -277,6 +284,9 @@ const lowMuscleById = Object.fromEntries(computeBiologyScores(data).map((score) 
 assert('low-muscle profile treats creatinine-derived filtration markers as context only', ['biochemistry.creatinine', 'biochemistry.egfr', 'calculatedRatios.bunCreatRatio'].every(dot => lowMuscleById.fluidFiltrationCoherence.available.some(i => i.dotKey === dot && i.profileContextOnly === true && i.weight === 0)), JSON.stringify(lowMuscleById.fluidFiltrationCoherence.available));
 assert('low-muscle profile keeps cystatin filtration markers scored', lowMuscleById.fluidFiltrationCoherence.available.some(i => i.dotKey === 'biochemistry.cystatinC' && i.profileContextOnly !== true && i.weight > 0));
 assert('low-muscle profile adds interpretation flag for creatinine context', lowMuscleById.fluidFiltrationCoherence.flags.some(flag => /low muscle mass|neuromuscular/i.test(flag)), JSON.stringify(lowMuscleById.fluidFiltrationCoherence.flags));
+assert('low-muscle profile also treats Blood Flow BUN/creatinine ratio as context only',
+  lowMuscleById.bloodFlowViscosity.available.some(i => i.dotKey === 'calculatedRatios.bunCreatRatio' && i.profileContextOnly === true && i.weight === 0),
+  JSON.stringify(lowMuscleById.bloodFlowViscosity.available));
 assert('resolved low-muscle creatinine exclusion is context-limited, not needs-context',
   lowMuscleById.fluidFiltrationCoherence.scoreConfidenceLabel === 'Context-limited'
   && !lowMuscleById.fluidFiltrationCoherence.scoreConfidenceWarning.includes('need biological context before scoring'),
@@ -302,6 +312,11 @@ assert('SNP context modifies Biology Scores deterministically without becoming i
   && geneticOneCarbon.available.some(item => item.dotKey === 'coagulation.homocysteine' && item.partial < 100)
   && geneticBone.flags.some(flag => /vitamin-D pathway/i.test(flag)),
   JSON.stringify({ oneCarbon: geneticOneCarbon.flags, homocysteine: geneticOneCarbon.available.find(i => i.dotKey === 'coagulation.homocysteine'), bone: geneticBone.flags }));
+state.importedData = { entries: [], genetics: { snps: { rs1800562: { gene: 'HFE', genotype: 'AA', category: 'iron', effect: 'moderate', markers: ['iron.transferrinSat'] } } }, contextNotes: '', interpretiveLens: '' };
+const ironGeneticScore = computeBiologyScores(data).find(score => score.id === 'ironHandling');
+assert('iron genetic context applies to canonical transferrin saturation key',
+  ironGeneticScore.flags.some(flag => /iron-regulation/i.test(flag)),
+  JSON.stringify(ironGeneticScore.flags));
 state.importedData = { entries: [], sunDefaults: { completedAt: Date.now() }, sunSessions: [], deviceSessions: [], lightMeasurements: [], contextNotes: '', interpretiveLens: '' };
 const lightScores = computeBiologyScores({ dates: ['2026-06-01'], categories: {
   vitamins: { label: 'Vitamins', markers: { vitaminD: marker('25-OH vitamin D', 'nmol/L', 50, 150, 80) } },
@@ -312,6 +327,13 @@ assert('Light context is included by default and can raise vitamin D interpretat
   lightBone.flags.some(flag => /Light context/i.test(flag))
   && lightBone.available.some(item => item.dotKey === 'vitamins.vitaminD' && item.partial < 100),
   JSON.stringify({ flags: lightBone.flags, vitaminD: lightBone.available.find(i => i.dotKey === 'vitamins.vitaminD') }));
+const usVitaminDScores = computeBiologyScores({ dates: ['2026-06-01'], categories: {
+  vitamins: { label: 'Vitamins', markers: { vitaminD: marker('25-OH vitamin D', 'ng/ml', 20, 60, 42) } },
+  electrolytes: { label: 'Electrolytes', markers: { calciumTotal: marker('Total calcium', 'mmol/L', 2.2, 2.6, 2.35), phosphorus: marker('Phosphorus', 'mmol/L', 0.8, 1.5, 1.1) } },
+} }).find(score => score.id === 'boneMineralSignal');
+assert('low-sunlight vitamin D target respects US ng/ml units',
+  usVitaminDScores.available.some(item => item.dotKey === 'vitamins.vitaminD' && item.partial === 100),
+  JSON.stringify(usVitaminDScores.available.find(i => i.dotKey === 'vitamins.vitaminD')));
 state.importedData = { entries: [], wearableSummary: { metrics: { hrv_rmssd: { rolling: { d7: 24 }, baselineP25: 35 }, rhr: { rolling: { d7: 78 }, baselineP75: 70 }, sleep_score: { rolling: { d7: 62 }, baseline: 78 } } }, contextNotes: '', interpretiveLens: '' };
 const bodyRecovery = computeBiologyScores(data).find(score => score.id === 'anabolicRecoverySignal');
 assert('Body/wearable context flags recovery and hormone-adjacent Biology Scores without diluting marker math',
@@ -699,8 +721,9 @@ assert('Biology Score AI cache survives non-material score/confidence recomputat
   renderScoreAIAnswer(changedThyroidForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
   renderScoreAIAnswer(changedThyroidForAI));
 const changedThyroidMarkerForAI = { ...byId.thyroidCoherence, available: byId.thyroidCoherence.available.map((item, idx) => idx === 0 ? { ...item, displayValue: `${item.displayValue}-changed` } : item) };
-assert('Biology Score AI cache keeps last user-generated answer for that score until refresh explanation is clicked',
-  renderScoreAIAnswer(changedThyroidMarkerForAI).includes('<strong>sensitive thyroid</strong> interpretation'),
+assert('Biology Score AI cache keeps last user-generated answer for that score until refresh explanation is clicked and marks material drift stale',
+  renderScoreAIAnswer(changedThyroidMarkerForAI).includes('<strong>sensitive thyroid</strong> interpretation')
+  && renderScoreAIAnswer(changedThyroidMarkerForAI).includes('generated before the current marker evidence changed'),
   renderScoreAIAnswer(changedThyroidMarkerForAI));
 const emptyScoreAIHtml = renderScoreAIAnswer({ ...changedThyroidMarkerForAI, id: 'differentScoreWithoutAnswer' });
 assert('Biology Score AI empty state avoids repeating CTA explainer copy on every card',

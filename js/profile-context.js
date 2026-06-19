@@ -5,9 +5,11 @@ import { state } from './state.js';
 
 const LOW_MUSCLE_TERMS = ['low muscle mass', 'muscle wasting', 'muscle atrophy', 'sarcopenia', 'wheelchair', 'neuromuscular', 'cmt', 'charcot', 'neuropathy', 'myopathy', 'muscular dystrophy', 'cachexia', 'amputation'];
 const LOW_SUNLIGHT_TERMS = ['wheelchair', 'bedbound', 'housebound', 'minimal sun', 'minimal outdoor', 'low sunlight', 'little sun', 'no sun', 'indoors', 'homebound', 'limited mobility', 'minimal uvb', 'low uvb'];
-const TRT_TERMS = ['trt', 'testosterone replacement', 'testosterone therapy', 'testosterone gel', 'testosterone injection', 'nebido', 'sustanon', 'hcg', 'clomid', 'enclomiphene'];
+const TRT_TERMS = ['trt', 'testosterone replacement', 'testosterone therapy', 'testosterone gel', 'testosterone injection', 'nebido', 'sustanon', 'hcg', 'clomid', 'enclomiphene', 'hrt', 'hormone replacement', 'menopausal hormone therapy', 'estrogen patch', 'estradiol patch', 'estradiol gel', 'progesterone therapy', 'micronized progesterone'];
 const ACUTE_TERMS = ['acute illness', 'infection', 'fever', 'flu', 'covid', 'cold', 'virus', 'viral', 'bacterial', 'sick', 'injury', 'surgery'];
 const HARD_TRAINING_TERMS = ['intense', 'hiit', 'heavy lifting', 'strength', 'marathon', 'race', 'overtraining', 'hard training', 'workout', 'training block'];
+const HORMONAL_CONTRACEPTION_TERMS = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection', 'contraceptive pill', 'birth control pill'];
+const NON_HORMONAL_CONTRACEPTION_TERMS = ['copper', 'copper iud', 'non-hormonal', 'non hormonal'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** @param {unknown} text @param {string[]} terms */
@@ -17,6 +19,14 @@ function hasMeaningfulSnp(stored) {
   const effect = String(stored?.effect || '').toLowerCase();
   const valence = String(stored?.valence || '').toLowerCase();
   return !!stored && ((effect !== 'none' && effect !== '') || valence === 'protective');
+}
+
+function isHormonalContraception(value) {
+  if (value === true) return true;
+  const text = String(value || '').toLowerCase();
+  if (!text) return false;
+  if (NON_HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term))) return false;
+  return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
 }
 
 function collectGeneticModifiers(data) {
@@ -150,7 +160,7 @@ export function getBiologyProfileContext() {
   const recentHardTraining = !!flags.intenseTrainingRecent || textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(data.contextNotes, ['recent workout', 'trained yesterday', 'post-exercise']);
   const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : null;
   const cycleStatus = sex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc ? (mc.cycleStatus || 'regular') : null)) : null;
-  const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && !!mc?.contraceptive);
+  const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && isHormonalContraception(mc?.contraceptive));
   return {
     sex, ageYears: getProfileAgeYears(), cycleStatus, menopauseStatus, hormoneTherapy, acuteInflammationContext, recentHardTraining, lowMuscleMass,
     lowMuscleReason: lowMuscleMass ? 'Profile context suggests low muscle mass / neuromuscular disease, so creatinine-derived markers are treated as context rather than scored signal.' : '',

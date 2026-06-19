@@ -244,6 +244,25 @@ try {
     staleRemoteAnswerPull.merged.biologyScoreAI?.thyroidCoherence?.text === '**Fresh** local answer'
     && staleRemoteAnswerPull.needsRebroadcast === true);
 
+  const staleBiologyRows = [
+    { profileId, arrayName: 'biologyScoreContextAI', itemId: 'biologyScoreContextAI', payload: JSON.stringify({ v: { summary: 'stale row review', fingerprint: 'row-fp', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+    { profileId, arrayName: 'biologyScoreAI', itemId: 'thyroidCoherence', payload: JSON.stringify({ k: 'thyroidCoherence', v: { text: 'stale row answer', fingerprint: 'row-answer', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+  ];
+  configureSyncDelta({
+    getEvolu: () => ({ getQueryRows: () => staleBiologyRows }),
+    getItemRowQuery: () => ({}),
+  });
+  state.importedData = {
+    entries: [],
+    biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-row-fp', updatedAt: 2000 },
+    biologyScoreAI: { thyroidCoherence: { text: '**Fresh row** local answer', fingerprint: 'fp-local-row', updatedAt: 3000 } },
+  };
+  const staleRowOverlayPull = await mergePulledImportedData(profileId, { entries: [], biologyScoreContextAI: { summary: 'fresh remote blob review', fingerprint: 'remote-newer', updatedAt: 2500 }, biologyScoreAI: { thyroidCoherence: { text: 'fresh remote blob answer', fingerprint: 'remote-answer', updatedAt: 3500 } } });
+  assert('pull merge preserves fresher local Biology Score AI/context over stale delta rows, not only stale blobs',
+    staleRowOverlayPull.merged.biologyScoreContextAI?.fingerprint === 'remote-newer'
+    && staleRowOverlayPull.merged.biologyScoreAI?.thyroidCoherence?.text === 'fresh remote blob answer',
+    JSON.stringify(staleRowOverlayPull.merged));
+
   configureSyncDelta({
     getEvolu: () => ({ getQueryRows: () => [] }),
     getItemRowQuery: () => ({}),

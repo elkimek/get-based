@@ -559,7 +559,7 @@ export function showDetailModal(id, opts = {}) {
     'calculatedRatios_deRitisRatio': [['biochemistry', 'ast', 'AST'], ['biochemistry', 'alt', 'ALT']],
     'calculatedRatios_copperZincRatio': [['electrolytes', 'copper', 'Copper'], ['electrolytes', 'zinc', 'Zinc']],
     'calculatedRatios_apoBapoAIRatio': [['lipids', 'apoB', 'ApoB'], ['lipids', 'apoAI', 'ApoA-I']],
-    'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'CRP'], ['lipids', 'hdl', 'HDL']],
+    'calculatedRatios_crpHdlRatio': [['proteins', 'hsCRP', 'hs-CRP'], ['lipids', 'hdl', 'HDL']],
   };
   const inputs = calcInputs[id];
   if (inputs) {

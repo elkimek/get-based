@@ -7,6 +7,8 @@ import {
   scoreAgainstRange,
   scoreHighOnly,
 } from './biology-score-engine.js';
+import { getBiologyProfileContext } from './profile-context.js';
+import { getInputProfileModifier } from './biology-score-profile-modifiers.js';
 
 export function computeBloodFlowSignals(data, def) {
   const hct = getMarkerHit(data, 'hematology.hematocrit');
@@ -18,6 +20,8 @@ export function computeBloodFlowSignals(data, def) {
   const sodium = getMarkerHit(data, 'electrolytes.sodium');
   const bunCreat = getMarkerHit(data, 'calculatedRatios.bunCreatRatio');
   const crp = getMarkerHit(data, 'proteins.crp');
+  const profileContext = getBiologyProfileContext();
+  const bunCreatModifier = bunCreat ? getInputProfileModifier(bunCreat, { label: 'BUN/creatinine ratio', weight: 0.35, paths: 'calculatedRatios.bunCreatRatio' }, profileContext) : {};
   const flags = [];
   const parts = [];
   const missing = [];
@@ -32,7 +36,12 @@ export function computeBloodFlowSignals(data, def) {
   add(dDimer, 'dDimer', 'D-dimer', 0.8, dDimer ? scoreHighOnly(dDimer.value, dDimer.range?.max ?? 0.5, (dDimer.range?.max ?? 0.5) * 4) : null);
   add(albumin, 'albumin', 'Albumin', 0.35, albumin ? scoreAgainstRange(albumin.value, albumin.range) : null);
   add(sodium, 'sodium', 'Sodium', 0.25, sodium ? scoreAgainstRange(sodium.value, sodium.range) : null);
-  add(bunCreat, 'bunCreatRatio', 'BUN/creatinine ratio', 0.35, bunCreat ? scoreAgainstRange(bunCreat.value, bunCreat.range) : null);
+  if (bunCreat && bunCreatModifier.score === false) {
+    if (bunCreatModifier.flag && !flags.includes(bunCreatModifier.flag)) flags.push(bunCreatModifier.flag);
+    parts.push({ ...bunCreat, key: 'bunCreatRatio', label: 'BUN/creatinine ratio', weight: 0, partial: null, profileContextOnly: true, contextReason: bunCreatModifier.flag || '', recencyRequired: false });
+  } else {
+    add(bunCreat, 'bunCreatRatio', 'BUN/creatinine ratio', 0.35, bunCreat ? scoreAgainstRange(bunCreat.value, bunCreatModifier.rangeOverride ?? bunCreat.range) : null);
+  }
   add(crp, 'crp', 'CRP', 0.35, crp ? scoreHighOnly(crp.value, crp.range?.max ?? 3, (crp.range?.max ?? 3) * 4) : null);
   if (hct && hct.range?.max != null && hct.value > hct.range.max) flags.push('High hematocrit pattern: hemoconcentration/viscosity context, not a direct viscosity measurement.');
   if (fibrinogen) flags.push('Fibrinogen is the strongest mapped plasma-viscosity context marker here.');

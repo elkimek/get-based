@@ -113,25 +113,27 @@ function getUpdatedAt(value) {
 }
 
 function preserveFreshLocalBiologyScoreContextAI(merged, localImported, remoteImported) {
-  const localReview = localImported?.biologyScoreContextAI;
-  if (!localReview || typeof localReview !== 'object') return false;
-  const remoteReview = remoteImported?.biologyScoreContextAI;
-  if (remoteReview && getUpdatedAt(remoteReview) >= getUpdatedAt(localReview)) return false;
-  merged.biologyScoreContextAI = localReview;
+  const candidates = [merged?.biologyScoreContextAI, localImported?.biologyScoreContextAI, remoteImported?.biologyScoreContextAI]
+    .filter(item => item && typeof item === 'object');
+  if (!candidates.length) return false;
+  const best = candidates.reduce((winner, item) => getUpdatedAt(item) > getUpdatedAt(winner) ? item : winner, candidates[0]);
+  if (merged.biologyScoreContextAI === best) return false;
+  if (getUpdatedAt(best) <= getUpdatedAt(merged?.biologyScoreContextAI)) return false;
+  merged.biologyScoreContextAI = best;
   return true;
 }
 
 function preserveFreshLocalBiologyScoreAI(merged, localImported, remoteImported) {
-  const localAnswers = localImported?.biologyScoreAI;
-  if (!localAnswers || typeof localAnswers !== 'object') return false;
-  const remoteAnswers = remoteImported?.biologyScoreAI || {};
+  const candidateMaps = [merged.biologyScoreAI || {}, localImported?.biologyScoreAI || {}, remoteImported?.biologyScoreAI || {}];
+  const keys = new Set(candidateMaps.flatMap(map => Object.keys(map || {})));
   const mergedAnswers = { ...(merged.biologyScoreAI || {}) };
   let changed = false;
-  for (const [scoreId, localAnswer] of Object.entries(localAnswers)) {
-    if (!localAnswer || typeof localAnswer !== 'object') continue;
-    const remoteAnswer = remoteAnswers?.[scoreId];
-    if (!remoteAnswer || getUpdatedAt(localAnswer) > getUpdatedAt(remoteAnswer)) {
-      mergedAnswers[scoreId] = localAnswer;
+  for (const scoreId of keys) {
+    const candidates = candidateMaps.map(map => map?.[scoreId]).filter(item => item && typeof item === 'object');
+    if (!candidates.length) continue;
+    const best = candidates.reduce((winner, item) => getUpdatedAt(item) > getUpdatedAt(winner) ? item : winner, candidates[0]);
+    if (mergedAnswers[scoreId] !== best && getUpdatedAt(best) > getUpdatedAt(mergedAnswers[scoreId])) {
+      mergedAnswers[scoreId] = best;
       changed = true;
     }
   }
@@ -158,6 +160,9 @@ export async function mergePulledImportedData(profileId, importedData, options =
   const localBaselineForMerge = restoreJoinApplied
     ? withoutLocalTombstones(localImportedForMerge)
     : localImportedForMerge;
+  const remoteImportedForFreshness = importedData && typeof importedData === 'object'
+    ? JSON.parse(JSON.stringify(importedData))
+    : importedData;
 
   // Preserve local wearableConnections - they're stripped from the push
   // payload (tokens stay per-device), so the remote blob never carries
@@ -186,8 +191,8 @@ export async function mergePulledImportedData(profileId, importedData, options =
     console.warn('[sync] per-row overlay merge failed (blob still applied):', e?.message || e);
   }
   const preservedFreshLocalEntries = preserveFreshLocalLabEntries(merged, localImportedForMerge);
-  const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, importedData);
-  const preservedFreshLocalScoreAI = preserveFreshLocalBiologyScoreAI(merged, localImportedForMerge, importedData);
+  const preservedFreshLocalContextAI = preserveFreshLocalBiologyScoreContextAI(merged, localImportedForMerge, remoteImportedForFreshness);
+  const preservedFreshLocalScoreAI = preserveFreshLocalBiologyScoreAI(merged, localImportedForMerge, remoteImportedForFreshness);
   // Normalize the merged payload before change detection and persistence. If a
   // remote row still carries an old schema key/shape, refreshing the active
   // profile used to migrate only in-memory state after persist; the next pull

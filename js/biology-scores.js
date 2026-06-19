@@ -50,8 +50,20 @@ function installBiologyScoreDelegates() {
       }, 250);
       event.preventDefault();
     } else if (action === 'plan-coverage-chat') {
+      const appWindow = /** @type {any} */ (window);
+      if (typeof appWindow.openChatPanel !== 'function') {
+        appWindow.showNotification?.('Chat is not available on this screen.', 'error');
+        event.preventDefault();
+        return;
+      }
+      if (typeof appWindow.hasAIProvider === 'function' && !appWindow.hasAIProvider()) {
+        appWindow.showNotification?.('Connect an AI provider before asking chat what to order.', 'error');
+        appWindow.openChatPanel?.();
+        event.preventDefault();
+        return;
+      }
       createNewThread();
-      (/** @type {any} */ (globalThis)).openChatPanel?.('What markers should I order to improve my Biology Scores coverage? Prioritize baseline Biological Coherence first, avoid advanced or specialty tests unless they materially improve coverage, and explain which missing markers map to which scores.');
+      appWindow.openChatPanel('What markers should I order to improve my Biology Scores coverage? Prioritize baseline Biological Coherence first, avoid advanced or specialty tests unless they materially improve coverage, and explain which missing markers map to which scores.');
       event.preventDefault();
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();

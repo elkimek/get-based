@@ -118,10 +118,16 @@ function markerWithSchemaOptimalFallback(dotKey, marker) {
   if (marker.optimalMin != null || marker.optimalMax != null) return marker;
   const opt = OPTIMAL_RANGES[dotKey];
   if (!opt) return marker;
-  if (state.profileSex === 'female' && opt.optimalMin_f !== undefined) {
-    return { ...marker, optimalMin: opt.optimalMin_f, optimalMax: opt.optimalMax_f };
-  }
-  return { ...marker, optimalMin: opt.optimalMin, optimalMax: opt.optimalMax };
+  const rawMin = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMin_f : opt.optimalMin;
+  const rawMax = state.profileSex === 'female' && opt.optimalMin_f !== undefined ? opt.optimalMax_f : opt.optimalMax;
+  const conv = UNIT_CONVERSIONS[dotKey];
+  const convert = (value) => {
+    if (value == null) return value;
+    if (conv?.type === 'multiply' && marker.unit === conv.usUnit) return parseFloat((Number(value) * conv.factor).toPrecision(4));
+    if (conv?.type === 'hba1c' && marker.unit === '%') return parseFloat(((Number(value) / 10.929) + 2.15).toFixed(1));
+    return value;
+  };
+  return { ...marker, optimalMin: convert(rawMin), optimalMax: convert(rawMax) };
 }
 
 function getEffectiveRangeLabel(marker, dateIndex) {
