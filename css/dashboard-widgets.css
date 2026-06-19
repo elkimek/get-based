@@ -448,8 +448,39 @@
   font-weight: 700;
 }
 @media (max-width: 720px) {
-  .db-bio-coherence-body { grid-template-columns: 1fr; justify-items: start; }
-  .db-bio-coherence-score { width: 120px; height: 120px; }
+  .db-bio-coherence-hero {
+    gap: 12px;
+    padding: 18px;
+  }
+  .db-bio-coherence-body {
+    grid-template-columns: minmax(0, 96px) minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+  }
+  .db-bio-coherence-score { width: 96px; height: 96px; }
+  .db-bio-coherence-number strong { font-size: 30px; }
+  .dashboard-widget .db-bio-coherence-summary h3,
+  .dashboard-widget .db-bio-coherence-summary > p:not(.db-bio-coherence-insight) {
+    display: none;
+  }
+  .db-bio-coherence-summary p { font-size: 13px; }
+  .db-bio-coherence-domains {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .db-bio-coherence-domains::before {
+    content: 'Strongest + strained domains';
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2)) {
+    display: none;
+  }
 }
 
 .biology-scores-hero {
@@ -1251,10 +1282,30 @@ button.biology-score-token:focus-visible {
   font-weight: 800;
 }
 @media (max-width: 720px) {
-  .biology-coherence-hero { grid-template-columns: 1fr; padding: 18px; }
-  .biology-coherence-lines,
-  .biology-coherence-domains { grid-template-columns: 1fr; }
+  .biology-coherence-hero { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+  .biology-coherence-title-row { gap: 10px; }
+  .biology-coherence-tools { margin-left: 0; }
+  .biology-coherence-lines { grid-template-columns: 1fr; }
+  .biology-coherence-domains {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .biology-coherence-domains::before {
+    content: 'Strongest + strained domains';
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .biology-coherence-domain-row:nth-child(n+5):not(:nth-last-child(-n+2)) {
+    display: none;
+  }
+  .biology-coherence-domain-row { padding: 7px 8px; }
   .biology-coherence-metric { justify-items: start; min-width: 0; padding-right: 0; }
+  .biology-coherence-metric > strong { font-size: 48px; }
   .biology-coherence-metric .biology-score-meta { justify-content: flex-start; }
 }
 .biology-score-detail,

@@ -894,6 +894,13 @@ assert('Biology Score good-tone visuals use semantic green instead of theme acce
   && !dashboardCoherenceToneCss.includes('var(--accent)')
   && !dashboardScoreRailSrc.includes("tone === 'good' ? 'var(--accent)'"),
   `${biologyScoreRailCss}\n---\n${dashboardCoherenceToneCss}\n---\n${dashboardScoreRailSrc}`);
+assert('Biological Coherence mobile layout compacts domain lists without duplicating dashboard title copy',
+  dashboardWidgetsCss.includes('.bc-micro-domain:nth-child(n+5):not(:nth-last-child(-n+2))')
+  && dashboardWidgetsCss.includes('.biology-coherence-domain-row:nth-child(n+5):not(:nth-last-child(-n+2))')
+  && dashboardWidgetsCss.includes("content: 'Strongest + strained domains'")
+  && dashboardWidgetsCss.includes('.dashboard-widget .db-bio-coherence-summary h3')
+  && dashboardWidgetsCss.includes('display: none;'),
+  dashboardWidgetsCss.slice(dashboardWidgetsCss.indexOf('@media (max-width: 720px)'), dashboardWidgetsCss.indexOf('.biology-scores-hero')));
 const lensPagesSrc = fs.readFileSync(path.join(ROOT, 'js/lens-pages.js'), 'utf8');
 assert('actual Biology Scores page shows compact context status before coherence hero',
   lensPagesSrc.includes('biology-context-status-strip')
