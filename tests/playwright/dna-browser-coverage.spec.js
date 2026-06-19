@@ -171,7 +171,7 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
     const wait = () => new Promise(resolve => setTimeout(resolve, 0));
     const waitFor = async (predicate) => {
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 100; i++) {
         if (predicate()) return true;
         await wait();
       }
@@ -227,10 +227,10 @@ rs999999\t1\t100\tAG
     check('close preview clears pending import', window._pendingDNAImport == null && !overlay?.classList.contains('show'));
 
     await window.handleDNAFile(textFile(validContent, 'ancestry-confirm.txt'));
-    await wait();
+    const importConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
     overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
-    const importFinished = await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
+    const importFinished = importConfirmReady && await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
     check('confirmDNAImport stores genetics', state.importedData.genetics?.snps?.rs1801133?.genotype === 'GA');
     check('confirmDNAImport closes preview and refreshes', importFinished && calls.includes('sidebar'));
     check('chat onboarding confirmation updated', document.querySelector('.chat-onboard-dna')?.textContent.includes('SNPs imported'));
@@ -264,9 +264,9 @@ rs999999\t1\t100\tAG
     check('reimportDNA opens file picker', clickedSyntheticInput);
 
     document.querySelector('[data-dna-action="delete-dna"]')?.click();
-    await wait();
+    const confirmReady = await waitFor(() => document.getElementById('confirm-ok') != null);
     document.getElementById('confirm-ok')?.click();
-    const deleteFinished = await waitFor(() => state.importedData.genetics === undefined && calls.filter(item => item === 'navigate:dashboard').length >= 2);
+    const deleteFinished = confirmReady && await waitFor(() => state.importedData.genetics == null && calls.filter(item => item === 'navigate:dashboard').length >= 2);
     check('confirmDeleteDNA deletes genetics and refreshes', deleteFinished);
 
     const toastText = document.getElementById('notification-container')?.textContent || '';
@@ -289,7 +289,7 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
     const wait = () => new Promise(resolve => setTimeout(resolve, 0));
     const waitFor = async (predicate) => {
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 100; i++) {
         if (predicate()) return true;
         await wait();
       }
@@ -353,10 +353,10 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     check('closeMtDNAPreview clears pending', window._pendingMtDNA == null && !overlay?.classList.contains('show'));
 
     await window.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
-    await wait();
+    const mtConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-mtdna-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
     overlay?.querySelector('[data-dna-action="confirm-mtdna-import"]')?.click();
-    const mtImportFinished = await waitFor(() => state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
+    const mtImportFinished = mtConfirmReady && await waitFor(() => state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
     check('confirmMtDNAImport stores mtdna', mtImportFinished);
     const context = window._buildGeneticsContext(state.importedData.genetics, null);
     check('mtDNA context includes mismatch detail', context.includes('mtDNA Haplogroup: J') && context.includes('ENVIRONMENT MISMATCH'));
@@ -390,6 +390,14 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
     const check = (name, condition, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
+    const wait = () => new Promise(resolve => setTimeout(resolve, 0));
+    const waitFor = async (predicate) => {
+      for (let i = 0; i < 100; i++) {
+        if (predicate()) return true;
+        await wait();
+      }
+      return false;
+    };
 
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaRendererCoverage=${Date.now()}-${Math.random()}`);
@@ -414,8 +422,8 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
       },
     };
     const lazyHtml = dna.renderGeneticsSection();
-    await new Promise(resolve => setTimeout(resolve, 100));
-    check('lazy SNP table branch returns blank and schedules dashboard refresh', lazyHtml === '' && calls.includes('dashboard'));
+    const lazyRefreshScheduled = await waitFor(() => calls.includes('dashboard'));
+    check('lazy SNP table branch returns blank and schedules dashboard refresh', lazyHtml === '' && lazyRefreshScheduled);
 
     return { failures };
   });

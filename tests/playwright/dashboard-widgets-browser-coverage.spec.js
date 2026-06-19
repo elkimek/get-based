@@ -98,12 +98,14 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
 
       const defaultPrefs = registry.getDashboardWidgetPrefs();
       outcomes.defaultPrefsPrioritizeDefaultsAndHideNonDefaults =
-        defaultPrefs.order[0] === 'focus'
+        defaultPrefs.order[0] === 'biology-score-biologicalCoherence'
+        && defaultPrefs.order[1] === 'focus'
         && defaultPrefs.order.includes('bio-age')
         && !defaultPrefs.order.includes('cycle')
         && defaultPrefs.hidden.includes('insights')
         && defaultPrefs.hidden.includes('genome')
-        && !defaultPrefs.hidden.includes('focus');
+        && !defaultPrefs.hidden.includes('focus')
+        && !defaultPrefs.hidden.includes('biology-score-biologicalCoherence');
 
       outcomes.markerWidgetIdsRoundTripOnlySafeMarkerIds =
         registry.dashboardMarkerWidgetId('lipids.apob') === 'marker_lipids.apob'
@@ -138,7 +140,8 @@ test('dashboard widgets browser coverage exercises registry persistence and visi
       localStorage.setItem(widgetKey, '{bad json');
       const fallbackAfterBadJson = registry.getDashboardWidgetPrefs();
       outcomes.malformedPrefsFallBackToDefaultPrefs =
-        fallbackAfterBadJson.order[0] === 'focus'
+        fallbackAfterBadJson.order[0] === 'biology-score-biologicalCoherence'
+        && fallbackAfterBadJson.order[1] === 'focus'
         && fallbackAfterBadJson.hidden.includes('insights');
 
       localStorage.setItem(widgetKey, JSON.stringify({
