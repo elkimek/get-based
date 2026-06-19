@@ -1,8 +1,10 @@
 # Biology Scores Branch Review Baseline
 
+> Historical snapshot from 2026-06-14. This file is kept to preserve the original audit trail only. It is **not** the current branch state. For current implementation/docs alignment, use `dev-docs/biology-scores.md` and the latest test output. The current branch is `feat/biology-scores`, contains 19 score definitions, and the retired `MitoThyroid`/`biology-score-mitothyroid.js` experiment is no longer part of the module graph.
+
 Date: 2026-06-14
-Branch/worktree: `/home/elkim/get-based-biology-scores` → `feat/mitochondriak-score-widgets-local`
-Base: `origin/main`
+Branch/worktree at the time: `/home/elkim/get-based-biology-scores` → `feat/mitochondriak-score-widgets-local`
+Base at the time: `origin/main`
 
 ## Branch state
 
@@ -47,10 +49,10 @@ These are outside the Biology Scores targeted test, but they are branch-readines
 
 Severity: High correctness blocker.
 
-Files/functions:
+Files/functions from the historical 2026-06-14 snapshot, not the current branch:
 
-- `js/biology-scores.js` custom formula paths:
-  - `computeMitoThyroid`
+- `js/biology-scores.js` custom formula paths at the time:
+  - retired thyroid/mitochondrial experiment
   - `scoreFt3Activity`
   - `scoreConversionRatio`
   - `computeThyroidCoherence`
@@ -58,7 +60,7 @@ Files/functions:
 
 Issue:
 
-Most generic weighted scores are safe because marker values and ranges move together. But custom thyroid/MitoThyroid formulas use hardcoded SI-like thresholds while reading active display values. In US unit mode, FT3/FT4-style values are converted, but formula constants are not.
+Most generic weighted scores are safe because marker values and ranges move together. But the historical custom thyroid experiment used hardcoded SI-like thresholds while reading active display values. In US unit mode, FT3/FT4-style values were converted, but formula constants were not.
 
 Independent probe result on same fixture:
 

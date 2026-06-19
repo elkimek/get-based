@@ -7,7 +7,7 @@ Use this guide when changing score definitions, marker wiring, specialty adapter
 ## User-facing model
 
 - **Biological Coherence** is the system-level overview across active core domains.
-- Individual scores answer plain-language biology questions: metabolic, cardiovascular, inflammatory, immune, iron, methylation, kidney/hydration, liver/bile, bone/mineral, thyroid, hormone axis, recovery, cellular energy, gut-immune, nerve-muscle, and lipid membrane.
+- The current score inventory is 19 definitions: Biological Coherence plus metabolic, thyroid, cardiovascular, inflammatory, lipid membrane, blood-flow context, iron, methylation, kidney/hydration, liver/bile, bone/mineral, immune, recovery, cellular energy, stress resilience, hormone axis, gut-immune, and nerve-muscle scores.
 - **Pattern** is the marker-fit score.
 - **Coverage** is how much useful evidence is available.
 - **Confidence** is whether the available evidence is robust enough to trust.
@@ -21,8 +21,8 @@ Use this guide when changing score definitions, marker wiring, specialty adapter
 | `js/biology-scores.js` | Public API, score orchestration, event delegation, dashboard/lens exports |
 | `js/biology-score-engine.js` | Generic marker lookup, range fit, recency, coverage, confidence, clinical guardrails |
 | `js/biology-score-coherence.js` | Biological Coherence aggregation over domains |
-| `js/biology-score-tier1-definitions.js` | Core/baseline score definitions |
-| `js/biology-score-tier2-definitions.js` | Extended/contextual score definitions |
+| `js/biology-score-tier1-definitions.js` | Core/baseline score definitions that participate in ordinary coverage expectations |
+| `js/biology-score-tier2-definitions.js` | Extended/contextual score definitions that improve depth without penalizing baseline coherence when absent |
 | `js/biology-score-mappings.js` | Exportable score→marker mapping for audits and coverage tooling |
 | `js/biology-score-render.js` | Lens, dashboard, score-detail, coverage-planner renderers |
 | `js/biology-score-sections.js` | “What this score checks” and embedded AI answer panels |
@@ -213,3 +213,11 @@ guides/biology-scores.mdx
 ```
 
 Keep that guide aligned with this implementation guide whenever score behavior, coverage planning, context checks, AI explanations, or sync persistence change.
+
+When auditing docs alignment, verify these public claims against code before release:
+
+- score inventory: `SCORE_DEFINITIONS` currently contains 19 definitions;
+- specialty adapter counts: OAT/Metabolomix-style markers 165, fatty-acid reference markers 29, BioStarks markers 23;
+- Coverage Planner chat handoff opens a new chat thread and uses the same planner model as the static UI;
+- one context check unlocks all timeframe tabs, while each timeframe still filters the marker data used for scoring;
+- advanced/specialty-heavy domains add depth/confidence but do not lower baseline Biological Coherence merely because they are absent.

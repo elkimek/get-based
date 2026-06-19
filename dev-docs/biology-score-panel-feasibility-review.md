@@ -37,7 +37,7 @@ This panel should unlock most core scoring and serve as the default lab-order pa
 - LDL-C
 - HDL-C
 - Triglycerides
-- Fasting insulin — **minimum** for CZ/EU target; Michal considers it common, cheap, and important enough to include
+- Fasting insulin — **minimum** for CZ/EU target; common, relatively cheap, and important enough to include
 
 ### Liver / kidney / electrolytes / proteins
 
@@ -112,14 +112,14 @@ Extended markers should add real scoring value, not act as status-signaling fill
 | Thyroid Coherence | TSH, free T4, free T3 | reverse T3, TPOAb, TgAb, total T3/T4 if supported | Good score if minimum includes FT3/FT4. Antibodies and reverse T3 improve interpretation but must not block. |
 | Inflammation & Metabolic Burden | hs-CRP/CRP, GGT, ferritin, bilirubin, vitamin D; optionally uric acid/homocysteine | selenium | Good minimum-friendly score. Selenium should be extended only. hs-CRP vs generic CRP must be honest in provider coverage. |
 | Lipid Membrane | none for true membrane score; optionally cheap proxy from TG/HDL is not the same thing | omega-3 index, DHA, EPA, AA/EPA, omega-6/3, full fatty-acid profile | Mark as extended-only unless renamed/split. Do not block Biological Coherence minimum on this. |
-| Blood Flow Signals | hematocrit, hemoglobin, platelets, albumin, sodium, CRP/hs-CRP, urea+creatinine derived hydration ratio | fibrinogen, D-dimer | Minimum can be useful as “blood concentration/flow context”; fibrinogen/D-dimer are extended/contextual, not routine. |
-| Iron Handling | ferritin, serum iron, transferrin/TIBC, transferrin saturation, hemoglobin, MCV/MCH, CRP/hs-CRP | soluble transferrin receptor, copper, ceruloplasmin | Strong minimum score. sTfR/copper/ceruloplasmin should improve confidence, not block. |
+| Blood Flow Signals | hematocrit, hemoglobin, platelets, albumin, sodium, CRP or hs-CRP as distinct markers, urea+creatinine derived hydration ratio | fibrinogen, D-dimer | Minimum can be useful as “blood concentration/flow context”; fibrinogen/D-dimer are extended/contextual, not routine. |
+| Iron Handling | ferritin, serum iron, transferrin/TIBC, transferrin saturation, hemoglobin, MCV/MCH, CRP or hs-CRP as distinct markers | soluble transferrin receptor, copper, ceruloplasmin | Strong minimum score. sTfR/copper/ceruloplasmin should improve confidence, not block. |
 | Methylation | homocysteine, B12, folate, MCV/MCH/RDW, creatinine context | MMA | Strong product score if homocysteine is in minimum. MMA extended only. |
 | Fluid & Filtration Coherence | creatinine, eGFR, urea/BUN, sodium, potassium, chloride, albumin | cystatin C + cystatin eGFR | Very minimum-friendly. Cystatin C is valuable extended. |
 | Liver–Bile Signal | ALT, AST, GGT, ALP, bilirubin, albumin, platelets, ferritin, triglycerides | none essential | Excellent minimum score; mostly standard markers. |
-| Bone–Mineral Signal | 25-OH vitamin D, calcium, phosphorus, ALP, serum magnesium, RBC magnesium, calcitriol, creatinine/eGFR | PTH, bone-turnover markers if later supported | Good minimum score for the CZ target because Michal considers RBC magnesium and calcitriol available/affordable enough. Add PTH as an extended marker. |
-| Immune Cell Balance | CBC differential, platelets, CRP/hs-CRP, vitamin D | none essential | Excellent minimum-friendly score. |
-| Anabolic Recovery Signal | total testosterone, SHBG, LH, FSH, estradiol, albumin, total protein, hemoglobin, CRP/hs-CRP, vitamin D, TSH/FT3, urea/creatinine | free testosterone, DHEA-S, IGF-1, CK, prolactin | Useful but more budget-sensitive. For male self-pay users, minimum hormone bundle is reasonable; free T/DHEA-S/IGF-1 are extended confidence markers. |
+| Bone–Mineral Signal | 25-OH vitamin D, calcium, phosphorus, ALP, serum magnesium, RBC magnesium, calcitriol, creatinine/eGFR | PTH, bone-turnover markers if later supported | Good minimum score for the CZ/self-pay target when RBC magnesium and calcitriol are available/affordable enough. Add PTH as an extended marker. |
+| Immune Cell Balance | CBC differential, platelets, CRP or hs-CRP as distinct markers, vitamin D | none essential | Excellent minimum-friendly score. |
+| Anabolic Recovery Signal | total testosterone, SHBG, LH, FSH, estradiol, albumin, total protein, hemoglobin, CRP or hs-CRP as distinct markers, vitamin D, TSH/FT3, urea/creatinine | free testosterone, DHEA-S, IGF-1, CK, prolactin | Useful but more budget-sensitive. For male self-pay users, minimum hormone bundle is reasonable; free T/DHEA-S/IGF-1 are extended confidence markers. |
 
 ## Current score concerns to fix before Biological Coherence
 
@@ -135,7 +135,7 @@ Extended markers should add real scoring value, not act as status-signaling fill
 
 5. **Bone–Mineral keeps RBC magnesium and calcitriol in minimum for our CZ target.** PTH can be the extended upgrade; provider/pricing layer still needs to verify actual catalogue coverage.
 
-6. **Anabolic Recovery needs sex/context gating.** It is valuable for male/recovery optimization but should not become a universal default score for every user.
+6. **Anabolic Recovery needs sex/context gating.** It is valuable for recovery optimization but should not become a universal default score with the same marker requirements for every user.
 
 7. **Derived markers must stay derived.** HOMA-IR, TG/HDL ratio, BUN/creatinine ratio, NLR, De Ritis ratio, eGFR-derived variants should not appear as orderable tests. Lab ordering must order dependencies.
 

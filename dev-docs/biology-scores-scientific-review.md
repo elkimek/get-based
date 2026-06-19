@@ -71,17 +71,14 @@ Formula direction:
 - Avoid diagnosing “poor conversion” from FT3/FT4 alone.
 - Add context flags before strong scoring language.
 
-#### Thyroid–Mito Signal / MitoThyroid
-This is an interesting thyroid × triglyceride/fuel-handling heuristic, but not a validated clinical mitochondrial score. It should answer a different product question than Thyroid Coherence:
+#### Retired Thyroid–Mito Signal / MitoThyroid concept
+This heuristic was removed from the production branch. It was an interesting thyroid × triglyceride/fuel-handling idea, but it was not a validated clinical mitochondrial score and overlapped too much with Thyroid Coherence.
 
-- **Thyroid Coherence:** is the thyroid axis internally consistent — TSH, FT4, FT3, conversion, reverse T3 brake context, and antibodies?
-- **Thyroid–Mito Signal:** does the thyroid signal appear metabolically expressed — FT3/TSH pattern plus triglyceride/fuel-handling context?
-
-Formula direction:
-- Keep as experimental/contextual until we backtest it ourselves.
-- Use the user-facing name **Thyroid–Mito Signal** rather than implying direct mitochondrial measurement.
-- Add confidence states later: core thyroid/fuel signal, full thyroid panel, full thyroid + metabolic context.
-- Validate against longitudinal profiles, symptoms/proxy signals, resting HR/body temperature where available, glucose-insulin/TG-HDL context, inflammation/illness flags, and sensitivity to normal lab noise.
+Current product decision:
+- Do not ship or reintroduce a standalone **MitoThyroid** score.
+- Keep thyroid-axis interpretation in **Thyroid Coherence**, with conservative wording and context gates.
+- Put real mitochondrial/metabolic specialty depth under **Cellular Energy**, where OAT/metabolomics-style markers can support the score without penalizing baseline Biological Coherence when absent.
+- If this concept returns, it needs a new proposal, same-draw/unit-safe tests, longitudinal validation, and clear separation from both Thyroid Coherence and Cellular Energy.
 
 #### Blood flow viscosity
 Weakest as a composite. Hematocrit and fibrinogen influence viscosity; D-dimer is acute/contextual; sodium/albumin are not reliable general viscosity proxies.
@@ -137,7 +134,7 @@ A score can move from **Experimental** to **Evidence-backed** only after these a
 6. **Clinical guardrails:** acute/context-heavy markers such as D-dimer, fibrinogen, CRP, ferritin, and thyroid hormones need explicit interpretation warnings.
 7. **Documentation:** each production score needs its marker list, weights/rules, evidence tier rationale, and known limitations.
 
-For current scores, **Metabolic Flexibility** and **Iron Handling** are closest because the constructs map to established lab patterns. **MitoThyroid**, **Thyroid Coherence**, and **Blood Flow Signals** need more validation and better marker panels before they should be called production.
+For current scores, **Metabolic Flexibility** and **Iron Handling** are closest because the constructs map to established lab patterns. **Thyroid Coherence** and **Blood Flow Context** stay conservative/contextual; the retired **MitoThyroid** concept is not part of the current score inventory.
 
 ## Production-readiness pass — 2026-06-14 follow-up
 
@@ -153,8 +150,9 @@ Evidence anchors:
 
 Current product decision:
 
-- Keep **MitoThyroid** as experimental/contextual until it is backtested. It is interesting because FT3 and triglyceride handling plausibly sit at the thyroid ↔ mitochondrial fat-oxidation boundary, but no published clinical score validates this exact construct.
-- Move **Thyroid Coherence** toward production by requiring a fuller panel for high confidence: TSH, FT3, FT4, reverse T3, TPO antibodies, thyroglobulin antibodies. The formula now exposes rT3/antibody context as missing mapped inputs rather than pretending TSH/FT3/FT4 alone are enough.
+- Keep the retired **MitoThyroid** concept out of the current score inventory.
+- Keep **Thyroid Coherence** conservative/contextual and require a fuller panel for high confidence: TSH, FT3, FT4, reverse T3, TPO antibodies, thyroglobulin antibodies. The formula exposes rT3/antibody context as missing mapped inputs rather than pretending TSH/FT3/FT4 alone are enough.
+- Put mitochondrial depth under **Cellular Energy** with OAT/metabolomics-style markers; absent advanced tests must reduce optional depth/confidence, not baseline Biological Coherence.
 - Upgrade path: add same-draw panel template, collect real longitudinal profiles, compare score changes to symptoms/temperature/resting HR/lipids/glucose/medication state, then run sensitivity tests.
 
 ### Iron Handling
