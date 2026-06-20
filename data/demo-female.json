@@ -1584,16 +1584,16 @@
     {
       "date": "2026-01-25",
       "markers": {
-        "biochemistry.glucose": 4.5,
+        "biochemistry.glucose": 5.15,
         "biochemistry.urea": 4.6,
         "biochemistry.creatinine": 54,
         "biochemistry.egfr": 1.95,
         "biochemistry.uricAcid": 210,
         "biochemistry.bilirubinTotal": 7,
-        "biochemistry.ast": 0.23,
-        "biochemistry.alt": 0.26,
+        "biochemistry.ast": 0.48,
+        "biochemistry.alt": 0.38,
         "biochemistry.alp": 0.9,
-        "biochemistry.ggt": 0.24,
+        "biochemistry.ggt": 0.34,
         "biochemistry.ldh": 2.52,
         "biochemistry.creatineKinase": 1.1,
         "biochemistry.cystatinC": 0.65,
@@ -1604,7 +1604,7 @@
         "hormones.dheaS": 6.1,
         "hormones.estradiol": 425,
         "hormones.progesterone": 0.42,
-        "hormones.insulin": 5.8,
+        "hormones.insulin": 7.5,
         "hormones.lh": 8.2,
         "hormones.fsh": 9.5,
         "hormones.prolactin": 13,
@@ -1620,9 +1620,9 @@
         "electrolytes.copper": 17.2,
         "electrolytes.zinc": 12.5,
         "lipids.cholesterol": 4.58,
-        "lipids.triglycerides": 0.7,
+        "lipids.triglycerides": 0.92,
         "lipids.hdl": 1.85,
-        "lipids.ldl": 2.41,
+        "lipids.ldl": 2.65,
         "lipids.nonHdl": 2.73,
         "lipids.cholHdlRatio": 2.5,
         "lipids.apoAI": 1.58,
@@ -1632,7 +1632,7 @@
         "iron.transferrin": 3.3,
         "iron.tibc": 56.8,
         "iron.transferrinSat": 28,
-        "proteins.hsCRP": 0.38,
+        "proteins.hsCRP": 0.9,
         "proteins.totalProtein": 71.5,
         "proteins.albumin": 44.5,
         "proteins.ceruloplasmin": 0.23,
@@ -1644,8 +1644,8 @@
         "vitamins.vitaminD": 88,
         "vitamins.vitaminD3": 78,
         "vitamins.vitaminA": 1.75,
-        "diabetes.hba1c": 28,
-        "diabetes.insulin_d": 5.8,
+        "diabetes.hba1c": 35,
+        "diabetes.insulin_d": 7.5,
         "diabetes.homaIR": 1.16,
         "coagulation.homocysteine": 6.5,
         "hematology.wbc": 5.35,
@@ -1660,7 +1660,7 @@
         "hematology.mpv": 9.9,
         "hematology.pdw": 12.5,
         "differential.neutrophils": 3.05,
-        "differential.lymphocytes": 1.75,
+        "differential.lymphocytes": 1.85,
         "differential.monocytes": 0.35,
         "differential.eosinophils": 0.14,
         "differential.basophils": 0.06,
@@ -1669,7 +1669,33 @@
         "differential.monocytesPct": 0.065,
         "boneMetabolism.osteocalcin": 26.5,
         "specialty.glycanAge": 36,
-        "specialty.urinaryIodine": 175
+        "specialty.urinaryIodine": 175,
+        "vitamins.vitaminB12": 365,
+        "vitamins.activeB12": 92,
+        "vitamins.folate": 20.5,
+        "vitamins.methylmalonicAcid": 245,
+        "oatMetabolic.lactic": 26,
+        "oatMetabolic.pyruvic": 9.8,
+        "oatMetabolic.succinic": 5.2,
+        "oatMetabolic.fumaric": 0.42,
+        "oatMetabolic.malic": 1.55,
+        "oatMetabolic.oxoglutaric2": 15.5,
+        "oatMetabolic.aconitic": 34,
+        "oatMetabolic.methylglutaconic3": 2.4,
+        "oatAminoFatty.ethylmalonic": 3.4,
+        "oatAminoFatty.methylsuccinic": 1.35,
+        "oatAminoFatty.adipic": 2.1,
+        "oatAminoFatty.suberic": 1.05,
+        "oatAminoFatty.sebacic": 0.42,
+        "oatNutritional.hmg": 1.7,
+        "stool.calprotectin": 42,
+        "stool.zonulin": 34,
+        "stool.secretoryIgA": 760,
+        "oatMicrobial.arabinose": 12,
+        "oatMicrobial.hphpa": 45,
+        "oatMicrobial.cresol4": 26,
+        "oatMicrobial.dArabinitol": 22,
+        "calculatedRatios.nlr": 1.65
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -2015,6 +2041,90 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1769328000000
+        },
+        "oatMetabolic.lactic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.pyruvic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.succinic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.fumaric": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.malic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.oxoglutaric2": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.aconitic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.methylglutaconic3": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.ethylmalonic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.methylsuccinic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.adipic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.suberic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.sebacic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatNutritional.hmg": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.calprotectin": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.zonulin": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.secretoryIgA": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.arabinose": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.hphpa": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.cresol4": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.dArabinitol": {
+          "file": "Demo advanced functional panel",
+          "page": 1
         }
       }
     },
@@ -4331,5 +4441,24 @@
       "loveLife": "Hormonal shifts affecting libido — track with cycle",
       "environment": "Urban EMF + WiFi load partially mitigated"
     }
+  },
+  "biologyScoreContextAI": {
+    "summary": "Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.",
+    "suggestions": [],
+    "fingerprint": "biology-context:1rgpz9i",
+    "fingerprintsByRange": {
+      "all": "biology-context:1rgpz9i",
+      "1y": "biology-context:7ffmh2",
+      "6m": "biology-context:tc1fgj",
+      "3m": "biology-context:1s3oyl2"
+    },
+    "unlockedRanges": [
+      "all",
+      "1y",
+      "6m",
+      "3m"
+    ],
+    "range": "all",
+    "updatedAt": 1781913600000
   }
 }

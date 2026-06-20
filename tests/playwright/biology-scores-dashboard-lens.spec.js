@@ -111,10 +111,10 @@ test('Biology Scores lens renders coherence hero with dashboard toggle and score
   await expect(hero).toBeVisible();
   await expect(hero.locator('[data-lens-page-action]')).toBeVisible();
 
-  // The demo-male dataset only drives Biological Coherence; most individual scores
-  // land in the unavailable group. Verify both the hero and the unavailable disclosure.
-  const unavailableGroup = page.locator('.biology-score-unavailable-group');
-  await expect(unavailableGroup).toBeVisible();
+  // Demo profiles should now be fully unlocked and complete: every individual
+  // Biology Score detail card is live, with no "needs more data" disclosure.
+  await expect(page.locator('.biology-score-detail')).toHaveCount(18);
+  await expect(page.locator('.biology-score-unavailable-group')).toHaveCount(0);
 });
 
 test('dashboard domain rows without primaryScoreId get no-jump visual cue', async ({ page }) => {

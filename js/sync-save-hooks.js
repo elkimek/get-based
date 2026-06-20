@@ -136,9 +136,9 @@ export function onProfileSaved(profileId, importedData = null) {
   _profileSyncTimers.set(profileId, timer);
 }
 
-/** @param {{ immediate?: boolean }} [options] */
+/** @param {{ immediate?: boolean, skipSync?: boolean }} [options] */
 export function onDataSaved(options = {}) {
-  if (_isSyncEnabled() && _isEvoluReady()) {
+  if (!options?.skipSync && _isSyncEnabled() && _isEvoluReady()) {
     const profileId = state.currentProfile;
     const data = state.importedData;
     if (profileId) {

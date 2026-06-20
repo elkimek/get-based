@@ -1627,8 +1627,8 @@
         "electrolytes.sodium": 138,
         "electrolytes.potassium": 4.7,
         "electrolytes.chloride": 100,
-        "electrolytes.calciumTotal": 2.32,
-        "electrolytes.phosphorus": 1.2,
+        "electrolytes.calciumTotal": 2.43,
+        "electrolytes.phosphorus": 1.17,
         "electrolytes.magnesium": 0.92,
         "electrolytes.magnesiumRBC": 2.28,
         "electrolytes.copper": 15.8,
@@ -1641,10 +1641,10 @@
         "lipids.cholHdlRatio": 4.5,
         "lipids.apoAI": 1.12,
         "lipids.apoB": 1.02,
-        "iron.iron": 17.8,
-        "iron.ferritin": 145,
+        "iron.iron": 27,
+        "iron.ferritin": 190,
         "iron.transferrin": 2.7,
-        "iron.transferrinSat": 30.5,
+        "iron.transferrinSat": 48,
         "proteins.hsCRP": 1.5,
         "proteins.totalProtein": 73,
         "proteins.albumin": 43.5,
@@ -1654,7 +1654,7 @@
         "thyroid.ft3": 4.2,
         "thyroid.t4total": 98,
         "thyroid.t3total": 1.65,
-        "vitamins.vitaminD": 118,
+        "vitamins.vitaminD": 102,
         "vitamins.vitaminD3": 105,
         "vitamins.vitaminA": 2.1,
         "diabetes.hba1c": 29,
@@ -1683,7 +1683,52 @@
         "differential.monocytesPct": 0.08,
         "boneMetabolism.osteocalcin": 21,
         "specialty.glycanAge": 40,
-        "specialty.urinaryIodine": 195
+        "specialty.urinaryIodine": 195,
+        "fattyAcids.palmiticC16": 27.5,
+        "fattyAcids.stearicC18": 12.8,
+        "fattyAcids.oleicC18_1": 23.2,
+        "fattyAcids.linoleicC18_2": 18.5,
+        "fattyAcids.glaC18_3": 0.18,
+        "fattyAcids.arachidonicC20_4": 5.9,
+        "fattyAcids.dglaC20_3": 1.15,
+        "fattyAcids.alaC18_3": 0.85,
+        "fattyAcids.epaC20_5": 3.2,
+        "fattyAcids.dpaC22_5": 1.95,
+        "fattyAcids.dhaC22_6": 4.5,
+        "fattyAcids.omega3Index": 7.8,
+        "fattyAcids.omega6to3Ratio": 2.1,
+        "fattyAcids.membraneFluidity": 5.8,
+        "fattyAcids.mentalResilience": 0.78,
+        "vitamins.vitaminB12": 315,
+        "vitamins.activeB12": 74,
+        "vitamins.folate": 15.5,
+        "vitamins.methylmalonicAcid": 285,
+        "hormones.lh": 3.4,
+        "hormones.fsh": 4.7,
+        "hormones.prolactin": 13.6,
+        "oatMetabolic.lactic": 31,
+        "oatMetabolic.pyruvic": 12.4,
+        "oatMetabolic.succinic": 6.8,
+        "oatMetabolic.fumaric": 0.55,
+        "oatMetabolic.malic": 2.05,
+        "oatMetabolic.oxoglutaric2": 18.5,
+        "oatMetabolic.aconitic": 41,
+        "oatMetabolic.methylglutaconic3": 3.15,
+        "oatAminoFatty.ethylmalonic": 4.5,
+        "oatAminoFatty.methylsuccinic": 1.85,
+        "oatAminoFatty.adipic": 2.7,
+        "oatAminoFatty.suberic": 1.55,
+        "oatAminoFatty.sebacic": 0.62,
+        "oatNutritional.hmg": 2.2,
+        "biostarksAmino.carnitine": 38,
+        "stool.calprotectin": 68,
+        "stool.zonulin": 42,
+        "stool.secretoryIgA": 620,
+        "oatMicrobial.arabinose": 18,
+        "oatMicrobial.hphpa": 75,
+        "oatMicrobial.cresol4": 42,
+        "oatMicrobial.dArabinitol": 31,
+        "iron.transferrinSaturation": 0.34
       },
       "markerSources": {
         "biochemistry.glucose": {
@@ -2017,6 +2062,154 @@
         "specialty.urinaryIodine": {
           "file": "Urinary iodine spot test.pdf",
           "at": 1769932800000
+        },
+        "fattyAcids.palmiticC16": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.stearicC18": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.oleicC18_1": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.linoleicC18_2": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.glaC18_3": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.arachidonicC20_4": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.dglaC20_3": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.alaC18_3": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.epaC20_5": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.dpaC22_5": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.dhaC22_6": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.omega3Index": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.omega6to3Ratio": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.membraneFluidity": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "fattyAcids.mentalResilience": {
+          "file": "2026-Q1 fatty-acid add-on panel.pdf",
+          "at": 1769932800000
+        },
+        "oatMetabolic.lactic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.pyruvic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.succinic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.fumaric": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.malic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.oxoglutaric2": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.aconitic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMetabolic.methylglutaconic3": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.ethylmalonic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.methylsuccinic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.adipic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.suberic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatAminoFatty.sebacic": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatNutritional.hmg": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "biostarksAmino.carnitine": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.calprotectin": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.zonulin": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "stool.secretoryIgA": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.arabinose": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.hphpa": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.cresol4": {
+          "file": "Demo advanced functional panel",
+          "page": 1
+        },
+        "oatMicrobial.dArabinitol": {
+          "file": "Demo advanced functional panel",
+          "page": 1
         }
       }
     }
@@ -4271,7 +4464,7 @@
     "hrv",
     "activity"
   ],
-  "demoUpgradedAt": "2026-05-09-v12",
+  "demoUpgradedAt": "2026-06-20-v13",
   "channelMixAI": {
     "status": "ok",
     "dot": "yellow",
@@ -4305,5 +4498,24 @@
       "loveLife": "Mismatched libido worth open conversation",
       "environment": "Smart meter + WiFi + RF density elevated"
     }
+  },
+  "biologyScoreContextAI": {
+    "summary": "Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.",
+    "suggestions": [],
+    "fingerprint": "biology-context:ukzggm",
+    "fingerprintsByRange": {
+      "all": "biology-context:ukzggm",
+      "1y": "biology-context:1jwmvxu",
+      "6m": "biology-context:2h1789",
+      "3m": "biology-context:1hyo7qp"
+    },
+    "unlockedRanges": [
+      "all",
+      "1y",
+      "6m",
+      "3m"
+    ],
+    "range": "all",
+    "updatedAt": 1781913600000
   }
 }

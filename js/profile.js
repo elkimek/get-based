@@ -42,7 +42,8 @@ import {
  *   status?: string,
  *   avatar?: string | null,
  *   height?: number | string | null,
- *   heightUnit?: string
+ *   heightUnit?: string,
+ *   skipInitialSync?: boolean
  * }} CreateProfileOptions
  * @typedef {{
  *   name?: string,
@@ -812,7 +813,7 @@ export function createProfile(name, opts = {}) {
     pinned: false
   });
   saveProfiles(profiles);
-  queueProfileSync(id, createDefaultProfileData());
+  if (!opts.skipInitialSync) queueProfileSync(id, createDefaultProfileData());
   return id;
 }
 
