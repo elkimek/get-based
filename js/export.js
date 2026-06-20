@@ -239,7 +239,8 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     lifelightProfile: data.lifelightProfile || null,
     lightDailyVerdicts: data.lightDailyVerdicts || null,
     channelMixAI: data.channelMixAI || null,
-    biologyScoreContextAI: data.biologyScoreContextAI || null
+    biologyScoreContextAI: data.biologyScoreContextAI || null,
+    importSnapshots: data.importSnapshots || []
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -725,6 +726,20 @@ export function importDataJSON(file) {
           if (!exists) appendImportedArrayItem(state.importedData, 'notes', { date: note.date, text: note.text });
         }
       }
+      // Import import snapshots (issue #39)
+      if (Array.isArray(json.importSnapshots)) {
+        if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
+        const knownIds = new Set(state.importedData.importSnapshots.map(s => s.id).filter(Boolean));
+        for (const snap of json.importSnapshots) {
+          if (snap && snap.id && !knownIds.has(snap.id)) {
+            state.importedData.importSnapshots.push(snap);
+            knownIds.add(snap.id);
+          }
+        }
+        // Sort by importedAt descending (newest first)
+        state.importedData.importSnapshots.sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+      }
+
       migrateProfileData(state.importedData);
       saveImportedData((/** @type {any} */ (globalThis))._demoLoadingProfileId === state.currentProfile
         ? { skipSync: true, reason: 'demo-import' }
@@ -956,7 +971,7 @@ export async function clearAllData() {
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
     saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [] };
+    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [], importSnapshots: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database
