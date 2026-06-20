@@ -482,7 +482,7 @@ async function handleSettingsClick(event) {
     if (ok) refreshDataEntriesSection();
   } else if (action === 'edit-snapshot-date') {
     event.preventDefault();
-    // Open the review modal so the user can edit the date inline
+    // Deprecated: merged into Review & Edit (review-import)
     window.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
   } else if (action === 'export-client') {
     event.preventDefault();
@@ -1360,8 +1360,7 @@ export function renderDataEntriesSection() {
           <span style="color:var(--text-muted);margin-left:8px;font-size:10px;text-transform:uppercase">${escapeHTML(typeLabel)}</span>
         </span>
         <div class="ie-actions">
-          <button class="ie-edit" data-settings-action="review-import" data-snap-id="${escapeAttr(snapId)}" title="Review and re-import without AI">Review</button>
-          <button class="ie-edit" data-settings-action="edit-snapshot-date" data-snap-id="${escapeAttr(snapId)}" title="Edit collection date">Edit date</button>
+          <button class="ie-edit" data-settings-action="review-import" data-snap-id="${escapeAttr(snapId)}" title="Review, edit values/units, and re-import without AI cost">Review & Edit</button>
           <button class="ie-remove" data-settings-action="remove-import-snapshot" data-snap-id="${escapeAttr(snapId)}">Delete</button>
         </div>
       </div>`;

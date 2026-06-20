@@ -341,16 +341,16 @@ export function importDataJSON(file) {
     reader.onload = async (e) => {
       try {
         const json = JSON.parse(/** @type {string} */ (reader.result));
-      // Guard: demo data should never be silently imported into a non-demo profile
-      if (json._source === 'demo') {
-        const profiles = getProfiles();
-        const current = profiles.find(p => p.id === state.currentProfile);
-        if (!current?.tags?.includes('demo')) {
-          showNotification('Demo data detected. Use the dashboard "Load demo" button to create a demo profile, or switch to a demo profile before importing.', 'error');
-          resolve();
-          return;
+        // Guard: demo data should never be silently imported into a non-demo profile
+        if (json._source === 'demo') {
+          const profiles = getProfiles();
+          const current = profiles.find(p => p.id === state.currentProfile);
+          if (!current?.tags?.includes('demo')) {
+            showNotification('Demo data detected. Use the dashboard "Load demo" button to create a demo profile, or switch to a demo profile before importing.', 'error');
+            resolve();
+            return;
+          }
         }
-      }
       // Database bundle — multi-profile import
       if (json.type === 'database' && Array.isArray(json.profiles)) {
         await _importDatabaseBundle(json);
