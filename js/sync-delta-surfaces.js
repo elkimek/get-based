@@ -34,7 +34,6 @@ export const DELTA_ARRAYS = [
   'healthGoals',
   'changeHistory',
   'chatSummaries',
-  'importSnapshots',
 ];
 
 // Keyed-object shapes subject to delta sync.
