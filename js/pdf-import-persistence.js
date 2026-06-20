@@ -50,10 +50,16 @@ export async function removeImportedEntry(date) {
       }
     }
   }
-  // Delete manual values for this date
+  // Delete manual values only for markers that were actually removed
+  const removedKeys = markerKeys.filter(k => {
+    const src = entry.markerSources?.[k];
+    return !src || !src.snapshotId;
+  });
   const manualValues = state.importedData.manualValues || {};
   for (const k of Object.keys(manualValues)) {
-    if (k.endsWith(':' + date)) delete manualValues[k];
+    if (k.endsWith(':' + date) && removedKeys.includes(k.split(':')[0])) {
+      delete manualValues[k];
+    }
   }
   // If no markers remain, delete the whole entry; otherwise keep it for remaining snapshots
   if (Object.keys(entry.markers).length === 0) {

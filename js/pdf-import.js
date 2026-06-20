@@ -25,9 +25,10 @@ import {
   refreshImportedDataViews,
   removeImportedEntry,
   renameImportedEntryDate,
-  restoreImportedDataSnapshot,
   snapshotImportedData,
+  restoreImportedDataSnapshot,
 } from './pdf-import-persistence.js';
+import { recordTombstone } from './data-merge.js';
 import {
   handleImportStatusClick,
   hideImportProgress,
@@ -596,6 +597,7 @@ export async function deleteImportSnapshot(snapId) {
       }
     }
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
+      recordTombstone(state.importedData, 'entries', snapshot.date);
       state.importedData.entries = state.importedData.entries.filter(e => e !== entry);
     }
   }
