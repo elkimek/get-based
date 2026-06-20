@@ -14,6 +14,13 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
 
+  // ── Profile safety guard: run tests in a throwaway profile ──
+  const origProfileId = S.currentProfile;
+  const testProfileId = window.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  await window.switchProfile(testProfileId);
+
+  try {
+
   console.log('%c Sun UI Flow Tests ', 'background:#f59e0b;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   // Stash + reset state so we don't pollute the host page
@@ -478,4 +485,15 @@ return (async function() {
   await window.saveImportedData?.();
 
   console.log(`Light & Sun UI: ${pass} passed, ${fail} failed`);
+
+  } finally {
+    // Restore original profile and delete the throwaway
+    try {
+      const profiles = window.getProfiles();
+      await window.switchProfile(origProfileId);
+      window.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+    } catch (e) {
+      console.error('Test cleanup failed:', e);
+    }
+  }
 })();
