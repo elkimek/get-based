@@ -939,6 +939,24 @@ return (async function() {
       assert('contextHealth prefill is inside loadDemoData (demo-only by code path)',
         _loadDemoSection.includes("profileStorageKey(profileId, 'contextHealth')"),
         'prefill must live in loadDemoData, not in importDataJSON');
+      assert('loadDemoData pre-unlocks Biology Scores without AI provider call',
+        _loadDemoSection.includes('buildBiologyScoreContextFingerprintsByRange')
+          && _loadDemoSection.includes('biologyScoreContextAI')
+          && _loadDemoSection.includes('Demo context checked locally'),
+        'demo loader must seed Biology Scores context review locally');
+      assert('loadDemoData does not depend on cross-device sync for demo Biology Scores',
+        _loadDemoSection.includes('skipInitialSync: true')
+          && _loadDemoSection.includes("skipSync: true, reason: 'demo-import'")
+          && _loadDemoSection.includes("skipSync: true, reason: 'demo-biology-score-context'"),
+        'demo loading must not sync an empty demo profile and wait for pull/rebroadcast to unlock Biology Scores');
+      assert('loadDemoData awaits demo import before post-import Biology Scores validation',
+        _loadDemoSection.includes('await importDataJSON(demoImportFile)')
+          && _loadDemoSection.includes('hasCurrentBiologyScoreContextReview(scoreData)')
+          && _loadDemoSection.includes("reason: 'demo-biology-score-context'"),
+        'demo loader must recompute the local Biology Scores unlock after the real import path settles');
+      assert('importDataJSON imports precomputed Biology Score context review',
+        _importBody.includes('json.biologyScoreContextAI') && _importBody.includes('state.importedData.biologyScoreContextAI'),
+        'JSON import must preserve the demo Biology Scores unlock');
       assert('importDataJSON does NOT touch contextHealth cache (so non-demo imports are unaffected)',
         _importBody.length > 0 && !_importBody.includes('contextHealth'),
         'context-health prefill leaks into the regular JSON-import path');
@@ -1065,6 +1083,23 @@ return (async function() {
         assert('All 9 cached fingerprints match live fingerprints (proves migration + merge applied correctly)',
           mismatched.length === 0,
           `mismatched: ${mismatched.map(x => x.k).join(', ')}`);
+      }
+
+      const bioReview = S.importedData?.biologyScoreContextAI;
+      assert('Biology Scores demo context review populated after demo load',
+        bioReview?.summary?.includes('Demo context checked locally')
+          && bioReview?.updatedAt
+          && Array.isArray(bioReview?.unlockedRanges)
+          && ['all','1y','6m','3m'].every(range => bioReview.unlockedRanges.includes(range)),
+        `got ${JSON.stringify(bioReview || {}).slice(0, 160)}`);
+      try {
+        const { hasCurrentBiologyScoreContextReview } = await import('../js/biology-score-context-ai.js');
+        const scoreData = window.filterDatesByRange?.(window.getActiveData?.() || {}, { fallbackToAll: false }) || window.getActiveData?.() || {};
+        assert('Biology Scores demo context review matches live fingerprints',
+          hasCurrentBiologyScoreContextReview(scoreData),
+          'demo Biology Scores would still show the unlock gate');
+      } catch (err) {
+        assert('Biology Scores demo context review module import failed', false, err?.message || String(err));
       }
 
       // Zero AI calls during the demo-load window

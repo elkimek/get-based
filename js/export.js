@@ -169,6 +169,7 @@ async function _importChatData(profileId, chat) {
  * @property {unknown} lifelightProfile
  * @property {unknown} lightDailyVerdicts
  * @property {unknown} channelMixAI
+ * @property {unknown} biologyScoreContextAI
  * @property {unknown} [chat]
  */
 
@@ -237,7 +238,8 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     sunCorrelations: data.sunCorrelations || null,
     lifelightProfile: data.lifelightProfile || null,
     lightDailyVerdicts: data.lightDailyVerdicts || null,
-    channelMixAI: data.channelMixAI || null
+    channelMixAI: data.channelMixAI || null,
+    biologyScoreContextAI: data.biologyScoreContextAI || null
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -629,6 +631,13 @@ export function importDataJSON(file) {
       if (json.channelMixAI && typeof json.channelMixAI === 'object') {
         state.importedData.channelMixAI = json.channelMixAI;
       }
+      // Biology Scores are gated behind a context review because the review can
+      // send profile/lab context to the configured AI provider. Demo profiles
+      // ship a locally-generated review from loadDemoData() so the feature is
+      // visible immediately without spending a real LLM call.
+      if (json.biologyScoreContextAI && typeof json.biologyScoreContextAI === 'object') {
+        state.importedData.biologyScoreContextAI = json.biologyScoreContextAI;
+      }
       // Import change history (merge by field+date, imported snapshot wins on conflict)
       if (Array.isArray(json.changeHistory)) {
         const changeHistory = ensureImportedArray(state.importedData, 'changeHistory');
@@ -708,7 +717,9 @@ export function importDataJSON(file) {
         }
       }
       migrateProfileData(state.importedData);
-      saveImportedData();
+      saveImportedData((/** @type {any} */ (globalThis))._demoLoadingProfileId === state.currentProfile
+        ? { skipSync: true, reason: 'demo-import' }
+        : {});
       if (json.chat) {
         await _importChatData(state.currentProfile, json.chat);
         if (window.loadChatThreads) window.loadChatThreads();
@@ -973,7 +984,7 @@ export async function loadDemoData(sex = 'male') {
       ? 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc4MCcgaGVpZ2h0PSc4MCcgdmlld0JveD0nMCAwIDgwIDgwJz4KPGNpcmNsZSBjeD0nNDAnIGN5PSc0MCcgcj0nNDAnIGZpbGw9JyNmMGM4YTAnLz4KPGVsbGlwc2UgY3g9JzQwJyBjeT0nMjgnIHJ4PScyMicgcnk9JzIwJyBmaWxsPScjNmIzYTJhJy8+CjxlbGxpcHNlIGN4PSc0MCcgY3k9JzQ4JyByeD0nMTYnIHJ5PScxOCcgZmlsbD0nI2Y1ZDViOCcvPgo8Y2lyY2xlIGN4PSczMycgY3k9JzQ0JyByPScyJyBmaWxsPScjNGEzNzI4Jy8+CjxjaXJjbGUgY3g9JzQ3JyBjeT0nNDQnIHI9JzInIGZpbGw9JyM0YTM3MjgnLz4KPHBhdGggZD0nTTM2IDUyIFE0MCA1NiA0NCA1Micgc3Ryb2tlPScjYzQ3YTZhJyBzdHJva2Utd2lkdGg9JzEuNScgZmlsbD0nbm9uZScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJy8+CjxwYXRoIGQ9J00xOCAzMCBRMjAgMTIgNDAgMTAgUTYwIDEyIDYyIDMwIFE1OCAyMiA0MCAyMCBRMjIgMjIgMTggMzBaJyBmaWxsPScjNmIzYTJhJy8+CjxwYXRoIGQ9J00xNiAzNSBRMTQgMjAgMjUgMTUnIHN0cm9rZT0nIzZiM2EyYScgc3Ryb2tlLXdpZHRoPSc2JyBmaWxsPSdub25lJyBzdHJva2UtbGluZWNhcD0ncm91bmQnLz4KPHBhdGggZD0nTTY0IDM1IFE2NiAyMCA1NSAxNScgc3Ryb2tlPScjNmIzYTJhJyBzdHJva2Utd2lkdGg9JzYnIGZpbGw9J25vbmUnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcvPgo8L3N2Zz4='
       : 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc4MCcgaGVpZ2h0PSc4MCcgdmlld0JveD0nMCAwIDgwIDgwJz4KPGNpcmNsZSBjeD0nNDAnIGN5PSc0MCcgcj0nNDAnIGZpbGw9JyNkNGE4N2MnLz4KPGVsbGlwc2UgY3g9JzQwJyBjeT0nNDgnIHJ4PScxNycgcnk9JzE4JyBmaWxsPScjZThjNGEwJy8+CjxyZWN0IHg9JzIwJyB5PScxNCcgd2lkdGg9JzQwJyBoZWlnaHQ9JzIyJyByeD0nOCcgZmlsbD0nIzNhMmExYScvPgo8Y2lyY2xlIGN4PSczMycgY3k9JzQ0JyByPScyJyBmaWxsPScjM2EyYTFhJy8+CjxjaXJjbGUgY3g9JzQ3JyBjeT0nNDQnIHI9JzInIGZpbGw9JyMzYTJhMWEnLz4KPHBhdGggZD0nTTM2IDUzIFE0MCA1NiA0NCA1Mycgc3Ryb2tlPScjYjA3MDYwJyBzdHJva2Utd2lkdGg9JzEuNScgZmlsbD0nbm9uZScgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJy8+CjxyZWN0IHg9JzMwJyBjeT0nNTgnIHk9JzU5JyB3aWR0aD0nMjAnIGhlaWdodD0nMycgcng9JzEnIGZpbGw9JyM4YjZiNTAnIG9wYWNpdHk9JzAuNCcvPgo8L3N2Zz4=';
     const height = sex === 'female' ? 168 : 182;
-    const profileId = createProfile(name, { sex, dob, location, avatar, tags: ['demo'], height, heightUnit: 'cm' });
+    const profileId = createProfile(name, { sex, dob, location, avatar, tags: ['demo'], height, heightUnit: 'cm', skipInitialSync: true });
     // Remove empty Default profile when loading demo data
     const { getProfiles, saveProfiles: saveProfileList } = await import('./profile.js');
     const allProfiles = getProfiles();
@@ -1009,6 +1020,7 @@ export async function loadDemoData(sex = 'male') {
     // demo-only by code path (regular importDataJSON does not touch
     // either localStorage cache).
     let demoJson = null;
+    let demoImportFile = new File([blob], file, { type: 'application/json' });
     try { demoJson = JSON.parse(await blob.text()); } catch (_) {}
     if (demoJson?.focusCard?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
@@ -1017,7 +1029,7 @@ export async function loadDemoData(sex = 'male') {
       localStorage.setItem(profileStorageKey(profileId, 'focusCard'),
         JSON.stringify({ text: demoJson.focusCard.text }));
     }
-    if (demoJson?.contextHealth?.dots) {
+    if (demoJson?.contextHealth?.dots || demoJson?.entries?.length) {
       try {
         const { getCardFingerprint } = await import('./context-cards.js');
         // Compute fingerprints against the demo JSON directly — passing
@@ -1051,24 +1063,92 @@ export async function loadDemoData(sex = 'male') {
           }
         }
         try { migrateProfileData(_ctxData); } catch (_) {}
-        const ctx = {
-          importedData: _ctxData,
-          profileSex: sex,
-          profileDob: dob,
-        };
-        const cacheKey = profileStorageKey(profileId, 'contextHealth');
-        const dots = {};
-        const summaries = {};
-        const fingerprints = {};
-        for (const k of Object.keys(demoJson.contextHealth.dots)) {
-          dots[k] = demoJson.contextHealth.dots[k];
-          summaries[k] = demoJson.contextHealth.summaries?.[k] || '';
-          try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
+        if (demoJson?.contextHealth?.dots) {
+          const ctx = {
+            importedData: _ctxData,
+            profileSex: sex,
+            profileDob: dob,
+          };
+          const cacheKey = profileStorageKey(profileId, 'contextHealth');
+          const dots = {};
+          const summaries = {};
+          const fingerprints = {};
+          for (const k of Object.keys(demoJson.contextHealth.dots)) {
+            dots[k] = demoJson.contextHealth.dots[k];
+            summaries[k] = demoJson.contextHealth.summaries?.[k] || '';
+            try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
+          }
+          localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, fingerprints }));
         }
-        localStorage.setItem(cacheKey, JSON.stringify({ dots, summaries, fingerprints }));
+
+        // Biology Scores use a manual AI context gate in normal profiles. For
+        // demos, generate the same fingerprint shape locally against the exact
+        // post-import data shape so Alex/Sarah land directly on unlocked scores
+        // without calling the user's provider.
+        try {
+          const previousImportedData = state.importedData;
+          const previousSex = state.profileSex;
+          const previousDob = state.profileDob;
+          const { getActiveData, invalidateActiveDataCache } = await import('./data.js');
+          const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('./biology-score-context-ai.js');
+          try {
+            state.importedData = structuredClone(_ctxData);
+            state.profileSex = sex;
+            state.profileDob = dob;
+            invalidateActiveDataCache?.();
+            const activeData = getActiveData();
+            demoJson.biologyScoreContextAI = {
+              summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
+              suggestions: [],
+              fingerprint: buildBiologyScoreContextFingerprint(activeData, 'all'),
+              fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData),
+              unlockedRanges: ['all', '1y', '6m', '3m'],
+              range: 'all',
+              updatedAt: _ctxImportTs,
+            };
+          } finally {
+            state.importedData = previousImportedData;
+            state.profileSex = previousSex;
+            state.profileDob = previousDob;
+            invalidateActiveDataCache?.();
+          }
+          demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
+        } catch (_) {
+          // Best-effort: if Biology Scores modules fail to load, the demo still
+          // imports normally and the standard locked state remains honest.
+        }
       } catch (_) { /* prefill is best-effort */ }
     }
-    importDataJSON(new File([blob], file, { type: 'application/json' }));
+    await importDataJSON(demoImportFile);
+
+    // Post-import safety net: the seeded Biology Scores review must match the
+    // exact state that survived importDataJSON + migrateProfileData + storage
+    // persistence. If any future import transform changes the fingerprint
+    // basis, recompute locally here instead of letting the demo briefly unlock
+    // and then fall back to the normal AI gate.
+    try {
+      const { getActiveData, invalidateActiveDataCache, filterDatesByRange } = await import('./data.js');
+      const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, hasCurrentBiologyScoreContextReview } = await import('./biology-score-context-ai.js');
+      invalidateActiveDataCache?.();
+      const activeData = getActiveData();
+      const scoreData = filterDatesByRange(activeData, { fallbackToAll: false });
+      if (!hasCurrentBiologyScoreContextReview(scoreData)) {
+        state.importedData.biologyScoreContextAI = {
+          summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
+          suggestions: [],
+          fingerprint: buildBiologyScoreContextFingerprint(activeData, 'all'),
+          fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData),
+          unlockedRanges: ['all', '1y', '6m', '3m'],
+          range: 'all',
+          updatedAt: Date.now(),
+        };
+        await saveImportedData({ skipSync: true, reason: 'demo-biology-score-context' });
+        const w = /** @type {any} */ (window);
+        if (w.buildSidebar) w.buildSidebar();
+        if (w.updateHeaderDates) w.updateHeaderDates();
+        if (w.navigate && state.currentView === 'biology-scores') w.navigate('biology-scores');
+      }
+    } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {
     delete window._demoLoadingProfileId;
     showNotification('Could not load demo data: ' + err.message, 'error');
