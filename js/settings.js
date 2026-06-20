@@ -398,7 +398,7 @@ function isTweaksToggleAction(actionEl) {
     || actionEl.dataset.tweaksAction === 'toggle-crt';
 }
 
-function handleSettingsClick(event) {
+async function handleSettingsClick(event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
 
@@ -472,6 +472,18 @@ function handleSettingsClick(event) {
   } else if (action === 'remove-imported-entry') {
     event.preventDefault();
     void removeImportedEntryFromSettings(actionEl.dataset.entryDate || '');
+  } else if (action === 'review-import') {
+    event.preventDefault();
+    window.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
+  } else if (action === 'remove-import-snapshot') {
+    event.preventDefault();
+    if (!confirm('Delete this import? This will remove all markers from this file and cannot be undone.')) return;
+    const ok = await window.deleteImportSnapshot?.(actionEl.dataset.snapId || '');
+    if (ok) refreshDataEntriesSection();
+  } else if (action === 'edit-snapshot-date') {
+    event.preventDefault();
+    // Deprecated: merged into Review & Edit (review-import)
+    window.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
   } else if (action === 'export-client') {
     event.preventDefault();
     settingsWindow.exportClientJSON?.(settingsWindow.getActiveProfileId?.());
@@ -1313,43 +1325,89 @@ export function closeSettingsModal() {
 }
 
 export function renderDataEntriesSection() {
+  const snapshots = state.importedData?.importSnapshots || [];
   const rawEntries = state.importedData?.entries || [];
   const entries = [];
   for (const entry of rawEntries) {
     if (Object.keys(entry?.markers || {}).length > 0) entries.push(entry);
   }
-  if (entries.length === 0) {
+  const hasSnapshots = snapshots.length > 0;
+  const hasEntries = entries.length > 0;
+  if (!hasSnapshots && !hasEntries) {
     return '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No data yet. Drop a PDF or JSON file on the dashboard, or add values manually.</div>';
   }
-  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-  const manualValues = state.importedData.manualValues || {};
+
   let html = '';
-  for (const entry of sorted) {
-    const d = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const cnt = Object.keys(entry.markers).length;
-    const entryMarkerKeys = Object.keys(entry.markers);
-    const manualCount = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]).length;
-    const isFullyManual = !entry.importedWith && manualCount === cnt;
-    const files = entry.sourceFiles || (entry.sourceFile ? [entry.sourceFile] : []);
-    const fileLabel = files.length > 0
-      ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px;border-bottom:1px dashed var(--text-muted);cursor:help" title="${escapeAttr(files.join('\n'))}">${files.length === 1 ? escapeHTML(files[0].length > 30 ? files[0].slice(0, 27) + '...' : files[0]) : files.length + ' files'}</span>`
-      : '';
-    const sourceLabel = isFullyManual
-      ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual entry</span>'
-      : entry.importedWith?.modelId
-        ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${escapeHTML(entry.importedWith.modelId)}</span>`
-        : manualCount > 0
-          ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${manualCount} manual</span>`
-          : '';
-    const dateAttr = escapeAttr(entry.date);
-    html += `<div class="imported-entry">
-      <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${fileLabel}${sourceLabel}</span>
-      <div class="ie-actions">
-        <button class="ie-edit" data-settings-action="rename-imported-entry" data-entry-date="${dateAttr}" title="Edit collection date">Edit date</button>
-        <button class="ie-remove" data-settings-action="remove-imported-entry" data-entry-date="${dateAttr}">Remove</button>
-      </div>
-    </div>`;
+
+  // ── Import snapshots (issue #39) — one per imported file ──
+  if (hasSnapshots) {
+    const sortedSnapshots = [...snapshots].sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Imports</div>';
+    for (const snap of sortedSnapshots) {
+      const d = new Date((snap.date || '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const cnt = snap.markerCount || (snap.markers || []).length;
+      const fileName = snap.fileName || 'Unknown file';
+      const shortName = fileName.length > 30 ? fileName.slice(0, 27) + '...' : fileName;
+      const typeLabel = snap.type || 'import';
+      const modelLabel = snap.costInfo?.modelId ? `${snap.costInfo.modelId}` : '';
+      const snapId = snap.id;
+      html += `<div class="imported-entry">
+        <span class="ie-info">
+          <span class="ie-date">${d}</span>
+          <span class="ie-count">${cnt} markers</span>
+          <span style="color:var(--text-muted);margin-left:8px;font-size:11px">${escapeHTML(shortName)}</span>
+          ${modelLabel ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${escapeHTML(modelLabel)}</span>` : ''}
+          <span style="color:var(--text-muted);margin-left:8px;font-size:10px;text-transform:uppercase">${escapeHTML(typeLabel)}</span>
+        </span>
+        <div class="ie-actions">
+          <button class="ie-edit" data-settings-action="review-import" data-snap-id="${escapeAttr(snapId)}" title="Review, edit values/units, and re-import without AI cost">Review & Edit</button>
+          <button class="ie-remove" data-settings-action="remove-import-snapshot" data-snap-id="${escapeAttr(snapId)}">Delete</button>
+        </div>
+      </div>`;
+    }
   }
+
+  // ── Legacy / manual entries not covered by snapshots ──
+  const manualValues = state.importedData.manualValues || {};
+  const legacyEntries = [];
+  for (const entry of entries) {
+    const entryMarkerKeys = Object.keys(entry.markers || {});
+    const manualCount = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]).length;
+    const isFullyManual = !entry.importedWith && manualCount === entryMarkerKeys.length;
+    if (isFullyManual || !entry.importedWith) {
+      legacyEntries.push(entry);
+      continue;
+    }
+    // Check if any markers in this entry lack a snapshotId → legacy
+    const hasLegacyMarkers = entryMarkerKeys.some(k => {
+      const src = entry.markerSources?.[k];
+      return !src || !src.snapshotId;
+    });
+    if (hasLegacyMarkers) legacyEntries.push(entry);
+  }
+
+  if (legacyEntries.length > 0) {
+    const sortedLegacy = [...legacyEntries].sort((a, b) => a.date.localeCompare(b.date));
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 4px">Other data</div>';
+    for (const entry of sortedLegacy) {
+      const d = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const cnt = Object.keys(entry.markers).length;
+      const manualCount = Object.keys(entry.markers).filter(k => manualValues[k + ':' + entry.date]).length;
+      const isManual = Object.keys(entry.markers).length === manualCount;
+      const sourceLabel = isManual
+        ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual entry</span>'
+        : '<span style="color:var(--text-muted);margin-left:8px;font-size:11px">legacy import</span>';
+      const dateAttr = escapeAttr(entry.date);
+      html += `<div class="imported-entry">
+        <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${sourceLabel}</span>
+        <div class="ie-actions">
+          <button class="ie-edit" data-settings-action="rename-imported-entry" data-entry-date="${dateAttr}">Edit date</button>
+          <button class="ie-remove" data-settings-action="remove-imported-entry" data-entry-date="${dateAttr}">Remove</button>
+        </div>
+      </div>`;
+    }
+  }
+
   html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="import-btn import-btn-primary" data-settings-action="share-profile">Share Profile</button>
     <button class="import-btn import-btn-secondary" data-settings-action="export-client">Export Client</button>
