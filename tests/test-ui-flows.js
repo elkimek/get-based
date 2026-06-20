@@ -26,6 +26,12 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
 
+  // ── Profile safety guard: run tests in a throwaway profile ──
+  const origProfileId = S.currentProfile;
+  const testProfileId = window.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  await window.switchProfile(testProfileId);
+
+  try {
 
   // Dismiss any open dialogs/modals from prior tests
   document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
@@ -853,4 +859,15 @@ return (async function() {
       ? 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px'
       : 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
   console.log(`Results: ${pass} passed, ${fail} failed`);
+
+  } finally {
+    // Restore original profile and delete the throwaway
+    try {
+      const profiles = window.getProfiles();
+      await window.switchProfile(origProfileId);
+      window.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+    } catch (e) {
+      console.error('Test cleanup failed:', e);
+    }
+  }
 })();
