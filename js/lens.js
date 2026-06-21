@@ -8,6 +8,7 @@ import { hasAIProvider, callClaudeAPI } from './api.js';
 import { closeModalOverlay, openModalOverlay, wireBackdropClose } from './modal-lifecycle.js';
 import { initLensActionDelegates, lensActionAttrs } from './lens-actions.js';
 import { isValidLensUrl as isValidLensUrlImpl } from './lens-url.js';
+import { clearLensCache as clearLensCacheImpl, getLensCacheEntry, setLensCacheEntry } from './lens-cache.js';
 const CONFIG_KEY = 'labcharts-lens-config';
 const SECRET_KEY = 'labcharts-lens-key';
 /** @typedef {Window & typeof globalThis & { _lensIngestRunning?: boolean }} LensWindow */
@@ -47,8 +48,6 @@ const DEFAULT_CONFIG = {
 // flow (user thinks the app is hung); 10s is enough headroom for slow
 // HuggingFace-style local backends and surfaces offline state quickly.
 const TIMEOUT_MS = 10000;
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_MAX = 20;
 const MAX_CHUNKS = 10;
 const MAX_RESPONSE_BYTES = 32 * 1024;
 // ─── Config storage ───────────────────────────────────────────
@@ -134,27 +133,7 @@ export function hasLens() {
 export function isValidLensUrl(url) { return isValidLensUrlImpl(url); }
 
 // ─── Query cache ──────────────────────────────────────────────
-const _cache = new Map(); // key → { value, at }
-function cacheKey(url, topK, profileId, hint) { return `${hashString(url)}|${topK}|${profileId}|${hint}`; }
-function cacheGet(k) {
-  const row = _cache.get(k);
-  if (!row) return null;
-  if (Date.now() - row.at > CACHE_TTL_MS) { _cache.delete(k); return null; }
-  // Bump to end of insertion order so true LRU eviction works — Map iterates
-  // in insertion order, so without re-inserting, hot entries get evicted by
-  // CACHE_MAX before cold ones.
-  _cache.delete(k);
-  _cache.set(k, row);
-  return row.value;
-}
-function cacheSet(k, v) {
-  if (_cache.size >= CACHE_MAX) {
-    const oldest = _cache.keys().next().value;
-    _cache.delete(oldest);
-  }
-  _cache.set(k, { value: v, at: Date.now() });
-}
-export function clearLensCache() { _cache.clear(); }
+export function clearLensCache() { clearLensCacheImpl(); }
 
 // ─── Status tracking ─────────────────────────────────────────
 let _status = { state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' };
@@ -350,8 +329,7 @@ export function _dedupeQueriesForTest(queries) { return _dedupeQueries(queries);
 /// just a third fetchFn — no re-plumbing of observability per call.
 async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
   const profileId = state.currentProfile || 'default';
-  const ck = cacheKey(backendKey, topK, profileId, hint);
-  const cached = cacheGet(ck);
+  const cached = getLensCacheEntry(backendKey, topK, profileId, hint);
   if (cached) {
     if (isDebugMode()) console.log('[Lens] cache hit', backendKey);
     updateLensStatus({ state: 'active', lastChunkCount: cached.chunks.length, lastError: null, sourceName });
@@ -361,7 +339,7 @@ async function queryWithCache(backendKey, sourceName, hint, topK, fetchFn) {
     const rawChunks = await fetchFn();
     const chunks = Array.isArray(rawChunks) ? rawChunks : [];
     const result = { chunks, sourceName };
-    cacheSet(ck, result);
+    setLensCacheEntry(backendKey, topK, profileId, hint, result);
     updateLensStatus({ state: 'active', lastChunkCount: chunks.length, lastError: null, sourceName });
     return result;
   } catch (e) {
