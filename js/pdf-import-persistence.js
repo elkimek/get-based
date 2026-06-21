@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
-import { deleteLabEntryMarker } from './lab-entry.js';
+import { deleteLabEntryMarker, isSnapshotDerivedHOMAIR } from './lab-entry.js';
 
 export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -32,12 +32,6 @@ function isValidISOCalendarDate(date) {
     && parsed.getUTCDate() === day;
 }
 
-function isSnapshotDerivedHOMAIR(entry, key) {
-  if (key !== 'diabetes.homaIR') return false;
-  const glucoseSrc = entry.markerSources?.['biochemistry.glucose'];
-  const insulinSrc = entry.markerSources?.['hormones.insulin'] ?? entry.markerSources?.['diabetes.insulin_d'];
-  return !!(glucoseSrc?.snapshotId && insulinSrc?.snapshotId);
-}
 
 export async function removeImportedEntry(date) {
   if (!date) return false;

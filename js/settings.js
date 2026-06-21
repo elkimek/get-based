@@ -1236,6 +1236,8 @@ Object.assign(window, {
   updateSettingsUI,
   renderDataEntriesSection,
   refreshDataEntriesSection,
+  reviewImportSnapshotFromSettings,
+  removeImportSnapshotFromSettings,
   removeImportedEntry: removeImportedEntryFromSettings,
   renameImportedEntryDate: renameImportedEntryDateFromSettings,
   removeImportedEntryFromSettings,

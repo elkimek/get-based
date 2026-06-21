@@ -110,6 +110,7 @@ const reviewSrc = read('js/pdf-import-review.js');
   assert('Settings Data treats snapshot-derived HOMA-IR as snapshot-owned even for existing rows without marker source',
     settingsDataSrc.includes('isSnapshotDerivedHOMAIR')
       && settingsDataSrc.includes('isSnapshotDerivedHOMAIR(entry, k)')
+      && /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && persistenceSrc.includes('isSnapshotDerivedHOMAIR(entry, k)'));
   assert('HOMA-IR recalculation preserves snapshot ownership when glucose and insulin come from the same import snapshot',
     /ensureMarkerSources\(entry\)\['diabetes\.homaIR'\][\s\S]{0,260}snapshotId:\s*sharedSnapshotId/.test(read('js/lab-entry.js')));
@@ -128,7 +129,7 @@ const reviewSrc = read('js/pdf-import-review.js');
       && /deleteLabEntryMarker\(entry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
       && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
   assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
-    /import \{ deleteLabEntryMarker/.test(persistenceSrc)
+    /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
       && !/delete\s+entry\.markers\[k\]/.test(removeBlock));
 
