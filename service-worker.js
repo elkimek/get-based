@@ -118,6 +118,7 @@ const APP_SHELL = [
   '/js/onboarding-view.js',
   '/js/emf-facade.js',
   '/js/emf.js',
+  '/js/emf-interpretation.js',
   '/js/image-utils.js',
   '/js/pdf-import.js',
   '/js/pdf-import-spreadsheet.js',
