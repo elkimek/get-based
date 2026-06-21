@@ -642,6 +642,12 @@ export async function deleteImportSnapshot(snapId) {
         removedKeys.push(key);
       }
     }
+    const manualValues = state.importedData.manualValues || {};
+    for (const k of Object.keys(manualValues)) {
+      if (k.endsWith(':' + snapshot.date) && removedKeys.includes(k.split(':')[0])) {
+        delete manualValues[k];
+      }
+    }
     for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(entry, snapshot, key);
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
       recordTombstone(state.importedData, 'entries', snapshot.date);

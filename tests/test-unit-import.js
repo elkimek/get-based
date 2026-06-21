@@ -150,6 +150,9 @@ const importCssSrc = read('css/import.css');
       && /snapshotMarkerDotKey\(marker\) !== dotKey/.test(confirmBlock)
       && /restoreLatestSnapshotMarkerForKey\(entry, snapshot, key\)/.test(confirmBlock)
       && /restoreLatestSnapshotMarkerForKey\(oldEntry, oldSnapshot, key, importTs\)/.test(confirmBlock));
+  assert('Snapshot delete purges manual value overrides for removed snapshot markers',
+    /const manualValues = state\.importedData\.manualValues \|\| \{\}/.test(confirmBlock)
+      && /k\.endsWith\(':' \+ snapshot\.date\)[\s\S]{0,120}removedKeys\.includes\(k\.split\(':'\)\[0\]\)[\s\S]{0,80}delete manualValues\[k\]/.test(confirmBlock));
   assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
     /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
