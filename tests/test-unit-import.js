@@ -108,7 +108,8 @@ const importCssSrc = read('css/import.css');
       && settingsDataSrc.includes('Imported time'));
   assert('Settings Data Other data counts only markers not owned by import snapshots',
     settingsDataSrc.includes('const legacyKeys = entryMarkerKeys.filter')
-      && settingsDataSrc.includes('const otherKeys = legacyKeys.length ? legacyKeys : manualKeys')
+      && settingsDataSrc.includes('const manualNonSnapshotKeys = manualKeys.filter')
+      && settingsDataSrc.includes('const otherKeys = legacyKeys.length ? legacyKeys : manualNonSnapshotKeys')
       && settingsDataSrc.includes('legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers })')
       && /const cnt = otherKeys\.length/.test(settingsDataSrc));
   assert('Settings Data treats snapshot-derived HOMA-IR as snapshot-owned even for existing rows without marker source',
@@ -133,6 +134,7 @@ const importCssSrc = read('css/import.css');
     /if \(data\.importSnapshots === undefined\) data\.importSnapshots = \[\]/.test(profileSrc));
   assert('Import snapshots are tombstone-aware delta array records',
     /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js'))
+      && /recordTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapId\)/.test(confirmBlock)
       && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
   assert('Snapshot marker deletes use lab-entry tombstones and HOMA-IR recalculation',
     /import \{ deleteLabEntryMarker,/.test(src)

@@ -639,6 +639,7 @@ export async function deleteImportSnapshot(snapId) {
       deleteImportedArrayItems(state.importedData, 'entries', e => e === entry);
     }
   }
+  recordTombstone(state.importedData, 'importSnapshots', snapId);
   deleteImportedArrayItems(state.importedData, 'importSnapshots', s => s.id === snapId);
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {

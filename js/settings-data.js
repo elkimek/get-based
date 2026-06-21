@@ -61,12 +61,16 @@ export function renderDataEntriesSection() {
   for (const entry of entries) {
     const entryMarkerKeys = Object.keys(entry.markers || {});
     const manualKeys = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]);
+    const manualNonSnapshotKeys = manualKeys.filter(k => {
+      if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+      return !entry.markerSources?.[k]?.snapshotId;
+    });
     const legacyKeys = entryMarkerKeys.filter(k => {
       if (isSnapshotDerivedHOMAIR(entry, k)) return false;
       const src = entry.markerSources?.[k];
       return !src || !src.snapshotId;
     });
-    const otherKeys = legacyKeys.length ? legacyKeys : manualKeys;
+    const otherKeys = legacyKeys.length ? legacyKeys : manualNonSnapshotKeys;
     const hasSnapshotMarkers = entryMarkerKeys.some(k => !!entry.markerSources?.[k]?.snapshotId);
     if (otherKeys.length > 0) legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers });
   }
