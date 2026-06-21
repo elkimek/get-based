@@ -22,6 +22,7 @@ const mod = await import('../js/profile-share.js');
 const profileShareSrc = read('js/profile-share.js');
 const exportSrc = read('js/export.js');
 const settingsSrc = read('js/settings.js');
+const settingsDataSrc = read('js/settings-data.js');
 const appDataIoSrc = read('js/app-data-io-modules.js');
 const apiShareSrc = read('api/share.js');
 const devServerSrc = read('dev-server.js');
@@ -93,7 +94,7 @@ assert('profile-share module imports reusable export builder',
 assert('Profile share module is startup-loaded',
   appDataIoSrc.includes("import './profile-share.js';"));
 assert('Settings Data tab exposes Share Profile action',
-  settingsSrc.includes("data-settings-action=\"share-profile\"") &&
+  settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
   settingsSrc.includes('settingsWindow.openProfileShareModal?.()'));
 assert('Share modal has dedicated shared-modal styling',
   modalCss.includes('#profile-share-overlay.modal-overlay') &&

@@ -69,6 +69,7 @@ assert('SW APP_SHELL includes provider model controls module', swAuditSrc.includ
 assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.includes("'/js/provider-local-ai-controls.js'"));
 assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("'/js/provider-ppq-panels.js'"));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
+assert('SW APP_SHELL includes settings data module', swAuditSrc.includes("'/js/settings-data.js'"));
 assert('SW APP_SHELL includes settings provider bridge module', swAuditSrc.includes("'/js/settings-provider-bridge.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
