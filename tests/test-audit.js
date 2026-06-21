@@ -83,6 +83,7 @@ assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes(
 assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.includes("'/js/context-card-editor-ui.js'"));
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
+assert('SW APP_SHELL includes lens library handlers module', swAuditSrc.includes("'/js/lens-library.js'"));
 assert('SW APP_SHELL includes lens cache helper module', swAuditSrc.includes("'/js/lens-cache.js'"));
 assert('SW APP_SHELL includes lens URL helper module', swAuditSrc.includes("'/js/lens-url.js'"));
 assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));

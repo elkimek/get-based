@@ -37,6 +37,7 @@ await import('../js/lab-context.js');
 // ─── 1. lens.js source inspection ───
 console.log('1. lens.js source inspection');
 const lensSrc = read('js/lens.js');
+const lensLibrarySrc = read('js/lens-library.js');
 assert('getLensConfig exists', lensSrc.includes('function getLensConfig()'));
 assert('saveLensConfig exists', lensSrc.includes('function saveLensConfig('));
 assert('getLensKey exists', lensSrc.includes('function getLensKey()'));
@@ -74,19 +75,19 @@ assert('testLensConnection no longer hardcodes the vitamin D probe inline',
 assert('renderCustomLensSection includes lens-test-probe-input field', lensSrc.includes('lens-test-probe-input'));
 // Per-library embedding-model picker (step 3).
 assert('_showLibraryCreateDialog helper defined',
-  lensSrc.includes('function _showLibraryCreateDialog'),
+  lensLibrarySrc.includes('function _showLibraryCreateDialog'),
   'step 3 library-creation dialog must exist');
 assert('_libCreate forwards model argument',
-  /async function _libCreate\(name,\s*model\)/.test(lensSrc));
+  /async function _libCreate\(name,\s*model\)/.test(lensLibrarySrc));
 assert('handleLibraryNew no longer calls showPromptDialog as primary path',
-  /handleLibraryNew[\s\S]{0,2000}_showLibraryCreateDialog/.test(lensSrc),
+  /handleLibraryNew[\s\S]{0,2000}_showLibraryCreateDialog/.test(lensLibrarySrc),
   'the rich dialog should be tried before the plain prompt fallback');
 assert('Plain prompt fallback still exists for pre-worker-ready case',
-  lensSrc.includes('function _plainNamePrompt'));
+  lensLibrarySrc.includes('function _plainNamePrompt'));
 assert('Dialog renders radio group with name "lens-create-model"',
-  lensSrc.includes('name="lens-create-model"'));
+  lensLibrarySrc.includes('name="lens-create-model"'));
 assert('Dialog includes locked-at-creation warning',
-  /locked at creation/i.test(lensSrc),
+  /locked at creation/i.test(lensLibrarySrc),
   'users need to know switching model means re-indexing');
 
 // Worker-side invariants (things mock-mode round-trips can't exercise).
@@ -114,10 +115,10 @@ assert('handleActivateLibrary reloads embedder on model change',
   'library switch must swap the model when they differ');
 
 assert('Dialog recommendation prefers English within a tier',
-  /candidates\.find\(\(c\)\s*=>\s*c\.spec\.language\s*===\s*['"]en['"]\)/.test(lensSrc)
-    || /spec\.language\s*===\s*['"]en['"]/.test(lensSrc));
+  /candidates\.find\(\(c\)\s*=>\s*c\.spec\.language\s*===\s*['"]en['"]\)/.test(lensLibrarySrc)
+    || /spec\.language\s*===\s*['"]en['"]/.test(lensLibrarySrc));
 assert('Dialog recommendation steps down tiers when no match',
-  /for\s*\(\s*let\s+t\s*=\s*detectedTier;\s*t\s*>=?\s*1;\s*t--\s*\)/.test(lensSrc),
+  /for\s*\(\s*let\s+t\s*=\s*detectedTier;\s*t\s*>=?\s*1;\s*t--\s*\)/.test(lensLibrarySrc),
   'no tier-3-capable device should be told "no recommendation available" — step down to tier 2 or 1');
 
 assert('Setup block uses one-command curl | bash install',
