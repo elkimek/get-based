@@ -34,6 +34,7 @@ await import('../js/provider-panels.js');
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
 const apiSrc = read('js/api.js');
+const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('getOpenRouterKey exists', apiProviderStorageSrc.includes('function getOpenRouterKey()'));
 assert('saveOpenRouterKey exists', apiProviderStorageSrc.includes('function saveOpenRouterKey('));
@@ -41,8 +42,9 @@ assert('hasOpenRouterKey exists', apiProviderStorageSrc.includes('function hasOp
 assert('getOpenRouterModel exists', apiProviderStorageSrc.includes('function getOpenRouterModel()'));
 assert('setOpenRouterModel exists', apiProviderStorageSrc.includes('function setOpenRouterModel('));
 assert('getOpenRouterModelDisplay exists', apiProviderStorageSrc.includes('function getOpenRouterModelDisplay()'));
-assert('fetchOpenRouterModels exists', apiSrc.includes('function fetchOpenRouterModels('));
-assert('validateOpenRouterKey exists', apiSrc.includes('function validateOpenRouterKey('));
+assert('api.js re-exports OpenRouter model helpers', apiSrc.includes("from './api-models.js'"));
+assert('fetchOpenRouterModels exists', apiModelsSrc.includes('function fetchOpenRouterModels('));
+assert('validateOpenRouterKey exists', apiModelsSrc.includes('function validateOpenRouterKey('));
 assert('callOpenRouterAPI exists', apiSrc.includes('function callOpenRouterAPI('));
 assert('extraHeaders in helper signature', apiSrc.includes('extraHeaders = {}'));
 assert('extraHeaders spread in fetch headers', apiSrc.includes('...extraHeaders'));
@@ -56,7 +58,7 @@ assert('callOpenRouterAPI sends X-Title', apiSrc.includes("'X-Title': 'getbased'
 // assertion). This checks the legacy-migration source string is still present.
 assert('provider storage still references legacy hyphenated ID for migration', apiProviderStorageSrc.includes("'anthropic/claude-sonnet-4-6'"));
 assert('OpenRouter API endpoint', apiSrc.includes('openrouter.ai/api/v1/chat/completions'));
-assert('OpenRouter models endpoint', apiSrc.includes('openrouter.ai/api/v1/models'));
+assert('OpenRouter models endpoint', apiModelsSrc.includes('openrouter.ai/api/v1/models'));
 
 // ─── 2. schema.js + api.js: curated models + dynamic pricing ───
 console.log('\n2. Curated models + dynamic pricing');
@@ -64,23 +66,23 @@ const schemaSrc = read('js/schema.js');
 assert('MODEL_PRICING has openrouter block', schemaSrc.includes('openrouter:'));
 assert('Has openrouter _default fallback', schemaSrc.includes("'_default':") && schemaSrc.includes('approx: true'));
 assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('labcharts-openrouter-pricing'));
-assert('OPENROUTER_CURATED whitelist exists', apiSrc.includes('OPENROUTER_CURATED'));
-assert('Curated: anthropic/claude-sonnet prefix', apiSrc.includes("'anthropic/claude-sonnet-4'"));
-assert('Curated: anthropic/claude-opus prefix', apiSrc.includes("'anthropic/claude-opus-4'"));
-assert('Curated: openai/gpt prefix', apiSrc.includes("'openai/gpt-5'"));
-assert('Curated: google/gemini-3 prefix', apiSrc.includes("'google/gemini-3'"));
-assert('Curated: google/gemini-2 prefix', apiSrc.includes("'google/gemini-2'"));
-assert('Curated: deepseek prefix', apiSrc.includes("'deepseek/deepseek'"));
-assert('Curated: qwen prefix', apiSrc.includes("'qwen/qwen'"));
-assert('Curated: x-ai/grok prefix', apiSrc.includes("'x-ai/grok'"));
-assert('OPENROUTER_EXCLUDE exists', apiSrc.includes('OPENROUTER_EXCLUDE'));
-assert('Excludes codex variants', apiSrc.includes("'codex'"));
-assert('Excludes audio variants', apiSrc.includes("'audio'"));
-assert('Excludes image variants', apiSrc.includes("'image'"));
-assert('Exclude filter applied in fetch', apiSrc.includes('OPENROUTER_EXCLUDE.some'));
-assert('fetchOpenRouterModels extracts pricing.prompt', apiSrc.includes('m.pricing.prompt'));
-assert('fetchOpenRouterModels converts to per-million', apiSrc.includes('* 1_000_000'));
-assert('fetchOpenRouterModels caches pricing', apiSrc.includes("'labcharts-openrouter-pricing'"));
+assert('OPENROUTER_CURATED whitelist exists', apiModelsSrc.includes('OPENROUTER_CURATED'));
+assert('Curated: anthropic/claude-sonnet prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-4'"));
+assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropic/claude-opus-4'"));
+assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
+assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
+assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
+assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
+assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
+assert('Curated: x-ai/grok prefix', apiModelsSrc.includes("'x-ai/grok'"));
+assert('OPENROUTER_EXCLUDE exists', apiModelsSrc.includes('OPENROUTER_EXCLUDE'));
+assert('Excludes codex variants', apiModelsSrc.includes("'codex'"));
+assert('Excludes audio variants', apiModelsSrc.includes("'audio'"));
+assert('Excludes image variants', apiModelsSrc.includes("'image'"));
+assert('Exclude filter applied in fetch', apiModelsSrc.includes('OPENROUTER_EXCLUDE.some'));
+assert('fetchOpenRouterModels extracts pricing.prompt', apiModelsSrc.includes('m.pricing.prompt'));
+assert('fetchOpenRouterModels converts to per-million', apiModelsSrc.includes('* 1_000_000'));
+assert('fetchOpenRouterModels caches pricing', apiModelsSrc.includes("'labcharts-openrouter-pricing'"));
 assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
 assert('window.getOpenRouterPricing is function', typeof window.getOpenRouterPricing === 'function');
 
