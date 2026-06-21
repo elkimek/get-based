@@ -28,9 +28,10 @@ import { renderChannelChips } from './sun-session-ui.js';
  * @property {Array<{ key: string, label: string }>} lensTints
  * @property {Array<{ key: string, label: string }>} postureOptions
  * @property {Array<{ key: string, label: string }>} surfaceOptions
+ * Runtime math/render hooks are also configured here; defaults are no-ops.
  */
 
-/** @type {SunActiveSessionDeps} */
+/** @type {SunActiveSessionDeps & Record<string, any>} */
 const activeDeps = {
   getSessions: () => [],
   getActiveSession: () => null,
@@ -43,16 +44,19 @@ const activeDeps = {
   refreshSurfaces: () => {},
   normalizePSMTier: (raw) => raw || 'none',
   photosensitiveMedScale: () => 1.0,
-  eyeModes: [],
-  lensTints: [],
-  postureOptions: [],
-  surfaceOptions: [],
+  eyeModes: [], lensTints: [], postureOptions: [], surfaceOptions: [],
+  fetchAtmosphere: async () => null, reconstructSpectrum: () => null,
+  computeChannelDoses: () => ({}), erythemalSED: () => 0,
+  fractionOfMED: () => 0, solarZenithAngle: () => 90,
+  interpolateAtmosphere: () => null,
+  vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+  vitaminDIUPerSession: null,
+  skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
+  renderLightChannelsLive: () => {}, renderLightTodayStrip: () => '',
 };
 
-/** @param {Partial<SunActiveSessionDeps>} [deps] */
-export function configureSunActiveSession(deps = {}) {
-  Object.assign(activeDeps, deps);
-}
+/** @param {(Partial<SunActiveSessionDeps> & Record<string, any>)} [deps] */
+export function configureSunActiveSession(deps = {}) { Object.assign(activeDeps, deps); }
 
 export { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 
@@ -74,11 +78,10 @@ export async function quickLogSunSession() {
 }
 
 async function _fetchCurrentUVI() {
-  if (!window.fetchAtmosphere) return null;
   const coords = activeDeps.getSunCoords();
   if (!coords) return null;
   try {
-    const atm = await window.fetchAtmosphere({
+    const atm = await activeDeps.fetchAtmosphere({
       lat: coords.lat, lon: coords.lon, isoTime: new Date().toISOString(),
     });
     const overridden = activeDeps.applyAtmOverrides(atm);
@@ -282,11 +285,11 @@ function _plainStopSummary(sess, dur) {
   const fitz = sess.safety?.fitzpatrick || 'III';
   const uvi = sess.atmosphere?.uvIndex;
   const vitDAu = sess.doses?.vitamin_d || 0;
-  if (vitDAu > 0 && window.vitaminDIU) {
+  if (vitDAu > 0 && activeDeps.vitaminDIU) {
     const bf = sess.bodyExposure?.fraction;
-    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
-      ? window.vitaminDIUPerSession(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
-      : window.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof activeDeps.vitaminDIUPerSession === 'function')
+      ? activeDeps.vitaminDIUPerSession(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
+      : activeDeps.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
     if (iu >= 100) {
       const lo = Math.round(iu * 0.6 / 50) * 50;
       const hi = Math.round(iu * 1.5 / 50) * 50;
@@ -334,13 +337,14 @@ async function _snapshotActiveRate(sess) {
   if (cur && cur.pending) return null;
   setSunLiveState(sess.id, { pending: true });
   try {
-    const reconstructSpectrum = window.reconstructSpectrum;
-    const computeChannelDoses = window.computeChannelDoses;
-    const erythemalSED = window.erythemalSED;
-    const fractionOfMED = window.fractionOfMED;
-    const solarZenithAngle = window.solarZenithAngle;
-    const fetchAtmosphere = window.fetchAtmosphere;
-    if (!reconstructSpectrum || !computeChannelDoses || !solarZenithAngle || !fetchAtmosphere) return null;
+    const {
+      reconstructSpectrum,
+      computeChannelDoses,
+      erythemalSED,
+      fractionOfMED,
+      solarZenithAngle,
+      fetchAtmosphere,
+    } = activeDeps;
     const coords = sess.location || activeDeps.getSunCoords();
     if (!coords) return null;
     const now = new Date();
@@ -384,7 +388,7 @@ async function _snapshotActiveRate(sess) {
       bodyModifiers: liveBodyModifiers,
     });
     const lcSkin = state.importedData?.lightCircadian?.skinType;
-    const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
+    const lcRoman = lcSkin && activeDeps.skinTypeToFitzpatrick(lcSkin);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     const psmTier = activeDeps.normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
     const medScale = activeDeps.photosensitiveMedScale(psmTier);
@@ -403,7 +407,7 @@ async function _snapshotActiveRate(sess) {
     });
     return _getLiveState(sess.id);
   } catch (e) {
-    if (window.console && console.warn) console.warn('snapshotActiveRate failed', e);
+    globalThis.console?.warn?.('snapshotActiveRate failed', e);
     setSunLiveState(sess.id, { pending: false });
     return null;
   }
@@ -412,12 +416,13 @@ async function _snapshotActiveRate(sess) {
 function _rateAtInstant(sess, instantMs) {
   const live = _getLiveState(sess?.id);
   if (!live || !live.atm) return null;
-  const reconstructSpectrum = window.reconstructSpectrum;
-  const computeChannelDoses = window.computeChannelDoses;
-  const erythemalSED = window.erythemalSED;
-  const solarZenithAngle = window.solarZenithAngle;
-  const interpolateAtmosphere = window.interpolateAtmosphere;
-  if (!reconstructSpectrum || !computeChannelDoses || !erythemalSED || !solarZenithAngle) return null;
+  const {
+    reconstructSpectrum,
+    computeChannelDoses,
+    erythemalSED,
+    solarZenithAngle,
+    interpolateAtmosphere,
+  } = activeDeps;
 
   const coords = sess.location;
   if (!coords) return null;
@@ -571,9 +576,9 @@ function _renderActiveCardBody(sess) {
     const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
     const rotated = !!sess.bodyExposure?.rotatedSides;
     const bf = sess.bodyExposure?.fraction;
-    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
-      ? window.vitaminDIUPerSession(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null, bf)
-      : (window.vitaminDIU ? window.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null) : live.doses.vitamin_d * 60 * (rotated ? 2 : 1));
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof activeDeps.vitaminDIUPerSession === 'function')
+      ? activeDeps.vitaminDIUPerSession(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null, bf)
+      : activeDeps.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null);
     const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
       const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
@@ -727,13 +732,13 @@ function _tickActiveCards() {
 }
 
 function _refreshLiveChannelSurfaces() {
-  if (state.currentView === 'light' && window.renderLightChannelsLive) {
-    try { window.renderLightChannelsLive(); } catch (e) {}
+  if (state.currentView === 'light') {
+    try { activeDeps.renderLightChannelsLive(); } catch (e) {}
   }
-  if (state.currentView === 'dashboard' && window.renderLightTodayStrip) {
+  if (state.currentView === 'dashboard') {
     const strip = document.querySelector('.light-today-strip');
     if (strip) {
-      const html = window.renderLightTodayStrip();
+      const html = activeDeps.renderLightTodayStrip();
       if (html) {
         const wrap = document.createElement('div');
         wrap.innerHTML = html;

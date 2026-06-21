@@ -21,13 +21,17 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
     const outcomes = {};
     const saved = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
-      solarZenithAngle: window.solarZenithAngle,
-      reconstructSpectrum: window.reconstructSpectrum,
-      vitaminDIU: window.vitaminDIU,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      circadianMelanopicLux: window.circadianMelanopicLux,
-      geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
+    };
+    const math = {
+      solarZenithAngle: () => 100,
+      reconstructSpectrum: () => {
+        throw new Error('nighttime spectrum should not be reconstructed');
+      },
+      vitaminDIU: () => 900,
+      vitaminDIUPerSession: () => 20,
+      pbmJoulesPerCm2: () => 8.4,
+      circadianMelanopicLux: () => 5200,
+      geneticVitaminDMultiplier: () => ({ mult: 1, contributors: [] }),
     };
     const now = Date.now();
     const sessions = [
@@ -113,19 +117,17 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       tooShortForChannelVerdictMin: 2,
       renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
       renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
+      solarZenithAngle: (...args) => math.solarZenithAngle(...args),
+      reconstructSpectrum: (...args) => math.reconstructSpectrum(...args),
+      vitaminDIU: (...args) => math.vitaminDIU(...args),
+      vitaminDIUPerSession: (...args) => math.vitaminDIUPerSession(...args),
+      pbmJoulesPerCm2: (...args) => math.pbmJoulesPerCm2(...args),
+      circadianMelanopicLux: (...args) => math.circadianMelanopicLux(...args),
+      geneticVitaminDMultiplier: (...args) => math.geneticVitaminDMultiplier(...args),
     };
 
     try {
       state.importedData = { ...state.importedData, genetics: { snps: [] } };
-      window.solarZenithAngle = () => 100;
-      window.reconstructSpectrum = () => {
-        throw new Error('nighttime spectrum should not be reconstructed');
-      };
-      window.vitaminDIU = () => 900;
-      window.vitaminDIUPerSession = () => 20;
-      window.pbmJoulesPerCm2 = () => 8.4;
-      window.circadianMelanopicLux = () => 5200;
-      window.geneticVitaminDMultiplier = () => ({ mult: 1, contributors: [] });
 
       sunUI.configureSunSessionUI({ ...baseDeps, getSessions: () => [] });
       const emptyHost = document.createElement('div');
@@ -172,9 +174,9 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         && pomcLowHost.textContent.includes('POMC')
         && !pomcLowHost.querySelector('[data-channel="pomc"] .sun-chip-value');
 
-      window.vitaminDIUPerSession = () => 1500;
-      window.pbmJoulesPerCm2 = () => 12.4;
-      window.circadianMelanopicLux = () => 12600;
+      math.vitaminDIUPerSession = () => 1500;
+      math.pbmJoulesPerCm2 = () => 12.4;
+      math.circadianMelanopicLux = () => 12600;
       const shortChipHost = document.createElement('div');
       shortChipHost.innerHTML = sunUI.renderChannelChips({ vitamin_d: 80, circadian: 70, nir_solar: 60 }, { durationMin: 1 });
       outcomes.shortSessionsSuppressInlineChipValues = shortChipHost.querySelectorAll('.sun-chip-value').length === 0
@@ -209,13 +211,6 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       manualDetail?.remove();
     } finally {
       state.importedData = saved.importedData;
-      window.solarZenithAngle = saved.solarZenithAngle;
-      window.reconstructSpectrum = saved.reconstructSpectrum;
-      window.vitaminDIU = saved.vitaminDIU;
-      window.vitaminDIUPerSession = saved.vitaminDIUPerSession;
-      window.pbmJoulesPerCm2 = saved.pbmJoulesPerCm2;
-      window.circadianMelanopicLux = saved.circadianMelanopicLux;
-      window.geneticVitaminDMultiplier = saved.geneticVitaminDMultiplier;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
         deleteSession: async () => false,
@@ -240,6 +235,13 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
         tooShortForChannelVerdictMin: 2,
         renderSessionAIInline: () => '',
         renderSessionAIDetail: () => '',
+        solarZenithAngle: null,
+        reconstructSpectrum: null,
+        geneticVitaminDMultiplier: () => ({ mult: 1.0, contributors: [] }),
+        vitaminDIU: null,
+        vitaminDIUPerSession: null,
+        pbmJoulesPerCm2: null,
+        circadianMelanopicLux: null,
       });
       document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
     }
@@ -538,8 +540,6 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
     };
     const windowKeys = [
       'navigate',
-      'solarZenithAngle',
-      'geneticVitaminDMultiplier',
     ];
     const savedWindow = Object.fromEntries(windowKeys.map(key => [
       key,
@@ -571,8 +571,6 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
       window.navigate = route => {
         outcomes.unexpectedNavigate = route;
       };
-      window.solarZenithAngle = () => 48;
-      window.geneticVitaminDMultiplier = () => ({ mult: 1, contributors: [] });
 
       const emptyList = sunUI.renderSessionsList();
       outcomes.defaultEmptyListUsesGetSessions = emptyList.includes('No sun sessions logged yet');
@@ -593,7 +591,11 @@ test('sun session UI covers default dependency callbacks', async ({ page }) => {
         && activeHost.textContent.includes('vitamin d')
         && !!activeHost.querySelector('.sun-chip-tier-0');
 
-      sunUI.configureSunSessionUI({ getSessions: () => [session] });
+      sunUI.configureSunSessionUI({
+        getSessions: () => [session],
+        solarZenithAngle: () => 48,
+        geneticVitaminDMultiplier: () => ({ mult: 1, contributors: [] }),
+      });
       sunUI.openSunSessionDetail(session.id);
       const detailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
       outcomes.defaultDetailUsesModalAndChannelDeps = !!detailOverlay

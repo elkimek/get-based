@@ -54,6 +54,23 @@ import {
   SURFACE_OPTIONS,
 } from './sun-session-model.js';
 import {
+  fetchAtmosphere,
+  interpolateAtmosphere,
+  solarZenithAngle,
+} from './sun-uvdata.js';
+import {
+  circadianMelanopicLux,
+  computeChannelDoses,
+  erythemalSED,
+  fractionOfMED,
+  geneticVitaminDMultiplier,
+  pbmJoulesPerCm2,
+  reconstructSpectrum,
+  retinalUVdose,
+  vitaminDIU,
+  vitaminDIUPerSession,
+} from './sun-spectrum.js';
+import {
   configureSunSessionsStore,
   SUN_ENGINE_VERSION,
   getSessions,
@@ -1030,6 +1047,13 @@ configureSunSessionsStore({
   setLiveState: _setLiveState,
   clearLiveState: _clearLiveState,
   formatElapsed: _formatElapsed,
+  fetchAtmosphere,
+  reconstructSpectrum,
+  computeChannelDoses,
+  erythemalSED,
+  fractionOfMED,
+  retinalUVdose,
+  solarZenithAngle,
 });
 
 configureSunActiveSession({
@@ -1048,6 +1072,23 @@ configureSunActiveSession({
   lensTints: LENS_TINTS,
   postureOptions: POSTURE_OPTIONS,
   surfaceOptions: SURFACE_OPTIONS,
+  fetchAtmosphere,
+  reconstructSpectrum,
+  computeChannelDoses,
+  erythemalSED,
+  fractionOfMED,
+  solarZenithAngle,
+  interpolateAtmosphere,
+  vitaminDIU,
+  vitaminDIUPerSession,
+  renderLightChannelsLive: () => {
+    if (typeof window !== 'undefined') window.renderLightChannelsLive?.();
+  },
+  renderLightTodayStrip: () => (
+    typeof window !== 'undefined' && typeof window.renderLightTodayStrip === 'function'
+      ? window.renderLightTodayStrip()
+      : ''
+  ),
 });
 
 configureSunSessionUI({
@@ -1081,6 +1122,13 @@ configureSunSessionUI({
   openChannelOnLightPage: channel => {
     if (typeof window !== 'undefined') window._openChannelOnLightPage?.(channel);
   },
+  solarZenithAngle,
+  reconstructSpectrum,
+  geneticVitaminDMultiplier,
+  vitaminDIU,
+  vitaminDIUPerSession,
+  pbmJoulesPerCm2,
+  circadianMelanopicLux,
 });
 
 // Reset all sun.js module-singleton state. Called on profile switch so

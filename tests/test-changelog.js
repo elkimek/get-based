@@ -83,6 +83,17 @@ assert("v1.7.1 entry carries forceShow: true",
 console.log('2. Unified Semver Versioning');
 
 const versionMatch = versionSrc.match(/APP_VERSION\s*=\s*'([^']+)'/);
+const appVersion = versionMatch?.[1] || '';
+function semverGte(a, b) {
+  const aParts = String(a).split('.').map(Number);
+  const bParts = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const aPart = Number.isFinite(aParts[i]) ? aParts[i] : 0;
+    const bPart = Number.isFinite(bParts[i]) ? bParts[i] : 0;
+    if (aPart !== bPart) return aPart > bPart;
+  }
+  return true;
+}
 assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${versionMatch[1]}'` : 'not found');
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 assert('SW imports version.js', swSrc.includes("importScripts('/version.js')"));
@@ -211,10 +222,8 @@ assert('CHANGELOG records Biology Scores main release',
     && changelogSrc.includes('Know what to test next'));
 assert('Biology Scores changelog is announcement-style, not a technical fix log',
   !/Greptile|bugfix|bugfixes|production hardening|UI polish|stale explanation|sync|CRP\/hs-CRP|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.9.0'"), changelogSrc.indexOf("version: '1.8.550'"))));
-const appVersionMatch = versionSrc.match(/APP_VERSION\s*=\s*'([^']+)'/);
-const appVersionParts = appVersionMatch?.[1]?.split('.').map(Number) || [];
-assert('APP_VERSION is bumped for Biology Scores main release',
-  appVersionParts.length === 3 && (appVersionParts[0] > 1 || (appVersionParts[0] === 1 && appVersionParts[1] >= 9)));
+assert('APP_VERSION is at least the Biology Scores main release',
+  versionMatch && semverGte(appVersion, '1.9.0'), appVersion);
 
 // ═══════════════════════════════════════
 // 11. Window exports

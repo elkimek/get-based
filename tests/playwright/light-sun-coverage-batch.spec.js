@@ -132,6 +132,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
         renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
         navigate: route => calls.push(['navigate', route]),
+        solarZenithAngle: window.solarZenithAngle,
+        reconstructSpectrum: window.reconstructSpectrum,
+        geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
+        vitaminDIU: window.vitaminDIU,
+        vitaminDIUPerSession: window.vitaminDIUPerSession,
+        pbmJoulesPerCm2: window.pbmJoulesPerCm2,
+        circadianMelanopicLux: window.circadianMelanopicLux,
       });
 
       const listHost = document.createElement('div');
@@ -230,6 +237,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         renderSessionAIInline: () => '',
         renderSessionAIDetail: () => '',
         navigate: () => {},
+        solarZenithAngle: null,
+        reconstructSpectrum: null,
+        geneticVitaminDMultiplier: () => ({ mult: 1.0, contributors: [] }),
+        vitaminDIU: null,
+        vitaminDIUPerSession: null,
+        pbmJoulesPerCm2: null,
+        circadianMelanopicLux: null,
       });
       document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
     }
@@ -348,6 +362,19 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       window.vitaminDIUPerSession = () => 2600;
       window.renderLightChannelsLive = () => calls.push(['render-live']);
       window.renderLightTodayStrip = () => '<div id="today-light-strip-test">today</div>';
+      active.configureSunActiveSession({
+        fetchAtmosphere: window.fetchAtmosphere,
+        reconstructSpectrum: window.reconstructSpectrum,
+        computeChannelDoses: window.computeChannelDoses,
+        erythemalSED: window.erythemalSED,
+        fractionOfMED: window.fractionOfMED,
+        solarZenithAngle: window.solarZenithAngle,
+        interpolateAtmosphere: window.interpolateAtmosphere,
+        vitaminDIU: window.vitaminDIU,
+        vitaminDIUPerSession: window.vitaminDIUPerSession,
+        renderLightChannelsLive: window.renderLightChannelsLive,
+        renderLightTodayStrip: window.renderLightTodayStrip,
+      });
 
       await active.openStartSunSessionDialog();
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -434,6 +461,17 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         lensTints: [],
         postureOptions: [],
         surfaceOptions: [],
+        fetchAtmosphere: async () => null,
+        reconstructSpectrum: () => null,
+        computeChannelDoses: () => ({}),
+        erythemalSED: () => 0,
+        fractionOfMED: () => 0,
+        solarZenithAngle: () => 90,
+        interpolateAtmosphere: () => null,
+        vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+        vitaminDIUPerSession: null,
+        renderLightChannelsLive: () => {},
+        renderLightTodayStrip: () => '',
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

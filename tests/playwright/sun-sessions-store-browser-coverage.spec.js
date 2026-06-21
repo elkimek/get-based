@@ -115,6 +115,15 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       window.fractionOfMED = () => 0.25;
       window.retinalUVdose = () => 0.02;
       window.solarZenithAngle = () => 35;
+      store.configureSunSessionsStore({
+        fetchAtmosphere: window.fetchAtmosphere,
+        reconstructSpectrum: window.reconstructSpectrum,
+        computeChannelDoses: window.computeChannelDoses,
+        erythemalSED: window.erythemalSED,
+        fractionOfMED: window.fractionOfMED,
+        retinalUVdose: window.retinalUVdose,
+        solarZenithAngle: window.solarZenithAngle,
+      });
 
       const activeId = await store.startSession({
         regions: ['face', 'arms-front'],
@@ -240,6 +249,13 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         clearLiveState: () => {},
         formatElapsed: ms => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
         maybeAnalyzeSessionAfterFinish: () => {},
+        fetchAtmosphere: async () => null,
+        reconstructSpectrum: () => null,
+        computeChannelDoses: () => ({}),
+        erythemalSED: () => 0,
+        fractionOfMED: () => 0,
+        retinalUVdose: () => 0,
+        solarZenithAngle: () => 90,
       });
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;

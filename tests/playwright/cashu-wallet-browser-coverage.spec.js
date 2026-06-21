@@ -485,6 +485,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
     const oldClipboard = window.navigator.clipboard;
     let currentMint = 'https://mint.current.test/Bitcoin';
+    let panels = null;
+    const getMaxWithdrawable = async () => 1234;
 
     function json(body, status = 200) {
       return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -555,7 +557,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       window.cashuCreateWithdrawQuote = async invoice => ({ quote: `quote-${invoice}`, amount: 200, fee_reserve: 5 });
       window.cashuExecuteWithdraw = async quote => calls.push(['executeWithdraw', quote]);
       window.cashuWithdrawToAddress = async (address, amount) => calls.push(['withdrawAddress', address, amount]);
-      window.cashuGetMaxWithdrawable = async () => 1234;
+      window.cashuGetMaxWithdrawable = getMaxWithdrawable;
       window.cashuGetFeePct = () => 0;
       window.nostrDiscoverNodes = async () => [
         { name: 'Offline', urls: ['https://offline.node.test'], modelCount: 0, online: false },
@@ -596,7 +598,31 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         return json({}, 404);
       };
 
-      const panels = await import(`/js/provider-wallet-panels.js?walletPanelsCoverage=${Date.now()}`);
+      const walletRuntimeOverrides = {
+        cashuGetBalance: window.cashuGetBalance,
+        cashuCheckProofStates: window.cashuCheckProofStates,
+        cashuCreateFundingInvoice: window.cashuCreateFundingInvoice,
+        cashuCheckFundingStatus: window.cashuCheckFundingStatus,
+        cashuReceiveToken: window.cashuReceiveToken,
+        cashuGetMintUrl: window.cashuGetMintUrl,
+        cashuSetMintUrl: window.cashuSetMintUrl,
+        cashuDepositToNode: window.cashuDepositToNode,
+        cashuHasWalletSeed: window.cashuHasWalletSeed,
+        cashuGenerateWalletSeed: window.cashuGenerateWalletSeed,
+        cashuExportWallet: window.cashuExportWallet,
+        cashuSendAsToken: window.cashuSendAsToken,
+        cashuCreateWithdrawQuote: window.cashuCreateWithdrawQuote,
+        cashuExecuteWithdraw: window.cashuExecuteWithdraw,
+        cashuWithdrawToAddress: window.cashuWithdrawToAddress,
+        cashuGetFeePct: window.cashuGetFeePct,
+        nostrDiscoverNodes: window.nostrDiscoverNodes,
+        nostrGetSelectedNode: window.nostrGetSelectedNode,
+        nostrSetSelectedNode: window.nostrSetSelectedNode,
+      };
+      panels = await import(`/js/provider-wallet-panels.js?walletPanelsCoverage=${Date.now()}`);
+      Object.assign(window, walletRuntimeOverrides);
+      window.cashuGetMaxWithdrawable = getMaxWithdrawable;
+      panels.configureRoutstrWalletRuntime(walletRuntimeOverrides);
       panels.configureRoutstrWalletPanels({
         renderAIProviderPanel: provider => `<div id="rendered-panel">${provider}</div><div id="routstr-wallet-balance"></div><div id="routstr-node-balance"></div>`,
         renderRoutstrModelDropdown: models => calls.push(['renderModels', models.length]),
@@ -767,6 +793,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         seedBlurToggles,
       };
     } finally {
+      panels?.clearRoutstrWalletTimers?.();
+      panels?.configureRoutstrWalletRuntime?.();
       root.remove();
       window.showNotification = oldNotification;
       window.qrcode = oldQrcode;
@@ -779,7 +807,6 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       } else {
         delete window.navigator.clipboard;
       }
-      clearTimeout(window._rsCashuBackupTimer);
       clearTimeout(window._tokenClipTimer);
       clearTimeout(window._seedClipTimer);
       localStorage.removeItem('labcharts-routstr-node');
