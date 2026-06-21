@@ -79,4 +79,33 @@ describe('Biology Score context sync merge', () => {
     expect(result.merged.biologyScoreContextAI.updatedAt).toBe(3000);
     expect(result.localDataChanged).toBe(true);
   });
+
+  it('accepts an older all-range context review from sync over a newer local legacy row', async () => {
+    const localLegacy = {
+      ...createDefaultProfileData(),
+      biologyScoreContextAI: {
+        summary: 'Newer local legacy context check',
+        suggestions: [],
+        updatedAt: 3000,
+        range: 'all',
+        fingerprint: 'biology-context:legacy-local',
+      },
+    };
+    const remoteComplete = {
+      ...createDefaultProfileData(),
+      biologyScoreContextAI: {
+        ...ALL_RANGE_REVIEW,
+        summary: 'Older complete context checked on another device',
+        updatedAt: 2000,
+      },
+    };
+
+    state.importedData = localLegacy;
+    const result = await mergePulledImportedData(state.currentProfile, remoteComplete);
+
+    expect(result.merged.biologyScoreContextAI.summary).toBe('Older complete context checked on another device');
+    expect(result.merged.biologyScoreContextAI.fingerprintsByRange).toEqual(ALL_RANGE_REVIEW.fingerprintsByRange);
+    expect(result.merged.biologyScoreContextAI.unlockedRanges).toEqual(['all', '1y', '6m', '3m']);
+    expect(result.localDataChanged).toBe(true);
+  });
 });

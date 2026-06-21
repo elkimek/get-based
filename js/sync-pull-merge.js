@@ -8,6 +8,7 @@ import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntrie
 import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
+import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -112,16 +113,14 @@ function getUpdatedAt(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-const BIOLOGY_CONTEXT_REVIEW_RANGES = ['all', '1y', '6m', '3m'];
-
 function biologyContextReviewCoverageScore(review) {
   if (!review || typeof review !== 'object') return 0;
   const fps = review.fingerprintsByRange && typeof review.fingerprintsByRange === 'object'
     ? review.fingerprintsByRange
     : null;
   const unlocked = Array.isArray(review.unlockedRanges) ? review.unlockedRanges : [];
-  const hasAllRangeFingerprints = !!fps && BIOLOGY_CONTEXT_REVIEW_RANGES.every(range => typeof fps[range] === 'string' && fps[range]);
-  const unlocksAllRanges = BIOLOGY_CONTEXT_REVIEW_RANGES.every(range => unlocked.includes(range));
+  const hasAllRangeFingerprints = !!fps && CONTEXT_REVIEW_RANGES.every(range => typeof fps[range] === 'string' && fps[range]);
+  const unlocksAllRanges = CONTEXT_REVIEW_RANGES.every(range => unlocked.includes(range));
   if (hasAllRangeFingerprints && unlocksAllRanges) return 3;
   if (hasAllRangeFingerprints) return 2;
   if (review.fingerprint && review.range) return 1;
