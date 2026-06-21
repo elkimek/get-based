@@ -11,6 +11,10 @@ if [ "$COVERAGE" = "1" ] || [ "$COVERAGE" = "true" ]; then
   COVERAGE_ENABLED=1
 fi
 
+if [ "$SKIP_TYPECHECK" != "1" ] && [ "$SKIP_TYPECHECK" != "true" ]; then
+  npm run typecheck || exit 1
+fi
+
 # Start server if not already running. nohup + disown fully detaches it
 # from the shell — signals sent to the shell's process group won't
 # propagate. Log to /tmp so we can inspect if it ever dies unexpectedly.
