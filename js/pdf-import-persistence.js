@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
+import { deleteLabEntryMarker } from './lab-entry.js';
 
 export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -37,24 +38,21 @@ export async function removeImportedEntry(date) {
   const entry = entries.find(e => e.date === date);
   if (!entry) return false;
   const rollback = snapshotImportedData();
+  const now = Date.now();
   const markerKeys = Object.keys(entry.markers || {});
   let removedCount = 0;
-  // Only delete markers NOT tagged with a snapshotId (legacy/manual markers)
-  if (markerKeys.length > 0) {
-    for (const k of markerKeys) {
-      const src = entry.markerSources?.[k];
-      if (!src || !src.snapshotId) {
-        delete entry.markers[k];
-        if (entry.markerSources) delete entry.markerSources[k];
-        removedCount++;
-      }
-    }
-  }
-  // Delete manual values only for markers that were actually removed
   const removedKeys = markerKeys.filter(k => {
     const src = entry.markerSources?.[k];
     return !src || !src.snapshotId;
   });
+  // Only delete markers NOT tagged with a snapshotId (legacy/manual markers)
+  if (removedKeys.length > 0) {
+    for (const k of removedKeys) {
+      const result = deleteLabEntryMarker(entry, k, { now, mirrorInsulin: true });
+      if (result.changed) removedCount++;
+    }
+  }
+  // Delete manual values only for markers that were actually removed
   const manualValues = state.importedData.manualValues || {};
   for (const k of Object.keys(manualValues)) {
     if (k.endsWith(':' + date) && removedKeys.includes(k.split(':')[0])) {
@@ -66,7 +64,7 @@ export async function removeImportedEntry(date) {
     recordTombstone(state.importedData, 'entries', date);
     deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
   } else {
-    entry.updatedAt = Date.now();
+    entry.updatedAt = now;
   }
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {

@@ -10,7 +10,7 @@ import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, chec
 import { getPdfDocument } from './pdfjs-loader.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
-import { setLabEntryMarker, syncLabEntryInsulinMirror } from './lab-entry.js';
+import { deleteLabEntryMarker, setLabEntryMarker, syncLabEntryInsulinMirror } from './lab-entry.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
@@ -402,8 +402,7 @@ export async function confirmImport() {
         for (const key of Object.keys(oldEntry.markers)) {
           const src = oldEntry.markerSources?.[key];
           if (src?.snapshotId === snapshotId) {
-            delete oldEntry.markers[key];
-            if (oldEntry.markerSources) delete oldEntry.markerSources[key];
+            deleteLabEntryMarker(oldEntry, key, { now: importTs, mirrorInsulin: true });
           }
         }
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
@@ -593,8 +592,7 @@ export async function deleteImportSnapshot(snapId) {
     for (const key of Object.keys(entry.markers)) {
       const src = entry.markerSources?.[key];
       if (src?.snapshotId === snapshot.id) {
-        delete entry.markers[key];
-        if (entry.markerSources) delete entry.markerSources[key];
+        deleteLabEntryMarker(entry, key, { mirrorInsulin: true });
       }
     }
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
@@ -602,7 +600,7 @@ export async function deleteImportSnapshot(snapId) {
       deleteImportedArrayItems(state.importedData, 'entries', e => e === entry);
     }
   }
-  snaps.splice(idx, 1);
+  deleteImportedArrayItems(state.importedData, 'importSnapshots', s => s.id === snapId);
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);

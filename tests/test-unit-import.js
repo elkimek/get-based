@@ -96,6 +96,18 @@ const settingsDataSrc = read('js/settings-data.js');
     /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
     /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportSrc));
+  assert('Import snapshots are tombstone-aware delta array records',
+    /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js'))
+      && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
+  assert('Snapshot marker deletes use lab-entry tombstones and HOMA-IR recalculation',
+    /import \{ deleteLabEntryMarker,/.test(src)
+      && /deleteLabEntryMarker\(oldEntry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
+      && /deleteLabEntryMarker\(entry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
+      && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
+  assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
+    /import \{ deleteLabEntryMarker/.test(persistenceSrc)
+      && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
+      && !/delete\s+entry\.markers\[k\]/.test(removeBlock));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)
