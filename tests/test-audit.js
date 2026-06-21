@@ -79,6 +79,7 @@ assert('SW APP_SHELL includes PDF import support modules',
   swAuditSrc.includes("'/js/pdf-import-spreadsheet.js'")
   && swAuditSrc.includes("'/js/pdf-import-preflight.js'")
   && swAuditSrc.includes("'/js/pdf-import-progress.js'")
+  && swAuditSrc.includes("'/js/pdf-import-ai-utils.js'")
   && swAuditSrc.includes("'/js/pdf-import-marker-normalization.js'")
   && swAuditSrc.includes("'/js/pdf-import-persistence.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));

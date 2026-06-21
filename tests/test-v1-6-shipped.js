@@ -426,24 +426,25 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 15. PDF import inherits stream + request timeouts ', 'font-weight:bold;color:#0891b2');
   {
     const pdfSrc = await fetchSrc('js/pdf-import.js');
-    // PDF import calls callClaudeAPI (imported from api.js) which routes
+    const pdfAiUtilsSrc = await fetchSrc('js/pdf-import-ai-utils.js');
+    // PDF import calls callClaudeAPI through its AI helper, which routes
     // through _fetchWithRetry and the streaming helpers. We don't
     // duplicate the timeout logic here, just confirm the import + call
     // sites exist so a future refactor doesn't accidentally bypass them.
-    assert('pdf-import.js: imports callClaudeAPI from api.js',
-      /import\s*\{[^}]*callClaudeAPI[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfSrc));
-    assert('pdf-import.js: imports import-specific AI timeout from api.js',
-      /import\s*\{[^}]*AI_IMPORT_REQUEST_TIMEOUT_MS[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfSrc));
-    assert('pdf-import.js: import AI fallback calls callClaudeAPI',
-      /function\s+callImportAIWithStreamFallback[\s\S]+?callClaudeAPI\(/.test(pdfSrc));
-    assert('pdf-import.js: retries aborted AI import streams without streaming',
-      /function\s+isAIStreamAbortError/.test(pdfSrc)
-      && /aborted by user/.test(pdfSrc)
-      && /name\s*===\s*['"]aborterror['"]/.test(pdfSrc)
-      && /function\s+callImportAIWithStreamFallback/.test(pdfSrc)
-      && /onStream:\s*undefined/.test(pdfSrc)
-      && /forceNonStream:\s*true/.test(pdfSrc)
-      && /requestTimeoutMs:\s*AI_IMPORT_REQUEST_TIMEOUT_MS/.test(pdfSrc)
+    assert('pdf-import-ai-utils.js: imports callClaudeAPI from api.js',
+      /import\s*\{[^}]*callClaudeAPI[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfAiUtilsSrc));
+    assert('pdf-import-ai-utils.js: imports import-specific AI timeout from api.js',
+      /import\s*\{[^}]*AI_IMPORT_REQUEST_TIMEOUT_MS[^}]*\}\s*from\s*['"]\.\/api\.js['"]/.test(pdfAiUtilsSrc));
+    assert('pdf-import-ai-utils.js: import AI fallback calls callClaudeAPI',
+      /function\s+callImportAIWithStreamFallback[\s\S]+?callClaudeAPI\(/.test(pdfAiUtilsSrc));
+    assert('pdf-import-ai-utils.js: retries aborted AI import streams without streaming',
+      /function\s+isAIStreamAbortError/.test(pdfAiUtilsSrc)
+      && /aborted by user/.test(pdfAiUtilsSrc)
+      && /name\s*===\s*['"]aborterror['"]/.test(pdfAiUtilsSrc)
+      && /function\s+callImportAIWithStreamFallback/.test(pdfAiUtilsSrc)
+      && /onStream:\s*undefined/.test(pdfAiUtilsSrc)
+      && /forceNonStream:\s*true/.test(pdfAiUtilsSrc)
+      && /requestTimeoutMs:\s*AI_IMPORT_REQUEST_TIMEOUT_MS/.test(pdfAiUtilsSrc)
       && /parseLabPDFWithAI[\s\S]+?callImportAIWithStreamFallback/.test(pdfSrc));
     assert('pdf-import.js: catch path closes the import modal on error',
       /catch\s*\([^)]+\)\s*\{[\s\S]{0,500}hideImportProgress\('error'\)/.test(pdfSrc));

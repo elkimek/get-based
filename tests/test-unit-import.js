@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const aiUtilsSrc = read('js/pdf-import-ai-utils.js');
 const exportSrc = read('js/export.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
@@ -282,6 +283,9 @@ const settingsDataSrc = read('js/settings-data.js');
   assert('pdf-import exports reconcileImportMarkerMappings',
     /export\s*\{[^}]*reconcileImportMarkerMappings[^}]*\}\s*from\s*['"]\.\/pdf-import-marker-mapping\.js['"]/.test(src)
     && /export function reconcileImportMarkerMappings/.test(mappingSrc));
+  assert('pdf-import re-exports tryParseJSON from AI utils',
+    /export\s*\{[^}]*tryParseJSON[^}]*\}\s*from\s*['"]\.\/pdf-import-ai-utils\.js['"]/.test(src)
+    && /export function tryParseJSON/.test(aiUtilsSrc));
   assert('pdf-import imports existing marker key lookup from mapping module',
     src.includes('getExistingImportMarkerKeys') && !src.includes('_getExistingImportMarkerKeys'));
   assert('Czech/Spadia alias table includes key labels',
