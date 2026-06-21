@@ -873,6 +873,18 @@ async function _importDatabaseBundle(json) {
           else { appendImportedArrayItem(current, 'chatSummaries', s); }
         }
       }
+      // Import snapshots: merge by stable snapshot id
+      if (Array.isArray(importData.importSnapshots)) {
+        const importSnapshots = ensureImportedArray(current, 'importSnapshots');
+        const knownIds = new Set(importSnapshots.map(s => s.id).filter(Boolean));
+        for (const snap of importData.importSnapshots) {
+          if (snap?.id && !knownIds.has(snap.id)) {
+            appendImportedArrayItem(current, 'importSnapshots', snap);
+            knownIds.add(snap.id);
+          }
+        }
+        sortImportedArray(current, 'importSnapshots', (a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+      }
       // Display overrides: merge labels/icons/manualValues (don't overwrite existing)
       for (const field of ['categoryLabels', 'categoryIcons', 'markerLabels', 'manualValues']) {
         if (importData[field] && typeof importData[field] === 'object') {

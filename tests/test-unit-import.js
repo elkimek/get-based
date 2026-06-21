@@ -92,6 +92,10 @@ const settingsDataSrc = read('js/settings-data.js');
     /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
   assert('Settings Data rename refreshes only after successful save',
     /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
+  assert('Re-review tombstones an emptied old snapshot entry before deleting it',
+    /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
+  assert('Database bundle import merges importSnapshots into existing profiles',
+    /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportSrc));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)

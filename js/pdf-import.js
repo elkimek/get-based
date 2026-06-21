@@ -407,6 +407,7 @@ export async function confirmImport() {
           }
         }
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
+          recordTombstone(state.importedData, 'entries', oldEntry.date);
           deleteImportedArrayItems(state.importedData, 'entries', e => e === oldEntry);
         }
       }
