@@ -174,6 +174,7 @@ const APP_SHELL = [
   '/js/dashboard-page-view.js',
   '/js/lens-pages.js',
   '/js/lens-page-shell.js',
+  '/js/lens-library.js',
   '/js/biology-scores.js',
   '/js/biology-score-ai.js',
   '/js/biology-score-ai-context.js',

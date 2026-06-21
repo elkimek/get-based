@@ -20,6 +20,7 @@ const cycleSrc = fs.readFileSync(path.join(root, 'js/cycle.js'), 'utf8');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report-builder.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
+const lensLibrarySrc = fs.readFileSync(path.join(root, 'js/lens-library.js'), 'utf8');
 const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
 const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-device-session-modal.js'), 'utf8');
 const lightDeviceSetupModalSrc = fs.readFileSync(path.join(root, 'js/light-device-setup-modal.js'), 'utf8');
@@ -182,11 +183,11 @@ assert('knowledge base modal uses shared lifecycle helpers',
     !knowledgeBaseModalSrc.includes("overlay.classList.remove('show')"));
 
 assert('lens library create dialog uses shared lifecycle helpers',
-  lensSrc.includes("from './modal-lifecycle.js'") &&
-    lensSrc.includes("openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 })") &&
-    lensSrc.includes('closeModalOverlay(overlay)') &&
-    !lensSrc.includes("overlay.classList.add('show')") &&
-    !lensSrc.includes("overlay.classList.remove('show')"));
+  lensLibrarySrc.includes("from './modal-lifecycle.js'") &&
+    lensLibrarySrc.includes("openModalOverlay(overlay, { initialFocus: '#lens-create-name', focusDelay: 0 })") &&
+    lensLibrarySrc.includes('closeModalOverlay(overlay)') &&
+    !lensLibrarySrc.includes("overlay.classList.add('show')") &&
+    !lensLibrarySrc.includes("overlay.classList.remove('show')"));
 
 assert('PDF import preflight dialogs use shared lifecycle helpers',
   pdfImportPreflightSrc.includes("from './modal-lifecycle.js'") &&
