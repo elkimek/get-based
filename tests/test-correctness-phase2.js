@@ -144,6 +144,7 @@ const pwaAppShellAssets = [
   '/js/light-device-session-engine.js',
   '/js/light-device-setup-modal.js',
   '/js/light-env.js',
+  '/js/light-env-screen-ui.js',
   '/js/light-env-audits.js',
   '/js/light-env-evening.js',
   '/js/light-env-model.js',

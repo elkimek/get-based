@@ -8,9 +8,11 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const envSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
+const screenSrc = fs.readFileSync(path.join(root, 'js/light-env-screen-ui.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'utf8');
 const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
+const envUiSrc = `${envSrc}\n${screenSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -30,12 +32,12 @@ console.log('=== Light Environment Delegated Actions ===');
 const inlineHandlerRe = /\bon(?:click|keydown|change|input|submit|blur|toggle)=/g;
 const directAssignmentRe = /\.(?:onclick|onchange|oninput|onkeydown)\s*=/;
 
-assert('light-env.js has no inline event attributes',
-  !inlineHandlerRe.test(envSrc));
+assert('light environment UI has no inline event attributes',
+  !inlineHandlerRe.test(envUiSrc));
 assert('light-env-audits.js has no inline event attributes',
   !inlineHandlerRe.test(auditSrc));
-assert('light-env.js avoids direct event property assignment',
-  !directAssignmentRe.test(envSrc));
+assert('light environment UI avoids direct event property assignment',
+  !directAssignmentRe.test(envUiSrc));
 assert('light-env.js imports and installs the delegated action helper',
   envSrc.includes("from './light-env-actions.js'") &&
     envSrc.includes('installLightEnvActionDelegates({') &&
@@ -93,8 +95,9 @@ assert('light-env.js captures light audit callbacks when installing delegates',
     envSrc.includes('updateLightAuditField,') &&
     envSrc.includes('deleteLightAuditConfirm,') &&
     envSrc.includes('interpretLightAuditCompare,'));
-assert('service worker precaches light-env-actions.js',
-  swSrc.includes("'/js/light-env-actions.js'"));
+assert('service worker precaches light environment action/render modules',
+  swSrc.includes("'/js/light-env-actions.js'") &&
+    swSrc.includes("'/js/light-env-screen-ui.js'"));
 
 [
   'set-room-source-archetype',
@@ -161,8 +164,8 @@ assert('service worker precaches light-env-actions.js',
   "lightEnvActionAttrs('open-tool', { id: r.id, tool: 'spectrum' })",
   "lightEnvActionAttrs('add-room')",
 ].forEach(renderedAction => {
-  assert(`light-env.js renders ${renderedAction}`,
-    envSrc.includes(renderedAction));
+  assert(`light environment UI renders ${renderedAction}`,
+    envUiSrc.includes(renderedAction));
 });
 
 [
@@ -195,11 +198,11 @@ assert('service worker precaches light-env-actions.js',
   'closeLightEnvironmentAssessment',
   'openLightEnvTool',
 ].forEach(fnName => {
-  assert(`light-env.js has no inline handler ${fnName} call`,
-    !envSrc.includes(`onclick="${fnName}`) &&
-      !envSrc.includes(`onclick="window.${fnName}`) &&
-      !envSrc.includes(`onchange="window.${fnName}`) &&
-      !envSrc.includes(`oninput="window.${fnName}`));
+  assert(`light environment UI has no inline handler ${fnName} call`,
+    !envUiSrc.includes(`onclick="${fnName}`) &&
+      !envUiSrc.includes(`onclick="window.${fnName}`) &&
+      !envUiSrc.includes(`onchange="window.${fnName}`) &&
+      !envUiSrc.includes(`oninput="window.${fnName}`));
 });
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

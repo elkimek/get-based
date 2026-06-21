@@ -573,6 +573,7 @@ const {
   ].join('\n');
   assert('Service worker precaches the light environment model module',
     swSrc.includes("'/js/light-env-model.js'") &&
+    swSrc.includes("'/js/light-env-screen-ui.js'") &&
     swSrc.includes("'/js/light-ai-save-hooks.js'"));
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
