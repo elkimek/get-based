@@ -32,6 +32,13 @@ function isValidISOCalendarDate(date) {
     && parsed.getUTCDate() === day;
 }
 
+function isSnapshotDerivedHOMAIR(entry, key) {
+  if (key !== 'diabetes.homaIR') return false;
+  const glucoseSrc = entry.markerSources?.['biochemistry.glucose'];
+  const insulinSrc = entry.markerSources?.['hormones.insulin'] ?? entry.markerSources?.['diabetes.insulin_d'];
+  return !!(glucoseSrc?.snapshotId && insulinSrc?.snapshotId);
+}
+
 export async function removeImportedEntry(date) {
   if (!date) return false;
   const entries = state.importedData?.entries || [];
@@ -42,6 +49,7 @@ export async function removeImportedEntry(date) {
   const markerKeys = Object.keys(entry.markers || {});
   let removedCount = 0;
   const removedKeys = markerKeys.filter(k => {
+    if (isSnapshotDerivedHOMAIR(entry, k)) return false;
     const src = entry.markerSources?.[k];
     return !src || !src.snapshotId;
   });
