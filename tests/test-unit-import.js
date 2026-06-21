@@ -102,6 +102,13 @@ const reviewSrc = read('js/pdf-import-review.js');
       && settingsDataSrc.includes('class=\"ie-mainline\"')
       && settingsDataSrc.includes('class=\"ie-meta\"')
       && settingsDataSrc.includes('class=\"ie-file\"'));
+  assert('Settings Data Other data counts only markers not owned by import snapshots',
+    settingsDataSrc.includes('const legacyKeys = entryMarkerKeys.filter')
+      && settingsDataSrc.includes('const otherKeys = legacyKeys.length ? legacyKeys : manualKeys')
+      && settingsDataSrc.includes('legacyEntries.push({ entry, otherKeys, manualKeys')
+      && /const cnt = otherKeys\.length/.test(settingsDataSrc));
+  assert('Settings Data does not classify a date row as legacy only because importedWith is missing',
+    !/if \(isFullyManual \|\| !entry\.importedWith\)/.test(settingsDataSrc));
   assert('Re-review tombstones an emptied old snapshot entry before deleting it',
     /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
