@@ -83,6 +83,7 @@ assert('SW APP_SHELL includes context card medical history module', swAuditSrc.i
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
 assert('SW APP_SHELL includes lens URL helper module', swAuditSrc.includes("'/js/lens-url.js'"));
 assert('SW APP_SHELL includes DNA action delegates module', swAuditSrc.includes("'/js/dna-actions.js'"));
+assert('SW APP_SHELL includes DNA genotype helper module', swAuditSrc.includes("'/js/dna-genotype.js'"));
 assert('SW APP_SHELL includes service worker update module', swAuditSrc.includes("'/js/service-worker-update.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));

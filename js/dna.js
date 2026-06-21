@@ -7,6 +7,7 @@ import { escapeAttr, escapeHTML, hashString, showNotification } from './utils.js
 import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
+import { findGenotypeInfo as findGenotypeInfoImpl, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
 /** @typedef {Window & typeof globalThis & {
  *   _pendingDNAImport?: any,
  *   _pendingMtDNA?: any,
@@ -453,82 +454,18 @@ export async function parseDNAFile(file) {
   };
 }
 
-// Sort alleles alphabetically for lookup (AG = GA)
-function sortAlleles(genotype) {
-  if (!genotype || genotype.length !== 2) return genotype;
-  const sorted = genotype.split('').sort().join('');
-  return sorted;
-}
-
-// Reverse-complement a short allele string. Vendors disagree about which strand
-// they report on a per-SNP basis: 23andMe / Ancestry pick whichever strand the
-// probe was designed against, MyHeritage's 2025 Low-pass WGS export is
-// build37-forward across the board. Our catalog is mostly forward-strand too,
-// but for a handful of loci (PCSK9 R46L, MTR A2756G, UGT1A1 G71R, MTRR A66G,
-// BHMT R239Q, FADS1 coding, LIPC -514, MC1R R160W) the catalog keys live on
-// the opposite strand, so a forward-strand call like "AC" misses a catalog
-// keyed "GT". RC fallback fixes those without touching the catalog.
-const _COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
-function reverseComplement(genotype) {
-  if (!genotype) return genotype;
-  let out = '';
-  for (let i = genotype.length - 1; i >= 0; i--) {
-    out += _COMPLEMENT[genotype[i]] || genotype[i];
-  }
-  return out;
-}
-
-// Skip RC fallback for palindromic SNPs — A/T and C/G loci have allele sets
-// that map onto themselves under reverse-complement, so RC would conflate
-// homozygous calls on opposite strands (AA vs TT both valid genotypes meaning
-// different things). For these the only safe fallbacks are direct + reversed
-// + sorted on the user's raw call.
-function _isPalindromicEntry(entry) {
-  if (!entry || !entry.genotypes) return false;
-  const alleles = new Set();
-  for (const k of Object.keys(entry.genotypes)) {
-    for (const c of k) alleles.add(c);
-  }
-  if (alleles.size !== 2) return false;
-  return (alleles.has('A') && alleles.has('T')) || (alleles.has('C') && alleles.has('G'));
-}
-
-// Try direct / reversed (AG↔GA) / sorted on the genotype, then the same
-// three on its reverse-complement (skipped for palindromic SNPs to avoid
-// false positives — e.g. an A/T SNP where AA and TT are different valid
-// genotypes that RC would conflate). Returns the value at the matched key
-// or null. Shared by both genotype lookups and snpHint lookups.
-function _findStrandAwareKey(table, genotype, palindromic) {
-  if (!table || !genotype) return null;
-  const tries = [genotype];
-  if (genotype.length === 2) tries.push(genotype[1] + genotype[0]);
-  tries.push(sortAlleles(genotype));
-  if (!palindromic) {
-    const rc = reverseComplement(genotype);
-    tries.push(rc);
-    if (rc.length === 2) tries.push(rc[1] + rc[0]);
-    tries.push(sortAlleles(rc));
-  }
-  for (const k of tries) {
-    if (table[k] != null) return table[k];
-  }
-  return null;
-}
-
 // Single source of truth for "given a raw genotype call, what catalog entry
 // does it correspond to". Exported so recommendations.js and any future
 // consumer share the same lookup semantics.
 export function findGenotypeInfo(entry, genotype) {
-  if (!entry || !entry.genotypes) return null;
-  return _findStrandAwareKey(entry.genotypes, genotype, _isPalindromicEntry(entry));
+  return findGenotypeInfoImpl(entry, genotype);
 }
 
 // Same strand-aware lookup, for entry.snpHints. Keyed identically to
 // entry.genotypes, so the palindromic guard derived from the genotype set
 // is correct here too.
 export function findSnpHint(entry, genotype) {
-  if (!entry || !entry.snpHints) return null;
-  return _findStrandAwareKey(entry.snpHints, genotype, _isPalindromicEntry(entry));
+  return findSnpHintImpl(entry, genotype);
 }
 
 function formatSourceName(format) {
