@@ -387,6 +387,7 @@ const APP_SHELL = [
   '/js/chat-threads.js',
   '/js/chat-thread-search.js',
   '/js/lens-actions.js',
+  '/js/lens-url.js',
   '/js/lens.js',
   '/js/lens-local.js',
   '/js/lens-local-worker.js',
