@@ -220,8 +220,19 @@ assert('CHANGELOG records Biology Scores main release',
     && changelogSrc.includes('A new lens on your biology')
     && changelogSrc.includes('Biological Coherence shows the whole-body picture')
     && changelogSrc.includes('Know what to test next'));
+assert('CHANGELOG records per-file lab import storage release',
+  changelogSrc.includes("version: '1.10.6'")
+    && changelogSrc.includes('Per-file lab import storage')
+    && changelogSrc.includes('Lab imports are now stored per file')
+    && changelogSrc.includes('Same-day reports are easier to manage')
+    && changelogSrc.includes('import that report again')
+    && /version:\s*'1\.10\.6'[\s\S]{0,180}forceShow:\s*true/.test(changelogSrc));
+assert('Per-file import storage changelog is user-facing, not a technical fix log',
+  !/Greptile|bugfix|bugfixes|production hardening|UI polish|tombstone|CRDT|manualValues|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.10.6'"), changelogSrc.indexOf("version: '1.9.0'"))));
 assert('Biology Scores changelog is announcement-style, not a technical fix log',
   !/Greptile|bugfix|bugfixes|production hardening|UI polish|stale explanation|sync|CRP\/hs-CRP|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.9.0'"), changelogSrc.indexOf("version: '1.8.550'"))));
+assert('APP_VERSION is bumped for per-file lab import storage',
+  appVersion === '1.10.6', appVersion);
 assert('APP_VERSION is at least the Biology Scores main release',
   versionMatch && semverGte(appVersion, '1.9.0'), appVersion);
 

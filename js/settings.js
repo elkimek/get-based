@@ -2,7 +2,7 @@
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, isPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled } from './utils.js';
+import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, isPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel, setOllamaPIIModel } from './api.js';
@@ -13,6 +13,7 @@ import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { installSettingsProviderBridge, switchAIProviderBridge } from './settings-provider-bridge.js';
+import { loadPdfImport } from './import-loader.js';
 import {
   confirmDisablePIIReview,
   refreshDataEntriesSection,
@@ -287,7 +288,7 @@ function isTweaksToggleAction(actionEl) {
     || actionEl.dataset.tweaksAction === 'toggle-crt';
 }
 
-function handleSettingsClick(event) {
+async function handleSettingsClick(event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
 
@@ -361,6 +362,28 @@ function handleSettingsClick(event) {
   } else if (action === 'remove-imported-entry') {
     event.preventDefault();
     void removeImportedEntryFromSettings(actionEl.dataset.entryDate || '');
+  } else if (action === 'review-import') {
+    event.preventDefault();
+    try {
+      const { openImportReviewFromSnapshot } = await loadPdfImport();
+      closeSettingsModal();
+      openImportReviewFromSnapshot(actionEl.dataset.snapId || '');
+    } catch (err) {
+      if (isDebugMode()) console.error('Review import snapshot failed:', err);
+      showNotification('Could not open import review. Reload and try again.', 'error');
+    }
+  } else if (action === 'remove-import-snapshot') {
+    event.preventDefault();
+    const confirmed = await showConfirmDialog('Delete this import? This will remove all markers from this file and cannot be undone.');
+    if (!confirmed) return;
+    try {
+      const { deleteImportSnapshot } = await loadPdfImport();
+      const ok = await deleteImportSnapshot(actionEl.dataset.snapId || '');
+      if (ok) refreshDataEntriesSection();
+    } catch (err) {
+      if (isDebugMode()) console.error('Delete import snapshot failed:', err);
+      showNotification('Could not delete import. Reload and try again.', 'error');
+    }
   } else if (action === 'export-client') {
     event.preventDefault();
     settingsWindow.exportClientJSON?.(settingsWindow.getActiveProfileId?.());

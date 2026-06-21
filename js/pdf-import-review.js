@@ -558,7 +558,7 @@ export function showImportPreview(parseResult) {
     html += `<div class="privacy-notice privacy-notice-warning">&#128274; ${parseResult.privacyReplacements} personal detail${parseResult.privacyReplacements !== 1 ? 's' : ''} replaced with fake data`;
     html += '<span class="privacy-notice-detail">Set up Local AI in Settings for comprehensive language-aware protection</span></div>';
   }
-  if (parseResult.costInfo) {
+  if (parseResult.costInfo && typeof parseResult.costInfo.cost === 'number') {
     const ci = parseResult.costInfo;
     const totalTokens = (ci.inputTokens || 0) + (ci.outputTokens || 0);
     const modelLabel = ci.provider === 'ollama' ? getOllamaMainModel() : ci.provider === 'venice' ? getVeniceModelDisplay() : ci.provider === 'openrouter' ? getOpenRouterModelDisplay() : getActiveModelDisplay();
@@ -579,10 +579,13 @@ export function showImportPreview(parseResult) {
 
   const cancelLabel = batchCtx ? 'Skip' : 'Cancel';
   const importDisabled = !date ? ' disabled' : '';
+  const confirmLabel = parseResult._reReviewSnapshotId
+    ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
+    : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
   html += `</div>
     <div class="import-review-actions">
       <button type="button" class="import-btn import-btn-secondary" ${importReviewActionAttrs('close')}>${cancelLabel}</button>
-      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button>
+      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>${confirmLabel}</button>
     </div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   window._pendingImport = parseResult;
@@ -696,7 +699,9 @@ function updateImportConfirmCount() {
   const excludedIdxs = getExcludedImportIndices();
   const importCount = result.markers.filter((m, i) => (m.matched || (!m.matched && m.suggestedKey)) && !excludedIdxs.has(i)).length;
   const btn = document.getElementById('import-confirm-btn');
-  if (btn) btn.textContent = `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
+  if (btn) btn.textContent = result._reReviewSnapshotId
+    ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
+    : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
 }
 
 /** @param {HTMLElement} btn */

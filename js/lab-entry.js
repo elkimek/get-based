@@ -52,6 +52,21 @@ export function recalculateLabEntryHOMAIR(entry) {
   const insulin = entry.markers['hormones.insulin'] ?? entry.markers['diabetes.insulin_d'];
   if (glucose !== undefined && insulin !== undefined) {
     entry.markers['diabetes.homaIR'] = Math.round((glucose * insulin) / 22.5 * 100) / 100;
+    const glucoseSource = entry.markerSources?.['biochemistry.glucose'];
+    const insulinSource = entry.markerSources?.['hormones.insulin'] ?? entry.markerSources?.['diabetes.insulin_d'];
+    const sharedSnapshotId = glucoseSource?.snapshotId && glucoseSource.snapshotId === insulinSource?.snapshotId
+      ? glucoseSource.snapshotId
+      : null;
+    if (sharedSnapshotId) {
+      ensureMarkerSources(entry)['diabetes.homaIR'] = {
+        file: glucoseSource.file || insulinSource.file || null,
+        at: Math.max(normalizeTimestamp(glucoseSource.at) || 0, normalizeTimestamp(insulinSource.at) || 0) || Date.now(),
+        snapshotId: sharedSnapshotId,
+        derivedFrom: ['biochemistry.glucose', insulinSource === entry.markerSources?.['hormones.insulin'] ? 'hormones.insulin' : 'diabetes.insulin_d'],
+      };
+    } else if (entry.markerSources) {
+      delete entry.markerSources['diabetes.homaIR'];
+    }
   } else {
     delete entry.markers['diabetes.homaIR'];
     if (entry.markerSources) delete entry.markerSources['diabetes.homaIR'];
@@ -62,6 +77,13 @@ export function labEntryMarkerAffectsHOMAIR(dotKey) {
   return dotKey === 'biochemistry.glucose'
     || dotKey === 'hormones.insulin'
     || dotKey === 'diabetes.insulin_d';
+}
+
+export function isSnapshotDerivedHOMAIR(entry, dotKey) {
+  if (dotKey !== 'diabetes.homaIR') return false;
+  const glucoseSource = entry?.markerSources?.['biochemistry.glucose'];
+  const insulinSource = entry?.markerSources?.['hormones.insulin'] ?? entry?.markerSources?.['diabetes.insulin_d'];
+  return !!(glucoseSource?.snapshotId && glucoseSource.snapshotId === insulinSource?.snapshotId);
 }
 
 function affectsHOMAIR(dotKey, keys = []) {
