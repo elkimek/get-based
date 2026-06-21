@@ -13,7 +13,7 @@ const FLAG_LABELS = {
   acuteIllnessNearDraw: 'Acute illness / infection / injury near blood draw',
 };
 const FLAG_KEYS = Object.keys(FLAG_LABELS);
-const CONTEXT_REVIEW_RANGES = ['all', '1y', '6m', '3m'];
+export const CONTEXT_REVIEW_RANGES = ['all', '1y', '6m', '3m'];
 let installed = false;
 
 function safeContextText(value, max = 500) {

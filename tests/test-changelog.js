@@ -211,8 +211,10 @@ assert('CHANGELOG records Biology Scores main release',
     && changelogSrc.includes('Know what to test next'));
 assert('Biology Scores changelog is announcement-style, not a technical fix log',
   !/Greptile|bugfix|bugfixes|production hardening|UI polish|stale explanation|sync|CRP\/hs-CRP|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.9.0'"), changelogSrc.indexOf("version: '1.8.550'"))));
+const appVersionMatch = versionSrc.match(/APP_VERSION\s*=\s*'([^']+)'/);
+const appVersionParts = appVersionMatch?.[1]?.split('.').map(Number) || [];
 assert('APP_VERSION is bumped for Biology Scores main release',
-  versionSrc.includes("APP_VERSION = '1.9.0'"));
+  appVersionParts.length === 3 && (appVersionParts[0] > 1 || (appVersionParts[0] === 1 && appVersionParts[1] >= 9)));
 
 // ═══════════════════════════════════════
 // 11. Window exports

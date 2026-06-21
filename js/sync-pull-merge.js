@@ -8,6 +8,7 @@ import { mergeImportedData, localHasRowsRemoteLacks, preserveFreshLocalLabEntrie
 import { parseSyncPayload } from './sync-payload.js';
 import { _mergeItemRowsIntoImported } from './sync-delta.js';
 import { isRestoreJoinPending } from './sync-identity.js';
+import { CONTEXT_REVIEW_RANGES } from './biology-score-context-ai.js';
 
 export const PROFILE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
@@ -112,13 +113,35 @@ function getUpdatedAt(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function biologyContextReviewCoverageScore(review) {
+  if (!review || typeof review !== 'object') return 0;
+  const fps = review.fingerprintsByRange && typeof review.fingerprintsByRange === 'object'
+    ? review.fingerprintsByRange
+    : null;
+  const unlocked = Array.isArray(review.unlockedRanges) ? review.unlockedRanges : [];
+  const hasAllRangeFingerprints = !!fps && CONTEXT_REVIEW_RANGES.every(range => typeof fps[range] === 'string' && fps[range]);
+  const unlocksAllRanges = CONTEXT_REVIEW_RANGES.every(range => unlocked.includes(range));
+  if (hasAllRangeFingerprints && unlocksAllRanges) return 3;
+  if (hasAllRangeFingerprints) return 2;
+  if (review.fingerprint && review.range) return 1;
+  return 0;
+}
+
+function compareBiologyContextReviews(a, b) {
+  const coverageDelta = biologyContextReviewCoverageScore(a) - biologyContextReviewCoverageScore(b);
+  if (coverageDelta !== 0) return coverageDelta;
+  const timeDelta = getUpdatedAt(a) - getUpdatedAt(b);
+  if (timeDelta !== 0) return timeDelta;
+  return 0;
+}
+
 function preserveFreshLocalBiologyScoreContextAI(merged, localImported, remoteImported) {
   const candidates = [merged?.biologyScoreContextAI, localImported?.biologyScoreContextAI, remoteImported?.biologyScoreContextAI]
     .filter(item => item && typeof item === 'object');
   if (!candidates.length) return false;
-  const best = candidates.reduce((winner, item) => getUpdatedAt(item) > getUpdatedAt(winner) ? item : winner, candidates[0]);
+  const best = candidates.reduce((winner, item) => compareBiologyContextReviews(item, winner) > 0 ? item : winner, candidates[0]);
   if (merged.biologyScoreContextAI === best) return false;
-  if (getUpdatedAt(best) <= getUpdatedAt(merged?.biologyScoreContextAI)) return false;
+  if (compareBiologyContextReviews(best, merged?.biologyScoreContextAI) <= 0) return false;
   merged.biologyScoreContextAI = best;
   return true;
 }
