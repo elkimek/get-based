@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
+const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -31,7 +32,13 @@ function section(start, end) {
 const editorSrc = section('let _editingAssessmentId = null;', '// ═══════════════════════════════════════════════\n// CRUD OPERATIONS');
 const importPreviewSrc = section('function showEMFImportPreview(parsed)', '// ═══════════════════════════════════════════════\n// BEFORE / AFTER COMPARISON');
 const compareSrc = section('function renderComparisonView(sorted)', '// ═══════════════════════════════════════════════\n// AI INTERPRETATION');
-const interpretationSrc = section('function _handleEMFInterpretationMouseDown', 'function _collectMitigationTags');
+function interpretationSection(start, end) {
+  const startIdx = emfInterpretationSrc.indexOf(start);
+  const endIdx = emfInterpretationSrc.indexOf(end, startIdx);
+  return startIdx >= 0 && endIdx > startIdx ? emfInterpretationSrc.slice(startIdx, endIdx) : '';
+}
+
+const interpretationSrc = interpretationSection('function _handleEMFInterpretationMouseDown', 'function _collectMitigationTags');
 const closePreviewSrc = section('function closeEMFPreviewModal()', 'function closeEMFEditorModal()');
 const migratedEditorSurface = `${editorSrc}\n${importPreviewSrc}\n${compareSrc}`;
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
@@ -80,7 +87,7 @@ assert('EMF editor delegates can be explicitly removed',
     emfSrc.includes("document.removeEventListener('change', _handleEMFEditorChange)") &&
     emfSrc.includes("document.removeEventListener('keydown', _handleEMFEditorKeydown)"));
 assert('EMF interpretation modal installs scoped action delegates',
-  emfSrc.includes('function emfInterpActionAttrs') &&
+  emfInterpretationSrc.includes('function emfInterpActionAttrs') &&
     interpretationSrc.includes('data-emf-interp-action') &&
     interpretationSrc.includes('installEMFInterpretationDelegates(overlay);') &&
     interpretationSrc.includes("overlay.addEventListener('mousedown', _handleEMFInterpretationMouseDown)") &&
