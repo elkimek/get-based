@@ -37,6 +37,7 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
   const recSrc = await fetchWithRetry('js/recommendations.js');
+  const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
   const chatSendSrc = await fetchWithRetry('js/chat-send.js');
@@ -72,6 +73,10 @@ globalThis.fetch = async (url, opts) => {
   assert('recommendations.js exports renderRecommendationSection', recSrc.includes('export async function renderRecommendationSection'));
   assert('recommendations.js exports renderRecommendationSectionSync', recSrc.includes('export function renderRecommendationSectionSync'));
   assert('recommendations.js exports detectSupplementSlots', recSrc.includes('export function detectSupplementSlots'));
+  assert('recommendations-region.js owns region hierarchy data',
+    recRegionSrc.includes('REGION_HIERARCHY') &&
+    recRegionSrc.includes('COUNTRY_TO_REGION') &&
+    recSrc.includes("from './recommendations-region.js'"));
 
   // ═══════════════════════════════════════
   // 2. Window exports
@@ -279,6 +284,7 @@ globalThis.fetch = async (url, opts) => {
   console.log('%c 12. Infrastructure ', 'font-weight:bold;color:#f59e0b');
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
+  assert('SW includes recommendations-region.js', swSrc.includes('/js/recommendations-region.js'));
   assert('SW includes recommendation-actions.js', swSrc.includes('/js/recommendation-actions.js'));
   assert('SW includes dashboard-recommendation-widget.js', swSrc.includes('/js/dashboard-recommendation-widget.js'));
 
