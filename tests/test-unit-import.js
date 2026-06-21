@@ -29,6 +29,9 @@ const persistenceSrc = read('js/pdf-import-persistence.js');
 const settingsDataSrc = read('js/settings-data.js');
 const settingsSrc = read('js/settings.js');
 const reviewSrc = read('js/pdf-import-review.js');
+const labEntrySrc = read('js/lab-entry.js');
+const profileSrc = read('js/profile.js');
+const importCssSrc = read('css/import.css');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
   // ═══════════════════════════════════════
@@ -101,16 +104,18 @@ const reviewSrc = read('js/pdf-import-review.js');
     settingsDataSrc.includes('imported-entry-snapshot')
       && settingsDataSrc.includes('class=\"ie-mainline\"')
       && settingsDataSrc.includes('class=\"ie-meta\"')
-      && settingsDataSrc.includes('class=\"ie-file\"'));
+      && settingsDataSrc.includes('class=\"ie-file\"')
+      && settingsDataSrc.includes('Imported time'));
   assert('Settings Data Other data counts only markers not owned by import snapshots',
     settingsDataSrc.includes('const legacyKeys = entryMarkerKeys.filter')
       && settingsDataSrc.includes('const otherKeys = legacyKeys.length ? legacyKeys : manualKeys')
-      && settingsDataSrc.includes('legacyEntries.push({ entry, otherKeys, manualKeys')
+      && settingsDataSrc.includes('legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers })')
       && /const cnt = otherKeys\.length/.test(settingsDataSrc));
   assert('Settings Data treats snapshot-derived HOMA-IR as snapshot-owned even for existing rows without marker source',
     settingsDataSrc.includes('isSnapshotDerivedHOMAIR')
       && settingsDataSrc.includes('isSnapshotDerivedHOMAIR(entry, k)')
       && /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
+      && /glucoseSource\.snapshotId === insulinSource\?\.snapshotId/.test(labEntrySrc)
       && persistenceSrc.includes('isSnapshotDerivedHOMAIR(entry, k)'));
   assert('HOMA-IR recalculation preserves snapshot ownership when glucose and insulin come from the same import snapshot',
     /ensureMarkerSources\(entry\)\['diabetes\.homaIR'\][\s\S]{0,260}snapshotId:\s*sharedSnapshotId/.test(read('js/lab-entry.js')));
@@ -120,6 +125,12 @@ const reviewSrc = read('js/pdf-import-review.js');
     /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
     /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportSrc));
+  assert('Import restore clears snapshot tombstones and updates newer duplicate snapshot ids',
+    /clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportSrc)
+      && /clearTombstone\(current,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportSrc)
+      && /incomingAt >= existingAt/.test(exportSrc));
+  assert('Existing profile migration backfills importSnapshots array',
+    /if \(data\.importSnapshots === undefined\) data\.importSnapshots = \[\]/.test(profileSrc));
   assert('Import snapshots are tombstone-aware delta array records',
     /importSnapshots:\s*\{[\s\S]{0,180}itemIdFn/.test(read('js/sync-delta-surface-config.js'))
       && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
@@ -128,6 +139,12 @@ const reviewSrc = read('js/pdf-import-review.js');
       && /deleteLabEntryMarker\(oldEntry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
       && /deleteLabEntryMarker\(entry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
       && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
+  assert('Snapshot delete/re-review restores latest remaining same-date snapshot marker value',
+    /function findLatestRestorableSnapshotMarker/.test(confirmBlock)
+      && /s\.id !== excludedSnapshotId/.test(confirmBlock)
+      && /snapshotMarkerDotKey\(marker\) !== dotKey/.test(confirmBlock)
+      && /restoreLatestSnapshotMarkerForKey\(entry, snapshot, key\)/.test(confirmBlock)
+      && /restoreLatestSnapshotMarkerForKey\(oldEntry, oldSnapshot, key, importTs\)/.test(confirmBlock));
   assert('Legacy mixed-entry delete uses lab-entry tombstones and HOMA-IR recalculation',
     /import \{ deleteLabEntryMarker, isSnapshotDerivedHOMAIR \} from ['"]\.\/lab-entry\.js['"]/.test(persistenceSrc)
       && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
@@ -135,6 +152,11 @@ const reviewSrc = read('js/pdf-import-review.js');
 
   assert('Review snapshot modal tolerates stored costInfo without a cost field',
     /parseResult\.costInfo && typeof parseResult\.costInfo\.cost === ['"]number['"]/.test(reviewSrc));
+  assert('Re-review modal uses update wording instead of import wording',
+    /parseResult\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc)
+      && /result\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc));
+  assert('Import review mobile footer actions are sticky',
+    /\.import-review-actions \{[\s\S]{0,160}position:\s*sticky[\s\S]{0,80}bottom:\s*0/.test(importCssSrc));
   assert('Review snapshot opener tolerates corrupt snapshot rows without marker arrays',
     /openImportReviewFromSnapshot[\s\S]{0,320}Array\.isArray\(snapshot\.markers\)[\s\S]{0,120}no saved marker review data/.test(confirmBlock));
 

@@ -399,12 +399,15 @@ export async function confirmImport() {
     if (oldSnapshot) {
       const oldEntry = state.importedData.entries?.find(e => e.date === oldSnapshot.date);
       if (oldEntry?.markers) {
+        const removedKeys = [];
         for (const key of Object.keys(oldEntry.markers)) {
           const src = oldEntry.markerSources?.[key];
           if (src?.snapshotId === snapshotId) {
             deleteLabEntryMarker(oldEntry, key, { now: importTs, mirrorInsulin: true });
+            removedKeys.push(key);
           }
         }
+        for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(oldEntry, oldSnapshot, key, importTs);
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
           recordTombstone(state.importedData, 'entries', oldEntry.date);
           deleteImportedArrayItems(state.importedData, 'entries', e => e === oldEntry);
@@ -577,6 +580,39 @@ export async function confirmImport() {
 // ═══════════════════════════════════════════════
 // IMPORT SNAPSHOT ACTIONS (issue #39)
 // ═══════════════════════════════════════════════
+function snapshotMarkerDotKey(marker) {
+  return marker?.mappedKey || marker?.suggestedKey || null;
+}
+
+function findLatestRestorableSnapshotMarker(date, excludedSnapshotId, dotKey) {
+  const snaps = Array.isArray(state.importedData?.importSnapshots) ? state.importedData.importSnapshots : [];
+  const candidates = snaps
+    .filter(s => s?.id && s.id !== excludedSnapshotId && s.date === date && Array.isArray(s.markers))
+    .sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+  for (const snap of candidates) {
+    const excluded = new Set(Array.isArray(snap.excludedIndices) ? snap.excludedIndices : []);
+    for (let i = 0; i < snap.markers.length; i++) {
+      if (excluded.has(i)) continue;
+      const marker = snap.markers[i];
+      if (snapshotMarkerDotKey(marker) !== dotKey) continue;
+      return { snap, marker };
+    }
+  }
+  return null;
+}
+
+function restoreLatestSnapshotMarkerForKey(entry, removedSnapshot, dotKey, now = Date.now()) {
+  if (!entry || !removedSnapshot || !dotKey) return false;
+  const replacement = findLatestRestorableSnapshotMarker(removedSnapshot.date, removedSnapshot.id, dotKey);
+  if (!replacement) return false;
+  const { snap, marker } = replacement;
+  setLabEntryMarker(entry, dotKey, normalizeToSI(dotKey, marker.value, marker.unit), {
+    now,
+    source: { file: snap.fileName || null, at: snap.importedAt || now, snapshotId: snap.id },
+  });
+  return true;
+}
+
 export async function deleteImportSnapshot(snapId) {
   const snaps = state.importedData?.importSnapshots;
   const idx = snaps ? snaps.findIndex(s => s.id === snapId) : -1;
@@ -589,12 +625,15 @@ export async function deleteImportSnapshot(snapId) {
   // Remove markers tagged with this snapshotId from the entry
   const entry = state.importedData.entries?.find(e => e.date === snapshot.date);
   if (entry?.markers) {
+    const removedKeys = [];
     for (const key of Object.keys(entry.markers)) {
       const src = entry.markerSources?.[key];
       if (src?.snapshotId === snapshot.id) {
         deleteLabEntryMarker(entry, key, { mirrorInsulin: true });
+        removedKeys.push(key);
       }
     }
+    for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(entry, snapshot, key);
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
       recordTombstone(state.importedData, 'entries', snapshot.date);
       deleteImportedArrayItems(state.importedData, 'entries', e => e === entry);

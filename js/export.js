@@ -8,6 +8,7 @@ import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadP
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 import {
   appendImportedArrayItem,
+  clearTombstone,
   ensureImportedArray,
   replaceImportedArrayItem,
   sortImportedArray,
@@ -729,11 +730,17 @@ export function importDataJSON(file) {
       // Import import snapshots (issue #39)
       if (Array.isArray(json.importSnapshots)) {
         if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
-        const knownIds = new Set(state.importedData.importSnapshots.map(s => s.id).filter(Boolean));
         for (const snap of json.importSnapshots) {
-          if (snap && snap.id && !knownIds.has(snap.id)) {
-            state.importedData.importSnapshots.push(snap);
-            knownIds.add(snap.id);
+          if (snap && snap.id) {
+            clearTombstone(state.importedData, 'importSnapshots', snap.id);
+            const idx = state.importedData.importSnapshots.findIndex(s => s.id === snap.id);
+            if (idx >= 0) {
+              const existingAt = Number(state.importedData.importSnapshots[idx]?.importedAt) || 0;
+              const incomingAt = Number(snap.importedAt) || 0;
+              if (incomingAt >= existingAt) state.importedData.importSnapshots[idx] = snap;
+            } else {
+              state.importedData.importSnapshots.push(snap);
+            }
           }
         }
         // Sort by importedAt descending (newest first)
@@ -876,11 +883,17 @@ async function _importDatabaseBundle(json) {
       // Import snapshots: merge by stable snapshot id
       if (Array.isArray(importData.importSnapshots)) {
         const importSnapshots = ensureImportedArray(current, 'importSnapshots');
-        const knownIds = new Set(importSnapshots.map(s => s.id).filter(Boolean));
         for (const snap of importData.importSnapshots) {
-          if (snap?.id && !knownIds.has(snap.id)) {
-            appendImportedArrayItem(current, 'importSnapshots', snap);
-            knownIds.add(snap.id);
+          if (snap?.id) {
+            clearTombstone(current, 'importSnapshots', snap.id);
+            const idx = importSnapshots.findIndex(s => s.id === snap.id);
+            if (idx >= 0) {
+              const existingAt = Number(importSnapshots[idx]?.importedAt) || 0;
+              const incomingAt = Number(snap.importedAt) || 0;
+              if (incomingAt >= existingAt) replaceImportedArrayItem(current, 'importSnapshots', idx, snap);
+            } else {
+              appendImportedArrayItem(current, 'importSnapshots', snap);
+            }
           }
         }
         sortImportedArray(current, 'importSnapshots', (a, b) => (b.importedAt || 0) - (a.importedAt || 0));

@@ -83,7 +83,7 @@ export function isSnapshotDerivedHOMAIR(entry, dotKey) {
   if (dotKey !== 'diabetes.homaIR') return false;
   const glucoseSource = entry?.markerSources?.['biochemistry.glucose'];
   const insulinSource = entry?.markerSources?.['hormones.insulin'] ?? entry?.markerSources?.['diabetes.insulin_d'];
-  return !!(glucoseSource?.snapshotId && insulinSource?.snapshotId);
+  return !!(glucoseSource?.snapshotId && glucoseSource.snapshotId === insulinSource?.snapshotId);
 }
 
 function affectsHOMAIR(dotKey, keys = []) {

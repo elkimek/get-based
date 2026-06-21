@@ -660,6 +660,7 @@ export function migrateProfileData(data) {
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
   if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
   if (data.changeHistory === undefined) data.changeHistory = [];
+  if (data.importSnapshots === undefined) data.importSnapshots = [];
   if (data.biometrics === undefined) data.biometrics = null;
   // Light lens (v1.7+): sun sessions, light devices, light environment, on-device measurements
   if (data.sunSessions === undefined) data.sunSessions = [];

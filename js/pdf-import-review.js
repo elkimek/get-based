@@ -579,10 +579,13 @@ export function showImportPreview(parseResult) {
 
   const cancelLabel = batchCtx ? 'Skip' : 'Cancel';
   const importDisabled = !date ? ' disabled' : '';
+  const confirmLabel = parseResult._reReviewSnapshotId
+    ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
+    : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
   html += `</div>
     <div class="import-review-actions">
       <button type="button" class="import-btn import-btn-secondary" ${importReviewActionAttrs('close')}>${cancelLabel}</button>
-      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>Import ${importCount} Marker${importCount !== 1 ? 's' : ''}</button>
+      <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>${confirmLabel}</button>
     </div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   window._pendingImport = parseResult;
@@ -696,7 +699,9 @@ function updateImportConfirmCount() {
   const excludedIdxs = getExcludedImportIndices();
   const importCount = result.markers.filter((m, i) => (m.matched || (!m.matched && m.suggestedKey)) && !excludedIdxs.has(i)).length;
   const btn = document.getElementById('import-confirm-btn');
-  if (btn) btn.textContent = `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
+  if (btn) btn.textContent = result._reReviewSnapshotId
+    ? `Update Import (${importCount} Marker${importCount !== 1 ? 's' : ''})`
+    : `Import ${importCount} Marker${importCount !== 1 ? 's' : ''}`;
 }
 
 /** @param {HTMLElement} btn */
