@@ -8,10 +8,21 @@ import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
 import { findGenotypeInfo as findGenotypeInfoImpl, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
+import {
+  HAPLOGROUP_LIST,
+  closeMtDNAPreview,
+  confirmMtDNAImport,
+  deleteMtDNAData,
+  detectMtDNAMismatch,
+  ensureHaplogroupTable,
+  handleMtDNAFile,
+  loadHaplogroupTable,
+  parseMtDNAMutations,
+  resolveHaplogroup,
+  setManualHaplogroup,
+} from './dna-mtdna.js';
 /** @typedef {Window & typeof globalThis & {
  *   _pendingDNAImport?: any,
- *   _pendingMtDNA?: any,
- *   getLatitudeFromLocation?: () => string | null,
  *   _getState: () => { importedData: any },
  *   _saveAndRefresh: () => Promise<void> | void
  * }} DnaWindow */
@@ -1117,285 +1128,19 @@ function getRelevantSNPs(dotKey) {
   return results;
 }
 
-// ═══════════════════════════════════════════════
-// mtDNA HAPLOGROUP SUPPORT
-// ═══════════════════════════════════════════════
-
-let _haplogroupTable = null;
-let _haplogroupTablePromise = null;
-
-export function loadHaplogroupTable() {
-  if (_haplogroupTable) return Promise.resolve(_haplogroupTable);
-  if (!_haplogroupTablePromise) {
-    _haplogroupTablePromise = fetch('data/haplogroups.json')
-      .then(r => r.json())
-      .then(data => { _haplogroupTable = data; return data; })
-      .catch(err => { _haplogroupTablePromise = null; console.error('Failed to load haplogroup table:', err); throw err; });
-  }
-  return _haplogroupTablePromise;
-}
-
-export function ensureHaplogroupTable() {
-  if (state.importedData?.genetics?.mtdna) loadHaplogroupTable();
-}
-
-export function parseMtDNAMutations(text) {
-  const mutations = [];
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    // Format 1: simple "263G" mutation notation (CSV export)
-    const match = trimmed.match(/^(\d+)([ACGT])$/i);
-    if (match) { mutations.push({ position: parseInt(match[1]), allele: match[2].toUpperCase(), raw: match[1] + match[2].toUpperCase() }); continue; }
-    // Format 2: 23andMe tab-separated "rsid\tMT\tposition\tallele"
-    const cols = trimmed.split('\t');
-    if (cols.length >= 4 && cols[1] === 'MT') {
-      const pos = parseInt(cols[2]);
-      const allele = cols[3].trim().toUpperCase();
-      if (pos > 0 && /^[ACGT]$/.test(allele)) mutations.push({ position: pos, allele, raw: pos + allele });
-    }
-  }
-  return mutations;
-}
-
-export function resolveHaplogroup(mutations, hapTable) {
-  const mutationSet = new Set(mutations.map(m => m.raw));
-  let bestMatch = null;
-  let bestScore = 0;
-  let bestMatchedCount = 0;
-
-  for (const [hg, data] of Object.entries(hapTable.haplogroups)) {
-    if (data.isReference) continue; // H is reference — handle separately
-    const diag = data.mutations;
-    const matched = diag.filter(m => mutationSet.has(m));
-    const score = matched.length / diag.length;
-    // Tiebreaker: when scores are equal, prefer the haplogroup with more
-    // matched mutations. Sub-clades store parent+derived markers together
-    // (cumulative inheritance), so a true H1 carrier matches 3/3 on H1 and
-    // 2/2 on H — both score 1.0, but H1 has the larger matched count.
-    const better = score > bestScore || (score === bestScore && matched.length > bestMatchedCount);
-    if (better && matched.length >= 2 && score >= 0.6) {
-      bestScore = score;
-      bestMatchedCount = matched.length;
-      bestMatch = { haplogroup: hg, confidence: score, matchedMutations: matched.length, totalDiagnostic: diag.length };
-    }
-  }
-
-  // Fallback: if no match, check for H (defined by ABSENCE of non-H markers)
-  if (!bestMatch) {
-    const nonHMarkers = ['7028T', '2706G', '10400T', '10398G', '489C'];
-    const hasNonH = nonHMarkers.some(m => mutationSet.has(m));
-    const hasUniversal = ['263G', '750G', '1438G', '4769G', '8860G', '15326G'].filter(m => mutationSet.has(m));
-    if (!hasNonH && hasUniversal.length >= 3) {
-      bestMatch = { haplogroup: 'H', confidence: 0.7, matchedMutations: hasUniversal.length, totalDiagnostic: 6 };
-    }
-  }
-
-  return bestMatch;
-}
-
-function classifyCoupling(haplogroup, hapTable) {
-  const hgData = hapTable.haplogroups[haplogroup];
-  if (!hgData) return null;
-  const couplingKey = hgData.coupling;
-  const couplingData = hapTable.couplingLevels[couplingKey];
-  if (!couplingData) return null;
-  return {
-    level: couplingKey,
-    label: couplingData.label,
-    shortLabel: couplingData.shortLabel,
-    climate: hgData.climate,
-    description: couplingData.description,
-    implications: couplingData.implications,
-    matchedLatBands: couplingData.latitudeBands
-  };
-}
-
-export function detectMtDNAMismatch(genetics) {
-  if (!genetics?.mtdna?.coupling) return null;
-  const coupling = genetics.mtdna.coupling;
-
-  // Get latitude band from profile
-  const bandStr = dnaWindow.getLatitudeFromLocation ? dnaWindow.getLatitudeFromLocation() : null;
-  if (!bandStr) return null;
-
-  const BANDS = ['<25\u00b0 latitude (tropical)', '25-40\u00b0 (subtropical)', '40-50\u00b0 (temperate)', '50-60\u00b0 (northern)', '>60\u00b0 (subarctic)'];
-  const bandIndex = BANDS.indexOf(bandStr);
-  if (bandIndex === -1) return null;
-
-  const bandNames = ['tropical', 'subtropical', 'temperate', 'northern', 'subarctic'];
-  if (coupling.matchedLatBands.includes(bandIndex)) {
-    return { mismatch: false, message: `mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) is well-matched to your ${bandNames[bandIndex]} latitude.` };
-  }
-
-  const minBand = Math.min(...coupling.matchedLatBands);
-  const maxBand = Math.max(...coupling.matchedLatBands);
-  const distance = bandIndex < minBand ? minBand - bandIndex : bandIndex - maxBand;
-  const severity = distance >= 2 ? 'significant' : 'moderate';
-
-  return {
-    mismatch: true,
-    severity,
-    message: `mtDNA haplogroup ${genetics.mtdna.haplogroup} (${coupling.shortLabel}) evolved for ${coupling.climate.toLowerCase()} climates, but you live at a ${bandNames[bandIndex]} latitude.`,
-    implications: coupling.implications
-  };
-}
-
-let _mtdnaImportRunning = false;
-
-export async function handleMtDNAFile(file) {
-  if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return; }
-  _mtdnaImportRunning = true;
-  try {
-    const text = await file.text();
-    const mutations = parseMtDNAMutations(text);
-    if (mutations.length === 0) { showNotification('No mtDNA mutations found in this file', 'error'); _mtdnaImportRunning = false; return; }
-
-    const hapTable = await loadHaplogroupTable();
-    const resolved = resolveHaplogroup(mutations, hapTable);
-    if (!resolved) { showNotification('Could not determine haplogroup — try a more complete mtDNA export', 'error'); _mtdnaImportRunning = false; return; }
-
-    const coupling = classifyCoupling(resolved.haplogroup, hapTable);
-    const hgData = hapTable.haplogroups[resolved.haplogroup];
-    const source = file.name.toLowerCase().includes('23andme') || file.name.toLowerCase().includes('genome') ? 'mtDNA (23andMe)' : 'mtDNA CSV';
-    dnaWindow._pendingMtDNA = { mutations, resolved, coupling, hgData, source };
-    _showMtDNAPreview(resolved, coupling, mutations, file.name);
-  } catch (e) {
-    if (window.isDebugMode?.()) console.error('mtDNA import error:', e);
-    showNotification(e.message || 'Failed to parse mtDNA file', 'error');
-  }
-  _mtdnaImportRunning = false;
-}
-
-function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
-  const mismatch = coupling ? detectMtDNAMismatch({ mtdna: { haplogroup: resolved.haplogroup, coupling } }) : null;
-
-  let html = `<div class="dna-preview-header">
-    <div class="dna-preview-title">mtDNA Import</div>
-    <div class="dna-preview-stats">${mutations.length} mutations from ${escapeHTML(fileName)}</div>
-  </div>
-  <div class="dna-preview-body">
-    <div class="mtdna-preview-haplogroup">
-      <div class="mtdna-hg-label">Haplogroup</div>
-      <div class="mtdna-hg-value">${escapeHTML(resolved.haplogroup)}</div>
-      <div class="mtdna-hg-confidence">${resolved.matchedMutations}/${resolved.totalDiagnostic} diagnostic mutations matched (${Math.round(resolved.confidence * 100)}%)</div>
-    </div>`;
-  if (coupling) {
-    html += `<div class="mtdna-preview-coupling">
-      <div class="mtdna-coupling-label">${escapeHTML(coupling.label)}</div>
-      <div class="mtdna-coupling-climate">${escapeHTML(coupling.climate)}</div>
-      <div class="mtdna-coupling-desc">${escapeHTML(coupling.description)}</div>
-    </div>`;
-  }
-  if (mismatch && mismatch.mismatch) {
-    html += `<div class="mtdna-preview-mismatch mtdna-mismatch-${mismatch.severity}">
-      <strong>Environment mismatch:</strong> ${escapeHTML(mismatch.message)}
-      ${mismatch.implications ? `<div class="mtdna-mismatch-implications">${escapeHTML(mismatch.implications)}</div>` : ''}
-    </div>`;
-  } else if (mismatch && !mismatch.mismatch) {
-    html += `<div class="mtdna-preview-match">${escapeHTML(mismatch.message)}</div>`;
-  }
-  html += `</div>
-  <div class="dna-preview-disclaimer">Processed locally. Coupling classification follows the Wallace mitochondrial paradigm — a research framework, not an established clinical standard.</div>
-  <div class="dna-preview-actions">
-    <button class="import-btn import-btn-secondary" ${dnaActionAttrs('close-mtdna-preview')}>Cancel</button>
-    <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-mtdna-import')}>Import Haplogroup ${escapeHTML(resolved.haplogroup)}</button>
-  </div>`;
-
-  let overlay = document.getElementById('dna-modal-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dna-modal-overlay';
-    overlay.className = 'modal-overlay';
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
-  openModalOverlay(overlay);
-}
-
-export function closeMtDNAPreview() {
-  closeModalOverlay('dna-modal-overlay');
-  dnaWindow._pendingMtDNA = null;
-}
-
-export async function confirmMtDNAImport() {
-  const pending = dnaWindow._pendingMtDNA;
-  if (!pending) return;
-
-  if (!state.importedData.genetics) {
-    state.importedData.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
-  }
-  state.importedData.genetics.mtdna = {
-    haplogroup: pending.resolved.haplogroup,
-    confidence: pending.resolved.confidence,
-    coupling: pending.coupling ? {
-      level: pending.coupling.level,
-      label: pending.coupling.label,
-      shortLabel: pending.coupling.shortLabel,
-      climate: pending.coupling.climate,
-      matchedLatBands: pending.coupling.matchedLatBands
-    } : null,
-    mutations: pending.mutations.map(m => m.raw),
-    source: pending.source,
-    importDate: new Date().toISOString().slice(0, 10)
-  };
-
-  if (!await saveImportedData()) return;
-  closeMtDNAPreview();
-  showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('dashboard');
-}
-
-export async function deleteMtDNAData() {
-  if (state.importedData.genetics) {
-    delete state.importedData.genetics.mtdna;
-    if (!await saveImportedData()) return;
-    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-    if (window.navigate) window.navigate('dashboard');
-    showNotification('mtDNA haplogroup removed', 'info');
-  }
-}
-
-// ═══════════════════════════════════════════════
-// MANUAL HAPLOGROUP ENTRY
-// ═══════════════════════════════════════════════
-
-const HAPLOGROUP_LIST = ['A','B','C','D','E','F','G','H','HV','I','J','K','L0','L1','L2','L3','L4','L5','L6','M','N','R','T','U','V','W','X','Z'];
-
-export async function setManualHaplogroup(haplogroup) {
-  if (!haplogroup) return;
-  const hg = haplogroup.toUpperCase().trim();
-  if (!HAPLOGROUP_LIST.includes(hg)) {
-    showNotification(`Unknown haplogroup "${hg}" — expected one of: ${HAPLOGROUP_LIST.join(', ')}`, 'error');
-    return;
-  }
-  const hapTable = await loadHaplogroupTable();
-  const coupling = classifyCoupling(hg, hapTable);
-  if (!state.importedData.genetics) {
-    state.importedData.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
-  }
-  state.importedData.genetics.mtdna = {
-    haplogroup: hg,
-    confidence: 1,
-    coupling: coupling ? {
-      level: coupling.level,
-      label: coupling.label,
-      shortLabel: coupling.shortLabel,
-      climate: coupling.climate,
-      matchedLatBands: coupling.matchedLatBands
-    } : null,
-    mutations: [],
-    source: 'manual',
-    importDate: new Date().toISOString().slice(0, 10)
-  };
-  if (!await saveImportedData()) return;
-  showNotification(`Haplogroup ${hg} saved${coupling ? ' — ' + coupling.shortLabel : ''}`, 'success');
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('dashboard');
-}
-
-export { HAPLOGROUP_LIST };
+export {
+  HAPLOGROUP_LIST,
+  closeMtDNAPreview,
+  confirmMtDNAImport,
+  deleteMtDNAData,
+  detectMtDNAMismatch,
+  ensureHaplogroupTable,
+  handleMtDNAFile,
+  loadHaplogroupTable,
+  parseMtDNAMutations,
+  resolveHaplogroup,
+  setManualHaplogroup,
+};
 
 /// Custom confirm dialog so the destructive Delete on the genetics
 /// card matches the rest of the app's modal styling and respects the

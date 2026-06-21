@@ -416,12 +416,16 @@ assert('dashboard genome SNP rows keep severity left border',
   stylesSrc.includes('.db-snp-significant') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
+const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
 assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
 assert('DNA preview modal uses shared overlay lifecycle helpers',
   dnaSrc.includes("from './modal-lifecycle.js'") &&
+    dnaMtDnaSrc.includes("from './modal-lifecycle.js'") &&
     dnaSrc.includes('openModalOverlay(overlay)') &&
-    (dnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length === 3);
+    dnaMtDnaSrc.includes('openModalOverlay(overlay)') &&
+    ((dnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
+      + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 3);
 assert('DNA import success waits for persistence',
   /async function confirmDNAImport\(\)[\s\S]{0,220}await saveImportedData\(\)/.test(dnaSrc));
 const dnaSaveFailureBlock = (dnaSrc.match(/if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
@@ -430,8 +434,8 @@ assert('DNA import save failure resets running flag but keeps preview retryable'
   dnaSaveFailureBlock.includes('return;') &&
   !dnaSaveFailureBlock.includes('_pendingDNAImport = null'));
 assert('mtDNA save paths wait for persistence',
-  /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaSrc) &&
-  /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaSrc));
+  /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaMtDnaSrc) &&
+  /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaMtDnaSrc));
 assert('DNA reference links use attribute escaping instead of quote-only replacement',
   dnaSrc.includes('escapeAttr(primaryRef)') &&
   !dnaSrc.includes("f.references[0].replace(/\\\"/g, '&quot;')"));
