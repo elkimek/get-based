@@ -23,16 +23,6 @@ test('sun active session covers default dependencies and live ticker card branch
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentView: state.currentView,
     };
-    const windowKeys = [
-      'fetchAtmosphere',
-      'vitaminDIU',
-      'vitaminDIUPerSession',
-      'renderLightChannelsLive',
-    ];
-    const savedWindow = Object.fromEntries(windowKeys.map(key => [
-      key,
-      { had: Object.prototype.hasOwnProperty.call(window, key), value: window[key] },
-    ]));
     const waitFor = async predicate => {
       for (let i = 0; i < 40; i += 1) {
         if (predicate()) return true;
@@ -58,9 +48,9 @@ test('sun active session covers default dependencies and live ticker card branch
       outcomes.defaultStartDialogUsesGetActiveAndEmptyRegionFallbacks = defaultOverlay?.querySelector('#sun-start-hint')?.textContent.includes('Tap at least one region');
       defaultOverlay?.remove();
 
-      window.fetchAtmosphere = async () => ({ uvIndex: 9.1, ozoneDU: 285, cloudCover: 15, source: 'manual' });
       active.configureSunActiveSession({
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'profile' }),
+        fetchAtmosphere: async () => ({ uvIndex: 9.1, ozoneDU: 285, cloudCover: 15, source: 'manual' }),
       });
       await active.openStartSunSessionDialog();
       await waitFor(() => document.querySelector('#sun-start-uvi-banner')?.hidden === false);
@@ -107,14 +97,14 @@ test('sun active session covers default dependencies and live ticker card branch
         safety: { fitzpatrick: 'II' },
       };
       state.currentView = 'light';
-      window.vitaminDIU = () => 1400;
-      window.vitaminDIUPerSession = () => 1400;
-      window.renderLightChannelsLive = () => {
-        outcomes.liveChannelRefreshCalled = true;
-      };
       active.configureSunActiveSession({
         getSessions: () => [tickerSession],
         getActiveSession: () => tickerSession,
+        vitaminDIU: () => 1400,
+        vitaminDIUPerSession: () => 1400,
+        renderLightChannelsLive: () => {
+          outcomes.liveChannelRefreshCalled = true;
+        },
       });
       active.setSunLiveState(tickerSession.id, {
         committedDoses: { vitamin_d: 20, circadian: 15, nir_solar: 10 },
@@ -147,10 +137,6 @@ test('sun active session covers default dependencies and live ticker card branch
     } finally {
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
-      for (const [key, info] of Object.entries(savedWindow)) {
-        if (info.had) window[key] = info.value;
-        else delete window[key];
-      }
       active.resetSunActiveSessionState();
       active.configureSunActiveSession({
         getSessions: () => [],
@@ -168,6 +154,18 @@ test('sun active session covers default dependencies and live ticker card branch
         lensTints: [],
         postureOptions: [],
         surfaceOptions: [],
+        fetchAtmosphere: async () => null,
+        reconstructSpectrum: () => null,
+        computeChannelDoses: () => ({}),
+        erythemalSED: () => 0,
+        fractionOfMED: () => 0,
+        solarZenithAngle: () => 90,
+        interpolateAtmosphere: () => null,
+        vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+        vitaminDIUPerSession: null,
+        skinTypeToFitzpatrick: skinType => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
+        renderLightChannelsLive: () => {},
+        renderLightTodayStrip: () => '',
       });
       document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast,[data-id="ticker-session"],[data-live-elapsed-for="ticker-session"]').forEach(el => el.remove());
     }

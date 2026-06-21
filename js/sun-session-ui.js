@@ -43,9 +43,10 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {(sess: any) => string} renderSessionAIInline
  * @property {(sess: any) => string} renderSessionAIDetail
  * @property {(route: string, data?: any) => void} navigate
+ * Runtime math hooks are also configured here; defaults are no-ops.
  */
 
-/** @type {SunSessionUIDeps} */
+/** @type {SunSessionUIDeps & Record<string, any>} */
 const uiDeps = {
   getSessions: () => [],
   deleteSession: async () => false,
@@ -78,6 +79,10 @@ const uiDeps = {
   renderSessionAIInline: () => '',
   renderSessionAIDetail: () => '',
   navigate: () => {},
+  solarZenithAngle: null, reconstructSpectrum: null,
+  geneticVitaminDMultiplier: () => ({ mult: 1.0, contributors: [] }),
+  vitaminDIU: null, vitaminDIUPerSession: null,
+  pbmJoulesPerCm2: null, circadianMelanopicLux: null,
 };
 
 const sunSessionDelegateActions = {
@@ -99,7 +104,7 @@ if (typeof document !== 'undefined') {
   installSunSessionActionDelegates(sunSessionDelegateActions);
 }
 
-/** @param {Partial<SunSessionUIDeps>} [deps] */
+/** @param {(Partial<SunSessionUIDeps> & Record<string, any>)} [deps] */
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
 }
@@ -249,9 +254,9 @@ export function openSunSessionDetail(id) {
   // can tighten when conditions are favorable (high noon clear sky).
   let sessZenith = null;
   try {
-    if (sess.startedAt && sess.endedAt && sess.location && window.solarZenithAngle) {
+    if (sess.startedAt && sess.endedAt && sess.location && uiDeps.solarZenithAngle) {
       const midDate = new Date((sess.startedAt + sess.endedAt) / 2);
-      sessZenith = window.solarZenithAngle(midDate, sess.location.lat, sess.location.lon);
+      sessZenith = uiDeps.solarZenithAngle(midDate, sess.location.lat, sess.location.lon);
     }
   } catch (e) {}
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
@@ -291,9 +296,9 @@ export function openSunSessionDetail(id) {
     const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
     let zenithStr = '—', elevStr = '';
     try {
-      if (sess.startedAt && sess.endedAt && loc && window.solarZenithAngle) {
+      if (sess.startedAt && sess.endedAt && loc && uiDeps.solarZenithAngle) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
-        const z = window.solarZenithAngle(mid, loc.lat, loc.lon);
+        const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
         zenithStr = `${z.toFixed(1)}°`;
         elevStr = `${Math.max(0, 90 - z).toFixed(1)}° above horizon`;
       }
@@ -310,11 +315,11 @@ export function openSunSessionDetail(id) {
     // either way.
     let uvSplitStr = '';
     try {
-      if (loc && window.reconstructSpectrum && window.solarZenithAngle && atm.uvIndex != null) {
+      if (loc && uiDeps.reconstructSpectrum && uiDeps.solarZenithAngle && atm.uvIndex != null) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
-        const z = window.solarZenithAngle(mid, loc.lat, loc.lon);
+        const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
         if (z < 90) {
-          const spec = window.reconstructSpectrum({
+          const spec = uiDeps.reconstructSpectrum({
             zenithDeg: z,
             ozoneDU: atm.ozoneDU ?? 300,
             altitudeM: loc.altitudeM ?? 0,
@@ -390,9 +395,7 @@ export function openSunSessionDetail(id) {
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
         ${sess.doses?.vitamin_d ? (() => {
-          const geneInfo = (typeof window.geneticVitaminDMultiplier === 'function')
-            ? window.geneticVitaminDMultiplier(state.importedData?.genetics)
-            : { mult: 1.0, contributors: [] };
+          const geneInfo = uiDeps.geneticVitaminDMultiplier(state.importedData?.genetics);
           const geneNote = geneInfo.contributors.length > 0
             ? ` Genetics applied (${(geneInfo.mult * 100 - 100).toFixed(0)}% net): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype} ×${c.multiplier.toFixed(2)}`).join(', ')}.`
             : '';
@@ -475,26 +478,26 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   // icon + label only, no spurious value. Keeps the chip readable
   // without misleading numbers.
   if (dur > 0 && dur < uiDeps.tooShortForChannelVerdictMin) return '';
-  if (channelKey === 'vitamin_d' && typeof window.vitaminDIU === 'function') {
+  if (channelKey === 'vitamin_d' && typeof uiDeps.vitaminDIU === 'function') {
     // Session chip uses per-session cap when bodyFraction is set
     // (Audit P1 #8). Falls back to daily-cap helper for legacy chip
     // contexts where bodyFraction wasn't recorded.
     const bf = sess?.bodyExposure?.fraction;
-    const iu = (Number.isFinite(bf) && bf > 0 && typeof window.vitaminDIUPerSession === 'function')
-      ? window.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
-      : window.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
+    const iu = (Number.isFinite(bf) && bf > 0 && typeof uiDeps.vitaminDIUPerSession === 'function')
+      ? uiDeps.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
+      : uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
     if (iu < 30) return '';
     if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
     return `~${Math.round(iu / 10) * 10} IU`;
   }
-  if (channelKey === 'nir_solar' && typeof window.pbmJoulesPerCm2 === 'function') {
-    const j = window.pbmJoulesPerCm2(channelAu);
+  if (channelKey === 'nir_solar' && typeof uiDeps.pbmJoulesPerCm2 === 'function') {
+    const j = uiDeps.pbmJoulesPerCm2(channelAu);
     if (j < 0.1) return '';
     if (j >= 10) return `${Math.round(j)} J/cm²`;
     return `${j.toFixed(1)} J/cm²`;
   }
-  if (channelKey === 'circadian' && dur > 0 && typeof window.circadianMelanopicLux === 'function') {
-    const lux = window.circadianMelanopicLux(channelAu, dur);
+  if (channelKey === 'circadian' && dur > 0 && typeof uiDeps.circadianMelanopicLux === 'function') {
+    const lux = uiDeps.circadianMelanopicLux(channelAu, dur);
     if (lux < 100) return '';
     // Round aggressively at this magnitude — peak M-EDI lux is a big
     // number and chip-width-readable form beats decimal precision.

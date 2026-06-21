@@ -23,6 +23,14 @@ import {
  * @property {(id: any) => void} clearLiveState
  * @property {(ms: number) => string} formatElapsed
  * @property {(session: any) => void} maybeAnalyzeSessionAfterFinish
+ * @property {(opts: any) => Promise<any>} fetchAtmosphere
+ * @property {(opts: any) => any} reconstructSpectrum
+ * @property {(opts: any) => any} computeChannelDoses
+ * @property {(opts: any) => number} erythemalSED
+ * @property {(opts: any) => number} fractionOfMED
+ * @property {(opts: any) => number} retinalUVdose
+ * @property {(date: Date, lat: number, lon: number) => number} solarZenithAngle
+ * @property {(skinType: string) => string | null} skinTypeToFitzpatrick
  */
 
 /** @type {SunSessionsStoreDeps} */
@@ -32,6 +40,14 @@ const storeDeps = {
   clearLiveState: () => {},
   formatElapsed: (ms) => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
   maybeAnalyzeSessionAfterFinish: () => {},
+  fetchAtmosphere: async () => null,
+  reconstructSpectrum: () => null,
+  computeChannelDoses: () => ({}),
+  erythemalSED: () => 0,
+  fractionOfMED: () => 0,
+  retinalUVdose: () => 0,
+  solarZenithAngle: () => 90,
+  skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
 };
 
 /** @param {Partial<SunSessionsStoreDeps>} [deps] */
@@ -338,7 +354,7 @@ function _runHydrateSession(id, coords, { queueAfterExisting = false, warnContex
   const next = base
     .then(() => hydrateSession(id, coords))
     .catch(e => {
-      if (typeof window !== 'undefined' && window.console) console.warn(warnContext, e);
+      globalThis.console?.warn?.(warnContext, e);
       return null;
     });
   _hydrateInFlight.set(id, next);
@@ -409,17 +425,15 @@ export async function hydrateSession(id, coords = {}) {
   const { lat, lon } = coords;
   const sess = getSessions().find(s => s.id === id);
   if (!sess || !sess.endedAt) return null;
-  // Lazy-load engine modules — they are loaded by main.js at boot, so
-  // window.* references will resolve. Kept dynamic to avoid hard import
-  // in modules that may run before main.js wires window.
-  const fetchAtmosphere = window.fetchAtmosphere;
-  const reconstructSpectrum = window.reconstructSpectrum;
-  const computeChannelDoses = window.computeChannelDoses;
-  const erythemalSED = window.erythemalSED;
-  const fractionOfMED = window.fractionOfMED;
-  const retinalUVdose = window.retinalUVdose;
-  const solarZenithAngle = window.solarZenithAngle;
-  if (!fetchAtmosphere || !reconstructSpectrum) return null;
+  const {
+    fetchAtmosphere,
+    reconstructSpectrum,
+    computeChannelDoses,
+    erythemalSED,
+    fractionOfMED,
+    retinalUVdose,
+    solarZenithAngle,
+  } = storeDeps;
   const useLat = lat ?? sess.location?.lat;
   const useLon = lon ?? sess.location?.lon;
   if (useLat == null || useLon == null) return null;
@@ -428,7 +442,7 @@ export async function hydrateSession(id, coords = {}) {
   try {
     let atm = await fetchAtmosphere({ lat: useLat, lon: useLon, isoTime: midpoint });
     if (!atm) {
-      if (window.console) console.warn('hydrateSession: atmosphere fetch returned null for', id);
+      globalThis.console?.warn?.('hydrateSession: atmosphere fetch returned null for', id);
       return null;
     }
     atm = _applyAtmOverrides(atm);
@@ -473,7 +487,7 @@ export async function hydrateSession(id, coords = {}) {
     //   2. lightCircadian.skinType (Light & Circadian context card)
     // Falls back to 'III' (median) if none.
     const lcSkin = state.importedData?.lightCircadian?.skinType;
-    const lcRoman = lcSkin && (window._skinTypeToFitzpatrick ? window._skinTypeToFitzpatrick(lcSkin) : (lcSkin.match(/^(I{1,3}|IV|VI?)\b/) || [])[1]);
+    const lcRoman = lcSkin && storeDeps.skinTypeToFitzpatrick(lcSkin);
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     const psmTier = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
     const medScale = photosensitiveMedScale(psmTier);
@@ -493,7 +507,7 @@ export async function hydrateSession(id, coords = {}) {
     await saveImportedData();
     return sess;
   } catch (e) {
-    if (window.console && console.warn) console.warn('hydrateSession failed', e);
+    globalThis.console?.warn?.('hydrateSession failed', e);
     return null;
   }
 }
@@ -536,7 +550,7 @@ export async function rehydrateStaleSessions() {
       });
       if (result) ok++;
     } catch (e) {
-      if (window.console && console.warn) console.warn('rehydrateStaleSessions:', s.id, e?.message || e);
+      globalThis.console?.warn?.('rehydrateStaleSessions:', s.id, e?.message || e);
     }
   }
   return { rehydrated: ok, ofTotal: stale.length };

@@ -444,30 +444,22 @@ const {
   console.log('%c 12. rehydrateStaleSessions dedupe ', 'font-weight:bold;color:#f59e0b');
 
   reset();
-  const engineFns = [
-    'fetchAtmosphere',
-    'reconstructSpectrum',
-    'computeChannelDoses',
-    'erythemalSED',
-    'fractionOfMED',
-    'retinalUVdose',
-    'solarZenithAngle',
-  ];
-  const origEngineFns = Object.fromEntries(engineFns.map(k => [k, window[k]]));
   let fetchCalls = 0;
   let releaseFetch;
   const fetchGate = new Promise(resolve => { releaseFetch = resolve; });
-  window.fetchAtmosphere = async () => {
-    fetchCalls++;
-    await fetchGate;
-    return { uvIndex: 6, ozoneDU: 300, cloudCover: 10, airQuality: { aod: 0.1 } };
-  };
-  window.reconstructSpectrum = () => ({ wavelengths: [300, 305], irradiance: [1, 1] });
-  window.computeChannelDoses = () => ({ vitamin_d: 42, circadian: 10 });
-  window.erythemalSED = () => 12;
-  window.fractionOfMED = () => 0.2;
-  window.retinalUVdose = () => 0.01;
-  window.solarZenithAngle = () => 30;
+  sunSessionsStore.configureSunSessionsStore({
+    fetchAtmosphere: async () => {
+      fetchCalls++;
+      await fetchGate;
+      return { uvIndex: 6, ozoneDU: 300, cloudCover: 10, airQuality: { aod: 0.1 } };
+    },
+    reconstructSpectrum: () => ({ wavelengths: [300, 305], irradiance: [1, 1] }),
+    computeChannelDoses: () => ({ vitamin_d: 42, circadian: 10 }),
+    erythemalSED: () => 12,
+    fractionOfMED: () => 0.2,
+    retinalUVdose: () => 0.01,
+    solarZenithAngle: () => 30,
+  });
   const staleId = await logCompletedSession({
     startedAt: Date.now() - 45 * 60000,
     endedAt: Date.now() - 15 * 60000,
@@ -489,10 +481,6 @@ const {
     staleSess.engineVersion === SUN_ENGINE_VERSION &&
     staleSess.doses?.vitamin_d === 42 &&
     staleSess.safety?.medFraction === 0.2);
-  for (const [key, value] of Object.entries(origEngineFns)) {
-    if (value === undefined) delete window[key];
-    else window[key] = value;
-  }
 
   // ─── 13. Source split guardrails ─────────────────────────────────────
   console.log('%c 13. Sun session module boundaries ', 'font-weight:bold;color:#f59e0b');
@@ -513,6 +501,9 @@ const {
     sunSrc.includes("from './sun-sessions-store.js'") &&
     storeSrc.includes('export async function startSession') &&
     storeSrc.includes('export async function hydrateSession') &&
+    storeSrc.includes('fetchAtmosphere: async () => null') &&
+    !storeSrc.includes('window.fetchAtmosphere') &&
+    !storeSrc.includes('window.reconstructSpectrum') &&
     storeSrc.includes('export function getSessions') &&
     !storeSrc.includes('showPromptDialog') &&
     !storeSrc.includes('renderBodySilhouette'));

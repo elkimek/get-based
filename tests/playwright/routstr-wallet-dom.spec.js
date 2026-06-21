@@ -114,6 +114,19 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       window.cashuGenerateWalletSeed = async () => ({
         mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident',
       });
+      const panels = await import('/js/provider-wallet-panels.js');
+      panels.configureRoutstrWalletRuntime({
+        cashuGetBalance: window.cashuGetBalance,
+        cashuGetMintUrl: window.cashuGetMintUrl,
+        cashuSetMintUrl: window.cashuSetMintUrl,
+        cashuDepositToNode: window.cashuDepositToNode,
+        cashuRecoverPendingDeposit: window.cashuRecoverPendingDeposit,
+        cashuImportWallet: window.cashuImportWallet,
+        cashuGetWalletMnemonic: window.cashuGetWalletMnemonic,
+        cashuRestoreWalletFromSeed: window.cashuRestoreWalletFromSeed,
+        cashuHasWalletSeed: window.cashuHasWalletSeed,
+        cashuGenerateWalletSeed: window.cashuGenerateWalletSeed,
+      });
 
       localStorage.setItem('labcharts-ai-provider', 'routstr');
       localStorage.setItem('labcharts-routstr-node', nodeUrl);
@@ -205,6 +218,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         seedAckProceedsToFunding,
       };
     } finally {
+      const panels = await import('/js/provider-wallet-panels.js');
+      panels.configureRoutstrWalletRuntime();
+      panels.clearRoutstrWalletTimers();
       for (const name of globalNames) window[name] = oldGlobals[name];
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);

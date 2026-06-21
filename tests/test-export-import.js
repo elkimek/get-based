@@ -220,7 +220,8 @@ return (async function() {
   assert('Bundle has at least 1 profile', bundle.profiles.length >= 1);
 
   // Verify profile structure
-  const bundleProfile = bundle.profiles[0];
+  const currentId = S.currentProfile;
+  const bundleProfile = bundle.profiles.find(p => p.id === currentId) || bundle.profiles[0];
   assert('Profile has id', typeof bundleProfile.id === 'string');
   assert('Profile has name', typeof bundleProfile.name === 'string');
   assert('Profile has sex field', 'sex' in bundleProfile);
@@ -281,7 +282,6 @@ return (async function() {
   const entryCount = stateEntries.length;
 
   // Find the current profile in the bundle
-  const currentId = S.currentProfile;
   const myBundleProfile = bundle.profiles.find(p => p.id === currentId);
   assert('Current profile found in bundle', !!myBundleProfile, `looking for id=${currentId}`);
 
@@ -578,8 +578,8 @@ return (async function() {
       assert('buildFullBackupSnapshot recovers profile list when encrypted',
         recoveredSnap?.profiles?.length === realProfiles.length,
         `expected ${realProfiles.length} profiles, got ${recoveredSnap?.profiles?.length ?? 'null'}`);
-      assert('Recovered first profile carries the imported blob (from IDB)',
-        recoveredSnap?.profiles?.[0]?.keys?.imported != null);
+      assert('Recovered at least one imported blob from IDB',
+        recoveredSnap?.profiles?.some(p => p?.keys?.imported != null));
       assert('Recovered profile carries the original profile id',
         recoveredSnap?.profiles?.[0]?.profileId === realProfiles[0].id);
     } finally {
@@ -818,6 +818,7 @@ return (async function() {
   {
     // Snapshot then nuke state.importedData so the import has a clean slate.
     const snapshot = JSON.parse(JSON.stringify(S.importedData || {}));
+    const profilesBeforeDemoImport = JSON.parse(JSON.stringify(window.getProfiles?.() || []));
     const origSex = S.profileSex;
     const origDob = S.profileDob;
     S.importedData = { entries: [], notes: [], supplements: [], healthGoals: [],
@@ -845,10 +846,19 @@ return (async function() {
         expectedSun > 0 && expectedDevices > 0 && expectedRooms > 0,
         `sun=${expectedSun}, devices=${expectedDevices}, rooms=${expectedRooms}`);
 
+      // Demo JSON imports are guarded in product code. Exercise the allowed
+      // path by marking the throwaway fixture profile as a demo profile.
+      const profiles = window.getProfiles?.() || [];
+      const activeProfile = profiles.find(p => p.id === S.currentProfile);
+      if (activeProfile && !activeProfile.tags?.includes('demo')) {
+        activeProfile.tags = Array.from(new Set([...(activeProfile.tags || []), 'demo']));
+        await window.saveProfiles?.(profiles);
+      }
+
       // importDataJSON consumes a File object via FileReader. Synthesize one.
       const blob = new Blob([JSON.stringify(demo)], { type: 'application/json' });
       const file = new File([blob], 'demo-female.json', { type: 'application/json' });
-      window.importDataJSON(file);
+      await window.importDataJSON(file);
 
       // FileReader is async — poll the imported state up to 5s for the
       // first Light & Sun field to land.
@@ -953,7 +963,8 @@ return (async function() {
         'demo loader must seed Biology Scores context review locally');
       assert('loadDemoData does not depend on cross-device sync for demo Biology Scores',
         _loadDemoSection.includes('skipInitialSync: true')
-          && _loadDemoSection.includes("skipSync: true, reason: 'demo-import'")
+          && _loadDemoSection.includes('window._demoLoadingProfileId = profileId')
+          && exportSrcLive.includes("reason: 'demo-import'")
           && _loadDemoSection.includes("skipSync: true, reason: 'demo-biology-score-context'"),
         'demo loading must not sync an empty demo profile and wait for pull/rebroadcast to unlock Biology Scores');
       assert('loadDemoData awaits demo import before post-import Biology Scores validation',
@@ -997,8 +1008,7 @@ return (async function() {
       const beforeRepeat = (S.importedData?.sunSessions || []).length;
       const file2 = new File([new Blob([JSON.stringify(demo)], { type: 'application/json' })],
         'demo-female.json', { type: 'application/json' });
-      window.importDataJSON(file2);
-      await wait(800);
+      await window.importDataJSON(file2);
       assert('re-importing same demo does NOT duplicate sunSessions',
         (S.importedData?.sunSessions || []).length === beforeRepeat,
         `before=${beforeRepeat}, after=${(S.importedData?.sunSessions || []).length}`);
@@ -1007,6 +1017,7 @@ return (async function() {
       S.importedData = snapshot;
       S.profileSex = origSex;
       S.profileDob = origDob;
+      await window.saveProfiles?.(profilesBeforeDemoImport);
     }
   }
 

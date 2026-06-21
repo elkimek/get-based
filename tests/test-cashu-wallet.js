@@ -239,6 +239,7 @@ console.log('13. Service Worker Cache');
 
 assert('SW caches cashu-wallet.js', swSrc.includes('/js/cashu-wallet.js'));
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
+assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
 assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
 assert('SW caches vendor/cashu-ts.js', swSrc.includes('/vendor/cashu-ts.js'));

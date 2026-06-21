@@ -19,13 +19,16 @@ import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
 
-let _getEvolu = () => null;
-let _getProfileQuery = () => null;
-let _isSyncPushInFlight = () => false;
+// These use var + self-preserving defaults because sync.js can be re-entered
+// through app module cycles while sync-pull.js is still evaluating. An early
+// configureSyncPull call must not hit TDZ or get overwritten by defaults.
+var _getEvolu = _getEvolu || (() => null);
+var _getProfileQuery = _getProfileQuery || (() => null);
+var _isSyncPushInFlight = _isSyncPushInFlight || (() => false);
 /** @type {(...args: any[]) => Promise<any>} */
-let _pushProfile = async () => {};
+var _pushProfile = _pushProfile || (async () => {});
 /** @type {(...args: any[]) => any} */
-let _debug = () => {};
+var _debug = _debug || (() => {});
 let _pulling = false;
 const _chatPullRetryTimers = new Map();
 

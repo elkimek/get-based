@@ -238,6 +238,10 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
         tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
         formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
+        vitaminDIU: window.vitaminDIU,
+        vitaminDIUPerSession: window.vitaminDIUPerSession,
+        pbmJoulesPerCm2: window.pbmJoulesPerCm2,
+        circadianMelanopicLux: window.circadianMelanopicLux,
       });
 
       const chipHost = document.createElement('div');
@@ -310,6 +314,10 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
         tierLabel: () => 'none',
         formatChannelUnit: () => '',
         tooShortForChannelVerdictMin: 2,
+        vitaminDIU: null,
+        vitaminDIUPerSession: null,
+        pbmJoulesPerCm2: null,
+        circadianMelanopicLux: null,
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

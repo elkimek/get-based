@@ -6,6 +6,9 @@ import { getRoutstrKey, saveRoutstrKey, fetchRoutstrModels, getRoutstrBalance } 
 import { isValidExternalUrl } from './url-safety.js';
 import { ensureQRCode } from './provider-qr.js';
 import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
+import { configureRoutstrWalletRuntime, walletRuntime } from './provider-wallet-runtime.js';
+
+export { configureRoutstrWalletRuntime };
 
 const walletCallbacks = {
   renderAIProviderPanel: null,
@@ -42,6 +45,9 @@ function _returnToChatIfOnboarding() {
   }
 }
 
+let _rsCashuBackupTimer = null;
+let _walletSeedThenAction = null;
+
 function _rsBalanceHtml(sats) {
   const color = sats < 100 ? 'var(--red)' : sats < 500 ? 'var(--yellow, #f0a800)' : 'var(--green)';
   return 'Balance: <span style="color:' + color + '">\u26a1 ' + sats.toLocaleString() + ' sats</span>';
@@ -50,8 +56,8 @@ function _rsBalanceHtml(sats) {
 export function refreshCashuWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
   if (el) el.textContent = '\u26a1 verifying...';
-  if (window.cashuCheckProofStates) {
-    window.cashuCheckProofStates().then(function(bal) {
+  if (walletRuntime.cashuCheckProofStates) {
+    walletRuntime.cashuCheckProofStates().then(function(bal) {
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     }).catch(function() {
       if (el) el.textContent = '\u26a1 check failed';
@@ -76,6 +82,8 @@ function _getWalletInput(id) {
 
 export function clearRoutstrWalletTimers() {
   if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
+  if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer); _rsCashuBackupTimer = null; }
+  _walletSeedThenAction = null;
 }
 
 export function showRoutstrWalletFund() {
@@ -91,7 +99,7 @@ function _renderWalletFundUI() {
   if (!area) return;
   area.style.display = 'block';
   const presets = [1000, 5000, 10000, 25000];
-  const feePct = typeof window.cashuGetFeePct === 'function' ? window.cashuGetFeePct() : 0;
+  const feePct = typeof walletRuntime.cashuGetFeePct === 'function' ? walletRuntime.cashuGetFeePct() : 0;
   const feeNote = feePct > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">${Math.round(feePct * 100)}% development fee applies</div>` : '';
   const cashuFeeLabel = feePct > 0 ? `or paste Cashu token (${Math.round(feePct * 100)}% fee)` : 'or paste Cashu token';
   area.innerHTML = `<div style="margin-top:8px">
@@ -134,7 +142,7 @@ export async function doRoutstrWalletFund(amountSats) {
   if (!statusEl) return;
   statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Creating invoice\u2026</div>';
   try {
-    const result = await window.cashuCreateFundingInvoice(amountSats);
+    const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
     let qrSvg = '';
     if (typeof qrcode === 'function') {
       const qr = qrcode(0, 'L');
@@ -159,7 +167,7 @@ export async function doRoutstrWalletFund(amountSats) {
     </div>`;
     _rsFundPollTimer = setInterval(async function() {
       try {
-        const s = await window.cashuCheckFundingStatus(result.quote);
+        const s = await walletRuntime.cashuCheckFundingStatus(result.quote);
         if (s && s.paid) {
           clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
           const feeText = s.fee ? ' (' + s.fee + ' fee)' : '';
@@ -185,7 +193,7 @@ export async function doRoutstrWalletReceiveCashu() {
   if (!token || !token.startsWith('cashuA') && !token.startsWith('cashuB')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashuA or cashuB)</div>'; return; }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
   try {
-    const result = await window.cashuReceiveToken(token);
+    const result = await walletRuntime.cashuReceiveToken(token);
     input.value = '';
     const fundArea = document.getElementById('routstr-wallet-fund-area');
     if (fundArea) { fundArea.style.display = 'none'; _setActiveWalletAction(null); }
@@ -200,8 +208,8 @@ export async function showRoutstrMintEdit() {
   const area = document.getElementById('routstr-mint-edit');
   if (!area) return;
   if (area.style.display !== 'none') { area.style.display = 'none'; return; }
-  const currentMint = await window.cashuGetMintUrl();
-  const nodeUrl = window.nostrGetSelectedNode?.() || '';
+  const currentMint = await walletRuntime.cashuGetMintUrl();
+  const nodeUrl = walletRuntime.nostrGetSelectedNode?.() || '';
   let nodeMints = [];
   if (nodeUrl) {
     try {
@@ -247,7 +255,7 @@ export async function doRoutstrMintChange() {
     if (!res.ok) throw new Error('Mint not reachable');
     const info = await res.json();
     if (!info.nuts) throw new Error('Not a valid Cashu mint');
-    await window.cashuSetMintUrl(url);
+    await walletRuntime.cashuSetMintUrl(url);
     const label = document.getElementById('routstr-mint-label');
     if (label) label.textContent = url.replace(/^https?:\/\//, '');
     document.getElementById('routstr-mint-edit').style.display = 'none';
@@ -261,12 +269,12 @@ export async function doRoutstrMintChange() {
 export async function showRoutstrWalletBackup() {
   _setActiveWalletAction('backup');
   try {
-    const token = await window.cashuExportWallet();
+    const token = await walletRuntime.cashuExportWallet();
     if (!token) { showNotification('Wallet is empty', 'info'); _setActiveWalletAction(null); return; }
     navigator.clipboard.writeText(token);
     showNotification('Wallet backup copied to clipboard (clears in 60s)', 'success');
-    clearTimeout(window._rsCashuBackupTimer);
-    window._rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
+    clearTimeout(_rsCashuBackupTimer);
+    _rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
   } catch (e) {
     showNotification('Backup failed: ' + e.message, 'error');
   }
@@ -280,7 +288,7 @@ export async function showRoutstrNodePicker() {
   area.style.display = 'block';
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
-    const allNodes = await window.nostrDiscoverNodes(true);
+    const allNodes = await walletRuntime.nostrDiscoverNodes(true);
     const nodes = allNodes.filter(n => n.online);
     if (!nodes.length) {
       area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>';
@@ -319,11 +327,11 @@ export async function connectRoutstrNode(nodeUrl) {
     }
   } catch {}
 
-  const currentMint = await window.cashuGetMintUrl();
+  const currentMint = await walletRuntime.cashuGetMintUrl();
   let mintSwitched = false;
   if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
     try {
-      await window.cashuSetMintUrl(nodeMints[0]);
+      await walletRuntime.cashuSetMintUrl(nodeMints[0]);
       mintSwitched = true;
       const mintLabel = document.getElementById('routstr-mint-label');
       if (mintLabel) mintLabel.textContent = nodeMints[0].replace(/^https?:\/\//, '');
@@ -335,7 +343,7 @@ export async function connectRoutstrNode(nodeUrl) {
     }
   }
 
-  const walletBalance = await window.cashuGetBalance();
+  const walletBalance = await walletRuntime.cashuGetBalance();
   if (walletBalance < 1) {
     showNotification('Fund your wallet first' + (mintSwitched ? ' \u2014 mint was updated' : ''), 'error');
     showRoutstrWalletFund();
@@ -377,7 +385,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
     if (infoRes.ok) {
       const info = await infoRes.json();
       const nodeMints = info.mints || [];
-      const currentMint = await window.cashuGetMintUrl();
+      const currentMint = await walletRuntime.cashuGetMintUrl();
       if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
         _rsConnecting = false;
         if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">Node doesn\u2019t accept mint ' + escapeHTML(currentMint.replace(/^https?:\/\//, '')) + '. Accepted: ' + escapeHTML(nodeMints.map(m => m.replace(/^https?:\/\//, '')).join(', ')) + '</div>';
@@ -387,9 +395,9 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   } catch {}
   try {
     const existingKey = getRoutstrKey();
-    const result = await window.cashuDepositToNode(nodeUrl, amount, existingKey);
+    const result = await walletRuntime.cashuDepositToNode(nodeUrl, amount, existingKey);
     if (result.api_key) await saveRoutstrKey(result.api_key);
-    window.nostrSetSelectedNode(nodeUrl);
+    walletRuntime.nostrSetSelectedNode(nodeUrl);
     if (result.api_key) {
       localStorage.removeItem('labcharts-routstr-model');
       localStorage.removeItem('labcharts-routstr-models');
@@ -406,7 +414,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   } catch (e) {
     if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
     _refreshRoutstrWalletBalance();
-    if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {
+    if (walletRuntime.cashuRecoverPendingDeposit) walletRuntime.cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (!area) return;
@@ -424,7 +432,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
 }
 
 export async function doRoutstrNodeWithdraw() {
-  const nodeUrl = (window.nostrGetSelectedNode?.() || '').replace(/\/+$/, '');
+  const nodeUrl = (walletRuntime.nostrGetSelectedNode?.() || '').replace(/\/+$/, '');
   const key = getRoutstrKey();
   if (!nodeUrl || !key) { showNotification('No active node session', 'error'); return; }
   const picker = document.getElementById('routstr-node-picker');
@@ -444,7 +452,7 @@ export async function doRoutstrNodeWithdraw() {
     const data = await res.json();
     const token = data.token || data.cashu_token || (typeof data === 'string' && data.startsWith('cashu') ? data : null);
     if (!token) throw new Error('No token returned from node');
-    const imported = await window.cashuImportWallet(token);
+    const imported = await walletRuntime.cashuImportWallet(token);
     await saveRoutstrKey('');
     showNotification('Withdrawn \u26a1 ' + imported.toLocaleString() + ' sats to wallet', 'success');
     const panel = document.getElementById('ai-provider-panel');
@@ -461,12 +469,12 @@ async function _refreshRoutstrWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
   if (!el) return;
   try {
-    const balance = await window.cashuGetBalance();
+    const balance = await walletRuntime.cashuGetBalance();
     el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
   } catch {
     el.textContent = '\u26a1 0 sats';
   }
-  if (window.cashuGetMintUrl) Promise.resolve(window.cashuGetMintUrl()).then(function(url) {
+  if (walletRuntime.cashuGetMintUrl) Promise.resolve(walletRuntime.cashuGetMintUrl()).then(function(url) {
     const mintEl = document.getElementById('routstr-mint-label');
     if (mintEl && url) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   });
@@ -491,7 +499,7 @@ export function buildRoutstrNodeActions(nodeUrl, hasKey, active) {
 export function _setActiveNodeAction(actionId) {
   _activeNodeAction = actionId;
   const el = document.getElementById('routstr-node-actions');
-  const nodeUrl = window.nostrGetSelectedNode?.() || '';
+  const nodeUrl = walletRuntime.nostrGetSelectedNode?.() || '';
   const hasKey = !!getRoutstrKey();
   if (el) el.innerHTML = buildRoutstrNodeActions(nodeUrl, hasKey, actionId);
 }
@@ -531,12 +539,12 @@ function _setActiveWalletAction(actionId) {
 }
 
 async function _ensureWalletSeed(thenAction) {
-  const hasSeed = await window.cashuHasWalletSeed?.();
+  const hasSeed = await walletRuntime.cashuHasWalletSeed?.();
   if (hasSeed) { thenAction(); return; }
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return;
   area.style.display = 'block';
-  const { mnemonic } = await window.cashuGenerateWalletSeed();
+  const { mnemonic } = await walletRuntime.cashuGenerateWalletSeed();
   area.innerHTML = `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
     <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">Your wallet seed phrase</div>
     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">This 12-word phrase is the <strong>only way to recover your wallet</strong>. Write it down and store it somewhere safe.</div>
@@ -549,15 +557,15 @@ async function _ensureWalletSeed(thenAction) {
     </div>
     <button class="import-btn import-btn-primary" id="routstr-seed-continue" disabled style="margin-top:8px;width:100%;font-size:12px" data-routstr-wallet-action="seed-ack-continue">Continue</button>
   </div>`;
-  window._walletSeedThenAction = thenAction;
+  _walletSeedThenAction = thenAction;
 }
 
 export function walletSeedAcknowledged() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (area) area.style.display = 'none';
-  if (window._walletSeedThenAction) {
-    window._walletSeedThenAction();
-    window._walletSeedThenAction = null;
+  if (_walletSeedThenAction) {
+    _walletSeedThenAction();
+    _walletSeedThenAction = null;
   }
 }
 
@@ -567,7 +575,7 @@ export async function showWalletSeedPhrase() {
   if (area.style.display !== 'none' && _activeWalletAction === 'seed') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('seed');
   area.style.display = 'block';
-  const mnemonic = await window.cashuGetWalletMnemonic?.();
+  const mnemonic = await walletRuntime.cashuGetWalletMnemonic?.();
   if (mnemonic) {
     area.innerHTML = `<div style="margin-top:8px">
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
@@ -598,7 +606,7 @@ export async function showRoutstrWithdraw() {
   if (area.style.display !== 'none' && _activeWalletAction === 'withdraw') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('withdraw');
   area.style.display = 'block';
-  const balance = await window.cashuGetBalance();
+  const balance = await walletRuntime.cashuGetBalance();
   area.innerHTML = `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw</div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${balance.toLocaleString()} sats</div>
@@ -634,7 +642,7 @@ export function showRoutstrWithdrawLightning() {
 export async function showRoutstrWithdrawToken() {
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!statusEl) return;
-  const balance = await window.cashuGetBalance();
+  const balance = await walletRuntime.cashuGetBalance();
   const presets = [100, 500, 1000, 2500].filter(v => v <= balance);
   statusEl.innerHTML = `<div style="margin-top:4px">
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Send as Cashu token</div>
@@ -659,7 +667,7 @@ export async function doRoutstrSendToken(amount) {
   }
   resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Creating token\u2026</div>';
   try {
-    const result = await window.cashuSendAsToken(amount);
+    const result = await walletRuntime.cashuSendAsToken(amount);
     resultEl.innerHTML = `<div style="margin-top:6px">
       <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
@@ -692,7 +700,7 @@ export async function doRoutstrWithdrawQuote() {
     }
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing to ' + escapeHTML(val) + '\u2026</div>';
     try {
-      await window.cashuWithdrawToAddress(val, amount);
+      await walletRuntime.cashuWithdrawToAddress(val, amount);
       statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Sent ' + amount.toLocaleString() + ' sats to ' + escapeHTML(val) + '</div>';
       showNotification('Withdrawal complete', 'success');
       _refreshRoutstrWalletBalance();
@@ -707,7 +715,7 @@ export async function doRoutstrWithdrawQuote() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking fee\u2026</div>';
   try {
-    const quote = await window.cashuCreateWithdrawQuote(val);
+    const quote = await walletRuntime.cashuCreateWithdrawQuote(val);
     statusEl.innerHTML = `<div style="margin-top:6px;padding:8px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
@@ -724,7 +732,7 @@ export async function doRoutstrWithdrawExecute(quoteId) {
   if (!statusEl) return;
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing\u2026</div>';
   try {
-    await window.cashuExecuteWithdraw(quoteId);
+    await walletRuntime.cashuExecuteWithdraw(quoteId);
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Withdrawn! Lightning payment sent.</div>';
     showNotification('Withdrawal complete', 'success');
     _refreshRoutstrWalletBalance();
@@ -745,7 +753,7 @@ export async function doRoutstrWalletRestore() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Restoring from mint\u2026 (this may take a moment)</div>';
   try {
-    const result = await window.cashuRestoreWalletFromSeed(mnemonic);
+    const result = await walletRuntime.cashuRestoreWalletFromSeed(mnemonic);
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Restored! Balance: \u26a1 ' + result.balance.toLocaleString() + ' sats</div>';
     showNotification('Wallet restored', 'success');
     _refreshRoutstrWalletBalance();
