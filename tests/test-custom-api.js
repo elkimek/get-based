@@ -37,6 +37,7 @@ await import('../js/provider-panels.js');
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
 const apiSrc = read('js/api.js');
+const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('getCustomApiUrl exists', apiProviderStorageSrc.includes('function getCustomApiUrl()'));
 assert('setCustomApiUrl exists', apiProviderStorageSrc.includes('function setCustomApiUrl('));
@@ -51,11 +52,11 @@ assert('validateCustomApiKey exists', apiSrc.includes('function validateCustomAp
 assert('callCustomAPI exists', apiSrc.includes('function callCustomAPI('));
 assert('hasAIProvider handles custom', apiProviderStorageSrc.includes("provider === 'custom') return hasCustomApiKey()"));
 assert('hasAIProvider custom requires URL', apiProviderStorageSrc.includes("hasCustomApiKey() && !!getCustomApiUrl()"));
-assert('getActiveModelId handles custom', apiSrc.includes("provider === 'custom') return getCustomApiModel()"));
-assert('getActiveModelDisplay handles custom', apiSrc.includes("provider === 'custom') return getCustomApiModelDisplay()"));
+assert('getActiveModelId handles custom', apiModelsSrc.includes("provider === 'custom') return getCustomApiModel()"));
+assert('getActiveModelDisplay handles custom', apiModelsSrc.includes("provider === 'custom') return getCustomApiModelDisplay()"));
 assert('callClaudeAPI handles custom', apiSrc.includes("provider === 'custom') return callCustomAPI("));
-assert('supportsWebSearch false for custom', apiSrc.includes("provider === 'custom') return false"));
-assert('supportsVision true for custom', apiSrc.includes("provider === 'custom') return true"));
+assert('supportsWebSearch false for custom', apiModelsSrc.includes("provider === 'custom') return false"));
+assert('supportsVision true for custom', apiModelsSrc.includes("provider === 'custom') return true"));
 assert('callCustomAPI routes through proxy', apiSrc.includes("'Custom', opts,\n    {}"));
 assert('saveCustomApiKey uses encryptedSetItem', apiProviderStorageSrc.includes("encryptedSetItem('labcharts-custom-key'"));
 assert('getCustomApiKey uses getCachedKey', apiProviderStorageSrc.includes("getCachedKey('labcharts-custom-key')"));
