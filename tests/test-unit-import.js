@@ -135,6 +135,8 @@ const reviewSrc = read('js/pdf-import-review.js');
 
   assert('Review snapshot modal tolerates stored costInfo without a cost field',
     /parseResult\.costInfo && typeof parseResult\.costInfo\.cost === ['"]number['"]/.test(reviewSrc));
+  assert('Review snapshot opener tolerates corrupt snapshot rows without marker arrays',
+    /openImportReviewFromSnapshot[\s\S]{0,320}Array\.isArray\(snapshot\.markers\)[\s\S]{0,120}no saved marker review data/.test(confirmBlock));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)

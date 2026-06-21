@@ -617,6 +617,10 @@ export function openImportReviewFromSnapshot(snapId) {
     showNotification('Import snapshot not found', 'error');
     return;
   }
+  if (!Array.isArray(snapshot.markers) || snapshot.markers.length === 0) {
+    showNotification('This import has no saved marker review data', 'error');
+    return;
+  }
   const result = {
     date: snapshot.date,
     fileName: snapshot.fileName,
