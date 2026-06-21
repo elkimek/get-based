@@ -51,8 +51,8 @@ assert('lab-context fingerprint covers wearableSummary',
 
 // ─── 3. Lens LRU cache bumps on hit ───
 console.log('\n3. Lens LRU cache');
-const lensSrc = read('js/lens.js');
-const cacheGetMatch = lensSrc.match(/function cacheGet\(k\) \{([\s\S]*?)\n\}/);
+const lensCacheSrc = read('js/lens-cache.js');
+const cacheGetMatch = lensCacheSrc.match(/function cacheGet\(k\) \{([\s\S]*?)\n\}/);
 assert('cacheGet re-inserts on hit',
   cacheGetMatch && cacheGetMatch[1].includes('_cache.delete(k)') && cacheGetMatch[1].includes('_cache.set(k, row)'),
   'Map iterates in insertion order — without re-insert, hot entries are evicted by FIFO');
