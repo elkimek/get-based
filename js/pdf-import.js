@@ -28,7 +28,7 @@ import {
   snapshotImportedData,
   restoreImportedDataSnapshot,
 } from './pdf-import-persistence.js';
-import { deleteImportedArrayItems, recordTombstone } from './data-merge.js';
+import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
 import {
   handleImportStatusClick,
   hideImportProgress,
@@ -542,6 +542,8 @@ export async function confirmImport() {
     costInfo: result.costInfo ? { provider: result.costInfo.provider, modelId: result.costInfo.modelId } : null,
   };
   if (isReReview) {
+    if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
+    clearTombstone(state.importedData, 'importSnapshots', snapshotId);
     const snapIdx = state.importedData.importSnapshots?.findIndex(s => s.id === snapshotId);
     if (snapIdx >= 0) {
       state.importedData.importSnapshots[snapIdx] = {
@@ -550,6 +552,13 @@ export async function confirmImport() {
         markers: result.markers.map(m => snapshotPayload(m)),
         importedAt: importTs,
       };
+    } else {
+      state.importedData.importSnapshots.push({
+        id: snapshotId,
+        ...snapBase,
+        markers: result.markers.map(m => snapshotPayload(m)),
+        importedAt: importTs,
+      });
     }
   } else {
     if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];

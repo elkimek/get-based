@@ -124,6 +124,9 @@ const importCssSrc = read('css/import.css');
     !/if \(isFullyManual \|\| !entry\.importedWith\)/.test(settingsDataSrc));
   assert('Re-review tombstones an emptied old snapshot entry before deleting it',
     /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
+  assert('Re-review upserts a snapshot row when the original snapshot was concurrently deleted',
+    /if \(isReReview\)[\s\S]{0,260}clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapshotId\)/.test(confirmBlock)
+      && /if \(snapIdx >= 0\)[\s\S]{0,420}else \{[\s\S]{0,120}state\.importedData\.importSnapshots\.push\(\{[\s\S]{0,80}id:\s*snapshotId/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
     /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportSrc));
   assert('Import restore clears snapshot tombstones and updates newer duplicate snapshot ids',
