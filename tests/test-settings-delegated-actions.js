@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
+const settingsSurfaceSrc = `${src}\n${settingsDataSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -94,7 +96,7 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
   'clear-all-data',
   'reset-profile-usage',
 ].forEach(action => {
-  assert(`Settings action ${action} is rendered`, src.includes(`data-settings-action="${action}"`));
+  assert(`Settings action ${action} is rendered`, settingsSurfaceSrc.includes(`data-settings-action="${action}"`));
 });
 
 [

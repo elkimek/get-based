@@ -256,9 +256,9 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   const importSrc = read('/js/pdf-import.js');
   assert('confirmImport stores sourceFile', importSrc.includes('entry.sourceFile = result.fileName'));
 
-  const settingsSrc = read('/js/settings.js');
-  assert('Settings shows sourceFile', settingsSrc.includes('entry.sourceFile'));
-  assert('Settings imports escapeAttr', settingsSrc.includes('escapeAttr'));
+  const settingsDataSrc = read('/js/settings-data.js');
+  assert('Settings Data shows sourceFile', settingsDataSrc.includes('entry.sourceFile'));
+  assert('Settings Data imports escapeAttr', settingsDataSrc.includes('escapeAttr'));
 
   // ═══════════════════════════════════════
   // 13. Both-range mode on cards

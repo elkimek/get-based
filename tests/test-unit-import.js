@@ -25,7 +25,7 @@ const exportSrc = read('js/export.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
-const settingsSrc = read('js/settings.js');
+const settingsDataSrc = read('js/settings-data.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
   // ═══════════════════════════════════════
@@ -88,9 +88,9 @@ const settingsSrc = read('js/settings.js');
       && /Date\.UTC\(year,\s*month - 1,\s*day\)/.test(persistenceSrc)
       && /getUTCFullYear\(\)\s*===\s*year[\s\S]{0,120}getUTCMonth\(\)\s*===\s*month - 1[\s\S]{0,120}getUTCDate\(\)\s*===\s*day/.test(persistenceSrc));
   assert('Settings Data remove refreshes only after successful delete',
-    /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsSrc));
+    /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
   assert('Settings Data rename refreshes only after successful save',
-    /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsSrc));
+    /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)

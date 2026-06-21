@@ -163,6 +163,7 @@ const APP_SHELL = [
   '/js/chat-prompt-context.js',
   '/js/chat-summaries.js',
   '/js/settings.js',
+  '/js/settings-data.js',
   '/js/settings-provider-bridge.js',
   '/js/settings-sync-panel.js',
   '/js/feedback.js',
