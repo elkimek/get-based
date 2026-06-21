@@ -99,6 +99,7 @@ console.log('\n3. provider panel source inspection');
 const ppSrc = read('js/provider-panels.js');
 const providerRenderSrc = read('js/provider-panel-renderers.js');
 const providerModelControlsSrc = read('js/provider-model-controls.js');
+const settingsBridgeSrc = read('js/settings-provider-bridge.js');
 const providerUiSrc = ppSrc + providerRenderSrc + providerModelControlsSrc;
 assert('imports getOpenRouterKey', providerUiSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
@@ -111,8 +112,9 @@ const settingsSrc = read('js/settings.js');
 assert('provider button with data-provider="openrouter"', settingsSrc.includes('data-provider="openrouter"'));
 assert('OpenRouter provider button uses delegated settings action',
   /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
-assert('settings has eager provider switch bridge', settingsSrc.includes('function switchAIProviderBridge(provider)'));
-assert('eager provider bridge persists selection synchronously', settingsSrc.includes('setAIProvider(provider);'));
+assert('settings installs provider bridge module', settingsSrc.includes('installSettingsProviderBridge();'));
+assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
+assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
 assert('settings records existing provider before provider-key onboarding return',
   settingsSrc.includes('settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();')
     && ppSrc.includes('if (window._settingsHadProvider) return'));

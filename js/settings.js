@@ -6,7 +6,7 @@ import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMod
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
-import { getAIProvider, setAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel, setOllamaPIIModel, getOpenRouterKey, rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession } from './api.js';
+import { getAIProvider, isAIPaused, getOllamaPIIUrl, getOllamaPIIModel, setOllamaPIIModel } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
@@ -14,140 +14,13 @@ import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { loadPdfImport } from './import-loader.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { installSettingsProviderBridge, switchAIProviderBridge } from './settings-provider-bridge.js';
 
 /** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
 
 const settingsWindow = /** @type {SettingsWindow} */ (window);
 
-let _providerPanelsLoad = null;
-
-function loadProviderPanels() {
-  if (!_providerPanelsLoad) _providerPanelsLoad = import('./provider-panels.js');
-  return _providerPanelsLoad;
-}
-
-function renderAIProviderPanelBridge(provider) {
-  loadProviderPanels().then(() => {
-    const panel = document.getElementById('ai-provider-panel');
-    if (panel && typeof settingsWindow.renderAIProviderPanel === 'function' && settingsWindow.renderAIProviderPanel !== renderAIProviderPanelBridge) {
-      panel.innerHTML = settingsWindow.renderAIProviderPanel(provider || getAIProvider());
-    }
-  }).catch(() => {});
-  return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
-}
-
-/** @param {string} name */
-function installProviderPanelBridge(name) {
-  const registry = /** @type {Record<string, any>} */ (settingsWindow);
-  if (typeof registry[name] === 'function') return;
-  const bridge = async function(...args) {
-    await loadProviderPanels();
-    const fn = registry[name];
-    if (typeof fn !== 'function' || fn === bridge) return undefined;
-    return fn(...args);
-  };
-  registry[name] = bridge;
-}
-
-function setProviderButtonState(provider) {
-  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.ai-provider-btn')));
-  buttons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.provider === provider);
-  });
-}
-
-function switchAIProviderBridge(provider) {
-  const previousProvider = getAIProvider();
-  if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
-    rememberOpenRouterOAuthPreviousProvider(previousProvider);
-  } else if (provider !== 'openrouter') {
-    clearOpenRouterOAuthSession();
-  }
-  setAIProvider(provider);
-  setProviderButtonState(provider);
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
-  loadProviderPanels().then(() => {
-    const fn = settingsWindow.switchAIProvider;
-    if (typeof fn === 'function' && fn !== switchAIProviderBridge) return fn(provider);
-    if (panel && typeof settingsWindow.renderAIProviderPanel === 'function') panel.innerHTML = settingsWindow.renderAIProviderPanel(provider);
-  }).catch(() => {});
-}
-
-settingsWindow.renderAIProviderPanel = renderAIProviderPanelBridge;
-settingsWindow.switchAIProvider = switchAIProviderBridge;
-[
-  'toggleAIPause',
-  'initSettingsModelFetch',
-  'initSettingsOllamaCheck',
-  'testOllamaConnection',
-  'testPIIOllamaConnection',
-  'refreshVeniceBalance',
-  'updateVeniceModelPricing',
-  'onVeniceModelDropdownChange',
-  'toggleVeniceE2EE',
-  'updateOpenRouterModelPricing',
-  'updateRoutstrModelPricing',
-  'handleSaveVeniceKey',
-  'handleRemoveVeniceKey',
-  'renderVeniceModelDropdown',
-  'handleSaveOpenRouterKey',
-  'handleRemoveOpenRouterKey',
-  'renderOpenRouterModelDropdown',
-  'applyCustomOpenRouterModel',
-  'onOpenRouterDropdownChange',
-  'handleSaveRoutstrKey',
-  'handleRemoveRoutstrKey',
-  'renderRoutstrModelDropdown',
-  'refreshCashuWalletBalance',
-  'refreshRoutstrBalance',
-  'showRoutstrWalletFund',
-  'rsWalletFundCustomInput',
-  'doRoutstrWalletFundCustom',
-  'doRoutstrWalletFund',
-  'doRoutstrWalletReceiveCashu',
-  'showRoutstrMintEdit',
-  'doRoutstrMintChange',
-  'showRoutstrWalletBackup',
-  'showRoutstrNodePicker',
-  'connectRoutstrNode',
-  'doRoutstrNodeDeposit',
-  'doRoutstrNodeWithdraw',
-  '_setActiveNodeAction',
-  'walletSeedAcknowledged',
-  'showWalletSeedPhrase',
-  'showRoutstrWithdraw',
-  'showRoutstrWithdrawLightning',
-  'showRoutstrWithdrawToken',
-  'doRoutstrSendToken',
-  'doRoutstrWithdrawQuote',
-  'doRoutstrWithdrawExecute',
-  'doRoutstrWalletRestore',
-  'handleCreatePpqAccount',
-  'dismissPpqKeyReveal',
-  'handleSavePpqKey',
-  'handleRemovePpqKey',
-  'renderPpqModelDropdown',
-  'updatePpqModelPricing',
-  'refreshPpqBalance',
-  'showPpqTopup',
-  'selectPpqMethod',
-  'doPpqTopup',
-  'ppqShowCustomInput',
-  'doPpqTopupCustom',
-  'cancelPpqTopup',
-  'refreshOpenRouterBalance',
-  'showInsufficientBalanceDialog',
-  'handleSaveCustomApi',
-  'handleRemoveCustomApi',
-  'renderCustomApiModelDropdown',
-  'applyCustomApiManualModel',
-  'updateCustomModelPricing',
-  'copyOllamaPullCmd',
-  'refreshModelAdvisor',
-  'applyHardwareOverride',
-  'clearHardwareOverride',
-].forEach(installProviderPanelBridge);
+installSettingsProviderBridge();
 
 // ═══════════════════════════════════════════════
 // SETTINGS MODAL
