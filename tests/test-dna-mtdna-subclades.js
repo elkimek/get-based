@@ -29,7 +29,7 @@ function assert(name, condition, detail) {
 console.log('=== mtDNA Sub-haplogroup Tests ===\n');
 
 const hapTable = JSON.parse(read('data/haplogroups.json'));
-const dnaSrc = read('js/dna.js');
+const dnaMtDnaSrc = read('js/dna-mtdna.js');
 
   // ═══════════════════════════════════════
   // 1. Sub-haplogroup entries present
@@ -72,9 +72,9 @@ const dnaSrc = read('js/dna.js');
   // ═══════════════════════════════════════
   console.log('%c 3. Matcher Tiebreaker ', 'font-weight:bold;color:#f59e0b');
 
-  assert('resolveHaplogroup tracks bestMatchedCount', dnaSrc.includes('bestMatchedCount'));
+  assert('resolveHaplogroup tracks bestMatchedCount', dnaMtDnaSrc.includes('bestMatchedCount'));
   assert('resolveHaplogroup prefers higher matched count on equal scores',
-    /score === bestScore.*matched\.length > bestMatchedCount/.test(dnaSrc.replace(/\s+/g, ' ')));
+    /score === bestScore.*matched\.length > bestMatchedCount/.test(dnaMtDnaSrc.replace(/\s+/g, ' ')));
 
   // ═══════════════════════════════════════
   // 4. End-to-end: H1 mutations resolve to H1 (not H) via tiebreaker
