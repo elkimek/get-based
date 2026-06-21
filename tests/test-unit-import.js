@@ -27,6 +27,8 @@ const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
 const settingsDataSrc = read('js/settings-data.js');
+const settingsSrc = read('js/settings.js');
+const reviewSrc = read('js/pdf-import-review.js');
   // ═══════════════════════════════════════
   // 1. normalizeToSI function exists
   // ═══════════════════════════════════════
@@ -92,6 +94,14 @@ const settingsDataSrc = read('js/settings-data.js');
     /removeImportedEntryFromSettings[\s\S]{0,240}const ok = await removeImportedEntry\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
   assert('Settings Data rename refreshes only after successful save',
     /renameImportedEntryDateFromSettings[\s\S]{0,260}const ok = await renameImportedEntryDate\(date\)[\s\S]{0,80}if \(ok\) refreshDataEntriesSection\(\)/.test(settingsDataSrc));
+  assert('Settings Data Review & Edit lazy-loads pdf-import module before opening snapshot review',
+    /loadPdfImport\(\)[\s\S]{0,160}closeSettingsModal\(\)[\s\S]{0,120}openImportReviewFromSnapshot\(actionEl\.dataset\.snapId/.test(settingsSrc)
+      && /data-settings-action=\"review-import\"/.test(settingsDataSrc));
+  assert('Settings Data import rows use wrapping metadata layout classes',
+    settingsDataSrc.includes('imported-entry-snapshot')
+      && settingsDataSrc.includes('class=\"ie-mainline\"')
+      && settingsDataSrc.includes('class=\"ie-meta\"')
+      && settingsDataSrc.includes('class=\"ie-file\"'));
   assert('Re-review tombstones an emptied old snapshot entry before deleting it',
     /if \(isReReview\)[\s\S]{0,900}recordTombstone\(state\.importedData,\s*['"]entries['"],\s*oldEntry\.date\)[\s\S]{0,160}deleteImportedArrayItems\(state\.importedData,\s*['"]entries['"],\s*e => e === oldEntry\)/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
@@ -108,6 +118,9 @@ const settingsDataSrc = read('js/settings-data.js');
     /import \{ deleteLabEntryMarker/.test(persistenceSrc)
       && /deleteLabEntryMarker\(entry, k,[\s\S]{0,80}mirrorInsulin:\s*true/.test(removeBlock)
       && !/delete\s+entry\.markers\[k\]/.test(removeBlock));
+
+  assert('Review snapshot modal tolerates stored costInfo without a cost field',
+    /parseResult\.costInfo && typeof parseResult\.costInfo\.cost === ['"]number['"]/.test(reviewSrc));
 
   // ═══════════════════════════════════════
   // 4. normalizeToSI handles multiply type (inverse)

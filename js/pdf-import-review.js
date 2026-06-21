@@ -558,7 +558,7 @@ export function showImportPreview(parseResult) {
     html += `<div class="privacy-notice privacy-notice-warning">&#128274; ${parseResult.privacyReplacements} personal detail${parseResult.privacyReplacements !== 1 ? 's' : ''} replaced with fake data`;
     html += '<span class="privacy-notice-detail">Set up Local AI in Settings for comprehensive language-aware protection</span></div>';
   }
-  if (parseResult.costInfo) {
+  if (parseResult.costInfo && typeof parseResult.costInfo.cost === 'number') {
     const ci = parseResult.costInfo;
     const totalTokens = (ci.inputTokens || 0) + (ci.outputTokens || 0);
     const modelLabel = ci.provider === 'ollama' ? getOllamaMainModel() : ci.provider === 'venice' ? getVeniceModelDisplay() : ci.provider === 'openrouter' ? getOpenRouterModelDisplay() : getActiveModelDisplay();
