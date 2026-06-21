@@ -99,6 +99,7 @@ const pwaAppShellAssets = [
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',
   '/js/pdf-import.js',
+  '/js/pdf-import-spreadsheet.js',
   '/js/pdf-import-preflight.js',
   '/js/pdf-import-progress.js',
   '/js/pdf-import-review.js',
