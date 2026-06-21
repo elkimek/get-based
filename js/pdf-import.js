@@ -407,6 +407,12 @@ export async function confirmImport() {
             removedKeys.push(key);
           }
         }
+        const manualValues = state.importedData.manualValues || {};
+        for (const k of Object.keys(manualValues)) {
+          if (k.endsWith(':' + oldSnapshot.date) && removedKeys.includes(k.split(':')[0])) {
+            delete manualValues[k];
+          }
+        }
         for (const key of removedKeys) restoreLatestSnapshotMarkerForKey(oldEntry, oldSnapshot, key, importTs);
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
           recordTombstone(state.importedData, 'entries', oldEntry.date);
