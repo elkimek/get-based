@@ -474,16 +474,17 @@ async function handleSettingsClick(event) {
     void removeImportedEntryFromSettings(actionEl.dataset.entryDate || '');
   } else if (action === 'review-import') {
     event.preventDefault();
-    window.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
+    settingsWindow.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
   } else if (action === 'remove-import-snapshot') {
     event.preventDefault();
-    if (!confirm('Delete this import? This will remove all markers from this file and cannot be undone.')) return;
-    const ok = await window.deleteImportSnapshot?.(actionEl.dataset.snapId || '');
+    const confirmed = await showConfirmDialog('Delete this import? This will remove all markers from this file and cannot be undone.');
+    if (!confirmed) return;
+    const ok = await settingsWindow.deleteImportSnapshot?.(actionEl.dataset.snapId || '');
     if (ok) refreshDataEntriesSection();
   } else if (action === 'edit-snapshot-date') {
     event.preventDefault();
     // Deprecated: merged into Review & Edit (review-import)
-    window.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
+    settingsWindow.openImportReviewFromSnapshot?.(actionEl.dataset.snapId || '');
   } else if (action === 'export-client') {
     event.preventDefault();
     settingsWindow.exportClientJSON?.(settingsWindow.getActiveProfileId?.());
@@ -1396,7 +1397,7 @@ export function renderDataEntriesSection() {
       const isManual = Object.keys(entry.markers).length === manualCount;
       const sourceLabel = isManual
         ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual entry</span>'
-        : '<span style="color:var(--text-muted);margin-left:8px;font-size:11px">legacy import</span>';
+        : `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">legacy import${entry.sourceFile ? ` · ${escapeHTML(entry.sourceFile)}` : ''}</span>`;
       const dateAttr = escapeAttr(entry.date);
       html += `<div class="imported-entry">
         <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${sourceLabel}</span>

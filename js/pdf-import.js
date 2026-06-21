@@ -21,7 +21,7 @@ import {
   snapshotImportedData,
   restoreImportedDataSnapshot,
 } from './pdf-import-persistence.js';
-import { recordTombstone } from './data-merge.js';
+import { deleteImportedArrayItems, recordTombstone } from './data-merge.js';
 import {
   handleImportStatusClick,
   hideImportProgress,
@@ -507,7 +507,7 @@ export async function confirmImport() {
           }
         }
         if (!oldEntry.markers || Object.keys(oldEntry.markers).length === 0) {
-          state.importedData.entries = state.importedData.entries.filter(e => e !== oldEntry);
+          deleteImportedArrayItems(state.importedData, 'entries', e => e === oldEntry);
         }
       }
     }
@@ -698,7 +698,7 @@ export async function deleteImportSnapshot(snapId) {
     }
     if (!entry.markers || Object.keys(entry.markers).length === 0) {
       recordTombstone(state.importedData, 'entries', snapshot.date);
-      state.importedData.entries = state.importedData.entries.filter(e => e !== entry);
+      deleteImportedArrayItems(state.importedData, 'entries', e => e === entry);
     }
   }
   snaps.splice(idx, 1);
