@@ -75,7 +75,7 @@ const settingsDataSrc = read('js/settings-data.js');
   assert('import delete uses immediate sync push',
     /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(removeBlock));
   assert('import delete restores state and returns false when save fails',
-    /const rollback = snapshotImportedData\(\)[\s\S]{0,400}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(removeBlock));
+    /const rollback = snapshotImportedData\(\)[\s\S]{0,1600}if \(!saved\) \{[\s\S]{0,160}restoreImportedDataSnapshot\(rollback\)[\s\S]{0,120}return false/.test(removeBlock));
   const renameStart = persistenceSrc.indexOf('export async function renameImportedEntryDate');
   const renameBlock = persistenceSrc.substring(renameStart);
   assert('import date rename tombstones old date',

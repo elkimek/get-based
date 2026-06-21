@@ -79,6 +79,7 @@ import {
  *   markerNotes: Record<string, any>,
  *   markerValueNotes: Record<string, any>,
  *   biologyScoreAI: Record<string, any>,
+ *   importSnapshots: any[],
  *   markerLabels?: Record<string, any>,
  *   refOverrides?: Record<string, any>,
  *   changeHistory: any[],
