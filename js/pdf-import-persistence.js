@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
+import { deleteLabEntryMarker, isSnapshotDerivedHOMAIR } from './lab-entry.js';
 
 export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -31,18 +32,49 @@ function isValidISOCalendarDate(date) {
     && parsed.getUTCDate() === day;
 }
 
+
 export async function removeImportedEntry(date) {
   if (!date) return false;
+  const entries = state.importedData?.entries || [];
+  const entry = entries.find(e => e.date === date);
+  if (!entry) return false;
   const rollback = snapshotImportedData();
-  recordTombstone(state.importedData, 'entries', date);
-  deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
+  const now = Date.now();
+  const markerKeys = Object.keys(entry.markers || {});
+  let removedCount = 0;
+  const removedKeys = markerKeys.filter(k => {
+    if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+    const src = entry.markerSources?.[k];
+    return !src || !src.snapshotId;
+  });
+  // Only delete markers NOT tagged with a snapshotId (legacy/manual markers)
+  if (removedKeys.length > 0) {
+    for (const k of removedKeys) {
+      const result = deleteLabEntryMarker(entry, k, { now, mirrorInsulin: true });
+      if (result.changed) removedCount++;
+    }
+  }
+  // Delete manual values only for markers that were actually removed
+  const manualValues = state.importedData.manualValues || {};
+  for (const k of Object.keys(manualValues)) {
+    if (k.endsWith(':' + date) && removedKeys.includes(k.split(':')[0])) {
+      delete manualValues[k];
+    }
+  }
+  // If no markers remain, delete the whole entry; otherwise keep it for remaining snapshots
+  if (Object.keys(entry.markers).length === 0) {
+    recordTombstone(state.importedData, 'entries', date);
+    deleteImportedArrayItems(state.importedData, 'entries', e => e.date === date);
+  } else {
+    entry.updatedAt = now;
+  }
   const saved = await saveImportedData({ immediate: true });
   if (!saved) {
     restoreImportedDataSnapshot(rollback);
     return false;
   }
   refreshImportedDataViews();
-  showNotification(`Removed imported data from ${date}`, 'info');
+  showNotification(`Removed ${removedCount} marker${removedCount !== 1 ? 's' : ''} from ${date}`, 'info');
   return true;
 }
 
@@ -50,6 +82,15 @@ export async function renameImportedEntryDate(oldDate) {
   const entries = state.importedData?.entries;
   const entry = entries?.find(e => e.date === oldDate);
   if (!entry) return false;
+  // Prevent renaming entries that contain snapshot-tagged markers — use Review & Edit on the snapshot instead
+  const hasSnapshotMarkers = Object.keys(entry.markers || {}).some(k => {
+    const src = entry.markerSources?.[k];
+    return !!src?.snapshotId;
+  });
+  if (hasSnapshotMarkers) {
+    showNotification('Entries with AI-imported markers cannot be renamed from here. Use Review & Edit on the import snapshot.', 'error', 5000);
+    return false;
+  }
   const newDate = await showPromptDialog(
     `Edit collection date (was ${oldDate})`,
     { defaultValue: oldDate, inputType: 'date', okLabel: 'Save' }

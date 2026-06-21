@@ -105,6 +105,7 @@ const TIMESTAMP_FIELDS = [
   'savedAt',
   'loggedAt',
   'createdAt',
+  'importedAt',
   'addedAt',
   'at',
 ];

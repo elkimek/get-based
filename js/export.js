@@ -8,6 +8,7 @@ import { getProfiles, profileStorageKey, createProfile, updateProfileMeta, loadP
 import { encryptedGetItem, encryptedSetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 import {
   appendImportedArrayItem,
+  clearTombstone,
   ensureImportedArray,
   replaceImportedArrayItem,
   sortImportedArray,
@@ -239,7 +240,8 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     lifelightProfile: data.lifelightProfile || null,
     lightDailyVerdicts: data.lightDailyVerdicts || null,
     channelMixAI: data.channelMixAI || null,
-    biologyScoreContextAI: data.biologyScoreContextAI || null
+    biologyScoreContextAI: data.biologyScoreContextAI || null,
+    importSnapshots: data.importSnapshots || []
   };
   if (includeChat) {
     const chat = await _exportChatData(profileId);
@@ -725,6 +727,26 @@ export function importDataJSON(file) {
           if (!exists) appendImportedArrayItem(state.importedData, 'notes', { date: note.date, text: note.text });
         }
       }
+      // Import import snapshots (issue #39)
+      if (Array.isArray(json.importSnapshots)) {
+        if (!state.importedData.importSnapshots) state.importedData.importSnapshots = [];
+        for (const snap of json.importSnapshots) {
+          if (snap && snap.id) {
+            clearTombstone(state.importedData, 'importSnapshots', snap.id);
+            const idx = state.importedData.importSnapshots.findIndex(s => s.id === snap.id);
+            if (idx >= 0) {
+              const existingAt = Number(state.importedData.importSnapshots[idx]?.importedAt) || 0;
+              const incomingAt = Number(snap.importedAt) || 0;
+              if (incomingAt >= existingAt) state.importedData.importSnapshots[idx] = snap;
+            } else {
+              state.importedData.importSnapshots.push(snap);
+            }
+          }
+        }
+        // Sort by importedAt descending (newest first)
+        state.importedData.importSnapshots.sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+      }
+
       migrateProfileData(state.importedData);
       saveImportedData((/** @type {any} */ (globalThis))._demoLoadingProfileId === state.currentProfile
         ? { skipSync: true, reason: 'demo-import' }
@@ -858,6 +880,24 @@ async function _importDatabaseBundle(json) {
           else { appendImportedArrayItem(current, 'chatSummaries', s); }
         }
       }
+      // Import snapshots: merge by stable snapshot id
+      if (Array.isArray(importData.importSnapshots)) {
+        const importSnapshots = ensureImportedArray(current, 'importSnapshots');
+        for (const snap of importData.importSnapshots) {
+          if (snap?.id) {
+            clearTombstone(current, 'importSnapshots', snap.id);
+            const idx = importSnapshots.findIndex(s => s.id === snap.id);
+            if (idx >= 0) {
+              const existingAt = Number(importSnapshots[idx]?.importedAt) || 0;
+              const incomingAt = Number(snap.importedAt) || 0;
+              if (incomingAt >= existingAt) replaceImportedArrayItem(current, 'importSnapshots', idx, snap);
+            } else {
+              appendImportedArrayItem(current, 'importSnapshots', snap);
+            }
+          }
+        }
+        sortImportedArray(current, 'importSnapshots', (a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+      }
       // Display overrides: merge labels/icons/manualValues (don't overwrite existing)
       for (const field of ['categoryLabels', 'categoryIcons', 'markerLabels', 'manualValues']) {
         if (importData[field] && typeof importData[field] === 'object') {
@@ -956,7 +996,7 @@ export async function clearAllData() {
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
     saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [] };
+    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [], importSnapshots: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database

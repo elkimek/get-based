@@ -62,8 +62,10 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
     pickTimestamp({ at: 10 }) === 10);
   assert('createdAt ISO strings are parsed for chat-summary freshness',
     pickTimestamp({ createdAt: '2026-05-31T04:00:00.000Z' }) === Date.parse('2026-05-31T04:00:00.000Z'));
-  assert('takenAt and addedAt are recognized for light tools/devices',
-    pickTimestamp({ takenAt: 70 }) === 70 && pickTimestamp({ addedAt: 80 }) === 80);
+  assert('takenAt, importedAt and addedAt are recognized for synced records',
+    pickTimestamp({ takenAt: 70 }) === 70
+      && pickTimestamp({ importedAt: 75 }) === 75
+      && pickTimestamp({ addedAt: 80 }) === 80);
   assert('falls back to Date.parse(date) when no numeric field',
     pickTimestamp({ date: '2026-04-15' }) === Date.parse('2026-04-15'));
   assert('returns 0 on totally bare record', pickTimestamp({}) === 0);

@@ -24,6 +24,12 @@ export const DELTA_ARRAY_CONFIG = {
   entries: {
     itemIdFn: (it) => (it && typeof it.date === 'string' && _isAllowlistSafeId(it.date)) ? it.date : null,
   },
+  // Import snapshots are user-visible per-file records with stable `id`s.
+  // Keep them in the configured set so blob merge and row overlay share the
+  // same tombstone-aware identity semantics.
+  importSnapshots: {
+    itemIdFn: (it) => (it && typeof it.id === 'string' && _isAllowlistSafeId(it.id)) ? it.id : null,
+  },
   // Supplements have no `.id`; hash stable identity fields so identical
   // pre-existing data derives the same itemId on each device.
   supplements: {

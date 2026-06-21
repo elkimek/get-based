@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.6', date: '2026-06-21', title: 'Per-file lab import storage',
+    forceShow: true,
+    items: [
+      '<b>Lab imports are now stored per file.</b> Each imported report gets its own saved import record, so you can review, edit, or delete one report without disturbing another report from the same lab date.',
+      '<b>Same-day reports are easier to manage.</b> If two PDFs share a date or overlap on a marker, getbased keeps the report history visible in Settings → Data and preserves the latest live values safely.',
+      '<b>Upgrade note for existing imports.</b> Reports imported before this release were saved in the older date-based storage. To move an old report into the new per-file storage, import that report again.',
+    ]
+  },
+  {
     version: '1.9.0', date: '2026-06-19', title: 'Biology Scores and Biological Coherence',
     items: [
       '<b>A new lens on your biology.</b> Biology Scores turn your labs into plain-English system patterns across metabolism, thyroid, cardiovascular health, inflammation, methylation, kidney and hydration, liver and bile flow, iron and blood health, hormones, stress resilience, cellular energy, gut-immune terrain, and more.',

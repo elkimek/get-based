@@ -5,45 +5,101 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setPIIReviewEnabled } from './utils.js';
 import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
 import { loadPdfImport } from './import-loader.js';
+import { isSnapshotDerivedHOMAIR } from './lab-entry.js';
 
 export function renderDataEntriesSection() {
+  const snapshots = state.importedData?.importSnapshots || [];
   const rawEntries = state.importedData?.entries || [];
   const entries = [];
   for (const entry of rawEntries) {
     if (Object.keys(entry?.markers || {}).length > 0) entries.push(entry);
   }
-  if (entries.length === 0) {
+  const hasSnapshots = snapshots.length > 0;
+  const hasEntries = entries.length > 0;
+  if (!hasSnapshots && !hasEntries) {
     return '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No data yet. Drop a PDF or JSON file on the dashboard, or add values manually.</div>';
   }
-  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-  const manualValues = state.importedData.manualValues || {};
+
   let html = '';
-  for (const entry of sorted) {
-    const d = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const cnt = Object.keys(entry.markers).length;
-    const entryMarkerKeys = Object.keys(entry.markers);
-    const manualCount = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]).length;
-    const isFullyManual = !entry.importedWith && manualCount === cnt;
-    const files = entry.sourceFiles || (entry.sourceFile ? [entry.sourceFile] : []);
-    const fileLabel = files.length > 0
-      ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px;border-bottom:1px dashed var(--text-muted);cursor:help" title="${escapeAttr(files.join('\n'))}">${files.length === 1 ? escapeHTML(files[0].length > 30 ? files[0].slice(0, 27) + '...' : files[0]) : files.length + ' files'}</span>`
-      : '';
-    const sourceLabel = isFullyManual
-      ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual entry</span>'
-      : entry.importedWith?.modelId
-        ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${escapeHTML(entry.importedWith.modelId)}</span>`
-        : manualCount > 0
-          ? `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">${manualCount} manual</span>`
-          : '';
-    const dateAttr = escapeAttr(entry.date);
-    html += `<div class="imported-entry">
-      <span class="ie-info"><span class="ie-date">${d}</span><span class="ie-count">${cnt} markers</span>${fileLabel}${sourceLabel}</span>
-      <div class="ie-actions">
-        <button class="ie-edit" data-settings-action="rename-imported-entry" data-entry-date="${dateAttr}" title="Edit collection date">Edit date</button>
-        <button class="ie-remove" data-settings-action="remove-imported-entry" data-entry-date="${dateAttr}">Remove</button>
-      </div>
-    </div>`;
+
+  if (hasSnapshots) {
+    const sortedSnapshots = [...snapshots].sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Imports</div>';
+    for (const snap of sortedSnapshots) {
+      const d = new Date((snap.date || '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const cnt = snap.markerCount || (snap.markers || []).length;
+      const fileName = snap.fileName || 'Unknown file';
+      const typeLabel = snap.type || 'import';
+      const modelLabel = snap.costInfo?.modelId ? `${snap.costInfo.modelId}` : '';
+      const importedLabel = Number.isFinite(snap.importedAt)
+        ? new Date(snap.importedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        : '';
+      const snapId = snap.id;
+      html += `<div class="imported-entry imported-entry-snapshot">
+        <div class="ie-info">
+          <div class="ie-mainline">
+            <span class="ie-date">${d}</span>
+            <span class="ie-count">${cnt} marker${cnt === 1 ? '' : 's'}</span>
+          </div>
+          <div class="ie-meta">
+            <span class="ie-file" title="${escapeAttr(fileName)}">${escapeHTML(fileName)}</span>
+            ${modelLabel ? `<span class="ie-model" title="${escapeAttr(modelLabel)}">${escapeHTML(modelLabel)}</span>` : ''}
+            <span class="ie-type">${escapeHTML(typeLabel)}</span>
+            ${importedLabel ? `<span class="ie-type" title="Imported time">${escapeHTML(importedLabel)}</span>` : ''}
+          </div>
+        </div>
+        <div class="ie-actions">
+          <button class="ie-edit" data-settings-action="review-import" data-snap-id="${escapeAttr(snapId)}" title="Review, edit values/units, and re-import without AI cost">Review & Edit</button>
+          <button class="ie-remove" data-settings-action="remove-import-snapshot" data-snap-id="${escapeAttr(snapId)}">Delete</button>
+        </div>
+      </div>`;
+    }
   }
+
+  const manualValues = state.importedData.manualValues || {};
+  const legacyEntries = [];
+  for (const entry of entries) {
+    const entryMarkerKeys = Object.keys(entry.markers || {});
+    const manualKeys = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]);
+    const manualNonSnapshotKeys = manualKeys.filter(k => {
+      if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+      return !entry.markerSources?.[k]?.snapshotId;
+    });
+    const legacyKeys = entryMarkerKeys.filter(k => {
+      if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+      const src = entry.markerSources?.[k];
+      return !src || !src.snapshotId;
+    });
+    const otherKeys = legacyKeys.length ? legacyKeys : manualNonSnapshotKeys;
+    const hasSnapshotMarkers = entryMarkerKeys.some(k => !!entry.markerSources?.[k]?.snapshotId);
+    if (otherKeys.length > 0) legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers });
+  }
+
+  if (legacyEntries.length > 0) {
+    const sortedLegacy = [...legacyEntries].sort((a, b) => a.entry.date.localeCompare(b.entry.date));
+    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 4px">Manual / legacy markers</div>';
+    for (const legacy of sortedLegacy) {
+      const { entry, otherKeys, manualKeys, hasSnapshotMarkers } = legacy;
+      const d = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const cnt = otherKeys.length;
+      const isManual = cnt > 0 && cnt === manualKeys.length;
+      const sourceLabel = isManual
+        ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual markers not tied to an import file</span>'
+        : `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">legacy markers not tied to an import file${entry.sourceFile ? ` · ${escapeHTML(entry.sourceFile)}` : ''}</span>`;
+      const dateAttr = escapeAttr(entry.date);
+      const editDateControl = hasSnapshotMarkers
+        ? '<span class="ie-count" title="Date is locked because this date also has AI-imported snapshots">Date locked</span>'
+        : `<button class="ie-edit" data-settings-action="rename-imported-entry" data-entry-date="${dateAttr}">Edit date</button>`;
+      html += `<div class="imported-entry">
+        <div class="ie-info"><div class="ie-mainline"><span class="ie-date">${d}</span><span class="ie-count">${cnt} marker${cnt === 1 ? '' : 's'}</span></div><div class="ie-meta">${sourceLabel}</div></div>
+        <div class="ie-actions">
+          ${editDateControl}
+          <button class="ie-remove" data-settings-action="remove-imported-entry" data-entry-date="${dateAttr}">Remove</button>
+        </div>
+      </div>`;
+    }
+  }
+
   html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="import-btn import-btn-primary" data-settings-action="share-profile">Share Profile</button>
     <button class="import-btn import-btn-secondary" data-settings-action="export-client">Export Client</button>

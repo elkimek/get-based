@@ -147,6 +147,7 @@ interface Window {
   handleChatKeydown?: AnyFunction;
   handleMtDNAFile?: (file: File) => Promise<void> | void;
   importDataJSON: (file: File) => Promise<void> | void;
+  deleteImportSnapshot?: (snapshotId: string) => Promise<boolean> | boolean;
   isDebugMode?: () => boolean;
   isImportRunning?: () => boolean;
   initChatImageHandlers: () => void;
@@ -190,6 +191,7 @@ interface Window {
   openEMFAssessmentEditor?: () => void;
   openSettingsModal: (tab?: string) => void;
   openChatProviderQuiz?: AnyFunction;
+  openImportReviewFromSnapshot?: (snapshotId: string) => void;
   pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
   openProfileLocationEditor?: AnyFunction;

@@ -981,8 +981,12 @@ select.import-unit-input {
     padding: 12px;
   }
   .import-review-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
     padding: 12px;
     flex-wrap: wrap;
+    box-shadow: 0 -8px 18px color-mix(in srgb, var(--bg-primary) 14%, transparent);
   }
   .import-review-actions .import-btn {
     flex: 1 1 calc(50% - 5px);

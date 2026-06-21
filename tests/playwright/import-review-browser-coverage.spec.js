@@ -747,7 +747,7 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
         && viewCalls.includes('updateHeaderDates')
         && viewCalls.includes('navigate:labs')
         && Array.from(document.querySelectorAll('.notification-toast.info'))
-          .some(toast => toast.textContent.includes('Removed imported data from 2026-01-03'));
+          .some(toast => toast.textContent.includes('Removed 1 marker from 2026-01-03'));
 
       outcomes.missingDateReturnsFalse = await persistence.removeImportedEntry('') === false
         && await persistence.renameImportedEntryDate('missing-date') === false;

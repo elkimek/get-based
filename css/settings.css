@@ -359,14 +359,21 @@
 
 /* Imported data entries */
 .imported-entry {
-  display: flex; align-items: center; justify-content: space-between;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center;
   padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 13px;
 }
-.imported-entry .ie-info { color: var(--text-secondary); }
+.imported-entry .ie-info { min-width: 0; color: var(--text-secondary); }
+.imported-entry .ie-mainline { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.imported-entry .ie-meta { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 3px; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+.imported-entry .ie-file,
+.imported-entry .ie-model { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imported-entry .ie-file { max-width: min(320px, 45vw); }
+.imported-entry .ie-model { max-width: min(260px, 35vw); }
+.imported-entry .ie-type { flex: 0 0 auto; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
 .imported-entry .ie-date { color: var(--text-primary); font-weight: 500; }
-.imported-entry .ie-count { color: var(--text-muted); margin-left: 8px; }
-.imported-entry .ie-actions { display: flex; align-items: center; gap: 4px; }
+.imported-entry .ie-count { flex: 0 0 auto; color: var(--text-muted); }
+.imported-entry .ie-actions { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 .imported-entry .ie-remove,
 .imported-entry .ie-edit {
   background: none; border: none; color: var(--text-muted); cursor: pointer;
@@ -374,6 +381,13 @@
 }
 .imported-entry .ie-remove:hover { color: var(--red); background: var(--red-bg); }
 .imported-entry .ie-edit:hover { color: var(--text-primary); background: var(--bg-hover); }
+@media (max-width: 640px) {
+  .imported-entry { grid-template-columns: 1fr; align-items: stretch; padding: 12px; }
+  .imported-entry .ie-meta { flex-wrap: wrap; }
+  .imported-entry .ie-file,
+  .imported-entry .ie-model { max-width: 100%; }
+  .imported-entry .ie-actions { justify-content: flex-start; flex-wrap: wrap; }
+}
 
 /* Settings sections */
 .settings-section { margin-top: 16px; }
