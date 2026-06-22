@@ -10,6 +10,7 @@
     "js/url-safety.js",
     "js/data-merge.js",
     "js/api-transport.js",
+    "js/api-provider-storage.js",
     "js/marker-detail-store.js",
     "js/health-goals-utils.js",
     "js/secondary-unit-conversions.js",
