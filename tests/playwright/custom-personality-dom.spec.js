@@ -155,6 +155,7 @@ test('custom personality generator fills prompt and preserves selected custom te
       export function getAIProvider() { return 'stub'; }
       export function getActiveModelDisplay() { return 'Stub Model'; }
       export function isVeniceE2EEActive() { return false; }
+      export function isPpqPrivateModeActive() { return false; }
       export async function callClaudeAPI(opts = {}) {
         opts.onStream?.('draft persona');
         return { text: '\\u{1F9CA}\\n\\nYou are a deliberate cold exposure coach.' };

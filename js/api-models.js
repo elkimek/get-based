@@ -20,6 +20,9 @@ import {
   getRoutstrModelDisplay,
   getPpqModel,
   getPpqModelDisplay,
+  isPpqPrivateModel,
+  isPpqPrivateModeActive,
+  syncPpqModelSelection,
   getCustomApiModel,
   getCustomApiModelDisplay,
 } from './api-provider-storage.js';
@@ -59,9 +62,9 @@ const OPENROUTER_RECOMMENDED = [
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
 const ROUTSTR_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.1-pro', 'grok-4'];
 
-// PPQ uses bare model IDs (same as Routstr).
-// private/ models are listed in API but require EHBP protocol, not standard completions.
+// PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
 const PPQ_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3-flash-preview', 'grok-4'];
+const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
 
 export function isRecommendedModel(provider, modelId) {
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelId.startsWith(prefix); });
@@ -72,7 +75,10 @@ export function isRecommendedModel(provider, modelId) {
     return /^(claude-(sonnet-4-6|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3(-1)?-pro|grok-4[1-9]?)(-|$)/.test(modelId);
   }
   if (provider === 'routstr') return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
-  if (provider === 'ppq') return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
+  if (provider === 'ppq') {
+    if (isPpqPrivateModel(modelId)) return PPQ_PRIVATE_RECOMMENDED.includes(modelId);
+    return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
+  }
   return false;
 }
 
@@ -248,7 +254,7 @@ export async function validateVeniceKey(key) {
 export function supportsWebSearch(provider = getAIProvider()) {
   if (provider === 'venice') return !isVeniceE2EEActive();
   if (provider === 'routstr') return false;
-  if (provider === 'ppq') return true;
+  if (provider === 'ppq') return !isPpqPrivateModeActive();
   if (provider === 'custom') return false;
   return provider === 'openrouter';
 }
@@ -280,7 +286,7 @@ export function supportsVision() {
   if (provider === 'ppq') {
     const modelId = getPpqModel();
     try {
-      const visionIds = JSON.parse(localStorage.getItem('labcharts-ppq-vision-models') || '[]');
+      const visionIds = JSON.parse(localStorage.getItem(isPpqPrivateModel(modelId) ? 'labcharts-ppq-private-vision-models' : 'labcharts-ppq-vision-models') || '[]');
       return visionIds.some(function(vid) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }

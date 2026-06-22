@@ -14,6 +14,7 @@ import {
   setCustomApiModel,
   setOpenRouterModel,
   setPpqModel,
+  setPpqPrivateMode,
   setRoutstrModel,
   setVeniceE2EE,
   setVeniceModel,
@@ -164,6 +165,25 @@ export function renderPpqModelDropdown(models) {
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
     '<select class="api-key-input" id="ppq-model-select" style="margin-top:4px" data-provider-panel-change="ppq-model">' + opts + '</select>' +
     '<div id="ppq-model-pricing" style="margin-top:4px">' + renderModelPricingHint('ppq', currentModel) + '</div>';
+}
+
+export function togglePpqPrivateMode(on) {
+  setPpqPrivateMode(on);
+  const listKey = on ? 'labcharts-ppq-private-models' : 'labcharts-ppq-models';
+  let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  if (models.length) {
+    const prevKey = on ? 'labcharts-ppq-model-regular' : 'labcharts-ppq-model-private';
+    const restoreKey = on ? 'labcharts-ppq-model-private' : 'labcharts-ppq-model-regular';
+    localStorage.setItem(prevKey, getPpqModel());
+    const restored = localStorage.getItem(restoreKey);
+    const newModel = restored && models.some(m => m.id === restored) ? restored : models[0].id;
+    setPpqModel(newModel);
+    renderPpqModelDropdown(models);
+  }
+  const el = document.getElementById('ppq-private-indicator');
+  if (el) el.style.display = on ? '' : 'none';
+  window.updateChatHeaderModel?.();
+  window.refreshWebSearchToggle?.();
 }
 
 export function updatePpqModelPricing(modelId) {

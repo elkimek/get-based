@@ -96,6 +96,11 @@ function semverGte(a, b) {
 }
 assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${versionMatch[1]}'` : 'not found');
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
+assert('latest changelog entry matches APP_VERSION', appVersion && changelogSrc.includes(`version: '${appVersion}'`));
+assert('latest changelog documents PPQ Private TEE in user-readable terms',
+  /version:\s*'1\.10\.8'[\s\S]{0,900}PPQ Private TEE Mode/.test(changelogSrc)
+    && /version:\s*'1\.10\.8'[\s\S]{0,900}encrypts prompts in your browser/.test(changelogSrc)
+    && /version:\s*'1\.10\.8'[\s\S]{0,900}No local proxy or extra setup/.test(changelogSrc));
 assert('SW imports version.js', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses template literal', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW APP_SHELL includes version.js', swSrc.includes("'/version.js'"));

@@ -15,6 +15,7 @@ getbased is licensed under [AGPL-3.0-or-later](LICENSE). The vendored and runtim
 | `bip39-minimal.js` | Custom (BIP-39 wordlist is public domain) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `chartjs-adapter-native.js` | Custom (in-house Chart.js date adapter) | — | AGPL-3.0-or-later (this project) | [LICENSE](LICENSE) |
 | `venice-e2ee.js` | Custom (uses [@noble/secp256k1](https://github.com/paulmillr/noble-secp256k1) MIT, [@noble/hashes](https://github.com/paulmillr/noble-hashes) MIT) | — | AGPL-3.0-or-later (this project); bundled noble libs MIT | https://github.com/paulmillr/noble-secp256k1/blob/main/LICENSE |
+| `ppq-private-tee.js`, `tinfoil-browser.js` | [Tinfoil JS](https://github.com/tinfoilsh/tinfoil-js) browser SecureClient bundle for PPQ Private TEE mode | 1.1.3 | AGPL-3.0-or-later | https://github.com/tinfoilsh/tinfoil-js/blob/main/LICENSE |
 | `evolu/evolu-bundle.js`, `evolu/Db.worker.js` | [Evolu](https://github.com/evoluhq/evolu) | bundled | MIT | https://github.com/evoluhq/evolu/blob/main/LICENSE |
 | `evolu/sqlite3.wasm`, `evolu/sqlite3-*.mjs` | [SQLite](https://www.sqlite.org/copyright.html) | bundled | Public Domain | https://www.sqlite.org/copyright.html |
 | `fonts/inter-*.woff2` | [Inter](https://github.com/rsms/inter) (Rasmus Andersson) | — | SIL OFL 1.1 | [vendor/fonts/OFL.txt](vendor/fonts/OFL.txt) |

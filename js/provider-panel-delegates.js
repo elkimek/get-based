@@ -40,7 +40,8 @@ const CLICK_ACTIONS = Object.freeze({
 const CHANGE_ACTIONS = Object.freeze({
   'openrouter-model': 'onOpenRouterDropdownChange',
   'venice-model': 'onVeniceModelDropdownChange',
-  'venice-e2ee': 'toggleVeniceE2EE'
+  'venice-e2ee': 'toggleVeniceE2EE',
+  'ppq-private-mode': 'togglePpqPrivateMode'
 });
 
 const MODEL_PRICING_ACTIONS = Object.freeze({
@@ -103,7 +104,7 @@ function _handleProviderPanelChange(event) {
   const pricingActions = MODEL_PRICING_ACTIONS[action];
 
   if (pricingActions) return _setModelAndPricing(pricingActions[0], pricingActions[1], el.value);
-  if (action === 'venice-e2ee') return _call(CHANGE_ACTIONS[action], !!el.checked);
+  if (action === 'venice-e2ee' || action === 'ppq-private-mode') return _call(CHANGE_ACTIONS[action], !!el.checked);
   if (CHANGE_ACTIONS[action]) return _call(CHANGE_ACTIONS[action], el.value);
   if (action === 'local-ai-model') {
     _call('setOllamaMainModel', el.value);
