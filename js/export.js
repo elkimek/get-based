@@ -964,6 +964,7 @@ export async function clearAllData() {
       // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
       // hits both backends so the IDB residue is also wiped.
       await encryptedRemoveItem(profileStorageKey(id, 'imported'));
+      await encryptedRemoveItem(profileStorageKey(id, 'imported-corrupt'));
       localStorage.removeItem(profileStorageKey(id, 'units'));
       localStorage.removeItem(profileStorageKey(id, 'suppOverlay'));
       localStorage.removeItem(profileStorageKey(id, 'noteOverlay'));
@@ -991,6 +992,10 @@ export async function clearAllData() {
       localStorage.removeItem(`labcharts-${id}-cycleTour`);
       localStorage.removeItem(`labcharts-${id}-phaseOverlay`);
       localStorage.removeItem(`labcharts-${id}-sync-ts`);
+      try {
+        const { deleteWearablesDB } = await import('./wearables-store.js');
+        await deleteWearablesDB(id);
+      } catch {}
     }
     // Reset to single default profile
     const defaultId = profiles[0]?.id || 'default';

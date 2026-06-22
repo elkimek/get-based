@@ -231,8 +231,8 @@ assert('Per-file import storage changelog is user-facing, not a technical fix lo
   !/Greptile|bugfix|bugfixes|production hardening|UI polish|tombstone|CRDT|manualValues|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.10.6'"), changelogSrc.indexOf("version: '1.9.0'"))));
 assert('Biology Scores changelog is announcement-style, not a technical fix log',
   !/Greptile|bugfix|bugfixes|production hardening|UI polish|stale explanation|sync|CRP\/hs-CRP|fixed|tightened before release/i.test(changelogSrc.slice(changelogSrc.indexOf("version: '1.9.0'"), changelogSrc.indexOf("version: '1.8.550'"))));
-assert('APP_VERSION is bumped for per-file lab import storage',
-  appVersion === '1.10.6', appVersion);
+assert('APP_VERSION is at least the per-file lab import storage release',
+  versionMatch && semverGte(appVersion, '1.10.6'), appVersion);
 assert('APP_VERSION is at least the Biology Scores main release',
   versionMatch && semverGte(appVersion, '1.9.0'), appVersion);
 

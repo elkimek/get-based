@@ -216,9 +216,18 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     const nested = {};
     dm.setAt(nested, 'lightEnvironment.rooms', [{ id: 'room-1' }]);
     dm.setAt(nested, '__proto__.polluted', true);
+    dm.setAt(nested, 'constructor.prototype.polluted', true);
+    dm.setAt(nested, 'prototype.polluted', true);
+    const inheritedPath = Object.create({ lightEnvironment: { rooms: [{ id: 'inherited' }] } });
+    dm.setAt(inheritedPath, 'lightEnvironment.rooms', [{ id: 'own-room' }]);
     outcomes.setAtCreatesNestedPaths = dm.getAt(nested, 'lightEnvironment.rooms.0.id') === 'room-1';
     outcomes.getAtReturnsUndefinedForNullRoot = dm.getAt(null, 'anything') === undefined;
+    outcomes.getAtIgnoresInheritedPath = dm.getAt(Object.create({ lightEnvironment: { rooms: [] } }), 'lightEnvironment.rooms') === undefined;
+    outcomes.setAtWritesOwnPathOverInherited = Object.prototype.hasOwnProperty.call(inheritedPath, 'lightEnvironment')
+      && inheritedPath.lightEnvironment.rooms[0].id === 'own-room';
     outcomes.setAtRejectsPrototypePollution = !({}).polluted;
+    outcomes.setAtReturnsFalseForFrozenTarget =
+      dm.setAt(Object.freeze({}), 'lightEnvironment.rooms', []) === false;
 
     const idsBlob = {};
     const firstNotes = dm.ensureImportedArray(idsBlob, 'notes');

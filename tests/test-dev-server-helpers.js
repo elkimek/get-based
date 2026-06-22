@@ -8,6 +8,7 @@
 //   - _isAllowedProxyUrl: vendor-allowlist shortcuts + HTTPS-public-host fallback
 //   - _resolveCatalogRepo: env-override path, symlink-to-other-repo path,
 //                       refusal to push the app repo when there's no symlink
+//   - _isValidCatalogShape: deploy-catalog shape parity with fetch-catalog
 //   - _runPostDeployHooks: end-to-end Deploy button hooks (git commit + push
 //                       in catalog repo, Vercel deploy hook trigger). Each
 //                       step gated on env config; downstream skipped when
@@ -28,6 +29,7 @@ import {
   WEARABLE_CLIENT_ID_VARS,
   DEFAULT_UVDATA_UPSTREAM,
   isSameOrigin,
+  _isValidCatalogShape,
   _isLoopbackSocket,
   _isHostOriginMatch,
   corsHeaders,
@@ -158,6 +160,17 @@ assert('CAMS dev proxy defaults to hosted getbased-uvdata',
     JSON.stringify(p));
 }
 
+console.log('\n── _isValidCatalogShape ──');
+
+assert('catalog shape requires slots and products',
+  _isValidCatalogShape({ slots: {}, products: {} }));
+assert('catalog shape does not require legacy shops key',
+  _isValidCatalogShape({ slots: {}, products: {}, vendors: {} }));
+assert('catalog shape rejects missing products',
+  !_isValidCatalogShape({ slots: {}, shops: [] }));
+assert('catalog shape rejects arrays and null',
+  !_isValidCatalogShape([]) && !_isValidCatalogShape(null));
+
 console.log('\n── _proxyHostBlocked ──');
 
 // Loopback / localhost
@@ -168,6 +181,10 @@ assert('blocks [::1]',         _proxyHostBlocked('[::1]'));
 assert('blocks .local TLD',    _proxyHostBlocked('server.local'));
 assert('blocks .localhost',    _proxyHostBlocked('foo.localhost'));
 assert('blocks 127/8 edges',   _proxyHostBlocked('127.255.255.254') && _proxyHostBlocked('127.0.0.42'));
+assert('blocks compressed IPv4-mapped private IPv6',
+  _proxyHostBlocked('::ffff:c0a8:101') && _proxyHostBlocked('::ffff:ac10:1'));
+assert('blocks 6to4 private IPv4 embeddings',
+  _proxyHostBlocked('2002:c0a8:0101::1') && _proxyHostBlocked('2002:0a00:0001::1'));
 
 // Private RFC1918
 assert('blocks 10.0.0.0/8',     _proxyHostBlocked('10.0.0.1') && _proxyHostBlocked('10.255.255.254'));
@@ -232,6 +249,8 @@ assert('allows custom HTTPS public host', _isAllowedProxyUrl('https://api.exampl
 assert('blocks HTTP (no TLS)',         !_isAllowedProxyUrl('http://api.example.com/v1/chat'));
 assert('blocks loopback',              !_isAllowedProxyUrl('https://localhost/admin'));
 assert('blocks private IP',            !_isAllowedProxyUrl('https://192.168.1.1/admin'));
+assert('blocks compressed IPv4-mapped private IP', !_isAllowedProxyUrl('https://[::ffff:c0a8:101]/admin'));
+assert('blocks 6to4 private IP',       !_isAllowedProxyUrl('https://[2002:c0a8:0101::1]/admin'));
 assert('blocks cloud metadata',        !_isAllowedProxyUrl('https://169.254.169.254/latest/meta-data/'));
 assert('blocks .local',                !_isAllowedProxyUrl('https://box.local/admin'));
 assert('blocks malformed URL',         !_isAllowedProxyUrl('not a url'));

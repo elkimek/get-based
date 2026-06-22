@@ -51,15 +51,25 @@ const ROOT = path.dirname(__filename);
 // the read-hash → writeFileSync critical section. Promise-chained queue:
 // each request's _deployCatalog body waits for the prior one to finish.
 let _deployLock = Promise.resolve();
+
+export function _isValidCatalogShape(parsed) {
+  return !!(
+    parsed
+    && typeof parsed === 'object'
+    && !Array.isArray(parsed)
+    && parsed.slots
+    && parsed.products
+  );
+}
+
 function _deployCatalog(body, req, res) {
   _deployLock = _deployLock.then(async () => {
     try {
       JSON.parse(body); // validate JSON shape
       const parsed = JSON.parse(body);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
-          || !parsed.slots || !parsed.shops) {
+      if (!_isValidCatalogShape(parsed)) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Invalid catalog shape: missing required slots/shops keys');
+        res.end('Invalid catalog shape: missing required slots/products keys');
         return;
       }
       const filePath = path.join(ROOT, 'data', 'recommendations.json');
@@ -323,15 +333,26 @@ export function _proxyHostBlocked(host) {
     if (v4Embed) return _proxyHostBlocked(v4Embed[1]);
     if (lower.startsWith('::ffff:')) {
       const tail = lower.slice(7);
-      const hex = tail.replace(/:/g, '');
-      if (/^[0-9a-f]{1,8}$/.test(hex)) {
-        const padded = hex.padStart(8, '0');
-        const a = parseInt(padded.slice(0, 2), 16);
-        const b = parseInt(padded.slice(2, 4), 16);
-        const c = parseInt(padded.slice(4, 6), 16);
-        const d = parseInt(padded.slice(6, 8), 16);
+      const groups = tail.split(':');
+      if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
+        const g0 = parseInt(groups[0], 16);
+        const g1 = parseInt(groups[1], 16);
+        const a = (g0 >> 8) & 0xff;
+        const b = g0 & 0xff;
+        const c = (g1 >> 8) & 0xff;
+        const d = g1 & 0xff;
         return _proxyHostBlocked(`${a}.${b}.${c}.${d}`);
       }
+    }
+    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
+    if (sixToFour) {
+      const g0 = parseInt(sixToFour[1], 16);
+      const g1 = parseInt(sixToFour[2], 16);
+      const a = (g0 >> 8) & 0xff;
+      const b = g0 & 0xff;
+      const c = (g1 >> 8) & 0xff;
+      const d = g1 & 0xff;
+      return _proxyHostBlocked(`${a}.${b}.${c}.${d}`);
     }
     return !/^[23][0-9a-f]{3}:/.test(lower);
   }

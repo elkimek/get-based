@@ -28,6 +28,8 @@ const {
   recordTombstone,
   recordArrayItemTombstone,
   clearTombstone,
+  getAt,
+  setAt,
   sortImportedArray,
   trimImportedArray,
   unionById,
@@ -90,6 +92,21 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
     assert(`tombstone path covers ${path}`, TOMBSTONE_ARRAY_PATHS.includes(path));
   }
   assert('entries is an explicit tombstone path', TOMBSTONE_ARRAY_PATHS.includes('entries'));
+
+  const inheritedPath = Object.create({ lightEnvironment: { rooms: [{ id: 'inherited' }] } });
+  assert('getAt ignores inherited path containers',
+    getAt(inheritedPath, 'lightEnvironment.rooms') === undefined);
+  setAt(inheritedPath, 'lightEnvironment.rooms', [{ id: 'own-room' }]);
+  assert('setAt writes own path containers over inherited values',
+    Object.prototype.hasOwnProperty.call(inheritedPath, 'lightEnvironment')
+      && inheritedPath.lightEnvironment.rooms[0].id === 'own-room');
+  setAt(inheritedPath, 'constructor.prototype.polluted', true);
+  setAt(inheritedPath, 'prototype.polluted', true);
+  setAt(inheritedPath, '__proto__.polluted', true);
+  assert('setAt rejects prototype-polluting path segments',
+    !({}).polluted);
+  assert('setAt returns false instead of throwing on frozen targets',
+    setAt(Object.freeze({}), 'lightEnvironment.rooms', []) === false);
 
   // ─── 2. unionById additivity ──────────────────────────────────────────
   console.log('%c 2. unionById additive merge ', 'font-weight:bold;color:#f59e0b');

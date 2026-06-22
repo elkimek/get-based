@@ -228,6 +228,7 @@ const APP_SHELL = [
   '/js/recommendations.js',
   '/js/recommendations-region.js',
   '/js/crypto.js',
+  '/js/data-wipe.js',
   '/js/backup.js',
   '/js/lab-context.js',
   '/js/markdown.js',
