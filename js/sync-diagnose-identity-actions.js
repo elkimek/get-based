@@ -165,6 +165,9 @@ export async function confirmRotateIdentity(btn) {
         applyBtn.textContent = 'Apply on this device';
         return;
       }
+      showNotification('Sync identity rotated. Enter the new mnemonic on your other devices to keep them syncing.', 'success');
+      cleanup();
+      return;
     } catch (e) {
       showNotification(`Apply failed: ${e?.message || e}`, 'error');
       applyBtn.disabled = false;
