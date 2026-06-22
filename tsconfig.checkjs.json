@@ -6,6 +6,7 @@
     "noResolve": true
   },
   "include": [
+    "types/globals.d.ts",
     "js/utils.js",
     "js/url-safety.js",
     "js/data-merge.js",
@@ -39,6 +40,7 @@
     "js/sync-diagnostics-context.js",
     "js/sync-diagnostics-text.js",
     "js/sync-diagnostics-snapshot.js",
-    "js/sync-diagnose-actions-context.js"
+    "js/sync-diagnose-actions-context.js",
+    "js/sync-diagnose-identity-actions.js"
   ]
 }
