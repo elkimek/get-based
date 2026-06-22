@@ -226,6 +226,8 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     outcomes.setAtWritesOwnPathOverInherited = Object.prototype.hasOwnProperty.call(inheritedPath, 'lightEnvironment')
       && inheritedPath.lightEnvironment.rooms[0].id === 'own-room';
     outcomes.setAtRejectsPrototypePollution = !({}).polluted;
+    outcomes.setAtReturnsFalseForFrozenTarget =
+      dm.setAt(Object.freeze({}), 'lightEnvironment.rooms', []) === false;
 
     const idsBlob = {};
     const firstNotes = dm.ensureImportedArray(idsBlob, 'notes');

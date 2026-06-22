@@ -153,7 +153,7 @@ assert('CAMS dev proxy defaults to hosted getbased-uvdata',
     'WITHINGS_CLIENT_SECRET=unquoted-value-with-dashes\n' +
     'ULTRAHUMAN_CLIENT_SECRET=\'single-quoted\'\n'
   );
-assert('real-world .env.local round-trips',
+  assert('real-world .env.local round-trips',
     p.OURA_CLIENT_SECRET === 'S3cr3tVal' &&
     p.WITHINGS_CLIENT_SECRET === 'unquoted-value-with-dashes' &&
     p.ULTRAHUMAN_CLIENT_SECRET === 'single-quoted',

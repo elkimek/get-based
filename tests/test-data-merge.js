@@ -105,6 +105,8 @@ const { DELTA_ARRAY_CONFIG } = await import('../js/sync-delta-surface-config.js'
   setAt(inheritedPath, '__proto__.polluted', true);
   assert('setAt rejects prototype-polluting path segments',
     !({}).polluted);
+  assert('setAt returns false instead of throwing on frozen targets',
+    setAt(Object.freeze({}), 'lightEnvironment.rooms', []) === false);
 
   // ─── 2. unionById additivity ──────────────────────────────────────────
   console.log('%c 2. unionById additive merge ', 'font-weight:bold;color:#f59e0b');

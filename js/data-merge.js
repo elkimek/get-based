@@ -359,6 +359,20 @@ function _splitSafePath(path) {
   return parts.every(_isSafePathSegment) ? parts : null;
 }
 
+function _defineDataProperty(obj, key, value) {
+  try {
+    Object.defineProperty(obj, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getAt(obj, path) {
   if (!obj) return undefined;
   const parts = _splitSafePath(path);
@@ -382,22 +396,11 @@ export function setAt(obj, path, value) {
     const p = parts[i];
     const existing = _hasOwn(cur, p) ? cur[p] : undefined;
     if (existing == null || typeof existing !== 'object') {
-      Object.defineProperty(cur, p, {
-        value: {},
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
+      if (!_defineDataProperty(cur, p, {})) return false;
     }
     cur = cur[p];
   }
-  Object.defineProperty(cur, parts[parts.length - 1], {
-    value,
-    enumerable: true,
-    configurable: true,
-    writable: true,
-  });
-  return true;
+  return _defineDataProperty(cur, parts[parts.length - 1], value);
 }
 
 function naturalItemId(path, item) {
