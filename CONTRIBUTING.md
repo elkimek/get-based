@@ -1,6 +1,6 @@
 # Contributing to getbased
 
-Thanks for wanting to help. This is the short version — the in-depth contributor docs live in [`dev-docs/`](dev-docs/).
+Thanks for wanting to help. This is the short version — the in-depth developer docs live in the Mintlify docs repo at [docs.getbased.health/developers](https://docs.getbased.health/developers). The local [`dev-docs/`](dev-docs/) directory is only a pointer.
 
 ---
 
@@ -24,7 +24,7 @@ Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server,
 ./run-tests.sh
 ```
 
-Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser suite. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See [`dev-docs/testing.md`](dev-docs/testing.md) for how the harness works.
+Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser suite. Exit code 0 = all pass. If you add a feature or fix a bug, add assertions to the relevant test file. See the [Testing developer doc](https://docs.getbased.health/developers/testing) for how the harness works.
 
 ---
 
@@ -40,7 +40,7 @@ Auto-starts a server, runs Vitest, the origin guard, and the Playwright browser 
 ## Architecture & deeper docs
 
 - **[CLAUDE.md](CLAUDE.md)** — the comprehensive architecture reference: data flow, every module, storage keys, the AI pipeline. Read it before any non-trivial change.
-- **[`dev-docs/`](dev-docs/)** — contributor guides: architecture, module reference, data pipeline, storage schema, testing, deployment, and more. Start at the [docs map](dev-docs/README.md).
+- **[Developer docs](https://docs.getbased.health/developers)** — architecture, module reference, data pipeline, storage schema, testing, deployment, and feature internals. Source lives in the separate `getbased-docs` Mintlify repo.
 
 ---
 

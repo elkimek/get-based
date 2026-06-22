@@ -122,10 +122,10 @@ get-based/
 │   └── lens-local*.js           #   Browser-local lens — per-library embedding model, OPFS vectors
 ├── tests/                      # Vitest helpers + Playwright browser assertions
 ├── .github/workflows/          # Tests on every PR / push
-└── docs/                       # User-facing documentation
+└── dev-docs/                   # Pointer to canonical developer docs in getbased-docs
 ```
 
-Open `index.html` (or start `node dev-server.js` for development) and the dashboard runs.
+Open `index.html` (or start `node dev-server.js` for development) and the dashboard runs. User and developer documentation live in the separate Mintlify docs repo at [docs.getbased.health](https://docs.getbased.health); `dev-docs/` is only a pointer so docs are not maintained twice.
 
 ### Related repos
 

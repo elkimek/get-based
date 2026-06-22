@@ -1,26 +1,10 @@
-# Contributor Docs
+# Developer documentation moved
 
-getbased is a zero-build, native ES module web app — no install step, no compiler, no bundler.
+The canonical developer documentation now lives in the Mintlify docs repo:
 
-**New here?** Start with [`../CONTRIBUTING.md`](../CONTRIBUTING.md) for setup, running locally, tests, and PR guidelines.
+- Public site path: https://docs.getbased.health/developers
+- Source repo path: `getbased-docs/developers/`
 
-## Primary reference
+This directory is intentionally only a pointer so getbased does not maintain two competing developer-doc surfaces. Update developer docs in `getbased-docs` next to the user docs, not here.
 
-**[CLAUDE.md](../CLAUDE.md)** is the comprehensive architecture reference: every module, the full data flow, all localStorage keys, the AI pipeline, and marker schema conventions. Read it before any non-trivial change.
-
-## Contributor docs map
-
-| Page | What it covers |
-|---|---|
-| [Architecture](./architecture.md) | Zero-build philosophy, file layout, 6-layer dependency graph |
-| [Module Reference](./module-reference.md) | All JS modules: exports, purpose, window bindings |
-| [Cross-Module Patterns](./cross-module-patterns.md) | Window exports, circular dep avoidance, state access |
-| [Context Assembly](./context-assembly.md) | How lab context is assembled for the AI |
-| [Data Pipeline](./data-pipeline.md) | `getActiveData()` walkthrough, marker keys, values arrays |
-| [Storage Schema](./storage-schema.md) | All localStorage keys, importedData structure, IndexedDB |
-| [Testing](./testing.md) | Headless test runner, `./run-tests.sh`, writing new assertions |
-| [Deployment](./deployment.md) | Vercel config, CSP, service worker cache, PWA |
-| [Sun Spectrum Model](./sun-spectrum-model.md) | Bird-Riordan spectral reconstruction for Light sessions |
-| [AI Surfaces Map](./ai-surfaces-map.md) | Canonical map of where AI runs vs deterministic math |
-| [Biology Scores](./biology-scores.md) | Biology Scores internals: score engine, context gate, adapters, sync, UI, tests |
-| [Lens Endpoint Contract](./lens-endpoint-contract.md) | Wire spec for a custom Knowledge Source server |
+For local setup and contribution rules, keep using [`../CONTRIBUTING.md`](../CONTRIBUTING.md). For agent handoff context, keep using [`../CLAUDE.md`](../CLAUDE.md).
