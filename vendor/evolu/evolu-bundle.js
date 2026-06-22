@@ -1,3 +1,4 @@
+// @ts-nocheck
 // node_modules/@evolu/common/dist/src/Array.js
 var isNonEmptyArray = (array2) => array2.length > 0;
 var isNonEmptyReadonlyArray = (array2) => array2.length > 0;

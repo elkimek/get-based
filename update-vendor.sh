@@ -18,6 +18,11 @@ JSZIP_VERSION="3.10.1"
 # bundler pass that produces a single resolved ESM. Tracked as phase 2c
 # in memory/project_browser_local_lens.md.
 # Google Fonts: no version pin — re-run to fetch latest files
+#
+# Manually bundled vendor files not downloaded here, including
+# vendor/evolu/evolu-bundle.js and vendor/venice-e2ee.js, must preserve
+# `// @ts-nocheck` as their first line when regenerated so checkJs does not
+# type-check third-party bundle internals.
 # ───────────────────────────────────────────────────────────────────────────
 
 VENDOR_DIR="vendor"

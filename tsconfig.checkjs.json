@@ -1,9 +1,8 @@
 {
-  "description": "Pilot checkJs config. noResolve is intentional for the initial narrow scope; remove it when expanding this check across module boundaries.",
+  "description": "Pilot checkJs config for selected JavaScript modules and their local dependency graph.",
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "checkJs": true,
-    "noResolve": true
+    "checkJs": true
   },
   "include": [
     "types/globals.d.ts",
