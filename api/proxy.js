@@ -54,20 +54,32 @@ function _isBlockedHost(host) {
     // IPv4-mapped/translated: ::ffff:a.b.c.d / ::ffff:0:a.b.c.d / ::a.b.c.d
     const v4Embed = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
     if (v4Embed) return _isBlockedHost(v4Embed[1]);
-    // IPv4-mapped hex form ::ffff:7f00:0001 etc — collapse and recheck via
-    // last 32 bits when it's a clear ::ffff: prefix.
+    // IPv4-mapped hex form ::ffff:7f00:0001 etc — parse each 16-bit
+    // group independently so compressed forms like ::ffff:c0a8:101 keep
+    // their byte boundaries (192.168.1.1, not 12.10.129.1).
     if (lower.startsWith('::ffff:')) {
       const tail = lower.slice(7);
-      // Hex pair → dotted quad if it looks like 0001:0002 etc.
-      const hex = tail.replace(/:/g, '');
-      if (/^[0-9a-f]{1,8}$/.test(hex)) {
-        const padded = hex.padStart(8, '0');
-        const a = parseInt(padded.slice(0, 2), 16);
-        const b = parseInt(padded.slice(2, 4), 16);
-        const c = parseInt(padded.slice(4, 6), 16);
-        const d = parseInt(padded.slice(6, 8), 16);
+      const groups = tail.split(':');
+      if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
+        const g0 = parseInt(groups[0], 16);
+        const g1 = parseInt(groups[1], 16);
+        const a = (g0 >> 8) & 0xff;
+        const b = g0 & 0xff;
+        const c = (g1 >> 8) & 0xff;
+        const d = g1 & 0xff;
         return _isBlockedHost(`${a}.${b}.${c}.${d}`);
       }
+    }
+    // 6to4 = 2002:WWXX:YYZZ::/48, with WWXX:YYZZ encoding IPv4.
+    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
+    if (sixToFour) {
+      const g0 = parseInt(sixToFour[1], 16);
+      const g1 = parseInt(sixToFour[2], 16);
+      const a = (g0 >> 8) & 0xff;
+      const b = g0 & 0xff;
+      const c = (g1 >> 8) & 0xff;
+      const d = g1 & 0xff;
+      return _isBlockedHost(`${a}.${b}.${c}.${d}`);
     }
     // Unknown / private IPv6 ranges we haven't enumerated — be safe and
     // allow only globally routable (2000::/3) IPv6 addresses through.

@@ -337,6 +337,9 @@ describe('AI proxy runtime behavior', () => {
       'https://169.254.169.254/latest/meta-data/',
       'https://168.63.129.16/metadata',
       'https://[::ffff:127.0.0.1]/private',
+      'https://[::ffff:c0a8:101]/private',
+      'https://[::ffff:ac10:1]/private',
+      'https://[2002:c0a8:0101::1]/private',
       'not a url',
     ]) {
       const response = await proxyHandler(makeProxyRequest({ url }));

@@ -468,13 +468,18 @@ function renderPassphraseForm(overlay, onSuccess) {
     document.getElementById('passphrase-forgot-cancel')?.addEventListener('click', () => {
       renderPassphraseForm(overlay, onSuccess);
     });
-    document.getElementById('passphrase-forgot-confirm')?.addEventListener('click', () => {
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('labcharts')) keysToRemove.push(k);
+    document.getElementById('passphrase-forgot-confirm')?.addEventListener('click', async () => {
+      try {
+        const { eraseAllLocalAppData } = await import('./data-wipe.js');
+        await eraseAllLocalAppData();
+      } catch {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('labcharts')) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
       }
-      keysToRemove.forEach(k => localStorage.removeItem(k));
       _sessionKey = null;
       overlay.style.display = 'none';
       overlay.innerHTML = '';

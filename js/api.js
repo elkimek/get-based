@@ -214,27 +214,38 @@ export async function getOpenRouterBalance() {
 
 // ─── OpenRouter OAuth PKCE ───
 export async function generatePKCE() {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  const codeVerifier = btoa(String.fromCharCode(...array)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-  const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const codeVerifier = _randomBase64Url(32);
+  const codeChallenge = await _sha256Base64Url(codeVerifier);
   return { codeVerifier, codeChallenge };
 }
 
-function _generateOAuthState() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+function _base64UrlFromBytes(bytes) {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function _randomBase64Url(byteLength) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return _base64UrlFromBytes(bytes);
+}
+
+async function _sha256Base64Url(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return _base64UrlFromBytes(new Uint8Array(digest));
+}
+
+function _generateOAuthState() {
+  return _randomBase64Url(16);
 }
 
 export async function startOpenRouterOAuth() {
   const { codeVerifier, codeChallenge } = await generatePKCE();
   const state = _generateOAuthState();
+  const stateDigest = await _sha256Base64Url(state);
   const previousProvider = sessionStorage.getItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY) || getAIProvider();
   if (_isValidAIProvider(previousProvider)) sessionStorage.setItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY, previousProvider);
   sessionStorage.setItem('or_pkce_verifier', codeVerifier);
-  sessionStorage.setItem('or_oauth_state', state);
+  sessionStorage.setItem('or_oauth_state', `sha256:${stateDigest}`);
   const callbackUrl = window.location.origin + window.location.pathname;
   // PKCE verifier-mismatch alone catches code-injection but not login-CSRF;
   // `state` binds the redirect to the tab that initiated it.
@@ -275,10 +286,15 @@ export async function exchangeOpenRouterCode(code, returnedState) {
   const expectedState = sessionStorage.getItem('or_oauth_state');
   if (!codeVerifier) throw new Error('Missing PKCE verifier. Please try connecting again.');
   // Some OAuth flows omit `state` on the way back; reject the exchange in
-  // that case rather than fail-open. If the user started before this state
-  // check existed, expectedState will also be null — that branch is safe to
-  // accept (the verifier still binds the request).
-  if (expectedState && returnedState !== expectedState) {
+  // that case rather than fail-open. New sessions store only a digest of the
+  // state; the raw comparison keeps older in-flight tabs from getting stranded.
+  const returnedStateDigest = typeof returnedState === 'string'
+    ? `sha256:${await _sha256Base64Url(returnedState)}`
+    : '';
+  const stateMatches = expectedState?.startsWith('sha256:')
+    ? returnedStateDigest === expectedState
+    : returnedState === expectedState;
+  if (expectedState && !stateMatches) {
     sessionStorage.removeItem('or_pkce_verifier');
     sessionStorage.removeItem('or_oauth_state');
     throw new Error('OAuth state mismatch — please try connecting again.');

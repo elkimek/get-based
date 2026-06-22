@@ -237,6 +237,7 @@ console.log('8. Service worker');
 try {
   const swText = read('service-worker.js');
   assert('Service worker contains /js/crypto.js', swText.includes('/js/crypto.js'));
+  assert('Service worker contains /js/data-wipe.js', swText.includes('/js/data-wipe.js'));
   assert('SW uses importScripts for version', swText.includes("importScripts('/version.js')"));
   assert('SW CACHE_NAME uses semver', swText.includes('`labcharts-v${self.APP_VERSION}`'));
 } catch (e) {
@@ -381,6 +382,7 @@ try {
   assert('Forgot passphrase does NOT use showConfirmDialog', !src.includes("forgotBtn.addEventListener('click', () => {\n    showConfirmDialog"));
   assert('Forgot passphrase has inline confirm UI', src.includes('passphrase-forgot-confirm'));
   assert('Forgot passphrase has Go Back button', src.includes('passphrase-forgot-cancel'));
+  assert('Forgot passphrase wipes IndexedDB-backed app data', src.includes("import('./data-wipe.js'") && src.includes('eraseAllLocalAppData'));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));

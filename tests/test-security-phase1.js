@@ -65,10 +65,13 @@ const apiSrc = read('js/api.js');
 assert('startOpenRouterOAuth sends state param',
   apiSrc.includes("&state=' + encodeURIComponent(state)"),
   'login-CSRF needs state, PKCE alone is insufficient');
-assert('startOpenRouterOAuth stores state in sessionStorage',
-  apiSrc.includes("sessionStorage.setItem('or_oauth_state', state)"));
-assert('exchangeOpenRouterCode verifies returned state',
-  apiSrc.includes('returnedState !== expectedState'));
+assert('startOpenRouterOAuth stores only a state digest in sessionStorage',
+  apiSrc.includes('const stateDigest = await _sha256Base64Url(state)')
+    && apiSrc.includes("sessionStorage.setItem('or_oauth_state', `sha256:${stateDigest}`)")
+    && !apiSrc.includes("sessionStorage.setItem('or_oauth_state', state)"));
+assert('exchangeOpenRouterCode verifies returned state digest and legacy state',
+  apiSrc.includes('returnedStateDigest === expectedState')
+    && apiSrc.includes('returnedState === expectedState'));
 assert('exchangeOpenRouterCode clears state on success and on mismatch',
   (apiSrc.match(/sessionStorage\.removeItem\('or_oauth_state'\)/g) || []).length >= 2);
 const startupOAuthSrc = read('js/startup-oauth-callbacks.js');

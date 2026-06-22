@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 
 import { updateKeyCache } from '../js/crypto.js';
 import {
@@ -36,6 +37,10 @@ function jsonResponse(body, init = {}) {
     status: init.status || 200,
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
   });
+}
+
+function sha256Base64Url(value) {
+  return createHash('sha256').update(value).digest('base64url');
 }
 
 function clearKeyCaches() {
@@ -216,6 +221,19 @@ describe('API provider runtime behavior', () => {
     expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({
       code: 'code-b',
       code_verifier: 'verifier-b',
+      code_challenge_method: 'S256',
+    });
+    expect(sessionStorage.getItem('or_pkce_verifier')).toBeNull();
+    expect(sessionStorage.getItem('or_oauth_state')).toBeNull();
+
+    sessionStorage.setItem('or_pkce_verifier', 'verifier-c');
+    sessionStorage.setItem('or_oauth_state', `sha256:${sha256Base64Url('state-c')}`);
+    fetch.mockResolvedValueOnce(jsonResponse({ key: 'sk-hashed' }));
+
+    await expect(exchangeOpenRouterCode('code-c', 'state-c')).resolves.toBe('sk-hashed');
+    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({
+      code: 'code-c',
+      code_verifier: 'verifier-c',
       code_challenge_method: 'S256',
     });
     expect(sessionStorage.getItem('or_pkce_verifier')).toBeNull();

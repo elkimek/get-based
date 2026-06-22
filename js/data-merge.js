@@ -341,34 +341,63 @@ export function preserveFreshLocalLabEntries(merged, local, now = Date.now()) {
 // Get/set helpers for the dotted path.
 // Exported so sync.js can plan deltas at nested paths (e.g.
 // `lightEnvironment.rooms`) without re-implementing the walk.
+const _hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+function _isSafePathSegment(segment) {
+  return (
+    typeof segment === 'string'
+    && segment !== ''
+    && segment !== '__proto__'
+    && segment !== 'constructor'
+    && segment !== 'prototype'
+  );
+}
+
+function _splitSafePath(path) {
+  if (typeof path !== 'string') return null;
+  const parts = path.split('.');
+  return parts.every(_isSafePathSegment) ? parts : null;
+}
+
 export function getAt(obj, path) {
   if (!obj) return undefined;
-  const parts = path.split('.');
+  const parts = _splitSafePath(path);
+  if (!parts) return undefined;
   let cur = obj;
   for (const p of parts) {
     if (cur == null || typeof cur !== 'object') return undefined;
+    if (!_hasOwn(cur, p)) return undefined;
     cur = cur[p];
   }
   return cur;
 }
-// Reject any path segment that would walk Object.prototype. setAt is only
-// called with allowlisted importedData paths, but defence-in-depth — a
-// future caller passing user input through here would otherwise enable
-// prototype pollution (the same class of bug `_isAllowlistSafeId` defends
-// against in sync.js). Mirrors that guard so both code paths agree.
-const _PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+// Reject any path segment that would walk Object.prototype. setAt currently
+// receives allowlisted importedData paths, but future caller mistakes should
+// fail closed instead of creating attacker-controlled prototype properties.
 export function setAt(obj, path, value) {
-  const parts = path.split('.');
-  for (const p of parts) {
-    if (_PROTO_KEYS.has(p)) return;
-  }
+  const parts = _splitSafePath(path);
+  if (!parts || !obj || typeof obj !== 'object') return false;
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const p = parts[i];
-    if (cur[p] == null || typeof cur[p] !== 'object') cur[p] = {};
+    const existing = _hasOwn(cur, p) ? cur[p] : undefined;
+    if (existing == null || typeof existing !== 'object') {
+      Object.defineProperty(cur, p, {
+        value: {},
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
     cur = cur[p];
   }
-  cur[parts[parts.length - 1]] = value;
+  Object.defineProperty(cur, parts[parts.length - 1], {
+    value,
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+  return true;
 }
 
 function naturalItemId(path, item) {
