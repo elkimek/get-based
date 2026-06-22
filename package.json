@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
+    "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
     "test:watch": "vitest"
   },
   "devDependencies": {

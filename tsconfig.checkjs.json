@@ -1,0 +1,15 @@
+{
+  "description": "Pilot checkJs config. noResolve is intentional for the initial narrow scope; remove it when expanding this check across module boundaries.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "checkJs": true,
+    "noResolve": true
+  },
+  "include": [
+    "js/utils.js",
+    "js/url-safety.js",
+    "js/data-merge.js",
+    "js/api-transport.js",
+    "js/marker-detail-store.js"
+  ]
+}
