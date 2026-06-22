@@ -47,6 +47,19 @@
     "js/sync-diagnose-actions.js",
     "js/sync-diagnose-render.js",
     "js/sync-diagnose-ui.js",
-    "js/sync-diagnostics.js"
+    "js/sync-diagnostics.js",
+    "js/sync-schema.js",
+    "js/sync-settings-state.js",
+    "js/sync-state.js",
+    "js/sync-environment.js",
+    "js/sync-tombstones.js",
+    "js/sync-relay-health.js",
+    "js/sync-disable-cleanup.js",
+    "js/sync-storage-cleanup.js",
+    "js/sync-recovery.js",
+    "js/sync-payload-collectors.js",
+    "js/sync-payload.js",
+    "js/sync-apply.js",
+    "js/sync-reconcile.js"
   ]
 }
