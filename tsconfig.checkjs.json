@@ -41,6 +41,12 @@
     "js/sync-diagnostics-text.js",
     "js/sync-diagnostics-snapshot.js",
     "js/sync-diagnose-actions-context.js",
-    "js/sync-diagnose-identity-actions.js"
+    "js/sync-diagnose-identity-actions.js",
+    "js/sync-diagnose-cutover-actions.js",
+    "js/sync-diagnose-relay-actions.js",
+    "js/sync-diagnose-actions.js",
+    "js/sync-diagnose-render.js",
+    "js/sync-diagnose-ui.js",
+    "js/sync-diagnostics.js"
   ]
 }
