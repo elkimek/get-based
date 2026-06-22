@@ -360,6 +360,14 @@ function _splitSafePath(path) {
 }
 
 function _defineDataProperty(obj, key, value) {
+  if (
+    typeof key !== 'string'
+    || key === '__proto__'
+    || key === 'constructor'
+    || key === 'prototype'
+  ) {
+    return false;
+  }
   try {
     Object.defineProperty(obj, key, {
       value,
