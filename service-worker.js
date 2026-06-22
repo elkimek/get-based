@@ -236,6 +236,7 @@ const APP_SHELL = [
   '/js/provider-panel-delegates.js',
   '/js/provider-wallet-runtime.js',
   '/js/provider-wallet-panels.js',
+  '/js/provider-wallet-funding-recovery.js',
   '/js/provider-wallet-delegates.js',
   '/js/provider-local-ai-controls.js',
   '/js/provider-ppq-panels.js',

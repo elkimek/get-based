@@ -74,7 +74,7 @@ const walletExports = [
   'getMintUrl', 'setMintUrl', 'generateWalletSeed', 'getWalletMnemonic',
   'hasWalletSeed', 'restoreWalletFromSeed', 'getWalletBalance',
   'createFundingInvoice', 'checkFundingStatus', 'receiveToken',
-  'depositToNode', 'recoverPendingDeposit', 'clearPendingDeposit',
+  'recoverPendingFunding', 'depositToNode', 'recoverPendingDeposit', 'clearPendingDeposit',
   'recoverPendingWithdraw', 'clearPendingWithdraw',
   'createWithdrawQuote', 'executeWithdraw', 'withdrawToAddress',
   'getMaxWithdrawable', 'sendAsToken', 'exportWallet', 'importWallet',
@@ -92,7 +92,7 @@ console.log('2. Cashu Wallet Window Exports');
 
 const windowExports = [
   'cashuGetBalance', 'cashuCreateFundingInvoice', 'cashuCheckFundingStatus',
-  'cashuReceiveToken', 'cashuDepositToNode', 'cashuExportWallet',
+  'cashuRecoverPendingFunding', 'cashuReceiveToken', 'cashuDepositToNode', 'cashuExportWallet',
   'cashuImportWallet', 'cashuClearWallet', 'cashuDestroyWalletDB',
   'cashuRecoverPendingDeposit', 'cashuClearPendingDeposit',
   'cashuRecoverPendingWithdraw', 'cashuClearPendingWithdraw',
@@ -241,6 +241,7 @@ assert('SW caches cashu-wallet.js', swSrc.includes('/js/cashu-wallet.js'));
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
+assert('SW caches provider-wallet-funding-recovery.js', swSrc.includes('/js/provider-wallet-funding-recovery.js'));
 assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
 assert('SW caches vendor/cashu-ts.js', swSrc.includes('/vendor/cashu-ts.js'));
 assert('SW caches vendor/bip39-minimal.js', swSrc.includes('/vendor/bip39-minimal.js'));

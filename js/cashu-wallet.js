@@ -22,6 +22,7 @@ const DB_VERSION = 2;
 const STORE_PROOFS = 'proofs';
 const STORE_META = 'meta';
 const STORE_FEES = 'fee-proofs';
+const PENDING_QUOTE_PREFIX = 'pendingQuote:';
 const cashuWindow = /** @type {Window & typeof globalThis & {
   cashuts?: any,
   bip39?: any,
@@ -237,6 +238,31 @@ async function _setMeta(key, value) {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+async function _deleteMeta(key) {
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_META, 'readwrite');
+    tx.objectStore(STORE_META).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function _getMetaEntries(prefix) {
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_META, 'readonly');
+    const req = tx.objectStore(STORE_META).getAll();
+    req.onsuccess = () => resolve((req.result || []).filter(item => typeof item.key === 'string' && item.key.startsWith(prefix)));
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function _isTerminalMintQuoteState(state) {
+  const normalized = String(state || '').toUpperCase();
+  return normalized === 'ISSUED' || normalized === 'EXPIRED';
 }
 
 async function _saveFeeProofs(proofs) {
@@ -481,7 +507,7 @@ export async function createFundingInvoice(amountSats) {
   if (currentBal + amountSats > MAX_WALLET_BALANCE) throw new Error('Would exceed ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
   const wallet = await _getWallet();
   const quote = await wallet.createMintQuoteBolt11(amountSats);
-  await _setMeta('pendingQuote:' + quote.quote, amountSats);
+  await _setMeta(PENDING_QUOTE_PREFIX + quote.quote, amountSats);
   return {
     quote: quote.quote,
     invoice: quote.request,
@@ -499,7 +525,8 @@ export async function checkFundingStatus(quoteId) {
     const wallet = await _getWallet();
     const checked = await wallet.checkMintQuoteBolt11(quoteId);
     if (checked.state === cashuts.MintQuoteState.PAID) {
-      const storedAmount = await _getMeta('pendingQuote:' + quoteId);
+      const pendingKey = PENDING_QUOTE_PREFIX + quoteId;
+      const storedAmount = await _getMeta(pendingKey);
       const amount = storedAmount || checked.amount || 0;
       if (!amount) throw new Error('Cannot determine invoice amount — please contact support');
       const proofs = await wallet.mintProofsBolt11(amount, quoteId);
@@ -515,10 +542,45 @@ export async function checkFundingStatus(quoteId) {
         await _saveProofs(proofs);
       }
       const balance = await getWalletBalance();
+      await _deleteMeta(pendingKey);
       return { paid: true, balance, minted: amount, fee };
     }
     return { paid: false, state: checked.state };
   });
+}
+
+/** Re-check pending Lightning wallet funding invoices and mint any paid quotes.
+ *  Keeps failed/unpaid quotes recoverable for later checks. */
+export async function recoverPendingFunding() {
+  const entries = await _getMetaEntries(PENDING_QUOTE_PREFIX);
+  const results = [];
+  const errors = [];
+  let recovered = 0;
+  let pending = 0;
+  let cleared = 0;
+  let balance = await getWalletBalance();
+
+  for (const entry of entries) {
+    const quoteId = entry.key.slice(PENDING_QUOTE_PREFIX.length);
+    const pendingKey = PENDING_QUOTE_PREFIX + quoteId;
+    try {
+      const result = await checkFundingStatus(quoteId);
+      results.push({ quote: quoteId, ...result });
+      if (result?.paid) {
+        recovered += Math.max(0, (Number(result.minted) || 0) - (Number(result.fee) || 0));
+        balance = result.balance;
+      } else if (_isTerminalMintQuoteState(result?.state)) {
+        await _deleteMeta(pendingKey);
+        cleared += 1;
+      } else {
+        pending += 1;
+      }
+    } catch (e) {
+      errors.push({ quote: quoteId, message: e?.message || String(e) });
+    }
+  }
+
+  return { checked: entries.length, recovered, pending, cleared, failed: errors.length, errors, balance, results };
 }
 
 /** Receive a Cashu token string (from external source).
@@ -928,6 +990,7 @@ Object.assign(window, {
   cashuCheckProofStates: checkProofStates,
   cashuCreateFundingInvoice: createFundingInvoice,
   cashuCheckFundingStatus: checkFundingStatus,
+  cashuRecoverPendingFunding: recoverPendingFunding,
   cashuReceiveToken: receiveToken,
   cashuDepositToNode: depositToNode,
   cashuExportWallet: exportWallet,

@@ -6,6 +6,7 @@ import { getRoutstrKey, saveRoutstrKey, fetchRoutstrModels, getRoutstrBalance } 
 import { isValidExternalUrl } from './url-safety.js';
 import { ensureQRCode } from './provider-qr.js';
 import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
+import { recoverPendingWalletFunding as recoverPendingWalletFundingImpl } from './provider-wallet-funding-recovery.js';
 import { configureRoutstrWalletRuntime, walletRuntime } from './provider-wallet-runtime.js';
 
 export { configureRoutstrWalletRuntime };
@@ -109,6 +110,7 @@ function _renderWalletFundUI() {
       ${presets.map(s => `<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="fund-wallet-preset" data-sats="${s}">\u26a1 ${s.toLocaleString()}</button>`).join('')}<div id="routstr-wfund-custom-slot" style="display:flex"><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;color:var(--text-muted)" data-routstr-wallet-action="fund-wallet-custom-input">\u26a1\u2026</button></div>
     </div>
     <div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:center">1,000 sats is enough for a few chats</div>
+    <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:6px;width:100%" data-routstr-wallet-action="recover-wallet-funding">Check pending Lightning deposits</button>
     <div style="margin-top:6px"><div class="or-oauth-divider"><span>${cashuFeeLabel}</span></div>
     <div style="display:flex;gap:6px;margin-top:4px">
       <input type="text" class="api-key-input" id="routstr-wcashu-input" placeholder="cashuA... / cashuB... / cashu:..." style="font-size:11px;flex:1;font-family:monospace">
@@ -171,17 +173,25 @@ export async function doRoutstrWalletFund(amountSats) {
         if (s && s.paid) {
           clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
           const feeText = s.fee ? ' (' + s.fee + ' fee)' : '';
-          const credited = s.fee ? (amountSats - s.fee) : amountSats;
+          const minted = Number(s.minted) || amountSats;
+          const credited = s.fee ? (minted - s.fee) : minted;
           statusEl.innerHTML = '<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--green)">\u2713 +' + credited.toLocaleString() + ' sats added to wallet!' + feeText + '</div>';
           showNotification('Wallet funded \u26a1 ' + credited.toLocaleString() + ' sats', 'success');
           _refreshRoutstrWalletBalance();
           setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
         }
-      } catch {}
+      } catch {
+        const poll = document.getElementById('routstr-wfund-poll');
+        if (poll) poll.innerHTML = '<span style="color:var(--red)">Payment check failed. Use "Check pending Lightning deposits" after payment confirms.</span>';
+      }
     }, 3000);
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
+}
+
+export async function recoverPendingWalletFunding() {
+  return recoverPendingWalletFundingImpl(walletRuntime, _refreshRoutstrWalletBalance);
 }
 
 export async function doRoutstrWalletReceiveCashu() {
@@ -767,6 +777,7 @@ installRoutstrWalletDelegates({
   rsWalletFundCustomInput,
   doRoutstrWalletFundCustom,
   doRoutstrWalletFund,
+  recoverPendingWalletFunding,
   doRoutstrWalletReceiveCashu,
   doRoutstrMintChange,
   showRoutstrWalletBackup,

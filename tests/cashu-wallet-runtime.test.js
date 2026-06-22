@@ -12,6 +12,7 @@ function installCashuStub() {
   const state = {
     receiveProofs: [proof('rx-1', 10)],
     meltQuotes: new Map(),
+    mintQuoteStates: new Map(),
     failMelt: false,
     instances: [],
   };
@@ -50,7 +51,8 @@ function installCashuStub() {
     }
 
     async checkMintQuoteBolt11(quoteId) {
-      return { state: 'PAID', amount: Number(String(quoteId).replace(/\D/g, '')) || 0 };
+      const quoteState = state.mintQuoteStates.get(quoteId) || 'PAID';
+      return { state: quoteState, amount: Number(String(quoteId).replace(/\D/g, '')) || 0 };
     }
 
     async mintProofsBolt11(amount, quoteId) {
@@ -85,7 +87,7 @@ function installCashuStub() {
 
   globalThis.cashuts = {
     Wallet,
-    MintQuoteState: { PAID: 'PAID' },
+    MintQuoteState: { PAID: 'PAID', ISSUED: 'ISSUED', EXPIRED: 'EXPIRED' },
     sumProofs,
     getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(p => p.secret).join(',')}`,
   };
@@ -177,6 +179,54 @@ describe('Cashu wallet runtime behavior', () => {
     expect(fetch.mock.calls.at(-1)[0]).toMatch(/^https:\/\/node\.getbased\.test\/v1\/balance\/create\?initial_balance_token=/);
     await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
+  });
+
+  it('recovers paid wallet funding quotes after reload and keeps unpaid quotes pending', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+
+    const paidFunding = await wallet.createFundingInvoice(12);
+    const reloadedWallet = await loadWallet();
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 12,
+      pending: 0,
+      failed: 0,
+      balance: 12,
+    });
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0 });
+    await expect(reloadedWallet.getWalletBalance()).resolves.toBe(12);
+
+    stub.mintQuoteStates.set('mint-9', 'UNPAID');
+    const unpaidFunding = await reloadedWallet.createFundingInvoice(9);
+    expect(unpaidFunding.quote).toBe('mint-9');
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 0,
+      pending: 1,
+      failed: 0,
+    });
+
+    stub.mintQuoteStates.set('mint-9', 'PAID');
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 9,
+      pending: 0,
+      failed: 0,
+      balance: 21,
+    });
+    stub.mintQuoteStates.set('mint-3', 'EXPIRED');
+    await reloadedWallet.createFundingInvoice(3);
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 0,
+      pending: 0,
+      cleared: 1,
+      failed: 0,
+    });
+    await expect(reloadedWallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0 });
+    expect(paidFunding.quote).toBe('mint-12');
   });
 
   it('auto-reduces lightning-address withdrawals and exposes failed melt recovery', async () => {

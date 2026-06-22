@@ -458,6 +458,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       'cashuCheckProofStates',
       'cashuCreateFundingInvoice',
       'cashuCheckFundingStatus',
+      'cashuRecoverPendingFunding',
       'cashuReceiveToken',
       'cashuGetMintUrl',
       'cashuSetMintUrl',
@@ -535,6 +536,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       window.cashuCheckProofStates = async () => 1400;
       window.cashuCreateFundingInvoice = async amount => ({ quote: `quote-${amount}`, invoice: `lnbc${amount}` });
       window.cashuCheckFundingStatus = async quote => ({ paid: quote === 'quote-1000', fee: 0, balance: 1500 });
+      window.cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 777, pending: 0, failed: 0, balance: 2277, errors: [] });
       window.cashuReceiveToken = async token => {
         if (token === 'cashuAfail') throw new Error('bad token');
         return { received: 321, fee: 0, balance: 1821 };
@@ -603,6 +605,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         cashuCheckProofStates: window.cashuCheckProofStates,
         cashuCreateFundingInvoice: window.cashuCreateFundingInvoice,
         cashuCheckFundingStatus: window.cashuCheckFundingStatus,
+        cashuRecoverPendingFunding: window.cashuRecoverPendingFunding,
         cashuReceiveToken: window.cashuReceiveToken,
         cashuGetMintUrl: window.cashuGetMintUrl,
         cashuSetMintUrl: window.cashuSetMintUrl,
@@ -646,6 +649,17 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       await wait(0);
       const fundCreatesInvoice = document.getElementById('routstr-wfund-poll')?.textContent.includes('Waiting for payment');
       await panels.clearRoutstrWalletTimers();
+      await panels.recoverPendingWalletFunding();
+      const recoversPendingFunding = document.getElementById('routstr-wfund-status')?.textContent.includes('777 sats recovered');
+      window.cashuRecoverPendingFunding = async () => ({ checked: 2, recovered: 500, pending: 0, failed: 1, balance: 2000, errors: [{ message: 'mint timeout' }] });
+      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+      await panels.recoverPendingWalletFunding();
+      const recoveryShowsMixedOutcome = document.getElementById('routstr-wfund-status')?.textContent.includes('500 sats recovered')
+        && document.getElementById('routstr-wfund-status')?.textContent.includes('1 deposit check failed');
+      window.cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 0, pending: 0, cleared: 1, failed: 0, balance: 2000, errors: [] });
+      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+      await panels.recoverPendingWalletFunding();
+      const recoveryShowsTerminalCleanup = document.getElementById('routstr-wfund-status')?.textContent.includes('1 completed or expired deposit cleared');
 
       const tokenInput = document.getElementById('routstr-wcashu-input');
       tokenInput.value = 'bad';
@@ -771,6 +785,9 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         refreshCashu,
         customRejectsMinimum,
         fundCreatesInvoice,
+        recoversPendingFunding,
+        recoveryShowsMixedOutcome,
+        recoveryShowsTerminalCleanup,
         receiveRejectsInvalid,
         receiveSuccessClosesFundArea,
         mintRendersNodeChoices,
@@ -865,6 +882,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         <textarea id="delegate-textarea" data-routstr-wallet-action="select-textarea">token</textarea>
         <button id="fund-preset" data-routstr-wallet-action="fund-wallet-preset" data-sats="100"></button>
         <button id="fund-custom" data-routstr-wallet-action="fund-wallet-custom-input"></button>
+        <button id="recover-funding" data-routstr-wallet-action="recover-wallet-funding"></button>
         <button id="receive-cashu" data-routstr-wallet-action="receive-wallet-cashu"></button>
         <button id="copy" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="cashu-copy" data-copied-text="Copied"></button>
         <button id="set-mint" data-routstr-wallet-action="set-mint-input" data-mint-url="https://mint.delegate.test"></button>
@@ -901,6 +919,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       delegates.installRoutstrWalletDelegates({
         doRoutstrWalletFund: amount => calls.push(['fund', amount]),
         rsWalletFundCustomInput: () => calls.push(['fundCustomInput']),
+        recoverPendingWalletFunding: () => calls.push(['recoverFunding']),
         doRoutstrWalletReceiveCashu: () => calls.push(['receiveCashu']),
         doRoutstrWalletFundCustom: () => calls.push(['fundCustom']),
         connectRoutstrNode: url => calls.push(['connectNode', url]),
@@ -924,6 +943,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       for (const id of [
         'fund-preset',
         'fund-custom',
+        'recover-funding',
         'receive-cashu',
         'copy',
         'set-mint',
@@ -963,6 +983,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       return {
         fundPreset: calls.some(item => item[0] === 'fund' && item[1] === 100),
         customInput: calls.some(item => item[0] === 'fundCustomInput'),
+        recoverFunding: calls.some(item => item[0] === 'recoverFunding'),
         receiveCashu: calls.some(item => item[0] === 'receiveCashu'),
         copyClipboard: clipboardWrites.includes('cashu-copy') && document.getElementById('copy').textContent === 'Copied',
         mintInputSet: document.getElementById('routstr-mint-input').value === 'https://mint.delegate.test',
