@@ -33,6 +33,9 @@ jobs:
       - name: Run typecheck
         run: npm run typecheck
 
+      - name: Run checkJs pilot
+        run: npm run typecheck:checkjs
+
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:

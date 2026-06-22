@@ -13,6 +13,7 @@ fi
 
 if [ "$SKIP_TYPECHECK" != "1" ] && [ "$SKIP_TYPECHECK" != "true" ]; then
   npm run typecheck || exit 1
+  npm run typecheck:checkjs || exit 1
 fi
 
 # Start server if not already running. nohup + disown fully detaches it
