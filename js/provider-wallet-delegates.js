@@ -66,6 +66,7 @@ async function _handleRoutstrWalletClick(event) {
 
   if (action === 'fund-wallet-preset') return _call('doRoutstrWalletFund', Number(el.dataset.sats));
   if (action === 'fund-wallet-custom-input') return _call('rsWalletFundCustomInput');
+  if (action === 'recover-wallet-funding') return _call('recoverPendingWalletFunding');
   if (action === 'receive-wallet-cashu') return _call('doRoutstrWalletReceiveCashu');
   if (action === 'copy-clipboard') return _copyClipboard(el);
   if (action === 'set-mint-input') return _setInputValue('routstr-mint-input', el.dataset.mintUrl || '');

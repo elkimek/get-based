@@ -53,6 +53,7 @@ assert('service worker precaches provider wallet delegate module',
 [
   'fund-wallet-preset',
   'fund-wallet-custom-input',
+  'recover-wallet-funding',
   'receive-wallet-cashu',
   'copy-clipboard',
   'set-mint-input',
