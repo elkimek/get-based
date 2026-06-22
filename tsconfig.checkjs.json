@@ -30,6 +30,15 @@
     "js/sync-delta-snapshot.js",
     "js/sync-delta-pull-snapshot.js",
     "js/sync-delta-telemetry.js",
-    "js/sync-delta-observability-context.js"
+    "js/sync-delta-observability-context.js",
+    "js/sync-delta-surfaces.js",
+    "js/sync-delta-registry.js",
+    "js/sync-delta-merge.js",
+    "js/sync-delta.js",
+    "js/sync-delta-observability.js",
+    "js/sync-diagnostics-context.js",
+    "js/sync-diagnostics-text.js",
+    "js/sync-diagnostics-snapshot.js",
+    "js/sync-diagnose-actions-context.js"
   ]
 }
