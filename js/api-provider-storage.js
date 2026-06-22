@@ -81,6 +81,10 @@ function veniceE2EEModelsCacheKnown() {
   return localStorage.getItem('labcharts-venice-e2ee-models') !== null;
 }
 
+function ppqPrivateModelsCacheKnown() {
+  return localStorage.getItem('labcharts-ppq-private-models') !== null;
+}
+
 export function modelSupportsVeniceE2EE(model) {
   const supports = model?.model_spec?.capabilities?.supportsE2EE;
   if (supports === true) return true;
@@ -202,9 +206,44 @@ export function setPpqModel(model) {
   markAISettingsLocal();
   notifyAISelectionChanged();
 }
+export function getPpqPrivateMode() { return localStorage.getItem('labcharts-ppq-private-mode') === 'on'; }
+export function setPpqPrivateMode(on) {
+  localStorage.setItem('labcharts-ppq-private-mode', on ? 'on' : 'off');
+  markAISettingsLocal();
+}
+export function isPpqPrivateModel(modelId) {
+  if (typeof modelId !== 'string') return false;
+  const privateModels = readStoredArray('labcharts-ppq-private-models');
+  if (ppqPrivateModelsCacheKnown()) return modelListHasId(privateModels, modelId);
+  return modelId.startsWith('private/');
+}
+export function isPpqPrivateModeActive() {
+  return isPpqPrivateModel(getPpqModel());
+}
+export function syncPpqModelSelection(regularModels, privateModels) {
+  const current = getPpqModel();
+  const privateOn = getPpqPrivateMode();
+  if (privateOn) {
+    if (privateModels.length && !modelListHasId(privateModels, current)) {
+      const saved = localStorage.getItem('labcharts-ppq-model-private');
+      const next = saved && modelListHasId(privateModels, saved) ? saved : privateModels[0].id;
+      setPpqModel(next);
+      localStorage.setItem('labcharts-ppq-model-private', next);
+    }
+    return;
+  }
+  if (regularModels.length && !modelListHasId(regularModels, current)) {
+    const saved = localStorage.getItem('labcharts-ppq-model-regular');
+    const next = saved && modelListHasId(regularModels, saved) ? saved : regularModels[0].id;
+    setPpqModel(next);
+  }
+}
 export function getPpqModelDisplay() {
   const id = getPpqModel();
-  const cached = readStoredArray('labcharts-ppq-models');
+  const cached = [
+    ...readStoredArray('labcharts-ppq-models'),
+    ...readStoredArray('labcharts-ppq-private-models')
+  ];
   const m = cached.find(function(x) { return x.id === id; });
   return m ? (m.name || m.id) : id;
 }

@@ -6,7 +6,7 @@ import {
   getVeniceKey, getOpenRouterKey,
   getVeniceModel, getOpenRouterModel,
   getRoutstrKey, getRoutstrModel,
-  getPpqKey, getPpqModel,
+  getPpqKey, getPpqModel, getPpqPrivateMode, isPpqPrivateModeActive,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
   getVeniceE2EE, setVeniceE2EE, isVeniceE2EEActive,
   getVeniceModelDisplay, getOpenRouterModelDisplay,
@@ -195,7 +195,10 @@ function renderVeniceProviderPanel() {
 function renderPpqProviderPanel() {
   const currentKey = getPpqKey();
   const ppqModel = getPpqModel();
-  const cachedPpqModels = readStoredArray('labcharts-ppq-models');
+  const cachedRegularPpqModels = readStoredArray('labcharts-ppq-models');
+  const cachedPrivatePpqModels = readStoredArray('labcharts-ppq-private-models');
+  const privateOn = getPpqPrivateMode();
+  const cachedPpqModels = privateOn && cachedPrivatePpqModels.length ? cachedPrivatePpqModels : cachedRegularPpqModels;
   let ppqModelHtml;
   if (cachedPpqModels.length > 0) {
     const opts = buildModelOptions('ppq', cachedPpqModels, ppqModel, function(m) { return m.name || m.id; });
@@ -225,6 +228,11 @@ function renderPpqProviderPanel() {
     </div>
     ${balanceHtml}
     ${ppqModelHtml}
+    ${cachedPrivatePpqModels.length ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="ppq-private-toggle" ${privateOn ? 'checked' : ''} data-provider-panel-change="ppq-private-mode"><span class="toggle-slider"></span></label>
+      <span style="font-size:13px">Private TEE Mode</span>
+    </div>
+    <div id="ppq-private-indicator" style="margin-top:6px;font-size:12px;${isPpqPrivateModeActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts are encrypted in your browser and decrypted only inside a verified PPQ/Tinfoil TEE. Web search is disabled.</div>` : ''}
     <div class="api-key-notice">Your key is stored locally. No account data is shared with getbased. <a href="https://ppq.ai/invite/8f3017cd" target="_blank" rel="noopener" style="color:var(--accent)">ppq.ai</a></div>
   </div>`;
 }

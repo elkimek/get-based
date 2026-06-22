@@ -7,7 +7,7 @@ import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML } from './utils.js';
 import {
   getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider,
-  isVeniceE2EEActive, supportsWebSearch,
+  isPpqPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
 } from './api.js';
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
 import { clearAttachments, getPendingAttachments, hasPendingAttachments } from './chat-images.js';
@@ -217,7 +217,8 @@ export async function sendChatMessage() {
   const _msgProvider = getAIProvider();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
-  const _msgE2EE = _msgProvider === 'venice' && isVeniceE2EEActive();
+  const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive()) || (_msgProvider === 'ppq' && isPpqPrivateModeActive());
+  const _msgAttestation = _msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation;
   const webSearchSupported = supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl = null;
@@ -301,7 +302,7 @@ export async function sendChatMessage() {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
       const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
       const webTag = webSearchEnabled ? ' \u00b7 \ud83c\udf10 web' : '';
-      const e2eeTag = _msgE2EE ? e2eeLockFootnote(window._veniceAttestation) : '';
+      const e2eeTag = _msgE2EE ? e2eeLockFootnote(_msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation) : '';
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
       footnote.innerHTML = `${escapeHTML(_msgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
@@ -315,7 +316,7 @@ export async function sendChatMessage() {
       assistantMsg.finishReason = aiResult.finishReason || 'length';
     }
     if (webSearchEnabled) assistantMsg.webSearch = true;
-    if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = window._veniceAttestation || null; }
+    if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = (_msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation) || _msgAttestation || null; }
     attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };

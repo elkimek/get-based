@@ -82,18 +82,43 @@ function _ppqBalanceHtml(balance) {
   return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
 }
 
+function _hasCachedPpqPrivateModels() {
+  try { return JSON.parse(localStorage.getItem('labcharts-ppq-private-models') || '[]').length > 0; }
+  catch { return false; }
+}
+
+function _rerenderPpqPanelIfPrivateControlsAppeared() {
+  if (document.getElementById('ppq-private-toggle') || !_hasCachedPpqPrivateModels()) return false;
+  const panel = document.getElementById('ai-provider-panel');
+  if (!panel || !panel.querySelector('#ppq-model-area')) return false;
+  panel.innerHTML = renderAIProviderPanel('ppq');
+  return true;
+}
+
+function _renderPpqBalanceValue(balance) {
+  const el = document.getElementById('ppq-balance');
+  if (el && balance != null) {
+    el.innerHTML = _ppqBalanceHtml(balance);
+    if (parseFloat(balance) === 0 && document.getElementById('ppq-topup-area')) showPpqTopup();
+  }
+  else if (el) el.textContent = 'Balance: unavailable';
+}
+
+function _refreshPpqBalanceDisplay() {
+  return getPpqBalance().then(_renderPpqBalanceValue);
+}
+
+function _renderPpqModelsAfterFetch(models) {
+  const rerendered = _rerenderPpqPanelIfPrivateControlsAppeared();
+  if (models.length) renderPpqModelDropdown(models);
+  if (rerendered) _refreshPpqBalanceDisplay();
+}
+
 export function initSettingsPpqPanel() {
   const ppqKey = getPpqKey();
   if (ppqKey && document.getElementById('ppq-model-area')) {
-    fetchPpqModels(ppqKey).then(function(models) { if (models.length) renderPpqModelDropdown(models); });
-    getPpqBalance().then(function(balance) {
-      const el = document.getElementById('ppq-balance');
-      if (el && balance != null) {
-        el.innerHTML = _ppqBalanceHtml(balance);
-        if (parseFloat(balance) === 0 && document.getElementById('ppq-topup-area')) showPpqTopup();
-      }
-      else if (el) el.textContent = 'Balance: unavailable';
-    });
+    fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch);
+    _refreshPpqBalanceDisplay();
   }
 }
 
@@ -160,12 +185,9 @@ export async function handleSavePpqKey() {
     await savePpqKey(key);
     status.innerHTML = '<span style="color:var(--green)">Connected \u2014 loading models\u2026</span>';
     const models = await fetchPpqModels(key);
-    if (models.length) {
-      renderPpqModelDropdown(models);
-      status.innerHTML = '<span style="color:var(--green)">\u2713 Connected</span>';
-    } else {
-      status.innerHTML = '<span style="color:var(--green)">\u2713 Connected</span>';
-    }
+    _renderPpqModelsAfterFetch(models);
+    const currentStatus = document.getElementById('ppq-key-status');
+    if (currentStatus) currentStatus.innerHTML = '<span style="color:var(--green)">\u2713 Connected</span>';
     showNotification('PPQ key saved', 'success');
     returnToChatIfOnboarding();
   } else {
@@ -184,9 +206,14 @@ export async function handleRemovePpqKey() {
     localStorage.removeItem('labcharts-ppq-key');
     updateKeyCache('labcharts-ppq-key', null);
     localStorage.removeItem('labcharts-ppq-models');
+    localStorage.removeItem('labcharts-ppq-private-models');
     localStorage.removeItem('labcharts-ppq-model');
+    localStorage.removeItem('labcharts-ppq-model-regular');
+    localStorage.removeItem('labcharts-ppq-model-private');
+    localStorage.removeItem('labcharts-ppq-private-mode');
     localStorage.removeItem('labcharts-ppq-pricing');
     localStorage.removeItem('labcharts-ppq-vision-models');
+    localStorage.removeItem('labcharts-ppq-private-vision-models');
     localStorage.removeItem('labcharts-ppq-credit-id');
     showNotification('PPQ key removed', 'info');
     window.openSettingsModal?.();

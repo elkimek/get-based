@@ -421,6 +421,8 @@ const APP_SHELL = [
   '/vendor/bip39-minimal.js',
   '/vendor/cashu-ts.js',
   '/vendor/venice-e2ee.js',
+  '/vendor/ppq-private-tee.js',
+  '/vendor/tinfoil-browser.js',
   '/vendor/evolu/evolu-bundle.js',
   '/vendor/evolu/Db.worker.js',
   '/vendor/evolu/sqlite3-bundler-friendly.mjs',

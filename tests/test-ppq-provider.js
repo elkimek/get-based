@@ -25,6 +25,9 @@ await import('../js/provider-panels.js');
 const panelsSrc = read('js/provider-panels.js');
 const ppqSrc = read('js/provider-ppq-panels.js');
 const swSrc = read('service-worker.js');
+const apiSrc = read('js/api.js');
+const rendererSrc = read('js/provider-panel-renderers.js');
+const delegatesSrc = read('js/provider-panel-delegates.js');
 
 console.log('1. Extraction boundary');
 assert('PPQ panel module exists', ppqSrc.includes('provider-ppq-panels.js'));
@@ -44,6 +47,33 @@ assert('PPQ module owns top-up picker', ppqSrc.includes('function showPpqTopup()
 assert('PPQ module owns invoice polling', ppqSrc.includes('checkPpqTopupStatus(invoiceId)'));
 assert('PPQ module owns QR generation', ppqSrc.includes('ensureQRCode()'));
 assert('PPQ key removal keeps balance warning', ppqSrc.includes('This account has $') && ppqSrc.includes('showConfirmDialog(msg)'));
+assert('PPQ key removal clears private-mode caches',
+  ppqSrc.includes("localStorage.removeItem('labcharts-ppq-private-models')")
+    && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-private-vision-models')")
+    && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-private-mode')")
+    && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-model-private')"));
+assert('PPQ Private branch uses Tinfoil wrapper', apiSrc.includes("import('../vendor/ppq-private-tee.js')") && apiSrc.includes('callPpqPrivateAPI'));
+assert('PPQ Tinfoil wrapper clears stale failed readiness',
+  read('vendor/ppq-private-tee.js').includes('catch (e)')
+    && read('vendor/ppq-private-tee.js').includes('clearPpqPrivateClient();')
+    && read('vendor/ppq-private-tee.js').includes('throw e;'));
+assert('PPQ Private transport uses secure fetch and attestation',
+  apiSrc.includes('createPpqPrivateFetch({ apiBase: \'https://api.ppq.ai\' })')
+    && apiSrc.includes('fetchImpl: secure.fetch')
+    && apiSrc.includes('fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)')
+    && apiSrc.includes('apiWindow._ppqAttestation = secure.verification')
+    && apiSrc.includes('{ ...opts, webSearch: false }')
+    && apiSrc.includes("'https://api.ppq.ai/private/v1/chat/completions'"));
+assert('PPQ private cache is gated on API-listed private entitlement',
+  apiSrc.includes('const privateModels = privateFromApi')
+    && !apiSrc.includes('privateFromApi.length ? privateFromApi : PPQ_PRIVATE_MODELS'));
+assert('PPQ Private Mode toggle renders in provider panel', rendererSrc.includes('ppq-private-toggle') && rendererSrc.includes('Private TEE Mode'));
+assert('PPQ Private Mode change is delegated', delegatesSrc.includes("'ppq-private-mode': 'togglePpqPrivateMode'"));
+assert('PPQ model fetch rerenders panel when private controls become available', ppqSrc.includes('_rerenderPpqPanelIfPrivateControlsAppeared') && ppqSrc.includes('fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch)'));
+assert('PPQ model fetch rerender only touches the PPQ panel', ppqSrc.includes("panel.querySelector('#ppq-model-area')"));
+assert('PPQ panel rerender refreshes balance on the new DOM', ppqSrc.includes('if (rerendered) _refreshPpqBalanceDisplay();'));
+assert('PPQ private transport wrapper exists', read('vendor/ppq-private-tee.js').includes('createPpqPrivateFetch'));
+assert('PPQ Tinfoil browser bundle exists', read('vendor/tinfoil-browser.js').includes('var SecureClient = class'));
 
 console.log('\n3. Runtime exports');
 assert('window.handleCreatePpqAccount exported', typeof window.handleCreatePpqAccount === 'function');
@@ -56,6 +86,7 @@ assert('window.cancelPpqTopup exported', typeof window.cancelPpqTopup === 'funct
 
 console.log('\n4. App shell');
 assert('service worker caches PPQ module', swSrc.includes("'/js/provider-ppq-panels.js'"));
+assert('service worker caches PPQ private TEE vendor files', swSrc.includes("'/vendor/ppq-private-tee.js'") && swSrc.includes("'/vendor/tinfoil-browser.js'"));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

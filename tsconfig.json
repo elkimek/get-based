@@ -11,6 +11,7 @@
     "strict": false
   },
   "include": [
+    "types/globals.d.ts",
     "js/adapters.js",
     "js/app-ai-interaction-modules.js",
     "js/app-data-io-modules.js",

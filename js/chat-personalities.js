@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
-import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isVeniceE2EEActive } from './api.js';
+import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isVeniceE2EEActive, isPpqPrivateModeActive } from './api.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
@@ -268,9 +268,11 @@ export function updateChatHeaderModel() {
   }
   if (!hasAIProvider()) { el.textContent = ''; return; }
   const display = getActiveModelDisplay();
-  const e2ee = getAIProvider() === 'venice' && isVeniceE2EEActive();
-  if (e2ee) {
-    el.innerHTML = escapeHTML(display) + e2eeLockHTML(window._veniceAttestation);
+  const provider = getAIProvider();
+  const e2ee = provider === 'venice' && isVeniceE2EEActive();
+  const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();
+  if (e2ee || ppqPrivate) {
+    el.innerHTML = escapeHTML(display) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
   } else {
     el.textContent = display;
   }

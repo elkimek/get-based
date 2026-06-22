@@ -5,6 +5,20 @@ import { escapeAttr } from './utils.js';
 
 export function attestationTooltip(attestation) {
   if (!attestation) return 'TEE attestation: no data';
+  if (attestation.securityVerified != null || attestation.codeFingerprint || attestation.enclaveFingerprint) {
+    const ok = !!attestation.securityVerified;
+    const fp = attestation.codeFingerprint ? String(attestation.codeFingerprint).slice(0, 16) + '\u2026' : 'unknown';
+    const host = attestation.enclaveHost || attestation.selectedRouterEndpoint || 'unknown';
+    const lines = [
+      `Security verified: ${ok ? '\u2713' : '\u2717'}`,
+      `Enclave: ${host}`,
+      `Code fingerprint: ${fp}`,
+      attestation.steps?.verifyCode?.status ? `Code: ${attestation.steps.verifyCode.status}` : null,
+      attestation.steps?.verifyEnclave?.status ? `Enclave attestation: ${attestation.steps.verifyEnclave.status}` : null,
+      attestation.steps?.compareMeasurements?.status ? `Measurement match: ${attestation.steps.compareMeasurements.status}` : null,
+    ].filter(Boolean);
+    return (ok ? 'TEE attestation verified' : 'TEE attestation FAILED') + '\n' + lines.join('\n');
+  }
   const ok = attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
   const lines = [
     `Nonce: ${attestation.nonceVerified ? '\u2713' : '\u2717'}`,
@@ -22,7 +36,9 @@ function attestationTitle(attestation) {
 
 export function e2eeLockHTML(attestation) {
   if (!attestation) return ' \uD83D\uDD12';
-  const ok = attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
+  const ok = attestation.securityVerified != null
+    ? !!attestation.securityVerified
+    : attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
   const color = ok ? '#22c55e' : '#ef4444';
   const mark = ok ? '\u2713' : '\u2717';
   return ` <span title="${attestationTitle(attestation)}">\uD83D\uDD12<span style="color:${color};font-weight:bold">${mark}</span></span>`;
@@ -30,7 +46,9 @@ export function e2eeLockHTML(attestation) {
 
 export function e2eeLockFootnote(attestation) {
   if (!attestation) return ' \u00b7 \uD83D\uDD12 e2ee';
-  const ok = attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
+  const ok = attestation.securityVerified != null
+    ? !!attestation.securityVerified
+    : attestation.nonceVerified && attestation.signingKeyBound && !attestation.debugMode;
   const color = ok ? '#22c55e' : '#ef4444';
   const mark = ok ? '\u2713' : '\u2717';
   return ` \u00b7 <span title="${attestationTitle(attestation)}">\uD83D\uDD12<span style="color:${color};font-weight:bold">${mark}</span> e2ee</span>`;

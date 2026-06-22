@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.8', date: '2026-06-22', title: 'Private PPQ chat with verified end-to-end encryption',
+    forceShow: true,
+    items: [
+      '<b>PPQ Private TEE Mode is now built in.</b> If you use PPQ for AI, you can switch on a private mode that encrypts prompts in your browser and decrypts them only inside a verified Tinfoil secure enclave.',
+      '<b>No local proxy or extra setup required.</b> getbased connects directly to PPQ\'s private endpoint from the app, so the normal provider setup, model picker, balance display, and top-up flow stay in one place.',
+      '<b>Clearer privacy signals.</b> Private models are labeled separately, chat shows the lock/attestation state when the secure path is active, and web search is disabled in private mode so prompts do not leak into external search tools.',
+    ]
+  },
+  {
     version: '1.10.6', date: '2026-06-21', title: 'Per-file lab import storage',
     forceShow: true,
     items: [
