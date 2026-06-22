@@ -1,3 +1,4 @@
+// @ts-nocheck
 // node_modules/@noble/secp256k1/index.js
 var secp256k1_CURVE = {
   p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn,
