@@ -14,6 +14,8 @@
     "js/health-goals-utils.js",
     "js/secondary-unit-conversions.js",
     "js/markdown.js",
+    "js/lens-local-utils.js",
+    "js/lens-local-parsers.js",
     "js/sync-delta-id.js",
     "js/sync-delta-row-codec.js",
     "js/sync-delta-merge-shapes.js",
