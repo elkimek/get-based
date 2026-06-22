@@ -138,7 +138,8 @@ const _scriptLoads = new Map(); // src → Promise
  * @returns {Promise<void>}
  */
 function loadScript(src) {
-  if (_scriptLoads.has(src)) return _scriptLoads.get(src);
+  const cached = _scriptLoads.get(src);
+  if (cached) return cached;
   // Already on the page? (Main app preloads pdf.js for the PDF-import
   // pipeline, so the <script> tag is there before we need it.)
   if ([...document.scripts].some((s) => s.src.endsWith(src))) {
@@ -148,7 +149,7 @@ function loadScript(src) {
   const p = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = src;
-    s.onload = () => resolve();
+    s.onload = () => resolve(undefined);
     s.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(s);
   });
