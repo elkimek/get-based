@@ -12,6 +12,8 @@
     "js/api-transport.js",
     "js/api-provider-storage.js",
     "js/api-models.js",
+    "js/provider-model-controls.js",
+    "js/provider-panel-renderers.js",
     "js/marker-detail-store.js",
     "js/health-goals-utils.js",
     "js/secondary-unit-conversions.js",
