@@ -146,6 +146,7 @@ const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNod
 const nodeRefundSrc = nodeRefundIdx >= 0 ? walletPanelSrc.slice(nodeRefundIdx) : '';
 assert('Node refund token saved before wallet receive', nodeRefundSrc.includes('cashuSavePendingWithdrawToken') && nodeRefundSrc.indexOf('cashuSavePendingWithdrawToken') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
 assert('Node refund success only clears matching pending-withdraw record', nodeRefundSrc.includes('const savedPendingWithdraw =') && nodeRefundSrc.includes('if (savedPendingWithdraw !== false) await walletRuntime.cashuClearPendingWithdraw?.()'));
+assert('Node refund retry button preserves unrelated pending-withdraw records', nodeRefundSrc.includes('data-clear-pending-withdraw="') && nodeRefundSrc.includes("(savedPendingWithdraw !== false ? 'true' : 'false')"));
 assert('Saved node refund never overwrites existing withdraw recovery token', walletSrc.includes('if (existing?.token) return false'));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));

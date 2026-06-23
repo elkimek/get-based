@@ -493,7 +493,7 @@ export async function doRoutstrNodeWithdraw() {
         '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Your sats are in this Cashu token. Copy it before changing anything. Error: ' + escapeHTML(importError?.message || String(importError)) + '</div>' +
         '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:48px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-text">' + escapeHTML(token) + '</textarea>' +
         '<div style="display:flex;gap:4px;margin-top:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-withdraw" data-token="' + escapeAttr(token) + '">Try Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-withdraw" data-clear-pending-withdraw="' + (savedPendingWithdraw !== false ? 'true' : 'false') + '" data-token="' + escapeAttr(token) + '">Try Recover to Wallet</button>' +
         '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
         '</div></div>';
     }

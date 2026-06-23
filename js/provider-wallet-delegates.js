@@ -139,7 +139,7 @@ async function _recoverPendingDeposit(el) {
 async function _recoverPendingWithdraw(el) {
   try {
     await globalThis.cashuReceiveToken?.(el.dataset.token || '');
-    await globalThis.cashuClearPendingWithdraw?.();
+    if (el.dataset.clearPendingWithdraw !== 'false') await globalThis.cashuClearPendingWithdraw?.();
     await _call('clearRoutstrNodeSession');
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();

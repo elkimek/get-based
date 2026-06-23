@@ -892,6 +892,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         <button id="set-mint" data-routstr-wallet-action="set-mint-input" data-mint-url="https://mint.delegate.test"></button>
         <button id="recover" data-routstr-wallet-action="recover-pending-deposit" data-token="cashuArecover"></button>
         <button id="recover-withdraw" data-routstr-wallet-action="recover-pending-withdraw" data-token="cashuWithdrawRecover"></button>
+        <button id="recover-withdraw-preserve" data-routstr-wallet-action="recover-pending-withdraw" data-clear-pending-withdraw="false" data-token="cashuWithdrawRecover"></button>
         <button id="deposit-input" data-routstr-wallet-action="deposit-node-input" data-node-url="https://node.delegate.test"></button>
         <button id="deposit-preset" data-routstr-wallet-action="deposit-node-preset" data-node-url="https://node.delegate.test" data-amount="77"></button>
         <button id="node-deposit" data-routstr-wallet-action="node-action" data-node-action="deposit" data-node-url="https://node.delegate.test"></button>
@@ -958,6 +959,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         'deposit-preset',
         'recover',
         'recover-withdraw',
+        'recover-withdraw-preserve',
         'node-deposit',
         'node-withdraw',
         'node-browse',
@@ -1000,8 +1002,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           && document.getElementById('routstr-deposit-amount').value === '77',
         recoverAttempted: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuArecover'),
         recoverWithdrawClearsSession: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuWithdrawRecover')
-          && calls.some(item => item[0] === 'clearPendingWithdraw')
-          && calls.some(item => item[0] === 'clearRoutstrNodeSession'),
+          && calls.filter(item => item[0] === 'clearPendingWithdraw').length === 1
+          && calls.filter(item => item[0] === 'clearRoutstrNodeSession').length >= 2,
         nodeActions: ['deposit', 'withdraw', 'browse'].every(action => calls.some(item => item[0] === 'activeNode' && item[1] === action)),
         walletActions: ['walletFund', 'walletWithdraw', 'walletSeed', 'walletBackup'].every(name => calls.some(item => item[0] === name)),
         seedChangeAndContinue: document.getElementById('routstr-seed-continue').disabled === false
