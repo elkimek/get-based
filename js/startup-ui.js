@@ -27,6 +27,15 @@ function callStartupRuntime(name, ...args) {
   return fn.apply(runtime, args);
 }
 
+function requireStartupRuntime(name, ...args) {
+  const runtime = startupRuntime();
+  const fn = runtime[name];
+  if (typeof fn !== 'function') {
+    throw new TypeError(`Startup runtime function ${name} is not available`);
+  }
+  return fn.apply(runtime, args);
+}
+
 export function renderStartupUI() {
   // Prime sync state for UI, but let Evolu boot after first paint. Its
   // worker/OPFS startup is expensive and should not block dashboard LCP.
@@ -36,7 +45,7 @@ export function renderStartupUI() {
   populateFooterVersion();
   buildSidebar();
   renderSyncIndicator();
-  callStartupRuntime('navigate', callStartupRuntime('getInitialView') || 'dashboard');
+  requireStartupRuntime('navigate', callStartupRuntime('getInitialView') || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
   const legalGateShown = scheduleStartupNudges();
   if (legalGateShown) {
@@ -101,12 +110,12 @@ function scheduleStartupNudges() {
 function openDeferredStartupDestinations() {
   const openSettingsAfterInit = getStartupRuntimeValue('_openSettingsAfterInit');
   if (openSettingsAfterInit) {
-    callStartupRuntime('openSettingsModal', openSettingsAfterInit);
+    requireStartupRuntime('openSettingsModal', openSettingsAfterInit);
     delete startupRuntime()._openSettingsAfterInit;
   }
   if (getStartupRuntimeValue('_openChatAfterInit')) {
     delete startupRuntime()._openChatAfterInit;
-    setTimeout(() => callStartupRuntime('openChatPanel'), 500);
+    setTimeout(() => requireStartupRuntime('openChatPanel'), 500);
   }
 }
 
@@ -118,7 +127,7 @@ function refreshStartupChrome() {
 
 function initializeChatAttachments() {
   // Init chat image attachment handlers (paste, drag-drop, file input).
-  callStartupRuntime('initChatImageHandlers');
-  callStartupRuntime('updateAttachButtonVisibility');
-  callStartupRuntime('updateChatNudge');
+  requireStartupRuntime('initChatImageHandlers');
+  requireStartupRuntime('updateAttachButtonVisibility');
+  requireStartupRuntime('updateChatNudge');
 }
