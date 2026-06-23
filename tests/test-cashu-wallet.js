@@ -7,10 +7,10 @@
 //
 // Run: node tests/test-cashu-wallet.js  (or via npm test)
 //
-// Full port — no DOM. vendor/cashu-ts.js is an IIFE that `var cashuts = …`
-// (module-scoped under import(), global under a browser <script>); indirect
-// eval replicates the script-tag global assignment. vendor/bip39-minimal.js
-// self-assigns to globalThis. Source-inspection reads via an fs-backed shim.
+// Full port — no DOM. vendor/cashu-ts.js is an IIFE that assigns
+// globalThis.cashuts. Indirect eval replicates the script-tag global assignment.
+// vendor/bip39-minimal.js self-assigns to globalThis. Source-inspection reads
+// via an fs-backed shim.
 
 import './_node-shim.js';
 
@@ -42,8 +42,7 @@ console.log('=== Cashu Wallet + Nostr Discovery Tests ===\n');
 
 await import('../js/state.js');
 await import('../js/crypto.js');
-// vendor/cashu-ts.js is an IIFE-style bundle (`var cashuts = (…)()`). Under
-// ES-module import() the `var` is module-scoped and never reaches the global;
+// vendor/cashu-ts.js is an IIFE-style bundle assigning globalThis.cashuts;
 // indirect eval runs it in global scope, exactly as a browser <script> does.
 (0, eval)(read('vendor/cashu-ts.js'));
 // bip39-minimal.js self-assigns to globalThis.bip39.
