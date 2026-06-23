@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-coverage-planner.js — shared Coverage Planner data model for UI and chat prompts.
 
 import { contextOnlyNeedsMoreData } from './biology-score-engine.js';

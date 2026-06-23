@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-sections.js — question and embedded AI answer sections for Biology Scores.
 
 import { saveImportedData } from './data.js';

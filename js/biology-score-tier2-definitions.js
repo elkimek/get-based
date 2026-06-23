@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-tier2-definitions.js — contextual Biology Score definitions for recovery and immune patterning.
 
 export const TIER2_BIOLOGY_SCORE_DEFINITIONS = [

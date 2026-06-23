@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-copy.js — user-facing questions and panel expectations for Biology Scores.
 
 export const BIOLOGY_SCORE_COPY = {
