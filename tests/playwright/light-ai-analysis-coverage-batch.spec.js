@@ -797,6 +797,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         ? { circadian: 90, nir_solar: 50 }
         : { circadian: 180, nir_solar: 90 };
       window.rollingVitaminDIU = () => 900;
+      todayAI.configureLightTodayAI({
+        solarZenithAngle: window.solarZenithAngle,
+        rollingChannelTotals: window.rollingChannelTotals,
+        rollingDeviceTotals: window.rollingDeviceTotals,
+        rollingVitaminDIU: window.rollingVitaminDIU,
+      });
       window.weeklyChannelTier = (value, key) => {
         if (key === 'vitamin_d' && value >= 250) return 3;
         if (value >= 260) return 4;
@@ -982,6 +988,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       window.rollingChannelTotals = saved.rollingChannelTotals;
       window.rollingDeviceTotals = saved.rollingDeviceTotals;
       window.rollingVitaminDIU = saved.rollingVitaminDIU;
+      todayAI.configureLightTodayAI({
+        solarZenithAngle: saved.solarZenithAngle,
+        rollingChannelTotals: saved.rollingChannelTotals,
+        rollingDeviceTotals: saved.rollingDeviceTotals,
+        rollingVitaminDIU: saved.rollingVitaminDIU,
+      });
       window.weeklyChannelTier = saved.weeklyChannelTier;
       window.tierLabel = saved.tierLabel;
       window.getSessions = saved.getSessions;
