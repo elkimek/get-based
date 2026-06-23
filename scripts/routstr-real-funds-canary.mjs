@@ -78,17 +78,30 @@ async function preflightCanaryProfileReset() {
   const { context, page } = await openApp(USER_DATA_DIR);
   try {
     const state = await page.evaluate(async () => {
+      const required = [
+        'cashuGetBalance',
+        'cashuRecoverPendingFunding',
+        'cashuRecoverPendingDeposit',
+        'cashuRecoverPendingWithdraw',
+      ];
+      const missing = required.filter(name => typeof window[name] !== 'function');
+      if (missing.length) return { inspectError: 'missing wallet APIs: ' + missing.join(', ') };
       const safe = async (fn) => { try { return await fn(); } catch (e) { return { error: e?.message || String(e) }; } };
       return {
-        walletBalance: await safe(async () => Number(await window.cashuGetBalance?.()) || 0),
-        pendingDeposit: await safe(async () => !!(await window.cashuRecoverPendingDeposit?.())),
-        pendingWithdraw: await safe(async () => !!(await window.cashuRecoverPendingWithdraw?.())),
+        walletBalance: await safe(async () => Number(await window.cashuGetBalance()) || 0),
+        pendingFunding: await safe(async () => {
+          const result = await window.cashuRecoverPendingFunding();
+          return !!(result && (result.checked || result.pending || result.recovered || result.failed || result.cleared));
+        }),
+        pendingDeposit: await safe(async () => !!(await window.cashuRecoverPendingDeposit())),
+        pendingWithdraw: await safe(async () => !!(await window.cashuRecoverPendingWithdraw())),
         hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
       };
     });
-    const inspectError = ['walletBalance', 'pendingDeposit', 'pendingWithdraw'].find(k => state[k]?.error);
+    if (state.inspectError) throw new Error(`Refusing to reset canary profile: ${state.inspectError}`);
+    const inspectError = ['walletBalance', 'pendingFunding', 'pendingDeposit', 'pendingWithdraw'].find(k => state[k]?.error);
     if (inspectError) throw new Error(`Refusing to reset canary profile: could not inspect ${inspectError}: ${state[inspectError].error}`);
-    if (state.walletBalance > 0 || state.pendingDeposit || state.pendingWithdraw || state.hasRoutstrKey) {
+    if (state.walletBalance > 0 || state.pendingFunding || state.pendingDeposit || state.pendingWithdraw || state.hasRoutstrKey) {
       throw new Error('Refusing to reset non-empty real-funds canary profile: ' + JSON.stringify(state));
     }
   } finally {
@@ -213,6 +226,9 @@ async function resume() {
         pendingWithdraw: !!(await window.cashuRecoverPendingWithdraw()),
       }));
       log('PASS final state', finalState);
+      if (finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw) {
+        throw new Error('Final canary state is not clean: ' + JSON.stringify(finalState));
+      }
       if (final.errors.length) log('WARN final_browser_errors_redacted', final.errors.map(redactText).slice(-10));
     } finally {
       await final.context.close();

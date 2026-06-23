@@ -64,6 +64,7 @@ const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
 const swSrc = await fetchWithRetry('service-worker.js');
+const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
 
 // ═══════════════════════════════════════
 // 1. CASHU WALLET — MODULE EXPORTS
@@ -256,9 +257,19 @@ assert('SW caches vendor/cashu-ts.js', swSrc.includes('/vendor/cashu-ts.js'));
 assert('SW caches vendor/bip39-minimal.js', swSrc.includes('/vendor/bip39-minimal.js'));
 
 // ═══════════════════════════════════════
-// 14. VENDOR LIBRARIES
+// 14. REAL-FUNDS CANARY SAFETY
 // ═══════════════════════════════════════
-console.log('14. Vendor Libraries');
+console.log('14. Real-Funds Canary Safety');
+
+assert('Real-funds canary preflight checks pending funding before profile reset', canarySrc.includes('cashuRecoverPendingFunding') && canarySrc.includes('pendingFunding') && canarySrc.includes('Refusing to reset non-empty real-funds canary profile'));
+assert('Real-funds canary reset guard fails closed when wallet APIs are missing', canarySrc.includes('missing wallet APIs') && canarySrc.includes('Refusing to reset canary profile'));
+assert('Real-funds canary final state asserts clean pending/key invariants', canarySrc.includes('Final canary state is not clean') && canarySrc.includes('finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw'));
+assert('Real-funds canary avoids same persistent profile double-open during roundtrip', canarySrc.indexOf('await context.close();') < canarySrc.indexOf('const tokenRoundtrip = await tokenRoundtripAndSeedRestore();'));
+
+// ═══════════════════════════════════════
+// 15. VENDOR LIBRARIES
+// ═══════════════════════════════════════
+console.log('15. Vendor Libraries');
 
 assert('cashuts global available', typeof window.cashuts === 'object' || typeof window.cashuts === 'function');
 assert('bip39 global available', typeof window.bip39 === 'object');
