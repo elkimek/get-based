@@ -7,10 +7,10 @@
 //
 // Run: node tests/test-cashu-wallet.js  (or via npm test)
 //
-// Full port — no DOM. vendor/cashu-ts.js is an IIFE that `var cashuts = …`
-// (module-scoped under import(), global under a browser <script>); indirect
-// eval replicates the script-tag global assignment. vendor/bip39-minimal.js
-// self-assigns to globalThis. Source-inspection reads via an fs-backed shim.
+// Full port — no DOM. vendor/cashu-ts.js is an IIFE that assigns
+// globalThis.cashuts. Indirect eval replicates the script-tag global assignment.
+// vendor/bip39-minimal.js self-assigns to globalThis. Source-inspection reads
+// via an fs-backed shim.
 
 import './_node-shim.js';
 
@@ -42,8 +42,7 @@ console.log('=== Cashu Wallet + Nostr Discovery Tests ===\n');
 
 await import('../js/state.js');
 await import('../js/crypto.js');
-// vendor/cashu-ts.js is an IIFE-style bundle (`var cashuts = (…)()`). Under
-// ES-module import() the `var` is module-scoped and never reaches the global;
+// vendor/cashu-ts.js is an IIFE-style bundle assigning globalThis.cashuts;
 // indirect eval runs it in global scope, exactly as a browser <script> does.
 (0, eval)(read('vendor/cashu-ts.js'));
 // bip39-minimal.js self-assigns to globalThis.bip39.
@@ -65,6 +64,7 @@ const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
 const swSrc = await fetchWithRetry('service-worker.js');
+const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
 
 // ═══════════════════════════════════════
 // 1. CASHU WALLET — MODULE EXPORTS
@@ -257,9 +257,20 @@ assert('SW caches vendor/cashu-ts.js', swSrc.includes('/vendor/cashu-ts.js'));
 assert('SW caches vendor/bip39-minimal.js', swSrc.includes('/vendor/bip39-minimal.js'));
 
 // ═══════════════════════════════════════
-// 14. VENDOR LIBRARIES
+// 14. REAL-FUNDS CANARY SAFETY
 // ═══════════════════════════════════════
-console.log('14. Vendor Libraries');
+console.log('14. Real-Funds Canary Safety');
+
+assert('Real-funds canary preflight checks pending funding before profile reset', canarySrc.includes('pendingFunding') && canarySrc.includes('pendingQuote:') && canarySrc.includes('Refusing to reset non-empty real-funds canary profile'));
+assert('Real-funds canary pending funding preflight is pure IDB inspection', canarySrc.includes("indexedDB.open('getbased-cashu')") && canarySrc.includes("db.transaction('meta', 'readonly')") && canarySrc.includes("startsWith('pendingQuote:')"));
+assert('Real-funds canary reset guard fails closed when wallet APIs are missing', canarySrc.includes('missing wallet APIs') && canarySrc.includes('Refusing to reset canary profile'));
+assert('Real-funds canary final state asserts clean pending/key invariants', canarySrc.includes('Final canary state is not clean') && canarySrc.includes('finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw'));
+assert('Real-funds canary avoids same persistent profile double-open during roundtrip', canarySrc.indexOf('await context.close();') < canarySrc.indexOf('const tokenRoundtrip = await tokenRoundtripAndSeedRestore();'));
+
+// ═══════════════════════════════════════
+// 15. VENDOR LIBRARIES
+// ═══════════════════════════════════════
+console.log('15. Vendor Libraries');
 
 assert('cashuts global available', typeof window.cashuts === 'object' || typeof window.cashuts === 'function');
 assert('bip39 global available', typeof window.bip39 === 'object');
@@ -268,9 +279,9 @@ assert('bip39.validateMnemonic exists', typeof window.bip39?.validateMnemonic ==
 assert('bip39.mnemonicToSeed exists', typeof window.bip39?.mnemonicToSeed === 'function');
 
 // ═══════════════════════════════════════
-// 15. SETTINGS UI — WALLET PANEL
+// 16. SETTINGS UI — WALLET PANEL
 // ═══════════════════════════════════════
-console.log('15. Settings UI');
+console.log('16. Settings UI');
 
 assert('Wallet section in Routstr panel', providerRenderSrc.includes('routstr-wallet-balance'));
 assert('Mint label display', providerRenderSrc.includes('routstr-mint-label'));
@@ -303,9 +314,9 @@ assert('Cashu token withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawTo
 assert('Provider QR helper lazy-loads QR library', providerQrSrc.includes('loadScriptOnce') && providerQrSrc.includes('/vendor/qrcode-generator.js'));
 
 // ═══════════════════════════════════════
-// 16. BIP-39 SEED GENERATION
+// 17. BIP-39 SEED GENERATION
 // ═══════════════════════════════════════
-console.log('16. BIP-39 Seed Generation');
+console.log('17. BIP-39 Seed Generation');
 
 const mnemonic = await window.bip39.generateMnemonic(128);
 const words = mnemonic.split(' ');
@@ -319,12 +330,12 @@ const mnemonic2 = await window.bip39.generateMnemonic(128);
 assert('Two generations differ', mnemonic !== mnemonic2);
 
 // ═══════════════════════════════════════
-// 17. SSRF VALIDATION WIRING (setMintUrl + setSelectedNodeUrl)
+// 18. SSRF VALIDATION WIRING (setMintUrl + setSelectedNodeUrl)
 // ═══════════════════════════════════════
 // The shared validator (js/url-safety.js) is exhaustively unit-tested via
 // test-sun-uvdata.js. This section verifies the *wiring* at the two new call
 // sites actually invokes it.
-console.log('17. SSRF Validation Wiring');
+console.log('18. SSRF Validation Wiring');
 
 const wallet = await import('../js/cashu-wallet.js');
 const discovery = await import('../js/nostr-discovery.js');

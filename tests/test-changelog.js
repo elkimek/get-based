@@ -98,7 +98,12 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog documents PPQ Private TEE in user-readable terms',
+assert('latest changelog documents Routstr wallet upgrade in user-readable terms',
+  /version:\s*'1\.10\.15'[\s\S]{0,1200}Routstr wallet upgrades are safer/.test(changelogSrc)
+    && /version:\s*'1\.10\.15'[\s\S]{0,1200}Funding and refund recovery is better protected/.test(changelogSrc)
+    && /version:\s*'1\.10\.15'[\s\S]{0,1200}wallet engine was refreshed/.test(changelogSrc)
+    && /version:\s*'1\.10\.15'[\s\S]{0,400}forceShow:\s*true/.test(changelogSrc));
+assert('previous changelog documents PPQ Private TEE in user-readable terms',
   /version:\s*'1\.10\.8'[\s\S]{0,900}PPQ Private TEE Mode/.test(changelogSrc)
     && /version:\s*'1\.10\.8'[\s\S]{0,900}encrypts prompts in your browser/.test(changelogSrc)
     && /version:\s*'1\.10\.8'[\s\S]{0,900}No local proxy or extra setup/.test(changelogSrc));

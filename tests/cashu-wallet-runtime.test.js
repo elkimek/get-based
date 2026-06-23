@@ -404,6 +404,79 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.getWalletBalance()).resolves.toBe(5);
   });
 
+  it('keeps existing user wallet DB, pending recovery state, counters, and Routstr session compatible after reload', async () => {
+    await seedExistingUserCashuState({
+      mintUrl: 'https://mint.existing.test/Bitcoin',
+      proofs: [proof('legacy-proof-a', 31), proof('legacy-proof-b', 19)],
+      pendingQuote: { quote: 'legacy-paid-quote', amount: 12 },
+      pendingDeposit: 'cashu:https://mint.existing.test/Bitcoin:7:pending-deposit-secret',
+      pendingWithdraw: { token: 'cashu:https://mint.refund.test/Bitcoin:9:pending-withdraw-secret', source: 'routstr-node-refund', savedAt: 1710000000000 },
+      mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+      counters: { 'counter:keyset-alpha': 12, 'counter:keyset-beta': 0 },
+      feeProofs: [proof('legacy-fee-proof', 2)],
+    });
+    localStorage.setItem('labcharts-cashu-wallet-mint', 'https://mint.existing.test/Bitcoin');
+    localStorage.setItem('labcharts-routstr-node', 'https://node.existing.test/');
+    localStorage.setItem('labcharts-routstr-key', 'sk-existing-user-session');
+
+    const stub = installCashuStub();
+    stub.mintQuoteStates.set('legacy-paid-quote', 'UNPAID');
+    const wallet = await loadWallet();
+
+    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.existing.test/Bitcoin');
+    await expect(wallet.getWalletBalance()).resolves.toBe(50);
+    await expect(wallet.recoverPendingDeposit()).resolves.toBe('cashu:https://mint.existing.test/Bitcoin:7:pending-deposit-secret');
+    await expect(wallet.recoverPendingWithdraw()).resolves.toBe('cashu:https://mint.refund.test/Bitcoin:9:pending-withdraw-secret');
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 1, recovered: 0, pending: 1, failed: 0 });
+    expect(localStorage.getItem('labcharts-routstr-key')).toBe('sk-existing-user-session');
+    expect(localStorage.getItem('labcharts-routstr-node')).toBe('https://node.existing.test/');
+
+    const seededWalletInstance = stub.instances.at(-1);
+    await expect(seededWalletInstance.opts.counterSource.reserve('keyset-alpha', 3)).resolves.toEqual({ start: 12, count: 3 });
+    await expect(readIdbMeta('counter:keyset-alpha')).resolves.toBe(15);
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 123000 }));
+    await expect(wallet.depositToNode(localStorage.getItem('labcharts-routstr-node'), 5, localStorage.getItem('labcharts-routstr-key'))).resolves.toEqual({ balance: 123000 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe('https://node.existing.test/v1/balance/topup');
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer sk-existing-user-session');
+    expect(fetch.mock.calls[0][0]).not.toContain('/v1/balance/create');
+    await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
+    await expect(wallet.recoverPendingWithdraw()).resolves.toBe('cashu:https://mint.refund.test/Bitcoin:9:pending-withdraw-secret');
+    expect(localStorage.getItem('labcharts-routstr-key')).toBe('sk-existing-user-session');
+  });
+
+  it('migrates oldest untagged default-mint proof rows without dropping balance', async () => {
+    const db = await openCashuTestDB();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(['proofs', 'meta'], 'readwrite');
+        const proofStore = tx.objectStore('proofs');
+        const metaStore = tx.objectStore('meta');
+        proofStore.put(proof('old-default-proof-a', 4));
+        proofStore.put(proof('old-default-proof-b', 3));
+        metaStore.put({ key: 'mintUrl', value: 'https://mint.minibits.cash/Bitcoin' });
+        metaStore.put({ key: 'walletMnemonic', value: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+
+    const wallet = await loadWallet();
+
+    await expect(wallet.getWalletBalance()).resolves.toBe(7);
+    await expect(wallet.getWalletMnemonic()).resolves.toBe('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
+    const rows = await readIdbStore('proofs');
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ secret: 'old-default-proof-a', _mint: 'https://mint.minibits.cash/Bitcoin' }),
+      expect.objectContaining({ secret: 'old-default-proof-b', _mint: 'https://mint.minibits.cash/Bitcoin' }),
+    ]));
+    await expect(readIdbMeta('walletMnemonic')).resolves.toBeNull();
+    expect(localStorage.getItem('labcharts-cashu-wallet-mnemonic')).toBeTruthy();
+  });
+
   it('handles empty fee pools without mutating the wallet', async () => {
     const wallet = await loadWallet();
 
@@ -414,12 +487,60 @@ describe('Cashu wallet runtime behavior', () => {
   });
 });
 
-async function readIdbStore(storeName) {
-  const db = await new Promise((resolve, reject) => {
+async function openCashuTestDB() {
+  return new Promise((resolve, reject) => {
     const req = indexedDB.open('getbased-cashu', 2);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('proofs')) db.createObjectStore('proofs', { keyPath: 'secret' });
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('fee-proofs')) db.createObjectStore('fee-proofs', { keyPath: 'secret' });
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+async function seedExistingUserCashuState({ mintUrl, proofs = [], pendingQuote, pendingDeposit, pendingWithdraw, mnemonic, counters = {}, feeProofs = [] }) {
+  const db = await openCashuTestDB();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(['proofs', 'meta', 'fee-proofs'], 'readwrite');
+      const proofStore = tx.objectStore('proofs');
+      const metaStore = tx.objectStore('meta');
+      const feeStore = tx.objectStore('fee-proofs');
+      for (const p of proofs) proofStore.put({ ...p, _mint: mintUrl });
+      for (const p of feeProofs) feeStore.put({ ...p, _mint: mintUrl });
+      metaStore.put({ key: 'mintUrl', value: mintUrl });
+      if (mnemonic) metaStore.put({ key: 'walletMnemonic', value: mnemonic });
+      if (pendingQuote) metaStore.put({ key: 'pendingQuote:' + pendingQuote.quote, value: pendingQuote.amount });
+      if (pendingDeposit) metaStore.put({ key: 'pendingDeposit', value: pendingDeposit });
+      if (pendingWithdraw) metaStore.put({ key: 'pendingWithdraw', value: JSON.stringify(pendingWithdraw) });
+      for (const [key, value] of Object.entries(counters)) metaStore.put({ key, value });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function readIdbMeta(key) {
+  const db = await openCashuTestDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('meta', 'readonly');
+      const req = tx.objectStore('meta').get(key);
+      req.onsuccess = () => resolve(req.result?.value ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function readIdbStore(storeName) {
+  const db = await openCashuTestDB();
   try {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction(storeName, 'readonly');

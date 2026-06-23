@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.15', date: '2026-06-23', title: 'Safer Routstr wallet upgrade',
+    forceShow: true,
+    items: [
+      '<b>Routstr wallet upgrades are safer for existing users.</b> getbased now preserves existing Cashu wallet state, pending recovery records, and Routstr session keys more carefully when the wallet runtime updates.',
+      '<b>Funding and refund recovery is better protected.</b> Pending wallet funding, node deposits, and node refunds are checked before any real-funds canary reset, so a half-finished money flow is refused instead of wiped.',
+      '<b>The wallet engine was refreshed.</b> The bundled Cashu runtime was updated and the app cache version was bumped, so returning users receive the compatibility fixes automatically after update.',
+    ]
+  },
+  {
     version: '1.10.9', date: '2026-06-23', title: 'Terms and Privacy gate priority',
     forceShow: true,
     items: [
