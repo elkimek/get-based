@@ -93,6 +93,33 @@ const missingDomainUiCheckJsModules = domainUiCheckJsModules
 assert('checkJs pilot includes domain and UI modules',
   missingDomainUiCheckJsModules.length === 0,
   missingDomainUiCheckJsModules.length ? `missing: ${missingDomainUiCheckJsModules.join(', ')}` : '');
+const broadSurfaceCheckJsModules = [
+  'js/app-light-sun-modules.js',
+  'js/biology-score-engine.js',
+  'js/biology-scores.js',
+  'js/chat-onboarding.js',
+  'js/chat-personalities.js',
+  'js/chat-send.js',
+  'js/chat-threads.js',
+  'js/constants.js',
+  'js/context-card-lifestyle-editors.js',
+  'js/context-card-medical-history-editor.js',
+  'js/context-cards.js',
+  'js/export-report.js',
+  'js/light-devices.js',
+  'js/light-tools.js',
+  'js/mobile-dashboard.js',
+  'js/pii.js',
+  'js/profile-share.js',
+  'js/views.js',
+  'js/wearables-connect.js',
+  'js/wearables-detail-modal.js',
+];
+const missingBroadSurfaceCheckJsModules = broadSurfaceCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes broad UI surface modules',
+  missingBroadSurfaceCheckJsModules.length === 0,
+  missingBroadSurfaceCheckJsModules.length ? `missing: ${missingBroadSurfaceCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
