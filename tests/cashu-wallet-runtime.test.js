@@ -8,12 +8,27 @@ function proof(secret, amount) {
   return { secret, amount, C: `C-${secret}` };
 }
 
-function installCashuStub() {
+class AmountStub {
+  constructor(value) { this.value = Number(value) || 0; }
+  toNumber() { return this.value; }
+  toString() { return String(this.value); }
+  toJSON() { return String(this.value); }
+  add(other) { return new AmountStub(this.value + amountNumber(other)); }
+}
+
+function amountNumber(value) {
+  if (value && typeof value.toNumber === 'function') return value.toNumber();
+  return Number(value) || 0;
+}
+
+function installCashuStub(options = {}) {
   const state = {
     receiveProofs: [proof('rx-1', 10)],
     meltQuotes: new Map(),
     mintQuoteStates: new Map(),
     failMelt: false,
+    failMintOutputsAlreadySigned: false,
+    restoreProofs: [proof('restored-1', 7), { ...proof('restored-spent', 3), spent: true }],
     instances: [],
   };
 
@@ -39,15 +54,17 @@ function installCashuStub() {
     }
 
     async send(amount, proofs) {
-      const total = sumProofs(proofs);
+      const amountSats = amountNumber(amount);
+      const total = amountNumber(sumProofs(proofs));
       return {
-        send: [proof(`send-${amount}-${state.instances.length}`, amount)],
-        keep: total > amount ? [proof(`keep-${total - amount}-${state.instances.length}`, total - amount)] : [],
+        send: [proof(`send-${amountSats}-${state.instances.length}`, options.amountObjects ? new AmountStub(amountSats) : amountSats)],
+        keep: total > amountSats ? [proof(`keep-${total - amountSats}-${state.instances.length}`, options.amountObjects ? new AmountStub(total - amountSats) : total - amountSats)] : [],
       };
     }
 
     async createMintQuoteBolt11(amount) {
-      return { quote: `mint-${amount}`, request: `invoice-${amount}`, amount, state: 'UNPAID' };
+      const amountSats = amountNumber(typeof amount === 'object' && amount ? amount.amount : amount);
+      return { quote: `mint-${amountSats}`, request: `invoice-${amountSats}`, amount: options.amountObjects ? new AmountStub(amountSats) : amountSats, state: 'UNPAID' };
     }
 
     async checkMintQuoteBolt11(quoteId) {
@@ -56,12 +73,18 @@ function installCashuStub() {
     }
 
     async mintProofsBolt11(amount, quoteId) {
+      if (state.failMintOutputsAlreadySigned) throw new Error('outputs already signed');
       return [proof(`minted-${quoteId}`, amount)];
     }
 
     async createMeltQuoteBolt11(invoice) {
       const amount = Number(String(invoice).split(':').pop()) || 10;
-      const quote = { quote: `quote-${amount}`, amount, fee_reserve: 5, state: 'UNPAID' };
+      const quote = {
+        quote: `quote-${amount}`,
+        amount: options.amountObjects ? new AmountStub(amount) : amount,
+        fee_reserve: options.amountObjects ? new AmountStub(5) : 5,
+        state: 'UNPAID'
+      };
       state.meltQuotes.set(quote.quote, quote);
       return quote;
     }
@@ -77,12 +100,13 @@ function installCashuStub() {
 
     async batchRestore(batchSize, gap, start) {
       if (start > 0) return { proofs: [] };
-      return { proofs: [proof('restored-1', 7), { ...proof('restored-spent', 3), spent: true }] };
+      return { proofs: state.restoreProofs.map(p => ({ ...p })) };
     }
   }
 
   function sumProofs(proofs = []) {
-    return proofs.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const total = proofs.reduce((sum, p) => sum + amountNumber(p.amount), 0);
+    return options.amountObjects ? new AmountStub(total) : total;
   }
 
   globalThis.cashuts = {
@@ -229,6 +253,50 @@ describe('Cashu wallet runtime behavior', () => {
     expect(paidFunding.quote).toBe('mint-12');
   });
 
+  it('recovers already-issued funding outputs from seed restore when retrying a paid quote reports outputs already signed', async () => {
+    const stub = installCashuStub();
+    stub.failMintOutputsAlreadySigned = true;
+    stub.restoreProofs = [proof('issued-after-lost-response', 200)];
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.generateWalletSeed();
+
+    const funding = await wallet.createFundingInvoice(200);
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 200,
+      pending: 0,
+      failed: 0,
+      balance: 200,
+    });
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0 });
+    await expect(wallet.getWalletBalance()).resolves.toBe(200);
+    expect(funding.quote).toBe('mint-200');
+  });
+
+  it('clears already-issued pending funding when restored proofs are already present locally', async () => {
+    const stub = installCashuStub();
+    stub.receiveProofs = [proof('already-present-issued-proof', 200)];
+    stub.restoreProofs = [];
+    stub.failMintOutputsAlreadySigned = true;
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.generateWalletSeed();
+    await wallet.receiveToken('cashu-token');
+
+    const funding = await wallet.createFundingInvoice(200);
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 0,
+      pending: 0,
+      failed: 0,
+      balance: 200,
+    });
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0 });
+    await expect(wallet.getWalletBalance()).resolves.toBe(200);
+    expect(funding.quote).toBe('mint-200');
+  });
+
   it('auto-reduces lightning-address withdrawals and exposes failed melt recovery', async () => {
     const wallet = await loadWallet();
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
@@ -264,6 +332,44 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
 
+  it('keeps Cashu v4 Amount objects at the library boundary and stores JSON-safe proof rows', async () => {
+    const stub = installCashuStub({ amountObjects: true });
+    stub.receiveProofs = [proof('amount-rx', new AmountStub(11))];
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+
+    await expect(wallet.receiveToken('cashu-token')).resolves.toEqual({ received: 11, fee: 0, balance: 11 });
+    await expect(wallet.getWalletBalance()).resolves.toBe(11);
+    await expect(wallet.sendAsToken(4)).resolves.toMatchObject({ amount: 4, remaining: 7 });
+
+    const rows = await readIdbStore('proofs');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row._mint).toBe('https://mint.getbased.test/Bitcoin');
+      expect(typeof row.amount === 'number' || typeof row.amount === 'string').toBe(true);
+      expect(row.amount && typeof row.amount.toNumber).toBe('undefined');
+    }
+  });
+
+  it('tops up an existing Routstr node key without creating a replacement session', async () => {
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.receiveToken('cashu-token');
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 100000 }));
+
+    await expect(wallet.depositToNode('https://node.getbased.test/', 5, 'sk-existing')).resolves.toEqual({ balance: 100000 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe('https://node.getbased.test/v1/balance/topup');
+    expect(fetch.mock.calls[0][1]).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: 'Bearer sk-existing', 'Content-Type': 'application/json' },
+    });
+    expect(JSON.parse(fetch.mock.calls[0][1].body).cashu_token).toContain('cashu:https://mint.getbased.test/Bitcoin:5:send-5');
+    await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
+    await expect(wallet.getWalletBalance()).resolves.toBe(5);
+  });
+
   it('handles empty fee pools without mutating the wallet', async () => {
     const wallet = await loadWallet();
 
@@ -273,6 +379,24 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.redeemFees('invoice:1')).rejects.toThrow('No fee proofs to redeem');
   });
 });
+
+async function readIdbStore(storeName) {
+  const db = await new Promise((resolve, reject) => {
+    const req = indexedDB.open('getbased-cashu', 2);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } finally {
+    db.close();
+  }
+}
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {

@@ -76,6 +76,8 @@ export function refreshRoutstrBalance() {
 }
 
 let _rsFundPollTimer = null;
+const FUNDING_POLL_INTERVAL_MS = 3000;
+const FUNDING_POLL_MAX_CONSECUTIVE_FAILURES = 3;
 
 function _getWalletInput(id) {
   return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
@@ -167,9 +169,12 @@ export async function doRoutstrWalletFund(amountSats) {
       <div style="margin-top:6px"><button class="import-btn import-btn-secondary" style="font-size:10px;padding:2px 8px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.invoice)}" data-copied-text="\u2713 Copied">${result.invoice.slice(0, 20)}\u2026 copy</button></div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="routstr-wfund-poll">Waiting for payment\u2026</div>
     </div>`;
+    if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
+    let consecutivePollFailures = 0;
     _rsFundPollTimer = setInterval(async function() {
       try {
         const s = await walletRuntime.cashuCheckFundingStatus(result.quote);
+        consecutivePollFailures = 0;
         if (s && s.paid) {
           clearInterval(_rsFundPollTimer); _rsFundPollTimer = null;
           const feeText = s.fee ? ' (' + s.fee + ' fee)' : '';
@@ -181,10 +186,16 @@ export async function doRoutstrWalletFund(amountSats) {
           setTimeout(function() { const a = document.getElementById('routstr-wallet-fund-area'); if (a) a.style.display = 'none'; }, 3000);
         }
       } catch {
+        consecutivePollFailures += 1;
         const poll = document.getElementById('routstr-wfund-poll');
-        if (poll) poll.innerHTML = '<span style="color:var(--red)">Payment check failed. Use "Check pending Lightning deposits" after payment confirms.</span>';
+        if (consecutivePollFailures >= FUNDING_POLL_MAX_CONSECUTIVE_FAILURES) {
+          if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
+          if (poll) poll.innerHTML = '<span style="color:var(--red)">Mint unreachable. Auto-check stopped; use "Check pending Lightning deposits" after the mint is reachable/payment confirms.</span>';
+        } else if (poll) {
+          poll.innerHTML = '<span style="color:var(--yellow, #f0a800)">Payment check failed. Retrying\u2026</span>';
+        }
       }
-    }, 3000);
+    }, FUNDING_POLL_INTERVAL_MS);
   } catch (e) {
     statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
