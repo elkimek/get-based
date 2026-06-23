@@ -286,6 +286,35 @@ const missingChatWorkflowCheckJsModules = chatWorkflowCheckJsModules
 assert('checkJs pilot includes chat workflow modules',
   missingChatWorkflowCheckJsModules.length === 0,
   missingChatWorkflowCheckJsModules.length ? `missing: ${missingChatWorkflowCheckJsModules.join(', ')}` : '');
+const startupAppShellCheckJsModules = [
+  'js/app-ai-interaction-modules.js',
+  'js/app-data-io-modules.js',
+  'js/app-event-listeners.js',
+  'js/app-feature-modules.js',
+  'js/app-foundation-modules.js',
+  'js/app-health-data-modules.js',
+  'js/app-ui-shell-modules.js',
+  'js/main.js',
+  'js/modal-lifecycle.js',
+  'js/nav.js',
+  'js/onboarding-view.js',
+  'js/service-worker-update.js',
+  'js/shell-actions.js',
+  'js/startup-foundation.js',
+  'js/startup-maintenance.js',
+  'js/startup-oauth-callbacks.js',
+  'js/startup-orchestrator.js',
+  'js/startup-profile.js',
+  'js/startup-ui.js',
+  'js/theme.js',
+  'js/tour.js',
+  'js/views-router.js',
+];
+const missingStartupAppShellCheckJsModules = startupAppShellCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes startup and app-shell modules',
+  missingStartupAppShellCheckJsModules.length === 0,
+  missingStartupAppShellCheckJsModules.length ? `missing: ${missingStartupAppShellCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
