@@ -30,6 +30,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'cashuDepositToNode',
       'cashuRecoverPendingDeposit',
       'cashuImportWallet',
+      'cashuReceiveToken',
+      'cashuSavePendingWithdrawToken',
+      'cashuClearPendingWithdraw',
       'cashuClearPendingDeposit',
       'cashuGetWalletMnemonic',
       'cashuRestoreWalletFromSeed',
@@ -58,6 +61,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
     let recoverCalled = false;
     let refundCalled = false;
     let importedToken = null;
+    let receivedToken = null;
+    let savedPendingWithdraw = null;
+    let clearPendingWithdrawCalled = false;
     let restoredMnemonic = null;
 
     try {
@@ -104,6 +110,16 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         importedToken = token;
         return 888;
       };
+      window.cashuReceiveToken = async token => {
+        receivedToken = token;
+        return { received: 888, balance: 2388 };
+      };
+      window.cashuSavePendingWithdrawToken = async (token, source) => {
+        savedPendingWithdraw = { token, source };
+      };
+      window.cashuClearPendingWithdraw = async () => {
+        clearPendingWithdrawCalled = true;
+      };
       window.cashuClearPendingDeposit = async () => {};
       window.cashuGetWalletMnemonic = async () => null;
       window.cashuRestoreWalletFromSeed = async mnemonic => {
@@ -122,6 +138,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         cashuDepositToNode: window.cashuDepositToNode,
         cashuRecoverPendingDeposit: window.cashuRecoverPendingDeposit,
         cashuImportWallet: window.cashuImportWallet,
+        cashuReceiveToken: window.cashuReceiveToken,
+        cashuSavePendingWithdrawToken: window.cashuSavePendingWithdrawToken,
+        cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
         cashuGetWalletMnemonic: window.cashuGetWalletMnemonic,
         cashuRestoreWalletFromSeed: window.cashuRestoreWalletFromSeed,
         cashuHasWalletSeed: window.cashuHasWalletSeed,
@@ -164,7 +183,11 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await window.doRoutstrNodeWithdraw();
       await wait(150);
       const refundUsesSessionKey = refundCalled;
-      const refundImportsToken = importedToken === 'cashuArefundtoken';
+      const refundPersistsTokenBeforeReceive = savedPendingWithdraw?.token === 'cashuArefundtoken'
+        && savedPendingWithdraw.source === 'routstr-node-refund';
+      const refundReceivesToken = receivedToken === 'cashuArefundtoken';
+      const refundDoesNotUseBackupImport = importedToken === null;
+      const refundClearsPendingWithdraw = clearPendingWithdrawCalled;
       const routstrKeyClearsAfterRefund = !window.getRoutstrKey?.();
 
       await window.showWalletSeedPhrase();
@@ -207,7 +230,10 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         depositFailureShowsRecovery,
         recoveryButtonCarriesToken,
         refundUsesSessionKey,
-        refundImportsToken,
+        refundPersistsTokenBeforeReceive,
+        refundReceivesToken,
+        refundDoesNotUseBackupImport,
+        refundClearsPendingWithdraw,
         routstrKeyClearsAfterRefund,
         restoreTextareaRenders,
         restoreUsesNormalizedMnemonic,

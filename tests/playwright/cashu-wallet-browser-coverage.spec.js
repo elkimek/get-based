@@ -852,7 +852,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   const results = await page.evaluate(async () => {
     const oldGlobals = {
       cashuImportWallet: window.cashuImportWallet,
+      cashuReceiveToken: window.cashuReceiveToken,
       cashuClearPendingDeposit: window.cashuClearPendingDeposit,
+      cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
       cashuGetMaxWithdrawable: window.cashuGetMaxWithdrawable,
     };
     const calls = [];
@@ -863,11 +865,13 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       configurable: true,
       value: { writeText: async text => clipboardWrites.push(text) },
     });
-    window.cashuImportWallet = async token => {
+    window.cashuReceiveToken = async token => {
       calls.push(['recoverAttempt', token]);
+      if (token === 'cashuWithdrawRecover') return { received: 500 };
       throw new Error('recover blocked');
     };
-    window.cashuClearPendingDeposit = async () => calls.push(['clearPending']);
+    window.cashuClearPendingDeposit = async () => calls.push(['clearPendingDeposit']);
+    window.cashuClearPendingWithdraw = async () => calls.push(['clearPendingWithdraw']);
     window.cashuGetMaxWithdrawable = async () => 888;
 
     const root = document.createElement('div');
@@ -887,6 +891,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         <button id="copy" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="cashu-copy" data-copied-text="Copied"></button>
         <button id="set-mint" data-routstr-wallet-action="set-mint-input" data-mint-url="https://mint.delegate.test"></button>
         <button id="recover" data-routstr-wallet-action="recover-pending-deposit" data-token="cashuArecover"></button>
+        <button id="recover-withdraw" data-routstr-wallet-action="recover-pending-withdraw" data-token="cashuWithdrawRecover"></button>
+        <button id="recover-withdraw-preserve" data-routstr-wallet-action="recover-pending-withdraw" data-clear-pending-withdraw="false" data-token="cashuWithdrawRecover"></button>
         <button id="deposit-input" data-routstr-wallet-action="deposit-node-input" data-node-url="https://node.delegate.test"></button>
         <button id="deposit-preset" data-routstr-wallet-action="deposit-node-preset" data-node-url="https://node.delegate.test" data-amount="77"></button>
         <button id="node-deposit" data-routstr-wallet-action="node-action" data-node-action="deposit" data-node-url="https://node.delegate.test"></button>
@@ -938,6 +944,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         doRoutstrWithdrawQuote: () => calls.push(['withdrawQuote']),
         doRoutstrSendToken: amount => calls.push(['sendToken', amount]),
         doRoutstrWithdrawExecute: quoteId => calls.push(['executeWithdraw', quoteId]),
+        clearRoutstrNodeSession: () => calls.push(['clearRoutstrNodeSession']),
       });
 
       for (const id of [
@@ -951,6 +958,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         'deposit-input',
         'deposit-preset',
         'recover',
+        'recover-withdraw',
+        'recover-withdraw-preserve',
         'node-deposit',
         'node-withdraw',
         'node-browse',
@@ -992,6 +1001,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         depositPreset: calls.some(item => item[0] === 'depositNode' && item[2] === 77)
           && document.getElementById('routstr-deposit-amount').value === '77',
         recoverAttempted: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuArecover'),
+        recoverWithdrawClearsSession: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuWithdrawRecover')
+          && calls.filter(item => item[0] === 'clearPendingWithdraw').length === 1
+          && calls.filter(item => item[0] === 'clearRoutstrNodeSession').length >= 2,
         nodeActions: ['deposit', 'withdraw', 'browse'].every(action => calls.some(item => item[0] === 'activeNode' && item[1] === action)),
         walletActions: ['walletFund', 'walletWithdraw', 'walletSeed', 'walletBackup'].every(name => calls.some(item => item[0] === name)),
         seedChangeAndContinue: document.getElementById('routstr-seed-continue').disabled === false
@@ -1011,7 +1023,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
     } finally {
       root.remove();
       window.cashuImportWallet = oldGlobals.cashuImportWallet;
+      window.cashuReceiveToken = oldGlobals.cashuReceiveToken;
       window.cashuClearPendingDeposit = oldGlobals.cashuClearPendingDeposit;
+      window.cashuClearPendingWithdraw = oldGlobals.cashuClearPendingWithdraw;
       window.cashuGetMaxWithdrawable = oldGlobals.cashuGetMaxWithdrawable;
       if (hadClipboard) {
         Object.defineProperty(window.navigator, 'clipboard', {

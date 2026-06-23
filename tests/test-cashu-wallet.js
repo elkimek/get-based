@@ -57,6 +57,7 @@ const apiSrc = await fetchWithRetry('js/api.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
 const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
@@ -95,7 +96,7 @@ const windowExports = [
   'cashuRecoverPendingFunding', 'cashuReceiveToken', 'cashuDepositToNode', 'cashuExportWallet',
   'cashuImportWallet', 'cashuClearWallet', 'cashuDestroyWalletDB',
   'cashuRecoverPendingDeposit', 'cashuClearPendingDeposit',
-  'cashuRecoverPendingWithdraw', 'cashuClearPendingWithdraw',
+  'cashuRecoverPendingWithdraw', 'cashuClearPendingWithdraw', 'cashuSavePendingWithdrawToken',
   'cashuSendAsToken', 'cashuCreateWithdrawQuote', 'cashuExecuteWithdraw',
   'cashuWithdrawToAddress', 'cashuGetMaxWithdrawable',
   'cashuRetryFeeAutoMelt', 'cashuGetFeeBalance', 'cashuRedeemFees',
@@ -141,9 +142,17 @@ console.log('5. Deposit/Withdraw Recovery');
 assert('Pending deposit saved BEFORE node call', walletSrc.includes("_setMeta('pendingDeposit', token)"));
 assert('Pending deposit cleared after success', walletSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
+const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNodeWithdraw');
+const nodeRefundSrc = nodeRefundIdx >= 0 ? walletPanelSrc.slice(nodeRefundIdx) : '';
+assert('Node refund token saved before wallet receive', nodeRefundSrc.includes('cashuSavePendingWithdrawToken') && nodeRefundSrc.indexOf('cashuSavePendingWithdrawToken') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
+assert('Node refund success only clears matching pending-withdraw record', nodeRefundSrc.includes('const savedPendingWithdraw =') && nodeRefundSrc.includes('if (savedPendingWithdraw !== false) await walletRuntime.cashuClearPendingWithdraw?.()'));
+assert('Node refund retry button preserves unrelated pending-withdraw records', nodeRefundSrc.includes('data-clear-pending-withdraw="') && nodeRefundSrc.includes("(savedPendingWithdraw !== false ? 'true' : 'false')"));
+assert('Saved node refund never overwrites existing withdraw recovery token', walletSrc.includes('if (existing?.token) return false'));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
+assert('Provider panel recovery uses receiveToken mint-switch path', ppSrc.includes('await appWindow.cashuReceiveToken(token)') && !ppSrc.includes('await appWindow.cashuImportWallet(token)'));
+assert('Wallet runtime exposes pending deposit clear callback', walletRuntimeSrc.includes('clearPendingDeposit as cashuClearPendingDeposit') && walletRuntimeSrc.includes('cashuClearPendingDeposit'));
 
 // ═══════════════════════════════════════
 // 6. CASHU WALLET — FEE MECHANISM

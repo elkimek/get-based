@@ -475,14 +475,28 @@ export async function doRoutstrNodeWithdraw() {
     const data = await res.json();
     const token = data.token || data.cashu_token || (typeof data === 'string' && data.startsWith('cashu') ? data : null);
     if (!token) throw new Error('No token returned from node');
-    const imported = await walletRuntime.cashuImportWallet(token);
-    await saveRoutstrKey('');
-    showNotification('Withdrawn \u26a1 ' + imported.toLocaleString() + ' sats to wallet', 'success');
-    const panel = document.getElementById('ai-provider-panel');
-    const panelHtml = _renderRoutstrPanel('routstr');
-    if (panel && panelHtml) panel.innerHTML = panelHtml;
-    _initSettingsModelFetch();
-    _refreshRoutstrWalletBalance();
+    const savedPendingWithdraw = await walletRuntime.cashuSavePendingWithdrawToken?.(token, 'routstr-node-refund');
+    try {
+      const result = await walletRuntime.cashuReceiveToken(token);
+      if (savedPendingWithdraw !== false) await walletRuntime.cashuClearPendingWithdraw?.();
+      await saveRoutstrKey('');
+      const received = Number(result?.received ?? result) || 0;
+      showNotification('Withdrawn \u26a1 ' + received.toLocaleString() + ' sats to wallet', 'success');
+      const panel = document.getElementById('ai-provider-panel');
+      const panelHtml = _renderRoutstrPanel('routstr');
+      if (panel && panelHtml) panel.innerHTML = panelHtml;
+      _initSettingsModelFetch();
+      _refreshRoutstrWalletBalance();
+    } catch (importError) {
+      if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
+        '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Node returned a refund token, but wallet import failed</div>' +
+        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">Your sats are in this Cashu token. Copy it before changing anything. Error: ' + escapeHTML(importError?.message || String(importError)) + '</div>' +
+        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:48px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-text">' + escapeHTML(token) + '</textarea>' +
+        '<div style="display:flex;gap:4px;margin-top:4px">' +
+        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-routstr-wallet-action="recover-pending-withdraw" data-clear-pending-withdraw="' + (savedPendingWithdraw !== false ? 'true' : 'false') + '" data-token="' + escapeAttr(token) + '">Try Recover to Wallet</button>' +
+        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
+        '</div></div>';
+    }
   } catch (e) {
     if (picker) picker.innerHTML = '<div style="margin-top:8px;padding:10px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)"><div style="font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div></div>';
   }
@@ -768,5 +782,6 @@ installRoutstrWalletDelegates({
   doRoutstrSendToken,
   doRoutstrWithdrawQuote,
   doRoutstrWithdrawExecute,
+  clearRoutstrNodeSession: () => saveRoutstrKey(''),
   doRoutstrWalletRestore
 });

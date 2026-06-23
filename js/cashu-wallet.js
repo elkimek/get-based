@@ -502,6 +502,28 @@ function _looksLikeAlreadyIssuedMintError(error) {
   return /outputs? already signed|already signed|quote.*issued|already.*issued/i.test(error?.message || String(error || ''));
 }
 
+function _extractTokenMintUrl(cashuts, tokenString) {
+  try {
+    const decoded = cashuts.getDecodedToken?.(tokenString);
+    if (typeof decoded?.mint === 'string') return decoded.mint;
+    if (Array.isArray(decoded?.token) && typeof decoded.token[0]?.mint === 'string') return decoded.token[0].mint;
+    if (Array.isArray(decoded?.tokens) && typeof decoded.tokens[0]?.mint === 'string') return decoded.tokens[0].mint;
+  } catch {}
+  return null;
+}
+
+function _normalizeMintUrlForCompare(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
+async function _switchToTokenMintIfNeeded(cashuts, tokenString) {
+  const tokenMint = _extractTokenMintUrl(cashuts, tokenString);
+  if (!tokenMint) return null;
+  const currentMint = await getMintUrl();
+  if (_normalizeMintUrlForCompare(tokenMint) !== _normalizeMintUrlForCompare(currentMint)) await setMintUrl(tokenMint);
+  return tokenMint;
+}
+
 /** Restore wallet from a 12-word mnemonic phrase.
  *  Queries the mint to recover previously-minted proofs.
  *  Returns { balance, restoredCount } */
@@ -632,6 +654,7 @@ export async function recoverPendingFunding() {
 export async function receiveToken(tokenString) {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
+    await _switchToTokenMintIfNeeded(cashuts, tokenString);
     const currentBal = await getWalletBalance();
     if (currentBal >= MAX_WALLET_BALANCE) throw new Error('Wallet at ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
     const wallet = await _getWallet();
@@ -723,6 +746,22 @@ export async function recoverPendingWithdraw() {
 /** Clear a pending withdraw after manual recovery */
 export async function clearPendingWithdraw() {
   await _setMeta('pendingWithdraw', null);
+}
+
+/** Persist a recoverable Cashu token before attempting risky refund/import flows. */
+export async function savePendingWithdrawToken(token, source = 'manual') {
+  if (!token) return false;
+  const raw = await _getMeta('pendingWithdraw');
+  if (raw) {
+    try {
+      const existing = JSON.parse(raw);
+      if (existing?.token) return false;
+    } catch {
+      return false;
+    }
+  }
+  await _setMeta('pendingWithdraw', JSON.stringify({ quoteId: null, token, source, savedAt: Date.now() }));
+  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -992,6 +1031,7 @@ export async function exportWallet() {
 export async function importWallet(tokenString) {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
+    await _switchToTokenMintIfNeeded(cashuts, tokenString);
     const wallet = await _getWallet();
     const proofs = await wallet.receive(tokenString);
     await _saveProofs(proofs);
@@ -1046,6 +1086,7 @@ Object.assign(window, {
   cashuClearPendingDeposit: clearPendingDeposit,
   cashuRecoverPendingWithdraw: recoverPendingWithdraw,
   cashuClearPendingWithdraw: clearPendingWithdraw,
+  cashuSavePendingWithdrawToken: savePendingWithdrawToken,
   cashuSendAsToken: sendAsToken,
   cashuCreateWithdrawQuote: createWithdrawQuote,
   cashuExecuteWithdraw: executeWithdraw,

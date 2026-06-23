@@ -114,6 +114,12 @@ function installCashuStub(options = {}) {
     MintQuoteState: { PAID: 'PAID', ISSUED: 'ISSUED', EXPIRED: 'EXPIRED' },
     sumProofs,
     getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(p => p.secret).join(',')}`,
+    getDecodedToken: (token) => {
+      const parts = String(token).split(':');
+      return parts[0] === 'cashu' && parts[1] && parts[2]
+        ? { token: [{ mint: `${parts[1]}:${parts[2]}` }] }
+        : {};
+    },
   };
   window.cashuts = globalThis.cashuts;
   return state;
@@ -328,6 +334,14 @@ describe('Cashu wallet runtime behavior', () => {
 
     await expect(wallet.executeWithdraw(quote.quote)).rejects.toThrow('melt failed');
     await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:15:send-15');
+    await expect(wallet.savePendingWithdrawToken('cashu:node-refund-token', 'routstr-node-refund')).resolves.toBe(false);
+    await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:15:send-15');
+    await expect(wallet.recoverPendingWithdraw()).resolves.not.toContain('cashu:node-refund-token');
+    await wallet.clearPendingWithdraw();
+
+    await expect(wallet.savePendingWithdrawToken('cashu:first-node-refund', 'routstr-node-refund')).resolves.toBe(true);
+    await expect(wallet.savePendingWithdrawToken('cashu:second-node-refund', 'routstr-node-refund')).resolves.toBe(false);
+    await expect(wallet.recoverPendingWithdraw()).resolves.toBe('cashu:first-node-refund');
     await wallet.clearPendingWithdraw();
     await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
@@ -349,6 +363,26 @@ describe('Cashu wallet runtime behavior', () => {
       expect(typeof row.amount === 'number' || typeof row.amount === 'string').toBe(true);
       expect(row.amount && typeof row.amount.toNumber).toBe('undefined');
     }
+  });
+
+  it('switches to the token mint before receiving a node refund token', async () => {
+    const stub = installCashuStub();
+    stub.receiveProofs = [proof('node-refund', 500)];
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.original.test/Bitcoin');
+
+    await expect(wallet.receiveToken('cashu:https://mint.node.test/Bitcoin:500:node-refund')).resolves.toMatchObject({
+      received: 500,
+      fee: 0,
+      balance: 500,
+    });
+    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.node.test/Bitcoin');
+    expect(stub.instances.at(-1).url).toBe('https://mint.node.test/Bitcoin');
+
+    await wallet.setMintUrl('https://mint.node.test/Bitcoin/');
+    await wallet.receiveToken('cashu:https://mint.node.test/Bitcoin:500:node-refund');
+    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.node.test/Bitcoin/');
+    await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
 
   it('tops up an existing Routstr node key without creating a replacement session', async () => {
