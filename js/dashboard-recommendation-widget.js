@@ -19,8 +19,9 @@ function getDashboardRecommendationRuntimeValue(name) {
 }
 
 function callDashboardRecommendationRuntime(name, ...args) {
+  const runtime = dashboardRecommendationRuntime();
   const fn = getDashboardRecommendationRuntimeValue(name);
-  return typeof fn === 'function' ? fn(...args) : undefined;
+  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 
 export function dashboardRecommendationActionAttrs(action, attrs = {}) {
@@ -239,7 +240,7 @@ export function createDashboardRecommendationWidget({
     }
 
     const wearableTrendSlots = callDashboardRecommendationRuntime('detectWearableTrendSlots', state.importedData?.wearableSummary);
-    if (Array.isArray(wearableTrendSlots)) {
+    if (wearableTrendSlots && typeof wearableTrendSlots[Symbol.iterator] === 'function') {
       for (const hit of wearableTrendSlots) {
         add({
           id: `body:${hit.slotKey}:wearable`,
