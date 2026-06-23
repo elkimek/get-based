@@ -9,6 +9,7 @@ import { ensureSNPTable, ensureHaplogroupTable } from './dna.js';
 import { maybeShowChangelog } from './changelog.js';
 import { buildSidebar, renderProfileDropdown } from './nav.js';
 import { maybeShowBackupNudge } from './crypto.js';
+import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 
 export function renderStartupUI() {
@@ -22,9 +23,12 @@ export function renderStartupUI() {
   renderSyncIndicator();
   window.navigate(window.getInitialView?.() || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
-  maybeShowChangelog();
-  scheduleStartupNudges();
-  openDeferredStartupDestinations();
+  const legalGateShown = scheduleStartupNudges();
+  if (legalGateShown) {
+    window.addEventListener('legal-consent-accepted', openDeferredStartupDestinations, { once: true });
+  } else {
+    openDeferredStartupDestinations();
+  }
   refreshStartupChrome();
   initializeChatAttachments();
   bindImportFileInput();
@@ -47,14 +51,36 @@ function scheduleDeferredSyncAndCatalogWarmup() {
 }
 
 function scheduleStartupNudges() {
+  // Legal acceptance is a gate: first-time users and users with stale
+  // Terms/Privacy acceptance must explicitly accept before continuing. It is
+  // local-first, so this is stored per browser/device rather than emailed.
+  const legalGateShown = maybeShowLegalConsentGate();
+  if (!legalGateShown) maybeShowChangelog();
+  else window.addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true });
   // First-launch transparency banner about anonymous analytics appears once,
-  // never again after the user clicks either "Got it" or "Turn off".
-  setTimeout(() => window.maybeShowAnalyticsConsent?.(), 800);
-  setTimeout(() => {
+  // never again after the user clicks either "Got it" or "Turn off". Keep it
+  // behind the legal gate so the user does not get competing prompts. What's
+  // New and tours also stay behind the gate; legal must be the topmost first
+  // interaction for new users and stale-version re-consent.
+  const showAnalyticsConsent = () => {
+    window.maybeShowAnalyticsConsent?.();
+  };
+  if (legalGateShown) {
+    window.addEventListener('legal-consent-accepted', () => setTimeout(showAnalyticsConsent, 800), { once: true });
+  } else {
+    setTimeout(showAnalyticsConsent, 800);
+  }
+  const showBackupNudge = () => {
     const overlay = document.getElementById('passphrase-overlay');
     if (overlay && overlay.style.display === 'flex') return;
     maybeShowBackupNudge();
-  }, 1500);
+  };
+  if (legalGateShown) {
+    window.addEventListener('legal-consent-accepted', () => setTimeout(showBackupNudge, 1500), { once: true });
+  } else {
+    setTimeout(showBackupNudge, 1500);
+  }
+  return legalGateShown;
 }
 
 function openDeferredStartupDestinations() {

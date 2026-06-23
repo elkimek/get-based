@@ -126,6 +126,7 @@ function getTourTargetElement(target) {
 }
 
 function runTour(steps, storageKey, auto) {
+  if (document.getElementById('legal-consent-overlay')) return false;
   if (auto && isTourCompleted(storageKey)) return false;
   // Demo profiles are exploration sandboxes — re-firing the welcome
   // tour every time the user picks a different demo is noise. Manual
