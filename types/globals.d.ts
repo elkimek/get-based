@@ -265,6 +265,7 @@ interface Window {
   showDetailModal?: AnyFunction;
   startEmptyTour?: AnyFunction;
   startTour?: AnyFunction;
+  _tourGoToStep?: (index: number) => void;
   syncWearableNow?: AnyFunction;
   triggerDNAFilePicker?: AnyFunction;
   loadLightDevicePresets?: AnyFunction;
