@@ -8,6 +8,28 @@ const coverageDir = process.env.PLAYWRIGHT_COVERAGE_DIR ||
   path.join(repoRoot, 'tests', '.playwright-coverage');
 const startedPages = new WeakSet();
 const coverageStates = new WeakMap();
+const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
+const TEST_LEGAL_ACCEPTANCE = {
+  accepted: true,
+  termsVersion: '2026-06-22',
+  privacyVersion: '2026-06-22',
+  acceptedAt: '2026-06-23T00:00:00.000Z',
+  appVersion: 'playwright-fixture',
+  location: 'playwright-fixture',
+};
+
+async function seedCurrentLegalAcceptance(page) {
+  await page.addInitScript(({ key, payload }) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(payload));
+    } catch {
+      // Individual tests that deliberately exercise blocked storage can still
+      // remove/override this after navigation. The default browser-suite
+      // contract is an already-accepted returning user so feature tests are
+      // not hidden behind the mandatory legal gate.
+    }
+  }, { key: LEGAL_ACCEPTANCE_KEY, payload: TEST_LEGAL_ACCEPTANCE });
+}
 
 function isCoverageEnabled() {
   return process.env.PLAYWRIGHT_SUITE_COVERAGE === '1' ||
@@ -212,6 +234,8 @@ export async function stopPageCoverage(page, testInfo, label = 'page') {
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
+    await seedCurrentLegalAcceptance(page);
+
     if (!isCoverageEnabled()) {
       await use(page);
       return;

@@ -61,6 +61,11 @@ assert('cacheGet re-inserts on hit',
 console.log('\n4. SW precache');
 const swSrc = read('service-worker.js');
 const startupUiSrc = read('js/startup-ui.js');
+const legalConsentSrc = read('js/legal-consent.js');
+const changelogSrc = read('js/changelog.js');
+const tourSrc = read('js/tour.js');
+const appShellCss = read('css/app-shell.css');
+const playwrightFixtureSrc = read('tests/playwright/coverage-fixture.js');
 const viewsSrc = read('js/views.js');
 const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
@@ -238,9 +243,37 @@ assert('PDF lazy import failure notifies from file input and clears selection',
 assert('PDF lazy import failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
-assert('analytics consent remains deferred after first paint',
-  /setTimeout\(\(\)\s*=>\s*window\.maybeShowAnalyticsConsent\?\.\(\),\s*800\)/.test(startupUiSrc),
-  'first-run banner should not stack into the same tick as tour/startup work');
+assert('analytics consent remains deferred after first paint and behind legal gate',
+  /const showAnalyticsConsent = \(\) => \{\s*window\.maybeShowAnalyticsConsent\?\.\(\);\s*\};/.test(startupUiSrc)
+  && /if \(legalGateShown\) \{\s*window\.addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showAnalyticsConsent, 800\), \{ once: true \}\);\s*\} else \{\s*setTimeout\(showAnalyticsConsent, 800\);\s*\}/.test(startupUiSrc),
+  'first-run banner should stay deferred and must resume after Terms/Privacy acceptance');
+assert('legal gate runs before changelog and resumes changelog only after accept',
+  startupUiSrc.indexOf('const legalGateShown = maybeShowLegalConsentGate()') >= 0
+  && startupUiSrc.indexOf('const legalGateShown = maybeShowLegalConsentGate()') < startupUiSrc.indexOf('maybeShowChangelog()')
+  && startupUiSrc.includes("window.addEventListener('legal-consent-accepted'")
+  && startupUiSrc.includes('return legalGateShown')
+  && startupUiSrc.includes("window.addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
+  && legalConsentSrc.includes("window.dispatchEvent(new CustomEvent('legal-consent-accepted'))"));
+assert('legal accept does not deadlock when localStorage persistence throws',
+  /try\s*\{\s*storeLegalAcceptance\(\);\s*\}\s*catch\s*\(err\)\s*\{[\s\S]{0,220}\[legal-consent\] Failed to persist acceptance/.test(legalConsentSrc)
+  && /catch\s*\(err\)[\s\S]{0,260}\}\s*closeLegalConsentGate\(\);\s*window\.dispatchEvent\(new CustomEvent\('legal-consent-accepted'\)\)/.test(legalConsentSrc));
+assert('deferred startup destinations wait behind legal gate',
+  /const legalGateShown = scheduleStartupNudges\(\);[\s\S]{0,240}addEventListener\('legal-consent-accepted', openDeferredStartupDestinations[\s\S]{0,120}else \{\s*openDeferredStartupDestinations\(\);\s*\}/.test(startupUiSrc));
+assert('analytics consent and backup nudge resume after legal gate acceptance',
+  /addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showAnalyticsConsent, 800\), \{ once: true \}\)/.test(startupUiSrc)
+  && /addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showBackupNudge, 1500\), \{ once: true \}\)/.test(startupUiSrc)
+  && /const showBackupNudge = \(\) => \{[\s\S]{0,180}maybeShowBackupNudge\(\);\s*\};/.test(startupUiSrc));
+assert('changelog and tour refuse to open over legal consent',
+  /export function maybeShowChangelog\(\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\) return;/.test(changelogSrc)
+  && /function runTour\(steps, storageKey, auto\) \{\s*if \(document\.getElementById\('legal-consent-overlay'\)\) return false;/.test(tourSrc));
+assert('legal gate z-index selector beats generic modal overlay',
+  /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,80}z-index:\s*4200;/.test(appShellCss)
+  && /\.modal-overlay\.legal-consent-overlay\s*\{[\s\S]{0,180}-webkit-backdrop-filter:\s*blur\(8px\);[\s\S]{0,60}backdrop-filter:\s*blur\(8px\);/.test(appShellCss));
+assert('Playwright feature tests seed the current legal acceptance version',
+  /TEST_LEGAL_ACCEPTANCE\s*=\s*\{[\s\S]{0,120}termsVersion:\s*'2026-06-22',[\s\S]{0,80}privacyVersion:\s*'2026-06-22'/.test(playwrightFixtureSrc)
+  && /const TERMS_VERSION = '2026-06-22';/.test(legalConsentSrc)
+  && /const PRIVACY_VERSION = '2026-06-22';/.test(legalConsentSrc)
+  && /await seedCurrentLegalAcceptance\(page\);/.test(playwrightFixtureSrc));
 assert('footer commit hash loader lives in its own module and remains wired',
   /export function loadCommitHash\(\)/.test(commitHashSrc)
   && /_cachedCommitHash/.test(commitHashSrc)

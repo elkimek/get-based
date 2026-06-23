@@ -10,6 +10,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.9', date: '2026-06-23', title: 'Terms and Privacy gate priority',
+    forceShow: true,
+    items: [
+      '<b>Terms and Privacy now come first.</b> New browsers and stale-version re-consent see the legal gate before What\'s New, guided tours, backup nudges, analytics prompts, or deferred startup destinations.',
+      '<b>No competing overlays.</b> The changelog and guided tour refuse to open while the Terms/Privacy gate is visible, then resume only after acceptance.',
+    ]
+  },
+  {
     version: '1.10.8', date: '2026-06-22', title: 'Private PPQ chat with verified end-to-end encryption',
     forceShow: true,
     items: [
@@ -386,6 +394,7 @@ function _semverGt(a, b) {
 }
 
 export function maybeShowChangelog() {
+  if (document.getElementById('legal-consent-overlay')) return;
   const seen = getSeenVersion();
   // First visit — no changelog, just mark as seen
   if (!seen) { markChangelogSeen(); return; }
