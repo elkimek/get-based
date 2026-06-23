@@ -315,6 +315,23 @@ const missingStartupAppShellCheckJsModules = startupAppShellCheckJsModules
 assert('checkJs pilot includes startup and app-shell modules',
   missingStartupAppShellCheckJsModules.length === 0,
   missingStartupAppShellCheckJsModules.length ? `missing: ${missingStartupAppShellCheckJsModules.join(', ')}` : '');
+const pdfReportCheckJsModules = [
+  'js/export-report-builder.js',
+  'js/export-report-html.js',
+  'js/pdf-import-ai-utils.js',
+  'js/pdf-import-marker-mapping.js',
+  'js/pdf-import-marker-normalization.js',
+  'js/pdf-import-persistence.js',
+  'js/pdf-import-preflight.js',
+  'js/pdf-import-progress.js',
+  'js/pdf-import-spreadsheet.js',
+  'js/pdfjs-loader.js',
+];
+const missingPdfReportCheckJsModules = pdfReportCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes PDF import and report modules',
+  missingPdfReportCheckJsModules.length === 0,
+  missingPdfReportCheckJsModules.length ? `missing: ${missingPdfReportCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
