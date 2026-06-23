@@ -96,6 +96,25 @@ import {
   doRoutstrWalletRestore
 } from './provider-wallet-panels.js';
 
+function providerPanelRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function getProviderPanelRuntimeValue(name) {
+  return providerPanelRuntime()[name];
+}
+
+function callProviderPanelRuntime(name, ...args) {
+  const runtime = providerPanelRuntime();
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
+}
+
+function reloadProviderPanelRuntime() {
+  const location = getProviderPanelRuntimeValue('location');
+  if (typeof location?.reload === 'function') location.reload();
+}
+
 export { renderAIProviderPanel } from './provider-panel-renderers.js';
 export {
   applyHardwareOverride,
@@ -174,7 +193,7 @@ export function toggleAIPause(enabled) {
   setAIPaused(!enabled);
   showNotification(enabled ? 'AI features enabled' : 'AI features paused', 'info');
   // Refresh focus card — show cached content when paused, fetch new when enabled
-  if (window.loadFocusCard) window.loadFocusCard();
+  callProviderPanelRuntime('loadFocusCard');
 }
 
 export function switchAIProvider(provider) {
@@ -234,17 +253,17 @@ export function initSettingsModelFetch() {
     refreshRoutstrBalance();
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
-  if (document.getElementById('routstr-wallet-balance') && window.cashuGetBalance) {
-    window.cashuGetBalance().then(function(bal) {
+  if (document.getElementById('routstr-wallet-balance') && typeof getProviderPanelRuntimeValue('cashuGetBalance') === 'function') {
+    callProviderPanelRuntime('cashuGetBalance').then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
-    if (window.cashuGetMintUrl) Promise.resolve(window.cashuGetMintUrl()).then(function(url) {
+    if (typeof getProviderPanelRuntimeValue('cashuGetMintUrl') === 'function') Promise.resolve(callProviderPanelRuntime('cashuGetMintUrl')).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
       if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     });
     // H6: Check for pending deposit recovery
-    if (window.cashuRecoverPendingDeposit) window.cashuRecoverPendingDeposit().then(function(token) {
+    if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingDeposit') === 'function') callProviderPanelRuntime('cashuRecoverPendingDeposit').then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (area) {
@@ -260,7 +279,7 @@ export function initSettingsModelFetch() {
       }
     });
     // Check for pending withdraw recovery
-    if (window.cashuRecoverPendingWithdraw) window.cashuRecoverPendingWithdraw().then(function(token) {
+    if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingWithdraw') === 'function') callProviderPanelRuntime('cashuRecoverPendingWithdraw').then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
@@ -291,10 +310,10 @@ export function initSettingsModelFetch() {
 // ═══════════════════════════════════════════════
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
 function _returnToChatIfOnboarding() {
-  if (window._settingsHadProvider) return; // already had a provider — user is just reconfiguring
-  if (!window.hasAIProvider?.()) return;
-  window.closeSettingsModal?.();
-  setTimeout(() => window.openChatPanel?.(), 300);
+  if (getProviderPanelRuntimeValue('_settingsHadProvider')) return; // already had a provider — user is just reconfiguring
+  if (!callProviderPanelRuntime('hasAIProvider')) return;
+  callProviderPanelRuntime('closeSettingsModal');
+  setTimeout(() => callProviderPanelRuntime('openChatPanel'), 300);
 }
 
 function _setActionText(actionEl) {
@@ -315,9 +334,9 @@ async function _copyProviderPanelText(text, actionEl) {
     const timerKey = actionEl?.dataset?.clearTimerKey || '';
     const clearMs = Number(actionEl?.dataset?.clearClipboardAfter || 0);
     if (timerKey && clearMs > 0) {
-      const appWindow = /** @type {any} */ (window);
-      clearTimeout(appWindow[timerKey]);
-      appWindow[timerKey] = setTimeout(() => navigator.clipboard?.writeText?.(''), clearMs);
+      const runtime = providerPanelRuntime();
+      clearTimeout(runtime[timerKey]);
+      runtime[timerKey] = setTimeout(() => navigator.clipboard?.writeText?.(''), clearMs);
     }
   } catch (e) {
     showNotification(`Copy failed: ${e?.message || e}`, 'error');
@@ -333,19 +352,18 @@ export function selectProviderPanelText(actionEl) {
 }
 
 async function _recoverPendingToken(actionEl, clearName) {
-  const appWindow = /** @type {any} */ (window);
   const fallbackInput = /** @type {HTMLTextAreaElement | null} */ (
     document.querySelector('#routstr-wallet-fund-area textarea')
   );
   const token = actionEl?.dataset?.token || fallbackInput?.value || '';
   try {
-    if (typeof appWindow.cashuReceiveToken !== 'function' || typeof appWindow[clearName] !== 'function') {
+    if (typeof getProviderPanelRuntimeValue('cashuReceiveToken') !== 'function' || typeof getProviderPanelRuntimeValue(clearName) !== 'function') {
       throw new Error('Wallet recovery is unavailable');
     }
-    await appWindow.cashuReceiveToken(token);
-    await appWindow[clearName]();
+    await callProviderPanelRuntime('cashuReceiveToken', token);
+    await callProviderPanelRuntime(clearName);
     showNotification('Recovered!', 'success');
-    window.location.reload();
+    reloadProviderPanelRuntime();
   } catch (e) {
     showNotification(e?.message || String(e), 'error');
   }
@@ -425,9 +443,9 @@ export function handleRemoveVeniceKey() {
   localStorage.removeItem('labcharts-venice-e2ee-models');
   localStorage.removeItem('labcharts-venice-model-regular');
   localStorage.removeItem('labcharts-venice-model-e2ee');
-  window.clearE2EESession?.();
+  callProviderPanelRuntime('clearE2EESession');
   showNotification('Venice API key removed', 'info');
-  window.openSettingsModal?.();
+  callProviderPanelRuntime('openSettingsModal');
 }
 
 
@@ -469,7 +487,7 @@ export function handleRemoveOpenRouterKey() {
   localStorage.removeItem('labcharts-openrouter-model');
   localStorage.removeItem('labcharts-openrouter-pricing');
   showNotification('OpenRouter API key removed', 'info');
-  window.openSettingsModal?.();
+  callProviderPanelRuntime('openSettingsModal');
 }
 
 function _orBalanceHtml(remaining) {
@@ -518,7 +536,7 @@ export function showInsufficientBalanceDialog() {
   const close = function() { closeModalOverlay(overlay); };
   document.getElementById('or-add-credits').onclick = function() {
     close();
-    window.open('https://openrouter.ai/settings/credits', '_blank', 'noopener');
+    callProviderPanelRuntime('open', 'https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
   document.getElementById('or-nb-cancel').onclick = close;
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
@@ -598,7 +616,7 @@ export function handleRemoveRoutstrKey() {
   localStorage.removeItem('labcharts-routstr-pricing');
   localStorage.removeItem('labcharts-routstr-vision-models');
   showNotification('Routstr key removed', 'info');
-  window.openSettingsModal?.();
+  callProviderPanelRuntime('openSettingsModal');
 }
 
 // ─── Custom API handlers ───

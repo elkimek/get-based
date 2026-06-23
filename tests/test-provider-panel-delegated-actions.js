@@ -130,11 +130,23 @@ assert('service worker precaches provider panel delegate module',
 });
 
 assert('provider panel recovery uses mint-aware receiveToken instead of wallet import',
-  panelsSrc.includes('typeof appWindow.cashuReceiveToken') &&
-    panelsSrc.includes('await appWindow.cashuReceiveToken(token)') &&
+  panelsSrc.includes("typeof getProviderPanelRuntimeValue('cashuReceiveToken')") &&
+    panelsSrc.includes("await callProviderPanelRuntime('cashuReceiveToken', token)") &&
     !panelsSrc.includes('await appWindow.cashuImportWallet(token)'));
 assert('provider panel recovery awaits pending-token clear before reload',
-  /await appWindow\.cashuReceiveToken\(token\);[\s\S]*await appWindow\[clearName\]\(\);[\s\S]*window\.location\.reload\(\);/.test(panelsSrc));
+  /await callProviderPanelRuntime\('cashuReceiveToken', token\);[\s\S]*await callProviderPanelRuntime\(clearName\);[\s\S]*reloadProviderPanelRuntime\(\);/.test(panelsSrc));
+assert('provider panel onboarding return uses runtime helper calls',
+  panelsSrc.includes("getProviderPanelRuntimeValue('_settingsHadProvider')") &&
+    panelsSrc.includes("callProviderPanelRuntime('hasAIProvider')") &&
+    panelsSrc.includes("callProviderPanelRuntime('closeSettingsModal')") &&
+    panelsSrc.includes("callProviderPanelRuntime('openChatPanel')"));
+assert('provider panel focus-card refresh uses runtime helper call',
+  panelsSrc.includes("callProviderPanelRuntime('loadFocusCard')"));
+assert('provider panel E2EE clear and settings reopen use runtime helper calls',
+  panelsSrc.includes("callProviderPanelRuntime('clearE2EESession')") &&
+    panelsSrc.includes("callProviderPanelRuntime('openSettingsModal')"));
+assert('provider panel OpenRouter credits link uses runtime helper open',
+  panelsSrc.includes("callProviderPanelRuntime('open', 'https://openrouter.ai/settings/credits', '_blank', 'noopener')"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
