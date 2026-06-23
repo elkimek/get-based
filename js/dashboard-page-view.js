@@ -21,6 +21,21 @@ let _dashboardWelcomeActionsInstalled = false;
 const DASHBOARD_WELCOME_ACTION_ATTR = 'data-dashboard-welcome-action';
 const DASHBOARD_WELCOME_ACTION_SELECTOR = `[${DASHBOARD_WELCOME_ACTION_ATTR}]`;
 
+function dashboardPageRuntime() {
+  return /** @type {any} */ (globalThis);
+}
+
+function getDashboardPageRuntimeValue(name) {
+  return dashboardPageRuntime()[name];
+}
+
+function callDashboardPageRuntime(name, ...args) {
+  const runtime = dashboardPageRuntime();
+  const fn = runtime[name];
+  if (typeof fn !== 'function') return undefined;
+  return fn.apply(runtime, args);
+}
+
 function dashboardWelcomeActionAttrs(action, attrs = {}) {
   let html = `${DASHBOARD_WELCOME_ACTION_ATTR}="${escapeAttr(action)}"`;
   for (const [key, value] of Object.entries(attrs)) {
@@ -42,7 +57,7 @@ function closestDashboardWelcomeAction(target) {
 function handleDashboardWelcomeActionClick(event) {
   const actionEl = closestDashboardWelcomeAction(event.target);
   if (!actionEl) return;
-  const appWindow = /** @type {any} */ (window);
+  const appWindow = dashboardPageRuntime();
   const action = actionEl.getAttribute(DASHBOARD_WELCOME_ACTION_ATTR);
   if (action === 'open-chat') {
     appWindow.openChatPanel?.();
@@ -153,8 +168,8 @@ export function createDashboardPageView(deps) {
     // Resume the live-session ticker if a session was started before this
     // page loaded — keeps the dashboard Light Today surface ticking after a
     // hard reload mid-session.
-    if (window._resumeActiveTickerIfNeeded) try { window._resumeActiveTickerIfNeeded(); } catch (e) {}
-    if (window.ensureActiveDeviceTicker) try { window.ensureActiveDeviceTicker(); } catch (e) {}
+    if (getDashboardPageRuntimeValue('_resumeActiveTickerIfNeeded')) try { callDashboardPageRuntime('_resumeActiveTickerIfNeeded'); } catch (e) {}
+    if (getDashboardPageRuntimeValue('ensureActiveDeviceTicker')) try { callDashboardPageRuntime('ensureActiveDeviceTicker'); } catch (e) {}
     if (!data) data = getActiveData();
     const main = document.getElementById("main-content");
     const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
@@ -173,7 +188,7 @@ export function createDashboardPageView(deps) {
     //    importDataJSON parses the demo blob (typically 2–3s). Without
     //    this the empty Welcome hero flashes for the duration. The flag
     //    is set in loadDemoData() and cleared on import success/failure.
-    if (!hasData && window._demoLoadingProfileId === state.currentProfile) {
+    if (!hasData && getDashboardPageRuntimeValue('_demoLoadingProfileId') === state.currentProfile) {
       document.body.classList.add('empty-dashboard-active');
       main.innerHTML = `<div class="welcome-hero" aria-busy="true" role="status" aria-live="polite">
         <h2>Loading demo data…</h2>
@@ -236,23 +251,23 @@ export function createDashboardPageView(deps) {
       // First visit starts the empty-state tour from the welcome screen.
       // Delay one tick so header/profile controls are rendered before targets
       // are filtered. If the user already completed it, fall through to chat onboarding.
-      const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'));
-      if (shouldAutoStartEmptyTour) setTimeout(() => window.startEmptyTour?.(true), 100);
+      const shouldAutoStartEmptyTour = typeof getDashboardPageRuntimeValue('startEmptyTour') === 'function' && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'));
+      if (shouldAutoStartEmptyTour) setTimeout(() => callDashboardPageRuntime('startEmptyTour', true), 100);
       // Returning desktop visitors get the guided chat setup beside the
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
-      const isDesktopChatOnboardingViewport = typeof window !== 'undefined' && window.innerWidth > 768;
+      const isDesktopChatOnboardingViewport = getDashboardPageRuntimeValue('innerWidth') > 768;
       if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
         if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
           document.body.classList.add('chat-autostart-reserved');
         }
         setTimeout(() => {
-          if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return;
+          if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return;
           const panel = document.getElementById('chat-panel');
           if (state.chatHistory.length > 0 || panel?.classList.contains('open')) {
             document.body.classList.remove('chat-autostart-reserved');
             return;
           }
-          if (window.openChatPanel) window.openChatPanel();
+          if (typeof getDashboardPageRuntimeValue('openChatPanel') === 'function') callDashboardPageRuntime('openChatPanel');
           else document.body.classList.remove('chat-autostart-reserved');
         }, 800);
       }
@@ -277,17 +292,20 @@ export function createDashboardPageView(deps) {
     // cached text with a fresh AI response during startup.
     if (hasData) loadFocusCard({ refreshStale: false });
     loadContextHealthDots();
-    if (window.loadContextCardTips) window.loadContextCardTips();
+    callDashboardPageRuntime('loadContextCardTips');
     loadCommitHash();
     // Preload catalog so rec sections and sorting use it immediately
-    if (window.loadCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
+    const catalogPromise = callDashboardPageRuntime('loadCatalog');
+    if (catalogPromise && typeof catalogPromise.then === 'function') {
+      catalogPromise.then(c => { dashboardPageRuntime()._cachedCatalog = c; });
+    }
 
     // Auto-trigger guided tour on first populated dashboard visit as a fallback
     // for users who imported before seeing the empty-state tour.
-    const _p = window.getProfiles?.()?.find(p => p.id === state.currentProfile);
+    const _p = callDashboardPageRuntime('getProfiles')?.find(p => p.id === state.currentProfile);
     const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
     if (_hasProfile && hasData) {
-      if (window.startTour) window.startTour(true);
+      callDashboardPageRuntime('startTour', true);
     }
   }
 

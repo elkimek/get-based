@@ -182,16 +182,17 @@ console.log('20. dashboard-page-view.js Auto-Trigger');
 
 const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 
-assert('dashboard-page-view.js calls window.startTour(true)', dashboardPageViewSrc.includes('window.startTour(true)'));
-assert('dashboard-page-view.js guards with if (window.startTour)', dashboardPageViewSrc.includes('if (window.startTour)'));
-assert('dashboard-page-view.js calls window.startEmptyTour(true)', dashboardPageViewSrc.includes('window.startEmptyTour?.(true)'));
+assert('dashboard-page-view.js calls startTour through runtime helper',
+  dashboardPageViewSrc.includes("callDashboardPageRuntime('startTour', true)"));
+assert('dashboard-page-view.js calls startEmptyTour through runtime helper',
+  dashboardPageViewSrc.includes("callDashboardPageRuntime('startEmptyTour', true)"));
 assert('Empty first visit starts empty tour before chat onboarding',
-  dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = !!window.startEmptyTour && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
-  dashboardPageViewSrc.includes("setTimeout(() => window.startEmptyTour?.(true), 100)") &&
+  dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = typeof getDashboardPageRuntimeValue('startEmptyTour') === 'function' && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
+  dashboardPageViewSrc.includes("setTimeout(() => callDashboardPageRuntime('startEmptyTour', true), 100)") &&
   dashboardPageViewSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
 const setupIdx = dashboardPageViewSrc.indexOf('setupDropZone()');
 const emptyTourIdx = dashboardPageViewSrc.indexOf('startEmptyTour');
-const tourIdx = dashboardPageViewSrc.indexOf('startTour(true)');
+const tourIdx = dashboardPageViewSrc.indexOf("callDashboardPageRuntime('startTour', true)");
 assert('startEmptyTour called after setupDropZone', setupIdx > 0 && emptyTourIdx > setupIdx);
 assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupIdx);
 
