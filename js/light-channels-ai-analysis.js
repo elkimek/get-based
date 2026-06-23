@@ -40,11 +40,48 @@ const _CHANNEL_DEF = {
   violet_eye: { label: 'Violet-eye dopamine',     biology: '360–440 nm at the eye → retinal dopamine, myopia + mood' },
 };
 
+function _runtime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function _callRuntime(name, ...args) {
+  const fn = _runtime()[name];
+  return typeof fn === 'function' ? fn(...args) : null;
+}
+
+function _rollingChannelTotals(days) {
+  return _callRuntime('rollingChannelTotals', days) || {};
+}
+
+function _rollingDeviceTotals(days) {
+  return _callRuntime('rollingDeviceTotals', days) || {};
+}
+
+function _getSessions() {
+  return _callRuntime('getSessions') || [];
+}
+
+function _getDeviceSessions() {
+  return _callRuntime('getDeviceSessions') || [];
+}
+
+function _weeklyChannelTier(value, channelKey) {
+  const tier = _runtime().weeklyChannelTier;
+  return typeof tier === 'function' ? tier(value, channelKey) : 0;
+}
+
+function _tierLabel(tier) {
+  const label = _runtime().tierLabel;
+  return typeof label === 'function'
+    ? label(tier)
+    : (['none', 'low', 'moderate', 'good', 'strong'][tier] || '?');
+}
+
 function _channelTotals() {
-  const sun7 = (typeof window !== 'undefined' && window.rollingChannelTotals) ? window.rollingChannelTotals(7) : {};
-  const dev7 = (typeof window !== 'undefined' && window.rollingDeviceTotals) ? window.rollingDeviceTotals(7) : {};
-  const sun30 = (typeof window !== 'undefined' && window.rollingChannelTotals) ? window.rollingChannelTotals(30) : {};
-  const dev30 = (typeof window !== 'undefined' && window.rollingDeviceTotals) ? window.rollingDeviceTotals(30) : {};
+  const sun7 = _rollingChannelTotals(7);
+  const dev7 = _rollingDeviceTotals(7);
+  const sun30 = _rollingChannelTotals(30);
+  const dev30 = _rollingDeviceTotals(30);
   const merge = (a, b) => {
     const out = {};
     for (const k of new Set([...Object.keys(a || {}), ...Object.keys(b || {})])) {
@@ -57,37 +94,34 @@ function _channelTotals() {
 
 export function getChannelMixFingerprint() {
   const t = _channelTotals();
-  const tier = (typeof window !== 'undefined' && window.weeklyChannelTier) ? window.weeklyChannelTier : (() => 0);
   const parts = [];
   for (const k of Object.keys(_CHANNEL_DEF).sort()) {
-    parts.push(`${k}:${tier(t.c7[k] || 0, k)}`);
+    parts.push(`${k}:${_weeklyChannelTier(t.c7[k] || 0, k)}`);
   }
   // Also fingerprint sun/device session count split — a user who shifted
   // from outdoor to indoor over the week needs a different verdict.
-  const sun7 = ((typeof window !== 'undefined' && window.getSessions) ? window.getSessions() : []).filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
-  const dev7 = ((typeof window !== 'undefined' && window.getDeviceSessions) ? window.getDeviceSessions() : []).filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
+  const sun7 = _getSessions().filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
+  const dev7 = _getDeviceSessions().filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
   parts.push(`sun7:${sun7}`, `dev7:${dev7}`);
   return hashString(parts.join('|'));
 }
 
 export function buildChannelMixContext() {
   const t = _channelTotals();
-  const tier = (typeof window !== 'undefined' && window.weeklyChannelTier) ? window.weeklyChannelTier : (() => 0);
-  const tierLabel = (typeof window !== 'undefined' && window.tierLabel) ? window.tierLabel : ((n) => ['none', 'low', 'moderate', 'good', 'strong'][n] || '?');
   const lines = [];
 
   lines.push('### Channel mix — last 7 days');
   for (const [k, def] of Object.entries(_CHANNEL_DEF)) {
-    const t7 = tier(t.c7[k] || 0, k);
-    const t30 = tier(t.c30[k] || 0, k);
-    lines.push(`- ${def.label} (${k}): 7d tier "${tierLabel(t7)}", 30d tier "${tierLabel(t30)}". Biology: ${def.biology}`);
+    const t7 = _weeklyChannelTier(t.c7[k] || 0, k);
+    const t30 = _weeklyChannelTier(t.c30[k] || 0, k);
+    lines.push(`- ${def.label} (${k}): 7d tier "${_tierLabel(t7)}", 30d tier "${_tierLabel(t30)}". Biology: ${def.biology}`);
   }
 
   // Source split — outdoor vs device contribution per channel
   const sun7Total = Object.values(t.sun7 || {}).reduce((a, b) => a + b, 0);
   const dev7Total = Object.values(t.dev7 || {}).reduce((a, b) => a + b, 0);
-  const sunSessCount = ((typeof window !== 'undefined' && window.getSessions) ? window.getSessions() : []).filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
-  const devSessCount = ((typeof window !== 'undefined' && window.getDeviceSessions) ? window.getDeviceSessions() : []).filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
+  const sunSessCount = _getSessions().filter(s => s.endedAt && s.endedAt > Date.now() - 7 * 86400000).length;
+  const devSessCount = _getDeviceSessions().filter(s => s.endedAt > Date.now() - 7 * 86400000).length;
   lines.push('');
   lines.push('### Source mix this week');
   lines.push(`Outdoor sun: ${sunSessCount} session(s)`);
@@ -158,8 +192,8 @@ const engine = createAIVerdict({
   systemPrompt: SYSTEM_PROMPT,
   maxTokens: 500,
   canAnalyze: () => {
-    const sun = (typeof window !== 'undefined' && window.getSessions) ? window.getSessions() : [];
-    const dev = (typeof window !== 'undefined' && window.getDeviceSessions) ? window.getDeviceSessions() : [];
+    const sun = _getSessions();
+    const dev = _getDeviceSessions();
     return sun.some(s => s.endedAt) || dev.length > 0;
   },
   getAllTargets: () => (state.importedData ? [SINGLETON] : []),
@@ -207,8 +241,7 @@ export function renderChannelMixVerdict(staticFallback) {
   // user without sessions doesn't burn an API call on an all-zero mix.
   const _hasSignal = (() => {
     try {
-      const t = (typeof window !== 'undefined' && window.rollingChannelTotals)
-        ? window.rollingChannelTotals(7) : {};
+      const t = _rollingChannelTotals(7);
       return Object.values(t).some(v => v > 0);
     } catch (_) { return false; }
   })();
