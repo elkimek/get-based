@@ -128,7 +128,7 @@ function _depositNodePreset(el) {
 async function _recoverPendingDeposit(el) {
   try {
     await globalThis.cashuReceiveToken?.(el.dataset.token || '');
-    globalThis.cashuClearPendingDeposit?.();
+    await globalThis.cashuClearPendingDeposit?.();
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {
