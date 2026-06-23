@@ -68,8 +68,11 @@ const highValueCheckJsModules = [
   'js/sun.js',
   'js/wearables.js',
 ];
+const missingHighValueCheckJsModules = highValueCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
 assert('checkJs pilot includes high-coupling browser modules',
-  highValueCheckJsModules.every(file => checkJsConfig.include?.includes(file)));
+  missingHighValueCheckJsModules.length === 0,
+  missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
