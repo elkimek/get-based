@@ -28,6 +28,7 @@ const guardrailSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'quality-guardra
 const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'quality-baseline.json'), 'utf8'));
 const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
+const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
 
 assert('package.json exposes npm run quality',
   pkg.scripts?.quality === 'node scripts/quality-guardrails.mjs');
@@ -52,6 +53,26 @@ assert('CI keeps a dedicated typecheck step and skips duplicate script typecheck
   testWorkflowSrc.includes('name: Run typecheck') &&
     testWorkflowSrc.includes('run: npm run typecheck') &&
     testWorkflowSrc.includes('SKIP_TYPECHECK=1 ./run-tests.sh'));
+const highValueCheckJsModules = [
+  'js/api.js',
+  'js/client-list.js',
+  'js/dashboard-widget-renderers.js',
+  'js/dna.js',
+  'js/export.js',
+  'js/lens.js',
+  'js/light-tool-camera-modals.js',
+  'js/pdf-import.js',
+  'js/profile.js',
+  'js/recommendations.js',
+  'js/settings.js',
+  'js/sun.js',
+  'js/wearables.js',
+];
+const missingHighValueCheckJsModules = highValueCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes high-coupling browser modules',
+  missingHighValueCheckJsModules.length === 0,
+  missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
