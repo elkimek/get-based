@@ -274,6 +274,29 @@ describe('Cashu wallet runtime behavior', () => {
     expect(funding.quote).toBe('mint-200');
   });
 
+  it('clears already-issued pending funding when restored proofs are already present locally', async () => {
+    const stub = installCashuStub();
+    stub.receiveProofs = [proof('already-present-issued-proof', 200)];
+    stub.restoreProofs = [];
+    stub.failMintOutputsAlreadySigned = true;
+    const wallet = await loadWallet();
+    await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
+    await wallet.generateWalletSeed();
+    await wallet.receiveToken('cashu-token');
+
+    const funding = await wallet.createFundingInvoice(200);
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({
+      checked: 1,
+      recovered: 0,
+      pending: 0,
+      failed: 0,
+      balance: 200,
+    });
+    await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0, recovered: 0 });
+    await expect(wallet.getWalletBalance()).resolves.toBe(200);
+    expect(funding.quote).toBe('mint-200');
+  });
+
   it('auto-reduces lightning-address withdrawals and exposes failed melt recovery', async () => {
     const wallet = await loadWallet();
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');

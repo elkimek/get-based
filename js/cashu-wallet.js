@@ -564,7 +564,12 @@ export async function checkFundingStatus(quoteId) {
         const before = await getWalletBalance();
         const restored = await _restoreProofsFromSeed(mnemonic, { clearExisting: false });
         const recovered = Math.max(0, restored.balance - before);
-        if (recovered <= 0) throw e;
+        if (recovered <= 0) {
+          const alreadyCovered = restored.balance >= amount;
+          if (!alreadyCovered) throw e;
+          await _deleteMeta(pendingKey);
+          return { paid: true, balance: restored.balance, minted: 0, fee: 0, recoveredFromRestore: true, alreadyPresent: true };
+        }
         await _deleteMeta(pendingKey);
         return { paid: true, balance: restored.balance, minted: recovered, fee: 0, recoveredFromRestore: true };
       }
