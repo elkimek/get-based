@@ -446,6 +446,37 @@ describe('Cashu wallet runtime behavior', () => {
     expect(localStorage.getItem('labcharts-routstr-key')).toBe('sk-existing-user-session');
   });
 
+  it('migrates oldest untagged default-mint proof rows without dropping balance', async () => {
+    const db = await openCashuTestDB();
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(['proofs', 'meta'], 'readwrite');
+        const proofStore = tx.objectStore('proofs');
+        const metaStore = tx.objectStore('meta');
+        proofStore.put(proof('old-default-proof-a', 4));
+        proofStore.put(proof('old-default-proof-b', 3));
+        metaStore.put({ key: 'mintUrl', value: 'https://mint.minibits.cash/Bitcoin' });
+        metaStore.put({ key: 'walletMnemonic', value: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+
+    const wallet = await loadWallet();
+
+    await expect(wallet.getWalletBalance()).resolves.toBe(7);
+    await expect(wallet.getWalletMnemonic()).resolves.toBe('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
+    const rows = await readIdbStore('proofs');
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ secret: 'old-default-proof-a', _mint: 'https://mint.minibits.cash/Bitcoin' }),
+      expect.objectContaining({ secret: 'old-default-proof-b', _mint: 'https://mint.minibits.cash/Bitcoin' }),
+    ]));
+    await expect(readIdbMeta('walletMnemonic')).resolves.toBeNull();
+    expect(localStorage.getItem('labcharts-cashu-wallet-mnemonic')).toBeTruthy();
+  });
+
   it('handles empty fee pools without mutating the wallet', async () => {
     const wallet = await loadWallet();
 
