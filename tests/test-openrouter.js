@@ -288,7 +288,10 @@ assert('startOpenRouterOAuth does not persist OpenRouter before callback success
 const startupOAuthSrc = read('js/startup-oauth-callbacks.js');
 assert('startup-oauth-callbacks.js checks for code URL param', startupOAuthSrc.includes("urlParams.get('code')") || startupOAuthSrc.includes("get('code')"));
 assert('startup-oauth-callbacks.js calls exchangeOpenRouterCode', startupOAuthSrc.includes('exchangeOpenRouterCode('));
-assert('startup-oauth-callbacks.js cleans URL via replaceState', startupOAuthSrc.includes('history.replaceState'));
+assert('startup-oauth-callbacks.js cleans URL via runtime replaceState',
+  startupOAuthSrc.includes('function replaceCurrentUrl()')
+    && startupOAuthSrc.includes('startupRuntime().history')
+    && startupOAuthSrc.includes('historyApi.replaceState(null, \'\', currentPathname())'));
 assert('startup-oauth-callbacks.js handles OpenRouter authorization denial',
   startupOAuthSrc.includes("urlParams.get('error')") && startupOAuthSrc.includes('restoreOpenRouterOAuthPreviousProvider()'));
 assert('startup-oauth-callbacks.js gates OpenRouter handling on pending local OAuth state',
