@@ -13,6 +13,15 @@ let _shellDeps = {
 };
 let lensPageShellDelegatesInstalled = false;
 
+function lensPageRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function callLensPageRuntime(name, ...args) {
+  const fn = lensPageRuntime()[name];
+  if (typeof fn === 'function') fn(...args);
+}
+
 export function configureLensPageShell(deps = {}) {
   _shellDeps = { ..._shellDeps, ...deps };
   installLensPageShellDelegates();
@@ -37,35 +46,34 @@ function handleLensPageShellClick(event) {
   // hero as a standalone top-section before the regular lens-page-widgets container, and its
   // dashboard toggle must be handled by the lens page shell.
   event.preventDefault();
-  const appWindow = /** @type {any} */ (window);
 
   const action = actionEl.dataset.lensPageAction || '';
   const id = actionEl.dataset.lensPageId || '';
   if (action === 'move-widget') {
     moveLensPageWidget(actionEl.dataset.lensPageRoute || '', id, actionEl.dataset.lensPageDirection || 0);
   } else if (action === 'add-dashboard-widget') {
-    appWindow.addDashboardWidgetFromLens?.(id);
+    callLensPageRuntime('addDashboardWidgetFromLens', id);
   } else if (action === 'remove-dashboard-widget') {
-    appWindow.removeDashboardWidgetFromLens?.(id);
+    callLensPageRuntime('removeDashboardWidgetFromLens', id);
   } else if (action === 'import-dna') {
-    appWindow.triggerDNAFilePicker?.();
+    callLensPageRuntime('triggerDNAFilePicker');
   } else if (action === 'reimport-dna') {
-    if (typeof appWindow.reimportDNA === 'function') appWindow.reimportDNA();
-    else appWindow.triggerDNAFilePicker?.();
+    if (typeof lensPageRuntime().reimportDNA === 'function') callLensPageRuntime('reimportDNA');
+    else callLensPageRuntime('triggerDNAFilePicker');
   } else if (action === 'delete-dna') {
-    appWindow.confirmDeleteDNA?.();
+    callLensPageRuntime('confirmDeleteDNA');
   } else if (action === 'open-wearables-settings') {
-    appWindow.openSettingsModal?.('wearables');
+    callLensPageRuntime('openSettingsModal', 'wearables');
   } else if (action === 'open-biometric-picker') {
-    appWindow.openDashboardBiometricPicker?.();
+    callLensPageRuntime('openDashboardBiometricPicker');
   } else if (action === 'open-ai-chat') {
-    appWindow.openChatPanel?.();
+    callLensPageRuntime('openChatPanel');
   } else if (action === 'open-emf-assessment') {
-    appWindow.openEMFAssessmentEditor?.();
+    callLensPageRuntime('openEMFAssessmentEditor');
   } else if (action === 'open-recommendations') {
-    appWindow.navigate?.('recommendations');
+    callLensPageRuntime('navigate', 'recommendations');
   } else if (action === 'open-privacy-settings') {
-    appWindow.openSettingsModal?.('privacy');
+    callLensPageRuntime('openSettingsModal', 'privacy');
   }
 }
 
@@ -142,7 +150,7 @@ export function moveLensPageWidget(route, id, direction) {
   if (index < 0 || target < 0 || target >= ids.length) return;
   [ids[index], ids[target]] = [ids[target], ids[index]];
   localStorage.setItem(lensPageOrderStorageKey(route), JSON.stringify(ids));
-  if (state.currentView === route) window.navigate?.(route);
+  if (state.currentView === route) callLensPageRuntime('navigate', route);
 }
 
 export function renderLensDashboardToggle(dashboardId) {
