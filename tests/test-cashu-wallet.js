@@ -57,6 +57,7 @@ const apiSrc = await fetchWithRetry('js/api.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
 const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
@@ -147,6 +148,8 @@ assert('Node refund token saved before wallet receive', nodeRefundSrc.includes('
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
+assert('Provider panel recovery uses receiveToken mint-switch path', ppSrc.includes('await appWindow.cashuReceiveToken(token)') && !ppSrc.includes('await appWindow.cashuImportWallet(token)'));
+assert('Wallet runtime exposes pending deposit clear callback', walletRuntimeSrc.includes('clearPendingDeposit as cashuClearPendingDeposit') && walletRuntimeSrc.includes('cashuClearPendingDeposit'));
 
 // ═══════════════════════════════════════
 // 6. CASHU WALLET — FEE MECHANISM

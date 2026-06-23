@@ -129,5 +129,12 @@ assert('service worker precaches provider panel delegate module',
   assert(`provider panel key action ${action} is handled`, delegatesSrc.includes(`'${action}'`));
 });
 
+assert('provider panel recovery uses mint-aware receiveToken instead of wallet import',
+  panelsSrc.includes('typeof appWindow.cashuReceiveToken') &&
+    panelsSrc.includes('await appWindow.cashuReceiveToken(token)') &&
+    !panelsSrc.includes('await appWindow.cashuImportWallet(token)'));
+assert('provider panel recovery awaits pending-token clear before reload',
+  /await appWindow\.cashuReceiveToken\(token\);[\s\S]*await appWindow\[clearName\]\(\);[\s\S]*window\.location\.reload\(\);/.test(panelsSrc));
+
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

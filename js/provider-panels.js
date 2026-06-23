@@ -339,10 +339,10 @@ async function _recoverPendingToken(actionEl, clearName) {
   );
   const token = actionEl?.dataset?.token || fallbackInput?.value || '';
   try {
-    if (typeof appWindow.cashuImportWallet !== 'function' || typeof appWindow[clearName] !== 'function') {
+    if (typeof appWindow.cashuReceiveToken !== 'function' || typeof appWindow[clearName] !== 'function') {
       throw new Error('Wallet recovery is unavailable');
     }
-    await appWindow.cashuImportWallet(token);
+    await appWindow.cashuReceiveToken(token);
     await appWindow[clearName]();
     showNotification('Recovered!', 'success');
     window.location.reload();
