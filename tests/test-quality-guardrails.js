@@ -332,6 +332,15 @@ const missingPdfReportCheckJsModules = pdfReportCheckJsModules
 assert('checkJs pilot includes PDF import and report modules',
   missingPdfReportCheckJsModules.length === 0,
   missingPdfReportCheckJsModules.length ? `missing: ${missingPdfReportCheckJsModules.join(', ')}` : '');
+const appJsModules = fs.readdirSync(path.join(ROOT, 'js'))
+  .filter(file => file.endsWith('.js'))
+  .map(file => `js/${file}`)
+  .sort();
+const missingAppCheckJsModules = appJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes every app JS module',
+  missingAppCheckJsModules.length === 0,
+  missingAppCheckJsModules.length ? `missing: ${missingAppCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
