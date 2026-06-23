@@ -15,6 +15,8 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getSessions, formatChannelUnit, CHANNEL_DISPLAY, channelTier, tierLabel } from './sun.js';
+import { vitaminDIU } from './sun-spectrum.js';
+import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs } from './ai-action-delegates.js';
@@ -98,8 +100,8 @@ function _sevenDayRollup(currentSess) {
   for (const s of recent) {
     totalMin += s.durationMin || 0;
     const rawVitD = s.doses?.vitamin_d || 0;
-    if (rawVitD > 0 && typeof window.vitaminDIU === 'function') {
-      const iu = window.vitaminDIU(
+    if (rawVitD > 0) {
+      const iu = vitaminDIU(
         rawVitD,
         s.safety?.fitzpatrick || 'III',
         s.atmosphere?.uvIndex ?? null,
@@ -145,10 +147,10 @@ export function buildSingleSessionContext(sess) {
   }
 
   // Solar geometry
-  if (end && sess.location && typeof window.solarZenithAngle === 'function') {
+  if (end && sess.location) {
     try {
-      const zStart = window.solarZenithAngle(start, sess.location.lat, sess.location.lon);
-      const zEnd = window.solarZenithAngle(end, sess.location.lat, sess.location.lon);
+      const zStart = solarZenithAngle(start, sess.location.lat, sess.location.lon);
+      const zEnd = solarZenithAngle(end, sess.location.lat, sess.location.lon);
       const elevStart = 90 - zStart;
       const elevEnd = 90 - zEnd;
       lines.push(`Solar elevation: ${elevStart.toFixed(1)}° at start → ${elevEnd.toFixed(1)}° at end`);
@@ -160,9 +162,9 @@ export function buildSingleSessionContext(sess) {
   if (sess.doses) {
     let zenith = null;
     try {
-      if (sess.startedAt && sess.endedAt && sess.location && typeof window.solarZenithAngle === 'function') {
+      if (sess.startedAt && sess.endedAt && sess.location) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
-        zenith = window.solarZenithAngle(mid, sess.location.lat, sess.location.lon);
+        zenith = solarZenithAngle(mid, sess.location.lat, sess.location.lon);
       }
     } catch (_) {}
     const fitz = sess.safety?.fitzpatrick || sd.fitzpatrick || 'III';

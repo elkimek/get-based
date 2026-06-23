@@ -5,6 +5,7 @@
 // Run: node tests/test-sun-ai-analysis.js  (or via npm test)
 
 import './_node-shim.js';
+import fs from 'fs';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -16,7 +17,6 @@ console.log('=== Sun AI Analysis Tests ===\n');
 
 await import('../js/state.js');
 await import('../js/sun.js');
-// sun-uvdata.js exposes solarZenithAngle on window for solar-phase lines.
 await import('../js/sun-uvdata.js');
 const mod = await import('../js/sun-ai-analysis.js');
 const {
@@ -65,6 +65,14 @@ const {
     localStorage.setItem('labcharts-ai-provider', 'ollama'); // optimistic-true
   }
 
+  const sunAiSource = fs.readFileSync(new URL('../js/sun-ai-analysis.js', import.meta.url), 'utf8');
+  assert('sun AI imports vitamin-D and solar geometry helpers directly',
+    sunAiSource.includes("import { vitaminDIU } from './sun-spectrum.js';") &&
+      sunAiSource.includes("import { solarZenithAngle } from './sun-uvdata.js';"));
+  assert('sun AI context builder avoids direct window helper reads',
+    !sunAiSource.includes('window.vitaminDIU') &&
+      !sunAiSource.includes('window.solarZenithAngle'));
+
   // ─── 1. Fingerprint ─────────────────────────────────────────────────
   console.log('%c 1. Fingerprint stability ', 'font-weight:bold;color:#f59e0b');
 
@@ -102,8 +110,7 @@ const {
   console.log('%c 1b. Solar phase context ', 'font-weight:bold;color:#f59e0b');
 
   // Build a sunrise-session fixture: startedAt below horizon, endedAt above.
-  // Need a real location so window.solarZenithAngle resolves; the test harness
-  // loads sun-spectrum.js which exports it on window.
+  // Need a real location so the imported solar geometry helper can classify phase.
   reset({ sunDefaults: { fitzpatrick: 'III' } });
   // 2026-04-15 06:30 UTC at lat=50, lon=14 — elevation around -3° at 06:30,
   // climbing past 0° by 07:00 (sunrise crossing). Numbers are illustrative;
@@ -190,7 +197,7 @@ const {
   });
   const ctx2 = buildSingleSessionContext(makeSess({ id: 'current' }));
   assert('rollup section appears with prior sessions', ctx2.includes('### Last 7 days'));
-  // Cumulative IU is now computed via window.vitaminDIU on each session,
+  // Cumulative IU is now computed via vitaminDIU on each session,
   // not by summing raw channelAu values. Just assert the line exists with
   // a non-zero IU number — the exact value depends on the spectrum model.
   assert('rollup line includes a numeric Vit-D total in IU',
