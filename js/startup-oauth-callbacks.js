@@ -14,13 +14,49 @@ import {
 } from './api.js';
 import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 
+function startupRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function callStartupRuntime(name, ...args) {
+  const fn = startupRuntime()[name];
+  return typeof fn === 'function' ? fn(...args) : undefined;
+}
+
+function currentPathname() {
+  return startupRuntime().location?.pathname || '/';
+}
+
+function currentSearch() {
+  return startupRuntime().location?.search || '';
+}
+
+function replaceCurrentUrl() {
+  const historyApi = startupRuntime().history;
+  if (historyApi && typeof historyApi.replaceState === 'function') {
+    historyApi.replaceState(null, '', currentPathname());
+  }
+}
+
+function showNotification(message, type, duration) {
+  callStartupRuntime('showNotification', message, type, duration);
+}
+
+function openChatAfterInit() {
+  startupRuntime()._openChatAfterInit = true;
+}
+
+function showInsufficientBalanceDialog() {
+  callStartupRuntime('showInsufficientBalanceDialog');
+}
+
 async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
-  history.replaceState(null, '', window.location.pathname);
+  replaceCurrentUrl();
 
   if (typeof oauthCode !== 'string' || !oauthCode) {
     restoreOpenRouterOAuthPreviousProvider();
     clearOpenRouterOAuthSession();
-    window.showNotification('OpenRouter connection failed: missing authorization code. Please try connecting again.', 'error', 6000);
+    showNotification('OpenRouter connection failed: missing authorization code. Please try connecting again.', 'error', 6000);
     return;
   }
 
@@ -31,35 +67,35 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
     setAIProvider('openrouter');
     clearOpenRouterOAuthSession();
     fetchOpenRouterModels(key);
-    window._openChatAfterInit = true;
-    window.showNotification('Connected to OpenRouter successfully!', 'success');
+    openChatAfterInit();
+    showNotification('Connected to OpenRouter successfully!', 'success');
 
     // A brand-new OpenRouter account can have zero credits. Show the
     // persistent dialog before the first AI call fails behind a transient toast.
     try {
       const balance = await getOpenRouterBalance();
       const remaining = balance?.remaining;
-      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && window.showInsufficientBalanceDialog) {
-        setTimeout(() => window.showInsufficientBalanceDialog(), 1500);
+      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof startupRuntime().showInsufficientBalanceDialog === 'function') {
+        setTimeout(() => showInsufficientBalanceDialog(), 1500);
       }
     } catch {}
   } catch (e) {
     restoreOpenRouterOAuthPreviousProvider();
     clearOpenRouterOAuthSession();
-    window.showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
+    showNotification('OpenRouter connection failed: ' + e.message, 'error', 6000);
   }
 }
 
 function handleOpenRouterOAuthError(error, description) {
-  history.replaceState(null, '', window.location.pathname);
+  replaceCurrentUrl();
   restoreOpenRouterOAuthPreviousProvider();
   clearOpenRouterOAuthSession();
 
   if (error === 'access_denied') {
-    window.showNotification('OpenRouter authorization was cancelled', 'info', 4000);
+    showNotification('OpenRouter authorization was cancelled', 'info', 4000);
   } else {
     const detail = description || error || 'Authorization failed';
-    window.showNotification('OpenRouter authorization failed: ' + detail, 'error', 6000);
+    showNotification('OpenRouter authorization failed: ' + detail, 'error', 6000);
   }
 }
 
@@ -69,7 +105,7 @@ export async function handleStartupOAuthCallbacks() {
   // `?code=` is not processed twice.
   const wearableHandled = await handleOAuthCallbackOnLoad();
 
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(currentSearch());
   const oauthCode = urlParams.get('code');
   const oauthState = urlParams.get('state');
   const oauthError = urlParams.get('error');
