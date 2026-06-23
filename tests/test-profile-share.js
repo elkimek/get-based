@@ -120,7 +120,7 @@ assert('Share modal lists and can stop links created on this device',
 assert('Share profile has a top-level header action',
   read('index.html').includes('data-shell-action="share-profile"') &&
   read('js/shell-actions.js').includes("action === 'share-profile'") &&
-  read('js/shell-actions.js').includes('window.openProfileShareModal?.()'));
+  read('js/shell-actions.js').includes("callShellRuntime('openProfileShareModal')"));
 assert('Mobile share path moves into client list menu',
   read('js/client-list.js').includes("label: 'Share Profile', action: 'share-profile'") &&
   read('js/client-list.js').includes('window.openProfileShareModal?.(id)') &&

@@ -77,17 +77,17 @@ assert('Thread search uses delegated input/search action',
   html.includes('data-chat-input-action="filter-thread-list"')
     && shellSrc.includes("document.addEventListener('input', handleShellInput)")
     && shellSrc.includes("document.addEventListener('search', handleShellInput)")
-    && shellSrc.includes('window.filterThreadList?.(input.value)'));
+    && shellSrc.includes("callShellRuntime('filterThreadList', input.value)"));
 assert('Web search toggle uses delegated change action',
   html.includes('data-chat-change-action="set-websearch"')
     && shellSrc.includes("document.addEventListener('change', handleShellChange)")
-    && shellSrc.includes('window.setChatWebSearchEnabled?.(input.checked)'));
+    && shellSrc.includes("callShellRuntime('setChatWebSearchEnabled', input.checked)"));
 assert('Chat key handlers are delegated',
   html.includes('data-chat-key-action="message-input"')
     && html.includes('data-chat-key-action="toggle-personality"')
     && shellSrc.includes("document.addEventListener('keydown', handleShellKeydown)")
-    && shellSrc.includes('window.handleChatKeydown?.(event)')
-    && shellSrc.includes('window.togglePersonalityBar?.()'));
+    && shellSrc.includes("callShellRuntime('handleChatKeydown', event)")
+    && shellSrc.includes("callShellRuntime('togglePersonalityBar')"));
 assert('Click delegate only prevents default for handled actions',
   shellSrc.includes('const handled = shellAction')
     && shellSrc.includes('if (handled) event.preventDefault();')
