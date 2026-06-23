@@ -10,6 +10,20 @@ import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
 
+function dashboardRecommendationRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function getDashboardRecommendationRuntimeValue(name) {
+  return dashboardRecommendationRuntime()[name];
+}
+
+function callDashboardRecommendationRuntime(name, ...args) {
+  const runtime = dashboardRecommendationRuntime();
+  const fn = getDashboardRecommendationRuntimeValue(name);
+  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
+}
+
 export function dashboardRecommendationActionAttrs(action, attrs = {}) {
   return [
     `data-dashboard-rec-action="${escapeAttr(action)}"`,
@@ -24,29 +38,29 @@ function handleDashboardRecommendationClick(event) {
   if (!target) return;
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-dashboard-rec-action]'));
   if (!actionEl || !actionEl.closest('.rec-next-widget, .rec-next-card, .db-correlation-empty')) return;
-  const appWindow = /** @type {any} */ (window);
   const action = actionEl.dataset.dashboardRecAction || '';
   event.preventDefault();
 
   if (action === 'view-marker') {
     const markerId = actionEl.dataset.dashboardRecMarkerId || '';
-    if (markerId) appWindow.showDetailModal?.(markerId, { scrollToRec: true });
+    if (markerId) callDashboardRecommendationRuntime('showDetailModal', markerId, { scrollToRec: true });
   } else if (action === 'open-detail') {
-    appWindow.openRecommendationDetail?.(
+    callDashboardRecommendationRuntime(
+      'openRecommendationDetail',
       actionEl.dataset.dashboardRecSlotKey || '',
       actionEl.dataset.dashboardRecLabel || 'Recommendation',
       actionEl.dataset.dashboardRecMarkerStatus || '',
     );
   } else if (action === 'discuss') {
-    appWindow.discussRecommendation?.(actionEl.dataset.dashboardRecId || '');
+    callDashboardRecommendationRuntime('discussRecommendation', actionEl.dataset.dashboardRecId || '');
   } else if (action === 'save') {
-    appWindow.saveRecommendation?.(actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
+    callDashboardRecommendationRuntime('saveRecommendation', actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
   } else if (action === 'dismiss') {
-    appWindow.dismissRecommendation?.(actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
+    callDashboardRecommendationRuntime('dismissRecommendation', actionEl.dataset.dashboardRecId || '', actionEl.dataset.dashboardRecOn === 'true');
   } else if (action === 'navigate') {
-    appWindow.navigate?.(actionEl.dataset.dashboardRecRoute || '');
+    callDashboardRecommendationRuntime('navigate', actionEl.dataset.dashboardRecRoute || '');
   } else if (action === 'open-privacy-settings') {
-    appWindow.openSettingsModal?.('privacy');
+    callDashboardRecommendationRuntime('openSettingsModal', 'privacy');
   }
 }
 
@@ -90,14 +104,16 @@ export function createDashboardRecommendationWidget({
   }
 
   function getCachedRecommendationsCatalog() {
-    return window._cachedCatalog?.slots ? window._cachedCatalog : null;
+    const catalog = getDashboardRecommendationRuntimeValue('_cachedCatalog');
+    return catalog?.slots ? catalog : null;
   }
 
   function refreshRecommendationsWhenCatalogReady() {
-    if (_recommendationsLoadPromise || !window.loadCatalog) return;
-    _recommendationsLoadPromise = window.loadCatalog()
+    const loadCatalog = getDashboardRecommendationRuntimeValue('loadCatalog');
+    if (_recommendationsLoadPromise || typeof loadCatalog !== 'function') return;
+    _recommendationsLoadPromise = loadCatalog()
       .then(catalog => {
-        if (catalog) window._cachedCatalog = catalog;
+        if (catalog) dashboardRecommendationRuntime()._cachedCatalog = catalog;
         refreshRecommendationSurfaces();
       })
       .finally(() => { _recommendationsLoadPromise = null; });
@@ -130,7 +146,7 @@ export function createDashboardRecommendationWidget({
   }
 
   function getGlobalRecommendationCandidates(ctx, catalog, { includeDismissed = false } = {}) {
-    if (!window.isProductRecsEnabled?.() || !catalog?.slots) return [];
+    if (!callDashboardRecommendationRuntime('isProductRecsEnabled') || !catalog?.slots) return [];
     const dismissed = getRecommendationStateSet('dismissed');
     const saved = getRecommendationStateSet('saved');
     const trendById = new Map((ctx.trendAlerts || []).map(alert => [alert.id, alert]));
@@ -206,10 +222,10 @@ export function createDashboardRecommendationWidget({
       });
     }
 
-    const sessions = (window.getSessions?.() || []).filter(s => s?.startedAt || s?.endedAt);
+    const sessions = (callDashboardRecommendationRuntime('getSessions') || []).filter(s => s?.startedAt || s?.endedAt);
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const hasRecentLightSession = sessions.some(s => Number(s.endedAt || s.startedAt || 0) >= sevenDaysAgo);
-    const totals7d = window.rollingChannelTotals?.(7) || {};
+    const totals7d = callDashboardRecommendationRuntime('rollingChannelTotals', 7) || {};
     if (catalog.slots['light.morningLight'] && (!hasRecentLightSession || Number(totals7d.circadian || 0) <= 0)) {
       add({
         id: 'light:light.morningLight:recent',
@@ -223,8 +239,9 @@ export function createDashboardRecommendationWidget({
       });
     }
 
-    if (typeof window.detectWearableTrendSlots === 'function') {
-      for (const hit of window.detectWearableTrendSlots(state.importedData?.wearableSummary)) {
+    const wearableTrendSlots = callDashboardRecommendationRuntime('detectWearableTrendSlots', state.importedData?.wearableSummary);
+    if (wearableTrendSlots && typeof wearableTrendSlots[Symbol.iterator] === 'function') {
+      for (const hit of wearableTrendSlots) {
         add({
           id: `body:${hit.slotKey}:wearable`,
           source: 'Body',
@@ -236,9 +253,9 @@ export function createDashboardRecommendationWidget({
       }
     }
 
-    if (typeof window.buildDNAHints === 'function' && window._snpTableCache) {
+    if (typeof getDashboardRecommendationRuntimeValue('buildDNAHints') === 'function' && getDashboardRecommendationRuntimeValue('_snpTableCache')) {
       for (const slotKey of Object.keys(catalog.slots)) {
-        const hints = window.buildDNAHints(slotKey);
+        const hints = callDashboardRecommendationRuntime('buildDNAHints', slotKey);
         if (!hints?.length) continue;
         add({
           id: `genome:${slotKey}:dna`,
@@ -288,7 +305,7 @@ export function createDashboardRecommendationWidget({
   }
 
   function renderDashboardRecommendationsWidget(ctx) {
-    if (!window.isProductRecsEnabled?.()) {
+    if (!callDashboardRecommendationRuntime('isProductRecsEnabled')) {
       return `<button type="button" class="db-correlation-empty" ${dashboardRecommendationActionAttrs('open-privacy-settings')}>
         <strong>Recommendations are off</strong>
         <span>Enable Tips & Recommendations in settings to show data-linked next steps.</span>
