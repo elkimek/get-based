@@ -80,19 +80,50 @@ async function preflightCanaryProfileReset() {
     const state = await page.evaluate(async () => {
       const required = [
         'cashuGetBalance',
-        'cashuRecoverPendingFunding',
         'cashuRecoverPendingDeposit',
         'cashuRecoverPendingWithdraw',
       ];
       const missing = required.filter(name => typeof window[name] !== 'function');
       if (missing.length) return { inspectError: 'missing wallet APIs: ' + missing.join(', ') };
       const safe = async (fn) => { try { return await fn(); } catch (e) { return { error: e?.message || String(e) }; } };
+      const hasPendingFundingQuote = () => new Promise((resolve, reject) => {
+        const req = indexedDB.open('getbased-cashu');
+        req.onerror = () => reject(req.error || new Error('failed to open getbased-cashu'));
+        req.onsuccess = () => {
+          const db = req.result;
+          try {
+            if (!db.objectStoreNames.contains('meta')) {
+              db.close();
+              resolve(false);
+              return;
+            }
+            const tx = db.transaction('meta', 'readonly');
+            const store = tx.objectStore('meta');
+            const cursorReq = store.openCursor();
+            cursorReq.onerror = () => reject(cursorReq.error || new Error('failed to inspect Cashu meta store'));
+            cursorReq.onsuccess = () => {
+              const cursor = cursorReq.result;
+              if (!cursor) {
+                db.close();
+                resolve(false);
+                return;
+              }
+              if (String(cursor.value?.key || '').startsWith('pendingQuote:')) {
+                db.close();
+                resolve(true);
+                return;
+              }
+              cursor.continue();
+            };
+          } catch (e) {
+            db.close();
+            reject(e);
+          }
+        };
+      });
       return {
         walletBalance: await safe(async () => Number(await window.cashuGetBalance()) || 0),
-        pendingFunding: await safe(async () => {
-          const result = await window.cashuRecoverPendingFunding();
-          return !!(result && (result.checked || result.pending || result.recovered || result.failed || result.cleared));
-        }),
+        pendingFunding: await safe(hasPendingFundingQuote),
         pendingDeposit: await safe(async () => !!(await window.cashuRecoverPendingDeposit())),
         pendingWithdraw: await safe(async () => !!(await window.cashuRecoverPendingWithdraw())),
         hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
