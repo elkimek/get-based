@@ -151,7 +151,7 @@ assert('Saved node refund never overwrites existing withdraw recovery token', wa
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
-assert('Provider panel recovery uses receiveToken mint-switch path', ppSrc.includes('await appWindow.cashuReceiveToken(token)') && !ppSrc.includes('await appWindow.cashuImportWallet(token)'));
+assert('Provider panel recovery uses receiveToken mint-switch path', ppSrc.includes("await callProviderPanelRuntime('cashuReceiveToken', token)") && !ppSrc.includes("await callProviderPanelRuntime('cashuImportWallet', token)"));
 assert('Wallet runtime exposes pending deposit clear callback', walletRuntimeSrc.includes('clearPendingDeposit as cashuClearPendingDeposit') && walletRuntimeSrc.includes('cashuClearPendingDeposit'));
 
 // ═══════════════════════════════════════

@@ -119,7 +119,7 @@ assert('settings provider bridge has eager provider switch', settingsBridgeSrc.i
 assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
 assert('settings records existing provider before provider-key onboarding return',
   settingsSrc.includes('settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();')
-    && ppSrc.includes('if (window._settingsHadProvider) return'));
+    && ppSrc.includes("if (getProviderPanelRuntimeValue('_settingsHadProvider')) return"));
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
 assert('handleRemoveOpenRouterKey exists', ppSrc.includes('function handleRemoveOpenRouterKey()'));
