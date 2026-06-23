@@ -852,7 +852,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   const results = await page.evaluate(async () => {
     const oldGlobals = {
       cashuImportWallet: window.cashuImportWallet,
+      cashuReceiveToken: window.cashuReceiveToken,
       cashuClearPendingDeposit: window.cashuClearPendingDeposit,
+      cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
       cashuGetMaxWithdrawable: window.cashuGetMaxWithdrawable,
     };
     const calls = [];
@@ -863,11 +865,12 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       configurable: true,
       value: { writeText: async text => clipboardWrites.push(text) },
     });
-    window.cashuImportWallet = async token => {
+    window.cashuReceiveToken = async token => {
       calls.push(['recoverAttempt', token]);
       throw new Error('recover blocked');
     };
-    window.cashuClearPendingDeposit = async () => calls.push(['clearPending']);
+    window.cashuClearPendingDeposit = async () => calls.push(['clearPendingDeposit']);
+    window.cashuClearPendingWithdraw = async () => calls.push(['clearPendingWithdraw']);
     window.cashuGetMaxWithdrawable = async () => 888;
 
     const root = document.createElement('div');
@@ -1011,7 +1014,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
     } finally {
       root.remove();
       window.cashuImportWallet = oldGlobals.cashuImportWallet;
+      window.cashuReceiveToken = oldGlobals.cashuReceiveToken;
       window.cashuClearPendingDeposit = oldGlobals.cashuClearPendingDeposit;
+      window.cashuClearPendingWithdraw = oldGlobals.cashuClearPendingWithdraw;
       window.cashuGetMaxWithdrawable = oldGlobals.cashuGetMaxWithdrawable;
       if (hadClipboard) {
         Object.defineProperty(window.navigator, 'clipboard', {

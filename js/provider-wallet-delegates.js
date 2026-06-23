@@ -76,6 +76,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'deposit-node-input') return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', _inputInt('routstr-deposit-amount'));
   if (action === 'deposit-node-preset') return _depositNodePreset(el);
   if (action === 'recover-pending-deposit') return _recoverPendingDeposit(el);
+  if (action === 'recover-pending-withdraw') return _recoverPendingWithdraw(el);
   if (action === 'node-action') return _runNodeAction(el);
   if (action === 'wallet-action') return _runWalletAction(el.dataset.walletAction);
   if (action === 'toggle-wallet-menu') return _toggleWalletMenu();
@@ -88,7 +89,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'withdraw-quote') return _call('doRoutstrWithdrawQuote');
   if (action === 'send-token-input') return _call('doRoutstrSendToken', _inputInt('routstr-token-amount'));
   if (action === 'send-token-preset') return _sendTokenPreset(el);
-  if (action === 'select-textarea') return el.select?.();
+  if (action === 'select-textarea' || action === 'select-text') return el.select?.();
   if (action === 'withdraw-execute') return _call('doRoutstrWithdrawExecute', el.dataset.quoteId || '');
 }
 
@@ -126,8 +127,19 @@ function _depositNodePreset(el) {
 
 async function _recoverPendingDeposit(el) {
   try {
-    await globalThis.cashuImportWallet?.(el.dataset.token || '');
+    await globalThis.cashuReceiveToken?.(el.dataset.token || '');
     globalThis.cashuClearPendingDeposit?.();
+    showNotification('Recovered!', 'success');
+    globalThis.location?.reload?.();
+  } catch (e) {
+    showNotification(e.message, 'error');
+  }
+}
+
+async function _recoverPendingWithdraw(el) {
+  try {
+    await globalThis.cashuReceiveToken?.(el.dataset.token || '');
+    globalThis.cashuClearPendingWithdraw?.();
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {

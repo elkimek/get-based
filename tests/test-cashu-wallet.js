@@ -95,7 +95,7 @@ const windowExports = [
   'cashuRecoverPendingFunding', 'cashuReceiveToken', 'cashuDepositToNode', 'cashuExportWallet',
   'cashuImportWallet', 'cashuClearWallet', 'cashuDestroyWalletDB',
   'cashuRecoverPendingDeposit', 'cashuClearPendingDeposit',
-  'cashuRecoverPendingWithdraw', 'cashuClearPendingWithdraw',
+  'cashuRecoverPendingWithdraw', 'cashuClearPendingWithdraw', 'cashuSavePendingWithdrawToken',
   'cashuSendAsToken', 'cashuCreateWithdrawQuote', 'cashuExecuteWithdraw',
   'cashuWithdrawToAddress', 'cashuGetMaxWithdrawable',
   'cashuRetryFeeAutoMelt', 'cashuGetFeeBalance', 'cashuRedeemFees',
@@ -141,6 +141,9 @@ console.log('5. Deposit/Withdraw Recovery');
 assert('Pending deposit saved BEFORE node call', walletSrc.includes("_setMeta('pendingDeposit', token)"));
 assert('Pending deposit cleared after success', walletSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
+const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNodeWithdraw');
+const nodeRefundSrc = nodeRefundIdx >= 0 ? walletPanelSrc.slice(nodeRefundIdx) : '';
+assert('Node refund token saved before wallet receive', nodeRefundSrc.includes('cashuSavePendingWithdrawToken') && nodeRefundSrc.indexOf('cashuSavePendingWithdrawToken') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
