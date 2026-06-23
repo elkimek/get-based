@@ -11,7 +11,7 @@ import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 
@@ -392,6 +392,81 @@ const MIME = {
   '.pdf': 'application/pdf', '.txt': 'text/plain', '.xml': 'application/xml', '.wasm': 'application/wasm',
   '.webmanifest': 'application/manifest+json',
 };
+
+export function _browserLaunchDisabled(env = process.env) {
+  const ci = String(env.CI || '').trim().toLowerCase();
+  const openBrowser = String(env.OPEN_BROWSER || '').trim().toLowerCase();
+  const browser = String(env.BROWSER || '').trim().toLowerCase();
+  return (ci && !['0', 'false', 'no', 'off'].includes(ci))
+    || ['0', 'false', 'no', 'off'].includes(openBrowser)
+    || ['0', 'false', 'none', 'no', 'off'].includes(browser);
+}
+
+export function _browserLaunchCandidates(env = process.env, platform = process.platform) {
+  const requestedBrowser = String(env.BROWSER || '').trim();
+  if (requestedBrowser && !['0', 'false', 'none', 'no', 'off'].includes(requestedBrowser.toLowerCase())) {
+    return [{ command: requestedBrowser, args: [] }];
+  }
+  if (platform === 'darwin') {
+    return [
+      { command: 'open', args: ['-a', 'Google Chrome'] },
+      { command: 'open', args: [] },
+    ];
+  }
+  if (platform === 'win32') {
+    return [{ command: 'cmd', args: ['/c', 'start', '', 'chrome'] }];
+  }
+  return [
+    { command: 'google-chrome', args: [] },
+    { command: 'google-chrome-stable', args: [] },
+    { command: 'chromium', args: [] },
+    { command: 'chromium-browser', args: [] },
+    { command: 'xdg-open', args: [] },
+  ];
+}
+
+export function openDevBrowser(url, opts = {}) {
+  const env = opts.env || process.env;
+  if (_browserLaunchDisabled(env)) return false;
+
+  const spawnImpl = opts.spawn || spawn;
+  const candidates = opts.candidates || _browserLaunchCandidates(env, opts.platform || process.platform);
+  let index = 0;
+
+  const tryNext = () => {
+    const candidate = candidates[index++];
+    if (!candidate) {
+      console.warn(`Could not open a browser automatically. Open ${url} manually.`);
+      return;
+    }
+    let child;
+    try {
+      child = spawnImpl(candidate.command, [...candidate.args, url], {
+        detached: true,
+        stdio: 'ignore',
+      });
+    } catch {
+      tryNext();
+      return;
+    }
+    let didFallback = false;
+    const fallback = () => {
+      if (didFallback) return;
+      didFallback = true;
+      tryNext();
+    };
+    child.once('error', fallback);
+    child.once('spawn', () => {
+      if (typeof child.unref === 'function') child.unref();
+    });
+    child.once('exit', (code) => {
+      if (code) fallback();
+    });
+  };
+
+  tryNext();
+  return true;
+}
 
 const COMPRESSIBLE_EXTENSIONS = new Set([
   '.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt', '.xml', '.webmanifest',
@@ -1287,6 +1362,7 @@ const server = http.createServer((req, res) => {
 const _entryUrl = process.argv[1] ? new URL(`file://${path.resolve(process.argv[1])}`).href : '';
 const _isDirectRun = import.meta.url === _entryUrl;
 if (_isDirectRun) server.listen(PORT, HOST, () => {
+  const localUrl = `http://127.0.0.1:${PORT}`;
   console.log(`Dev server running at http://${HOST === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1'}:${PORT}`);
   if (HOST === '0.0.0.0') {
     console.log(`  → reachable on your LAN at http://<your-lan-ip>:${PORT}`);
@@ -1298,4 +1374,5 @@ if (_isDirectRun) server.listen(PORT, HOST, () => {
     console.log(`  /        → index.html (no site repo found at ${SITE_DIR})`);
   }
   console.log(`  /docs/*  → 301 docs.getbased.health`);
+  openDevBrowser(localUrl);
 });

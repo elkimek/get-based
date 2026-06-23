@@ -33,6 +33,9 @@ import {
   _isLoopbackSocket,
   _isHostOriginMatch,
   corsHeaders,
+  _browserLaunchDisabled,
+  _browserLaunchCandidates,
+  openDevBrowser,
   _sendProfileShareJSON,
   _validateProfileShareEnvelope,
   _handleProfileShareDev,
@@ -271,6 +274,91 @@ assert('isSameOrigin rejects malformed Referer',
   !isSameOrigin(reqWith({ referer: 'not a url' })));
 assert('isSameOrigin rejects foreign Origin',
   !isSameOrigin(reqWith({ origin: 'https://evil.example' })));
+
+console.log('\n── browser launch helpers ──');
+
+assert('browser auto-launch is disabled in CI',
+  _browserLaunchDisabled({ CI: 'true' }));
+assert('browser auto-launch treats CI=1 as disabled',
+  _browserLaunchDisabled({ CI: '1' }));
+assert('browser auto-launch allows explicit CI=false',
+  !_browserLaunchDisabled({ CI: 'false' }));
+assert('browser auto-launch respects OPEN_BROWSER=0',
+  _browserLaunchDisabled({ OPEN_BROWSER: '0' }));
+assert('browser auto-launch respects BROWSER=none',
+  _browserLaunchDisabled({ BROWSER: 'none' }));
+assert('Linux browser candidates prefer Google Chrome',
+  _browserLaunchCandidates({}, 'linux')[0].command === 'google-chrome');
+assert('macOS browser candidates fall back to default browser opener',
+  _browserLaunchCandidates({}, 'darwin').some(c => c.command === 'open' && c.args.length === 0));
+assert('BROWSER env overrides browser command',
+  _browserLaunchCandidates({ BROWSER: 'brave-browser' }, 'linux')[0].command === 'brave-browser');
+{
+  const calls = [];
+  const launched = openDevBrowser('http://127.0.0.1:8765', {
+    env: {},
+    candidates: [{ command: 'google-chrome', args: [] }],
+    spawn: (command, args, options) => {
+      calls.push({ command, args, options });
+      return {
+        once(event, callback) {
+          if (event === 'spawn') callback();
+          return this;
+        },
+        unref() { calls.push({ unref: true }); },
+      };
+    },
+  });
+  assert('openDevBrowser launches Chrome with URL and detaches',
+    launched
+      && calls[0]?.command === 'google-chrome'
+      && calls[0]?.args?.[0] === 'http://127.0.0.1:8765'
+      && calls[0]?.options?.detached === true
+      && calls.some(c => c.unref === true),
+    JSON.stringify(calls));
+}
+{
+  const calls = [];
+  const launched = openDevBrowser('http://127.0.0.1:8765', {
+    env: {},
+    candidates: [
+      { command: 'bad-browser', args: [] },
+      { command: 'good-browser', args: ['--new-window'] },
+    ],
+    spawn: (command, args, options) => {
+      calls.push({ command, args, options });
+      return {
+        once(event, callback) {
+          if (command === 'bad-browser' && event === 'spawn') callback();
+          if (command === 'bad-browser' && event === 'exit') callback(1);
+          if (command === 'good-browser' && event === 'spawn') callback();
+          return this;
+        },
+        unref() { calls.push({ command, unref: true }); },
+      };
+    },
+  });
+  assert('openDevBrowser falls back after spawned opener exits non-zero',
+    launched
+      && calls.some(c => c.command === 'bad-browser')
+      && calls.some(c => c.command === 'good-browser')
+      && calls.some(c => c.command === 'good-browser' && c.unref === true),
+    JSON.stringify(calls));
+}
+{
+  const calls = [];
+  const launched = openDevBrowser('http://127.0.0.1:8765', {
+    env: { OPEN_BROWSER: '0' },
+    candidates: [{ command: 'google-chrome', args: [] }],
+    spawn: (command, args) => {
+      calls.push({ command, args });
+      return { once() { return this; }, unref() {} };
+    },
+  });
+  assert('openDevBrowser does nothing when disabled',
+    launched === false && calls.length === 0,
+    JSON.stringify(calls));
+}
 
 assert('loopback socket helper accepts IPv4 and IPv6 loopback',
   _isLoopbackSocket(reqWith({}, '127.0.0.1')) &&
