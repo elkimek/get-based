@@ -533,7 +533,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /export function getInitialView\(\)/.test(viewsSrc)
       && /return getRouterInitialView\(\)/.test(viewsSrc));
     assert('startup-ui.js: boot navigates to stored route instead of hard Dashboard',
-      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(startupUiSrc)
+      /callStartupRuntime\('navigate',\s*callStartupRuntime\('getInitialView'\)\s*\|\|\s*'dashboard'\)/.test(startupUiSrc)
       && !/window\.showDashboard\(\);/.test(startupUiSrc));
     assert('profile.js: profile switch restores that profile route',
       /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileSrc));
