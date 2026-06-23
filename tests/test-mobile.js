@@ -44,7 +44,7 @@ return (async function() {
   const routerSrc = await fetchWithRetry('js/views-router.js');
   assert('mobile landing does not auto-open fullscreen chat',
     dashboardPageViewSrc.includes('isDesktopChatOnboardingViewport') &&
-    dashboardPageViewSrc.includes('if (!isDesktopChatOnboardingViewport || window.innerWidth <= 768) return'));
+    dashboardPageViewSrc.includes("if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return"));
   assert('mobile bottom tabs persist outside dashboard shell',
     routerSrc.includes('syncMobileBottomNav?.(routeCategory)') &&
     mobileDashboardSrc.includes("id: 'mobile-bottom-tabs'") &&
