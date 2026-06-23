@@ -329,7 +329,6 @@ export function endTour() {
 }
 
 // Internal navigation helper remains exposed for tests and legacy callers.
-// @ts-expect-error - custom window export for tour navigation.
 window._tourGoToStep = goToStep;
 
 Object.assign(window, { startEmptyTour, startTour, startGuidedTour, startCycleTour, endTour });
