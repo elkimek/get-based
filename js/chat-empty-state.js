@@ -37,8 +37,21 @@ function closestChatEmptyAction(event, selector = '[data-chat-empty-action]') {
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
 
+function chatEmptyRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function callChatEmptyRuntime(name, ...args) {
+  const fn = chatEmptyRuntime()[name];
+  return typeof fn === 'function' ? fn(...args) : undefined;
+}
+
 function closeChatPanel() {
-  window.closeChatPanel?.();
+  callChatEmptyRuntime('closeChatPanel');
+}
+
+function getChatProfileHeight(profileId) {
+  return callChatEmptyRuntime('getProfileHeight', profileId) || { height: null, unit: 'cm' };
 }
 
 function handleChatEmptyClick(event) {
@@ -54,38 +67,38 @@ function handleChatEmptyClick(event) {
   } else if (action === 'save-profile-advance') {
     saveChatProfile(true);
   } else if (action === 'resume-ai') {
-    window._resumeAI?.();
+    callChatEmptyRuntime('_resumeAI');
   } else if (action === 'skip-extras') {
     skipOnboardingExtras();
   } else if (action === 'open-cycle-editor') {
     closeChatPanel();
-    window.openMenstrualCycleEditor?.();
+    callChatEmptyRuntime('openMenstrualCycleEditor');
   } else if (action === 'open-supplements-editor') {
     closeChatPanel();
-    window.openSupplementsEditor?.();
+    callChatEmptyRuntime('openSupplementsEditor');
   } else if (action === 'import-dna') {
     closeChatPanel();
-    window.triggerDNAFilePicker?.();
+    callChatEmptyRuntime('triggerDNAFilePicker');
   } else if (action === 'import-mtdna') {
     const input = /** @type {HTMLInputElement | null} */ (event.currentTarget?.querySelector('#mtdna-onboard-input') || null);
     closeChatPanel();
     input?.click();
   } else if (action === 'open-wearables-settings') {
     closeChatPanel();
-    window.openSettingsModal?.('wearables');
+    callChatEmptyRuntime('openSettingsModal', 'wearables');
   } else if (action === 'use-prompt') {
     useChatPrompt(actionEl.dataset.prompt || '');
   } else if (action === 'request-lab-import-provider') {
     requestOnboardingLabImportProvider();
   } else if (action === 'open-provider-quiz') {
-    window.openChatProviderQuiz?.();
+    callChatEmptyRuntime('openChatProviderQuiz');
   } else if (action === 'scroll-context-cards') {
     const currentTarget = event.currentTarget instanceof Element ? event.currentTarget : null;
     currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (action === 'start-lab-import') {
     startOnboardingLabImport();
   } else if (action === 'set-onboarding-focus') {
-    window.setOnboardingFocus?.(actionEl.dataset.focus || '');
+    callChatEmptyRuntime('setOnboardingFocus', actionEl.dataset.focus || '');
   }
 }
 
@@ -102,7 +115,7 @@ function handleChatEmptyChange(event) {
   } else if (action === 'import-mtdna-file' && actionEl instanceof HTMLInputElement) {
     const file = actionEl.files?.[0];
     if (file) {
-      window.handleMtDNAFile?.(file);
+      callChatEmptyRuntime('handleMtDNAFile', file);
       actionEl.value = '';
     }
   }
@@ -198,7 +211,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
   const pSex = state.profileSex || '';
   const pDob = state.profileDob || '';
   const pLoc = getProfileLocation(state.currentProfile);
-  const _pH = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
+  const _pH = getChatProfileHeight(state.currentProfile);
   const pHeight = _pH.height ? (_pH.unit === 'in' ? (Number(_pH.height) / 2.54).toFixed(1) : _pH.height) : '';
   const pHeightUnit = _pH.unit || 'cm';
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
