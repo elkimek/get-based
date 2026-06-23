@@ -184,6 +184,44 @@ const missingUiWorkflowCheckJsModules = uiWorkflowCheckJsModules
 assert('checkJs pilot includes UI workflow modules',
   missingUiWorkflowCheckJsModules.length === 0,
   missingUiWorkflowCheckJsModules.length ? `missing: ${missingUiWorkflowCheckJsModules.join(', ')}` : '');
+const lightWorkflowCheckJsModules = [
+  'js/light-ai-save-hooks.js',
+  'js/light-audit-ai-analysis.js',
+  'js/light-burden-ai-analysis.js',
+  'js/light-channel-view-hooks.js',
+  'js/light-channel-view-ui-hooks.js',
+  'js/light-channel-view.js',
+  'js/light-channels-ai-analysis.js',
+  'js/light-conditions-now-hooks.js',
+  'js/light-device-ai-analysis.js',
+  'js/light-device-session-engine.js',
+  'js/light-device-session-modal.js',
+  'js/light-device-setup-modal.js',
+  'js/light-devices-store.js',
+  'js/light-env-actions.js',
+  'js/light-env-ai-analysis.js',
+  'js/light-env-audits.js',
+  'js/light-env-evening.js',
+  'js/light-env-model.js',
+  'js/light-env-screen-ui.js',
+  'js/light-env-store.js',
+  'js/light-page-view-hooks.js',
+  'js/light-page-view-ui-hooks.js',
+  'js/light-page-view.js',
+  'js/light-screen-ai-analysis.js',
+  'js/light-sessions-view-hooks.js',
+  'js/light-sessions-view.js',
+  'js/light-sun-ai-hooks.js',
+  'js/light-today-ai.js',
+  'js/light-tool-camera.js',
+  'js/light-tools-ai-analysis.js',
+  'js/light-tools-ui-hooks.js',
+];
+const missingLightWorkflowCheckJsModules = lightWorkflowCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes light workflow modules',
+  missingLightWorkflowCheckJsModules.length === 0,
+  missingLightWorkflowCheckJsModules.length ? `missing: ${missingLightWorkflowCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
