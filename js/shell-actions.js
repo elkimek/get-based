@@ -3,6 +3,15 @@
 
 let shellDelegatesInstalled = false;
 
+function shellRuntime() {
+  return /** @type {Record<string, any>} */ (globalThis);
+}
+
+function callShellRuntime(name, ...args) {
+  const fn = shellRuntime()[name];
+  if (typeof fn === 'function') fn(...args);
+}
+
 function closestAction(event, selector) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
@@ -15,82 +24,80 @@ function clickFileInput(id) {
 }
 
 function runShellAction(action) {
-  const appWindow = /** @type {any} */ (window);
   if (action === 'toggle-mobile-sidebar') {
-    appWindow.toggleMobileSidebar?.();
+    callShellRuntime('toggleMobileSidebar');
     return true;
   } else if (action === 'close-mobile-sidebar') {
-    window.closeMobileSidebar?.();
+    callShellRuntime('closeMobileSidebar');
     return true;
   } else if (action === 'trigger-import') {
-    if (appWindow.isImportRunning?.()) {
-      appWindow.handleImportStatusClick?.();
+    if (shellRuntime().isImportRunning?.()) {
+      callShellRuntime('handleImportStatusClick');
       return true;
     }
     clickFileInput('pdf-input');
     return true;
   } else if (action === 'share-profile') {
-    window.openProfileShareModal?.();
+    callShellRuntime('openProfileShareModal');
     return true;
   } else if (action === 'open-tweaks') {
-    appWindow.openTweaksPanel?.();
+    callShellRuntime('openTweaksPanel');
     return true;
   } else if (action === 'open-settings') {
-    window.openSettingsModal?.();
+    callShellRuntime('openSettingsModal');
     return true;
   } else if (action === 'open-ai-settings') {
-    window.openSettingsModal?.('ai');
+    callShellRuntime('openSettingsModal', 'ai');
     return true;
   } else if (action === 'open-feedback') {
-    appWindow.openFeedbackModal?.();
+    callShellRuntime('openFeedbackModal');
     return true;
   } else if (action === 'import-status') {
-    appWindow.handleImportStatusClick?.();
+    callShellRuntime('handleImportStatusClick');
     return true;
   }
   return false;
 }
 
 function runChatAction(action, actionEl) {
-  const appWindow = /** @type {any} */ (window);
   if (action === 'toggle-panel') {
-    window.toggleChatPanel?.();
+    callShellRuntime('toggleChatPanel');
     return true;
   } else if (action === 'close-panel') {
-    window.closeChatPanel?.();
+    callShellRuntime('closeChatPanel');
     return true;
   } else if (action === 'toggle-thread-rail') {
-    appWindow.toggleThreadRail?.();
+    callShellRuntime('toggleThreadRail');
     return true;
   } else if (action === 'create-thread') {
-    appWindow.createNewThread?.();
+    callShellRuntime('createNewThread');
     return true;
   } else if (action === 'summarize-thread') {
-    appWindow.summarizeThread?.();
+    callShellRuntime('summarizeThread');
     return true;
   } else if (action === 'clear-history') {
-    appWindow.clearChatHistory?.();
+    callShellRuntime('clearChatHistory');
     return true;
   } else if (action === 'toggle-fullscreen') {
-    appWindow.toggleChatFullscreen?.();
+    callShellRuntime('toggleChatFullscreen');
     return true;
   } else if (action === 'toggle-personality') {
-    appWindow.togglePersonalityBar?.();
+    callShellRuntime('togglePersonalityBar');
     return true;
   } else if (action === 'set-personality') {
-    appWindow.setChatPersonality?.(actionEl.dataset.personality || 'default');
+    callShellRuntime('setChatPersonality', actionEl.dataset.personality || 'default');
     return true;
   } else if (action === 'attach-image') {
     clickFileInput('chat-image-input');
     return true;
   } else if (action === 'toggle-hd') {
-    appWindow.toggleHDMode?.();
+    callShellRuntime('toggleHDMode');
     return true;
   } else if (action === 'start-discussion') {
-    appWindow.startDiscussion?.();
+    callShellRuntime('startDiscussion');
     return true;
   } else if (action === 'send-message') {
-    window.sendChatMessage?.();
+    callShellRuntime('sendChatMessage');
     return true;
   }
   return false;
@@ -114,7 +121,7 @@ function handleShellInput(event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   if (input.dataset.chatInputAction === 'filter-thread-list') {
-    window.filterThreadList?.(input.value);
+    callShellRuntime('filterThreadList', input.value);
   }
 }
 
@@ -122,7 +129,7 @@ function handleShellChange(event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   if (input.dataset.chatChangeAction === 'set-websearch') {
-    window.setChatWebSearchEnabled?.(input.checked);
+    callShellRuntime('setChatWebSearchEnabled', input.checked);
   }
 }
 
@@ -132,10 +139,10 @@ function handleShellKeydown(event) {
 
   const action = actionEl.dataset.chatKeyAction;
   if (action === 'message-input') {
-    window.handleChatKeydown?.(event);
+    callShellRuntime('handleChatKeydown', event);
   } else if (action === 'toggle-personality' && (event.key === 'Enter' || event.key === ' ')) {
     event.preventDefault();
-    window.togglePersonalityBar?.();
+    callShellRuntime('togglePersonalityBar');
   }
 }
 
