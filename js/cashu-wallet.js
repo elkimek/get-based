@@ -755,8 +755,10 @@ export async function savePendingWithdrawToken(token, source = 'manual') {
   if (raw) {
     try {
       const existing = JSON.parse(raw);
-      if (existing?.quoteId) return false;
-    } catch {}
+      if (existing?.token) return false;
+    } catch {
+      return false;
+    }
   }
   await _setMeta('pendingWithdraw', JSON.stringify({ quoteId: null, token, source, savedAt: Date.now() }));
   return true;

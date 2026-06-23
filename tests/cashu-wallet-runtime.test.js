@@ -338,6 +338,11 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.recoverPendingWithdraw()).resolves.toContain('cashu:https://mint.getbased.test/Bitcoin:15:send-15');
     await expect(wallet.recoverPendingWithdraw()).resolves.not.toContain('cashu:node-refund-token');
     await wallet.clearPendingWithdraw();
+
+    await expect(wallet.savePendingWithdrawToken('cashu:first-node-refund', 'routstr-node-refund')).resolves.toBe(true);
+    await expect(wallet.savePendingWithdrawToken('cashu:second-node-refund', 'routstr-node-refund')).resolves.toBe(false);
+    await expect(wallet.recoverPendingWithdraw()).resolves.toBe('cashu:first-node-refund');
+    await wallet.clearPendingWithdraw();
     await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
 
