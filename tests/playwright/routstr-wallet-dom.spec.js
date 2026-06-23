@@ -310,7 +310,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(50);
       const lightningWithdrawExecutesQuote = executeWithdrawQuote === 'withdraw-quote-1'
         && (document.getElementById('routstr-withdraw-status')?.textContent || '').includes('Withdrawn');
-      panels.showRoutstrWithdrawLightning();
+      await panels.showRoutstrWithdrawLightning();
       await wait(50);
       const addressInput = document.getElementById('routstr-withdraw-input');
       if (addressInput) {
@@ -318,7 +318,10 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         addressInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
       const amountInput = document.getElementById('routstr-withdraw-amount');
-      if (amountInput) amountInput.value = '42';
+      if (amountInput) {
+        amountInput.value = '42';
+        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
       await panels.doRoutstrWithdrawQuote();
       await wait(50);
       const lightningAddressWithdrawUsesAmount = withdrawAddressArgs?.address === 'alice@getbased.test'

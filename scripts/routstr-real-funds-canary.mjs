@@ -116,7 +116,8 @@ async function resume() {
     await page.evaluate(async (amount) => {
       const node = localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com/';
       const result = await window.cashuDepositToNode(node, amount, null);
-      if (result?.api_key) localStorage.setItem('labcharts-routstr-key', result.api_key);
+      if (!result?.api_key) throw new Error('Node deposit did not return a Routstr key');
+      window.__routstrCanaryKey = result.api_key;
       localStorage.setItem('labcharts-routstr-node', node);
     }, firstDeposit);
     const createCalls = requests.filter(r => /\/v1\/balance\/create/.test(r.url)).length;
@@ -125,7 +126,7 @@ async function resume() {
 
     await page.evaluate(async () => {
       const node = localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com/';
-      const key = localStorage.getItem('labcharts-routstr-key');
+      const key = window.__routstrCanaryKey;
       if (!key) throw new Error('No Routstr key after first deposit');
       await window.cashuDepositToNode(node, 100, key);
     });
@@ -135,7 +136,8 @@ async function resume() {
 
     const nodeResult = await page.evaluate(async () => {
       const node = (localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com/').replace(/\/$/, '');
-      const key = localStorage.getItem('labcharts-routstr-key');
+      const key = window.__routstrCanaryKey;
+      if (!key) throw new Error('No Routstr key available for canary node checks');
       const balanceInfo = async () => {
         const res = await fetch(node + '/v1/balance/info', { headers: { Authorization: 'Bearer ' + key } });
         const json = await res.json().catch(() => ({}));
@@ -161,6 +163,7 @@ async function resume() {
       const pendingSaved = await window.cashuSavePendingWithdrawToken(token, 'routstr-real-canary-refund');
       const recv = await window.cashuReceiveToken(token);
       await window.cashuClearPendingWithdraw();
+      delete window.__routstrCanaryKey;
       localStorage.removeItem('labcharts-routstr-key');
       return { before, afterModel, modelCall, refund: { ok: true, hasToken: true, pendingSaved, received: Number(recv?.received ?? recv) || 0 } };
     });
@@ -176,7 +179,7 @@ async function resume() {
     const finalState = await page.evaluate(async () => ({
       mintHost: new URL(await window.cashuGetMintUrl()).host,
       walletBalance: Number(await window.cashuGetBalance()) || 0,
-      hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
+      hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!window.__routstrCanaryKey,
       pendingDeposit: !!(await window.cashuRecoverPendingDeposit()),
       pendingWithdraw: !!(await window.cashuRecoverPendingWithdraw()),
     }));
@@ -227,6 +230,7 @@ async function tokenRoundtripAndSeedRestore() {
     }, returnToken);
     if (!recovered.received) throw new Error('Return token receive failed');
     const seedRestore = await seedRestoreSmoke();
+    if (!seedRestore.balance) throw new Error('Seed restore smoke did not recover a positive balance');
     return { recovered: recovered.received, walletBalance: recovered.balance, seedRestoreBalance: seedRestore.balance };
   } finally { await recover.context.close(); }
 }
@@ -235,13 +239,16 @@ async function seedRestoreSmoke() {
   let seed;
   try { seed = await main.page.evaluate(async () => window.cashuGetWalletMnemonic()); }
   finally { await main.context.close(); }
+  if (!seed) throw new Error('Cannot run seed restore smoke without a wallet mnemonic');
   rmSync(SEED_RESTORE_DIR, { recursive: true, force: true });
   const restored = await openApp(SEED_RESTORE_DIR);
   try {
     const result = await restored.page.evaluate(async ({ seed, mint }) => {
       await window.cashuSetMintUrl(mint);
       await window.cashuRestoreWalletFromSeed(seed);
-      return { balance: Number(await window.cashuGetBalance()) || 0 };
+      const balance = Number(await window.cashuGetBalance()) || 0;
+      if (balance <= 0) throw new Error('Seed restore completed without recoverable balance');
+      return { balance };
     }, { seed, mint: MINT_URL });
     return result;
   } finally {
