@@ -370,6 +370,10 @@ describe('Cashu wallet runtime behavior', () => {
     });
     await expect(wallet.getMintUrl()).resolves.toBe('https://mint.node.test/Bitcoin');
     expect(stub.instances.at(-1).url).toBe('https://mint.node.test/Bitcoin');
+
+    await wallet.setMintUrl('https://mint.node.test/Bitcoin/');
+    await wallet.receiveToken('cashu:https://mint.node.test/Bitcoin:500:node-refund');
+    await expect(wallet.getMintUrl()).resolves.toBe('https://mint.node.test/Bitcoin/');
     await expect(wallet.recoverPendingWithdraw()).resolves.toBeNull();
   });
 

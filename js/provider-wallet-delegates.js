@@ -140,6 +140,7 @@ async function _recoverPendingWithdraw(el) {
   try {
     await globalThis.cashuReceiveToken?.(el.dataset.token || '');
     globalThis.cashuClearPendingWithdraw?.();
+    await _call('clearRoutstrNodeSession');
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {

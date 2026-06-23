@@ -512,11 +512,15 @@ function _extractTokenMintUrl(cashuts, tokenString) {
   return null;
 }
 
+function _normalizeMintUrlForCompare(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
 async function _switchToTokenMintIfNeeded(cashuts, tokenString) {
   const tokenMint = _extractTokenMintUrl(cashuts, tokenString);
   if (!tokenMint) return null;
   const currentMint = await getMintUrl();
-  if (tokenMint !== currentMint) await setMintUrl(tokenMint);
+  if (_normalizeMintUrlForCompare(tokenMint) !== _normalizeMintUrlForCompare(currentMint)) await setMintUrl(tokenMint);
   return tokenMint;
 }
 

@@ -782,5 +782,6 @@ installRoutstrWalletDelegates({
   doRoutstrSendToken,
   doRoutstrWithdrawQuote,
   doRoutstrWithdrawExecute,
+  clearRoutstrNodeSession: () => saveRoutstrKey(''),
   doRoutstrWalletRestore
 });
