@@ -244,15 +244,15 @@ assert('PDF lazy import failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint and behind legal gate',
-  /const showAnalyticsConsent = \(\) => \{\s*window\.maybeShowAnalyticsConsent\?\.\(\);\s*\};/.test(startupUiSrc)
-  && /if \(legalGateShown\) \{\s*window\.addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showAnalyticsConsent, 800\), \{ once: true \}\);\s*\} else \{\s*setTimeout\(showAnalyticsConsent, 800\);\s*\}/.test(startupUiSrc),
+  /const showAnalyticsConsent = \(\) => \{\s*callStartupRuntime\('maybeShowAnalyticsConsent'\);\s*\};/.test(startupUiSrc)
+  && /if \(legalGateShown\) \{\s*startupRuntime\(\)\.addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showAnalyticsConsent, 800\), \{ once: true \}\);\s*\} else \{\s*setTimeout\(showAnalyticsConsent, 800\);\s*\}/.test(startupUiSrc),
   'first-run banner should stay deferred and must resume after Terms/Privacy acceptance');
 assert('legal gate runs before changelog and resumes changelog only after accept',
   startupUiSrc.indexOf('const legalGateShown = maybeShowLegalConsentGate()') >= 0
   && startupUiSrc.indexOf('const legalGateShown = maybeShowLegalConsentGate()') < startupUiSrc.indexOf('maybeShowChangelog()')
-  && startupUiSrc.includes("window.addEventListener('legal-consent-accepted'")
+  && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted'")
   && startupUiSrc.includes('return legalGateShown')
-  && startupUiSrc.includes("window.addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
+  && startupUiSrc.includes("startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true })")
   && legalConsentSrc.includes("window.dispatchEvent(new CustomEvent('legal-consent-accepted'))"));
 assert('legal accept does not deadlock when localStorage persistence throws',
   /try\s*\{\s*storeLegalAcceptance\(\);\s*\}\s*catch\s*\(err\)\s*\{[\s\S]{0,220}\[legal-consent\] Failed to persist acceptance/.test(legalConsentSrc)
