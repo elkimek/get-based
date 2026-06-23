@@ -120,6 +120,40 @@ const missingBroadSurfaceCheckJsModules = broadSurfaceCheckJsModules
 assert('checkJs pilot includes broad UI surface modules',
   missingBroadSurfaceCheckJsModules.length === 0,
   missingBroadSurfaceCheckJsModules.length ? `missing: ${missingBroadSurfaceCheckJsModules.join(', ')}` : '');
+const healthDomainCheckJsModules = [
+  'js/biology-score-ai-context.js',
+  'js/biology-score-ai.js',
+  'js/biology-score-blood-flow.js',
+  'js/biology-score-coherence.js',
+  'js/biology-score-context-ai.js',
+  'js/biology-score-copy.js',
+  'js/biology-score-coverage-planner.js',
+  'js/biology-score-iron.js',
+  'js/biology-score-mappings.js',
+  'js/biology-score-profile-modifiers.js',
+  'js/biology-score-render.js',
+  'js/biology-score-sections.js',
+  'js/biology-score-thyroid.js',
+  'js/biology-score-tier1-definitions.js',
+  'js/biology-score-tier2-definitions.js',
+  'js/sun-active-session.js',
+  'js/sun-ai-analysis.js',
+  'js/sun-body-silhouette.js',
+  'js/sun-context-hooks.js',
+  'js/sun-correlations.js',
+  'js/sun-onboarding-ai.js',
+  'js/sun-session-actions.js',
+  'js/sun-session-ai-render-hooks.js',
+  'js/sun-session-model.js',
+  'js/sun-session-ui-hooks.js',
+  'js/sun-session-ui.js',
+  'js/sun-sessions-store.js',
+];
+const missingHealthDomainCheckJsModules = healthDomainCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes health domain modules',
+  missingHealthDomainCheckJsModules.length === 0,
+  missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
