@@ -222,6 +222,33 @@ const missingLightWorkflowCheckJsModules = lightWorkflowCheckJsModules
 assert('checkJs pilot includes light workflow modules',
   missingLightWorkflowCheckJsModules.length === 0,
   missingLightWorkflowCheckJsModules.length ? `missing: ${missingLightWorkflowCheckJsModules.join(', ')}` : '');
+const wearablesWorkflowCheckJsModules = [
+  'js/wearable-adapters.js',
+  'js/wearables-apple-health.js',
+  'js/wearables-fitbit-auth.js',
+  'js/wearables-fitbit.js',
+  'js/wearables-formatters.js',
+  'js/wearables-manual-form-ui.js',
+  'js/wearables-manual.js',
+  'js/wearables-oura-auth.js',
+  'js/wearables-oura.js',
+  'js/wearables-polar-auth.js',
+  'js/wearables-polar.js',
+  'js/wearables-settings-panel.js',
+  'js/wearables-store.js',
+  'js/wearables-summary.js',
+  'js/wearables-ultrahuman-auth.js',
+  'js/wearables-ultrahuman.js',
+  'js/wearables-whoop-auth.js',
+  'js/wearables-whoop.js',
+  'js/wearables-withings-auth.js',
+  'js/wearables-withings.js',
+];
+const missingWearablesWorkflowCheckJsModules = wearablesWorkflowCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes wearables workflow modules',
+  missingWearablesWorkflowCheckJsModules.length === 0,
+  missingWearablesWorkflowCheckJsModules.length ? `missing: ${missingWearablesWorkflowCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
