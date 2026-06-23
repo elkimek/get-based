@@ -73,6 +73,26 @@ const missingHighValueCheckJsModules = highValueCheckJsModules
 assert('checkJs pilot includes high-coupling browser modules',
   missingHighValueCheckJsModules.length === 0,
   missingHighValueCheckJsModules.length ? `missing: ${missingHighValueCheckJsModules.join(', ')}` : '');
+const domainUiCheckJsModules = [
+  'js/crypto.js',
+  'js/data.js',
+  'js/emf.js',
+  'js/lab-context.js',
+  'js/light-conditions-now.js',
+  'js/light-env.js',
+  'js/marker-detail-modal.js',
+  'js/pdf-import-review.js',
+  'js/provider-panels.js',
+  'js/sun-context.js',
+  'js/sun-defaults.js',
+  'js/sun-spectrum.js',
+  'js/sun-uvdata.js',
+];
+const missingDomainUiCheckJsModules = domainUiCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes domain and UI modules',
+  missingDomainUiCheckJsModules.length === 0,
+  missingDomainUiCheckJsModules.length ? `missing: ${missingDomainUiCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
