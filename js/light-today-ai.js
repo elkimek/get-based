@@ -9,11 +9,27 @@
 import { state } from './state.js';
 import { escapeHTML } from './utils.js';
 import { hasAIProvider } from './api.js';
-import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, tierLabel } from './sun.js';
+import { CHANNEL_DISPLAY, formatChannelUnit, channelTier, rollingChannelTotals, rollingVitaminDIU, tierLabel } from './sun.js';
+import { rollingDeviceTotals } from './light-devices-store.js';
+import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs } from './ai-action-delegates.js';
+
+const defaultLightTodayDeps = {
+  solarZenithAngle,
+  rollingChannelTotals,
+  rollingDeviceTotals,
+  rollingVitaminDIU,
+};
+const lightTodayDeps = { ...defaultLightTodayDeps };
+
+export function configureLightTodayAI(deps = {}) {
+  for (const key of Object.keys(defaultLightTodayDeps)) {
+    lightTodayDeps[key] = typeof deps[key] === 'function' ? deps[key] : defaultLightTodayDeps[key];
+  }
+}
 
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
@@ -79,8 +95,8 @@ export function computeLightTrends(targetDate = new Date()) {
   const targetTs = targetDate.getTime();
   const out = { signals: [] };
   const sunriseSessions = sessions.filter(s => {
-    if (!s.location || typeof window.solarZenithAngle !== 'function') return false;
-    const elev = 90 - window.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
+    if (!s.location) return false;
+    const elev = 90 - lightTodayDeps.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
     return elev < 6 && elev > -6 && (s.endedAt - s.startedAt) > 5 * 60000;
   }).sort((a, b) => b.endedAt - a.endedAt);
   // Only flag sunrise gaps when the user has previously logged at least
@@ -98,12 +114,10 @@ export function computeLightTrends(targetDate = new Date()) {
   if (prev7.length > 0 && last7.length < prev7.length * 0.5) {
     out.signals.push(`Light activity dropped ${Math.round((1 - last7.length / prev7.length) * 100)}% vs prior week (${last7.length} sessions vs ${prev7.length})`);
   }
-  if (typeof window.rollingVitaminDIU === 'function') {
-    const week = window.rollingVitaminDIU(7);
-    const target = state.importedData?.sunDefaults?.dailyVitDTargetIU;
-    if (target && week < target * 7 * 0.4) {
-      out.signals.push(`Weekly vit-D synthesis ~${Math.round(week)} IU is well below your daily target × 7 (${target * 7} IU)`);
-    }
+  const week = lightTodayDeps.rollingVitaminDIU(7);
+  const target = state.importedData?.sunDefaults?.dailyVitDTargetIU;
+  if (target && week < target * 7 * 0.4) {
+    out.signals.push(`Weekly vit-D synthesis ~${Math.round(week)} IU is well below your daily target × 7 (${target * 7} IU)`);
   }
   return out;
 }
@@ -138,9 +152,9 @@ export function buildDayContext(target) {
         : '';
       let elevPhase = '';
       try {
-        if (s.location && typeof window.solarZenithAngle === 'function' && s.endedAt) {
-          const elevStart = 90 - window.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
-          const elevEnd = 90 - window.solarZenithAngle(new Date(s.endedAt), s.location.lat, s.location.lon);
+        if (s.location && s.endedAt) {
+          const elevStart = 90 - lightTodayDeps.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
+          const elevEnd = 90 - lightTodayDeps.solarZenithAngle(new Date(s.endedAt), s.location.lat, s.location.lon);
           if (elevStart < 0 && elevEnd > 0) elevPhase = ' [SUNRISE — horizon crossing]';
           else if (elevStart > 0 && elevEnd < 0) elevPhase = ' [SUNSET — horizon crossing]';
           else if (elevEnd < 6 && elevEnd > -6) elevPhase = ' [twilight]';
@@ -188,30 +202,28 @@ export function buildDayContext(target) {
     }
   }
 
-  if (typeof window.rollingChannelTotals === 'function' && typeof window.rollingDeviceTotals === 'function') {
-    const sun7 = window.rollingChannelTotals(7) || {};
-    const dev7 = window.rollingDeviceTotals(7) || {};
-    const merged7 = {};
-    for (const k of new Set([...Object.keys(sun7), ...Object.keys(dev7)])) {
-      merged7[k] = (sun7[k] || 0) + (dev7[k] || 0);
-    }
-    const vit7 = (typeof window.rollingVitaminDIU === 'function') ? window.rollingVitaminDIU(7) : null;
-    lines.push('');
-    lines.push('### Last 7 days context');
-    if (vit7 != null) lines.push(`Cumulative vit-D synthesized from sun: ~${Math.round(vit7)} IU`);
-    // Channels surface as tier labels only — the raw scores
-    // (melanopic-lux-min, J/cm², etc.) aren't user-meaningful, and
-    // when the AI quoted them verbatim the verdict read like
-    // "outdoor eye light (774465)". Tier labels (none/low/moderate/
-    // good/strong) carry the same comparative signal without the
-    // numeric noise.
-    const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-    for (const k of channelOrder) {
-      const v = merged7[k] || 0;
-      if (v <= 0) continue;
-      const tier = channelTier(v, k);
-      lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${tierLabel(tier)}`);
-    }
+  const sun7 = lightTodayDeps.rollingChannelTotals(7) || {};
+  const dev7 = lightTodayDeps.rollingDeviceTotals(7) || {};
+  const merged7 = {};
+  for (const k of new Set([...Object.keys(sun7), ...Object.keys(dev7)])) {
+    merged7[k] = (sun7[k] || 0) + (dev7[k] || 0);
+  }
+  const vit7 = lightTodayDeps.rollingVitaminDIU(7);
+  lines.push('');
+  lines.push('### Last 7 days context');
+  lines.push(`Cumulative vit-D synthesized from sun: ~${Math.round(vit7)} IU`);
+  // Channels surface as tier labels only — the raw scores
+  // (melanopic-lux-min, J/cm², etc.) aren't user-meaningful, and
+  // when the AI quoted them verbatim the verdict read like
+  // "outdoor eye light (774465)". Tier labels (none/low/moderate/
+  // good/strong) carry the same comparative signal without the
+  // numeric noise.
+  const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
+  for (const k of channelOrder) {
+    const v = merged7[k] || 0;
+    if (v <= 0) continue;
+    const tier = channelTier(v, k);
+    lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${tierLabel(tier)}`);
   }
 
   lines.push('');
@@ -513,7 +525,7 @@ export function renderLightTodayDashboardChip() {
   </button>`;
 }
 
-Object.assign(window, {
+Object.assign(globalThis, {
   refreshDayAIAnalysis,
   analyzeDayAI,
   renderLightTodayHero,
@@ -526,8 +538,8 @@ Object.assign(window, {
 // dashboard), re-render the dashboard chip in place without rebuilding
 // the whole dashboard view. Surgical replace of the chip's outerHTML.
 // No-op when the user isn't on the dashboard.
-if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-ai-verdict-updated', () => {
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('labcharts-ai-verdict-updated', () => {
     if (state.currentView !== 'dashboard') return;
     const existing = document.querySelector('.dashboard-widget[data-widget-id="light-today"] .light-today-hero, .light-today-strip .light-today-dash-ai');
     if (!existing) return;
