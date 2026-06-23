@@ -54,6 +54,25 @@ async function _ensureBip39() {
   return _bip39Load;
 }
 
+function _amountToNumber(value) {
+  if (value == null) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'string') return Number(value) || 0;
+  if (typeof value.toNumber === 'function') return value.toNumber();
+  if (typeof value.toNumberUnsafe === 'function') return value.toNumberUnsafe();
+  if (typeof value.toBigInt === 'function') return Number(value.toBigInt());
+  return Number(value) || 0;
+}
+
+function _sumProofsAsNumber(cashuts, proofs) {
+  return _amountToNumber(cashuts.sumProofs(proofs || []));
+}
+
+function _normalizeProofForStorage(proof, mintUrl) {
+  return { ...proof, amount: _amountToNumber(proof.amount), _mint: mintUrl };
+}
+
 // ═══════════════════════════════════════════════
 // GLOBAL WALLET LOCK — prevents concurrent proof-mutating operations (C1)
 // ═══════════════════════════════════════════════
@@ -156,7 +175,7 @@ async function _saveProofs(proofs) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
-    for (const p of proofs) store.put({ ...p, _mint: mintUrl });
+    for (const p of proofs) store.put(_normalizeProofForStorage(p, mintUrl));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -272,7 +291,7 @@ async function _saveFeeProofs(proofs) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_FEES, 'readwrite');
     const store = tx.objectStore(STORE_FEES);
-    for (const p of proofs) store.put({ ...p, _mint: mintUrl });
+    for (const p of proofs) store.put(_normalizeProofForStorage(p, mintUrl));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -446,11 +465,7 @@ export async function hasWalletSeed() {
   return !!(await _loadMnemonic());
 }
 
-/** Restore wallet from a 12-word mnemonic phrase.
- *  Queries the mint to recover previously-minted proofs.
- *  Returns { balance, restoredCount } */
-export async function restoreWalletFromSeed(mnemonic) {
-  return _withWalletLock(async () => {
+async function _restoreProofsFromSeed(mnemonic, { clearExisting = false } = {}) {
   const bip39 = await _ensureBip39();
   const cashuts = await _cashuLib();
   const valid = await bip39.validateMnemonic(mnemonic);
@@ -458,7 +473,7 @@ export async function restoreWalletFromSeed(mnemonic) {
   await _saveMnemonic(mnemonic);
   _wallet = null; _mintUrl = null; // reset
   const wallet = await _getWallet();
-  await _clearAllProofs();
+  if (clearExisting) await _clearAllProofs();
   let totalRestored = 0;
   try {
     // Loop batchRestore until no more proofs found (H5)
@@ -471,7 +486,7 @@ export async function restoreWalletFromSeed(mnemonic) {
       const { unspent } = await wallet.groupProofsByState(result.proofs);
       if (unspent.length) {
         await _saveProofs(unspent);
-        totalRestored += cashuts.sumProofs(unspent);
+        totalRestored += _sumProofsAsNumber(cashuts, unspent);
       }
       start += batchSize;
     }
@@ -481,14 +496,24 @@ export async function restoreWalletFromSeed(mnemonic) {
   }
   const balance = await getWalletBalance();
   return { balance, restoredCount: totalRestored };
-  }); // _withWalletLock
+}
+
+function _looksLikeAlreadyIssuedMintError(error) {
+  return /outputs? already signed|already signed|quote.*issued|already.*issued/i.test(error?.message || String(error || ''));
+}
+
+/** Restore wallet from a 12-word mnemonic phrase.
+ *  Queries the mint to recover previously-minted proofs.
+ *  Returns { balance, restoredCount } */
+export async function restoreWalletFromSeed(mnemonic) {
+  return _withWalletLock(async () => _restoreProofsFromSeed(mnemonic, { clearExisting: true }));
 }
 
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
 export async function getWalletBalance() {
   const proofs = await _pruneSpentProofs();
   const cashuts = await _cashuLib();
-  return cashuts.sumProofs(proofs);
+  return _sumProofsAsNumber(cashuts, proofs);
 }
 
 /** Force-check all proof states against mint and return updated balance */
@@ -496,7 +521,7 @@ export async function checkProofStates() {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
-    return cashuts.sumProofs(proofs);
+    return _sumProofsAsNumber(cashuts, proofs);
   });
 }
 
@@ -527,10 +552,23 @@ export async function checkFundingStatus(quoteId) {
     if (checked.state === cashuts.MintQuoteState.PAID) {
       const pendingKey = PENDING_QUOTE_PREFIX + quoteId;
       const storedAmount = await _getMeta(pendingKey);
-      const amount = storedAmount || checked.amount || 0;
+      const amount = storedAmount || _amountToNumber(checked.amount) || 0;
       if (!amount) throw new Error('Cannot determine invoice amount — please contact support');
-      const proofs = await wallet.mintProofsBolt11(amount, quoteId);
-      const total = cashuts.sumProofs(proofs);
+      let proofs;
+      try {
+        proofs = await wallet.mintProofsBolt11(amount, quoteId);
+      } catch (e) {
+        if (!_looksLikeAlreadyIssuedMintError(e)) throw e;
+        const mnemonic = await _loadMnemonic();
+        if (!mnemonic) throw e;
+        const before = await getWalletBalance();
+        const restored = await _restoreProofsFromSeed(mnemonic, { clearExisting: false });
+        const recovered = Math.max(0, restored.balance - before);
+        if (recovered <= 0) throw e;
+        await _deleteMeta(pendingKey);
+        return { paid: true, balance: restored.balance, minted: recovered, fee: 0, recoveredFromRestore: true };
+      }
+      const total = _sumProofsAsNumber(cashuts, proofs);
       const fee = Math.ceil(total * WALLET_FEE_PCT);
 
       if (fee > 0 && total > fee) {
@@ -593,7 +631,7 @@ export async function receiveToken(tokenString) {
     if (currentBal >= MAX_WALLET_BALANCE) throw new Error('Wallet at ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
     const wallet = await _getWallet();
     const proofs = await wallet.receive(tokenString);
-    const total = cashuts.sumProofs(proofs);
+    const total = _sumProofsAsNumber(cashuts, proofs);
     const fee = Math.ceil(total * WALLET_FEE_PCT);
 
     if (fee > 0 && total > fee) {
@@ -617,7 +655,7 @@ export async function depositToNode(nodeUrl, amountSats, existingKey) {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
-    const total = cashuts.sumProofs(proofs);
+    const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient wallet balance: ' + total + ' sats, need ' + amountSats);
 
     const wallet = await _getWallet();
@@ -691,10 +729,12 @@ export async function clearPendingWithdraw() {
 export async function createWithdrawQuote(bolt11Invoice) {
   const wallet = await _getWallet();
   const quote = await wallet.createMeltQuoteBolt11(bolt11Invoice);
+  const quoteAmount = _amountToNumber(quote.amount);
+  const feeReserve = _amountToNumber(quote.fee_reserve);
   return {
     quote: quote.quote,
-    amount: quote.amount,
-    fee_reserve: quote.fee_reserve,
+    amount: quoteAmount,
+    fee_reserve: feeReserve,
     state: quote.state
   };
 }
@@ -706,9 +746,9 @@ export async function executeWithdraw(quoteId) {
     const cashuts = await _cashuLib();
     const wallet = await _getWallet();
     const quote = await wallet.checkMeltQuoteBolt11(quoteId);
-    const amountNeeded = (quote.amount || 0) + (quote.fee_reserve || 0);
+    const amountNeeded = _amountToNumber(quote.amount) + _amountToNumber(quote.fee_reserve);
     const proofs = await _pruneSpentProofs(true);
-    const total = cashuts.sumProofs(proofs);
+    const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountNeeded) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountNeeded);
 
     const { keep, send } = await wallet.send(amountNeeded, proofs, { includeFees: true });
@@ -768,7 +808,7 @@ export async function retryFeeAutoMelt() {
   return _withFeeLock(async () => {
     const cashuts = await _cashuLib();
     const feeProofs = await _getAllFeeProofs();
-    const feeSats = cashuts.sumProofs(feeProofs);
+    const feeSats = _sumProofsAsNumber(cashuts, feeProofs);
     if (feeSats < 1) return { melted: 0, remaining: 0 };
     try {
       const invoice = await _lnAddressToInvoice(FEE_LN_ADDRESS, feeSats);
@@ -798,7 +838,7 @@ export async function sendAsToken(amountSats) {
   return _withWalletLock(async () => {
     const cashuts = await _cashuLib();
     const proofs = await _pruneSpentProofs(true);
-    const total = cashuts.sumProofs(proofs);
+    const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient balance: ' + total + ' sats, need ' + amountSats);
     const wallet = await _getWallet();
     const { keep, send } = await wallet.send(amountSats, proofs, { includeFees: true });
@@ -807,7 +847,7 @@ export async function sendAsToken(amountSats) {
     const mintUrl = await getMintUrl();
     const token = cashuts.getEncodedToken({ mint: mintUrl, proofs: send });
     const remaining = await getWalletBalance();
-    return { token, amount: cashuts.sumProofs(send), remaining };
+    return { token, amount: _sumProofsAsNumber(cashuts, send), remaining };
   });
 }
 
@@ -842,7 +882,7 @@ async function _autoMeltFees(feeProofs) {
     const accumulated = await _getAllFeeProofs();
     const allFees = [...accumulated, ...feeProofs];
     if (!allFees.length) return;
-    const feeSats = cashuts.sumProofs(allFees);
+    const feeSats = _sumProofsAsNumber(cashuts, allFees);
     if (feeSats < 1) return;
     if (feeSats < FEE_MELT_MIN_SATS) {
       if (feeProofs.length) await _saveFeeProofs(feeProofs);
@@ -865,7 +905,7 @@ async function _autoMeltFees(feeProofs) {
       const wallet = await _getWallet();
       const quote = await wallet.createMeltQuoteBolt11(invoice);
       // Verify we have enough proofs for amount + fee_reserve
-      const needed = (quote.amount || 0) + (quote.fee_reserve || 0);
+      const needed = _amountToNumber(quote.amount) + _amountToNumber(quote.fee_reserve);
       if (feeSats < needed) {
         if (feeProofs.length) await _saveFeeProofs(feeProofs);
         if (isDebugMode()) console.log('[cashu-wallet] Fee pool ' + feeSats + ' < ' + needed + ' needed for melt, accumulating');
@@ -908,7 +948,7 @@ let _autoMeltConsecutiveFailures = 0;
 export async function getFeeBalance() {
   const cashuts = await _cashuLib();
   const proofs = await _getAllFeeProofs();
-  return cashuts.sumProofs(proofs);
+  return _sumProofsAsNumber(cashuts, proofs);
 }
 
 /** Redeem accumulated fee proofs by paying a Lightning invoice.
@@ -917,7 +957,7 @@ export async function redeemFees(bolt11Invoice) {
   return _withFeeLock(async () => {
     const cashuts = await _cashuLib();
     const proofs = await _getAllFeeProofs();
-    const total = cashuts.sumProofs(proofs);
+    const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < 1) throw new Error('No fee proofs to redeem');
     const wallet = await _getWallet();
     const quote = await wallet.createMeltQuoteBolt11(bolt11Invoice);
@@ -950,7 +990,7 @@ export async function importWallet(tokenString) {
     const wallet = await _getWallet();
     const proofs = await wallet.receive(tokenString);
     await _saveProofs(proofs);
-    return cashuts.sumProofs(proofs);
+    return _sumProofsAsNumber(cashuts, proofs);
   });
 }
 

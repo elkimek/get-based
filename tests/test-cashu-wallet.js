@@ -281,6 +281,12 @@ assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
 assert('Seed acknowledgment checkbox', walletPanelSrc.includes('routstr-seed-ack'));
 assert('Wallet action buttons', walletPanelSrc.includes('routstrWalletActionButtons'));
 assert('Wallet panel owns fund timer cleanup', walletPanelSrc.includes('export function clearRoutstrWalletTimers()'));
+assert('Wallet funding auto-poll is bounded on mint/network failure',
+  walletPanelSrc.includes('FUNDING_POLL_MAX_CONSECUTIVE_FAILURES') &&
+  walletPanelSrc.includes('Mint unreachable. Auto-check stopped') &&
+  walletPanelSrc.includes('consecutivePollFailures >= FUNDING_POLL_MAX_CONSECUTIVE_FAILURES'));
+assert('Wallet funding starts only one active auto-poll timer',
+  walletPanelSrc.includes('if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }\n    let consecutivePollFailures = 0;'));
 assert('Wallet backup (export token)', walletPanelSrc.includes('showRoutstrWalletBackup'));
 assert('Lightning withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawLightning'));
 assert('Cashu token withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawToken'));
