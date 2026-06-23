@@ -249,6 +249,43 @@ const missingWearablesWorkflowCheckJsModules = wearablesWorkflowCheckJsModules
 assert('checkJs pilot includes wearables workflow modules',
   missingWearablesWorkflowCheckJsModules.length === 0,
   missingWearablesWorkflowCheckJsModules.length ? `missing: ${missingWearablesWorkflowCheckJsModules.join(', ')}` : '');
+const chatWorkflowCheckJsModules = [
+  'js/chat-actions.js',
+  'js/chat-attestation.js',
+  'js/chat-continuation.js',
+  'js/chat-discussion-callbacks.js',
+  'js/chat-discussion-flow.js',
+  'js/chat-discussion-lifecycle.js',
+  'js/chat-discussion-picker.js',
+  'js/chat-discussion-round-prompts.js',
+  'js/chat-discussion-round-request.js',
+  'js/chat-discussion-round-runner.js',
+  'js/chat-discussion-round-state.js',
+  'js/chat-discussion-round-view.js',
+  'js/chat-discussion-state.js',
+  'js/chat-discussion-turns.js',
+  'js/chat-discussion-ui.js',
+  'js/chat-discussion.js',
+  'js/chat-empty-state.js',
+  'js/chat-history.js',
+  'js/chat-icons.js',
+  'js/chat-images.js',
+  'js/chat-marker-prompts.js',
+  'js/chat-message-action-attrs.js',
+  'js/chat-nudge.js',
+  'js/chat-panel.js',
+  'js/chat-prompt-context.js',
+  'js/chat-render.js',
+  'js/chat-summaries.js',
+  'js/chat-thread-search.js',
+  'js/chat-window-bindings.js',
+  'js/chat.js',
+];
+const missingChatWorkflowCheckJsModules = chatWorkflowCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes chat workflow modules',
+  missingChatWorkflowCheckJsModules.length === 0,
+  missingChatWorkflowCheckJsModules.length ? `missing: ${missingChatWorkflowCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
