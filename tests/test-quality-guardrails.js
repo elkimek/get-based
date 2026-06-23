@@ -154,6 +154,36 @@ const missingHealthDomainCheckJsModules = healthDomainCheckJsModules
 assert('checkJs pilot includes health domain modules',
   missingHealthDomainCheckJsModules.length === 0,
   missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
+const uiWorkflowCheckJsModules = [
+  'js/context-card-dashboard-ai.js',
+  'js/context-card-editor-ui.js',
+  'js/context-card-health-dots.js',
+  'js/context-card-summaries.js',
+  'js/dashboard-page-view.js',
+  'js/dashboard-recommendation-widget.js',
+  'js/dashboard-view-composition.js',
+  'js/dashboard-widget-controls.js',
+  'js/dashboard-widgets.js',
+  'js/import-drop-zone.js',
+  'js/import-file-input.js',
+  'js/import-loader.js',
+  'js/import-marker-map-modal.js',
+  'js/import-review-draft.js',
+  'js/import-review-row-actions.js',
+  'js/lens-actions.js',
+  'js/lens-cache.js',
+  'js/lens-library.js',
+  'js/lens-local-worker.js',
+  'js/lens-local.js',
+  'js/lens-page-shell.js',
+  'js/lens-pages.js',
+  'js/lens-url.js',
+];
+const missingUiWorkflowCheckJsModules = uiWorkflowCheckJsModules
+  .filter(file => !checkJsConfig.include?.includes(file));
+assert('checkJs pilot includes UI workflow modules',
+  missingUiWorkflowCheckJsModules.length === 0,
+  missingUiWorkflowCheckJsModules.length ? `missing: ${missingUiWorkflowCheckJsModules.join(', ')}` : '');
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 process.exit(failed > 0 ? 1 : 0);
