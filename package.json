@@ -11,7 +11,9 @@
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.js",
+    "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.6.0",

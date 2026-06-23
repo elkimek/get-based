@@ -27,10 +27,14 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'cashuGetBalance',
       'cashuGetMintUrl',
       'cashuSetMintUrl',
+      'cashuCreateFundingInvoice',
+      'cashuCheckFundingStatus',
+      'cashuRecoverPendingFunding',
       'cashuDepositToNode',
       'cashuRecoverPendingDeposit',
       'cashuImportWallet',
       'cashuReceiveToken',
+      'cashuExportWallet',
       'cashuSavePendingWithdrawToken',
       'cashuClearPendingWithdraw',
       'cashuClearPendingDeposit',
@@ -38,6 +42,10 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'cashuRestoreWalletFromSeed',
       'cashuHasWalletSeed',
       'cashuGenerateWalletSeed',
+      'cashuSendAsToken',
+      'cashuCreateWithdrawQuote',
+      'cashuExecuteWithdraw',
+      'cashuWithdrawToAddress',
     ];
     const oldGlobals = {};
     for (const name of globalNames) oldGlobals[name] = window[name];
@@ -62,6 +70,14 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
     let refundCalled = false;
     let importedToken = null;
     let receivedToken = null;
+    let fundingInvoiceAmount = null;
+    let fundingStatusQuote = null;
+    let pendingFundingChecked = false;
+    let exportedWallet = false;
+    let sentTokenAmount = null;
+    let withdrawAddressArgs = null;
+    let withdrawQuoteInvoice = null;
+    let executeWithdrawQuote = null;
     let savedPendingWithdraw = null;
     let clearPendingWithdrawCalled = false;
     let restoredMnemonic = null;
@@ -98,6 +114,18 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         currentMint = url;
         localStorage.setItem('labcharts-cashu-wallet-mint', url);
       };
+      window.cashuCreateFundingInvoice = async amount => {
+        fundingInvoiceAmount = amount;
+        return { quote: 'funding-quote-1000', invoice: 'lnbc1000getbasedtestinvoice' };
+      };
+      window.cashuCheckFundingStatus = async quote => {
+        fundingStatusQuote = quote;
+        return { paid: true, minted: 1000, fee: 2 };
+      };
+      window.cashuRecoverPendingFunding = async () => {
+        pendingFundingChecked = true;
+        return { checked: 1, recovered: 998, pending: 0, failed: 0, cleared: 0 };
+      };
       window.cashuDepositToNode = async (url, amount, existingKey) => {
         depositArgs = { url, amount, existingKey };
         throw new Error('mock node rejected deposit');
@@ -113,6 +141,26 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       window.cashuReceiveToken = async token => {
         receivedToken = token;
         return { received: 888, balance: 2388 };
+      };
+      window.cashuExportWallet = async () => {
+        exportedWallet = true;
+        return 'cashuAbackupwallet';
+      };
+      window.cashuSendAsToken = async amount => {
+        sentTokenAmount = amount;
+        return { token: 'cashuAsendtoken', amount, remaining: 1400 - amount };
+      };
+      window.cashuCreateWithdrawQuote = async invoice => {
+        withdrawQuoteInvoice = invoice;
+        return { quote: 'withdraw-quote-1', amount: 123, fee_reserve: 4 };
+      };
+      window.cashuExecuteWithdraw = async quote => {
+        executeWithdrawQuote = quote;
+        return { paid: true };
+      };
+      window.cashuWithdrawToAddress = async (address, amount) => {
+        withdrawAddressArgs = { address, amount };
+        return { paid: true, amount, balance: 1234 };
       };
       window.cashuSavePendingWithdrawToken = async (token, source) => {
         savedPendingWithdraw = { token, source };
@@ -135,16 +183,24 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         cashuGetBalance: window.cashuGetBalance,
         cashuGetMintUrl: window.cashuGetMintUrl,
         cashuSetMintUrl: window.cashuSetMintUrl,
+        cashuCreateFundingInvoice: window.cashuCreateFundingInvoice,
+        cashuCheckFundingStatus: window.cashuCheckFundingStatus,
+        cashuRecoverPendingFunding: window.cashuRecoverPendingFunding,
         cashuDepositToNode: window.cashuDepositToNode,
         cashuRecoverPendingDeposit: window.cashuRecoverPendingDeposit,
         cashuImportWallet: window.cashuImportWallet,
         cashuReceiveToken: window.cashuReceiveToken,
+        cashuExportWallet: window.cashuExportWallet,
         cashuSavePendingWithdrawToken: window.cashuSavePendingWithdrawToken,
         cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
         cashuGetWalletMnemonic: window.cashuGetWalletMnemonic,
         cashuRestoreWalletFromSeed: window.cashuRestoreWalletFromSeed,
         cashuHasWalletSeed: window.cashuHasWalletSeed,
         cashuGenerateWalletSeed: window.cashuGenerateWalletSeed,
+        cashuSendAsToken: window.cashuSendAsToken,
+        cashuCreateWithdrawQuote: window.cashuCreateWithdrawQuote,
+        cashuExecuteWithdraw: window.cashuExecuteWithdraw,
+        cashuWithdrawToAddress: window.cashuWithdrawToAddress,
       });
 
       localStorage.setItem('labcharts-ai-provider', 'routstr');
@@ -219,6 +275,58 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         seedAckProceedsToFunding = !!document.getElementById('routstr-wcashu-input');
       }
 
+      await panels.doRoutstrWalletFund(1000);
+      await wait(50);
+      const lightningFundingCreatesInvoice = fundingInvoiceAmount === 1000
+        && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('Waiting for payment');
+      await panels.recoverPendingWalletFunding();
+      await wait(50);
+      const pendingFundingRecoveryReportsRecovered = pendingFundingChecked
+        && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('+998 sats recovered');
+      const fundingPollUsesQuote = fundingStatusQuote === null || fundingStatusQuote === 'funding-quote-1000';
+
+      await panels.showRoutstrWalletBackup();
+      await wait(50);
+      const walletBackupExportCalled = exportedWallet === true;
+
+      await panels.showRoutstrWithdraw();
+      await wait(50);
+      await panels.showRoutstrWithdrawToken();
+      await wait(50);
+      await panels.doRoutstrSendToken(250);
+      await wait(50);
+      const sendTokenUsesWalletRuntime = sentTokenAmount === 250
+        && (document.getElementById('routstr-token-result')?.textContent || '').includes('Token created');
+
+      await panels.showRoutstrWithdrawLightning();
+      await wait(50);
+      const lightningInput = document.getElementById('routstr-withdraw-input');
+      if (lightningInput) lightningInput.value = 'lnbc123getbasedtestinvoice';
+      await panels.doRoutstrWithdrawQuote();
+      await wait(50);
+      const lightningWithdrawQuotesInvoice = withdrawQuoteInvoice === 'lnbc123getbasedtestinvoice'
+        && (document.getElementById('routstr-withdraw-status')?.textContent || '').includes('Fee reserve');
+      await panels.doRoutstrWithdrawExecute('withdraw-quote-1');
+      await wait(50);
+      const lightningWithdrawExecutesQuote = executeWithdrawQuote === 'withdraw-quote-1'
+        && (document.getElementById('routstr-withdraw-status')?.textContent || '').includes('Withdrawn');
+      await panels.showRoutstrWithdrawLightning();
+      await wait(50);
+      const addressInput = document.getElementById('routstr-withdraw-input');
+      if (addressInput) {
+        addressInput.value = 'alice@getbased.test';
+        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const amountInput = document.getElementById('routstr-withdraw-amount');
+      if (amountInput) {
+        amountInput.value = '42';
+        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      await panels.doRoutstrWithdrawQuote();
+      await wait(50);
+      const lightningAddressWithdrawUsesAmount = withdrawAddressArgs?.address === 'alice@getbased.test'
+        && withdrawAddressArgs.amount === 42;
+
       return {
         walletRenders,
         nodeBalanceRenders,
@@ -242,6 +350,14 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         seedContinueStartsDisabled,
         seedAckEnablesContinue,
         seedAckProceedsToFunding,
+        lightningFundingCreatesInvoice,
+        pendingFundingRecoveryReportsRecovered,
+        fundingPollUsesQuote,
+        walletBackupExportCalled,
+        sendTokenUsesWalletRuntime,
+        lightningWithdrawQuotesInvoice,
+        lightningWithdrawExecutesQuote,
+        lightningAddressWithdrawUsesAmount,
       };
     } finally {
       const panels = await import('/js/provider-wallet-panels.js');
