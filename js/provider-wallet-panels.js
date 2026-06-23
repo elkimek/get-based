@@ -475,10 +475,10 @@ export async function doRoutstrNodeWithdraw() {
     const data = await res.json();
     const token = data.token || data.cashu_token || (typeof data === 'string' && data.startsWith('cashu') ? data : null);
     if (!token) throw new Error('No token returned from node');
-    await walletRuntime.cashuSavePendingWithdrawToken?.(token, 'routstr-node-refund');
+    const savedPendingWithdraw = await walletRuntime.cashuSavePendingWithdrawToken?.(token, 'routstr-node-refund');
     try {
       const result = await walletRuntime.cashuReceiveToken(token);
-      await walletRuntime.cashuClearPendingWithdraw?.();
+      if (savedPendingWithdraw !== false) await walletRuntime.cashuClearPendingWithdraw?.();
       await saveRoutstrKey('');
       const received = Number(result?.received ?? result) || 0;
       showNotification('Withdrawn \u26a1 ' + received.toLocaleString() + ' sats to wallet', 'success');

@@ -750,8 +750,16 @@ export async function clearPendingWithdraw() {
 
 /** Persist a recoverable Cashu token before attempting risky refund/import flows. */
 export async function savePendingWithdrawToken(token, source = 'manual') {
-  if (!token) return;
+  if (!token) return false;
+  const raw = await _getMeta('pendingWithdraw');
+  if (raw) {
+    try {
+      const existing = JSON.parse(raw);
+      if (existing?.quoteId) return false;
+    } catch {}
+  }
   await _setMeta('pendingWithdraw', JSON.stringify({ quoteId: null, token, source, savedAt: Date.now() }));
+  return true;
 }
 
 // ═══════════════════════════════════════════════
