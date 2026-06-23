@@ -18,7 +18,7 @@
  *   node scripts/routstr-real-funds-canary.mjs resume
  */
 import { chromium } from 'playwright';
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 
 const APP_URL = process.env.GETBASED_URL || 'http://127.0.0.1:8180/app';
 const USER_DATA_DIR = process.env.CANARY_PROFILE || '/tmp/getbased-routstr-real-canary-profile';
@@ -73,6 +73,28 @@ async function openApp(dir = USER_DATA_DIR) {
   });
   return { context, page, errors, requests };
 }
+async function preflightCanaryProfileReset() {
+  if (!existsSync(USER_DATA_DIR)) return;
+  const { context, page } = await openApp(USER_DATA_DIR);
+  try {
+    const state = await page.evaluate(async () => {
+      const safe = async (fn) => { try { return await fn(); } catch (e) { return { error: e?.message || String(e) }; } };
+      return {
+        walletBalance: await safe(async () => Number(await window.cashuGetBalance?.()) || 0),
+        pendingDeposit: await safe(async () => !!(await window.cashuRecoverPendingDeposit?.())),
+        pendingWithdraw: await safe(async () => !!(await window.cashuRecoverPendingWithdraw?.())),
+        hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
+      };
+    });
+    const inspectError = ['walletBalance', 'pendingDeposit', 'pendingWithdraw'].find(k => state[k]?.error);
+    if (inspectError) throw new Error(`Refusing to reset canary profile: could not inspect ${inspectError}: ${state[inspectError].error}`);
+    if (state.walletBalance > 0 || state.pendingDeposit || state.pendingWithdraw || state.hasRoutstrKey) {
+      throw new Error('Refusing to reset non-empty real-funds canary profile: ' + JSON.stringify(state));
+    }
+  } finally {
+    await context.close();
+  }
+}
 async function ensureAppWallet(page) {
   await page.evaluate(async (mint) => {
     if (typeof window.cashuHasWalletSeed === 'function' && !(await window.cashuHasWalletSeed())) {
@@ -84,6 +106,7 @@ async function ensureAppWallet(page) {
 }
 async function setup() {
   requireRealFundsAllowed();
+  await preflightCanaryProfileReset();
   rmSync(USER_DATA_DIR, { recursive: true, force: true });
   const { context, page, errors } = await openApp(USER_DATA_DIR);
   try {
@@ -102,6 +125,7 @@ async function setup() {
 async function resume() {
   requireRealFundsAllowed();
   const { context, page, errors, requests } = await openApp(USER_DATA_DIR);
+  let contextClosed = false;
   try {
     await ensureAppWallet(page);
     await page.evaluate(async () => window.cashuRecoverPendingFunding());
@@ -173,20 +197,29 @@ async function resume() {
     }
     log('PASS model call and refund recovered', nodeResult);
 
+    await context.close();
+    contextClosed = true;
+
     const tokenRoundtrip = await tokenRoundtripAndSeedRestore();
     log('PASS token export/import and seed restore', tokenRoundtrip);
 
-    const finalState = await page.evaluate(async () => ({
-      mintHost: new URL(await window.cashuGetMintUrl()).host,
-      walletBalance: Number(await window.cashuGetBalance()) || 0,
-      hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!window.__routstrCanaryKey,
-      pendingDeposit: !!(await window.cashuRecoverPendingDeposit()),
-      pendingWithdraw: !!(await window.cashuRecoverPendingWithdraw()),
-    }));
-    log('PASS final state', finalState);
+    const final = await openApp(USER_DATA_DIR);
+    try {
+      const finalState = await final.page.evaluate(async () => ({
+        mintHost: new URL(await window.cashuGetMintUrl()).host,
+        walletBalance: Number(await window.cashuGetBalance()) || 0,
+        hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!window.__routstrCanaryKey,
+        pendingDeposit: !!(await window.cashuRecoverPendingDeposit()),
+        pendingWithdraw: !!(await window.cashuRecoverPendingWithdraw()),
+      }));
+      log('PASS final state', finalState);
+      if (final.errors.length) log('WARN final_browser_errors_redacted', final.errors.map(redactText).slice(-10));
+    } finally {
+      await final.context.close();
+    }
     if (errors.length) log('WARN browser_errors_redacted', errors.map(redactText).slice(-10));
   } finally {
-    await context.close();
+    if (!contextClosed) await context.close();
   }
 }
 async function tokenRoundtripAndSeedRestore() {
