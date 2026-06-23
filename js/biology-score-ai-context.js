@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-ai-context.js — compact Biology Scores context for AI chat.
 
 import { computeBiologyScores } from './biology-scores.js';

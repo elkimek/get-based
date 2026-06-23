@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-mappings.js — audit metadata for non-generic Biology Scores.
 
 export const CUSTOM_BIOLOGY_SCORE_MAPPINGS = {

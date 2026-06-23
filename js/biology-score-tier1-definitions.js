@@ -1,4 +1,3 @@
-// @ts-nocheck
 // biology-score-tier1-definitions.js — additional getbased-native Biology Score definitions.
 
 export const TIER1_BIOLOGY_SCORE_DEFINITIONS = [
