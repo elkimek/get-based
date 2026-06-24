@@ -127,6 +127,22 @@ try {
       /Set an interpretive lens/i.test(html));
   }
 
+  // ─── 3b. KB toggle enabled but no indexed library → honest setup state ───
+  {
+    lens.saveLensConfig({
+      backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true,
+    });
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = '';
+    const html = cards.renderInterpretiveLensSection();
+    assert('KB enabled-empty: KB row present as setup state',
+      /lens-section-label[^>]*>Knowledge Base/.test(html));
+    assert('KB enabled-empty: row says no documents indexed yet',
+      /enabled, no documents indexed yet/.test(html));
+    assert('KB enabled-empty: CTA still opens KB modal to finish setup',
+      html.includes('dashboard-cta') && html.includes('data-dashboard-ai-action="open-knowledge-base"'));
+  }
+
   // ─── 4. Both Lens + KB set → no AI-personalize CTA ───
   {
     lens.saveLensConfig({

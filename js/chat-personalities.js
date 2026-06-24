@@ -260,14 +260,16 @@ export function updateSummaryButton() {
 }
 
 let _headerListenerAdded = false;
-function getAIContextHeaderParts() {
-  const parts = [];
-  if ((state.importedData?.interpretiveLens || '').trim()) parts.push('Lens');
+function getAIContextHeaderState() {
+  const active = [];
+  const pending = [];
+  if ((state.importedData?.interpretiveLens || '').trim()) active.push('Lens');
   try {
     const kb = getLensSummary();
-    if (kb?.configured) parts.push(kb.displayName || 'Knowledge Base');
+    if (kb?.configured) active.push(kb.displayName || 'Knowledge Base');
+    else if (kb?.enabled) pending.push('KB empty');
   } catch { /* Knowledge Base not initialised yet. */ }
-  return parts;
+  return { active, pending };
 }
 
 function ensureChatContextStatus(el) {
@@ -292,16 +294,23 @@ export function updateChatContextStatus() {
   if (!modelEl) return;
   const status = ensureChatContextStatus(modelEl);
   if (!status) return;
-  const parts = getAIContextHeaderParts();
+  const contextState = getAIContextHeaderState();
+  const parts = [...contextState.active, ...contextState.pending];
   if (parts.length === 0) {
     status.textContent = '';
     status.hidden = true;
     status.removeAttribute('aria-label');
+    status.classList.remove('chat-context-status-pending');
     return;
   }
+  const pendingOnly = contextState.active.length === 0 && contextState.pending.length > 0;
   const label = `AI Context: ${parts.join(' + ')}`;
+  const ariaSuffix = pendingOnly
+    ? 'Knowledge Base is enabled but no library is indexed yet. Click to manage Context.'
+    : 'Click to manage Context.';
   status.hidden = false;
-  status.setAttribute('aria-label', `${label}. Click to manage Context.`);
+  status.classList.toggle('chat-context-status-pending', pendingOnly);
+  status.setAttribute('aria-label', `${label}. ${ariaSuffix}`);
   status.innerHTML = `<span class="chat-context-dot" aria-hidden="true"></span><span>${escapeHTML(label)}</span>`;
 }
 

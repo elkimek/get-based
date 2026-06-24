@@ -84,11 +84,12 @@ export function renderInterpretiveLensSection() {
   const lens = (state.importedData.interpretiveLens || '').trim();
   let summary; try { summary = getLensSummary(); } catch { summary = null; }
   const kbConfigured = !!(summary && summary.configured);
+  const kbEnabled = !!(summary && summary.enabled);
 
   const lensRow = lens
     ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" ${dashboardAIActionAttrs('open-interpretive-lens')} title="Interpretive Lens - click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
     : '';
-  const kbRow = kbConfigured ? renderKnowledgeBaseRow(summary) : '';
+  const kbRow = (kbConfigured || kbEnabled) ? renderKnowledgeBaseRow(summary) : '';
   const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
   return lensRow + kbRow + aiCta;
 }
@@ -121,7 +122,7 @@ export function triggerDNAFilePicker() {
 // query-rewriting status.
 export function renderKnowledgeBaseSection() {
   let s; try { s = getLensSummary(); } catch { return ''; }
-  if (!s || !s.configured) return '';
+  if (!s || (!s.configured && !s.enabled)) return '';
   return renderKnowledgeBaseRow(s);
 }
 
@@ -132,7 +133,8 @@ function renderKnowledgeBaseRow(s) {
   const rewriteFragment = s.aiAvailable
     ? ` &middot; query rewriting ${s.multiQueryOn ? 'on' : 'off'}`
     : '';
-  const detail = `${escapeHTML(s.displayName)}${docFragment}${rewriteFragment}`;
+  const emptyEnabledFragment = (!s.configured && s.enabled) ? ' &middot; enabled, no documents indexed yet' : '';
+  const detail = `${escapeHTML(s.displayName)}${emptyEnabledFragment}${docFragment}${rewriteFragment}`;
   return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" ${dashboardAIActionAttrs('open-knowledge-base')} title="Knowledge Base - click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
 }
 
@@ -294,7 +296,13 @@ export function openContextModal() {
   const lensSet = !!(state.importedData.interpretiveLens || '').trim();
   let kbSummary; try { kbSummary = getLensSummary(); } catch { kbSummary = null; }
   const kbSet = !!kbSummary?.configured;
+  const kbEnabled = !!kbSummary?.enabled;
   const check = '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>';
+  const kbStatus = kbSet
+    ? `${escapeHTML(kbSummary.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.`
+    : (kbEnabled
+      ? 'Knowledge Base is enabled, but no documents are indexed yet. Add a library before it can ground answers.'
+      : 'Ground answers in your own documents, research papers, notes, and references.');
   overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Context" style="max-width:520px">
     <p class="confirm-message" style="margin-bottom:6px">Context</p>
     <p class="confirm-subtext" style="margin:0 0 14px;color:var(--muted);font-size:0.92rem">Control how AI interprets and grounds answers. Profile facts stay in Profile Context.</p>
@@ -308,8 +316,8 @@ export function openContextModal() {
       <button type="button" class="ai-picker-card" data-pick="kb" data-context-kind="knowledge">
         <span class="ai-picker-kicker">Retrieval</span>
         <span class="ai-picker-title">Knowledge Base ${kbSet ? check : ''}</span>
-        <span class="ai-picker-sub">${kbSet ? `${escapeHTML(kbSummary.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.` : 'Ground answers in your own documents, research papers, notes, and references.'}</span>
-        <span class="ai-picker-action">${kbSet ? 'Manage source' : 'Connect source'} &rarr;</span>
+        <span class="ai-picker-sub">${kbStatus}</span>
+        <span class="ai-picker-action">${kbSet ? 'Manage source' : (kbEnabled ? 'Add documents' : 'Connect source')} &rarr;</span>
       </button>
     </div>
     <div class="confirm-actions" style="margin-top:6px">

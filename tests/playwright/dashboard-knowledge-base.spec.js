@@ -54,6 +54,34 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
   await expect(overlay).toContainText('Interpretive Lens is enabled');
 });
 
+test('chat header shows pending KB state when Knowledge Base is enabled but empty', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { saveLensConfig } = await import('/js/lens.js');
+    const { openChatPanel } = await import('/js/chat-panel.js');
+    const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = '';
+    saveLensConfig({ backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true });
+    await openChatPanel();
+    chat.updateChatHeaderModel();
+  });
+
+  const chip = page.locator('.chat-context-status');
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText('AI Context: KB empty');
+  await expect(chip).toHaveClass(/chat-context-status-pending/);
+  await expect(chip).toHaveAttribute('aria-label', /no library is indexed yet/);
+
+  await chip.evaluate(el => el.click());
+  const overlay = page.locator('#context-hub-overlay');
+  await expect(overlay).toHaveClass(/show/);
+  await expect(overlay).toContainText('Knowledge Base is enabled, but no documents are indexed yet');
+  await expect(overlay).toContainText('Add documents');
+});
+
 test('clearing Interpretive Lens immediately clears chat header context chip', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
