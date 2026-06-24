@@ -16,6 +16,7 @@ import {
   isMessengerEnabled,
   getMessengerToken,
   getMessengerContextKey,
+  hasMessengerSyncIdentity,
   generateMessengerToken,
   generateMessengerContextKey,
   revokeMessengerToken,
@@ -111,6 +112,8 @@ async function handleSettingsSyncClick(event) {
     void confirmRestoreMnemonic();
   } else if (action === 'toggle-messenger-token') {
     toggleMessengerToken();
+  } else if (action === 'toggle-messenger-context-key') {
+    toggleMessengerContextKey();
   } else if (action === 'copy-messenger-token') {
     copyMessengerToken();
   } else if (action === 'copy-messenger-context-key') {
@@ -636,14 +639,16 @@ export function renderMessengerSection() {
   const enabled = isMessengerEnabled();
   const token = getMessengerToken();
   const syncReady = isSyncEnabled();
+  const ownerReady = hasMessengerSyncIdentity();
+  const canEnable = syncReady && ownerReady;
   return `
-    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${!syncReady ? 'opacity:0.75' : ''}">
+    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${!canEnable ? 'opacity:0.75' : ''}">
       <div class="settings-copy">
         <div class="settings-copy-title">Agent Access</div>
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${!syncReady ? 'disabled' : ''}>
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${!canEnable ? 'disabled' : ''}>
         <span class="chat-toggle-slider"></span>
       </label>
     </div>
@@ -663,6 +668,7 @@ export function renderMessengerSection() {
         <div class="settings-token-head">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Context encryption key</label>
           <div class="settings-token-actions">
+            <button id="messenger-context-key-toggle" class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="toggle-messenger-context-key" aria-label="Show context encryption key">Show</button>
             <button class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="copy-messenger-context-key" aria-label="Copy context encryption key">Copy</button>
           </div>
         </div>
@@ -694,6 +700,10 @@ export function renderMessengerSection() {
       <div class="settings-copy-desc">
         Agent Access uses your Cross-device Sync identity for relay storage and quota. Enable or restore Cross-device Sync first, then turn this on.
       </div>
+    ` : !ownerReady ? `
+      <div class="settings-copy-desc">
+        Sync is enabled, but this device is still resolving its Sync owner. Wait for the mnemonic to finish loading, or restore Cross-device Sync again before enabling Agent Access.
+      </div>
     ` : `
       <div class="settings-copy-desc">
         Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">MCP-compatible tool</a>. The relay receives only end-to-end encrypted context; your Agent Access token authorizes relay fetches and your Agent Context key decrypts locally in your self-hosted MCP.
@@ -710,6 +720,12 @@ function toggleMessenger(enabled) {
     if (enabled) {
       if (!isSyncEnabled()) {
         showNotification('Enable or restore Cross-device Sync first — Agent Access storage is bound to that Sync identity.', 'error');
+        const el = document.getElementById('messenger-section');
+        if (el) el.innerHTML = renderMessengerSection();
+        return;
+      }
+      if (!hasMessengerSyncIdentity()) {
+        showNotification('Sync owner is still resolving — wait for Cross-device Sync to finish loading before enabling Agent Access.', 'error');
         const el = document.getElementById('messenger-section');
         if (el) el.innerHTML = renderMessengerSection();
         return;
@@ -742,6 +758,26 @@ function toggleMessengerToken() {
     btn.textContent = 'Hide';
   } else {
     el.textContent = '\u2022'.repeat(64);
+    el.dataset.masked = 'true';
+    el.style.userSelect = 'none';
+    btn.textContent = 'Show';
+  }
+}
+
+function toggleMessengerContextKey() {
+  const el = document.getElementById('messenger-context-key');
+  const btn = document.getElementById('messenger-context-key-toggle');
+  if (!el || !btn) return;
+  const contextKey = getMessengerContextKey();
+  if (!contextKey) return;
+  const masked = el.dataset.masked === 'true';
+  if (masked) {
+    el.textContent = contextKey;
+    el.dataset.masked = 'false';
+    el.style.userSelect = 'all';
+    btn.textContent = 'Hide';
+  } else {
+    el.textContent = '\u2022'.repeat(48);
     el.dataset.masked = 'true';
     el.style.userSelect = 'none';
     btn.textContent = 'Show';
@@ -817,6 +853,7 @@ Object.assign(window, {
   showSyncSetupModal,
   toggleMessenger,
   toggleMessengerToken,
+  toggleMessengerContextKey,
   copyMessengerToken,
   copyMessengerContextKey,
   regenerateMessengerToken,

@@ -144,6 +144,11 @@ export function getMessengerContextKey() {
   return localStorage.getItem(MESSENGER_CONTEXT_KEY_KEY) || null;
 }
 
+export function hasMessengerSyncIdentity() {
+  const owner = currentAppOwner();
+  return !!(ownerIdString(owner) && ownerWriteKeyBytes(owner));
+}
+
 export function ensureMessengerContextKey() {
   const existing = getMessengerContextKey();
   if (existing) return existing;

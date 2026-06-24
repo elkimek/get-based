@@ -51,6 +51,7 @@ async function openIsolatedSyncSetupPage(page) {
       export function isMessengerEnabled() { return false; }
       export function getMessengerToken() { return null; }
       export function getMessengerContextKey() { return null; }
+      export function hasMessengerSyncIdentity() { return true; }
       export function generateMessengerToken() {
         stub.calls.push({ fn: 'generateMessengerToken' });
         return 'token';
