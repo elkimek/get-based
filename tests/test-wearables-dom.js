@@ -253,6 +253,14 @@ return (async function() {
     /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
   window.closeModal();
 
+  window._labState.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  const missingDateText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP latest row does not synthesize a summary pair when one latest date is missing',
+    /Latest\s+—\s+No same-date pair/.test(missingDateText) && !/Latest\s+130\/78 mmHg/.test(missingDateText), missingDateText);
+  window.closeModal();
+
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
   window._labState.importedData.wearableSummary = {
