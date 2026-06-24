@@ -39,6 +39,7 @@ export function createDashboardWidgetRenderers(deps) {
     formatMobileWearableDelta,
     getMobileWearablePriority = () => [],
     rerenderDashboardFromWidgetChange,
+    renderLightTodayHero = () => '',
     showRecommendations,
   } = deps;
 
@@ -74,9 +75,7 @@ export function createDashboardWidgetRenderers(deps) {
   } = recommendationWidget;
 
   function renderDashboardLightTodayWidget() {
-    const hero = (typeof window !== 'undefined' && typeof window.renderLightTodayHero === 'function')
-      ? window.renderLightTodayHero()
-      : '';
+    const hero = renderLightTodayHero();
     const heroHtml = hero || `<div class="light-today-hero light-today-hero-dashboard-fallback">
       <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
       <div class="sun-detail-ai sun-detail-ai-idle">

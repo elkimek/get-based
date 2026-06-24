@@ -526,14 +526,6 @@ export function renderLightTodayDashboardChip() {
   </button>`;
 }
 
-Object.assign(globalThis, {
-  refreshDayAIAnalysis,
-  analyzeDayAI,
-  renderLightTodayHero,
-  renderLightTodayDashboardChip,
-  computeLightTrends,
-});
-
 // Cross-page live-update — when a verdict completes elsewhere (e.g. an
 // auto-fire on the Light & Sun page while the user is reading the
 // dashboard), re-render the dashboard chip in place without rebuilding

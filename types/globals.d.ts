@@ -117,8 +117,6 @@ interface Window {
   _skinTypeToFitzpatrick?: AnyFunction;
   geneticVitaminDMultiplier?: AnyFunction;
   renderLightChannelsLive?: AnyFunction;
-  renderLightTodayDashboardChip?: AnyFunction;
-  renderLightTodayHero?: AnyFunction;
   renderLightTodayStrip?: AnyFunction;
   renderSunSessionRow?: AnyFunction;
   renderSunSetupCard?: AnyFunction;

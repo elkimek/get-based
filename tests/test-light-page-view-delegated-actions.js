@@ -9,6 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/light-page-view.js'), 'utf8');
 const hooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-hooks.js'), 'utf8');
+const todayAiSrc = fs.readFileSync(path.join(root, 'js/light-today-ai.js'), 'utf8');
+const dashboardRenderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
+const dashboardCompositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
+const globalsSrc = fs.readFileSync(path.join(root, 'types/globals.d.ts'), 'utf8');
 const uiHooksSrc = fs.readFileSync(path.join(root, 'js/light-page-view-ui-hooks.js'), 'utf8');
 const lightSunModulesSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const uiShellModulesSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
@@ -56,6 +60,17 @@ assert('Light page feature hook wires runtime dependencies',
     && /renderDevicesSection/.test(hooksSrc)
     && /renderLightTools/.test(hooksSrc)
     && /renderChannelDeficitDeviceRecs/.test(hooksSrc));
+assert('Light Today AI renderers are wired without a window facade',
+  todayAiSrc.includes('registerAIActionHandler')
+    && !todayAiSrc.includes('Object.assign(globalThis')
+    && !todayAiSrc.includes('window.renderLightTodayHero')
+    && !todayAiSrc.includes('window.renderLightTodayDashboardChip')
+    && !globalsSrc.includes('renderLightTodayHero')
+    && !globalsSrc.includes('renderLightTodayDashboardChip')
+    && dashboardRenderersSrc.includes('renderLightTodayHero = () =>')
+    && dashboardRenderersSrc.includes('const hero = renderLightTodayHero();')
+    && dashboardCompositionSrc.includes("import { renderLightTodayHero } from './light-today-ai.js';")
+    && dashboardCompositionSrc.includes('renderLightTodayHero,'));
 assert('Light page UI hook wires router and settings dependencies',
   /import \{ navigate \} from '\.\/views\.js';/.test(uiHooksSrc)
     && /import \{ renderSunDataSourceSettings \} from '\.\/settings\.js';/.test(uiHooksSrc)
