@@ -103,6 +103,10 @@ export async function saveLensKey(key) {
   await encryptedSetItem(SECRET_KEY, key);
   updateKeyCache(SECRET_KEY, key);
   clearLensCache();
+  // External-server hasLens() gates on getLensKey(); refresh the chat header
+  // immediately so first-time KB key saves surface the AI Context chip without
+  // waiting for an unrelated model/config refresh.
+  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
 }
 export async function removeLens() {
   localStorage.removeItem(CONFIG_KEY);
