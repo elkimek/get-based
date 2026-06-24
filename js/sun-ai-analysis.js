@@ -350,13 +350,3 @@ export function renderSessionAIDetail(sess) {
     ${detail ? `<div class="sun-detail-ai-body">${escapeHTML(detail)}</div>` : ''}
   </div>`;
 }
-
-Object.assign(window, {
-  refreshSessionAIAnalysis,
-  analyzeSunSessionAI,
-  // Exposed so sun.js can call into the AI module without importing it
-  // — the reciprocal import would create a TDZ-risky cycle.
-  maybeAnalyzeSessionAfterFinish,
-  renderSessionAIInline,
-  renderSessionAIDetail,
-});
