@@ -597,6 +597,7 @@ const {
     !envSrc.includes('function _hasAnyRoomSignal'));
   const fs = await import('node:fs/promises');
   const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  const auditAiSrc = await fs.readFile(new URL('../js/light-audit-ai-analysis.js', import.meta.url), 'utf8');
   const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const appUiShellSrc = await fs.readFile(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
@@ -643,10 +644,19 @@ const {
     !globalsSrc.includes('saveLightAuditFromUI') &&
     !envSrc.includes('function renderLightAuditCompare'));
   assert('Light audit AI hooks route through startup wiring',
+    !auditAiSrc.includes('Object.assign(window, {') &&
+    !auditAiSrc.includes('window.refreshAuditAIAnalysis') &&
+    !auditAiSrc.includes('window.analyzeAuditAI') &&
+    !auditAiSrc.includes('window.maybeAnalyzeAuditAfterSave') &&
+    !auditAiSrc.includes('window.renderAuditAIBlock') &&
+    !auditAiSrc.includes('window.renderAuditAIDot') &&
     !auditSrc.includes('window.maybeAnalyzeAuditAfterSave') &&
     !auditSrc.includes('window.renderAuditAIBlock') &&
     !auditSrc.includes('window.renderAuditAIDot') &&
     !auditSrc.includes('window.hasAIProvider') &&
+    !globalsSrc.includes('maybeAnalyzeAuditAfterSave') &&
+    !globalsSrc.includes('renderAuditAIBlock') &&
+    !globalsSrc.includes('renderAuditAIDot') &&
     aiSaveHooksSrc.includes("import { configureLightEnvAudits } from './light-env-audits.js';") &&
     aiSaveHooksSrc.includes("import { hasAIProvider } from './api.js';") &&
     aiSaveHooksSrc.includes("import { openChatPanel } from './chat-panel.js';") &&
