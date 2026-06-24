@@ -35,40 +35,38 @@ function _handleLightToolModalClick(event) {
   if (!(overlay instanceof HTMLElement) || !overlay.contains(actionEl)) return;
 
   const action = actionEl.dataset.lightToolModalAction || '';
-  if (action === 'close-lux') {
-    event.preventDefault();
-    window._closeLuxMeter?.();
-    return;
-  }
-  if (action === 'close-flicker') {
-    event.preventDefault();
-    window._closeFlicker?.();
-    return;
-  }
-  if (action === 'close-dark') {
-    event.preventDefault();
-    window._closeDark?.();
-    return;
-  }
-  if (action === 'close-cct') {
-    event.preventDefault();
-    window._closeCCT?.();
-    return;
-  }
-  if (action === 'close-spec') {
-    event.preventDefault();
-    window._closeSpec?.();
-    return;
-  }
-  if (action === 'close-glass') {
-    event.preventDefault();
-    window._closeGlass?.();
-  }
+  const close = activeCameraToolClosers.get(action);
+  if (typeof close !== 'function') return;
+  event.preventDefault();
+  close();
 }
 
 function installLightToolModalDelegates(overlay) {
   overlay.addEventListener('click', _handleLightToolModalClick);
 }
+
+/** @type {Map<string, AnyFunction>} */
+const activeCameraToolClosers = new Map();
+
+function registerCameraToolCloser(action, close) {
+  activeCameraToolClosers.set(action, close);
+}
+
+function clearCameraToolCloser(action, close) {
+  if (activeCameraToolClosers.get(action) === close) activeCameraToolClosers.delete(action);
+}
+
+function closeCameraTool(action) {
+  const close = activeCameraToolClosers.get(action);
+  if (typeof close === 'function') close();
+}
+
+export function closeLuxMeter() { closeCameraTool('close-lux'); }
+export function closeFlickerDetector() { closeCameraTool('close-flicker'); }
+export function closeDarknessMeter() { closeCameraTool('close-dark'); }
+export function closeCCTMeter() { closeCameraTool('close-cct'); }
+export function closeSpectrumClassifier() { closeCameraTool('close-spec'); }
+export function closeGlassTransmission() { closeCameraTool('close-glass'); }
 
 /** @param {{ saveMeasurement?: AnyFunction }} [deps] */
 function getSaveMeasurement(deps = {}) {
@@ -140,17 +138,20 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       </div>
     </div>
   </div>`;
-  installLightToolModalDelegates(overlay);
   let closed = false;
-  window._closeLuxMeter = () => {
+  const closeLuxMeterOverlay = () => {
+    if (closed) return;
     closed = true;
     _luxState.running = false;
     if (_luxState.sensor) { try { _luxState.sensor.stop(); } catch (e) {} _luxState.sensor = null; }
     if (_luxState.stream) { try { _luxState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _luxState.stream = null; }
     _luxState.video = null;
+    clearCameraToolCloser('close-lux', closeLuxMeterOverlay);
     removeModalOverlay(overlay);
   };
-  openAppendedModalOverlay(overlay, () => window._closeLuxMeter());
+  registerCameraToolCloser('close-lux', closeLuxMeterOverlay);
+  installLightToolModalDelegates(overlay);
+  openAppendedModalOverlay(overlay, closeLuxMeterOverlay);
 
   let currentLux = null;
   // Snapshot of the LATEST raw camera luma (before calibration multiply).
@@ -353,7 +354,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       roomId,
     });
     showNotification(`Lux reading saved: ${Math.round(currentLux)}`);
-    window._closeLuxMeter();
+    closeLuxMeterOverlay();
   });
 
 }
@@ -383,15 +384,18 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
       </div>
     </div>
     </div>`;
-  installLightToolModalDelegates(overlay);
   let closed = false;
-  window._closeFlicker = () => {
+  const closeFlickerOverlay = () => {
+    if (closed) return;
     closed = true;
     _flickerState.running = false;
     if (_flickerState.stream) { try { _flickerState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _flickerState.stream = null; }
+    clearCameraToolCloser('close-flicker', closeFlickerOverlay);
     removeModalOverlay(overlay);
   };
-  openAppendedModalOverlay(overlay, () => window._closeFlicker());
+  registerCameraToolCloser('close-flicker', closeFlickerOverlay);
+  installLightToolModalDelegates(overlay);
+  openAppendedModalOverlay(overlay, closeFlickerOverlay);
 
   let lastResult = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#flicker-result'));
@@ -511,7 +515,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
       roomId,
     });
     showNotification(`Flicker score saved: ${lastResult.label}`);
-    window._closeFlicker();
+    closeFlickerOverlay();
   });
 
 }
@@ -540,8 +544,18 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       </div>
     </div>
   </div>`;
+  let closed = false;
+  const closeDarknessOverlay = () => {
+    if (closed) return;
+    closed = true;
+    _darkState.running = false;
+    if (_darkState.stream) { try { _darkState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _darkState.stream = null; }
+    clearCameraToolCloser('close-dark', closeDarknessOverlay);
+    removeModalOverlay(overlay);
+  };
+  registerCameraToolCloser('close-dark', closeDarknessOverlay);
   installLightToolModalDelegates(overlay);
-  openAppendedModalOverlay(overlay, () => window._closeDark());
+  openAppendedModalOverlay(overlay, closeDarknessOverlay);
 
   let result = null;
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
@@ -555,12 +569,17 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: 160, height: 120 },
       });
+      if (closed) {
+        try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+        return;
+      }
       _darkState.stream = stream;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
       video.playsInline = true;
       await video.play();
+      if (closed) return;
       // Lock long shutter + fixed ISO so dim pixels register at a known
       // gain. Without ISO lock, auto-gain compensates darkness and the
       // raw pixel values can't be translated to lux. Surfaces the
@@ -574,8 +593,8 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       const t0 = performance.now();
       let cancelled = false;
       while (performance.now() - t0 < 30000 && _darkState.running) {
-        // The camera stream may have been stopped by _closeDark() while
-        // we were sleeping in setTimeout. drawImage on a closed stream
+        // The camera stream may have been stopped by closeDarknessOverlay()
+        // while we were sleeping in setTimeout. drawImage on a closed stream
         // throws InvalidStateError; catch it explicitly so the loop
         // exits cleanly instead of silently failing inside an unhandled
         // rejection (which would leave the dialog stuck at "—" forever).
@@ -659,7 +678,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
           roomId,
         });
         showNotification('Sleep darkness reading saved.');
-        window._closeDark();
+        closeDarknessOverlay();
       };
     } catch (e) {
       statusEl.innerHTML = 'Camera access denied — darkness meter unavailable. <br><span style="font-size:11px;color:var(--text-muted)">Open your browser\'s site settings to allow camera access. This tool runs a long-exposure capture to detect ambient light below 1 lux — there\'s no useful manual-entry fallback.</span>';
@@ -667,11 +686,6 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
     }
   });
 
-  window._closeDark = () => {
-    _darkState.running = false;
-    if (_darkState.stream) { try { _darkState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _darkState.stream = null; }
-    removeModalOverlay(overlay);
-  };
 }
 
 // ─── Tool 3: CCT Meter ────────────────────────────────────────────────
@@ -703,15 +717,18 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       </div>
     </div>
     </div>`;
-  installLightToolModalDelegates(overlay);
   let closed = false;
-  window._closeCCT = () => {
+  const closeCCTOverlay = () => {
+    if (closed) return;
     closed = true;
     _cctState.running = false;
     if (_cctState.stream) { try { _cctState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _cctState.stream = null; }
+    clearCameraToolCloser('close-cct', closeCCTOverlay);
     removeModalOverlay(overlay);
   };
-  openAppendedModalOverlay(overlay, () => window._closeCCT());
+  registerCameraToolCloser('close-cct', closeCCTOverlay);
+  installLightToolModalDelegates(overlay);
+  openAppendedModalOverlay(overlay, closeCCTOverlay);
 
   let currentCCT = null;
   let currentMelanopic = null;
@@ -804,7 +821,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       roomId,
     });
     showNotification(`Color temp saved: ${currentCCT} K`);
-    window._closeCCT();
+    closeCCTOverlay();
   });
 
 }
@@ -857,15 +874,18 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
       </div>
     </div>
     </div>`;
-  installLightToolModalDelegates(overlay);
   let closed = false;
-  window._closeSpec = () => {
+  const closeSpectrumOverlay = () => {
+    if (closed) return;
     closed = true;
     _specState.running = false;
     if (_specState.stream) { try { _specState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _specState.stream = null; }
+    clearCameraToolCloser('close-spec', closeSpectrumOverlay);
     removeModalOverlay(overlay);
   };
-  openAppendedModalOverlay(overlay, () => window._closeSpec());
+  registerCameraToolCloser('close-spec', closeSpectrumOverlay);
+  installLightToolModalDelegates(overlay);
+  openAppendedModalOverlay(overlay, closeSpectrumOverlay);
 
   let result = null;
   const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#spec-result'));
@@ -962,7 +982,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     }
     await saveMeasurement('spectrum', result.label, { confidence: result.confidence, extra: result, roomId });
     showNotification(`Light type saved: ${result.label}`);
-    window._closeSpec();
+    closeSpectrumOverlay();
   });
 
 }
@@ -1046,19 +1066,22 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       </div>
     </div>
     </div>`;
-  installLightToolModalDelegates(overlay);
   let closed = false;
   /** @type {Set<MediaStream>} */
   const activeGlassStreams = new Set();
-  window._closeGlass = () => {
+  const closeGlassOverlay = () => {
+    if (closed) return;
     closed = true;
     for (const stream of activeGlassStreams) {
       try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
     }
     activeGlassStreams.clear();
+    clearCameraToolCloser('close-glass', closeGlassOverlay);
     removeModalOverlay(overlay);
   };
-  openAppendedModalOverlay(overlay, () => window._closeGlass());
+  registerCameraToolCloser('close-glass', closeGlassOverlay);
+  installLightToolModalDelegates(overlay);
+  openAppendedModalOverlay(overlay, closeGlassOverlay);
 
   _glassReadings = { inside: null, outside: null };
 
@@ -1135,7 +1158,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
         roomId,
       });
       showNotification(`Glass transmission saved: ${(transmission * 100).toFixed(0)}%`);
-      window._closeGlass();
+      closeGlassOverlay();
     };
   }
 

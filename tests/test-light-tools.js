@@ -31,6 +31,7 @@ const tools = await import('../js/light-tools.js');
     const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
     const appUiShellSrc = fs.readFileSync(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
     const lightEnvSrc = fs.readFileSync(new URL('../js/light-env.js', import.meta.url), 'utf8');
+    const globalsSrc = fs.readFileSync(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
     const swSrc = fs.readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
     const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
     const lightToolCameraModalsSrc = fs.readFileSync(new URL('../js/light-tool-camera-modals.js', import.meta.url), 'utf8');
@@ -271,16 +272,31 @@ const tools = await import('../js/light-tools.js');
     assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
       lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&
       lightToolCameraSrc.includes('export function computeRowBanding'));
+    assert('Light tool modal close handlers are module exports instead of window globals',
+      lightToolCameraModalsSrc.includes('export function closeLuxMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeFlickerDetector()') &&
+      lightToolCameraModalsSrc.includes('export function closeDarknessMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeCCTMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeSpectrumClassifier()') &&
+      lightToolCameraModalsSrc.includes('export function closeGlassTransmission()') &&
+      lightToolsSrc.includes('export { closeLuxMeter, closeFlickerDetector') &&
+      lightToolsSrc.includes('export function closeEyeLevelAudit()') &&
+      !lightToolCameraModalsSrc.includes('window._close') &&
+      !lightToolsSrc.includes('window._close') &&
+      !globalsSrc.includes('_closeLuxMeter') &&
+      !globalsSrc.includes('_closeAudit'));
     assert('Lux assigns close handler before camera fallback can await',
-      appearsBefore(lightToolCameraModalsSrc, 'window._closeLuxMeter =', 'await startCameraFallback();'));
+      appearsBefore(lightToolCameraModalsSrc, 'const closeLuxMeterOverlay =', 'await startCameraFallback();'));
     assert('Lux AmbientLightSensor error retries the camera fallback',
       /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolCameraModalsSrc));
       assert('Flicker assigns close handler before getUserMedia await',
-        appearsBefore(lightToolCameraModalsSrc, 'window._closeFlicker =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
+        appearsBefore(lightToolCameraModalsSrc, 'const closeFlickerOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
+      assert('Darkness stops late camera stream if closed after getUserMedia',
+        /export async function openDarknessMeter[\s\S]*const stream = await navigator\.mediaDevices\.getUserMedia[\s\S]*if \(closed\) \{[\s\S]*stream\.getTracks\(\)\.forEach\(t => t\.stop\(\)\)/.test(lightToolCameraModalsSrc));
       assert('CCT assigns close handler before getUserMedia await',
-        appearsBefore(lightToolCameraModalsSrc, 'window._closeCCT =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openCCTMeter')));
+        appearsBefore(lightToolCameraModalsSrc, 'const closeCCTOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openCCTMeter')));
       assert('Spectrum assigns close handler before getUserMedia await',
-        appearsBefore(lightToolCameraModalsSrc, 'window._closeSpec =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openSpectrumClassifier')));
+        appearsBefore(lightToolCameraModalsSrc, 'const closeSpectrumOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openSpectrumClassifier')));
     assert('Glass transmission tracks and stops active streams on close/finally',
       /activeGlassStreams\.add\(stream\)/.test(lightToolCameraModalsSrc) &&
       /activeGlassStreams\.delete\(stream\)/.test(lightToolCameraModalsSrc) &&

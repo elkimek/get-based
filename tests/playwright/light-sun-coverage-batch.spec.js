@@ -540,19 +540,19 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
       outcomes.flickerDeniedExplainsCameraRequirement = document.getElementById('flicker-result')?.textContent.includes('Camera access denied');
       document.getElementById('flicker-save').click();
       await Promise.resolve();
-      window._closeFlicker();
+      modals.closeFlickerDetector();
 
       await modals.openCCTMeter({ roomId: 'office' }, deps);
       outcomes.cctDeniedSetsCameraDeniedValue = document.getElementById('cct-value')?.textContent === 'Camera denied';
       document.getElementById('cct-save').click();
       await Promise.resolve();
-      window._closeCCT();
+      modals.closeCCTMeter();
 
       await modals.openDarknessMeter({ roomId: 'bedroom' }, deps);
       document.getElementById('dark-start').click();
       await Promise.resolve();
       outcomes.darknessDeniedShowsUnavailableMessage = document.getElementById('dark-status')?.textContent.includes('Camera access denied');
-      window._closeDark();
+      modals.closeDarknessMeter();
 
       outcomes.deniedToolsDoNotSaveWithoutResult = saved.filter(item => item.kind !== 'lux' && item.kind !== 'spectrum').length === 0;
     } finally {
@@ -562,8 +562,15 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
       });
       if (hadALS) window.AmbientLightSensor = originalALS;
       else delete window.AmbientLightSensor;
-      ['_closeLuxMeter', '_closeSpec', '_closeFlicker', '_closeCCT', '_closeDark', '_closeGlass'].forEach(name => {
-        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      [
+        modals.closeLuxMeter,
+        modals.closeSpectrumClassifier,
+        modals.closeFlickerDetector,
+        modals.closeCCTMeter,
+        modals.closeDarknessMeter,
+        modals.closeGlassTransmission,
+      ].forEach(close => {
+        try { close(); } catch (_) {}
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
@@ -781,8 +788,13 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       window.cancelAnimationFrame = savedCancelRaf;
       if (hadALS) window.AmbientLightSensor = originalALS;
       else delete window.AmbientLightSensor;
-      ['_closeLuxMeter', '_closeFlicker', '_closeCCT', '_closeGlass'].forEach(name => {
-        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      [
+        modals.closeLuxMeter,
+        modals.closeFlickerDetector,
+        modals.closeCCTMeter,
+        modals.closeGlassTransmission,
+      ].forEach(close => {
+        try { close(); } catch (_) {}
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
