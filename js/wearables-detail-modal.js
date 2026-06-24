@@ -343,7 +343,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   })();
   const latestBpValue = latestPairedReading
     ? formatPaired(latestPairedReading.sys, latestPairedReading.dia)
-    : `${formatPaired(m.latest, pairedMetric?.latest)}${m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate ? ' split dates' : ''}`;
+    : formatPaired(m.latest, pairedMetric?.latest);
   const latestBpDate = latestPairedReading
     ? shortDate(latestPairedReading.date)
     : (m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate

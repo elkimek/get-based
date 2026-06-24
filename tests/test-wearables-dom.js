@@ -182,6 +182,8 @@ return (async function() {
     mixedChartLabels.some(l => /^Diastolic \(Manual/.test(l)), mixedChartLabels.join('|'));
   assert('BP latest row uses an actual same-date pair instead of mismatched latest halves',
     /Latest\s+124\/80 mmHg/.test(mixedModalText) && !/Latest\s+130\/80 mmHg/.test(mixedModalText), mixedModalText);
+  assert('BP latest row never leaks split-date debug text into visible value',
+    !/split dates/.test(mixedModalText), mixedModalText);
   window.closeModal();
   await window.openWearableDetail('bp_diastolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Systolic/.test(d?.label || '')));
