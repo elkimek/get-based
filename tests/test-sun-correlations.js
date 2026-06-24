@@ -18,6 +18,9 @@ console.log('=== Sun Correlations Tests ===\n');
 await import('../js/state.js');
 const mod = await import('../js/sun-correlations.js');
 const { computeSunCorrelations, getSunCorrelations } = mod;
+assert('sun correlations exports stay module-scoped',
+  typeof window.computeSunCorrelations === 'undefined'
+  && typeof window.getSunCorrelations === 'undefined');
 
   // Stash and restore importedData around the run so we don't pollute the
   // host page's profile state.
