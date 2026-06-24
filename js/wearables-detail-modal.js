@@ -316,17 +316,17 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
   const pairedUnitSpaced = unitSpaced;
-  const formatPaired = (sys, dia) => {
+  const formatPaired = (sys, dia, includeUnit = true) => {
     const sysText = isMetricValueMeaningful('bp_systolic', sys) ? formatV(sys) : '—';
     const diaText = isMetricValueMeaningful('bp_diastolic', dia) ? formatV(dia) : '—';
-    return `${sysText}/${diaText}${pairedUnitSpaced}`;
+    return `${sysText}/${diaText}${includeUnit ? pairedUnitSpaced : ''}`;
   };
   const baseStats = pairedMetric ? [
     ['Latest',   formatPaired(m.latest, pairedMetric.latest), m.latestDate || pairedMetric.latestDate ? shortDate(m.latestDate || pairedMetric.latestDate) : ''],
     ['Baseline (90d)', formatPaired(m.baseline, pairedMetric.baseline), 'median'],
     ['7-day avg', formatPaired(m.rolling?.d7, pairedMetric.rolling?.d7), ''],
     ['30-day avg', formatPaired(m.rolling?.d30, pairedMetric.rolling?.d30), ''],
-    ['Typical range', `${formatPaired(m.baselineP25, pairedMetric.baselineP25)} – ${formatPaired(m.baselineP75, pairedMetric.baselineP75)}`, '25th–75th percentile'],
+    ['Typical range', `${formatPaired(m.baselineP25, pairedMetric.baselineP25, false)} – ${formatPaired(m.baselineP75, pairedMetric.baselineP75, false)}${pairedUnitSpaced}`, '25th–75th percentile'],
     ['Chart samples', `${Math.max(series.length, pairedSeries.length)}d`, rangeDef.coverageSuffix],
   ] : [
     ['Latest',   `${formatV(m.latest)}${unitSpaced}`, m.latestDate ? shortDate(m.latestDate) : ''],

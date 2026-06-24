@@ -145,8 +145,14 @@ return (async function() {
   const bpChart = window._labState.chartInstances?.modal;
   const bpLabels = bpChart?.data?.datasets?.map(d => d.label) || [];
   assert('BP modal latest/stat/manual list shows paired 120/80 value', /120\/80/.test(bpModalText), bpModalText);
+  assert('BP modal Typical range shows unit once at the end',
+    /Typical range\s+118\/76\s+–\s+123\/82 mmHg/.test(bpModalText) &&
+    !/Typical range\s+118\/76 mmHg\s+–\s+123\/82 mmHg/.test(bpModalText), bpModalText);
   assert('BP chart renders Systolic and Diastolic datasets',
     bpLabels.some(l => /^Systolic/.test(l)) && bpLabels.some(l => /^Diastolic/.test(l)), bpLabels.join('|'));
+  assert('BP manual diastolic scatter has a distinct color from primary diastolic line',
+    bpChart?.data?.datasets?.find(d => d.label === 'Manual diastolic')?.borderColor !==
+    bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.borderColor);
   assert('BP diastolic dataset has 3 dated points',
     bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.data?.length === 3);
   assert('BP manual entries preserve paired sys/dia row value',
