@@ -656,12 +656,3 @@ export const lightEnvAuditActionHandlers = Object.freeze({
   deleteLightAuditConfirm,
   interpretLightAuditCompare,
 });
-
-function installWindowFacade() {
-  if (typeof window === 'undefined') return;
-  Object.assign(window, {
-    getLightAudits,
-  });
-}
-
-installWindowFacade();
