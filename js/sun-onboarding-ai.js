@@ -238,10 +238,3 @@ export function renderOnboardingAIBlock() {
     </div>
   </div>`;
 }
-
-Object.assign(window, {
-  refreshOnboardingAIAnalysis,
-  analyzeOnboardingAI,
-  maybeAnalyzeOnboardingAfterSave,
-  renderOnboardingAIBlock,
-});
