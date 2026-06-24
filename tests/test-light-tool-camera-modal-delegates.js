@@ -51,13 +51,16 @@ assert('light camera aiming guide dismiss uses delegated action helper',
   cameraSrc.includes('data-aiming-guide-action="dismiss"') &&
     cameraSrc.includes('function _handleAimingGuideClick') &&
     cameraSrc.includes("document.addEventListener('click', _handleAimingGuideClick)") &&
-    cameraSrc.includes('window._dismissAimingGuide?.(toolKey);'));
+    cameraSrc.includes('dismissAimingGuide(toolKey);') &&
+    !cameraSrc.includes('window._dismissAimingGuide'));
 
 for (const action of closeActions) {
   assert(`light camera close action ${action} is rendered twice`,
     modalSrc.split(`lightToolModalActionAttrs('${action}')`).length - 1 === 2);
   assert(`light camera close action ${action} is handled`,
-    modalSrc.includes(`action === '${action}'`));
+    modalSrc.includes(`closeCameraTool('${action}')`) &&
+      modalSrc.includes(`registerCameraToolCloser('${action}'`) &&
+      modalSrc.includes(`clearCameraToolCloser('${action}'`));
 }
 
 assert('light camera close delegates are installed for each modal',
