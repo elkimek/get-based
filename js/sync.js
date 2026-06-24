@@ -19,7 +19,8 @@ import {
   rejectPendingTombstone,
 } from './sync-tombstones.js';
 import {
-  generateMessengerToken, generateMessengerContextKey, getMessengerContextKey, getMessengerToken, hasMessengerSyncIdentity, isMessengerEnabled,
+  generateMessengerToken, generateMessengerContextKey, getMessengerContextKey,
+  getMessengerToken, hasMessengerSyncIdentity, isMessengerEnabled,
   pushContextToGateway, revokeMessengerToken,
 } from './sync-messenger.js';
 import {
@@ -58,7 +59,8 @@ export {
   isSyncEnabled, initSync, primeSyncState, enableSync, disableSync,
   applyPendingTombstone, deleteProfileFromRelay, listPendingTombstones,
   rejectPendingTombstone,
-  generateMessengerToken, generateMessengerContextKey, getMessengerContextKey, getMessengerToken, hasMessengerSyncIdentity, isMessengerEnabled,
+  generateMessengerToken, generateMessengerContextKey, getMessengerContextKey,
+  getMessengerToken, hasMessengerSyncIdentity, isMessengerEnabled,
   pushContextToGateway, revokeMessengerToken,
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
   getMnemonic, getMnemonicResolutionError, restoreFromMnemonic,
