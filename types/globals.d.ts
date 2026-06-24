@@ -272,7 +272,6 @@ interface Window {
   rehydrateStaleSessions?: () => Promise<{ rehydrated?: number }>;
   SUN_ENGINE_VERSION?: number;
   AmbientLightSensor?: AmbientLightSensorConstructor;
-  _dismissAimingGuide?: AnyFunction;
   addRoom?: AnyFunction;
   getSunCoords?: AnyFunction;
   hydrateSession?: AnyFunction;

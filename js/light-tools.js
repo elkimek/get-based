@@ -137,6 +137,7 @@ export {
   lockCameraForMeasurement,
   cameraLockStatusLine,
   computeRowBanding,
+  dismissAimingGuide,
   loadLuxCalibration,
   saveLuxCalibration,
 } from './light-tool-camera.js';

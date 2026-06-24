@@ -62,7 +62,7 @@ function _handleAimingGuideClick(event) {
   const toolKey = actionEl.dataset.tool || '';
   if (!toolKey) return;
   event.preventDefault();
-  window._dismissAimingGuide?.(toolKey);
+  dismissAimingGuide(toolKey);
 }
 
 function installAimingGuideDelegates() {
@@ -92,15 +92,20 @@ export function aimingGuideHTML(toolKey) {
   </div>`;
 }
 
-if (typeof window !== 'undefined') {
-  installAimingGuideDelegates();
-  window._dismissAimingGuide = (toolKey) => {
-    try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
-    // Hide the currently-rendered guide without re-rendering the whole modal.
-    const el = /** @type {HTMLElement | null} */ (document.querySelector(`.tool-aiming-guide[data-tool="${toolKey}"]`));
-    if (el) el.style.display = 'none';
-  };
+export function dismissAimingGuide(toolKey) {
+  try { localStorage.setItem(`labcharts-aim-guide-${toolKey}`, 'dismissed'); } catch (_) {}
+  // Hide the currently-rendered guide without re-rendering the whole modal.
+  let el = /** @type {HTMLElement | null} */ (null);
+  for (const candidate of document.querySelectorAll('.tool-aiming-guide')) {
+    if (candidate instanceof HTMLElement && candidate.dataset.tool === String(toolKey)) {
+      el = candidate;
+      break;
+    }
+  }
+  if (el) el.style.display = 'none';
 }
+
+if (typeof window !== 'undefined') installAimingGuideDelegates();
 
 // ─── Camera AE/AWB lock helper ────────────────────────────────────────
 //
