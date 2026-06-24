@@ -599,6 +599,7 @@ const {
   const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
   const auditAiSrc = await fs.readFile(new URL('../js/light-audit-ai-analysis.js', import.meta.url), 'utf8');
   const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');
+  const channelAiSrc = await fs.readFile(new URL('../js/light-channels-ai-analysis.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const appUiShellSrc = await fs.readFile(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
   const appEventSrc = await fs.readFile(new URL('../js/app-event-listeners.js', import.meta.url), 'utf8');
@@ -674,6 +675,15 @@ const {
     !burdenSrc.includes('window.renderBurdenInterp') &&
     burdenSrc.includes("import { computeDeficitAxes, computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
     burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
+  assert('Channel mix AI renderer routes through Light page wiring instead of window lookup',
+    appLightSunSrc.includes("import './light-channels-ai-analysis.js';") &&
+    channelAiSrc.includes('registerAIActionHandler') &&
+    channelAiSrc.includes("aiActionAttrs('refresh-channel-mix')") &&
+    !channelAiSrc.includes('Object.assign(window, {') &&
+    !channelAiSrc.includes('window.refreshChannelMixAI') &&
+    !channelAiSrc.includes('window.analyzeChannelMixAI') &&
+    !channelAiSrc.includes('window.renderChannelMixVerdict') &&
+    !globalsSrc.includes('renderChannelMixVerdict'));
   assert('Room, measurement, and screen AI renderers route through Light environment configuration',
     envSrc.includes('getMeasurementsForRoom: null') &&
     envSrc.includes('renderMeasurementAIInline: null') &&

@@ -269,7 +269,6 @@ interface Window {
   renderLightTools?: AnyFunction;
   renderActiveDeviceSessionCard?: AnyFunction;
   renderChannelDeficitDeviceRecs?: AnyFunction;
-  renderChannelMixVerdict?: AnyFunction;
   renderDevicesSection?: AnyFunction;
   renderOnboardingAIBlock?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;
