@@ -33,6 +33,8 @@ const {
   computeIndoorBurden, computeDeficitAxes,
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
   renderEnvironmentAssessmentSummary, renderEnvironmentSection,
+  openLightEnvironmentAssessment, closeLightEnvironmentAssessment,
+  refreshLightEnvironmentAssessment,
   configureLightEnv, lightEnvActionHandlers,
 } = env;
 const {
@@ -499,9 +501,13 @@ const {
   assert('Embedded assessment section suppresses duplicate page header',
     embeddedHtml.includes('light-env-section-embedded') &&
     !embeddedHtml.includes('class="light-env-head"'));
-  assert('Assessment modal functions are exported on window',
-    typeof window.openLightEnvironmentAssessment === 'function' &&
-    typeof window.closeLightEnvironmentAssessment === 'function');
+  assert('Assessment modal functions stay module exports instead of window facade',
+    typeof openLightEnvironmentAssessment === 'function' &&
+    typeof closeLightEnvironmentAssessment === 'function' &&
+    typeof refreshLightEnvironmentAssessment === 'function' &&
+    window.openLightEnvironmentAssessment === undefined &&
+    window.closeLightEnvironmentAssessment === undefined &&
+    window.refreshLightEnvironmentAssessment === undefined);
   assert('Internal Light environment action handlers are module-scoped instead of public window API',
     typeof lightEnvActionHandlers.addLightEnvRoom === 'function' &&
     typeof lightEnvActionHandlers.deleteLightEnvScreenConfirm === 'function' &&
@@ -550,7 +556,7 @@ const {
       lightEnvironment: { rooms: [{ id: 'sync-room', name: 'Office', hoursOccupiedPerDay: 8 }], screens: [] },
       lightMeasurements: [],
     };
-    window.openLightEnvironmentAssessment();
+    openLightEnvironmentAssessment();
     const initialModalHtml = storedOverlay?.innerHTML || '';
     window._labState.importedData.lightEnvironment.rooms[0].name = 'Bedroom';
     window.dispatchEvent({ type: 'labcharts-sync-applied' });
@@ -566,7 +572,7 @@ const {
     assert('Open Light Environment modal skips sync refresh while form is dirty',
       storedOverlay?.innerHTML === cleanSyncedHtml &&
       !storedOverlay?.innerHTML.includes('light-env-room-disclosure-name">Kitchen'));
-    window.closeLightEnvironmentAssessment();
+    closeLightEnvironmentAssessment();
   } finally {
     document.createElement = originalCreateElement;
     document.getElementById = originalGetElementById;
@@ -593,8 +599,18 @@ const {
   const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
   const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
+  const appUiShellSrc = await fs.readFile(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
+  const appEventSrc = await fs.readFile(new URL('../js/app-event-listeners.js', import.meta.url), 'utf8');
   const aiSaveHooksSrc = await fs.readFile(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
+  const globalsSrc = await fs.readFile(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
+  const lightEnvShellHooksSrc = await fs.readFile(new URL('../js/light-env-shell-hooks.js', import.meta.url), 'utf8');
+  const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
+  const lightEnvWindowAssignStart = envSrc.indexOf('Object.assign(window, {');
+  const lightEnvWindowAssignEnd = lightEnvWindowAssignStart >= 0 ? envSrc.indexOf('  });', lightEnvWindowAssignStart) : -1;
+  const lightEnvWindowFacadeSrc = lightEnvWindowAssignStart >= 0 && lightEnvWindowAssignEnd >= 0
+    ? envSrc.slice(lightEnvWindowAssignStart, lightEnvWindowAssignEnd)
+    : '';
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light audit storage/rendering lives in its own module',
@@ -646,7 +662,20 @@ const {
     !envSrc.includes('globalThis.renderMeasurementAIInline') &&
     !envSrc.includes('globalThis.renderRoomAIBlock') &&
     !screenUiSrc.includes('globalThis.renderScreenAIBlock'));
-  const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
+  assert('Light assessment modal shell actions route through startup wiring instead of window lookup',
+    appUiShellSrc.includes("import './light-env-shell-hooks.js';") &&
+    lightEnvShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
+    lightEnvShellHooksSrc.includes("import { openLightEnvironmentAssessment, closeLightEnvironmentAssessment } from './light-env.js';") &&
+    lightEnvShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
+    navSrc.includes("typeof value === 'function'") &&
+    appEventSrc.includes("typeof value === 'function'") &&
+    !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
+    !globalsSrc.includes('openLightEnvironmentAssessment') &&
+    !globalsSrc.includes('closeLightEnvironmentAssessment') &&
+    !globalsSrc.includes('refreshLightEnvironmentAssessment') &&
+    !lightEnvWindowFacadeSrc.includes('openLightEnvironmentAssessment') &&
+    !lightEnvWindowFacadeSrc.includes('closeLightEnvironmentAssessment') &&
+    !lightEnvWindowFacadeSrc.includes('refreshLightEnvironmentAssessment'));
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
@@ -659,7 +688,8 @@ const {
   assert('Light assessment is linked from sidebar Analysis tools',
     navSrc.includes("label: 'Light assessment'") &&
     navSrc.includes("key: 'light-env-assessment'") &&
-    navSrc.indexOf('Analysis tools') < navSrc.indexOf("label: 'Light assessment'"));
+    navSrc.indexOf('Analysis tools') < navSrc.indexOf("label: 'Light assessment'") &&
+    !navSrc.includes('window.openLightEnvironmentAssessment'));
   assert('Light assessment sidebar badge reflects saved audit snapshots',
     navSrc.includes('lightAuditCount') &&
     navSrc.includes('lightRoomCount') &&

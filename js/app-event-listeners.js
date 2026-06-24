@@ -7,6 +7,19 @@ import { buildSidebar } from './nav.js';
 
 let globalEventsBound = false;
 let mouseDownInsideModal = false;
+const appEventListenerDeps = {
+  closeLightEnvironmentAssessment: () => {},
+};
+
+export function configureAppEventListeners(deps = {}) {
+  const previous = { ...appEventListenerDeps };
+  for (const [name, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(appEventListenerDeps, name) && typeof value === 'function') {
+      appEventListenerDeps[name] = value;
+    }
+  }
+  return previous;
+}
 
 function nudgeModal(overlay) {
   const modal = overlay.firstElementChild;
@@ -40,7 +53,7 @@ function handleDocumentClick(e) {
   }
   // Read-only modals close on backdrop click.
   if (e.target.id === "modal-overlay") { window.closeModal(); return; }
-  if (e.target.id === "light-env-assessment-overlay") { window.closeLightEnvironmentAssessment?.(); return; }
+  if (e.target.id === "light-env-assessment-overlay") { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
   if (e.target.id === "changelog-modal-overlay") { window.closeChangelog(); return; }
   if (e.target.id === "report-builder-overlay") { window.closeReportBuilder?.(); return; }
   // Auto-save modals close on backdrop click.
@@ -133,7 +146,7 @@ function handleAppKeydown(e) {
       return;
     }
     const lightEnvOverlay = document.getElementById("light-env-assessment-overlay");
-    if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { window.closeLightEnvironmentAssessment?.(); return; }
+    if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
     if (modalOverlay && modalOverlay.classList.contains("show")) { window.closeModal(); return; }
     // Generic fallback: anonymous dynamically-injected overlays.

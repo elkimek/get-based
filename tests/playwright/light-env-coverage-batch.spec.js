@@ -7,7 +7,7 @@ test('Light environment assessment drives delegated room and screen controls', a
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openLightEnvironmentAssessment === 'function');
+  await page.waitForFunction(() => typeof window.renderEnvironmentAssessmentSummary === 'function');
 
   const results = await page.evaluate(async () => {
     const [{ state }, data] = await Promise.all([

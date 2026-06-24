@@ -85,18 +85,20 @@ test('light environment browser coverage handles summary modal prompt and source
         && window.addLightEnvRoom === undefined
         && typeof actions.addLightEnvRoom === 'function'
         && window.renderEnvironmentSection === lightEnv.renderEnvironmentSection
-        && window.openLightEnvironmentAssessment === lightEnv.openLightEnvironmentAssessment
+        && window.openLightEnvironmentAssessment === undefined
+        && window.closeLightEnvironmentAssessment === undefined
+        && window.refreshLightEnvironmentAssessment === undefined
         && emptyFull.includes('Light environment')
         && emptyFull.includes('Map your bedroom first')
         && !emptyEmbedded.includes('light-env-head')
         && emptySummary.includes('Start assessment');
 
-      window.openLightEnvironmentAssessment();
+      lightEnv.openLightEnvironmentAssessment();
       await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal open');
       const openTitle = document.getElementById('light-env-assessment-title')?.textContent || '';
-      window.refreshLightEnvironmentAssessment();
+      lightEnv.refreshLightEnvironmentAssessment();
       await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal refresh');
-      window.closeLightEnvironmentAssessment();
+      lightEnv.closeLightEnvironmentAssessment();
       await waitUntil(() => !document.getElementById('light-env-assessment-overlay'), 'assessment modal close');
       outcomes.modalOpenRefreshAndClose =
         openTitle.trim() === 'Indoor Light Assessment'
@@ -156,7 +158,7 @@ test('light environment browser coverage handles summary modal prompt and source
         env().rooms.find(r => r.id === bedroom.id)?.name === 'Bedroom Prime'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
 
-      window.openLightEnvironmentAssessment();
+      lightEnv.openLightEnvironmentAssessment();
       await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal'), 'assessment modal reopened');
       await wait(70);
       const focusedRoomName = document.querySelector('#light-env-assessment-overlay .light-env-room-name-input');
