@@ -116,8 +116,6 @@ interface Window {
   circadianMelanopicLux?: AnyFunction;
   _skinTypeToFitzpatrick?: AnyFunction;
   geneticVitaminDMultiplier?: AnyFunction;
-  renderSessionAIInline?: AnyFunction;
-  renderSessionAIDetail?: AnyFunction;
   renderLightChannelsLive?: AnyFunction;
   renderLightTodayDashboardChip?: AnyFunction;
   renderLightTodayHero?: AnyFunction;
@@ -137,7 +135,6 @@ interface Window {
   cumulativeMEDYesterday?: AnyFunction;
   vitaminDBudgetStatus?: AnyFunction;
   maybeAnalyzeDeviceSessionAfterFinish?: AnyFunction;
-  maybeAnalyzeSessionAfterFinish?: AnyFunction;
   _labState?: { currentProfile?: string | null };
   handleDNAFile: (file: File) => Promise<void> | void;
   handleChatKeydown?: AnyFunction;

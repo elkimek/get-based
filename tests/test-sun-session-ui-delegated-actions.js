@@ -10,8 +10,10 @@ const root = path.resolve(__dirname, '..');
 const uiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
+const sunAiSrc = fs.readFileSync(path.join(root, 'js/sun-ai-analysis.js'), 'utf8');
 const aiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ai-render-hooks.js'), 'utf8');
 const uiHookSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui-hooks.js'), 'utf8');
+const lightSunAiHooksSrc = fs.readFileSync(path.join(root, 'js/light-sun-ai-hooks.js'), 'utf8');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
@@ -88,8 +90,17 @@ assert('sun-session-ui runtime render and navigate callbacks are startup-wired',
     uiSrc.includes('uiDeps.renderSessionAIInline(sess)') &&
     uiSrc.includes('uiDeps.renderSessionAIDetail(sess)') &&
     uiSrc.includes('function refreshLightView()') &&
+    sunAiSrc.includes('registerAIActionHandler') &&
+    !sunAiSrc.includes('Object.assign(window, {') &&
+    !sunAiSrc.includes('window.refreshSessionAIAnalysis') &&
+    !sunAiSrc.includes('window.analyzeSunSessionAI') &&
+    !sunAiSrc.includes('window.maybeAnalyzeSessionAfterFinish') &&
+    !sunAiSrc.includes('window.renderSessionAIInline') &&
+    !sunAiSrc.includes('window.renderSessionAIDetail') &&
     aiHookSrc.includes("import { renderSessionAIDetail, renderSessionAIInline } from './sun-ai-analysis.js';") &&
     aiHookSrc.includes('configureSunSessionUI({ renderSessionAIDetail, renderSessionAIInline })') &&
+    lightSunAiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
+    lightSunAiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
     uiHookSrc.includes("import { navigate } from './views.js';") &&
     uiHookSrc.includes('configureSunSessionUI({ navigate })') &&
     appLightSunSrc.includes("import './sun-session-ai-render-hooks.js';") &&
