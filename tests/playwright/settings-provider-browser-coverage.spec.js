@@ -357,10 +357,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const setupDoneCloses = !setupOverlay.classList.contains('show');
 
       syncState.setSyncEnabled(true);
-      syncRuntime.setSyncAppOwner({
-        id: 'abcdefghijklmnopqrstuv',
-        writeKey: new Uint8Array(32).fill(7),
-      });
       localStorage.setItem('labcharts-sync-enabled', 'true');
       messengerSection.innerHTML = syncPanel.renderMessengerSection();
       const ownerPendingToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
