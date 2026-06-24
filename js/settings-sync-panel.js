@@ -641,14 +641,16 @@ export function renderMessengerSection() {
   const syncReady = isSyncEnabled();
   const ownerReady = hasMessengerSyncIdentity();
   const canEnable = syncReady && ownerReady;
+  const toggleDisabled = !enabled && !canEnable;
+  const ownerActionDisabled = !ownerReady ? ' disabled aria-disabled="true"' : '';
   return `
-    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${!canEnable ? 'opacity:0.75' : ''}">
+    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${toggleDisabled ? 'opacity:0.75' : ''}">
       <div class="settings-copy">
         <div class="settings-copy-title">Agent Access</div>
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${!canEnable ? 'disabled' : ''}>
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${toggleDisabled ? 'disabled' : ''}>
         <span class="chat-toggle-slider"></span>
       </label>
     </div>
@@ -676,8 +678,8 @@ export function renderMessengerSection() {
         <div class="settings-copy-desc" style="margin-top:6px">Set this as <code>GETBASED_AGENT_CONTEXT_KEY</code>. It decrypts context locally inside your self-hosted MCP. The hosted relay never receives this key.</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token">Regenerate token</button>
-        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-context-key">Regenerate context key</button>
+        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token"${ownerActionDisabled}>Regenerate token</button>
+        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-context-key"${ownerActionDisabled}>Regenerate context key</button>
       </div>
       <div class="settings-divider">
         <div class="settings-action-row">
@@ -688,7 +690,7 @@ export function renderMessengerSection() {
           <select id="agent-wearable-series-select"
             data-sync-action="set-agent-wearable-series-days"
             aria-label="Wearable series window pushed to agent"
-            class="settings-select">
+            class="settings-select"${ownerActionDisabled}>
             <option value="off"${(appWindow.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
             <option value="7"${appWindow.getAgentWearableSeriesDays?.() === 7 ? ' selected' : ''}>7 days</option>
             <option value="30"${appWindow.getAgentWearableSeriesDays?.() === 30 ? ' selected' : ''}>30 days</option>
@@ -813,6 +815,12 @@ function copyMessengerContextKey() {
 }
 
 function regenerateMessengerToken() {
+  if (!hasMessengerSyncIdentity()) {
+    showNotification('Sync owner is still resolving — wait before regenerating Agent Access credentials.', 'error');
+    const el = document.getElementById('messenger-section');
+    if (el) el.innerHTML = renderMessengerSection();
+    return;
+  }
   generateMessengerToken();
   pushContextToGateway();
   showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
@@ -821,6 +829,12 @@ function regenerateMessengerToken() {
 }
 
 function regenerateMessengerContextKey() {
+  if (!hasMessengerSyncIdentity()) {
+    showNotification('Sync owner is still resolving — wait before regenerating Agent Access credentials.', 'error');
+    const el = document.getElementById('messenger-section');
+    if (el) el.innerHTML = renderMessengerSection();
+    return;
+  }
   generateMessengerContextKey();
   pushContextToGateway();
   showNotification('Context key regenerated — update GETBASED_AGENT_CONTEXT_KEY in your agent config', 'success');

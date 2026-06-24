@@ -431,8 +431,16 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await wait(0);
       const contextKeyRegenerated = localStorage.getItem('labcharts-agent-context-key') !== contextKeyBeforeRegen
         && messengerSection.textContent.includes('Context encryption key');
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = false;
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
+      syncRuntime.setSyncAppOwner(null);
+      messengerSection.innerHTML = syncPanel.renderMessengerSection();
+      const ownerLostToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      const ownerLostCanDisable = ownerLostToggle?.checked === true
+        && ownerLostToggle?.disabled === false
+        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]')?.disabled === true
+        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]')?.disabled === true
+        && messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]')?.disabled === true;
+      ownerLostToggle.checked = false;
+      ownerLostToggle.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       const messengerDisabled = localStorage.getItem('labcharts-messenger-enabled') === 'false'
         && !localStorage.getItem('labcharts-messenger-token')
@@ -462,6 +470,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         seriesDelegated,
         regenerated,
         contextKeyRegenerated,
+        ownerLostCanDisable,
         messengerDisabled,
       };
     } finally {
