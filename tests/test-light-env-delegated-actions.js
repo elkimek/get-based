@@ -17,11 +17,6 @@ const envShellHooksSrc = fs.readFileSync(path.join(root, 'js/light-env-shell-hoo
 const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const envUiSrc = `${envSrc}\n${screenSrc}`;
-const windowAssignStart = envSrc.indexOf('Object.assign(window, {');
-const windowAssignEnd = windowAssignStart >= 0 ? envSrc.indexOf('  });', windowAssignStart) : -1;
-const lightEnvWindowFacadeSrc = windowAssignStart >= 0 && windowAssignEnd >= 0
-  ? envSrc.slice(windowAssignStart, windowAssignEnd)
-  : '';
 
 let passed = 0;
 let failed = 0;
@@ -94,13 +89,11 @@ assert('light-env internal action handlers are registered through module object,
     envSrc.includes('...lightEnvActionHandlers,') &&
     envSrc.includes('...lightEnvAuditActionHandlers') &&
     actionSrc.includes('actions.saveLightAuditFromUI?.()') &&
-    lightEnvWindowFacadeSrc.includes('renderEnvironmentSection') &&
-    !lightEnvWindowFacadeSrc.includes('addLightEnvRoom') &&
-    !lightEnvWindowFacadeSrc.includes('deleteLightEnvScreenConfirm') &&
-    !lightEnvWindowFacadeSrc.includes('computeLightDeficitAxes') &&
-    !lightEnvWindowFacadeSrc.includes('openLightEnvironmentAssessment') &&
-    !lightEnvWindowFacadeSrc.includes('closeLightEnvironmentAssessment') &&
-    !lightEnvWindowFacadeSrc.includes('refreshLightEnvironmentAssessment'));
+    !envSrc.includes('Object.assign(window, {') &&
+    !envSrc.includes('getLightEnvironment: getEnvironment') &&
+    !envSrc.includes('renderEnvironmentSection,') &&
+    !envSrc.includes('renderEnvironmentAssessmentSummary,') &&
+    !envSrc.includes('isLightEnvActiveToday: isActiveToday'));
 assert('Light environment modal shell actions are wired through startup hooks',
   navSrc.includes('export function configureNavActions') &&
     navSrc.includes('navActionDeps.openLightEnvironmentAssessment()') &&

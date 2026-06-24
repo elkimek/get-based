@@ -16,7 +16,6 @@ function expectAll(outcomes) {
 test('light environment browser coverage handles summary modal prompt and source helpers', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.renderEnvironmentSection === 'function');
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
@@ -75,16 +74,17 @@ test('light environment browser coverage handles summary modal prompt and source
       window.navigate = (route, meta) => calls.push(['navigate', route, meta || null]);
       document.getElementById('light-env-assessment-overlay')?.remove();
 
-      const emptyFull = window.renderEnvironmentSection();
-      const emptyEmbedded = window.renderEnvironmentSection({ embedded: true });
-      const emptySummary = window.renderEnvironmentAssessmentSummary();
-      outcomes.windowExportsAndEmptyRenderStates =
-        window.computeIndoorBurden === lightEnv.computeIndoorBurden
-        && window.computeDeficitAxes === lightEnv.computeDeficitAxes
+      const emptyFull = lightEnv.renderEnvironmentSection();
+      const emptyEmbedded = lightEnv.renderEnvironmentSection({ embedded: true });
+      const emptySummary = lightEnv.renderEnvironmentAssessmentSummary();
+      outcomes.moduleExportsAndEmptyRenderStates =
+        window.computeIndoorBurden === undefined
+        && window.computeDeficitAxes === undefined
         && window.computeLightDeficitAxes === undefined
         && window.addLightEnvRoom === undefined
         && typeof actions.addLightEnvRoom === 'function'
-        && window.renderEnvironmentSection === lightEnv.renderEnvironmentSection
+        && window.renderEnvironmentSection === undefined
+        && window.renderEnvironmentAssessmentSummary === undefined
         && window.openLightEnvironmentAssessment === undefined
         && window.closeLightEnvironmentAssessment === undefined
         && window.refreshLightEnvironmentAssessment === undefined
@@ -138,8 +138,8 @@ test('light environment browser coverage handles summary modal prompt and source
           .some(el => (el.textContent || '').includes('Auto-set Bedroom'));
 
       env().burdenAI = { status: 'ok', dot: 'yellow', text: 'AI says moderate' };
-      const mappedSummary = window.renderEnvironmentAssessmentSummary();
-      const mappedSection = window.renderEnvironmentSection({ embedded: true });
+      const mappedSummary = lightEnv.renderEnvironmentAssessmentSummary();
+      const mappedSection = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.summaryUsesAIVerdictWhenMapped =
         mappedSection.includes('Moderate load')
         && mappedSummary.includes('Open assessment')
@@ -149,7 +149,7 @@ test('light environment browser coverage handles summary modal prompt and source
       env().rooms[0].updatedAt = 100;
       bedroom.updatedAt = 200;
       const defaultHost = document.createElement('div');
-      defaultHost.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      defaultHost.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.defaultActiveRoomUsesMostRecentlyUpdatedRoom =
         defaultHost.querySelector(`.light-env-room-disclosure[data-id="${bedroom.id}"]`)?.classList.contains('expanded') === true;
 
@@ -202,7 +202,6 @@ test('light environment browser coverage handles summary modal prompt and source
 test('light environment browser coverage handles screens tools and confirm deletes', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.renderEnvironmentSection === 'function');
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
@@ -310,7 +309,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       ];
       const host = document.createElement('div');
       host.id = 'light-env-browser-host';
-      host.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      host.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       document.body.appendChild(host);
       const fallbackCard = host.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`);
       outcomes.screenMutationHandlersUpdateAndRender =
@@ -332,7 +331,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       const wasScreenExpanded = fallbackCard?.classList.contains('expanded') === true;
       actions.toggleLightEnvScreenExpanded(fallbackScreen.id);
       const expandedHost = document.createElement('div');
-      expandedHost.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      expandedHost.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.screenExpandToggleChangesPortableCardState =
         expandedHost.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`)?.classList.contains('expanded') !== wasScreenExpanded;
       for (const tool of ['spectrum', 'lux', 'flicker', 'cct', 'darkness']) {
@@ -372,29 +371,32 @@ test('light environment browser coverage handles screens tools and confirm delet
         && env().screens.some(s => s.id === officeScreen.id && s.roomId === null);
 
       actions.setActiveLightEnvRoom(livingId);
-      outcomes.setActiveRoomAndBurdenGlobalsRemainUsable =
+      outcomes.setActiveRoomAndBurdenModuleHelpersRemainUsable =
         localStorage.getItem('labcharts-light-env-active-room') === livingId
-        && window.isLightEnvActiveToday(env().rooms.find(r => r.id === livingId)) === true
-        && typeof window.computeRoomSeverity(env().rooms.find(r => r.id === livingId)).tier === 'number'
-        && typeof window.computeIndoorBurden().d2 === 'number'
-        && typeof window.computeDeficitAxes().d3 === 'number'
-        && window.getScreensForRoom(null).some(s => s.id === officeScreen.id)
-        && window.getRooms().some(r => r.id === livingId);
+        && lightEnv.isActiveToday(env().rooms.find(r => r.id === livingId)) === true
+        && typeof lightEnv.computeRoomSeverity(env().rooms.find(r => r.id === livingId)).tier === 'number'
+        && typeof lightEnv.computeIndoorBurden().d2 === 'number'
+        && typeof lightEnv.computeDeficitAxes().d3 === 'number'
+        && lightEnv.getScreensForRoom(null).some(s => s.id === officeScreen.id)
+        && lightEnv.getRooms().some(r => r.id === livingId)
+        && window.isLightEnvActiveToday === undefined
+        && window.getScreensForRoom === undefined
+        && window.getRooms === undefined;
 
       const directRoomId = await lightEnv.addRoom('Garage');
       await actions.addLightEnvScreenWithDevice(null, 'tablet');
       await waitUntil(() => env().screens.some(s => s.device === 'tablet'), 'tablet screen added');
       const directScreenId = latestScreen().id;
       const directScreenBeforeDelete = document.createElement('div');
-      directScreenBeforeDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      directScreenBeforeDelete.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.deleteLightEnvScreen(directScreenId);
       const directScreenAfterDelete = document.createElement('div');
-      directScreenAfterDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      directScreenAfterDelete.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.addLightEnvScreenWithDevice(null, 'monitor');
       await waitUntil(() => env().screens.some(s => s.device === 'monitor'), 'monitor screen added');
       const replacementScreenId = latestScreen().id;
       const directScreenAfterReplacement = document.createElement('div');
-      directScreenAfterReplacement.innerHTML = window.renderEnvironmentSection({ embedded: true });
+      directScreenAfterReplacement.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.deleteLightEnvRoom(directRoomId);
       outcomes.directDeleteHelpersRemoveRecords =
         directScreenBeforeDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`)?.classList.contains('expanded') === true

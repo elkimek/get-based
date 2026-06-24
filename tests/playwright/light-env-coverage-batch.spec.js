@@ -7,12 +7,12 @@ test('Light environment assessment drives delegated room and screen controls', a
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.renderEnvironmentAssessmentSummary === 'function');
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data] = await Promise.all([
+    const [{ state }, data, lightEnv] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/light-env.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
@@ -92,7 +92,7 @@ test('Light environment assessment drives delegated room and screen controls', a
 
       const summaryHost = document.createElement('div');
       summaryHost.id = 'light-env-summary-host';
-      summaryHost.innerHTML = window.renderEnvironmentAssessmentSummary();
+      summaryHost.innerHTML = lightEnv.renderEnvironmentAssessmentSummary();
       document.body.appendChild(summaryHost);
       summaryHost.querySelector(selectorFor('open-assessment'))?.click();
       await waitFor('#light-env-assessment-overlay .light-env-assessment-modal', 'assessment modal');

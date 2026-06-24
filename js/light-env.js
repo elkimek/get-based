@@ -1107,20 +1107,4 @@ if (typeof window !== 'undefined') {
     modalSelector: '.light-env-assessment-modal',
     refresh: refreshOpenLightEnvironmentAssessmentOnSync,
   });
-
-  Object.assign(window, {
-    getLightEnvironment: getEnvironment,
-    suggestRoomSourceFromSpectrum,
-    computeDeficitAxes,
-    computeRoomSeverity,
-    computeScreenStatus,
-    computeIndoorBurden,
-    getScreensForRoom,
-    // Rooms accessor for legacy debug/coverage surfaces. Cross-module app
-    // callers should import getRooms/addRoom through light-ai-save-hooks.
-    getRooms,
-    isLightEnvActiveToday: isActiveToday,
-    renderEnvironmentSection,
-    renderEnvironmentAssessmentSummary,
-  });
 }

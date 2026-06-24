@@ -606,13 +606,18 @@ const {
   const lightEnvShellHooksSrc = await fs.readFile(new URL('../js/light-env-shell-hooks.js', import.meta.url), 'utf8');
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
-  const lightEnvWindowAssignStart = envSrc.indexOf('Object.assign(window, {');
-  const lightEnvWindowAssignEnd = lightEnvWindowAssignStart >= 0 ? envSrc.indexOf('  });', lightEnvWindowAssignStart) : -1;
-  const lightEnvWindowFacadeSrc = lightEnvWindowAssignStart >= 0 && lightEnvWindowAssignEnd >= 0
-    ? envSrc.slice(lightEnvWindowAssignStart, lightEnvWindowAssignEnd)
-    : '';
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
+  assert('Light environment render/data helpers stay module exports, not window facade',
+    !envSrc.includes('Object.assign(window, {') &&
+    !envSrc.includes('getLightEnvironment: getEnvironment') &&
+    !envSrc.includes('renderEnvironmentSection,') &&
+    !envSrc.includes('renderEnvironmentAssessmentSummary,') &&
+    !envSrc.includes('isLightEnvActiveToday: isActiveToday') &&
+    !globalsSrc.includes('renderEnvironmentAssessmentSummary') &&
+    !globalsSrc.includes('computeDeficitAxes') &&
+    !globalsSrc.includes('computeIndoorBurden') &&
+    !globalsSrc.includes('suggestRoomSourceFromSpectrum'));
   assert('Light audit storage/rendering lives in its own module',
     auditSrc.includes('configureLightEnvAudits') &&
     auditSrc.includes('export const lightEnvAuditActionHandlers = Object.freeze({') &&
@@ -680,10 +685,7 @@ const {
     !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
     !globalsSrc.includes('openLightEnvironmentAssessment') &&
     !globalsSrc.includes('closeLightEnvironmentAssessment') &&
-    !globalsSrc.includes('refreshLightEnvironmentAssessment') &&
-    !lightEnvWindowFacadeSrc.includes('openLightEnvironmentAssessment') &&
-    !lightEnvWindowFacadeSrc.includes('closeLightEnvironmentAssessment') &&
-    !lightEnvWindowFacadeSrc.includes('refreshLightEnvironmentAssessment'));
+    !globalsSrc.includes('refreshLightEnvironmentAssessment'));
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
     await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
