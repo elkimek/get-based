@@ -12,6 +12,30 @@ import { maybeShowBackupNudge } from './crypto.js';
 import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 
+function startupRuntime() {
+  return /** @type {any} */ (globalThis);
+}
+
+function getStartupRuntimeValue(name) {
+  return startupRuntime()[name];
+}
+
+function callStartupRuntime(name, ...args) {
+  const runtime = startupRuntime();
+  const fn = runtime[name];
+  if (typeof fn !== 'function') return undefined;
+  return fn.apply(runtime, args);
+}
+
+function requireStartupRuntime(name, ...args) {
+  const runtime = startupRuntime();
+  const fn = runtime[name];
+  if (typeof fn !== 'function') {
+    throw new TypeError(`Startup runtime function ${name} is not available`);
+  }
+  return fn.apply(runtime, args);
+}
+
 export function renderStartupUI() {
   // Prime sync state for UI, but let Evolu boot after first paint. Its
   // worker/OPFS startup is expensive and should not block dashboard LCP.
@@ -21,11 +45,11 @@ export function renderStartupUI() {
   populateFooterVersion();
   buildSidebar();
   renderSyncIndicator();
-  window.navigate(window.getInitialView?.() || 'dashboard');
+  requireStartupRuntime('navigate', callStartupRuntime('getInitialView') || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
   const legalGateShown = scheduleStartupNudges();
   if (legalGateShown) {
-    window.addEventListener('legal-consent-accepted', openDeferredStartupDestinations, { once: true });
+    startupRuntime().addEventListener('legal-consent-accepted', openDeferredStartupDestinations, { once: true });
   } else {
     openDeferredStartupDestinations();
   }
@@ -37,7 +61,7 @@ export function renderStartupUI() {
 function populateFooterVersion() {
   // Populate footer version early (doesn't depend on dashboard render).
   const vTextEl = document.getElementById('app-version-text');
-  if (vTextEl) vTextEl.textContent = window.APP_VERSION || '';
+  if (vTextEl) vTextEl.textContent = getStartupRuntimeValue('APP_VERSION') || '';
 }
 
 function scheduleDeferredSyncAndCatalogWarmup() {
@@ -56,17 +80,17 @@ function scheduleStartupNudges() {
   // local-first, so this is stored per browser/device rather than emailed.
   const legalGateShown = maybeShowLegalConsentGate();
   if (!legalGateShown) maybeShowChangelog();
-  else window.addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true });
+  else startupRuntime().addEventListener('legal-consent-accepted', () => maybeShowChangelog(), { once: true });
   // First-launch transparency banner about anonymous analytics appears once,
   // never again after the user clicks either "Got it" or "Turn off". Keep it
   // behind the legal gate so the user does not get competing prompts. What's
   // New and tours also stay behind the gate; legal must be the topmost first
   // interaction for new users and stale-version re-consent.
   const showAnalyticsConsent = () => {
-    window.maybeShowAnalyticsConsent?.();
+    callStartupRuntime('maybeShowAnalyticsConsent');
   };
   if (legalGateShown) {
-    window.addEventListener('legal-consent-accepted', () => setTimeout(showAnalyticsConsent, 800), { once: true });
+    startupRuntime().addEventListener('legal-consent-accepted', () => setTimeout(showAnalyticsConsent, 800), { once: true });
   } else {
     setTimeout(showAnalyticsConsent, 800);
   }
@@ -76,7 +100,7 @@ function scheduleStartupNudges() {
     maybeShowBackupNudge();
   };
   if (legalGateShown) {
-    window.addEventListener('legal-consent-accepted', () => setTimeout(showBackupNudge, 1500), { once: true });
+    startupRuntime().addEventListener('legal-consent-accepted', () => setTimeout(showBackupNudge, 1500), { once: true });
   } else {
     setTimeout(showBackupNudge, 1500);
   }
@@ -84,13 +108,14 @@ function scheduleStartupNudges() {
 }
 
 function openDeferredStartupDestinations() {
-  if (window._openSettingsAfterInit) {
-    window.openSettingsModal(window._openSettingsAfterInit);
-    delete window._openSettingsAfterInit;
+  const openSettingsAfterInit = getStartupRuntimeValue('_openSettingsAfterInit');
+  if (openSettingsAfterInit) {
+    requireStartupRuntime('openSettingsModal', openSettingsAfterInit);
+    delete startupRuntime()._openSettingsAfterInit;
   }
-  if (window._openChatAfterInit) {
-    delete window._openChatAfterInit;
-    setTimeout(() => window.openChatPanel(), 500);
+  if (getStartupRuntimeValue('_openChatAfterInit')) {
+    delete startupRuntime()._openChatAfterInit;
+    setTimeout(() => requireStartupRuntime('openChatPanel'), 500);
   }
 }
 
@@ -102,7 +127,7 @@ function refreshStartupChrome() {
 
 function initializeChatAttachments() {
   // Init chat image attachment handlers (paste, drag-drop, file input).
-  window.initChatImageHandlers();
-  window.updateAttachButtonVisibility();
-  window.updateChatNudge();
+  requireStartupRuntime('initChatImageHandlers');
+  requireStartupRuntime('updateAttachButtonVisibility');
+  requireStartupRuntime('updateChatNudge');
 }
