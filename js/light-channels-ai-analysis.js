@@ -290,9 +290,3 @@ export function renderChannelMixVerdict(staticFallback) {
     <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(ctaLabel)}</button>
   </div>`;
 }
-
-Object.assign(window, {
-  refreshChannelMixAI,
-  analyzeChannelMixAI,
-  renderChannelMixVerdict,
-});
