@@ -27,6 +27,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
     const originalHdClass = hdBtn?.className;
     const originalAttachDisplay = attachBtn?.style.display;
     const originalInputFiles = input ? Object.getOwnPropertyDescriptor(input, 'files') : null;
+    let sendButtonRefreshes = 0;
 
     const pngBytes = Uint8Array.from(atob(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -37,6 +38,9 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-hd-images', 'false');
+      chatImages.configureChatImages({
+        updateSendButtonState: () => { sendButtonRefreshes += 1; },
+      });
       chatImages.clearAttachments();
       chatImages.updateAttachButtonVisibility();
 
@@ -59,6 +63,17 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       chatImages.removeImageAttachment(0);
       outcomes.removeImageClearsPreview = chatImages.getPendingAttachments().length === 0
         && preview?.style.display === 'none';
+      outcomes.attachmentChangesRefreshSendButtonThroughConfiguredCallback = sendButtonRefreshes >= 2
+        && typeof window.updateSendButtonState === 'undefined';
+      chatImages.configureChatImages({ updateSendButtonState: undefined });
+      let invalidCallbackConfigThrew = false;
+      try {
+        chatImages.removeImageAttachment(99);
+      } catch (_) {
+        invalidCallbackConfigThrew = true;
+      }
+      outcomes.invalidCallbackConfigKeepsSafeCallback = invalidCallbackConfigThrew === false
+        && sendButtonRefreshes >= 3;
 
       await chatImages.addImageAttachment(new File(['not an image'], 'note.txt', { type: 'text/plain' }));
       outcomes.invalidImageIsRejected = chatImages.getPendingAttachments().length === 0;
@@ -118,6 +133,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       outcomes.lightboxEscapeCloses = !document.querySelector('.chat-lightbox');
     } finally {
+      chatImages.configureChatImages({ updateSendButtonState: () => {} });
       chatImages.clearAttachments();
       if (preview) {
         preview.innerHTML = originalPreview || '';

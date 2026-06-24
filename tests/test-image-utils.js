@@ -141,6 +141,13 @@ assert('chat-images imports supportsVision', chatImagesSrc.includes('supportsVis
 assert('chat-send.js imports image-utils for send-time helpers', chatSendSrc.includes("from './image-utils.js'"));
 assert('chat-send.js imports from chat-images for pending-queue access',
   chatSendSrc.includes("from './chat-images.js'") && chatSendSrc.includes('getPendingAttachments'));
+assert('chat-send.js wires send-button refresh into chat-images without a window facade',
+  chatImagesSrc.includes('export function configureChatImages')
+    && chatImagesSrc.includes("typeof deps.updateSendButtonState === 'function'")
+    && chatImagesSrc.includes('chatImageDeps.updateSendButtonState()')
+    && chatSendSrc.includes('configureChatImages({ updateSendButtonState })')
+    && !chatSendSrc.includes('Object.assign(window, { updateSendButtonState')
+    && !chatImagesSrc.includes('window.updateSendButtonState'));
 assert('Pending attachments variable lives in chat-images.js',
   chatImagesSrc.includes('_pendingAttachments'));
 assert('chat-images.js imports isValidImageType + resizeImage',

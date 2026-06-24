@@ -236,7 +236,6 @@ interface Window {
   togglePersonalityBar?: AnyFunction;
   updateChatHeaderModel?: AnyFunction;
   updateAttachButtonVisibility: () => void;
-  updateSendButtonState?: AnyFunction;
   updateChatNudge: () => void;
   updatePrivacyStatusCard?: AnyFunction;
   refreshWebSearchToggle?: AnyFunction;
