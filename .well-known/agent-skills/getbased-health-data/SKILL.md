@@ -7,7 +7,7 @@ description: Connect to a user's getbased health data and query their blood work
 
 [getbased](https://getbased.health) is a free, open-source Personal Health Intelligence app that runs in the user's browser. It connects five lenses on a person's biology — labs, genome, body, lifestyle, and environment — and exposes a read-only summary to AI agents through the [`getbased-mcp`](https://github.com/elkimek/getbased-agents/tree/main/packages/mcp) server.
 
-The user's raw data and encryption keys never leave their device. The MCP server reads the same pre-built context text the in-app AI chat uses — not the underlying database.
+The user's raw data and sync mnemonic never leave their device. The browser encrypts a pre-built context summary, pushes only ciphertext to the relay, and the local MCP process decrypts it with the separate Agent Context key. The relay token is not the encryption key.
 
 ## When to use this skill
 
@@ -17,10 +17,14 @@ Use this skill when the user wants you to reason about *their own* health data: 
 
 The MCP server is installed and run locally by the user — there is no hosted endpoint.
 
-1. Install: `pip install getbased-mcp` (or the `getbased-agent-stack` bundle).
-2. The user enables **Settings > Data > Agent Access** in the getbased app and copies the read-only token.
-3. The token is provided to the MCP server via the `GETBASED_TOKEN` environment variable. It grants access to lab-context text only, no raw data, and is revocable.
+1. Install the bundled stack: `curl -sSL https://getbased.health/install.sh | bash` (recommended) or install only the adapter with `pipx install "getbased-mcp>=0.2.6"`.
+2. The user enables **Settings > Agent Access** in the getbased app and copies both generated values.
+3. Provide both env vars to the MCP server:
+   - `GETBASED_TOKEN` — authorizes the relay fetch.
+   - `GETBASED_AGENT_CONTEXT_KEY` — decrypts the encrypted context locally. The relay never receives it.
 4. Add `getbased` to the MCP client config pointing at the `getbased-mcp` command.
+
+If the token works but tools return ciphertext, empty sections, or a decryption error, the context key is missing, stale, or copied incorrectly. Update both env vars and restart the MCP client; token-only access must fail closed for current encrypted v2 contexts.
 
 Full configuration details: https://docs.getbased.health/guides/agent-access
 
