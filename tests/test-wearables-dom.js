@@ -180,6 +180,8 @@ return (async function() {
   const mixedChartLabels = window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || [];
   assert('BP modal fetches diastolic rows from paired metric primary source',
     mixedChartLabels.some(l => /^Diastolic \(Manual/.test(l)), mixedChartLabels.join('|'));
+  assert('BP mixed-source chart does not duplicate manual-primary diastolic as manual scatter',
+    !mixedChartLabels.some(l => /^Manual diastolic$/.test(l)), mixedChartLabels.join('|'));
   assert('BP latest row uses an actual same-date pair instead of mismatched latest halves',
     /Latest\s+124\/80 mmHg/.test(mixedModalText) && !/Latest\s+130\/80 mmHg/.test(mixedModalText), mixedModalText);
   assert('BP latest row never leaks split-date debug text into visible value',

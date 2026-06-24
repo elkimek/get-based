@@ -141,11 +141,15 @@ export async function openWearableDetail(metricId, opts = {}) {
     }))
     .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
     .sort((a, b) => b.date.localeCompare(a.date));
-  const manualChartEntries = m.primarySource === 'manual'
-    ? []
-    : manualEntries
-        .filter(p => rangeDef.days == null || p.date >= startDate)
-        .sort((a, b) => a.date.localeCompare(b.date));
+  const manualChartEntries = manualEntries
+    .map(p => ({
+      ...p,
+      v: m.primarySource === 'manual' ? undefined : p.v,
+      pairedV: pairedMetric?.primarySource === 'manual' ? undefined : p.pairedV,
+    }))
+    .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
+    .filter(p => rangeDef.days == null || p.date >= startDate)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
