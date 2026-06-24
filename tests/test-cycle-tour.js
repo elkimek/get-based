@@ -22,10 +22,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Cycle Tour Tests ===\n');
 
-// tour.js exposes window.startTour / startCycleTour / endTour / _tourGoToStep
-// via Object.assign(window, ...) at module load.
 await import('../js/state.js');
-await import('../js/tour.js');
+const tour = await import('../js/tour.js');
 
   // --- 1. TOUR_STEPS structure ---
   console.log('%c[1] App tour steps', 'font-weight:bold');
@@ -76,14 +74,15 @@ await import('../js/tour.js');
   assert('startCycleTour calls runTour with CYCLE_TOUR_STEPS', /startCycleTour.*\{[\s\S]*?runTour\(\s*CYCLE_TOUR_STEPS/.test(tourSrc));
   assert('startCycleTour uses cycleTour storage key', tourSrc.includes("profileKey('cycleTour')"));
 
-  // --- 8. Window exports ---
-  console.log('%c[8] Window exports', 'font-weight:bold');
-  assert('window.startEmptyTour exists', typeof window.startEmptyTour === 'function');
-  assert('window.startTour exists', typeof window.startTour === 'function');
-  assert('window.startGuidedTour exists', typeof window.startGuidedTour === 'function');
-  assert('window.startCycleTour exists', typeof window.startCycleTour === 'function');
-  assert('window.endTour exists', typeof window.endTour === 'function');
-  assert('window._tourGoToStep exists', typeof window._tourGoToStep === 'function');
+  // --- 8. Module exports ---
+  console.log('%c[8] Module exports', 'font-weight:bold');
+  assert('tour.startEmptyTour exists', typeof tour.startEmptyTour === 'function');
+  assert('tour.startTour exists', typeof tour.startTour === 'function');
+  assert('tour.startGuidedTour exists', typeof tour.startGuidedTour === 'function');
+  assert('tour.startCycleTour exists', typeof tour.startCycleTour === 'function');
+  assert('tour.endTour exists', typeof tour.endTour === 'function');
+  assert('tour.goToTourStep exists', typeof tour.goToTourStep === 'function');
+  assert('tour API is not published on window', typeof window.startTour !== 'function' && typeof window._tourGoToStep !== 'function');
 
   // --- 9. runTour filters missing targets ---
   console.log('%c[9] Step filtering', 'font-weight:bold');
@@ -98,6 +97,7 @@ await import('../js/tour.js');
   // --- 11. Auto-trigger in saveMenstrualCycle ---
   console.log('%c[11] Auto-trigger in saveMenstrualCycle', 'font-weight:bold');
   const cycleSrc = read('/js/cycle.js');
+  assert('cycle.js imports startCycleTour', cycleSrc.includes("import { startCycleTour } from './tour.js'"));
   assert('saveMenstrualCycle calls startCycleTour(true)', cycleSrc.includes('startCycleTour(true)'));
   assert('setTimeout delay for DOM readiness', /setTimeout\s*\(\s*\(\)\s*=>\s*\{[^}]*startCycleTour\(true\)[^}]*\}\s*,\s*600\s*\)/.test(cycleSrc));
 

@@ -15,6 +15,7 @@ import {
   getMobileGreetingName,
   getMobileDashboardCounts,
 } from './mobile-dashboard.js';
+import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
 
 let _dashboardWelcomeActionsInstalled = false;
 
@@ -119,6 +120,8 @@ export function createDashboardPageView(deps) {
     renderDashboardWidget,
     isDashboardOrganizeMode,
     loadFocusCard,
+    startEmptyTour = defaultStartEmptyTour,
+    startTour = defaultStartTour,
   } = deps;
 
   function renderDashboardGreeting(ctx, title, visibleCount) {
@@ -251,8 +254,8 @@ export function createDashboardPageView(deps) {
       // First visit starts the empty-state tour from the welcome screen.
       // Delay one tick so header/profile controls are rendered before targets
       // are filtered. If the user already completed it, fall through to chat onboarding.
-      const shouldAutoStartEmptyTour = typeof getDashboardPageRuntimeValue('startEmptyTour') === 'function' && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'));
-      if (shouldAutoStartEmptyTour) setTimeout(() => callDashboardPageRuntime('startEmptyTour', true), 100);
+      const shouldAutoStartEmptyTour = !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'));
+      if (shouldAutoStartEmptyTour) setTimeout(() => startEmptyTour(true), 100);
       // Returning desktop visitors get the guided chat setup beside the
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
       const isDesktopChatOnboardingViewport = getDashboardPageRuntimeValue('innerWidth') > 768;
@@ -305,7 +308,7 @@ export function createDashboardPageView(deps) {
     const _p = callDashboardPageRuntime('getProfiles')?.find(p => p.id === state.currentProfile);
     const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
     if (_hasProfile && hasData) {
-      callDashboardPageRuntime('startTour', true);
+      startTour(true);
     }
   }
 

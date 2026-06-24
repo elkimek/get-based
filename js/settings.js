@@ -14,6 +14,7 @@ import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.j
 import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { installSettingsProviderBridge, switchAIProviderBridge } from './settings-provider-bridge.js';
 import { loadPdfImport } from './import-loader.js';
+import { startGuidedTour } from './tour.js';
 import {
   confirmDisablePIIReview,
   refreshDataEntriesSection,
@@ -342,7 +343,7 @@ async function handleSettingsClick(event) {
   } else if (action === 'start-guided-tour') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => settingsWindow.startGuidedTour?.(false), 300);
+    setTimeout(() => startGuidedTour(false), 300);
   } else if (action === 'open-changelog') {
     event.preventDefault();
     closeSettingsModal();

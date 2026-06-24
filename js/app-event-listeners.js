@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { registerRefreshCallback } from './data.js';
 import { buildSidebar } from './nav.js';
+import { endTour } from './tour.js';
 
 let globalEventsBound = false;
 let mouseDownInsideModal = false;
@@ -94,7 +95,7 @@ function handleAppKeydown(e) {
     const passphraseOverlay = document.getElementById("passphrase-overlay");
     if (passphraseOverlay && passphraseOverlay.style.display === 'flex') return;
     const tourOverlay = document.getElementById("tour-overlay");
-    if (tourOverlay) { window.endTour(); return; }
+    if (tourOverlay) { endTour(); return; }
     const sidebarNav = document.getElementById("sidebar-nav");
     if (sidebarNav && sidebarNav.classList.contains("mobile-open")) { window.closeMobileSidebar(); return; }
     const emfInterpOverlay = document.getElementById("emf-interp-overlay");

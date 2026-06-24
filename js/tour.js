@@ -306,6 +306,10 @@ export function startCycleTour(auto) {
   return runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
 }
 
+export function goToTourStep(index) {
+  goToStep(index);
+}
+
 export function endTour() {
   const shouldOpenEmptyChat = activeTour?.storageKey === profileKey('emptyTour') &&
     !state.importedData?.entries?.length &&
@@ -327,8 +331,3 @@ export function endTour() {
     }, 250);
   }
 }
-
-// Internal navigation helper remains exposed for tests and legacy callers.
-window._tourGoToStep = goToStep;
-
-Object.assign(window, { startEmptyTour, startTour, startGuidedTour, startCycleTour, endTour });
