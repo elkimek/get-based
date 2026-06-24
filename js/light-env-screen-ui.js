@@ -72,14 +72,15 @@ export function renderScreenCard(s, opts = {}) {
       <span class="light-env-room-disclosure-chevron" aria-hidden="true">${expanded ? '▾' : '▸'}</span>
     </div>`;
 
-  if (expanded) html += renderScreenExpandedBody(s, rooms);
+  if (expanded) html += renderScreenExpandedBody(s, rooms, opts);
   html += `</div>`;
   return html;
 }
 
-function renderScreenExpandedBody(s, rooms) {
+function renderScreenExpandedBody(s, rooms, opts = {}) {
   const hoursActive = activeScreenHoursBucket(s.hoursPerDay);
   const eveActive = activeScreenEveningBucket(s.eveningUseAfterSunset);
+  const renderScreenAIBlock = opts.renderScreenAIBlock;
 
   const hoursChips = SCREEN_HOURS_BUCKETS.map(b =>
     `<button type="button" class="light-env-chip${hoursActive === b.key ? ' light-env-chip-active' : ''}" aria-pressed="${hoursActive === b.key ? 'true' : 'false'}" ${lightEnvActionAttrs('set-screen-hours-bucket', { id: s.id, key: b.key })}>${escapeHTML(b.label)}</button>`
@@ -130,6 +131,6 @@ function renderScreenExpandedBody(s, rooms) {
         <span class="toggle-slider"></span>
       </label>
     </div>
-    ${typeof globalThis.renderScreenAIBlock === 'function' ? globalThis.renderScreenAIBlock(s) : ''}
+    ${typeof renderScreenAIBlock === 'function' ? renderScreenAIBlock(s) : ''}
   </div>`;
 }

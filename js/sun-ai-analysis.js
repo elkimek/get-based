@@ -355,9 +355,7 @@ Object.assign(window, {
   refreshSessionAIAnalysis,
   analyzeSunSessionAI,
   // Exposed so sun.js can call into the AI module without importing it
-  // — the reciprocal import would create a TDZ-risky cycle. Same
-  // window-lookup pattern other AI modules use (renderRoomAIBlock,
-  // renderScreenAIBlock, etc.).
+  // — the reciprocal import would create a TDZ-risky cycle.
   maybeAnalyzeSessionAfterFinish,
   renderSessionAIInline,
   renderSessionAIDetail,

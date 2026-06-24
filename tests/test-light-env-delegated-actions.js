@@ -92,6 +92,10 @@ assert('light-env internal action handlers are registered through module object,
     !lightEnvWindowFacadeSrc.includes('addLightEnvRoom') &&
     !lightEnvWindowFacadeSrc.includes('deleteLightEnvScreenConfirm') &&
     !lightEnvWindowFacadeSrc.includes('computeLightDeficitAxes'));
+assert('light-env screen renderer takes AI renderer from options instead of global lookup',
+  screenSrc.includes('opts.renderScreenAIBlock') &&
+    screenSrc.includes('renderScreenAIBlock(s)') &&
+    !screenSrc.includes('globalThis.renderScreenAIBlock'));
 assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
     actionSrc.includes("'update-screen-blue-blocker'") &&

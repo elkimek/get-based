@@ -239,8 +239,8 @@ const tools = await import('../js/light-tools.js');
       lightToolsSrc.includes('export function configureLightTools') &&
       lightToolsSrc.includes('maybeAnalyzeMeasurementAfterSave: () => {}') &&
       !lightToolsSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
-      lightAiSaveHooksSrc.includes("import { configureLightTools } from './light-tools.js';") &&
-      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave } from './light-tools-ai-analysis.js';") &&
+      lightAiSaveHooksSrc.includes("import { configureLightTools, getMeasurementsForRoom } from './light-tools.js';") &&
+      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
       lightAiSaveHooksSrc.includes('configureLightTools({') &&
       lightAiSaveHooksSrc.includes('maybeAnalyzeMeasurementAfterSave') &&
       appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
@@ -257,7 +257,7 @@ const tools = await import('../js/light-tools.js');
       !lightToolsSrc.includes('window.navigate') &&
       lightEnvSrc.includes('export async function suggestRoomSourceFromSpectrum') &&
       lightEnvSrc.includes('export function getRooms') &&
-      lightAiSaveHooksSrc.includes("import { addRoom, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
+      lightAiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
       lightAiSaveHooksSrc.includes("import { getSunCoords } from './sun.js';") &&
       lightAiSaveHooksSrc.includes("import { getSessions, hydrateSession, logCompletedSession } from './sun-sessions-store.js';") &&
       lightAiSaveHooksSrc.includes("import { solarZenithAngle } from './sun-uvdata.js';") &&

@@ -87,9 +87,13 @@ export {
 // before falling back to "Room N" so a fresh user lands on familiar labels.
 const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
 
-/** @type {{ renderBurdenInterp: AnyFunction | null }} */
+/** @type {{ getMeasurementsForRoom: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null }} */
 const lightEnvDeps = {
+  getMeasurementsForRoom: null,
   renderBurdenInterp: null,
+  renderMeasurementAIInline: null,
+  renderRoomAIBlock: null,
+  renderScreenAIBlock: null,
 };
 
 export function configureLightEnv(deps = {}) {
@@ -228,8 +232,13 @@ function resolveActiveRoomId(rooms) {
 }
 
 function getMeasurementsFor(roomId) {
-  if (typeof globalThis.getMeasurementsForRoom !== 'function') return [];
-  return globalThis.getMeasurementsForRoom(roomId);
+  if (typeof lightEnvDeps.getMeasurementsForRoom !== 'function') return [];
+  try {
+    const measurements = lightEnvDeps.getMeasurementsForRoom(roomId);
+    return Array.isArray(measurements) ? measurements : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 function fmtMeasureValue(m) {
@@ -291,6 +300,7 @@ function renderLightEnvScreenCard(s, rooms) {
   return renderScreenCard(s, {
     expanded: _expandedScreenId === s.id,
     renderTodayToggle: _renderTodayToggle,
+    renderScreenAIBlock: lightEnvDeps.renderScreenAIBlock,
     rooms,
   });
 }
@@ -635,7 +645,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
         <span class="light-env-reading-icon">${icon}</span>
         <span class="light-env-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
         <span class="light-env-reading-time">${escapeHTML(fmtMeasureTime(m.capturedAt))}</span>
-      </div>${typeof globalThis.renderMeasurementAIInline === 'function' ? globalThis.renderMeasurementAIInline(m) : ''}`;
+      </div>${typeof lightEnvDeps.renderMeasurementAIInline === 'function' ? lightEnvDeps.renderMeasurementAIInline(m) : ''}`;
     }
     html += `</div>`;
   }
@@ -643,8 +653,8 @@ function renderRoomExpandedBody(r, measurements, sev) {
 
   // AI verdict block (between Measure and Screens) — synthesizes the room
   // signals into a single circadian-friendliness verdict.
-  if (typeof globalThis.renderRoomAIBlock === 'function') {
-    html += globalThis.renderRoomAIBlock(r);
+  if (typeof lightEnvDeps.renderRoomAIBlock === 'function') {
+    html += lightEnvDeps.renderRoomAIBlock(r);
   }
 
   // Step 3: screens used here. Step head + empty-state copy customize
