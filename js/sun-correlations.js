@@ -154,10 +154,3 @@ export function getSunCorrelations() {
   // demand and the cache covers cross-page reads within a session.
   return value;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    computeSunCorrelations,
-    getSunCorrelations,
-  });
-}
