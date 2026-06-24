@@ -151,10 +151,3 @@ export function buildVisionContent(imageBlocks, text, provider) {
   }
   return content;
 }
-
-Object.assign(window, {
-  resizeImage,
-  isValidImageType,
-  formatImageBlock,
-  buildVisionContent,
-});
