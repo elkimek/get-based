@@ -151,18 +151,18 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       rollingVitaminDIU: window.rollingVitaminDIU,
       vitaminDBudgetStatus: window.vitaminDBudgetStatus,
       getSunCoords: window.getSunCoords,
-      renderLightTodayDashboardChip: window.renderLightTodayDashboardChip,
       CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
       weeklyChannelTier: window.weeklyChannelTier,
       channelTier: window.channelTier,
       dailyChannelBreakdown: window.dailyChannelBreakdown,
       rollingChannelTotals: window.rollingChannelTotals,
       rollingDeviceTotals: window.rollingDeviceTotals,
-      renderLightTodayHero: window.renderLightTodayHero,
       renderSunSetupCard: window.renderSunSetupCard,
       renderDevicesSection: window.renderDevicesSection,
       renderLightTools: window.renderLightTools,
     };
+    let renderLightTodayDashboardChip = () => '';
+    let renderLightTodayHero = () => '';
     const syncLightPageDeps = () => lightPage.configureLightPageView({
       channelDisplay: window.CHANNEL_DISPLAY || {},
       weeklyChannelTier: typeof window.weeklyChannelTier === 'function' ? window.weeklyChannelTier : () => 0,
@@ -178,8 +178,8 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       rollingVitaminDIU: typeof window.rollingVitaminDIU === 'function' ? window.rollingVitaminDIU : () => 0,
       vitaminDBudgetStatus: typeof window.vitaminDBudgetStatus === 'function' ? window.vitaminDBudgetStatus : () => null,
       getSunCoords: typeof window.getSunCoords === 'function' ? window.getSunCoords : () => null,
-      renderLightTodayDashboardChip: typeof window.renderLightTodayDashboardChip === 'function' ? window.renderLightTodayDashboardChip : () => '',
-      renderLightTodayHero: typeof window.renderLightTodayHero === 'function' ? window.renderLightTodayHero : () => '',
+      renderLightTodayDashboardChip,
+      renderLightTodayHero,
       renderSunSetupCard: typeof window.renderSunSetupCard === 'function' ? window.renderSunSetupCard : () => '',
       renderDevicesSection: typeof window.renderDevicesSection === 'function' ? window.renderDevicesSection : () => '',
       renderEnvironmentAssessmentSummary,
@@ -237,7 +237,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         exceedsSupplementUL: true,
       });
       window.getSunCoords = () => ({ lat: 50, lon: 14, altitudeM: 1700, source: 'profile-precise' });
-      window.renderLightTodayDashboardChip = () => '<div class="light-dashboard-chip-test">chip</div>';
+      renderLightTodayDashboardChip = () => '<div class="light-dashboard-chip-test">chip</div>';
       syncLightPageDeps();
 
       setHour(6);
@@ -285,7 +285,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         activeStrip.includes('Stop session')
         && activeStrip.includes('data-live-elapsed-for="active-sun"');
 
-      window.renderLightTodayHero = () => '';
+      renderLightTodayHero = () => '';
       window.renderSunSetupCard = () => '<div class="setup-card-test">setup</div>';
       window.renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
       renderEnvironmentAssessmentSummary = () => '';
@@ -319,18 +319,18 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.rollingVitaminDIU = saved.rollingVitaminDIU;
       window.vitaminDBudgetStatus = saved.vitaminDBudgetStatus;
       window.getSunCoords = saved.getSunCoords;
-      window.renderLightTodayDashboardChip = saved.renderLightTodayDashboardChip;
       window.CHANNEL_DISPLAY = saved.CHANNEL_DISPLAY;
       window.weeklyChannelTier = saved.weeklyChannelTier;
       window.channelTier = saved.channelTier;
       window.dailyChannelBreakdown = saved.dailyChannelBreakdown;
       window.rollingChannelTotals = saved.rollingChannelTotals;
       window.rollingDeviceTotals = saved.rollingDeviceTotals;
-      window.renderLightTodayHero = saved.renderLightTodayHero;
       window.renderSunSetupCard = saved.renderSunSetupCard;
       window.renderDevicesSection = saved.renderDevicesSection;
       renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
       window.renderLightTools = saved.renderLightTools;
+      renderLightTodayDashboardChip = () => '';
+      renderLightTodayHero = () => '';
       syncLightPageDeps();
     }
 
