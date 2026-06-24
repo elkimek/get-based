@@ -191,9 +191,3 @@ export function renderScreenAIBlock(s) {
     </div>
   </div>`;
 }
-
-Object.assign(window, {
-  refreshScreenAIAnalysis,
-  analyzeScreenAI,
-  renderScreenAIBlock,
-});

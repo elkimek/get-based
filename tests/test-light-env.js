@@ -607,6 +607,7 @@ const {
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
   const roomAiSrc = await fs.readFile(new URL('../js/light-env-ai-analysis.js', import.meta.url), 'utf8');
+  const screenAiSrc = await fs.readFile(new URL('../js/light-screen-ai-analysis.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light environment render/data helpers stay module exports, not window facade',
@@ -683,6 +684,11 @@ const {
     !roomAiSrc.includes('window.analyzeRoomAI') &&
     !roomAiSrc.includes('window.renderRoomAIBlock') &&
     !globalsSrc.includes('renderRoomAIBlock') &&
+    !screenAiSrc.includes('Object.assign(window, {') &&
+    !screenAiSrc.includes('window.refreshScreenAIAnalysis') &&
+    !screenAiSrc.includes('window.analyzeScreenAI') &&
+    !screenAiSrc.includes('window.renderScreenAIBlock') &&
+    !globalsSrc.includes('renderScreenAIBlock') &&
     !envSrc.includes('globalThis.getMeasurementsForRoom') &&
     !envSrc.includes('globalThis.renderMeasurementAIInline') &&
     !envSrc.includes('globalThis.renderRoomAIBlock') &&
