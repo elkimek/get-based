@@ -11,6 +11,10 @@ const envSrc = fs.readFileSync(path.join(root, 'js/light-env.js'), 'utf8');
 const screenSrc = fs.readFileSync(path.join(root, 'js/light-env-screen-ui.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'utf8');
 const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
+const appEventSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
+const appUiShellSrc = fs.readFileSync(path.join(root, 'js/app-ui-shell-modules.js'), 'utf8');
+const envShellHooksSrc = fs.readFileSync(path.join(root, 'js/light-env-shell-hooks.js'), 'utf8');
+const navSrc = fs.readFileSync(path.join(root, 'js/nav.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const envUiSrc = `${envSrc}\n${screenSrc}`;
 const windowAssignStart = envSrc.indexOf('Object.assign(window, {');
@@ -91,7 +95,23 @@ assert('light-env internal action handlers are registered through module object,
     lightEnvWindowFacadeSrc.includes('renderEnvironmentSection') &&
     !lightEnvWindowFacadeSrc.includes('addLightEnvRoom') &&
     !lightEnvWindowFacadeSrc.includes('deleteLightEnvScreenConfirm') &&
-    !lightEnvWindowFacadeSrc.includes('computeLightDeficitAxes'));
+    !lightEnvWindowFacadeSrc.includes('computeLightDeficitAxes') &&
+    !lightEnvWindowFacadeSrc.includes('openLightEnvironmentAssessment') &&
+    !lightEnvWindowFacadeSrc.includes('closeLightEnvironmentAssessment') &&
+    !lightEnvWindowFacadeSrc.includes('refreshLightEnvironmentAssessment'));
+assert('Light environment modal shell actions are wired through startup hooks',
+  navSrc.includes('export function configureNavActions') &&
+    navSrc.includes('navActionDeps.openLightEnvironmentAssessment()') &&
+    navSrc.includes("typeof value === 'function'") &&
+    !navSrc.includes('window.openLightEnvironmentAssessment') &&
+    appEventSrc.includes('export function configureAppEventListeners') &&
+    appEventSrc.includes('appEventListenerDeps.closeLightEnvironmentAssessment()') &&
+    appEventSrc.includes("typeof value === 'function'") &&
+    !appEventSrc.includes('window.closeLightEnvironmentAssessment') &&
+    envShellHooksSrc.includes("import { configureNavActions } from './nav.js';") &&
+    envShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';") &&
+    envShellHooksSrc.includes("import { openLightEnvironmentAssessment, closeLightEnvironmentAssessment } from './light-env.js';") &&
+    appUiShellSrc.includes("import './light-env-shell-hooks.js';"));
 assert('light-env screen renderer takes AI renderer from options instead of global lookup',
   screenSrc.includes('opts.renderScreenAIBlock') &&
     screenSrc.includes('renderScreenAIBlock(s)') &&
@@ -113,6 +133,7 @@ assert('light-env.js captures light audit callbacks when installing delegates',
     envSrc.includes('interpretLightAuditCompare,'));
 assert('service worker precaches light environment action/render modules',
   swSrc.includes("'/js/light-env-actions.js'") &&
+    swSrc.includes("'/js/light-env-shell-hooks.js'") &&
     swSrc.includes("'/js/light-env-screen-ui.js'"));
 
 [

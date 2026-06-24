@@ -1152,8 +1152,5 @@ if (typeof window !== 'undefined') {
     isLightEnvActiveToday: isActiveToday,
     renderEnvironmentSection,
     renderEnvironmentAssessmentSummary,
-    openLightEnvironmentAssessment,
-    closeLightEnvironmentAssessment,
-    refreshLightEnvironmentAssessment,
   });
 }

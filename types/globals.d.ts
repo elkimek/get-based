@@ -61,7 +61,6 @@ interface Window {
   closeChatPanel: () => void;
   closeFeedbackModal: () => void;
   closeImportModal: () => void;
-  closeLightEnvironmentAssessment?: () => void;
   closeMobileSidebar: () => void;
   closeReportBuilder?: () => void;
   closeRestoreMnemonicDialog?: () => void;
@@ -287,7 +286,6 @@ interface Window {
   ingredientDailyTotal?: AnyFunction;
   maybeAnalyzeOnboardingAfterSave?: AnyFunction;
   maybeShowAnalyticsConsent?: () => void;
-  openLightEnvironmentAssessment?: AnyFunction;
   purgeMeteoCache?: AnyFunction;
   rehydrateStaleSessions?: () => Promise<{ rehydrated?: number }>;
   SUN_ENGINE_VERSION?: number;
@@ -314,7 +312,6 @@ interface Window {
   renderMeasurementAIInline?: AnyFunction;
   renderRoomAIBlock?: AnyFunction;
   renderScreenAIBlock?: AnyFunction;
-  refreshLightEnvironmentAssessment?: AnyFunction;
   saveLightAuditFromUI?: AnyFunction;
   saveMeasurement?: AnyFunction;
   suggestRoomSourceFromSpectrum?: AnyFunction;

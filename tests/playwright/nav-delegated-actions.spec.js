@@ -31,7 +31,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
     const origOpenEMF = window.openEMFAssessmentEditor;
-    const origOpenLightEnv = window.openLightEnvironmentAssessment;
     const origOpenReportBuilder = window.openReportBuilder;
     const origOpenKB = window.openKnowledgeBaseModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
@@ -39,6 +38,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origIsGroupInAI = window.isGroupInAIContext;
     const origSetGroupInAI = window.setGroupInAIContext;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
+    let restoreNavActions = null;
 
     try {
       const fixtureData = {
@@ -74,7 +74,9 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         window.syncSidebarActive?.(route);
       };
       window.openEMFAssessmentEditor = () => calls.push(['open-emf']);
-      window.openLightEnvironmentAssessment = () => calls.push(['open-light-env']);
+      restoreNavActions = nav.configureNavActions({
+        openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
+      });
       window.openReportBuilder = () => calls.push(['open-report-builder']);
       window.openKnowledgeBaseModal = () => calls.push(['open-kb']);
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
@@ -146,7 +148,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       state.profiles = origProfiles;
       window.navigate = origNavigate;
       window.openEMFAssessmentEditor = origOpenEMF;
-      window.openLightEnvironmentAssessment = origOpenLightEnv;
+      if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       window.openReportBuilder = origOpenReportBuilder;
       window.openKnowledgeBaseModal = origOpenKB;
       window.openCreateMarkerModal = origOpenCreateMarker;

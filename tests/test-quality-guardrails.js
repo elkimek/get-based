@@ -204,6 +204,7 @@ const lightWorkflowCheckJsModules = [
   'js/light-env-evening.js',
   'js/light-env-model.js',
   'js/light-env-screen-ui.js',
+  'js/light-env-shell-hooks.js',
   'js/light-env-store.js',
   'js/light-page-view-hooks.js',
   'js/light-page-view-ui-hooks.js',

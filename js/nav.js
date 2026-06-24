@@ -31,6 +31,19 @@ function _iconSvg(name) {
 }
 
 let navDelegatesInstalled = false;
+const navActionDeps = {
+  openLightEnvironmentAssessment: () => {},
+};
+
+export function configureNavActions(deps = {}) {
+  const previous = { ...navActionDeps };
+  for (const [name, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(navActionDeps, name) && typeof value === 'function') {
+      navActionDeps[name] = value;
+    }
+  }
+  return previous;
+}
 
 function _navActionAttrs(action, attrs = {}) {
   const extraAttrs = Object.entries(attrs)
@@ -71,7 +84,7 @@ function handleNavActionClick(event) {
   } else if (action === 'open-emf-assessment') {
     window.openEMFAssessmentEditor?.();
   } else if (action === 'open-light-assessment') {
-    window.openLightEnvironmentAssessment?.();
+    navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
     appWindow.openKnowledgeBaseModal?.();
   } else if (action === 'open-report-builder') {

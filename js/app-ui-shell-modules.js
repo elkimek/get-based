@@ -6,6 +6,7 @@ import './tour.js';
 import './touch-tooltip.js';
 import './client-list.js';
 import './views.js';
+import './light-env-shell-hooks.js';
 import './light-channel-view-ui-hooks.js';
 import './light-page-view-ui-hooks.js';
 import './light-tools-ui-hooks.js';

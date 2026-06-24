@@ -380,6 +380,7 @@ const APP_SHELL = [
   '/js/light-device-session-modal.js',
   '/js/light-env.js',
   '/js/light-env-actions.js',
+  '/js/light-env-shell-hooks.js',
   '/js/light-env-store.js',
   '/js/light-env-screen-ui.js',
   '/js/light-env-audits.js',
