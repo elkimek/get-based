@@ -14,7 +14,7 @@ import { getDevices, getDeviceSessions } from './light-devices.js';
 import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 
@@ -243,6 +243,7 @@ const engine = createAIVerdict({
 
 export const analyzeDeviceSessionAI = engine.analyze;
 export const refreshDeviceSessionAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-device-session', refreshDeviceSessionAIAnalysis);
 export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────

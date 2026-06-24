@@ -5,25 +5,33 @@ import { escapeAttr } from './utils.js';
 
 let aiActionDelegatesInstalled = false;
 
-function callWindowAction(name, targetId) {
-  const fn = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (window))[name];
-  if (typeof fn !== 'function') return undefined;
-  if (targetId === undefined) return fn();
-  return fn(targetId);
+export const KNOWN_AI_ACTIONS = [
+  'refresh-sun-session',
+  'refresh-device-session',
+  'refresh-measurement',
+  'refresh-audit',
+  'refresh-room',
+  'refresh-screen',
+  'refresh-day',
+  'refresh-channel-mix',
+  'refresh-burden',
+  'refresh-onboarding',
+];
+
+const AI_ACTION_HANDLERS = new Map();
+
+export function registerAIActionHandler(action, handler) {
+  if (!KNOWN_AI_ACTIONS.includes(action)) throw new Error(`Unknown AI action: ${action}`);
+  if (typeof handler !== 'function') throw new Error(`AI action handler must be a function: ${action}`);
+  AI_ACTION_HANDLERS.set(action, handler);
+  return () => {
+    if (AI_ACTION_HANDLERS.get(action) === handler) AI_ACTION_HANDLERS.delete(action);
+  };
 }
 
-const AI_ACTIONS = {
-  'refresh-sun-session': (targetId) => callWindowAction('refreshSessionAIAnalysis', targetId),
-  'refresh-device-session': (targetId) => callWindowAction('refreshDeviceSessionAIAnalysis', targetId),
-  'refresh-measurement': (targetId) => callWindowAction('refreshMeasurementAIAnalysis', targetId),
-  'refresh-audit': (targetId) => callWindowAction('refreshAuditAIAnalysis', targetId),
-  'refresh-room': (targetId) => callWindowAction('refreshRoomAIAnalysis', targetId),
-  'refresh-screen': (targetId) => callWindowAction('refreshScreenAIAnalysis', targetId),
-  'refresh-day': (targetId) => callWindowAction('refreshDayAIAnalysis', targetId),
-  'refresh-channel-mix': () => callWindowAction('refreshChannelMixAI', undefined),
-  'refresh-burden': () => callWindowAction('refreshBurdenAIAnalysis', undefined),
-  'refresh-onboarding': () => callWindowAction('refreshOnboardingAIAnalysis', undefined),
-};
+export function getRegisteredAIActionHandler(action) {
+  return AI_ACTION_HANDLERS.get(action) || null;
+}
 
 export function aiActionAttrs(action, targetId = '', opts = {}) {
   const attrs = [`data-ai-action="${escapeAttr(action)}"`];
@@ -47,10 +55,11 @@ function _handleAIActionClick(event) {
   }
   if (action === 'stop-propagation') return;
 
-  const handler = AI_ACTIONS[action];
+  const handler = getRegisteredAIActionHandler(action);
   if (!handler) return;
   event.preventDefault();
-  handler(actionEl.dataset.aiTarget);
+  if (actionEl.dataset.aiTarget === undefined) handler();
+  else handler(actionEl.dataset.aiTarget);
 }
 
 export function installAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {

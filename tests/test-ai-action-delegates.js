@@ -35,6 +35,19 @@ const actions = [
   'refresh-onboarding',
 ];
 
+const actionOwners = {
+  'refresh-sun-session': 'js/sun-ai-analysis.js',
+  'refresh-device-session': 'js/light-device-ai-analysis.js',
+  'refresh-measurement': 'js/light-tools-ai-analysis.js',
+  'refresh-audit': 'js/light-audit-ai-analysis.js',
+  'refresh-room': 'js/light-env-ai-analysis.js',
+  'refresh-screen': 'js/light-screen-ai-analysis.js',
+  'refresh-day': 'js/light-today-ai.js',
+  'refresh-channel-mix': 'js/light-channels-ai-analysis.js',
+  'refresh-burden': 'js/light-burden-ai-analysis.js',
+  'refresh-onboarding': 'js/sun-onboarding-ai.js',
+};
+
 const helperSrc = fs.readFileSync(path.join(root, 'js/ai-action-delegates.js'), 'utf8');
 const sources = Object.fromEntries(targetFiles.map(file => [
   file,
@@ -75,28 +88,35 @@ assert('AI action helper handles row-level stop propagation',
   helperSrc.includes("action === 'stop-propagation'") &&
     combined.includes("aiActionAttrs('stop-propagation')") &&
     combined.includes('{ stopPropagation: true }'));
+assert('AI action helper dispatches through registry instead of window globals',
+  helperSrc.includes('registerAIActionHandler') &&
+    helperSrc.includes('getRegisteredAIActionHandler') &&
+    !helperSrc.includes('callWindowAction') &&
+    !helperSrc.includes('window.refresh'));
 
 for (const action of actions) {
-  assert(`AI action ${action} is mapped in helper`,
+  assert(`AI action ${action} is declared in helper`,
     helperSrc.includes(`'${action}'`));
   assert(`AI action ${action} is rendered by target modules`,
     combined.includes(`aiActionAttrs('${action}'`));
+  assert(`AI action ${action} is registered by its owner module`,
+    sources[actionOwners[action]].includes(`registerAIActionHandler('${action}'`));
 }
 
 const dom = new JSDOM('<!doctype html><body></body>');
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
-const { aiActionAttrs } = await import('../js/ai-action-delegates.js');
+const { aiActionAttrs, getRegisteredAIActionHandler, registerAIActionHandler } = await import('../js/ai-action-delegates.js');
 
 let dayArgs = null;
-window.refreshDayAIAnalysis = (...args) => { dayArgs = args; };
+registerAIActionHandler('refresh-day', (...args) => { dayArgs = args; });
 document.body.innerHTML = `<button id="day" ${aiActionAttrs('refresh-day')}>Run</button>`;
 document.getElementById('day')?.click();
 assert('delegated click routes action without a target id',
   Array.isArray(dayArgs) && dayArgs.length === 0);
 
 let channelArgs = null;
-window.refreshChannelMixAI = (...args) => { channelArgs = args; };
+registerAIActionHandler('refresh-channel-mix', (...args) => { channelArgs = args; });
 document.body.innerHTML = `<button id="channel" ${aiActionAttrs('refresh-channel-mix')}>Run</button>`;
 document.getElementById('channel')?.click();
 assert('delegated singleton action calls without an empty string argument',
@@ -104,7 +124,7 @@ assert('delegated singleton action calls without an empty string argument',
 
 let routedSessionId = '';
 let rowOpened = false;
-window.refreshSessionAIAnalysis = id => { routedSessionId = id; };
+registerAIActionHandler('refresh-sun-session', id => { routedSessionId = id; });
 const row = document.createElement('div');
 row.addEventListener('click', () => { rowOpened = true; });
 row.innerHTML = `<button id="sun" ${aiActionAttrs('refresh-sun-session', 'sun-1', { stopPropagation: true })}>Refresh</button>`;
@@ -114,6 +134,12 @@ assert('delegated row action routes target id',
   routedSessionId === 'sun-1');
 assert('delegated row action stops parent row click before bubble phase',
   rowOpened === false);
+const unregisterDay = registerAIActionHandler('refresh-day', () => {});
+assert('registered action handler can be unregistered',
+  typeof getRegisteredAIActionHandler('refresh-day') === 'function');
+unregisterDay();
+assert('unregister only removes the matching registered handler',
+  getRegisteredAIActionHandler('refresh-day') === null);
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

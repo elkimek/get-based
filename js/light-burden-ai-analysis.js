@@ -23,7 +23,7 @@ import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeDeficitAxes, computeIndoorBurden, isActiveToday } from './light-env.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getEnv() {
   if (!state.importedData) return null;
@@ -165,6 +165,7 @@ const engine = createAIVerdict({
 
 export const analyzeBurdenAI = (opts) => engine.analyze(SINGLETON, opts);
 export const refreshBurdenAIAnalysis = () => engine.refresh('default');
+registerAIActionHandler('refresh-burden', refreshBurdenAIAnalysis);
 
 // ─── Render ────────────────────────────────────────────────────────────
 

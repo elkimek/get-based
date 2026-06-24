@@ -19,7 +19,7 @@ import { vitaminDIU } from './sun-spectrum.js';
 import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 // ─── Fingerprint ───────────────────────────────────────────────────────
 //
@@ -265,6 +265,7 @@ const engine = createAIVerdict({
 
 export const analyzeSunSessionAI = engine.analyze;
 export const refreshSessionAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-sun-session', refreshSessionAIAnalysis);
 export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish;
 
 // ─── Render helpers ────────────────────────────────────────────────────

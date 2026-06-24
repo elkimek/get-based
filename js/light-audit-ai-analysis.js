@@ -19,7 +19,7 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getAudits() {
   if (!state.importedData) return [];
@@ -217,6 +217,7 @@ const engine = createAIVerdict({
 
 export const analyzeAuditAI = engine.analyze;
 export const refreshAuditAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-audit', refreshAuditAIAnalysis);
 export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────

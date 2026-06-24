@@ -15,7 +15,7 @@ import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 const defaultLightTodayDeps = {
   solarZenithAngle,
@@ -319,6 +319,7 @@ export async function refreshDayAIAnalysis(dateKey) {
   if (!dateKey) dateKey = _localDateString(new Date());
   return engine.refresh(dateKey);
 }
+registerAIActionHandler('refresh-day', refreshDayAIAnalysis);
 
 // ─── Render ────────────────────────────────────────────────────────────
 
