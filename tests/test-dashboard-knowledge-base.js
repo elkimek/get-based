@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-dashboard-knowledge-base.js — KB row + Personalize-AI CTA on the dashboard
+// test-dashboard-knowledge-base.js — Context hub rows and Personalize-AI CTA
 //
 // UX contract (v1.3.23):
 //   - Interpretive Lens row → ONLY when set
@@ -12,7 +12,7 @@
 //
 // Run: node tests/test-dashboard-knowledge-base.js  (or via npm test)
 //
-// Section 5 (picker open/dismiss — needs a live DOM overlay + click events)
+// Section 5 (Context hub open/dismiss — needs a live DOM overlay + click events)
 // lives in tests/playwright/dashboard-knowledge-base.spec.js.
 
 import './_node-shim.js';
@@ -148,22 +148,27 @@ try {
       html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
-  // ─── 5. Profile Context surface actually mounts the section ───
-  // The isolated renderer can pass while production UI drops the call site.
+  // ─── 5. Profile Context stays separate from AI grounding controls ───
   {
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = 'Functional endocrinology';
     const html = cards.renderProfileContextCards();
-    assert('Profile Context mounts set Interpretive Lens row',
-      /lens-section-label[^>]*>Interpretive Lens/.test(html));
-    assert('Profile Context row opens the lens editor',
-      html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
+    assert('Profile Context does not mount Interpretive Lens row',
+      !/lens-section-label[^>]*>Interpretive Lens/.test(html));
+    assert('Profile Context does not mount Knowledge Base row',
+      !/lens-section-label[^>]*>Knowledge Base/.test(html));
+    assert('Profile Context does not mount AI grounding actions',
+      !html.includes('data-dashboard-ai-action="open-interpretive-lens"') &&
+      !html.includes('data-dashboard-ai-action="open-knowledge-base"'));
 
     state.importedData.interpretiveLens = '';
     const htmlEmpty = cards.renderProfileContextCards();
-    assert('Profile Context mounts Personalize-AI CTA when lens is unset',
-      htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+    assert('Profile Context does not mount Personalize-AI CTA when lens is unset',
+      !htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+    assert('Profile Context does not mount Protect Data CTA',
+      !/Protect your data/.test(htmlEmpty) &&
+      !htmlEmpty.includes('data-dashboard-ai-action="open-data-protection-picker"'));
   }
 
   // Section 5b (picker open/dismiss — live DOM) lives in
@@ -171,6 +176,8 @@ try {
 
   // ─── 6. Window exports ───
   {
+    assert('window.openContextModal exists',
+      typeof window.openContextModal === 'function');
     assert('window.openPersonalizeAIPicker exists',
       typeof window.openPersonalizeAIPicker === 'function');
     assert('window.openKnowledgeBaseModal exists',

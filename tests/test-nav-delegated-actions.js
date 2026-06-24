@@ -43,6 +43,7 @@ assert('nav.js installs idempotent click and input delegates',
   'open-emf-assessment',
   'open-light-assessment',
   'open-report-builder',
+  'open-context',
   'open-knowledge-base',
   'open-custom-marker',
   'toggle-group',
@@ -51,6 +52,12 @@ assert('nav.js installs idempotent click and input delegates',
 ].forEach(action => {
   assert(`nav action ${action} is handled`, navSrc.includes(`action === '${action}'`));
 });
+
+assert('Manage section exposes Context instead of standalone Knowledge Base',
+  navSrc.includes('data-category="context"') &&
+    navSrc.includes("_navActionAttrs('open-context')") &&
+    navSrc.includes('<span class="nav-item-label">Context</span>') &&
+    !navSrc.includes('data-category="knowledge"'));
 
 assert('nav delegates are scoped to sidebar/profile surfaces',
   navSrc.includes("el.closest('#sidebar-nav, #profile-selector')"));

@@ -22,7 +22,7 @@ const CHANGELOG = [
     version: '1.10.24', date: '2026-06-24', title: 'Clearer AI context and blood pressure details',
     forceShow: true,
     items: [
-      '<b>AI Context is easier to find.</b> The Interpretive Lens and Knowledge Base controls are restored where profile context renders, so personalization is visible again instead of disappearing from the dashboard/profile-context path.',
+      '<b>AI Context is easier to find.</b> Personalize how AI answers and Knowledge Base now live together under Manage → Context, so AI grounding has one clear home instead of being mixed into Profile Context.',
       '<b>Blood pressure details now stay paired.</b> Systolic and diastolic readings open as one BP detail view, even if you enter through the diastolic metric, and the chart keeps the two lines and manual readings visually distinct.',
       '<b>Mixed-source BP data is safer.</b> When systolic and diastolic come from different sources, getbased fetches each source separately and only shows a Latest BP pair when both halves were recorded on the same date.',
     ]

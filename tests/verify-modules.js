@@ -100,7 +100,7 @@
     'openHealthGoalsEditor','renderHealthGoalsModal',
     'addHealthGoal','deleteHealthGoal','clearHealthGoals',
     'openInterpretiveLensEditor','saveInterpretiveLens','clearInterpretiveLens',
-    'renderInterpretiveLensSection'
+    'renderInterpretiveLensSection','openContextModal'
   ];
 
   // client-list.js (3)
