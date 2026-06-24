@@ -1,7 +1,7 @@
 {
   "name": "getbased",
   "description": "MCP server that exposes your getbased health data — blood work context, biomarker sections, and an optional RAG knowledge base — as tools for any MCP-compatible agent. Your data stays on your device; the server reads a read-only context summary, not raw records.",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "transport": "stdio",
   "hosting": "local",
   "homepage": "https://getbased.health",
@@ -18,9 +18,10 @@
     }
   },
   "authentication": {
-    "type": "token",
+    "type": "token-plus-local-decryption-key",
     "env": "GETBASED_TOKEN",
-    "description": "Read-only token generated in the getbased app under Settings > Data > Agent Access. Grants access to lab-context text only — no raw data, no write access. Revocable at any time by regenerating the token."
+    "requiredEnv": ["GETBASED_TOKEN", "GETBASED_AGENT_CONTEXT_KEY"],
+    "description": "Agent Access uses two generated values from getbased Settings > Agent Access. GETBASED_TOKEN authorizes the relay fetch. GETBASED_AGENT_CONTEXT_KEY decrypts the encrypted context locally in the MCP process. The gateway never receives the context key. Both values are required for current encrypted v2 contexts; a token alone must fail closed."
   },
   "syncBackend": "https://sync.getbased.health",
   "tools": [
