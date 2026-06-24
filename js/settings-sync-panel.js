@@ -842,6 +842,11 @@ function regenerateMessengerContextKey() {
   if (el) el.innerHTML = renderMessengerSection();
 }
 
+function refreshMessengerSectionForOwnerChange() {
+  const el = document.getElementById('messenger-section');
+  if (el) el.innerHTML = renderMessengerSection();
+}
+
 export function hydrateSettingsSyncPanel() {
   if (!isSyncEnabled()) return;
   loadMnemonic();
@@ -849,6 +854,7 @@ export function hydrateSettingsSyncPanel() {
 }
 
 installSettingsSyncDelegates();
+window.addEventListener('labcharts-sync-owner-changed', refreshMessengerSectionForOwnerChange);
 
 Object.assign(window, {
   toggleSync,

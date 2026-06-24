@@ -357,11 +357,16 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const setupDoneCloses = !setupOverlay.classList.contains('show');
 
       syncState.setSyncEnabled(true);
+      localStorage.setItem('labcharts-sync-enabled', 'true');
+      messengerSection.innerHTML = syncPanel.renderMessengerSection();
+      const ownerPendingToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
       syncRuntime.setSyncAppOwner({
         id: 'abcdefghijklmnopqrstuv',
         writeKey: new Uint8Array(32).fill(7),
       });
-      localStorage.setItem('labcharts-sync-enabled', 'true');
+      await wait(0);
+      const ownerReadyRerenderEnables = messengerSection.querySelector('[data-sync-action="toggle-messenger"]')?.disabled === false;
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
       syncSection.innerHTML = syncPanel.renderSyncSection();
       const enabledRender = syncSection.textContent.includes('Your mnemonic')
@@ -455,6 +460,8 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         setupRestoreShown,
         setupBackRestoresChoices,
         setupDoneCloses,
+        ownerPendingDisabled,
+        ownerReadyRerenderEnables,
         enabledRender,
         restoreDialogOpens,
         restoreCountsWords,
