@@ -1815,6 +1815,11 @@ assert('Service-worker static cache lists extracted wearable detail modules',
   /\/js\/wearables-bp-detail-chart\.js/.test(swSrc) &&
   /\/js\/wearables-formatters\.js/.test(swSrc) &&
   /\/js\/wearables-manual-form-ui\.js/.test(swSrc));
+const bpChartSrc = await fetch('/js/wearables-bp-detail-chart.js').then(r => r.text());
+assert('Manual diastolic scatter color is distinct from primary diastolic line',
+  /const\s+diaColor\s*=\s*['"]#a78bfa['"]/.test(bpChartSrc) &&
+  /const\s+manualDiaColor\s*=\s*['"]#f43f5e['"]/.test(bpChartSrc) &&
+  !/const\s+manualDiaColor\s*=\s*diaColor\b/.test(bpChartSrc));
 
 // disconnectWearable now clears last-sync meta so reconnect doesn't pick
 // up a stale endDate.

@@ -39,7 +39,8 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
   const sysColor = tc.lineColor || '#60a5fa';
   const diaColor = '#a78bfa';
   const manualColor = '#f59e0b';
-  const manualDiaColor = '#fb7185';
+  // Keep manual diastolic visually distinct from the primary diastolic line.
+  const manualDiaColor = '#f43f5e';
 
   const baselineDatasets = [];
   if (xDates.length && typeof m.baseline === 'number' && isFinite(m.baseline)) {
