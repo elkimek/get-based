@@ -46,6 +46,7 @@ import {
 import {
   configureLightEnvAudits,
   getLightAudits,
+  lightEnvAuditActionHandlers,
   renderLightAuditsBlock,
 } from './light-env-audits.js';
 import { installLightEnvActionDelegates, lightEnvActionAttrs } from './light-env-actions.js';
@@ -1094,40 +1095,9 @@ configureLightEnvAudits({
 });
 
 if (typeof document !== 'undefined') {
-  const saveLightAuditFromUI = typeof globalThis.saveLightAuditFromUI === 'function'
-    ? globalThis.saveLightAuditFromUI
-    : undefined;
-  const toggleLightAudit = typeof globalThis.toggleLightAudit === 'function'
-    ? globalThis.toggleLightAudit
-    : undefined;
-  const toggleLightAuditCompare = typeof globalThis.toggleLightAuditCompare === 'function'
-    ? globalThis.toggleLightAuditCompare
-    : undefined;
-  const toggleLightAuditHistory = typeof globalThis.toggleLightAuditHistory === 'function'
-    ? globalThis.toggleLightAuditHistory
-    : undefined;
-  const setLightAuditsBlockOpen = typeof globalThis.setLightAuditsBlockOpen === 'function'
-    ? globalThis.setLightAuditsBlockOpen
-    : undefined;
-  const updateLightAuditField = typeof globalThis.updateLightAuditField === 'function'
-    ? globalThis.updateLightAuditField
-    : undefined;
-  const deleteLightAuditConfirm = typeof globalThis.deleteLightAuditConfirm === 'function'
-    ? globalThis.deleteLightAuditConfirm
-    : undefined;
-  const interpretLightAuditCompare = typeof globalThis.interpretLightAuditCompare === 'function'
-    ? globalThis.interpretLightAuditCompare
-    : undefined;
   installLightEnvActionDelegates({
     ...lightEnvActionHandlers,
-    saveLightAuditFromUI,
-    toggleLightAudit,
-    toggleLightAuditCompare,
-    toggleLightAuditHistory,
-    setLightAuditsBlockOpen,
-    updateLightAuditField,
-    deleteLightAuditConfirm,
-    interpretLightAuditCompare,
+    ...lightEnvAuditActionHandlers,
   });
 }
 

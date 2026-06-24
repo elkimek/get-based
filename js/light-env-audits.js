@@ -23,7 +23,7 @@ import { lightEnvActionAttrs } from './light-env-actions.js';
 //     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
 //     createdAt, updatedAt? }
 
-/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction, hasAIProvider: AnyFunction, maybeAnalyzeAuditAfterSave: AnyFunction, renderAuditAIBlock: AnyFunction, renderAuditAIDot: AnyFunction }} */
+/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction, hasAIProvider: AnyFunction, maybeAnalyzeAuditAfterSave: AnyFunction, renderAuditAIBlock: AnyFunction, renderAuditAIDot: AnyFunction, openChatPanel: AnyFunction | null }} */
 const auditDeps = {
   getEnvironment: () => state.importedData?.lightEnvironment || null,
   computeRoomSeverity: () => ({
@@ -37,6 +37,7 @@ const auditDeps = {
   maybeAnalyzeAuditAfterSave: () => {},
   renderAuditAIBlock: () => '',
   renderAuditAIDot: () => '',
+  openChatPanel: null,
 };
 
 const LIGHT_AUDITS_ANCHOR = '.light-audits-block';
@@ -48,8 +49,13 @@ let _showAllAudits = false;
 let _auditsBlockOpen = false;
 
 export function configureLightEnvAudits(deps = {}) {
-  Object.assign(auditDeps, deps);
-  installWindowHandlers();
+  const previous = { ...auditDeps };
+  for (const [name, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(auditDeps, name) && typeof value === 'function') {
+      auditDeps[name] = value;
+    }
+  }
+  return previous;
 }
 
 function getEnvironmentSnapshot() {
@@ -78,6 +84,14 @@ function renderAuditAIDot(audit) {
 
 function hasAuditAIProvider() {
   try { return !!auditDeps.hasAIProvider(); } catch (_) { return false; }
+}
+
+function openAuditCompareChat(prompt) {
+  if (typeof auditDeps.openChatPanel !== 'function') {
+    showNotification('Chat panel unavailable on this build.', 'error');
+    return;
+  }
+  try { auditDeps.openChatPanel(prompt); } catch (_) { showNotification('Chat panel unavailable on this build.', 'error'); }
 }
 
 function refreshAuditsUI() {
@@ -549,93 +563,105 @@ export function renderLightAuditsBlock() {
   return html;
 }
 
-function installWindowHandlers() {
+export async function saveLightAuditFromUI() {
+  const defaultLabel = `Audit ${getLightAudits().length + 1}`;
+  const label = await showPromptDialog('Audit label (e.g. "Pre-mitigation", "After LED swap")', {
+    defaultValue: defaultLabel,
+    okLabel: 'Save audit',
+    placeholder: 'Audit label',
+  });
+  // showPromptDialog resolves to null on Cancel/Esc/backdrop-click.
+  if (label === null) return;
+  const trimmed = label.trim() || defaultLabel;
+  const audit = await saveLightAudit(trimmed);
+  if (audit) {
+    showNotification(`Saved audit: ${audit.label}`);
+    _expandedAuditId = audit.id;
+    _showAllAudits = false;
+    refreshAuditCardUI(audit.id);
+  }
+}
+
+export function toggleLightAudit(id) {
+  _expandedAuditId = (_expandedAuditId === id) ? null : id;
+  refreshAuditCardUI(id);
+}
+
+export function toggleLightAuditCompare() {
+  _auditCompareMode = !_auditCompareMode;
+  _expandedAuditId = null;
+  refreshAuditsUI();
+}
+
+export function toggleLightAuditHistory() {
+  _showAllAudits = !_showAllAudits;
+  if (!_showAllAudits && _expandedAuditId) {
+    const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
+    if (!visibleIds.has(_expandedAuditId)) _expandedAuditId = null;
+  }
+  refreshAuditsUI();
+}
+
+export function setLightAuditsBlockOpen(open) {
+  _auditsBlockOpen = !!open;
+}
+
+export async function updateLightAuditField(id, field, value) {
+  await updateLightAudit(id, { [field]: value });
+  _expandedAuditId = id;
+  keepAuditVisible(id);
+  refreshAuditCardUI(id);
+}
+
+export async function deleteLightAuditConfirm(id) {
+  if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
+    const deletingExpandedAudit = _expandedAuditId === id;
+    await deleteLightAudit(id);
+    _auditsBlockOpen = true;
+    if (getLightAudits().length < 2) _auditCompareMode = false;
+    if (deletingExpandedAudit) {
+      _expandedAuditId = sortAuditsNewestFirst(getLightAudits())[0]?.id || null;
+    }
+    if (_expandedAuditId) {
+      keepAuditVisible(_expandedAuditId);
+      refreshAuditCardUI(_expandedAuditId);
+    } else {
+      refreshAuditsUI();
+    }
+  }
+}
+
+export function interpretLightAuditCompare(oldId, newId) {
+  const audits = getLightAudits();
+  const a1 = audits.find(a => a.id === oldId);
+  const a2 = audits.find(a => a.id === newId);
+  if (!a1 || !a2) {
+    showNotification('Could not find one of the audits to compare.', 'error');
+    return;
+  }
+  const summary = serializeAuditComparison(a1, a2);
+  const prompt = `Here is a Light Environment audit comparison from my home. ` +
+    `Walk me through what improved, what regressed, and what one or two changes ` +
+    `would have the biggest circadian impact next.\n\n${summary}`;
+  openAuditCompareChat(prompt);
+}
+
+export const lightEnvAuditActionHandlers = Object.freeze({
+  saveLightAuditFromUI,
+  toggleLightAudit,
+  toggleLightAuditCompare,
+  toggleLightAuditHistory,
+  setLightAuditsBlockOpen,
+  updateLightAuditField,
+  deleteLightAuditConfirm,
+  interpretLightAuditCompare,
+});
+
+function installWindowFacade() {
   if (typeof window === 'undefined') return;
   Object.assign(window, {
     getLightAudits,
-    saveLightAuditFromUI: async () => {
-      const defaultLabel = `Audit ${getLightAudits().length + 1}`;
-      const label = await showPromptDialog('Audit label (e.g. "Pre-mitigation", "After LED swap")', {
-        defaultValue: defaultLabel,
-        okLabel: 'Save audit',
-        placeholder: 'Audit label',
-      });
-      // showPromptDialog resolves to null on Cancel/Esc/backdrop-click.
-      if (label === null) return;
-      const trimmed = label.trim() || defaultLabel;
-      const audit = await saveLightAudit(trimmed);
-      if (audit) {
-        showNotification(`Saved audit: ${audit.label}`);
-        _expandedAuditId = audit.id;
-        _showAllAudits = false;
-        refreshAuditCardUI(audit.id);
-      }
-    },
-    toggleLightAudit: (id) => {
-      _expandedAuditId = (_expandedAuditId === id) ? null : id;
-      refreshAuditCardUI(id);
-    },
-    toggleLightAuditCompare: () => {
-      _auditCompareMode = !_auditCompareMode;
-      _expandedAuditId = null;
-      refreshAuditsUI();
-    },
-    toggleLightAuditHistory: () => {
-      _showAllAudits = !_showAllAudits;
-      if (!_showAllAudits && _expandedAuditId) {
-        const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
-        if (!visibleIds.has(_expandedAuditId)) _expandedAuditId = null;
-      }
-      refreshAuditsUI();
-    },
-    setLightAuditsBlockOpen: (open) => {
-      _auditsBlockOpen = !!open;
-    },
-    updateLightAuditField: async (id, field, value) => {
-      await updateLightAudit(id, { [field]: value });
-      _expandedAuditId = id;
-      keepAuditVisible(id);
-      refreshAuditCardUI(id);
-    },
-    deleteLightAuditConfirm: async (id) => {
-      if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
-        const deletingExpandedAudit = _expandedAuditId === id;
-        await deleteLightAudit(id);
-        _auditsBlockOpen = true;
-        if (getLightAudits().length < 2) _auditCompareMode = false;
-        if (deletingExpandedAudit) {
-          _expandedAuditId = sortAuditsNewestFirst(getLightAudits())[0]?.id || null;
-        }
-        if (_expandedAuditId) {
-          keepAuditVisible(_expandedAuditId);
-          refreshAuditCardUI(_expandedAuditId);
-        } else {
-          refreshAuditsUI();
-        }
-      }
-    },
-    // "Interpret changes" — pre-fills the chat panel with a comparison
-    // summary so the AI can reason about what shifted and what to try
-    // next. Lighter-weight than EMF's dedicated streaming overlay; the
-    // chat panel already covers the same use case (and lets the user
-    // follow up with questions inline).
-    interpretLightAuditCompare: (oldId, newId) => {
-      const audits = getLightAudits();
-      const a1 = audits.find(a => a.id === oldId);
-      const a2 = audits.find(a => a.id === newId);
-      if (!a1 || !a2) {
-        showNotification('Could not find one of the audits to compare.', 'error');
-        return;
-      }
-      const summary = serializeAuditComparison(a1, a2);
-      const prompt = `Here is a Light Environment audit comparison from my home. ` +
-        `Walk me through what improved, what regressed, and what one or two changes ` +
-        `would have the biggest circadian impact next.\n\n${summary}`;
-      if (typeof window.openChatPanel === 'function') {
-        window.openChatPanel(prompt);
-      } else {
-        showNotification('Chat panel unavailable on this build.', 'error');
-      }
-    },
   });
 }
+
+installWindowFacade();

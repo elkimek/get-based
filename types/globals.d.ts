@@ -312,7 +312,6 @@ interface Window {
   renderMeasurementAIInline?: AnyFunction;
   renderRoomAIBlock?: AnyFunction;
   renderScreenAIBlock?: AnyFunction;
-  saveLightAuditFromUI?: AnyFunction;
   saveMeasurement?: AnyFunction;
   suggestRoomSourceFromSpectrum?: AnyFunction;
   openChatPanel: AnyFunction;
@@ -348,5 +347,4 @@ declare var renderBurdenInterp: AnyFunction | undefined;
 declare var renderMeasurementAIInline: AnyFunction | undefined;
 declare var renderRoomAIBlock: AnyFunction | undefined;
 declare var renderScreenAIBlock: AnyFunction | undefined;
-declare var saveLightAuditFromUI: AnyFunction | undefined;
 declare var ingredientDailyTotal: AnyFunction | undefined;

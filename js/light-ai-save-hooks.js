@@ -7,6 +7,7 @@ import { configureSunDefaults } from './sun-defaults.js';
 import { hasAIProvider } from './api.js';
 import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';
 import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';
+import { openChatPanel } from './chat-panel.js';
 import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';
 import { renderRoomAIBlock } from './light-env-ai-analysis.js';
 import { renderScreenAIBlock } from './light-screen-ai-analysis.js';
@@ -16,7 +17,7 @@ import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-
 import { solarZenithAngle } from './sun-uvdata.js';
 
 configureLightEnv({ getMeasurementsForRoom, renderMeasurementAIInline, renderRoomAIBlock, renderScreenAIBlock });
-configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot });
+configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel });
 configureLightTools({
   maybeAnalyzeMeasurementAfterSave,
   suggestRoomSourceFromSpectrum,

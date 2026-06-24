@@ -295,8 +295,8 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
       host.innerHTML = audits.renderLightAuditsBlock();
       document.body.appendChild(host);
       try {
-        window.toggleLightAudit('default_dep_audit');
-        window.toggleLightAudit('default_dep_audit');
+        audits.lightEnvAuditActionHandlers.toggleLightAudit('default_dep_audit');
+        audits.lightEnvAuditActionHandlers.toggleLightAudit('default_dep_audit');
 
         outcomes.defaultAuditDepsRenderFallbackSeverity =
           host.querySelector('.light-env-sev-green') !== null;
@@ -476,6 +476,7 @@ test('Light audit history covers save expand update compare interpret and delete
         maybeAnalyzeAuditAfterSave: audit => calls.push(['auto-audit', audit.id]),
         renderAuditAIDot: audit => `<span class="light-audit-ai-dot" data-audit="${audit.id}"></span>`,
         renderAuditAIBlock: audit => `<div class="light-audit-ai-block">AI note for ${audit.label}</div>`,
+        openChatPanel: prompt => calls.push(['chat', prompt]),
       });
 
       const host = renderHost();
@@ -492,7 +493,7 @@ test('Light audit history covers save expand update compare interpret and delete
       outcomes.showAllHistoryRevealsOlderAudit =
         document.querySelector('#light-audit-test-host')?.textContent.includes('Baseline') === true;
 
-      window.toggleLightAudit('audit_old');
+      audits.lightEnvAuditActionHandlers.toggleLightAudit('audit_old');
       await waitFor('.light-audit-card[data-id="audit_old"].expanded', 'expanded older audit');
       outcomes.expandedAuditRendersChannelsAndAI =
         document.querySelector('.light-audit-card[data-id="audit_old"]')?.textContent.includes('Melanopic') === true
@@ -521,7 +522,7 @@ test('Light audit history covers save expand update compare interpret and delete
         && savedAudit?.measurements?.length === 3
         && document.querySelector('.notification-toast')?.textContent.includes('Saved audit: Post cleanup') === true;
 
-      window.toggleLightAuditCompare();
+      audits.lightEnvAuditActionHandlers.toggleLightAuditCompare();
       await waitFor('.light-audit-compare-rooms', 'audit compare rooms');
       outcomes.compareModeShowsDeltasAndInterpretAction =
         document.querySelector('.light-audit-compare-head')?.textContent.includes('After:') === true
@@ -533,7 +534,7 @@ test('Light audit history covers save expand update compare interpret and delete
       outcomes.interpretComparePrefillsChat =
         calls.some(call => call[0] === 'chat' && String(call[1] || '').includes('Light Environment audit comparison'));
 
-      const deletePromise = window.deleteLightAuditConfirm('audit_mid');
+      const deletePromise = audits.lightEnvAuditActionHandlers.deleteLightAuditConfirm('audit_mid');
       await waitFor('#confirm-ok', 'delete audit confirm');
       document.getElementById('confirm-ok').click();
       await deletePromise;
