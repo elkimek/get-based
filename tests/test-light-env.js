@@ -465,21 +465,21 @@ const {
     !compactAudits.includes('Older hidden') &&
     !compactAudits.includes('Oldest hidden') &&
     compactAudits.includes('Show 2 older audits'));
-  window.toggleLightAuditHistory();
+  auditModule.lightEnvAuditActionHandlers.toggleLightAuditHistory();
   const expandedAudits = auditModule.renderLightAuditsBlock();
   assert('Audit history can expand older snapshots inline',
     expandedAudits.includes('Latest visible') &&
     expandedAudits.includes('Older hidden') &&
     expandedAudits.includes('Oldest hidden') &&
     expandedAudits.includes('Show only latest 2 audits'));
-  window.toggleLightAuditHistory();
-  window.setLightAuditsBlockOpen(true);
+  auditModule.lightEnvAuditActionHandlers.toggleLightAuditHistory();
+  auditModule.lightEnvAuditActionHandlers.setLightAuditsBlockOpen(true);
   const manuallyOpenAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block can stay open without an expanded audit card',
     manuallyOpenAudits.includes('class="light-env-block light-audits-block" open') &&
     manuallyOpenAudits.includes('data-light-env-action="set-audits-block-open"') &&
     !manuallyOpenAudits.includes('ontoggle='));
-  window.setLightAuditsBlockOpen(false);
+  auditModule.lightEnvAuditActionHandlers.setLightAuditsBlockOpen(false);
   const manuallyClosedAudits = auditModule.renderLightAuditsBlock();
   assert('Audit block open state can be manually collapsed',
     manuallyClosedAudits.includes('class="light-env-block light-audits-block"') &&
@@ -615,6 +615,7 @@ const {
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light audit storage/rendering lives in its own module',
     auditSrc.includes('configureLightEnvAudits') &&
+    auditSrc.includes('export const lightEnvAuditActionHandlers = Object.freeze({') &&
     auditSrc.includes('renderLightAuditsBlock') &&
     auditSrc.includes('saveLightAuditFromUI') &&
     auditSrc.includes('scrollAnchor: LIGHT_AUDITS_ANCHOR') &&
@@ -624,6 +625,12 @@ const {
     auditSrc.includes('deletingExpandedAudit') &&
     auditSrc.includes('sortAuditsNewestFirst(getLightAudits())[0]?.id') &&
     envSrc.includes('modal.scrollTop') &&
+    envSrc.includes('...lightEnvAuditActionHandlers') &&
+    !envSrc.includes('globalThis.saveLightAuditFromUI') &&
+    !envSrc.includes('globalThis.toggleLightAudit') &&
+    !envSrc.includes('globalThis.updateLightAuditField') &&
+    !auditSrc.includes('window.openChatPanel') &&
+    !globalsSrc.includes('saveLightAuditFromUI') &&
     !envSrc.includes('function renderLightAuditCompare'));
   assert('Light audit AI hooks route through startup wiring',
     !auditSrc.includes('window.maybeAnalyzeAuditAfterSave') &&
@@ -632,8 +639,9 @@ const {
     !auditSrc.includes('window.hasAIProvider') &&
     aiSaveHooksSrc.includes("import { configureLightEnvAudits } from './light-env-audits.js';") &&
     aiSaveHooksSrc.includes("import { hasAIProvider } from './api.js';") &&
+    aiSaveHooksSrc.includes("import { openChatPanel } from './chat-panel.js';") &&
     aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot })') &&
+    aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
   assert('Burden AI renderer routes through light-env configuration instead of window lookup',
     envSrc.includes('export function configureLightEnv') &&

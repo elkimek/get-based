@@ -92,6 +92,8 @@ assert('light-env click delegate ignores toggle-only details actions',
 assert('light-env internal action handlers are registered through module object, not window facade',
   envSrc.includes('export const lightEnvActionHandlers = Object.freeze({') &&
     envSrc.includes('...lightEnvActionHandlers,') &&
+    envSrc.includes('...lightEnvAuditActionHandlers') &&
+    actionSrc.includes('actions.saveLightAuditFromUI?.()') &&
     lightEnvWindowFacadeSrc.includes('renderEnvironmentSection') &&
     !lightEnvWindowFacadeSrc.includes('addLightEnvRoom') &&
     !lightEnvWindowFacadeSrc.includes('deleteLightEnvScreenConfirm') &&
@@ -120,17 +122,15 @@ assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
     actionSrc.includes("'update-screen-blue-blocker'") &&
     actionSrc.includes("'update-audit-field'"));
-assert('light-env.js captures saveLightAuditFromUI when installing delegates',
-  envSrc.includes("const saveLightAuditFromUI = typeof globalThis.saveLightAuditFromUI === 'function'") &&
-    envSrc.includes('saveLightAuditFromUI,') &&
-    !envSrc.includes('saveLightAuditFromUI: () => globalThis.saveLightAuditFromUI?.()'));
-assert('light-env.js captures light audit callbacks when installing delegates',
-  envSrc.includes("const toggleLightAudit = typeof globalThis.toggleLightAudit === 'function'") &&
-    envSrc.includes("const updateLightAuditField = typeof globalThis.updateLightAuditField === 'function'") &&
-    envSrc.includes('toggleLightAudit,') &&
-    envSrc.includes('updateLightAuditField,') &&
-    envSrc.includes('deleteLightAuditConfirm,') &&
-    envSrc.includes('interpretLightAuditCompare,'));
+assert('light-env audit callbacks install from module handlers instead of global capture',
+  auditSrc.includes('export const lightEnvAuditActionHandlers = Object.freeze({') &&
+    envSrc.includes("import {") &&
+    envSrc.includes('lightEnvAuditActionHandlers') &&
+    envSrc.includes('...lightEnvAuditActionHandlers') &&
+    !envSrc.includes('globalThis.saveLightAuditFromUI') &&
+    !envSrc.includes('globalThis.toggleLightAudit') &&
+    !envSrc.includes('globalThis.updateLightAuditField') &&
+    !auditSrc.includes('window.openChatPanel'));
 assert('service worker precaches light environment action/render modules',
   swSrc.includes("'/js/light-env-actions.js'") &&
     swSrc.includes("'/js/light-env-shell-hooks.js'") &&
