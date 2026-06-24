@@ -260,14 +260,49 @@ export function updateSummaryButton() {
 }
 
 let _headerListenerAdded = false;
-function getAIContextHeaderSuffix() {
+function getAIContextHeaderParts() {
   const parts = [];
   if ((state.importedData?.interpretiveLens || '').trim()) parts.push('Lens');
   try {
     const kb = getLensSummary();
     if (kb?.configured) parts.push(kb.displayName || 'Knowledge Base');
   } catch { /* Knowledge Base not initialised yet. */ }
-  return parts.length ? ` · ${parts.join(' · ')}` : '';
+  return parts;
+}
+
+function ensureChatContextStatus(el) {
+  const parent = el.parentElement;
+  if (!parent) return null;
+  let status = parent.querySelector('.chat-context-status');
+  if (!status) {
+    status = document.createElement('button');
+    status.type = 'button';
+    status.className = 'chat-context-status';
+    status.addEventListener('click', () => {
+      const opener = /** @type {any} */ (window).openContextModal;
+      if (typeof opener === 'function') opener();
+    });
+    parent.appendChild(status);
+  }
+  return status;
+}
+
+export function updateChatContextStatus() {
+  const modelEl = document.querySelector('.chat-header-model');
+  if (!modelEl) return;
+  const status = ensureChatContextStatus(modelEl);
+  if (!status) return;
+  const parts = getAIContextHeaderParts();
+  if (parts.length === 0) {
+    status.textContent = '';
+    status.hidden = true;
+    status.removeAttribute('aria-label');
+    return;
+  }
+  const label = `AI Context: ${parts.join(' + ')}`;
+  status.hidden = false;
+  status.setAttribute('aria-label', `${label}. Click to manage Context.`);
+  status.innerHTML = `<span class="chat-context-dot" aria-hidden="true"></span><span>${escapeHTML(label)}</span>`;
 }
 
 export function updateChatHeaderModel() {
@@ -277,16 +312,16 @@ export function updateChatHeaderModel() {
     el.addEventListener('e2ee-attestation', () => updateChatHeaderModel());
     _headerListenerAdded = true;
   }
+  updateChatContextStatus();
   if (!hasAIProvider()) { el.textContent = ''; return; }
   const display = getActiveModelDisplay();
-  const contextSuffix = getAIContextHeaderSuffix();
   const provider = getAIProvider();
   const e2ee = provider === 'venice' && isVeniceE2EEActive();
   const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();
   if (e2ee || ppqPrivate) {
-    el.innerHTML = escapeHTML(display + contextSuffix) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
+    el.innerHTML = escapeHTML(display) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
   } else {
-    el.textContent = display + contextSuffix;
+    el.textContent = display;
   }
 }
 

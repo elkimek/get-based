@@ -98,7 +98,11 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog documents AI context and BP detail fixes in user-readable terms',
+assert('latest changelog documents visible AI context status in user-readable terms',
+  /version:\s*'1\.10\.17'[\s\S]{0,900}AI Context is now hard to miss/.test(changelogSrc)
+    && /version:\s*'1\.10\.17'[\s\S]{0,900}green context chip/.test(changelogSrc)
+    && /version:\s*'1\.10\.17'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
+assert('previous changelog documents AI context and BP detail fixes in user-readable terms',
   /version:\s*'1\.10\.16'[\s\S]{0,1400}AI Context is easier to find/.test(changelogSrc)
     && /version:\s*'1\.10\.16'[\s\S]{0,1400}Blood pressure details now stay paired/.test(changelogSrc)
     && /version:\s*'1\.10\.16'[\s\S]{0,1400}Mixed-source BP data is safer/.test(changelogSrc)

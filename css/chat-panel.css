@@ -255,6 +255,22 @@ body.chat-autostart-reserved:has(#chat-thread-rail.open):not(.chat-fullscreen) .
 .chat-header-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-header-model { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-header-model:empty { display: none; }
+.chat-context-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  width: fit-content; max-width: 100%; margin-top: 4px; padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--green) 45%, var(--border));
+  border-radius: 999px; background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: color-mix(in srgb, var(--green) 78%, var(--text-primary));
+  font-size: 11px; line-height: 1.2; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chat-context-status[hidden] { display: none; }
+.chat-context-status:hover { border-color: var(--green); background: color-mix(in srgb, var(--green) 18%, transparent); }
+.chat-context-status:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.chat-context-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent);
+}
 .chat-header-actions { display: flex; gap: 8px; align-items: center; }
 .chat-summary-btn, .chat-clear-btn {
   background: none; border: 1px solid var(--border); color: var(--text-muted);

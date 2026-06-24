@@ -23,6 +23,7 @@ const CHANGELOG = [
     forceShow: true,
     items: [
       '<b>AI Context is easier to find.</b> Personalize how AI answers and Knowledge Base now live together under Manage → Context, so AI grounding has one clear home instead of being mixed into Profile Context.',
+      '<b>AI Context status is visible in chat.</b> When an Interpretive Lens or Knowledge Base is enabled, chat shows a clickable green context chip that jumps back to Manage → Context.',
       '<b>Blood pressure details now stay paired.</b> Systolic and diastolic readings open as one BP detail view, even if you enter through the diastolic metric, and the chart keeps the two lines and manual readings visually distinct.',
       '<b>Mixed-source BP data is safer.</b> When systolic and diastolic come from different sources, getbased fetches each source separately and only shows a Latest BP pair when both halves were recorded on the same date.',
     ]
