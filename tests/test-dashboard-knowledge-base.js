@@ -148,7 +148,25 @@ try {
       html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
-  // Section 5 (picker open/dismiss — live DOM) lives in
+  // ─── 5. Profile Context surface actually mounts the section ───
+  // The isolated renderer can pass while production UI drops the call site.
+  {
+    localStorage.removeItem('labcharts-lens-config');
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = 'Functional endocrinology';
+    const html = cards.renderProfileContextCards();
+    assert('Profile Context mounts set Interpretive Lens row',
+      /lens-section-label[^>]*>Interpretive Lens/.test(html));
+    assert('Profile Context row opens the lens editor',
+      html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
+
+    state.importedData.interpretiveLens = '';
+    const htmlEmpty = cards.renderProfileContextCards();
+    assert('Profile Context mounts Personalize-AI CTA when lens is unset',
+      htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+  }
+
+  // Section 5b (picker open/dismiss — live DOM) lives in
   // tests/playwright/dashboard-knowledge-base.spec.js.
 
   // ─── 6. Window exports ───

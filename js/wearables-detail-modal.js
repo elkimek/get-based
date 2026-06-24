@@ -16,6 +16,7 @@ import { getChartColors } from './theme.js';
 import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
+import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 
 const WEARABLE_DETAIL_RANGES = [
@@ -95,10 +96,17 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
   if (op !== _detailOp) return;
 
+  const isBloodPressureDetail = metricId === 'bp_systolic';
+  const pairedMetricId = isBloodPressureDetail ? 'bp_diastolic' : null;
+  const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
   const series = rows
     .map(r => ({ date: r.date, v: r[metricId] }))
     .filter(p => isMetricValueMeaningful(metricId, p.v))
     .sort((a, b) => a.date.localeCompare(b.date));
+  const pairedSeries = pairedMetricId ? rows
+    .map(r => ({ date: r.date, v: r[pairedMetricId] }))
+    .filter(p => isMetricValueMeaningful(pairedMetricId, p.v))
+    .sort((a, b) => a.date.localeCompare(b.date)) : [];
 
   const allZeroActivity = metricId === 'activity_score'
     && series.length > 0
@@ -115,8 +123,14 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
 
   const manualEntries = manualRows
-    .map(r => ({ date: r.date, v: r[metricId], tags: r.tags, note: r.note }))
-    .filter(p => isMetricValueMeaningful(metricId, p.v))
+    .map(r => ({
+      date: r.date,
+      v: r[metricId],
+      pairedV: pairedMetricId ? r[pairedMetricId] : undefined,
+      tags: r.tags,
+      note: r.note,
+    }))
+    .filter(p => isMetricValueMeaningful(metricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
     .sort((a, b) => b.date.localeCompare(a.date));
   const manualChartEntries = m.primarySource === 'manual'
     ? []
@@ -133,7 +147,13 @@ export async function openWearableDetail(metricId, opts = {}) {
     delete state.chartInstances['modal'];
   }
 
-  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, { allZeroActivity, rangeKey });
+  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, {
+    allZeroActivity,
+    rangeKey,
+    pairedMetric,
+    pairedSeries,
+    pairedMetricId,
+  });
   openModalOverlay(overlay);
 
   const focusTarget = opts.fromRangeToggle
@@ -143,8 +163,11 @@ export async function openWearableDetail(metricId, opts = {}) {
   _installWearableModalFocusTrap(modal);
 
   const canvas = document.getElementById('chart-modal');
-  if (canvas && (series.length > 0 || manualChartEntries.length > 0)) {
-    if (canvas instanceof HTMLCanvasElement) renderWearableChart(canvas, canon, m, series, manualChartEntries);
+  if (canvas && (series.length > 0 || pairedSeries.length > 0 || manualChartEntries.length > 0)) {
+    if (canvas instanceof HTMLCanvasElement) {
+      if (isBloodPressureDetail) renderBloodPressureChart(canvas, canon, m, series, pairedSeries, manualChartEntries, pairedMetric);
+      else renderWearableChart(canvas, canon, m, series, manualChartEntries);
+    }
   }
 }
 
@@ -207,6 +230,15 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
   const canon = canonicalMetric(metricId);
   const unit = canon?.unit || '';
   const metricLabel = canon?.label || metricId;
+  const isBloodPressure = metricId === 'bp_systolic';
+  const formatEntryValue = (e) => {
+    if (isBloodPressure) {
+      const sys = isMetricValueMeaningful('bp_systolic', e.v) ? formatValue(e.v, unit) : '—';
+      const dia = isMetricValueMeaningful('bp_diastolic', e.pairedV) ? formatValue(e.pairedV, unit) : '—';
+      return `${sys}/${dia}`;
+    }
+    return formatValue(e.v, unit);
+  };
   const formatSpokenDate = (iso) => {
     try {
       const d = new Date(iso + 'T00:00:00');
@@ -222,8 +254,8 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
     const noteRow = (typeof e.note === 'string' && e.note.trim())
       ? `<div class="wearable-manual-entry-note">${escapeHTML(e.note)}</div>`
       : '';
-    const valueRead = formatValue(e.v, unit);
-    const ariaText = `Delete ${metricLabel.toLowerCase()} reading from ${formatSpokenDate(e.date)}, ${valueRead}${unit ? ' ' + unit : ''}`;
+    const valueRead = formatEntryValue(e);
+    const ariaText = `Delete ${isBloodPressure ? 'blood pressure' : metricLabel.toLowerCase()} reading from ${formatSpokenDate(e.date)}, ${valueRead}${unit ? ' ' + unit : ''}`;
     return `<li class="wearable-manual-entry${noteRow ? ' has-note' : ''}" data-entry-date="${escapeHTML(e.date)}">
       <span class="wearable-manual-entry-date">${escapeHTML(shortDate(e.date))}</span>
       <span class="wearable-manual-entry-val">${valueRead}${unit ? ` <span class="wearable-manual-entry-unit">${escapeHTML(unit)}</span>` : ''}</span>
@@ -281,7 +313,22 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
 
   const rangeKey = opts.rangeKey || '90d';
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
-  const baseStats = [
+  const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
+  const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
+  const pairedUnitSpaced = unitSpaced;
+  const formatPaired = (sys, dia) => {
+    const sysText = isMetricValueMeaningful('bp_systolic', sys) ? formatV(sys) : '—';
+    const diaText = isMetricValueMeaningful('bp_diastolic', dia) ? formatV(dia) : '—';
+    return `${sysText}/${diaText}${pairedUnitSpaced}`;
+  };
+  const baseStats = pairedMetric ? [
+    ['Latest',   formatPaired(m.latest, pairedMetric.latest), m.latestDate || pairedMetric.latestDate ? shortDate(m.latestDate || pairedMetric.latestDate) : ''],
+    ['Baseline (90d)', formatPaired(m.baseline, pairedMetric.baseline), 'median'],
+    ['7-day avg', formatPaired(m.rolling?.d7, pairedMetric.rolling?.d7), ''],
+    ['30-day avg', formatPaired(m.rolling?.d30, pairedMetric.rolling?.d30), ''],
+    ['Typical range', `${formatPaired(m.baselineP25, pairedMetric.baselineP25)} – ${formatPaired(m.baselineP75, pairedMetric.baselineP75)}`, '25th–75th percentile'],
+    ['Chart samples', `${Math.max(series.length, pairedSeries.length)}d`, rangeDef.coverageSuffix],
+  ] : [
     ['Latest',   `${formatV(m.latest)}${unitSpaced}`, m.latestDate ? shortDate(m.latestDate) : ''],
     ['Baseline (90d)', `${formatV(m.baseline)}${unitSpaced}`, 'median'],
     ['7-day avg', `${formatV(m.rolling?.d7)}${unitSpaced}`, ''],
@@ -341,7 +388,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
 
   const emptyHint = opts.allZeroActivity
     ? `<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`
-    : series.length === 0
+    : series.length === 0 && pairedSeries.length === 0
       ? manualEntries.length > 0
         ? `<div class="wearable-detail-empty">No chart samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Manual readings are listed below${m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : ''}.</div>`
         : `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`

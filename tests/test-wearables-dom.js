@@ -123,6 +123,38 @@ return (async function() {
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
+  // A2. Blood Pressure detail modal pairs systolic + diastolic
+  // ═══════════════════════════════════════
+  console.log('%c A2. Blood Pressure Modal Pairing ', 'font-weight:bold;color:#f59e0b');
+  localStorage.setItem('wearable-detail-range', '90d');
+  window._labState.importedData.wearableSummary = {
+    sources: { manual: { connectedSince: '2026-04-20', lastSyncAt: Date.now(), coverageDays: 3 } },
+    metrics: {
+      bp_systolic: { primarySource: 'manual', latest: 120, latestDate: '2026-04-22', baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
+      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: '2026-04-22', baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'manual', date: '2026-04-20', bp_systolic: 122, bp_diastolic: 81 },
+    { source: 'manual', date: '2026-04-21', bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'manual', date: '2026-04-22', bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
+  const bpModalText = document.getElementById('detail-modal')?.textContent || '';
+  const bpChart = window._labState.chartInstances?.modal;
+  const bpLabels = bpChart?.data?.datasets?.map(d => d.label) || [];
+  assert('BP modal latest/stat/manual list shows paired 120/80 value', /120\/80/.test(bpModalText), bpModalText);
+  assert('BP chart renders Systolic and Diastolic datasets',
+    bpLabels.some(l => /^Systolic/.test(l)) && bpLabels.some(l => /^Diastolic/.test(l)), bpLabels.join('|'));
+  assert('BP diastolic dataset has 3 dated points',
+    bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.data?.length === 3);
+  assert('BP manual entries preserve paired sys/dia row value',
+    !!document.querySelector('#detail-modal .wearable-manual-entry-val')?.textContent?.includes('120/80'));
+  window.closeModal();
+  delete window._labState.importedData.wearableSummary;
+
+  // ═══════════════════════════════════════
   // B. JSZip lazy-loader functional smoke
   // ═══════════════════════════════════════
   // Clear window.JSZip, route through importAppleHealthFile (the public entry

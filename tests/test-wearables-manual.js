@@ -417,7 +417,7 @@ try {
 
   const entriesSectionFn = wearablesDetailSrc.match(/function buildManualEntriesSection[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('manualEntries map pulls note: r.note from the IDB row',
-    /\.map\(r => \(\{ date: r\.date, v: r\[metricId\], tags: r\.tags, note: r\.note \}\)\)/.test(wearablesDetailSrc));
+    /note:\s*r\.note/.test(wearablesDetailSrc));
   assert('Entries-list row renders the note (.wearable-manual-entry-note) when present',
     /typeof e\.note === 'string' && e\.note\.trim\(\)[\s\S]{0,200}wearable-manual-entry-note/.test(entriesSectionFn));
   assert("Row gains 'has-note' modifier class for layout when note is present",
