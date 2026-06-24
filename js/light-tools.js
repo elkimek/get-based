@@ -37,6 +37,7 @@ import {
   openSpectrumClassifier as openSpectrumClassifierModal,
   openGlassTransmission as openGlassTransmissionModal,
 } from './light-tool-camera-modals.js';
+export { closeLuxMeter, closeFlickerDetector, closeDarknessMeter, closeCCTMeter, closeSpectrumClassifier, closeGlassTransmission } from './light-tool-camera-modals.js';
 
 const LIGHT_TOOLS_ACTION_ATTR = 'data-light-tools-action';
 const LIGHT_TOOL_ID_ATTR = 'data-light-tool-id';
@@ -111,7 +112,7 @@ function handleLightToolsActionClick(event) {
   if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_TOOLS_ACTION_ATTR);
   if (action === 'close-audit') {
-    window._closeAudit?.();
+    closeEyeLevelAudit();
     event.stopPropagation();
     return;
   }
@@ -305,29 +306,12 @@ export async function deleteMeasurement(id) {
 
 // ─── Camera-backed tool modal facade ──────────────────────────────────
 
-export async function openLuxMeter(opts = {}) {
-  return openLuxMeterModal(opts, { saveMeasurement });
-}
-
-export async function openFlickerDetector(opts = {}) {
-  return openFlickerDetectorModal(opts, { saveMeasurement });
-}
-
-export async function openDarknessMeter(opts = {}) {
-  return openDarknessMeterModal(opts, { saveMeasurement });
-}
-
-export async function openCCTMeter(opts = {}) {
-  return openCCTMeterModal(opts, { saveMeasurement });
-}
-
-export async function openSpectrumClassifier(opts = {}) {
-  return openSpectrumClassifierModal(opts, { saveMeasurement });
-}
-
-export async function openGlassTransmission(opts = {}) {
-  return openGlassTransmissionModal(opts, { saveMeasurement });
-}
+export async function openLuxMeter(opts = {}) { return openLuxMeterModal(opts, { saveMeasurement }); }
+export async function openFlickerDetector(opts = {}) { return openFlickerDetectorModal(opts, { saveMeasurement }); }
+export async function openDarknessMeter(opts = {}) { return openDarknessMeterModal(opts, { saveMeasurement }); }
+export async function openCCTMeter(opts = {}) { return openCCTMeterModal(opts, { saveMeasurement }); }
+export async function openSpectrumClassifier(opts = {}) { return openSpectrumClassifierModal(opts, { saveMeasurement }); }
+export async function openGlassTransmission(opts = {}) { return openGlassTransmissionModal(opts, { saveMeasurement }); }
 
 // ─── Tool 7: Sunrise / Sunset Logger ──────────────────────────────────
 
@@ -464,6 +448,12 @@ export function openSunriseLogger() {
 // ─── Tool 8: Eye-Level Audit (10-min walkthrough) ─────────────────────
 
 let _auditState = { running: false, stream: null, samples: [] };
+/** @type {AnyFunction | null} */
+let activeEyeLevelAuditCloser = null;
+
+export function closeEyeLevelAudit() {
+  if (typeof activeEyeLevelAuditCloser === 'function') activeEyeLevelAuditCloser();
+}
 
 export async function openEyeLevelAudit() {
   const overlay = document.createElement('div');
@@ -484,7 +474,17 @@ export async function openEyeLevelAudit() {
       </div>
     </div>
   </div>`;
-  openAppendedModalOverlay(overlay, () => window._closeAudit());
+  let closed = false;
+  const closeAuditOverlay = () => {
+    if (closed) return;
+    closed = true;
+    _auditState.running = false;
+    if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
+    if (activeEyeLevelAuditCloser === closeAuditOverlay) activeEyeLevelAuditCloser = null;
+    removeModalOverlay(overlay);
+  };
+  activeEyeLevelAuditCloser = closeAuditOverlay;
+  openAppendedModalOverlay(overlay, closeAuditOverlay);
 
   const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
   const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
@@ -528,10 +528,15 @@ export async function openEyeLevelAudit() {
       statusEl.textContent = 'Recording… walk through each room you spend time in. Pause for ~5 seconds in each.';
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 160, height: 120 } });
+        if (closed) {
+          try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+          return;
+        }
         _auditState.stream = stream;
         const video = document.createElement('video');
         video.srcObject = stream; video.muted = true; video.playsInline = true;
         await video.play();
+        if (closed) return;
         // Lock exposure across the whole walkthrough — without this, AE
         // re-exposes when you walk into a brighter / dimmer room, making
         // the per-room luma values incomparable. We want the absolute
@@ -603,8 +608,8 @@ export async function openEyeLevelAudit() {
           })) },
         });
         // Try to bind each pause to an existing room by name; create
-        // one if no match. Both `getRooms` and `addRoom` are exposed
-        // on window via light-env.js's bottom-of-file Object.assign.
+        // one if no match. Startup wiring injects getRooms/addRoom from
+        // light-env.js so this modal does not reach through window.
         let bound = 0;
         const existingRooms = getLightRooms();
         const byLabel = new Map();
@@ -639,15 +644,9 @@ export async function openEyeLevelAudit() {
       } else {
         showNotification('No room pauses detected — try holding still longer next time.');
       }
-      window._closeAudit();
+      closeAuditOverlay();
     }
   });
-
-  window._closeAudit = () => {
-    _auditState.running = false;
-    if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
-    removeModalOverlay(overlay);
-  };
 }
 
 // ─── Tools page render ────────────────────────────────────────────────

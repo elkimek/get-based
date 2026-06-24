@@ -655,14 +655,14 @@ test('glass transmission modal covers denied measurement fallback and close clea
         && overlay?.querySelector('#glass-reading-outside')?.textContent === 'denied';
       outcomes.deniedReadingsDoNotEnableSave = overlay?.querySelector('#glass-save')?.disabled === true
         && saved.length === 0;
-      window._closeGlass?.();
+      modals.closeGlassTransmission();
       outcomes.closeGlassRemovesOverlay = !document.body.contains(overlay);
     } finally {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: savedMediaDevices,
       });
-      try { window._closeGlass?.(); } catch (_) {}
+      try { modals.closeGlassTransmission(); } catch (_) {}
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 

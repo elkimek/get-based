@@ -304,8 +304,14 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       else delete window.AmbientLightSensor;
       if (savedLuxCalibration == null) localStorage.removeItem('labcharts-lux-calibration');
       else localStorage.setItem('labcharts-lux-calibration', savedLuxCalibration);
-      ['_closeLuxMeter', '_closeFlicker', '_closeCCT', '_closeSpec', '_closeGlass'].forEach(name => {
-        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      [
+        modals.closeLuxMeter,
+        modals.closeFlickerDetector,
+        modals.closeCCTMeter,
+        modals.closeSpectrumClassifier,
+        modals.closeGlassTransmission,
+      ].forEach(close => {
+        try { close(); } catch (_) {}
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

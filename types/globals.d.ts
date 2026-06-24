@@ -287,13 +287,6 @@ interface Window {
   rehydrateStaleSessions?: () => Promise<{ rehydrated?: number }>;
   SUN_ENGINE_VERSION?: number;
   AmbientLightSensor?: AmbientLightSensorConstructor;
-  _closeAudit?: AnyFunction;
-  _closeCCT?: AnyFunction;
-  _closeDark?: AnyFunction;
-  _closeFlicker?: AnyFunction;
-  _closeGlass?: AnyFunction;
-  _closeLuxMeter?: AnyFunction;
-  _closeSpec?: AnyFunction;
   _dismissAimingGuide?: AnyFunction;
   addRoom?: AnyFunction;
   getSunCoords?: AnyFunction;

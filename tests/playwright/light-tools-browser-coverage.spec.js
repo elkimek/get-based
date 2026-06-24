@@ -277,11 +277,11 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await wait(10);
       results.openLuxMeterFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Lux meter"]');
-      window._closeLuxMeter?.();
+      lightTools.closeLuxMeter();
       await lightTools.openFlickerDetector({ roomId: 'room-1' });
       results.openFlickerFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Flicker detector"]');
-      window._closeFlicker?.();
+      lightTools.closeFlickerDetector();
       let fakeNow = 0;
       Object.defineProperty(performance, 'now', {
         configurable: true,
@@ -296,7 +296,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await waitUntil(() => document.getElementById('dark-start')?.textContent === 'Save reading');
       results.openDarknessFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Sleep darkness meter"]');
-      window._closeDark?.();
+      lightTools.closeDarknessMeter();
       window.setTimeout = saved.setTimeout;
       window.clearTimeout = saved.clearTimeout;
       if (saved.performanceNowDescriptor) {
@@ -312,17 +312,17 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await lightTools.openCCTMeter({ roomId: 'room-2' });
       results.openCCTFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Color temperature meter"]');
-      window._closeCCT?.();
+      lightTools.closeCCTMeter();
       await lightTools.openSpectrumClassifier({ roomId: 'room-2' });
       results.openSpectrumFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Spectrum classifier"]');
-      window._closeSpec?.();
+      lightTools.closeSpectrumClassifier();
       await lightTools.openGlassTransmission({ roomId: 'room-2' });
       document.getElementById('glass-measure-inside')?.click();
       await waitUntil(() => (document.getElementById('glass-reading-inside')?.textContent || '').includes('lux'), 2500);
       results.openGlassFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Glass transmission test"]');
-      window._closeGlass?.();
+      lightTools.closeGlassTransmission();
       results.cameraFacadeStreamsStoppedOnClose = streamStops.length >= 5;
 
       Object.defineProperty(navigator, 'mediaDevices', {
@@ -339,7 +339,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await wait(20);
       results.auditDeniedPathShowsCameraMessage = (document.getElementById('audit-status')?.textContent || '')
         .includes('Camera access denied');
-      window._closeAudit?.();
+      lightTools.closeEyeLevelAudit();
       results.auditCloseRemovesOverlay = !document.querySelector('[aria-label="Home audit"]');
       auditOverlay?.remove();
     } finally {
@@ -384,9 +384,16 @@ test('light tools browser coverage exercises storage render and modal flows', as
           value: saved.mediaDevices,
         });
       } catch (_) {}
-      ['_closeLuxMeter', '_closeFlicker', '_closeDark', '_closeCCT', '_closeSpec', '_closeGlass', '_closeAudit'].forEach(name => {
-        try { window[name]?.(); } catch (_) {}
-        try { delete window[name]; } catch (_) {}
+      [
+        lightTools.closeLuxMeter,
+        lightTools.closeFlickerDetector,
+        lightTools.closeDarknessMeter,
+        lightTools.closeCCTMeter,
+        lightTools.closeSpectrumClassifier,
+        lightTools.closeGlassTransmission,
+        lightTools.closeEyeLevelAudit,
+      ].forEach(close => {
+        try { close(); } catch (_) {}
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
       localStorage.clear();

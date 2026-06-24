@@ -205,8 +205,8 @@ test('light tool camera modals cover ambient sensor lux and darkness success pat
       if (hadAmbientLightSensor) window.AmbientLightSensor = savedAmbientLightSensor;
       else delete window.AmbientLightSensor;
       localStorage.removeItem('labcharts-lux-calibration');
-      ['_closeLuxMeter', '_closeDark'].forEach(name => {
-        try { if (typeof window[name] === 'function') window[name](); } catch (_) {}
+      [modals.closeLuxMeter, modals.closeDarknessMeter].forEach(close => {
+        try { close(); } catch (_) {}
       });
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
