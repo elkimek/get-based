@@ -10,7 +10,9 @@ import {
   isPpqPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
 } from './api.js';
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
-import { clearAttachments, getPendingAttachments, hasPendingAttachments } from './chat-images.js';
+import {
+  clearAttachments, configureChatImages, getPendingAttachments, hasPendingAttachments,
+} from './chat-images.js';
 import { autoNameThread, createNewThread } from './chat-threads.js';
 import { buildLabContext, getContextSummary, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
@@ -112,8 +114,7 @@ export function createTypewriter(el, typingEl, container) {
 }
 
 // Image-attachment flow (paste/drop/picker handlers, HD-mode toggle,
-// pending-queue, thumbnail generation) lives in chat-images.js. The only
-// back-reference into this module is `window.updateSendButtonState?.()`.
+// pending-queue, thumbnail generation) lives in chat-images.js.
 export function updateSendButtonState() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
@@ -121,7 +122,7 @@ export function updateSendButtonState() {
   const hasContent = (input && input.value.trim()) || hasPendingAttachments();
   sendBtn.disabled = !hasContent && !_chatAbortController;
 }
-Object.assign(window, { updateSendButtonState });
+configureChatImages({ updateSendButtonState });
 
 // ═══════════════════════════════════════════════
 // SEND BUTTON STATE

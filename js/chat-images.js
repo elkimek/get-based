@@ -6,10 +6,8 @@
 // toggle, and thumbnail generation. Exposes a small interface so
 // chat.js can read the queue when sending and clear it afterwards.
 //
-// The only back-reference into chat.js is `window.updateSendButtonState?.()`
-// invoked when the queue changes — same window.fn() pattern that
-// cross-module calls use elsewhere in the codebase to avoid circular
-// deps (see CLAUDE.md's module-roster note).
+// The only back-reference into chat-send.js is the configured
+// updateSendButtonState callback invoked when the queue changes.
 
 import { escapeHTML, showNotification } from './utils.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
@@ -22,6 +20,15 @@ const THUMB_SIZE = 80;
 /** @type {Array<{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null }>} */
 let _pendingAttachments = []; // { base64, mediaType, name, previewUrl, thumbUrl }
 let _hdMode = localStorage.getItem('labcharts-hd-images') === 'true';
+const chatImageDeps = {
+  updateSendButtonState: () => {},
+};
+
+export function configureChatImages(deps = {}) {
+  if (typeof deps.updateSendButtonState === 'function') {
+    chatImageDeps.updateSendButtonState = deps.updateSendButtonState;
+  }
+}
 
 /// Queue inspection for chat.js's sendChatMessage + send-button state.
 export function getPendingAttachments() { return _pendingAttachments; }
@@ -75,7 +82,7 @@ export async function addImageAttachment(file) {
     const thumbUrl = await makeThumbnail(previewUrl, width, height);
     _pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl });
     renderAttachmentPreview();
-    window.updateSendButtonState?.();
+    chatImageDeps.updateSendButtonState();
     // Warn about image quality issues
     const longSide = Math.max(origWidth, origHeight);
     if (longSide < 512) {
@@ -95,7 +102,7 @@ export async function addImageAttachment(file) {
 export function removeImageAttachment(index) {
   _pendingAttachments.splice(index, 1);
   renderAttachmentPreview();
-  window.updateSendButtonState?.();
+  chatImageDeps.updateSendButtonState();
 }
 
 export function renderAttachmentPreview() {
