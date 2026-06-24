@@ -129,13 +129,15 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
   await page.waitForSelector('#main-content');
 
   const results = await page.evaluate(async ({ lightPageUrl }) => {
-    const [{ state }, lightPage] = await Promise.all([
+    const [{ state }, lightPage, lightEnv] = await Promise.all([
       import('/js/state.js'),
       import(lightPageUrl),
+      import('/js/light-env.js'),
     ]);
     const outcomes = {};
     const RealDate = Date;
     const main = document.getElementById('main-content');
+    let renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
     const saved = {
       importedData: state.importedData,
       mainHTML: main?.innerHTML,
@@ -159,7 +161,6 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderLightTodayHero: window.renderLightTodayHero,
       renderSunSetupCard: window.renderSunSetupCard,
       renderDevicesSection: window.renderDevicesSection,
-      renderEnvironmentAssessmentSummary: window.renderEnvironmentAssessmentSummary,
       renderLightTools: window.renderLightTools,
     };
     const syncLightPageDeps = () => lightPage.configureLightPageView({
@@ -181,7 +182,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderLightTodayHero: typeof window.renderLightTodayHero === 'function' ? window.renderLightTodayHero : () => '',
       renderSunSetupCard: typeof window.renderSunSetupCard === 'function' ? window.renderSunSetupCard : () => '',
       renderDevicesSection: typeof window.renderDevicesSection === 'function' ? window.renderDevicesSection : () => '',
-      renderEnvironmentAssessmentSummary: typeof window.renderEnvironmentAssessmentSummary === 'function' ? window.renderEnvironmentAssessmentSummary : () => '',
+      renderEnvironmentAssessmentSummary,
       renderLightTools: typeof window.renderLightTools === 'function' ? window.renderLightTools : () => '',
     });
     const setHour = (hour) => {
@@ -287,7 +288,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.renderLightTodayHero = () => '';
       window.renderSunSetupCard = () => '<div class="setup-card-test">setup</div>';
       window.renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
-      window.renderEnvironmentAssessmentSummary = () => '';
+      renderEnvironmentAssessmentSummary = () => '';
       window.renderLightTools = () => '';
       window.getActiveSession = () => null;
       window.getDevices = () => [];
@@ -328,7 +329,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.renderLightTodayHero = saved.renderLightTodayHero;
       window.renderSunSetupCard = saved.renderSunSetupCard;
       window.renderDevicesSection = saved.renderDevicesSection;
-      window.renderEnvironmentAssessmentSummary = saved.renderEnvironmentAssessmentSummary;
+      renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
       window.renderLightTools = saved.renderLightTools;
       syncLightPageDeps();
     }

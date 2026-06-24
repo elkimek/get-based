@@ -275,11 +275,8 @@ interface Window {
   renderChannelDeficitDeviceRecs?: AnyFunction;
   renderChannelMixVerdict?: AnyFunction;
   renderDevicesSection?: AnyFunction;
-  renderEnvironmentAssessmentSummary?: AnyFunction;
   renderOnboardingAIBlock?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;
-  computeDeficitAxes?: AnyFunction;
-  computeIndoorBurden?: AnyFunction;
   computeUVConfidence?: AnyFunction;
   ensureActiveDeviceTicker?: AnyFunction;
   getMeteoConfig?: AnyFunction;
@@ -299,7 +296,6 @@ interface Window {
   _closeSpec?: AnyFunction;
   _dismissAimingGuide?: AnyFunction;
   addRoom?: AnyFunction;
-  getRooms?: AnyFunction;
   getSunCoords?: AnyFunction;
   hydrateSession?: AnyFunction;
   logCompletedSession?: AnyFunction;
@@ -313,7 +309,6 @@ interface Window {
   renderRoomAIBlock?: AnyFunction;
   renderScreenAIBlock?: AnyFunction;
   saveMeasurement?: AnyFunction;
-  suggestRoomSourceFromSpectrum?: AnyFunction;
   openChatPanel: AnyFunction;
   openCCTMeter?: AnyFunction;
   openDarknessMeter?: AnyFunction;

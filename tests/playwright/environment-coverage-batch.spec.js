@@ -327,7 +327,6 @@ test('Light audit defaults cover fallback dependency accessors', async ({ page }
 test('Light audit history covers save expand update compare interpret and delete controls', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.renderEnvironmentAssessmentSummary === 'function');
 
   const results = await page.evaluate(async () => {
     const [{ state }, data, audits] = await Promise.all([
