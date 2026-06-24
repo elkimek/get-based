@@ -631,6 +631,8 @@ const {
     auditSrc.includes('sortAuditsNewestFirst(getLightAudits())[0]?.id') &&
     envSrc.includes('modal.scrollTop') &&
     envSrc.includes('...lightEnvAuditActionHandlers') &&
+    !auditSrc.includes('Object.assign(window, {') &&
+    !auditSrc.includes('window.getLightAudits') &&
     !envSrc.includes('globalThis.saveLightAuditFromUI') &&
     !envSrc.includes('globalThis.toggleLightAudit') &&
     !envSrc.includes('globalThis.updateLightAuditField') &&
