@@ -731,6 +731,7 @@ export function saveInterpretiveLens() {
   const ta = getTextInput('interpretive-lens-textarea');
   const text = ta ? ta.value.trim() : '';
   state.importedData.interpretiveLens = text || '';
+  window.updateChatHeaderModel?.();
   recordContextChange('interpretiveLens');
   saveImportedData();
   window.closeModal();
@@ -740,6 +741,7 @@ export function saveInterpretiveLens() {
 
 export function clearInterpretiveLens() {
   state.importedData.interpretiveLens = '';
+  window.updateChatHeaderModel?.();
   recordContextChange('interpretiveLens');
   saveImportedData();
   window.closeModal();

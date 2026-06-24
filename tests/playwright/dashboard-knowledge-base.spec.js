@@ -53,3 +53,37 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
   await expect(overlay).toContainText('Personalize how AI answers');
   await expect(overlay).toContainText('Interpretive Lens is enabled');
 });
+
+test('clearing Interpretive Lens immediately clears chat header context chip', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { openChatPanel } = await import('/js/chat-panel.js');
+    const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-lens-config');
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = 'Functional endocrinology';
+    await openChatPanel();
+    chat.updateChatHeaderModel();
+  });
+
+  const chip = page.locator('.chat-context-status');
+  await expect(chip).toBeVisible();
+  await expect(chip).toContainText('AI Context: Lens');
+
+  await chip.evaluate(el => el.click());
+  const contextOverlay = page.locator('#context-hub-overlay');
+  await expect(contextOverlay).toHaveClass(/show/);
+  await contextOverlay.locator('.ai-picker-card[data-pick="lens"]').click();
+
+  const editorOverlay = page.locator('#modal-overlay');
+  await expect(editorOverlay).toHaveClass(/show/);
+  await page.locator('[data-lifestyle-action="clear-interpretive-lens"]').evaluate(el => el.click());
+
+  await expect(editorOverlay).not.toHaveClass(/show/);
+  await expect(chip).toBeHidden();
+  await page.evaluate(() => {
+    if (document.querySelector('.chat-context-status:not([hidden])')) throw new Error('Context chip stayed visible after clearing Lens');
+  });
+});
