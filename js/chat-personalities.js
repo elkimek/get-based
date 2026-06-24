@@ -294,6 +294,13 @@ export function updateChatContextStatus() {
   if (!modelEl) return;
   const status = ensureChatContextStatus(modelEl);
   if (!status) return;
+  if (!hasAIProvider()) {
+    status.textContent = '';
+    status.hidden = true;
+    status.removeAttribute('aria-label');
+    status.classList.remove('chat-context-status-pending');
+    return;
+  }
   const contextState = getAIContextHeaderState();
   const parts = [...contextState.active, ...contextState.pending];
   if (parts.length === 0) {
@@ -321,8 +328,8 @@ export function updateChatHeaderModel() {
     el.addEventListener('e2ee-attestation', () => updateChatHeaderModel());
     _headerListenerAdded = true;
   }
+  if (!hasAIProvider()) { el.textContent = ''; updateChatContextStatus(); return; }
   updateChatContextStatus();
-  if (!hasAIProvider()) { el.textContent = ''; return; }
   const display = getActiveModelDisplay();
   const provider = getAIProvider();
   const e2ee = provider === 'venice' && isVeniceE2EEActive();

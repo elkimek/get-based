@@ -8,9 +8,13 @@ import { formatValue, shortDate } from './wearables-formatters.js';
 
 export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diastolicSeries = [], manualSeries = [], pairedMetric = null) {
   if (!window.Chart || !isChartDateAdapterReady()) {
+    const retryToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    canvas.dataset.bpRenderToken = retryToken;
     ensureChartJs().then(() => {
       const currentCanvas = document.getElementById(canvas.id);
-      if (currentCanvas) renderBloodPressureChart(currentCanvas, canon, m, systolicSeries, diastolicSeries, manualSeries, pairedMetric);
+      if (currentCanvas === canvas && canvas.isConnected && canvas.dataset.bpRenderToken === retryToken) {
+        renderBloodPressureChart(canvas, canon, m, systolicSeries, diastolicSeries, manualSeries, pairedMetric);
+      }
     }).catch(() => {});
     return;
   }

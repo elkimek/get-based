@@ -188,6 +188,9 @@ test('custom personality generator fills prompt and preserves selected custom te
       export const CHAT_PERSONALITIES = [
         { id: 'default', name: 'AI Lab Analyst', icon: 'A', promptAddition: null },
       ];
+      export const COUNTRY_LATITUDES = {};
+      export const LATITUDE_BANDS = {};
+      export const COUNTRY_CENTROIDS = {};
     `,
   }));
   await page.route('**/js/utils.js*', route => route.fulfill({
@@ -203,8 +206,30 @@ test('custom personality generator fills prompt and preserves selected custom te
         })[ch]);
       }
       export const escapeAttr = escapeHTML;
+      export function hashString(value) {
+        let hash = 0;
+        for (const ch of String(value ?? '')) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
+        return String(Math.abs(hash));
+      }
+      export function formatValue(value) { return String(value ?? ''); }
+      export function formatDate(value) { return String(value ?? ''); }
+      export function queryRequired(root, selector) { const el = root.querySelector(selector); if (!el) throw new Error(selector); return el; }
+      export function safeMarkerId(value) { return String(value ?? '').replace(/[^a-zA-Z0-9_.-]/g, '_'); }
+      export function sanitizeMarkerKey(value) { return String(value ?? '').replace(/[^a-zA-Z0-9_.-]/g, ''); }
+      export function hasDirtyFormFields() { return false; }
+      export function bindDetachedModalSyncRefresh() {}
+      export function bindModalSyncRefresh() {}
+      export function getStatus() { return 'normal'; }
+      export function getRangePosition() { return 0.5; }
+      export function getTrend() { return 'flat'; }
       export function showNotification() {}
       export async function showConfirmDialog() { return true; }
+      export async function showPromptDialog() { return ''; }
+      export async function showChoiceDialog() { return null; }
+      export function isPIIReviewEnabled() { return false; }
+      export function bindDetailModalSyncRefresh() {}
+      export function linearRegression() { return { slope: 0, intercept: 0, r2: 0 }; }
+      export function isDebugMode() { return false; }
     `,
   }));
 

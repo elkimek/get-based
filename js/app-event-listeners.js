@@ -161,7 +161,7 @@ function handleAppKeydown(e) {
 
   // Focus trap for open modals. Sync overlays use `.confirm-overlay` too.
   if (e.key === "Tab") {
-    const overlayIds = ["legal-consent-overlay", "client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "data-protection-picker-overlay"];
+    const overlayIds = ["legal-consent-overlay", "client-list-overlay", "changelog-modal-overlay", "report-builder-overlay", "settings-modal-overlay", "tweaks-panel-overlay", "import-modal-overlay", "feedback-modal-overlay", "sync-restore-overlay", "sync-setup-overlay", "summary-modal-overlay", "light-env-assessment-overlay", "modal-overlay", "kb-modal-overlay", "ai-personalize-picker-overlay", "context-hub-overlay", "data-protection-picker-overlay"];
     for (const oid of overlayIds) {
       const ov = document.getElementById(oid);
       if (ov && ov.classList.contains("show")) {

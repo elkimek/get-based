@@ -34,6 +34,8 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
     const { state } = await import('/js/state.js');
     const { openChatPanel } = await import('/js/chat-panel.js');
     const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-ai-paused');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = 'Functional endocrinology';
@@ -62,6 +64,8 @@ test('chat header shows pending KB state when Knowledge Base is enabled but empt
     const { saveLensConfig } = await import('/js/lens.js');
     const { openChatPanel } = await import('/js/chat-panel.js');
     const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-ai-paused');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = '';
     saveLensConfig({ backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true });
@@ -89,6 +93,8 @@ test('clearing Interpretive Lens immediately clears chat header context chip', a
     const { state } = await import('/js/state.js');
     const { openChatPanel } = await import('/js/chat-panel.js');
     const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-ai-paused');
+    localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = 'Functional endocrinology';
@@ -114,4 +120,23 @@ test('clearing Interpretive Lens immediately clears chat header context chip', a
   await page.evaluate(() => {
     if (document.querySelector('.chat-context-status:not([hidden])')) throw new Error('Context chip stayed visible after clearing Lens');
   });
+});
+
+test('chat header hides AI Context status chip when no AI provider is configured', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { openChatPanel } = await import('/js/chat-panel.js');
+    const chat = await import('/js/chat-personalities.js');
+    localStorage.removeItem('labcharts-ai-provider');
+    localStorage.removeItem('labcharts-ai-paused');
+    localStorage.removeItem('labcharts-lens-config');
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = 'Functional endocrinology';
+    await openChatPanel();
+    chat.updateChatHeaderModel();
+  });
+
+  await expect(page.locator('.chat-context-status')).toBeHidden();
 });

@@ -16,6 +16,7 @@
 // lives in tests/playwright/dashboard-knowledge-base.spec.js.
 
 import './_node-shim.js';
+import fs from 'fs';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -203,7 +204,20 @@ try {
       typeof window.triggerDNAFilePicker === 'function');
   }
 
-  // ─── 7. renderKnowledgeBaseSection still empty when not configured ───
+  // ─── 8. Current-head Greptile regressions ───
+  {
+    const chatSrc = fs.readFileSync('js/chat-personalities.js', 'utf8');
+    assert('chat header hides AI Context chip when no provider is configured',
+      /function updateChatContextStatus\(\)[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?status\.hidden = true;[\s\S]*?return;[\s\S]*?const contextState/.test(chatSrc));
+    assert('chat header clears model before refreshing hidden context state in no-provider path',
+      /if \(!hasAIProvider\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
+
+    const appEventsSrc = fs.readFileSync('js/app-event-listeners.js', 'utf8');
+    assert('global modal focus trap includes Context hub overlay id',
+      appEventsSrc.includes('"context-hub-overlay"') && appEventsSrc.includes('"ai-personalize-picker-overlay"'));
+  }
+
+  // ─── 9. renderKnowledgeBaseSection still empty when not configured ───
   {
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');

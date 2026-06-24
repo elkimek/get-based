@@ -1820,6 +1820,11 @@ assert('Manual diastolic scatter color is distinct from primary diastolic line',
   /const\s+diaColor\s*=\s*['"]#a78bfa['"]/.test(bpChartSrc) &&
   /const\s+manualDiaColor\s*=\s*['"]#f43f5e['"]/.test(bpChartSrc) &&
   !/const\s+manualDiaColor\s*=\s*diaColor\b/.test(bpChartSrc));
+assert('Deferred BP chart render is guarded against stale modal canvas reuse',
+  bpChartSrc.includes('canvas.dataset.bpRenderToken = retryToken') &&
+  bpChartSrc.includes('currentCanvas === canvas') &&
+  bpChartSrc.includes('canvas.isConnected') &&
+  bpChartSrc.includes('canvas.dataset.bpRenderToken === retryToken'));
 
 // disconnectWearable now clears last-sync meta so reconnect doesn't pick
 // up a stale endDate.

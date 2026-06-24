@@ -172,6 +172,7 @@ export async function openWearableDetail(metricId, opts = {}) {
     pairedSeries,
     pairedMetricId,
     chartSampleCount,
+    manualChartSampleCount: manualChartEntries.length,
   });
   openModalOverlay(overlay);
 
@@ -427,9 +428,10 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
       ${sub ? `<div class="wearable-detail-stat-sub">${escapeHTML(sub)}</div>` : ''}
     </div>`).join('');
 
+  const hasManualChartSamples = Number(opts.manualChartSampleCount || 0) > 0;
   const emptyHint = opts.allZeroActivity
     ? `<div class="wearable-detail-empty">Every day shows 0 — Oura suppresses the Activity composite score while Rest Mode is on. Check the <b>Steps</b> card for raw movement data, or disable Rest Mode in the Oura app.</div>`
-    : series.length === 0 && pairedSeries.length === 0
+    : series.length === 0 && pairedSeries.length === 0 && !hasManualChartSamples
       ? manualEntries.length > 0
         ? `<div class="wearable-detail-empty">No chart samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Manual readings are listed below${m.primarySource === 'manual' && rangeDef.days != null ? '; switch to All to chart older manual readings' : ''}.</div>`
         : `<div class="wearable-detail-empty">No daily samples for this metric in ${escapeHTML(rangeDef.emptyWindow)}. Either your wearable doesn't share this metric, the feature is off on your device, or you didn't wear it. Try Sync now, or reconnect to refresh permissions.</div>`
@@ -438,7 +440,14 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const connectedSources = state.importedData?.wearableSummary?.sources || {};
   const showSwapButton = Object.keys(connectedSources).length > 1 && !!adapter;
   const swapButton = showSwapButton
-    ? `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
+    ? pairedMetric
+      ? (() => {
+          const pairedAdapter = adapterById(pairedMetric.primarySource);
+          const pairedSourceName = pairedAdapter?.displayName || pairedMetric.primarySource || 'Diastolic source';
+          return `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: 'bp_systolic' })} title="Switch systolic source">sys via ${escapeHTML(sourceName)} · swap</button>
+            <button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: 'bp_diastolic' })} title="Switch diastolic source">dia via ${escapeHTML(pairedSourceName)} · swap</button>`;
+        })()
+      : `<button type="button" class="wearable-source-badge wearable-source-badge-btn wearable-modal-source-swap" ${wearableActionAttrs('choose-source', { metric: metricId })} title="Switch source for this metric">via ${escapeHTML(adapter.displayName)} · swap</button>`
     : '';
 
   const emfSleepHint = _buildEMFSleepHint(metricId, m);
