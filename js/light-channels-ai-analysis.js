@@ -19,7 +19,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getMix() {
   return state.importedData?.channelMixAI || null;
@@ -201,6 +201,7 @@ const engine = createAIVerdict({
 
 export const analyzeChannelMixAI = (opts) => engine.analyze(SINGLETON, opts);
 export const refreshChannelMixAI = () => engine.refresh('default');
+registerAIActionHandler('refresh-channel-mix', refreshChannelMixAI);
 
 // ─── Render ────────────────────────────────────────────────────────────
 

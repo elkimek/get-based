@@ -13,7 +13,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getDefaults() { return state.importedData?.sunDefaults || null; }
 
@@ -176,6 +176,7 @@ const engine = createAIVerdict({
 
 export const analyzeOnboardingAI = (opts) => engine.analyze(SINGLETON_TARGET, opts);
 export const refreshOnboardingAIAnalysis = () => engine.refresh('default');
+registerAIActionHandler('refresh-onboarding', refreshOnboardingAIAnalysis);
 export function maybeAnalyzeOnboardingAfterSave() {
   engine.maybeAfterFinish(SINGLETON_TARGET);
 }

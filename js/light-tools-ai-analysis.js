@@ -13,7 +13,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _formatNumber(n, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -212,6 +212,7 @@ const engine = createAIVerdict({
 
 export const analyzeMeasurementAI = engine.analyze;
 export const refreshMeasurementAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-measurement', refreshMeasurementAIAnalysis);
 export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────

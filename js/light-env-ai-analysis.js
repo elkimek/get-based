@@ -13,7 +13,7 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
 function _getMeasurementsForRoom(roomId) {
@@ -190,6 +190,7 @@ const engine = createAIVerdict({
 
 export const analyzeRoomAI = engine.analyze;
 export const refreshRoomAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-room', refreshRoomAIAnalysis);
 
 // ─── Render ────────────────────────────────────────────────────────────
 

@@ -14,7 +14,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs } from './ai-action-delegates.js';
+import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
 function _getScreens() { return state.importedData?.lightEnvironment?.screens || []; }
 function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
@@ -118,6 +118,7 @@ const engine = createAIVerdict({
 
 export const analyzeScreenAI = engine.analyze;
 export const refreshScreenAIAnalysis = engine.refresh;
+registerAIActionHandler('refresh-screen', refreshScreenAIAnalysis);
 
 // ─── Render ────────────────────────────────────────────────────────────
 
