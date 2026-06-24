@@ -606,6 +606,7 @@ const {
   const lightEnvShellHooksSrc = await fs.readFile(new URL('../js/light-env-shell-hooks.js', import.meta.url), 'utf8');
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
+  const measurementAiSrc = await fs.readFile(new URL('../js/light-tools-ai-analysis.js', import.meta.url), 'utf8');
   const roomAiSrc = await fs.readFile(new URL('../js/light-env-ai-analysis.js', import.meta.url), 'utf8');
   const screenAiSrc = await fs.readFile(new URL('../js/light-screen-ai-analysis.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
@@ -679,6 +680,13 @@ const {
     aiSaveHooksSrc.includes("import { renderRoomAIBlock } from './light-env-ai-analysis.js';") &&
     aiSaveHooksSrc.includes("import { renderScreenAIBlock } from './light-screen-ai-analysis.js';") &&
     aiSaveHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, renderMeasurementAIInline, renderRoomAIBlock, renderScreenAIBlock })') &&
+    !measurementAiSrc.includes('Object.assign(window, {') &&
+    !measurementAiSrc.includes('window.refreshMeasurementAIAnalysis') &&
+    !measurementAiSrc.includes('window.analyzeMeasurementAI') &&
+    !measurementAiSrc.includes('window.renderMeasurementAIInline') &&
+    !measurementAiSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
+    !globalsSrc.includes('renderMeasurementAIInline') &&
+    !globalsSrc.includes('maybeAnalyzeMeasurementAfterSave') &&
     !roomAiSrc.includes('Object.assign(window, {') &&
     !roomAiSrc.includes('window.refreshRoomAIAnalysis') &&
     !roomAiSrc.includes('window.analyzeRoomAI') &&

@@ -250,10 +250,3 @@ export function renderMeasurementAIInline(m) {
     <button class="sun-session-ai-cta" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Run an AI verdict on this measurement — flags significant issues and suggests fixes">Get AI verdict</button>
   </div>`;
 }
-
-Object.assign(window, {
-  refreshMeasurementAIAnalysis,
-  analyzeMeasurementAI,
-  renderMeasurementAIInline,
-  maybeAnalyzeMeasurementAfterSave,
-});
