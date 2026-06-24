@@ -234,6 +234,29 @@ return (async function() {
   await store.clearSource(TEST_PROFILE, 'withings');
   window._labState.importedData.wearableSummary = {
     sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: '2026-06-24', baseline: 130, baselineP25: 128, baselineP75: 132, rolling: { d7: 130, d30: 130, d90: 130 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 78, latestDate: '2026-06-22', baseline: 78, baselineP25: 76, baselineP75: 80, rolling: { d7: 78, d30: 78, d90: 78 }, trend30d: 'flat', weekly: [] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
+    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  const splitDateText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP latest row does not synthesize a split-date summary pair when no same-date candidate exists',
+    /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
+  window.closeModal();
+
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
     },

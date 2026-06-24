@@ -365,14 +365,16 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
     }
     return candidates.sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   })();
+  const latestSummaryDatesMatch = !!(m.latestDate && pairedMetric?.latestDate && m.latestDate === pairedMetric.latestDate);
+  const latestSummaryDatesSplit = !!(m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate);
   const latestBpValue = latestPairedReading
     ? formatPaired(latestPairedReading.sys, latestPairedReading.dia)
-    : formatPaired(m.latest, pairedMetric?.latest);
+    : (latestSummaryDatesSplit ? '—' : formatPaired(m.latest, pairedMetric?.latest));
   const latestBpDate = latestPairedReading
     ? shortDate(latestPairedReading.date)
-    : (m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate
-        ? `sys ${shortDate(m.latestDate)} · dia ${shortDate(pairedMetric.latestDate)}`
-        : (m.latestDate || pairedMetric?.latestDate ? shortDate(m.latestDate || pairedMetric?.latestDate) : ''));
+    : (latestSummaryDatesSplit
+        ? `No same-date pair · sys ${shortDate(m.latestDate)} · dia ${shortDate(pairedMetric.latestDate)}`
+        : (latestSummaryDatesMatch ? shortDate(m.latestDate) : (m.latestDate || pairedMetric?.latestDate ? shortDate(m.latestDate || pairedMetric?.latestDate) : '')));
   const baseStats = pairedMetric ? [
     ['Latest',   latestBpValue, latestBpDate],
     ['Baseline (90d)', formatPaired(m.baseline, pairedMetric.baseline), 'median'],
