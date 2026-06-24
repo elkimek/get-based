@@ -33,6 +33,7 @@ const {
   computeIndoorBurden, computeDeficitAxes,
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
   renderEnvironmentAssessmentSummary, renderEnvironmentSection,
+  configureLightEnv,
 } = env;
 const {
   computeRoomSeverityForRoom,
@@ -337,6 +338,14 @@ const {
     emptyLoadHtml.includes('Light load') &&
     !emptyLoadHtml.includes('Moderate load') &&
     !emptyLoadHtml.includes('stale moderate verdict'));
+  const restoredBurdenRenderer = configureLightEnv({
+    renderBurdenInterp: b => `<p class="light-env-summary-interp injected-burden">${b.interp}</p>`,
+  });
+  const injectedLoadHtml = renderEnvironmentSection({ embedded: true });
+  assert('Burden summary uses injected renderer instead of window lookup',
+    injectedLoadHtml.includes('injected-burden') &&
+    injectedLoadHtml.toLowerCase().includes('add a room'));
+  configureLightEnv(restoredBurdenRenderer);
 
   // Heavy indoor + heavy evening → tier 2
   await addRoom('Office');
@@ -539,6 +548,7 @@ const {
     !envSrc.includes('function _hasAnyRoomSignal'));
   const fs = await import('node:fs/promises');
   const auditSrc = await fs.readFile(new URL('../js/light-env-audits.js', import.meta.url), 'utf8');
+  const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const aiSaveHooksSrc = await fs.readFile(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
@@ -565,6 +575,13 @@ const {
     aiSaveHooksSrc.includes("import { maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot } from './light-audit-ai-analysis.js';") &&
     aiSaveHooksSrc.includes('configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot })') &&
     appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
+  assert('Burden AI renderer routes through light-env configuration instead of window lookup',
+    envSrc.includes('export function configureLightEnv') &&
+    envSrc.includes('renderBurdenInterp: null') &&
+    envSrc.includes('lightEnvDeps.renderBurdenInterp') &&
+    !envSrc.includes('globalThis.renderBurdenInterp') &&
+    burdenSrc.includes("import { computeDeficitAxes, computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
+    burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
