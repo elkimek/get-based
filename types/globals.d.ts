@@ -289,9 +289,6 @@ interface Window {
   hydrateSession?: AnyFunction;
   logCompletedSession?: AnyFunction;
   getMeasurementsForRoom?: AnyFunction;
-  maybeAnalyzeAuditAfterSave?: AnyFunction;
-  renderAuditAIBlock?: AnyFunction;
-  renderAuditAIDot?: AnyFunction;
   renderBurdenInterp?: AnyFunction;
   saveMeasurement?: AnyFunction;
   openChatPanel: AnyFunction;

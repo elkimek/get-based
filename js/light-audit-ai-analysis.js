@@ -283,11 +283,3 @@ export function renderAuditAIDot(a) {
   const dot = a.aiAnalysis.dot;
   return `<span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)} light-audit-ai-dot" title="AI verdict: ${escapeAttr(a.aiAnalysis.tip || '')}" aria-hidden="true"></span>`;
 }
-
-Object.assign(window, {
-  refreshAuditAIAnalysis,
-  analyzeAuditAI,
-  maybeAnalyzeAuditAfterSave,
-  renderAuditAIBlock,
-  renderAuditAIDot,
-});
