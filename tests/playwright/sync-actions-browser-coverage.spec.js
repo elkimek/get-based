@@ -150,6 +150,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       localStorage.setItem('labcharts-messenger-token', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
       localStorage.setItem('labcharts-agent-context-key', 'gbctx_v1_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8');
       const testOwner = { id: 'MDEyMzQ1Njc4OWFiY2RlZg', writeKey: new Uint8Array(32).fill(7) };
+      messenger.migrateLocalAgentAccessToProfile();
       messenger.configureSyncMessenger({ getAppOwner: () => testOwner });
       messenger.pushContextToGateway();
       await runPendingTimers();

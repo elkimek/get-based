@@ -178,6 +178,7 @@
     "js/schema.js",
     "js/settings.js",
     "js/settings-sync-panel.js",
+    "js/settings-agent-access-panel.js",
     "js/shell-actions.js",
     "js/silhouette-paths.js",
     "js/startup-foundation.js",

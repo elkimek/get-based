@@ -44,9 +44,23 @@ async function openIsolatedSyncSetupPage(page) {
         stub.calls.push({ fn: 'setSyncRelay', relay });
         stub.relay = relay;
       }
-      export async function checkRelayConnection() {
+      export function checkRelayConnection() {
         stub.calls.push({ fn: 'checkRelayConnection' });
         return true;
+      }
+      export function onDataSaved(options = {}) {
+        stub.calls.push({ fn: 'onDataSaved', immediate: options.immediate === true, skipSync: options.skipSync === true });
+      }
+      export function setAgentAccessWearableSeriesDays(days) {
+        stub.calls.push({ fn: 'setAgentAccessWearableSeriesDays', days });
+        stub.wearableSeriesDays = days;
+      }
+      export function getAgentAccessState() {
+        return { enabled: false, token: null, contextKey: null, wearableSeriesDays: stub.wearableSeriesDays || 0 };
+      }
+      export function migrateLocalAgentAccessToProfile() {
+        stub.calls.push({ fn: 'migrateLocalAgentAccessToProfile' });
+        return null;
       }
       export function isMessengerEnabled() { return false; }
       export function getMessengerToken() { return null; }

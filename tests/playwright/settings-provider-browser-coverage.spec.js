@@ -253,10 +253,11 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
-  const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl, syncRuntimeUrl }) => {
+  const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl, syncRuntimeUrl, syncMessengerUrl }) => {
     const syncPanel = await import(syncPanelUrl);
     const syncState = await import(syncStateUrl);
     const syncRuntime = await import(syncRuntimeUrl);
+    const syncMessenger = await import(syncMessengerUrl);
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -426,7 +427,12 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const contextKeyCopied = writes.includes(contextKey);
       messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').value = '30';
       messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').dispatchEvent(new Event('change', { bubbles: true }));
-      const seriesDelegated = seriesDays === 30 && pushedContexts >= 1;
+      await waitFor(() => pushedContexts >= 1, 'series save then context push');
+      const seriesProfileId = localStorage.getItem('labcharts-active-profile') || 'default';
+      const seriesDelegated = syncMessenger.getAgentAccessState().wearableSeriesDays === 30
+        && localStorage.getItem(`labcharts-${seriesProfileId}-agent-wearable-series`) === '30'
+        && seriesDays === 0
+        && pushedContexts >= 1;
       messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]').click();
       await wait(0);
       const regenerated = localStorage.getItem('labcharts-messenger-token') !== token
@@ -510,6 +516,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     syncPanelUrl: '/js/settings-sync-panel.js',
     syncStateUrl: '/js/sync-settings-state.js',
     syncRuntimeUrl: '/js/sync-runtime.js',
+    syncMessengerUrl: '/js/sync-messenger.js',
   });
 
   for (const [name, passed] of Object.entries(results)) {

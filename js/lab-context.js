@@ -1021,14 +1021,33 @@ export function buildWearableContext(importedData) {
 
 const AGENT_SERIES_DEFAULT_DAYS = 30;
 const AGENT_SERIES_VALID = new Set(['off', '7', '30', '90']);
+function _agentAccessState() {
+  const imported = /** @type {any} */ (state.importedData || {});
+  const aa = imported.agentAccess;
+  return aa && typeof aa === 'object' ? aa : null;
+}
+function _syncedAgentSeriesDays() {
+  const imported = /** @type {any} */ (state.importedData || {});
+  const split = imported.agentAccessWearableSeriesDays;
+  if (typeof split === 'number') return [7, 30, 90].includes(split) ? split : 0;
+  const aa = _agentAccessState();
+  if (typeof aa?.wearableSeriesDays === 'number') return [7, 30, 90].includes(aa.wearableSeriesDays) ? aa.wearableSeriesDays : 0;
+  return null;
+}
 function _agentSeriesKey() {
   const pid = localStorage.getItem('labcharts-active-profile') || 'default';
   return `labcharts-${pid}-agent-wearable-series`;
 }
 // Tri-state preference: 'off' | '7' | '30' | '90'. Legacy 'on' migrates to
-// '30' (the v1.27.0 default). Anything else defaults to 'off'.
+// '30' (the v1.27.0 default). The split synced preference
+// agentAccessWearableSeriesDays wins when present; legacy
+// agentAccess.wearableSeriesDays remains a read-only migration fallback.
 export function getAgentWearableSeriesDays() {
+  const synced = _syncedAgentSeriesDays();
+  if (typeof synced === 'number') return synced;
   const v = localStorage.getItem(_agentSeriesKey());
+  // Legacy pre-tristate value: migrate/read as the old 30-day default only
+  // when no synced preference exists.
   if (v === 'on') return AGENT_SERIES_DEFAULT_DAYS;
   if (v === 'off' || v === null) return 0;
   if (AGENT_SERIES_VALID.has(v)) return v === 'off' ? 0 : Number(v);

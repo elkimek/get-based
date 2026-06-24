@@ -403,9 +403,11 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
   assert('service worker precaches settings-sync-panel.js',
     serviceWorkerSrc.includes("'/js/settings-sync-panel.js'"));
-  assert('pushContextToGateway treats gateway HTTP errors as failures',
+  assert('pushContextToGateway treats gateway HTTP errors as failures with relay error detail',
     /const\s+res\s*=\s*await\s+fetch\(`\$\{relay\}\/api\/context`/.test(syncMessengerSrc)
-      && /if\s*\(\s*!res\.ok\s*\)\s*throw\s+new\s+Error\(`Gateway returned \$\{res\.status\}`\)/.test(syncMessengerSrc)
+      && syncMessengerSrc.includes('await res.text()')
+      && syncMessengerSrc.includes('body.slice(0, 240)')
+      && syncMessengerSrc.includes('Gateway returned ${res.status}${detail}')
       && syncMessengerSrc.indexOf('if (!res.ok)') < syncMessengerSrc.indexOf('Encrypted context pushed to gateway'));
   assert('sync-environment.js owns relay and capability helpers',
     syncSrc.includes("from './sync-environment.js'")

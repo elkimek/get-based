@@ -65,6 +65,13 @@ export const DELTA_SCALARS = [
   'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics',
   // Dotted scalar; rooms/screens stay array-shaped above.
   'lightEnvironment.burdenAI',
+  // Agent Access capability state is profile data, not per-browser chrome.
+  // Token + context key are carried only inside Evolu's encrypted profile
+  // payload/delta rows; the relay still receives encryptedContext only.
+  'agentAccess',
+  // Preference-only Agent Access context size knob. Keep separate from the
+  // credential scalar so changing 7/30/90 days cannot republish stale tokens.
+  'agentAccessWearableSeriesDays',
   'sunCorrelations', 'lifelightProfile', 'sunDefaults',
   'channelMixAI', 'biologyScoreContextAI',
   'wearableSummary', 'wearableCardOrder',

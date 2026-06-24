@@ -351,6 +351,7 @@
     "js/settings-data.js",
     "js/settings-provider-bridge.js",
     "js/settings-sync-panel.js",
+    "js/settings-agent-access-panel.js",
     "js/silhouette-paths.js",
     "js/state.js",
     "js/supplement-action-delegates.js",
