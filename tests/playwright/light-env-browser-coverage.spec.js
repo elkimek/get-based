@@ -50,6 +50,7 @@ test('light environment browser coverage handles summary modal prompt and source
     const outcomes = {};
     const calls = [];
     const env = () => state.importedData.lightEnvironment;
+    const actions = lightEnv.lightEnvActionHandlers;
 
     try {
       state.currentProfile = 'light-env-browser-coverage';
@@ -80,7 +81,9 @@ test('light environment browser coverage handles summary modal prompt and source
       outcomes.windowExportsAndEmptyRenderStates =
         window.computeIndoorBurden === lightEnv.computeIndoorBurden
         && window.computeDeficitAxes === lightEnv.computeDeficitAxes
-        && window.computeLightDeficitAxes === lightEnv.computeDeficitAxes
+        && window.computeLightDeficitAxes === undefined
+        && window.addLightEnvRoom === undefined
+        && typeof actions.addLightEnvRoom === 'function'
         && window.renderEnvironmentSection === lightEnv.renderEnvironmentSection
         && window.openLightEnvironmentAssessment === lightEnv.openLightEnvironmentAssessment
         && emptyFull.includes('Light environment')
@@ -102,7 +105,7 @@ test('light environment browser coverage handles summary modal prompt and source
       outcomes.nextDefaultRoomNameStartsWithBedroom =
         lightEnv.nextDefaultRoomName() === 'Bedroom';
 
-      const customPromise = window.addLightEnvRoomCustom();
+      const customPromise = actions.addLightEnvRoomCustom();
       await waitUntil(() => !!document.getElementById('prompt-dialog-input'), 'custom room prompt');
       document.getElementById('prompt-dialog-input').value = 'Studio';
       document.getElementById('prompt-dialog-input').dispatchEvent(new Event('input', { bubbles: true }));
@@ -114,7 +117,7 @@ test('light environment browser coverage handles summary modal prompt and source
         && localStorage.getItem('labcharts-light-env-active-room') === customRoomId
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
 
-      await window.addLightEnvRoom();
+      await actions.addLightEnvRoom();
       await waitUntil(() => env().rooms.length === 2, 'default room added');
       const bedroom = env().rooms[1];
       outcomes.defaultRoomUsesNextAvailableName =
@@ -122,11 +125,11 @@ test('light environment browser coverage handles summary modal prompt and source
         && lightEnv.nextDefaultRoomName() === 'Living room'
         && localStorage.getItem('labcharts-light-env-active-room') === bedroom.id;
 
-      await window.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)');
       await waitUntil(() => bedroom.primarySource === 'led-cool', 'spectrum source applied');
-      await window.suggestRoomSourceFromSpectrum(bedroom.id, 'Fluorescent / CFL');
-      await window.suggestRoomSourceFromSpectrum('missing-room', 'Warm LED (2700-3000K)');
-      await window.suggestRoomSourceFromSpectrum(bedroom.id, 'Unknown spectrum label');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Fluorescent / CFL');
+      await lightEnv.suggestRoomSourceFromSpectrum('missing-room', 'Warm LED (2700-3000K)');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Unknown spectrum label');
       outcomes.spectrumSuggestionMapsOnceAndDoesNotOverwrite =
         bedroom.primarySource === 'led-cool'
         && Array.from(document.querySelectorAll('.notification-toast'))
@@ -148,7 +151,7 @@ test('light environment browser coverage handles summary modal prompt and source
       outcomes.defaultActiveRoomUsesMostRecentlyUpdatedRoom =
         defaultHost.querySelector(`.light-env-room-disclosure[data-id="${bedroom.id}"]`)?.classList.contains('expanded') === true;
 
-      await window.updateLightEnvRoomAndRender(bedroom.id, { name: 'Bedroom Prime' });
+      await actions.updateLightEnvRoomAndRender(bedroom.id, { name: 'Bedroom Prime' });
       outcomes.updateRoomAndRenderRefreshesLightUI =
         env().rooms.find(r => r.id === bedroom.id)?.name === 'Bedroom Prime'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
@@ -197,7 +200,7 @@ test('light environment browser coverage handles summary modal prompt and source
 test('light environment browser coverage handles screens tools and confirm deletes', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.addLightEnvScreen === 'function');
+  await page.waitForFunction(() => typeof window.renderEnvironmentSection === 'function');
 
   const outcomes = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
@@ -237,6 +240,7 @@ test('light environment browser coverage handles screens tools and confirm delet
     const calls = [];
     const env = () => state.importedData.lightEnvironment;
     const latestScreen = () => env().screens[env().screens.length - 1];
+    const actions = lightEnv.lightEnvActionHandlers;
 
     try {
       state.currentProfile = 'light-env-screen-coverage';
@@ -268,16 +272,16 @@ test('light environment browser coverage handles screens tools and confirm delet
       const livingId = await lightEnv.addRoom('Living room');
       const bedroomId = await lightEnv.addRoom('Bedroom');
 
-      await window.addLightEnvScreen(officeId);
+      await actions.addLightEnvScreen(officeId);
       await waitUntil(() => env().screens.length === 1, 'office screen added');
       const officeScreen = latestScreen();
-      await window.addLightEnvScreen(livingId);
+      await actions.addLightEnvScreen(livingId);
       await waitUntil(() => env().screens.length === 2, 'living screen added');
       const livingScreen = latestScreen();
-      await window.addLightEnvScreen(bedroomId);
+      await actions.addLightEnvScreen(bedroomId);
       await waitUntil(() => env().screens.length === 3, 'bedroom screen added');
       const bedroomScreen = latestScreen();
-      await window.addLightEnvScreenWithDevice(null, 'projector');
+      await actions.addLightEnvScreenWithDevice(null, 'projector');
       await waitUntil(() => env().screens.length === 4, 'invalid-device screen added');
       const fallbackScreen = latestScreen();
       outcomes.screenDefaultsInferRoomAndInvalidDeviceFallbacks =
@@ -287,11 +291,11 @@ test('light environment browser coverage handles screens tools and confirm delet
         && fallbackScreen.device === 'phone'
         && fallbackScreen.roomId === null;
 
-      await window.updateLightEnvScreen(fallbackScreen.id, { hoursPerDay: 2 });
-      await window.updateLightEnvScreenAndRender(fallbackScreen.id, { eveningUseAfterSunset: 0.5 });
-      await window.setLightEnvScreenHoursBucket(fallbackScreen.id, 'most');
-      await window.setLightEnvScreenEveningBucket(fallbackScreen.id, 'gt3');
-      await window.setLightEnvTodayActive('screen', fallbackScreen.id, false);
+      await actions.updateLightEnvScreen(fallbackScreen.id, { hoursPerDay: 2 });
+      await actions.updateLightEnvScreenAndRender(fallbackScreen.id, { eveningUseAfterSunset: 0.5 });
+      await actions.setLightEnvScreenHoursBucket(fallbackScreen.id, 'most');
+      await actions.setLightEnvScreenEveningBucket(fallbackScreen.id, 'gt3');
+      await actions.setLightEnvTodayActive('screen', fallbackScreen.id, false);
       localStorage.setItem('labcharts-light-env-active-room', bedroomId);
       state.importedData.lightMeasurements = [
         { id: 'lux-reading', roomId: bedroomId, tool: 'lux', value: 1234, capturedAt: Date.now() },
@@ -307,7 +311,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       host.innerHTML = window.renderEnvironmentSection({ embedded: true });
       document.body.appendChild(host);
       const fallbackCard = host.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`);
-      outcomes.screenMutationGlobalsUpdateAndRender =
+      outcomes.screenMutationHandlersUpdateAndRender =
         fallbackScreen.hoursPerDay === 8
         && fallbackScreen.eveningUseAfterSunset === 4
         && fallbackScreen.todayOverride?.active === false
@@ -324,7 +328,7 @@ test('light environment browser coverage handles screens tools and confirm delet
         && bedroomCardText.includes('42% transmits')
         && bedroomCardText.includes('2 room snapshots');
       const wasScreenExpanded = fallbackCard?.classList.contains('expanded') === true;
-      window.toggleLightEnvScreenExpanded(fallbackScreen.id);
+      actions.toggleLightEnvScreenExpanded(fallbackScreen.id);
       const expandedHost = document.createElement('div');
       expandedHost.innerHTML = window.renderEnvironmentSection({ embedded: true });
       outcomes.screenExpandToggleChangesPortableCardState =
@@ -336,12 +340,12 @@ test('light environment browser coverage handles screens tools and confirm delet
         ['spectrum', 'lux', 'flicker', 'cct', 'darkness']
           .every(tool => calls.some(call => call[0] === tool && call[1] === bedroomId));
 
-      const cancelScreenDelete = window.deleteLightEnvScreenConfirm(fallbackScreen.id);
+      const cancelScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen.id);
       await waitUntil(() => !!document.getElementById('confirm-cancel'), 'screen delete cancel dialog');
       document.getElementById('confirm-cancel').click();
       await cancelScreenDelete;
       const screenStillExists = env().screens.some(s => s.id === fallbackScreen.id);
-      const confirmScreenDelete = window.deleteLightEnvScreenConfirm(fallbackScreen.id);
+      const confirmScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen.id);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'screen delete confirm dialog');
       document.getElementById('confirm-ok').click();
       await confirmScreenDelete;
@@ -349,13 +353,13 @@ test('light environment browser coverage handles screens tools and confirm delet
         screenStillExists
         && !env().screens.some(s => s.id === fallbackScreen.id);
 
-      const cancelRoomDelete = window.deleteLightEnvRoomConfirm(officeId);
+      const cancelRoomDelete = actions.deleteLightEnvRoomConfirm(officeId);
       await waitUntil(() => !!document.getElementById('confirm-cancel'), 'room delete cancel dialog');
       document.getElementById('confirm-cancel').click();
       await cancelRoomDelete;
       const roomStillExists = env().rooms.some(r => r.id === officeId);
       const linkedScreenBeforeRoomDelete = env().screens.find(s => s.id === officeScreen.id);
-      const confirmRoomDelete = window.deleteLightEnvRoomConfirm(officeId);
+      const confirmRoomDelete = actions.deleteLightEnvRoomConfirm(officeId);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'room delete confirm dialog');
       document.getElementById('confirm-ok').click();
       await confirmRoomDelete;
@@ -365,7 +369,7 @@ test('light environment browser coverage handles screens tools and confirm delet
         && !env().rooms.some(r => r.id === officeId)
         && env().screens.some(s => s.id === officeScreen.id && s.roomId === null);
 
-      window.setActiveLightEnvRoom(livingId);
+      actions.setActiveLightEnvRoom(livingId);
       outcomes.setActiveRoomAndBurdenGlobalsRemainUsable =
         localStorage.getItem('labcharts-light-env-active-room') === livingId
         && window.isLightEnvActiveToday(env().rooms.find(r => r.id === livingId)) === true
@@ -376,20 +380,20 @@ test('light environment browser coverage handles screens tools and confirm delet
         && window.getRooms().some(r => r.id === livingId);
 
       const directRoomId = await lightEnv.addRoom('Garage');
-      await window.addLightEnvScreenWithDevice(null, 'tablet');
+      await actions.addLightEnvScreenWithDevice(null, 'tablet');
       await waitUntil(() => env().screens.some(s => s.device === 'tablet'), 'tablet screen added');
       const directScreenId = latestScreen().id;
       const directScreenBeforeDelete = document.createElement('div');
       directScreenBeforeDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
-      await window.deleteLightEnvScreen(directScreenId);
+      await actions.deleteLightEnvScreen(directScreenId);
       const directScreenAfterDelete = document.createElement('div');
       directScreenAfterDelete.innerHTML = window.renderEnvironmentSection({ embedded: true });
-      await window.addLightEnvScreenWithDevice(null, 'monitor');
+      await actions.addLightEnvScreenWithDevice(null, 'monitor');
       await waitUntil(() => env().screens.some(s => s.device === 'monitor'), 'monitor screen added');
       const replacementScreenId = latestScreen().id;
       const directScreenAfterReplacement = document.createElement('div');
       directScreenAfterReplacement.innerHTML = window.renderEnvironmentSection({ embedded: true });
-      await window.deleteLightEnvRoom(directRoomId);
+      await actions.deleteLightEnvRoom(directRoomId);
       outcomes.directDeleteHelpersRemoveRecords =
         directScreenBeforeDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`)?.classList.contains('expanded') === true
         && directScreenAfterDelete.querySelector(`.light-env-screen-card[data-id="${directScreenId}"]`) === null

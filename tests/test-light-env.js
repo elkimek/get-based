@@ -33,7 +33,7 @@ const {
   computeIndoorBurden, computeDeficitAxes,
   getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit,
   renderEnvironmentAssessmentSummary, renderEnvironmentSection,
-  configureLightEnv,
+  configureLightEnv, lightEnvActionHandlers,
 } = env;
 const {
   computeRoomSeverityForRoom,
@@ -465,6 +465,12 @@ const {
   assert('Assessment modal functions are exported on window',
     typeof window.openLightEnvironmentAssessment === 'function' &&
     typeof window.closeLightEnvironmentAssessment === 'function');
+  assert('Internal Light environment action handlers are module-scoped instead of public window API',
+    typeof lightEnvActionHandlers.addLightEnvRoom === 'function' &&
+    typeof lightEnvActionHandlers.deleteLightEnvScreenConfirm === 'function' &&
+    window.addLightEnvRoom === undefined &&
+    window.deleteLightEnvScreenConfirm === undefined &&
+    window.computeLightDeficitAxes === undefined);
 
   const beforeModalSyncData = window._labState.importedData;
   const originalCreateElement = document.createElement;
@@ -657,12 +663,12 @@ const {
   assert('Single room auto-expands on first render',
     singleRoomInitial.includes('aria-expanded="true"') &&
     singleRoomInitial.includes('light-env-room-disclosure-body'));
-  window.toggleLightEnvRoomExpanded('room_single');
+  lightEnvActionHandlers.toggleLightEnvRoomExpanded('room_single');
   const singleRoomCollapsed = renderEnvironmentSection({ embedded: true });
   assert('Single room can be explicitly collapsed',
     singleRoomCollapsed.includes('aria-expanded="false"') &&
     !singleRoomCollapsed.includes('light-env-room-disclosure-body'));
-  window.toggleLightEnvRoomExpanded('room_single');
+  lightEnvActionHandlers.toggleLightEnvRoomExpanded('room_single');
   const singleRoomExpandedAgain = renderEnvironmentSection({ embedded: true });
   assert('Single room expands again after explicit collapse',
     singleRoomExpandedAgain.includes('aria-expanded="true"') &&
@@ -686,7 +692,7 @@ const {
     lightEnvironment: { rooms: [], screens: [{ id: 'screen_single', device: 'phone', roomId: null }] },
     lightMeasurements: [],
   };
-  window.toggleLightEnvScreenExpanded('screen_single', {
+  lightEnvActionHandlers.toggleLightEnvScreenExpanded('screen_single', {
     preventDefault() { screenPrevented = true; },
     stopPropagation() { screenStopped = true; },
   });
