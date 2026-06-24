@@ -211,7 +211,7 @@ return (async function() {
       manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
     },
     metrics: {
-      bp_systolic: { primarySource: 'withings', latest: 121, latestDate: '2026-06-22', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
       bp_diastolic: { primarySource: 'withings', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
     },
   };
@@ -224,6 +224,8 @@ return (async function() {
   const manualOnlyText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP modal hides empty chart hint when manual readings are charted',
     !/No chart samples for this metric/.test(manualOnlyText), manualOnlyText);
+  assert('BP manual-only latest row prefers latest same-date manual pair over mismatched summary halves',
+    /Latest\s+121\/79 mmHg/.test(manualOnlyText) && !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
   assert('BP manual-only fallback chart renders manual sys/dia points',
     (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l)));
   window.closeModal();

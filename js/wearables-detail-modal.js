@@ -170,6 +170,7 @@ export async function openWearableDetail(metricId, opts = {}) {
     rangeKey,
     pairedMetric,
     pairedSeries,
+    manualChartEntries,
     pairedMetricId,
     chartSampleCount,
     manualChartSampleCount: manualChartEntries.length,
@@ -335,6 +336,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
+  const manualChartEntries = Array.isArray(opts.manualChartEntries) ? opts.manualChartEntries : [];
   const chartSampleCount = Number.isFinite(opts.chartSampleCount)
     ? opts.chartSampleCount
     : Math.max(series.length, pairedSeries.length);
@@ -351,6 +353,11 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
       const dia = diastolicByDate.get(point.date);
       if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', dia)) {
         return { date: point.date, sys: point.v, dia };
+      }
+    }
+    for (const point of [...manualChartEntries].sort((a, b) => b.date.localeCompare(a.date))) {
+      if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', point.pairedV)) {
+        return { date: point.date, sys: point.v, dia: point.pairedV };
       }
     }
     return null;

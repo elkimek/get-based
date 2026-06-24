@@ -294,7 +294,7 @@ export function renderProfileContextCards() {
   }
   const _refreshBtn = hasAIProvider() ? `<button class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} title="Refresh all AI insights">&#x21bb;</button>` : '';
   let html = renderInterpretiveLensSection();
-  html += `<div><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
+  html += `<div style="margin-top:16px"><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
   html += `<div class="profile-context-cards">`;
   for (const c of cardDefs) {
     const filled = isContextFilled(c.key);
