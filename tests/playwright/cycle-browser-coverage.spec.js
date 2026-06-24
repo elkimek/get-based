@@ -14,9 +14,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cycleUrl }) => {
-    const [{ state }, cycle] = await Promise.all([
+    const [{ state }, cycle, tour] = await Promise.all([
       import('/js/state.js'),
       import(cycleUrl),
+      import('/js/tour.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
@@ -28,8 +29,9 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       closeModal: window.closeModal,
       navigate: window.navigate,
       recordChange: window.recordChange,
-      startCycleTour: window.startCycleTour,
     };
+    const cycleTourKey = `labcharts-${state.currentProfile}-cycleTour`;
+    const savedCycleTourState = localStorage.getItem(cycleTourKey);
     const waitFor = async (predicate, attempts = 25, delayMs = 0) => {
       for (let i = 0; i < attempts; i += 1) {
         if (predicate()) return true;
@@ -67,7 +69,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       };
       window.navigate = category => calls.push(['navigate', category]);
       window.recordChange = field => calls.push(['record', field]);
-      window.startCycleTour = fromSave => calls.push(['tour', fromSave]);
+      localStorage.removeItem(cycleTourKey);
 
       state.profileDob = '1974-01-01';
       state.importedData = {
@@ -177,7 +179,11 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       document.getElementById('mc-period-notes').value = 'pending save';
       const saveBefore = calls.length;
       cycle.saveMenstrualCycle();
-      await waitFor(() => calls.slice(saveBefore).some(call => call[0] === 'tour' && call[1] === true), 80, 25);
+      const tourStartedAfterSave = await waitFor(
+        () => document.getElementById('tour-tooltip')?.textContent?.includes('Cycle-Aware Lab Interpretation'),
+        80,
+        25
+      );
       const saveCalls = calls.slice(saveBefore);
       const savedPeriod = state.importedData.menstrualCycle.periods.find(p => p.startDate === '2026-07-01');
       outcomes.saveSyncsFormPendingPeriodNavigatesAndTours = state.importedData.menstrualCycle.contraceptive === 'Copper IUD'
@@ -187,9 +193,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         && saveCalls.some(call => call[0] === 'record' && call[1] === 'menstrualCycle')
         && saveCalls.some(call => call[0] === 'close')
         && saveCalls.some(call => call[0] === 'navigate' && call[1] === 'cycle')
-        && saveCalls.some(call => call[0] === 'tour' && call[1] === true)
+        && tourStartedAfterSave
         && toasts().some(text => text.includes('Menstrual cycle profile saved'));
       clearToasts();
+      tour.endTour();
 
       cycle.openMenstrualCycleEditor();
       const clearCancel = cycle.clearMenstrualCycle();
@@ -218,8 +225,9 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       else delete window.navigate;
       if (saved.recordChange) window.recordChange = saved.recordChange;
       else delete window.recordChange;
-      if (saved.startCycleTour) window.startCycleTour = saved.startCycleTour;
-      else delete window.startCycleTour;
+      tour.endTour();
+      if (savedCycleTourState) localStorage.setItem(cycleTourKey, savedCycleTourState);
+      else localStorage.removeItem(cycleTourKey);
       document.querySelectorAll('.notification-container,.notification-toast,.confirm-overlay').forEach(el => el.remove());
       injectedNav?.remove();
       document.querySelectorAll('.nav-item.active').forEach(el => el.classList.remove('active'));

@@ -5,6 +5,7 @@ import { PERIOD_SYMPTOMS } from './constants.js';
 import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import { startCycleTour } from './tour.js';
 
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
@@ -23,7 +24,6 @@ const appWindow = /** @type {Window & typeof globalThis & {
   closeModal: () => void,
   navigate: (category: string) => void,
   recordChange: (field: string) => void,
-  startCycleTour?: (fromSave?: boolean) => void,
   __cycleDelegatesBound?: boolean
 }} */ (window);
 
@@ -66,7 +66,7 @@ function handleCycleClick(event) {
       saveMenstrualCycle();
       break;
     case 'start-tour':
-      if (appWindow.startCycleTour) appWindow.startCycleTour(false);
+      startCycleTour(false);
       break;
     case 'open-editor':
       openMenstrualCycleEditor();
@@ -585,7 +585,7 @@ export function saveMenstrualCycle() {
   appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   showNotification('Menstrual cycle profile saved', 'success');
   // Auto-trigger cycle tour after dashboard re-renders
-  setTimeout(() => { if (appWindow.startCycleTour) appWindow.startCycleTour(true); }, 600);
+  setTimeout(() => { startCycleTour(true); }, 600);
 }
 
 export async function clearMenstrualCycle() {

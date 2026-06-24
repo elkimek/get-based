@@ -474,7 +474,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       closeChatPanel: window.closeChatPanel,
       openSettingsModal: window.openSettingsModal,
       loadDemoData: window.loadDemoData,
-      startEmptyTour: window.startEmptyTour,
       mainHtml: document.getElementById('main-content')?.innerHTML || '',
     };
     const calls = [];
@@ -496,7 +495,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       window.closeChatPanel = () => calls.push(['close-chat']);
       window.openSettingsModal = tab => calls.push(['settings', tab]);
       window.loadDemoData = sex => calls.push(['demo', sex]);
-      window.startEmptyTour = () => calls.push(['tour']);
 
       let pdfInput = document.getElementById('pdf-input');
       hadPdfInput = !!pdfInput;
@@ -522,6 +520,7 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
         renderDashboardWidget: () => '',
         isDashboardOrganizeMode: () => false,
         loadFocusCard: () => calls.push(['focus-card']),
+        startEmptyTour: () => calls.push(['tour']),
       });
 
       view.showDashboard({ dates: [], categories: {} });
@@ -575,7 +574,6 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
         closeChatPanel: saved.closeChatPanel,
         openSettingsModal: saved.openSettingsModal,
         loadDemoData: saved.loadDemoData,
-        startEmptyTour: saved.startEmptyTour,
       });
       document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
       localStorage.clear();

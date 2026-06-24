@@ -78,7 +78,6 @@ interface Window {
   ensureActiveThread?: () => void;
   exportAllDataJSON?: () => Promise<void> | void;
   exportClientJSON?: (profileId: string, includeChat?: boolean) => Promise<void> | void;
-  endTour: () => void;
   getInitialView?: () => string;
   getActiveData?: AnyFunction;
   getActivePersonality?: AnyFunction;
@@ -262,9 +261,6 @@ interface Window {
   openNoteEditor?: AnyFunction;
   openWearableDetail?: AnyFunction;
   showDetailModal?: AnyFunction;
-  startEmptyTour?: AnyFunction;
-  startTour?: AnyFunction;
-  _tourGoToStep?: (index: number) => void;
   syncWearableNow?: AnyFunction;
   triggerDNAFilePicker?: AnyFunction;
   loadLightDevicePresets?: AnyFunction;

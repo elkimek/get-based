@@ -2,14 +2,6 @@ import { expect, test } from './coverage-fixture.js';
 
 test('guided and cycle tour DOM creates navigates layers and restores overlays', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.startEmptyTour === 'function'
-      && typeof window.startTour === 'function'
-      && typeof window.startGuidedTour === 'function'
-      && typeof window.startCycleTour === 'function'
-      && typeof window.endTour === 'function'
-      && typeof window._tourGoToStep === 'function'
-  );
   await page.waitForFunction(() => {
     const isVisible = selector => Array.from(document.querySelectorAll(selector)).some(el => {
       const rect = el.getBoundingClientRect();
@@ -32,6 +24,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
   });
 
   const results = await page.evaluate(async () => {
+    const tour = await import('/js/tour.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeoutMs = 1000) => {
       const startedAt = performance.now();
@@ -67,14 +60,16 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       localStorage.removeItem(cycleTourKey);
       ['tour-overlay', 'tour-spotlight', 'tour-tooltip'].forEach(id => document.getElementById(id)?.remove());
 
-      const exportsCallable = typeof window.startEmptyTour === 'function'
-        && typeof window.startTour === 'function'
-        && typeof window.startGuidedTour === 'function'
-        && typeof window.startCycleTour === 'function'
-        && typeof window.endTour === 'function'
-        && typeof window._tourGoToStep === 'function';
+      const exportsCallable = typeof tour.startEmptyTour === 'function'
+        && typeof tour.startTour === 'function'
+        && typeof tour.startGuidedTour === 'function'
+        && typeof tour.startCycleTour === 'function'
+        && typeof tour.endTour === 'function'
+        && typeof tour.goToTourStep === 'function'
+        && typeof window.startTour !== 'function'
+        && typeof window._tourGoToStep !== 'function';
 
-      window.startEmptyTour(false);
+      tour.startEmptyTour(false);
       await wait(50);
 
       const overlay = document.getElementById('tour-overlay');
@@ -121,8 +116,8 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       });
 
       const beforeInvalidIndexTitle = document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent;
-      window._tourGoToStep(99);
-      window._tourGoToStep(-1);
+      tour.goToTourStep(99);
+      tour.goToTourStep(-1);
       await wait(50);
       const invalidTourIndexNoops = document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent === beforeInvalidIndexTitle
         && document.getElementById('tour-tooltip')?.querySelectorAll('.tour-dot')[1]?.classList.contains('active') === true;
@@ -131,7 +126,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       let stepOneSpotlightTargetsPanel = false;
       if (startTarget) {
         startTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
-        window._tourGoToStep(1);
+        tour.goToTourStep(1);
         await wait(150);
         const targetRect = startTarget.getBoundingClientRect();
         const sl2 = document.getElementById('tour-spotlight');
@@ -150,7 +145,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         && tooltip3?.querySelectorAll('.tour-dot')[0]?.classList.contains('active') === true
         && document.getElementById('tour-spotlight')?.style.display === 'none';
 
-      window._tourGoToStep(4);
+      tour.goToTourStep(4);
       await wait(100);
       const tooltip4 = document.getElementById('tour-tooltip');
       const btns4 = tooltip4?.querySelectorAll('.tour-btn') || [];
@@ -165,55 +160,55 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         && !btns4[1]?.hasAttribute('onclick')
         && dots4[4]?.classList.contains('active') === true;
 
-      window.endTour();
+      tour.endTour();
       await wait(50);
       const endTourCleansUp = !document.getElementById('tour-overlay')
         && !document.getElementById('tour-spotlight')
         && !document.getElementById('tour-tooltip')
         && localStorage.getItem(emptyTourKey) === 'completed';
 
-      window.startEmptyTour(true);
+      tour.startEmptyTour(true);
       await wait(50);
       const autoTriggerCompletedNoops = !document.getElementById('tour-overlay')
         && !document.getElementById('tour-spotlight')
         && !document.getElementById('tour-tooltip');
 
       localStorage.setItem(emptyTourKey, 'v1:legacy-ciphertext:completed');
-      window.startEmptyTour(true);
+      tour.startEmptyTour(true);
       await wait(50);
       const legacyEncryptedFlagNoops = !document.getElementById('tour-overlay')
         && localStorage.getItem(emptyTourKey) === 'completed';
 
-      window.startEmptyTour(false);
+      tour.startEmptyTour(false);
       await wait(50);
       const manualRetriggerIgnoresCompletion = !!document.getElementById('tour-overlay')
         && !!document.getElementById('tour-tooltip');
-      window.endTour();
+      tour.endTour();
       await wait(50);
 
       localStorage.removeItem(emptyTourKey);
-      window.startGuidedTour(false);
+      tour.startGuidedTour(false);
       await wait(50);
       const guidedTourChoosesEmptyWelcomeText =
         document.getElementById('tour-tooltip')?.querySelector('p')?.textContent.includes('fresh profile') === true;
       const guidedTourChoosesEmptyStepCount =
         document.getElementById('tour-tooltip')?.querySelectorAll('.tour-dot').length === 5;
-      window.endTour();
+      tour.endTour();
       await wait(50);
 
       localStorage.removeItem(cycleTourKey);
-      window.startCycleTour(false);
+      tour.startCycleTour(false);
       await wait(50);
       const cycleTourStartsAtCycleWelcomeTitle =
         document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent === 'Cycle-Aware Lab Interpretation';
       const cycleTourStartsCentered =
         document.getElementById('tour-spotlight')?.style.display === 'none';
-      window.endTour();
+      tour.endTour();
       await wait(50);
       const cycleTourCompletesKey = localStorage.getItem(cycleTourKey) === 'completed';
 
       localStorage.removeItem(emptyTourKey);
-      window.startEmptyTour(false);
+      tour.startEmptyTour(false);
       await wait(50);
       const overlayStyles = getComputedStyle(document.getElementById('tour-overlay'));
       const spotlightStyles = getComputedStyle(document.getElementById('tour-spotlight'));
@@ -226,18 +221,18 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         && tooltipStyles.position === 'fixed'
         && spotlightStyles.pointerEvents === 'none'
         && overlayStyles.pointerEvents === 'auto';
-      window.endTour();
+      tour.endTour();
       await wait(50);
 
-      window.startEmptyTour(false);
-      window._tourGoToStep(1);
+      tour.startEmptyTour(false);
+      tour.goToTourStep(1);
       await wait(100);
       const tooltipRect = document.getElementById('tour-tooltip').getBoundingClientRect();
       const tooltipStaysInViewport = tooltipRect.left >= 0
         && tooltipRect.top >= 0
         && tooltipRect.right <= window.innerWidth + 1
         && tooltipRect.bottom <= window.innerHeight + 1;
-      window.endTour();
+      tour.endTour();
       await wait(50);
 
       const stepTargetsExist = !!document.querySelector('.welcome-primary-panel, #drop-zone')
@@ -254,18 +249,18 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         'Settings & Connections',
       ];
       localStorage.removeItem(emptyTourKey);
-      window.startEmptyTour(false);
+      tour.startEmptyTour(false);
       await wait(50);
       const walkthroughSteps = [];
       for (let i = 0; i < expectedTitles.length; i++) {
-        window._tourGoToStep(i);
+        tour.goToTourStep(i);
         await wait(100);
         const tt = document.getElementById('tour-tooltip');
         walkthroughSteps.push(tt?.querySelector('h4')?.textContent === expectedTitles[i]
           && tt?.querySelectorAll('.tour-dot.active').length === 1);
       }
       const fullWalkthroughTitlesAndDots = walkthroughSteps.every(Boolean);
-      window.endTour();
+      tour.endTour();
       await wait(50);
 
       return {
@@ -295,7 +290,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         fullWalkthroughTitlesAndDots,
       };
     } finally {
-      window.endTour?.();
+      tour.endTour?.();
       ['tour-overlay', 'tour-spotlight', 'tour-tooltip'].forEach(id => document.getElementById(id)?.remove());
       if (savedEmptyTourState) localStorage.setItem(emptyTourKey, savedEmptyTourState);
       else localStorage.removeItem(emptyTourKey);

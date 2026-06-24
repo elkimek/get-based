@@ -6,7 +6,7 @@
 //
 // Run: node tests/test-tour.js  (or via npm test)
 //
-// DOM-runtime sections (3 window-export checks + 4-12/15-17 — live tour
+// DOM-runtime sections (module-export checks + 4-12/15-17 — live tour
 // overlay/spotlight/tooltip creation, step navigation, z-index computed
 // styles, walkthrough) live in tests/playwright/tour-dom.spec.js on the Playwright
 // runner. This file is pure source-inspection — no module import.
@@ -45,8 +45,8 @@ assert('tour.js has EMPTY_TOUR_STEPS array', tourSrc.includes('const EMPTY_TOUR_
 assert('tour.js has TOUR_STEPS array', tourSrc.includes('const TOUR_STEPS'));
 assert('tour.js imports state', tourSrc.includes("import { state } from './state.js'"));
 assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileStorageKey } from './profile.js'"));
-assert('tour.js has window exports', tourSrc.includes('Object.assign(window,') && tourSrc.includes('startEmptyTour') && tourSrc.includes('startTour') && tourSrc.includes('startGuidedTour') && tourSrc.includes('endTour'));
-assert('tour.js exposes _tourGoToStep on window', tourSrc.includes('window._tourGoToStep = goToStep'));
+assert('tour.js exports testable step navigation', tourSrc.includes('export function goToTourStep'));
+assert('tour.js does not publish tour API on window', !tourSrc.includes('Object.assign(window,') && !tourSrc.includes('window._tourGoToStep'));
 assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
 assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
 assert('startEmptyTour returns whether empty tour opened', tourSrc.includes('return runTour(EMPTY_TOUR_STEPS') && tourSrc.includes("profileKey('emptyTour')"));
@@ -97,7 +97,7 @@ const tourStepsSection = tourStepsStart >= 0 && cycleStepsStart > tourStepsStart
 const stepMatches = tourStepsSection.match(/\{ target:/g);
 assert('Exactly 9 steps in TOUR_STEPS', stepMatches && stepMatches.length === 9, `found ${stepMatches ? stepMatches.length : 0}`);
 
-// Section 3 (window-export checks) + sections 4-12, 15-17 (live DOM tour
+// Section 3 (module-export checks) + sections 4-12, 15-17 (live DOM tour
 // overlay/spotlight/tooltip creation, step navigation, z-index computed
 // styles, viewport clamping, walkthrough) live in tests/playwright/tour-dom.spec.js.
 
@@ -170,7 +170,8 @@ assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app
 assert('app-feature-modules.js delegates UI shell modules', appFeatureModulesSrc.includes("import './app-ui-shell-modules.js'"));
 assert('app-ui-shell-modules.js imports tour.js', appUiShellModulesSrc.includes("import './tour.js'"));
 assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));
-assert('app-event-listeners.js Escape calls window.endTour()', appEventsSrc.includes('window.endTour()'));
+assert('app-event-listeners.js imports endTour()', appEventsSrc.includes("import { endTour } from './tour.js'"));
+assert('app-event-listeners.js Escape calls imported endTour()', appEventsSrc.includes('if (tourOverlay) { endTour(); return; }'));
 const tourEscIdx = appEventsSrc.indexOf('tour-overlay');
 const confirmEscIdx = appEventsSrc.indexOf('confirm-dialog-overlay');
 assert('Tour Escape check before confirm dialog', tourEscIdx > 0 && tourEscIdx < confirmEscIdx);
@@ -182,17 +183,19 @@ console.log('20. dashboard-page-view.js Auto-Trigger');
 
 const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 
-assert('dashboard-page-view.js calls startTour through runtime helper',
-  dashboardPageViewSrc.includes("callDashboardPageRuntime('startTour', true)"));
-assert('dashboard-page-view.js calls startEmptyTour through runtime helper',
-  dashboardPageViewSrc.includes("callDashboardPageRuntime('startEmptyTour', true)"));
+assert('dashboard-page-view.js imports tour starters',
+  dashboardPageViewSrc.includes("import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js'"));
+assert('dashboard-page-view.js calls injected startTour dependency',
+  dashboardPageViewSrc.includes('startTour(true)'));
+assert('dashboard-page-view.js calls injected startEmptyTour dependency',
+  dashboardPageViewSrc.includes('startEmptyTour(true)'));
 assert('Empty first visit starts empty tour before chat onboarding',
-  dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = typeof getDashboardPageRuntimeValue('startEmptyTour') === 'function' && !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
-  dashboardPageViewSrc.includes("setTimeout(() => callDashboardPageRuntime('startEmptyTour', true), 100)") &&
+  dashboardPageViewSrc.includes("const shouldAutoStartEmptyTour = !localStorage.getItem(profileStorageKey(state.currentProfile, 'emptyTour'))") &&
+  dashboardPageViewSrc.includes('setTimeout(() => startEmptyTour(true), 100)') &&
   dashboardPageViewSrc.includes('if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0)'));
 const setupIdx = dashboardPageViewSrc.indexOf('setupDropZone()');
-const emptyTourIdx = dashboardPageViewSrc.indexOf('startEmptyTour');
-const tourIdx = dashboardPageViewSrc.indexOf("callDashboardPageRuntime('startTour', true)");
+const emptyTourIdx = dashboardPageViewSrc.indexOf('setTimeout(() => startEmptyTour(true), 100)');
+const tourIdx = dashboardPageViewSrc.indexOf('startTour(true)');
 assert('startEmptyTour called after setupDropZone', setupIdx > 0 && emptyTourIdx > setupIdx);
 assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupIdx);
 
@@ -207,10 +210,10 @@ assert('settings.js has "Guided Tour" button', settingsSrc.includes('Guided Tour
 assert('settings.js routes Guided Tour through delegated action',
   settingsSrc.includes('data-settings-action="start-guided-tour"'));
 assert('settings.js delegated handler calls startGuidedTour(false)',
-  /start-guided-tour[\s\S]{0,160}startGuidedTour\?\.\(false\)/.test(settingsSrc));
+  /start-guided-tour[\s\S]{0,160}startGuidedTour\(false\)/.test(settingsSrc));
 assert('settings.js closes modal before tour', settingsSrc.includes('closeSettingsModal()'));
 assert('settings.js uses setTimeout for tour delay',
-  /setTimeout\(\(\) => settingsWindow\.startGuidedTour\?\.\(false\), 300\)/.test(settingsSrc));
+  /setTimeout\(\(\) => startGuidedTour\(false\), 300\)/.test(settingsSrc));
 assert('Tour button in Display tab panel', /tab-panel="display"[\s\S]*?Guided Tour/s.test(settingsSrc));
 
 // ═══════════════════════════════════════
