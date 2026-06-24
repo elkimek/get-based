@@ -347,7 +347,44 @@ const {
     injectedLoadHtml.toLowerCase().includes('add a room'));
   configureLightEnv(restoredBurdenRenderer);
 
+  reset();
+  await addRoom('Bedroom');
+  const injectedRoom = getEnvironment().rooms[0];
+  await updateRoom(injectedRoom.id, {
+    primarySource: 'led-warm',
+    hoursOccupiedPerDay: 8,
+    eveningHoursAfterSunset: 1,
+  });
+  await addScreen('phone', injectedRoom.id);
+  const injectedScreen = getEnvironment().screens[0];
+  lightEnvActionHandlers.toggleLightEnvScreenExpanded(injectedScreen.id);
+  const injectedMeasurement = {
+    id: 'm-injected',
+    roomId: injectedRoom.id,
+    tool: 'lux',
+    value: 120,
+    capturedAt: Date.now(),
+    confidence: 0.9,
+  };
+  const restoredRenderDeps = configureLightEnv({
+    getMeasurementsForRoom: roomId => roomId === injectedRoom.id ? [injectedMeasurement] : [],
+    renderMeasurementAIInline: m => `<div class="injected-measurement-ai">${m.id}</div>`,
+    renderRoomAIBlock: r => `<div class="injected-room-ai">${r.id}</div>`,
+    renderScreenAIBlock: s => `<div class="injected-screen-ai">${s.id}</div>`,
+  });
+  const injectedRenderHtml = renderEnvironmentSection({ embedded: true });
+  assert('Room measurement and AI renderers use injected Light environment deps',
+    injectedRenderHtml.includes('120 lux') &&
+    injectedRenderHtml.includes('injected-measurement-ai') &&
+    injectedRenderHtml.includes('m-injected') &&
+    injectedRenderHtml.includes('injected-room-ai') &&
+    injectedRenderHtml.includes(injectedRoom.id) &&
+    injectedRenderHtml.includes('injected-screen-ai') &&
+    injectedRenderHtml.includes(injectedScreen.id));
+  configureLightEnv(restoredRenderDeps);
+
   // Heavy indoor + heavy evening → tier 2
+  reset();
   await addRoom('Office');
   await updateRoom(getEnvironment().rooms[0].id, {
     primarySource: 'led-cool',
@@ -557,6 +594,7 @@ const {
   const burdenSrc = await fs.readFile(new URL('../js/light-burden-ai-analysis.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const aiSaveHooksSrc = await fs.readFile(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
+  const screenUiSrc = await fs.readFile(new URL('../js/light-env-screen-ui.js', import.meta.url), 'utf8');
   assert('Light audit renderer emits no inline event attributes',
     !/\bon(?:click|keydown|change|input|submit|blur|toggle)=/.test(auditSrc));
   assert('Light audit storage/rendering lives in its own module',
@@ -588,6 +626,26 @@ const {
     !envSrc.includes('globalThis.renderBurdenInterp') &&
     burdenSrc.includes("import { computeDeficitAxes, computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
     burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
+  assert('Room, measurement, and screen AI renderers route through Light environment configuration',
+    envSrc.includes('getMeasurementsForRoom: null') &&
+    envSrc.includes('renderMeasurementAIInline: null') &&
+    envSrc.includes('renderRoomAIBlock: null') &&
+    envSrc.includes('renderScreenAIBlock: null') &&
+    envSrc.includes('lightEnvDeps.getMeasurementsForRoom') &&
+    envSrc.includes('lightEnvDeps.renderMeasurementAIInline') &&
+    envSrc.includes('lightEnvDeps.renderRoomAIBlock') &&
+    screenUiSrc.includes('opts.renderScreenAIBlock') &&
+    screenUiSrc.includes('renderScreenAIBlock(s)') &&
+    aiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
+    aiSaveHooksSrc.includes("import { configureLightTools, getMeasurementsForRoom } from './light-tools.js';") &&
+    aiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes("import { renderRoomAIBlock } from './light-env-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes("import { renderScreenAIBlock } from './light-screen-ai-analysis.js';") &&
+    aiSaveHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, renderMeasurementAIInline, renderRoomAIBlock, renderScreenAIBlock })') &&
+    !envSrc.includes('globalThis.getMeasurementsForRoom') &&
+    !envSrc.includes('globalThis.renderMeasurementAIInline') &&
+    !envSrc.includes('globalThis.renderRoomAIBlock') &&
+    !screenUiSrc.includes('globalThis.renderScreenAIBlock'));
   const navSrc = await fs.readFile(new URL('../js/nav.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const cssSrc = [
