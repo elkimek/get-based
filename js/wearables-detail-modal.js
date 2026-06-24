@@ -171,7 +171,6 @@ export async function openWearableDetail(metricId, opts = {}) {
     rangeStartDate: startDate,
     pairedMetric,
     pairedSeries,
-    manualChartEntries,
     pairedMetricId,
     chartSampleCount,
     manualChartSampleCount: manualChartEntries.length,
@@ -338,7 +337,6 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const rangeStartDate = typeof opts.rangeStartDate === 'string' ? opts.rangeStartDate : WEARABLE_ALL_HISTORY_START_DATE;
   const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
-  const manualChartEntries = Array.isArray(opts.manualChartEntries) ? opts.manualChartEntries : [];
   const chartSampleCount = Number.isFinite(opts.chartSampleCount)
     ? opts.chartSampleCount
     : Math.max(series.length, pairedSeries.length);
@@ -351,21 +349,21 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const latestPairedReading = (() => {
     if (!pairedMetric) return null;
     const diastolicByDate = new Map(pairedSeries.map(p => [p.date, p.v]));
-    for (const point of [...series].sort((a, b) => b.date.localeCompare(a.date))) {
+    const candidates = [];
+    for (const point of series) {
       const dia = diastolicByDate.get(point.date);
       if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', dia)) {
-        return { date: point.date, sys: point.v, dia };
+        candidates.push({ date: point.date, sys: point.v, dia });
       }
     }
     const manualPairedEntries = manualEntries
-      .filter(point => rangeDef.days == null || point.date >= rangeStartDate)
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .filter(point => rangeDef.days == null || point.date >= rangeStartDate);
     for (const point of manualPairedEntries) {
       if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', point.pairedV)) {
-        return { date: point.date, sys: point.v, dia: point.pairedV };
+        candidates.push({ date: point.date, sys: point.v, dia: point.pairedV });
       }
     }
-    return null;
+    return candidates.sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   })();
   const latestBpValue = latestPairedReading
     ? formatPaired(latestPairedReading.sys, latestPairedReading.dia)

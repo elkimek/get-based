@@ -209,14 +209,18 @@ return (async function() {
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
+    { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
     { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
     { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
   ]);
   await window.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
   const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
-  assert('BP mixed manual-diastolic fallback uses same-date manual pair before mismatched summary halves',
-    /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText) && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
+  assert('BP mixed manual-diastolic fallback chooses the newest same-date pair across chart and manual candidates',
+    /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText)
+      && !/Latest\s+124\/80 mmHg/.test(mixedManualPrimaryText)
+      && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
   window.closeModal();
 
   await window.openWearableDetail('bp_diastolic');
