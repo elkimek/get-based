@@ -8,6 +8,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isV
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
+import { getLensSummary } from './lens.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -259,6 +260,16 @@ export function updateSummaryButton() {
 }
 
 let _headerListenerAdded = false;
+function getAIContextHeaderSuffix() {
+  const parts = [];
+  if ((state.importedData?.interpretiveLens || '').trim()) parts.push('Lens');
+  try {
+    const kb = getLensSummary();
+    if (kb?.configured) parts.push(kb.displayName || 'Knowledge Base');
+  } catch { /* Knowledge Base not initialised yet. */ }
+  return parts.length ? ` · ${parts.join(' · ')}` : '';
+}
+
 export function updateChatHeaderModel() {
   const el = document.querySelector('.chat-header-model');
   if (!el) return;
@@ -268,13 +279,14 @@ export function updateChatHeaderModel() {
   }
   if (!hasAIProvider()) { el.textContent = ''; return; }
   const display = getActiveModelDisplay();
+  const contextSuffix = getAIContextHeaderSuffix();
   const provider = getAIProvider();
   const e2ee = provider === 'venice' && isVeniceE2EEActive();
   const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();
   if (e2ee || ppqPrivate) {
-    el.innerHTML = escapeHTML(display) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
+    el.innerHTML = escapeHTML(display + contextSuffix) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
   } else {
-    el.textContent = display;
+    el.textContent = display + contextSuffix;
   }
 }
 

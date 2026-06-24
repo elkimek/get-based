@@ -291,19 +291,23 @@ export function openContextModal() {
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const lensSet = !!(state.importedData.interpretiveLens || '').trim();
+  let kbSummary; try { kbSummary = getLensSummary(); } catch { kbSummary = null; }
+  const kbSet = !!kbSummary?.configured;
+  const check = '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>';
   overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Context" style="max-width:520px">
     <p class="confirm-message" style="margin-bottom:6px">Context</p>
     <p class="confirm-subtext" style="margin:0 0 14px;color:var(--muted);font-size:0.92rem">Control how AI interprets and grounds answers. Profile facts stay in Profile Context.</p>
     <div class="ai-picker-grid">
       <button type="button" class="ai-picker-card" data-pick="lens">
         <span class="ai-picker-icon" aria-hidden="true">&#129694;</span>
-        <span class="ai-picker-title">Personalize how AI answers</span>
-        <span class="ai-picker-sub">Set the interpretive lens: researchers, paradigms, or schools of thought.</span>
+        <span class="ai-picker-title">Personalize how AI answers ${lensSet ? check : ''}</span>
+        <span class="ai-picker-sub">${lensSet ? 'Interpretive Lens is enabled. Click to review or edit it.' : 'Set the interpretive lens: researchers, paradigms, or schools of thought.'}</span>
       </button>
       <button type="button" class="ai-picker-card" data-pick="kb">
         <span class="ai-picker-icon" aria-hidden="true">&#128218;</span>
-        <span class="ai-picker-title">Knowledge Base</span>
-        <span class="ai-picker-sub">Ground answers in your own documents, research papers, notes, and references.</span>
+        <span class="ai-picker-title">Knowledge Base ${kbSet ? check : ''}</span>
+        <span class="ai-picker-sub">${kbSet ? `${escapeHTML(kbSummary.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.` : 'Ground answers in your own documents, research papers, notes, and references.'}</span>
       </button>
     </div>
     <div class="confirm-actions" style="margin-top:6px">
