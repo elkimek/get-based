@@ -32,7 +32,13 @@ export function setSyncQueries({ profileQuery, tombstoneQuery, itemRowQuery } = 
 }
 
 export function setSyncAppOwner(owner) {
-  _appOwner = owner ?? null;
+  const prevId = _appOwner?.id || null;
+  const next = owner ?? null;
+  _appOwner = next;
+  const nextId = next?.id || null;
+  if (prevId !== nextId && typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+    try { window.dispatchEvent(new CustomEvent('labcharts-sync-owner-changed', { detail: { ownerId: nextId, ready: !!nextId } })); } catch (_) {}
+  }
 }
 
 export function setSyncAppOwnerError(error) {

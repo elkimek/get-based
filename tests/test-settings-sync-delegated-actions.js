@@ -60,8 +60,11 @@ assert('Click delegate lets state controls reach change/input events',
   'confirm-restore',
   'toggle-messenger',
   'toggle-messenger-token',
+  'toggle-messenger-context-key',
   'copy-messenger-token',
+  'copy-messenger-context-key',
   'regenerate-messenger-token',
+  'regenerate-messenger-context-key',
   'set-agent-wearable-series-days',
 ].forEach(action => {
   assert(`Sync action ${action} is rendered`, src.includes(`data-sync-action="${action}"`));

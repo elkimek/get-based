@@ -13,7 +13,8 @@ import {
   rejectPendingTombstone,
 } from './sync-tombstones.js';
 import {
-  generateMessengerToken, getMessengerToken, isMessengerEnabled,
+  generateMessengerContextKey, generateMessengerToken, getMessengerContextKey,
+  getMessengerToken, isMessengerEnabled,
   pushContextToGateway, revokeMessengerToken,
 } from './sync-messenger.js';
 import {
@@ -71,7 +72,9 @@ export function bindSyncWindowActions({ enableSync, disableSync } = {}) {
     checkRelayConnection,
     isMessengerEnabled,
     getMessengerToken,
+    getMessengerContextKey,
     generateMessengerToken,
+    generateMessengerContextKey,
     revokeMessengerToken,
     pushContextToGateway,
     _syncDiag,

@@ -52,12 +52,13 @@
 
 Opt-in feature that lets AI agents query your lab context — coding agents (Claude Code, Cursor), messenger bots (Hermes Agent, OpenClaw), or any MCP-compatible tool.
 
-- Enable in **Settings → Data → Agent Access** to generate a read-only token
-- Context is pushed to a lightweight gateway on every save and profile switch
-- Per-profile: each profile's context is stored separately; agents can query any profile by ID
+- Enable Cross-device Sync first, then enable **Settings → Data → Agent Access** to generate a read-only token and a separate context encryption key
+- Agent Access storage is bound to your Sync identity for relay quota; generating more tokens does not create more storage namespaces
+- End-to-end encrypted context is pushed to a lightweight gateway on every save and profile switch; the gateway stores ciphertext only
+- Per-profile: each profile's encrypted context is stored separately; agents can query any profile by ID
 - Install on Linux with one command: `curl -sSL https://getbased.health/install.sh | bash` (`pipx install --include-deps "getbased-agent-stack[full]"` for manual / cross-platform installs). [getbased-agents](https://github.com/elkimek/getbased-agents) bundles the MCP adapter, local RAG knowledge server, and browser setup dashboard. Works with [Hermes Agent](https://github.com/hermes-agent/hermes-agent), [OpenClaw](https://openclaw.ai), Claude Code, Claude Desktop, Cursor, Cline, or any MCP-compatible agent
-- Only the AI-readable context text is shared — never your mnemonic or raw lab data
-- Token is revocable at any time from the same settings panel
+- The Agent Access token authorizes relay fetches (`GETBASED_TOKEN`); the separate Agent Context key decrypts context locally inside your self-hosted MCP (`GETBASED_AGENT_CONTEXT_KEY`). Your mnemonic and raw lab data never leave the browser
+- Token and context key are revocable/regenerable from the same settings panel
 
 ## AI providers
 

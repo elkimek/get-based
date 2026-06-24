@@ -253,9 +253,10 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
-  const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl }) => {
+  const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl, syncRuntimeUrl }) => {
     const syncPanel = await import(syncPanelUrl);
     const syncState = await import(syncStateUrl);
+    const syncRuntime = await import(syncRuntimeUrl);
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -272,6 +273,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       'labcharts-sync-relay',
       'labcharts-messenger-enabled',
       'labcharts-messenger-token',
+      'labcharts-agent-context-key',
       'labcharts-agent-wearable-series-days',
     ];
     const oldStorage = {};
@@ -356,6 +358,15 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
 
       syncState.setSyncEnabled(true);
       localStorage.setItem('labcharts-sync-enabled', 'true');
+      messengerSection.innerHTML = syncPanel.renderMessengerSection();
+      const ownerPendingToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
+      syncRuntime.setSyncAppOwner({
+        id: 'abcdefghijklmnopqrstuv',
+        writeKey: new Uint8Array(32).fill(7),
+      });
+      await wait(0);
+      const ownerReadyRerenderEnables = messengerSection.querySelector('[data-sync-action="toggle-messenger"]')?.disabled === false;
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
       syncSection.innerHTML = syncPanel.renderSyncSection();
       const enabledRender = syncSection.textContent.includes('Your mnemonic')
@@ -393,16 +404,26 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       const token = localStorage.getItem('labcharts-messenger-token');
+      const contextKey = localStorage.getItem('labcharts-agent-context-key');
       const messengerEnabled = localStorage.getItem('labcharts-messenger-enabled') === 'true'
         && !!token
-        && messengerSection.textContent.includes('Read-only token');
+        && !!contextKey
+        && messengerSection.textContent.includes('Read-only token')
+        && messengerSection.textContent.includes('Context encryption key')
+        && messengerSection.textContent.includes('GETBASED_AGENT_CONTEXT_KEY');
       messengerSection.querySelector('[data-sync-action="toggle-messenger-token"]').click();
       const tokenShown = document.getElementById('messenger-token')?.dataset.masked === 'false'
         && document.getElementById('messenger-token')?.textContent !== '•'.repeat(64)
         && document.getElementById('messenger-token-toggle')?.textContent === 'Hide';
+      messengerSection.querySelector('[data-sync-action="toggle-messenger-context-key"]').click();
+      const contextKeyShown = document.getElementById('messenger-context-key')?.dataset.masked === 'false'
+        && document.getElementById('messenger-context-key')?.textContent === contextKey
+        && document.getElementById('messenger-context-key-toggle')?.textContent === 'Hide';
       messengerSection.querySelector('[data-sync-action="copy-messenger-token"]').click();
+      messengerSection.querySelector('[data-sync-action="copy-messenger-context-key"]').click();
       await wait(0);
       const tokenCopied = writes.includes(token);
+      const contextKeyCopied = writes.includes(contextKey);
       messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').value = '30';
       messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').dispatchEvent(new Event('change', { bubbles: true }));
       const seriesDelegated = seriesDays === 30 && pushedContexts >= 1;
@@ -410,11 +431,25 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       await wait(0);
       const regenerated = localStorage.getItem('labcharts-messenger-token') !== token
         && messengerSection.textContent.includes('Read-only token');
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = false;
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
+      const contextKeyBeforeRegen = localStorage.getItem('labcharts-agent-context-key');
+      messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]').click();
+      await wait(0);
+      const contextKeyRegenerated = localStorage.getItem('labcharts-agent-context-key') !== contextKeyBeforeRegen
+        && messengerSection.textContent.includes('Context encryption key');
+      syncRuntime.setSyncAppOwner(null);
+      messengerSection.innerHTML = syncPanel.renderMessengerSection();
+      const ownerLostToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      const ownerLostCanDisable = ownerLostToggle?.checked === true
+        && ownerLostToggle?.disabled === false
+        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]')?.disabled === true
+        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]')?.disabled === true
+        && messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]')?.disabled === true;
+      ownerLostToggle.checked = false;
+      ownerLostToggle.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       const messengerDisabled = localStorage.getItem('labcharts-messenger-enabled') === 'false'
         && !localStorage.getItem('labcharts-messenger-token')
+        && !localStorage.getItem('labcharts-agent-context-key')
         && messengerSection.textContent.includes('Let AI agents query your labs');
 
       return {
@@ -425,6 +460,8 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         setupRestoreShown,
         setupBackRestoresChoices,
         setupDoneCloses,
+        ownerPendingDisabled,
+        ownerReadyRerenderEnables,
         enabledRender,
         restoreDialogOpens,
         restoreCountsWords,
@@ -434,9 +471,13 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         relaySaved,
         messengerEnabled,
         tokenShown,
+        contextKeyShown,
         tokenCopied,
+        contextKeyCopied,
         seriesDelegated,
         regenerated,
+        contextKeyRegenerated,
+        ownerLostCanDisable,
         messengerDisabled,
       };
     } finally {
@@ -457,6 +498,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
+      syncRuntime.setSyncAppOwner(null);
       syncState.setSyncEnabled(oldStorage['labcharts-sync-enabled'] === 'true');
       document.getElementById('sync-section')?.remove();
       document.getElementById('messenger-section')?.remove();
@@ -467,6 +509,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
   }, {
     syncPanelUrl: '/js/settings-sync-panel.js',
     syncStateUrl: '/js/sync-settings-state.js',
+    syncRuntimeUrl: '/js/sync-runtime.js',
   });
 
   for (const [name, passed] of Object.entries(results)) {

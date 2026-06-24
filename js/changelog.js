@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.25', date: '2026-06-24', title: 'Agent Access security hardening',
+    forceShow: true,
+    items: [
+      '<b>Agent Access now separates relay authorization from context decryption.</b> The token authorizes fetching from the relay, while a separate Agent Context key decrypts the context locally inside your self-hosted MCP.',
+      '<b>The hosted relay still only carries ciphertext.</b> Agent context is encrypted in the browser before upload and remains unreadable to the relay.',
+      '<b>Setup copy is clearer.</b> Settings → Agent Access now shows the exact <code>GETBASED_TOKEN</code> and <code>GETBASED_AGENT_CONTEXT_KEY</code> values your MCP config needs.',
+    ]
+  },
+  {
     version: '1.10.15', date: '2026-06-23', title: 'Safer Routstr wallet upgrade',
     forceShow: true,
     items: [
