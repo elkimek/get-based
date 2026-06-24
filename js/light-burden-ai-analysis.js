@@ -259,10 +259,4 @@ export function renderBurdenInterp(burden) {
   </div>`;
 }
 
-Object.assign(window, {
-  refreshBurdenAIAnalysis,
-  analyzeBurdenAI,
-  renderBurdenInterp,
-});
-
 configureLightEnv({ renderBurdenInterp });

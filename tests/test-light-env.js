@@ -653,6 +653,10 @@ const {
     envSrc.includes('renderBurdenInterp: null') &&
     envSrc.includes('lightEnvDeps.renderBurdenInterp') &&
     !envSrc.includes('globalThis.renderBurdenInterp') &&
+    !burdenSrc.includes('Object.assign(window, {') &&
+    !burdenSrc.includes('window.refreshBurdenAIAnalysis') &&
+    !burdenSrc.includes('window.analyzeBurdenAI') &&
+    !burdenSrc.includes('window.renderBurdenInterp') &&
     burdenSrc.includes("import { computeDeficitAxes, computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
     burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
   assert('Room, measurement, and screen AI renderers route through Light environment configuration',
