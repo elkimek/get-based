@@ -98,13 +98,15 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('context/BP changelog documents merged AI context, KB-empty, and BP fixes in user-readable terms',
-  /version:\s*'1\.10\.24'[\s\S]{0,1800}AI Context is easier to find/.test(changelogSrc)
-    && /version:\s*'1\.10\.24'[\s\S]{0,1800}clickable green context chip/.test(changelogSrc)
-    && /version:\s*'1\.10\.24'[\s\S]{0,1800}KB empty context chip/.test(changelogSrc)
-    && /version:\s*'1\.10\.24'[\s\S]{0,1800}Blood pressure details now stay paired/.test(changelogSrc)
-    && /version:\s*'1\.10\.24'[\s\S]{0,1800}Mixed-source BP data is safer/.test(changelogSrc)
-    && /version:\s*'1\.10\.24'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
+assert('current changelog collapses today into one user-readable patch entry',
+  /version:\s*'1\.10\.26'[\s\S]{0,2200}AI grounding has one clear home/.test(changelogSrc)
+    && /version:\s*'1\.10\.26'[\s\S]{0,2200}clickable AI Context chips/.test(changelogSrc)
+    && /version:\s*'1\.10\.26'[\s\S]{0,2200}KB empty state/.test(changelogSrc)
+    && /version:\s*'1\.10\.26'[\s\S]{0,2200}Blood pressure details are safer/.test(changelogSrc)
+    && /version:\s*'1\.10\.26'[\s\S]{0,2200}Agent Access is harder to misconfigure/.test(changelogSrc)
+    && /version:\s*'1\.10\.26'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc)
+    && !/version:\s*'1\.10\.24'/.test(changelogSrc)
+    && !/version:\s*'1\.10\.25'/.test(changelogSrc));
 assert('previous changelog documents PPQ Private TEE in user-readable terms',
   /version:\s*'1\.10\.8'[\s\S]{0,900}PPQ Private TEE Mode/.test(changelogSrc)
     && /version:\s*'1\.10\.8'[\s\S]{0,900}encrypts prompts in your browser/.test(changelogSrc)

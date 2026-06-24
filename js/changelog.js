@@ -10,23 +10,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.25', date: '2026-06-24', title: 'Agent Access security hardening',
+    version: '1.10.26', date: '2026-06-24', title: 'Clearer AI context, safer Agent Access, and better BP details',
     forceShow: true,
     items: [
-      '<b>Agent Access now separates relay authorization from context decryption.</b> The token authorizes fetching from the relay, while a separate Agent Context key decrypts the context locally inside your self-hosted MCP.',
-      '<b>The hosted relay still only carries ciphertext.</b> Agent context is encrypted in the browser before upload and remains unreadable to the relay.',
+      '<b>AI grounding has one clear home.</b> Interpretive Lens and Knowledge Base now live together under Manage → Context, while Profile Context stays focused on biological facts about you.',
+      '<b>Chat now shows what context is active.</b> Enabled lenses and knowledge bases appear as clickable AI Context chips in chat, including an amber KB empty state when Knowledge Base is switched on but has no indexed documents yet.',
+      '<b>Blood pressure details are safer and easier to read.</b> Systolic and diastolic now open as one paired BP detail view, with clearer charting and guardrails that avoid inventing mixed-date or mixed-source readings.',
+      '<b>Agent Access is harder to misconfigure.</b> Relay authorization and local context decryption are separated, so the hosted relay only carries ciphertext while your self-hosted MCP uses the separate Agent Context key to decrypt locally.',
       '<b>Setup copy is clearer.</b> Settings → Agent Access now shows the exact <code>GETBASED_TOKEN</code> and <code>GETBASED_AGENT_CONTEXT_KEY</code> values your MCP config needs.',
-    ]
-  },
-  {
-    version: '1.10.24', date: '2026-06-24', title: 'Clearer AI context and blood pressure details',
-    forceShow: true,
-    items: [
-      '<b>AI Context is easier to find.</b> Personalize how AI answers and Knowledge Base now live together under Manage → Context, so AI grounding has one clear home instead of being mixed into Profile Context.',
-      '<b>AI Context status is visible in chat.</b> When an Interpretive Lens or Knowledge Base is enabled, chat shows a clickable green context chip that jumps back to Manage → Context.',
-      '<b>Empty Knowledge Base state is visible.</b> If Knowledge Base is enabled but no documents are indexed yet, chat shows an amber KB empty context chip instead of staying silent or pretending answers are grounded.',
-      '<b>Blood pressure details now stay paired.</b> Systolic and diastolic readings open as one BP detail view, even if you enter through the diastolic metric, and the chart keeps the two lines and manual readings visually distinct.',
-      '<b>Mixed-source BP data is safer.</b> When systolic and diastolic come from different sources, getbased fetches each source separately and only shows a Latest BP pair when both halves were recorded on the same date.',
     ]
   },
   {
