@@ -61,6 +61,7 @@ test('category customization covers rename icon and emoji picker browser paths',
       import('/js/state.js'),
       import(categoryUrl),
     ]);
+    const categorySrc = await fetch(categoryUrl).then(response => response.text());
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -90,14 +91,29 @@ test('category customization covers rename icon and emoji picker browser paths',
         },
       };
       state.currentView = 'dashboard';
-      window.buildSidebar = data => calls.push(['sidebar', !!data?.categories?.lipids]);
       window.navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
+      window.buildSidebar = data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]);
+
+      window.showPromptDialog = async () => '  Fallback Lipids  ';
+      await category.renameCategory('lipids');
+      outcomes.renameCategoryKeepsSidebarFallback = state.importedData.categoryLabels?.lipids === 'Fallback Lipids'
+        && calls.some(call => call[0] === 'fallbackSidebar' && call[1] === true);
+
+      category.configureCategoryCustomization({
+        buildSidebar: data => calls.push(['sidebar', !!data?.categories?.lipids]),
+        navigate: window.navigate,
+      });
 
       window.showPromptDialog = async () => '  Better Lipids  ';
       await category.renameCategory('lipids');
       outcomes.renameCategoryStoresTrimmedLabel = state.importedData.categoryLabels?.lipids === 'Better Lipids';
       outcomes.renameCategoryUpdatesCustomMarkerLabel = state.importedData.customMarkers['lipids.contextCustom']?.categoryLabel === 'Better Lipids';
+      outcomes.renameCategoryRefreshesSidebarThroughConfiguredCallback = calls.some(call => call[0] === 'sidebar' && call[1] === true);
       outcomes.renameCategoryRefreshesForcedRoute = calls.some(call => call[0] === 'navigate' && call[1] === 'lipids' && call[2] === true);
+      outcomes.categoryCustomizationDoesNotUseWindowBuildSidebar = categorySrc.includes('buildSidebar?:')
+        && categorySrc.includes('getFallbackBuildSidebar')
+        && categorySrc.includes('buildSidebar?.(data)')
+        && !categorySrc.includes('window.buildSidebar');
       outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === undefined;
 
       window.showPromptDialog = async () => '  ApoB Better Name  ';
@@ -168,7 +184,10 @@ test('category customization covers rename icon and emoji picker browser paths',
       window.showPromptDialog = saved.prompt;
       window.buildSidebar = saved.buildSidebar;
       window.navigate = saved.navigate;
-      category.configureCategoryCustomization({ navigate: saved.navigate || (() => {}) });
+      category.configureCategoryCustomization({
+        buildSidebar: saved.buildSidebar || (() => {}),
+        navigate: saved.navigate || (() => {}),
+      });
       document.querySelector('.emoji-picker')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       document.getElementById('emoji-anchor')?.remove();

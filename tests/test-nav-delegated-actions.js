@@ -64,6 +64,9 @@ assert('nav delegates are scoped to sidebar/profile surfaces',
 assert('group lookup avoids selector interpolation',
   navSrc.includes('function _findGroupHeader') &&
     navSrc.includes('el.dataset.groupName === groupName'));
+assert('mobile sidebar controls tolerate missing sidebar DOM',
+  /export function toggleMobileSidebar[^{]*\{[\s\S]{0,250}if \(!sidebar\) \{[\s\S]{0,120}closeModalOverlay\('sidebar-backdrop'/.test(navSrc) &&
+    navSrc.includes("document.getElementById('sidebar-nav')?.classList.remove('mobile-open')"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
