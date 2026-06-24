@@ -87,6 +87,21 @@ export {
 // before falling back to "Room N" so a fresh user lands on familiar labels.
 const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
 
+/** @type {{ renderBurdenInterp: AnyFunction | null }} */
+const lightEnvDeps = {
+  renderBurdenInterp: null,
+};
+
+export function configureLightEnv(deps = {}) {
+  const previous = { ...lightEnvDeps };
+  for (const [key, value] of Object.entries(deps || {})) {
+    if (Object.prototype.hasOwnProperty.call(lightEnvDeps, key)) {
+      lightEnvDeps[key] = value;
+    }
+  }
+  return previous;
+}
+
 // Pick the next default room name based on which common names haven't been
 // used yet. Names are matched case-insensitively so "bedroom" and "Bedroom"
 // don't collide. Falls back to "Room N" once the curated list is exhausted.
@@ -337,8 +352,8 @@ function renderEnvironmentLoadSummary() {
   const env = getEnvironment();
   const hasMappedExposure = ((env?.rooms || []).length + (env?.screens || []).length) > 0;
   const burden = computeIndoorBurden();
-  const interpHTML = (typeof globalThis.renderBurdenInterp === 'function')
-    ? globalThis.renderBurdenInterp(burden)
+  const interpHTML = (typeof lightEnvDeps.renderBurdenInterp === 'function')
+    ? lightEnvDeps.renderBurdenInterp(burden)
     : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
   // Reconcile the banner label with the AI verdict's dot when one exists.
   // The deterministic computeIndoorBurden() tier crosses to "Heavy" at
