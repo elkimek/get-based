@@ -91,7 +91,7 @@ export function renderInterpretiveLensSection() {
     : '';
   const kbRow = (kbConfigured || kbEnabled) ? renderKnowledgeBaseRow(summary) : '';
   const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
-  return lensRow + kbRow + aiCta;
+  return lensRow + kbRow + aiCta + renderDataProtectionCta();
 }
 
 // Programmatic DNA file picker. Mirrors the chat onboarding hidden-file-input

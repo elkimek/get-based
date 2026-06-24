@@ -164,27 +164,24 @@ try {
       html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
-  // ─── 5. Profile Context stays separate from AI grounding controls ───
+  // ─── 5. Profile Context includes the Context entry surface without duplicating rows ───
   {
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = 'Functional endocrinology';
     const html = cards.renderProfileContextCards();
-    assert('Profile Context does not mount Interpretive Lens row',
-      !/lens-section-label[^>]*>Interpretive Lens/.test(html));
-    assert('Profile Context does not mount Knowledge Base row',
-      !/lens-section-label[^>]*>Knowledge Base/.test(html));
-    assert('Profile Context does not mount AI grounding actions',
-      !html.includes('data-dashboard-ai-action="open-interpretive-lens"') &&
-      !html.includes('data-dashboard-ai-action="open-knowledge-base"'));
+    assert('Profile Context mounts Interpretive Lens row via production renderer',
+      /lens-section-label[^>]*>Interpretive Lens/.test(html));
+    assert('Profile Context mounts AI grounding action surface',
+      html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
+    assert('Profile Context keeps Data Protection CTA available',
+      /Protect your data|Enable encryption|Sync to other devices|Set up auto-backup/.test(html) &&
+      /data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
 
     state.importedData.interpretiveLens = '';
     const htmlEmpty = cards.renderProfileContextCards();
-    assert('Profile Context does not mount Personalize-AI CTA when lens is unset',
-      !htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
-    assert('Profile Context does not mount Protect Data CTA',
-      !/Protect your data/.test(htmlEmpty) &&
-      !htmlEmpty.includes('data-dashboard-ai-action="open-data-protection-picker"'));
+    assert('Profile Context mounts Personalize-AI CTA when lens is unset',
+      htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
   }
 
   // Section 5b (picker open/dismiss — live DOM) lives in

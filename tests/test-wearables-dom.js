@@ -159,6 +159,8 @@ return (async function() {
     !!document.querySelector('#detail-modal .wearable-manual-entry-val')?.textContent?.includes('120/80'));
   window.closeModal();
 
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
   window._labState.importedData.wearableSummary = {
     sources: {
       withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
@@ -173,6 +175,7 @@ return (async function() {
     { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
     { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
     { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
   ]);
   await window.openWearableDetail('bp_systolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
@@ -186,6 +189,8 @@ return (async function() {
     /Latest\s+124\/80 mmHg/.test(mixedModalText) && !/Latest\s+130\/80 mmHg/.test(mixedModalText), mixedModalText);
   assert('BP latest row never leaks split-date debug text into visible value',
     !/split dates/.test(mixedModalText), mixedModalText);
+  assert('BP chart sample count uses unique rendered dates across paired sources',
+    /Chart samples\s+3d/.test(mixedModalText), mixedModalText);
   window.closeModal();
   await window.openWearableDetail('bp_diastolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Systolic/.test(d?.label || '')));

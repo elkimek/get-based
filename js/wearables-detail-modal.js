@@ -150,6 +150,11 @@ export async function openWearableDetail(metricId, opts = {}) {
     .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
     .filter(p => rangeDef.days == null || p.date >= startDate)
     .sort((a, b) => a.date.localeCompare(b.date));
+  const chartSampleCount = new Set([
+    ...series.map(p => p.date),
+    ...pairedSeries.map(p => p.date),
+    ...manualChartEntries.map(p => p.date),
+  ].filter(Boolean)).size;
 
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -166,6 +171,7 @@ export async function openWearableDetail(metricId, opts = {}) {
     pairedMetric,
     pairedSeries,
     pairedMetricId,
+    chartSampleCount,
   });
   openModalOverlay(overlay);
 
@@ -328,6 +334,9 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
   const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
+  const chartSampleCount = Number.isFinite(opts.chartSampleCount)
+    ? opts.chartSampleCount
+    : Math.max(series.length, pairedSeries.length);
   const pairedUnitSpaced = unitSpaced;
   const formatPaired = (sys, dia, includeUnit = true) => {
     const sysText = isMetricValueMeaningful('bp_systolic', sys) ? formatV(sys) : '—';
@@ -359,7 +368,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
     ['7-day avg', formatPaired(m.rolling?.d7, pairedMetric.rolling?.d7), ''],
     ['30-day avg', formatPaired(m.rolling?.d30, pairedMetric.rolling?.d30), ''],
     ['Typical range', `${formatPaired(m.baselineP25, pairedMetric.baselineP25, false)} – ${formatPaired(m.baselineP75, pairedMetric.baselineP75, false)}${pairedUnitSpaced}`, '25th–75th percentile'],
-    ['Chart samples', `${Math.max(series.length, pairedSeries.length)}d`, rangeDef.coverageSuffix],
+    ['Chart samples', `${chartSampleCount}d`, rangeDef.coverageSuffix],
   ] : [
     ['Latest',   `${formatV(m.latest)}${unitSpaced}`, m.latestDate ? shortDate(m.latestDate) : ''],
     ['Baseline (90d)', `${formatV(m.baseline)}${unitSpaced}`, 'median'],
