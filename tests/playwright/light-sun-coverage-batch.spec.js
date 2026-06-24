@@ -829,7 +829,6 @@ test('light devices cover session detail edit log active card and rendered list 
       formatChannelUnit: window.formatChannelUnit,
       CHANNEL_DISPLAY: window.CHANNEL_DISPLAY,
       _openChannelOnLightPage: window._openChannelOnLightPage,
-      renderDeviceSessionAIDetail: window.renderDeviceSessionAIDetail,
       loadCatalog: window.loadCatalog,
       renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
       showPromptDialog: window.showPromptDialog,
@@ -896,7 +895,9 @@ test('light devices cover session detail edit log active card and rendered list 
         pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
       };
       window._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
-      window.renderDeviceSessionAIDetail = () => '<section class="device-ai-detail-test">Device AI</section>';
+      lightDevices.configureLightDevices({
+        renderDeviceSessionAIDetail: () => '<section class="device-ai-detail-test">Device AI</section>',
+      });
       window.loadCatalog = async () => ({ items: [] });
       window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
       window.showPromptDialog = async () => '17';
@@ -986,6 +987,7 @@ test('light devices cover session detail edit log active card and rendered list 
       else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
       if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
       else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
+      lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
       Object.assign(window, savedWindow);
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

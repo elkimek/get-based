@@ -118,8 +118,6 @@ interface Window {
   geneticVitaminDMultiplier?: AnyFunction;
   renderSessionAIInline?: AnyFunction;
   renderSessionAIDetail?: AnyFunction;
-  renderDeviceSessionAIDetail?: AnyFunction;
-  renderDeviceSessionAIInline?: AnyFunction;
   renderLightChannelsLive?: AnyFunction;
   renderLightTodayDashboardChip?: AnyFunction;
   renderLightTodayHero?: AnyFunction;

@@ -320,11 +320,3 @@ export function renderDeviceSessionAIDetail(sess) {
     ${detail ? `<div class="sun-detail-ai-body">${escapeHTML(detail)}</div>` : ''}
   </div>`;
 }
-
-Object.assign(window, {
-  refreshDeviceSessionAIAnalysis,
-  analyzeDeviceSessionAI,
-  renderDeviceSessionAIInline,
-  renderDeviceSessionAIDetail,
-  maybeAnalyzeDeviceSessionAfterFinish,
-});

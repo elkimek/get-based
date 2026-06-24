@@ -47,6 +47,15 @@ const LIGHT_DEVICE_ID_ATTR = 'data-light-device-id';
 const LIGHT_DEVICE_SESSION_ID_ATTR = 'data-light-device-session-id';
 const LIGHT_DEVICES_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightDevicesActionDelegatesInstalled'), lightDevicesActionDelegateRoots = new WeakSet();
 
+/** @type {{ renderDeviceSessionAIDetail: (sess: any) => string }} */
+const lightDevicesDeps = {
+  renderDeviceSessionAIDetail: () => '',
+};
+
+export function configureLightDevices(deps = {}) {
+  Object.assign(lightDevicesDeps, deps);
+}
+
 function closestLightDevicesAction(target) { return target?.closest?.(`[${LIGHT_DEVICES_ACTION_ATTR}]`) || null; }
 
 function handleLightDevicesActionClick(event) {
@@ -347,7 +356,7 @@ export function openDeviceSessionDetail(id) {
       <button class="modal-close" data-device-session-detail-close aria-label="Close">×</button>
     </div>
     <div class="modal-body">
-      ${window.renderDeviceSessionAIDetail ? window.renderDeviceSessionAIDetail(sess) : ''}
+      ${typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function' ? lightDevicesDeps.renderDeviceSessionAIDetail(sess) : ''}
       <div class="sun-detail-grid">
         <div title="Total session duration. Edit via the action row below if the timer ran past the actual session."><span>Duration</span><strong>${escapeHTML(dur)}</strong></div>
         <div title="Distance from the panel's emitting surface to your skin. Inverse-square law applies — the model corrects irradiance by (recommendedDistanceCm / actualDistance)²."><span>Distance</span><strong>${escapeHTML(distanceStr)}</strong></div>
