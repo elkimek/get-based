@@ -196,11 +196,34 @@ return (async function() {
     bpSwapTargets.includes('bp_systolic') && bpSwapTargets.includes('bp_diastolic'), bpSwapTargets.join('|'));
   window.closeModal();
 
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
+  const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP mixed manual-diastolic fallback uses same-date manual pair before mismatched summary halves',
+    /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText) && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
+  window.closeModal();
+
   await window.openWearableDetail('bp_diastolic');
-  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Systolic/.test(d?.label || '')));
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
   assert('Opening bp_diastolic normalizes to the paired BP detail view',
-    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Systolic/.test(l)) &&
-    /124\/80/.test(document.getElementById('detail-modal')?.textContent || ''));
+    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
+    /121\/79/.test(document.getElementById('detail-modal')?.textContent || ''));
   window.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');

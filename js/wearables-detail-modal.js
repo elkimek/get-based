@@ -168,6 +168,7 @@ export async function openWearableDetail(metricId, opts = {}) {
   modal.innerHTML = buildWearableDetailHtml(canon, m, series, normalizedMetricId, manualEntries, {
     allZeroActivity,
     rangeKey,
+    rangeStartDate: startDate,
     pairedMetric,
     pairedSeries,
     manualChartEntries,
@@ -334,6 +335,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
 
   const rangeKey = opts.rangeKey || '90d';
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
+  const rangeStartDate = typeof opts.rangeStartDate === 'string' ? opts.rangeStartDate : WEARABLE_ALL_HISTORY_START_DATE;
   const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
   const manualChartEntries = Array.isArray(opts.manualChartEntries) ? opts.manualChartEntries : [];
@@ -355,7 +357,10 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
         return { date: point.date, sys: point.v, dia };
       }
     }
-    for (const point of [...manualChartEntries].sort((a, b) => b.date.localeCompare(a.date))) {
+    const manualPairedEntries = manualEntries
+      .filter(point => rangeDef.days == null || point.date >= rangeStartDate)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    for (const point of manualPairedEntries) {
       if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', point.pairedV)) {
         return { date: point.date, sys: point.v, dia: point.pairedV };
       }
