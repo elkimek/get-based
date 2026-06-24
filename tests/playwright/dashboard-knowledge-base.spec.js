@@ -15,6 +15,9 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay.locator('.ai-picker-card')).toHaveCount(2);
   await expect(overlay).toContainText('Context');
   await expect(overlay).toContainText('Personalize how AI answers');
+  await expect(overlay).toContainText('Interpretive Lens');
+  await expect(overlay.locator('.ai-picker-kicker')).toHaveCount(2);
+  await expect(overlay.locator('.ai-picker-icon')).toHaveCount(0);
   await expect(overlay).toContainText('Knowledge Base');
   await expect(overlay).not.toContainText('DNA Data');
   await expect(overlay).not.toContainText('Protect your data');
