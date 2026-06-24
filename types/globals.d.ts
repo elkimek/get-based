@@ -295,7 +295,6 @@ interface Window {
   renderAuditAIDot?: AnyFunction;
   renderBurdenInterp?: AnyFunction;
   renderMeasurementAIInline?: AnyFunction;
-  renderRoomAIBlock?: AnyFunction;
   renderScreenAIBlock?: AnyFunction;
   saveMeasurement?: AnyFunction;
   openChatPanel: AnyFunction;
@@ -329,6 +328,5 @@ declare var openLuxMeter: AnyFunction | undefined;
 declare var openSpectrumClassifier: AnyFunction | undefined;
 declare var renderBurdenInterp: AnyFunction | undefined;
 declare var renderMeasurementAIInline: AnyFunction | undefined;
-declare var renderRoomAIBlock: AnyFunction | undefined;
 declare var renderScreenAIBlock: AnyFunction | undefined;
 declare var ingredientDailyTotal: AnyFunction | undefined;

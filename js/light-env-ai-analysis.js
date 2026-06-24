@@ -254,9 +254,3 @@ export function renderRoomAIBlock(r) {
     <span class="light-env-room-ai-tip">Circadian-friendliness check for this room.</span>
     <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)}>Analyze</button>`);
 }
-
-Object.assign(window, {
-  refreshRoomAIAnalysis,
-  analyzeRoomAI,
-  renderRoomAIBlock,
-});
