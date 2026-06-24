@@ -64,9 +64,12 @@ let _detailOp = 0;
 
 export async function openWearableDetail(metricId, opts = {}) {
   const op = ++_detailOp;
-  const canon = canonicalMetric(metricId);
   const summary = state.importedData?.wearableSummary;
-  const m = summary?.metrics?.[metricId];
+  const normalizedMetricId = metricId === 'bp_diastolic' && summary?.metrics?.bp_systolic
+    ? 'bp_systolic'
+    : metricId;
+  const canon = canonicalMetric(normalizedMetricId);
+  const m = summary?.metrics?.[normalizedMetricId];
   if (!canon || !m) {
     showNotification?.('No data for this metric yet — run a sync first', 'info');
     return;
@@ -88,32 +91,38 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
 
   let rows = [];
+  let pairedRows = [];
+  const isBloodPressureDetail = normalizedMetricId === 'bp_systolic';
+  const pairedMetricId = isBloodPressureDetail ? 'bp_diastolic' : null;
+  const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
   try {
     rows = await getDailyRange(profileId, m.primarySource, startDate, endDate);
+    if (pairedMetricId && pairedMetric?.primarySource && pairedMetric.primarySource !== m.primarySource) {
+      pairedRows = await getDailyRange(profileId, pairedMetric.primarySource, startDate, endDate);
+    } else {
+      pairedRows = rows;
+    }
   } catch (e) {
     showNotification?.(`Couldn't read local history: ${e.message}`, 'error', 4000);
     return;
   }
   if (op !== _detailOp) return;
 
-  const isBloodPressureDetail = metricId === 'bp_systolic';
-  const pairedMetricId = isBloodPressureDetail ? 'bp_diastolic' : null;
-  const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
   const series = rows
-    .map(r => ({ date: r.date, v: r[metricId] }))
-    .filter(p => isMetricValueMeaningful(metricId, p.v))
+    .map(r => ({ date: r.date, v: r[normalizedMetricId] }))
+    .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const pairedSeries = pairedMetricId ? rows
+  const pairedSeries = pairedMetricId ? pairedRows
     .map(r => ({ date: r.date, v: r[pairedMetricId] }))
     .filter(p => isMetricValueMeaningful(pairedMetricId, p.v))
     .sort((a, b) => a.date.localeCompare(b.date)) : [];
 
-  const allZeroActivity = metricId === 'activity_score'
+  const allZeroActivity = normalizedMetricId === 'activity_score'
     && series.length > 0
     && series.every(p => p.v === 0);
 
   let manualRows = [];
-  if (MANUAL_METRICS.includes(metricId)) {
+  if (MANUAL_METRICS.includes(normalizedMetricId)) {
     try {
       manualRows = await getDailyRange(profileId, 'manual', WEARABLE_ALL_HISTORY_START_DATE, endDate);
     } catch {
@@ -125,12 +134,12 @@ export async function openWearableDetail(metricId, opts = {}) {
   const manualEntries = manualRows
     .map(r => ({
       date: r.date,
-      v: r[metricId],
+      v: r[normalizedMetricId],
       pairedV: pairedMetricId ? r[pairedMetricId] : undefined,
       tags: r.tags,
       note: r.note,
     }))
-    .filter(p => isMetricValueMeaningful(metricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
+    .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v) || (pairedMetricId && isMetricValueMeaningful(pairedMetricId, p.pairedV)))
     .sort((a, b) => b.date.localeCompare(a.date));
   const manualChartEntries = m.primarySource === 'manual'
     ? []
@@ -147,7 +156,7 @@ export async function openWearableDetail(metricId, opts = {}) {
     delete state.chartInstances['modal'];
   }
 
-  modal.innerHTML = buildWearableDetailHtml(canon, m, series, metricId, manualEntries, {
+  modal.innerHTML = buildWearableDetailHtml(canon, m, series, normalizedMetricId, manualEntries, {
     allZeroActivity,
     rangeKey,
     pairedMetric,
@@ -321,8 +330,27 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
     const diaText = isMetricValueMeaningful('bp_diastolic', dia) ? formatV(dia) : '—';
     return `${sysText}/${diaText}${includeUnit ? pairedUnitSpaced : ''}`;
   };
+  const latestPairedReading = (() => {
+    if (!pairedMetric) return null;
+    const diastolicByDate = new Map(pairedSeries.map(p => [p.date, p.v]));
+    for (const point of [...series].sort((a, b) => b.date.localeCompare(a.date))) {
+      const dia = diastolicByDate.get(point.date);
+      if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', dia)) {
+        return { date: point.date, sys: point.v, dia };
+      }
+    }
+    return null;
+  })();
+  const latestBpValue = latestPairedReading
+    ? formatPaired(latestPairedReading.sys, latestPairedReading.dia)
+    : `${formatPaired(m.latest, pairedMetric?.latest)}${m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate ? ' split dates' : ''}`;
+  const latestBpDate = latestPairedReading
+    ? shortDate(latestPairedReading.date)
+    : (m.latestDate && pairedMetric?.latestDate && m.latestDate !== pairedMetric.latestDate
+        ? `sys ${shortDate(m.latestDate)} · dia ${shortDate(pairedMetric.latestDate)}`
+        : (m.latestDate || pairedMetric?.latestDate ? shortDate(m.latestDate || pairedMetric?.latestDate) : ''));
   const baseStats = pairedMetric ? [
-    ['Latest',   formatPaired(m.latest, pairedMetric.latest), m.latestDate || pairedMetric.latestDate ? shortDate(m.latestDate || pairedMetric.latestDate) : ''],
+    ['Latest',   latestBpValue, latestBpDate],
     ['Baseline (90d)', formatPaired(m.baseline, pairedMetric.baseline), 'median'],
     ['7-day avg', formatPaired(m.rolling?.d7, pairedMetric.rolling?.d7), ''],
     ['30-day avg', formatPaired(m.rolling?.d30, pairedMetric.rolling?.d30), ''],

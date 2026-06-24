@@ -34,6 +34,8 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
   const formatV = v => formatValue(v, unit);
   const primaryAdapter = adapterById(m.primarySource);
   const primaryLabel = primaryAdapter?.displayName || 'Primary source';
+  const pairedAdapter = adapterById(pairedMetric?.primarySource);
+  const pairedLabel = pairedAdapter?.displayName || primaryLabel;
   const sysColor = tc.lineColor || '#60a5fa';
   const diaColor = '#a78bfa';
   const manualColor = '#f59e0b';
@@ -83,7 +85,7 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
     spanGaps: true,
   });
   if (diaData.length) datasets.push({
-    label: `Diastolic (${primaryLabel})`,
+    label: `Diastolic (${pairedLabel})`,
     data: diaData,
     _kind: 'primary',
     borderColor: diaColor,
