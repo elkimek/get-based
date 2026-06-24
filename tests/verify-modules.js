@@ -100,7 +100,7 @@
     'openHealthGoalsEditor','renderHealthGoalsModal',
     'addHealthGoal','deleteHealthGoal','clearHealthGoals',
     'openInterpretiveLensEditor','saveInterpretiveLens','clearInterpretiveLens',
-    'renderInterpretiveLensSection'
+    'renderInterpretiveLensSection','openContextModal'
   ];
 
   // client-list.js (3)
@@ -628,6 +628,9 @@
 
     const hasWearablesDetailModalJs = sw.includes('/js/wearables-detail-modal.js');
     assert('Service worker caches js/wearables-detail-modal.js', hasWearablesDetailModalJs);
+
+    const hasWearablesBpDetailChartJs = sw.includes('/js/wearables-bp-detail-chart.js');
+    assert('Service worker caches js/wearables-bp-detail-chart.js', hasWearablesBpDetailChartJs);
 
     const hasWearablesFormattersJs = sw.includes('/js/wearables-formatters.js');
     assert('Service worker caches js/wearables-formatters.js', hasWearablesFormattersJs);

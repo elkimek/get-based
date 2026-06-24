@@ -219,9 +219,28 @@
   transition: border-color 0.15s, background 0.15s;
   width: 100%;
 }
-.ai-picker-card:hover, .dashboard-picker-card:hover { border-color: var(--purple); background: var(--bg-hover); }
-.ai-picker-card:focus-visible, .dashboard-picker-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-.ai-picker-icon, .dashboard-picker-icon { font-size: 22px; line-height: 1; }
+.dashboard-picker-card:hover { border-color: var(--purple); background: var(--bg-hover); }
+.dashboard-picker-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+.ai-picker-card {
+  position: relative; min-height: 150px; padding: 16px 16px 14px 18px;
+  border-color: color-mix(in srgb, var(--border) 86%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, var(--accent)), var(--bg-card));
+}
+.ai-picker-card::before {
+  content: ''; position: absolute; inset: 14px auto 14px 0; width: 3px; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
+}
+.ai-picker-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--bg-hover) 88%, var(--accent));
+}
+.ai-picker-card:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 78%, transparent); outline-offset: 2px; }
+.ai-picker-kicker {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 78%, var(--text-muted));
+}
+.ai-picker-action { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: auto; }
+.dashboard-picker-icon { font-size: 22px; line-height: 1; }
 .ai-picker-title, .dashboard-picker-title { font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .ai-picker-sub, .dashboard-picker-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
 .dashboard-picker-action { font-size: 12px; color: var(--purple); font-weight: 500; margin-top: 4px; }
@@ -238,6 +257,7 @@
   .db-quick-marker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
+  .ai-picker-grid { grid-template-columns: 1fr; }
   .dashboard-widget,
   .dashboard-widget-quarter,
   .dashboard-widget-third { grid-column: span 12; }

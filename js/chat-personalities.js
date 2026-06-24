@@ -8,6 +8,7 @@ import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelDisplay, isV
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
+import { getLensSummary } from './lens.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -259,6 +260,67 @@ export function updateSummaryButton() {
 }
 
 let _headerListenerAdded = false;
+function getAIContextHeaderState() {
+  const active = [];
+  const pending = [];
+  if ((state.importedData?.interpretiveLens || '').trim()) active.push('Lens');
+  try {
+    const kb = getLensSummary();
+    if (kb?.configured) active.push(kb.displayName || 'Knowledge Base');
+    else if (kb?.enabled) pending.push('KB empty');
+  } catch { /* Knowledge Base not initialised yet. */ }
+  return { active, pending };
+}
+
+function ensureChatContextStatus(el) {
+  const parent = el.parentElement;
+  if (!parent) return null;
+  let status = parent.querySelector('.chat-context-status');
+  if (!status) {
+    status = document.createElement('button');
+    status.type = 'button';
+    status.className = 'chat-context-status';
+    status.addEventListener('click', () => {
+      const opener = /** @type {any} */ (window).openContextModal;
+      if (typeof opener === 'function') opener();
+    });
+    parent.appendChild(status);
+  }
+  return status;
+}
+
+export function updateChatContextStatus() {
+  const modelEl = document.querySelector('.chat-header-model');
+  if (!modelEl) return;
+  const status = ensureChatContextStatus(modelEl);
+  if (!status) return;
+  if (!hasAIProvider()) {
+    status.textContent = '';
+    status.hidden = true;
+    status.removeAttribute('aria-label');
+    status.classList.remove('chat-context-status-pending');
+    return;
+  }
+  const contextState = getAIContextHeaderState();
+  const parts = [...contextState.active, ...contextState.pending];
+  if (parts.length === 0) {
+    status.textContent = '';
+    status.hidden = true;
+    status.removeAttribute('aria-label');
+    status.classList.remove('chat-context-status-pending');
+    return;
+  }
+  const pendingOnly = contextState.active.length === 0 && contextState.pending.length > 0;
+  const label = `AI Context: ${parts.join(' + ')}`;
+  const ariaSuffix = pendingOnly
+    ? 'Knowledge Base is enabled but no library is indexed yet. Click to manage Context.'
+    : 'Click to manage Context.';
+  status.hidden = false;
+  status.classList.toggle('chat-context-status-pending', pendingOnly);
+  status.setAttribute('aria-label', `${label}. ${ariaSuffix}`);
+  status.innerHTML = `<span class="chat-context-dot" aria-hidden="true"></span><span>${escapeHTML(label)}</span>`;
+}
+
 export function updateChatHeaderModel() {
   const el = document.querySelector('.chat-header-model');
   if (!el) return;
@@ -266,7 +328,8 @@ export function updateChatHeaderModel() {
     el.addEventListener('e2ee-attestation', () => updateChatHeaderModel());
     _headerListenerAdded = true;
   }
-  if (!hasAIProvider()) { el.textContent = ''; return; }
+  if (!hasAIProvider()) { el.textContent = ''; updateChatContextStatus(); return; }
+  updateChatContextStatus();
   const display = getActiveModelDisplay();
   const provider = getAIProvider();
   const e2ee = provider === 'venice' && isVeniceE2EEActive();

@@ -89,6 +89,8 @@ function handleNavActionClick(event) {
     appWindow.openKnowledgeBaseModal?.();
   } else if (action === 'open-report-builder') {
     appWindow.openReportBuilder?.();
+  } else if (action === 'open-context') {
+    appWindow.openContextModal?.();
   } else if (action === 'open-custom-marker') {
     appWindow.openCreateMarkerModal?.();
   } else if (action === 'toggle-group') {
@@ -268,8 +270,8 @@ export function buildSidebar(data) {
   html += `<div class="nav-section">Manage</div>`;
   html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="knowledge" tabindex="0" role="button" ${_navActionAttrs('open-knowledge-base')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Knowledge Base</span><span class="nav-item-dot"></span></div>`;
+  html += `<div class="nav-item" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')}>
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 
@@ -381,7 +383,7 @@ export function filterSidebar() {
   // When searching: show matching items, expand groups with matches, hide empty groups
   items.forEach(el => {
     const cat = el.dataset.category;
-    if (cat === 'dashboard' || cat === 'labs' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'knowledge' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
+    if (cat === 'dashboard' || cat === 'labs' || cat === 'correlations' || cat === 'compare' || cat === 'recommendations' || cat === 'reports' || cat === 'context' || cat === 'custom-markers' || cat === 'light' || cat === 'body' || cat === 'wearables' || cat === 'emf' || cat === 'light-env-assessment' || cat === 'genome' || cat === 'genetics' || cat === 'insight') { el.style.display = ''; return; }
     const label = el.textContent.toLowerCase();
     const markers = (el.dataset.markers || '').toLowerCase();
     el.style.display = (label.includes(query) || markers.includes(query)) ? '' : 'none';

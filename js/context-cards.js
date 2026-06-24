@@ -34,6 +34,7 @@ import {
 } from './context-card-health-dots.js';
 import {
   openDataProtectionPicker,
+  openContextModal,
   openPersonalizeAIPicker,
   renderDataProtectionCta,
   renderInterpretiveLensSection,
@@ -235,6 +236,7 @@ export {
 } from './context-card-medical-history-editor.js';
 export {
   openDataProtectionPicker,
+  openContextModal,
   openPersonalizeAIPicker,
   renderDataProtectionCta,
   renderInterpretiveLensSection,
@@ -291,7 +293,8 @@ export function renderProfileContextCards() {
     _ccSubtitle = `<div class="context-section-subtitle">${_ccMissingDemo ? 'Set your sex and date of birth in Settings, then open' : 'All filled \u2014 open'} the chat to get personalized test recommendations based on your profile.</div>`;
   }
   const _refreshBtn = hasAIProvider() ? `<button class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} title="Refresh all AI insights">&#x21bb;</button>` : '';
-  let html = `<div style="margin-top:16px"><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
+  let html = renderInterpretiveLensSection();
+  html += `<div style="margin-top:16px"><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
   html += `<div class="profile-context-cards">`;
   for (const c of cardDefs) {
     const filled = isContextFilled(c.key);
@@ -532,6 +535,7 @@ Object.assign(window, {
   clearInterpretiveLens,
   renderInterpretiveLensSection,
   renderKnowledgeBaseSection,
+  openContextModal,
   openPersonalizeAIPicker,
   openDataProtectionPicker,
   triggerDNAFilePicker,

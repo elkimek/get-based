@@ -33,6 +33,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origOpenEMF = window.openEMFAssessmentEditor;
     const origOpenReportBuilder = window.openReportBuilder;
     const origOpenKB = window.openKnowledgeBaseModal;
+    const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
     const origIsGroupInAI = window.isGroupInAIContext;
@@ -79,6 +80,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       });
       window.openReportBuilder = () => calls.push(['open-report-builder']);
       window.openKnowledgeBaseModal = () => calls.push(['open-kb']);
+      window.openContextModal = () => calls.push(['open-context']);
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       window.openClientList = () => calls.push(['open-client-list']);
       window.isGroupInAIContext = group => aiGroups.has(group);
@@ -119,7 +121,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       document.querySelector('#sidebar-nav .nav-item[data-category="emf"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="light-env-assessment"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="reports"]')?.click();
-      document.querySelector('#sidebar-nav .nav-item[data-category="knowledge"]')?.click();
+      document.querySelector('#sidebar-nav .nav-item[data-category="context"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="custom-markers"]')?.click();
       document.querySelector('#sidebar-nav .sidebar-add-marker')?.click();
       document.querySelector('#profile-selector .profile-compact-btn')?.click();
@@ -138,7 +140,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         utilitiesCallHandlers: calls.some(c => c[0] === 'open-emf')
           && calls.some(c => c[0] === 'open-light-env')
           && calls.some(c => c[0] === 'open-report-builder')
-          && calls.some(c => c[0] === 'open-kb')
+          && calls.some(c => c[0] === 'open-context')
           && calls.filter(c => c[0] === 'open-custom-marker').length >= 2
           && calls.some(c => c[0] === 'open-client-list'),
       };
@@ -151,6 +153,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       window.openReportBuilder = origOpenReportBuilder;
       window.openKnowledgeBaseModal = origOpenKB;
+      window.openContextModal = origOpenContext;
       window.openCreateMarkerModal = origOpenCreateMarker;
       window.openClientList = origOpenClientList;
       window.isGroupInAIContext = origIsGroupInAI;

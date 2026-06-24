@@ -95,6 +95,7 @@ export function saveLensConfig(partial) {
   if (urlChanged || topKChanged) clearLensCache();
   // Ping listeners so the indicator re-evaluates visibility (without clobbering state)
   updateLensStatus({});
+  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
   return next;
 }
 export function getLensKey() { return getCachedKey(SECRET_KEY) || ''; }
@@ -102,6 +103,10 @@ export async function saveLensKey(key) {
   await encryptedSetItem(SECRET_KEY, key);
   updateKeyCache(SECRET_KEY, key);
   clearLensCache();
+  // External-server hasLens() gates on getLensKey(); refresh the chat header
+  // immediately so first-time KB key saves surface the AI Context chip without
+  // waiting for an unrelated model/config refresh.
+  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
 }
 export async function removeLens() {
   localStorage.removeItem(CONFIG_KEY);
@@ -109,6 +114,7 @@ export async function removeLens() {
   updateKeyCache(SECRET_KEY, '');
   clearLensCache();
   updateLensStatus({ state: 'idle', lastChunkCount: 0, lastError: null, sourceName: '' });
+  /** @type {any} */ (globalThis).updateChatHeaderModel?.();
 }
 export function hasLens() {
   const cfg = getLensConfig();

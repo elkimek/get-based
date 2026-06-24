@@ -1,5 +1,5 @@
 // @ts-check
-// context-card-dashboard-ai.js - dashboard AI personalization and data protection CTAs
+// context-card-dashboard-ai.js - AI context and data protection CTAs
 
 import { getFolderBackupState } from './backup.js';
 import { getEncryptionEnabled } from './crypto.js';
@@ -36,7 +36,7 @@ function closestDashboardAIAction(target) {
 function runDashboardAIAction(action) {
   if (action === 'open-interpretive-lens') appWindow.openInterpretiveLensEditor?.();
   else if (action === 'open-knowledge-base') appWindow.openKnowledgeBaseModal?.();
-  else if (action === 'open-personalize-ai-picker') openPersonalizeAIPicker();
+  else if (action === 'open-personalize-ai-picker') openContextModal();
   else if (action === 'enable-encryption') appWindow.showEnableEncryptionModal?.();
   else if (action === 'setup-sync') appWindow.showSyncSetupModal?.();
   else if (action === 'setup-backup') appWindow.pickFolderForBackup?.();
@@ -84,14 +84,14 @@ export function renderInterpretiveLensSection() {
   const lens = (state.importedData.interpretiveLens || '').trim();
   let summary; try { summary = getLensSummary(); } catch { summary = null; }
   const kbConfigured = !!(summary && summary.configured);
+  const kbEnabled = !!(summary && summary.enabled);
 
   const lensRow = lens
     ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" ${dashboardAIActionAttrs('open-interpretive-lens')} title="Interpretive Lens - click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
     : '';
-  const kbRow = kbConfigured ? renderKnowledgeBaseRow(summary) : '';
+  const kbRow = (kbConfigured || kbEnabled) ? renderKnowledgeBaseRow(summary) : '';
   const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
-  const dataCta = renderDataProtectionCta();
-  return lensRow + kbRow + aiCta + dataCta;
+  return lensRow + kbRow + aiCta + renderDataProtectionCta();
 }
 
 // Programmatic DNA file picker. Mirrors the chat onboarding hidden-file-input
@@ -122,7 +122,7 @@ export function triggerDNAFilePicker() {
 // query-rewriting status.
 export function renderKnowledgeBaseSection() {
   let s; try { s = getLensSummary(); } catch { return ''; }
-  if (!s || !s.configured) return '';
+  if (!s || (!s.configured && !s.enabled)) return '';
   return renderKnowledgeBaseRow(s);
 }
 
@@ -133,7 +133,8 @@ function renderKnowledgeBaseRow(s) {
   const rewriteFragment = s.aiAvailable
     ? ` &middot; query rewriting ${s.multiQueryOn ? 'on' : 'off'}`
     : '';
-  const detail = `${escapeHTML(s.displayName)}${docFragment}${rewriteFragment}`;
+  const emptyEnabledFragment = (!s.configured && s.enabled) ? ' &middot; enabled, no documents indexed yet' : '';
+  const detail = `${escapeHTML(s.displayName)}${emptyEnabledFragment}${docFragment}${rewriteFragment}`;
   return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" ${dashboardAIActionAttrs('open-knowledge-base')} title="Knowledge Base - click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
 }
 
@@ -278,12 +279,12 @@ export function openDataProtectionPicker() {
   });
 }
 
-export function openPersonalizeAIPicker() {
+export function openContextModal() {
   const appWindow = /** @type {any} */ (window);
-  let overlay = document.getElementById('ai-personalize-picker-overlay');
+  let overlay = document.getElementById('context-hub-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
-    overlay.id = 'ai-personalize-picker-overlay';
+    overlay.id = 'context-hub-overlay';
     overlay.className = 'confirm-overlay';
     document.body.appendChild(overlay);
   }
@@ -292,31 +293,44 @@ export function openPersonalizeAIPicker() {
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Personalize how AI answers" style="max-width:520px">
-    <p class="confirm-message" style="margin-bottom:14px">Personalize how AI answers</p>
+  const lensSet = !!(state.importedData.interpretiveLens || '').trim();
+  let kbSummary; try { kbSummary = getLensSummary(); } catch { kbSummary = null; }
+  const kbSet = !!kbSummary?.configured;
+  const kbEnabled = !!kbSummary?.enabled;
+  const check = '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>';
+  const kbStatus = kbSet
+    ? `${escapeHTML(kbSummary.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.`
+    : (kbEnabled
+      ? 'Knowledge Base is enabled, but no documents are indexed yet. Add a library before it can ground answers.'
+      : 'Ground answers in your own documents, research papers, notes, and references.');
+  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Context" style="max-width:520px">
+    <p class="confirm-message" style="margin-bottom:6px">Context</p>
+    <p class="confirm-subtext" style="margin:0 0 14px;color:var(--muted);font-size:0.92rem">Control how AI interprets and grounds answers. Profile facts stay in Profile Context.</p>
     <div class="ai-picker-grid">
       <button type="button" class="ai-picker-card" data-pick="lens">
-        <span class="ai-picker-icon" aria-hidden="true">&#129694;</span>
-        <span class="ai-picker-title">Interpretive Lens</span>
-        <span class="ai-picker-sub">Frame answers around researchers, paradigms, or schools of thought.</span>
+        <span class="ai-picker-kicker">Interpretive Lens</span>
+        <span class="ai-picker-title">Personalize how AI answers ${lensSet ? check : ''}</span>
+        <span class="ai-picker-sub">${lensSet ? 'Interpretive Lens is enabled. Click to review or edit it.' : 'Set the interpretive lens: researchers, paradigms, or schools of thought.'}</span>
+        <span class="ai-picker-action">${lensSet ? 'Review lens' : 'Set lens'} &rarr;</span>
       </button>
       <button type="button" class="ai-picker-card" data-pick="kb">
-        <span class="ai-picker-icon" aria-hidden="true">&#128218;</span>
-        <span class="ai-picker-title">Knowledge Base</span>
-        <span class="ai-picker-sub">Ground answers in your own documents - research papers, notes, references.</span>
+        <span class="ai-picker-kicker">Retrieval</span>
+        <span class="ai-picker-title">Knowledge Base ${kbSet ? check : ''}</span>
+        <span class="ai-picker-sub">${kbStatus}</span>
+        <span class="ai-picker-action">${kbSet ? 'Manage source' : (kbEnabled ? 'Add documents' : 'Connect source')} &rarr;</span>
       </button>
     </div>
     <div class="confirm-actions" style="margin-top:6px">
-      <button class="confirm-btn confirm-btn-cancel" id="ai-personalize-picker-cancel">Cancel</button>
+      <button class="confirm-btn confirm-btn-cancel" id="context-hub-cancel">Close</button>
     </div>
   </div>`;
   openModalOverlay(overlay, {
-    initialFocus: '.ai-picker-card,#ai-personalize-picker-cancel',
+    initialFocus: '.ai-picker-card,#context-hub-cancel',
     focusDelay: 50,
   });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#ai-personalize-picker-cancel'));
+  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#context-hub-cancel'));
   if (cancelButton) cancelButton.onclick = close;
   overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
     const button = /** @type {HTMLButtonElement} */ (btn);
@@ -330,4 +344,8 @@ export function openPersonalizeAIPicker() {
       }
     };
   });
+}
+
+export function openPersonalizeAIPicker() {
+  openContextModal();
 }

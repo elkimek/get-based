@@ -123,6 +123,173 @@ return (async function() {
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
+  // A2. Blood Pressure detail modal pairs systolic + diastolic
+  // ═══════════════════════════════════════
+  console.log('%c A2. Blood Pressure Modal Pairing ', 'font-weight:bold;color:#f59e0b');
+  localStorage.setItem('wearable-detail-range', '90d');
+  window._labState.importedData.wearableSummary = {
+    sources: { manual: { connectedSince: '2026-04-20', lastSyncAt: Date.now(), coverageDays: 3 } },
+    metrics: {
+      bp_systolic: { primarySource: 'manual', latest: 120, latestDate: '2026-04-22', baseline: 121, baselineP25: 118, baselineP75: 123, rolling: { d7: 120, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [121, 120] },
+      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: '2026-04-22', baseline: 79, baselineP25: 76, baselineP75: 82, rolling: { d7: 80, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [79, 80] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'manual', date: '2026-04-20', bp_systolic: 122, bp_diastolic: 81 },
+    { source: 'manual', date: '2026-04-21', bp_systolic: 121, bp_diastolic: 79 },
+    { source: 'manual', date: '2026-04-22', bp_systolic: 120, bp_diastolic: 80, note: 'after walk', tags: ['rested'] },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /Diastolic/.test(d?.label || '')));
+  const bpModalText = document.getElementById('detail-modal')?.textContent || '';
+  const bpChart = window._labState.chartInstances?.modal;
+  const bpLabels = bpChart?.data?.datasets?.map(d => d.label) || [];
+  assert('BP modal latest/stat/manual list shows paired 120/80 value', /120\/80/.test(bpModalText), bpModalText);
+  assert('BP modal Typical range shows unit once at the end',
+    /Typical range\s+118\/76\s+–\s+123\/82 mmHg/.test(bpModalText) &&
+    !/Typical range\s+118\/76 mmHg\s+–\s+123\/82 mmHg/.test(bpModalText), bpModalText);
+  assert('BP chart renders Systolic and Diastolic datasets',
+    bpLabels.some(l => /^Systolic/.test(l)) && bpLabels.some(l => /^Diastolic/.test(l)), bpLabels.join('|'));
+  assert('BP manual-primary chart suppresses duplicate manual diastolic scatter',
+    !bpLabels.some(l => /^Manual diastolic$/.test(l)), bpLabels.join('|'));
+  assert('BP diastolic dataset has 3 dated points',
+    bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.data?.length === 3);
+  assert('BP manual entries preserve paired sys/dia row value',
+    !!document.querySelector('#detail-modal .wearable-manual-entry-val')?.textContent?.includes('120/80'));
+  window.closeModal();
+
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: '2026-06-24', baseline: 126, baselineP25: 124, baselineP75: 130, rolling: { d7: 127, d30: 126, d90: 126 }, trend30d: 'flat', weekly: [126, 127] },
+      bp_diastolic: { primarySource: 'manual', latest: 80, latestDate: '2026-06-20', baseline: 80, baselineP25: 78, baselineP75: 82, rolling: { d7: 80, d30: 80, d90: 80 }, trend30d: 'flat', weekly: [80] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
+    { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
+    { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic/.test(d?.label || '')));
+  const mixedModalText = document.getElementById('detail-modal')?.textContent || '';
+  const mixedChartLabels = window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || [];
+  assert('BP modal fetches diastolic rows from paired metric primary source',
+    mixedChartLabels.some(l => /^Diastolic \(Manual/.test(l)), mixedChartLabels.join('|'));
+  assert('BP mixed-source chart does not duplicate manual-primary diastolic as manual scatter',
+    !mixedChartLabels.some(l => /^Manual diastolic$/.test(l)), mixedChartLabels.join('|'));
+  assert('BP latest row uses an actual same-date pair instead of mismatched latest halves',
+    /Latest\s+124\/80 mmHg/.test(mixedModalText) && !/Latest\s+130\/80 mmHg/.test(mixedModalText), mixedModalText);
+  assert('BP latest row never leaks split-date debug text into visible value',
+    !/split dates/.test(mixedModalText), mixedModalText);
+  assert('BP chart sample count uses unique rendered dates across paired sources',
+    /Chart samples\s+3d/.test(mixedModalText), mixedModalText);
+  const bpSwapTargets = Array.from(document.querySelectorAll('#detail-modal .wearable-modal-source-swap'))
+    .map(btn => btn.getAttribute('data-wearable-metric'));
+  assert('BP modal exposes separate systolic and diastolic source swap targets',
+    bpSwapTargets.includes('bp_systolic') && bpSwapTargets.includes('bp_diastolic'), bpSwapTargets.join('|'));
+  window.closeModal();
+
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'withings', date: '2026-06-20', bp_systolic: 124 },
+    { source: 'manual', date: '2026-06-20', bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Diastolic \(Manual/.test(d?.label || '')));
+  const mixedManualPrimaryText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP mixed manual-diastolic fallback chooses the newest same-date pair across chart and manual candidates',
+    /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText)
+      && !/Latest\s+124\/80 mmHg/.test(mixedManualPrimaryText)
+      && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
+  window.closeModal();
+
+  await window.openWearableDetail('bp_diastolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
+  assert('Opening bp_diastolic normalizes to the paired BP detail view',
+    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
+    /121\/79/.test(document.getElementById('detail-modal')?.textContent || ''));
+  window.closeModal();
+
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 1 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 130, latestDate: '2026-06-24', baseline: 130, baselineP25: 128, baselineP75: 132, rolling: { d7: 130, d30: 130, d90: 130 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'manual', latest: 78, latestDate: '2026-06-22', baseline: 78, baselineP25: 76, baselineP75: 80, rolling: { d7: 78, d30: 78, d90: 78 }, trend30d: 'flat', weekly: [] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'withings', date: '2026-06-24', bp_systolic: 130 },
+    { source: 'manual', date: '2026-06-22', bp_diastolic: 78 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  const splitDateText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP latest row does not synthesize a split-date summary pair when no same-date candidate exists',
+    /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
+  window.closeModal();
+
+  window._labState.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => /No same-date pair/.test(document.getElementById('detail-modal')?.textContent || ''));
+  const missingDateText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP latest row does not synthesize a summary pair when one latest date is missing',
+    /Latest\s+—\s+No same-date pair/.test(missingDateText) && !/Latest\s+130\/78 mmHg/.test(missingDateText), missingDateText);
+  window.closeModal();
+
+  await store.clearSource(TEST_PROFILE, 'manual');
+  await store.clearSource(TEST_PROFILE, 'withings');
+  window._labState.importedData.wearableSummary = {
+    sources: {
+      withings: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 0 },
+      manual: { connectedSince: '2026-06-20', lastSyncAt: Date.now(), coverageDays: 2 },
+    },
+    metrics: {
+      bp_systolic: { primarySource: 'withings', latest: 125, latestDate: '2026-06-24', baseline: 121, baselineP25: 119, baselineP75: 123, rolling: { d7: 121, d30: 121, d90: 121 }, trend30d: 'flat', weekly: [] },
+      bp_diastolic: { primarySource: 'withings', latest: 79, latestDate: '2026-06-22', baseline: 79, baselineP25: 77, baselineP75: 81, rolling: { d7: 79, d30: 79, d90: 79 }, trend30d: 'flat', weekly: [] },
+    },
+  };
+  await store.upsertDailyBatch(TEST_PROFILE, [
+    { source: 'manual', date: '2026-06-21', bp_systolic: 122, bp_diastolic: 80 },
+    { source: 'manual', date: '2026-06-22', bp_systolic: 121, bp_diastolic: 79 },
+  ]);
+  await window.openWearableDetail('bp_systolic');
+  await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /^Manual systolic$/.test(d?.label || '')));
+  const manualOnlyText = document.getElementById('detail-modal')?.textContent || '';
+  assert('BP modal hides empty chart hint when manual readings are charted',
+    !/No chart samples for this metric/.test(manualOnlyText), manualOnlyText);
+  assert('BP manual-only latest row prefers latest same-date manual pair over mismatched summary halves',
+    /Latest\s+121\/79 mmHg/.test(manualOnlyText) && !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
+  assert('BP manual-only fallback chart renders manual sys/dia points',
+    (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l)));
+  window.closeModal();
+  delete window._labState.importedData.wearableSummary;
+
+  // ═══════════════════════════════════════
   // B. JSZip lazy-loader functional smoke
   // ═══════════════════════════════════════
   // Clear window.JSZip, route through importAppleHealthFile (the public entry

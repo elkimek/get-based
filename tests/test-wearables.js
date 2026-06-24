@@ -1673,7 +1673,7 @@ assert('Backfill + sync error toasts run their messages through _scrubError',
 // P2 a11y: friendlier aria on manual delete button + collapse-arrow header.
 assert('Manual-entry delete aria reads as a sentence (long date + value + unit)',
   /aria-label="\$\{escapeHTML\(ariaText\)\}"/.test(wearablesDetailSrcP2) &&
-  /Delete\s+\$\{metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesDetailSrcP2));
+  /Delete\s+\$\{isBloodPressure\s*\?\s*'blood pressure'\s*:\s*metricLabel\.toLowerCase\(\)\}\s+reading\s+from/.test(wearablesDetailSrcP2));
 assert('Strip-header role="button" carries an aria-label distinct from the live source list',
   /'(Expand|Collapse) wearables strip'/.test(wearablesSrcP2)
   && /aria-label="\$\{ariaLabel\}"/.test(wearablesSrcP2));
@@ -1812,8 +1812,19 @@ assert('Service-worker static cache lists wearables-manual.js',
   /\/js\/wearables-manual\.js/.test(swSrc));
 assert('Service-worker static cache lists extracted wearable detail modules',
   /\/js\/wearables-detail-modal\.js/.test(swSrc) &&
+  /\/js\/wearables-bp-detail-chart\.js/.test(swSrc) &&
   /\/js\/wearables-formatters\.js/.test(swSrc) &&
   /\/js\/wearables-manual-form-ui\.js/.test(swSrc));
+const bpChartSrc = await fetch('/js/wearables-bp-detail-chart.js').then(r => r.text());
+assert('Manual diastolic scatter color is distinct from primary diastolic line',
+  /const\s+diaColor\s*=\s*['"]#a78bfa['"]/.test(bpChartSrc) &&
+  /const\s+manualDiaColor\s*=\s*['"]#f43f5e['"]/.test(bpChartSrc) &&
+  !/const\s+manualDiaColor\s*=\s*diaColor\b/.test(bpChartSrc));
+assert('Deferred BP chart render is guarded against stale modal canvas reuse',
+  bpChartSrc.includes('canvas.dataset.bpRenderToken = retryToken') &&
+  bpChartSrc.includes('currentCanvas === canvas') &&
+  bpChartSrc.includes('canvas.isConnected') &&
+  bpChartSrc.includes('canvas.dataset.bpRenderToken === retryToken'));
 
 // disconnectWearable now clears last-sync meta so reconnect doesn't pick
 // up a stale endDate.

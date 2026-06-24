@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-dashboard-knowledge-base.js — KB row + Personalize-AI CTA on the dashboard
+// test-dashboard-knowledge-base.js — Context hub rows and Personalize-AI CTA
 //
 // UX contract (v1.3.23):
 //   - Interpretive Lens row → ONLY when set
@@ -12,10 +12,11 @@
 //
 // Run: node tests/test-dashboard-knowledge-base.js  (or via npm test)
 //
-// Section 5 (picker open/dismiss — needs a live DOM overlay + click events)
+// Section 5 (Context hub open/dismiss — needs a live DOM overlay + click events)
 // lives in tests/playwright/dashboard-knowledge-base.spec.js.
 
 import './_node-shim.js';
+import fs from 'fs';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -127,6 +128,22 @@ try {
       /Set an interpretive lens/i.test(html));
   }
 
+  // ─── 3b. KB toggle enabled but no indexed library → honest setup state ───
+  {
+    lens.saveLensConfig({
+      backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true,
+    });
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = '';
+    const html = cards.renderInterpretiveLensSection();
+    assert('KB enabled-empty: KB row present as setup state',
+      /lens-section-label[^>]*>Knowledge Base/.test(html));
+    assert('KB enabled-empty: row says no documents indexed yet',
+      /enabled, no documents indexed yet/.test(html));
+    assert('KB enabled-empty: CTA still opens KB modal to finish setup',
+      html.includes('dashboard-cta') && html.includes('data-dashboard-ai-action="open-knowledge-base"'));
+  }
+
   // ─── 4. Both Lens + KB set → no AI-personalize CTA ───
   {
     lens.saveLensConfig({
@@ -148,11 +165,33 @@ try {
       html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
-  // Section 5 (picker open/dismiss — live DOM) lives in
+  // ─── 5. Profile Context includes the Context entry surface without duplicating rows ───
+  {
+    localStorage.removeItem('labcharts-lens-config');
+    localStorage.removeItem('labcharts-lens-local-count');
+    state.importedData.interpretiveLens = 'Functional endocrinology';
+    const html = cards.renderProfileContextCards();
+    assert('Profile Context mounts Interpretive Lens row via production renderer',
+      /lens-section-label[^>]*>Interpretive Lens/.test(html));
+    assert('Profile Context mounts AI grounding action surface',
+      html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
+    assert('Profile Context keeps Data Protection CTA available',
+      /Protect your data|Enable encryption|Sync to other devices|Set up auto-backup/.test(html) &&
+      /data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
+
+    state.importedData.interpretiveLens = '';
+    const htmlEmpty = cards.renderProfileContextCards();
+    assert('Profile Context mounts Personalize-AI CTA when lens is unset',
+      htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+  }
+
+  // Section 5b (picker open/dismiss — live DOM) lives in
   // tests/playwright/dashboard-knowledge-base.spec.js.
 
   // ─── 6. Window exports ───
   {
+    assert('window.openContextModal exists',
+      typeof window.openContextModal === 'function');
     assert('window.openPersonalizeAIPicker exists',
       typeof window.openPersonalizeAIPicker === 'function');
     assert('window.openKnowledgeBaseModal exists',
@@ -163,6 +202,22 @@ try {
       typeof window.renderKnowledgeBaseSection === 'function');
     assert('window.triggerDNAFilePicker exists (used by genetics empty stub)',
       typeof window.triggerDNAFilePicker === 'function');
+  }
+
+  // ─── 8. Current-head Greptile regressions ───
+  {
+    const chatSrc = fs.readFileSync('js/chat-personalities.js', 'utf8');
+    assert('chat header hides AI Context chip when no provider is configured',
+      /function updateChatContextStatus\(\)[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?status\.hidden = true;[\s\S]*?return;[\s\S]*?const contextState/.test(chatSrc));
+    assert('chat header clears model before refreshing hidden context state in no-provider path',
+      /if \(!hasAIProvider\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
+
+    const appEventsSrc = fs.readFileSync('js/app-event-listeners.js', 'utf8');
+    assert('global modal focus trap includes Context hub overlay id',
+      appEventsSrc.includes('"context-hub-overlay"') && appEventsSrc.includes('"ai-personalize-picker-overlay"'));
+    const lensSrc = fs.readFileSync('js/lens.js', 'utf8');
+    assert('saveLensKey refreshes chat header after external KB key cache updates',
+      /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModel\?\.\(\)/.test(lensSrc));
   }
 
   // ─── 7. renderKnowledgeBaseSection still empty when not configured ───
