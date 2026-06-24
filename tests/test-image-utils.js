@@ -24,24 +24,28 @@ function assert(name, condition, detail) {
 
 console.log('=== Image Utils Tests ===\n');
 
-// image-utils.js + pdf-import.js + chat-images.js expose helpers via
-// Object.assign(window, ...). chat-images.js was extracted from chat.js
-// in v1.21.9 and now owns the pending-queue / handler-binding helpers
-// the old monolithic chat.js used to export.
+// pdf-import.js + chat-images.js expose UI helpers via Object.assign(window, ...).
+// image-utils.js stays module-scoped; chat/image consumers import it directly.
 await import('../js/state.js');
-await import('../js/image-utils.js');
+const imageUtils = await import('../js/image-utils.js');
 await import('../js/pdf-import.js');
 await import('../js/chat-images.js');
+const { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } = imageUtils;
 
 // ═══════════════════════════════════════
-// 1. Module exports available on window
+// 1. Module exports
 // ═══════════════════════════════════════
 console.log('1. Module Exports');
 
-assert('resizeImage exported', typeof window.resizeImage === 'function');
-assert('isValidImageType exported', typeof window.isValidImageType === 'function');
-assert('formatImageBlock exported', typeof window.formatImageBlock === 'function');
-assert('buildVisionContent exported', typeof window.buildVisionContent === 'function');
+assert('resizeImage exported as module function', typeof resizeImage === 'function');
+assert('isValidImageType exported as module function', typeof isValidImageType === 'function');
+assert('formatImageBlock exported as module function', typeof formatImageBlock === 'function');
+assert('buildVisionContent exported as module function', typeof buildVisionContent === 'function');
+assert('image utility exports stay module-scoped',
+  typeof window.resizeImage === 'undefined'
+  && typeof window.isValidImageType === 'undefined'
+  && typeof window.formatImageBlock === 'undefined'
+  && typeof window.buildVisionContent === 'undefined');
 assert('supportsVision exported', typeof window.supportsVision === 'function');
 assert('addImageAttachment exported', typeof window.addImageAttachment === 'function');
 assert('removeImageAttachment exported', typeof window.removeImageAttachment === 'function');
@@ -54,13 +58,13 @@ assert('initChatImageHandlers exported', typeof window.initChatImageHandlers ===
 // ═══════════════════════════════════════
 console.log('2. isValidImageType');
 
-assert('JPEG valid', window.isValidImageType('image/jpeg'));
-assert('PNG valid', window.isValidImageType('image/png'));
-assert('GIF valid', window.isValidImageType('image/gif'));
-assert('WebP valid', window.isValidImageType('image/webp'));
-assert('PDF rejected', !window.isValidImageType('application/pdf'));
-assert('SVG rejected', !window.isValidImageType('image/svg+xml'));
-assert('empty rejected', !window.isValidImageType(''));
+assert('JPEG valid', isValidImageType('image/jpeg'));
+assert('PNG valid', isValidImageType('image/png'));
+assert('GIF valid', isValidImageType('image/gif'));
+assert('WebP valid', isValidImageType('image/webp'));
+assert('PDF rejected', !isValidImageType('application/pdf'));
+assert('SVG rejected', !isValidImageType('image/svg+xml'));
+assert('empty rejected', !isValidImageType(''));
 
 // ═══════════════════════════════════════
 // 3. formatImageBlock
@@ -69,15 +73,15 @@ console.log('3. formatImageBlock');
 
 const b64 = 'dGVzdA=='; // "test" in base64
 
-const openaiBlock = window.formatImageBlock(b64, 'image/png', 'openrouter');
+const openaiBlock = formatImageBlock(b64, 'image/png', 'openrouter');
 assert('OpenAI block type', openaiBlock.type === 'image_url');
 assert('OpenAI URL starts with data:', openaiBlock.image_url.url.startsWith('data:image/png;base64,'));
 assert('OpenAI URL contains base64', openaiBlock.image_url.url.includes(b64));
 
-const veniceBlock = window.formatImageBlock(b64, 'image/jpeg', 'venice');
+const veniceBlock = formatImageBlock(b64, 'image/jpeg', 'venice');
 assert('Venice uses OpenAI format', veniceBlock.type === 'image_url');
 
-const ollamaBlock = window.formatImageBlock(b64, 'image/jpeg', 'ollama');
+const ollamaBlock = formatImageBlock(b64, 'image/jpeg', 'ollama');
 assert('Ollama uses OpenAI format', ollamaBlock.type === 'image_url');
 
 // ═══════════════════════════════════════
@@ -86,11 +90,11 @@ assert('Ollama uses OpenAI format', ollamaBlock.type === 'image_url');
 console.log('4. buildVisionContent');
 
 const imgBlocks = [openaiBlock, openaiBlock];
-const content = window.buildVisionContent(imgBlocks, 'What is this?', 'anthropic');
+const content = buildVisionContent(imgBlocks, 'What is this?', 'anthropic');
 assert('Vision content has images + text', content.length === 3);
 assert('Last element is text', content[2].type === 'text' && content[2].text === 'What is this?');
 
-const noText = window.buildVisionContent([openaiBlock], '', 'openrouter');
+const noText = buildVisionContent([openaiBlock], '', 'openrouter');
 assert('Empty text omitted', noText.length === 1);
 
 // ═══════════════════════════════════════
