@@ -94,6 +94,7 @@ export function configureSyncModules({ enableSync, disableSync } = {}) {
 
   configureSyncMessenger({
     getSyncRelay,
+    getAppOwner: getSyncAppOwner,
     debug: dbg,
   });
 

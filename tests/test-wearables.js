@@ -1838,11 +1838,13 @@ assert('Polar postConnect refuses to register when result.tokens.userId missing'
 assert('recoverIfL1Empty short-circuits when conn.needsReauth is true',
   /if\s*\(conn\.needsReauth\)\s*return\s*\{\s*skipped:\s*true,\s*reason:\s*'needs-reauth'/.test(connectSrc));
 
-// pushContextToGateway dropped the profile-name list (was sent cleartext to
-// the relay alongside the context).
+// pushContextToGateway dropped the profile-name list and now encrypts the
+// rendered context before it reaches the relay.
 const syncSrc2 = await fetch('/js/sync-messenger.js').then(r => r.text());
-assert('Gateway POST body does NOT include profile names array',
-  /JSON\.stringify\(\{\s*context,\s*profileId\s*\}\)/.test(syncSrc2));
+assert('Gateway POST body sends encrypted context envelope, not plaintext context',
+  /const\s+relayContext\s*=\s*JSON\.stringify\(\{\s*encryptedContext\s*\}\)/.test(syncSrc2)
+    && /body:\s*JSON\.stringify\(\{[\s\S]{0,200}profileId,[\s\S]{0,80}context:\s*relayContext,[\s\S]{0,200}ownerId:\s*ownerProof\.ownerId[\s\S]{0,200}signature:\s*ownerProof\.signature/.test(syncSrc2)
+    && !/body:\s*JSON\.stringify\(\{\s*context,\s*profileId\s*\}\)/.test(syncSrc2));
 assert('Gateway POST body NEVER references getProfiles().map for the relay payload',
   !/profiles\s*=\s*getProfiles\(\)\.map[\s\S]{0,200}body:\s*JSON\.stringify\(\{\s*context,\s*profileId,\s*profiles\s*\}\)/.test(syncSrc2));
 

@@ -15,7 +15,9 @@ import {
   checkRelayConnection,
   isMessengerEnabled,
   getMessengerToken,
+  getMessengerContextKey,
   generateMessengerToken,
+  generateMessengerContextKey,
   revokeMessengerToken,
   pushContextToGateway,
 } from './sync.js';
@@ -111,8 +113,12 @@ async function handleSettingsSyncClick(event) {
     toggleMessengerToken();
   } else if (action === 'copy-messenger-token') {
     copyMessengerToken();
+  } else if (action === 'copy-messenger-context-key') {
+    copyMessengerContextKey();
   } else if (action === 'regenerate-messenger-token') {
     regenerateMessengerToken();
+  } else if (action === 'regenerate-messenger-context-key') {
+    regenerateMessengerContextKey();
   }
 }
 
@@ -629,14 +635,15 @@ function saveSyncRelay() {
 export function renderMessengerSection() {
   const enabled = isMessengerEnabled();
   const token = getMessengerToken();
+  const syncReady = isSyncEnabled();
   return `
-    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px">
+    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${!syncReady ? 'opacity:0.75' : ''}">
       <div class="settings-copy">
         <div class="settings-copy-title">Agent Access</div>
         <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
       </div>
       <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none">
+        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${!syncReady ? 'disabled' : ''}>
         <span class="chat-toggle-slider"></span>
       </label>
     </div>
@@ -650,9 +657,22 @@ export function renderMessengerSection() {
           </div>
         </div>
         <div id="messenger-token" class="settings-token-box" data-masked="true" aria-label="Agent Access token">${'\u2022'.repeat(64)}</div>
-        <div class="settings-copy-desc" style="margin-top:6px">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Paste this token into your agent's config.</div>
+        <div class="settings-copy-desc" style="margin-top:6px">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Set this as <code>GETBASED_TOKEN</code>; it authorizes relay access only.</div>
       </div>
-      <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token">Regenerate token</button>
+      <div style="margin-bottom:16px">
+        <div class="settings-token-head">
+          <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Context encryption key</label>
+          <div class="settings-token-actions">
+            <button class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="copy-messenger-context-key" aria-label="Copy context encryption key">Copy</button>
+          </div>
+        </div>
+        <div id="messenger-context-key" class="settings-token-box" data-masked="true" aria-label="Agent Context encryption key">${'\u2022'.repeat(48)}</div>
+        <div class="settings-copy-desc" style="margin-top:6px">Set this as <code>GETBASED_AGENT_CONTEXT_KEY</code>. It decrypts context locally inside your self-hosted MCP. The hosted relay never receives this key.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token">Regenerate token</button>
+        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-context-key">Regenerate context key</button>
+      </div>
       <div class="settings-divider">
         <div class="settings-action-row">
           <div class="settings-copy">
@@ -670,9 +690,13 @@ export function renderMessengerSection() {
           </select>
         </div>
       </div>
+    ` : !syncReady ? `
+      <div class="settings-copy-desc">
+        Agent Access uses your Cross-device Sync identity for relay storage and quota. Enable or restore Cross-device Sync first, then turn this on.
+      </div>
     ` : `
       <div class="settings-copy-desc">
-        Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">MCP-compatible tool</a>. Only a read-only summary is shared — your data stays encrypted.
+        Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">MCP-compatible tool</a>. The relay receives only end-to-end encrypted context; your Agent Access token authorizes relay fetches and your Agent Context key decrypts locally in your self-hosted MCP.
       </div>
     `}
   `;
@@ -684,6 +708,12 @@ function toggleMessenger(enabled) {
   _messengerToggling = true;
   try {
     if (enabled) {
+      if (!isSyncEnabled()) {
+        showNotification('Enable or restore Cross-device Sync first — Agent Access storage is bound to that Sync identity.', 'error');
+        const el = document.getElementById('messenger-section');
+        if (el) el.innerHTML = renderMessengerSection();
+        return;
+      }
       generateMessengerToken();
       pushContextToGateway();
       showNotification('Agent Access enabled', 'success');
@@ -732,10 +762,32 @@ function copyMessengerToken() {
   });
 }
 
+function copyMessengerContextKey() {
+  const contextKey = getMessengerContextKey();
+  if (!contextKey) return;
+  navigator.clipboard.writeText(contextKey).then(() => {
+    showNotification('Context encryption key copied — clipboard will clear in 60s', 'success');
+    clearTimeout(_clipboardClearTimer);
+    _clipboardClearTimer = setTimeout(() => {
+      navigator.clipboard.writeText('').catch(() => {});
+    }, 60000);
+  }).catch(() => {
+    showNotification('Could not access clipboard', 'error');
+  });
+}
+
 function regenerateMessengerToken() {
   generateMessengerToken();
   pushContextToGateway();
-  showNotification('Token regenerated — update your bot config with the new token', 'success');
+  showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
+  const el = document.getElementById('messenger-section');
+  if (el) el.innerHTML = renderMessengerSection();
+}
+
+function regenerateMessengerContextKey() {
+  generateMessengerContextKey();
+  pushContextToGateway();
+  showNotification('Context key regenerated — update GETBASED_AGENT_CONTEXT_KEY in your agent config', 'success');
   const el = document.getElementById('messenger-section');
   if (el) el.innerHTML = renderMessengerSection();
 }
@@ -766,5 +818,7 @@ Object.assign(window, {
   toggleMessenger,
   toggleMessengerToken,
   copyMessengerToken,
+  copyMessengerContextKey,
   regenerateMessengerToken,
+  regenerateMessengerContextKey,
 });

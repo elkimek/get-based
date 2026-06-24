@@ -50,9 +50,14 @@ async function openIsolatedSyncSetupPage(page) {
       }
       export function isMessengerEnabled() { return false; }
       export function getMessengerToken() { return null; }
+      export function getMessengerContextKey() { return null; }
       export function generateMessengerToken() {
         stub.calls.push({ fn: 'generateMessengerToken' });
         return 'token';
+      }
+      export function generateMessengerContextKey() {
+        stub.calls.push({ fn: 'generateMessengerContextKey' });
+        return 'gbctx_v1_test-context-key';
       }
       export function revokeMessengerToken() {
         stub.calls.push({ fn: 'revokeMessengerToken' });

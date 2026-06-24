@@ -22,6 +22,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
     const storageKeys = [
       'labcharts-messenger-enabled',
       'labcharts-messenger-token',
+      'labcharts-agent-context-key',
     ];
     const saved = {
       currentProfile: state.currentProfile,
@@ -146,14 +147,31 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         && pushes[4].data.entries?.[0]?.date === '2026-06-09';
 
       localStorage.setItem('labcharts-messenger-enabled', 'true');
-      localStorage.setItem('labcharts-messenger-token', 'token-a');
-      messenger.configureSyncMessenger({});
+      localStorage.setItem('labcharts-messenger-token', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+      localStorage.setItem('labcharts-agent-context-key', 'gbctx_v1_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8');
+      const testOwner = { id: 'MDEyMzQ1Njc4OWFiY2RlZg', writeKey: new Uint8Array(32).fill(7) };
+      messenger.configureSyncMessenger({ getAppOwner: () => testOwner });
       messenger.pushContextToGateway();
       await runPendingTimers();
       const defaultGateway = fetches.at(-1);
-      outcomes.messengerDefaultRelayPushesContext = defaultGateway?.url === 'https://sync.getbased.health/api/context'
-        && defaultGateway.options?.headers?.Authorization === 'Bearer token-a'
-        && JSON.parse(defaultGateway.options?.body || '{}').profileId === profileId;
+      const defaultGatewayBody = JSON.parse(defaultGateway.options?.body || '{}');
+      const defaultGatewayContext = JSON.parse(defaultGatewayBody.context || '{}');
+      outcomes.messengerDefaultRelayPushesEncryptedContext = defaultGateway?.url === 'https://sync.getbased.health/api/context'
+        && defaultGateway.options?.headers?.Authorization === 'Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        && defaultGatewayBody.profileId === profileId
+        && defaultGatewayBody.ownerId === 'MDEyMzQ1Njc4OWFiY2RlZg'
+        && typeof defaultGatewayBody.timestamp === 'number'
+        && /^[0-9a-f]{64}$/.test(defaultGatewayBody.signature || '')
+        && typeof defaultGatewayBody.context === 'string'
+        && !defaultGatewayBody.context.includes('2026-06-09')
+        && defaultGatewayContext.encryptedContext?.version === 2
+        && defaultGatewayContext.encryptedContext?.alg === 'AES-256-GCM'
+        && defaultGatewayContext.encryptedContext?.keyDerivation === 'raw-256-bit-key'
+        && typeof defaultGatewayContext.encryptedContext?.keyId === 'string'
+        && !('salt' in defaultGatewayContext.encryptedContext)
+        && typeof defaultGatewayContext.encryptedContext?.iv === 'string'
+        && typeof defaultGatewayContext.encryptedContext?.ciphertext === 'string'
+        && !defaultGatewayContext.encryptedContext.ciphertext.includes('2026-06-09');
 
       messenger.configureSyncMessenger({
         getSyncRelay: () => 'ws://relay.local',
@@ -163,7 +181,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       await runPendingTimers();
       const customGateway = fetches.at(-1);
       outcomes.messengerCustomRelayNormalizesWsAndDebugs = customGateway?.url === 'http://relay.local/api/context'
-        && debugCalls.some(message => message.includes('Context pushed to gateway'));
+        && debugCalls.some(message => message.includes('Encrypted context pushed to gateway'));
 
       messenger.revokeMessengerToken();
       const beforeDisabledPush = fetches.length;
@@ -686,7 +704,9 @@ test('sync window bindings expose browser globals and injected callbacks', async
       'checkRelayConnection',
       'isMessengerEnabled',
       'getMessengerToken',
+      'getMessengerContextKey',
       'generateMessengerToken',
+      'generateMessengerContextKey',
       'revokeMessengerToken',
       'pushContextToGateway',
       '_syncDiag',
