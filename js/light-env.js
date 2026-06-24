@@ -1049,6 +1049,34 @@ function openLightEnvTool(tool, roomId) {
   if (typeof opener === 'function') opener(opts);
 }
 
+export const lightEnvActionHandlers = Object.freeze({
+  addLightEnvRoom,
+  addLightEnvRoomNamed,
+  addLightEnvRoomCustom,
+  toggleLightEnvRoomExpanded,
+  updateLightEnvRoom,
+  setLightEnvRoomSourceArchetype,
+  setLightEnvRoomHoursBucket,
+  setLightEnvRoomEveningBucket,
+  updateLightEnvRoomAndRender,
+  deleteLightEnvRoom,
+  deleteLightEnvRoomConfirm,
+  setActiveLightEnvRoom,
+  addLightEnvScreenWithDevice,
+  addLightEnvScreen,
+  updateLightEnvScreen,
+  updateLightEnvScreenAndRender,
+  deleteLightEnvScreen,
+  deleteLightEnvScreenConfirm,
+  toggleLightEnvScreenExpanded,
+  setLightEnvScreenHoursBucket,
+  setLightEnvScreenEveningBucket,
+  setLightEnvTodayActive,
+  openLightEnvironmentAssessment,
+  closeLightEnvironmentAssessment,
+  openLightEnvTool,
+});
+
 configureLightEnvAudits({
   getEnvironment,
   computeRoomSeverity,
@@ -1081,26 +1109,7 @@ if (typeof document !== 'undefined') {
     ? globalThis.interpretLightAuditCompare
     : undefined;
   installLightEnvActionDelegates({
-    addLightEnvRoom,
-    addLightEnvRoomNamed,
-    addLightEnvRoomCustom,
-    toggleLightEnvRoomExpanded,
-    updateLightEnvRoom,
-    setLightEnvRoomSourceArchetype,
-    setLightEnvRoomHoursBucket,
-    setLightEnvRoomEveningBucket,
-    updateLightEnvRoomAndRender,
-    deleteLightEnvRoomConfirm,
-    addLightEnvScreenWithDevice,
-    addLightEnvScreen,
-    updateLightEnvScreenAndRender,
-    deleteLightEnvScreenConfirm,
-    toggleLightEnvScreenExpanded,
-    setLightEnvScreenHoursBucket,
-    setLightEnvScreenEveningBucket,
-    setLightEnvTodayActive,
-    openLightEnvironmentAssessment,
-    closeLightEnvironmentAssessment,
+    ...lightEnvActionHandlers,
     saveLightAuditFromUI,
     toggleLightAudit,
     toggleLightAuditCompare,
@@ -1109,7 +1118,6 @@ if (typeof document !== 'undefined') {
     updateLightAuditField,
     deleteLightAuditConfirm,
     interpretLightAuditCompare,
-    openLightEnvTool,
   });
 }
 
@@ -1122,41 +1130,16 @@ if (typeof window !== 'undefined') {
 
   Object.assign(window, {
     getLightEnvironment: getEnvironment,
-    addLightEnvRoom,
-    addLightEnvRoomNamed,
-    addLightEnvRoomCustom,
-    toggleLightEnvRoomExpanded,
-    updateLightEnvRoom,
-    setLightEnvRoomSourceArchetype,
-    setLightEnvRoomHoursBucket,
     suggestRoomSourceFromSpectrum,
-    setLightEnvRoomEveningBucket,
-    updateLightEnvRoomAndRender,
-    deleteLightEnvRoom,
-    deleteLightEnvRoomConfirm,
-    setActiveLightEnvRoom,
-    addLightEnvScreenWithDevice,
-    addLightEnvScreen,
-    updateLightEnvScreen,
-    updateLightEnvScreenAndRender,
-    deleteLightEnvScreen,
-    deleteLightEnvScreenConfirm,
-    toggleLightEnvScreenExpanded,
-    setLightEnvScreenHoursBucket,
-    setLightEnvScreenEveningBucket,
-    computeLightDeficitAxes: computeDeficitAxes,
     computeDeficitAxes,
     computeRoomSeverity,
     computeScreenStatus,
     computeIndoorBurden,
     getScreensForRoom,
-    // Rooms accessor + adder so cross-module callers (Tool 8 Eye-Level
-    // Audit, recommendations engine, AI helpers) stay behind the
-    // light-environment store boundary.
+    // Rooms accessor for legacy debug/coverage surfaces. Cross-module app
+    // callers should import getRooms/addRoom through light-ai-save-hooks.
     getRooms,
-    addRoom,
     isLightEnvActiveToday: isActiveToday,
-    setLightEnvTodayActive,
     renderEnvironmentSection,
     renderEnvironmentAssessmentSummary,
     openLightEnvironmentAssessment,

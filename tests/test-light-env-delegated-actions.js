@@ -13,6 +13,11 @@ const actionSrc = fs.readFileSync(path.join(root, 'js/light-env-actions.js'), 'u
 const auditSrc = fs.readFileSync(path.join(root, 'js/light-env-audits.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const envUiSrc = `${envSrc}\n${screenSrc}`;
+const windowAssignStart = envSrc.indexOf('Object.assign(window, {');
+const windowAssignEnd = windowAssignStart >= 0 ? envSrc.indexOf('  });', windowAssignStart) : -1;
+const lightEnvWindowFacadeSrc = windowAssignStart >= 0 && windowAssignEnd >= 0
+  ? envSrc.slice(windowAssignStart, windowAssignEnd)
+  : '';
 
 let passed = 0;
 let failed = 0;
@@ -80,6 +85,13 @@ assert('light-env click delegate ignores toggle-only details actions',
   actionSrc.includes('const NON_CLICK_ACTIONS = new Set') &&
     actionSrc.includes("'set-audits-block-open'") &&
     actionSrc.includes('!NON_CLICK_ACTIONS.has(actionName(actionEl))'));
+assert('light-env internal action handlers are registered through module object, not window facade',
+  envSrc.includes('export const lightEnvActionHandlers = Object.freeze({') &&
+    envSrc.includes('...lightEnvActionHandlers,') &&
+    lightEnvWindowFacadeSrc.includes('renderEnvironmentSection') &&
+    !lightEnvWindowFacadeSrc.includes('addLightEnvRoom') &&
+    !lightEnvWindowFacadeSrc.includes('deleteLightEnvScreenConfirm') &&
+    !lightEnvWindowFacadeSrc.includes('computeLightDeficitAxes'));
 assert('light-env form delegates separate live input from change-only controls',
   actionSrc.includes("'update-room-hours', 'update-room-name'") &&
     actionSrc.includes("'update-screen-blue-blocker'") &&
