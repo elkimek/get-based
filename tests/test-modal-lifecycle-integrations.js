@@ -23,6 +23,7 @@ const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
 const lensLibrarySrc = fs.readFileSync(path.join(root, 'js/lens-library.js'), 'utf8');
 const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
+const lightDeviceAiSrc = fs.readFileSync(path.join(root, 'js/light-device-ai-analysis.js'), 'utf8');
 const lightDeviceSessionModalSrc = fs.readFileSync(path.join(root, 'js/light-device-session-modal.js'), 'utf8');
 const lightDeviceSetupModalSrc = fs.readFileSync(path.join(root, 'js/light-device-setup-modal.js'), 'utf8');
 const lightDevicesSrc = fs.readFileSync(path.join(root, 'js/light-devices.js'), 'utf8');
@@ -304,9 +305,17 @@ assert('light device and session modals use shared overlay lifecycle helpers',
 assert('light sessions view runtime dependencies are startup-wired',
   lightSessionsViewSrc.includes('export function configureLightSessionsView') &&
     !lightSessionsViewSrc.includes('window.') &&
+    lightDevicesSrc.includes('export function configureLightDevices') &&
+    !lightDevicesSrc.includes('window.renderDeviceSessionAIDetail') &&
+    lightDeviceAiSrc.includes('registerAIActionHandler') &&
+    !lightDeviceAiSrc.includes('Object.assign(window, {') &&
+    !lightDeviceAiSrc.includes('window.renderDeviceSessionAIDetail') &&
+    !lightDeviceAiSrc.includes('window.renderDeviceSessionAIInline') &&
     lightDevicesSrc.includes('export async function deleteDeviceSessionWithConfirm') &&
     lightSessionsViewHooksSrc.includes("import { CHANNEL_DISPLAY, channelTier, formatChannelUnit, getSessions } from './sun.js';") &&
-    lightSessionsViewHooksSrc.includes("import { deleteDeviceSessionWithConfirm, openDeviceSessionDetail } from './light-devices.js';") &&
+    lightSessionsViewHooksSrc.includes("import { configureLightDevices, deleteDeviceSessionWithConfirm, openDeviceSessionDetail } from './light-devices.js';") &&
+    lightSessionsViewHooksSrc.includes("import { renderDeviceSessionAIDetail, renderDeviceSessionAIInline } from './light-device-ai-analysis.js';") &&
+    lightSessionsViewHooksSrc.includes('configureLightDevices({ renderDeviceSessionAIDetail });') &&
     lightSessionsViewHooksSrc.includes('configureLightSessionsView({') &&
     appLightSunModulesSrc.includes("import './light-sessions-view-hooks.js';") &&
     serviceWorkerSrc.includes("'/js/light-sessions-view-hooks.js'"));
