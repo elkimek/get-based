@@ -24,6 +24,8 @@ const root = path.resolve(__dirname, '..');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.js'), 'utf8');
+const onboardingAiSrc = fs.readFileSync(path.join(root, 'js/sun-onboarding-ai.js'), 'utf8');
+const globalsSrc = fs.readFileSync(path.join(root, 'types/globals.d.ts'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const originalDelegateDomGlobals = {
   document: globalThis.document,
@@ -85,8 +87,16 @@ const {
   assert('sun-defaults AI hooks route through startup wiring',
     typeof configureSunDefaults === 'function' &&
     sunDefaultsSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
+    onboardingAiSrc.includes('registerAIActionHandler') &&
+    !onboardingAiSrc.includes('Object.assign(window, {') &&
+    !onboardingAiSrc.includes('window.refreshOnboardingAIAnalysis') &&
+    !onboardingAiSrc.includes('window.analyzeOnboardingAI') &&
+    !onboardingAiSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
+    !onboardingAiSrc.includes('window.renderOnboardingAIBlock') &&
     !sunDefaultsSrc.includes('window.maybeAnalyzeOnboardingAfterSave') &&
     !sunDefaultsSrc.includes('window.renderOnboardingAIBlock') &&
+    !globalsSrc.includes('maybeAnalyzeOnboardingAfterSave') &&
+    !globalsSrc.includes('renderOnboardingAIBlock') &&
     aiSaveHooksSrc.includes("import { configureSunDefaults } from './sun-defaults.js';") &&
     aiSaveHooksSrc.includes("import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-onboarding-ai.js';") &&
     aiSaveHooksSrc.includes('configureSunDefaults({ maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock })') &&

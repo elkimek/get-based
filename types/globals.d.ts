@@ -265,13 +265,11 @@ interface Window {
   renderActiveDeviceSessionCard?: AnyFunction;
   renderChannelDeficitDeviceRecs?: AnyFunction;
   renderDevicesSection?: AnyFunction;
-  renderOnboardingAIBlock?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;
   computeUVConfidence?: AnyFunction;
   ensureActiveDeviceTicker?: AnyFunction;
   getMeteoConfig?: AnyFunction;
   ingredientDailyTotal?: AnyFunction;
-  maybeAnalyzeOnboardingAfterSave?: AnyFunction;
   maybeShowAnalyticsConsent?: () => void;
   purgeMeteoCache?: AnyFunction;
   rehydrateStaleSessions?: () => Promise<{ rehydrated?: number }>;
