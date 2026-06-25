@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.27', date: '2026-06-25', title: 'Agent Access connects more agents',
+    forceShow: true,
+    items: [
+      '<b>Agent Access is no longer Hermes-only.</b> Settings now lets you choose Hermes, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex before copying the private setup command.',
+      '<b>The one-paste command follows your selected agent.</b> getbased now generates <code>getbased-stack connect &lt;client&gt; --setup …</code> for the chosen target, carrying the token and Agent Context key in the same private setup payload.',
+      '<b>Manual-config clients are clearer.</b> When a client cannot be auto-registered, the stack stores your credentials locally and points you to the exact <code>getbased-stack mcp-config &lt;client&gt;</code> snippet to paste next.',
+    ]
+  },
+  {
     version: '1.10.26', date: '2026-06-24', title: 'Agent Access follows your synced profile',
     forceShow: true,
     items: [
