@@ -10,37 +10,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.28', date: '2026-06-25', title: 'Agent Access setup target feels native',
-    items: [
-      '<b>Agent Access setup is cleaner.</b> The target-agent picker now uses compact in-card choices instead of a generic dropdown, so Hermes, OpenClaw, Claude, Cursor, Cline, and Codex feel like part of the setup flow.',
-      '<b>The one-paste command behavior is unchanged.</b> Pick a target, copy the private setup command, and paste it into that agent terminal.',
-    ]
-  },
-  {
-    version: '1.10.27', date: '2026-06-25', title: 'Agent Access connects more agents',
+    version: '1.10.28', date: '2026-06-25', title: 'Agent Access for your AI tools',
     forceShow: true,
     items: [
-      '<b>Agent Access is no longer Hermes-only.</b> Settings now lets you choose Hermes, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex before copying the private setup command.',
-      '<b>The one-paste command follows your selected agent.</b> getbased now generates <code>getbased-stack connect &lt;client&gt; --setup …</code> for the chosen target, carrying the token and Agent Context key in the same private setup payload.',
-      '<b>Manual-config clients are clearer.</b> When a client cannot be auto-registered, the stack stores your credentials locally and points you to the exact <code>getbased-stack mcp-config &lt;client&gt;</code> snippet to paste next.',
-    ]
-  },
-  {
-    version: '1.10.26', date: '2026-06-24', title: 'Agent Access follows your synced profile',
-    forceShow: true,
-    items: [
-      '<b>Agent Access now follows your profile across browsers.</b> If you enable it on the hosted app, a restored local or second browser sees the same enabled state instead of looking disconnected.',
-      '<b>Your Agent Context key still stays private.</b> The token, context key, and wearable-series preference are carried only inside your existing end-to-end encrypted Sync profile; the relay still only sees encrypted context.',
-      '<b>Wearable-series preferences sync too.</b> The 7 / 30 / 90 day Agent Access window now travels with the profile, so agents get the same context from every synced device.',
-    ]
-  },
-  {
-    version: '1.10.25', date: '2026-06-24', title: 'Agent Access security hardening',
-    forceShow: true,
-    items: [
-      '<b>Agent Access now separates relay authorization from context decryption.</b> The token authorizes fetching from the relay, while a separate Agent Context key decrypts the context locally inside your self-hosted MCP.',
-      '<b>The hosted relay still only carries ciphertext.</b> Agent context is encrypted in the browser before upload and remains unreadable to the relay.',
-      '<b>Setup copy is clearer.</b> Settings → Agent Access now shows the exact <code>GETBASED_TOKEN</code> and <code>GETBASED_AGENT_CONTEXT_KEY</code> values your MCP config needs.',
+      '<b>Agent Access is now a real private bridge for your agents.</b> getbased can hand your selected health context to local AI tools through the self-hosted MCP while keeping the hosted relay limited to encrypted context.',
+      '<b>It works beyond Hermes.</b> Pick Hermes, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex in Settings → Agent Access, then copy one private setup command for that exact tool.',
+      '<b>Your setup follows your synced profile.</b> Agent Access enabled state, the relay token, the local Agent Context key, and wearable-series window travel inside your existing end-to-end encrypted Sync profile, so a restored browser does not look disconnected.',
+      '<b>The secret boundary is clearer.</b> The token authorizes relay access; the Agent Context key decrypts locally inside your MCP. getbased shows both values separately, and manual-config clients get the exact config snippet to paste next.',
     ]
   },
   {
