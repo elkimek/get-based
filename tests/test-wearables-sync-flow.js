@@ -343,6 +343,7 @@ try {
   assert('buildLabContext emits [section:wearables-series-{N}d] block', /wearables-series-\$\{days\}d/.test(labContextSrc));
 
   const syncMod = await import('../js/sync.js');
+  syncMod.migrateLocalAgentAccessToProfile();
   assert('isMessengerEnabled returns true after enabling',
     syncMod.isMessengerEnabled() === true);
   assert('getMessengerToken returns the test token',

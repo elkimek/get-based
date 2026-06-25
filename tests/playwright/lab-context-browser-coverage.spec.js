@@ -190,10 +190,14 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       labContext.setAgentWearableSeriesEnabled(false);
       const disabledDays = labContext.isAgentWearableSeriesEnabled() === false
         && labContext.getAgentWearableSeriesDays() === 0;
+      delete state.importedData.agentAccessWearableSeriesDays;
+      if (state.importedData.agentAccess) delete state.importedData.agentAccess.wearableSeriesDays;
       localStorage.setItem('labcharts-lab-context-browser-coverage-agent-wearable-series', 'on');
       const legacyOnMigrates = labContext.getAgentWearableSeriesDays() === 30;
+      state.importedData.agentAccessWearableSeriesDays = 90;
+      const syncedPreferenceWins = labContext.getAgentWearableSeriesDays() === 90;
       outcomes.agentSeriesPreferenceCoversValidInvalidAndLegacy =
-        invalidSeriesSetting && enabledDays && sevenDaySetting && disabledDays && legacyOnMigrates;
+        invalidSeriesSetting && enabledDays && sevenDaySetting && disabledDays && legacyOnMigrates && syncedPreferenceWins;
 
       await storeModule.upsertDailyBatch('lab-context-browser-coverage', [
         { source: 'oura', date: recentDates.seriesPrevious, hrv_rmssd: 48, rhr: 60, sleep_total_min: 410, sleep_hr_avg: 56 },

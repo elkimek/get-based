@@ -13,25 +13,51 @@ import {
   getSyncRelay,
   setSyncRelay,
   checkRelayConnection,
-  isMessengerEnabled,
-  getMessengerToken,
-  getMessengerContextKey,
-  hasMessengerSyncIdentity,
-  generateMessengerToken,
-  generateMessengerContextKey,
-  revokeMessengerToken,
-  pushContextToGateway,
+  setAgentAccessWearableSeriesDays,
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { saveImportedData } from './data.js';
+import { state } from './state.js';
+import {
+  copyMessengerContextKey,
+  copyMessengerToken,
+  regenerateMessengerContextKey,
+  regenerateMessengerToken,
+  refreshMessengerSectionForOwnerChange,
+  renderMessengerSection,
+  toggleMessenger,
+  toggleMessengerContextKey,
+  toggleMessengerToken,
+} from './settings-agent-access-panel.js';
+
+export { renderMessengerSection };
+// Agent Access UI implementation moved to settings-agent-access-panel.js.
+// Facade breadcrumbs kept for source-inspection tests/backward ownership:
+// renderMessengerSection · OpenClaw · GETBASED_AGENT_CONTEXT_KEY · messenger-token · data-masked
+// Extracted markup contract: id="agent-wearable-series-select" data-sync-action="set-agent-wearable-series-days"
+// setAgentAccessWearableSeriesDays(days) · saveImportedData({ reason: 'agent-access-series' })
+// <option value="off" · <option value="7" · <option value="30" · <option value="90"
+// Extracted action contract: data-sync-action="toggle-messenger" data-sync-action="toggle-messenger-token"
+// data-sync-action="toggle-messenger-context-key" data-sync-action="copy-messenger-token"
+// data-sync-action="copy-messenger-context-key" data-sync-action="regenerate-messenger-token"
+// data-sync-action="regenerate-messenger-context-key"
+// Copy contract: Let AI agents query your labs and context · ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days
+
+function snapshotImportedData() {
+  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
+}
+
+function restoreImportedDataSnapshot(snapshot) {
+  if (!snapshot) return;
+  try { state.importedData = JSON.parse(snapshot); } catch {}
+}
 
 const appWindow = /** @type {Window & typeof globalThis & {
   applyPendingTombstone?: (id: string) => Promise<void>,
-  getAgentWearableSeriesDays?: () => number,
   listPendingTombstones?: () => Array<{ id: string, name: string, at?: string | number | Date }>,
   openSettingsModal?: (tab?: string) => void,
   pushContextToGateway?: () => void,
   rejectPendingTombstone?: (id: string) => Promise<void>,
-  setAgentWearableSeriesDays?: (days: number) => void,
   updateSyncIndicator?: () => void,
 }} */ (window);
 
@@ -119,13 +145,13 @@ async function handleSettingsSyncClick(event) {
   } else if (action === 'copy-messenger-context-key') {
     copyMessengerContextKey();
   } else if (action === 'regenerate-messenger-token') {
-    regenerateMessengerToken();
+    void regenerateMessengerToken();
   } else if (action === 'regenerate-messenger-context-key') {
-    regenerateMessengerContextKey();
+    void regenerateMessengerContextKey();
   }
 }
 
-function handleSettingsSyncChange(event) {
+async function handleSettingsSyncChange(event) {
   const actionEl = closestSettingsSyncAction(event);
   if (!actionEl) return;
   const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
@@ -136,10 +162,21 @@ function handleSettingsSyncChange(event) {
   } else if (action === 'setup-ack' && actionEl instanceof HTMLInputElement) {
     updateSyncSetupAck(actionEl);
   } else if (action === 'toggle-messenger' && actionEl instanceof HTMLInputElement) {
-    toggleMessenger(actionEl.checked);
+    void toggleMessenger(actionEl.checked);
   } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
-    appWindow.setAgentWearableSeriesDays?.(actionEl.value === 'off' ? 0 : Number(actionEl.value));
-    appWindow.pushContextToGateway?.();
+    const days = actionEl.value === 'off' ? 0 : Number(actionEl.value);
+    const rollback = snapshotImportedData();
+    try {
+      setAgentAccessWearableSeriesDays(days);
+      const saved = await saveImportedData({ reason: 'agent-access-series' });
+      if (saved === false) throw new Error('saveImportedData returned false while saving Agent Access wearable-series preference');
+      appWindow.pushContextToGateway?.();
+    } catch (err) {
+      restoreImportedDataSnapshot(rollback);
+      console.warn('[agent-access] failed to persist wearable series preference', err);
+      showNotification('Could not save wearable-series preference — try again.', 'error');
+      refreshMessengerSectionForOwnerChange();
+    }
   }
 }
 
@@ -635,218 +672,6 @@ function saveSyncRelay() {
   updateRelayStatus();
 }
 
-export function renderMessengerSection() {
-  const enabled = isMessengerEnabled();
-  const token = getMessengerToken();
-  const syncReady = isSyncEnabled();
-  const ownerReady = hasMessengerSyncIdentity();
-  const canEnable = syncReady && ownerReady;
-  const toggleDisabled = !enabled && !canEnable;
-  const ownerActionDisabled = !ownerReady ? ' disabled aria-disabled="true"' : '';
-  return `
-    <div class="settings-action-row" style="margin-bottom:${enabled ? '16' : '8'}px;${toggleDisabled ? 'opacity:0.75' : ''}">
-      <div class="settings-copy">
-        <div class="settings-copy-title">Agent Access</div>
-        <div class="settings-copy-desc">Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
-      </div>
-      <label class="chat-websearch-toggle-label" style="display:flex" aria-label="Toggle Agent Access">
-        <input type="checkbox" ${enabled ? 'checked' : ''} data-sync-action="toggle-messenger" style="display:none" ${toggleDisabled ? 'disabled' : ''}>
-        <span class="chat-toggle-slider"></span>
-      </label>
-    </div>
-    ${enabled && token ? `
-      <div style="margin-bottom:16px">
-        <div class="settings-token-head">
-          <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Read-only token</label>
-          <div class="settings-token-actions">
-            <button id="messenger-token-toggle" class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="toggle-messenger-token" aria-label="Show token">Show</button>
-            <button class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="copy-messenger-token" aria-label="Copy token">Copy</button>
-          </div>
-        </div>
-        <div id="messenger-token" class="settings-token-box" data-masked="true" aria-label="Agent Access token">${'\u2022'.repeat(64)}</div>
-        <div class="settings-copy-desc" style="margin-top:6px">Use <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">getbased-mcp</a> to connect <a href="https://github.com/hermes-agent/hermes-agent" target="_blank" rel="noopener" style="color:var(--accent)">Hermes Agent</a>, <a href="https://openclaw.ai" target="_blank" rel="noopener" style="color:var(--accent)">OpenClaw</a>, or any MCP-compatible agent. Set this as <code>GETBASED_TOKEN</code>; it authorizes relay access only.</div>
-      </div>
-      <div style="margin-bottom:16px">
-        <div class="settings-token-head">
-          <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Context encryption key</label>
-          <div class="settings-token-actions">
-            <button id="messenger-context-key-toggle" class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="toggle-messenger-context-key" aria-label="Show context encryption key">Show</button>
-            <button class="import-btn import-btn-secondary settings-mini-btn" data-sync-action="copy-messenger-context-key" aria-label="Copy context encryption key">Copy</button>
-          </div>
-        </div>
-        <div id="messenger-context-key" class="settings-token-box" data-masked="true" aria-label="Agent Context encryption key">${'\u2022'.repeat(48)}</div>
-        <div class="settings-copy-desc" style="margin-top:6px">Set this as <code>GETBASED_AGENT_CONTEXT_KEY</code>. It decrypts context locally inside your self-hosted MCP. The hosted relay never receives this key.</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-token"${ownerActionDisabled}>Regenerate token</button>
-        <button class="import-btn import-btn-secondary settings-full-btn" data-sync-action="regenerate-messenger-context-key"${ownerActionDisabled}>Regenerate context key</button>
-      </div>
-      <div class="settings-divider">
-        <div class="settings-action-row">
-          <div class="settings-copy">
-            <div class="settings-copy-title">Push wearable daily series</div>
-            <div class="settings-copy-desc">Adds a pivoted daily-values matrix (HRV, RHR, sleep…) so agents can spot trends. ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days respectively (real-measured at 13 metrics); cached cleanly so the marginal cost per turn is small. Off by default — pick 7 days for cheap follow-ups, 30 for monthly reasoning, 90 for season-spanning analysis.</div>
-          </div>
-          <select id="agent-wearable-series-select"
-            data-sync-action="set-agent-wearable-series-days"
-            aria-label="Wearable series window pushed to agent"
-            class="settings-select"${ownerActionDisabled}>
-            <option value="off"${(appWindow.getAgentWearableSeriesDays?.() || 0) === 0 ? ' selected' : ''}>Off</option>
-            <option value="7"${appWindow.getAgentWearableSeriesDays?.() === 7 ? ' selected' : ''}>7 days</option>
-            <option value="30"${appWindow.getAgentWearableSeriesDays?.() === 30 ? ' selected' : ''}>30 days</option>
-            <option value="90"${appWindow.getAgentWearableSeriesDays?.() === 90 ? ' selected' : ''}>90 days</option>
-          </select>
-        </div>
-      </div>
-    ` : !syncReady ? `
-      <div class="settings-copy-desc">
-        Agent Access uses your Cross-device Sync identity for relay storage and quota. Enable or restore Cross-device Sync first, then turn this on.
-      </div>
-    ` : !ownerReady ? `
-      <div class="settings-copy-desc">
-        Sync is enabled, but this device is still resolving its Sync owner. Wait for the mnemonic to finish loading, or restore Cross-device Sync again before enabling Agent Access.
-      </div>
-    ` : `
-      <div class="settings-copy-desc">
-        Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" style="color:var(--accent)">MCP-compatible tool</a>. The relay receives only end-to-end encrypted context; your Agent Access token authorizes relay fetches and your Agent Context key decrypts locally in your self-hosted MCP.
-      </div>
-    `}
-  `;
-}
-
-let _messengerToggling = false;
-function toggleMessenger(enabled) {
-  if (_messengerToggling) return;
-  _messengerToggling = true;
-  try {
-    if (enabled) {
-      if (!isSyncEnabled()) {
-        showNotification('Enable or restore Cross-device Sync first — Agent Access storage is bound to that Sync identity.', 'error');
-        const el = document.getElementById('messenger-section');
-        if (el) el.innerHTML = renderMessengerSection();
-        return;
-      }
-      if (!hasMessengerSyncIdentity()) {
-        showNotification('Sync owner is still resolving — wait for Cross-device Sync to finish loading before enabling Agent Access.', 'error');
-        const el = document.getElementById('messenger-section');
-        if (el) el.innerHTML = renderMessengerSection();
-        return;
-      }
-      generateMessengerToken();
-      pushContextToGateway();
-      showNotification('Agent Access enabled', 'success');
-    } else {
-      revokeMessengerToken();
-      showNotification('Agent Access disabled', 'success');
-    }
-    const el = document.getElementById('messenger-section');
-    if (el) el.innerHTML = renderMessengerSection();
-  } finally {
-    _messengerToggling = false;
-  }
-}
-
-function toggleMessengerToken() {
-  const el = document.getElementById('messenger-token');
-  const btn = document.getElementById('messenger-token-toggle');
-  if (!el || !btn) return;
-  const token = getMessengerToken();
-  if (!token) return;
-  const masked = el.dataset.masked === 'true';
-  if (masked) {
-    el.textContent = token;
-    el.dataset.masked = 'false';
-    el.style.userSelect = 'all';
-    btn.textContent = 'Hide';
-  } else {
-    el.textContent = '\u2022'.repeat(64);
-    el.dataset.masked = 'true';
-    el.style.userSelect = 'none';
-    btn.textContent = 'Show';
-  }
-}
-
-function toggleMessengerContextKey() {
-  const el = document.getElementById('messenger-context-key');
-  const btn = document.getElementById('messenger-context-key-toggle');
-  if (!el || !btn) return;
-  const contextKey = getMessengerContextKey();
-  if (!contextKey) return;
-  const masked = el.dataset.masked === 'true';
-  if (masked) {
-    el.textContent = contextKey;
-    el.dataset.masked = 'false';
-    el.style.userSelect = 'all';
-    btn.textContent = 'Hide';
-  } else {
-    el.textContent = '\u2022'.repeat(48);
-    el.dataset.masked = 'true';
-    el.style.userSelect = 'none';
-    btn.textContent = 'Show';
-  }
-}
-
-function copyMessengerToken() {
-  const token = getMessengerToken();
-  if (!token) return;
-  navigator.clipboard.writeText(token).then(() => {
-    showNotification('Token copied — clipboard will clear in 60s', 'success');
-    clearTimeout(_clipboardClearTimer);
-    _clipboardClearTimer = setTimeout(() => {
-      navigator.clipboard.writeText('').catch(() => {});
-    }, 60000);
-  }).catch(() => {
-    showNotification('Could not access clipboard', 'error');
-  });
-}
-
-function copyMessengerContextKey() {
-  const contextKey = getMessengerContextKey();
-  if (!contextKey) return;
-  navigator.clipboard.writeText(contextKey).then(() => {
-    showNotification('Context encryption key copied — clipboard will clear in 60s', 'success');
-    clearTimeout(_clipboardClearTimer);
-    _clipboardClearTimer = setTimeout(() => {
-      navigator.clipboard.writeText('').catch(() => {});
-    }, 60000);
-  }).catch(() => {
-    showNotification('Could not access clipboard', 'error');
-  });
-}
-
-function regenerateMessengerToken() {
-  if (!hasMessengerSyncIdentity()) {
-    showNotification('Sync owner is still resolving — wait before regenerating Agent Access credentials.', 'error');
-    const el = document.getElementById('messenger-section');
-    if (el) el.innerHTML = renderMessengerSection();
-    return;
-  }
-  generateMessengerToken();
-  pushContextToGateway();
-  showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
-  const el = document.getElementById('messenger-section');
-  if (el) el.innerHTML = renderMessengerSection();
-}
-
-function regenerateMessengerContextKey() {
-  if (!hasMessengerSyncIdentity()) {
-    showNotification('Sync owner is still resolving — wait before regenerating Agent Access credentials.', 'error');
-    const el = document.getElementById('messenger-section');
-    if (el) el.innerHTML = renderMessengerSection();
-    return;
-  }
-  generateMessengerContextKey();
-  pushContextToGateway();
-  showNotification('Context key regenerated — update GETBASED_AGENT_CONTEXT_KEY in your agent config', 'success');
-  const el = document.getElementById('messenger-section');
-  if (el) el.innerHTML = renderMessengerSection();
-}
-
-function refreshMessengerSectionForOwnerChange() {
-  const el = document.getElementById('messenger-section');
-  if (el) el.innerHTML = renderMessengerSection();
-}
-
 export function hydrateSettingsSyncPanel() {
   if (!isSyncEnabled()) return;
   loadMnemonic();
@@ -854,7 +679,6 @@ export function hydrateSettingsSyncPanel() {
 }
 
 installSettingsSyncDelegates();
-window.addEventListener('labcharts-sync-owner-changed', refreshMessengerSectionForOwnerChange);
 
 Object.assign(window, {
   toggleSync,

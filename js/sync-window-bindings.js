@@ -13,9 +13,10 @@ import {
   rejectPendingTombstone,
 } from './sync-tombstones.js';
 import {
+  clearLegacyAgentAccessSecrets, disableMessengerTokenLocal,
   generateMessengerContextKey, generateMessengerToken, getMessengerContextKey,
   getMessengerToken, isMessengerEnabled,
-  pushContextToGateway, revokeMessengerToken,
+  pushContextToGateway, revokeMessengerTokenRemote,
 } from './sync-messenger.js';
 import {
   checkRelayConnection, getSyncBlocker,
@@ -48,6 +49,21 @@ import {
   disablePhase2Cutover, enablePhase2Cutover, isPhase2CutoverEnabled,
 } from './sync-cutover.js';
 
+function generateMessengerTokenWindow() {
+  const result = generateMessengerToken();
+  return result?.token || '';
+}
+
+async function revokeMessengerTokenWindow() {
+  const previousToken = disableMessengerTokenLocal();
+  const { saveImportedData } = await import('./data.js');
+  const saved = await saveImportedData({ reason: 'agent-access-window-disable' });
+  if (saved === false) throw new Error('saveImportedData returned false while disabling Agent Access');
+  clearLegacyAgentAccessSecrets();
+  revokeMessengerTokenRemote(previousToken);
+  return previousToken;
+}
+
 /** @param {{ enableSync?: (...args: any[]) => any, disableSync?: (...args: any[]) => any }} [actions] */
 export function bindSyncWindowActions({ enableSync, disableSync } = {}) {
   if (typeof window === 'undefined') return;
@@ -73,9 +89,9 @@ export function bindSyncWindowActions({ enableSync, disableSync } = {}) {
     isMessengerEnabled,
     getMessengerToken,
     getMessengerContextKey,
-    generateMessengerToken,
+    generateMessengerToken: generateMessengerTokenWindow,
     generateMessengerContextKey,
-    revokeMessengerToken,
+    revokeMessengerToken: revokeMessengerTokenWindow,
     pushContextToGateway,
     _syncDiag,
     _forcePull: forcePull,

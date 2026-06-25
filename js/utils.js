@@ -124,6 +124,12 @@ export function hasDirtyFormFields(root) {
   return false;
 }
 
+export function bindSyncAppliedRefresh(refresh) {
+  if (typeof window === 'undefined' || typeof refresh !== 'function') return () => {};
+  window.addEventListener('labcharts-sync-applied', refresh);
+  return () => window.removeEventListener('labcharts-sync-applied', refresh);
+}
+
 /**
  * @param {DetachedModalSyncRefreshOptions} [options]
  */

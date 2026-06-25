@@ -1501,11 +1501,18 @@ for (const N of [7, 30, 90]) {
 labCtxV29.setAgentWearableSeriesDays(45);
 assert('Invalid day value (45) is silently rejected',
   labCtxV29.getAgentWearableSeriesDays() === 90); // unchanged from previous valid
-// Legacy 'on' migrates to 30.
+// Legacy 'on' migrates to 30 only when no synced preference exists.
+delete window._labState.importedData.agentAccessWearableSeriesDays;
+if (window._labState.importedData.agentAccess) delete window._labState.importedData.agentAccess.wearableSeriesDays;
 localStorage.setItem(`labcharts-${localStorage.getItem('labcharts-active-profile') || 'default'}-agent-wearable-series`, 'on');
 assert('Legacy "on" reads as 30 (default migration)',
   labCtxV29.getAgentWearableSeriesDays() === 30);
-labCtxV29.setAgentWearableSeriesDays(0); // reset
+// Synced preference wins over stale legacy 'on'.
+window._labState.importedData.agentAccessWearableSeriesDays = 7;
+assert('Synced series preference beats legacy "on"',
+  labCtxV29.getAgentWearableSeriesDays() === 7);
+delete window._labState.importedData.agentAccessWearableSeriesDays;
+labCtxV29.setAgentWearableSeriesDays(0); // reset legacy shim only; synced writes go through sync-messenger
 
 // Boolean back-compat shims still work.
 assert('isAgentWearableSeriesEnabled / setAgentWearableSeriesEnabled back-compat',
@@ -1527,9 +1534,11 @@ if (window._labState?.importedData?.wearableSummary) {
 const settingsSyncPanelV29 = await fetch('/js/settings-sync-panel.js').then(r => r.text());
 assert('Settings → Agent Access uses a <select> for the series window',
   /id="agent-wearable-series-select"/.test(settingsSyncPanelV29));
-assert('Settings select dispatches to setAgentWearableSeriesDays through delegated action',
+assert('Settings select dispatches to synced Agent Access scalar through delegated action',
   /data-sync-action="set-agent-wearable-series-days"/.test(settingsSyncPanelV29) &&
-  /(window|appWindow)\.setAgentWearableSeriesDays\?\.\(actionEl\.value === 'off'/.test(settingsSyncPanelV29));
+  /setAgentAccessWearableSeriesDays\(days\)/.test(settingsSyncPanelV29) &&
+  /saveImportedData\(\{ reason: 'agent-access-series' \}\)/.test(settingsSyncPanelV29) &&
+  !/appWindow\.setAgentWearableSeriesDays/.test(settingsSyncPanelV29));
 assert('Settings select offers Off / 7 / 30 / 90 options',
   /<option value="off"/.test(settingsSyncPanelV29) &&
   /<option value="7"/.test(settingsSyncPanelV29) &&

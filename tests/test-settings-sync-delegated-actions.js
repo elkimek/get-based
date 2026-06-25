@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/settings-sync-panel.js'), 'utf8');
+const agentSrc = fs.readFileSync(path.join(root, 'js/settings-agent-access-panel.js'), 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -88,8 +89,17 @@ assert('Delegated setup acknowledgment updates Done state',
   /action === 'setup-ack'[\s\S]*updateSyncSetupAck\(actionEl\)/.test(src));
 assert('Delegated Agent Access toggle calls toggleMessenger',
   /action === 'toggle-messenger'[\s\S]*toggleMessenger\(actionEl\.checked\)/.test(src));
-assert('Delegated wearable-series select pushes context',
-  /action === 'set-agent-wearable-series-days'[\s\S]*setAgentWearableSeriesDays[\s\S]*pushContextToGateway/.test(src));
+assert('Agent Access enable checks saveImportedData result before pushing context or success',
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-enable' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while enabling Agent Access'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Agent Access enabled', 'success'\)/.test(agentSrc));
+assert('Agent Access disable checks saveImportedData result before success',
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-disable' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while disabling Agent Access'\);[\s\S]*showNotification\('Agent Access disabled', 'success'\)/.test(agentSrc));
+assert('Agent Access token regeneration checks saveImportedData result before pushing context or success',
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-token' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access token'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Token regenerated/.test(agentSrc));
+assert('Agent Access context-key regeneration checks saveImportedData result before pushing context or success',
+  /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
+assert('Delegated wearable-series select writes split Agent Access scalar and pushes context only after persisted save',
+  /action === 'set-agent-wearable-series-days'[\s\S]*setAgentAccessWearableSeriesDays\(days\)[\s\S]*const saved = await saveImportedData\(\{ reason: 'agent-access-series' \}\)[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while saving Agent Access wearable-series preference'\)[\s\S]*pushContextToGateway/.test(src)
+    && !/set-agent-wearable-series-days'[\s\S]*appWindow\.setAgentWearableSeriesDays/.test(src));
 assert('Existing window exports remain for external callers',
   src.includes('Object.assign(window')
     && src.includes('toggleSync,')

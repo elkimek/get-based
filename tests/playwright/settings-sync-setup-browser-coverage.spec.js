@@ -44,9 +44,30 @@ async function openIsolatedSyncSetupPage(page) {
         stub.calls.push({ fn: 'setSyncRelay', relay });
         stub.relay = relay;
       }
-      export async function checkRelayConnection() {
+      export function checkRelayConnection() {
         stub.calls.push({ fn: 'checkRelayConnection' });
         return true;
+      }
+      export function onDataSaved(options = {}) {
+        stub.calls.push({ fn: 'onDataSaved', immediate: options.immediate === true, skipSync: options.skipSync === true });
+      }
+      export function setAgentAccessWearableSeriesDays(days) {
+        stub.calls.push({ fn: 'setAgentAccessWearableSeriesDays', days });
+        stub.wearableSeriesDays = days;
+      }
+      export function getAgentAccessState() {
+        return { enabled: false, token: null, contextKey: null, wearableSeriesDays: stub.wearableSeriesDays || 0 };
+      }
+      export function migrateLocalAgentAccessToProfile() {
+        stub.calls.push({ fn: 'migrateLocalAgentAccessToProfile' });
+        return null;
+      }
+      export function isAgentAccessMigrationDirty() { return false; }
+      export function clearAgentAccessMigrationDirty() {
+        stub.calls.push({ fn: 'clearAgentAccessMigrationDirty' });
+      }
+      export function clearLegacyAgentAccessSecrets() {
+        stub.calls.push({ fn: 'clearLegacyAgentAccessSecrets' });
       }
       export function isMessengerEnabled() { return false; }
       export function getMessengerToken() { return null; }
@@ -54,11 +75,18 @@ async function openIsolatedSyncSetupPage(page) {
       export function hasMessengerSyncIdentity() { return true; }
       export function generateMessengerToken() {
         stub.calls.push({ fn: 'generateMessengerToken' });
-        return 'token';
+        return { token: 'token', previousToken: null };
       }
       export function generateMessengerContextKey() {
         stub.calls.push({ fn: 'generateMessengerContextKey' });
         return 'gbctx_v1_test-context-key';
+      }
+      export function disableMessengerTokenLocal() {
+        stub.calls.push({ fn: 'disableMessengerTokenLocal' });
+        return 'previous-token';
+      }
+      export function revokeMessengerTokenRemote(token) {
+        stub.calls.push({ fn: 'revokeMessengerTokenRemote', token });
       }
       export function revokeMessengerToken() {
         stub.calls.push({ fn: 'revokeMessengerToken' });

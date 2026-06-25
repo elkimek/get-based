@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.26', date: '2026-06-24', title: 'Agent Access follows your synced profile',
+    forceShow: true,
+    items: [
+      '<b>Agent Access now follows your profile across browsers.</b> If you enable it on the hosted app, a restored local or second browser sees the same enabled state instead of looking disconnected.',
+      '<b>Your Agent Context key still stays private.</b> The token, context key, and wearable-series preference are carried only inside your existing end-to-end encrypted Sync profile; the relay still only sees encrypted context.',
+      '<b>Wearable-series preferences sync too.</b> The 7 / 30 / 90 day Agent Access window now travels with the profile, so agents get the same context from every synced device.',
+    ]
+  },
+  {
     version: '1.10.25', date: '2026-06-24', title: 'Agent Access security hardening',
     forceShow: true,
     items: [
