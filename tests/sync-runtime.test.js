@@ -642,6 +642,36 @@ describe('synced Agent Access state', () => {
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-agent-wearable-series`)).toBe('90');
   });
 
+  it('builds a one-paste Hermes setup command carrying token, context key, and gateway', () => {
+    const token = 't'.repeat(64);
+    const contextKey = 'gbctx_v1_' + 'C'.repeat(43);
+    state.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token,
+      contextKey,
+      updatedAt: 123,
+    };
+    setSyncRelay('wss://sync.getbased.health/app');
+    vi.stubGlobal('location', { hostname: 'localhost' });
+
+    const command = buildAgentAccessSetupCommand('hermes');
+
+    expect(command).toMatch(/^curl -fsSL https:\/\/getbased\.health\/install\.sh \| bash -s -- connect hermes --setup 'gbsetup_v1_[A-Za-z0-9_-]+'$/);
+    const setup = command.match(/--setup '([^']+)'/)?.[1];
+    expect(setup).toBeTruthy();
+    const raw = setup.slice('gbsetup_v1_'.length).replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(raw.padEnd(Math.ceil(raw.length / 4) * 4, '=')));
+    expect(payload).toMatchObject({
+      version: 1,
+      token,
+      contextKey,
+      gateway: 'https://sync.getbased.health/app',
+      client: 'hermes',
+    });
+    expect(typeof payload.createdAt).toBe('string');
+  });
+
   it('migrates legacy local Agent Access into synced profile state and delta rows', async () => {
     localStorage.setItem('labcharts-messenger-enabled', 'true');
     localStorage.setItem('labcharts-messenger-token', 'b'.repeat(64));

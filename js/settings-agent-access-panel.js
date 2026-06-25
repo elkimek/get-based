@@ -17,6 +17,7 @@ import {
   migrateLocalAgentAccessToProfile,
   generateMessengerToken,
   generateMessengerContextKey,
+  getSyncRelay,
   revokeMessengerTokenRemote,
   pushContextToGateway,
 } from './sync.js';
@@ -32,6 +33,39 @@ function snapshotImportedData() {
 function restoreImportedDataSnapshot(snapshot) {
   if (!snapshot) return;
   try { state.importedData = JSON.parse(snapshot); } catch {}
+}
+
+function syncRelayHttpUrl() {
+  let relay = 'https://sync.getbased.health';
+  try { relay = getSyncRelay?.() || relay; } catch {}
+  return String(relay).replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+}
+
+export function buildAgentAccessSetupCommand(client = 'hermes') {
+  const token = getMessengerToken();
+  const contextKey = getMessengerContextKey();
+  if (!token || !contextKey) return null;
+  const payload = {
+    version: 1,
+    token: token,
+    contextKey: contextKey,
+    gateway: syncRelayHttpUrl(),
+    client: client,
+    createdAt: new Date().toISOString(),
+  };
+  const setup = 'gbsetup_v1_' + btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  // Private bootstrap command shape: install/upgrade the stack, then connect Hermes with this setup payload.
+  return `curl -fsSL https://getbased.health/install.sh | bash -s -- connect ${client} --setup '${setup}'`;
+}
+
+async function writePrivateClipboard(text, onSuccess) {
+  await navigator.clipboard.writeText(text);
+  onSuccess?.();
+}
+
+function clearClipboardLater(timer, delay = 60000) {
+  clearTimeout(timer);
+  return setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, delay);
 }
 
 async function persistMigratedAgentAccessIfNeeded() {
