@@ -56,6 +56,8 @@ import {
   getAgentWearableSeriesDays,
   setAgentWearableSeriesDays,
 } from '../js/lab-context.js';
+import { setSyncRelay } from '../js/sync-environment.js';
+import { buildAgentAccessSetupCommand } from '../js/settings-agent-access-panel.js';
 
 const PROFILE_ID = 'profile-runtime';
 const PROFILE_QUERY = Symbol('profile-query');

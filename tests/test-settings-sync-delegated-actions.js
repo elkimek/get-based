@@ -64,6 +64,7 @@ assert('Click delegate lets state controls reach change/input events',
   'toggle-messenger-context-key',
   'copy-messenger-token',
   'copy-messenger-context-key',
+  'copy-agent-access-setup-command',
   'regenerate-messenger-token',
   'regenerate-messenger-context-key',
   'set-agent-wearable-series-days',
@@ -101,7 +102,7 @@ assert('Agent Access renders one-click private bootstrap command instead of maki
   /data-sync-action="copy-agent-access-setup-command"/.test(agentSrc)
     && /buildAgentAccessSetupCommand\('hermes'\)/.test(agentSrc)
     && /gbsetup_v1_/.test(agentSrc)
-    && /curl -fsSL https:\/\/getbased\.health\/install\.sh \| bash -s -- connect/.test(agentSrc));
+    && agentSrc.includes('curl -fsSL https://getbased.health/install.sh | bash -s -- connect'));
 assert('Agent Access setup command carries token and context key through setup payload builder',
   /token:\s*token/.test(agentSrc)
     && /contextKey:\s*contextKey/.test(agentSrc)
