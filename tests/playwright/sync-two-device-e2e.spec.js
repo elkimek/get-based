@@ -376,6 +376,55 @@ async function closeFloatingModals(page) {
   });
 }
 
+async function enableAgentAccessForSync(page) {
+  return page.evaluate(async () => {
+    const token = 'syncagent'.padEnd(64, 'a');
+    const contextKey = `gbctx_v1_${'S'.repeat(43)}`;
+    const now = Date.now();
+    window._labState.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token,
+      contextKey,
+      credentialCreatedAt: now,
+      revokedAt: null,
+      updatedAt: now,
+    };
+    window._labState.importedData.agentAccessWearableSeriesDays = 30;
+    localStorage.removeItem('labcharts-messenger-token');
+    localStorage.removeItem('labcharts-agent-context-key');
+    await window.saveImportedData({ immediate: true });
+    return JSON.parse(JSON.stringify(window._labState.importedData));
+  });
+}
+
+async function agentAccessSnapshot(page) {
+  return page.evaluate(async () => {
+    const messenger = await import(`/js/sync-messenger.js?agentAccessSyncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    return {
+      enabled: messenger.isMessengerEnabled(),
+      token: messenger.getMessengerToken(),
+      contextKey: messenger.getMessengerContextKey(),
+      state: JSON.parse(JSON.stringify(window._labState.importedData.agentAccess || null)),
+      seriesDays: window._labState.importedData.agentAccessWearableSeriesDays,
+      legacyToken: localStorage.getItem('labcharts-messenger-token'),
+      legacyContextKey: localStorage.getItem('labcharts-agent-context-key'),
+    };
+  });
+}
+
+async function disableAgentAccessForSync(page) {
+  return page.evaluate(async () => {
+    const messenger = await import(`/js/sync-messenger.js?agentAccessDisableE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    const previousToken = messenger.disableMessengerTokenLocal();
+    await window.saveImportedData({ immediate: true });
+    return {
+      previousToken,
+      imported: JSON.parse(JSON.stringify(window._labState.importedData)),
+    };
+  });
+}
+
 async function run(browser, testInfo) {
   let pass = 0;
   let fail = 0;
@@ -483,6 +532,31 @@ async function run(browser, testInfo) {
     assert('Device B open device session modal refreshes pulled duration',
       deviceSnap.open && deviceSnap.durationMin === 18 && deviceSnap.text.includes('18 min'),
       JSON.stringify(deviceSnap));
+
+    const agentEnabledRemote = await enableAgentAccessForSync(pageA);
+    await pullRemoteImportedData(pageB, agentEnabledRemote);
+    const agentSnapB = await agentAccessSnapshot(pageB);
+    assert('Device B pull enables Agent Access from synced profile state',
+      agentSnapB.enabled === true
+        && agentSnapB.token === 'syncagent'.padEnd(64, 'a')
+        && agentSnapB.contextKey === `gbctx_v1_${'S'.repeat(43)}`
+        && agentSnapB.seriesDays === 30
+        && agentSnapB.legacyToken === null
+        && agentSnapB.legacyContextKey === null,
+      JSON.stringify(agentSnapB));
+
+    const agentDisabledRemote = await disableAgentAccessForSync(pageB);
+    await pullRemoteImportedData(pageA, agentDisabledRemote.imported);
+    const agentSnapA = await agentAccessSnapshot(pageA);
+    assert('Device A pull receives Agent Access revoke from synced profile state',
+      agentDisabledRemote.previousToken === 'syncagent'.padEnd(64, 'a')
+        && agentSnapA.enabled === false
+        && agentSnapA.token === null
+        && agentSnapA.contextKey === null
+        && agentSnapA.state?.revokedAt
+        && agentSnapA.legacyToken === null
+        && agentSnapA.legacyContextKey === null,
+      JSON.stringify({ agentDisabledRemote, agentSnapA }));
   } finally {
     for (const device of devices) {
       await stopPageCoverage(device.page, testInfo, `device-${device.label.toLowerCase()}`).catch(() => {});

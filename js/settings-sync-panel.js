@@ -17,6 +17,7 @@ import {
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
+import { state } from './state.js';
 import {
   copyMessengerContextKey,
   copyMessengerToken,
@@ -41,6 +42,15 @@ export { renderMessengerSection };
 // data-sync-action="copy-messenger-context-key" data-sync-action="regenerate-messenger-token"
 // data-sync-action="regenerate-messenger-context-key"
 // Copy contract: Let AI agents query your labs and context · ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days
+
+function snapshotImportedData() {
+  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
+}
+
+function restoreImportedDataSnapshot(snapshot) {
+  if (!snapshot) return;
+  try { state.importedData = JSON.parse(snapshot); } catch {}
+}
 
 const appWindow = /** @type {Window & typeof globalThis & {
   applyPendingTombstone?: (id: string) => Promise<void>,
@@ -155,12 +165,14 @@ async function handleSettingsSyncChange(event) {
     void toggleMessenger(actionEl.checked);
   } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
     const days = actionEl.value === 'off' ? 0 : Number(actionEl.value);
+    const rollback = snapshotImportedData();
     try {
       setAgentAccessWearableSeriesDays(days);
       const saved = await saveImportedData({ reason: 'agent-access-series' });
       if (saved === false) throw new Error('saveImportedData returned false while saving Agent Access wearable-series preference');
       appWindow.pushContextToGateway?.();
     } catch (err) {
+      restoreImportedDataSnapshot(rollback);
       console.warn('[agent-access] failed to persist wearable series preference', err);
       showNotification('Could not save wearable-series preference — try again.', 'error');
       refreshMessengerSectionForOwnerChange();

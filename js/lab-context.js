@@ -1026,12 +1026,17 @@ function _agentAccessState() {
   const aa = imported.agentAccess;
   return aa && typeof aa === 'object' ? aa : null;
 }
+// Valid positive synced windows. Keep this in sync with AGENT_SERIES_DAYS in
+// sync-messenger.js (that canonical list also includes 0 for explicit off).
+// Returning 0 here means "synced off"; returning null means "no synced pref,
+// fall through to legacy localStorage".
+const AGENT_SERIES_SYNC_POSITIVE_DAYS = [7, 30, 90];
 function _syncedAgentSeriesDays() {
   const imported = /** @type {any} */ (state.importedData || {});
   const split = imported.agentAccessWearableSeriesDays;
-  if (typeof split === 'number') return [7, 30, 90].includes(split) ? split : 0;
+  if (typeof split === 'number') return AGENT_SERIES_SYNC_POSITIVE_DAYS.includes(split) ? split : 0;
   const aa = _agentAccessState();
-  if (typeof aa?.wearableSeriesDays === 'number') return [7, 30, 90].includes(aa.wearableSeriesDays) ? aa.wearableSeriesDays : 0;
+  if (typeof aa?.wearableSeriesDays === 'number') return AGENT_SERIES_SYNC_POSITIVE_DAYS.includes(aa.wearableSeriesDays) ? aa.wearableSeriesDays : 0;
   return null;
 }
 function _agentSeriesKey() {

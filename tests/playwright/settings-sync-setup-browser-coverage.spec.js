@@ -62,17 +62,31 @@ async function openIsolatedSyncSetupPage(page) {
         stub.calls.push({ fn: 'migrateLocalAgentAccessToProfile' });
         return null;
       }
+      export function isAgentAccessMigrationDirty() { return false; }
+      export function clearAgentAccessMigrationDirty() {
+        stub.calls.push({ fn: 'clearAgentAccessMigrationDirty' });
+      }
+      export function clearLegacyAgentAccessSecrets() {
+        stub.calls.push({ fn: 'clearLegacyAgentAccessSecrets' });
+      }
       export function isMessengerEnabled() { return false; }
       export function getMessengerToken() { return null; }
       export function getMessengerContextKey() { return null; }
       export function hasMessengerSyncIdentity() { return true; }
       export function generateMessengerToken() {
         stub.calls.push({ fn: 'generateMessengerToken' });
-        return 'token';
+        return { token: 'token', previousToken: null };
       }
       export function generateMessengerContextKey() {
         stub.calls.push({ fn: 'generateMessengerContextKey' });
         return 'gbctx_v1_test-context-key';
+      }
+      export function disableMessengerTokenLocal() {
+        stub.calls.push({ fn: 'disableMessengerTokenLocal' });
+        return 'previous-token';
+      }
+      export function revokeMessengerTokenRemote(token) {
+        stub.calls.push({ fn: 'revokeMessengerTokenRemote', token });
       }
       export function revokeMessengerToken() {
         stub.calls.push({ fn: 'revokeMessengerToken' });

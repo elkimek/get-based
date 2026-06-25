@@ -403,10 +403,14 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       messengerSection.innerHTML = syncPanel.renderMessengerSection();
       messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = true;
       messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
-      await wait(0);
-      const token = localStorage.getItem('labcharts-messenger-token');
-      const contextKey = localStorage.getItem('labcharts-agent-context-key');
+      await waitFor(() => syncMessenger.isMessengerEnabled()
+        && messengerSection.textContent.includes('Read-only token')
+        && messengerSection.textContent.includes('GETBASED_AGENT_CONTEXT_KEY'), 'Agent Access enable render');
+      const token = syncMessenger.getMessengerToken();
+      const contextKey = syncMessenger.getMessengerContextKey();
       const messengerEnabled = localStorage.getItem('labcharts-messenger-enabled') === 'true'
+        && !localStorage.getItem('labcharts-messenger-token')
+        && !localStorage.getItem('labcharts-agent-context-key')
         && !!token
         && !!contextKey
         && messengerSection.textContent.includes('Read-only token')
@@ -434,13 +438,17 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && seriesDays === 0
         && pushedContexts >= 1;
       messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]').click();
-      await wait(0);
-      const regenerated = localStorage.getItem('labcharts-messenger-token') !== token
+      await waitFor(() => syncMessenger.getMessengerToken() !== token
+        && messengerSection.textContent.includes('Read-only token'), 'token regenerated');
+      const regenerated = !localStorage.getItem('labcharts-messenger-token')
+        && syncMessenger.getMessengerToken() !== token
         && messengerSection.textContent.includes('Read-only token');
-      const contextKeyBeforeRegen = localStorage.getItem('labcharts-agent-context-key');
+      const contextKeyBeforeRegen = syncMessenger.getMessengerContextKey();
       messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]').click();
-      await wait(0);
-      const contextKeyRegenerated = localStorage.getItem('labcharts-agent-context-key') !== contextKeyBeforeRegen
+      await waitFor(() => syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
+        && messengerSection.textContent.includes('Context encryption key'), 'context key regenerated');
+      const contextKeyRegenerated = !localStorage.getItem('labcharts-agent-context-key')
+        && syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
         && messengerSection.textContent.includes('Context encryption key');
       syncRuntime.setSyncAppOwner(null);
       messengerSection.innerHTML = syncPanel.renderMessengerSection();

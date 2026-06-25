@@ -17,6 +17,14 @@ let _getAppOwner = () => null;
 let _debug = () => {};
 /** @type {number | null} */
 let _contextPushTimer = null;
+let _agentAccessMigrationDirty = false;
+
+function cancelPendingContextPush() {
+  if (_contextPushTimer != null) {
+    clearTimeout(_contextPushTimer);
+    _contextPushTimer = null;
+  }
+}
 
 /** @param {{ getSyncRelay?: () => string, getAppOwner?: () => any, debug?: (...args: any[]) => void }} [deps] */
 export function configureSyncMessenger({ getSyncRelay, getAppOwner, debug } = {}) {
@@ -97,6 +105,23 @@ let _lastAgentAccessMigrationSignature = null;
 
 export function _resetAgentAccessMigrationStateForTesting() {
   _lastAgentAccessMigrationSignature = null;
+  _agentAccessMigrationDirty = false;
+}
+
+export function isAgentAccessMigrationDirty() {
+  return _agentAccessMigrationDirty;
+}
+
+export function clearAgentAccessMigrationDirty() {
+  _agentAccessMigrationDirty = false;
+}
+
+export function clearLegacyAgentAccessSecrets() {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.removeItem(MESSENGER_TOKEN_KEY);
+    localStorage.removeItem(MESSENGER_CONTEXT_KEY_KEY);
+  } catch {}
 }
 
 function agentAccessMigrationSignature(existing, enabled, token, legacyContextKey) {
@@ -181,6 +206,7 @@ export function migrateLocalAgentAccessToProfile() {
     contextKey: contextKey || null,
     migratedFromLocalStorageAt: nowTs(),
   });
+  _agentAccessMigrationDirty = true;
   _lastAgentAccessMigrationSignature = agentAccessMigrationSignature(migrated, enabled, token, legacyContextKey);
   return migrated;
 }
@@ -190,10 +216,11 @@ function mirrorAgentAccessToLegacyLocalStorage(aa = currentAgentAccess()) {
   try {
     if (aa.enabled) localStorage.setItem(MESSENGER_ENABLED_KEY, 'true');
     else localStorage.setItem(MESSENGER_ENABLED_KEY, 'false');
-    if (aa.token) localStorage.setItem(MESSENGER_TOKEN_KEY, aa.token);
-    else localStorage.removeItem(MESSENGER_TOKEN_KEY);
-    if (aa.contextKey) localStorage.setItem(MESSENGER_CONTEXT_KEY_KEY, aa.contextKey);
-    else localStorage.removeItem(MESSENGER_CONTEXT_KEY_KEY);
+    // One-shot legacy migration source only: after Agent Access is represented
+    // inside encrypted profile data, never mirror raw bearer/decryption secrets
+    // back into same-origin localStorage. UI reads credentials from synced
+    // `state.importedData.agentAccess` instead.
+    clearLegacyAgentAccessSecrets();
     const wearableSeriesDays = typeof aa?.wearableSeriesDays === 'number'
       ? normalizeAgentSeriesDays(aa.wearableSeriesDays)
       : currentAgentWearableSeriesDays(aa);
@@ -231,6 +258,9 @@ export function refreshAgentAccessFromSyncedProfile({ migrateLegacy = true, clea
   const aa = migrated || currentAgentAccess();
   if (!aa) {
     const fallbackSeriesDays = clearWhenMissing ? 0 : currentAgentWearableSeriesDays(null);
+    if (clearWhenMissing && state.importedData) {
+      (/** @type {any} */ (state.importedData)).agentAccessWearableSeriesDays = fallbackSeriesDays;
+    }
     const fallback = {
       version: AGENT_ACCESS_SYNC_VERSION,
       enabled: false,
@@ -385,7 +415,7 @@ export function generateMessengerContextKey() {
   return key;
 }
 
-function revokeMessengerTokenRemote(token) {
+export function revokeMessengerTokenRemote(token) {
   if (!token) return;
   const owner = currentAppOwner();
   const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
@@ -421,7 +451,6 @@ function revokeMessengerTokenRemote(token) {
 export function generateMessengerToken() {
   migrateLocalAgentAccessToProfile();
   const previousToken = getMessengerToken();
-  if (previousToken) revokeMessengerTokenRemote(previousToken);
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const contextKey = getMessengerContextKey() || generateAgentContextKeyValue();
@@ -433,12 +462,12 @@ export function generateMessengerToken() {
     revokedAt: null,
   });
   mirrorAgentAccessToLegacyLocalStorage(aa);
-  return token;
+  return { token, previousToken };
 }
 
-export function revokeMessengerToken() {
-  const token = getMessengerToken();
-  revokeMessengerTokenRemote(token);
+export function disableMessengerTokenLocal() {
+  cancelPendingContextPush();
+  const previousToken = getMessengerToken();
   const aa = writeAgentAccess({
     enabled: false,
     token: null,
@@ -446,18 +475,33 @@ export function revokeMessengerToken() {
     revokedAt: nowTs(),
   });
   mirrorAgentAccessToLegacyLocalStorage(aa);
+  return previousToken;
+}
+
+export function revokeMessengerToken() {
+  const token = disableMessengerTokenLocal();
+  revokeMessengerTokenRemote(token);
 }
 
 export function pushContextToGateway() {
+  cancelPendingContextPush();
   migrateLocalAgentAccessToProfile();
   if (!isMessengerEnabled()) return;
   const token = getMessengerToken();
   if (!token) return;
   const contextKey = ensureMessengerContextKey();
+  const profileId = state.currentProfile || 'default';
 
-  clearTimeout(_contextPushTimer);
   _contextPushTimer = setTimeout(async () => {
     try {
+      const latest = getAgentAccessState();
+      if (state.currentProfile !== profileId
+        || latest.enabled !== true
+        || latest.token !== token
+        || latest.contextKey !== contextKey) {
+        dbg(`Skipped stale Agent Access context push (profile: ${profileId})`);
+        return;
+      }
       const { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } = await import('./lab-context.js');
       const baseContext = buildLabContext({ skipGroupFilter: true });
       // Optional wearable daily-series section - user picks 0 (off) / 7 /
@@ -471,7 +515,6 @@ export function pushContextToGateway() {
         ? await buildWearableSeriesSection(seriesDays).catch(() => '')
         : '';
       const context = seriesBlock ? `${baseContext}\n${seriesBlock}\n` : baseContext;
-      const profileId = state.currentProfile || 'default';
       const encryptedContext = await encryptAgentContextForRelay(context, contextKey, profileId);
       // The gateway only needs the active profileId - do not leak the full
       // profile-name list. Profile names can include real names; keep them

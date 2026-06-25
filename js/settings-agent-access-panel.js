@@ -2,17 +2,22 @@
 // settings-agent-access-panel.js — Settings → Agent Access rendering/actions.
 
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
+import { state } from './state.js';
 import {
+  clearAgentAccessMigrationDirty,
+  clearLegacyAgentAccessSecrets,
+  disableMessengerTokenLocal,
   getAgentAccessState,
   isSyncEnabled,
   isMessengerEnabled,
   getMessengerToken,
   getMessengerContextKey,
   hasMessengerSyncIdentity,
+  isAgentAccessMigrationDirty,
   migrateLocalAgentAccessToProfile,
   generateMessengerToken,
   generateMessengerContextKey,
-  revokeMessengerToken,
+  revokeMessengerTokenRemote,
   pushContextToGateway,
 } from './sync.js';
 import { saveImportedData } from './data.js';
@@ -20,8 +25,29 @@ import { saveImportedData } from './data.js';
 let _tokenClipboardClearTimer = null;
 let _contextKeyClipboardClearTimer = null;
 
+function snapshotImportedData() {
+  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
+}
+
+function restoreImportedDataSnapshot(snapshot) {
+  if (!snapshot) return;
+  try { state.importedData = JSON.parse(snapshot); } catch {}
+}
+
+async function persistMigratedAgentAccessIfNeeded() {
+  if (!isAgentAccessMigrationDirty()) return;
+  const saved = await saveImportedData({ reason: 'agent-access-migration' });
+  if (saved === false) {
+    console.warn('[agent-access] migrated legacy Agent Access but could not persist it yet');
+    return;
+  }
+  clearAgentAccessMigrationDirty();
+  clearLegacyAgentAccessSecrets();
+}
+
 export function renderMessengerSection() {
   migrateLocalAgentAccessToProfile();
+  void persistMigratedAgentAccessIfNeeded();
   const enabled = isMessengerEnabled();
   const token = getMessengerToken();
   const agentAccess = getAgentAccessState();
@@ -105,6 +131,7 @@ let _messengerToggling = false;
 export async function toggleMessenger(enabled) {
   if (_messengerToggling) return;
   _messengerToggling = true;
+  const rollback = snapshotImportedData();
   try {
     if (enabled) {
       if (!isSyncEnabled()) {
@@ -117,19 +144,24 @@ export async function toggleMessenger(enabled) {
         refreshMessengerSectionForOwnerChange();
         return;
       }
-      generateMessengerToken();
+      const { previousToken } = generateMessengerToken();
       const saved = await saveImportedData({ reason: 'agent-access-enable' });
       if (saved === false) throw new Error('saveImportedData returned false while enabling Agent Access');
+      clearLegacyAgentAccessSecrets();
+      if (previousToken) revokeMessengerTokenRemote(previousToken);
       pushContextToGateway();
       showNotification('Agent Access enabled', 'success');
     } else {
-      revokeMessengerToken();
+      const previousToken = disableMessengerTokenLocal();
       const saved = await saveImportedData({ reason: 'agent-access-disable' });
       if (saved === false) throw new Error('saveImportedData returned false while disabling Agent Access');
+      clearLegacyAgentAccessSecrets();
+      revokeMessengerTokenRemote(previousToken);
       showNotification('Agent Access disabled', 'success');
     }
     refreshMessengerSectionForOwnerChange();
   } catch (err) {
+    restoreImportedDataSnapshot(rollback);
     console.warn('[agent-access] failed to persist Agent Access toggle', err);
     showNotification(enabled
       ? 'Could not save Agent Access token — try enabling again before updating your agent config.'
@@ -192,13 +224,17 @@ export async function regenerateMessengerToken() {
     refreshMessengerSectionForOwnerChange();
     return;
   }
+  const rollback = snapshotImportedData();
   try {
-    generateMessengerToken();
+    const { previousToken } = generateMessengerToken();
     const saved = await saveImportedData({ reason: 'agent-access-regenerate-token' });
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access token');
+    clearLegacyAgentAccessSecrets();
+    if (previousToken) revokeMessengerTokenRemote(previousToken);
     pushContextToGateway();
     showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
   } catch (err) {
+    restoreImportedDataSnapshot(rollback);
     console.warn('[agent-access] failed to persist regenerated token', err);
     showNotification('Could not save regenerated token — try again before updating your agent config.', 'error');
   } finally {
@@ -212,13 +248,16 @@ export async function regenerateMessengerContextKey() {
     refreshMessengerSectionForOwnerChange();
     return;
   }
+  const rollback = snapshotImportedData();
   try {
     generateMessengerContextKey();
     const saved = await saveImportedData({ reason: 'agent-access-regenerate-context-key' });
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access context key');
+    clearLegacyAgentAccessSecrets();
     pushContextToGateway();
     showNotification('Context key regenerated — update GETBASED_AGENT_CONTEXT_KEY in your agent config', 'success');
   } catch (err) {
+    restoreImportedDataSnapshot(rollback);
     console.warn('[agent-access] failed to persist regenerated context key', err);
     showNotification('Could not save regenerated context key — try again before updating your agent config.', 'error');
   } finally {

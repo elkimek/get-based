@@ -36,11 +36,15 @@ import { getRecentSyncEvents, resetSyncStatus, updateSyncStatus } from '../js/sy
 import { state } from '../js/state.js';
 import {
   _resetAgentAccessMigrationStateForTesting,
+  clearAgentAccessMigrationDirty,
+  clearLegacyAgentAccessSecrets,
   configureSyncMessenger,
+  disableMessengerTokenLocal,
   generateMessengerToken,
   getAgentAccessState,
   getMessengerContextKey,
   getMessengerToken,
+  isAgentAccessMigrationDirty,
   isMessengerEnabled,
   migrateLocalAgentAccessToProfile,
   pushContextToGateway,
@@ -633,7 +637,8 @@ describe('synced Agent Access state', () => {
 
     refreshAgentAccessFromSyncedProfile();
     expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
-    expect(localStorage.getItem('labcharts-messenger-token')).toBe('a'.repeat(64));
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-agent-wearable-series`)).toBe('90');
   });
 
@@ -655,6 +660,9 @@ describe('synced Agent Access state', () => {
     });
     expect(state.importedData.agentAccess.wearableSeriesDays).toBeUndefined();
     expect(state.importedData.agentAccessWearableSeriesDays).toBe(30);
+    expect(isAgentAccessMigrationDirty()).toBe(true);
+    clearAgentAccessMigrationDirty();
+    expect(isAgentAccessMigrationDirty()).toBe(false);
     const migratedUpdatedAt = state.importedData.agentAccess.updatedAt;
     getAgentAccessState();
     expect(state.importedData.agentAccess.updatedAt).toBe(migratedUpdatedAt);
@@ -697,6 +705,58 @@ describe('synced Agent Access state', () => {
     vi.clearAllTimers();
   });
 
+  it('cancels a pending context push when switching to a profile without Agent Access', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    configureSyncMessenger({
+      getSyncRelay: () => 'wss://sync.getbased.health',
+      getAppOwner: () => ({ id: 'abcdefghijklmnopqrstuv', writeKey: new Uint8Array(32).fill(7) }),
+      debug: vi.fn(),
+    });
+    state.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token: 'q'.repeat(64),
+      contextKey: 'gbctx_v1_' + 'Q'.repeat(43),
+      updatedAt: 123,
+    };
+
+    pushContextToGateway();
+    state.currentProfile = 'profile-without-agent-access';
+    localStorage.setItem('labcharts-active-profile', 'profile-without-agent-access');
+    state.importedData.agentAccess = null;
+    refreshAgentAccessFromSyncedProfile({ migrateLegacy: false, clearWhenMissing: true });
+    pushContextToGateway();
+
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('cancels a pending context push when Agent Access is revoked before the debounce fires', () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })));
+    configureSyncMessenger({
+      getSyncRelay: () => 'wss://sync.getbased.health',
+      getAppOwner: () => null,
+      debug: vi.fn(),
+    });
+    state.importedData.agentAccess = {
+      version: 1,
+      enabled: true,
+      token: 'r'.repeat(64),
+      contextKey: 'gbctx_v1_' + 'R'.repeat(43),
+      updatedAt: 123,
+    };
+
+    pushContextToGateway();
+    revokeMessengerToken();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('profile-switch refresh does not mirror the departed profile series preference under the new profile key', () => {
     state.currentProfile = 'new-profile';
     localStorage.setItem('labcharts-active-profile', 'new-profile');
@@ -707,6 +767,8 @@ describe('synced Agent Access state', () => {
     const refreshed = refreshAgentAccessFromSyncedProfile({ migrateLegacy: false, clearWhenMissing: true });
 
     expect(refreshed).toMatchObject({ enabled: false, token: null, contextKey: null, wearableSeriesDays: 0 });
+    expect(state.importedData.agentAccessWearableSeriesDays).toBe(0);
+    expect(getAgentWearableSeriesDays()).toBe(0);
     expect(localStorage.getItem('labcharts-new-profile-agent-wearable-series')).toBe('off');
   });
 
@@ -763,8 +825,8 @@ describe('synced Agent Access state', () => {
     expect(getMessengerToken()).toBe('e'.repeat(64));
     expect(getMessengerContextKey()).toBe('gbctx_v1_' + 'E'.repeat(43));
     refreshAgentAccessFromSyncedProfile();
-    expect(localStorage.getItem('labcharts-messenger-token')).toBe('e'.repeat(64));
-    expect(localStorage.getItem('labcharts-agent-context-key')).toBe('gbctx_v1_' + 'E'.repeat(43));
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
   });
 
   it('trusts synced regenerated credentials even when the local state was originally generated, not migrated', () => {
@@ -788,8 +850,8 @@ describe('synced Agent Access state', () => {
       contextKey: 'gbctx_v1_' + 'H'.repeat(43),
     });
     refreshAgentAccessFromSyncedProfile();
-    expect(localStorage.getItem('labcharts-messenger-token')).toBe('h'.repeat(64));
-    expect(localStorage.getItem('labcharts-agent-context-key')).toBe('gbctx_v1_' + 'H'.repeat(43));
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
   });
 
   it('profile-switch refresh clears stale legacy credentials instead of importing them into an empty profile', () => {
@@ -876,11 +938,11 @@ describe('synced Agent Access state', () => {
       contextKey: 'gbctx_v1_' + 'M'.repeat(43),
     });
     expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
-    expect(localStorage.getItem('labcharts-messenger-token')).toBe('m'.repeat(64));
-    expect(localStorage.getItem('labcharts-agent-context-key')).toBe('gbctx_v1_' + 'M'.repeat(43));
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
   });
 
-  it('does not clear legacy credentials when setting series before explicit migration', () => {
+  it('clears legacy credential mirrors when setting series migrates Agent Access into profile state', () => {
     localStorage.setItem('labcharts-messenger-enabled', 'true');
     localStorage.setItem('labcharts-messenger-token', 'k'.repeat(64));
     localStorage.setItem('labcharts-agent-context-key', 'gbctx_v1_' + 'K'.repeat(43));
@@ -890,8 +952,8 @@ describe('synced Agent Access state', () => {
     expect(setAgentAccessWearableSeriesDays(45)).toBeNull();
 
     expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
-    expect(localStorage.getItem('labcharts-messenger-token')).toBe('k'.repeat(64));
-    expect(localStorage.getItem('labcharts-agent-context-key')).toBe('gbctx_v1_' + 'K'.repeat(43));
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
     expect(state.importedData.agentAccess).toMatchObject({
       enabled: true,
       token: 'k'.repeat(64),
@@ -963,12 +1025,16 @@ describe('synced Agent Access state', () => {
   });
 
   it('keeps generated credentials separate from wearable-series preference sync', async () => {
-    generateMessengerToken();
+    const generated = generateMessengerToken();
+    expect(generated.token).toHaveLength(64);
+    expect(generated.previousToken).toBeNull();
     const token = state.importedData.agentAccess.token;
     const contextKey = state.importedData.agentAccess.contextKey;
     expect(state.importedData.agentAccess.enabled).toBe(true);
     expect(token).toHaveLength(64);
     expect(contextKey).toMatch(/^gbctx_v1_/);
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
 
     setAgentAccessWearableSeriesDays(7);
     expect(state.importedData.agentAccess.token).toBe(token);
@@ -992,5 +1058,36 @@ describe('synced Agent Access state', () => {
     const { deltaPlans } = await planProfileDeltas(PROFILE_ID, state.importedData);
     expect(deltaPlans.some(p => p.arrayName === 'agentAccess')).toBe(true);
     expect(deltaPlans.some(p => p.arrayName === 'agentAccessWearableSeriesDays')).toBe(true);
+  });
+
+  it('local disable returns the previous token without calling the relay or keeping local secret mirrors', () => {
+    const first = generateMessengerToken();
+    localStorage.setItem('labcharts-messenger-token', 'stale-local-token');
+    localStorage.setItem('labcharts-agent-context-key', 'stale-local-context');
+
+    const previousToken = disableMessengerTokenLocal();
+
+    expect(previousToken).toBe(first.token);
+    expect(state.importedData.agentAccess).toMatchObject({
+      enabled: false,
+      token: null,
+      contextKey: null,
+    });
+    expect(state.importedData.agentAccess.revokedAt).toEqual(expect.any(Number));
+    expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('false');
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
+  });
+
+  it('clearLegacyAgentAccessSecrets removes only raw credential mirrors', () => {
+    localStorage.setItem('labcharts-messenger-enabled', 'true');
+    localStorage.setItem('labcharts-messenger-token', 'legacy-token');
+    localStorage.setItem('labcharts-agent-context-key', 'legacy-context');
+
+    clearLegacyAgentAccessSecrets();
+
+    expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
+    expect(localStorage.getItem('labcharts-messenger-token')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBeNull();
   });
 });
