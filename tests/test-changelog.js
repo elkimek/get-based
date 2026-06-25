@@ -98,12 +98,13 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog documents multi-agent Agent Access in user-readable terms',
-  /version:\s*'1\.10\.27'[\s\S]{0,1200}Agent Access is no longer Hermes-only/.test(changelogSrc)
-    && /version:\s*'1\.10\.27'[\s\S]{0,1200}OpenClaw/.test(changelogSrc)
-    && /version:\s*'1\.10\.27'[\s\S]{0,1200}Codex/.test(changelogSrc)
-    && /version:\s*'1\.10\.27'[\s\S]{0,1200}getbased-stack connect/.test(changelogSrc)
-    && /version:\s*'1\.10\.27'[\s\S]{0,400}forceShow:\s*true/.test(changelogSrc));
+assert('latest changelog documents Agent Access overview in user-readable terms',
+  /version:\s*'1\.10\.28'[\s\S]{0,1800}Agent Access is now a real private bridge/.test(changelogSrc)
+    && /version:\s*'1\.10\.28'[\s\S]{0,1800}OpenClaw/.test(changelogSrc)
+    && /version:\s*'1\.10\.28'[\s\S]{0,1800}Codex/.test(changelogSrc)
+    && /version:\s*'1\.10\.28'[\s\S]{0,1800}end-to-end encrypted Sync profile/.test(changelogSrc)
+    && /version:\s*'1\.10\.28'[\s\S]{0,1800}Agent Context key decrypts locally/.test(changelogSrc)
+    && /version:\s*'1\.10\.28'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
 assert('context/BP changelog documents merged AI context, KB-empty, and BP fixes in user-readable terms',
   /version:\s*'1\.10\.24'[\s\S]{0,1800}AI Context is easier to find/.test(changelogSrc)
     && /version:\s*'1\.10\.24'[\s\S]{0,1800}clickable green context chip/.test(changelogSrc)
