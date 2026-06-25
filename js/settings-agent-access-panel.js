@@ -27,6 +27,26 @@ let _tokenClipboardClearTimer = null;
 let _contextKeyClipboardClearTimer = null;
 let _setupCommandClipboardClearTimer = null;
 
+const AGENT_ACCESS_CLIENTS = [
+  { id: 'hermes', label: 'Hermes Agent', terminal: 'Hermes' },
+  { id: 'openclaw', label: 'OpenClaw', terminal: 'OpenClaw' },
+  { id: 'claude-code', label: 'Claude Code', terminal: 'Claude Code' },
+  { id: 'claude-desktop', label: 'Claude Desktop', terminal: 'Claude Desktop' },
+  { id: 'cursor', label: 'Cursor', terminal: 'Cursor' },
+  { id: 'cline', label: 'Cline', terminal: 'Cline' },
+  { id: 'codex', label: 'Codex CLI', terminal: 'Codex' },
+];
+
+function normalizeAgentAccessClient(client) {
+  const id = String(client || 'hermes').trim();
+  return AGENT_ACCESS_CLIENTS.some(c => c.id === id) ? id : 'hermes';
+}
+
+function agentAccessClientMeta(client) {
+  const id = normalizeAgentAccessClient(client);
+  return AGENT_ACCESS_CLIENTS.find(c => c.id === id) || AGENT_ACCESS_CLIENTS[0];
+}
+
 function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
 }
@@ -46,17 +66,18 @@ export function buildAgentAccessSetupCommand(client = 'hermes') {
   const token = getMessengerToken();
   const contextKey = getMessengerContextKey();
   if (!token || !contextKey) return null;
+  const targetClient = normalizeAgentAccessClient(client);
   const payload = {
     version: 1,
     token: token,
     contextKey: contextKey,
     gateway: syncRelayHttpUrl(),
-    client: client,
+    client: targetClient,
     createdAt: new Date().toISOString(),
   };
   const setup = 'gbsetup_v1_' + btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  // Private bootstrap command shape: install/upgrade the stack, then connect Hermes with this setup payload.
-  return `curl -fsSL https://getbased.health/install.sh | bash -s -- connect ${client} --setup '${setup}'`;
+  // Private bootstrap command shape: install/upgrade the stack, then connect the selected MCP client with this setup payload.
+  return `curl -fsSL https://getbased.health/install.sh | bash -s -- connect ${targetClient} --setup '${setup}'`;
 }
 
 async function writePrivateClipboard(text, onSuccess) {
@@ -105,10 +126,14 @@ export function renderMessengerSection() {
     ${enabled && token ? `
       <div class="settings-action-row" style="align-items:flex-start;margin-bottom:16px;padding:12px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-secondary)">
         <div class="settings-copy">
-          <div class="settings-copy-title">Connect Hermes</div>
-          <div class="settings-copy-desc">Copy one private setup command, paste it into the terminal where Hermes runs, and it will store the key locally, register getbased-mcp, restart Hermes, and test the connection.</div>
+          <div class="settings-copy-title">Connect an agent</div>
+          <div class="settings-copy-desc">Choose the target MCP client, copy one private setup command, and paste it into the terminal where that agent runs. The command stores the key locally, registers getbased-mcp when the client supports automation, and prints the manual config step otherwise.</div>
+          <label for="agent-access-client-select" style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-top:10px;margin-bottom:4px">Target agent</label>
+          <select id="agent-access-client-select" class="settings-select" aria-label="Agent Access setup target">
+            ${AGENT_ACCESS_CLIENTS.map(client => `<option value="${client.id}"${client.id === 'hermes' ? ' selected' : ''}>${client.label}</option>`).join('')}
+          </select>
         </div>
-        <button class="import-btn import-btn-primary settings-mini-btn" data-sync-action="copy-agent-access-setup-command" aria-label="Copy Hermes setup command">Copy setup command</button>
+        <button class="import-btn import-btn-primary settings-mini-btn" data-sync-action="copy-agent-access-setup-command" aria-label="Copy selected agent setup command">Copy setup command</button>
       </div>
       <div style="margin-bottom:16px">
         <div class="settings-token-head">
@@ -259,14 +284,21 @@ export function copyMessengerContextKey() {
   }).catch(() => { showNotification('Could not access clipboard', 'error'); });
 }
 
+function selectedAgentAccessClient() {
+  const select = document.getElementById('agent-access-client-select');
+  return normalizeAgentAccessClient(select && 'value' in select ? select.value : 'hermes');
+}
+
 export function copyAgentAccessSetupCommand() {
-  const command = buildAgentAccessSetupCommand('hermes');
+  const client = selectedAgentAccessClient();
+  const meta = agentAccessClientMeta(client);
+  const command = buildAgentAccessSetupCommand(client);
   if (!command) {
     showNotification('Agent Access credentials are not ready yet — enable Agent Access first.', 'error');
     return;
   }
   writePrivateClipboard(command, () => {
-    showNotification('Hermes setup command copied — paste it into the terminal where Hermes runs', 'success');
+    showNotification(`${meta.label} setup command copied — paste it into the terminal where ${meta.terminal} runs`, 'success');
     _setupCommandClipboardClearTimer = clearClipboardLater(_setupCommandClipboardClearTimer);
   }).catch(() => { showNotification('Could not access clipboard', 'error'); });
 }

@@ -100,12 +100,17 @@ assert('Agent Access context-key regeneration checks saveImportedData result bef
   /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
 assert('Agent Access renders one-click private bootstrap command instead of making users assemble env vars',
   /data-sync-action="copy-agent-access-setup-command"/.test(agentSrc)
-    && /buildAgentAccessSetupCommand\('hermes'\)/.test(agentSrc)
+    && /id="agent-access-client-select"/.test(agentSrc)
+    && /id: 'openclaw'/.test(agentSrc)
+    && /id: 'codex'/.test(agentSrc)
+    && /buildAgentAccessSetupCommand\(client\)/.test(agentSrc)
     && /gbsetup_v1_/.test(agentSrc)
     && agentSrc.includes('curl -fsSL https://getbased.health/install.sh | bash -s -- connect'));
-assert('Agent Access setup command carries token and context key through setup payload builder',
+assert('Agent Access setup command carries token, context key, and selected client through setup payload builder',
   /token:\s*token/.test(agentSrc)
     && /contextKey:\s*contextKey/.test(agentSrc)
+    && /client:\s*targetClient/.test(agentSrc)
+    && /normalizeAgentAccessClient\(client\)/.test(agentSrc)
     && /btoa\(JSON\.stringify\(payload\)\)/.test(agentSrc));
 assert('Delegated wearable-series select writes split Agent Access scalar and pushes context only after persisted save',
   /action === 'set-agent-wearable-series-days'[\s\S]*setAgentAccessWearableSeriesDays\(days\)[\s\S]*const saved = await saveImportedData\(\{ reason: 'agent-access-series' \}\)[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while saving Agent Access wearable-series preference'\)[\s\S]*pushContextToGateway/.test(src)
