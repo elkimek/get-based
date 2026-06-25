@@ -7,12 +7,20 @@ import { getActiveData, saveImportedData } from './data.js';
 import { showDetailModal } from './marker-detail-modal.js';
 
 let _navigate = (route, data) => window.navigate?.(route, data);
+/** @type {((data?: any) => void) | null} */
+let _buildSidebar = null;
+
+function getFallbackBuildSidebar() {
+  const runtime = typeof window !== 'undefined' ? /** @type {any} */ (window) : /** @type {any} */ (globalThis);
+  return typeof runtime.buildSidebar === 'function' ? runtime.buildSidebar : null;
+}
 
 /**
- * @param {{ navigate?: (route: string, data?: any) => void }} [deps]
+ * @param {{ navigate?: (route: string, data?: any) => void, buildSidebar?: (data?: any) => void }} [deps]
  */
 export function configureCategoryCustomization(deps = {}) {
   if (typeof deps.navigate === 'function') _navigate = deps.navigate;
+  if (typeof deps.buildSidebar === 'function') _buildSidebar = deps.buildSidebar;
 }
 
 /**
@@ -21,7 +29,8 @@ export function configureCategoryCustomization(deps = {}) {
  */
 function _refreshActiveView(fallbackRoute, opts = {}) {
   const data = getActiveData();
-  window.buildSidebar?.(data);
+  const buildSidebar = _buildSidebar || getFallbackBuildSidebar();
+  buildSidebar?.(data);
   _navigate(opts.forceRoute || state.currentView || fallbackRoute, data);
 }
 

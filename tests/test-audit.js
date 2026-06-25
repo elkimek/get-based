@@ -297,7 +297,8 @@ assert('category rename rejects whitespace-only labels after trim',
 assert('marker rename rejects whitespace-only labels after trim',
   /export async function renameMarker[^{]*\{[\s\S]{0,700}const trimmed = newName\.trim\(\);\s*if\s*\(\s*!trimmed\s*\)\s*return/.test(categoryCustomizationSrc));
 assert('category customization refreshes the active view with fresh data',
-  /function _refreshActiveView[^{]*\{[\s\S]{0,300}const data = getActiveData\(\);[\s\S]{0,200}window\.buildSidebar\?\.\(data\);[\s\S]{0,200}_navigate\(opts\.forceRoute \|\| state\.currentView \|\| fallbackRoute, data\)/.test(categoryCustomizationSrc));
+  /function _refreshActiveView[^{]*\{[\s\S]{0,300}const data = getActiveData\(\);[\s\S]{0,200}const buildSidebar = _buildSidebar \|\| getFallbackBuildSidebar\(\);[\s\S]{0,200}buildSidebar\?\.\(data\);[\s\S]{0,200}_navigate\(opts\.forceRoute \|\| state\.currentView \|\| fallbackRoute, data\)/.test(categoryCustomizationSrc) &&
+  viewsSrc.includes('configureCategoryCustomization({ navigate, buildSidebar });'));
 assert('marker rename refreshes the backing view before reopening modal',
   /export async function renameMarker[^{]*\{[\s\S]{0,900}await saveImportedData\(\);\s*_refreshActiveView\(catKey\);\s*showDetailModal\(id\)/.test(categoryCustomizationSrc));
 

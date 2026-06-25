@@ -2,6 +2,7 @@
 // views.js — route facade and compatibility exports
 
 import { getActiveData, destroyAllCharts } from './data.js';
+import { buildSidebar } from './nav.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
@@ -182,7 +183,7 @@ export function navigate(category, data) {
 }
 
 configureOnboardingView({ navigate });
-configureCategoryCustomization({ navigate });
+configureCategoryCustomization({ navigate, buildSidebar });
 
 // ═══════════════════════════════════════════════
 // DASHBOARD WIDGETS

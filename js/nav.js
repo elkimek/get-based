@@ -442,6 +442,10 @@ export function renderProfileDropdown() { renderProfileButton(); }
 export function toggleMobileSidebar() {
   const sidebar = document.getElementById('sidebar-nav');
   const backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar) {
+    closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
+    return;
+  }
   const isOpen = sidebar.classList.contains('mobile-open');
   if (isOpen) {
     closeMobileSidebar();
@@ -452,7 +456,7 @@ export function toggleMobileSidebar() {
 }
 
 export function closeMobileSidebar() {
-  document.getElementById('sidebar-nav').classList.remove('mobile-open');
+  document.getElementById('sidebar-nav')?.classList.remove('mobile-open');
   closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
 
