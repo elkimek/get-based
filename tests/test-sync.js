@@ -790,6 +790,15 @@ await import('../js/settings.js');
       && syncWindowBindingsSrc.includes('_forcePull: forcePull')
       && syncWindowBindingsSrc.includes('confirmBackfillBlockers')
       && syncConfigureSrc.includes('bindSyncWindowActions({ enableSync, disableSync });'));
+  assert('Agent Access window bindings preserve public contracts safely',
+    syncWindowBindingsSrc.includes('function generateMessengerTokenWindow()')
+      && syncWindowBindingsSrc.includes('return result?.token ||')
+      && syncWindowBindingsSrc.includes('async function revokeMessengerTokenWindow()')
+      && syncWindowBindingsSrc.includes("await import('./data.js')")
+      && syncWindowBindingsSrc.includes("saveImportedData({ reason: 'agent-access-window-disable' })")
+      && syncWindowBindingsSrc.includes('revokeMessengerTokenRemote(previousToken)')
+      && syncWindowBindingsSrc.includes('generateMessengerToken: generateMessengerTokenWindow')
+      && syncWindowBindingsSrc.includes('revokeMessengerToken: revokeMessengerTokenWindow'));
   assert('service worker precaches sync-window-bindings.js',
     serviceWorkerSrc.includes("'/js/sync-window-bindings.js'"));
   assert('sync-cutover.js owns Phase 2 cutover flag actions',
