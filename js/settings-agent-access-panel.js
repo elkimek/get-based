@@ -8,6 +8,7 @@ import {
   clearLegacyAgentAccessSecrets,
   disableMessengerTokenLocal,
   getAgentAccessState,
+  getSyncRelay,
   isSyncEnabled,
   isMessengerEnabled,
   getMessengerToken,
@@ -24,6 +25,7 @@ import { saveImportedData } from './data.js';
 
 let _tokenClipboardClearTimer = null;
 let _contextKeyClipboardClearTimer = null;
+let _setupCommandClipboardClearTimer = null;
 
 function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -32,6 +34,39 @@ function snapshotImportedData() {
 function restoreImportedDataSnapshot(snapshot) {
   if (!snapshot) return;
   try { state.importedData = JSON.parse(snapshot); } catch {}
+}
+
+function syncRelayHttpUrl() {
+  let relay = 'https://sync.getbased.health';
+  try { relay = getSyncRelay?.() || relay; } catch {}
+  return String(relay).replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+}
+
+export function buildAgentAccessSetupCommand(client = 'hermes') {
+  const token = getMessengerToken();
+  const contextKey = getMessengerContextKey();
+  if (!token || !contextKey) return null;
+  const payload = {
+    version: 1,
+    token: token,
+    contextKey: contextKey,
+    gateway: syncRelayHttpUrl(),
+    client: client,
+    createdAt: new Date().toISOString(),
+  };
+  const setup = 'gbsetup_v1_' + btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  // Private bootstrap command shape: install/upgrade the stack, then connect Hermes with this setup payload.
+  return `curl -fsSL https://getbased.health/install.sh | bash -s -- connect ${client} --setup '${setup}'`;
+}
+
+async function writePrivateClipboard(text, onSuccess) {
+  await navigator.clipboard.writeText(text);
+  onSuccess?.();
+}
+
+function clearClipboardLater(timer, delay = 60000) {
+  clearTimeout(timer);
+  return setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, delay);
 }
 
 async function persistMigratedAgentAccessIfNeeded() {
@@ -68,6 +103,13 @@ export function renderMessengerSection() {
       </label>
     </div>
     ${enabled && token ? `
+      <div class="settings-action-row" style="align-items:flex-start;margin-bottom:16px;padding:12px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-secondary)">
+        <div class="settings-copy">
+          <div class="settings-copy-title">Connect Hermes</div>
+          <div class="settings-copy-desc">Copy one private setup command, paste it into the terminal where Hermes runs, and it will store the key locally, register getbased-mcp, restart Hermes, and test the connection.</div>
+        </div>
+        <button class="import-btn import-btn-primary settings-mini-btn" data-sync-action="copy-agent-access-setup-command" aria-label="Copy Hermes setup command">Copy setup command</button>
+      </div>
       <div style="margin-bottom:16px">
         <div class="settings-token-head">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Read-only token</label>
@@ -213,8 +255,19 @@ export function copyMessengerContextKey() {
   if (!contextKey) return;
   navigator.clipboard.writeText(contextKey).then(() => {
     showNotification('Context encryption key copied — clipboard will clear in 60s', 'success');
-    clearTimeout(_contextKeyClipboardClearTimer);
-    _contextKeyClipboardClearTimer = setTimeout(() => { navigator.clipboard.writeText('').catch(() => {}); }, 60000);
+    _contextKeyClipboardClearTimer = clearClipboardLater(_contextKeyClipboardClearTimer);
+  }).catch(() => { showNotification('Could not access clipboard', 'error'); });
+}
+
+export function copyAgentAccessSetupCommand() {
+  const command = buildAgentAccessSetupCommand('hermes');
+  if (!command) {
+    showNotification('Agent Access credentials are not ready yet — enable Agent Access first.', 'error');
+    return;
+  }
+  writePrivateClipboard(command, () => {
+    showNotification('Hermes setup command copied — paste it into the terminal where Hermes runs', 'success');
+    _setupCommandClipboardClearTimer = clearClipboardLater(_setupCommandClipboardClearTimer);
   }).catch(() => { showNotification('Could not access clipboard', 'error'); });
 }
 

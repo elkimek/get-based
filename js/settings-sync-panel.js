@@ -19,6 +19,7 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { state } from './state.js';
 import {
+  copyAgentAccessSetupCommand,
   copyMessengerContextKey,
   copyMessengerToken,
   regenerateMessengerContextKey,
@@ -39,8 +40,8 @@ export { renderMessengerSection };
 // <option value="off" · <option value="7" · <option value="30" · <option value="90"
 // Extracted action contract: data-sync-action="toggle-messenger" data-sync-action="toggle-messenger-token"
 // data-sync-action="toggle-messenger-context-key" data-sync-action="copy-messenger-token"
-// data-sync-action="copy-messenger-context-key" data-sync-action="regenerate-messenger-token"
-// data-sync-action="regenerate-messenger-context-key"
+// data-sync-action="copy-messenger-context-key" data-sync-action="copy-agent-access-setup-command"
+// data-sync-action="regenerate-messenger-token" data-sync-action="regenerate-messenger-context-key"
 // Copy contract: Let AI agents query your labs and context · ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days
 
 function snapshotImportedData() {
@@ -144,6 +145,8 @@ async function handleSettingsSyncClick(event) {
     copyMessengerToken();
   } else if (action === 'copy-messenger-context-key') {
     copyMessengerContextKey();
+  } else if (action === 'copy-agent-access-setup-command') {
+    copyAgentAccessSetupCommand();
   } else if (action === 'regenerate-messenger-token') {
     void regenerateMessengerToken();
   } else if (action === 'regenerate-messenger-context-key') {
