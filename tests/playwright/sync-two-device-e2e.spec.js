@@ -129,15 +129,18 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       content: `
         import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
         import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
+        import * as syncMessenger from '/js/sync-messenger.js';
         window.__syncE2EMergePulledImportedData = mergePulledImportedData;
         window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
         window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
+        window.__syncE2EMessenger = syncMessenger;
       `,
     });
     await page.waitForFunction(
       () => typeof window.__syncE2EMergePulledImportedData === 'function'
         && typeof window.__syncE2EPersistPulledImportedData === 'function'
-        && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function',
+        && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function'
+        && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function',
       null,
       { timeout: 15000 }
     );
@@ -400,7 +403,8 @@ async function enableAgentAccessForSync(page) {
 
 async function agentAccessSnapshot(page) {
   return page.evaluate(async () => {
-    const messenger = await import(`/js/sync-messenger.js?agentAccessSyncE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    const messenger = window.__syncE2EMessenger;
+    if (!messenger) throw new Error('sync-messenger helper module not loaded');
     return {
       enabled: messenger.isMessengerEnabled(),
       token: messenger.getMessengerToken(),
@@ -415,7 +419,8 @@ async function agentAccessSnapshot(page) {
 
 async function disableAgentAccessForSync(page) {
   return page.evaluate(async () => {
-    const messenger = await import(`/js/sync-messenger.js?agentAccessDisableE2E=${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    const messenger = window.__syncE2EMessenger;
+    if (!messenger) throw new Error('sync-messenger helper module not loaded');
     const previousToken = messenger.disableMessengerTokenLocal();
     await window.saveImportedData({ immediate: true });
     return {
