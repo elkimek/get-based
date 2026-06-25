@@ -1,8 +1,8 @@
 {
   "id": "/app",
-  "name": "getbased — Blood Work Dashboard",
+  "name": "getbased — Personal Health Intelligence",
   "short_name": "getbased",
-  "description": "Track biomarker trends over time with AI-powered lab report import",
+  "description": "Track labs, DNA, wearables, light, lifestyle context, and optional AI analysis in a browser-first health dashboard",
   "start_url": "/app",
   "scope": "/app",
   "display": "standalone",
