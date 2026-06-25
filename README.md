@@ -1,14 +1,8 @@
-# getbased — Health intelligence that's actually yours
+# getbased — personal health intelligence, under your control
 
-**getbased** is a personal health dashboard organized around five lenses: Labs, Genome, Body, Light, and Insight. It helps you read lab results alongside DNA, wearables, light exposure, lifestyle context, notes, and optional AI analysis. Free, open-source, private by default, and usable without an account.
+**getbased** is an open-source health dashboard for people who want to understand their own biology without handing the whole record to a black-box health app. It brings labs, DNA, wearables, light exposure, lifestyle context, notes, and optional AI analysis into one browser-based workspace.
 
-## Five lenses
-
-- **🩸 Labs** — biomarkers, ranges, trends, biological age across 287+ markers
-- **🧬 Genome** — 47 curated SNPs, APOE haplotype, 39 mtDNA haplogroups, DNA-aware insights
-- **⌚ Body** — wearables (Oura, Fitbit, Withings, Polar, Apple Health, plus WHOOP + Ultrahuman gated on partner credentials), biometrics, recovery, cycle
-- **☀ Light** — sun exposure with CAMS-fed atmospheric data, photobiology devices, indoor light environment, 8 measurement tools
-- **🧠 Insight** — AI chat, custom knowledge base, correlations, recommendations
+You can use it with no account. Most data lives in your browser by default. Network features — AI providers, encrypted sync, profile sharing, Knowledge Base, and Agent Access — are opt-in.
 
 **[Live app](https://app.getbased.health)** · **[Documentation](https://docs.getbased.health)** · **[Discord](https://discord.gg/zJdVB9zgQB)** · **[Nostr](https://njump.me/npub13xgjkyve82xesxxzvy52vz99z5fcuusda4cytekct2tw800kepas498nt2)**
 
@@ -16,136 +10,158 @@
 
 ---
 
-## What it does
+## What you can do with it
 
-- **AI-powered PDF import** — drop any lab report (any format, language, or country) and AI extracts and maps results to 287+ known biomarkers automatically. Batch import, direct image import (JPG/PNG/WebP), auto image mode for scanned PDFs
-- **Biomarker trend charts** — interactive line charts with proportional time scale, reference bands, optimal ranges, and trend detection across 17 standard categories
-- **AI chat** — ask questions about your results with full health context, image attachments, multiple personalities, conversation threads
-- **DNA import** — upload raw data from AncestryDNA, 23andMe, MyHeritage, FTDNA, Living DNA, or Illumina GenomeStudio (DNAEra and other clinical labs). 47 curated SNPs across 13 categories (methylation, iron, lipids, vitamin D, alcohol, caffeine, body composition, etc.) with APOE haplotype resolution and 39 mtDNA haplogroups including 11 sub-clades. Genetic factors shown on dashboard, detail modals, and in AI context
-- **Wearable integrations** — connect Oura, Fitbit, Withings, Polar, or Apple Health (file import). HRV, resting heart rate, sleep score, readiness, activity, steps, weight, BP, body composition (Withings Body Scan: body fat %, muscle mass, vascular age, PWV, nerve health), SpO₂, body temperature, sleep architecture, and more — surfaced on the dashboard alongside your lab results. Multi-vendor source picker per metric. Manual entry first-class for weight / BP / RHR (no wearable required). Raw daily samples stay on-device; OAuth tokens never sync; only a compact ~200-token L2 summary propagates via Evolu CRDT. WHOOP and Ultrahuman gated to "waiting on partner credentials" until vendor approval lands. See [docs.getbased.health/guides/wearables](https://docs.getbased.health/guides/wearables)
-- **Specialty lab adapters** — OAT (165 markers), fatty acids (Spadia, ZinZino, OmegaQuant), Metabolomix+. Any other specialty test imports through the custom marker pipeline
-- **Biological age** — PhenoAge (Levine 2018) + Bortz Age (Bortz 2023) combined into a unified Biological Age marker with component breakdown
-- **Calculated markers** — HOMA-IR, BUN/Creatinine ratio, free water deficit, lipid ratios (TG/HDL, LDL/HDL, ApoB/ApoA-I), NLR, PLR, De Ritis ratio, hs-CRP/HDL cardiovascular risk ratio
-- **Trend alerts** — sudden changes and linear regression flagged on the dashboard
-- **Correlation viewer** — compare any two markers, heatmap view
-- **Compare dates** — side-by-side comparison of any two lab dates
-- **Manual entry** — add results without a PDF, create custom biomarkers
-- **Interpretive lens** — frame AI analysis through specific scientific paradigms or experts
-- **Custom Knowledge Source** — connect your own document collection (research papers, clinical guides, any texts) to ground AI analysis in real sources. The AI searches your knowledge base for relevant passages before interpreting your labs, and cites them back to you
-- **9 lifestyle context cards** — diet & digestion, sleep, exercise, stress, light & circadian, environment, EMF assessment (Baubiologie SBM-2015), and more — each gets an AI health rating and enriches all interpretations
-- **Menstrual cycle tracking** — phase-aware reference ranges, cycle phase bands on charts, perimenopause detection, symptom tracking
-- **Supplement & medication timeline** — overlaid on charts to correlate with biomarker changes
-- **PDF reports** — export a full health report as PDF
-- **Multi-profile** — track multiple people, client list with search/sort/filter
+- **Import lab reports** — drop PDFs, images, spreadsheets, or manually enter values. getbased maps known markers, lets you review/edit rows before saving, and keeps report snapshots per file.
+- **Track biomarkers over time** — charts, tables, heatmaps, reference ranges, optimal ranges, notes per value, trend flags, compare-dates view, and calculated markers like HOMA-IR, lipid ratios, NLR/PLR, De Ritis, and hs-CRP/HDL.
+- **Read biology as patterns, not isolated numbers** — Biology Scores summarize deterministic marker patterns such as metabolism, thyroid, cardiovascular health, inflammation, methylation, iron/blood, hormones, stress resilience, cellular energy, gut-immune terrain, and Biological Coherence. They are pattern summaries, not diagnoses.
+- **Bring in DNA context** — raw DNA imports from common consumer and clinical formats, with curated SNP interpretation, APOE haplotype support, mtDNA haplogroups, and DNA-aware AI context.
+- **Connect wearables and body metrics** — Oura, Withings, Fitbit, Polar, Apple Health file import, plus WHOOP and Ultrahuman where enabled. Manual weight, blood pressure, and resting pulse work without a wearable.
+- **Track light and environment** — sun sessions, UV/atmospheric context, indoor light setup, devices, measurements, EMF assessment, and daily light analysis.
+- **Add the missing human context** — medical history, family history, diet/digestion, sleep, exercise, stress, light/circadian habits, environment, EMF, supplements, medications, health goals, cycle tracking, and freeform notes.
+- **Ask AI with context** — chat can use your labs, notes, scores, wearables, Knowledge Base passages, and selected interpretive lens. It can also read attached images when your provider supports it.
+- **Build reports** — export a practitioner-readable PDF with selected labs, context, and summary sections.
+- **Use multiple profiles** — separate profiles for yourself, family, clients, or test/demo data.
 
-## Privacy and data ownership
+## The five spaces
 
-- No account or sign-up required.
-- By default, profile data is stored in your browser using localStorage and IndexedDB.
-- Optional network features exist: AI providers, encrypted cross-device sync, password-protected profile sharing, and Agent Access.
-- Personal info can be stripped from PDFs before AI processing using regex checks and optional local AI obfuscation.
-- Optional AES-256-GCM encryption at rest protects browser storage with a passphrase-derived key.
-- Automatic backups are available through IndexedDB snapshots and folder backup via the File System Access API.
-- Venice E2EE and PPQ Private TEE modes encrypt prompts in the browser and send them to attested private runtimes.
-- A local AI server keeps chat and import processing on your own machine.
-- Anonymous usage stats are optional and can be disabled in Settings.
+| Space | What it is for |
+|---|---|
+| **Labs** | Biomarkers, imports, charts, tables, marker notes, manual entry, calculated values, specialty tests. |
+| **Genome** | Raw DNA import, APOE, mtDNA, curated SNP context, and genetic factors that influence interpretation. |
+| **Body** | Wearables, manual biometrics, recovery, sleep, body composition, supplements, medications, cycle tracking. |
+| **Light** | Sun exposure, UV context, screens/devices, indoor light, room measurements, EMF, and circadian habits. |
+| **Insight** | AI chat, Current Focus, Biology Scores, recommendations, Knowledge Base, interpretive lenses, and synthesis. |
 
-## Agent Access
+## Privacy model
 
-Opt-in feature that lets external AI assistants query your encrypted getbased context — coding agents, terminal assistants, messenger bots, or any MCP-compatible tool you configure.
+getbased is private by default, not magic. The boundary depends on which features you turn on.
 
-- Enable Cross-device Sync first, then enable **Settings → Agent Access**.
-- Choose a setup target: Hermes Agent, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex CLI.
-- Copy the private setup command from getbased. It installs or upgrades the agent stack and connects the selected client in one paste.
-- Agent Access storage is bound to your Sync identity for relay quota; generating more tokens does not create more storage namespaces
-- Encrypted context is pushed to a lightweight gateway on every save and profile switch; the gateway stores ciphertext only
-- Per-profile: each profile's encrypted context is stored separately; agents can query any profile by ID
-- Public install path: `curl -sSL https://getbased.health/install.sh | bash` (`pipx install --include-deps "getbased-agent-stack[full]"` for manual / cross-platform installs). This installs software only; private access requires the setup command copied from getbased.
-- The Agent Access token authorizes relay fetches (`GETBASED_TOKEN`); the separate Agent Context key decrypts context locally inside your self-hosted MCP (`GETBASED_AGENT_CONTEXT_KEY`). Your mnemonic and raw lab data never leave the browser
-- Token and context key are revocable/regenerable from the same settings panel
+- **No account required.** You can open the app and work locally.
+- **Browser-first storage.** Profile data is stored in localStorage and IndexedDB by default.
+- **Optional encryption at rest.** A passphrase-derived key can protect browser storage.
+- **Optional AI.** PDF import and chat need either an AI provider or a local OpenAI-compatible server. Non-AI tracking features still work without one.
+- **PII review for imports.** Personal info can be stripped from lab text before it is sent to an AI provider.
+- **Optional encrypted sync.** Cross-device sync uses Evolu CRDT storage and end-to-end encrypted profile payloads.
+- **Optional sharing.** Profile sharing creates an encrypted, password-protected copy for someone else.
+- **Optional Agent Access.** External agents receive only the context you enable, via an encrypted relay flow and a local decryption key.
+- **Optional anonymous usage stats.** Analytics can be disabled in Settings.
+
+If you want the strictest setup, use a local AI server and keep sync, sharing, and Agent Access off.
 
 ## AI providers
 
-| Provider | Description |
+All normal tracking works without AI. AI features can use:
+
+| Provider path | What it is for |
 |---|---|
-| **PPQ** | 300+ models, no KYC. Bitcoin, Lightning, Monero, Litecoin. Top up directly in the app. |
-| **Routstr** | Decentralized Bitcoin AI. Built-in Cashu wallet, Nostr node discovery. Fund with Lightning, pick any node. |
-| **OpenRouter** | 200+ models (Claude, GPT, Gemini, Grok). Pay with card or USDC. One-click OAuth. |
-| **Venice AI** | Uncensored models with optional E2EE. No-log policy. |
-| **Local AI** | Any OpenAI-compatible server — Ollama, LM Studio, Jan, llama.cpp. Fully offline. Free forever. |
-| **Custom API** | Bring your own OpenAI-compatible endpoint — corporate proxies, self-hosted gateways, any provider with a `/v1/chat/completions` route. Base URL + API key. |
+| **PPQ** | Private TEE mode and regular hosted models, with in-app balance/top-up support. |
+| **Routstr** | Decentralized Bitcoin AI through Nostr-discovered nodes and the built-in Cashu wallet. |
+| **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
+| **Venice AI** | Hosted models with optional browser-side E2EE mode. |
+| **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
+| **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 
-Switch providers anytime. All non-AI features work without a provider configured.
+Switch providers in Settings. Provider keys are stored locally in the browser.
 
-## How it compares
+## Knowledge Base and interpretive lenses
 
-| | getbased | Typical health apps |
-|---|---|---|
-| Scope | Five integrated lenses (Labs / Genome / Body / Light / Insight) | One data class only |
-| Open source | AGPL-3.0 | Closed source |
-| Cost | Free | Free tier + paid upsell |
-| Data storage | Local browser, encrypted | Cloud (their servers) |
-| AI providers | Several provider paths, including local AI and bring-your-own endpoints | Locked to one |
-| Lab import | Any PDF, any format, any language | Specific labs/formats only |
-| Biomarkers | 287+ standard + unlimited custom | Limited set |
-| Specialty labs | OAT, fatty acids + custom marker pipeline for any test | Blood only |
-| DNA raw data | 47 curated SNPs, APOE, 39 mtDNA haplogroups, 6 providers | No |
-| Lifestyle context | 9 cards inform all AI analysis | None or basic |
-| Custom knowledge base | Bring-your-own knowledge source endpoint, any documents | No |
-| Account required | No | Yes |
+The **Knowledge Base** lets AI ground answers in your own documents instead of relying only on model memory. It supports:
 
----
+- an in-browser local library for documents indexed on this device;
+- an external knowledge server for larger or shared libraries;
+- citations/snippets injected into chat and Current Focus when relevant.
 
-## Quick start
+The **Interpretive Lens** is different: it changes the framing of analysis. For example, you can ask the AI to read the same labs through a mitochondrial, endocrinology, circadian, or other scientific lens.
+
+## Agent Access
+
+Agent Access is for using your getbased context from external AI tools — Hermes Agent, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, Codex CLI, or another MCP-compatible client.
+
+How it works:
+
+1. Enable **Cross-device Sync**.
+2. Enable **Settings → Agent Access**.
+3. Pick the target client.
+4. Copy the private setup command.
+5. Paste it into that agent's terminal.
+
+The public installer:
+
+```bash
+curl -fsSL https://getbased.health/install.sh | bash
+```
+
+installs the local agent stack only. Private access requires the setup command copied from the app:
+
+```bash
+curl -fsSL https://getbased.health/install.sh | bash -s -- connect <target> --setup 'gbsetup_v1_...'
+```
+
+That setup payload contains the read-only relay token and the local Agent Context key. Do not paste real setup values into logs, issues, or public docs.
+
+## Local development
 
 ```bash
 git clone https://github.com/elkimek/get-based
 cd get-based
+npm install
 node dev-server.js
 ```
 
-Open `http://localhost:8000`. You need an AI provider API key or local AI server for PDF import and chat. All other features work without one.
+Open `http://localhost:8000`.
 
-## Tech stack
-
-Native ES-module web app. There is no app bundler for the browser source, but the repo does use npm tooling for tests, Playwright, type checks, helper scripts, and deployment tasks.
-
-- Chart.js for interactive charts
-- pdf.js for PDF text extraction
-- transformers.js + OPFS for the browser-local Lens (Custom Knowledge Source)
-- Evolu for optional CRDT sync (E2E encrypted)
-- Most runtime dependencies vendored in `vendor/`
-- Installable as a PWA (works offline for non-AI features)
-
-## Repo structure
-
-```
-get-based/
-├── index.html styles.css css/  # The product shell and split feature CSS
-├── js/                         # Native ES modules, runs in any browser
-│   ├── lens.js                  #   Custom Knowledge Source dispatcher
-│   └── lens-local*.js           #   Browser-local lens — per-library embedding model, OPFS vectors
-├── tests/                      # Vitest helpers + Playwright browser assertions
-├── .github/workflows/          # Tests on every PR / push
-└── dev-docs/                   # Pointer to canonical developer docs in getbased-docs
-```
-
-Open `index.html` (or start `node dev-server.js` for development) and the dashboard runs. User and developer documentation live in the separate Mintlify docs repo at [docs.getbased.health](https://docs.getbased.health); `dev-docs/` is only a pointer so docs are not maintained twice.
-
-### Related repos
-
-- [**getbased-relay**](https://github.com/elkimek/getbased-relay) — Evolu sync relay for opt-in cross-device sync.
-- [**getbased-agents**](https://github.com/elkimek/getbased-agents) — the MCP adapter for AI clients, a local knowledge server backing the "External server" Knowledge Base, and a browser setup dashboard. Install on Linux with `curl -sSL https://getbased.health/install.sh | bash`, or manually with `pipx install --include-deps "getbased-agent-stack[full]"` on any platform.
-
-## Testing
-
-Node-side helpers plus Playwright-driven browser assertions, all run headlessly:
+Useful checks:
 
 ```bash
+npm run typecheck
+npm run typecheck:checkjs
+npm run quality
+npm test
 ./run-tests.sh
 ```
 
-Starts a local server, runs Vitest, the dev-server origin guard, and Playwright. Exits 0/1.
+`./run-tests.sh` starts a local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs Playwright browser assertions.
+
+## Tech stack
+
+- Native browser ES modules; no app bundler for runtime source.
+- Plain HTML/CSS/JS with split modules under `js/` and feature CSS under `css/`.
+- Chart.js for charts.
+- pdf.js for PDF text extraction.
+- transformers.js + OPFS for the in-browser Knowledge Base.
+- Evolu for optional encrypted CRDT sync.
+- Vercel serverless endpoints for provider proxying, OAuth callbacks, profile sharing, and related hosted edges.
+- Vitest, TypeScript checkers, quality guardrails, and Playwright for verification.
+- PWA install support; non-AI features work offline once loaded.
+
+## Repo structure
+
+```text
+get-based/
+├── index.html, styles.css, css/     # App shell and feature styles
+├── js/                              # Native ES modules
+│   ├── settings-agent-access-panel.js
+│   ├── sync*.js                     # Optional encrypted sync and Agent Access plumbing
+│   ├── lens*.js                     # Knowledge Base backends and query injection
+│   ├── biology-score*.js            # Biology Scores engine, UI, and AI context
+│   ├── wearables*.js                # Wearable adapters, storage, settings, summaries
+│   └── light*.js / sun*.js          # Light & Sun tools, sessions, environment, AI summaries
+├── api/                             # Vercel/serverless routes
+├── tests/                           # Vitest and Playwright coverage
+├── vendor/                          # Vendored browser libraries
+├── dev-docs/                        # Pointer to canonical developer docs
+└── .github/workflows/               # CI
+```
+
+User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps only code-adjacent notes and tests.
+
+## Related repos
+
+- [**getbased-docs**](https://github.com/elkimek/getbased-docs) — public user and developer documentation.
+- [**getbased-agents**](https://github.com/elkimek/getbased-agents) — MCP adapter, local knowledge server, dashboard, and `getbased-stack` installer.
+- [**getbased-relay**](https://github.com/elkimek/getbased-relay) — Evolu sync relay and Agent Access context gateway.
+- [**get-based-site**](https://github.com/elkimek/get-based-site) — landing page, public installer, `llms.txt`, and agent discovery files.
 
 ## Contributing
 
@@ -159,4 +175,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
-If you run a modified version as a network service, AGPLv3 §13 requires you to offer your users the corresponding source. Vendored third-party libraries are listed under their own licenses in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+If you run a modified version as a network service, AGPLv3 §13 requires you to offer users the corresponding source. Vendored third-party libraries are listed under their own licenses in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
