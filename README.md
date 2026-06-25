@@ -1,6 +1,6 @@
 # getbased — Health intelligence that's actually yours
 
-**getbased** is a personal health intelligence platform organized around five lenses on your biology — Labs, Genome, Body, Light, Insight. Every lens informs every other: your DNA shapes how labs are interpreted, your wearable physiology shapes which biomarkers matter most, your light environment shapes your sleep and your hormones, and the AI synthesizes across all of them with full context. Free, open-source, private by default — all data stored locally in your browser with no account required.
+**getbased** is a personal health dashboard organized around five lenses: Labs, Genome, Body, Light, and Insight. It helps you read lab results alongside DNA, wearables, light exposure, lifestyle context, notes, and optional AI analysis. Free, open-source, private by default, and usable without an account.
 
 ## Five lenses
 
@@ -40,23 +40,27 @@
 
 ## Privacy and data ownership
 
-- All data stored locally in your browser (localStorage + IndexedDB) — nothing on a server
-- Personal info stripped from PDFs before AI processing (regex + streaming local AI obfuscation)
-- AES-256-GCM encryption at rest
-- Automatic backups (IndexedDB snapshots + daily folder backup via File System Access API)
-- Venice AI end-to-end encryption option — prompts encrypted client-side (ECDH secp256k1 + AES-256-GCM), decrypted only inside a TEE. Nothing readable in transit or at rest on their servers
-- Run a local AI server and nothing leaves your machine at all
-- No account, no sign-up, no tracking
+- No account or sign-up required.
+- By default, profile data is stored in your browser using localStorage and IndexedDB.
+- Optional network features exist: AI providers, encrypted cross-device sync, password-protected profile sharing, and Agent Access.
+- Personal info can be stripped from PDFs before AI processing using regex checks and optional local AI obfuscation.
+- Optional AES-256-GCM encryption at rest protects browser storage with a passphrase-derived key.
+- Automatic backups are available through IndexedDB snapshots and folder backup via the File System Access API.
+- Venice E2EE and PPQ Private TEE modes encrypt prompts in the browser and send them to attested private runtimes.
+- A local AI server keeps chat and import processing on your own machine.
+- Anonymous usage stats are optional and can be disabled in Settings.
 
 ## Agent Access
 
-Opt-in feature that lets AI agents query your lab context — coding agents (Claude Code, Cursor), messenger bots (Hermes Agent, OpenClaw), or any MCP-compatible tool.
+Opt-in feature that lets external AI assistants query your encrypted getbased context — coding agents, terminal assistants, messenger bots, or any MCP-compatible tool you configure.
 
-- Enable Cross-device Sync first, then enable **Settings → Data → Agent Access** to generate a read-only token and a separate context encryption key
+- Enable Cross-device Sync first, then enable **Settings → Agent Access**.
+- Choose a setup target: Hermes Agent, OpenClaw, Claude Code, Claude Desktop, Cursor, Cline, or Codex CLI.
+- Copy the private setup command from getbased. It installs or upgrades the agent stack and connects the selected client in one paste.
 - Agent Access storage is bound to your Sync identity for relay quota; generating more tokens does not create more storage namespaces
-- End-to-end encrypted context is pushed to a lightweight gateway on every save and profile switch; the gateway stores ciphertext only
+- Encrypted context is pushed to a lightweight gateway on every save and profile switch; the gateway stores ciphertext only
 - Per-profile: each profile's encrypted context is stored separately; agents can query any profile by ID
-- Install on Linux with one command: `curl -sSL https://getbased.health/install.sh | bash` (`pipx install --include-deps "getbased-agent-stack[full]"` for manual / cross-platform installs). [getbased-agents](https://github.com/elkimek/getbased-agents) bundles the MCP adapter, local RAG knowledge server, and browser setup dashboard. Works with [Hermes Agent](https://github.com/hermes-agent/hermes-agent), [OpenClaw](https://openclaw.ai), Claude Code, Claude Desktop, Cursor, Cline, or any MCP-compatible agent
+- Public install path: `curl -sSL https://getbased.health/install.sh | bash` (`pipx install --include-deps "getbased-agent-stack[full]"` for manual / cross-platform installs). This installs software only; private access requires the setup command copied from getbased.
 - The Agent Access token authorizes relay fetches (`GETBASED_TOKEN`); the separate Agent Context key decrypts context locally inside your self-hosted MCP (`GETBASED_AGENT_CONTEXT_KEY`). Your mnemonic and raw lab data never leave the browser
 - Token and context key are revocable/regenerable from the same settings panel
 
@@ -81,7 +85,7 @@ Switch providers anytime. All non-AI features work without a provider configured
 | Open source | AGPL-3.0 | Closed source |
 | Cost | Free | Free tier + paid upsell |
 | Data storage | Local browser, encrypted | Cloud (their servers) |
-| AI providers | 6 choices (including fully local + bring-your-own) | Locked to one |
+| AI providers | Several provider paths, including local AI and bring-your-own endpoints | Locked to one |
 | Lab import | Any PDF, any format, any language | Specific labs/formats only |
 | Biomarkers | 287+ standard + unlimited custom | Limited set |
 | Specialty labs | OAT, fatty acids + custom marker pipeline for any test | Blood only |
@@ -104,7 +108,7 @@ Open `http://localhost:8000`. You need an AI provider API key or local AI server
 
 ## Tech stack
 
-Web app only — no build tools, no bundler, no package manager. Pure ES modules under `js/`.
+Native ES-module web app. There is no app bundler for the browser source, but the repo does use npm tooling for tests, Playwright, type checks, helper scripts, and deployment tasks.
 
 - Chart.js for interactive charts
 - pdf.js for PDF text extraction
@@ -131,7 +135,7 @@ Open `index.html` (or start `node dev-server.js` for development) and the dashbo
 ### Related repos
 
 - [**getbased-relay**](https://github.com/elkimek/getbased-relay) — Evolu sync relay for opt-in cross-device sync.
-- [**getbased-agents**](https://github.com/elkimek/getbased-agents) — the MCP adapter for AI clients (Claude Desktop, Hermes, Cursor, etc.), a local RAG knowledge server backing the "External server" Knowledge Base, and a browser setup dashboard. Install on Linux with `curl -sSL https://getbased.health/install.sh | bash`, or manually with `pipx install --include-deps "getbased-agent-stack[full]"` on any platform.
+- [**getbased-agents**](https://github.com/elkimek/getbased-agents) — the MCP adapter for AI clients, a local knowledge server backing the "External server" Knowledge Base, and a browser setup dashboard. Install on Linux with `curl -sSL https://getbased.health/install.sh | bash`, or manually with `pipx install --include-deps "getbased-agent-stack[full]"` on any platform.
 
 ## Testing
 
