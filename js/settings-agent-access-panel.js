@@ -37,6 +37,15 @@ const AGENT_ACCESS_CLIENTS = [
   { id: 'codex', label: 'Codex CLI', terminal: 'Codex' },
 ];
 
+function renderAgentAccessClientChoices() {
+  return AGENT_ACCESS_CLIENTS.map(client => `
+    <label class="agent-access-client-chip">
+      <input type="radio" name="agent-access-client" value="${client.id}"${client.id === 'hermes' ? ' checked' : ''}>
+      <span>${client.label}</span>
+    </label>
+  `).join('');
+}
+
 function normalizeAgentAccessClient(client) {
   const id = String(client || 'hermes').trim();
   return AGENT_ACCESS_CLIENTS.some(c => c.id === id) ? id : 'hermes';
@@ -124,16 +133,16 @@ export function renderMessengerSection() {
       </label>
     </div>
     ${enabled && token ? `
-      <div class="settings-action-row" style="align-items:flex-start;margin-bottom:16px;padding:12px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-secondary)">
+      <div class="agent-access-connect-card">
         <div class="settings-copy">
           <div class="settings-copy-title">Connect an agent</div>
-          <div class="settings-copy-desc">Choose the target MCP client, copy one private setup command, and paste it into the terminal where that agent runs. The command stores the key locally, registers getbased-mcp when the client supports automation, and prints the manual config step otherwise.</div>
-          <label for="agent-access-client-select" style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-top:10px;margin-bottom:4px">Target agent</label>
-          <select id="agent-access-client-select" class="settings-select" aria-label="Agent Access setup target">
-            ${AGENT_ACCESS_CLIENTS.map(client => `<option value="${client.id}"${client.id === 'hermes' ? ' selected' : ''}>${client.label}</option>`).join('')}
-          </select>
+          <div class="settings-copy-desc">Pick where this machine should connect, then paste one private setup command into that agent's terminal.</div>
+          <div class="agent-access-client-kicker">Setup target</div>
+          <div class="agent-access-client-grid" role="radiogroup" aria-label="Agent Access setup target">
+            ${renderAgentAccessClientChoices()}
+          </div>
         </div>
-        <button class="import-btn import-btn-primary settings-mini-btn" data-sync-action="copy-agent-access-setup-command" aria-label="Copy selected agent setup command">Copy setup command</button>
+        <button class="import-btn import-btn-primary agent-access-copy-btn" data-sync-action="copy-agent-access-setup-command" aria-label="Copy selected agent setup command">Copy setup command</button>
       </div>
       <div style="margin-bottom:16px">
         <div class="settings-token-head">
@@ -285,8 +294,8 @@ export function copyMessengerContextKey() {
 }
 
 function selectedAgentAccessClient() {
-  const select = document.getElementById('agent-access-client-select');
-  return normalizeAgentAccessClient(select && 'value' in select ? select.value : 'hermes');
+  const input = document.querySelector('input[name="agent-access-client"]:checked');
+  return normalizeAgentAccessClient(input && 'value' in input ? input.value : 'hermes');
 }
 
 export function copyAgentAccessSetupCommand() {

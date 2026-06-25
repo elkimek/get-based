@@ -100,7 +100,8 @@ assert('Agent Access context-key regeneration checks saveImportedData result bef
   /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
 assert('Agent Access renders one-click private bootstrap command instead of making users assemble env vars',
   /data-sync-action="copy-agent-access-setup-command"/.test(agentSrc)
-    && /id="agent-access-client-select"/.test(agentSrc)
+    && /agent-access-client-grid/.test(agentSrc)
+    && /name="agent-access-client"/.test(agentSrc)
     && /id: 'openclaw'/.test(agentSrc)
     && /id: 'codex'/.test(agentSrc)
     && /buildAgentAccessSetupCommand\(client\)/.test(agentSrc)
