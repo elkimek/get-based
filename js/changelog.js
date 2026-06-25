@@ -10,6 +10,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.28', date: '2026-06-25', title: 'Agent Access setup target feels native',
+    items: [
+      '<b>Agent Access setup is cleaner.</b> The target-agent picker now uses compact in-card choices instead of a generic dropdown, so Hermes, OpenClaw, Claude, Cursor, Cline, and Codex feel like part of the setup flow.',
+      '<b>The one-paste command behavior is unchanged.</b> Pick a target, copy the private setup command, and paste it into that agent terminal.',
+    ]
+  },
+  {
     version: '1.10.27', date: '2026-06-25', title: 'Agent Access connects more agents',
     forceShow: true,
     items: [
