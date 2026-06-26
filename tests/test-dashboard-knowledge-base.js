@@ -65,6 +65,7 @@ try {
 
   const lens = await import('../js/lens.js');
   const cards = await import('../js/context-cards.js');
+  const contextCardsSrc = fs.readFileSync(new URL('../js/context-cards.js', import.meta.url), 'utf8');
   const { state } = await import('../js/state.js');
   _state = state;
 
@@ -165,24 +166,26 @@ try {
       html.includes('data-dashboard-ai-action="open-knowledge-base"'));
   }
 
-  // ─── 5. Profile Context includes the Context entry surface without duplicating rows ───
+  // ─── 5. Profile Context stays person-facts only; AI context lives in Manage → Context ───
   {
     localStorage.removeItem('labcharts-lens-config');
     localStorage.removeItem('labcharts-lens-local-count');
     state.importedData.interpretiveLens = 'Functional endocrinology';
     const html = cards.renderProfileContextCards();
-    assert('Profile Context mounts Interpretive Lens row via production renderer',
-      /lens-section-label[^>]*>Interpretive Lens/.test(html));
-    assert('Profile Context mounts AI grounding action surface',
-      html.includes('data-dashboard-ai-action="open-interpretive-lens"'));
-    assert('Profile Context keeps Data Protection CTA available',
-      /Protect your data|Enable encryption|Sync to other devices|Set up auto-backup/.test(html) &&
-      /data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
-
-    state.importedData.interpretiveLens = '';
-    const htmlEmpty = cards.renderProfileContextCards();
-    assert('Profile Context mounts Personalize-AI CTA when lens is unset',
-      htmlEmpty.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+    assert('Profile Context does not duplicate Interpretive Lens rows',
+      !/lens-section-label[^>]*>Interpretive Lens/.test(html));
+    assert('Profile Context does not mount AI grounding actions',
+      !html.includes('data-dashboard-ai-action="open-interpretive-lens"')
+      && !html.includes('data-dashboard-ai-action="open-knowledge-base"')
+      && !html.includes('data-dashboard-ai-action="open-personalize-ai-picker"'));
+    assert('Profile Context does not mount data-protection setup pills',
+      !/Protect your data|Enable encryption|Sync to other devices|Set up auto-backup/.test(html)
+      && !/data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
+    assert('Profile Context still renders the GP context cards',
+      /What your GP won't ask you/.test(html) && /profile-context-cards/.test(html));
+    assert('Profile Context renderer does not prepend the Interpretive Lens surface',
+      /export function renderProfileContextCards\(\) \{[\s\S]{0,2200}What your GP won't ask you/.test(contextCardsSrc)
+      && !/export function renderProfileContextCards\(\) \{[\s\S]{0,2200}renderInterpretiveLensSection\(\)/.test(contextCardsSrc));
   }
 
   // Section 5b (picker open/dismiss — live DOM) lives in

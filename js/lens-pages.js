@@ -10,7 +10,7 @@ import { renderMenstrualCycleSection } from './cycle.js';
 import { renderProfileContextCards, loadContextHealthDots } from './context-cards.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
+import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview, hasBiologyScoreContextReview } from './biology-score-context-ai.js';
 
 function markerHasData(marker) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -182,7 +182,7 @@ export function createLensPageHandlers(deps) {
     document.body.classList.remove('mobile-dashboard-active');
     const ctx = buildDashboardWidgetContext(rawData);
     const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
-    const contextReady = hasCurrentBiologyScoreContextReview(scoreData);
+    const contextReady = hasBiologyScoreContextReview(scoreData);
     const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Explain my Biology Scores</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
     let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
