@@ -64,6 +64,10 @@
   gap: 6px;
   margin-top: 10px;
 }
+.agent-proposal-actions .chat-action-btn {
+  min-height: 32px;
+  padding: 6px 10px;
+}
 .agent-proposal-status {
   margin-top: 8px;
   font-size: 12px;
