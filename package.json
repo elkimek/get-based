@@ -26,6 +26,6 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.4.0",
-    "tinfoil": "^1.1.3"
+    "tinfoil": "^1.1.6"
   }
 }
