@@ -7,6 +7,8 @@
   "include": [
     "types/globals.d.ts",
     "js/api.js",
+    "js/agent-runtime.js",
+    "js/agent-tools.js",
     "js/app-ai-interaction-modules.js",
     "js/app-data-io-modules.js",
     "js/app-event-listeners.js",

@@ -233,6 +233,7 @@ const LEGACY_TESTS = [
   './test-coverage-stragglers.js',
   './test-profile-share.js',
   './test-biology-scores.js',
+  './test-agent-runtime.js',
 ];
 
 for (const path of LEGACY_TESTS) {

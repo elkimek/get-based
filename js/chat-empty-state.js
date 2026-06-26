@@ -88,6 +88,9 @@ function handleChatEmptyClick(event) {
     callChatEmptyRuntime('openSettingsModal', 'wearables');
   } else if (action === 'use-prompt') {
     useChatPrompt(actionEl.dataset.prompt || '');
+  } else if (action === 'run-agent-mode') {
+    const mode = actionEl.dataset.agentMode || '';
+    void callChatEmptyRuntime('runGetbasedAgentMode', mode, { appendToChat: true });
   } else if (action === 'request-lab-import-provider') {
     requestOnboardingLabImportProvider();
   } else if (action === 'open-provider-quiz') {
@@ -475,6 +478,7 @@ function renderDataContextNudgeState(container, { personality }) {
       <p>I can see your lab results — nice! 👋 I can already analyze these, but if you fill in a few lifestyle cards I'll give you much more personalized insights.</p>
       <div class="chat-onboard-actions">
         <button type="button" class="chat-prompt-btn" data-chat-empty-action="set-onboarding-focus" data-focus="cards">📋 Fill in lifestyle cards</button>
+        <button type="button" class="chat-prompt-btn" data-chat-empty-action="run-agent-mode" data-agent-mode="find-what-changed">Find what changed</button>
         <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What are my most concerning results?">Analyze my results now</button>
       </div>
     </div>`;
@@ -484,6 +488,7 @@ function renderDataContextNudgeState(container, { personality }) {
 function renderGeneralPromptState(container, { personality }) {
   const noDataPrompts = _getNoDataPrompts();
   const prompts = noDataPrompts || [
+    'Find what changed',
     'What are my most concerning results?',
     'How has my bloodwork changed over time?',
     'Are there any patterns in my flagged markers?',
@@ -494,7 +499,9 @@ function renderGeneralPromptState(container, { personality }) {
     <div class="chat-empty-icon">${personality.icon}</div>
     <div>${escapeHTML(personality.greeting)}</div>
     <div class="chat-prompts">
-      ${prompts.map(p => `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="${escapeAttr(p)}">${escapeHTML(p)}</button>`).join('\n      ')}
+      ${prompts.map(p => p === 'Find what changed'
+    ? `<button type="button" class="chat-prompt-btn" data-chat-empty-action="run-agent-mode" data-agent-mode="find-what-changed">Find what changed</button>`
+    : `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="${escapeAttr(p)}">${escapeHTML(p)}</button>`).join('\n      ')}
     </div>
   </div>`;
   return true;
