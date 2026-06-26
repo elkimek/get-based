@@ -92,6 +92,24 @@ function renderLabPlanDraftCard(plan, msgIndex) {
   </section>`;
 }
 
+function renderScoreInvestigationCard(investigation) {
+  if (!investigation || investigation.surface !== 'biologyScoreInvestigation') return '';
+  const drivers = (investigation.mainDrivers || []).map(driver => `<li>${escapeHTML(driver)}</li>`).join('');
+  const missing = (investigation.missingMarkers || []).map(marker => `<span>${escapeHTML(marker)}</span>`).join('');
+  const available = (investigation.availableMarkers || []).map(marker => `<span>${escapeHTML(marker)}</span>`).join('');
+  const score = investigation.scoreValue == null ? 'Not computed' : String(investigation.scoreValue);
+  const meta = [investigation.confidence, investigation.coveragePct == null ? '' : `${investigation.coveragePct}% coverage`].filter(Boolean).join(' · ');
+  return `<section class="agent-score-investigation-card" aria-label="Biology Score investigation">
+    <div class="agent-proposal-kicker">Biology Score investigation</div>
+    <strong>${escapeHTML(investigation.title || 'Biology Score')}</strong>
+    <div class="agent-score-investigation-value">${escapeHTML(score)}${meta ? ` <span>${escapeHTML(meta)}</span>` : ''}</div>
+    ${drivers ? `<div class="agent-score-investigation-section"><b>Main drivers</b><ul>${drivers}</ul></div>` : ''}
+    ${missing ? `<div class="agent-score-investigation-chips"><b>Missing / confidence markers</b><div>${missing}</div></div>` : ''}
+    ${available ? `<div class="agent-score-investigation-chips"><b>Available context</b><div>${available}</div></div>` : ''}
+    <p>${escapeHTML(investigation.safetyNote || 'Read-only score investigation — no profile data was changed.')}</p>
+  </section>`;
+}
+
 /**
  * Render the collapsible "Sources" block under an assistant message.
  * Shows the excerpts the lens returned for this question — filename, score,
@@ -165,6 +183,7 @@ export function renderChatMessages() {
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
     if (msg.role === 'assistant' && msg.agentProposal) html += renderAgentProposalCard(msg.agentProposal, i);
     if (msg.role === 'assistant' && msg.labPlanDraft) html += renderLabPlanDraftCard(msg.labPlanDraft, i);
+    if (msg.role === 'assistant' && msg.scoreInvestigation) html += renderScoreInvestigationCard(msg.scoreInvestigation);
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {

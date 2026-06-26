@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { appendImportedArrayItem, replaceImportedArrayItem } from './data-merge.js';
+import { computeBiologyScores } from './biology-scores.js';
 
 /** @type {Record<string, string>} */
 const MARKER_LABELS = {
@@ -362,6 +363,89 @@ export function draftLabPlan(text, opts = {}) {
   };
 }
 
+const BIOLOGY_SCORE_INTENT_RULES = [
+  { scoreId: 'hormoneAxis', label: 'Hormone Axis', match: /\b(hormone axis|hormones?|testosterone|androgen|low t\b|shbg|lh|fsh)\b/i },
+  { scoreId: 'metabolic', label: 'Metabolic', match: /\b(metabolic|insulin|glucose|blood sugar|homa|hba1c)\b/i },
+  { scoreId: 'cardiovascular', label: 'Cardiovascular', match: /\b(cardiovascular|apo ?b|lipids?|cholesterol|ldl|hdl|lp\(?a\)?)\b/i },
+  { scoreId: 'oneCarbon', label: 'One-Carbon', match: /\b(one[- ]carbon|methylation|homocysteine|b12|folate)\b/i },
+  { scoreId: 'thyroidCoherence', label: 'Thyroid Coherence', match: /\b(thyroid|tsh|free t3|free t4|reverse t3)\b/i },
+  { scoreId: 'biologicalCoherence', label: 'Biological Coherence', match: /\b(biological coherence|overall biology|coherence score)\b/i },
+];
+
+/** @param {string} text */
+export function detectBiologyScoreTarget(text) {
+  const sourceText = String(text || '');
+  if (!/\b(why|what|explain|investigate|score|bad|low|strained|concerning|missing|confidence|coverage)\b/i.test(sourceText)) return null;
+  const rule = BIOLOGY_SCORE_INTENT_RULES.find(item => item.match.test(sourceText));
+  return rule ? { type: 'biologyScore', scoreId: rule.scoreId, label: rule.label } : null;
+}
+
+/** @param {any[]} scores @param {string} scoreId @param {string} label */
+function resolveBiologyScore(scores, scoreId, label) {
+  const normalizedLabel = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return (scores || []).find(score => score?.id === scoreId)
+    || (scores || []).find(score => String(score?.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '') === normalizedLabel)
+    || null;
+}
+
+/** @param {any[]} items @param {number} limit */
+function scoreMarkerLabels(items, limit = 6) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items || []) {
+    const label = markerDisplaySafe(item);
+    const key = label.toLowerCase();
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** @param {any} item */
+function markerDisplaySafe(item) {
+  return String(item?.label || item?.name || item?.key || item?.dotKey || '').trim();
+}
+
+/** @param {string} text @param {{ importedData?: any, biologyScores?: any[] }} [opts] */
+export function investigateBiologyScore(text, opts = {}) {
+  const target = detectBiologyScoreTarget(text);
+  if (!target) return null;
+  const importedData = importedFrom(opts);
+  const scores = Array.isArray(opts.biologyScores) ? opts.biologyScores : computeBiologyScores(importedData || {});
+  const score = resolveBiologyScore(scores, target.scoreId, target.label);
+  if (!score) return null;
+  const missingMarkers = scoreMarkerLabels(score.missing, 8);
+  const availableMarkers = scoreMarkerLabels(score.available, 8);
+  const flags = (score.flags || []).map(flag => String(flag || '').trim()).filter(Boolean).slice(0, 5);
+  const scoreValue = Number.isFinite(score.score) ? Math.round(score.score) : null;
+  const coveragePct = Number.isFinite(score.coverage) ? Math.round(score.coverage * 100) : null;
+  const confidence = score.scoreConfidenceLabel || score.scoreConfidence || '';
+  const mainDrivers = flags.length ? flags.slice(0, 3) : missingMarkers.length ? [`Missing markers: ${missingMarkers.slice(0, 4).join(', ')}`] : ['No obvious missing-marker driver found in the score state.'];
+  return {
+    id: `agent_score_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    surface: 'biologyScoreInvestigation',
+    mode: 'investigate-score',
+    writeLevel: 'read-only',
+    requiresConfirmation: false,
+    status: 'completed',
+    sourceText: String(text || ''),
+    scoreId: score.id || target.scoreId,
+    title: score.title || target.label,
+    scoreValue,
+    tone: score.tone || null,
+    coveragePct,
+    confidence,
+    missingMarkers,
+    availableMarkers,
+    flags,
+    mainDrivers,
+    sourceScore: score,
+    safetyNote: 'Read-only score investigation — no profile data was changed.',
+  };
+}
+
 const NAVIGATION_TARGETS = [
   { route: 'dashboard', label: 'Dashboard', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?dashboard\b/i },
   { route: 'labs', label: 'Labs', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:labs|lab results|markers)\b/i },
@@ -544,5 +628,6 @@ export function getAgentToolRegistry() {
     { id: 'open_view', writeLevel: 'navigation', description: 'Open a known app view such as dashboard, labs, biology-scores, genome, body, light, insight, recommendations, compare, or correlations; no data writes.' },
     { id: 'open_labs_view', writeLevel: 'navigation', description: 'Open the Labs view; no data writes.' },
     { id: 'draft_lab_plan', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft a lab plan in chat; requires explicit user confirmation before saving/sending anywhere.' },
+    { id: 'investigate_biology_score', writeLevel: 'read-only', description: 'Explain the current deterministic Biology Score state, missing markers, confidence, and flags without changing data.' },
   ];
 }

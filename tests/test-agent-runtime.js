@@ -110,6 +110,12 @@ try {
     && labPlanIntent.entities.some(e => e.type === 'labPlanTopic' && e.topic === 'androgen-axis'),
     JSON.stringify(labPlanIntent));
 
+  const scoreIntent = runtime.classifyAgentIntent('why is my hormone axis bad?');
+  assert('agent intent classifier recognizes Biology Score investigation requests',
+    scoreIntent.intent === 'investigate-score'
+    && scoreIntent.entities.some(e => e.type === 'biologyScore' && e.scoreId === 'hormoneAxis'),
+    JSON.stringify(scoreIntent));
+
   const supplementIntent = runtime.classifyAgentIntent('I started creatine and stopped zinc last week');
   assert('agent intent classifier recognizes supplement/protocol changes',
     supplementIntent.intent === 'record-context-change'
@@ -223,6 +229,48 @@ try {
     && labPlanData.changeHistory.length === 0,
     JSON.stringify({ labPlanHandled, labPlanData }));
 
+  const scoreInvestigationData = { changeHistory: [] };
+  const scoreInvestigation = tools.investigateBiologyScore('why is my hormone axis bad?', {
+    importedData: scoreInvestigationData,
+    biologyScores: [
+      {
+        id: 'hormoneAxis',
+        title: 'Hormone Axis',
+        score: 42,
+        tone: 'poor',
+        scoreConfidenceLabel: 'Low confidence',
+        coverage: 0.38,
+        available: [{ label: 'Total testosterone' }, { label: 'SHBG' }],
+        missing: [{ label: 'LH', core: true }, { label: 'FSH', core: true }, { label: 'Prolactin', core: true }],
+        flags: ['Missing core markers: LH, FSH, Prolactin. Treat the number as provisional.', 'Low testosterone signal needs pituitary context.'],
+      },
+    ],
+  });
+  assert('Biology Score investigation tool returns a read-only deterministic score summary',
+    scoreInvestigation?.surface === 'biologyScoreInvestigation'
+    && scoreInvestigation.writeLevel === 'read-only'
+    && scoreInvestigation.scoreId === 'hormoneAxis'
+    && scoreInvestigation.scoreValue === 42
+    && scoreInvestigation.missingMarkers.includes('LH')
+    && scoreInvestigation.flags.some(f => /pituitary/i.test(f))
+    && scoreInvestigationData.changeHistory.length === 0,
+    JSON.stringify({ scoreInvestigation, scoreInvestigationData }));
+
+  const scoreHandled = await runtime.handleAgentUserTurn('why is my hormone axis bad?', {
+    importedData: scoreInvestigationData,
+    biologyScores: [scoreInvestigation.sourceScore],
+    appendToChat: false,
+  });
+  assert('agent user-turn handler returns a read-only Biology Score investigation card message',
+    scoreHandled.handled === true
+    && scoreHandled.result.policy.writeLevel === 'read-only'
+    && scoreHandled.result.toolCalls.some(t => t.id === 'investigate_biology_score')
+    && scoreHandled.result.assistantMessage.scoreInvestigation?.scoreId === 'hormoneAxis'
+    && /Hormone Axis/.test(scoreHandled.result.assistantMessage.content)
+    && /LH/.test(scoreHandled.result.assistantMessage.content)
+    && scoreInvestigationData.changeHistory.length === 0,
+    JSON.stringify({ scoreHandled, scoreInvestigationData }));
+
   const revised = tools.reviseSupplementChangeProposal(draft, {
     0: { dosage: '3 g', schedule: 'post-workout', startDate: '2026-06-20' },
     1: { endDate: '2026-06-21' },
@@ -315,12 +363,24 @@ try {
     && chatRenderSrc.includes('data-chat-message-action="copy-lab-plan-draft"'),
     'missing lab-plan draft card rendering');
 
+  assert('chat renderer supports persisted Biology Score investigation cards',
+    chatRenderSrc.includes('renderScoreInvestigationCard')
+    && chatRenderSrc.includes('msg.scoreInvestigation')
+    && chatRenderSrc.includes('agent-score-investigation-card'),
+    'missing score investigation card rendering');
+
   const chatActions = await import('../js/chat-actions.js');
   assert('chat message copy helper includes lab-plan card contents',
     /Draft lab plan/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }))
     && /Fasting insulin/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }))
     && /Total testosterone/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft })),
     chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }));
+
+  assert('chat message copy helper includes Biology Score investigation card contents',
+    /Hormone Axis/.test(chatActions.buildMessageCopyText({ content: 'Here is the score', scoreInvestigation }))
+    && /LH/.test(chatActions.buildMessageCopyText({ content: 'Here is the score', scoreInvestigation }))
+    && /pituitary/.test(chatActions.buildMessageCopyText({ content: 'Here is the score', scoreInvestigation })),
+    chatActions.buildMessageCopyText({ content: 'Here is the score', scoreInvestigation }));
 
   const chatActionsSrc = fs.readFileSync('js/chat-actions.js', 'utf8');
   assert('chat actions wire apply/edit/dismiss agent proposal delegates',

@@ -204,11 +204,29 @@ function labPlanDraftCopyText(plan) {
   return lines.join('\n');
 }
 
+function scoreInvestigationCopyText(investigation) {
+  if (!investigation || investigation.surface !== 'biologyScoreInvestigation') return '';
+  const lines = [`## ${investigation.title || 'Biology Score investigation'}`];
+  if (investigation.scoreValue != null) lines.push(`Score: ${investigation.scoreValue}`);
+  if (investigation.confidence) lines.push(`Confidence: ${investigation.confidence}`);
+  if (investigation.coveragePct != null) lines.push(`Coverage: ${investigation.coveragePct}%`);
+  if (investigation.mainDrivers?.length) {
+    lines.push('', 'Main drivers:');
+    for (const driver of investigation.mainDrivers) lines.push(`- ${driver}`);
+  }
+  if (investigation.missingMarkers?.length) lines.push('', `Missing / confidence markers: ${investigation.missingMarkers.join(', ')}`);
+  if (investigation.availableMarkers?.length) lines.push(`Available context: ${investigation.availableMarkers.join(', ')}`);
+  if (investigation.safetyNote) lines.push('', investigation.safetyNote);
+  return lines.join('\n');
+}
+
 export function buildMessageCopyText(msg) {
   if (!msg) return '';
   const parts = [String(msg.content || '').trim()].filter(Boolean);
   const labPlanText = labPlanDraftCopyText(msg.labPlanDraft);
   if (labPlanText) parts.push(labPlanText);
+  const scoreText = scoreInvestigationCopyText(msg.scoreInvestigation);
+  if (scoreText) parts.push(scoreText);
   return parts.join('\n\n');
 }
 

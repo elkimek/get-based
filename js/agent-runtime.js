@@ -11,6 +11,7 @@ import {
   compareLatestLabEntries,
   detectAgentContextSignals,
   detectAgentNavigationTarget,
+  detectBiologyScoreTarget,
   detectLabPlanTopics,
   draftContextChangeProposal,
   draftLabPlan,
@@ -18,6 +19,7 @@ import {
   executeAgentNavigation,
   getAgentProfileSnapshot,
   getAgentToolRegistry,
+  investigateBiologyScore,
   reviseSupplementChangeProposal,
 } from './agent-tools.js';
 
@@ -25,6 +27,7 @@ const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
   'record-context-change': 'Update supplement log',
   'draft-lab-plan': 'Draft lab plan',
+  'investigate-score': 'Investigate Biology Score',
   navigate: 'Open view',
 };
 
@@ -180,9 +183,10 @@ export function classifyAgentIntent(text = '') {
   entities.push(...detectAgentContextSignals(s));
   if (entities.length) return { intent: 'record-context-change', confidence: 'medium', entities };
   const labPlanTopics = detectLabPlanTopics(s);
-  if (/\b(lab plan|lab-order plan|order labs|what labs|which labs|test next|markers? to test|blood work)\b/i.test(s) || labPlanTopics.length) {
-    return { intent: 'draft-lab-plan', confidence: 'medium', entities: labPlanTopics };
-  }
+  const explicitLabPlan = /\b(lab plan|lab-order plan|order labs|what labs|which labs|test next|markers? to test|blood work)\b/i.test(s);
+  if (explicitLabPlan) return { intent: 'draft-lab-plan', confidence: 'medium', entities: labPlanTopics };
+  const scoreTarget = detectBiologyScoreTarget(s);
+  if (scoreTarget) return { intent: 'investigate-score', confidence: 'medium', entities: [scoreTarget] };
   const navTarget = detectAgentNavigationTarget(s);
   if (navTarget) return { intent: 'navigate', confidence: 'medium', entities: [{ type: 'route', route: navTarget.route, label: navTarget.label, writeLevel: 'navigation' }] };
   if (/\b(what changed|changed|new labs|uploaded|compare)\b/i.test(s)) return { intent: 'find-what-changed', confidence: 'medium', entities };
@@ -253,8 +257,52 @@ function buildLabPlanResult(text, opts = {}) {
   };
 }
 
+function buildScoreInvestigationContent(investigation) {
+  const lines = [`### ${investigation.title}`, investigation.safetyNote || 'Read-only score investigation — no profile data was changed.', ''];
+  const scoreLine = investigation.scoreValue == null ? 'Score: not currently computed' : `Score: ${investigation.scoreValue}${investigation.confidence ? ` · ${investigation.confidence}` : ''}${investigation.coveragePct == null ? '' : ` · ${investigation.coveragePct}% coverage`}`;
+  lines.push(scoreLine);
+  if (investigation.mainDrivers?.length) {
+    lines.push('', 'Main drivers:');
+    for (const driver of investigation.mainDrivers.slice(0, 3)) lines.push(`- ${driver}`);
+  }
+  if (investigation.missingMarkers?.length) lines.push('', `Missing / confidence markers: ${investigation.missingMarkers.join(', ')}`);
+  if (investigation.availableMarkers?.length) lines.push(`Available context: ${investigation.availableMarkers.join(', ')}`);
+  return lines.join('\n');
+}
+
+function buildScoreInvestigationResult(text, opts = {}) {
+  const investigation = investigateBiologyScore(text, opts);
+  if (!investigation) return null;
+  const assistantMessage = attachPersonality({
+    role: 'assistant',
+    content: buildScoreInvestigationContent(investigation),
+    auto: true,
+    agentMode: 'investigate-score',
+    scoreInvestigation: investigation,
+  });
+  return {
+    mode: 'investigate-score',
+    label: AGENT_MODE_LABELS['investigate-score'],
+    status: 'completed',
+    policy: { writeLevel: 'read-only', requiresConfirmationForWrites: true },
+    toolCalls: [{ id: 'investigate_biology_score', status: 'completed', scoreId: investigation.scoreId }],
+    assistantMessage,
+    scoreInvestigation: investigation,
+  };
+}
+
 export async function handleAgentUserTurn(text, opts = {}) {
   const intent = classifyAgentIntent(text);
+  if (intent.intent === 'investigate-score') {
+    const result = buildScoreInvestigationResult(text, opts);
+    if (!result) return { handled: false, intent };
+    if (opts.appendToChat === true) {
+      state.chatHistory.push(result.assistantMessage);
+      await saveChatHistory();
+      renderChatMessages();
+    }
+    return { handled: true, intent, result };
+  }
   if (intent.intent === 'draft-lab-plan') {
     const result = buildLabPlanResult(text, opts);
     if (!result) return { handled: false, intent };
