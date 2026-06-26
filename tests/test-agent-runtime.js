@@ -225,7 +225,9 @@ try {
     && labPlanHandled.result.policy.writeLevel === 'draft-only'
     && labPlanHandled.result.toolCalls.some(t => t.id === 'draft_lab_plan')
     && labPlanHandled.result.assistantMessage.labPlanDraft?.bundles?.length >= 2
-    && /draft lab plan/i.test(labPlanHandled.result.assistantMessage.content)
+    && /drafted 2 marker bundles/i.test(labPlanHandled.result.assistantMessage.content)
+    && !/Draft lab plan/.test(labPlanHandled.result.assistantMessage.content)
+    && !/Fasting insulin/.test(labPlanHandled.result.assistantMessage.content)
     && labPlanData.changeHistory.length === 0,
     JSON.stringify({ labPlanHandled, labPlanData }));
 
@@ -267,7 +269,8 @@ try {
     && scoreHandled.result.toolCalls.some(t => t.id === 'investigate_biology_score')
     && scoreHandled.result.assistantMessage.scoreInvestigation?.scoreId === 'hormoneAxis'
     && /Hormone Axis/.test(scoreHandled.result.assistantMessage.content)
-    && /LH/.test(scoreHandled.result.assistantMessage.content)
+    && scoreHandled.result.assistantMessage.scoreInvestigation?.missingMarkers?.includes('LH')
+    && !/LH/.test(scoreHandled.result.assistantMessage.content)
     && scoreInvestigationData.changeHistory.length === 0,
     JSON.stringify({ scoreHandled, scoreInvestigationData }));
 

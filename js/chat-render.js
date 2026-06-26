@@ -82,7 +82,7 @@ function renderLabPlanDraftCard(plan, msgIndex) {
     </div>`;
   }).join('');
   return `<section class="agent-lab-plan-card" data-agent-lab-plan-message-index="${msgIndex}" aria-label="Draft lab plan">
-    <div class="agent-proposal-kicker">Draft lab plan</div>
+    <div class="agent-proposal-kicker">Agent draft</div>
     <strong>${escapeHTML(plan.title || 'Draft lab plan')}</strong>
     <p>${escapeHTML(plan.safetyNote || 'Draft only — nothing is ordered, saved, or sent anywhere.')}</p>
     ${bundles}

@@ -228,12 +228,9 @@ function buildNavigationResult(target) {
 }
 
 function buildLabPlanContent(plan) {
-  const lines = ['### Draft lab plan', 'Draft only — nothing is ordered, saved, or sent anywhere.', ''];
-  for (const bundle of plan.bundles || []) {
-    lines.push(`- ${bundle.label}: ${(bundle.markers || []).join(', ')}`);
-  }
-  lines.push('', 'Use this as a starting point and refine against local lab availability.');
-  return lines.join('\n');
+  const count = Array.isArray(plan?.bundles) ? plan.bundles.length : 0;
+  const bundleText = count === 1 ? '1 marker bundle' : `${count} marker bundles`;
+  return `I drafted ${bundleText} below. Nothing is ordered, saved, or sent anywhere.`;
 }
 
 function buildLabPlanResult(text, opts = {}) {
@@ -258,16 +255,8 @@ function buildLabPlanResult(text, opts = {}) {
 }
 
 function buildScoreInvestigationContent(investigation) {
-  const lines = [`### ${investigation.title}`, investigation.safetyNote || 'Read-only score investigation — no profile data was changed.', ''];
-  const scoreLine = investigation.scoreValue == null ? 'Score: not currently computed' : `Score: ${investigation.scoreValue}${investigation.confidence ? ` · ${investigation.confidence}` : ''}${investigation.coveragePct == null ? '' : ` · ${investigation.coveragePct}% coverage`}`;
-  lines.push(scoreLine);
-  if (investigation.mainDrivers?.length) {
-    lines.push('', 'Main drivers:');
-    for (const driver of investigation.mainDrivers.slice(0, 3)) lines.push(`- ${driver}`);
-  }
-  if (investigation.missingMarkers?.length) lines.push('', `Missing / confidence markers: ${investigation.missingMarkers.join(', ')}`);
-  if (investigation.availableMarkers?.length) lines.push(`Available context: ${investigation.availableMarkers.join(', ')}`);
-  return lines.join('\n');
+  const scoreText = investigation.scoreValue == null ? 'not currently computed' : String(investigation.scoreValue);
+  return [`### ${investigation.title}`, `I checked the current score state below. Score: ${scoreText}. No profile data was changed.`].join('\n');
 }
 
 function buildScoreInvestigationResult(text, opts = {}) {
