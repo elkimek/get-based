@@ -3,7 +3,7 @@
 
 import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreQuestion } from './biology-score-sections.js';
-import { hasCurrentBiologyScoreContextReview } from './biology-score-context-ai.js';
+import { hasBiologyScoreContextReview } from './biology-score-context-ai.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp, resolveScoreTone } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
@@ -261,7 +261,7 @@ function renderDashboardScoreRail(score, tone) {
 }
 
 export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologyScores) {
-  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
+  if (!hasBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === scoreId);
   if (!score) return '';
   const scoreValue = Number.isFinite(score.score) ? String(score.score) : '—';
@@ -297,7 +297,7 @@ export function renderDashboardBiologyScoreWidget(ctx, scoreId, computeBiologySc
 }
 
 export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScores) {
-  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
+  if (!hasBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const score = computeBiologyScores(ctx?.data || {}).find(item => item.id === 'biologicalCoherence');
   if (!score) return '';
   const scoreValue = Number.isFinite(score.score) ? score.score : 0;
@@ -350,7 +350,7 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
  * now uses renderDashboardBiologyScoreWidget for individual score cards and
  * renderDashboardBiologicalCoherenceWidget for the coherence hero. */
 export function renderBiologyScoresWidget(ctx, options = {}, computeBiologyScores) {
-  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
+  if (!hasBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('dashboard');
   const scores = computeBiologyScores(ctx?.data || {});
   const usefulScores = scores.filter((score) => score.score != null || score.coverage > 0);
   const displayScores = usefulScores.length ? usefulScores : scores.slice(0, 4);
@@ -443,7 +443,7 @@ export function renderBiologyScoreCoveragePlanner(detailScores, coherence) {
 }
 
 export function renderBiologyScoresLens(ctx, computeBiologyScores) {
-  if (!hasCurrentBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('lens');
+  if (!hasBiologyScoreContextReview(ctx?.data || {})) return renderBiologyScoreGate('lens');
   const scores = computeBiologyScores(ctx?.data || {});
   const coherence = scores.find((score) => score.id === 'biologicalCoherence');
   const detailScores = scores.filter((score) => score.id !== 'biologicalCoherence');

@@ -9,7 +9,7 @@ import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlanne
 import { buildBiologyScoresAIContext } from '../js/biology-score-ai-context.js';
 import { generateBiologyScoreAIAnswer } from '../js/biology-score-ai.js';
 import { BIOLOGY_SCORE_COPY } from '../js/biology-score-copy.js';
-import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, generateBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
+import { applyBiologyScoreContextFlag, buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange, buildBiologyScoreContextMaterialSignature, buildBiologyScoreContextMaterialSignaturesByRange, generateBiologyScoreContextReview, hasCurrentBiologyScoreContextReview, renderBiologyScoreContextAI } from '../js/biology-score-context-ai.js';
 import { renderScoreDetail } from '../js/biology-score-render.js';
 import { renderScoreAIAnswer, writeScoreAIAnswer } from '../js/biology-score-sections.js';
 import { computeBiologyScores, getBiologyScoreLensWidgets, getBiologyScoreMapping, getBiologyScoreWidgetDefinitions, renderBiologyScoreCoveragePlanner, renderBiologyScoresLens, renderBiologyScoresWidget, renderDashboardBiologicalCoherenceWidget } from '../js/biology-scores.js';
@@ -578,7 +578,7 @@ assert('single-point specialty markers preserve their own panel date for recency
 state.importedData = savedSinglePointImported; invalidateActiveDataCache();
 
 const lockedWidgetHtml = renderBiologyScoresWidget({ data });
-assert('biology score dashboard widgets are locked until current context review exists', lockedWidgetHtml.includes('Biology Scores locked') && lockedWidgetHtml.includes('Waiting for context check'));
+assert('biology score dashboard widgets are locked until a context review exists', lockedWidgetHtml.includes('Biology Scores locked') && lockedWidgetHtml.includes('Waiting for context check'));
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 const widgetHtml = renderBiologyScoresWidget({ data });
 assert('render includes native widget class', widgetHtml.includes('biology-scores-widget'));
@@ -593,6 +593,42 @@ const rangeUnlockResults = ['all', '1y', '6m', '3m'].map(range => {
 });
 state.dateRangeFilter = savedRangeForAllUnlock;
 assert('one Biology Scores context check unlocks all timeframe tabs', rangeUnlockResults.every(Boolean), JSON.stringify(rangeUnlockResults));
+const staleReview = { summary: 'Older context check kept usable', suggestions: [], fingerprint: 'biology-context:old-app-build', contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data), range: 'all', updatedAt: Date.now() - 86400000 };
+state.importedData.biologyScoreContextAI = staleReview;
+const staleWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('stale Biology Scores fingerprint keeps scores visible only when the material context signature still matches',
+  !hasCurrentBiologyScoreContextReview(data) && !staleWidgetHtml.includes('Biology Scores locked') && staleWidgetHtml.includes('db-bio-coherence-hero'),
+  staleWidgetHtml);
+state.importedData.supplements = [{ name: 'TRT note', dose: 'hormone therapy; low muscle mass; acute illness near draw', startDate: '2026-06-10', notes: 'context modifier terms' }];
+const supplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('changed supplement context invalidates stale Biology Scores material signature before old context flags can unlock scores',
+  supplementChangedWidgetHtml.includes('Biology Scores locked'),
+  supplementChangedWidgetHtml);
+state.importedData.supplements = [{ name: 'Long supplement note', notes: `${'safe context '.repeat(30)} baseline tail` }];
+const longSupplementReview = { ...staleReview, contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data) };
+state.importedData.biologyScoreContextAI = longSupplementReview;
+state.importedData.supplements = [{ name: 'Long supplement note', notes: `${'safe context '.repeat(30)} hormone therapy low muscle mass acute illness near draw` }];
+const longSupplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('supplement material signature includes text beyond old truncation boundaries',
+  longSupplementChangedWidgetHtml.includes('Biology Scores locked'),
+  longSupplementChangedWidgetHtml);
+state.importedData.supplements = Array.from({ length: 31 }, (_, i) => ({ name: `Supplement ${i + 1}`, notes: i === 30 ? 'hormone therapy low muscle mass acute illness near draw' : 'ordinary' }));
+const overflowSupplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('supplement material signature includes score-relevant items beyond the old first-30 cap',
+  overflowSupplementChangedWidgetHtml.includes('Biology Scores locked'),
+  overflowSupplementChangedWidgetHtml);
+delete state.importedData.supplements;
+state.importedData.biologyScoreContextAI = { summary: 'Legacy context review kept usable', suggestions: [], fingerprint: 'biology-context:old-app-build', range: 'all', updatedAt: Date.now() - 86400000 };
+const legacyStaleWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('legacy Biology Scores reviews without material signatures lock on stale fingerprints because changed labs/profile context cannot be ruled out',
+  !hasCurrentBiologyScoreContextReview(data) && legacyStaleWidgetHtml.includes('Biology Scores locked'),
+  legacyStaleWidgetHtml);
+state.importedData.biologyScoreContextAI = { ...staleReview, contextSignature: 'biology-context-material:different', contextSignaturesByRange: { all: 'biology-context-material:different' } };
+const mismatchedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
+assert('mismatched Biology Scores material context locks instead of trusting any review timestamp',
+  mismatchedWidgetHtml.includes('Biology Scores locked'),
+  mismatchedWidgetHtml);
+state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 
 const coherenceWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
 const savedRangeForBiologyScores = state.dateRangeFilter;
@@ -894,9 +930,10 @@ assert('context AI prompt treats profile text as bounded untrusted data',
   && !capturedContextPrompt.includes('SHOULD_NOT_APPEAR')
   && capturedContextPrompt.includes('Sarcopenia — moderate — low muscle mass note'),
   capturedContextPrompt.slice(0, 800));
-assert('context AI parser keeps only allowed true flag suggestions and unlocks all timeframe fingerprints',
+assert('context AI parser keeps only allowed true flag suggestions and unlocks all timeframe fingerprints/signatures',
   contextReview.suggestions.length === 1 && contextReview.suggestions[0].flag === 'lowMuscleMass'
-  && ['all', '1y', '6m', '3m'].every(range => contextReview.fingerprintsByRange?.[range]),
+  && ['all', '1y', '6m', '3m'].every(range => contextReview.fingerprintsByRange?.[range])
+  && ['all', '1y', '6m', '3m'].every(range => contextReview.contextSignaturesByRange?.[range]),
   JSON.stringify(contextReview));
 state.importedData.biologyScoreContextAI = contextReview;
 await applyBiologyScoreContextFlag('lowMuscleMass');

@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.29', date: '2026-06-26', title: 'Biology Scores handle updates more safely',
+    forceShow: true,
+    items: [
+      '<b>Biology Scores now separate app updates from real context changes.</b> New context checks store a material snapshot, so getbased can keep scores visible through harmless app, service worker, or fingerprint updates without paying for another AI unlock.',
+      '<b>Changed context still requires a refresh.</b> If labs, profile details, or score-relevant context no longer match the saved review, Biology Scores ask for a fresh context check instead of trusting stale AI flags.',
+      '<b>Profile Context is cleaner.</b> The duplicate AI interpretation, Knowledge Base, encryption, sync, and backup setup pills were removed from the profile context card because those controls now live in the dedicated Manage → Context and Settings flows.',
+    ]
+  },
+  {
     version: '1.10.28', date: '2026-06-25', title: 'Agent Access for your AI tools',
     forceShow: true,
     items: [
