@@ -18,6 +18,7 @@ try {
   const tools = await import('../js/agent-tools.js');
   const runtime = await import('../js/agent-runtime.js');
   const synthesis = await import('../js/agent-response-synthesis.js');
+  const router = await import('../js/agent-intent-router.js');
 
   const fixture = {
     entries: [
@@ -116,6 +117,61 @@ try {
     scoreIntent.intent === 'investigate-score'
     && scoreIntent.entities.some(e => e.type === 'biologyScore' && e.scoreId === 'hormoneAxis'),
     JSON.stringify(scoreIntent));
+
+  const aiRouterResult = await router.classifyAmbiguousAgentIntent('Should I test insulin and testosterone next?', {
+    hasAI: () => true,
+    callAI: async (request) => {
+      return {
+        text: request.messages[0].content.includes('Should I test insulin and testosterone next?')
+          ? '{"intent":"draft-lab-plan","confidence":"high","reason":"The user is asking which markers to test next."}'
+          : '{"intent":"chat","confidence":"low"}',
+      };
+    },
+  });
+  assert('AI router can classify ambiguous testing questions as draft lab-plan intent',
+    aiRouterResult.intent === 'draft-lab-plan'
+    && aiRouterResult.confidence === 'high'
+    && aiRouterResult.usedAI === true,
+    JSON.stringify(aiRouterResult));
+
+  const rejectedRouterResult = await router.classifyAmbiguousAgentIntent('Delete my profile data now', {
+    hasAI: () => true,
+    callAI: async () => ({ text: '{"intent":"delete-data","confidence":"high"}' }),
+  });
+  assert('AI router rejects unsupported or unsafe intents back to normal chat',
+    rejectedRouterResult.intent === 'chat'
+    && rejectedRouterResult.usedAI === true
+    && /unsupported/i.test(rejectedRouterResult.reason || ''),
+    JSON.stringify(rejectedRouterResult));
+
+  let deterministicBypassCalled = false;
+  const deterministicBypass = await runtime.resolveAgentIntent('build me a lab plan for insulin resistance', {
+    classifyAgentIntentAI: async () => { deterministicBypassCalled = true; return { intent: 'chat' }; },
+  });
+  assert('agent router bypasses AI for deterministic high-signal app intents',
+    deterministicBypass.intent === 'draft-lab-plan' && deterministicBypassCalled === false,
+    JSON.stringify({ deterministicBypass, deterministicBypassCalled }));
+
+  const aiRoutedHandled = await runtime.handleAgentUserTurn('Should I test insulin and testosterone next?', {
+    importedData: { entries: [], supplements: [], healthGoals: [], changeHistory: [] },
+    appendToChat: false,
+    synthesizeAgentResponse: false,
+    classifyAgentIntentAI: async () => ({ intent: 'draft-lab-plan', confidence: 'high', reason: 'testing question' }),
+  });
+  assert('agent runtime uses AI router result to execute app tool for ambiguous lab questions',
+    aiRoutedHandled.handled === true
+    && aiRoutedHandled.intent.intent === 'draft-lab-plan'
+    && aiRoutedHandled.result.assistantMessage.labPlanDraft?.bundles?.some(b => b.id === 'insulin-resistance')
+    && aiRoutedHandled.result.assistantMessage.labPlanDraft?.bundles?.some(b => b.id === 'androgen-axis'),
+    JSON.stringify(aiRoutedHandled));
+
+  const aiRoutedChat = await runtime.handleAgentUserTurn('Tell me a gentle story about mitochondria', {
+    appendToChat: false,
+    classifyAgentIntentAI: async () => ({ intent: 'chat', confidence: 'high', reason: 'ordinary conversation' }),
+  });
+  assert('agent runtime leaves ordinary AI-routed chat for the main chat model',
+    aiRoutedChat.handled === false && aiRoutedChat.intent.intent === 'chat',
+    JSON.stringify(aiRoutedChat));
 
   const supplementIntent = runtime.classifyAgentIntent('I started creatine and stopped zinc last week');
   assert('agent intent classifier recognizes supplement/protocol changes',
@@ -443,7 +499,7 @@ try {
 
   const swSrc = fs.readFileSync('service-worker.js', 'utf8');
   assert('service worker caches new agent modules',
-    swSrc.includes('/js/agent-tools.js') && swSrc.includes('/js/agent-response-synthesis.js') && swSrc.includes('/js/agent-runtime.js'),
+    swSrc.includes('/js/agent-tools.js') && swSrc.includes('/js/agent-response-synthesis.js') && swSrc.includes('/js/agent-intent-router.js') && swSrc.includes('/js/agent-runtime.js'),
     'agent modules missing from cache list');
 
 } catch (err) {

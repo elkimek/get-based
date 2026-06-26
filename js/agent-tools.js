@@ -290,7 +290,7 @@ const LAB_PLAN_TOPIC_RULES = [
   {
     id: 'insulin-resistance',
     label: 'Insulin resistance / glucose control',
-    match: /\b(insulin resistance|insulin resistant|glucose|blood sugar|homa|hba1c|metabolic)\b/i,
+    match: /\b(insulin resistance|insulin resistant|fasting insulin|insulin|glucose|blood sugar|homa|hba1c|metabolic)\b/i,
     rationale: 'Checks fasting glucose handling and whether insulin is compensating before glucose looks abnormal.',
     markers: ['Fasting glucose', 'Fasting insulin', 'HbA1c', 'C-peptide', 'Triglycerides', 'HDL', 'HOMA-IR'],
   },

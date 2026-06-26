@@ -23,6 +23,7 @@ import {
   reviseSupplementChangeProposal,
 } from './agent-tools.js';
 import { synthesizeAgentToolResponse } from './agent-response-synthesis.js';
+import { classifyAmbiguousAgentIntent } from './agent-intent-router.js';
 
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
@@ -194,6 +195,21 @@ export function classifyAgentIntent(text = '') {
   return { intent: 'chat', confidence: 'low', entities };
 }
 
+export async function resolveAgentIntent(text = '', opts = {}) {
+  const deterministic = classifyAgentIntent(text);
+  if (deterministic.intent !== 'chat') return deterministic;
+  if (opts.useAIRouter === false) return deterministic;
+  const classifyAI = opts.classifyAgentIntentAI || classifyAmbiguousAgentIntent;
+  const routed = await classifyAI(text, { signal: opts.signal });
+  if (!routed || routed.intent === 'chat') return { ...deterministic, router: routed || null };
+  return {
+    intent: routed.intent,
+    confidence: routed.confidence || 'medium',
+    entities: Array.isArray(routed.entities) ? routed.entities : [],
+    router: routed,
+  };
+}
+
 export async function runGetbasedAgentMode(mode, opts = {}) {
   if (mode !== 'find-what-changed') throw new Error(`Unsupported getbased agent mode: ${mode}`);
   const result = buildFindWhatChangedResult(opts);
@@ -297,7 +313,7 @@ async function buildScoreInvestigationResult(text, opts = {}) {
 }
 
 export async function handleAgentUserTurn(text, opts = {}) {
-  const intent = classifyAgentIntent(text);
+  const intent = await resolveAgentIntent(text, opts);
   if (intent.intent === 'investigate-score') {
     const result = await buildScoreInvestigationResult(text, opts);
     if (!result) return { handled: false, intent };
@@ -433,5 +449,6 @@ Object.assign(window, {
   getGetbasedAgentModes,
   handleAgentUserTurn,
   runGetbasedAgentMode,
+  resolveAgentIntent,
   saveAgentProposalEditsFromChat,
 });
