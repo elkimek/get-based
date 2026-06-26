@@ -138,6 +138,19 @@ try {
     && handledData.supplements[0].endDate == null,
     JSON.stringify({ handled, data: handledData }));
 
+  const revised = tools.reviseSupplementChangeProposal(draft, {
+    0: { dosage: '3 g', schedule: 'post-workout', startDate: '2026-06-20' },
+    1: { endDate: '2026-06-21' },
+  });
+  assert('supplement proposal edits update only draft fields before applying',
+    revised !== draft
+    && revised.changes[0].dosage === '3 g'
+    && revised.changes[0].schedule === 'post-workout'
+    && revised.changes[0].startDate === '2026-06-20'
+    && revised.changes[1].endDate === '2026-06-21'
+    && draft.changes[0].dosage === '5g',
+    JSON.stringify({ revised, original: draft }));
+
   const chatEmptySrc = fs.readFileSync('js/chat-empty-state.js', 'utf8');
   assert('chat empty state exposes Find what changed agent mode as a button, not a form submit',
     chatEmptySrc.includes('data-chat-empty-action="run-agent-mode"')
@@ -158,11 +171,19 @@ try {
     && /<button type="button"[^>]+data-chat-message-action="apply-agent-proposal"/.test(chatRenderSrc),
     'missing agent proposal card apply button');
 
+  assert('chat renderer supports inline editable proposal fields and save-edits action',
+    chatRenderSrc.includes('agent-proposal-edit-grid')
+    && chatRenderSrc.includes('data-agent-proposal-field="dosage"')
+    && chatRenderSrc.includes('data-agent-proposal-field="startDate"')
+    && chatRenderSrc.includes('data-chat-message-action="save-agent-proposal-edits"'),
+    'missing inline proposal edit controls');
+
   const chatActionsSrc = fs.readFileSync('js/chat-actions.js', 'utf8');
   assert('chat actions wire apply/edit/dismiss agent proposal delegates',
     chatActionsSrc.includes("action === 'apply-agent-proposal'")
     && chatActionsSrc.includes("action === 'edit-agent-proposal'")
-    && chatActionsSrc.includes("action === 'dismiss-agent-proposal'"),
+    && chatActionsSrc.includes("action === 'dismiss-agent-proposal'")
+    && chatActionsSrc.includes("action === 'save-agent-proposal-edits'"),
     'missing agent proposal action delegates');
 
   const swSrc = fs.readFileSync('service-worker.js', 'utf8');

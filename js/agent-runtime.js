@@ -11,6 +11,7 @@ import {
   draftSupplementChangeProposal,
   getAgentProfileSnapshot,
   getAgentToolRegistry,
+  reviseSupplementChangeProposal,
 } from './agent-tools.js';
 
 const AGENT_MODE_LABELS = {
@@ -189,14 +190,38 @@ export async function applyAgentProposalFromChat(msgIndex) {
   return result;
 }
 
+function collectProposalEditValues(msgIndex) {
+  const card = document.querySelector(`.agent-proposal-card[data-agent-proposal-message-index="${msgIndex}"]`);
+  if (!card) return {};
+  const edits = {};
+  card.querySelectorAll('[data-agent-proposal-change-index][data-agent-proposal-field]').forEach(el => {
+    if (!(el instanceof HTMLInputElement)) return;
+    const changeIndex = el.dataset.agentProposalChangeIndex;
+    const field = el.dataset.agentProposalField;
+    if (changeIndex == null || !field) return;
+    if (!edits[changeIndex]) edits[changeIndex] = {};
+    edits[changeIndex][field] = el.value;
+  });
+  return edits;
+}
+
 export function editAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
-  if (!proposal) return;
-  const firstName = proposal.changes?.find(c => c.name)?.name || '';
-  const supps = state.importedData?.supplements || [];
-  const idx = supps.findIndex(s => String(s?.name || '').toLowerCase() === firstName.toLowerCase());
-  window.openSupplementsEditor?.(idx >= 0 ? idx : undefined);
+  if (!proposal || proposal.status !== 'pending') return;
+  proposal.editing = true;
+  renderChatMessages();
+}
+
+export async function saveAgentProposalEditsFromChat(msgIndex) {
+  const msg = state.chatHistory[msgIndex];
+  if (!msg?.agentProposal || msg.agentProposal.status !== 'pending') return null;
+  msg.agentProposal = reviseSupplementChangeProposal(msg.agentProposal, collectProposalEditValues(msgIndex));
+  msg.agentProposal.editing = false;
+  msg.content = buildProposalContent(msg.agentProposal);
+  await saveChatHistory();
+  renderChatMessages();
+  return msg.agentProposal;
 }
 
 export async function dismissAgentProposalFromChat(msgIndex) {
@@ -222,4 +247,5 @@ Object.assign(window, {
   getGetbasedAgentModes,
   handleAgentUserTurn,
   runGetbasedAgentMode,
+  saveAgentProposalEditsFromChat,
 });

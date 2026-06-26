@@ -235,6 +235,27 @@ export function draftSupplementChangeProposal(text, opts = {}) {
   };
 }
 
+/** @param {any} proposal @param {Record<string, Record<string, string>>} edits */
+export function reviseSupplementChangeProposal(proposal, edits = {}) {
+  if (!proposal || !Array.isArray(proposal.changes)) return proposal;
+  const allowed = new Set(['name', 'dosage', 'schedule', 'startDate', 'endDate']);
+  return {
+    ...proposal,
+    status: proposal.status === 'applied' ? proposal.status : 'pending',
+    changes: proposal.changes.map((change, idx) => {
+      const patch = edits[String(idx)] || edits[idx] || {};
+      const next = { ...change };
+      for (const [key, value] of Object.entries(patch)) {
+        if (!allowed.has(key)) continue;
+        const trimmed = String(value ?? '').trim();
+        if (key === 'name') next[key] = titleCaseName(trimmed);
+        else next[key] = trimmed;
+      }
+      return next;
+    }),
+  };
+}
+
 /** @param {any} proposal @param {{ importedData?: any, now?: number, save?: boolean }} [opts] */
 export async function applySupplementChangeProposal(proposal, opts = {}) {
   if (!proposal || proposal.surface !== 'supplements' || !Array.isArray(proposal.changes)) {

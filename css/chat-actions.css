@@ -36,6 +36,64 @@
   color: var(--text-primary);
   background: var(--bg-hover);
 }
+
+.agent-proposal-card {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.agent-proposal-kicker {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.agent-proposal-card ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.agent-proposal-card li span {
+  color: var(--text-secondary);
+}
+.agent-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.agent-proposal-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--green);
+}
+.agent-proposal-edit-grid {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) minmax(72px, 0.8fr) minmax(80px, 0.8fr) minmax(120px, 0.9fr);
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.agent-proposal-input {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .agent-proposal-edit-grid {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .agent-proposal-edit-grid .agent-proposal-input {
+    grid-column: 2;
+  }
+}
 /* Context used toggle + details */
 .chat-context-toggle {
   font-size: 11px;

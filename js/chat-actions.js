@@ -98,6 +98,10 @@ function runChatMessageAction(actionEl, event) {
     const index = readMessageIndex(actionEl);
     if (index == null) return;
     appWindow.editAgentProposalFromChat?.(index);
+  } else if (action === 'save-agent-proposal-edits') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return;
+    void appWindow.saveAgentProposalEditsFromChat?.(index);
   } else if (action === 'dismiss-agent-proposal') {
     const index = readMessageIndex(actionEl);
     if (index == null) return;

@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
-import { escapeHTML } from './utils.js';
+import { escapeAttr, escapeHTML } from './utils.js';
 import {
   getAIProvider, getActiveModelDisplay, getActiveModelId,
 } from './api.js';
@@ -27,7 +27,14 @@ function bindRenderedChatContainClicks(container) {
 function renderAgentProposalCard(proposal, msgIndex) {
   if (!proposal || proposal.surface !== 'supplements' || !Array.isArray(proposal.changes)) return '';
   const status = proposal.status || 'pending';
-  const rows = proposal.changes.map(change => {
+  const rows = proposal.changes.map((change, index) => {
+    if (proposal.editing) {
+      const name = `<input class="agent-proposal-input" data-agent-proposal-change-index="${index}" data-agent-proposal-field="name" value="${escapeAttr(change.name || '')}" aria-label="Supplement name">`;
+      if (change.action === 'add_or_update') {
+        return `<li class="agent-proposal-edit-grid"><span>+</span>${name}<input class="agent-proposal-input" data-agent-proposal-change-index="${index}" data-agent-proposal-field="dosage" value="${escapeAttr(change.dosage || '')}" placeholder="Dose" aria-label="Dose"><input class="agent-proposal-input" data-agent-proposal-change-index="${index}" data-agent-proposal-field="schedule" value="${escapeAttr(change.schedule || '')}" placeholder="Schedule" aria-label="Schedule"><input class="agent-proposal-input" type="date" data-agent-proposal-change-index="${index}" data-agent-proposal-field="startDate" value="${escapeAttr(change.startDate || '')}" aria-label="Start date"></li>`;
+      }
+      return `<li class="agent-proposal-edit-grid"><span>~</span>${name}<input class="agent-proposal-input" type="date" data-agent-proposal-change-index="${index}" data-agent-proposal-field="endDate" value="${escapeAttr(change.endDate || '')}" aria-label="Stop date"></li>`;
+    }
     if (change.action === 'add_or_update') {
       const meta = [change.dosage, change.schedule, change.startDate ? `Start ${change.startDate}` : ''].filter(Boolean).join(' · ');
       return `<li><strong>+ ${escapeHTML(change.name)}</strong>${meta ? ` <span>${escapeHTML(meta)}</span>` : ''}</li>`;
@@ -38,13 +45,18 @@ function renderAgentProposalCard(proposal, msgIndex) {
     return '';
   }).filter(Boolean).join('');
   const actions = status === 'pending'
-    ? `<div class="agent-proposal-actions">
+    ? proposal.editing
+      ? `<div class="agent-proposal-actions">
+        <button type="button" class="chat-action-btn" data-chat-message-action="save-agent-proposal-edits" data-chat-message-index="${msgIndex}">Save edits</button>
+        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss</button>
+      </div>`
+      : `<div class="agent-proposal-actions">
         <button type="button" class="chat-action-btn" data-chat-message-action="apply-agent-proposal" data-chat-message-index="${msgIndex}">Apply changes</button>
         <button type="button" class="chat-action-btn" data-chat-message-action="edit-agent-proposal" data-chat-message-index="${msgIndex}">Edit</button>
         <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss</button>
       </div>`
     : `<div class="agent-proposal-status">${status === 'applied' ? 'Applied' : 'Dismissed'}</div>`;
-  return `<section class="agent-proposal-card" aria-label="Agent proposed update">
+  return `<section class="agent-proposal-card" data-agent-proposal-message-index="${msgIndex}" aria-label="Agent proposed update">
     <div class="agent-proposal-kicker">Proposed update</div>
     <strong>Supplements &amp; meds</strong>
     <ul>${rows}</ul>
