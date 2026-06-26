@@ -22,6 +22,7 @@ import {
   investigateBiologyScore,
   reviseSupplementChangeProposal,
 } from './agent-tools.js';
+import { synthesizeAgentToolResponse } from './agent-response-synthesis.js';
 
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
@@ -233,12 +234,25 @@ function buildLabPlanContent(plan) {
   return `I drafted ${bundleText} below. Nothing is ordered, saved, or sent anywhere.`;
 }
 
-function buildLabPlanResult(text, opts = {}) {
+async function buildSynthesizedContent(intent, toolResult, fallback, text, opts = {}) {
+  if (typeof opts.synthesizeAgentResponse === 'function') {
+    const custom = await opts.synthesizeAgentResponse({ userText: text, intent, toolResult, fallbackContent: fallback });
+    if (typeof custom === 'string' && custom.trim()) return custom.trim();
+    if (custom && typeof custom.content === 'string' && custom.content.trim()) return custom.content.trim();
+  }
+  if (opts.synthesizeAgentResponse === false) return fallback;
+  const synthesized = await synthesizeAgentToolResponse({ userText: text, intent, toolResult, signal: opts.signal });
+  return synthesized.content || fallback;
+}
+
+async function buildLabPlanResult(text, opts = {}) {
   const plan = draftLabPlan(text, opts);
   if (!plan) return null;
+  const fallbackContent = buildLabPlanContent(plan);
+  const content = await buildSynthesizedContent('draft-lab-plan', plan, fallbackContent, text, opts);
   const assistantMessage = attachPersonality({
     role: 'assistant',
-    content: buildLabPlanContent(plan),
+    content,
     auto: true,
     agentMode: 'draft-lab-plan',
     labPlanDraft: plan,
@@ -259,12 +273,14 @@ function buildScoreInvestigationContent(investigation) {
   return [`### ${investigation.title}`, `I checked the current score state below. Score: ${scoreText}. No profile data was changed.`].join('\n');
 }
 
-function buildScoreInvestigationResult(text, opts = {}) {
+async function buildScoreInvestigationResult(text, opts = {}) {
   const investigation = investigateBiologyScore(text, opts);
   if (!investigation) return null;
+  const fallbackContent = buildScoreInvestigationContent(investigation);
+  const content = await buildSynthesizedContent('investigate-score', investigation, fallbackContent, text, opts);
   const assistantMessage = attachPersonality({
     role: 'assistant',
-    content: buildScoreInvestigationContent(investigation),
+    content,
     auto: true,
     agentMode: 'investigate-score',
     scoreInvestigation: investigation,
@@ -283,7 +299,7 @@ function buildScoreInvestigationResult(text, opts = {}) {
 export async function handleAgentUserTurn(text, opts = {}) {
   const intent = classifyAgentIntent(text);
   if (intent.intent === 'investigate-score') {
-    const result = buildScoreInvestigationResult(text, opts);
+    const result = await buildScoreInvestigationResult(text, opts);
     if (!result) return { handled: false, intent };
     if (opts.appendToChat === true) {
       state.chatHistory.push(result.assistantMessage);
@@ -293,7 +309,7 @@ export async function handleAgentUserTurn(text, opts = {}) {
     return { handled: true, intent, result };
   }
   if (intent.intent === 'draft-lab-plan') {
-    const result = buildLabPlanResult(text, opts);
+    const result = await buildLabPlanResult(text, opts);
     if (!result) return { handled: false, intent };
     if (opts.appendToChat === true) {
       state.chatHistory.push(result.assistantMessage);

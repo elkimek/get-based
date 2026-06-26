@@ -311,11 +311,13 @@ const onboardingViewSrc = read('js/onboarding-view.js');
       chatOnboardingSrc.includes('export function _renderProviderQuiz') &&
       chatOnboardingSrc.includes('export function startOnboardingLabImport'),
     'Provider quiz and onboarding handlers should be extracted from chat.js');
-  assert('sendChatMessage guards no provider', (() => {
+  assert('sendChatMessage gives app-agent first refusal before no-provider setup guide', (() => {
     const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
-    const fnBody = chatSendSrc.substring(fnStart, fnStart + 300);
-    return fnBody.includes('if (!hasAIProvider())');
-  })(), 'sendChatMessage should check for provider and re-render setup guide');
+    const fnBody = chatSendSrc.substring(fnStart, fnStart + 2600);
+    const agentIdx = fnBody.indexOf('handleAgentUserTurn(text');
+    const providerIdx = fnBody.indexOf('if (!hasAIProvider())', agentIdx);
+    return agentIdx > 0 && providerIdx > agentIdx;
+  })(), 'sendChatMessage should let deterministic app-agent fallbacks run before showing provider setup');
 
   // CSS checks — provider quiz (new) + setup button (legacy, still used)
   assert('.chat-quiz-option in CSS', cssSrc.includes('.chat-quiz-option'),

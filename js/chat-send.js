@@ -145,10 +145,6 @@ export function setSendButtonMode(btn, mode) {
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
 export async function sendChatMessage() {
-  if (!hasAIProvider()) {
-    renderChatMessages(); // Re-render to show setup guide
-    return;
-  }
   // If currently streaming, abort and return (toggle behavior)
   if (_chatAbortController) {
     _chatAbortController.abort();
@@ -190,8 +186,12 @@ export async function sendChatMessage() {
   clearAttachments();
   renderChatMessages();
   await saveChatHistory(); // persist immediately so messages survive API failures
-  const agentTurn = await handleAgentUserTurn(text, { appendToChat: true });
+  const agentTurn = await handleAgentUserTurn(text, { appendToChat: true, signal: _chatAbortController ? _chatAbortController.signal : undefined });
   if (agentTurn.handled) return;
+  if (!hasAIProvider()) {
+    renderChatMessages(); // Re-render to show setup guide after deterministic agent fallback declines.
+    return;
+  }
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);

@@ -17,6 +17,7 @@ console.log('=== getbased Agent Runtime Tests ===\n');
 try {
   const tools = await import('../js/agent-tools.js');
   const runtime = await import('../js/agent-runtime.js');
+  const synthesis = await import('../js/agent-response-synthesis.js');
 
   const fixture = {
     entries: [
@@ -231,6 +232,52 @@ try {
     && labPlanData.changeHistory.length === 0,
     JSON.stringify({ labPlanHandled, labPlanData }));
 
+  const fallbackLabPlanText = synthesis.buildAgentFallbackContent('draft-lab-plan', labPlanDraft);
+  assert('agent synthesis fallback stays concise and leaves markers to card',
+    /drafted 2 marker bundles/i.test(fallbackLabPlanText)
+    && !/Fasting insulin/.test(fallbackLabPlanText)
+    && !/Total testosterone/.test(fallbackLabPlanText),
+    fallbackLabPlanText);
+
+  const serializedToolResult = synthesis.serializeAgentToolResult('draft-lab-plan', labPlanDraft);
+  assert('agent synthesis serializes structured tool facts for LLM synthesis',
+    serializedToolResult.intent === 'draft-lab-plan'
+    && serializedToolResult.surface === 'labPlan'
+    && serializedToolResult.bundles.some(b => b.label === 'Insulin resistance / glucose control' && b.markers.includes('Fasting insulin'))
+    && serializedToolResult.safety === 'Draft only — nothing is ordered, saved, or sent anywhere.',
+    JSON.stringify(serializedToolResult));
+
+  const synthesizedLabPlanText = await synthesis.synthesizeAgentToolResponse({
+    userText: 'build me a lab plan for insulin resistance and low testosterone',
+    intent: 'draft-lab-plan',
+    toolResult: labPlanDraft,
+    hasAI: () => true,
+    callAI: async (request) => {
+      return {
+        text: request.messages[0].content.includes('Fasting insulin')
+          ? 'Yep — I would split this into glucose handling and androgen-axis context. I drafted the exact marker set below; nothing is ordered or saved yet.'
+          : 'bad prompt',
+      };
+    },
+  });
+  assert('agent synthesis uses AI to produce conversational prose from tool facts',
+    /glucose handling/i.test(synthesizedLabPlanText.content)
+    && /androgen-axis/i.test(synthesizedLabPlanText.content)
+    && synthesizedLabPlanText.usedAI === true
+    && !/bad prompt/.test(synthesizedLabPlanText.content),
+    JSON.stringify(synthesizedLabPlanText));
+
+  const synthesizedHandled = await runtime.handleAgentUserTurn('build me a lab plan for insulin resistance and low testosterone', {
+    importedData: { entries: [], supplements: [], healthGoals: [], changeHistory: [] },
+    appendToChat: false,
+    synthesizeAgentResponse: async () => 'Natural AI response: I drafted the marker set below and kept it as a draft.',
+  });
+  assert('agent runtime can use synthesized AI prose while keeping the structured lab-plan card',
+    synthesizedHandled.handled === true
+    && /Natural AI response/.test(synthesizedHandled.result.assistantMessage.content)
+    && synthesizedHandled.result.assistantMessage.labPlanDraft?.bundles?.some(b => b.markers.includes('Fasting insulin')),
+    JSON.stringify(synthesizedHandled));
+
   const scoreInvestigationData = { changeHistory: [] };
   const scoreInvestigation = tools.investigateBiologyScore('why is my hormone axis bad?', {
     importedData: scoreInvestigationData,
@@ -336,8 +383,9 @@ try {
   const chatSendSrc = fs.readFileSync('js/chat-send.js', 'utf8');
   assert('chat send path gives agent first refusal on context-change messages after persisting user turn',
     chatSendSrc.includes('handleAgentUserTurn')
-    && /await saveChatHistory\(\);[\s\S]{0,500}handleAgentUserTurn\(text/.test(chatSendSrc),
-    'sendChatMessage does not call handleAgentUserTurn after saving user turn');
+    && /await saveChatHistory\(\);[\s\S]{0,500}handleAgentUserTurn\(text/.test(chatSendSrc)
+    && /handleAgentUserTurn\(text[\s\S]{0,300}if \(!hasAIProvider\(\)\)/.test(chatSendSrc),
+    'sendChatMessage does not call handleAgentUserTurn after saving user turn and before no-provider fallback');
 
   const chatRenderSrc = fs.readFileSync('js/chat-render.js', 'utf8');
   assert('chat renderer mounts agent proposal cards with explicit button types',
@@ -395,7 +443,7 @@ try {
 
   const swSrc = fs.readFileSync('service-worker.js', 'utf8');
   assert('service worker caches new agent modules',
-    swSrc.includes('/js/agent-tools.js') && swSrc.includes('/js/agent-runtime.js'),
+    swSrc.includes('/js/agent-tools.js') && swSrc.includes('/js/agent-response-synthesis.js') && swSrc.includes('/js/agent-runtime.js'),
     'agent modules missing from cache list');
 
 } catch (err) {

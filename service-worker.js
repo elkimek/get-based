@@ -159,6 +159,7 @@ const APP_SHELL = [
   '/js/chat-render.js',
   '/js/chat-send.js',
   '/js/agent-tools.js',
+  '/js/agent-response-synthesis.js',
   '/js/agent-runtime.js',
   '/js/chat-icons.js',
   '/js/chat-personalities.js',
