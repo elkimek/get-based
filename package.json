@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.6.0",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.1",
     "@vitest/coverage-v8": "^4.1.8",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
