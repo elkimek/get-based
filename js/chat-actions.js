@@ -90,6 +90,18 @@ function runChatMessageAction(actionEl, event) {
     void appWindow.continueDiscussion?.();
   } else if (action === 'end-discussion') {
     appWindow.endDiscussion?.();
+  } else if (action === 'apply-agent-proposal') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return;
+    void appWindow.applyAgentProposalFromChat?.(index);
+  } else if (action === 'edit-agent-proposal') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return;
+    appWindow.editAgentProposalFromChat?.(index);
+  } else if (action === 'dismiss-agent-proposal') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return;
+    void appWindow.dismissAgentProposalFromChat?.(index);
   } else {
     return false;
   }

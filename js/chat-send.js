@@ -37,6 +37,7 @@ import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
+import { handleAgentUserTurn } from './agent-runtime.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -189,6 +190,8 @@ export async function sendChatMessage() {
   clearAttachments();
   renderChatMessages();
   await saveChatHistory(); // persist immediately so messages survive API failures
+  const agentTurn = await handleAgentUserTurn(text, { appendToChat: true });
+  if (agentTurn.handled) return;
 
   if (isFirstMessage) {
     autoNameThread(state.currentThreadId, text);

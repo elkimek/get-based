@@ -1,14 +1,21 @@
 // @ts-check
-// agent-runtime.js — browser-local getbased agent spine and first read-only mode
+// agent-runtime.js — browser-local getbased agent spine and confirmation-gated modes
 
 import { state } from './state.js';
 import { saveChatHistory } from './chat-history.js';
 import { renderChatMessages } from './chat-render.js';
 import { getActivePersonality } from './chat-personalities.js';
-import { compareLatestLabEntries, getAgentProfileSnapshot, getAgentToolRegistry } from './agent-tools.js';
+import {
+  applySupplementChangeProposal,
+  compareLatestLabEntries,
+  draftSupplementChangeProposal,
+  getAgentProfileSnapshot,
+  getAgentToolRegistry,
+} from './agent-tools.js';
 
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
+  'record-context-change': 'Update supplement log',
 };
 
 function fmtValue(value) {
@@ -87,6 +94,29 @@ function buildFindWhatChangedResult(opts = {}) {
   };
 }
 
+function buildProposalContent(proposal) {
+  const lines = ['### Proposed update', 'I think you want to update your supplement log:', ''];
+  for (const change of proposal.changes || []) {
+    if (change.action === 'add_or_update') {
+      const bits = [change.name, change.dosage, change.schedule, change.startDate ? `started ${change.startDate}` : ''].filter(Boolean);
+      lines.push(`- Add/update ${bits.join(' · ')}`);
+    } else if (change.action === 'end') {
+      lines.push(`- Mark ${change.name} as stopped${change.endDate ? ` on ${change.endDate}` : ''}`);
+    }
+  }
+  lines.push('', 'Nothing has been saved yet. Apply these changes?');
+  return lines.join('\n');
+}
+
+function attachPersonality(message) {
+  const personality = getActivePersonality?.();
+  if (personality) {
+    message.personalityName = personality.name;
+    message.personalityIcon = personality.icon;
+  }
+  return message;
+}
+
 export function classifyAgentIntent(text = '') {
   const s = String(text || '');
   const entities = [];
@@ -110,16 +140,71 @@ export async function runGetbasedAgentMode(mode, opts = {}) {
   if (mode !== 'find-what-changed') throw new Error(`Unsupported getbased agent mode: ${mode}`);
   const result = buildFindWhatChangedResult(opts);
   if (opts.appendToChat === true) {
-    const personality = getActivePersonality?.();
-    if (personality) {
-      result.assistantMessage.personalityName = personality.name;
-      result.assistantMessage.personalityIcon = personality.icon;
-    }
-    state.chatHistory.push(result.assistantMessage);
+    state.chatHistory.push(attachPersonality(result.assistantMessage));
     await saveChatHistory();
     renderChatMessages();
   }
   return result;
+}
+
+export async function handleAgentUserTurn(text, opts = {}) {
+  const intent = classifyAgentIntent(text);
+  if (intent.intent !== 'record-context-change') return { handled: false, intent };
+  const proposal = draftSupplementChangeProposal(text, opts);
+  if (!proposal) return { handled: false, intent };
+  const assistantMessage = attachPersonality({
+    role: 'assistant',
+    content: buildProposalContent(proposal),
+    auto: true,
+    agentMode: 'record-context-change',
+    agentProposal: proposal,
+  });
+  const result = {
+    mode: 'record-context-change',
+    label: AGENT_MODE_LABELS['record-context-change'],
+    status: 'awaiting_confirmation',
+    policy: { writeLevel: 'draft-only', requiresConfirmationForWrites: true },
+    toolCalls: [{ id: 'draft_supplement_change', status: 'completed' }],
+    assistantMessage,
+  };
+  if (opts.appendToChat === true) {
+    state.chatHistory.push(assistantMessage);
+    await saveChatHistory();
+    renderChatMessages();
+  }
+  return { handled: true, intent, result };
+}
+
+export async function applyAgentProposalFromChat(msgIndex) {
+  const msg = state.chatHistory[msgIndex];
+  const proposal = msg?.agentProposal;
+  if (!msg || !proposal || proposal.status === 'applied') return null;
+  const result = await applySupplementChangeProposal(proposal);
+  proposal.status = 'applied';
+  msg.content = `${msg.content}\n\n✅ Applied. Your supplement log was updated.`;
+  msg.agentApplyResult = result;
+  await saveChatHistory();
+  renderChatMessages();
+  window.showNotification?.('Supplement log updated', 'success');
+  return result;
+}
+
+export function editAgentProposalFromChat(msgIndex) {
+  const msg = state.chatHistory[msgIndex];
+  const proposal = msg?.agentProposal;
+  if (!proposal) return;
+  const firstName = proposal.changes?.find(c => c.name)?.name || '';
+  const supps = state.importedData?.supplements || [];
+  const idx = supps.findIndex(s => String(s?.name || '').toLowerCase() === firstName.toLowerCase());
+  window.openSupplementsEditor?.(idx >= 0 ? idx : undefined);
+}
+
+export async function dismissAgentProposalFromChat(msgIndex) {
+  const msg = state.chatHistory[msgIndex];
+  if (!msg?.agentProposal) return;
+  msg.agentProposal.status = 'dismissed';
+  await saveChatHistory();
+  renderChatMessages();
 }
 
 export function getGetbasedAgentModes() {
@@ -129,8 +214,12 @@ export function getGetbasedAgentModes() {
 }
 
 Object.assign(window, {
+  applyAgentProposalFromChat,
   classifyAgentIntent,
+  dismissAgentProposalFromChat,
+  editAgentProposalFromChat,
   getAgentToolRegistry,
   getGetbasedAgentModes,
+  handleAgentUserTurn,
   runGetbasedAgentMode,
 });

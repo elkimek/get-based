@@ -95,12 +95,75 @@ try {
     && supplementIntent.entities.some(e => e.type === 'supplement' && e.action === 'stopped' && /zinc/i.test(e.label)),
     JSON.stringify(supplementIntent));
 
+  const draft = tools.draftSupplementChangeProposal('I started creatine 5g daily and stopped zinc last week', {
+    today: '2026-06-26',
+    importedData: { supplements: [{ name: 'Zinc', dosage: '15 mg', startDate: '2026-01-01' }], changeHistory: [] },
+  });
+  assert('supplement proposal drafts structured add/end changes without mutating data',
+    draft?.surface === 'supplements'
+    && draft.requiresConfirmation === true
+    && draft.changes.some(c => c.action === 'add_or_update' && c.name === 'Creatine' && c.dosage === '5g' && c.schedule === 'daily' && c.startDate === '2026-06-19')
+    && draft.changes.some(c => c.action === 'end' && c.name === 'Zinc' && c.endDate === '2026-06-19'),
+    JSON.stringify(draft));
+
+  const applyData = { supplements: [{ name: 'Zinc', dosage: '15 mg', startDate: '2026-01-01' }], changeHistory: [] };
+  const applied = await tools.applySupplementChangeProposal(draft, {
+    importedData: applyData,
+    now: 1780000000000,
+    save: false,
+  });
+  assert('applying confirmed proposal adds new supplement and ends existing one',
+    applied.status === 'applied'
+    && applyData.supplements.some(s => s.name === 'Creatine' && s.dosage === '5g' && s.startDate === '2026-06-19' && !s.endDate)
+    && applyData.supplements.some(s => s.name === 'Zinc' && s.endDate === '2026-06-19'),
+    JSON.stringify({ applied, supplements: applyData.supplements }));
+  assert('applying confirmed proposal records auditable agent change history',
+    applyData.changeHistory.length === 1
+    && applyData.changeHistory[0].source === 'agent'
+    && applyData.changeHistory[0].confirmedByUser === true
+    && /Creatine/.test(applyData.changeHistory[0].summary)
+    && /Zinc/.test(applyData.changeHistory[0].summary),
+    JSON.stringify(applyData.changeHistory));
+
+  const handledData = { supplements: [{ name: 'Zinc', dosage: '15 mg', startDate: '2026-01-01' }], changeHistory: [] };
+  const handled = await runtime.handleAgentUserTurn('I started creatine 5g daily and stopped zinc last week', {
+    importedData: handledData,
+    appendToChat: false,
+    today: '2026-06-26',
+  });
+  assert('agent user-turn handler returns a confirmation-gated proposal message instead of applying writes',
+    handled.handled === true
+    && handled.result.assistantMessage.agentProposal?.requiresConfirmation === true
+    && handledData.supplements.length === 1
+    && handledData.supplements[0].endDate == null,
+    JSON.stringify({ handled, data: handledData }));
+
   const chatEmptySrc = fs.readFileSync('js/chat-empty-state.js', 'utf8');
   assert('chat empty state exposes Find what changed agent mode as a button, not a form submit',
     chatEmptySrc.includes('data-chat-empty-action="run-agent-mode"')
     && chatEmptySrc.includes('data-agent-mode="find-what-changed"')
     && /<button type="button"[^>]+data-chat-empty-action="run-agent-mode"/.test(chatEmptySrc),
     'missing run-agent-mode button');
+
+  const chatSendSrc = fs.readFileSync('js/chat-send.js', 'utf8');
+  assert('chat send path gives agent first refusal on context-change messages after persisting user turn',
+    chatSendSrc.includes('handleAgentUserTurn')
+    && /await saveChatHistory\(\);[\s\S]{0,500}handleAgentUserTurn\(text/.test(chatSendSrc),
+    'sendChatMessage does not call handleAgentUserTurn after saving user turn');
+
+  const chatRenderSrc = fs.readFileSync('js/chat-render.js', 'utf8');
+  assert('chat renderer mounts agent proposal cards with explicit button types',
+    chatRenderSrc.includes('renderAgentProposalCard')
+    && chatRenderSrc.includes('data-chat-message-action="apply-agent-proposal"')
+    && /<button type="button"[^>]+data-chat-message-action="apply-agent-proposal"/.test(chatRenderSrc),
+    'missing agent proposal card apply button');
+
+  const chatActionsSrc = fs.readFileSync('js/chat-actions.js', 'utf8');
+  assert('chat actions wire apply/edit/dismiss agent proposal delegates',
+    chatActionsSrc.includes("action === 'apply-agent-proposal'")
+    && chatActionsSrc.includes("action === 'edit-agent-proposal'")
+    && chatActionsSrc.includes("action === 'dismiss-agent-proposal'"),
+    'missing agent proposal action delegates');
 
   const swSrc = fs.readFileSync('service-worker.js', 'utf8');
   assert('service worker caches new agent modules',

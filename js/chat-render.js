@@ -24,6 +24,34 @@ function bindRenderedChatContainClicks(container) {
   });
 }
 
+function renderAgentProposalCard(proposal, msgIndex) {
+  if (!proposal || proposal.surface !== 'supplements' || !Array.isArray(proposal.changes)) return '';
+  const status = proposal.status || 'pending';
+  const rows = proposal.changes.map(change => {
+    if (change.action === 'add_or_update') {
+      const meta = [change.dosage, change.schedule, change.startDate ? `Start ${change.startDate}` : ''].filter(Boolean).join(' · ');
+      return `<li><strong>+ ${escapeHTML(change.name)}</strong>${meta ? ` <span>${escapeHTML(meta)}</span>` : ''}</li>`;
+    }
+    if (change.action === 'end') {
+      return `<li><strong>~ ${escapeHTML(change.name)}</strong> <span>Stop ${escapeHTML(change.endDate || 'now')}</span></li>`;
+    }
+    return '';
+  }).filter(Boolean).join('');
+  const actions = status === 'pending'
+    ? `<div class="agent-proposal-actions">
+        <button type="button" class="chat-action-btn" data-chat-message-action="apply-agent-proposal" data-chat-message-index="${msgIndex}">Apply changes</button>
+        <button type="button" class="chat-action-btn" data-chat-message-action="edit-agent-proposal" data-chat-message-index="${msgIndex}">Edit</button>
+        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss</button>
+      </div>`
+    : `<div class="agent-proposal-status">${status === 'applied' ? 'Applied' : 'Dismissed'}</div>`;
+  return `<section class="agent-proposal-card" aria-label="Agent proposed update">
+    <div class="agent-proposal-kicker">Proposed update</div>
+    <strong>Supplements &amp; meds</strong>
+    <ul>${rows}</ul>
+    ${actions}
+  </section>`;
+}
+
 /**
  * Render the collapsible "Sources" block under an assistant message.
  * Shows the excerpts the lens returned for this question — filename, score,
@@ -95,6 +123,7 @@ export function renderChatMessages() {
       }
     }
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
+    if (msg.role === 'assistant' && msg.agentProposal) html += renderAgentProposalCard(msg.agentProposal, i);
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {
