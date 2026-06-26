@@ -6,8 +6,10 @@ import { saveChatHistory } from './chat-history.js';
 import { renderChatMessages } from './chat-render.js';
 import { getActivePersonality } from './chat-personalities.js';
 import {
+  applyContextChangeProposal,
   applySupplementChangeProposal,
   compareLatestLabEntries,
+  draftContextChangeProposal,
   draftSupplementChangeProposal,
   getAgentProfileSnapshot,
   getAgentToolRegistry,
@@ -96,13 +98,22 @@ function buildFindWhatChangedResult(opts = {}) {
 }
 
 function buildProposalContent(proposal) {
-  const lines = ['### Proposed update', 'I think you want to update your supplement log:', ''];
+  const isContext = proposal?.surface === 'context';
+  const lines = ['### Proposed update', isContext ? 'I think you want to update your profile context:' : 'I think you want to update your supplement log:', ''];
   for (const change of proposal.changes || []) {
     if (change.action === 'add_or_update') {
       const bits = [change.name, change.dosage, change.schedule, change.startDate ? `started ${change.startDate}` : ''].filter(Boolean);
       lines.push(`- Add/update ${bits.join(' · ')}`);
     } else if (change.action === 'end') {
       lines.push(`- Mark ${change.name} as stopped${change.endDate ? ` on ${change.endDate}` : ''}`);
+    } else if (change.field === 'sleepRest') {
+      lines.push(`- Sleep & Rest: poor sleep context${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
+    } else if (change.field === 'exercise') {
+      lines.push(`- Exercise & Movement: restarted training${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
+    } else if (change.field === 'lightCircadian') {
+      lines.push(`- Light & Circadian: low sunlight/UV exposure${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
+    } else if (change.field === 'healthGoals') {
+      lines.push(`- Health goal: ${change.item?.text || ''}`);
     }
   }
   lines.push('', 'Nothing has been saved yet. Apply these changes?');
@@ -132,6 +143,11 @@ export function classifyAgentIntent(text = '') {
       if (raw) entities.push({ type: 'supplement', action, label: raw });
     }
   }
+  if (/\b(sleeping badly|bad sleep|poor sleep|insomnia|not sleeping|sleep is bad)\b/i.test(s)) entities.push({ type: 'context', field: 'sleepRest', action: 'update' });
+  if (/\b(restarted training|started training|back to training|training again|hard training|exercise again)\b/i.test(s)) entities.push({ type: 'context', field: 'exercise', action: 'update' });
+  if (/\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun)\b/i.test(s)) entities.push({ type: 'context', field: 'lightCircadian', action: 'update' });
+  const goalMatch = s.match(/\b(?:add goal|goal|my goal is|i want to)\s*:?\s*([^.;]+?)(?=\s+and\s+(?:i\s+have|i\s+am|i'm|started|stopped|restarted)\b|[.;]|$)/i);
+  if (goalMatch?.[1]) entities.push({ type: 'healthGoal', action: 'add', label: goalMatch[1].trim() });
   if (entities.length) return { intent: 'record-context-change', confidence: 'medium', entities };
   if (/\b(what changed|changed|new labs|uploaded|compare)\b/i.test(s)) return { intent: 'find-what-changed', confidence: 'medium', entities };
   return { intent: 'chat', confidence: 'low', entities };
@@ -151,7 +167,7 @@ export async function runGetbasedAgentMode(mode, opts = {}) {
 export async function handleAgentUserTurn(text, opts = {}) {
   const intent = classifyAgentIntent(text);
   if (intent.intent !== 'record-context-change') return { handled: false, intent };
-  const proposal = draftSupplementChangeProposal(text, opts);
+  const proposal = draftSupplementChangeProposal(text, opts) || draftContextChangeProposal(text, opts);
   if (!proposal) return { handled: false, intent };
   const assistantMessage = attachPersonality({
     role: 'assistant',
@@ -180,13 +196,15 @@ export async function applyAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
   if (!msg || !proposal || proposal.status === 'applied') return null;
-  const result = await applySupplementChangeProposal(proposal);
+  const result = proposal.surface === 'context'
+    ? await applyContextChangeProposal(proposal)
+    : await applySupplementChangeProposal(proposal);
   proposal.status = 'applied';
-  msg.content = `${msg.content}\n\n✅ Applied. Your supplement log was updated.`;
+  msg.content = `${msg.content}\n\n✅ Applied. ${proposal.surface === 'context' ? 'Your profile context was updated.' : 'Your supplement log was updated.'}`;
   msg.agentApplyResult = result;
   await saveChatHistory();
   renderChatMessages();
-  window.showNotification?.('Supplement log updated', 'success');
+  window.showNotification?.(proposal.surface === 'context' ? 'Profile context updated' : 'Supplement log updated', 'success');
   return result;
 }
 

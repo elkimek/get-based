@@ -121,6 +121,18 @@ function summarizeSupplementProposal(proposal) {
   return bits.length ? bits.join('; ') : 'No supplement changes';
 }
 
+/** @param {any} proposal */
+function summarizeContextProposal(proposal) {
+  const labels = [];
+  for (const change of proposal?.changes || []) {
+    if (change.field === 'sleepRest') labels.push('Sleep & Rest');
+    else if (change.field === 'exercise') labels.push('Exercise & Movement');
+    else if (change.field === 'lightCircadian') labels.push('Light & Circadian');
+    else if (change.field === 'healthGoals') labels.push(`Health goal: ${change.item?.text || ''}`);
+  }
+  return labels.length ? labels.join('; ') : 'No context changes';
+}
+
 /** @param {{ importedData?: any }} [opts] */
 export function getAgentProfileSnapshot(opts = {}) {
   const importedData = importedFrom(opts);
@@ -235,6 +247,59 @@ export function draftSupplementChangeProposal(text, opts = {}) {
   };
 }
 
+function extractGoalText(text) {
+  const match = String(text || '').match(/\b(?:add goal|goal|my goal is|i want to)\s*:?\s*([^.;]+?)(?=\s+and\s+(?:i\s+have|i\s+am|i'm|started|stopped|restarted)\b|[.;]|$)/i);
+  return match?.[1] ? titleCaseName(match[1]) : '';
+}
+
+/** @param {string} text @param {{ importedData?: any, today?: string }} [opts] */
+export function draftContextChangeProposal(text, opts = {}) {
+  const sourceText = String(text || '');
+  const changes = [];
+  if (/\b(sleeping badly|bad sleep|poor sleep|insomnia|not sleeping|sleep is bad)\b/i.test(sourceText)) {
+    changes.push({
+      field: 'sleepRest',
+      label: 'Sleep & Rest',
+      patch: { quality: 'poor', note: 'User reported sleeping badly lately.' },
+    });
+  }
+  if (/\b(restarted training|started training|back to training|training again|hard training|exercise again)\b/i.test(sourceText)) {
+    changes.push({
+      field: 'exercise',
+      label: 'Exercise & Movement',
+      patch: { frequency: 'restarted', note: 'User reported restarting training.' },
+    });
+  }
+  if (/\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun)\b/i.test(sourceText)) {
+    changes.push({
+      field: 'lightCircadian',
+      label: 'Light & Circadian',
+      patch: { uvExposure: 'low', note: 'User reported low sunlight exposure right now.' },
+    });
+  }
+  const goalText = extractGoalText(sourceText);
+  if (goalText) {
+    changes.push({
+      field: 'healthGoals',
+      label: 'Health goals',
+      action: 'add',
+      item: { text: goalText, severity: 'major' },
+    });
+  }
+  if (!changes.length) return null;
+  const proposal = {
+    id: `agent_proposal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    surface: 'context',
+    mode: 'record-context-change',
+    requiresConfirmation: true,
+    status: 'pending',
+    sourceText,
+    changes,
+  };
+  proposal.summary = summarizeContextProposal(proposal);
+  return proposal;
+}
+
 /** @param {any} proposal @param {Record<string, Record<string, string>>} edits */
 export function reviseSupplementChangeProposal(proposal, edits = {}) {
   if (!proposal || !Array.isArray(proposal.changes)) return proposal;
@@ -309,12 +374,49 @@ export async function applySupplementChangeProposal(proposal, opts = {}) {
   return { status: 'applied', applied };
 }
 
+/** @param {any} proposal @param {{ importedData?: any, now?: number, save?: boolean }} [opts] */
+export async function applyContextChangeProposal(proposal, opts = {}) {
+  if (!proposal || proposal.surface !== 'context' || !Array.isArray(proposal.changes)) {
+    throw new Error('Invalid context proposal');
+  }
+  const importedData = importedFrom(opts);
+  if (!Array.isArray(importedData.changeHistory)) importedData.changeHistory = [];
+  const now = Number.isFinite(opts.now) ? opts.now : Date.now();
+  const applied = [];
+  for (const change of proposal.changes) {
+    if (change.field === 'healthGoals') {
+      if (!Array.isArray(importedData.healthGoals)) importedData.healthGoals = [];
+      const item = { ...(change.item || {}), updatedAt: now };
+      appendImportedArrayItem(importedData, 'healthGoals', item);
+      applied.push(`Added health goal: ${item.text || ''}`);
+      continue;
+    }
+    if (!change.field || !change.patch || typeof change.patch !== 'object') continue;
+    const current = importedData[change.field] && typeof importedData[change.field] === 'object' ? importedData[change.field] : {};
+    importedData[change.field] = { ...current, ...change.patch, updatedAt: now };
+    applied.push(`Updated ${change.label || change.field}`);
+  }
+  importedData.changeHistory.push({
+    source: 'agent',
+    mode: proposal.mode || 'record-context-change',
+    proposalId: proposal.id || null,
+    surface: 'context',
+    summary: applied.join('; ') || summarizeContextProposal(proposal),
+    confirmedByUser: true,
+    timestamp: now,
+  });
+  if (opts.save !== false) await saveImportedData({ immediate: true });
+  return { status: 'applied', applied };
+}
+
 export function getAgentToolRegistry() {
   return [
     { id: 'get_profile_context', writeLevel: 'read-only', description: 'Summarize profile/data availability for agent routing.' },
     { id: 'compare_latest_labs', writeLevel: 'read-only', description: 'Compare the latest lab entry with the previous lab entry.' },
     { id: 'draft_supplement_change', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft supplement/med changes from a user message without mutating data.' },
     { id: 'apply_supplement_change', writeLevel: 'write', requiresConfirmation: true, description: 'Apply a confirmed supplement/med proposal and record an audit trail.' },
+    { id: 'draft_context_change', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft profile context and health-goal changes from a user message without mutating data.' },
+    { id: 'apply_context_change', writeLevel: 'write', requiresConfirmation: true, description: 'Apply confirmed profile context/health-goal changes and record an audit trail.' },
     { id: 'open_labs_view', writeLevel: 'navigation', description: 'Open the Labs view; no data writes.' },
     { id: 'draft_lab_plan', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft a lab plan in chat; requires explicit user confirmation before saving/sending anywhere.' },
   ];
