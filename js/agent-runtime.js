@@ -10,8 +10,10 @@ import {
   applySupplementChangeProposal,
   compareLatestLabEntries,
   detectAgentContextSignals,
+  detectAgentNavigationTarget,
   draftContextChangeProposal,
   draftSupplementChangeProposal,
+  executeAgentNavigation,
   getAgentProfileSnapshot,
   getAgentToolRegistry,
   reviseSupplementChangeProposal,
@@ -20,7 +22,35 @@ import {
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
   'record-context-change': 'Update supplement log',
+  navigate: 'Open view',
 };
+
+const AGENT_PROPOSAL_HANDLERS = {
+  supplements: {
+    surface: 'supplements',
+    label: 'Supplement log',
+    editable: true,
+    draft: draftSupplementChangeProposal,
+    apply: applySupplementChangeProposal,
+    revise: reviseSupplementChangeProposal,
+    appliedMessage: 'Your supplement log was updated.',
+    notification: 'Supplement log updated',
+  },
+  context: {
+    surface: 'context',
+    label: 'Profile context',
+    editable: false,
+    draft: draftContextChangeProposal,
+    apply: applyContextChangeProposal,
+    revise: null,
+    appliedMessage: 'Your profile context was updated.',
+    notification: 'Profile context updated',
+  },
+};
+
+export function getAgentProposalHandlers() {
+  return AGENT_PROPOSAL_HANDLERS;
+}
 
 function fmtValue(value) {
   if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(Math.abs(value) >= 10 ? 1 : 2).replace(/\.00$/, '');
@@ -146,6 +176,8 @@ export function classifyAgentIntent(text = '') {
   }
   entities.push(...detectAgentContextSignals(s));
   if (entities.length) return { intent: 'record-context-change', confidence: 'medium', entities };
+  const navTarget = detectAgentNavigationTarget(s);
+  if (navTarget) return { intent: 'navigate', confidence: 'medium', entities: [{ type: 'route', route: navTarget.route, label: navTarget.label, writeLevel: 'navigation' }] };
   if (/\b(what changed|changed|new labs|uploaded|compare)\b/i.test(s)) return { intent: 'find-what-changed', confidence: 'medium', entities };
   return { intent: 'chat', confidence: 'low', entities };
 }
@@ -161,10 +193,44 @@ export async function runGetbasedAgentMode(mode, opts = {}) {
   return result;
 }
 
+function buildNavigationContent(target) {
+  return [`### Opening ${target.label}`, `I'll take you to ${target.label}.`, '', 'No profile changes were applied.'].join('\n');
+}
+
+function buildNavigationResult(target) {
+  const navResult = executeAgentNavigation(target.route);
+  const assistantMessage = attachPersonality({
+    role: 'assistant',
+    content: buildNavigationContent(target),
+    auto: true,
+    agentMode: 'navigate',
+    agentNavigation: { route: target.route, label: target.label, status: navResult.status },
+  });
+  return {
+    mode: 'navigate',
+    label: AGENT_MODE_LABELS.navigate,
+    status: navResult.status,
+    policy: { writeLevel: 'navigation', requiresConfirmationForWrites: false },
+    toolCalls: [{ id: 'open_view', status: navResult.status, route: target.route }],
+    assistantMessage,
+  };
+}
+
 export async function handleAgentUserTurn(text, opts = {}) {
   const intent = classifyAgentIntent(text);
+  if (intent.intent === 'navigate') {
+    const target = detectAgentNavigationTarget(text);
+    if (!target) return { handled: false, intent };
+    const result = buildNavigationResult(target);
+    if (opts.appendToChat === true) {
+      state.chatHistory.push(result.assistantMessage);
+      await saveChatHistory();
+      renderChatMessages();
+    }
+    return { handled: true, intent, result };
+  }
   if (intent.intent !== 'record-context-change') return { handled: false, intent };
-  const proposal = draftSupplementChangeProposal(text, opts) || draftContextChangeProposal(text, opts);
+  const proposal = Object.values(AGENT_PROPOSAL_HANDLERS).map(handler => handler.draft(text, opts)).find(Boolean);
   if (!proposal) return { handled: false, intent };
   const assistantMessage = attachPersonality({
     role: 'assistant',
@@ -178,7 +244,7 @@ export async function handleAgentUserTurn(text, opts = {}) {
     label: AGENT_MODE_LABELS['record-context-change'],
     status: 'awaiting_confirmation',
     policy: { writeLevel: 'draft-only', requiresConfirmationForWrites: true },
-    toolCalls: [{ id: 'draft_supplement_change', status: 'completed' }],
+    toolCalls: [{ id: proposal.surface === 'context' ? 'draft_context_change' : 'draft_supplement_change', status: 'completed' }],
     assistantMessage,
   };
   if (opts.appendToChat === true) {
@@ -193,15 +259,15 @@ export async function applyAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
   if (!msg || !proposal || proposal.status === 'applied') return null;
-  const result = proposal.surface === 'context'
-    ? await applyContextChangeProposal(proposal)
-    : await applySupplementChangeProposal(proposal);
+  const handler = AGENT_PROPOSAL_HANDLERS[proposal.surface];
+  if (!handler?.apply) return null;
+  const result = await handler.apply(proposal);
   proposal.status = 'applied';
-  msg.content = `${msg.content}\n\n✅ Applied. ${proposal.surface === 'context' ? 'Your profile context was updated.' : 'Your supplement log was updated.'}`;
+  msg.content = `${msg.content}\n\n✅ Applied. ${handler.appliedMessage}`;
   msg.agentApplyResult = result;
   await saveChatHistory();
   renderChatMessages();
-  window.showNotification?.(proposal.surface === 'context' ? 'Profile context updated' : 'Supplement log updated', 'success');
+  window.showNotification?.(handler.notification, 'success');
   return result;
 }
 
@@ -224,6 +290,8 @@ export function editAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
   if (!proposal || proposal.status !== 'pending') return;
+  const handler = AGENT_PROPOSAL_HANDLERS[proposal.surface];
+  if (!handler?.editable) return;
   proposal.editing = true;
   renderChatMessages();
 }
@@ -231,7 +299,9 @@ export function editAgentProposalFromChat(msgIndex) {
 export async function saveAgentProposalEditsFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg?.agentProposal || msg.agentProposal.status !== 'pending') return null;
-  msg.agentProposal = reviseSupplementChangeProposal(msg.agentProposal, collectProposalEditValues(msgIndex));
+  const handler = AGENT_PROPOSAL_HANDLERS[msg.agentProposal.surface];
+  if (!handler?.revise) return null;
+  msg.agentProposal = handler.revise(msg.agentProposal, collectProposalEditValues(msgIndex));
   msg.agentProposal.editing = false;
   msg.content = buildProposalContent(msg.agentProposal);
   await saveChatHistory();
@@ -258,6 +328,7 @@ Object.assign(window, {
   classifyAgentIntent,
   dismissAgentProposalFromChat,
   editAgentProposalFromChat,
+  getAgentProposalHandlers,
   getAgentToolRegistry,
   getGetbasedAgentModes,
   handleAgentUserTurn,

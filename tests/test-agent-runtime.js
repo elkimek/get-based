@@ -88,6 +88,21 @@ try {
     && /Ferritin/.test(result.assistantMessage.content),
     result.assistantMessage.content);
 
+  const proposalHandlers = runtime.getAgentProposalHandlers();
+  assert('agent proposal registry exposes surface handlers instead of runtime branching',
+    proposalHandlers.supplements?.editable === true
+    && proposalHandlers.supplements.apply === tools.applySupplementChangeProposal
+    && proposalHandlers.supplements.revise === tools.reviseSupplementChangeProposal
+    && proposalHandlers.context?.editable === false
+    && proposalHandlers.context.apply === tools.applyContextChangeProposal,
+    JSON.stringify(Object.keys(proposalHandlers)));
+
+  const navIntent = runtime.classifyAgentIntent('show my biology scores');
+  assert('agent intent classifier recognizes safe navigation requests',
+    navIntent.intent === 'navigate'
+    && navIntent.entities.some(e => e.type === 'route' && e.route === 'biology-scores' && e.writeLevel === 'navigation'),
+    JSON.stringify(navIntent));
+
   const supplementIntent = runtime.classifyAgentIntent('I started creatine and stopped zinc last week');
   assert('agent intent classifier recognizes supplement/protocol changes',
     supplementIntent.intent === 'record-context-change'
@@ -163,6 +178,19 @@ try {
     && handledData.supplements.length === 1
     && handledData.supplements[0].endDate == null,
     JSON.stringify({ handled, data: handledData }));
+
+  const navigatedRoutes = [];
+  const previousNavigate = globalThis.window.navigate;
+  globalThis.window.navigate = route => { navigatedRoutes.push(route); };
+  const navHandled = await runtime.handleAgentUserTurn('show my biology scores', { appendToChat: false });
+  globalThis.window.navigate = previousNavigate;
+  assert('agent user-turn handler executes navigation tools without data writes or confirmation',
+    navHandled.handled === true
+    && navHandled.result.policy.writeLevel === 'navigation'
+    && navHandled.result.toolCalls.some(t => t.id === 'open_view' && t.route === 'biology-scores')
+    && navHandled.result.assistantMessage.agentNavigation?.route === 'biology-scores'
+    && navigatedRoutes[0] === 'biology-scores',
+    JSON.stringify({ navHandled, navigatedRoutes }));
 
   const revised = tools.reviseSupplementChangeProposal(draft, {
     0: { dosage: '3 g', schedule: 'post-workout', startDate: '2026-06-20' },

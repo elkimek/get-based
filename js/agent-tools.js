@@ -285,6 +285,33 @@ export function detectAgentContextSignals(text) {
   return entities;
 }
 
+const NAVIGATION_TARGETS = [
+  { route: 'dashboard', label: 'Dashboard', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?dashboard\b/i },
+  { route: 'labs', label: 'Labs', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:labs|lab results|markers)\b/i },
+  { route: 'biology-scores', label: 'Biology Scores', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:biology scores|biological scores|scores)\b/i },
+  { route: 'genome', label: 'Genome', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:genome|genetics|dna)\b/i },
+  { route: 'body', label: 'Body', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:body|wearables|biometrics)\b/i },
+  { route: 'light', label: 'Light', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:light|sun|light assessment|sunlight)\b/i },
+  { route: 'insight', label: 'Insight', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:insight|insights)\b/i },
+  { route: 'recommendations', label: 'Recommendations', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?recommendations\b/i },
+  { route: 'compare', label: 'Compare dates', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:compare|date comparison|compare dates)\b/i },
+  { route: 'correlations', label: 'Correlations', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?correlations\b/i },
+];
+
+/** @param {string} text */
+export function detectAgentNavigationTarget(text) {
+  const sourceText = String(text || '');
+  return NAVIGATION_TARGETS.find(target => target.match.test(sourceText)) || null;
+}
+
+/** @param {string} route */
+export function executeAgentNavigation(route) {
+  const target = NAVIGATION_TARGETS.find(t => t.route === route);
+  if (!target) throw new Error(`Unsupported agent navigation route: ${route}`);
+  if (typeof window !== 'undefined' && typeof window.navigate === 'function') window.navigate(target.route);
+  return { status: 'completed', route: target.route, label: target.label };
+}
+
 /** @param {string} text @param {{ importedData?: any, today?: string }} [opts] */
 export function draftContextChangeProposal(text, opts = {}) {
   const sourceText = String(text || '');
@@ -437,6 +464,7 @@ export function getAgentToolRegistry() {
     { id: 'apply_supplement_change', writeLevel: 'write', requiresConfirmation: true, description: 'Apply a confirmed supplement/med proposal and record an audit trail.' },
     { id: 'draft_context_change', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft profile context and health-goal changes from a user message without mutating data.' },
     { id: 'apply_context_change', writeLevel: 'write', requiresConfirmation: true, description: 'Apply confirmed profile context/health-goal changes and record an audit trail.' },
+    { id: 'open_view', writeLevel: 'navigation', description: 'Open a known app view such as dashboard, labs, biology-scores, genome, body, light, insight, recommendations, compare, or correlations; no data writes.' },
     { id: 'open_labs_view', writeLevel: 'navigation', description: 'Open the Labs view; no data writes.' },
     { id: 'draft_lab_plan', writeLevel: 'draft-only', requiresConfirmation: true, description: 'Draft a lab plan in chat; requires explicit user confirmation before saving/sending anywhere.' },
   ];
