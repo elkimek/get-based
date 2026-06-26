@@ -57,9 +57,9 @@ function _deployCatalog(body, req, res) {
       JSON.parse(body); // validate JSON shape
       const parsed = JSON.parse(body);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
-          || !parsed.slots || !parsed.shops || !parsed.products) {
+          || !parsed.slots || !parsed.products) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Invalid catalog shape: missing required slots/shops/products keys');
+        res.end('Invalid catalog shape: missing required slots/products keys');
         return;
       }
       const filePath = path.join(ROOT, 'data', 'recommendations.json');
