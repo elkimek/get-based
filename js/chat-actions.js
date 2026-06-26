@@ -49,6 +49,10 @@ function runChatMessageAction(actionEl, event) {
     const index = readMessageIndex(actionEl);
     if (index == null) return;
     copyMessage(index);
+  } else if (action === 'copy-lab-plan-draft') {
+    const index = readMessageIndex(actionEl);
+    if (index == null) return;
+    copyMessage(index);
   } else if (action === 'toggle-context-details') {
     const index = readMessageIndex(actionEl);
     if (index == null) return;
@@ -188,6 +192,26 @@ export function regenerateLastMessage() {
   sendChatMessage();
 }
 
+function labPlanDraftCopyText(plan) {
+  if (!plan || !Array.isArray(plan.bundles)) return '';
+  const lines = ['## Draft lab plan'];
+  if (plan.safetyNote) lines.push('', plan.safetyNote);
+  for (const bundle of plan.bundles) {
+    lines.push('', `### ${bundle.label || 'Marker bundle'}`);
+    if (bundle.rationale) lines.push(bundle.rationale);
+    for (const marker of bundle.markers || []) lines.push(`- ${marker}`);
+  }
+  return lines.join('\n');
+}
+
+export function buildMessageCopyText(msg) {
+  if (!msg) return '';
+  const parts = [String(msg.content || '').trim()].filter(Boolean);
+  const labPlanText = labPlanDraftCopyText(msg.labPlanDraft);
+  if (labPlanText) parts.push(labPlanText);
+  return parts.join('\n\n');
+}
+
 export function copyMessage(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg) return;
@@ -199,7 +223,7 @@ export function copyMessage(msgIndex) {
     }
     return;
   }
-  navigator.clipboard.writeText(msg.content).then(() => {
+  navigator.clipboard.writeText(buildMessageCopyText(msg)).then(() => {
     if (btn) {
       setIconButtonContent(btn, 'check', 'Copied');
       setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
@@ -222,6 +246,7 @@ export function toggleContextDetails(msgIndex) {
 }
 
 Object.assign(window, {
+  buildMessageCopyText,
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,

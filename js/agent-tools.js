@@ -285,6 +285,83 @@ export function detectAgentContextSignals(text) {
   return entities;
 }
 
+const LAB_PLAN_TOPIC_RULES = [
+  {
+    id: 'insulin-resistance',
+    label: 'Insulin resistance / glucose control',
+    match: /\b(insulin resistance|insulin resistant|glucose|blood sugar|homa|hba1c|metabolic)\b/i,
+    rationale: 'Checks fasting glucose handling and whether insulin is compensating before glucose looks abnormal.',
+    markers: ['Fasting glucose', 'Fasting insulin', 'HbA1c', 'C-peptide', 'Triglycerides', 'HDL', 'HOMA-IR'],
+  },
+  {
+    id: 'androgen-axis',
+    label: 'Low testosterone / androgen axis',
+    match: /\b(low testosterone|testosterone|low t\b|androgen|libido|shbg)\b/i,
+    rationale: 'Separates production, binding, pituitary signaling, conversion, and common suppressors.',
+    markers: ['Total testosterone', 'Free testosterone', 'SHBG', 'Albumin', 'LH', 'FSH', 'Prolactin', 'Estradiol', 'DHEA-S'],
+  },
+  {
+    id: 'inflammation',
+    label: 'Inflammation / immune load',
+    match: /\b(inflammation|inflammatory|crp|hs-crp|immune|recovery)\b/i,
+    rationale: 'Quantifies systemic inflammation and immune pattern instead of guessing from symptoms.',
+    markers: ['hs-CRP', 'CBC with differential', 'Ferritin', 'Fibrinogen', 'ESR'],
+  },
+  {
+    id: 'thyroid',
+    label: 'Thyroid coherence',
+    match: /\b(thyroid|tsh|free t3|free t4|reverse t3)\b/i,
+    rationale: 'Checks pituitary signal, circulating thyroid hormones, conversion, and autoimmunity.',
+    markers: ['TSH', 'Free T4', 'Free T3', 'Reverse T3', 'TPO antibodies', 'Thyroglobulin antibodies'],
+  },
+  {
+    id: 'one-carbon',
+    label: 'One-carbon / methylation',
+    match: /\b(methylation|homocysteine|b12|folate|one-carbon|mthfr)\b/i,
+    rationale: 'Covers methylation load and B-vitamin availability with direct functional context.',
+    markers: ['Homocysteine', 'Active B12', 'Vitamin B12', 'Folate', 'MMA'],
+  },
+];
+
+/** @param {string} text */
+export function detectLabPlanTopics(text) {
+  const sourceText = String(text || '');
+  return LAB_PLAN_TOPIC_RULES
+    .filter(rule => rule.match.test(sourceText))
+    .map(rule => ({ type: 'labPlanTopic', topic: rule.id, label: rule.label }));
+}
+
+/** @param {string} text @param {{ importedData?: any }} [opts] */
+export function draftLabPlan(text, opts = {}) {
+  const sourceText = String(text || '');
+  const matched = LAB_PLAN_TOPIC_RULES.filter(rule => rule.match.test(sourceText));
+  const selected = matched.length ? matched : LAB_PLAN_TOPIC_RULES.slice(0, 3);
+  const seenMarkers = new Set();
+  const bundles = selected.map(rule => {
+    const markers = rule.markers.filter(marker => {
+      const key = marker.toLowerCase();
+      if (seenMarkers.has(key)) return false;
+      seenMarkers.add(key);
+      return true;
+    });
+    return { id: rule.id, label: rule.label, rationale: rule.rationale, markers };
+  }).filter(bundle => bundle.markers.length);
+  if (!/\b(lab plan|lab-order plan|order labs|what labs|which labs|test next|markers? to test|blood work)\b/i.test(sourceText) && !matched.length) return null;
+  return {
+    id: `agent_lab_plan_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    surface: 'labPlan',
+    mode: 'draft-lab-plan',
+    writeLevel: 'draft-only',
+    requiresConfirmation: false,
+    status: 'draft',
+    sourceText,
+    title: matched.length ? 'Draft lab plan' : 'Draft baseline lab plan',
+    summary: bundles.map(b => b.label).join('; '),
+    bundles,
+    safetyNote: 'Draft only — nothing is ordered, saved, or sent anywhere.',
+  };
+}
+
 const NAVIGATION_TARGETS = [
   { route: 'dashboard', label: 'Dashboard', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?dashboard\b/i },
   { route: 'labs', label: 'Labs', match: /\b(?:show|open|go to|take me to|view)\s+(?:my\s+)?(?:labs|lab results|markers)\b/i },

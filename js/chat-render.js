@@ -71,6 +71,27 @@ function renderAgentProposalCard(proposal, msgIndex) {
   </section>`;
 }
 
+function renderLabPlanDraftCard(plan, msgIndex) {
+  if (!plan || !Array.isArray(plan.bundles)) return '';
+  const bundles = plan.bundles.map(bundle => {
+    const markers = (bundle.markers || []).map(marker => `<li>${escapeHTML(marker)}</li>`).join('');
+    return `<div class="agent-lab-plan-bundle">
+      <strong>${escapeHTML(bundle.label || '')}</strong>
+      ${bundle.rationale ? `<p>${escapeHTML(bundle.rationale)}</p>` : ''}
+      <ul>${markers}</ul>
+    </div>`;
+  }).join('');
+  return `<section class="agent-lab-plan-card" data-agent-lab-plan-message-index="${msgIndex}" aria-label="Draft lab plan">
+    <div class="agent-proposal-kicker">Draft lab plan</div>
+    <strong>${escapeHTML(plan.title || 'Draft lab plan')}</strong>
+    <p>${escapeHTML(plan.safetyNote || 'Draft only — nothing is ordered, saved, or sent anywhere.')}</p>
+    ${bundles}
+    <div class="agent-proposal-actions">
+      <button type="button" class="chat-action-btn" data-chat-message-action="copy-lab-plan-draft" data-chat-message-index="${msgIndex}">Copy plan</button>
+    </div>
+  </section>`;
+}
+
 /**
  * Render the collapsible "Sources" block under an assistant message.
  * Shows the excerpts the lens returned for this question — filename, score,
@@ -143,6 +164,7 @@ export function renderChatMessages() {
     }
     html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
     if (msg.role === 'assistant' && msg.agentProposal) html += renderAgentProposalCard(msg.agentProposal, i);
+    if (msg.role === 'assistant' && msg.labPlanDraft) html += renderLabPlanDraftCard(msg.labPlanDraft, i);
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {

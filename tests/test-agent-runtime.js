@@ -103,6 +103,13 @@ try {
     && navIntent.entities.some(e => e.type === 'route' && e.route === 'biology-scores' && e.writeLevel === 'navigation'),
     JSON.stringify(navIntent));
 
+  const labPlanIntent = runtime.classifyAgentIntent('build me a lab plan for insulin resistance and low testosterone');
+  assert('agent intent classifier recognizes draft lab-plan requests',
+    labPlanIntent.intent === 'draft-lab-plan'
+    && labPlanIntent.entities.some(e => e.type === 'labPlanTopic' && e.topic === 'insulin-resistance')
+    && labPlanIntent.entities.some(e => e.type === 'labPlanTopic' && e.topic === 'androgen-axis'),
+    JSON.stringify(labPlanIntent));
+
   const supplementIntent = runtime.classifyAgentIntent('I started creatine and stopped zinc last week');
   assert('agent intent classifier recognizes supplement/protocol changes',
     supplementIntent.intent === 'record-context-change'
@@ -192,6 +199,30 @@ try {
     && navigatedRoutes[0] === 'biology-scores',
     JSON.stringify({ navHandled, navigatedRoutes }));
 
+  const labPlanData = { entries: [], supplements: [], healthGoals: [], changeHistory: [] };
+  const labPlanDraft = tools.draftLabPlan('build me a lab plan for insulin resistance and low testosterone', { importedData: labPlanData });
+  assert('lab-plan tool drafts structured marker bundles without mutating data',
+    labPlanDraft?.surface === 'labPlan'
+    && labPlanDraft.requiresConfirmation === false
+    && labPlanDraft.writeLevel === 'draft-only'
+    && labPlanDraft.bundles.some(b => b.id === 'insulin-resistance' && b.markers.includes('Fasting insulin') && b.markers.includes('HbA1c'))
+    && labPlanDraft.bundles.some(b => b.id === 'androgen-axis' && b.markers.includes('Total testosterone') && b.markers.includes('SHBG') && b.markers.includes('LH'))
+    && labPlanData.changeHistory.length === 0,
+    JSON.stringify({ labPlanDraft, labPlanData }));
+
+  const labPlanHandled = await runtime.handleAgentUserTurn('build me a lab plan for insulin resistance and low testosterone', {
+    importedData: labPlanData,
+    appendToChat: false,
+  });
+  assert('agent user-turn handler returns a draft-only lab-plan card message',
+    labPlanHandled.handled === true
+    && labPlanHandled.result.policy.writeLevel === 'draft-only'
+    && labPlanHandled.result.toolCalls.some(t => t.id === 'draft_lab_plan')
+    && labPlanHandled.result.assistantMessage.labPlanDraft?.bundles?.length >= 2
+    && /draft lab plan/i.test(labPlanHandled.result.assistantMessage.content)
+    && labPlanData.changeHistory.length === 0,
+    JSON.stringify({ labPlanHandled, labPlanData }));
+
   const revised = tools.reviseSupplementChangeProposal(draft, {
     0: { dosage: '3 g', schedule: 'post-workout', startDate: '2026-06-20' },
     1: { endDate: '2026-06-21' },
@@ -276,6 +307,20 @@ try {
     && chatRenderSrc.includes("proposal.surface === 'context'")
     && chatRenderSrc.includes('Health goals'),
     'missing context proposal rendering');
+
+  assert('chat renderer supports persisted lab-plan draft cards',
+    chatRenderSrc.includes('renderLabPlanDraftCard')
+    && chatRenderSrc.includes('msg.labPlanDraft')
+    && chatRenderSrc.includes('agent-lab-plan-card')
+    && chatRenderSrc.includes('data-chat-message-action="copy-lab-plan-draft"'),
+    'missing lab-plan draft card rendering');
+
+  const chatActions = await import('../js/chat-actions.js');
+  assert('chat message copy helper includes lab-plan card contents',
+    /Draft lab plan/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }))
+    && /Fasting insulin/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }))
+    && /Total testosterone/.test(chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft })),
+    chatActions.buildMessageCopyText({ content: 'Here is the plan', labPlanDraft }));
 
   const chatActionsSrc = fs.readFileSync('js/chat-actions.js', 'utf8');
   assert('chat actions wire apply/edit/dismiss agent proposal delegates',

@@ -11,7 +11,9 @@ import {
   compareLatestLabEntries,
   detectAgentContextSignals,
   detectAgentNavigationTarget,
+  detectLabPlanTopics,
   draftContextChangeProposal,
+  draftLabPlan,
   draftSupplementChangeProposal,
   executeAgentNavigation,
   getAgentProfileSnapshot,
@@ -22,6 +24,7 @@ import {
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
   'record-context-change': 'Update supplement log',
+  'draft-lab-plan': 'Draft lab plan',
   navigate: 'Open view',
 };
 
@@ -176,6 +179,10 @@ export function classifyAgentIntent(text = '') {
   }
   entities.push(...detectAgentContextSignals(s));
   if (entities.length) return { intent: 'record-context-change', confidence: 'medium', entities };
+  const labPlanTopics = detectLabPlanTopics(s);
+  if (/\b(lab plan|lab-order plan|order labs|what labs|which labs|test next|markers? to test|blood work)\b/i.test(s) || labPlanTopics.length) {
+    return { intent: 'draft-lab-plan', confidence: 'medium', entities: labPlanTopics };
+  }
   const navTarget = detectAgentNavigationTarget(s);
   if (navTarget) return { intent: 'navigate', confidence: 'medium', entities: [{ type: 'route', route: navTarget.route, label: navTarget.label, writeLevel: 'navigation' }] };
   if (/\b(what changed|changed|new labs|uploaded|compare)\b/i.test(s)) return { intent: 'find-what-changed', confidence: 'medium', entities };
@@ -216,8 +223,48 @@ function buildNavigationResult(target) {
   };
 }
 
+function buildLabPlanContent(plan) {
+  const lines = ['### Draft lab plan', 'Draft only — nothing is ordered, saved, or sent anywhere.', ''];
+  for (const bundle of plan.bundles || []) {
+    lines.push(`- ${bundle.label}: ${(bundle.markers || []).join(', ')}`);
+  }
+  lines.push('', 'Use this as a starting point and refine against local lab availability.');
+  return lines.join('\n');
+}
+
+function buildLabPlanResult(text, opts = {}) {
+  const plan = draftLabPlan(text, opts);
+  if (!plan) return null;
+  const assistantMessage = attachPersonality({
+    role: 'assistant',
+    content: buildLabPlanContent(plan),
+    auto: true,
+    agentMode: 'draft-lab-plan',
+    labPlanDraft: plan,
+  });
+  return {
+    mode: 'draft-lab-plan',
+    label: AGENT_MODE_LABELS['draft-lab-plan'],
+    status: 'completed',
+    policy: { writeLevel: 'draft-only', requiresConfirmationForWrites: true },
+    toolCalls: [{ id: 'draft_lab_plan', status: 'completed' }],
+    assistantMessage,
+    labPlanDraft: plan,
+  };
+}
+
 export async function handleAgentUserTurn(text, opts = {}) {
   const intent = classifyAgentIntent(text);
+  if (intent.intent === 'draft-lab-plan') {
+    const result = buildLabPlanResult(text, opts);
+    if (!result) return { handled: false, intent };
+    if (opts.appendToChat === true) {
+      state.chatHistory.push(result.assistantMessage);
+      await saveChatHistory();
+      renderChatMessages();
+    }
+    return { handled: true, intent, result };
+  }
   if (intent.intent === 'navigate') {
     const target = detectAgentNavigationTarget(text);
     if (!target) return { handled: false, intent };
