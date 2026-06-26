@@ -9,6 +9,7 @@ import {
   applyContextChangeProposal,
   applySupplementChangeProposal,
   compareLatestLabEntries,
+  detectAgentContextSignals,
   draftContextChangeProposal,
   draftSupplementChangeProposal,
   getAgentProfileSnapshot,
@@ -143,11 +144,7 @@ export function classifyAgentIntent(text = '') {
       if (raw) entities.push({ type: 'supplement', action, label: raw });
     }
   }
-  if (/\b(sleeping badly|bad sleep|poor sleep|insomnia|not sleeping|sleep is bad)\b/i.test(s)) entities.push({ type: 'context', field: 'sleepRest', action: 'update' });
-  if (/\b(restarted training|started training|back to training|training again|hard training|exercise again)\b/i.test(s)) entities.push({ type: 'context', field: 'exercise', action: 'update' });
-  if (/\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun)\b/i.test(s)) entities.push({ type: 'context', field: 'lightCircadian', action: 'update' });
-  const goalMatch = s.match(/\b(?:add goal|goal|my goal is|i want to)\s*:?\s*([^.;]+?)(?=\s+and\s+(?:i\s+have|i\s+am|i'm|started|stopped|restarted)\b|[.;]|$)/i);
-  if (goalMatch?.[1]) entities.push({ type: 'healthGoal', action: 'add', label: goalMatch[1].trim() });
+  entities.push(...detectAgentContextSignals(s));
   if (entities.length) return { intent: 'record-context-change', confidence: 'medium', entities };
   if (/\b(what changed|changed|new labs|uploaded|compare)\b/i.test(s)) return { intent: 'find-what-changed', confidence: 'medium', entities };
   return { intent: 'chat', confidence: 'low', entities };

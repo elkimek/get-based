@@ -104,6 +104,23 @@ try {
     && contextIntent.entities.some(e => e.type === 'healthGoal'),
     JSON.stringify(contextIntent));
 
+  const richerContextText = 'My sleep has been terrible, I am exercising again, barely seeing the sun, and my goal is lower inflammation';
+  const detectedContextSignals = tools.detectAgentContextSignals(richerContextText);
+  assert('agent context signal router maps natural variants through schema rules',
+    detectedContextSignals.some(e => e.type === 'context' && e.field === 'sleepRest')
+    && detectedContextSignals.some(e => e.type === 'context' && e.field === 'exercise')
+    && detectedContextSignals.some(e => e.type === 'context' && e.field === 'lightCircadian')
+    && detectedContextSignals.some(e => e.type === 'healthGoal' && /lower inflammation/i.test(e.label)),
+    JSON.stringify(detectedContextSignals));
+  const richerContextIntent = runtime.classifyAgentIntent(richerContextText);
+  assert('agent intent classifier reuses context signal router variants',
+    richerContextIntent.intent === 'record-context-change'
+    && richerContextIntent.entities.some(e => e.field === 'sleepRest')
+    && richerContextIntent.entities.some(e => e.field === 'exercise')
+    && richerContextIntent.entities.some(e => e.field === 'lightCircadian')
+    && richerContextIntent.entities.some(e => e.type === 'healthGoal'),
+    JSON.stringify(richerContextIntent));
+
   const draft = tools.draftSupplementChangeProposal('I started creatine 5g daily and stopped zinc last week', {
     today: '2026-06-26',
     importedData: { supplements: [{ name: 'Zinc', dosage: '15 mg', startDate: '2026-01-01' }], changeHistory: [] },
@@ -175,6 +192,13 @@ try {
     && contextDraftData.sleepRest.quality === 'good'
     && contextDraftData.healthGoals.length === 0,
     JSON.stringify({ contextDraft, contextDraftData }));
+  const richerContextDraft = tools.draftContextChangeProposal(richerContextText, { today: '2026-06-26', importedData: { healthGoals: [], changeHistory: [] } });
+  assert('context proposal drafting uses router variants for sleep, exercise, sunlight, and goals',
+    richerContextDraft?.changes.some(c => c.field === 'sleepRest' && c.patch.quality === 'poor')
+    && richerContextDraft.changes.some(c => c.field === 'exercise' && c.patch.frequency === 'restarted')
+    && richerContextDraft.changes.some(c => c.field === 'lightCircadian' && c.patch.uvExposure === 'low')
+    && richerContextDraft.changes.some(c => c.field === 'healthGoals' && /lower inflammation/i.test(c.item.text)),
+    JSON.stringify(richerContextDraft));
 
   const contextApplyData = { sleepRest: { duration: '7-8h', quality: 'good', note: 'old' }, healthGoals: [], changeHistory: [] };
   const contextApplied = await tools.applyContextChangeProposal(contextDraft, {
@@ -185,7 +209,7 @@ try {
   assert('applying confirmed context proposal updates context cards and records agent audit history',
     contextApplied.status === 'applied'
     && contextApplyData.sleepRest.quality === 'poor'
-    && /sleeping badly/i.test(contextApplyData.sleepRest.note)
+    && /poor sleep|sleeping badly/i.test(contextApplyData.sleepRest.note)
     && contextApplyData.exercise.frequency === 'restarted'
     && contextApplyData.lightCircadian.uvExposure === 'low'
     && contextApplyData.healthGoals.some(g => /improve recovery/i.test(g.text))

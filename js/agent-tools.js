@@ -247,34 +247,54 @@ export function draftSupplementChangeProposal(text, opts = {}) {
   };
 }
 
+const CONTEXT_SIGNAL_RULES = [
+  {
+    field: 'sleepRest',
+    label: 'Sleep & Rest',
+    match: /\b(sleeping badly|bad sleep|poor sleep|insomnia|not sleeping|sleep is bad|sleep\s+(?:has\s+been\s+)?terrible|terrible sleep)\b/i,
+    patch: { quality: 'poor', note: 'User reported poor sleep lately.' },
+  },
+  {
+    field: 'exercise',
+    label: 'Exercise & Movement',
+    match: /\b(restarted training|started training|back to training|training again|hard training|exercise again|exercising again|working out again)\b/i,
+    patch: { frequency: 'restarted', note: 'User reported restarting training.' },
+  },
+  {
+    field: 'lightCircadian',
+    label: 'Light & Circadian',
+    match: /\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun|barely seeing (?:the )?sun|barely any sun)\b/i,
+    patch: { uvExposure: 'low', note: 'User reported low sunlight exposure right now.' },
+  },
+];
+
 function extractGoalText(text) {
-  const match = String(text || '').match(/\b(?:add goal|goal|my goal is|i want to)\s*:?\s*([^.;]+?)(?=\s+and\s+(?:i\s+have|i\s+am|i'm|started|stopped|restarted)\b|[.;]|$)/i);
+  const match = String(text || '').match(/\b(?:add goal|goal|my goal is|my goal|i want to)\s*(?:is|:)?\s*([^.;]+?)(?=\s+and\s+(?:i\s+have|i\s+am|i'm|started|stopped|restarted)\b|[.;]|$)/i);
   return match?.[1] ? titleCaseName(match[1]) : '';
+}
+
+/** @param {string} text */
+export function detectAgentContextSignals(text) {
+  const sourceText = String(text || '');
+  const entities = [];
+  for (const rule of CONTEXT_SIGNAL_RULES) {
+    if (rule.match.test(sourceText)) entities.push({ type: 'context', field: rule.field, action: 'update', label: rule.label });
+  }
+  const goalText = extractGoalText(sourceText);
+  if (goalText) entities.push({ type: 'healthGoal', action: 'add', label: goalText });
+  return entities;
 }
 
 /** @param {string} text @param {{ importedData?: any, today?: string }} [opts] */
 export function draftContextChangeProposal(text, opts = {}) {
   const sourceText = String(text || '');
   const changes = [];
-  if (/\b(sleeping badly|bad sleep|poor sleep|insomnia|not sleeping|sleep is bad)\b/i.test(sourceText)) {
+  for (const rule of CONTEXT_SIGNAL_RULES) {
+    if (!rule.match.test(sourceText)) continue;
     changes.push({
-      field: 'sleepRest',
-      label: 'Sleep & Rest',
-      patch: { quality: 'poor', note: 'User reported sleeping badly lately.' },
-    });
-  }
-  if (/\b(restarted training|started training|back to training|training again|hard training|exercise again)\b/i.test(sourceText)) {
-    changes.push({
-      field: 'exercise',
-      label: 'Exercise & Movement',
-      patch: { frequency: 'restarted', note: 'User reported restarting training.' },
-    });
-  }
-  if (/\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun)\b/i.test(sourceText)) {
-    changes.push({
-      field: 'lightCircadian',
-      label: 'Light & Circadian',
-      patch: { uvExposure: 'low', note: 'User reported low sunlight exposure right now.' },
+      field: rule.field,
+      label: rule.label,
+      patch: { ...rule.patch },
     });
   }
   const goalText = extractGoalText(sourceText);
