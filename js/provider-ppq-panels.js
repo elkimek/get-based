@@ -16,7 +16,7 @@ import {
 import { updateKeyCache } from './crypto.js';
 import { ensureQRCode } from './provider-qr.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
-import { renderPpqModelDropdown } from './provider-model-controls.js';
+import { renderAgentRouterProviderModelDropdown, renderPpqModelDropdown } from './provider-model-controls.js';
 
 let returnToChatIfOnboarding = function() {};
 let _ppqCreating = false;
@@ -110,14 +110,24 @@ function _refreshPpqBalanceDisplay() {
 
 function _renderPpqModelsAfterFetch(models) {
   const rerendered = _rerenderPpqPanelIfPrivateControlsAppeared();
-  if (models.length) renderPpqModelDropdown(models);
+  if (models.length) {
+    renderPpqModelDropdown(models);
+    renderAgentRouterProviderModelDropdown('ppq', models);
+  }
   if (rerendered) _refreshPpqBalanceDisplay();
 }
 
 export function initSettingsPpqPanel() {
   const ppqKey = getPpqKey();
-  if (ppqKey && document.getElementById('ppq-model-area')) {
-    fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch);
+  const area = document.getElementById('ppq-model-area');
+  if (ppqKey && area) {
+    if (!document.getElementById('ppq-model-select')) area.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Loading PPQ models\u2026</span>';
+    fetchPpqModels(ppqKey).then(function(models) {
+      _renderPpqModelsAfterFetch(models);
+      if (!models.length && area && !document.getElementById('ppq-model-select')) {
+        area.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">No PPQ models loaded. Check the key/network and try Save & Validate again.</span>';
+      }
+    });
     _refreshPpqBalanceDisplay();
   }
 }
@@ -163,7 +173,10 @@ export function dismissPpqKeyReveal() {
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = renderAIProviderPanel('ppq');
   let cachedModels = []; try { cachedModels = JSON.parse(localStorage.getItem('labcharts-ppq-models') || '[]'); } catch(e) {}
-  if (cachedModels.length) renderPpqModelDropdown(cachedModels);
+  if (cachedModels.length) {
+    renderPpqModelDropdown(cachedModels);
+    renderAgentRouterProviderModelDropdown('ppq', cachedModels);
+  }
   getPpqBalance().then(function(balance) {
     const el = document.getElementById('ppq-balance');
     if (el && balance != null) el.innerHTML = _ppqBalanceHtml(balance);
@@ -206,6 +219,7 @@ export async function handleRemovePpqKey() {
     localStorage.removeItem('labcharts-ppq-key');
     updateKeyCache('labcharts-ppq-key', null);
     localStorage.removeItem('labcharts-ppq-models');
+    localStorage.removeItem('labcharts-ppq-models-meta');
     localStorage.removeItem('labcharts-ppq-private-models');
     localStorage.removeItem('labcharts-ppq-model');
     localStorage.removeItem('labcharts-ppq-model-regular');

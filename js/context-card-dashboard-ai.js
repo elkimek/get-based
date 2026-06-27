@@ -8,6 +8,7 @@ import { state } from './state.js';
 import { isSyncEnabled } from './sync.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { renderAgentProposalInbox } from './agent-proposal-inbox.js';
 
 const dashboardAIActionDelegateRoots = new WeakSet();
 const DASHBOARD_AI_ACTION_ATTR = 'data-dashboard-ai-action';
@@ -303,9 +304,11 @@ export function openContextModal() {
     : (kbEnabled
       ? 'Knowledge Base is enabled, but no documents are indexed yet. Add a library before it can ground answers.'
       : 'Ground answers in your own documents, research papers, notes, and references.');
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-label="Context" style="max-width:520px">
+  const agentProposalInboxHtml = renderAgentProposalInbox({ importedData: state.importedData, showHistory: false });
+  overlay.innerHTML = `<div class="confirm-dialog context-hub-dialog" role="dialog" aria-modal="true" aria-label="Context">
     <p class="confirm-message" style="margin-bottom:6px">Context</p>
     <p class="confirm-subtext" style="margin:0 0 14px;color:var(--muted);font-size:0.92rem">Control how AI interprets and grounds answers. Profile facts stay in Profile Context.</p>
+    ${agentProposalInboxHtml}
     <div class="ai-picker-grid">
       <button type="button" class="ai-picker-card" data-pick="lens">
         <span class="ai-picker-kicker">Interpretive Lens</span>

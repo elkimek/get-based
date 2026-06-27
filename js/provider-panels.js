@@ -32,20 +32,16 @@ import {
 import {
   applyCustomApiManualModel,
   applyCustomOpenRouterModel,
-  onOpenRouterDropdownChange,
-  onVeniceModelDropdownChange,
-  renderCustomApiModelDropdown,
-  renderOpenRouterModelDropdown,
-  renderPpqModelDropdown,
-  renderRoutstrModelDropdown,
-  renderVeniceModelDropdown,
-  togglePpqPrivateMode,
-  toggleVeniceE2EE,
-  updateCustomModelPricing,
-  updateOpenRouterModelPricing,
-  updatePpqModelPricing,
-  updateRoutstrModelPricing,
-  updateVeniceModelPricing,
+  onAgentRouterModeChange,
+  onAgentRouterModelChange,
+  onAgentRouterOpenRouterModelChange,
+  onOpenRouterDropdownChange, onVeniceModelDropdownChange,
+  renderAgentRouterOpenRouterModelDropdown, renderAgentRouterProviderModelDropdown,
+  renderCustomApiModelDropdown, renderOpenRouterModelDropdown,
+  renderPpqModelDropdown, renderRoutstrModelDropdown, renderVeniceModelDropdown,
+  togglePpqPrivateMode, toggleVeniceE2EE,
+  updateCustomModelPricing, updateOpenRouterModelPricing,
+  updatePpqModelPricing, updateRoutstrModelPricing, updateVeniceModelPricing,
 } from './provider-model-controls.js';
 import {
   cancelPpqTopup,
@@ -128,20 +124,16 @@ export {
 export {
   applyCustomApiManualModel,
   applyCustomOpenRouterModel,
-  onOpenRouterDropdownChange,
-  onVeniceModelDropdownChange,
-  renderCustomApiModelDropdown,
-  renderOpenRouterModelDropdown,
-  renderPpqModelDropdown,
-  renderRoutstrModelDropdown,
-  renderVeniceModelDropdown,
-  togglePpqPrivateMode,
-  toggleVeniceE2EE,
-  updateCustomModelPricing,
-  updateOpenRouterModelPricing,
-  updatePpqModelPricing,
-  updateRoutstrModelPricing,
-  updateVeniceModelPricing,
+  onAgentRouterModeChange,
+  onAgentRouterModelChange,
+  onAgentRouterOpenRouterModelChange,
+  onOpenRouterDropdownChange, onVeniceModelDropdownChange,
+  renderAgentRouterOpenRouterModelDropdown, renderAgentRouterProviderModelDropdown,
+  renderCustomApiModelDropdown, renderOpenRouterModelDropdown,
+  renderPpqModelDropdown, renderRoutstrModelDropdown, renderVeniceModelDropdown,
+  togglePpqPrivateMode, toggleVeniceE2EE,
+  updateCustomModelPricing, updateOpenRouterModelPricing,
+  updatePpqModelPricing, updateRoutstrModelPricing, updateVeniceModelPricing,
 } from './provider-model-controls.js';
 
 export {
@@ -184,11 +176,7 @@ export {
   doRoutstrWithdrawExecute,
   doRoutstrWalletRestore
 } from './provider-wallet-panels.js';
-
-
-// ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
-// ═══════════════════════════════════════════════
 export function toggleAIPause(enabled) {
   setAIPaused(!enabled);
   showNotification(enabled ? 'AI features enabled' : 'AI features paused', 'info');
@@ -219,14 +207,28 @@ export function switchAIProvider(provider) {
   initSettingsModelFetch();
 }
 
-
-// ═══════════════════════════════════════════════
 // MODEL FETCH / BALANCE INIT
-// ═══════════════════════════════════════════════
+function loadRoutstrModelsIntoPanel() {
+  const area = document.getElementById('routstr-model-area');
+  if (!getRoutstrKey() || !area) return;
+  if (!document.getElementById('routstr-model-select')) area.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Loading Routstr models\u2026</span>';
+  fetchRoutstrModels().then(function(models) {
+    if (models.length) {
+      renderRoutstrModelDropdown(models);
+      renderAgentRouterProviderModelDropdown('routstr', models);
+    }
+    else if (area && !document.getElementById('routstr-model-select')) area.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">No Routstr models loaded yet. Pick an online node, then refresh models.</span>';
+  });
+}
+
 export function initSettingsModelFetch() {
   const orKey = getOpenRouterKey();
-  if (orKey && document.getElementById('openrouter-model-area')) {
-    fetchOpenRouterModels(orKey).then(function(models) { if (models.length) renderOpenRouterModelDropdown(models); });
+  if (orKey && (document.getElementById('openrouter-model-area') || document.getElementById('agent-router-model-area'))) {
+    fetchOpenRouterModels(orKey).then(function(models) {
+      if (models.length) renderOpenRouterModelDropdown(models);
+      let routerModels = []; try { routerModels = JSON.parse(localStorage.getItem('labcharts-openrouter-router-models') || '[]'); } catch(e) {}
+      if (routerModels.length) renderAgentRouterOpenRouterModelDropdown(routerModels);
+    });
     getOpenRouterBalance().then(function(b) {
       const el = document.getElementById('or-balance');
       if (el && b) el.innerHTML = _orBalanceHtml(b.remaining);
@@ -239,7 +241,10 @@ export function initSettingsModelFetch() {
       // After fetch, render the right list based on E2EE state
       const listKey = getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
       let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
-      if (models.length) renderVeniceModelDropdown(models);
+      if (models.length) {
+        renderVeniceModelDropdown(models);
+        renderAgentRouterProviderModelDropdown('venice', models);
+      }
     });
     getVeniceBalance().then(function(b) {
       const el = document.getElementById('venice-balance');
@@ -249,7 +254,7 @@ export function initSettingsModelFetch() {
   }
   const rsKey = getRoutstrKey();
   if (rsKey && document.getElementById('routstr-model-area')) {
-    fetchRoutstrModels().then(function(models) { if (models.length) renderRoutstrModelDropdown(models); });
+    loadRoutstrModelsIntoPanel();
     refreshRoutstrBalance();
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
@@ -262,36 +267,11 @@ export function initSettingsModelFetch() {
       const el = document.getElementById('routstr-mint-label');
       if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     });
-    // H6: Check for pending deposit recovery
     if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingDeposit') === 'function') callProviderPanelRuntime('cashuRecoverPendingDeposit').then(function(token) {
-      if (!token) return;
-      const area = document.getElementById('routstr-wallet-fund-area');
-      if (area) {
-        area.style.display = 'block';
-        area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
-          '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending deposit recovery</div>' +
-          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit failed. Your sats are safe in this token:</div>' +
-          '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
-          '<div style="display:flex;gap:4px;margin-top:4px">' +
-          '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
-          '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
-          '</div></div>';
-      }
+      _showPendingCashuRecovery('deposit', token);
     });
-    // Check for pending withdraw recovery
     if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingWithdraw') === 'function') callProviderPanelRuntime('cashuRecoverPendingWithdraw').then(function(token) {
-      if (!token) return;
-      const area = document.getElementById('routstr-wallet-fund-area');
-      if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
-      area.style.display = 'block';
-      area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
-        '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending withdraw recovery</div>' +
-        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous Lightning withdrawal failed mid-operation. Your sats are safe in this token:</div>' +
-        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
-        '<div style="display:flex;gap:4px;margin-top:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-withdraw" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
-        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
-        '</div></div>';
+      _showPendingCashuRecovery('withdraw', token);
     });
   }
   initSettingsPpqPanel();
@@ -299,15 +279,16 @@ export function initSettingsModelFetch() {
   const customKey = getCustomApiKey();
   if (customUrl && customKey && document.getElementById('custom-model-area')) {
     fetchCustomApiModels(customUrl, customKey).then(function(models) {
-      if (models.length) renderCustomApiModelDropdown(models);
+      if (models.length) {
+        renderCustomApiModelDropdown(models);
+        renderAgentRouterProviderModelDropdown('custom', models);
+      }
     });
   }
 }
 
-
-// ═══════════════════════════════════════════════
+window.addEventListener('labcharts-routstr-node-changed', function() { loadRoutstrModelsIntoPanel(); });
 // INTERNAL HELPERS
-// ═══════════════════════════════════════════════
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
 function _returnToChatIfOnboarding() {
   if (getProviderPanelRuntimeValue('_settingsHadProvider')) return; // already had a provider — user is just reconfiguring
@@ -349,6 +330,19 @@ export function copyProviderPanelClipboard(actionEl) {
 
 export function selectProviderPanelText(actionEl) {
   if (typeof actionEl?.select === 'function') actionEl.select();
+}
+
+function _showPendingCashuRecovery(kind, token) {
+  const area = document.getElementById('routstr-wallet-fund-area');
+  if (!token || !area || (kind === 'withdraw' && area.style.display === 'block')) return;
+  const isDeposit = kind === 'deposit';
+  const title = isDeposit ? 'Pending deposit recovery' : 'Pending withdraw recovery', context = isDeposit ? 'node deposit' : 'Lightning withdrawal';
+  area.style.display = 'block';
+  area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
+    '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 ' + title + '</div>' +
+    '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous ' + context + ' failed. Your sats are safe in this token:</div>' +
+    '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea><div style="display:flex;gap:4px;margin-top:4px">' +
+    '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-' + kind + '" data-token="' + escapeAttr(token) + '">Recover to Wallet</button><button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button></div></div>';
 }
 
 async function _recoverPendingToken(actionEl, clearName) {
@@ -434,15 +428,12 @@ export async function handleSaveVeniceKey() {
 }
 
 export function handleRemoveVeniceKey() {
-  localStorage.removeItem('labcharts-venice-key');
+  [
+    'labcharts-venice-key', 'labcharts-venice-models', 'labcharts-venice-models-meta',
+    'labcharts-venice-models-fetched-at', 'labcharts-venice-model', 'labcharts-venice-e2ee',
+    'labcharts-venice-e2ee-models', 'labcharts-venice-model-regular', 'labcharts-venice-model-e2ee',
+  ].forEach(k => localStorage.removeItem(k));
   updateKeyCache('labcharts-venice-key', null);
-  localStorage.removeItem('labcharts-venice-models');
-  localStorage.removeItem('labcharts-venice-models-fetched-at');
-  localStorage.removeItem('labcharts-venice-model');
-  localStorage.removeItem('labcharts-venice-e2ee');
-  localStorage.removeItem('labcharts-venice-e2ee-models');
-  localStorage.removeItem('labcharts-venice-model-regular');
-  localStorage.removeItem('labcharts-venice-model-e2ee');
   callProviderPanelRuntime('clearE2EESession');
   showNotification('Venice API key removed', 'info');
   callProviderPanelRuntime('openSettingsModal');
@@ -468,6 +459,8 @@ export async function handleSaveOpenRouterKey() {
     const models = await fetchOpenRouterModels(key);
     if (models.length) {
       renderOpenRouterModelDropdown(models);
+      let routerModels = []; try { routerModels = JSON.parse(localStorage.getItem('labcharts-openrouter-router-models') || '[]'); } catch(e) {}
+      if (routerModels.length) renderAgentRouterOpenRouterModelDropdown(routerModels);
       status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
     } else {
       status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
@@ -482,10 +475,12 @@ export async function handleSaveOpenRouterKey() {
 
 export function handleRemoveOpenRouterKey() {
   localStorage.removeItem('labcharts-openrouter-key');
-  updateKeyCache('labcharts-openrouter-key', null);
   localStorage.removeItem('labcharts-openrouter-models');
+  localStorage.removeItem('labcharts-openrouter-models-meta');
+  localStorage.removeItem('labcharts-openrouter-router-models');
   localStorage.removeItem('labcharts-openrouter-model');
   localStorage.removeItem('labcharts-openrouter-pricing');
+  updateKeyCache('labcharts-openrouter-key', null);
   showNotification('OpenRouter API key removed', 'info');
   callProviderPanelRuntime('openSettingsModal');
 }
@@ -609,12 +604,11 @@ export async function handleSaveRoutstrKey() {
 }
 
 export function handleRemoveRoutstrKey() {
-  localStorage.removeItem('labcharts-routstr-key');
+  [
+    'labcharts-routstr-key', 'labcharts-routstr-models', 'labcharts-routstr-models-meta',
+    'labcharts-routstr-model', 'labcharts-routstr-pricing', 'labcharts-routstr-vision-models',
+  ].forEach(k => localStorage.removeItem(k));
   updateKeyCache('labcharts-routstr-key', null);
-  localStorage.removeItem('labcharts-routstr-models');
-  localStorage.removeItem('labcharts-routstr-model');
-  localStorage.removeItem('labcharts-routstr-pricing');
-  localStorage.removeItem('labcharts-routstr-vision-models');
   showNotification('Routstr key removed', 'info');
   callProviderPanelRuntime('openSettingsModal');
 }
@@ -644,6 +638,7 @@ function handleRemoveCustomApi() {
   localStorage.removeItem('labcharts-custom-url');
   localStorage.removeItem('labcharts-custom-model');
   localStorage.removeItem('labcharts-custom-models');
+  localStorage.removeItem('labcharts-custom-models-meta');
   encryptedSetItem('labcharts-custom-key', '').then(function() { updateKeyCache('labcharts-custom-key', ''); });
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = renderAIProviderPanel('custom');
@@ -708,7 +703,10 @@ installProviderPanelDelegates({
   updateCustomModelPricing,
   setOllamaMainModel,
   refreshModelAdvisor,
-  applyCustomOpenRouterModel
+  applyCustomOpenRouterModel,
+  onAgentRouterModeChange,
+  onAgentRouterModelChange,
+  onAgentRouterOpenRouterModelChange
 });
 
 
@@ -737,6 +735,9 @@ Object.assign(window, {
   handleRemoveOpenRouterKey,
   renderOpenRouterModelDropdown,
   applyCustomOpenRouterModel,
+  onAgentRouterModeChange,
+  onAgentRouterModelChange,
+  onAgentRouterOpenRouterModelChange,
   onOpenRouterDropdownChange,
   handleSaveRoutstrKey,
   handleRemoveRoutstrKey,

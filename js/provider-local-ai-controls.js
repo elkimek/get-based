@@ -9,9 +9,11 @@ import {
   setOllamaMainModel,
   setOllamaPIIModel,
   setOllamaPIIUrl,
+  writeProviderModelCacheMeta,
 } from './api.js';
 import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, setOllamaPIIEnabled } from './pii.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
+import { renderAgentRouterProviderModelDropdown } from './provider-model-controls.js';
 
 let returnToChatIfOnboarding = function() {};
 const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
@@ -51,6 +53,8 @@ export function initSettingsOllamaCheck() {
           setOllamaMainModel(currentModel);
         }
         text.textContent = `Connected (${currentModel})`;
+        localStorage.setItem('labcharts-ollama-models', JSON.stringify(result.models));
+        writeProviderModelCacheMeta('ollama', { endpoint: mainUrl.replace(/\/+$/, '') + '/v1/models' });
         if (modelSection && modelSelect) {
           modelSection.style.display = 'block';
           modelSelect.innerHTML = result.models.map(m => `<option value="${escapeHTML(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
@@ -67,9 +71,13 @@ export function initSettingsOllamaCheck() {
       } else if (result.available) {
         dot.classList.add('disconnected');
         text.textContent = 'Connected but no models found. Load a model in your server.';
+        localStorage.removeItem('labcharts-ollama-models');
+        localStorage.removeItem('labcharts-ollama-models-meta');
       } else {
         dot.classList.add('disconnected');
         text.textContent = 'Not connected \u2014 start your local server to use';
+        localStorage.removeItem('labcharts-ollama-models');
+        localStorage.removeItem('labcharts-ollama-models-meta');
       }
       if (sameUrl) {
         window.updatePrivacyStatusCard?.(result.available && result.models.length > 0);
@@ -356,15 +364,20 @@ export async function testOllamaConnection() {
     if (models.length === 0) {
       dot.classList.add('disconnected');
       text.textContent = 'Connected but no models found. Load a model in your server.';
+      localStorage.removeItem('labcharts-ollama-models');
+      localStorage.removeItem('labcharts-ollama-models-meta');
     } else {
       dot.classList.add('connected');
       await saveOllamaConfig({ ...config, url, model: models[0], apiKey });
+      localStorage.setItem('labcharts-ollama-models', JSON.stringify(models));
+      writeProviderModelCacheMeta('ollama', { endpoint: url + '/v1/models' });
       if (!localStorage.getItem('labcharts-ollama-model')) setOllamaMainModel(models[0]);
       text.textContent = `Connected (${getOllamaMainModel()})`;
       if (modelSection && modelSelect) {
         const currentModel = getOllamaMainModel();
         modelSection.style.display = 'block';
         modelSelect.innerHTML = models.map(m => `<option value="${escapeHTML(m)}" ${m === currentModel ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
+        renderAgentRouterProviderModelDropdown('ollama', models);
       }
       const isOllamaServer = ollamaResult.available && ollamaResult.modelDetails?.length > 0;
       const modelDetails = isOllamaServer
@@ -381,6 +394,8 @@ export async function testOllamaConnection() {
   } catch (e) {
     dot.classList.add('disconnected');
     text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
+    localStorage.removeItem('labcharts-ollama-models');
+    localStorage.removeItem('labcharts-ollama-models-meta');
   }
 }
 

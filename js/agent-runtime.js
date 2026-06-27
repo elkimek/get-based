@@ -2,12 +2,14 @@
 // agent-runtime.js — browser-local getbased agent spine and confirmation-gated modes
 
 import { state } from './state.js';
+import { callClaudeAPI, hasAIProvider } from './api.js';
 import { saveChatHistory } from './chat-history.js';
 import { renderChatMessages } from './chat-render.js';
 import { getActivePersonality } from './chat-personalities.js';
 import {
   applyContextChangeProposal,
   applySupplementChangeProposal,
+  buildContextChangeProposalFromStructured,
   compareLatestLabEntries,
   detectAgentContextSignals,
   detectAgentNavigationTarget,
@@ -17,17 +19,27 @@ import {
   draftLabPlan,
   draftSupplementChangeProposal,
   executeAgentNavigation,
+  getAgentContextExtractionPrompt,
   getAgentProfileSnapshot,
   getAgentToolRegistry,
   investigateBiologyScore,
   reviseSupplementChangeProposal,
 } from './agent-tools.js';
+import {
+  applyAgentAction,
+  getAgentProposalSurfaceHandlers,
+  listAgentActions,
+  resolveAgentActionForIntent,
+  resolveAgentActionForProposal,
+  reviseAgentActionProposal,
+  runAgentAction,
+} from './agent-actions/registry.js';
 import { synthesizeAgentToolResponse } from './agent-response-synthesis.js';
-import { classifyAmbiguousAgentIntent } from './agent-intent-router.js';
+import { classifyAmbiguousAgentIntent, extractAgentJson } from './agent-intent-router.js';
 
 const AGENT_MODE_LABELS = {
   'find-what-changed': 'Find what changed',
-  'record-context-change': 'Update supplement log',
+  'record-context-change': 'Update profile context',
   'draft-lab-plan': 'Draft lab plan',
   'investigate-score': 'Investigate Biology Score',
   navigate: 'Open view',
@@ -57,7 +69,7 @@ const AGENT_PROPOSAL_HANDLERS = {
 };
 
 export function getAgentProposalHandlers() {
-  return AGENT_PROPOSAL_HANDLERS;
+  return getAgentProposalSurfaceHandlers();
 }
 
 function fmtValue(value) {
@@ -138,25 +150,8 @@ function buildFindWhatChangedResult(opts = {}) {
 
 function buildProposalContent(proposal) {
   const isContext = proposal?.surface === 'context';
-  const lines = ['### Proposed update', isContext ? 'I think you want to update your profile context:' : 'I think you want to update your supplement log:', ''];
-  for (const change of proposal.changes || []) {
-    if (change.action === 'add_or_update') {
-      const bits = [change.name, change.dosage, change.schedule, change.startDate ? `started ${change.startDate}` : ''].filter(Boolean);
-      lines.push(`- Add/update ${bits.join(' · ')}`);
-    } else if (change.action === 'end') {
-      lines.push(`- Mark ${change.name} as stopped${change.endDate ? ` on ${change.endDate}` : ''}`);
-    } else if (change.field === 'sleepRest') {
-      lines.push(`- Sleep & Rest: poor sleep context${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
-    } else if (change.field === 'exercise') {
-      lines.push(`- Exercise & Movement: restarted training${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
-    } else if (change.field === 'lightCircadian') {
-      lines.push(`- Light & Circadian: low sunlight/UV exposure${change.patch?.note ? ` — ${change.patch.note}` : ''}`);
-    } else if (change.field === 'healthGoals') {
-      lines.push(`- Health goal: ${change.item?.text || ''}`);
-    }
-  }
-  lines.push('', 'Nothing has been saved yet. Apply these changes?');
-  return lines.join('\n');
+  const target = isContext ? 'profile context' : 'supplement log';
+  return `I prepared a ${target} update. Nothing has been saved yet — review the card below and apply it only if it looks right.`;
 }
 
 function attachPersonality(message) {
@@ -211,8 +206,10 @@ export async function resolveAgentIntent(text = '', opts = {}) {
 }
 
 export async function runGetbasedAgentMode(mode, opts = {}) {
-  if (mode !== 'find-what-changed') throw new Error(`Unsupported getbased agent mode: ${mode}`);
-  const result = buildFindWhatChangedResult(opts);
+  const action = resolveAgentActionForIntent(mode);
+  if (!action || action.mode !== mode) throw new Error(`Unsupported getbased agent mode: ${mode}`);
+  const result = await runAgentAction(action.id, { text: opts.text || '' }, opts);
+  if (!result) return null;
   if (opts.appendToChat === true) {
     state.chatHistory.push(attachPersonality(result.assistantMessage));
     await saveChatHistory();
@@ -312,11 +309,106 @@ async function buildScoreInvestigationResult(text, opts = {}) {
   };
 }
 
+async function buildStructuredContextProposal(text, opts = {}) {
+  if (typeof opts.extractContextChangeProposal === 'function') {
+    const structured = await opts.extractContextChangeProposal({ userText: text, signal: opts.signal });
+    return buildContextChangeProposalFromStructured(structured, { sourceText: text, extractedBy: 'ai-structured-test' });
+  }
+  const canUseAI = opts.hasAIProvider ? opts.hasAIProvider() : hasAIProvider();
+  if (!canUseAI) return null;
+  const callAI = opts.callContextExtractorAI || callClaudeAPI;
+  try {
+    const result = await callAI({
+      system: getAgentContextExtractionPrompt(),
+      messages: [{ role: 'user', content: `User message:\n${String(text || '').slice(0, 2000)}` }],
+      maxTokens: 900,
+      forceNonStream: true,
+      signal: opts.signal,
+    });
+    const parsed = extractAgentJson(result?.text || '');
+    return buildContextChangeProposalFromStructured(parsed, { sourceText: text, extractedBy: 'ai-structured' });
+  } catch {
+    return null;
+  }
+}
+
+function shouldTryStructuredContextExtraction(text, intent) {
+  const sourceText = String(text || '');
+  if (intent?.intent === 'record-context-change') return true;
+  if (intent?.router?.intent === 'record-context-change') return true;
+  if (intent?.intent && intent.intent !== 'chat') return false;
+  const educational = /\b(tell me|explain|story|metaphor|evolution|mechanism|research|what do you think|how does|why does)\b/i.test(sourceText);
+  const explicitlyPersonal = /\b(my|i am|i'm|im|i have|i’m having|i feel|i started|i stopped)\b|m[áa]m|jsem|moje|za[čc]al|p[řr]estal/i.test(sourceText);
+  if (educational && !explicitlyPersonal) return false;
+  const contextSignal = /\b(sleep|insomnia|training|exercise|sunlight|low uv|digestion|digestive|gut|bowel|stool|bloat|gas|reflux|heartburn|nausea|appetite|abdominal|stomach|constipat|diarrh|goal)\b|sp[áa]nek|tr[áa]ven[íi]|stolice|z[áa]cp|pr[ůu]jem|nad[ýy]m|nafoukl|c[íi]l/i.test(sourceText);
+  return explicitlyPersonal && contextSignal;
+}
+
+function getActiveLabPlanDraft() {
+  for (let i = state.chatHistory.length - 1; i >= 0; i--) {
+    const plan = state.chatHistory[i]?.labPlanDraft;
+    if (plan?.surface === 'labPlan' && Array.isArray(plan.bundles)) return plan;
+  }
+  return null;
+}
+
+function getActiveScoreInvestigation() {
+  for (let i = state.chatHistory.length - 1; i >= 0; i--) {
+    const investigation = state.chatHistory[i]?.scoreInvestigation;
+    if (investigation?.surface === 'biologyScoreInvestigation') return investigation;
+  }
+  return null;
+}
+
+function looksLikeScoreToLabPlanFollowup(text) {
+  const sourceText = String(text || '');
+  return /\b(what|which|markers?|labs?|test|testing|order|check|improve confidence|missing)\b/i.test(sourceText)
+    && /\b(test|tests|labs?|markers?|confidence|coverage|missing|next)\b/i.test(sourceText);
+}
+
+function looksLikeLabPlanModificationFollowup(text) {
+  const sourceText = String(text || '');
+  return /\b(add|include|append|put|remove|drop|delete|without|cheaper|cheap|budget|lower cost|less expensive|minimum|minimal|core only|optional)\b/i.test(sourceText)
+    && /\b(that|this|these|those|list|plan|panel|markers?|labs?|test|apob|apo ?b|c[- ]?peptide|shbg|hba1c|hs[- ]?crp|tsh|lh|fsh|mma)\b/i.test(sourceText);
+}
+
 export async function handleAgentUserTurn(text, opts = {}) {
+  const activeLabPlanDraft = getActiveLabPlanDraft();
+  if (activeLabPlanDraft && looksLikeLabPlanModificationFollowup(text)) {
+    const result = await runAgentAction('labPlan.modify', { text, labPlanDraft: activeLabPlanDraft }, opts);
+    if (result) {
+      result.assistantMessage = attachPersonality(result.assistantMessage);
+      const intent = { intent: 'modify-lab-plan', confidence: 'high', reason: 'Follow-up refers to active lab-plan artifact.' };
+      if (opts.appendToChat === true) {
+        state.chatHistory.push(result.assistantMessage);
+        await saveChatHistory();
+        renderChatMessages();
+      }
+      return { handled: true, intent, result };
+    }
+  }
+  const activeScoreInvestigation = getActiveScoreInvestigation();
+  if (activeScoreInvestigation && looksLikeScoreToLabPlanFollowup(text)) {
+    const result = await runAgentAction('labPlan.fromScoreInvestigation', { text, scoreInvestigation: activeScoreInvestigation }, opts);
+    if (result) {
+      result.assistantMessage = attachPersonality(result.assistantMessage);
+      const intent = { intent: 'draft-lab-plan-from-score', confidence: 'high', reason: 'Follow-up asks what to test from active score investigation.' };
+      if (opts.appendToChat === true) {
+        state.chatHistory.push(result.assistantMessage);
+        await saveChatHistory();
+        renderChatMessages();
+      }
+      return { handled: true, intent, result };
+    }
+  }
   const intent = await resolveAgentIntent(text, opts);
-  if (intent.intent === 'investigate-score') {
-    const result = await buildScoreInvestigationResult(text, opts);
+  const directAction = resolveAgentActionForIntent(intent);
+  if (directAction && intent.intent !== 'record-context-change') {
+    const input = { text };
+    if (intent.intent === 'navigate') input.target = detectAgentNavigationTarget(text);
+    const result = await runAgentAction(directAction.id, input, opts);
     if (!result) return { handled: false, intent };
+    result.assistantMessage = attachPersonality(result.assistantMessage);
     if (opts.appendToChat === true) {
       state.chatHistory.push(result.assistantMessage);
       await saveChatHistory();
@@ -324,66 +416,52 @@ export async function handleAgentUserTurn(text, opts = {}) {
     }
     return { handled: true, intent, result };
   }
-  if (intent.intent === 'draft-lab-plan') {
-    const result = await buildLabPlanResult(text, opts);
-    if (!result) return { handled: false, intent };
-    if (opts.appendToChat === true) {
-      state.chatHistory.push(result.assistantMessage);
-      await saveChatHistory();
-      renderChatMessages();
-    }
-    return { handled: true, intent, result };
+  let proposal = null;
+  if (intent.intent === 'record-context-change') {
+    proposal = Object.values(getAgentProposalHandlers()).map(handler => handler.draft(text, opts)).find(Boolean);
   }
-  if (intent.intent === 'navigate') {
-    const target = detectAgentNavigationTarget(text);
-    if (!target) return { handled: false, intent };
-    const result = buildNavigationResult(target);
-    if (opts.appendToChat === true) {
-      state.chatHistory.push(result.assistantMessage);
-      await saveChatHistory();
-      renderChatMessages();
-    }
-    return { handled: true, intent, result };
-  }
-  if (intent.intent !== 'record-context-change') return { handled: false, intent };
-  const proposal = Object.values(AGENT_PROPOSAL_HANDLERS).map(handler => handler.draft(text, opts)).find(Boolean);
+  if (!proposal && shouldTryStructuredContextExtraction(text, intent)) proposal = await buildStructuredContextProposal(text, opts);
   if (!proposal) return { handled: false, intent };
-  const assistantMessage = attachPersonality({
-    role: 'assistant',
-    content: buildProposalContent(proposal),
-    auto: true,
-    agentMode: 'record-context-change',
-    agentProposal: proposal,
-  });
-  const result = {
-    mode: 'record-context-change',
-    label: AGENT_MODE_LABELS['record-context-change'],
-    status: 'awaiting_confirmation',
-    policy: { writeLevel: 'draft-only', requiresConfirmationForWrites: true },
-    toolCalls: [{ id: proposal.surface === 'context' ? 'draft_context_change' : 'draft_supplement_change', status: 'completed' }],
-    assistantMessage,
-  };
+  const effectiveIntent = intent.intent === 'record-context-change'
+    ? intent
+    : { ...intent, intent: 'record-context-change', confidence: intent.confidence || 'medium', extractedFromChatFallback: true };
+  const actionId = proposal.surface === 'supplements' ? 'supplement.update' : 'context.update';
+  const result = await runAgentAction(actionId, { text, proposal }, opts);
+  if (!result) return { handled: false, intent: effectiveIntent };
+  result.assistantMessage = attachPersonality(result.assistantMessage);
   if (opts.appendToChat === true) {
-    state.chatHistory.push(assistantMessage);
+    state.chatHistory.push(result.assistantMessage);
     await saveChatHistory();
     renderChatMessages();
   }
-  return { handled: true, intent, result };
+  return { handled: true, intent: effectiveIntent, result };
 }
 
 export async function applyAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
-  if (!msg || !proposal || proposal.status === 'applied') return null;
-  const handler = AGENT_PROPOSAL_HANDLERS[proposal.surface];
-  if (!handler?.apply) return null;
-  const result = await handler.apply(proposal);
+  if (!msg || !proposal || proposal.status !== 'pending' || proposal.requiresConfirmation !== true) return null;
+  const action = resolveAgentActionForProposal(proposal);
+  if (!action?.apply) return null;
+  const rollbackData = JSON.stringify(state.importedData || {});
+  let result;
+  proposal.status = 'applying';
+  renderChatMessages();
+  try {
+    result = await applyAgentAction(action.id, proposal);
+  } catch (err) {
+    try { state.importedData = JSON.parse(rollbackData); } catch {}
+    proposal.status = 'pending';
+    window.showNotification?.('Could not save the proposed update. Nothing was applied.', 'error');
+    renderChatMessages();
+    return null;
+  }
   proposal.status = 'applied';
-  msg.content = `${msg.content}\n\n✅ Applied. ${handler.appliedMessage}`;
+  msg.content = `${msg.content}\n\n✅ Applied. ${action.appliedMessage}`;
   msg.agentApplyResult = result;
   await saveChatHistory();
   renderChatMessages();
-  window.showNotification?.(handler.notification, 'success');
+  window.showNotification?.(action.notification, 'success');
   return result;
 }
 
@@ -406,8 +484,8 @@ export function editAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   const proposal = msg?.agentProposal;
   if (!proposal || proposal.status !== 'pending') return;
-  const handler = AGENT_PROPOSAL_HANDLERS[proposal.surface];
-  if (!handler?.editable) return;
+  const action = resolveAgentActionForProposal(proposal);
+  if (!action?.editable) return;
   proposal.editing = true;
   renderChatMessages();
 }
@@ -415,9 +493,10 @@ export function editAgentProposalFromChat(msgIndex) {
 export async function saveAgentProposalEditsFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg?.agentProposal || msg.agentProposal.status !== 'pending') return null;
-  const handler = AGENT_PROPOSAL_HANDLERS[msg.agentProposal.surface];
-  if (!handler?.revise) return null;
-  msg.agentProposal = handler.revise(msg.agentProposal, collectProposalEditValues(msgIndex));
+  const action = resolveAgentActionForProposal(msg.agentProposal);
+  if (!action?.revise) return null;
+  msg.agentProposal = reviseAgentActionProposal(action.id, msg.agentProposal, collectProposalEditValues(msgIndex));
+  if (!msg.agentProposal) return null;
   msg.agentProposal.editing = false;
   msg.content = buildProposalContent(msg.agentProposal);
   await saveChatHistory();
@@ -429,14 +508,17 @@ export async function dismissAgentProposalFromChat(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg?.agentProposal) return;
   msg.agentProposal.status = 'dismissed';
+  delete msg.agentProposal.sourceText;
+  msg.excludeFromAI = true;
+  msg.content = 'Dismissed the proposed update. I’ll answer normally instead.';
   await saveChatHistory();
   renderChatMessages();
 }
 
 export function getGetbasedAgentModes() {
-  return [
-    { id: 'find-what-changed', label: AGENT_MODE_LABELS['find-what-changed'], writeLevel: 'read-only' },
-  ];
+  return listAgentActions()
+    .filter(action => action.mode === 'find-what-changed')
+    .map(action => ({ id: action.mode, label: action.label, writeLevel: action.writeLevel }));
 }
 
 Object.assign(window, {

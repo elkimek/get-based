@@ -7,7 +7,7 @@ import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 import { renderChatMessages } from './chat-render.js';
 import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
 import {
-  createTypewriter, getChatAbortController, handleChatKeydown,
+  continueChatAfterAgentProposalDismissed, createTypewriter, getChatAbortController, handleChatKeydown,
   isChatStreaming, sendChatMessage, setChatAbortController,
   setSendButtonMode,
 } from './chat-send.js';
@@ -124,6 +124,7 @@ Object.assign(window, {
   startOnboardingLabImport,
   requestOnboardingLabImportProvider,
   sendChatMessage,
+  continueChatAfterAgentProposalDismissed,
   handleChatKeydown,
   startDiscussion,
   startDiscussionFromPicker,

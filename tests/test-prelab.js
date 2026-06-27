@@ -99,6 +99,13 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     'CHAT_SYSTEM_PROMPT should have no-data section');
   assert('Advises pre-lab advisor role', constSrc.includes('pre-lab advisor role'),
     'Should tell AI to shift to advisor role');
+  assert('System prompt frames chat as personal health intelligence, not lab-only analyst',
+    constSrc.includes('personal health intelligence layer inside getbased')
+      && constSrc.includes('not only a lab interpretation app')
+      && constSrc.includes('symptoms, lifestyle context, biomarkers, trends')
+      && constSrc.includes('Do not dismiss health questions just because they are not already tied to a lab result')
+      && !constSrc.includes('outside lab results, politely redirect'),
+    'CHAT_SYSTEM_PROMPT should support symptoms/context/test planning instead of lab-only deflection');
   assert('Recommends tailored panels', constSrc.includes('tailored to their health goals'),
     'Should instruct personalized recommendations');
   assert('Explains WHY for each panel', constSrc.includes('explain in one sentence WHY'),
@@ -312,8 +319,8 @@ const onboardingViewSrc = read('js/onboarding-view.js');
       chatOnboardingSrc.includes('export function startOnboardingLabImport'),
     'Provider quiz and onboarding handlers should be extracted from chat.js');
   assert('sendChatMessage gives app-agent first refusal before no-provider setup guide', (() => {
-    const fnStart = chatSendSrc.indexOf('export async function sendChatMessage()');
-    const fnBody = chatSendSrc.substring(fnStart, fnStart + 2600);
+    const fnStart = chatSendSrc.indexOf('export async function sendChatMessage(');
+    const fnBody = chatSendSrc.substring(fnStart, fnStart + 4200);
     const agentIdx = fnBody.indexOf('handleAgentUserTurn(text');
     const providerIdx = fnBody.indexOf('if (!hasAIProvider())', agentIdx);
     return agentIdx > 0 && providerIdx > agentIdx;

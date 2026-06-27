@@ -110,7 +110,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && savedMessages[1].content === 'Ferritin is improving.';
       outcomes.saveUpdatesThreadMetadata = savedThread.messageCount === 2
         && savedThread.updatedAt !== firstUpdatedAt
-        && savedThread.personalityName === 'AI Lab Analyst'
+        && savedThread.personalityName === 'Health Intelligence'
         && savedThread.personalityIcon === '\uD83D\uDD2C';
       outcomes.saveRendersThreadList = document.querySelector('.chat-thread-item[data-thread-id="thread-a"]')
         ?.textContent.includes('2 msgs') === true;
@@ -175,7 +175,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
         && persistedImported.chatSummaries[0].id === 'summary-b';
       outcomes.clearRefreshesUiAndNotifies = renderCalls >= 3
         && discussCalls === 1
-        && document.querySelector('.chat-header-title')?.textContent === 'AI Lab Analyst'
+        && document.querySelector('.chat-header-title')?.textContent === 'Health Intelligence'
         && document.getElementById('notification-container')?.textContent.includes('Chat history cleared') === true;
     } finally {
       state.currentProfile = original.currentProfile;

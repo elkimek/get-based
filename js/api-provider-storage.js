@@ -274,3 +274,136 @@ export function getCustomApiModelDisplay() {
   const m = cached.find(function(x) { return x.id === id; });
   return m ? (m.name || m.id) : id;
 }
+
+const AGENT_ROUTER_MODE_KEY = 'labcharts-agent-router-mode';
+const AGENT_ROUTER_PROVIDER_KEY = 'labcharts-agent-router-provider';
+const AGENT_ROUTER_OPENROUTER_MODEL_KEY = 'labcharts-agent-router-openrouter-model';
+const ROUTER_PROVIDERS = ['openrouter', 'venice', 'routstr', 'ppq', 'custom', 'ollama'];
+
+function normalizeRouterProvider(provider) {
+  return ROUTER_PROVIDERS.includes(provider) ? provider : 'openrouter';
+}
+
+export function getAgentRouterMode() {
+  const mode = localStorage.getItem(AGENT_ROUTER_MODE_KEY) || 'auto';
+  return mode === 'auto' || mode === 'main' || ROUTER_PROVIDERS.includes(mode) ? mode : 'auto';
+}
+
+export function setAgentRouterMode(mode) {
+  localStorage.setItem(AGENT_ROUTER_MODE_KEY, mode === 'main' || ROUTER_PROVIDERS.includes(mode) ? mode : 'auto');
+  markAISettingsLocal();
+}
+
+export function getAgentRouterProvider() {
+  return normalizeRouterProvider(localStorage.getItem(AGENT_ROUTER_PROVIDER_KEY) || getAIProvider());
+}
+
+export function setAgentRouterProvider(provider) {
+  localStorage.setItem(AGENT_ROUTER_PROVIDER_KEY, normalizeRouterProvider(provider));
+  markAISettingsLocal();
+}
+
+function agentRouterModelKey(provider) {
+  return provider === 'openrouter' ? AGENT_ROUTER_OPENROUTER_MODEL_KEY : `labcharts-agent-router-${provider}-model`;
+}
+
+function defaultAgentRouterModel(provider) {
+  if (provider === 'openrouter') return 'google/gemini-3.5-flash';
+  return '';
+}
+
+function normalizeEndpoint(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
+function readProviderModelCacheMeta(provider) {
+  try { return JSON.parse(localStorage.getItem(`labcharts-${provider}-models-meta`) || 'null'); }
+  catch { return null; }
+}
+
+function providerModelCacheTrusted(provider) {
+  const meta = readProviderModelCacheMeta(provider);
+  if (!meta || meta.provider !== provider || meta.source !== 'provider-api') return false;
+  if (provider === 'openrouter') return meta.endpoint === 'https://openrouter.ai/api/v1/models';
+  if (provider === 'venice') return meta.endpoint === 'https://api.venice.ai/api/v1/models';
+  if (provider === 'ppq') return meta.endpoint === 'https://api.ppq.ai/v1/models?type=chat';
+  if (provider === 'routstr') {
+    const node = normalizeEndpoint(localStorage.getItem('labcharts-routstr-node') || '');
+    return !!node && normalizeEndpoint(meta.endpoint) === node + '/v1/models';
+  }
+  if (provider === 'custom') {
+    const endpoint = normalizeEndpoint(localStorage.getItem('labcharts-custom-url') || '');
+    const expected = endpoint + '/models';
+    const parent = endpoint.replace(/\/[^/]+\/v\d+$/, '/v1') + '/models';
+    const actual = normalizeEndpoint(meta.endpoint);
+    return !!endpoint && (actual === expected || actual === parent);
+  }
+  if (provider === 'ollama') {
+    const config = typeof window !== 'undefined' && window.getOllamaConfig ? window.getOllamaConfig() : null;
+    const endpoint = normalizeEndpoint(config?.url || '');
+    return !!endpoint && normalizeEndpoint(meta.endpoint) === endpoint + '/v1/models';
+  }
+  return false;
+}
+
+function storedRouterModelsFor(provider) {
+  if (provider === 'openrouter') return readStoredArray('labcharts-openrouter-router-models');
+  if (provider === 'venice') {
+    const e2ee = localStorage.getItem('labcharts-venice-e2ee') === 'true' ? readStoredArray('labcharts-venice-e2ee-models') : [];
+    return e2ee.length ? e2ee : readStoredArray('labcharts-venice-models');
+  }
+  return readStoredArray(`labcharts-${provider}-models`);
+}
+
+function modelIdInTrustedRouterCache(provider, modelId) {
+  if (!modelId || !providerModelCacheTrusted(provider)) return false;
+  return storedRouterModelsFor(provider).some(function(model) {
+    return (typeof model === 'string' ? model : model?.id) === modelId;
+  });
+}
+
+export function getAgentRouterModel(provider = getAgentRouterProvider()) {
+  const p = normalizeRouterProvider(provider);
+  return localStorage.getItem(agentRouterModelKey(p)) || defaultAgentRouterModel(p);
+}
+
+export function setAgentRouterModel(provider, model) {
+  const p = normalizeRouterProvider(provider);
+  if (!model) return;
+  localStorage.setItem(agentRouterModelKey(p), model);
+  localStorage.setItem(AGENT_ROUTER_PROVIDER_KEY, p);
+  markAISettingsLocal();
+}
+
+export function getAgentRouterOpenRouterModel() {
+  return getAgentRouterModel('openrouter');
+}
+
+export function setAgentRouterOpenRouterModel(model) {
+  setAgentRouterModel('openrouter', model);
+}
+
+export function getAgentRouterModelDisplay(provider = getAgentRouterProvider()) {
+  const p = normalizeRouterProvider(provider);
+  const id = getAgentRouterModel(p);
+  const cacheKey = p === 'openrouter' ? 'labcharts-openrouter-router-models' : `labcharts-${p}-models`;
+  const cached = readStoredArray(cacheKey);
+  const m = cached.find(function(x) { return x.id === id || x === id; });
+  return m ? (m.name || m.id || m) : id;
+}
+
+export function getAgentRouterOpenRouterModelDisplay() {
+  return getAgentRouterModelDisplay('openrouter');
+}
+
+export function resolveAgentRouterConfig() {
+  const mode = getAgentRouterMode();
+  const activeProvider = getAIProvider();
+  if (mode === 'main') return { mode, provider: activeProvider, modelId: null, useMain: true };
+  const routerProvider = mode === 'auto' ? activeProvider : normalizeRouterProvider(mode);
+  if (routerProvider !== activeProvider) return { mode, provider: activeProvider, modelId: null, useMain: true };
+  const modelId = getAgentRouterModel(routerProvider);
+  if (!modelId) return { mode, provider: activeProvider, modelId: null, useMain: true };
+  if (!modelIdInTrustedRouterCache(routerProvider, modelId)) return { mode, provider: activeProvider, modelId: null, useMain: true };
+  return { mode, provider: routerProvider, modelId, useMain: false };
+}

@@ -60,6 +60,13 @@ export function serializeAgentToolResult(intent, toolResult) {
         rationale: bundle?.rationale || '',
         markers: shortArray(bundle?.markers, 20),
       })),
+      revisionOf: toolResult?.revisionOf || null,
+      modification: toolResult?.modification ? {
+        operation: toolResult.modification.operation || '',
+        summary: toolResult.modification.summary || '',
+        addedMarkers: shortArray(toolResult.modification.addedMarkers, 20),
+        removedMarkers: shortArray(toolResult.modification.removedMarkers, 20),
+      } : null,
     };
   }
   if (intent === 'investigate-score' || toolResult?.surface === 'biologyScoreInvestigation') {

@@ -109,6 +109,8 @@ import {
   clearInterpretiveLens,
   showDietContaminantsModal,
 } from './context-card-lifestyle-editors.js';
+import { renderAgentProposalInbox } from './agent-proposal-inbox.js';
+import { renderAgentArtifactLibrary } from './agent-artifact-library.js';
 
 const contextCardActionDelegateRoots = new WeakSet();
 const CONTEXT_CARD_ACTION_ATTR = 'data-context-card-action';
@@ -294,6 +296,8 @@ export function renderProfileContextCards() {
   }
   const _refreshBtn = hasAIProvider() ? `<button class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} title="Refresh all AI insights">&#x21bb;</button>` : '';
   let html = `<div style="margin-top:16px"><span class="context-section-title">What your GP won't ask you (${filledCount}/${cardDefs.length} filled)</span>${_refreshBtn}${_ccSubtitle}</div>`;
+  if ((state.importedData.agentProposals || []).some(item => item?.status === 'pending')) html += renderAgentProposalInbox();
+  if ((state.importedData.agentArtifacts?.labPlans || []).length || (state.importedData.agentArtifacts?.prelabChecklists || []).length) html += renderAgentArtifactLibrary();
   html += `<div class="profile-context-cards">`;
   for (const c of cardDefs) {
     const filled = isContextFilled(c.key);

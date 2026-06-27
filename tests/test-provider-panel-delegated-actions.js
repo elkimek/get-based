@@ -49,6 +49,8 @@ assert('provider-panels installs provider panel delegates',
   panelsSrc.includes("import { installProviderPanelDelegates } from './provider-panel-delegates.js'") &&
     panelsSrc.includes('installProviderPanelDelegates({') &&
     panelsSrc.includes('handleSaveOpenRouterKey') &&
+    panelsSrc.includes('onAgentRouterModeChange') &&
+    panelsSrc.includes('onAgentRouterOpenRouterModelChange') &&
     panelsSrc.includes('setOllamaMainModel'));
 assert('provider panel delegates install idempotent listeners',
   delegatesSrc.includes('let providerPanelDelegatesInstalled = false') &&
@@ -112,6 +114,9 @@ assert('service worker precaches provider panel delegate module',
 
 [
   'openrouter-model',
+  'agent-router-mode',
+  'agent-router-model',
+  'agent-router-openrouter-model',
   'routstr-model',
   'venice-model',
   'venice-e2ee',

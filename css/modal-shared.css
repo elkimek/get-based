@@ -833,6 +833,13 @@
   border: 1px solid var(--border); padding: 24px 26px;
   max-width: 460px; width: min(100%, 460px); box-shadow: var(--shadow-lg);
 }
+.confirm-dialog.context-hub-dialog {
+  max-width: 640px;
+  width: min(100%, 640px);
+}
+.confirm-dialog.context-hub-dialog .agent-proposal-inbox {
+  margin: 0 0 14px;
+}
 .confirm-message {
   font-size: 15px; line-height: 1.6; color: var(--text-primary); margin-bottom: 24px;
 }

@@ -169,7 +169,7 @@ export function getActivePersonality() {
         name: cp.name,
         icon: cp.icon,
         description: 'Custom personality',
-        greeting: 'Ask me about your lab results, trends, or what specific biomarkers mean.',
+        greeting: 'Ask me about labs, symptoms, trends, lifestyle context, or what to test next.',
         promptAddition: null
       };
     }

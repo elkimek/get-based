@@ -59,7 +59,16 @@ test('browser-local agent flows route, render cards, gate writes, and keep URL s
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const beforeUrl = location.href;
-    const beforeRouterData = JSON.stringify(state.importedData);
+    const stableProfileData = () => {
+      const data = state.importedData;
+      return JSON.stringify({
+        entries: data.entries || [],
+        supplements: data.supplements || [],
+        healthGoals: data.healthGoals || [],
+        changeHistory: data.changeHistory || [],
+      });
+    };
+    const beforeRouterData = stableProfileData();
     const outcomes = {};
 
     let routerCalled = 0;
@@ -80,7 +89,7 @@ test('browser-local agent flows route, render cards, gate writes, and keep URL s
       && /Insulin resistance \/ glucose control/.test(chatText)
       && /Low testosterone \/ androgen axis/.test(chatText)
       && (chatText.match(/Fasting insulin/g) || []).length === 1
-      && JSON.stringify(state.importedData) === beforeRouterData
+      && stableProfileData() === beforeRouterData
       && location.href === beforeUrl;
 
     let deterministicRouterCalled = false;
@@ -147,6 +156,99 @@ test('browser-local agent flows route, render cards, gate writes, and keep URL s
       && state.importedData.supplements.some(item => item.name === 'Creatine' && item.dosage === '5g')
       && state.importedData.supplements.some(item => item.name === 'Zinc' && item.endDate === '2026-06-19')
       && state.importedData.changeHistory.some(item => item.source === 'agent' && item.confirmedByUser === true);
+
+    state.importedData.diet = { type: 'paleo', pattern: '2 meals/day', note: 'old diet note' };
+    const beforeConstipationProposal = JSON.stringify(state.importedData.diet);
+    const constipationProposal = await window.handleAgentUserTurn('im having constipation for three days now', {
+      appendToChat: true,
+      today: '2026-06-26',
+    });
+    const constipationProposalIndex = state.chatHistory.length - 1;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const constipationDraftText = document.querySelector('#chat-messages')?.innerText || '';
+    const afterConstipationDraft = JSON.stringify(state.importedData.diet);
+    await window.applyAgentProposalFromChat(constipationProposalIndex);
+    outcomes.constipationDoesNotFallThroughToLLM = constipationProposal.handled === true
+      && constipationProposal.intent.intent === 'record-context-change'
+      && constipationProposal.result.assistantMessage.agentProposal?.changes?.some(change => change.field === 'diet' && !('digestion' in change.patch))
+      && beforeConstipationProposal === afterConstipationDraft
+      && /Diet & Digestion/.test(constipationDraftText)
+      && /Stool consistency: hard\/pellets/.test(constipationDraftText)
+      && /Bowel frequency: every other day/.test(constipationDraftText)
+      && !/consult a physician promptly/i.test(constipationDraftText)
+      && state.importedData.diet.stoolConsistency === 'hard/pellets'
+      && state.importedData.diet.bowelFrequency === 'every other day'
+      && state.importedData.diet.note.includes('constipation')
+      && !('digestion' in state.importedData.diet);
+
+    state.importedData.diet = { type: 'paleo', pattern: '2 meals/day', note: 'old diet note' };
+    const beforeLocalizedProposal = JSON.stringify(state.importedData.diet);
+    const localizedProposal = await window.handleAgentUserTurn('Mám tři dny zácpu a nafouklé břicho', {
+      appendToChat: true,
+      today: '2026-06-26',
+      classifyAgentIntentAI: async () => ({ intent: 'chat', confidence: 'low', reason: 'router missed localized context' }),
+      extractContextChangeProposal: async () => ({
+        changes: [{
+          field: 'diet',
+          patch: {
+            digestion: 'worse',
+            bowelFrequency: 'irregular',
+            bloating: 'moderate',
+            note: 'User reported context: Mám tři dny zácpu a nafouklé břicho.',
+          },
+        }],
+      }),
+    });
+    const localizedProposalIndex = state.chatHistory.length - 1;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const localizedDraftText = document.querySelector('#chat-messages .chat-msg:last-child')?.innerText || '';
+    const afterLocalizedDraft = JSON.stringify(state.importedData.diet);
+    await window.applyAgentProposalFromChat(localizedProposalIndex);
+    outcomes.localizedContextUsesAIExtractorAndSchema = localizedProposal.handled === true
+      && localizedProposal.result.assistantMessage.agentProposal?.changes?.some(change => change.field === 'diet' && !('digestion' in change.patch))
+      && beforeLocalizedProposal === afterLocalizedDraft
+      && /Diet & Digestion/.test(localizedDraftText)
+      && /Bowel frequency: irregular/.test(localizedDraftText)
+      && /Stool consistency: hard\/pellets/.test(localizedDraftText)
+      && /Bloating: moderate/.test(localizedDraftText)
+      && !/I think you want|digestive context|User reported context/i.test(localizedDraftText)
+      && state.importedData.diet.bowelFrequency === 'irregular'
+      && state.importedData.diet.stoolConsistency === 'hard/pellets'
+      && state.importedData.diet.bloating === 'moderate'
+      && state.importedData.diet.note.includes('old diet note')
+      && state.importedData.diet.note.includes('Mám tři dny zácpu a nafouklé břicho.')
+      && !/User reported context/i.test(state.importedData.diet.note)
+      && !('digestion' in state.importedData.diet);
+
+    state.importedData.diet = { type: 'paleo', pattern: '2 meals/day', note: 'old diet note' };
+    const beforeDietProposal = JSON.stringify(state.importedData.diet);
+    const dietProposal = await window.handleAgentUserTurn('My digestion got worse this week: bloating is severe, stools are loose, reflux is frequent, and dairy seems bad.', {
+      appendToChat: true,
+      today: '2026-06-26',
+    });
+    const dietProposalIndex = state.chatHistory.length - 1;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const dietDraftText = document.querySelector('#chat-messages')?.innerText || '';
+    const afterDietDraft = JSON.stringify(state.importedData.diet);
+    const dietApplied = await window.applyAgentProposalFromChat(dietProposalIndex);
+    outcomes.digestionContextUsesRealDietFields = dietProposal.handled === true
+      && dietProposal.result.assistantMessage.agentProposal?.changes?.some(change => change.field === 'diet' && !('digestion' in change.patch))
+      && beforeDietProposal === afterDietDraft
+      && /Diet & Digestion/.test(dietDraftText)
+      && /Stool consistency: loose/.test(dietDraftText)
+      && /Bloating: severe/.test(dietDraftText)
+      && /Acid reflux: frequent/.test(dietDraftText)
+      && dietApplied?.status === 'applied'
+      && state.importedData.diet.type === 'paleo'
+      && state.importedData.diet.pattern === '2 meals/day'
+      && state.importedData.diet.stoolConsistency === 'loose'
+      && state.importedData.diet.bloating === 'severe'
+      && state.importedData.diet.acidReflux === 'frequent'
+      && state.importedData.diet.foodSensitivities?.includes('dairy')
+      && state.importedData.diet.note.includes('old diet note')
+      && state.importedData.diet.note.includes('digestive context')
+      && !('digestion' in state.importedData.diet)
+      && state.importedData.changeHistory.some(item => item.source === 'agent' && item.surface === 'context' && item.confirmedByUser === true);
 
     const normalChat = await window.handleAgentUserTurn('Tell me a gentle story about mitochondria', {
       appendToChat: true,

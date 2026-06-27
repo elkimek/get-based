@@ -39,6 +39,8 @@ const CLICK_ACTIONS = Object.freeze({
 
 const CHANGE_ACTIONS = Object.freeze({
   'openrouter-model': 'onOpenRouterDropdownChange',
+  'agent-router-mode': 'onAgentRouterModeChange',
+  'agent-router-openrouter-model': 'onAgentRouterOpenRouterModelChange',
   'venice-model': 'onVeniceModelDropdownChange',
   'venice-e2ee': 'toggleVeniceE2EE',
   'ppq-private-mode': 'togglePpqPrivateMode'
@@ -104,6 +106,7 @@ function _handleProviderPanelChange(event) {
   const pricingActions = MODEL_PRICING_ACTIONS[action];
 
   if (pricingActions) return _setModelAndPricing(pricingActions[0], pricingActions[1], el.value);
+  if (action === 'agent-router-model') return _call('onAgentRouterModelChange', el.value, el.dataset.routerProvider || 'openrouter');
   if (action === 'venice-e2ee' || action === 'ppq-private-mode') return _call(CHANGE_ACTIONS[action], !!el.checked);
   if (CHANGE_ACTIONS[action]) return _call(CHANGE_ACTIONS[action], el.value);
   if (action === 'local-ai-model') {

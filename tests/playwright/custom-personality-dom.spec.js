@@ -186,7 +186,7 @@ test('custom personality generator fills prompt and preserves selected custom te
     contentType: 'application/javascript',
     body: `
       export const CHAT_PERSONALITIES = [
-        { id: 'default', name: 'AI Lab Analyst', icon: 'A', promptAddition: null },
+        { id: 'default', name: 'Health Intelligence', icon: 'A', promptAddition: null },
       ];
       export const COUNTRY_LATITUDES = {};
       export const LATITUDE_BANDS = {};
@@ -469,7 +469,7 @@ test('custom personality save path updates picker, header, and persisted state',
           && afterDelete.length === 0
           && state.currentChatPersonality === 'default'
           && localStorage.getItem(personalityKey) === 'default'
-          && document.querySelector('.chat-header-title')?.textContent === 'AI Lab Analyst';
+          && document.querySelector('.chat-header-title')?.textContent === 'Health Intelligence';
       } else {
         outcomes.deleteCustomConfirmsRemovesAndFallsBack = false;
       }

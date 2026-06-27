@@ -212,6 +212,7 @@ export function setSelectedNodeUrl(url) {
     return;
   }
   localStorage.setItem('labcharts-routstr-node', url);
+  try { window.dispatchEvent(new CustomEvent('labcharts-routstr-node-changed', { detail: { url } })); } catch {}
 }
 
 /** Clear node cache (force re-discovery on next call) */

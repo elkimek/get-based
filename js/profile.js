@@ -79,6 +79,8 @@ import {
  *   markerNotes: Record<string, any>,
  *   markerValueNotes: Record<string, any>,
  *   biologyScoreAI: Record<string, any>,
+ *   agentArtifacts: { labPlans: any[], prelabChecklists: any[] },
+ *   agentProposals: any[],
  *   importSnapshots: any[],
  *   markerLabels?: Record<string, any>,
  *   refOverrides?: Record<string, any>,
@@ -213,6 +215,8 @@ export function createDefaultProfileData() {
     markerNotes: {},
     markerValueNotes: {},
     biologyScoreAI: {},
+    agentArtifacts: { labPlans: [], prelabChecklists: [] },
+    agentProposals: [],
     changeHistory: [],
     importSnapshots: [],
     biometrics: null,
@@ -659,6 +663,11 @@ export function migrateProfileData(data) {
   if (data.markerNotes === undefined) data.markerNotes = {};
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
   if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
+  if (data.agentArtifacts === undefined || typeof data.agentArtifacts !== 'object' || !data.agentArtifacts) data.agentArtifacts = { labPlans: [], prelabChecklists: [] };
+  if (!Array.isArray(data.agentArtifacts.labPlans)) data.agentArtifacts.labPlans = [];
+  if (!Array.isArray(data.agentArtifacts.prelabChecklists)) data.agentArtifacts.prelabChecklists = [];
+  if (data.agentProposals === undefined) data.agentProposals = [];
+  if (!Array.isArray(data.agentProposals)) data.agentProposals = [];
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.importSnapshots === undefined) data.importSnapshots = [];
   if (data.biometrics === undefined) data.biometrics = null;

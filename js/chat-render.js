@@ -24,6 +24,28 @@ function bindRenderedChatContainClicks(container) {
   });
 }
 
+function contextPatchLabel(key) {
+  const labels = {
+    acidReflux: 'Acid reflux',
+    abdominalPain: 'Abdominal pain',
+    appetite: 'Appetite',
+    bloating: 'Bloating',
+    bowelFrequency: 'Bowel frequency',
+    burping: 'Burping',
+    foodSensitivities: 'Food sensitivities',
+    gas: 'Gas',
+    nausea: 'Nausea',
+    note: 'Note',
+    stoolConsistency: 'Stool consistency',
+    uvExposure: 'UV / sun exposure',
+  };
+  return labels[key] || String(key || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
+}
+
+function contextPatchValue(value) {
+  return Array.isArray(value) ? value.join(', ') : String(value ?? '');
+}
+
 function renderAgentProposalChangeRow(change, index, proposal) {
   if (proposal.editing && proposal.surface === 'supplements') {
     const name = `<input class="agent-proposal-input" data-agent-proposal-change-index="${index}" data-agent-proposal-field="name" value="${escapeAttr(change.name || '')}" aria-label="Supplement name">`;
@@ -41,7 +63,10 @@ function renderAgentProposalChangeRow(change, index, proposal) {
   }
   if (proposal.surface === 'context') {
     if (change.field === 'healthGoals') return `<li><strong>+ Health goals</strong> <span>${escapeHTML(change.item?.text || '')}</span></li>`;
-    const details = Object.entries(change.patch || {}).filter(([key]) => key !== 'updatedAt').map(([key, value]) => `${key}: ${value}`).join(' · ');
+    const details = Object.entries(change.patch || {})
+      .filter(([key]) => key !== 'updatedAt')
+      .map(([key, value]) => `${contextPatchLabel(key)}: ${contextPatchValue(value)}`)
+      .join(' · ');
     return `<li><strong>~ ${escapeHTML(change.label || change.field)}</strong>${details ? ` <span>${escapeHTML(details)}</span>` : ''}</li>`;
   }
   return '';
@@ -55,12 +80,12 @@ function renderAgentProposalCard(proposal, msgIndex) {
     ? proposal.editing
       ? `<div class="agent-proposal-actions">
         <button type="button" class="chat-action-btn" data-chat-message-action="save-agent-proposal-edits" data-chat-message-index="${msgIndex}">Save edits</button>
-        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss</button>
+        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss &amp; answer</button>
       </div>`
       : `<div class="agent-proposal-actions">
         <button type="button" class="chat-action-btn" data-chat-message-action="apply-agent-proposal" data-chat-message-index="${msgIndex}">Apply changes</button>
         ${proposal.surface === 'supplements' ? `<button type="button" class="chat-action-btn" data-chat-message-action="edit-agent-proposal" data-chat-message-index="${msgIndex}">Edit</button>` : ''}
-        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss</button>
+        <button type="button" class="chat-action-btn" data-chat-message-action="dismiss-agent-proposal" data-chat-message-index="${msgIndex}">Dismiss &amp; answer</button>
       </div>`
     : `<div class="agent-proposal-status">${status === 'applied' ? 'Applied' : 'Dismissed'}</div>`;
   return `<section class="agent-proposal-card" data-agent-proposal-message-index="${msgIndex}" aria-label="Agent proposed update">

@@ -98,7 +98,15 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog documents Biology Scores persistence and Profile Context cleanup in user-readable terms',
+assert('latest changelog documents browser-local agent foundation in user-readable terms',
+  /version:\s*'1\.10\.63'[\s\S]{0,2200}confirmable app actions/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,2200}Manage → Context/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,2200}sidebar badge and an inbox/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,2200}structured encrypted profile artifacts/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,2200}fast provider-scoped model/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,2200}roll back if saving fails/.test(changelogSrc)
+    && /version:\s*'1\.10\.63'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
+assert('previous changelog documents Biology Scores persistence and Profile Context cleanup in user-readable terms',
   /version:\s*'1\.10\.29'[\s\S]{0,1600}separate app updates from real context changes/.test(changelogSrc)
     && /version:\s*'1\.10\.29'[\s\S]{0,1600}without paying for another AI unlock/.test(changelogSrc)
     && /version:\s*'1\.10\.29'[\s\S]{0,1600}Changed context still requires a refresh/.test(changelogSrc)

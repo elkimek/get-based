@@ -4,6 +4,9 @@
 import { escapeHTML, showNotification } from './utils.js';
 import {
   fetchOpenRouterModelPricing,
+  getAgentRouterMode,
+  getAgentRouterModel,
+  getAgentRouterModelList,
   getCustomApiModel,
   getOpenRouterModel,
   getPpqModel,
@@ -11,6 +14,8 @@ import {
   getVeniceE2EE,
   getVeniceModel,
   renderModelPricingHint,
+  setAgentRouterMode,
+  setAgentRouterModel,
   setCustomApiModel,
   setOpenRouterModel,
   setPpqModel,
@@ -68,6 +73,62 @@ export function toggleVeniceE2EE(on) {
 export function updateOpenRouterModelPricing(modelId) {
   const el = document.getElementById('openrouter-model-pricing');
   if (el) el.innerHTML = renderModelPricingHint('openrouter', modelId || getOpenRouterModel());
+}
+
+export function updateAgentRouterModelPricing(modelId, provider = 'openrouter') {
+  const el = document.getElementById('agent-router-model-pricing');
+  if (el) el.innerHTML = renderModelPricingHint(provider, modelId || getAgentRouterModel(provider));
+}
+
+function renderAgentRouterModelDropdownForProvider(provider, models) {
+  const area = document.getElementById('agent-router-model-area');
+  if (!area || !models.length) return;
+  const mode = getAgentRouterMode();
+  const currentModel = getAgentRouterModel(provider);
+  const routerSelected = mode === 'auto' || mode === provider;
+  const normalized = getAgentRouterModelList(provider, models);
+  const routerActive = routerSelected && !!currentModel && normalized.some(function(m) { return m.id === currentModel; });
+  if (!normalized.length) return;
+  const opts = buildModelOptions('agent-router-' + provider, normalized, routerActive ? currentModel : '', function(m) { return m.name || m.id; });
+  area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Routing model</label>' +
+    '<select class="api-key-input" id="agent-router-model-select" style="margin-top:4px" data-provider-panel-change="agent-router-model" data-router-provider="' + provider + '">' +
+    '<option value="__main"' + (routerActive ? '' : ' selected') + '>Use main chat model</option>' + opts + '</select>' +
+    '<div id="agent-router-model-pricing" style="margin-top:4px' + (routerActive ? '' : ';display:none') + '">' + renderModelPricingHint(provider, currentModel) + '</div>';
+}
+
+export function renderAgentRouterOpenRouterModelDropdown(models) {
+  renderAgentRouterModelDropdownForProvider('openrouter', models);
+}
+
+export function renderAgentRouterProviderModelDropdown(provider, models) {
+  renderAgentRouterModelDropdownForProvider(provider, models);
+}
+
+export function onAgentRouterModeChange(value) {
+  setAgentRouterMode(value);
+  const area = document.getElementById('agent-router-model-area');
+  if (area) area.style.display = value === 'main' ? 'none' : '';
+}
+
+export async function onAgentRouterModelChange(value, provider = 'openrouter') {
+  const pricing = document.getElementById('agent-router-model-pricing');
+  if (value === '__main') {
+    setAgentRouterMode('main');
+    if (pricing) pricing.style.display = 'none';
+    return;
+  }
+  setAgentRouterMode(provider);
+  if (pricing) pricing.style.display = '';
+  setAgentRouterModel(provider, value);
+  updateAgentRouterModelPricing(value, provider);
+  if (provider === 'openrouter') {
+    await fetchOpenRouterModelPricing(value);
+    updateAgentRouterModelPricing(value, provider);
+  }
+}
+
+export async function onAgentRouterOpenRouterModelChange(value) {
+  return onAgentRouterModelChange(value, 'openrouter');
 }
 
 export function renderOpenRouterModelDropdown(models) {

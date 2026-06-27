@@ -59,6 +59,16 @@ const OPENROUTER_RECOMMENDED = [
   'x-ai/grok-4',
 ];
 
+const OPENROUTER_ROUTER_RECOMMENDED = [
+  'google/gemini-3.5-flash',
+  'google/gemini-3.1-flash-lite',
+  'anthropic/claude-haiku-4.5',
+  'openai/gpt-5.4-mini',
+];
+const ROUTER_MODEL_LIMIT = 6;
+const ROUTER_EXCLUDE_RE = /(audio|image|vision|embed|embedding|rerank|moderation|safeguard|codex|coder|code|search|research|reason|thinking|opus|sonnet|120b|90b|72b|70b|65b|32b|30b|24b|22b|large|xl|xxl|kimi|deepseek|grok)/i;
+const ROUTER_SIGNAL_RE = /(flash|flash-lite|haiku|mini|nano|lite|\bphi\b|qwen[^/]*[-_.:](0\.5b|1\.5b|3b|4b|7b|8b)|llama[^/]*[-_.:](1b|3b|8b)|gemma[^/]*[-_.:](2b|4b|7b|9b))/i;
+
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
 const ROUTSTR_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.1-pro', 'grok-4'];
 
@@ -66,7 +76,151 @@ const ROUTSTR_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 
 const PPQ_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3-flash-preview', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
 
+function readStoredModelArray(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); }
+  catch { return []; }
+}
+
+function normalizeEndpoint(url) {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
+export function writeProviderModelCacheMeta(provider, meta = {}) {
+  try {
+    localStorage.setItem(`labcharts-${provider}-models-meta`, JSON.stringify({
+      provider,
+      fetchedAt: Date.now(),
+      source: 'provider-api',
+      ...meta,
+    }));
+  } catch {}
+}
+
+function readProviderModelCacheMeta(provider) {
+  try { return JSON.parse(localStorage.getItem(`labcharts-${provider}-models-meta`) || 'null'); }
+  catch { return null; }
+}
+
+function providerModelCacheTrusted(provider) {
+  const meta = readProviderModelCacheMeta(provider);
+  if (!meta || meta.provider !== provider || meta.source !== 'provider-api') return false;
+  if (provider === 'openrouter') return meta.endpoint === 'https://openrouter.ai/api/v1/models';
+  if (provider === 'venice') return meta.endpoint === 'https://api.venice.ai/api/v1/models';
+  if (provider === 'ppq') return meta.endpoint === 'https://api.ppq.ai/v1/models?type=chat';
+  if (provider === 'routstr') {
+    const node = normalizeEndpoint(localStorage.getItem('labcharts-routstr-node') || '');
+    return !!node && normalizeEndpoint(meta.endpoint) === node + '/v1/models';
+  }
+  if (provider === 'custom') {
+    const endpoint = normalizeEndpoint(localStorage.getItem('labcharts-custom-url') || '');
+    const expected = endpoint + '/models';
+    const parent = endpoint.replace(/\/[^/]+\/v\d+$/, '/v1') + '/models';
+    const actual = normalizeEndpoint(meta.endpoint);
+    return !!endpoint && (actual === expected || actual === parent);
+  }
+  if (provider === 'ollama') {
+    const config = typeof window !== 'undefined' && window.getOllamaConfig ? window.getOllamaConfig() : null;
+    const endpoint = normalizeEndpoint(config?.url || '');
+    return !!endpoint && normalizeEndpoint(meta.endpoint) === endpoint + '/v1/models';
+  }
+  return false;
+}
+
+function normalizeRouterCandidate(m) {
+  if (typeof m === 'string') return { id: m, name: m };
+  return m && m.id ? m : null;
+}
+
+function modelPricingInput(model) {
+  const raw = model?.pricing?.prompt ?? model?.pricing?.input_per_1M_tokens ?? model?.model_spec?.pricing?.input?.usd;
+  const n = Number.parseFloat(String(raw ?? '999'));
+  return Number.isFinite(n) ? n : 999;
+}
+
+function routerModelRank(modelId) {
+  const id = String(modelId || '').toLowerCase();
+  const exact = OPENROUTER_ROUTER_RECOMMENDED.findIndex(function(prefix) { return id.startsWith(prefix); });
+  if (exact >= 0) return exact;
+  if (/flash-lite|lite/.test(id)) return 10;
+  if (/flash/.test(id)) return 11;
+  if (/haiku/.test(id)) return 12;
+  if (/mini|nano/.test(id)) return 13;
+  if (/\bphi\b|qwen|llama|gemma/.test(id)) return 20;
+  return 99;
+}
+
+export function isAgentRouterRecommendedModel(provider, modelId) {
+  const id = String(modelId || '').toLowerCase();
+  if (!id || ROUTER_EXCLUDE_RE.test(id) || /(^|[-_/])pro($|[-_/])/.test(id)) return false;
+  if (provider === 'openrouter') return isOpenRouterRouterModel(modelId);
+  return ROUTER_SIGNAL_RE.test(id);
+}
+
+function routerFamilyId(modelId) {
+  return String(modelId || '')
+    .toLowerCase()
+    .replace(/:\d{4}-\d{2}-\d{2}$/, '')
+    .replace(/[-_:]?\d{8}$/, '')
+    .replace(/[-_:.]?(preview|beta|latest|experimental|exp)$/g, '')
+    .replace(/[-_.:]instruct$/g, '')
+    .replace(/[-_.:]chat$/g, '');
+}
+
+function previewPenalty(modelId) {
+  return /(^|[-_.:/])(preview|beta|experimental|exp)($|[-_.:/])/.test(String(modelId || '').toLowerCase()) ? 1 : 0;
+}
+
+function chooseRouterCandidate(existing, candidate) {
+  if (!existing) return candidate;
+  const ep = previewPenalty(existing.id);
+  const cp = previewPenalty(candidate.id);
+  if (ep !== cp) return cp < ep ? candidate : existing;
+  const er = routerModelRank(existing.id);
+  const cr = routerModelRank(candidate.id);
+  if (er !== cr) return cr < er ? candidate : existing;
+  const ePrice = modelPricingInput(existing);
+  const cPrice = modelPricingInput(candidate);
+  if (ePrice !== cPrice) return cPrice < ePrice ? candidate : existing;
+  return String(candidate.id).length < String(existing.id).length ? candidate : existing;
+}
+
+export function getAgentRouterModelList(provider, sourceModels) {
+  let models = sourceModels;
+  const fromFreshFetch = Array.isArray(models);
+  if (!fromFreshFetch && !providerModelCacheTrusted(provider)) return [];
+  if (!fromFreshFetch) {
+    if (provider === 'openrouter') models = readStoredModelArray('labcharts-openrouter-router-models');
+    else if (provider === 'venice') {
+      const e2ee = isVeniceE2EEActive() ? readStoredModelArray('labcharts-venice-e2ee-models') : [];
+      models = e2ee.length ? e2ee : readStoredModelArray('labcharts-venice-models');
+    } else if (provider === 'ppq') {
+      models = readStoredModelArray('labcharts-ppq-models');
+    } else if (provider === 'routstr') models = readStoredModelArray('labcharts-routstr-models');
+    else if (provider === 'custom') models = readStoredModelArray('labcharts-custom-models');
+    else if (provider === 'ollama') models = readStoredModelArray('labcharts-ollama-models');
+    else models = [];
+  }
+  const byFamily = new Map();
+  for (const candidate of models.map(normalizeRouterCandidate).filter(Boolean)) {
+    if (!isAgentRouterRecommendedModel(provider, candidate.id)) continue;
+    const family = routerFamilyId(candidate.id);
+    byFamily.set(family, chooseRouterCandidate(byFamily.get(family), candidate));
+  }
+  return [...byFamily.values()]
+    .sort(function(a, b) {
+      const ar = routerModelRank(a.id);
+      const br = routerModelRank(b.id);
+      if (ar !== br) return ar - br;
+      const ap = modelPricingInput(a);
+      const bp = modelPricingInput(b);
+      if (ap !== bp) return ap - bp;
+      return (a.name || a.id).localeCompare(b.name || b.id);
+    })
+    .slice(0, ROUTER_MODEL_LIMIT);
+}
+
 export function isRecommendedModel(provider, modelId) {
+  if (provider && provider.startsWith('agent-router-')) return isAgentRouterRecommendedModel(provider.replace(/^agent-router-/, ''), modelId);
   if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelId.startsWith(prefix); });
   if (provider === 'venice') {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5/.test(modelId);
@@ -80,6 +234,19 @@ export function isRecommendedModel(provider, modelId) {
     return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
   }
   return false;
+}
+
+function getOpenRouterRouterRecommendationRank(modelId) {
+  const id = String(modelId || '');
+  const rank = OPENROUTER_ROUTER_RECOMMENDED.findIndex(function(prefix) { return id.startsWith(prefix); });
+  return rank >= 0 ? rank : Number.MAX_SAFE_INTEGER;
+}
+
+function isOpenRouterRouterModel(modelId) {
+  if (!modelId) return false;
+  const id = String(modelId);
+  if (['audio', 'image', 'vision', 'embed', 'rerank', 'moderation', 'safeguard', 'codex'].some(function(ex) { return id.includes(ex); })) return false;
+  return OPENROUTER_ROUTER_RECOMMENDED.some(function(prefix) { return id.startsWith(prefix); });
 }
 
 export function getActiveModelId(provider = getAIProvider()) {
@@ -113,6 +280,7 @@ export async function fetchOpenRouterModels(key) {
     const all = (json.data || []).filter(function(m) {
       if (!m.id) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
+      if (isOpenRouterRouterModel(m.id)) return false;
       return OPENROUTER_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
     }).sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const models = deduplicateModels(all, function(id) {
@@ -141,6 +309,19 @@ export async function fetchOpenRouterModels(key) {
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
+    writeProviderModelCacheMeta('openrouter', { endpoint: 'https://openrouter.ai/api/v1/models' });
+    const routerModels = (json.data || [])
+      .filter(function(m) { return m && isOpenRouterRouterModel(m.id); })
+      .sort(function(a, b) {
+        const ar = getOpenRouterRouterRecommendationRank(a.id);
+        const br = getOpenRouterRouterRecommendationRank(b.id);
+        if (ar !== br) return ar - br;
+        const pa = parseFloat(a.pricing?.prompt || '999');
+        const pb = parseFloat(b.pricing?.prompt || '999');
+        if (pa !== pb) return pa - pb;
+        return (a.name || a.id).localeCompare(b.name || b.id);
+      });
+    localStorage.setItem('labcharts-openrouter-router-models', JSON.stringify(getAgentRouterModelList('openrouter', routerModels)));
     if (!localStorage.getItem('labcharts-openrouter-model') && models.length) {
       const claude = models.find(function(m) { return m.id === 'anthropic/claude-sonnet-4.6'; });
       if (claude) setOpenRouterModel(claude.id);
@@ -229,6 +410,7 @@ export async function fetchVeniceModels(key) {
     const visionIds = allText.filter(m => m.model_spec?.capabilities?.supportsVision).map(m => m.id);
     localStorage.setItem('labcharts-venice-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-venice-models', JSON.stringify(models));
+    writeProviderModelCacheMeta('venice', { endpoint: 'https://api.venice.ai/api/v1/models' });
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
     syncVeniceModelSelection(models, e2eeList);
     return models;

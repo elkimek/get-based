@@ -5,6 +5,26 @@ import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { appendImportedArrayItem, replaceImportedArrayItem } from './data-merge.js';
 import { computeBiologyScores } from './biology-scores.js';
+import {
+  ABDOMINAL_PAIN,
+  ACID_REFLUX,
+  APPETITE,
+  BLOATING_SEVERITY,
+  BOWEL_FREQUENCY,
+  BURPING,
+  FOOD_SENSITIVITIES,
+  GAS_SEVERITY,
+  NAUSEA,
+  STOOL_CONSISTENCY,
+} from './constants.js';
+import {
+  CONTEXT_CARD_SCHEMAS,
+  getAgentContextExtractionPrompt,
+  normalizeContextPatch,
+  normalizeContextString,
+} from './agent-context-schema.js';
+
+export { getAgentContextExtractionPrompt };
 
 /** @type {Record<string, string>} */
 const MARKER_LABELS = {
@@ -129,6 +149,7 @@ function summarizeContextProposal(proposal) {
     if (change.field === 'sleepRest') labels.push('Sleep & Rest');
     else if (change.field === 'exercise') labels.push('Exercise & Movement');
     else if (change.field === 'lightCircadian') labels.push('Light & Circadian');
+    else if (change.field === 'diet') labels.push('Diet & Digestion');
     else if (change.field === 'healthGoals') labels.push(`Health goal: ${change.item?.text || ''}`);
   }
   return labels.length ? labels.join('; ') : 'No context changes';
@@ -248,6 +269,112 @@ export function draftSupplementChangeProposal(text, opts = {}) {
   };
 }
 
+function optionOrNull(options, value) {
+  return options.includes(value) ? value : null;
+}
+
+function digestiveSeverity(text, noneOptions) {
+  const s = String(text || '').toLowerCase();
+  if (/\b(severe|terrible|awful|very bad|really bad|daily|constant)\b/.test(s)) return optionOrNull(noneOptions, 'severe') || optionOrNull(noneOptions, 'daily') || optionOrNull(noneOptions, 'frequent');
+  if (/\b(mild|slight|little|occasional)\b/.test(s)) return optionOrNull(noneOptions, 'mild') || optionOrNull(noneOptions, 'occasional');
+  return optionOrNull(noneOptions, 'moderate') || optionOrNull(noneOptions, 'frequent') || optionOrNull(noneOptions, 'occasional');
+}
+
+function appendContextNote(existing, addition) {
+  const current = String(existing || '').trim();
+  const next = String(addition || '').trim();
+  if (!next) return current;
+  if (!current) return next;
+  if (current.toLowerCase().includes(next.toLowerCase())) return current;
+  return `${current}\n${next}`;
+}
+
+function looksLikeConstipation(text) {
+  return /\bconstipat\w*\b/i.test(text) || /\bz[áa]cp(?:a|u|ou|ě|e)\b/i.test(text);
+}
+
+function stripMachineNotePrefix(value) {
+  return String(value || '').trim().replace(/^User reported (?:context|digestive context):\s*/i, '');
+}
+
+function normalizeStructuredDietPatch(patch, sourceText) {
+  const haystack = `${sourceText || ''}\n${patch?.note || ''}`;
+  if (looksLikeConstipation(haystack)) {
+    if (!patch.stoolConsistency) patch.stoolConsistency = 'hard/pellets';
+    if (!patch.bowelFrequency) patch.bowelFrequency = 'irregular';
+  }
+  return patch;
+}
+
+export function buildContextChangeProposalFromStructured(input, opts = {}) {
+  const sourceText = String(opts.sourceText || input?.sourceText || '').trim();
+  const changes = [];
+  const rawChanges = Array.isArray(input?.changes) ? input.changes : [];
+  for (const raw of rawChanges) {
+    const field = String(raw?.field || '').trim();
+    if (field === 'healthGoals') {
+      const text = normalizeContextString(raw?.item?.text || raw?.text);
+      if (text) changes.push({ field: 'healthGoals', label: 'Health goals', action: 'add', item: { text, severity: 'major' } });
+      continue;
+    }
+    let patch = normalizeContextPatch(field, raw?.patch);
+    const schema = CONTEXT_CARD_SCHEMAS[field];
+    if (!patch || !schema) continue;
+    if (!patch.note && sourceText) patch.note = sourceText;
+    if (patch.note) patch.note = stripMachineNotePrefix(patch.note);
+    if (field === 'diet') patch = normalizeStructuredDietPatch(patch, sourceText);
+    changes.push({ field, label: schema.label, patch });
+  }
+  if (!changes.length) return null;
+  const proposal = {
+    id: `agent_proposal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    surface: 'context',
+    mode: 'record-context-change',
+    requiresConfirmation: true,
+    status: 'pending',
+    sourceText,
+    changes,
+    extractedBy: opts.extractedBy || 'ai-structured',
+  };
+  proposal.summary = summarizeContextProposal(proposal);
+  return proposal;
+}
+
+/** @param {string} text */
+function buildDietDigestionPatch(text) {
+  const sourceText = String(text || '');
+  const s = sourceText.toLowerCase();
+  const patch = {};
+  if (/\b(watery|water[y ]stools?|diarrh(?:ea|eia)|runs)\b/.test(s)) patch.stoolConsistency = optionOrNull(STOOL_CONSISTENCY, 'watery');
+  else if (/\b(loose stools?|looser stools?|soft stools?|stools?\s+(?:are\s+)?loose|stools?\s+(?:are\s+)?soft)\b/.test(s)) patch.stoolConsistency = optionOrNull(STOOL_CONSISTENCY, 'loose') || optionOrNull(STOOL_CONSISTENCY, 'soft');
+  else if (/\b(constipat(?:ed|ion)|hard stools?|pellets?)\b/.test(s)) {
+    patch.stoolConsistency = optionOrNull(STOOL_CONSISTENCY, 'hard/pellets') || optionOrNull(STOOL_CONSISTENCY, 'firm');
+    patch.bowelFrequency = optionOrNull(BOWEL_FREQUENCY, 'every other day') || optionOrNull(BOWEL_FREQUENCY, 'irregular');
+  }
+  if (/\b(3\+\/day|three\s+times\s+a\s+day|multiple\s+times\s+a\s+day|frequent\s+(?:bowel|stool)|diarrh(?:ea|eia))\b/.test(s)) patch.bowelFrequency = optionOrNull(BOWEL_FREQUENCY, '3+/day');
+  else if (/\b(irregular\s+(?:bowel|stool)|bowels?\s+(?:are\s+)?irregular)\b/.test(s)) patch.bowelFrequency = optionOrNull(BOWEL_FREQUENCY, 'irregular');
+  if (/\b(bloat(?:ed|ing)?|distended)\b/.test(s)) patch.bloating = digestiveSeverity(sourceText, BLOATING_SEVERITY);
+  if (/\b(gas|gassy|flatulence|wind)\b/.test(s)) patch.gas = /\b(excessive|a lot|lots of|terrible)\b/.test(s) ? optionOrNull(GAS_SEVERITY, 'excessive') : digestiveSeverity(sourceText, GAS_SEVERITY);
+  if (/\b(reflux|heartburn|gerd|acid)\b/.test(s)) {
+    if (/\b(reflux|heartburn|gerd|acid)[^.?!,;]*(daily|constant)\b|\b(daily|constant)[^.?!,;]*(reflux|heartburn|gerd|acid)\b/.test(s)) patch.acidReflux = optionOrNull(ACID_REFLUX, 'daily');
+    else if (/\b(reflux|heartburn|gerd|acid)[^.?!,;]*(frequent|often)\b|\b(frequent|often)[^.?!,;]*(reflux|heartburn|gerd|acid)\b/.test(s)) patch.acidReflux = optionOrNull(ACID_REFLUX, 'frequent');
+    else patch.acidReflux = digestiveSeverity(sourceText, ACID_REFLUX);
+  }
+  if (/\b(burp(?:ing)?|belch(?:ing)?|after meals)\b/.test(s)) patch.burping = /\bafter meals\b/.test(s) ? optionOrNull(BURPING, 'after meals') : digestiveSeverity(sourceText, BURPING);
+  if (/\b(nausea|nauseous|sick to my stomach)\b/.test(s)) patch.nausea = digestiveSeverity(sourceText, NAUSEA);
+  if (/\b(low appetite|appetite.*(?:low|down)|not hungry)\b/.test(s)) patch.appetite = optionOrNull(APPETITE, 'low');
+  else if (/\b(excessive appetite|very hungry|hungry all the time)\b/.test(s)) patch.appetite = optionOrNull(APPETITE, 'excessive');
+  else if (/\b(variable appetite|appetite.*(?:variable|changes|unstable))\b/.test(s)) patch.appetite = optionOrNull(APPETITE, 'variable');
+  if (/\b(abdominal pain|stomach pain|belly pain|gut pain|cramps?)\b/.test(s)) patch.abdominalPain = digestiveSeverity(sourceText, ABDOMINAL_PAIN);
+  const sensitivities = FOOD_SENSITIVITIES.filter(item => new RegExp(`\\b${item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(sourceText));
+  if (sensitivities.length) patch.foodSensitivities = sensitivities;
+  if (/\b(digestion|digestive|gut|bowel|stool|bloat|gas|reflux|heartburn|nausea|appetite|abdominal|stomach|belly|constipat\w*|diarrh\w*)\b/i.test(sourceText)) {
+    patch.note = `User reported digestive context: ${sourceText.trim()}`;
+  }
+  return Object.keys(patch).length ? patch : null;
+}
+
+/** @type {Array<any>} */
 const CONTEXT_SIGNAL_RULES = [
   {
     field: 'sleepRest',
@@ -259,13 +386,19 @@ const CONTEXT_SIGNAL_RULES = [
     field: 'exercise',
     label: 'Exercise & Movement',
     match: /\b(restarted training|started training|back to training|training again|hard training|exercise again|exercising again|working out again)\b/i,
-    patch: { frequency: 'restarted', note: 'User reported restarting training.' },
+    patch: { note: 'User reported restarting training.' },
   },
   {
     field: 'lightCircadian',
     label: 'Light & Circadian',
     match: /\b(low sunlight|little sun|no sun|low uv|low-sunlight|not getting sun|barely seeing (?:the )?sun|barely any sun)\b/i,
-    patch: { uvExposure: 'low', note: 'User reported low sunlight exposure right now.' },
+    patch: { note: 'User reported low sunlight exposure right now.' },
+  },
+  {
+    field: 'diet',
+    label: 'Diet & Digestion',
+    match: /\b(digestion|digestive|gut|bowel|stool|bloat|gas|gassy|reflux|heartburn|nausea|appetite|abdominal|stomach|belly|constipat\w*|diarrh\w*)\b/i,
+    buildPatch: buildDietDigestionPatch,
   },
 ];
 
@@ -278,6 +411,9 @@ function extractGoalText(text) {
 export function detectAgentContextSignals(text) {
   const sourceText = String(text || '');
   const entities = [];
+  const educational = /\b(tell me|explain|story|metaphor|evolution|mechanism|research|what do you think|how does|why does)\b/i.test(sourceText);
+  const explicitlyPersonal = /\b(my|i am|i'm|im|i have|i’m having|i feel|i started|i stopped)\b|\bm[áa]m\b|\bjsem\b|\bmoje\b/i.test(sourceText);
+  if (educational && !explicitlyPersonal) return entities;
   for (const rule of CONTEXT_SIGNAL_RULES) {
     if (rule.match.test(sourceText)) entities.push({ type: 'context', field: rule.field, action: 'update', label: rule.label });
   }
@@ -477,12 +613,15 @@ export function executeAgentNavigation(route) {
 export function draftContextChangeProposal(text, opts = {}) {
   const sourceText = String(text || '');
   const changes = [];
-  for (const rule of CONTEXT_SIGNAL_RULES) {
+  for (const rawRule of CONTEXT_SIGNAL_RULES) {
+    const rule = /** @type {any} */ (rawRule);
     if (!rule.match.test(sourceText)) continue;
+    const patch = typeof rule.buildPatch === 'function' ? rule.buildPatch(sourceText) : { ...(rule.patch || {}) };
+    if (!patch || typeof patch !== 'object' || Object.keys(patch).length === 0) continue;
     changes.push({
       field: rule.field,
       label: rule.label,
-      patch: { ...rule.patch },
+      patch,
     });
   }
   const goalText = extractGoalText(sourceText);
@@ -578,7 +717,10 @@ export async function applySupplementChangeProposal(proposal, opts = {}) {
     confirmedByUser: true,
     timestamp: now,
   });
-  if (opts.save !== false) await saveImportedData({ immediate: true });
+  if (opts.save !== false) {
+    const saved = await saveImportedData({ immediate: true });
+    if (!saved) throw new Error('Could not save supplement proposal');
+  }
   return { status: 'applied', applied };
 }
 
@@ -594,16 +736,23 @@ export async function applyContextChangeProposal(proposal, opts = {}) {
   for (const change of proposal.changes) {
     if (change.field === 'healthGoals') {
       if (!Array.isArray(importedData.healthGoals)) importedData.healthGoals = [];
-      const item = { ...(change.item || {}), updatedAt: now };
+      const text = normalizeContextString(change.item?.text || change.text);
+      if (!text) continue;
+      const item = { text, severity: normalizeContextString(change.item?.severity || 'major') || 'major', updatedAt: now };
       appendImportedArrayItem(importedData, 'healthGoals', item);
       applied.push(`Added health goal: ${item.text || ''}`);
       continue;
     }
-    if (!change.field || !change.patch || typeof change.patch !== 'object') continue;
+    const schema = CONTEXT_CARD_SCHEMAS[change.field];
+    const normalizedPatch = schema ? normalizeContextPatch(change.field, change.patch) : null;
+    if (!schema || !normalizedPatch) continue;
     const current = importedData[change.field] && typeof importedData[change.field] === 'object' ? importedData[change.field] : {};
-    importedData[change.field] = { ...current, ...change.patch, updatedAt: now };
-    applied.push(`Updated ${change.label || change.field}`);
+    const patch = /** @type {Record<string, any>} */ ({ ...normalizedPatch });
+    if (typeof patch.note === 'string') patch.note = appendContextNote(current.note, patch.note);
+    importedData[change.field] = { ...current, ...patch, updatedAt: now };
+    applied.push(`Updated ${schema.label || change.label || change.field}`);
   }
+  if (!applied.length) throw new Error('Context proposal contained no valid changes');
   importedData.changeHistory.push({
     source: 'agent',
     mode: proposal.mode || 'record-context-change',
@@ -613,7 +762,10 @@ export async function applyContextChangeProposal(proposal, opts = {}) {
     confirmedByUser: true,
     timestamp: now,
   });
-  if (opts.save !== false) await saveImportedData({ immediate: true });
+  if (opts.save !== false) {
+    const saved = await saveImportedData({ immediate: true });
+    if (!saved) throw new Error('Could not save context proposal');
+  }
   return { status: 'applied', applied };
 }
 

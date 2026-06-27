@@ -144,7 +144,7 @@ export function setSendButtonMode(btn, mode) {
 // ═══════════════════════════════════════════════
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
-export async function sendChatMessage() {
+export async function sendChatMessage(opts = {}) {
   // If currently streaming, abort and return (toggle behavior)
   if (_chatAbortController) {
     _chatAbortController.abort();
@@ -156,8 +156,10 @@ export async function sendChatMessage() {
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
   if (!input || !sendBtn || !container) return;
-  const text = input.value.trim();
-  const hasImages = hasPendingAttachments();
+  const reuseUserText = typeof opts.reuseUserText === 'string' ? opts.reuseUserText.trim() : '';
+  const skipAgent = opts.skipAgent === true;
+  const text = reuseUserText || input.value.trim();
+  const hasImages = !reuseUserText && hasPendingAttachments();
   if (!text && !hasImages) return;
 
   // Capture attachments before clearing (they're ephemeral)
@@ -173,21 +175,61 @@ export async function sendChatMessage() {
   // Auto-name thread from first user message
   const isFirstMessage = state.chatHistory.length === 0;
 
-  // Add user message — store tiny thumbnails for display, NOT full base64
-  const userMsg = { role: 'user', content: text || '(image)' };
-  if (hasImages) {
-    userMsg.hasImages = true;
-    userMsg.imageCount = attachments.length;
-    userMsg.thumbnails = attachments.map(a => a.thumbUrl).filter(Boolean);
+  if (!reuseUserText) {
+    // Add user message — store tiny thumbnails for display, NOT full base64
+    const userMsg = { role: 'user', content: text || '(image)' };
+    if (hasImages) {
+      userMsg.hasImages = true;
+      userMsg.imageCount = attachments.length;
+      userMsg.thumbnails = attachments.map(a => a.thumbUrl).filter(Boolean);
+    }
+    state.chatHistory.push(userMsg);
+    input.value = '';
+    input.style.height = '';
+    clearAttachments();
   }
-  state.chatHistory.push(userMsg);
-  input.value = '';
-  input.style.height = '';
-  clearAttachments();
   renderChatMessages();
   await saveChatHistory(); // persist immediately so messages survive API failures
-  const agentTurn = await handleAgentUserTurn(text, { appendToChat: true, signal: _chatAbortController ? _chatAbortController.signal : undefined });
-  if (agentTurn.handled) return;
+  if (!skipAgent && text && !hasImages) {
+    _chatAbortController = new AbortController();
+    setSendButtonMode(sendBtn, 'streaming');
+    const pendingAgentMsg = {
+      role: 'assistant',
+      content: 'Checking whether this should use an app action…',
+      auto: true,
+      agentPending: true,
+      excludeFromAI: true,
+    };
+    state.chatHistory.push(pendingAgentMsg);
+    renderChatMessages();
+    let agentTurn = { handled: false };
+    try {
+      agentTurn = await handleAgentUserTurn(text, { appendToChat: false, signal: _chatAbortController ? _chatAbortController.signal : undefined });
+    } catch (err) {
+      if (!(_chatAbortController?.signal.aborted)) throw err;
+    } finally {
+      const idx = state.chatHistory.indexOf(pendingAgentMsg);
+      if (idx >= 0) state.chatHistory.splice(idx, 1);
+    }
+    if (_chatAbortController?.signal.aborted) {
+      _chatAbortController = null;
+      setSendButtonMode(sendBtn, 'idle');
+      await saveChatHistory();
+      renderChatMessages();
+      return;
+    }
+    _chatAbortController = null;
+    setSendButtonMode(sendBtn, 'idle');
+    if (agentTurn.handled) {
+      if (isFirstMessage) autoNameThread(state.currentThreadId, text);
+      state.chatHistory.push(agentTurn.result.assistantMessage);
+      await saveChatHistory();
+      renderChatMessages();
+      return;
+    }
+    await saveChatHistory();
+    renderChatMessages();
+  }
   if (!hasAIProvider()) {
     renderChatMessages(); // Re-render to show setup guide after deterministic agent fallback declines.
     return;
@@ -444,6 +486,21 @@ export async function sendChatMessage() {
   updateDiscussButton();
   updateChatHeaderTitle();
   container.scrollTop = container.scrollHeight;
+}
+
+export async function continueChatAfterAgentProposalDismissed(msgIndex) {
+  if (window.isChatStreaming?.()) return false;
+  const msg = state.chatHistory[msgIndex];
+  const text = String(msg?.agentProposal?.sourceText || '').trim();
+  if (!text) return false;
+  if (!hasAIProvider()) {
+    window.showNotification?.('Connect an AI provider before dismissing into a normal answer.', 'error');
+    return false;
+  }
+  const beforeAssistantCount = state.chatHistory.filter(m => m?.role === 'assistant' && !m.agentPending).length;
+  await sendChatMessage({ reuseUserText: text, skipAgent: true });
+  const afterAssistantCount = state.chatHistory.filter(m => m?.role === 'assistant' && !m.agentPending).length;
+  return afterAssistantCount > beforeAssistantCount;
 }
 
 export function handleChatKeydown(event) {

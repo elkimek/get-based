@@ -8,6 +8,7 @@ import {
   getRoutstrKey, getRoutstrModel,
   getPpqKey, getPpqModel, getPpqPrivateMode, isPpqPrivateModeActive,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
+  getAgentRouterMode, getAgentRouterModel, getAgentRouterModelDisplay, getAgentRouterModelList,
   getVeniceE2EE, setVeniceE2EE, isVeniceE2EEActive,
   getVeniceModelDisplay, getOpenRouterModelDisplay,
   getRoutstrModelDisplay, getPpqModelDisplay,
@@ -24,18 +25,62 @@ function readStoredArray(key) {
 export function buildModelOptions(provider, models, currentModel, labelFn) {
   const rec = models.filter(function(m) { return isRecommendedModel(provider, m.id); });
   const rest = models.filter(function(m) { return !isRecommendedModel(provider, m.id); });
+  const optionHtml = function(m) {
+    const id = String(m?.id || '');
+    return '<option value="' + escapeAttr(id) + '"' + (currentModel === id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>';
+  };
   let html = '';
+  const recLabel = provider.startsWith('agent-router-') ? '★ Recommended for fast routing' : '★ Recommended for medical analysis';
   if (rec.length) {
-    html += '<optgroup label="\u2605 Recommended for medical analysis">';
-    html += rec.map(function(m) { return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>'; }).join('');
+    html += '<optgroup label="' + recLabel + '">';
+    html += rec.map(optionHtml).join('');
     html += '</optgroup>';
   }
   if (rest.length) {
     html += (rec.length ? '<optgroup label="Other models">' : '');
-    html += rest.map(function(m) { return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>'; }).join('');
+    html += rest.map(optionHtml).join('');
     if (rec.length) html += '</optgroup>';
   }
   return html;
+}
+
+function providerDisplayName(provider) {
+  if (provider === 'openrouter') return 'OpenRouter';
+  if (provider === 'routstr') return 'Routstr';
+  if (provider === 'venice') return 'Venice';
+  if (provider === 'ppq') return 'PPQ';
+  if (provider === 'custom') return 'Custom API';
+  return 'Local AI';
+}
+
+function renderAgentRouterSettings(activeProvider) {
+  const mode = getAgentRouterMode();
+  const routerModel = getAgentRouterModel(activeProvider);
+  const routerModels = getAgentRouterModelList(activeProvider);
+  const providerLabel = providerDisplayName(activeProvider);
+  const routerSelected = mode === 'auto' || mode === activeProvider;
+  const routerActive = routerSelected && !!routerModel && routerModels.some(function(m) { return m.id === routerModel; });
+  let routerModelHtml = '';
+  if (routerModels.length > 0) {
+    const opts = buildModelOptions('agent-router-' + activeProvider, routerModels, routerActive ? routerModel : '', function(m) { return m.name || m.id; });
+    routerModelHtml = `<div id="agent-router-model-area" style="margin-top:8px">
+      <label style="font-size:12px;color:var(--text-muted)">Routing model</label>
+      <select class="api-key-input" id="agent-router-model-select" style="margin-top:4px" data-provider-panel-change="agent-router-model" data-router-provider="${escapeAttr(activeProvider)}">
+        <option value="__main" ${routerActive ? '' : 'selected'}>Use main chat model</option>
+        ${opts}
+      </select>
+      <div id="agent-router-model-pricing" style="margin-top:4px;${routerActive ? '' : 'display:none'}">${renderModelPricingHint(activeProvider, routerModel)}</div>
+    </div>`;
+  } else {
+    routerModelHtml = `<div id="agent-router-model-area" style="margin-top:8px;font-size:12px;color:var(--text-muted)">Routing model: <span style="color:var(--text-primary)">${routerActive ? escapeHTML(getAgentRouterModelDisplay(activeProvider)) : 'main chat model'}</span> <span style="font-size:11px">(save/connect ${escapeHTML(providerLabel)} to load fast routing models)</span></div>`;
+  }
+  return `<details class="ai-provider-advanced" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+    <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);font-weight:600">Agent routing: ${routerActive ? providerLabel + ' model' : 'main model'}</summary>
+    <div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary)">
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.45;margin-bottom:8px">This only classifies chat intent — normal answers still use the main model above, and data changes still require confirmation.</div>
+      ${routerModelHtml}
+    </div>
+  </details>`;
 }
 
 function renderOpenRouterProviderPanel() {
@@ -68,6 +113,7 @@ function renderOpenRouterProviderPanel() {
     </div>
     ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-openrouter-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
     ${orModelHtml}
+    ${renderAgentRouterSettings('openrouter')}
     <div class="api-key-notice">Your key is stored locally and sent directly to OpenRouter. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a> &middot; <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" style="color:var(--accent)">Add credits</a></div>
   </div>`;
 }
@@ -148,6 +194,7 @@ function renderRoutstrProviderPanel() {
     ${walletHtml}
     ${nodeHtml}
     ${rsModelHtml}
+    ${renderAgentRouterSettings('routstr')}
   </div>`;
 }
 
@@ -188,6 +235,7 @@ function renderVeniceProviderPanel() {
     </div>
     ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
     ${veniceModelHtml}
+    ${renderAgentRouterSettings('venice')}
     <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. No data is stored on their servers. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
   </div>`;
 }
@@ -233,6 +281,7 @@ function renderPpqProviderPanel() {
       <span style="font-size:13px">Private TEE Mode</span>
     </div>
     <div id="ppq-private-indicator" style="margin-top:6px;font-size:12px;${isPpqPrivateModeActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts are encrypted in your browser and decrypted only inside a verified PPQ/Tinfoil TEE. Web search is disabled.</div>` : ''}
+    ${renderAgentRouterSettings('ppq')}
     <div class="api-key-notice">Your key is stored locally. No account data is shared with getbased. <a href="https://ppq.ai/invite/8f3017cd" target="_blank" rel="noopener" style="color:var(--accent)">ppq.ai</a></div>
   </div>`;
 }
@@ -281,6 +330,7 @@ function renderCustomProviderPanel() {
       ${connected ? '<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-custom-api">Remove</button>' : ''}
     </div>
     ${modelHtml}
+    ${renderAgentRouterSettings('custom')}
     <div class="api-key-notice">Your key is stored locally and sent directly to the endpoint you configure.</div>
   </div>`;
 }
@@ -311,6 +361,7 @@ function renderLocalAIProviderPanel() {
       <div style="margin-top:4px">${renderModelPricingHint('ollama', '')}</div>
     </div>
     <div id="local-ai-advisor"></div>
+    ${renderAgentRouterSettings('ollama')}
     <div class="api-key-notice" style="margin-top:12px">
       Connects via the OpenAI-compatible API (<code style="font-size:11px;padding:2px 4px;background:var(--bg-primary);border-radius:3px">/v1/chat/completions</code>). All major local servers support this, including Ollama.
     </div>

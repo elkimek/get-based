@@ -1,7 +1,7 @@
 // @ts-check
 // agent-intent-router.js — tiny AI-assisted classifier for ambiguous in-app agent routing.
 
-import { callClaudeAPI, hasAIProvider } from './api.js';
+import { callClaudeAPI, hasAIProvider, resolveAgentRouterConfig } from './api.js';
 
 const ALLOWED_AGENT_INTENTS = new Set([
   'chat',
@@ -36,7 +36,7 @@ function truncateText(text, max = 1200) {
 }
 
 /** @param {string} text */
-function extractJson(text) {
+export function extractAgentJson(text) {
   const raw = String(text || '').trim();
   if (!raw) return null;
   try { return JSON.parse(raw); } catch {}
@@ -64,7 +64,7 @@ function normalizeRouterResult(parsed) {
  * @param {string} userText
  * @param {{
  *   hasAI?: () => boolean,
- *   callAI?: (request: any) => Promise<{ text?: string }>,
+ *   callAI?: (request: any, provider?: string) => Promise<{ text?: string }>,
  *   signal?: AbortSignal,
  * }} [opts]
  * @returns {Promise<{ intent: string, confidence: string, reason?: string, usedAI: boolean, fallbackUsed: boolean, error?: string }>}
@@ -76,14 +76,16 @@ export async function classifyAmbiguousAgentIntent(userText, opts = {}) {
   }
   const callAI = opts.callAI || callClaudeAPI;
   try {
+    const routerConfig = resolveAgentRouterConfig();
     const result = await callAI({
       system: ROUTER_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: `User message:\n${truncateText(userText)}` }],
       maxTokens: 120,
       forceNonStream: true,
+      modelId: routerConfig.modelId || undefined,
       signal: opts.signal,
-    });
-    const parsed = extractJson(result?.text || '');
+    }, routerConfig.provider);
+    const parsed = extractAgentJson(result?.text || '');
     if (!parsed) {
       return { intent: 'chat', confidence: 'low', reason: 'Router returned non-JSON.', usedAI: true, fallbackUsed: true };
     }

@@ -60,6 +60,15 @@ export const DELTA_ARRAY_CONFIG = {
       return `cs_${_djb2(String(it.threadId))}`;
     },
   },
+  'agentArtifacts.labPlans': {
+    itemIdFn: (it) => (it && typeof it.id === 'string' && _isAllowlistSafeId(it.id)) ? it.id : null,
+  },
+  'agentArtifacts.prelabChecklists': {
+    itemIdFn: (it) => (it && typeof it.id === 'string' && _isAllowlistSafeId(it.id)) ? it.id : null,
+  },
+  agentProposals: {
+    itemIdFn: (it) => (it && typeof it.id === 'string' && _isAllowlistSafeId(it.id)) ? it.id : null,
+  },
 };
 
 // Per-map overrides parallel to DELTA_ARRAY_CONFIG. `keyIdFn(rawKey)`

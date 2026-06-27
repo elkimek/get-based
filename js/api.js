@@ -66,6 +66,17 @@ import {
   getCustomApiModel,
   setCustomApiModel,
   getCustomApiModelDisplay,
+  getAgentRouterMode,
+  setAgentRouterMode,
+  getAgentRouterProvider,
+  setAgentRouterProvider,
+  getAgentRouterModel,
+  setAgentRouterModel,
+  getAgentRouterModelDisplay,
+  getAgentRouterOpenRouterModel,
+  setAgentRouterOpenRouterModel,
+  getAgentRouterOpenRouterModelDisplay,
+  resolveAgentRouterConfig,
 } from './api-provider-storage.js';
 import {
   deduplicateModels,
@@ -74,6 +85,7 @@ import {
   fetchVeniceModels,
   getActiveModelDisplay,
   getActiveModelId,
+  getAgentRouterModelList,
   isRecommendedModel,
   needsMaxCompletionTokens,
   renderModelPricingHint,
@@ -81,6 +93,7 @@ import {
   supportsWebSearch,
   validateOpenRouterKey,
   validateVeniceKey,
+  writeProviderModelCacheMeta,
 } from './api-models.js';
 
 /** @typedef {Window & typeof globalThis & {
@@ -105,6 +118,7 @@ export {
   fetchVeniceModels,
   getActiveModelDisplay,
   getActiveModelId,
+  getAgentRouterModelList,
   isRecommendedModel,
   needsMaxCompletionTokens,
   renderModelPricingHint,
@@ -112,6 +126,7 @@ export {
   supportsWebSearch,
   validateOpenRouterKey,
   validateVeniceKey,
+  writeProviderModelCacheMeta,
 } from './api-models.js';
 export {
   getAIProvider,
@@ -170,6 +185,17 @@ export {
   getCustomApiModel,
   setCustomApiModel,
   getCustomApiModelDisplay,
+  getAgentRouterMode,
+  setAgentRouterMode,
+  getAgentRouterProvider,
+  setAgentRouterProvider,
+  getAgentRouterModel,
+  setAgentRouterModel,
+  getAgentRouterModelDisplay,
+  getAgentRouterOpenRouterModel,
+  setAgentRouterOpenRouterModel,
+  getAgentRouterOpenRouterModelDisplay,
+  resolveAgentRouterConfig,
 } from './api-provider-storage.js';
 
 function isTokenLimitFinish(reason) {
@@ -342,6 +368,31 @@ const PPQ_PRIVATE_MODELS = [
   { id: 'private/gemma4-31b', name: 'Gemma 4 31B (Private TEE)', input: ['text', 'image'], pricing: { input_per_1M_tokens: '0.47', output_per_1M_tokens: '1.05' } },
 ];
 const PPQ_PRIVATE_MODEL_MAP = Object.fromEntries(PPQ_PRIVATE_MODELS.map(m => [m.id, m.id.replace(/^private\//, '')]));
+
+function providerModelExcluded(modelId, excluded) {
+  const id = String(modelId || '').toLowerCase();
+  return excluded.some(function(ex) { return id.includes(ex); });
+}
+
+function normalizeProviderChatModels(rawModels, options) {
+  const exclude = options.exclude || [];
+  const curated = options.curated || [];
+  const requireEnabled = !!options.requireEnabled;
+  const base = (rawModels || []).filter(function(m) {
+    if (!m || !m.id) return false;
+    if (requireEnabled && m.enabled === false) return false;
+    if (providerModelExcluded(m.id, exclude)) return false;
+    const type = String(m.type || '').toLowerCase();
+    if (type && !['chat', 'text'].includes(type)) return false;
+    const modality = String(m.architecture?.modality || '').toLowerCase();
+    const outputMods = Array.isArray(m.architecture?.output_modalities) ? m.architecture.output_modalities.map(String) : [];
+    if (modality && !modality.includes('text')) return false;
+    if (outputMods.length && !outputMods.some(function(mod) { return mod.toLowerCase() === 'text'; })) return false;
+    return true;
+  });
+  const preferred = base.filter(function(m) { return curated.some(function(prefix) { return m.id.startsWith(prefix); }); });
+  return preferred.length ? preferred : base;
+}
 
 // ─── Proxy support ───
 // Only Custom API needs the proxy (arbitrary endpoints may lack CORS headers).
@@ -645,7 +696,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
 
 export async function callOpenAICompatibleLocalAPI(opts) {
   const config = window.getOllamaConfig();
-  const model = getOllamaMainModel();
+  const model = opts.modelId || getOllamaMainModel();
   const url = config.url.replace(/\/+$/, '');
   const key = config.apiKey || 'not-needed';
   return callOpenAICompatibleAPI(`${url}/v1/chat/completions`, key, model, 'Local AI', opts, {}, { useProxy: false });
@@ -657,12 +708,13 @@ export async function callVeniceAPI(opts) {
   const regularModels = readStoredArray('labcharts-venice-models');
   const e2eeModels = readStoredArray('labcharts-venice-e2ee-models');
   if (regularModels.length || e2eeModels.length) syncVeniceModelSelection(regularModels, e2eeModels);
-  let modelId = getVeniceModel();
-  let e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
+  const explicitModel = !!opts.modelId;
+  let modelId = opts.modelId || getVeniceModel();
+  let e2eeRequested = explicitModel ? isE2EEModel(modelId) : (getVeniceE2EE() || isE2EEModel(modelId));
   if (e2eeRequested && veniceModelsCacheStale()) {
     await fetchVeniceModels(key);
-    modelId = getVeniceModel();
-    e2eeRequested = getVeniceE2EE() || isE2EEModel(modelId);
+    modelId = opts.modelId || getVeniceModel();
+    e2eeRequested = explicitModel ? isE2EEModel(modelId) : (getVeniceE2EE() || isE2EEModel(modelId));
   }
   if (e2eeRequested && !isE2EEModel(modelId)) {
     throw new Error('Venice E2EE is enabled, but no current Venice E2EE model is available. Refresh Venice models in Settings and choose an E2EE model.');
@@ -778,7 +830,7 @@ export async function callOpenRouterAPI(opts) {
   const extraBody = opts.webSearch ? { plugins: [{ id: 'web' }] } : {};
   return callOpenAICompatibleAPI(
     'https://openrouter.ai/api/v1/chat/completions',
-    key, getOpenRouterModel(), 'OpenRouter', opts,
+    key, opts.modelId || getOpenRouterModel(), 'OpenRouter', opts,
     { 'HTTP-Referer': window.location.origin, 'X-Title': 'getbased' },
     { extraBody }
   );
@@ -794,10 +846,11 @@ export async function fetchRoutstrModels() {
     const res = await fetch(nodeUrl + '/v1/models');
     if (!res.ok) return [];
     const json = await res.json();
-    const all = (json.data || []).filter(function(m) {
-      if (!m.id || !m.enabled) return false;
-      if (ROUTSTR_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
-      return ROUTSTR_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
+    const rawModels = json.data || [];
+    const all = normalizeProviderChatModels(rawModels, {
+      exclude: ROUTSTR_EXCLUDE,
+      curated: ROUTSTR_CURATED,
+      requireEnabled: true,
     }).sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const models = deduplicateModels(all, function(id) {
       return id.replace(/-\d{8}$/, '');
@@ -821,6 +874,7 @@ export async function fetchRoutstrModels() {
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-routstr-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-routstr-models', JSON.stringify(models));
+    writeProviderModelCacheMeta('routstr', { endpoint: nodeUrl + '/v1/models' });
     if (!localStorage.getItem('labcharts-routstr-model') && models.length) {
       const claude = models.find(function(m) { return m.id === 'claude-sonnet-4.6'; });
       if (claude) setRoutstrModel(claude.id);
@@ -852,7 +906,7 @@ export async function callRoutstrAPI(opts) {
   const nodeUrl = _requireNodeUrl();
   return callOpenAICompatibleAPI(
     nodeUrl + '/v1/chat/completions',
-    key, getRoutstrModel(), 'Routstr', opts
+    key, opts.modelId || getRoutstrModel(), 'Routstr', opts
   );
 }
 
@@ -948,10 +1002,9 @@ export async function fetchPpqModels(key) {
       .filter(function(m) { return privateIds.has(m.id); })
       .map(function(m) { return { ...PPQ_PRIVATE_MODELS.find(p => p.id === m.id), ...m }; })
       .sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
-    const all = rawModels.filter(function(m) {
-      if (!m.id || m.id.startsWith('private/')) return false;
-      if (PPQ_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
-      return PPQ_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
+    const all = normalizeProviderChatModels(rawModels.filter(function(m) { return !m?.id?.startsWith('private/'); }), {
+      exclude: PPQ_EXCLUDE,
+      curated: PPQ_CURATED,
     }).sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
     const models = deduplicateModels(all, function(id) {
       return id.replace(/-\d{8}$/, '');
@@ -983,6 +1036,7 @@ export async function fetchPpqModels(key) {
     localStorage.setItem('labcharts-ppq-private-vision-models', JSON.stringify(privateVisionIds));
     localStorage.setItem('labcharts-ppq-models', JSON.stringify(models));
     localStorage.setItem('labcharts-ppq-private-models', JSON.stringify(privateModels));
+    writeProviderModelCacheMeta('ppq', { endpoint: 'https://api.ppq.ai/v1/models?type=chat' });
     syncPpqModelSelection(models, privateModels);
     if (!localStorage.getItem('labcharts-ppq-model') && models.length) {
       const claude = models.find(function(m) { return m.id === 'claude-sonnet-4.6'; });
@@ -1010,7 +1064,7 @@ export async function callPpqPrivateAPI(opts) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
   if (!crypto?.subtle) throw new Error('PPQ Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
-  const modelId = getPpqModel();
+  const modelId = opts.modelId || getPpqModel();
   const enclaveModelId = PPQ_PRIVATE_MODEL_MAP[modelId] || modelId.replace(/^private\//, '');
   const { createPpqPrivateFetch } = await import('../vendor/ppq-private-tee.js');
   let secure;
@@ -1030,7 +1084,7 @@ export async function callPpqPrivateAPI(opts) {
 export async function callPpqAPI(opts) {
   const key = getPpqKey();
   if (!key) throw new Error('No PPQ API key configured. Create an account or add your key in Settings.');
-  const modelId = getPpqModel();
+  const modelId = opts.modelId || getPpqModel();
   if (isPpqPrivateModel(modelId)) return callPpqPrivateAPI({ ...opts, webSearch: false });
   const extraBody = opts.webSearch ? { plugins: [{ id: 'web' }] } : {};
   return callOpenAICompatibleAPI(
@@ -1058,11 +1112,15 @@ export async function fetchCustomApiModels(baseUrl, key) {
     const url = (baseUrl || getCustomApiUrl()).replace(/\/+$/, '');
     const k = key || getCustomApiKey();
     if (!url || !k) return [];
-    let res = await _customApiFetchModels(url + '/models', k);
+    let modelEndpoint = url + '/models';
+    let res = await _customApiFetchModels(modelEndpoint, k);
     // If /models not found, try parent path (e.g. /zen/go/v1 → /zen/v1)
     if (!res.ok && res.status === 404) {
       const parent = url.replace(/\/[^/]+\/v\d+$/, '/v1');
-      if (parent !== url) res = await _customApiFetchModels(parent + '/models', k);
+      if (parent !== url) {
+        modelEndpoint = parent + '/models';
+        res = await _customApiFetchModels(modelEndpoint, k);
+      }
     }
     if (!res.ok) return [];
     const json = await res.json();
@@ -1070,6 +1128,7 @@ export async function fetchCustomApiModels(baseUrl, key) {
       return { id: m.id, name: m.name || m.id };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
     localStorage.setItem('labcharts-custom-models', JSON.stringify(models));
+    writeProviderModelCacheMeta('custom', { endpoint: modelEndpoint });
     if (!getCustomApiModel() && models.length) setCustomApiModel(models[0].id);
     return models;
   } catch (e) { return []; }
@@ -1111,7 +1170,7 @@ export async function callCustomAPI(opts) {
   if (!key) throw new Error('No Custom API key configured. Add your key in Settings.');
   return callOpenAICompatibleAPI(
     baseUrl + '/chat/completions',
-    key, getCustomApiModel(), 'Custom', opts,
+    key, opts.modelId || getCustomApiModel(), 'Custom', opts,
     {}
   );
 }
@@ -1149,13 +1208,16 @@ Object.assign(window, {
   generatePKCE, startOpenRouterOAuth, exchangeOpenRouterCode,
   deduplicateModels,
   isRecommendedModel,
-  getActiveModelId, getActiveModelDisplay,
+  getActiveModelId, getActiveModelDisplay, getAgentRouterModelList,
   renderModelPricingHint,
   getAIProvider, setAIProvider, hasAIProvider, markAISettingsLocal,
   supportsVision, supportsWebSearch, isE2EEModel, isVeniceE2EEActive, getVeniceE2EE, setVeniceE2EE,
   validateVeniceKey, validateOpenRouterKey, validateRoutstrKey, validatePpqKey, validateCustomApiKey,
   getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey, hasCustomApiKey,
   getCustomApiModel, setCustomApiModel, getCustomApiModelDisplay,
+  getAgentRouterMode, setAgentRouterMode, getAgentRouterProvider, setAgentRouterProvider,
+  getAgentRouterModel, setAgentRouterModel, getAgentRouterModelDisplay,
+  getAgentRouterOpenRouterModel, setAgentRouterOpenRouterModel, getAgentRouterOpenRouterModelDisplay, resolveAgentRouterConfig,
   fetchCustomApiModels, callCustomAPI,
   callOllamaChat, callOpenAICompatibleLocalAPI, callVeniceAPI, callOpenRouterAPI, callRoutstrAPI, callPpqPrivateAPI, callPpqAPI, callClaudeAPI,
   needsMaxCompletionTokens

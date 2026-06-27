@@ -109,7 +109,10 @@ function runChatMessageAction(actionEl, event) {
   } else if (action === 'dismiss-agent-proposal') {
     const index = readMessageIndex(actionEl);
     if (index == null) return;
-    void appWindow.dismissAgentProposalFromChat?.(index);
+    void (async () => {
+      const answered = await appWindow.continueChatAfterAgentProposalDismissed?.(index);
+      if (answered) await appWindow.dismissAgentProposalFromChat?.(index);
+    })();
   } else {
     return false;
   }
@@ -151,6 +154,7 @@ installChatMessageActionDelegates();
 export function buildActionBar(msgIndex) {
   const msg = state.chatHistory[msgIndex];
   if (!msg || msg.role !== 'assistant') return '';
+  if (msg.agentPending) return '';
   const isLast = msgIndex === state.chatHistory.length - 1;
 
   let html = '<div class="chat-action-bar">';

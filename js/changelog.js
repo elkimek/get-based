@@ -10,6 +10,17 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.63', date: '2026-06-27', title: 'Browser-local health agent foundation',
+    forceShow: true,
+    items: [
+      '<b>getbased can now turn some chat requests into confirmable app actions.</b> The browser-local agent can draft lab plans, investigate Biology Scores, navigate to the right lens, and propose profile-context or supplement updates without writing anything until you approve it.',
+      '<b>Agent proposals are easier to find.</b> Pending proposals now appear in Manage → Context with a sidebar badge and an inbox, so external Agent Access requests do not hide inside chat or Profile Context.',
+      '<b>Drafts survive follow-up questions.</b> Lab plans, pre-lab checklists, and score investigations are saved as structured encrypted profile artifacts, then grounded back into later chat turns so edits like “add C-peptide” operate on the actual draft.',
+      '<b>Provider routing is safer and lighter.</b> Agent intent routing can use a fast provider-scoped model when available, while avoiding heavy answer models, stale local caches, and OpenRouter-only assumptions.',
+      '<b>Writes stay confirmation-gated.</b> Proposal apply/dismiss paths validate the action again, scrub raw source text, and roll back if saving fails instead of marking changes applied without durable storage.',
+    ]
+  },
+  {
     version: '1.10.29', date: '2026-06-26', title: 'Biology Scores handle updates more safely',
     forceShow: true,
     items: [

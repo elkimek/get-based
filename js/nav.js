@@ -26,6 +26,7 @@ function _iconSvg(name) {
     report: `<svg ${attrs}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`,
     plus: `<svg ${attrs}><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>`,
     emf: `<svg ${attrs}><path d="M5 12.5a7 7 0 0 1 14 0"></path><path d="M8 12.5a4 4 0 0 1 8 0"></path><path d="M12 12.5v.01"></path><path d="M12 17v4"></path></svg>`,
+    inbox: `<svg ${attrs}><path d="M4 4h16v12H7l-3 3V4z"></path><path d="M8 8h8"></path><path d="M8 12h5"></path></svg>`,
   };
   return icons[name] || escapeHTML(String(name || ''));
 }
@@ -167,6 +168,10 @@ function _buildNavItem(key, cat) {
       ${flagHtml}</div>` };
 }
 
+function getPendingAgentProposalCount(importedData = state.importedData) {
+  return (importedData?.agentProposals || []).filter(item => item?.status === 'pending').length;
+}
+
 export function buildSidebar(data) {
   installNavActionDelegates();
   if (!data) data = getActiveData();
@@ -270,8 +275,12 @@ export function buildSidebar(data) {
   html += `<div class="nav-section">Manage</div>`;
   html += `<div class="nav-item" data-category="reports" tabindex="0" role="button" ${_navActionAttrs('open-report-builder')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('report')}</span><span class="nav-item-label">Reports</span><span class="nav-item-dot"></span></div>`;
-  html += `<div class="nav-item" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')}>
-    <span class="nav-item-icon" aria-hidden="true">${_iconSvg('knowledge')}</span><span class="nav-item-label">Context</span><span class="nav-item-dot"></span></div>`;
+  const pendingAgentProposals = getPendingAgentProposalCount(state.importedData);
+  const contextBadge = pendingAgentProposals > 0
+    ? `<span class="nav-item-count nav-agent-proposal-count" aria-label="${pendingAgentProposals} pending agent proposal${pendingAgentProposals === 1 ? '' : 's'}">${pendingAgentProposals > 9 ? '9+' : pendingAgentProposals}</span>`
+    : '<span class="nav-item-dot"></span>';
+  html += `<div class="nav-item${pendingAgentProposals > 0 ? ' has-agent-proposals' : ''}" data-category="context" tabindex="0" role="button" ${_navActionAttrs('open-context')} title="${pendingAgentProposals > 0 ? `${pendingAgentProposals} pending agent proposal${pendingAgentProposals === 1 ? '' : 's'}` : 'Context'}">
+    <span class="nav-item-icon" aria-hidden="true">${_iconSvg(pendingAgentProposals > 0 ? 'inbox' : 'knowledge')}</span><span class="nav-item-label">Context</span>${contextBadge}</div>`;
   html += `<div class="nav-item" data-category="custom-markers" tabindex="0" role="button" ${_navActionAttrs('open-custom-marker')}>
     <span class="nav-item-icon" aria-hidden="true">${_iconSvg('plus')}</span><span class="nav-item-label">Custom markers</span><span class="nav-item-dot"></span></div>`;
 

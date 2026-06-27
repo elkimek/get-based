@@ -1001,7 +1001,7 @@ export async function clearAllData() {
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
     saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [], importSnapshots: [] };
+    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, agentArtifacts: { labPlans: [], prelabChecklists: [] }, agentProposals: [], changeHistory: [], importSnapshots: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database

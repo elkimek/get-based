@@ -69,7 +69,10 @@ assert('PPQ private cache is gated on API-listed private entitlement',
     && !apiSrc.includes('privateFromApi.length ? privateFromApi : PPQ_PRIVATE_MODELS'));
 assert('PPQ Private Mode toggle renders in provider panel', rendererSrc.includes('ppq-private-toggle') && rendererSrc.includes('Private TEE Mode'));
 assert('PPQ Private Mode change is delegated', delegatesSrc.includes("'ppq-private-mode': 'togglePpqPrivateMode'"));
-assert('PPQ model fetch rerenders panel when private controls become available', ppqSrc.includes('_rerenderPpqPanelIfPrivateControlsAppeared') && ppqSrc.includes('fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch)'));
+assert('PPQ model fetch rerenders panel when private controls become available',
+  ppqSrc.includes('_rerenderPpqPanelIfPrivateControlsAppeared')
+    && ppqSrc.includes('fetchPpqModels(ppqKey).then(function(models)')
+    && ppqSrc.includes('_renderPpqModelsAfterFetch(models)'));
 assert('PPQ model fetch rerender only touches the PPQ panel', ppqSrc.includes("panel.querySelector('#ppq-model-area')"));
 assert('PPQ panel rerender refreshes balance on the new DOM', ppqSrc.includes('if (rerendered) _refreshPpqBalanceDisplay();'));
 assert('PPQ private transport wrapper exists', read('vendor/ppq-private-tee.js').includes('createPpqPrivateFetch'));

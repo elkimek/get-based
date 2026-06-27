@@ -1,6 +1,52 @@
 // @ts-check
 // chat-prompt-context.js - chat API prompt and message-context helpers
 
+import { serializeAgentToolResult } from './agent-response-synthesis.js';
+
+function truncatePromptText(value, max = 7000) {
+  const text = String(value || '');
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function summarizeAgentProposal(proposal) {
+  if (!proposal || proposal.status === 'dismissed') return null;
+  return {
+    surface: proposal.surface || '',
+    status: proposal.status || '',
+    summary: proposal.summary || '',
+    requiresConfirmation: proposal.requiresConfirmation === true,
+    policy: proposal.requiresConfirmation === true ? 'Draft only until the user explicitly applies it.' : '',
+    changes: Array.isArray(proposal.changes) ? proposal.changes.map(change => ({ ...change, sourceText: undefined })) : [],
+  };
+}
+
+export function serializeChatArtifact(message) {
+  if (!message) return '';
+  const blocks = [];
+  if (message.labPlanDraft) {
+    blocks.push({ type: 'lab_plan', data: serializeAgentToolResult('draft-lab-plan', message.labPlanDraft) });
+  }
+  if (message.scoreInvestigation) {
+    blocks.push({ type: 'biology_score_investigation', data: serializeAgentToolResult('investigate-score', message.scoreInvestigation) });
+  }
+  const proposal = summarizeAgentProposal(message.agentProposal);
+  if (proposal) blocks.push({ type: 'agent_proposal', data: proposal });
+  if (!blocks.length) return '';
+  return blocks.map((block) => [
+    '[AUTHORITATIVE STRUCTURED RESULT FROM PREVIOUS ASSISTANT MESSAGE]',
+    `Type: ${block.type}`,
+    truncatePromptText(JSON.stringify(block.data, null, 2), 5000),
+    'Policy: This structured artifact is trusted app state. For follow-ups like “these”, “that list”, “add/remove X”, or “are these all markers?”, use this exact artifact before general knowledge. Do not invent a different list.',
+    '[/AUTHORITATIVE STRUCTURED RESULT]',
+  ].join('\n')).join('\n\n');
+}
+
+function messageContentWithArtifacts(message) {
+  const content = String(message?.content || '');
+  const artifactText = serializeChatArtifact(message);
+  return artifactText ? `${content}\n\n${artifactText}` : content;
+}
+
 export function buildPersonalityPrompt(personality, customPersonality) {
   if (personality?.id && personality.id.startsWith('custom_')) {
     return customPersonality?.promptText ? `\n\nPersona: ${customPersonality.promptText}` : '';
@@ -21,13 +67,14 @@ export function buildMultiPersonaInstruction(chatHistory, currentPersonaName) {
 
 export function buildTaggedChatMessages(chatHistory, currentPersonaName, limit = 30) {
   return (chatHistory || [])
-    .filter((message) => !message.joined && message.role)
+    .filter((message) => !message.joined && !message.excludeFromAI && message.role)
     .slice(-limit)
     .map((message) => {
+      const content = messageContentWithArtifacts(message);
       if (message.role === 'assistant' && message.personalityName && message.personalityName !== currentPersonaName) {
-        return { role: message.role, content: `[Response from ${message.personalityName}]\n${message.content}` };
+        return { role: message.role, content: `[Response from ${message.personalityName}]\n${content}` };
       }
-      return { role: message.role, content: message.content };
+      return { role: message.role, content };
     });
 }
 

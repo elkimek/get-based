@@ -35,6 +35,9 @@ export const DELTA_ARRAYS = [
   'changeHistory',
   'chatSummaries',
   'importSnapshots',
+  'agentArtifacts.labPlans',
+  'agentArtifacts.prelabChecklists',
+  'agentProposals',
 ];
 
 // Keyed-object shapes subject to delta sync.
