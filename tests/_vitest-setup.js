@@ -37,17 +37,35 @@ function _makeStorage() {
   };
 }
 // Node 22+ may expose a built-in localStorage that is unusable when
-// --localstorage-file is missing (empty object, no getItem). Prefer our
-// in-memory shim whenever the Storage API surface is absent.
+// --localstorage-file is missing (empty object, no getItem, or a getter
+// that throws on access). Prefer our in-memory shim whenever the Storage
+// API is absent or throws.
+function _readGlobalStorage(name) {
+  try {
+    return globalThis[name];
+  } catch {
+    return null;
+  }
+}
 function _needsStorageShim(storage) {
-  return !storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function';
+  if (!storage) return true;
+  try {
+    if (typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+      return true;
+    }
+    storage.getItem('__storage_shim_probe__');
+    return false;
+  } catch {
+    return true;
+  }
 }
-if (_needsStorageShim(globalThis.localStorage)) {
-  globalThis.localStorage = _makeStorage();
+function _ensureStorage(name) {
+  if (_needsStorageShim(_readGlobalStorage(name))) {
+    globalThis[name] = _makeStorage();
+  }
 }
-if (_needsStorageShim(globalThis.sessionStorage)) {
-  globalThis.sessionStorage = _makeStorage();
-}
+_ensureStorage('localStorage');
+_ensureStorage('sessionStorage');
 
 // CSS.escape is a browser global used by js/ai-verdict-engine.js when
 // building scroll anchors. Tiny polyfill covers the chars used in
