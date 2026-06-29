@@ -18,16 +18,38 @@ import { hasAIProvider, isAIPaused } from './api.js';
 
 /** @type {{
  *   closeChatPanel: () => void,
+ *   getActiveData: () => any,
+ *   navigate: (route: string, data?: any) => void,
+ *   openChatProviderQuiz: null | (() => void),
+ *   openSettingsModal: (tab?: string) => void,
+ *   recordChange: (field: string) => void,
  *   renderChatMessages: () => void,
+ *   renderMenstrualCycleSection: null | ((data: any, opts?: any) => string),
+ *   renderProfileButton: () => void,
+ *   renderSupplementsSection: null | (() => string),
  *   sendChatMessage: () => void,
  *   setChatNudge: (mode?: string) => void,
+ *   setProfileHeight: null | ((profileId: string, height: number, unit: string) => void),
+ *   startOpenRouterOAuth: () => void,
+ *   switchAIProvider: (provider: string) => void,
  *   updateChatNudge: () => void,
  * }} */
 const onboardingCallbacks = {
   closeChatPanel: () => {},
+  getActiveData: () => state.importedData,
+  navigate: () => {},
+  openChatProviderQuiz: null,
+  openSettingsModal: () => {},
+  recordChange: () => {},
   renderChatMessages: () => {},
+  renderMenstrualCycleSection: null,
+  renderProfileButton: () => {},
+  renderSupplementsSection: null,
   sendChatMessage: () => {},
   setChatNudge: () => {},
+  setProfileHeight: null,
+  startOpenRouterOAuth: () => {},
+  switchAIProvider: () => {},
   updateChatNudge: () => {},
 };
 
@@ -50,15 +72,15 @@ function isChatOnboardingActionScope(actionEl) {
 function openAiSettings() {
   closeChatPanel();
   setTimeout(() => {
-    if (window.openSettingsModal) window.openSettingsModal('ai');
+    openSettingsModal('ai');
   }, 300);
 }
 
 function openAiProviderSettings(provider) {
   closeChatPanel();
   setTimeout(() => {
-    if (window.openSettingsModal) window.openSettingsModal('ai');
-    if (CHAT_ONBOARDING_SETTING_PROVIDERS.has(provider) && window.switchAIProvider) window.switchAIProvider(provider);
+    openSettingsModal('ai');
+    if (CHAT_ONBOARDING_SETTING_PROVIDERS.has(provider)) switchAIProvider(provider);
   }, 300);
 }
 
@@ -73,8 +95,7 @@ function handleChatOnboardingClick(event) {
   if (action === 'back-to-provider-quiz') {
     backToProviderQuiz();
   } else if (action === 'start-openrouter-oauth') {
-    const appWindow = /** @type {Window & typeof globalThis & { startOpenRouterOAuth?: () => void }} */ (window);
-    appWindow.startOpenRouterOAuth?.();
+    startOpenRouterOAuth();
   } else if (action === 'open-ai-settings') {
     openAiSettings();
   } else if (action === 'open-provider-settings') {
@@ -121,8 +142,42 @@ function closeChatPanel() {
   onboardingCallbacks.closeChatPanel?.();
 }
 
+function getActiveData() {
+  return onboardingCallbacks.getActiveData?.() || state.importedData;
+}
+
+function navigate(route, data) {
+  onboardingCallbacks.navigate?.(route, data);
+}
+
+function openChatProviderQuiz() {
+  if (typeof onboardingCallbacks.openChatProviderQuiz !== 'function') return false;
+  onboardingCallbacks.openChatProviderQuiz();
+  return true;
+}
+
+function openSettingsModal(tab) {
+  onboardingCallbacks.openSettingsModal?.(tab);
+}
+
+function recordChange(field) {
+  onboardingCallbacks.recordChange?.(field);
+}
+
 function renderChatMessages() {
   onboardingCallbacks.renderChatMessages?.();
+}
+
+function renderMenstrualCycleSection(data, opts) {
+  return onboardingCallbacks.renderMenstrualCycleSection?.(data, opts) || '';
+}
+
+function renderProfileButton() {
+  onboardingCallbacks.renderProfileButton?.();
+}
+
+function renderSupplementsSection() {
+  return onboardingCallbacks.renderSupplementsSection?.() || '';
 }
 
 function sendChatMessage() {
@@ -131,6 +186,18 @@ function sendChatMessage() {
 
 function setChatNudge(mode) {
   onboardingCallbacks.setChatNudge?.(mode);
+}
+
+function setProfileHeight(profileId, height, unit) {
+  onboardingCallbacks.setProfileHeight?.(profileId, height, unit);
+}
+
+function startOpenRouterOAuth() {
+  onboardingCallbacks.startOpenRouterOAuth?.();
+}
+
+function switchAIProvider(provider) {
+  onboardingCallbacks.switchAIProvider?.(provider);
 }
 
 function updateChatNudge() {
@@ -148,8 +215,7 @@ export function useChatPrompt(text) {
 
 export function requestOnboardingLabImportProvider() {
   showNotification('Lab PDFs and photos need an AI provider first. Connect AI, then import the file.', 'info');
-  if (window.openChatProviderQuiz) {
-    window.openChatProviderQuiz();
+  if (openChatProviderQuiz()) {
     return;
   }
   sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
@@ -160,7 +226,7 @@ export function startOnboardingLabImport() {
   if (isAIPaused()) {
     showNotification('AI features are paused. Re-enable AI to import lab PDFs or report photos.', 'info');
     closeChatPanel();
-    window.openSettingsModal?.('ai');
+    openSettingsModal('ai');
     return;
   }
   if (!hasAIProvider()) {
@@ -267,9 +333,9 @@ export function saveChatProfile(advance) {
   // Save height
   const heightRaw = parseFloat(textControlById('chat-onboard-height')?.value || '');
   const heightUnit = selectById('chat-onboard-height-unit')?.value || 'cm';
-  if (heightRaw && window.setProfileHeight) {
+  if (heightRaw) {
     const heightCm = heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw;
-    window.setProfileHeight(state.currentProfile, heightCm, heightUnit);
+    setProfileHeight(state.currentProfile, heightCm, heightUnit);
   }
   // Save weight as first biometric entry
   const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
@@ -284,7 +350,7 @@ export function saveChatProfile(advance) {
     saveImportedData();
   }
   saveChatLocation();
-  window.renderProfileButton?.();
+  renderProfileButton();
   _updateOnboardNextBtn();
   if (advance && name && state.profileSex) {
     // Profile complete — advance to next stage
@@ -311,7 +377,7 @@ export function saveCycleStatus(status) {
   if (!state.importedData.menstrualCycle) state.importedData.menstrualCycle = {};
   state.importedData.menstrualCycle.cycleStatus = status;
   if (!state.importedData.menstrualCycle.periods) state.importedData.menstrualCycle.periods = [];
-  window.recordChange('menstrualCycle');
+  recordChange('menstrualCycle');
   saveImportedData();
   const labels = { perimenopause: 'Perimenopause noted', postmenopause: 'Noted — postmenopause', pregnant: 'Noted — pregnant', breastfeeding: 'Noted — breastfeeding', absent: 'Noted — no active cycle' };
   showNotification(labels[status] || 'Cycle status saved', 'success');
@@ -371,7 +437,7 @@ export function saveChatPeriod() {
   mc.cycleStatus = 'regular';
   if (!mc.cycleLength) mc.cycleLength = 28;
   mc.periodLength = periodDays;
-  window.recordChange('menstrualCycle');
+  recordChange('menstrualCycle');
   saveImportedData();
   showNotification('Cycle tracking set up!', 'success');
   _refreshDashboardCycle();
@@ -407,7 +473,7 @@ export function removeChatSupplement(idx) {
 
 function _refreshDashboardSupps() {
   const el = document.querySelector('.supp-timeline-section');
-  if (el && window.renderSupplementsSection) el.outerHTML = window.renderSupplementsSection();
+  if (el && onboardingCallbacks.renderSupplementsSection) el.outerHTML = renderSupplementsSection();
 }
 
 function _refreshDashboardCycle() {
@@ -415,16 +481,16 @@ function _refreshDashboardCycle() {
   const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
   if (details && !details.open) { details.setAttribute('open', ''); sessionStorage.setItem('welcome-details-open', '1'); }
   const el = document.querySelector('.cycle-section');
-  if (el && window.renderMenstrualCycleSection) {
+  if (el && onboardingCallbacks.renderMenstrualCycleSection) {
     const inDashboardCycleWidget = !!el.closest('.dashboard-widget[data-widget-id="cycle"]');
-    el.outerHTML = window.renderMenstrualCycleSection(
-      window.getActiveData(),
+    el.outerHTML = renderMenstrualCycleSection(
+      getActiveData(),
       inDashboardCycleWidget ? { variant: 'dashboard', showHeader: false } : {}
     );
-  } else if (!el && state.profileSex === 'female' && window.renderMenstrualCycleSection) {
+  } else if (!el && state.profileSex === 'female' && onboardingCallbacks.renderMenstrualCycleSection) {
     // Cycle section doesn't exist yet — insert it after context cards
     const supps = document.querySelector('.supp-timeline-section');
-    if (supps) supps.insertAdjacentHTML('beforebegin', window.renderMenstrualCycleSection(window.getActiveData()));
+    if (supps) supps.insertAdjacentHTML('beforebegin', renderMenstrualCycleSection(getActiveData()));
   }
 }
 
@@ -546,7 +612,7 @@ export function skipOnboardingExtras() {
   // Ensure the lifestyle details section is open so cycle/supplements are visible
   sessionStorage.setItem('welcome-details-open', '1');
   // Re-render dashboard to reflect cycle + supplement changes from onboarding
-  if (window.navigate) window.navigate('dashboard');
+  navigate('dashboard');
   renderChatMessages();
 }
 

@@ -31,12 +31,6 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       importedData: state.importedData,
       chatHistory: state.chatHistory,
     };
-    const savedWindow = {
-      openChatProviderQuiz: window.openChatProviderQuiz,
-      openSettingsModal: window.openSettingsModal,
-      setProfileHeight: window.setProfileHeight,
-      renderProfileButton: window.renderProfileButton,
-    };
     const host = document.createElement('div');
     const calls = [];
     const profileId = `chat_onboard_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -106,14 +100,15 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
 
       onboarding.configureChatOnboarding({
         closeChatPanel: () => { calls.push('close'); },
+        openChatProviderQuiz: () => { calls.push('provider-quiz'); },
+        openSettingsModal: tab => { calls.push(`settings:${tab}`); },
         renderChatMessages: () => { calls.push('render'); },
+        renderProfileButton: () => { calls.push('render-profile-button'); },
         sendChatMessage: () => { calls.push('send'); },
         setChatNudge: mode => { calls.push(`nudge:${mode || ''}`); },
+        setProfileHeight: (id, height, unit) => { calls.push(`height:${id}:${height}:${unit}`); },
         updateChatNudge: () => { calls.push('update-nudge'); },
       });
-      window.openSettingsModal = tab => { calls.push(`settings:${tab}`); };
-      window.setProfileHeight = (id, height, unit) => { calls.push(`height:${id}:${height}:${unit}`); };
-      window.renderProfileButton = () => { calls.push('render-profile-button'); };
       pdfInput?.addEventListener('click', onPdfClick);
 
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
@@ -127,11 +122,10 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       outcomes.promptSendsWithProvider = calls.includes('send')
         && chatInput?.value === 'Explain my ferritin';
 
-      window.openChatProviderQuiz = () => { calls.push('provider-quiz'); };
       onboarding.requestOnboardingLabImportProvider();
       outcomes.providerRequestUsesQuizWhenAvailable = calls.includes('provider-quiz');
 
-      window.openChatProviderQuiz = undefined;
+      onboarding.configureChatOnboarding({ openChatProviderQuiz: null });
       onboarding.requestOnboardingLabImportProvider();
       outcomes.providerRequestFallsBackToSessionFlag =
         sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === '1'
@@ -215,14 +209,17 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       state.chatHistory = savedState.chatHistory;
       restoreStorage(localStorage, localSnapshot);
       restoreStorage(sessionStorage, sessionSnapshot);
-      Object.assign(window, savedWindow);
       if (chatInput && savedChatInputValue != null) chatInput.value = savedChatInputValue;
       pdfInput?.removeEventListener('click', onPdfClick);
       onboarding.configureChatOnboarding({
         closeChatPanel: () => {},
+        openChatProviderQuiz: null,
+        openSettingsModal: () => {},
         renderChatMessages: () => {},
+        renderProfileButton: () => {},
         sendChatMessage: () => {},
         setChatNudge: () => {},
+        setProfileHeight: null,
         updateChatNudge: () => {},
       });
       host.remove();
@@ -346,8 +343,9 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, profile] = await Promise.all([
+    const [onboarding, appOnboarding, { state }, profile] = await Promise.all([
       import(onboardingUrl),
+      import('/js/chat-onboarding.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
@@ -368,16 +366,6 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       importedData: state.importedData,
       chatHistory: state.chatHistory,
     };
-    const savedWindow = {
-      recordChange: window.recordChange,
-      renderMenstrualCycleSection: window.renderMenstrualCycleSection,
-      getActiveData: window.getActiveData,
-      renderSupplementsSection: window.renderSupplementsSection,
-      navigate: window.navigate,
-      openSettingsModal: window.openSettingsModal,
-      switchAIProvider: window.switchAIProvider,
-      startOpenRouterOAuth: window.startOpenRouterOAuth,
-    };
     const host = document.createElement('div');
     const calls = [];
     const profileId = `chat_onboard_cycle_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -390,6 +378,46 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       }
     };
     const waitForProviderTimer = () => new Promise(resolve => setTimeout(resolve, 350));
+    const configureOnboardingForTest = target => {
+      target.configureChatOnboarding({
+        closeChatPanel: () => { calls.push('close'); },
+        getActiveData: () => state.importedData,
+        navigate: view => { calls.push(`navigate:${view}`); },
+        openSettingsModal: tab => { calls.push(`settings:${tab}`); },
+        recordChange: key => { calls.push(`record:${key}`); },
+        renderChatMessages: () => { calls.push('render'); },
+        renderMenstrualCycleSection: (_data, options = {}) => {
+          calls.push(options.variant === 'dashboard' ? 'render-cycle-dashboard' : 'render-cycle');
+          return '<div class="cycle-section">cycle refreshed</div>';
+        },
+        renderSupplementsSection: () => {
+          calls.push('render-supps');
+          return '<div class="supp-timeline-section">supps refreshed</div>';
+        },
+        sendChatMessage: () => { calls.push('send'); },
+        setChatNudge: mode => { calls.push(`nudge:${mode || ''}`); },
+        startOpenRouterOAuth: () => { calls.push('oauth'); },
+        switchAIProvider: provider => { calls.push(`provider:${provider}`); },
+        updateChatNudge: () => { calls.push('update-nudge'); },
+      });
+    };
+    const resetOnboardingForTest = target => {
+      target.configureChatOnboarding({
+        closeChatPanel: () => {},
+        getActiveData: () => state.importedData,
+        navigate: () => {},
+        openSettingsModal: () => {},
+        recordChange: () => {},
+        renderChatMessages: () => {},
+        renderMenstrualCycleSection: null,
+        renderSupplementsSection: null,
+        sendChatMessage: () => {},
+        setChatNudge: () => {},
+        startOpenRouterOAuth: () => {},
+        switchAIProvider: () => {},
+        updateChatNudge: () => {},
+      });
+    };
 
     try {
       host.innerHTML = `
@@ -436,27 +464,8 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       state.chatHistory = [];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
 
-      onboarding.configureChatOnboarding({
-        closeChatPanel: () => { calls.push('close'); },
-        renderChatMessages: () => { calls.push('render'); },
-        sendChatMessage: () => { calls.push('send'); },
-        setChatNudge: mode => { calls.push(`nudge:${mode || ''}`); },
-        updateChatNudge: () => { calls.push('update-nudge'); },
-      });
-      window.recordChange = key => { calls.push(`record:${key}`); };
-      window.renderMenstrualCycleSection = (_data, options = {}) => {
-        calls.push(options.variant === 'dashboard' ? 'render-cycle-dashboard' : 'render-cycle');
-        return '<div class="cycle-section">cycle refreshed</div>';
-      };
-      window.getActiveData = () => state.importedData;
-      window.renderSupplementsSection = () => {
-        calls.push('render-supps');
-        return '<div class="supp-timeline-section">supps refreshed</div>';
-      };
-      window.navigate = view => { calls.push(`navigate:${view}`); };
-      window.openSettingsModal = tab => { calls.push(`settings:${tab}`); };
-      window.switchAIProvider = provider => { calls.push(`provider:${provider}`); };
-      window.startOpenRouterOAuth = () => { calls.push('oauth'); };
+      configureOnboardingForTest(onboarding);
+      configureOnboardingForTest(appOnboarding);
 
       const crumbs = onboarding._renderOnboardCrumbs(3, 5);
       const quizRoot = onboarding._renderProviderQuiz(null, '<Ada>');
@@ -633,15 +642,9 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       state.chatHistory = savedState.chatHistory;
       restoreStorage(localStorage, localSnapshot);
       restoreStorage(sessionStorage, sessionSnapshot);
-      Object.assign(window, savedWindow);
       if (chatPanel && savedChatPanelClass != null) chatPanel.className = savedChatPanelClass;
-      onboarding.configureChatOnboarding({
-        closeChatPanel: () => {},
-        renderChatMessages: () => {},
-        sendChatMessage: () => {},
-        setChatNudge: () => {},
-        updateChatNudge: () => {},
-      });
+      resetOnboardingForTest(onboarding);
+      resetOnboardingForTest(appOnboarding);
       host.remove();
     }
 
