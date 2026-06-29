@@ -8,6 +8,30 @@ import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
+/**
+ * @typedef {{
+ *   exportAllDataJSON: () => Promise<void> | void,
+ *   exportClientJSON: (profileId: string, includeChat?: boolean) => Promise<void> | void,
+ *   importDataJSON: (file: File) => Promise<void> | void,
+ *   loadDemoData: (sex?: string) => Promise<void> | void,
+ *   openProfileShareModal: (profileId?: string) => void,
+ * }} ClientListRuntime
+ */
+
+/** @type {ClientListRuntime} */
+const clientListRuntime = {
+  exportAllDataJSON: () => {},
+  exportClientJSON: () => {},
+  importDataJSON: () => {},
+  loadDemoData: () => {},
+  openProfileShareModal: () => {},
+};
+
+/** @param {Partial<ClientListRuntime>} [runtime] */
+export function configureClientListRuntime(runtime = {}) {
+  Object.assign(clientListRuntime, runtime);
+}
+
 let _search = '';
 let _sort = 'lastUpdated';
 let _statusFilter = 'active';
@@ -816,12 +840,12 @@ function _closeMenus() {
   if (m) m.classList.remove('show');
   if (tools) tools.classList.remove('show');
 }
-function _clExport(id) { _closeMenus(); window.exportClientJSON(id); }
-function _clExportChat(id) { _closeMenus(); window.exportClientJSON(id, true); }
+function _clExport(id) { _closeMenus(); clientListRuntime.exportClientJSON(id); }
+function _clExportChat(id) { _closeMenus(); clientListRuntime.exportClientJSON(id, true); }
 function _clShare(id) {
   _closeMenus();
   closeClientList();
-  setTimeout(() => window.openProfileShareModal?.(id), 120);
+  setTimeout(() => clientListRuntime.openProfileShareModal(id), 120);
 }
 function _clDelete(id) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
 
@@ -854,8 +878,8 @@ function _handleClientClick(event) {
   else if (action === 'edit-profile') _clEdit(id);
   else if (action === 'toggle-tools-menu') _clToggleToolsMenu(event);
   else if (action === 'trigger-json-import') { _closeMenus(); _clickFileInput('cl-json-import'); }
-  else if (action === 'export-all') { _closeMenus(); window.exportAllDataJSON?.(); }
-  else if (action === 'load-demo') { closeClientList(); window.loadDemoData?.(actionEl.dataset.clDemo || 'female'); }
+  else if (action === 'export-all') { _closeMenus(); clientListRuntime.exportAllDataJSON(); }
+  else if (action === 'load-demo') { closeClientList(); clientListRuntime.loadDemoData(actionEl.dataset.clDemo || 'female'); }
   else if (action === 'tag-filter') _clTagFilter(actionEl.dataset.clTag || '');
   else if (action === 'toggle-menu') _clToggleMenu(event, id, actionEl);
   else if (action === 'choose-avatar') _clickFileInput('cl-avatar-input');
@@ -898,7 +922,7 @@ function _handleClientChange(event) {
     const file = el.files?.[0];
     if (!file) return;
     closeClientList();
-    window.importDataJSON?.(file);
+    clientListRuntime.importDataJSON(file);
     el.value = '';
   } else if (action === 'sort' && el instanceof HTMLSelectElement) {
     _clSort(el.value);
