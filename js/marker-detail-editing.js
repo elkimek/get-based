@@ -2,7 +2,7 @@
 // marker-detail-editing.js — Marker value, range, and note mutation workflows
 
 import { state } from './state.js';
-import { getAlternateUnit, convertUserInputToSI } from './schema.js';
+import { convertUserInputToSI, convertSIToInputUnit } from './schema.js';
 import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
@@ -83,11 +83,16 @@ export async function saveManualEntry(id, opts = {}) {
   const usingAltUnit = !!(marker && inputUnit && inputUnit !== marker.unit);
   let checkRefMin = marker?.refMin, checkRefMax = marker?.refMax, checkUnit = marker?.unit;
   if (marker && usingAltUnit) {
-    const isUSMode = state.unitSystem === 'US';
-    const altMin = marker.refMin != null ? getAlternateUnit(dotKey, marker.refMin, isUSMode) : null;
-    const altMax = marker.refMax != null ? getAlternateUnit(dotKey, marker.refMax, isUSMode) : null;
-    checkRefMin = altMin?.value ?? null;
-    checkRefMax = altMax?.value ?? null;
+    // Express the marker's reference range in the user's chosen unit so the
+    // sanity check compares like-with-like. Refs come from getActiveData in
+    // *display* units (US-converted in US mode), so round-trip through SI:
+    // display → SI (convertDisplayToSI) → inputUnit (convertSIToInputUnit).
+    // This is secondary-unit aware (e.g. mg/L for Lp(a)), unlike the old
+    // primary-only getAlternateUnit path.
+    const refMinSI = marker.refMin != null ? convertDisplayToSI(dotKey, marker.refMin) : null;
+    const refMaxSI = marker.refMax != null ? convertDisplayToSI(dotKey, marker.refMax) : null;
+    checkRefMin = refMinSI != null ? convertSIToInputUnit(dotKey, refMinSI, inputUnit) : null;
+    checkRefMax = refMaxSI != null ? convertSIToInputUnit(dotKey, refMaxSI, inputUnit) : null;
     checkUnit = inputUnit;
   }
   // Range sanity check: catches decimal/unit slips (e.g. typing 100 mg/dL when SI ref is 4–6 mmol/L).
