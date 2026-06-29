@@ -2,7 +2,7 @@
 // chat-window-bindings.js — chat callback wiring and legacy window exports
 
 import { setAIPaused } from './api.js';
-import { getChatThreadKey, getChatThreadsKey } from './chat-threads.js';
+import { configureChatThreadDeps, getChatThreadKey, getChatThreadsKey } from './chat-threads.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 import { renderChatMessages } from './chat-render.js';
 import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
@@ -74,6 +74,17 @@ configureChatOnboarding({
   updateChatNudge,
 });
 configureChatPanel({ restoreDiscussionContinuePrompt });
+configureChatThreadDeps({
+  cleanupDiscussionState,
+  getActivePersonality,
+  loadChatHistory,
+  renderChatMessages,
+  renderSavedSummaries,
+  restoreDiscussionContinuePrompt,
+  saveChatHistory,
+  updateChatHeaderTitle,
+  updatePersonalityBar,
+});
 
 Object.assign(window, {
   _resumeAI,

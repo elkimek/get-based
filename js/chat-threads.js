@@ -3,26 +3,9 @@
 //
 // Extracted from chat.js (v1.21.9) as the second Phase 2e refactor split.
 // Owns: thread index CRUD (localStorage layout) and thread-rail UI.
-//
-// Back-references into chat.js use `window.fn()` to avoid circular
-// deps — same pattern the rest of the codebase uses for cross-module
-// calls from modules exposed on `window`. The functions we call on
-// chat.js's window:
-//
-//   window.renderChatMessages       — redraw the message list
-//   window.updateChatHeaderTitle    — header title + personality
-//   window.updatePersonalityBar     — personality strip at top
-//   window.loadChatHistory          — hydrate state.chatHistory
-//   window.saveChatHistory          — persist state.chatHistory
-//   window.showDiscussContinuePrompt — resume an in-flight discussion
-//   window.restoreDiscussionContinuePrompt — rebuild discussion prompt from active thread/history
-//   window.renderSavedSummaries     — summaries panel refresh
-//   window.cleanupDiscussionState   — remove transient discussion UI state
-//   window.getActivePersonality     — personality lookup (chat.js)
-//   window.showPromptDialog         — shared dialog helper
 
 import { state } from './state.js';
-import { escapeHTML, showNotification, showConfirmDialog } from './utils.js';
+import { escapeHTML, showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
@@ -40,6 +23,26 @@ const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
+const noop = () => {};
+const asyncNoop = async () => {};
+const defaultPersonality = () => ({ name: 'Default', icon: '' });
+
+const chatThreadDeps = {
+  cleanupDiscussionState: noop,
+  getActivePersonality: defaultPersonality,
+  loadChatHistory: asyncNoop,
+  renderChatMessages: noop,
+  renderSavedSummaries: noop,
+  restoreDiscussionContinuePrompt: noop,
+  saveChatHistory: asyncNoop,
+  showPromptDialog,
+  updateChatHeaderTitle: noop,
+  updatePersonalityBar: noop,
+};
+
+export function configureChatThreadDeps(deps = {}) {
+  Object.assign(chatThreadDeps, deps);
+}
 
 export function getChatThreadsKey() {
   return `labcharts-${state.currentProfile}-chat-threads`;
@@ -132,7 +135,7 @@ export function ensureActiveThread() {
 export function createNewThread({ sync = true } = {}) {
   const id = generateThreadId();
   const now = new Date().toISOString();
-  const p = window.getActivePersonality?.() || { name: 'Default', icon: '' };
+  const p = chatThreadDeps.getActivePersonality() || defaultPersonality();
   const thread = {
     id,
     name: 'New Conversation',
@@ -146,15 +149,15 @@ export function createNewThread({ sync = true } = {}) {
   state.chatThreads.unshift(thread);
   pruneOldThreads();
   saveChatThreadIndex({ sync });
-  window.cleanupDiscussionState?.();
+  chatThreadDeps.cleanupDiscussionState();
   // Reset to default personality for new thread
   state.currentChatPersonality = 'default';
   localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, 'default');
   state.currentThreadId = id;
   state.chatHistory = [];
-  window.renderChatMessages?.();
-  window.updateChatHeaderTitle?.();
-  window.updatePersonalityBar?.();
+  chatThreadDeps.renderChatMessages();
+  chatThreadDeps.updateChatHeaderTitle();
+  chatThreadDeps.updatePersonalityBar();
   renderThreadList();
   // Focus input
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
@@ -164,20 +167,20 @@ export function createNewThread({ sync = true } = {}) {
 export async function switchToThread(threadId) {
   if (threadId === state.currentThreadId) return;
   // Save current thread messages
-  await window.saveChatHistory?.();
-  window.cleanupDiscussionState?.();
+  await chatThreadDeps.saveChatHistory();
+  chatThreadDeps.cleanupDiscussionState();
   // Switch
   state.currentThreadId = threadId;
-  await window.loadChatHistory?.();
+  await chatThreadDeps.loadChatHistory();
   // Update thread personality
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (thread && thread.personality) {
     state.currentChatPersonality = thread.personality;
     localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, thread.personality);
-    window.updateChatHeaderTitle?.();
-    window.updatePersonalityBar?.();
+    chatThreadDeps.updateChatHeaderTitle();
+    chatThreadDeps.updatePersonalityBar();
   }
-  window.restoreDiscussionContinuePrompt?.();
+  chatThreadDeps.restoreDiscussionContinuePrompt();
   renderThreadList();
 }
 
@@ -195,12 +198,12 @@ export async function deleteThread(threadId) {
       deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.threadId === threadId);
       saveImportedData();
     }
-    window.renderSavedSummaries?.();
+    chatThreadDeps.renderSavedSummaries();
     // If we deleted the active thread, switch
     if (state.currentThreadId === threadId) {
       if (state.chatThreads.length > 0) {
         state.currentThreadId = state.chatThreads[0].id;
-        window.loadChatHistory?.();
+        chatThreadDeps.loadChatHistory();
       } else {
         createNewThread();
       }
@@ -222,7 +225,7 @@ export function renameThread(threadId, newName) {
 export async function renameThreadPrompt(threadId) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread) return;
-  const name = await window.showPromptDialog('Rename conversation:', {
+  const name = await chatThreadDeps.showPromptDialog('Rename conversation:', {
     defaultValue: thread.name,
     okLabel: 'Rename',
   });
