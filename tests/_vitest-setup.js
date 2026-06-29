@@ -36,10 +36,16 @@ function _makeStorage() {
     key: (i) => Array.from(store.keys())[i] ?? null,
   };
 }
-if (typeof globalThis.localStorage === 'undefined') {
+// Node 22+ may expose a built-in localStorage that is unusable when
+// --localstorage-file is missing (empty object, no getItem). Prefer our
+// in-memory shim whenever the Storage API surface is absent.
+function _needsStorageShim(storage) {
+  return !storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function';
+}
+if (_needsStorageShim(globalThis.localStorage)) {
   globalThis.localStorage = _makeStorage();
 }
-if (typeof globalThis.sessionStorage === 'undefined') {
+if (_needsStorageShim(globalThis.sessionStorage)) {
   globalThis.sessionStorage = _makeStorage();
 }
 
