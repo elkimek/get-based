@@ -369,18 +369,24 @@ export function showSyncSetupModal() {
   openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action="setup-new"]', focusDelay: 50 });
 }
 
-async function closeSyncSetup() {
-  closeModalOverlay('sync-setup-overlay');
-  // If sync was started during setup but user cancelled, clean up
-  if (isSyncEnabled()) {
-    _mnemonicCache = null;
-    _mnemonicRetries = 0;
-    clearTimeout(_mnemonicRetryTimer);
-    await disableSync();
+export async function closeSyncSetup() {
+  try {
+    closeModalOverlay('sync-setup-overlay');
+    // If sync was started during setup but user cancelled, clean up
+    if (isSyncEnabled()) {
+      _mnemonicCache = null;
+      _mnemonicRetries = 0;
+      clearTimeout(_mnemonicRetryTimer);
+      await disableSync();
+    }
+  } catch (e) {
+    console.error('[sync] setup close cleanup failed:', e);
+    showNotification(`Sync cleanup failed: ${e?.message || e}`, 'error');
+  } finally {
+    const el = document.getElementById('sync-section');
+    if (el) el.innerHTML = renderSyncSection();
+    _releaseSyncToggle();
   }
-  const el = document.getElementById('sync-section');
-  if (el) el.innerHTML = renderSyncSection();
-  _releaseSyncToggle();
 }
 
 let _syncSetupInProgress = false;
@@ -634,7 +640,7 @@ function updateRestoreMnemonicDialogState(input = /** @type {HTMLTextAreaElement
   }
 }
 
-function closeRestoreMnemonicDialog() {
+export function closeRestoreMnemonicDialog() {
   closeModalOverlay('sync-restore-overlay');
 }
 

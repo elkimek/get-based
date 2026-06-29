@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appEventsSrc = fs.readFileSync(path.join(root, 'js/app-event-listeners.js'), 'utf8');
+const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
 
@@ -95,6 +96,19 @@ assert('Click delegate only prevents default for handled actions',
     && !shellSrc.includes('event.preventDefault();\n  if (shellAction)'));
 assert('Generic role-button key shim skips delegated chat key actions',
   appEventsSrc.includes("t.hasAttribute('data-chat-key-action')"));
+assert('App shell hooks configure app-event-listeners without window lookups',
+  appShellHooksSrc.includes("import { configureAppEventListeners } from './app-event-listeners.js';")
+    && appShellHooksSrc.includes('configureAppEventListeners({')
+    && !appShellHooksSrc.includes('window.'));
+assert('App event listeners use configured shell deps instead of window globals',
+  appEventsSrc.includes('appEventListenerDeps.navigate(state.currentView ||')
+    && appEventsSrc.includes('appEventListenerDeps.toggleChatPanel()')
+    && appEventsSrc.includes('appEventListenerDeps.closeModal()')
+    && !appEventsSrc.includes('window.'));
+assert('Sync setup Escape close catches async cleanup failures',
+  appEventsSrc.includes('function runAppEventListener(label, action)')
+    && appEventsSrc.includes(".catch((err) => reportAppEventListenerError(label, err))")
+    && appEventsSrc.includes("runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup)"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

@@ -15,6 +15,7 @@ if [ "$SKIP_TYPECHECK" != "1" ] && [ "$SKIP_TYPECHECK" != "true" ]; then
   npm run typecheck || exit 1
   npm run typecheck:checkjs || exit 1
 fi
+node "$DIR/tests/verify-modules.js" || exit 1
 
 # Start server if not already running. nohup + disown fully detaches it
 # from the shell — signals sent to the shell's process group won't

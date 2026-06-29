@@ -170,6 +170,9 @@ function _getCyclePhase(dateStr, mc) {
 // ═══════════════════════════════════════════════
 let _refreshCallback = null;
 export function registerRefreshCallback(fn) { _refreshCallback = fn; }
+export function _runRegisteredRefreshCallback() {
+  if (typeof _refreshCallback === 'function') _refreshCallback();
+}
 
 let _activeDataCache = null;
 let _activeDataCacheMeta = null;

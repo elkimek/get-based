@@ -9,7 +9,24 @@ import { endTour } from './tour.js';
 let globalEventsBound = false;
 let mouseDownInsideModal = false;
 const appEventListenerDeps = {
+  closeChangelog: () => {},
+  closeChatPanel: () => {},
+  closeClientList: () => {},
+  closeEMFInterpretation: () => {},
+  closeFeedbackModal: () => {},
+  closeImportModal: () => {},
   closeLightEnvironmentAssessment: () => {},
+  closeMobileSidebar: () => {},
+  closeModal: () => {},
+  closeReportBuilder: () => {},
+  closeRestoreMnemonicDialog: () => {},
+  closeSettingsModal: () => {},
+  closeSummaryModal: () => {},
+  closeSyncSetup: () => {},
+  closeTweaksPanel: () => {},
+  navigate: (..._args) => {},
+  toggleChatPanel: () => {},
+  updateChatNudge: () => {},
 };
 
 export function configureAppEventListeners(deps = {}) {
@@ -27,6 +44,27 @@ function nudgeModal(overlay) {
   if (!modal) return;
   modal.classList.add("modal-nudge");
   modal.addEventListener("animationend", () => modal.classList.remove("modal-nudge"), { once: true });
+}
+
+function reportAppEventListenerError(label, err) {
+  console.error(`[app-event-listeners] ${label} failed:`, err);
+}
+
+/**
+ * @param {string} label
+ * @param {() => unknown} action
+ */
+function runAppEventListener(label, action) {
+  try {
+    const result = action();
+    if (!result) return;
+    const maybePromise = /** @type {{ catch?: (onRejected: (err: unknown) => unknown) => unknown }} */ (result);
+    if (typeof maybePromise.catch === 'function') {
+      maybePromise.catch((err) => reportAppEventListenerError(label, err));
+    }
+  } catch (err) {
+    reportAppEventListenerError(label, err);
+  }
 }
 
 function handleModalWheel(e) {
@@ -53,19 +91,19 @@ function handleDocumentClick(e) {
     return;
   }
   // Read-only modals close on backdrop click.
-  if (e.target.id === "modal-overlay") { window.closeModal(); return; }
+  if (e.target.id === "modal-overlay") { appEventListenerDeps.closeModal(); return; }
   if (e.target.id === "light-env-assessment-overlay") { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
-  if (e.target.id === "changelog-modal-overlay") { window.closeChangelog(); return; }
-  if (e.target.id === "report-builder-overlay") { window.closeReportBuilder?.(); return; }
+  if (e.target.id === "changelog-modal-overlay") { appEventListenerDeps.closeChangelog(); return; }
+  if (e.target.id === "report-builder-overlay") { appEventListenerDeps.closeReportBuilder(); return; }
   // Auto-save modals close on backdrop click.
-  if (e.target.id === "settings-modal-overlay") { window.closeSettingsModal(); return; }
+  if (e.target.id === "settings-modal-overlay") { appEventListenerDeps.closeSettingsModal(); return; }
   // Work-in-progress modals nudge instead of closing.
   const nudgeIds = ["import-modal-overlay", "feedback-modal-overlay"];
   if (nudgeIds.includes(e.target.id)) { nudgeModal(e.target); return; }
   // Client List nudges if editing form, closes if browsing list.
   if (e.target.id === "client-list-overlay") {
     if (document.querySelector('.cl-form')) nudgeModal(e.target);
-    else window.closeClientList();
+    else appEventListenerDeps.closeClientList();
     return;
   }
   // Chat backdrop is pointer-events: none; clicks never reach it.
@@ -97,9 +135,9 @@ function handleAppKeydown(e) {
     const tourOverlay = document.getElementById("tour-overlay");
     if (tourOverlay) { endTour(); return; }
     const sidebarNav = document.getElementById("sidebar-nav");
-    if (sidebarNav && sidebarNav.classList.contains("mobile-open")) { window.closeMobileSidebar(); return; }
+    if (sidebarNav && sidebarNav.classList.contains("mobile-open")) { appEventListenerDeps.closeMobileSidebar(); return; }
     const emfInterpOverlay = document.getElementById("emf-interp-overlay");
-    if (emfInterpOverlay && emfInterpOverlay.classList.contains("show")) { window.closeEMFInterpretation(); return; }
+    if (emfInterpOverlay && emfInterpOverlay.classList.contains("show")) { appEventListenerDeps.closeEMFInterpretation(); return; }
     const confirmOverlay = document.getElementById("confirm-dialog-overlay");
     if (confirmOverlay && confirmOverlay.classList.contains("show")) {
       if (confirmOverlay.dataset.escapeOwner) return;
@@ -109,38 +147,36 @@ function handleAppKeydown(e) {
     // Sync restore dialog — single-step "paste your 24 words" modal.
     const syncRestoreOverlay = document.getElementById("sync-restore-overlay");
     if (syncRestoreOverlay && syncRestoreOverlay.classList.contains("show")) {
-      if (window.closeRestoreMnemonicDialog) window.closeRestoreMnemonicDialog();
-      else syncRestoreOverlay.classList.remove("show");
+      runAppEventListener('closeRestoreMnemonicDialog', appEventListenerDeps.closeRestoreMnemonicDialog);
       return;
     }
     // Sync setup wizard — "New setup / Join existing" choice + generated seed.
     const syncSetupOverlay = document.getElementById("sync-setup-overlay");
     if (syncSetupOverlay && syncSetupOverlay.classList.contains("show")) {
-      if (window.closeSyncSetup) window.closeSyncSetup();
-      else syncSetupOverlay.classList.remove("show");
+      runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup);
       return;
     }
     const summaryOverlay = document.getElementById("summary-modal-overlay");
-    if (summaryOverlay && summaryOverlay.classList.contains("show")) { window.closeSummaryModal?.(); return; }
+    if (summaryOverlay && summaryOverlay.classList.contains("show")) { appEventListenerDeps.closeSummaryModal(); return; }
     const chatPanel = document.getElementById("chat-panel");
-    if (chatPanel && chatPanel.classList.contains("open")) { window.closeChatPanel(); return; }
+    if (chatPanel && chatPanel.classList.contains("open")) { appEventListenerDeps.closeChatPanel(); return; }
     const importOverlay = document.getElementById("import-modal-overlay");
     if (importOverlay && importOverlay.classList.contains("show")) {
-      if (!document.getElementById("import-modal").innerHTML.trim()) window.closeImportModal();
+      if (!document.getElementById("import-modal").innerHTML.trim()) appEventListenerDeps.closeImportModal();
       return;
     }
     const changelogOverlay = document.getElementById("changelog-modal-overlay");
-    if (changelogOverlay && changelogOverlay.classList.contains("show")) { window.closeChangelog(); return; }
+    if (changelogOverlay && changelogOverlay.classList.contains("show")) { appEventListenerDeps.closeChangelog(); return; }
     const reportBuilderOverlay = document.getElementById("report-builder-overlay");
-    if (reportBuilderOverlay && reportBuilderOverlay.classList.contains("show")) { window.closeReportBuilder?.(); return; }
+    if (reportBuilderOverlay && reportBuilderOverlay.classList.contains("show")) { appEventListenerDeps.closeReportBuilder(); return; }
     const clientListOverlay = document.getElementById("client-list-overlay");
-    if (clientListOverlay && clientListOverlay.classList.contains("show")) { window.closeClientList(); return; }
+    if (clientListOverlay && clientListOverlay.classList.contains("show")) { appEventListenerDeps.closeClientList(); return; }
     const feedbackOverlay = document.getElementById("feedback-modal-overlay");
-    if (feedbackOverlay && feedbackOverlay.classList.contains("show")) { window.closeFeedbackModal(); return; }
+    if (feedbackOverlay && feedbackOverlay.classList.contains("show")) { appEventListenerDeps.closeFeedbackModal(); return; }
     const settingsOverlay = document.getElementById("settings-modal-overlay");
-    if (settingsOverlay && settingsOverlay.classList.contains("show")) { window.closeSettingsModal(); return; }
+    if (settingsOverlay && settingsOverlay.classList.contains("show")) { appEventListenerDeps.closeSettingsModal(); return; }
     const tweaksOverlay = document.getElementById("tweaks-panel-overlay");
-    if (tweaksOverlay && tweaksOverlay.classList.contains("show")) { window.closeTweaksPanel(); return; }
+    if (tweaksOverlay && tweaksOverlay.classList.contains("show")) { appEventListenerDeps.closeTweaksPanel(); return; }
     const anonymousOverlays = document.querySelectorAll('.modal-overlay.show:not([id])');
     if (anonymousOverlays.length > 0) {
       anonymousOverlays[anonymousOverlays.length - 1].remove();
@@ -149,7 +185,7 @@ function handleAppKeydown(e) {
     const lightEnvOverlay = document.getElementById("light-env-assessment-overlay");
     if (lightEnvOverlay && lightEnvOverlay.classList.contains("show")) { appEventListenerDeps.closeLightEnvironmentAssessment(); return; }
     const modalOverlay = document.getElementById("modal-overlay");
-    if (modalOverlay && modalOverlay.classList.contains("show")) { window.closeModal(); return; }
+    if (modalOverlay && modalOverlay.classList.contains("show")) { appEventListenerDeps.closeModal(); return; }
     // Generic fallback: anonymous dynamically-injected overlays.
     const dynamicOverlays = document.querySelectorAll('.modal-overlay.show');
     if (dynamicOverlays.length > 0) {
@@ -182,7 +218,7 @@ function handleAppKeydown(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const tag = document.activeElement?.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-  if (e.key === "c" || e.key === "C") { e.preventDefault(); window.toggleChatPanel(); }
+  if (e.key === "c" || e.key === "C") { e.preventDefault(); appEventListenerDeps.toggleChatPanel(); }
   if (e.key === "/") {
     e.preventDefault();
     const sb = /** @type {HTMLInputElement | null} */ (document.getElementById("sidebar-search"));
@@ -205,7 +241,7 @@ export function registerAppRefreshCallback() {
     buildSidebar();
     // buildSidebar resets the sidebar's .active class to Dashboard by default.
     // Source the target view from state.currentView so refresh preserves place.
-    window.navigate(state.currentView || 'dashboard');
-    window.updateChatNudge();
+    appEventListenerDeps.navigate(state.currentView || 'dashboard');
+    appEventListenerDeps.updateChatNudge();
   });
 }

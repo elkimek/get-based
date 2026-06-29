@@ -13,6 +13,7 @@
     "js/app-feature-modules.js",
     "js/app-foundation-modules.js",
     "js/app-health-data-modules.js",
+    "js/app-shell-hooks.js",
     "js/app-light-sun-modules.js",
     "js/app-ui-shell-modules.js",
     "js/biology-score-ai-context.js",

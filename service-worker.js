@@ -74,6 +74,7 @@ const APP_SHELL = [
   '/js/app-data-io-modules.js',
   '/js/app-ai-interaction-modules.js',
   '/js/app-ui-shell-modules.js',
+  '/js/app-shell-hooks.js',
   '/js/app-event-listeners.js',
   '/js/startup-orchestrator.js',
   '/js/schema.js',

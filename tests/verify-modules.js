@@ -1,6 +1,7 @@
-// verify-modules.js — Browser-based verification for modularized app
-// Run in console: fetch('tests/verify-modules.js').then(r=>r.text()).then(s=>Function(s)())
-(function() {
+// verify-modules.js — Browser/static verification for modularized app
+// Browser console: fetch('tests/verify-modules.js').then(r=>r.text()).then(s=>Function(s)())
+// Static Node check: node tests/verify-modules.js
+(async function() {
   'use strict';
   let passed = 0, failed = 0, errors = [];
 
@@ -12,6 +13,102 @@
       errors.push({ name, detail: detail || '' });
       console.error(`FAIL: ${name}${detail ? ' — ' + detail : ''}`);
     }
+  }
+
+  const serviceWorkerCacheModules = [
+    '/js/main.js',
+    '/js/app-feature-modules.js',
+    '/js/app-foundation-modules.js',
+    '/js/app-health-data-modules.js',
+    '/js/app-light-sun-modules.js',
+    '/js/app-data-io-modules.js',
+    '/js/app-ai-interaction-modules.js',
+    '/js/app-ui-shell-modules.js',
+    '/js/app-shell-hooks.js',
+    '/js/app-event-listeners.js',
+    '/js/startup-orchestrator.js',
+    '/js/startup-foundation.js',
+    '/js/startup-profile.js',
+    '/js/startup-oauth-callbacks.js',
+    '/js/startup-maintenance.js',
+    '/js/startup-ui.js',
+    '/js/emf-facade.js',
+    '/js/views.js',
+    '/js/import-file-input.js',
+    '/js/import-drop-zone.js',
+    '/js/recommendation-actions.js',
+    '/js/dashboard-recommendation-widget.js',
+    '/js/supplement-impact.js',
+    '/js/context-card-lifestyle-editors.js',
+    '/js/wearables-detail-modal.js',
+    '/js/wearables-bp-detail-chart.js',
+    '/js/wearables-formatters.js',
+    '/js/wearables-manual-form-ui.js',
+    '/js/dashboard-view-composition.js',
+    '/js/dashboard-page-view.js',
+    '/js/lens-page-shell.js',
+    '/js/chart-card-recs.js',
+    '/js/category-glyphs.js',
+    '/js/category-page-view.js',
+    '/js/category-customization.js',
+    '/js/commit-hash.js',
+    '/js/focus-card.js',
+    '/js/onboarding-view.js',
+    '/js/marker-detail-modal.js',
+    '/js/marker-detail-editing.js',
+    '/js/light-conditions-now.js',
+    '/js/light-conditions-now-hooks.js',
+    '/js/light-page-view.js',
+    '/js/light-page-view-hooks.js',
+    '/js/light-page-view-ui-hooks.js',
+    '/js/light-channel-view.js',
+    '/js/light-channel-view-hooks.js',
+    '/js/light-channel-view-ui-hooks.js',
+    '/js/sun-context-hooks.js',
+    '/js/light-sessions-view.js',
+    '/js/compare-correlations.js',
+    '/js/mobile-dashboard.js',
+    '/js/schema.js',
+  ];
+
+  function assertServiceWorkerCache(sw) {
+    assert('SW uses importScripts for version', sw.includes("importScripts('/version.js')"));
+    assert('SW CACHE_NAME uses semver template', sw.includes('`labcharts-v${self.APP_VERSION}`'));
+    assert('SW APP_SHELL includes version.js', sw.includes("'/version.js'"));
+    for (const modulePath of serviceWorkerCacheModules) {
+      assert(`Service worker caches ${modulePath.slice(1)}`, sw.includes(modulePath));
+    }
+    assert('Service worker does NOT cache app.js', !sw.includes('/app.js'));
+  }
+
+  async function runNodeVerification() {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const scriptPath = path.resolve(process.argv[1] || 'tests/verify-modules.js');
+    const root = path.resolve(path.dirname(scriptPath), '..');
+    const [indexHtml, sw, checkJsConfigText, appUiShellModules] = await Promise.all([
+      fs.readFile(path.join(root, 'index.html'), 'utf8'),
+      fs.readFile(path.join(root, 'service-worker.js'), 'utf8'),
+      fs.readFile(path.join(root, 'tsconfig.checkjs.json'), 'utf8'),
+      fs.readFile(path.join(root, 'js', 'app-ui-shell-modules.js'), 'utf8'),
+    ]);
+    const checkJsConfig = JSON.parse(checkJsConfigText);
+
+    assert('Module script tag exists', indexHtml.includes('<script type="module" src="js/main.js"></script>'));
+    assert('Old app.js script tag removed', !/<script[^>]+src=["']app\.js["']/.test(indexHtml));
+    assert('checkJs includes js/app-shell-hooks.js',
+      Array.isArray(checkJsConfig.include) && checkJsConfig.include.includes('js/app-shell-hooks.js'));
+    assert('app-ui shell module imports app-shell-hooks.js',
+      appUiShellModules.includes("./app-shell-hooks.js") || appUiShellModules.includes("'./app-shell-hooks.js'"));
+    assertServiceWorkerCache(sw);
+    printResults();
+  }
+
+  if (typeof document === 'undefined' &&
+      typeof process !== 'undefined' &&
+      process.versions?.node) {
+    await runNodeVerification();
+    return;
   }
 
   // ═══════════════════════════════════════════════
@@ -130,7 +227,7 @@
     'detectTrendAlerts','getKeyTrendMarkers',
     'switchUnitSystem','getEffectiveRange','switchRangeMode',
     'updateHeaderDates','updateHeaderRangeToggle',
-    'registerRefreshCallback'
+    'registerRefreshCallback','_runRegisteredRefreshCallback'
   ];
 
   // export.js (8)
@@ -553,169 +650,7 @@
   // 20. SERVICE WORKER — cache version check
   // ═══════════════════════════════════════════════
   fetch('service-worker.js').then(r => r.text()).then(sw => {
-    assert('SW uses importScripts for version', sw.includes("importScripts('/version.js')"));
-    assert('SW CACHE_NAME uses semver template', sw.includes('`labcharts-v${self.APP_VERSION}`'));
-    assert('SW APP_SHELL includes version.js', sw.includes("'/version.js'"));
-
-    const hasMainJs = sw.includes('/js/main.js');
-    assert('Service worker caches js/main.js', hasMainJs);
-
-    const hasAppFeatureModulesJs = sw.includes('/js/app-feature-modules.js');
-    assert('Service worker caches js/app-feature-modules.js', hasAppFeatureModulesJs);
-
-    const hasAppFoundationModulesJs = sw.includes('/js/app-foundation-modules.js');
-    assert('Service worker caches js/app-foundation-modules.js', hasAppFoundationModulesJs);
-
-    const hasAppHealthDataModulesJs = sw.includes('/js/app-health-data-modules.js');
-    assert('Service worker caches js/app-health-data-modules.js', hasAppHealthDataModulesJs);
-
-    const hasAppLightSunModulesJs = sw.includes('/js/app-light-sun-modules.js');
-    assert('Service worker caches js/app-light-sun-modules.js', hasAppLightSunModulesJs);
-
-    const hasAppDataIoModulesJs = sw.includes('/js/app-data-io-modules.js');
-    assert('Service worker caches js/app-data-io-modules.js', hasAppDataIoModulesJs);
-
-    const hasAppAiInteractionModulesJs = sw.includes('/js/app-ai-interaction-modules.js');
-    assert('Service worker caches js/app-ai-interaction-modules.js', hasAppAiInteractionModulesJs);
-
-    const hasAppUiShellModulesJs = sw.includes('/js/app-ui-shell-modules.js');
-    assert('Service worker caches js/app-ui-shell-modules.js', hasAppUiShellModulesJs);
-
-    const hasAppEventListenersJs = sw.includes('/js/app-event-listeners.js');
-    assert('Service worker caches js/app-event-listeners.js', hasAppEventListenersJs);
-
-    const hasStartupOrchestratorJs = sw.includes('/js/startup-orchestrator.js');
-    assert('Service worker caches js/startup-orchestrator.js', hasStartupOrchestratorJs);
-
-    const hasStartupFoundationJs = sw.includes('/js/startup-foundation.js');
-    assert('Service worker caches js/startup-foundation.js', hasStartupFoundationJs);
-
-    const hasStartupProfileJs = sw.includes('/js/startup-profile.js');
-    assert('Service worker caches js/startup-profile.js', hasStartupProfileJs);
-
-    const hasStartupOAuthCallbacksJs = sw.includes('/js/startup-oauth-callbacks.js');
-    assert('Service worker caches js/startup-oauth-callbacks.js', hasStartupOAuthCallbacksJs);
-
-    const hasStartupMaintenanceJs = sw.includes('/js/startup-maintenance.js');
-    assert('Service worker caches js/startup-maintenance.js', hasStartupMaintenanceJs);
-
-    const hasStartupUiJs = sw.includes('/js/startup-ui.js');
-    assert('Service worker caches js/startup-ui.js', hasStartupUiJs);
-
-    const hasEmfFacadeJs = sw.includes('/js/emf-facade.js');
-    assert('Service worker caches js/emf-facade.js', hasEmfFacadeJs);
-
-    const hasViewsJs = sw.includes('/js/views.js');
-    assert('Service worker caches js/views.js', hasViewsJs);
-
-    const hasImportFileInputJs = sw.includes('/js/import-file-input.js');
-    assert('Service worker caches js/import-file-input.js', hasImportFileInputJs);
-
-    const hasImportDropZoneJs = sw.includes('/js/import-drop-zone.js');
-    assert('Service worker caches js/import-drop-zone.js', hasImportDropZoneJs);
-
-    const hasRecommendationActionsJs = sw.includes('/js/recommendation-actions.js');
-    assert('Service worker caches js/recommendation-actions.js', hasRecommendationActionsJs);
-
-    const hasDashboardRecommendationWidgetJs = sw.includes('/js/dashboard-recommendation-widget.js');
-    assert('Service worker caches js/dashboard-recommendation-widget.js', hasDashboardRecommendationWidgetJs);
-
-    const hasSupplementImpactJs = sw.includes('/js/supplement-impact.js');
-    assert('Service worker caches js/supplement-impact.js', hasSupplementImpactJs);
-
-    const hasContextCardLifestyleEditorsJs = sw.includes('/js/context-card-lifestyle-editors.js');
-    assert('Service worker caches js/context-card-lifestyle-editors.js', hasContextCardLifestyleEditorsJs);
-
-    const hasWearablesDetailModalJs = sw.includes('/js/wearables-detail-modal.js');
-    assert('Service worker caches js/wearables-detail-modal.js', hasWearablesDetailModalJs);
-
-    const hasWearablesBpDetailChartJs = sw.includes('/js/wearables-bp-detail-chart.js');
-    assert('Service worker caches js/wearables-bp-detail-chart.js', hasWearablesBpDetailChartJs);
-
-    const hasWearablesFormattersJs = sw.includes('/js/wearables-formatters.js');
-    assert('Service worker caches js/wearables-formatters.js', hasWearablesFormattersJs);
-
-    const hasWearablesManualFormUiJs = sw.includes('/js/wearables-manual-form-ui.js');
-    assert('Service worker caches js/wearables-manual-form-ui.js', hasWearablesManualFormUiJs);
-
-    const hasDashboardCompositionJs = sw.includes('/js/dashboard-view-composition.js');
-    assert('Service worker caches js/dashboard-view-composition.js', hasDashboardCompositionJs);
-
-    const hasDashboardPageViewJs = sw.includes('/js/dashboard-page-view.js');
-    assert('Service worker caches js/dashboard-page-view.js', hasDashboardPageViewJs);
-
-    const hasLensPageShellJs = sw.includes('/js/lens-page-shell.js');
-    assert('Service worker caches js/lens-page-shell.js', hasLensPageShellJs);
-
-    const hasChartCardRecsJs = sw.includes('/js/chart-card-recs.js');
-    assert('Service worker caches js/chart-card-recs.js', hasChartCardRecsJs);
-
-    const hasCategoryGlyphsJs = sw.includes('/js/category-glyphs.js');
-    assert('Service worker caches js/category-glyphs.js', hasCategoryGlyphsJs);
-
-    const hasCategoryPageViewJs = sw.includes('/js/category-page-view.js');
-    assert('Service worker caches js/category-page-view.js', hasCategoryPageViewJs);
-
-    const hasCategoryCustomizationJs = sw.includes('/js/category-customization.js');
-    assert('Service worker caches js/category-customization.js', hasCategoryCustomizationJs);
-
-    const hasCommitHashJs = sw.includes('/js/commit-hash.js');
-    assert('Service worker caches js/commit-hash.js', hasCommitHashJs);
-
-    const hasFocusCardJs = sw.includes('/js/focus-card.js');
-    assert('Service worker caches js/focus-card.js', hasFocusCardJs);
-
-    const hasOnboardingViewJs = sw.includes('/js/onboarding-view.js');
-    assert('Service worker caches js/onboarding-view.js', hasOnboardingViewJs);
-
-    const hasMarkerDetailModalJs = sw.includes('/js/marker-detail-modal.js');
-    assert('Service worker caches js/marker-detail-modal.js', hasMarkerDetailModalJs);
-
-    const hasMarkerDetailEditingJs = sw.includes('/js/marker-detail-editing.js');
-    assert('Service worker caches js/marker-detail-editing.js', hasMarkerDetailEditingJs);
-
-    const hasLightConditionsNowJs = sw.includes('/js/light-conditions-now.js');
-    assert('Service worker caches js/light-conditions-now.js', hasLightConditionsNowJs);
-
-    const hasLightConditionsNowHooksJs = sw.includes('/js/light-conditions-now-hooks.js');
-    assert('Service worker caches js/light-conditions-now-hooks.js', hasLightConditionsNowHooksJs);
-
-    const hasLightPageViewJs = sw.includes('/js/light-page-view.js');
-    assert('Service worker caches js/light-page-view.js', hasLightPageViewJs);
-
-    const hasLightPageViewHooksJs = sw.includes('/js/light-page-view-hooks.js');
-    assert('Service worker caches js/light-page-view-hooks.js', hasLightPageViewHooksJs);
-
-    const hasLightPageViewUiHooksJs = sw.includes('/js/light-page-view-ui-hooks.js');
-    assert('Service worker caches js/light-page-view-ui-hooks.js', hasLightPageViewUiHooksJs);
-
-    const hasLightChannelViewJs = sw.includes('/js/light-channel-view.js');
-    assert('Service worker caches js/light-channel-view.js', hasLightChannelViewJs);
-
-    const hasLightChannelViewHooksJs = sw.includes('/js/light-channel-view-hooks.js');
-    assert('Service worker caches js/light-channel-view-hooks.js', hasLightChannelViewHooksJs);
-
-    const hasLightChannelViewUiHooksJs = sw.includes('/js/light-channel-view-ui-hooks.js');
-    assert('Service worker caches js/light-channel-view-ui-hooks.js', hasLightChannelViewUiHooksJs);
-
-    const hasSunContextHooksJs = sw.includes('/js/sun-context-hooks.js');
-    assert('Service worker caches js/sun-context-hooks.js', hasSunContextHooksJs);
-
-    const hasLightSessionsViewJs = sw.includes('/js/light-sessions-view.js');
-    assert('Service worker caches js/light-sessions-view.js', hasLightSessionsViewJs);
-
-    const hasCompareCorrelationsJs = sw.includes('/js/compare-correlations.js');
-    assert('Service worker caches js/compare-correlations.js', hasCompareCorrelationsJs);
-
-    const hasMobileDashboardJs = sw.includes('/js/mobile-dashboard.js');
-    assert('Service worker caches js/mobile-dashboard.js', hasMobileDashboardJs);
-
-    const hasSchemaJs = sw.includes('/js/schema.js');
-    assert('Service worker caches js/schema.js', hasSchemaJs);
-
-    const hasNoAppJs = !sw.includes('/app.js');
-    assert('Service worker does NOT cache app.js', hasNoAppJs);
-
+    assertServiceWorkerCache(sw);
     printResults();
   });
 
@@ -733,5 +668,16 @@
       console.log('\n✓ All tests passed!');
     }
     console.log('═'.repeat(50) + '\n');
+    if (failed > 0 &&
+        typeof process !== 'undefined' &&
+        process.versions?.node) {
+      process.exitCode = 1;
+    }
   }
-})();
+})().catch(error => {
+  console.error(error);
+  if (typeof process !== 'undefined' &&
+      process.versions?.node) {
+    process.exitCode = 1;
+  }
+});
