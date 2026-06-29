@@ -68,6 +68,8 @@ assert('quality guardrail exits non-zero on failures',
 assert('full local test suite runs typecheck',
   runTestsSrc.includes('npm run typecheck || exit 1') &&
     runTestsSrc.includes('SKIP_TYPECHECK'));
+assert('full local test suite runs static module verification',
+  runTestsSrc.includes('node "$DIR/tests/verify-modules.js" || exit 1'));
 assert('CI keeps a dedicated typecheck step and skips duplicate script typecheck',
   testWorkflowSrc.includes('name: Run typecheck') &&
     testWorkflowSrc.includes('run: npm run typecheck') &&
