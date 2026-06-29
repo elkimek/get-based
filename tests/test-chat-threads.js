@@ -292,8 +292,24 @@ assert('loadProfile rerenders chat rail after profile switch', profileSrc.includ
 // ═══════════════════════════════════════════════
 console.log('16. Thread Search Extraction (source inspection)');
 const chatThreadsSrc = read('js/chat-threads.js');
+const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatThreadSearchSrc = read('js/chat-thread-search.js');
 const inlineHandlerRe = /\bon(?:click|change|input|search|keydown|keyup|submit)=/;
+const windowGlobalLookupRe = /\bwindow\s*(?:\.|\[\s*['"])/;
+assert('chat-threads exposes dependency configuration',
+  chatThreadsSrc.includes('export function configureChatThreadDeps')
+    && chatThreadsSrc.includes('const chatThreadDeps = {')
+    && chatThreadsSrc.includes('showPromptDialog,'));
+assert('chat-window-bindings wires chat-thread dependencies',
+  chatWindowBindingsSrc.includes('configureChatThreadDeps({')
+    && chatWindowBindingsSrc.includes('renderChatMessages,')
+    && chatWindowBindingsSrc.includes('saveChatHistory,')
+    && chatWindowBindingsSrc.includes('loadChatHistory,')
+    && chatWindowBindingsSrc.includes('getActivePersonality,')
+    && chatWindowBindingsSrc.includes('cleanupDiscussionState,'));
+assert('chat-threads uses configured deps instead of direct window callback lookups',
+  !windowGlobalLookupRe.test(chatThreadsSrc),
+  (chatThreadsSrc.match(windowGlobalLookupRe) || [''])[0]);
 assert('chat-threads imports search module',
   chatThreadsSrc.includes("from './chat-thread-search.js'"));
 assert('chat-threads configures search callbacks',

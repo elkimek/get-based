@@ -11,6 +11,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
   );
 
   const results = await page.evaluate(async () => {
+    const chatThreads = await import('/js/chat-threads.js');
     const { state } = await import('/js/state.js');
     const profileId = state.currentProfile;
     const railKey = `labcharts-${profileId}-chatRailOpen`;
@@ -18,11 +19,16 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     const originalThreads = state.chatThreads.slice();
     const originalThreadId = state.currentThreadId;
     const originalRailState = localStorage.getItem(railKey);
-    const savedFns = {
+    const savedThreadDeps = {
       saveChatHistory: window.saveChatHistory,
       loadChatHistory: window.loadChatHistory,
       cleanupDiscussionState: window.cleanupDiscussionState,
       restoreDiscussionContinuePrompt: window.restoreDiscussionContinuePrompt,
+      renderChatMessages: window.renderChatMessages,
+      renderSavedSummaries: window.renderSavedSummaries,
+      updateChatHeaderTitle: window.updateChatHeaderTitle,
+      updatePersonalityBar: window.updatePersonalityBar,
+      getActivePersonality: window.getActivePersonality,
       showPromptDialog: window.showPromptDialog,
     };
     const waitFor = async (fn, timeoutMs = 500) => {
@@ -75,15 +81,22 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       outcomes.deleteButtonUsesDelegatedAction = deleteBtn?.getAttribute('data-chat-thread-action') === 'delete'
         && !deleteBtn.hasAttribute('onclick');
 
-      window.saveChatHistory = async () => {};
-      window.loadChatHistory = async () => {};
-      window.cleanupDiscussionState = () => {};
-      window.restoreDiscussionContinuePrompt = () => {};
+      chatThreads.configureChatThreadDeps({
+        saveChatHistory: async () => {},
+        loadChatHistory: async () => {},
+        cleanupDiscussionState: () => {},
+        restoreDiscussionContinuePrompt: () => {},
+        renderChatMessages: () => {},
+        renderSavedSummaries: () => {},
+        updateChatHeaderTitle: () => {},
+        updatePersonalityBar: () => {},
+        getActivePersonality: savedThreadDeps.getActivePersonality || (() => ({ name: 'Default', icon: '' })),
+        showPromptDialog: async () => 'Renamed Thread',
+      });
       state.currentThreadId = 't_b';
       threadItem?.click();
       outcomes.threadItemClickSwitchesThread = await waitFor(() => state.currentThreadId === 't_a');
 
-      window.showPromptDialog = async () => 'Renamed Thread';
       document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-action')?.click();
       outcomes.renameButtonRenamesThread = await waitFor(() =>
         state.chatThreads.find(thread => thread.id === 't_a')?.name === 'Renamed Thread'
@@ -127,7 +140,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     } finally {
       state.chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
-      Object.assign(window, savedFns);
+      chatThreads.configureChatThreadDeps(savedThreadDeps);
       if (originalRailState == null) localStorage.removeItem(railKey);
       else localStorage.setItem(railKey, originalRailState);
       if (originalThreads.length > 0) window.saveChatThreadIndex();
