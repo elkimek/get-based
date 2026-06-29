@@ -96,6 +96,7 @@ assert('Profile share module is startup-loaded',
 assert('Settings Data tab exposes Share Profile action',
   settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
   settingsSrc.includes('settingsRuntime.openProfileShareModal()') &&
+  settingsSrc.includes('openProfileShareModal: (profileId) => settingsWindow.openProfileShareModal?.(profileId)') &&
   read('js/app-shell-hooks.js').includes('configureSettingsRuntime') &&
   read('js/app-shell-hooks.js').includes('openProfileShareModal'));
 assert('Share modal has dedicated shared-modal styling',

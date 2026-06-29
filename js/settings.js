@@ -40,10 +40,10 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
 
 /** @type {SettingsRuntime} */
 const settingsRuntime = {
-  exportAllDataJSON: () => {},
-  exportClientJSON: () => {},
-  getActiveProfileId: () => null,
-  openProfileShareModal: () => {},
+  exportAllDataJSON: () => settingsWindow.exportAllDataJSON?.(),
+  exportClientJSON: (profileId) => settingsWindow.exportClientJSON?.(profileId),
+  getActiveProfileId: () => settingsWindow.getActiveProfileId?.() || null,
+  openProfileShareModal: (profileId) => settingsWindow.openProfileShareModal?.(profileId),
 };
 
 /** @param {Partial<SettingsRuntime>} [runtime] */
