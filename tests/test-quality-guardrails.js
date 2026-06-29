@@ -29,6 +29,7 @@ const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'quality-
 const runTestsSrc = fs.readFileSync(path.join(ROOT, 'run-tests.sh'), 'utf8');
 const testWorkflowSrc = fs.readFileSync(path.join(ROOT, '.github/workflows/test.yml'), 'utf8');
 const checkJsConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.checkjs.json'), 'utf8'));
+const appEventListenersSrc = fs.readFileSync(path.join(ROOT, 'js', 'app-event-listeners.js'), 'utf8');
 
 assert('package.json exposes npm run quality',
   pkg.scripts?.quality === 'node scripts/quality-guardrails.mjs');
@@ -40,6 +41,24 @@ assert('quality guardrail tracks window global coupling budget',
   guardrailSrc.includes('WINDOW_REF_RE') &&
     guardrailSrc.includes('window(?:\\.|\\s*\\[)') &&
     Object.hasOwn(baseline, 'windowReferences'));
+const forbiddenAppEventWindowGlobals = [
+  'closeModal',
+  'toggleChatPanel',
+  'closeChatPanel',
+  'closeSettingsModal',
+  'closeSummaryModal',
+  'closeSyncSetup',
+  'closeRestoreMnemonicDialog',
+  'navigate',
+  'updateChatNudge',
+];
+const appEventWindowGlobalHits = forbiddenAppEventWindowGlobals.filter(name => {
+  const pattern = new RegExp(`\\bwindow\\s*(?:\\.\\s*${name}\\b|\\[\\s*['"]${name}['"]\\s*\\])`);
+  return pattern.test(appEventListenersSrc);
+});
+assert('app-event-listeners uses configured deps instead of delegated shell window globals',
+  appEventWindowGlobalHits.length === 0,
+  appEventWindowGlobalHits.length ? `found: ${appEventWindowGlobalHits.join(', ')}` : '');
 assert('quality guardrail tracks large-module budget',
   guardrailSrc.includes('LARGE_FILE_LINE_LIMIT') &&
     Object.hasOwn(baseline, 'largeJsFilesOver800Lines') &&

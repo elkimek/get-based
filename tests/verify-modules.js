@@ -581,6 +581,9 @@
     const hasAppUiShellModulesJs = sw.includes('/js/app-ui-shell-modules.js');
     assert('Service worker caches js/app-ui-shell-modules.js', hasAppUiShellModulesJs);
 
+    const hasAppShellHooksJs = sw.includes('/js/app-shell-hooks.js');
+    assert('Service worker caches js/app-shell-hooks.js', hasAppShellHooksJs);
+
     const hasAppEventListenersJs = sw.includes('/js/app-event-listeners.js');
     assert('Service worker caches js/app-event-listeners.js', hasAppEventListenersJs);
 
