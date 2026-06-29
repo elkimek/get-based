@@ -29,6 +29,28 @@ import {
 
 const settingsWindow = /** @type {SettingsWindow} */ (window);
 
+/**
+ * @typedef {{
+ *   exportAllDataJSON: () => Promise<void> | void,
+ *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
+ *   getActiveProfileId: () => string | null,
+ *   openProfileShareModal: (profileId?: string) => void,
+ * }} SettingsRuntime
+ */
+
+/** @type {SettingsRuntime} */
+const settingsRuntime = {
+  exportAllDataJSON: () => {},
+  exportClientJSON: () => {},
+  getActiveProfileId: () => null,
+  openProfileShareModal: () => {},
+};
+
+/** @param {Partial<SettingsRuntime>} [runtime] */
+export function configureSettingsRuntime(runtime = {}) {
+  Object.assign(settingsRuntime, runtime);
+}
+
 installSettingsProviderBridge();
 
 export {
@@ -387,14 +409,14 @@ async function handleSettingsClick(event) {
     }
   } else if (action === 'export-client') {
     event.preventDefault();
-    settingsWindow.exportClientJSON?.(settingsWindow.getActiveProfileId?.());
+    settingsRuntime.exportClientJSON(settingsRuntime.getActiveProfileId());
   } else if (action === 'share-profile') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => settingsWindow.openProfileShareModal?.(), 120);
+    setTimeout(() => settingsRuntime.openProfileShareModal(), 120);
   } else if (action === 'export-all-clients') {
     event.preventDefault();
-    settingsWindow.exportAllDataJSON?.();
+    settingsRuntime.exportAllDataJSON();
   } else if (action === 'clear-all-data') {
     event.preventDefault();
     settingsWindow.clearAllData?.();
