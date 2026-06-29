@@ -212,3 +212,51 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     expect(passed, name).toBe(true);
   }
 });
+
+test('app refresh callback uses configured shell dependencies', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async () => {
+    const [{ state }, data, appEvents] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/app-event-listeners.js'),
+      import('/js/app-shell-hooks.js'),
+    ]);
+    const calls = [];
+    const saved = {
+      currentView: state.currentView,
+      importedData: state.importedData,
+    };
+    const previous = appEvents.configureAppEventListeners({
+      navigate: route => calls.push(['navigate', route]),
+      updateChatNudge: () => calls.push(['updateChatNudge']),
+    });
+
+    try {
+      document.body.innerHTML = '<nav id="sidebar-nav"></nav>';
+      state.currentView = 'labs';
+      state.importedData = { entries: [], customMarkers: {} };
+      data.invalidateActiveDataCache();
+      appEvents.registerAppRefreshCallback();
+      data._runRegisteredRefreshCallback();
+      return {
+        navigatesCurrentView: calls.some(call => call[0] === 'navigate' && call[1] === 'labs'),
+        updatesChatNudge: calls.some(call => call[0] === 'updateChatNudge'),
+        buildsSidebarAgainstSameDataModule: document.querySelectorAll('#sidebar-nav .nav-item').length > 0,
+      };
+    } finally {
+      appEvents.configureAppEventListeners(previous);
+      state.currentView = saved.currentView;
+      state.importedData = saved.importedData;
+      data.invalidateActiveDataCache();
+      document.body.innerHTML = '';
+    }
+  });
+
+  expect(results).toEqual({
+    navigatesCurrentView: true,
+    updatesChatNudge: true,
+    buildsSidebarAgainstSameDataModule: true,
+  });
+});

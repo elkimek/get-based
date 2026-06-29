@@ -130,7 +130,7 @@
     'detectTrendAlerts','getKeyTrendMarkers',
     'switchUnitSystem','getEffectiveRange','switchRangeMode',
     'updateHeaderDates','updateHeaderRangeToggle',
-    'registerRefreshCallback'
+    'registerRefreshCallback','_runRegisteredRefreshCallback'
   ];
 
   // export.js (8)
