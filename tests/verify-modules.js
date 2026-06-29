@@ -202,7 +202,7 @@
 
   // client-list.js (3)
   const clientListExports = [
-    'openClientList','closeClientList','openClientForm'
+    'openClientList','closeClientList','openClientForm','configureClientListRuntime'
   ];
 
   // cycle.js (10)

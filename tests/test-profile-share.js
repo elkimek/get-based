@@ -123,7 +123,9 @@ assert('Share profile has a top-level header action',
   read('js/shell-actions.js').includes("callShellRuntime('openProfileShareModal')"));
 assert('Mobile share path moves into client list menu',
   read('js/client-list.js').includes("label: 'Share Profile', action: 'share-profile'") &&
-  read('js/client-list.js').includes('window.openProfileShareModal?.(id)') &&
+  read('js/client-list.js').includes('clientListRuntime.openProfileShareModal(id)') &&
+  read('js/app-shell-hooks.js').includes('configureClientListRuntime') &&
+  read('js/app-shell-hooks.js').includes('openProfileShareModal') &&
   /@media \(max-width: 768px\), \(pointer: coarse\)[\s\S]*\.header-share-btn\s*\{[\s\S]*display:\s*none/.test(redesignCss));
 assert('Share modal can target a selected profile id',
   profileShareSrc.includes('openProfileShareModal(profileId = state.currentProfile)') &&
