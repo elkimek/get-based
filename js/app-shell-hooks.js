@@ -14,16 +14,24 @@ import { closeFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { closeModal } from './marker-detail-modal.js';
 import { closeMobileSidebar } from './nav.js';
-import { closeSettingsModal, closeTweaksPanel } from './settings.js';
+import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
 import { navigate } from './views.js';
 import { openProfileShareModal } from './profile-share.js';
+import { getActiveProfileId } from './profile.js';
 
 configureClientListRuntime({
   exportAllDataJSON,
   exportClientJSON,
   importDataJSON,
   loadDemoData,
+  openProfileShareModal,
+});
+
+configureSettingsRuntime({
+  exportAllDataJSON,
+  exportClientJSON,
+  getActiveProfileId,
   openProfileShareModal,
 });
 

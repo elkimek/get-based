@@ -283,7 +283,7 @@
     'renderPrivacySection',
     'togglePrivacyConfigure','updatePrivacyStatusCard',
     'updateSettingsUI',
-    'renderDataEntriesSection','refreshDataEntriesSection'
+    'renderDataEntriesSection','refreshDataEntriesSection','configureSettingsRuntime'
   ];
 
   // provider-panels.js (72)
