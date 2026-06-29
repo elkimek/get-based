@@ -68,6 +68,14 @@ return (async function() {
     dashboardControlsSrc.includes('function renderDashboardWidget(entry, prefs, index, visibleEntries)') &&
     mobileDashboardSrc.includes('${mobileWidgetStack}') &&
     css.includes('.m-dashboard-widgets'));
+  assert('mobile dashboard host callbacks are configured through deps',
+    mobileDashboardSrc.includes('configureMobileDashboardView(deps = {})') &&
+    !mobileDashboardSrc.includes('window.navigate') &&
+    !mobileDashboardSrc.includes('window.openChatPanel') &&
+    !mobileDashboardSrc.includes('window.toggleMobileSidebar') &&
+    !mobileDashboardSrc.includes('window.loadContextCardTips') &&
+    !mobileDashboardSrc.includes('window.loadCatalog') &&
+    !mobileDashboardSrc.includes('window._cachedCatalog'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',
     !mobileDashboardSrc.includes('id="mobile-light-section"') &&
     !mobileDashboardSrc.includes('id="mobile-body-section"') &&

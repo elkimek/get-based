@@ -41,6 +41,12 @@ const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
  *   renderDashboardWidget: (entry: MobileDashboardWidgetEntry, prefs: MobileDashboardWidgetPrefs, index: number, visibleEntries: MobileDashboardWidgetEntry[]) => string,
  *   setupDropZone: () => void,
  *   loadCommitHash: () => void,
+ *   navigate: (route: string) => void,
+ *   openChatPanel: () => void,
+ *   toggleMobileSidebar: () => void,
+ *   loadContextCardTips: () => any,
+ *   loadCatalog: () => Promise<any>,
+ *   cacheCatalog: (catalog: any) => void,
  * }} MobileDashboardDeps
  */
 
@@ -54,6 +60,12 @@ const mobileDashboardDeps = {
   renderDashboardWidget: (_entry, _prefs, _index, _visibleEntries) => '',
   setupDropZone: () => {},
   loadCommitHash: () => {},
+  navigate: () => {},
+  openChatPanel: () => {},
+  toggleMobileSidebar: () => {},
+  loadContextCardTips: () => {},
+  loadCatalog: async () => null,
+  cacheCatalog: () => {},
 };
 
 /** @param {Partial<MobileDashboardDeps>} [deps] */
@@ -91,9 +103,9 @@ function handleMobileDashboardActionClick(event) {
     const tab = actionEl.dataset.mobileDashboardTab || 'dashboard';
     const route = actionEl.dataset.mobileDashboardRoute || tab;
     mobileDashboardSetTab(tab);
-    window.navigate?.(route);
+    mobileDashboardDeps.navigate(route);
   } else if (action === 'open-chat') {
-    window.openChatPanel?.();
+    mobileDashboardDeps.openChatPanel();
   } else if (action === 'open-search') {
     openMobileDashboardSearch();
   } else {
@@ -192,7 +204,7 @@ if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
   initMobileChromeStateSync();
   const mobileDashboardMedia = window.matchMedia(MOBILE_DASHBOARD_QUERY);
   const refreshDashboardForBreakpoint = () => {
-    if (state.currentView === 'dashboard') window.navigate?.('dashboard');
+    if (state.currentView === 'dashboard') mobileDashboardDeps.navigate('dashboard');
     else syncMobileBottomNav(state.currentView || 'dashboard');
   };
   if (typeof mobileDashboardMedia.addEventListener === 'function') {
@@ -470,15 +482,14 @@ function renderMobileDashboardWidgetStack(ctx) {
 }
 
 export function openMobileDashboardSearch() {
-  const appWindow = /** @type {any} */ (window);
-  if (appWindow.toggleMobileSidebar) appWindow.toggleMobileSidebar();
+  mobileDashboardDeps.toggleMobileSidebar();
   setTimeout(() => document.getElementById('sidebar-search')?.focus(), 80);
 }
 
 export function mobileDashboardJump(section) {
   const route = ['dashboard', 'labs', 'genome', 'body', 'light', 'insight', 'recommendations'].includes(section) ? section : 'dashboard';
   mobileDashboardSetTab(route === 'genome' || route === 'recommendations' ? 'dashboard' : route);
-  window.navigate?.(route);
+  mobileDashboardDeps.navigate(route);
 }
 
 export function renderMobileDashboard(data, { resetScroll = false } = {}) {
@@ -518,9 +529,9 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
   mobileDashboardDeps.setupDropZone();
   refreshMobileDashboardActiveTab();
   loadContextHealthDots();
-  if (window.loadContextCardTips) window.loadContextCardTips();
+  mobileDashboardDeps.loadContextCardTips();
   mobileDashboardDeps.loadCommitHash();
-  if (window.loadCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
+  mobileDashboardDeps.loadCatalog().then(c => { mobileDashboardDeps.cacheCatalog(c); });
 }
 
 Object.assign(window, {
