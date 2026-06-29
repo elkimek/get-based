@@ -7,6 +7,10 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { canonicalMetric } from './wearable-adapters.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { loadCommitHash } from './commit-hash.js';
+import { loadContextCardTips } from './context-cards.js';
+import { openChatPanel } from './chat-panel.js';
+import { toggleMobileSidebar } from './nav.js';
+import { loadCatalog } from './recommendations.js';
 import { createDashboardPageView } from './dashboard-page-view.js';
 import { configureLensPageShell } from './lens-page-shell.js';
 import { createDashboardWidgetRegistry } from './dashboard-widgets.js';
@@ -213,6 +217,12 @@ export function createDashboardViewComposition({
     renderDashboardWidget,
     setupDropZone,
     loadCommitHash,
+    navigate,
+    openChatPanel,
+    toggleMobileSidebar,
+    loadContextCardTips,
+    loadCatalog,
+    cacheCatalog: catalog => { globalThis._cachedCatalog = catalog; },
   });
 
   return {
