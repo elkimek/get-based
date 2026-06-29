@@ -59,10 +59,30 @@ function _needsStorageShim(storage) {
     return true;
   }
 }
-function _ensureStorage(name) {
-  if (_needsStorageShim(_readGlobalStorage(name))) {
-    globalThis[name] = _makeStorage();
+function _installStorageShim(name) {
+  const shim = _makeStorage();
+  const replacement = {
+    configurable: true,
+    writable: true,
+    enumerable: true,
+    value: shim,
+  };
+  try {
+    Object.defineProperty(globalThis, name, replacement);
+    return;
+  } catch {
+    // Accessor-only or non-configurable properties reject defineProperty
+    // in some engines; fall through to assignment when allowed.
   }
+  try {
+    globalThis[name] = shim;
+  } catch {
+    // Non-configurable accessor — native storage cannot be replaced.
+  }
+}
+function _ensureStorage(name) {
+  if (!_needsStorageShim(_readGlobalStorage(name))) return;
+  _installStorageShim(name);
 }
 _ensureStorage('localStorage');
 _ensureStorage('sessionStorage');
