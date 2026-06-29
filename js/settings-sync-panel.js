@@ -369,7 +369,7 @@ export function showSyncSetupModal() {
   openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action="setup-new"]', focusDelay: 50 });
 }
 
-async function closeSyncSetup() {
+export async function closeSyncSetup() {
   closeModalOverlay('sync-setup-overlay');
   // If sync was started during setup but user cancelled, clean up
   if (isSyncEnabled()) {
@@ -634,7 +634,7 @@ function updateRestoreMnemonicDialogState(input = /** @type {HTMLTextAreaElement
   }
 }
 
-function closeRestoreMnemonicDialog() {
+export function closeRestoreMnemonicDialog() {
   closeModalOverlay('sync-restore-overlay');
 }
 

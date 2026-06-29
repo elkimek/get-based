@@ -294,6 +294,7 @@ const startupAppShellCheckJsModules = [
   'js/app-feature-modules.js',
   'js/app-foundation-modules.js',
   'js/app-health-data-modules.js',
+  'js/app-shell-hooks.js',
   'js/app-ui-shell-modules.js',
   'js/main.js',
   'js/modal-lifecycle.js',
