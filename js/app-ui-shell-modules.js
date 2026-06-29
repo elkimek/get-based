@@ -6,6 +6,7 @@ import './tour.js';
 import './touch-tooltip.js';
 import './client-list.js';
 import './views.js';
+import './chat-onboarding-host-bindings.js';
 import './app-shell-hooks.js';
 import './light-env-shell-hooks.js';
 import './light-channel-view-ui-hooks.js';

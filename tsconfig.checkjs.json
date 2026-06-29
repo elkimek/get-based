@@ -56,6 +56,7 @@
     "js/chat-marker-prompts.js",
     "js/chat-message-action-attrs.js",
     "js/chat-nudge.js",
+    "js/chat-onboarding-host-bindings.js",
     "js/chat-onboarding.js",
     "js/chat-panel.js",
     "js/chat-personalities.js",
