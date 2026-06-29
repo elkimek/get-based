@@ -1407,6 +1407,8 @@ await import('../js/settings.js');
   assert('syncSetupBack returns to choices', settingsSyncPanelSrc.includes('function syncSetupBack'));
   assert('closeSyncSetup disables sync if started', settingsSyncPanelSrc.includes('async function closeSyncSetup') && settingsSyncPanelSrc.includes('disableSync'));
   assert('closeSyncSetup releases _syncToggling', settingsSyncPanelSrc.includes('_syncToggling = false'));
+  assert('closeSyncSetup handles cleanup failure before releasing toggle',
+    /export async function closeSyncSetup\(\)[\s\S]{0,500}await disableSync\(\);[\s\S]{0,260}catch \(e\)[\s\S]{0,220}setup close cleanup failed[\s\S]{0,260}finally[\s\S]{0,260}_releaseSyncToggle\(\)/.test(settingsSyncPanelSrc));
   assert('Clipboard auto-clear after 60s', settingsSyncPanelSrc.includes('60000') && settingsSyncPanelSrc.includes("writeText('')"));
   assert('loadMnemonic retry timer is cancellable', settingsSyncPanelSrc.includes('_mnemonicRetryTimer') && settingsSyncPanelSrc.includes('clearTimeout(_mnemonicRetryTimer)'));
   assert('Dynamic relay status indicator', settingsSyncPanelSrc.includes('updateRelayStatus') && settingsSyncPanelSrc.includes('sync-status-dot'));

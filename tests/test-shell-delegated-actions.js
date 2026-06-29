@@ -105,6 +105,10 @@ assert('App event listeners use configured shell deps instead of window globals'
     && appEventsSrc.includes('appEventListenerDeps.toggleChatPanel()')
     && appEventsSrc.includes('appEventListenerDeps.closeModal()')
     && !appEventsSrc.includes('window.'));
+assert('Sync setup Escape close catches async cleanup failures',
+  appEventsSrc.includes('function runAppEventListener(label, action)')
+    && appEventsSrc.includes(".catch((err) => reportAppEventListenerError(label, err))")
+    && appEventsSrc.includes("runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup)"));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);

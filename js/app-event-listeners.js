@@ -46,6 +46,27 @@ function nudgeModal(overlay) {
   modal.addEventListener("animationend", () => modal.classList.remove("modal-nudge"), { once: true });
 }
 
+function reportAppEventListenerError(label, err) {
+  console.error(`[app-event-listeners] ${label} failed:`, err);
+}
+
+/**
+ * @param {string} label
+ * @param {() => unknown} action
+ */
+function runAppEventListener(label, action) {
+  try {
+    const result = action();
+    if (!result) return;
+    const maybePromise = /** @type {{ catch?: (onRejected: (err: unknown) => unknown) => unknown }} */ (result);
+    if (typeof maybePromise.catch === 'function') {
+      maybePromise.catch((err) => reportAppEventListenerError(label, err));
+    }
+  } catch (err) {
+    reportAppEventListenerError(label, err);
+  }
+}
+
 function handleModalWheel(e) {
   const overlay = e.target.closest(".modal-overlay.show, .chat-backdrop.open");
   if (!overlay) return;
@@ -126,13 +147,13 @@ function handleAppKeydown(e) {
     // Sync restore dialog — single-step "paste your 24 words" modal.
     const syncRestoreOverlay = document.getElementById("sync-restore-overlay");
     if (syncRestoreOverlay && syncRestoreOverlay.classList.contains("show")) {
-      appEventListenerDeps.closeRestoreMnemonicDialog();
+      runAppEventListener('closeRestoreMnemonicDialog', appEventListenerDeps.closeRestoreMnemonicDialog);
       return;
     }
     // Sync setup wizard — "New setup / Join existing" choice + generated seed.
     const syncSetupOverlay = document.getElementById("sync-setup-overlay");
     if (syncSetupOverlay && syncSetupOverlay.classList.contains("show")) {
-      appEventListenerDeps.closeSyncSetup();
+      runAppEventListener('closeSyncSetup', appEventListenerDeps.closeSyncSetup);
       return;
     }
     const summaryOverlay = document.getElementById("summary-modal-overlay");
