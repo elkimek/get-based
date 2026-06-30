@@ -798,6 +798,14 @@ const importCssSrc = read('css/import.css');
       'fattyAcids.omega3Index:2024-07-01': 'import date note',
       'fattyAcids.omega3Index:2024-07-04': 'nearby manual note',
     },
+    markerLabels: {
+      'fattyAcids.omega3Index:2024-07-01': 'import date label',
+      'fattyAcids.omega3Index:2024-07-04': 'nearby manual label',
+    },
+    refOverrides: {
+      'fattyAcids.omega3Index:2024-07-01': { min: 8, max: 12 },
+      'fattyAcids.omega3Index:2024-07-04': { min: 7, max: 11 },
+    },
   };
   migrateProfileData(spadiaScopedCleanup);
   assert('Profile migration preserves all scoped metadata before generic Spadia cleanup',
@@ -806,10 +814,18 @@ const importCssSrc = read('css/import.css');
     && spadiaScopedCleanup.manualValues['spadiaFA.omega3Index:2024-07-04'] === 7.4
     && spadiaScopedCleanup.markerValueNotes['spadiaFA.omega3Index:2024-07-01'] === 'import date note'
     && spadiaScopedCleanup.markerValueNotes['spadiaFA.omega3Index:2024-07-04'] === 'nearby manual note'
+    && spadiaScopedCleanup.markerLabels['spadiaFA.omega3Index:2024-07-01'] === 'import date label'
+    && spadiaScopedCleanup.markerLabels['spadiaFA.omega3Index:2024-07-04'] === 'nearby manual label'
+    && spadiaScopedCleanup.refOverrides['spadiaFA.omega3Index:2024-07-01']?.min === 8
+    && spadiaScopedCleanup.refOverrides['spadiaFA.omega3Index:2024-07-04']?.min === 7
     && spadiaScopedCleanup.manualValues['fattyAcids.omega3Index:2024-07-01'] === undefined
     && spadiaScopedCleanup.manualValues['fattyAcids.omega3Index:2024-07-04'] === undefined
     && spadiaScopedCleanup.markerValueNotes['fattyAcids.omega3Index:2024-07-01'] === undefined
-    && spadiaScopedCleanup.markerValueNotes['fattyAcids.omega3Index:2024-07-04'] === undefined);
+    && spadiaScopedCleanup.markerValueNotes['fattyAcids.omega3Index:2024-07-04'] === undefined
+    && spadiaScopedCleanup.markerLabels['fattyAcids.omega3Index:2024-07-01'] === undefined
+    && spadiaScopedCleanup.markerLabels['fattyAcids.omega3Index:2024-07-04'] === undefined
+    && spadiaScopedCleanup.refOverrides['fattyAcids.omega3Index:2024-07-01'] === undefined
+    && spadiaScopedCleanup.refOverrides['fattyAcids.omega3Index:2024-07-04'] === undefined);
 
   // ═══════════════════════════════════════
   // Results

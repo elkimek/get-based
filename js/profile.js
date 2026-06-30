@@ -480,9 +480,13 @@ function _copyDateScopedProfileMarkerData(data, oldKey, nextKey, date = null) {
   if (date) {
     copyExact(data.manualValues, date);
     copyExact(data.markerValueNotes, date);
+    copyExact(data.markerLabels, date);
+    copyExact(data.refOverrides, date);
   } else {
     copyAll(data.manualValues);
     copyAll(data.markerValueNotes);
+    copyAll(data.markerLabels);
+    copyAll(data.refOverrides);
   }
 }
 
@@ -501,9 +505,13 @@ function _deleteDateScopedProfileMarkerData(data, oldKey, date = null) {
   if (date) {
     deleteExact(data.manualValues, date);
     deleteExact(data.markerValueNotes, date);
+    deleteExact(data.markerLabels, date);
+    deleteExact(data.refOverrides, date);
   } else {
     deleteAll(data.manualValues);
     deleteAll(data.markerValueNotes);
+    deleteAll(data.markerLabels);
+    deleteAll(data.refOverrides);
   }
 }
 
