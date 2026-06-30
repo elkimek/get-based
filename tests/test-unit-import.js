@@ -384,12 +384,13 @@ const importCssSrc = read('css/import.css');
       && spadiaVitaminA.matched === true
       && spadiaVitaminA.mappedKey === 'vitamins.vitaminA',
     JSON.stringify(spadiaVitaminA));
-  assert('Blood-classified Spadia guard does not invent unknown product FA keys',
+  assert('Blood-classified Spadia guard product-prefixes unknown generic FA keys',
     spadiaUnknownFA
       && spadiaUnknownFA.matched === false
       && spadiaUnknownFA.mappedKey === null
-      && spadiaUnknownFA.suggestedKey === 'fattyAcids.epa'
-      && spadiaUnknownFA.suggestedKey !== 'spadiaFA.epa',
+      && spadiaUnknownFA.suggestedKey === 'spadiaFA.epa'
+      && spadiaUnknownFA.suggestedCategoryLabel === 'Spadia'
+      && spadiaUnknownFA.group === 'Fatty Acids',
     JSON.stringify(spadiaUnknownFA));
   assert('Blood-classified Spadia guard demotes malformed generic FA keys',
     spadiaMalformedFA

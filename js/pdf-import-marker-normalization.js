@@ -88,8 +88,11 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
         if (emitDebugLogs && isDebugMode()) {
           console.log(`[Import Guard] Demoted invalid ${genericFattyAcidKey} for detected ${detected.product.label}`);
         }
-        if (!markerPart && m.suggestedKey === genericFattyAcidKey) m.suggestedKey = null;
-        else if (markerPart && !m.suggestedKey) m.suggestedKey = genericFattyAcidKey;
+        if (markerPart) {
+          m.suggestedKey = `${detected.product.prefix}.${markerPart}`;
+        } else if (m.suggestedKey === genericFattyAcidKey) {
+          m.suggestedKey = null;
+        }
         m.suggestedName = m.suggestedName || m.rawName;
         m.suggestedCategoryLabel = m.suggestedCategoryLabel || detected.product.label;
         m.suggestedGroup = m.suggestedGroup || 'Fatty Acids';
