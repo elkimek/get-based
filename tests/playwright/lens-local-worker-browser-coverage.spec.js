@@ -239,6 +239,17 @@ test('lens local worker browser coverage exercises production embedder loading w
       check('production init benchmark is finite', Number.isFinite(ready.embedder?.msPerEmbed));
       checkEqual('production model catalog exposes BGE-base dimension', ready.models?.['bge-base-en']?.dim, 768);
 
+      const defaultIngest = await roundTrip({
+        type: 'ingest',
+        files: [{ name: 'default-model.md', text: 'MiniLM default library content. '.repeat(30) }],
+      }, 'ingest_done', 10000);
+      const defaultStats = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('production default library ingests before model switch',
+        defaultIngest.stats?.chunks_indexed > 0
+        && defaultStats.total_chunks === defaultIngest.stats.chunks_indexed
+        && defaultStats.dim === 384
+        && defaultStats.model === 'Xenova/all-MiniLM-L6-v2');
+
       const bge = await roundTrip({ type: 'create_library', name: 'BGE Base', model: 'bge-base-en' }, 'library_created');
       const activeBge = await roundTrip({ type: 'activate_library', libraryId: bge.id }, 'ready', 10000);
       const bgeStats = await roundTrip({ type: 'stats' }, 'stats_result');
@@ -250,6 +261,26 @@ test('lens local worker browser coverage exercises production embedder loading w
       checkEqual('activated BGE embedder dimension', activeBge.embedder?.dim, 768);
       checkEqual('BGE stats dimension', bgeStats.dim, 768);
       checkEqual('BGE stats model id', bgeStats.model, 'Xenova/bge-base-en-v1.5');
+
+      const bgeIngest = await roundTrip({
+        type: 'ingest',
+        files: [{ name: 'bge-model.md', text: 'BGE base library content. '.repeat(30) }],
+      }, 'ingest_done', 10000);
+      const bgeAfterIngest = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('production BGE library ingests with BGE dimensions',
+        bgeIngest.stats?.chunks_indexed > 0
+        && bgeAfterIngest.total_chunks === bgeIngest.stats.chunks_indexed
+        && bgeAfterIngest.dim === 768
+        && bgeAfterIngest.model === 'Xenova/bge-base-en-v1.5');
+
+      const deletedActiveBge = await roundTrip({ type: 'delete_library', libraryId: bge.id }, 'library_deleted', 10000);
+      const defaultAfterActiveDelete = await roundTrip({ type: 'stats' }, 'stats_result');
+      check('deleting active cross-model library reloads remaining library before manifest load',
+        deletedActiveBge.activeId === 'default'
+        && deletedActiveBge.numChunks === defaultStats.total_chunks
+        && defaultAfterActiveDelete.total_chunks === defaultStats.total_chunks
+        && defaultAfterActiveDelete.dim === 384
+        && defaultAfterActiveDelete.model === 'Xenova/all-MiniLM-L6-v2');
 
       await roundTrip({ type: 'clear' }, 'clear_done');
     } catch (error) {
