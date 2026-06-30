@@ -142,6 +142,8 @@ let _activeId = null;           // Currently active library id
 let _manifest = null;           // Active library's manifest (loaded on activate)
 let _vectors = null;            // Active library's packed Float32Array
 let _chunks = null;             // Active library's [{source, text}]
+let _registryRevision = 0;      // Monotonic registry version shared by primary + backup
+let _testFailNextRegistryPersist = false; // mock-mode test hook
 
 const OPFS_SUBDIR = 'lens-local';
 const FILE_MANIFEST = 'manifest.json';
@@ -178,6 +180,13 @@ self.addEventListener('message', async (e) => {
       case 'create_library':    return await handleCreateLibrary(msg.name, msg.model);
       case 'rename_library':    return await handleRenameLibrary(msg.libraryId, msg.name);
       case 'delete_library':    return await handleDeleteLibrary(msg.libraryId);
+      case 'test_fail_next_registry_persist':
+        if (isMockMode()) {
+          _testFailNextRegistryPersist = true;
+          self.postMessage({ type: 'test_ack' });
+          return;
+        }
+        throw new Error(`Unknown message type: ${msg.type}`);
       // Abort is a side-channel signal — skips the serial queue on the
       // main thread so it can interrupt an in-flight ingest. handleIngest
       // polls _abortRequested between embeds and commits whatever's been
@@ -189,6 +198,10 @@ self.addEventListener('message', async (e) => {
     self.postMessage({ type: 'error', message: err.message || String(err) });
   }
 });
+
+function isMockMode() {
+  return new URLSearchParams(self.location.search || '').has('mock');
+}
 
 // ── Init: load model + open OPFS ───────────────────────────────────
 
@@ -491,6 +504,7 @@ async function loadOrMigrateLibraries() {
   const registry = await readLibraryRegistry();
 
   if (registry?.payload) {
+    _registryRevision = registry.payload.revision || 0;
     _libraries = registry.payload.libraries;
     _activeId = registry.payload.activeId;
 
@@ -512,7 +526,7 @@ async function loadOrMigrateLibraries() {
     const recovered = await reconcileLibrariesWithDisk({
       recoverOrphans: registry.source !== 'primary',
     });
-    if (registry.source !== 'primary' || migrated || recovered.changed) {
+    if (registry.source !== 'primary' || registry.needsPersist || migrated || recovered.changed) {
       if (registry.source !== 'primary') {
         console.warn(`[lens-local] Restored library registry from ${registry.source}.`);
       }
@@ -573,10 +587,19 @@ async function loadOrMigrateLibraries() {
 
 async function readLibraryRegistry() {
   const primary = await readLibraryRegistryFile(FILE_LIBRARIES);
-  if (primary) return { source: 'primary', payload: primary };
-
   const backup = await readLibraryRegistryFile(FILE_LIBRARIES_BACKUP);
-  if (backup) return { source: 'backup', payload: backup };
+  if (primary && backup) {
+    if (backup.revision > primary.revision) {
+      return { source: 'backup', payload: backup, needsPersist: true };
+    }
+    return {
+      source: 'primary',
+      payload: primary,
+      needsPersist: !sameLibraryRegistry(primary, backup),
+    };
+  }
+  if (primary) return { source: 'primary', payload: primary, needsPersist: true };
+  if (backup) return { source: 'backup', payload: backup, needsPersist: true };
 
   return null;
 }
@@ -605,7 +628,21 @@ function normaliseLibraryRegistry(registry) {
 
   let activeId = typeof registry.activeId === 'string' ? registry.activeId : '';
   if (!libraries.some((lib) => lib.id === activeId)) activeId = libraries[0].id;
-  return { activeId, libraries };
+  const revisionNumber = Number(registry.revision);
+  const updatedAtNumber = Number(registry.updatedAt);
+  return {
+    activeId,
+    libraries,
+    revision: Number.isFinite(revisionNumber) && revisionNumber > 0 ? revisionNumber : 0,
+    updatedAt: Number.isFinite(updatedAtNumber) && updatedAtNumber > 0 ? updatedAtNumber : 0,
+  };
+}
+
+function sameLibraryRegistry(a, b) {
+  if (!a || !b) return false;
+  return a.revision === b.revision
+    && a.activeId === b.activeId
+    && JSON.stringify(a.libraries) === JSON.stringify(b.libraries);
 }
 
 function normaliseLibraryRecord(raw, fallbackId = '') {
@@ -675,13 +712,13 @@ async function reconcileLibrariesWithDisk({ recoverOrphans = false } = {}) {
   for (const lib of _libraries) {
     const disk = byId.get(lib.id);
     if (!disk) {
-      changed = true;
+      next.push(lib);
       continue;
     }
     byId.delete(lib.id);
 
     const diskModel = modelKeyFromManifest(disk.manifest);
-    if (diskModel && diskModel !== lib.model) {
+    if ((!lib.model || !MODELS[lib.model]) && diskModel) {
       lib.model = diskModel;
       changed = true;
     }
@@ -782,10 +819,22 @@ async function activeLibraryDir() {
 }
 
 async function persistLibraries() {
-  const payload = { activeId: _activeId, libraries: _libraries };
+  return persistLibraryRegistry(_libraries, _activeId);
+}
+
+async function persistLibraryRegistry(libraries, activeId) {
+  if (_testFailNextRegistryPersist) {
+    _testFailNextRegistryPersist = false;
+    throw new Error('Test registry persist failure');
+  }
+  const nextRevision = _registryRevision + 1;
+  const payload = { activeId, libraries, revision: nextRevision, updatedAt: Date.now() };
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
-  await writeSync(FILE_LIBRARIES, bytes);
+  // Write backup first. If the worker dies before the primary write, startup
+  // chooses the newer valid registry by revision and repairs the stale copy.
   await writeSync(FILE_LIBRARIES_BACKUP, bytes);
+  await writeSync(FILE_LIBRARIES, bytes);
+  _registryRevision = nextRevision;
 }
 
 // ── Ingest ────────────────────────────────────────────────────────
@@ -1007,22 +1056,25 @@ async function handleActivateLibrary(libraryId) {
     self.postMessage(readyPayload());
     return;
   }
+  await persistLibraryRegistry(_libraries, libraryId);
   _activeId = libraryId;
-  await persistLibraries();
 
-  // Reload embedder if the target library uses a different model.
-  // Skip for mock mode (tests pin _embedder to mockEmbedder and don't
-  // want it replaced by a jsdelivr import).
-  const targetModelKey = _libraryModelKey(_activeId);
-  const params = new URLSearchParams(self.location.search || '');
-  if (targetModelKey !== _modelKey && !params.has('mock')) {
-    console.log(`[lens-local] Library model change: ${_modelKey} → ${targetModelKey}, reloading embedder`);
-    await _loadEmbedder(targetModelKey);
-  }
+  await ensureActiveLibraryEmbedderLoaded();
 
   await loadActiveManifest();
   await loadCorpusIntoMemory();
   self.postMessage(readyPayload());
+}
+
+async function ensureActiveLibraryEmbedderLoaded() {
+  // Reload embedder if the active library uses a different model.
+  // Skip for mock mode (tests pin _embedder to mockEmbedder and don't
+  // want it replaced by a jsdelivr import).
+  const targetModelKey = _libraryModelKey(_activeId);
+  if (targetModelKey !== _modelKey && !isMockMode()) {
+    console.log(`[lens-local] Library model change: ${_modelKey} → ${targetModelKey}, reloading embedder`);
+    await _loadEmbedder(targetModelKey);
+  }
 }
 
 /// Create a new library with the given display name and (optional)
@@ -1036,9 +1088,9 @@ async function handleCreateLibrary(name, modelKey) {
   const label = String(name || '').trim() || 'Untitled library';
   const id = `lib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const model = (modelKey && MODELS[modelKey]) ? modelKey : DEFAULT_MODEL_KEY;
-  _libraries.push({ id, name: label, createdAt: Date.now(), model });
-  await _rootDir.getDirectoryHandle(id, { create: true });
-  await persistLibraries();
+  const nextLibraries = _libraries.concat({ id, name: label, createdAt: Date.now(), model });
+  await persistLibraryRegistry(nextLibraries, _activeId);
+  _libraries = nextLibraries;
   self.postMessage({
     type: 'library_created',
     id, name: label, model,
@@ -1050,11 +1102,14 @@ async function handleCreateLibrary(name, modelKey) {
 async function handleRenameLibrary(libraryId, name) {
   const lib = _libraries.find((l) => l.id === libraryId);
   if (!lib) throw new Error(`No library with id "${libraryId}"`);
-  lib.name = String(name || '').trim() || lib.name;
-  await persistLibraries();
+  const nextName = String(name || '').trim() || lib.name;
+  const nextLibraries = _libraries.map((l) =>
+    l.id === libraryId ? { ...l, name: nextName } : l);
+  await persistLibraryRegistry(nextLibraries, _activeId);
+  _libraries = nextLibraries;
   self.postMessage({
     type: 'library_renamed',
-    id: libraryId, name: lib.name,
+    id: libraryId, name: nextName,
     libraries: _libraries.slice(),
     activeId: _activeId,
   });
@@ -1068,19 +1123,28 @@ async function handleDeleteLibrary(libraryId) {
   const idx = _libraries.findIndex((l) => l.id === libraryId);
   if (idx === -1) throw new Error(`No library with id "${libraryId}"`);
   const wasActive = libraryId === _activeId;
-  try { await _rootDir.removeEntry(libraryId, { recursive: true }); } catch {}
-  _libraries.splice(idx, 1);
-  if (_libraries.length === 0) {
+
+  let nextLibraries = _libraries.filter((l) => l.id !== libraryId);
+  let nextActiveId = _activeId;
+  if (nextLibraries.length === 0) {
     // Auto-create a default so the UI never has to handle an empty list.
     const id = 'default';
-    _libraries = [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
-    _activeId = id;
-    await _rootDir.getDirectoryHandle(id, { create: true });
+    nextLibraries = [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
+    nextActiveId = id;
   } else if (wasActive) {
-    _activeId = _libraries[0].id;
+    nextActiveId = nextLibraries[0].id;
   }
-  await persistLibraries();
+
+  await persistLibraryRegistry(nextLibraries, nextActiveId);
+  _libraries = nextLibraries;
+  _activeId = nextActiveId;
+
+  try { await _rootDir.removeEntry(libraryId, { recursive: true }); } catch {}
+  if (_libraries.length === 1 && _activeId === 'default') {
+    await _rootDir.getDirectoryHandle('default', { create: true });
+  }
   if (wasActive || _libraries.length === 1) {
+    await ensureActiveLibraryEmbedderLoaded();
     await loadActiveManifest();
     await loadCorpusIntoMemory();
   }

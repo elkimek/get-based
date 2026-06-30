@@ -169,12 +169,36 @@ return (async function() {
   assert('init has an activeName',
     typeof libReady.activeName === 'string');
 
+  // ─── Phase 10b: failed create persist does not mutate state ───
+  console.log('%c[10b] Multi-library: failed create rollback', 'font-weight:bold');
+  const beforeFailedCreate = await roundTrip(worker, { type: 'list_libraries' }, 'libraries_list');
+  await roundTrip(worker, { type: 'test_fail_next_registry_persist' }, 'test_ack');
+  try {
+    await roundTrip(worker, { type: 'create_library', name: 'Failed Persist' }, 'library_created');
+    assert('failed create_library rejects when registry persist fails', false, 'expected rejection');
+  } catch (e) {
+    assert('failed create_library rejects when registry persist fails',
+      /persist/i.test(e.message));
+  }
+  const afterFailedCreate = await roundTrip(worker, { type: 'list_libraries' }, 'libraries_list');
+  assert('failed create_library leaves registry list unchanged',
+    afterFailedCreate.libraries.length === beforeFailedCreate.libraries.length
+      && !afterFailedCreate.libraries.some((l) => l.name === 'Failed Persist'));
+
+  worker.terminate();
+  await removeLensRegistryFiles(true);
+  worker = spawnWorker();
+  const afterFailedCreateRecovery = await roundTrip(worker, { type: 'init' }, 'ready');
+  assert('failed create_library leaves no recoverable OPFS directory',
+    !afterFailedCreateRecovery.libraries.some((l) => l.name === 'Failed Persist'));
+
   // ─── Phase 11: create a second library ───
   console.log('%c[11] Multi-library: create second', 'font-weight:bold');
-  const created = await roundTrip(worker, { type: 'create_library', name: 'Research' }, 'library_created');
+  const created = await roundTrip(worker, { type: 'create_library', name: 'Research', model: 'bge-small-en' }, 'library_created');
   assert('library_created returns generated id',
     typeof created.id === 'string' && created.id.length > 0);
   assert('library_created echoes name', created.name === 'Research');
+  assert('library_created preserves chosen model', created.model === 'bge-small-en');
   assert('library_created libraries list now has 2 entries',
     Array.isArray(created.libraries) && created.libraries.length >= 2);
 
@@ -209,6 +233,9 @@ return (async function() {
   const backupRecoveredLib = backupRecovered.libraries.find((l) => l.id === created.id);
   assert('missing primary registry recovers library metadata from backup',
     backupRecoveredLib?.name === 'Kruse Research');
+  assert('backup registry recovery preserves explicit library model',
+    backupRecoveredLib?.model === 'bge-small-en' && backupRecovered.activeModel === 'bge-small-en',
+    `got ${JSON.stringify({ libModel: backupRecoveredLib?.model, activeModel: backupRecovered.activeModel })}`);
 
   worker.terminate();
   await removeLensRegistryFiles(true);
