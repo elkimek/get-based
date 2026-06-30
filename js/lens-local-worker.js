@@ -6,9 +6,10 @@
 // ingest pass is running.
 //
 // Layout on disk (OPFS, origin-scoped, persistent):
-//   /lens-local/manifest.json   — {numChunks, dim, modelId, indexedAt, docs: [...]}
-//   /lens-local/vectors.bin     — packed Float32Array, numChunks * dim * 4 bytes
-//   /lens-local/chunks.json     — array parallel to vectors: [{source, text}, …]
+//   /lens-local/_libraries.json — {activeId, libraries:[{id,name,createdAt,model}]}
+//   /lens-local/<libraryId>/manifest.json
+//   /lens-local/<libraryId>/vectors.bin
+//   /lens-local/<libraryId>/chunks.json
 //
 // Persistence strategy: load the full corpus into RAM on first query for this
 // worker session, then serve every query from memory (cosine over 10k chunks
@@ -147,6 +148,7 @@ const FILE_MANIFEST = 'manifest.json';
 const FILE_VECTORS = 'vectors.bin';
 const FILE_CHUNKS = 'chunks.json';
 const FILE_LIBRARIES = '_libraries.json'; // top-level, inside /lens-local/
+const FILE_LIBRARIES_BACKUP = '_libraries.backup.json';
 const DEFAULT_LIBRARY_NAME = 'My Library';
 
 // ── Message dispatch ───────────────────────────────────────────────
@@ -486,16 +488,12 @@ async function openOpfs() {
 /// (/lens-local/manifest.json at top level), move it into
 /// /lens-local/default/ and create a "My Library" entry.
 async function loadOrMigrateLibraries() {
-  let registry = null;
-  try {
-    const text = await readOpfsFileFrom(_rootDir, FILE_LIBRARIES);
-    registry = JSON.parse(text);
-  } catch { /* no registry yet */ }
+  const registry = await readLibraryRegistry();
 
-  if (registry && Array.isArray(registry.libraries) && registry.libraries.length > 0) {
-    _libraries = registry.libraries;
-    _activeId = registry.activeId || _libraries[0].id;
-    if (!_libraries.some((l) => l.id === _activeId)) _activeId = _libraries[0].id;
+  if (registry?.payload) {
+    _libraries = registry.payload.libraries;
+    _activeId = registry.payload.activeId;
+
     // Per-library embedding-model migration. Pre-step-2 libraries had no
     // `model` field; they were all MiniLM by definition. Fill it in so
     // downstream code can read `lib.model` uniformly, and persist once
@@ -507,8 +505,17 @@ async function loadOrMigrateLibraries() {
         migrated = true;
       }
     }
-    if (migrated) {
-      console.log('[lens-local] Filled missing lib.model → ' + DEFAULT_MODEL_KEY);
+
+    // If the primary registry is corrupted or missing but the backup is
+    // valid, also scan OPFS directories. That catches libraries created
+    // after the backup but before an update/reload killed the worker.
+    const recovered = await reconcileLibrariesWithDisk({
+      recoverOrphans: registry.source !== 'primary',
+    });
+    if (registry.source !== 'primary' || migrated || recovered.changed) {
+      if (registry.source !== 'primary') {
+        console.warn(`[lens-local] Restored library registry from ${registry.source}.`);
+      }
       await persistLibraries();
     }
     return;
@@ -539,12 +546,178 @@ async function loadOrMigrateLibraries() {
     return;
   }
 
+  // Registry absent/corrupt, but multi-library directories may still be
+  // present. Rebuild a conservative registry from those directories instead
+  // of replacing it with a fresh default and hiding the user's corpus.
+  const recoveredLibraries = await discoverLibraryDirectories();
+  if (recoveredLibraries.length > 0) {
+    _libraries = recoveredLibraries.map((lib) => ({
+      id: lib.id,
+      name: lib.name,
+      createdAt: lib.createdAt,
+      model: lib.model,
+    }));
+    _activeId = _libraries.find((lib) => lib.id === 'default')?.id || _libraries[0].id;
+    console.warn(`[lens-local] Recovered ${_libraries.length} library registry entries from OPFS directories.`);
+    await persistLibraries();
+    return;
+  }
+
   // Fresh install — create a single default library so the UI always has
   // something to show. User can rename it later.
   _libraries = [{ id: 'default', name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
   _activeId = 'default';
   await _rootDir.getDirectoryHandle('default', { create: true });
   await persistLibraries();
+}
+
+async function readLibraryRegistry() {
+  const primary = await readLibraryRegistryFile(FILE_LIBRARIES);
+  if (primary) return { source: 'primary', payload: primary };
+
+  const backup = await readLibraryRegistryFile(FILE_LIBRARIES_BACKUP);
+  if (backup) return { source: 'backup', payload: backup };
+
+  return null;
+}
+
+async function readLibraryRegistryFile(name) {
+  try {
+    const text = await readOpfsFileFrom(_rootDir, name);
+    return normaliseLibraryRegistry(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+function normaliseLibraryRegistry(registry) {
+  if (!registry || !Array.isArray(registry.libraries)) return null;
+
+  const seen = new Set();
+  const libraries = [];
+  for (const raw of registry.libraries) {
+    const lib = normaliseLibraryRecord(raw);
+    if (!lib || seen.has(lib.id)) continue;
+    seen.add(lib.id);
+    libraries.push(lib);
+  }
+  if (libraries.length === 0) return null;
+
+  let activeId = typeof registry.activeId === 'string' ? registry.activeId : '';
+  if (!libraries.some((lib) => lib.id === activeId)) activeId = libraries[0].id;
+  return { activeId, libraries };
+}
+
+function normaliseLibraryRecord(raw, fallbackId = '') {
+  const id = String(raw?.id || fallbackId || '').trim();
+  if (!isSafeLibraryId(id)) return null;
+  const name = String(raw?.name || '').trim() || fallbackLibraryName(id);
+  const createdAtNumber = Number(raw?.createdAt);
+  const createdAt = Number.isFinite(createdAtNumber) && createdAtNumber > 0
+    ? createdAtNumber
+    : Date.now();
+  const model = typeof raw?.model === 'string' ? raw.model : undefined;
+  return { id, name, createdAt, model };
+}
+
+function isSafeLibraryId(id) {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(String(id || ''));
+}
+
+function fallbackLibraryName(id) {
+  if (id === 'default') return DEFAULT_LIBRARY_NAME;
+  const label = String(id || '')
+    .replace(/^lib[-_]?/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+  return label || 'Recovered library';
+}
+
+async function discoverLibraryDirectories() {
+  if (!_rootDir || typeof _rootDir.entries !== 'function') return [];
+
+  const libraries = [];
+  for await (const [id, handle] of _rootDir.entries()) {
+    if (handle?.kind !== 'directory' || !isSafeLibraryId(id)) continue;
+
+    let manifest = null;
+    try {
+      manifest = JSON.parse(await readOpfsFileFrom(handle, FILE_MANIFEST));
+    } catch {}
+
+    const model = modelKeyFromManifest(manifest) || DEFAULT_MODEL_KEY;
+    const indexedAt = Number(manifest?.indexedAt);
+    libraries.push({
+      id,
+      name: fallbackLibraryName(id),
+      createdAt: Number.isFinite(indexedAt) && indexedAt > 0 ? indexedAt : Date.now(),
+      model,
+      manifest,
+    });
+  }
+
+  libraries.sort((a, b) => {
+    if (a.id === 'default') return -1;
+    if (b.id === 'default') return 1;
+    return a.createdAt - b.createdAt || a.id.localeCompare(b.id);
+  });
+  return libraries;
+}
+
+async function reconcileLibrariesWithDisk({ recoverOrphans = false } = {}) {
+  const discovered = await discoverLibraryDirectories();
+  if (discovered.length === 0) return { changed: false };
+
+  const byId = new Map(discovered.map((lib) => [lib.id, lib]));
+  const next = [];
+  let changed = false;
+
+  for (const lib of _libraries) {
+    const disk = byId.get(lib.id);
+    if (!disk) {
+      changed = true;
+      continue;
+    }
+    byId.delete(lib.id);
+
+    const diskModel = modelKeyFromManifest(disk.manifest);
+    if (diskModel && diskModel !== lib.model) {
+      lib.model = diskModel;
+      changed = true;
+    }
+
+    next.push(lib);
+  }
+
+  if (recoverOrphans) {
+    for (const disk of byId.values()) {
+      next.push({
+        id: disk.id,
+        name: disk.name,
+        createdAt: disk.createdAt,
+        model: disk.model,
+      });
+      changed = true;
+    }
+  }
+
+  if (next.length > 0) {
+    _libraries = next;
+    if (!_libraries.some((lib) => lib.id === _activeId)) {
+      _activeId = _libraries[0].id;
+      changed = true;
+    }
+  }
+
+  return { changed };
+}
+
+function modelKeyFromManifest(manifest) {
+  if (!manifest || typeof manifest !== 'object') return '';
+  for (const [key, spec] of Object.entries(MODELS)) {
+    if (manifest.modelId === spec.id && Number(manifest.dim) === spec.dim) return key;
+  }
+  return '';
 }
 
 async function loadActiveManifest() {
@@ -610,7 +783,9 @@ async function activeLibraryDir() {
 
 async function persistLibraries() {
   const payload = { activeId: _activeId, libraries: _libraries };
-  await writeSync(FILE_LIBRARIES, new TextEncoder().encode(JSON.stringify(payload)));
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  await writeSync(FILE_LIBRARIES, bytes);
+  await writeSync(FILE_LIBRARIES_BACKUP, bytes);
 }
 
 // ── Ingest ────────────────────────────────────────────────────────
@@ -892,19 +1067,20 @@ async function handleRenameLibrary(libraryId, name) {
 async function handleDeleteLibrary(libraryId) {
   const idx = _libraries.findIndex((l) => l.id === libraryId);
   if (idx === -1) throw new Error(`No library with id "${libraryId}"`);
+  const wasActive = libraryId === _activeId;
   try { await _rootDir.removeEntry(libraryId, { recursive: true }); } catch {}
   _libraries.splice(idx, 1);
   if (_libraries.length === 0) {
     // Auto-create a default so the UI never has to handle an empty list.
     const id = 'default';
-    _libraries = [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: Date.now() }];
+    _libraries = [{ id, name: DEFAULT_LIBRARY_NAME, createdAt: Date.now(), model: DEFAULT_MODEL_KEY }];
     _activeId = id;
     await _rootDir.getDirectoryHandle(id, { create: true });
-  } else if (libraryId === _activeId) {
+  } else if (wasActive) {
     _activeId = _libraries[0].id;
   }
   await persistLibraries();
-  if (libraryId === _activeId || _libraries.length === 1) {
+  if (wasActive || _libraries.length === 1) {
     await loadActiveManifest();
     await loadCorpusIntoMemory();
   }

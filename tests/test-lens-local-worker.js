@@ -29,6 +29,15 @@ return (async function() {
     return new Worker('/js/lens-local-worker.js?mock=1', { type: 'module' });
   }
 
+  async function removeLensRegistryFiles(removeBackup = false) {
+    const root = await navigator.storage.getDirectory();
+    const lensDir = await root.getDirectoryHandle('lens-local');
+    await lensDir.removeEntry('_libraries.json').catch(() => {});
+    if (removeBackup) {
+      await lensDir.removeEntry('_libraries.backup.json').catch(() => {});
+    }
+  }
+
   function roundTrip(worker, msg, expectedType, timeoutMs = 5000) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -190,6 +199,28 @@ return (async function() {
   console.log('%c[13] Multi-library: rename', 'font-weight:bold');
   const renamed = await roundTrip(worker, { type: 'rename_library', libraryId: created.id, name: 'Kruse Research' }, 'library_renamed');
   assert('library_renamed returns new name', renamed.name === 'Kruse Research');
+
+  // ─── Phase 13b: registry recovery across update/reload ───
+  console.log('%c[13b] Multi-library: registry recovery', 'font-weight:bold');
+  worker.terminate();
+  await removeLensRegistryFiles(false);
+  worker = spawnWorker();
+  const backupRecovered = await roundTrip(worker, { type: 'init' }, 'ready');
+  const backupRecoveredLib = backupRecovered.libraries.find((l) => l.id === created.id);
+  assert('missing primary registry recovers library metadata from backup',
+    backupRecoveredLib?.name === 'Kruse Research');
+
+  worker.terminate();
+  await removeLensRegistryFiles(true);
+  worker = spawnWorker();
+  const directoryRecovered = await roundTrip(worker, { type: 'init' }, 'ready');
+  assert('missing registry and backup recovers existing library directories',
+    directoryRecovered.libraries.some((l) => l.id === created.id));
+  await roundTrip(worker, { type: 'activate_library', libraryId: created.id }, 'ready');
+  const recoveredResearchStats = await roundTrip(worker, { type: 'stats' }, 'stats_result');
+  assert('directory-recovered library keeps ingested chunks',
+    recoveredResearchStats.total_chunks === researchAfter.total_chunks,
+    `expected ${researchAfter.total_chunks}, got ${recoveredResearchStats.total_chunks}`);
 
   // ─── Phase 14: delete a non-active library ───
   console.log('%c[14] Multi-library: delete non-active', 'font-weight:bold');
