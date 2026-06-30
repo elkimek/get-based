@@ -353,6 +353,34 @@ const importCssSrc = read('css/import.css');
   assert('Guard checks testType !== blood',
     normalizationSrc.includes("testType !== 'blood'") && normalizationSrc.includes('Import Guard'));
 
+  const { normalizeParsedImportMarkers } = await import('../js/pdf-import-marker-normalization.js');
+  const spadiaImport = normalizeParsedImportMarkers({
+    testType: 'blood',
+    markers: [
+      { rawName: 'B Kyselina eikosapentaenová C20:5', value: 0.90, mappedKey: 'fattyAcids.epaC20_5', unit: '%', refMin: 3.23, refMax: 4.72 },
+      { rawName: 'S Vitamin A', value: 2.39, mappedKey: 'vitamins.vitaminA', unit: 'µmol/l', refMin: 1.05, refMax: 2.80 },
+    ],
+  }, {
+    fileName: 'Spadia 7-2024 Fatty Acids.pdf',
+    sourceText: 'SPADIA LAB a. s. Mastné kyseliny',
+    existingKeys: new Set(),
+  });
+  const spadiaFA = spadiaImport.markers[0];
+  const spadiaVitaminA = spadiaImport.markers[1];
+  assert('Blood-classified Spadia generic FA key is product-prefixed',
+    spadiaFA
+      && spadiaFA.matched === false
+      && spadiaFA.mappedKey === null
+      && spadiaFA.suggestedKey === 'spadiaFA.epaC20_5'
+      && spadiaFA.suggestedCategoryLabel === 'Spadia'
+      && spadiaFA.group === 'Fatty Acids',
+    JSON.stringify(spadiaFA));
+  assert('Blood-classified Spadia report keeps true blood markers mapped',
+    spadiaVitaminA
+      && spadiaVitaminA.matched === true
+      && spadiaVitaminA.mappedKey === 'vitamins.vitaminA',
+    JSON.stringify(spadiaVitaminA));
+
   // ═══════════════════════════════════════
   // 7. Import mapping reconciliation
   // ═══════════════════════════════════════
@@ -576,6 +604,71 @@ const importCssSrc = read('css/import.css');
   assert('Profile migration canonicalizes named Lipoprotein A custom duplicates',
     lipidNameAlias.entries[0].markers['lipids.lpA'] === 55
     && lipidNameAlias.customMarkers['lipids.lipoproteinMarker'] === undefined);
+
+  const savedSpadiaFA = {
+    entries: [{
+      date: '2024-07-04',
+      sourceFile: 'Spadia 7-2024 Fatty Acids.pdf',
+      sourceFiles: ['Spadia 7-2024 Fatty Acids.pdf'],
+      markers: { 'fattyAcids.epaC20_5': 0.90, 'vitamins.vitaminA': 2.39 },
+      markerSources: {
+        'fattyAcids.epaC20_5': { file: 'Spadia 7-2024 Fatty Acids.pdf', snapshotId: 'snap_spadia' },
+        'vitamins.vitaminA': { file: 'Spadia 7-2024 Fatty Acids.pdf', snapshotId: 'snap_spadia' },
+      },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', refMin: 3.23, refMax: 4.72, categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia',
+      fileName: 'Spadia 7-2024 Fatty Acids.pdf',
+      date: '2024-07-04',
+      markers: [
+        { rawName: 'B Kyselina eikosapentaenová C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, matched: true },
+        { rawName: 'S Vitamin A', value: 2.39, unit: 'µmol/l', mappedKey: 'vitamins.vitaminA', suggestedKey: null, matched: true },
+      ],
+    }],
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'already imported note' },
+    markerLabels: { 'fattyAcids.epaC20_5': 'EPA label' },
+  };
+  migrateProfileData(savedSpadiaFA);
+  assert('Profile migration moves saved Spadia generic FA marker to spadiaFA',
+    savedSpadiaFA.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
+    && savedSpadiaFA.entries[0].markers['fattyAcids.epaC20_5'] === undefined);
+  assert('Profile migration preserves standard markers in saved Spadia report',
+    savedSpadiaFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+  assert('Profile migration remaps Spadia marker source metadata',
+    savedSpadiaFA.entries[0].markerSources['spadiaFA.epaC20_5']?.snapshotId === 'snap_spadia'
+    && savedSpadiaFA.entries[0].markerSources['fattyAcids.epaC20_5'] === undefined);
+  assert('Profile migration creates Spadia category metadata',
+    savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
+    && savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.group === 'Fatty Acids'
+    && savedSpadiaFA.customMarkers['fattyAcids.epaC20_5'] === undefined);
+  assert('Profile migration remaps saved Spadia import snapshot marker',
+    savedSpadiaFA.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    && savedSpadiaFA.importSnapshots[0].markers[0].suggestedCategoryLabel === 'Spadia'
+    && savedSpadiaFA.importSnapshots[0].markers[1].mappedKey === 'vitamins.vitaminA');
+  assert('Profile migration remaps saved Spadia marker notes and labels',
+    savedSpadiaFA.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'already imported note'
+    && savedSpadiaFA.markerLabels['spadiaFA.epaC20_5'] === 'EPA label'
+    && savedSpadiaFA.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
+    && savedSpadiaFA.markerLabels['fattyAcids.epaC20_5'] === undefined);
+
+  const savedGenericFA = {
+    entries: [{
+      date: '2024-07-04',
+      sourceFile: 'Other Lab Fatty Acids.pdf',
+      markers: { 'fattyAcids.epaC20_5': 0.90 },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+  };
+  migrateProfileData(savedGenericFA);
+  assert('Profile migration leaves non-Spadia generic FA marker unchanged',
+    savedGenericFA.entries[0].markers['fattyAcids.epaC20_5'] === 0.90
+    && savedGenericFA.entries[0].markers['spadiaFA.epaC20_5'] === undefined
+    && savedGenericFA.customMarkers['fattyAcids.epaC20_5']);
 
   // ═══════════════════════════════════════
   // Results
