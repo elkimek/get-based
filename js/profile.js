@@ -435,6 +435,20 @@ function _isSpadiaFattyAcidSource(value) {
   return compact.includes('spadia') && (compact.includes('fattyacid') || compact.includes('mastnekyseliny'));
 }
 
+function _isSpadiaFattyAcidMarkerMetadata(marker) {
+  const key = marker?.mappedKey || marker?.suggestedKey || '';
+  if (key.startsWith('spadiaFA.')) return true;
+  const label = _normalizeProfileMarkerLabel(marker?.suggestedCategoryLabel || '');
+  const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
+  return label.includes('spadia') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
+}
+
+function _isSpadiaFattyAcidSnapshot(snap) {
+  if (_isSpadiaFattyAcidSource(snap?.fileName || '')) return true;
+  if (_isSpadiaFattyAcidSource(`${snap?.labName || ''} ${snap?.productLabel || ''}`)) return true;
+  return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
+}
+
 function _entrySourceText(entry) {
   const parts = [];
   if (entry?.sourceFile) parts.push(entry.sourceFile);
@@ -580,7 +594,7 @@ function _repairSpadiaFattyAcidKeys(data) {
     }
   }
   for (const snap of data.importSnapshots || []) {
-    if (!_isSpadiaFattyAcidSource(snap?.fileName || '')) continue;
+    if (!_isSpadiaFattyAcidSnapshot(snap)) continue;
     if (!Array.isArray(snap.markers)) continue;
     for (const marker of snap.markers) {
       const oldKey = marker?.mappedKey?.startsWith('fattyAcids.') ? marker.mappedKey
@@ -609,6 +623,7 @@ function _repairSpadiaFattyAcidKeys(data) {
   for (const [oldKey, nextKey] of renamedKeys) {
     _copyGlobalProfileMarkerData(data, oldKey, nextKey);
     if (_profileHasStructuralMarkerKey(data, oldKey)) continue;
+    _copyDateScopedProfileMarkerData(data, oldKey, nextKey);
     _deleteDateScopedProfileMarkerData(data, oldKey);
     _deleteGlobalProfileMarkerData(data, oldKey);
     if (data.customMarkers) delete data.customMarkers[oldKey];
