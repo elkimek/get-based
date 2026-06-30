@@ -9,6 +9,13 @@ import { _sanitizeAIMarker, reconcileImportMarkerMappings } from './pdf-import-m
 const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
 const standardCats = new Set(Object.keys(MARKER_SCHEMA));
 
+function _fattyAcidMarkerPart(key) {
+  const prefix = 'fattyAcids.';
+  if (!key?.startsWith(prefix)) return null;
+  const markerPart = key.slice(prefix.length);
+  return markerPart && !markerPart.includes('.') ? markerPart : null;
+}
+
 /**
  * @param {{ testType?: string, markers?: any[] }} parsed
  * @param {{
@@ -65,9 +72,9 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
       ? mappedKey
       : (!matched && m.suggestedKey?.startsWith('fattyAcids.') ? m.suggestedKey : null);
     if (genericFattyAcidKey) {
-      const markerPart = genericFattyAcidKey.split('.')[1];
+      const markerPart = _fattyAcidMarkerPart(genericFattyAcidKey);
       const sDef = SPECIALTY_MARKER_DEFS[genericFattyAcidKey];
-      if (markerPart) {
+      if (markerPart && sDef) {
         if (emitDebugLogs && isDebugMode()) {
           console.log(`[Import Guard] Rewrote ${genericFattyAcidKey} -> ${detected.product.prefix}.${markerPart} (detected ${detected.product.label})`);
         }

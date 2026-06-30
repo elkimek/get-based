@@ -359,6 +359,7 @@ const importCssSrc = read('css/import.css');
     markers: [
       { rawName: 'B Kyselina eikosapentaenová C20:5', value: 0.90, mappedKey: 'fattyAcids.epaC20_5', unit: '%', refMin: 3.23, refMax: 4.72 },
       { rawName: 'S Vitamin A', value: 2.39, mappedKey: 'vitamins.vitaminA', unit: 'µmol/l', refMin: 1.05, refMax: 2.80 },
+      { rawName: 'Unknown FA Segment', value: 1.23, mappedKey: 'fattyAcids.epa', unit: '%' },
     ],
   }, {
     fileName: 'Spadia 7-2024 Fatty Acids.pdf',
@@ -367,6 +368,7 @@ const importCssSrc = read('css/import.css');
   });
   const spadiaFA = spadiaImport.markers[0];
   const spadiaVitaminA = spadiaImport.markers[1];
+  const spadiaUnknownFA = spadiaImport.markers[2];
   assert('Blood-classified Spadia generic FA key is product-prefixed',
     spadiaFA
       && spadiaFA.matched === false
@@ -380,6 +382,13 @@ const importCssSrc = read('css/import.css');
       && spadiaVitaminA.matched === true
       && spadiaVitaminA.mappedKey === 'vitamins.vitaminA',
     JSON.stringify(spadiaVitaminA));
+  assert('Blood-classified Spadia guard does not invent unknown product FA keys',
+    spadiaUnknownFA
+      && spadiaUnknownFA.matched === false
+      && spadiaUnknownFA.mappedKey === null
+      && spadiaUnknownFA.suggestedKey === 'fattyAcids.epa'
+      && spadiaUnknownFA.suggestedKey !== 'spadiaFA.epa',
+    JSON.stringify(spadiaUnknownFA));
 
   // ═══════════════════════════════════════
   // 7. Import mapping reconciliation
@@ -669,6 +678,82 @@ const importCssSrc = read('css/import.css');
     savedGenericFA.entries[0].markers['fattyAcids.epaC20_5'] === 0.90
     && savedGenericFA.entries[0].markers['spadiaFA.epaC20_5'] === undefined
     && savedGenericFA.customMarkers['fattyAcids.epaC20_5']);
+
+  const sharedGenericAndSpadiaFA = {
+    entries: [
+      {
+        date: '2024-07-04',
+        sourceFile: 'Spadia 7-2024 Fatty Acids.pdf',
+        markers: { 'fattyAcids.omega3Index': 7.1 },
+      },
+      {
+        date: '2024-08-04',
+        sourceFile: 'Other Lab Fatty Acids.pdf',
+        markers: { 'fattyAcids.omega3Index': 6.2 },
+      },
+    ],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    markerNotes: { 'fattyAcids.omega3Index': 'global note' },
+    markerLabels: { 'fattyAcids.omega3Index': 'Omega label' },
+    refOverrides: { 'fattyAcids.omega3Index': { min: 8, max: 12 } },
+  };
+  migrateProfileData(sharedGenericAndSpadiaFA);
+  assert('Profile migration copies global metadata when generic FA key is still shared',
+    sharedGenericAndSpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && sharedGenericAndSpadiaFA.entries[1].markers['fattyAcids.omega3Index'] === 6.2
+    && sharedGenericAndSpadiaFA.markerNotes['spadiaFA.omega3Index'] === 'global note'
+    && sharedGenericAndSpadiaFA.markerNotes['fattyAcids.omega3Index'] === 'global note'
+    && sharedGenericAndSpadiaFA.markerLabels['spadiaFA.omega3Index'] === 'Omega label'
+    && sharedGenericAndSpadiaFA.markerLabels['fattyAcids.omega3Index'] === 'Omega label'
+    && sharedGenericAndSpadiaFA.refOverrides['spadiaFA.omega3Index']?.min === 8
+    && sharedGenericAndSpadiaFA.refOverrides['fattyAcids.omega3Index']?.min === 8
+    && sharedGenericAndSpadiaFA.customMarkers['spadiaFA.omega3Index']?.categoryLabel === 'Spadia'
+    && sharedGenericAndSpadiaFA.customMarkers['fattyAcids.omega3Index']);
+
+  const spadiaSnapshotOnlySource = {
+    entries: [{
+      date: '2024-07-04',
+      sourceFile: 'Fatty Acids.pdf',
+      markers: { 'fattyAcids.omega3Index': 7.1 },
+    }],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_omega3',
+      fileName: 'Spadia 7-2024 Fatty Acids.pdf',
+      date: '2024-07-04',
+      markers: [
+        { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, matched: true },
+      ],
+    }],
+  };
+  migrateProfileData(spadiaSnapshotOnlySource);
+  assert('Profile migration uses Spadia snapshot evidence to keep entries and snapshots aligned',
+    spadiaSnapshotOnlySource.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && spadiaSnapshotOnlySource.entries[0].markers['fattyAcids.omega3Index'] === undefined
+    && spadiaSnapshotOnlySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index');
+
+  const datelessSpadiaFA = {
+    entries: [{
+      sourceFile: 'Spadia 7-2024 Fatty Acids.pdf',
+      markers: { 'fattyAcids.omega3Index': 7.1 },
+    }],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    manualValues: { 'fattyAcids.omega3Index:2024-07-04': 7.3 },
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-04': 'dateless note' },
+  };
+  migrateProfileData(datelessSpadiaFA);
+  assert('Profile migration remaps date-scoped data for dateless Spadia entries',
+    datelessSpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && datelessSpadiaFA.manualValues['spadiaFA.omega3Index:2024-07-04'] === 7.3
+    && datelessSpadiaFA.markerValueNotes['spadiaFA.omega3Index:2024-07-04'] === 'dateless note'
+    && datelessSpadiaFA.manualValues['fattyAcids.omega3Index:2024-07-04'] === undefined
+    && datelessSpadiaFA.markerValueNotes['fattyAcids.omega3Index:2024-07-04'] === undefined);
 
   // ═══════════════════════════════════════
   // Results

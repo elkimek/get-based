@@ -447,34 +447,96 @@ function _entrySourceText(entry) {
   return parts.join(' ');
 }
 
-function _remapDateScopedProfileMarkerData(data, oldKey, nextKey, date) {
-  if (!date) return;
-  const remapExact = (obj) => {
+function _copyDateScopedProfileMarkerData(data, oldKey, nextKey, date = null) {
+  const copyExact = (obj, scopedDate) => {
     if (!obj) return;
-    const from = `${oldKey}:${date}`;
-    const to = `${nextKey}:${date}`;
+    const from = `${oldKey}:${scopedDate}`;
+    const to = `${nextKey}:${scopedDate}`;
     if (obj[from] !== undefined && obj[to] === undefined) obj[to] = obj[from];
-    delete obj[from];
   };
-  remapExact(data.manualValues);
-  remapExact(data.markerValueNotes);
+  const copyAll = (obj) => {
+    if (!obj) return;
+    const prefix = `${oldKey}:`;
+    for (const key of Object.keys(obj)) {
+      if (!key.startsWith(prefix)) continue;
+      const to = `${nextKey}:${key.slice(prefix.length)}`;
+      if (obj[to] === undefined) obj[to] = obj[key];
+    }
+  };
+  if (date) {
+    copyExact(data.manualValues, date);
+    copyExact(data.markerValueNotes, date);
+  } else {
+    copyAll(data.manualValues);
+    copyAll(data.markerValueNotes);
+  }
 }
 
-function _remapGlobalProfileMarkerData(data, oldKey, nextKey) {
-  if (data.refOverrides?.[oldKey]) {
-    if (!data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
-    delete data.refOverrides[oldKey];
+function _deleteDateScopedProfileMarkerData(data, oldKey, date = null) {
+  const deleteExact = (obj, scopedDate) => {
+    if (!obj) return;
+    delete obj[`${oldKey}:${scopedDate}`];
+  };
+  const deleteAll = (obj) => {
+    if (!obj) return;
+    const prefix = `${oldKey}:`;
+    for (const key of Object.keys(obj)) {
+      if (key.startsWith(prefix)) delete obj[key];
+    }
+  };
+  if (date) {
+    deleteExact(data.manualValues, date);
+    deleteExact(data.markerValueNotes, date);
+  } else {
+    deleteAll(data.manualValues);
+    deleteAll(data.markerValueNotes);
   }
+}
+
+function _copyGlobalProfileMarkerData(data, oldKey, nextKey) {
+  if (data.refOverrides?.[oldKey] && !data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
   if (data.markerNotes?.[oldKey] && !data.markerNotes[nextKey]) data.markerNotes[nextKey] = data.markerNotes[oldKey];
-  if (data.markerNotes) delete data.markerNotes[oldKey];
   if (data.markerLabels?.[oldKey] && !data.markerLabels[nextKey]) data.markerLabels[nextKey] = data.markerLabels[oldKey];
+}
+
+function _deleteGlobalProfileMarkerData(data, oldKey) {
+  if (data.refOverrides) delete data.refOverrides[oldKey];
+  if (data.markerNotes) delete data.markerNotes[oldKey];
   if (data.markerLabels) delete data.markerLabels[oldKey];
 }
 
-function _profileHasMarkerKey(data, key) {
+function _profileHasStructuralMarkerKey(data, key) {
   if (data.entries?.some(entry => entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
   if (data.importSnapshots?.some(snap => Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
-  return Object.keys(data.manualValues || {}).some(k => k.startsWith(`${key}:`));
+  return false;
+}
+
+function _profileHasStructuralMarkerKeyOnDate(data, key, date) {
+  if (!date) return _profileHasStructuralMarkerKey(data, key);
+  if (data.entries?.some(entry => entry.date === date && entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
+  if (data.importSnapshots?.some(snap => snap?.date === date && Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
+  return false;
+}
+
+function _fattyAcidMarkerPart(key) {
+  const prefix = 'fattyAcids.';
+  if (!key?.startsWith(prefix)) return null;
+  const markerPart = key.slice(prefix.length);
+  return markerPart && !markerPart.includes('.') ? markerPart : null;
+}
+
+function _profileMarkerValuesMatch(a, b) {
+  if (a === b) return true;
+  const aNum = Number(a);
+  const bNum = Number(b);
+  return Number.isFinite(aNum) && Number.isFinite(bNum) && Math.abs(aNum - bNum) < 1e-9;
+}
+
+function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
+  if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, oldKey)) return false;
+  if (snap?.id && entry.markerSources?.[oldKey]?.snapshotId === snap.id) return true;
+  if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
+  return !!(snap?.date && entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value));
 }
 
 function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
@@ -491,11 +553,20 @@ function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
   data.customMarkers[nextKey] = cmDef;
 }
 
+function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
+  if (!renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) return false;
+  _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
+  _copyDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
+  if (entry.date && !_profileHasStructuralMarkerKeyOnDate(data, oldKey, entry.date)) {
+    _deleteDateScopedProfileMarkerData(data, oldKey, entry.date);
+  }
+  return true;
+}
+
 function _repairSpadiaFattyAcidKeys(data) {
   const renamedKeys = new Map();
   const remapKey = (oldKey) => {
-    if (!oldKey?.startsWith('fattyAcids.')) return null;
-    const markerPart = oldKey.split('.')[1];
+    const markerPart = _fattyAcidMarkerPart(oldKey);
     return markerPart ? `spadiaFA.${markerPart}` : null;
   };
   for (const entry of data.entries || []) {
@@ -503,10 +574,8 @@ function _repairSpadiaFattyAcidKeys(data) {
     for (const oldKey of Object.keys(entry.markers || {})) {
       const nextKey = remapKey(oldKey);
       if (!nextKey) continue;
-      if (renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) {
+      if (_remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey)) {
         renamedKeys.set(oldKey, nextKey);
-        _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
-        _remapDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
       }
     }
   }
@@ -528,11 +597,20 @@ function _repairSpadiaFattyAcidKeys(data) {
       marker.matched = true;
       renamedKeys.set(oldKey, nextKey);
       _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
+      _copyDateScopedProfileMarkerData(data, oldKey, nextKey, snap?.date);
+      for (const entry of data.entries || []) {
+        if (_entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker)
+          && _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey)) {
+          renamedKeys.set(oldKey, nextKey);
+        }
+      }
     }
   }
   for (const [oldKey, nextKey] of renamedKeys) {
-    if (_profileHasMarkerKey(data, oldKey)) continue;
-    _remapGlobalProfileMarkerData(data, oldKey, nextKey);
+    _copyGlobalProfileMarkerData(data, oldKey, nextKey);
+    if (_profileHasStructuralMarkerKey(data, oldKey)) continue;
+    _deleteDateScopedProfileMarkerData(data, oldKey);
+    _deleteGlobalProfileMarkerData(data, oldKey);
     if (data.customMarkers) delete data.customMarkers[oldKey];
   }
 }
