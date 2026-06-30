@@ -459,13 +459,28 @@ function _hasFattyAcidSnapshotMarker(snap) {
   });
 }
 
+function _snapshotSourceText(snap) {
+  const parts = [];
+  if (snap?.fileName) parts.push(snap.fileName);
+  if (snap?.sourceFile) parts.push(snap.sourceFile);
+  if (Array.isArray(snap?.sourceFiles)) parts.push(...snap.sourceFiles);
+  if (snap?.sourceType) parts.push(snap.sourceType);
+  if (snap?.sourceName) parts.push(snap.sourceName);
+  if (snap?.sourceLabel) parts.push(snap.sourceLabel);
+  if (snap?.source) parts.push(snap.source);
+  if (snap?.importer) parts.push(snap.importer);
+  if (snap?.importerName) parts.push(snap.importerName);
+  return parts.join(' ');
+}
+
 function _isSpadiaFattyAcidSnapshot(snap) {
-  if (_isSpadiaFattyAcidSource(snap?.fileName || '')) return true;
+  const fileText = `${snap?.fileName || ''} ${snap?.sourceFile || ''} ${Array.isArray(snap?.sourceFiles) ? snap.sourceFiles.join(' ') : ''}`;
+  if (_isSpadiaFattyAcidSource(fileText)) return true;
   const productText = `${snap?.labName || ''} ${snap?.productLabel || ''}`;
   if (_isSpadiaFattyAcidSource(productText)) return true;
-  const sourceText = `${snap?.sourceType || ''} ${snap?.sourceName || ''} ${snap?.sourceLabel || ''} ${snap?.source || ''}`;
+  const sourceText = _snapshotSourceText(snap);
   if (_isSpadiaFattyAcidSource(sourceText)) return true;
-  if (_hasPositiveSpadiaLabel(`${productText} ${sourceText}`) && _hasFattyAcidSnapshotMarker(snap)) return true;
+  if (_hasPositiveSpadiaLabel(`${fileText} ${productText} ${sourceText}`) && _hasFattyAcidSnapshotMarker(snap)) return true;
   return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
 }
 
@@ -580,6 +595,7 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
   if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
   if (!_profileMarkerValuesMatch(entry.markers[oldKey], marker?.value)) return false;
   if (snap?.date && entry.date) return entry.date === snap.date;
+  if (!entry.date && _entrySourceText(entry)) return false;
   return !entry.date;
 }
 
@@ -603,7 +619,9 @@ function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
 function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
   if (!renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) return false;
   _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
-  _copyDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
+  if (entry.date) {
+    _copyDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
+  }
   if (entry.date && !_profileHasStructuralMarkerKeyOnDate(data, oldKey, entry.date)) {
     _deleteDateScopedProfileMarkerData(data, oldKey, entry.date);
   }
@@ -644,7 +662,9 @@ function _repairSpadiaFattyAcidKeys(data) {
       marker.matched = true;
       renamedKeys.set(oldKey, nextKey);
       _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
-      _copyDateScopedProfileMarkerData(data, oldKey, nextKey, snap?.date);
+      if (snap?.date) {
+        _copyDateScopedProfileMarkerData(data, oldKey, nextKey, snap.date);
+      }
       for (const entry of data.entries || []) {
         if (_entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker)
           && _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey)) {

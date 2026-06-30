@@ -821,6 +821,37 @@ const importCssSrc = read('css/import.css');
     && sourceNamedSpadiaSnapshot.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
     && sourceNamedSpadiaSnapshot.customMarkers['fattyAcids.epaC20_5'] === undefined);
 
+  const sourceFileAttributedSpadiaSnapshot = {
+    entries: [{
+      date: '2024-05-10',
+      sourceFile: 'Fatty Acids.pdf',
+      markers: { 'fattyAcids.epaC20_5': 0.90 },
+      markerSources: { 'fattyAcids.epaC20_5': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_source_file' } },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_source_file',
+      fileName: 'EDG328K.pdf',
+      sourceFile: 'Spadia 7-2024 Fatty Acids.pdf',
+      importer: 'spadia',
+      date: '2024-05-10',
+      markers: [
+        { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, matched: true },
+      ],
+    }],
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-05-10': 'source file note' },
+  };
+  migrateProfileData(sourceFileAttributedSpadiaSnapshot);
+  assert('Profile migration uses Spadia snapshot sourceFile and importer metadata',
+    sourceFileAttributedSpadiaSnapshot.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
+    && sourceFileAttributedSpadiaSnapshot.entries[0].markers['fattyAcids.epaC20_5'] === undefined
+    && sourceFileAttributedSpadiaSnapshot.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    && sourceFileAttributedSpadiaSnapshot.markerValueNotes['spadiaFA.epaC20_5:2024-05-10'] === 'source file note'
+    && sourceFileAttributedSpadiaSnapshot.markerValueNotes['fattyAcids.epaC20_5:2024-05-10'] === undefined
+    && sourceFileAttributedSpadiaSnapshot.customMarkers['fattyAcids.epaC20_5'] === undefined);
+
   const datelessSpadiaFA = {
     entries: [{
       sourceFile: 'EDG328K.pdf',
@@ -896,6 +927,70 @@ const importCssSrc = read('css/import.css');
     && datedSpadiaSnapshotDatelessEntry.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'dated snapshot note'
     && datedSpadiaSnapshotDatelessEntry.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
     && datedSpadiaSnapshotDatelessEntry.customMarkers['fattyAcids.epaC20_5'] === undefined);
+
+  const datelessSpadiaSnapshotGenericPeer = {
+    entries: [{
+      sourceFile: 'Other Lab Fatty Acids.pdf',
+      markers: { 'fattyAcids.omega3Index': 7.1 },
+    }],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_dateless_generic_peer',
+      fileName: 'EDG328K.pdf',
+      markers: [
+        { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
+      ],
+    }],
+  };
+  migrateProfileData(datelessSpadiaSnapshotGenericPeer);
+  assert('Profile migration does not value-match dateless generic source peers into Spadia',
+    datelessSpadiaSnapshotGenericPeer.entries[0].markers['fattyAcids.omega3Index'] === 7.1
+    && datelessSpadiaSnapshotGenericPeer.entries[0].markers['spadiaFA.omega3Index'] === undefined
+    && datelessSpadiaSnapshotGenericPeer.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index'
+    && datelessSpadiaSnapshotGenericPeer.customMarkers['fattyAcids.omega3Index']);
+
+  const undatedSpadiaSnapshotSharedScopedData = {
+    entries: [
+      {
+        sourceFile: 'Fatty Acids.pdf',
+        markers: { 'fattyAcids.omega3Index': 7.1 },
+        markerSources: { 'fattyAcids.omega3Index': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_undated_shared_scope' } },
+      },
+      {
+        date: '2024-08-01',
+        sourceFile: 'Other Lab Fatty Acids.pdf',
+        markers: { 'fattyAcids.omega3Index': 6.8 },
+      },
+    ],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_undated_shared_scope',
+      fileName: 'EDG328K.pdf',
+      markers: [
+        { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
+      ],
+    }],
+    manualValues: { 'fattyAcids.omega3Index:2024-08-01': 6.8 },
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated note' },
+    markerLabels: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated label' },
+    refOverrides: { 'fattyAcids.omega3Index:2024-08-01': { min: 6, max: 9 } },
+  };
+  migrateProfileData(undatedSpadiaSnapshotSharedScopedData);
+  assert('Profile migration does not copy undated Spadia snapshot metadata onto generic dated peers',
+    undatedSpadiaSnapshotSharedScopedData.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && undatedSpadiaSnapshotSharedScopedData.entries[1].markers['fattyAcids.omega3Index'] === 6.8
+    && undatedSpadiaSnapshotSharedScopedData.manualValues['spadiaFA.omega3Index:2024-08-01'] === undefined
+    && undatedSpadiaSnapshotSharedScopedData.markerValueNotes['spadiaFA.omega3Index:2024-08-01'] === undefined
+    && undatedSpadiaSnapshotSharedScopedData.markerLabels['spadiaFA.omega3Index:2024-08-01'] === undefined
+    && undatedSpadiaSnapshotSharedScopedData.refOverrides['spadiaFA.omega3Index:2024-08-01'] === undefined
+    && undatedSpadiaSnapshotSharedScopedData.manualValues['fattyAcids.omega3Index:2024-08-01'] === 6.8
+    && undatedSpadiaSnapshotSharedScopedData.markerValueNotes['fattyAcids.omega3Index:2024-08-01'] === 'generic dated note'
+    && undatedSpadiaSnapshotSharedScopedData.markerLabels['fattyAcids.omega3Index:2024-08-01'] === 'generic dated label'
+    && undatedSpadiaSnapshotSharedScopedData.refOverrides['fattyAcids.omega3Index:2024-08-01']?.min === 6);
 
   const spadiaScopedCleanup = {
     entries: [{
