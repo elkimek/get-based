@@ -576,8 +576,11 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
 
 function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
   if (!data.customMarkers) data.customMarkers = {};
-  const sourceDef = data.customMarkers[nextKey] || data.customMarkers[oldKey] || SPECIALTY_MARKER_DEFS[oldKey] || {};
-  const cmDef = data.customMarkers[nextKey] || {};
+  const sourceDef = data.customMarkers[oldKey] || SPECIALTY_MARKER_DEFS[oldKey] || {};
+  const cmDef = {
+    ...sourceDef,
+    ...(data.customMarkers[nextKey] || {}),
+  };
   cmDef.name = cmDef.name || sourceDef.name || nextKey.split('.').pop();
   cmDef.unit = cmDef.unit || sourceDef.unit || '%';
   cmDef.refMin = cmDef.refMin != null ? cmDef.refMin : (sourceDef.refMin != null ? sourceDef.refMin : null);

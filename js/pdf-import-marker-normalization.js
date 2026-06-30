@@ -84,6 +84,17 @@ function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLog
         m.suggestedGroup = 'Fatty Acids';
         mappedKey = null;
         matched = false;
+      } else {
+        if (emitDebugLogs && isDebugMode()) {
+          console.log(`[Import Guard] Demoted invalid ${genericFattyAcidKey} for detected ${detected.product.label}`);
+        }
+        if (!markerPart && m.suggestedKey === genericFattyAcidKey) m.suggestedKey = null;
+        else if (markerPart && !m.suggestedKey) m.suggestedKey = genericFattyAcidKey;
+        m.suggestedName = m.suggestedName || m.rawName;
+        m.suggestedCategoryLabel = m.suggestedCategoryLabel || detected.product.label;
+        m.suggestedGroup = m.suggestedGroup || 'Fatty Acids';
+        mappedKey = null;
+        matched = false;
       }
     }
   }

@@ -360,6 +360,7 @@ const importCssSrc = read('css/import.css');
       { rawName: 'B Kyselina eikosapentaenová C20:5', value: 0.90, mappedKey: 'fattyAcids.epaC20_5', unit: '%', refMin: 3.23, refMax: 4.72 },
       { rawName: 'S Vitamin A', value: 2.39, mappedKey: 'vitamins.vitaminA', unit: 'µmol/l', refMin: 1.05, refMax: 2.80 },
       { rawName: 'Unknown FA Segment', value: 1.23, mappedKey: 'fattyAcids.epa', unit: '%' },
+      { rawName: 'Malformed FA Segment', value: 1.11, mappedKey: 'fattyAcids.epa.c20_5', unit: '%' },
     ],
   }, {
     fileName: 'EDG328K.pdf',
@@ -369,6 +370,7 @@ const importCssSrc = read('css/import.css');
   const spadiaFA = spadiaImport.markers[0];
   const spadiaVitaminA = spadiaImport.markers[1];
   const spadiaUnknownFA = spadiaImport.markers[2];
+  const spadiaMalformedFA = spadiaImport.markers[3];
   assert('Blood-classified Spadia generic FA key is product-prefixed',
     spadiaFA
       && spadiaFA.matched === false
@@ -389,6 +391,12 @@ const importCssSrc = read('css/import.css');
       && spadiaUnknownFA.suggestedKey === 'fattyAcids.epa'
       && spadiaUnknownFA.suggestedKey !== 'spadiaFA.epa',
     JSON.stringify(spadiaUnknownFA));
+  assert('Blood-classified Spadia guard demotes malformed generic FA keys',
+    spadiaMalformedFA
+      && spadiaMalformedFA.matched === false
+      && spadiaMalformedFA.mappedKey === null
+      && spadiaMalformedFA.suggestedKey === null,
+    JSON.stringify(spadiaMalformedFA));
 
   // ═══════════════════════════════════════
   // 7. Import mapping reconciliation
@@ -626,7 +634,7 @@ const importCssSrc = read('css/import.css');
       },
     }],
     customMarkers: {
-      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', refMin: 3.23, refMax: 4.72, categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', refMin: 3.23, refMax: 4.72, categoryLabel: 'Fatty Acids', group: 'Fatty Acids', customMeta: 'preserve me' },
     },
     importSnapshots: [{
       id: 'snap_spadia',
@@ -652,6 +660,7 @@ const importCssSrc = read('css/import.css');
   assert('Profile migration creates Spadia category metadata',
     savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
     && savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.group === 'Fatty Acids'
+    && savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.customMeta === 'preserve me'
     && savedSpadiaFA.customMarkers['fattyAcids.epaC20_5'] === undefined);
   assert('Profile migration remaps saved Spadia import snapshot marker',
     savedSpadiaFA.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
