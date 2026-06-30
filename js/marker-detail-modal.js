@@ -2,7 +2,7 @@
 // marker-detail-modal.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
-import { trackUsage, UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
+import { trackUsage, UNIT_CONVERSIONS, SECONDARY_UNIT_CONVERSIONS, getAlternateUnit } from './schema.js';
 import { bindDetailModalSyncRefresh, escapeHTML, escapeAttr, getStatus, formatValue, showNotification, showConfirmDialog, safeMarkerId } from './utils.js';
 import { getActiveData, saveImportedData, updateHeaderDates } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
@@ -816,22 +816,33 @@ export function openManualEntryForm(id, prefillDate) {
   if (marker.refMin != null && marker.refMax != null) {
     placeholderHint = `e.g. ${formatValue((marker.refMin + marker.refMax) / 2)}`;
   }
-  // Per-field unit picker: surface the alternate unit when this marker has a
-  // UNIT_CONVERSIONS entry, so users entering a value from a lab report in the
-  // other system don't have to mentally convert. Default = current display unit.
+  // Per-field unit picker: surface every unit this marker can be entered in — the
+  // current display unit (default), the alternate US/EU unit, and any secondary
+  // clinical units (e.g. mg/L for Lp(a)) — so users entering a value from a lab
+  // report don't have to mentally convert. Default = current display unit.
   const dotKeyForUnit = id.replace('_', '.');
   const _meIsUS = state.unitSystem === 'US';
   const _meConv = UNIT_CONVERSIONS[dotKeyForUnit];
-  let _meAltUnit = null;
+  const _meUnits = [marker.unit];
   if (_meConv) {
     const probe = marker.refMax ?? marker.refMin ?? 1;
     const alt = getAlternateUnit(dotKeyForUnit, probe, _meIsUS);
-    if (alt) _meAltUnit = alt.unit;
+    if (alt?.unit) _meUnits.push(alt.unit);
   }
-  const unitPickerHtml = _meAltUnit
+  for (const sec of (SECONDARY_UNIT_CONVERSIONS[dotKeyForUnit] || [])) {
+    if (sec.unit) _meUnits.push(sec.unit);
+  }
+  // Dedup case-insensitively, keeping the display unit first (selected).
+  const _meSeen = new Set();
+  const _meOptions = _meUnits.filter(u => {
+    const k = String(u).toLowerCase();
+    if (!u || _meSeen.has(k)) return false;
+    _meSeen.add(k);
+    return true;
+  });
+  const unitPickerHtml = _meOptions.length > 1
     ? `<select id="me-unit" class="me-unit-select" aria-label="Input unit">
-         <option value="${escapeHTML(marker.unit)}" selected>${escapeHTML(marker.unit)}</option>
-         <option value="${escapeHTML(_meAltUnit)}">${escapeHTML(_meAltUnit)}</option>
+         ${_meOptions.map((u, i) => `<option value="${escapeHTML(u)}"${i === 0 ? ' selected' : ''}>${escapeHTML(u)}</option>`).join('')}
        </select>`
     : `<span style="color:var(--text-muted);font-weight:400">(${escapeHTML(marker.unit)})</span>`;
   modal.innerHTML = `<div class="gb-modal-head">
