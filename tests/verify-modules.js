@@ -202,7 +202,7 @@
 
   // client-list.js (3)
   const clientListExports = [
-    'openClientList','closeClientList','openClientForm'
+    'openClientList','closeClientList','openClientForm','configureClientListRuntime'
   ];
 
   // cycle.js (10)
@@ -283,7 +283,7 @@
     'renderPrivacySection',
     'togglePrivacyConfigure','updatePrivacyStatusCard',
     'updateSettingsUI',
-    'renderDataEntriesSection','refreshDataEntriesSection'
+    'renderDataEntriesSection','refreshDataEntriesSection','configureSettingsRuntime'
   ];
 
   // provider-panels.js (72)

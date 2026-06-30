@@ -49,7 +49,13 @@ assert('client-list menu buttons are data-driven',
     !clientListSrc.includes('onclick:'));
 assert('client-list can open share modal for selected profile',
   clientListSrc.includes('function _clShare(id)') &&
-    clientListSrc.includes('window.openProfileShareModal?.(id)'));
+    clientListSrc.includes('clientListRuntime.openProfileShareModal(id)'));
+assert('client-list routes app-shell actions through injectable runtime',
+  clientListSrc.includes('export function configureClientListRuntime') &&
+    clientListSrc.includes('clientListRuntime.exportAllDataJSON()') &&
+    clientListSrc.includes('clientListRuntime.exportClientJSON(id, true)') &&
+    clientListSrc.includes('clientListRuntime.importDataJSON(file)') &&
+    clientListSrc.includes('clientListRuntime.loadDemoData(actionEl.dataset.clDemo'));
 assert('client-list modal uses shared overlay lifecycle helpers',
   clientListSrc.includes("from './modal-lifecycle.js'") &&
     clientListUsesScrollLockedOverlay &&

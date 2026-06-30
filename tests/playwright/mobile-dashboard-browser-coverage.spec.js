@@ -18,11 +18,6 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
     const mediaListeners = [];
     const saved = {
       matchMedia: window.matchMedia,
-      navigate: window.navigate,
-      toggleMobileSidebar: window.toggleMobileSidebar,
-      openChatPanel: window.openChatPanel,
-      loadContextCardTips: window.loadContextCardTips,
-      loadCatalog: window.loadCatalog,
       scrollTo: window.scrollTo,
     };
 
@@ -38,17 +33,9 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       removeListener: () => {},
       dispatchEvent: () => false,
     });
-    window.navigate = route => calls.push(['navigate', route]);
-    window.toggleMobileSidebar = () => calls.push(['toggleMobileSidebar']);
-    window.openChatPanel = () => calls.push(['openChatPanel']);
     window.scrollTo = (...args) => calls.push(['scrollTo', ...args]);
 
     const mobileDashboard = await import(mobileDashboardUrl);
-    window.loadContextCardTips = () => calls.push(['loadContextCardTips']);
-    window.loadCatalog = async () => {
-      calls.push(['loadCatalog']);
-      return { catalog: true };
-    };
     const state = window._labState;
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const originalState = {
@@ -100,6 +87,17 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
           },
         },
       };
+      mobileDashboard.configureMobileDashboardView({
+        navigate: route => calls.push(['navigate', route]),
+        toggleMobileSidebar: () => calls.push(['toggleMobileSidebar']),
+        openChatPanel: () => calls.push(['openChatPanel']),
+        loadContextCardTips: () => calls.push(['loadContextCardTips']),
+        loadCatalog: async () => {
+          calls.push(['loadCatalog']);
+          return { catalog: true };
+        },
+        cacheCatalog: catalog => calls.push(['cacheCatalog', catalog?.catalog === true]),
+      });
 
       outcomes.breakpointListenerWasRegistered = mediaListeners.length > 0
         && mobileDashboard.isMobileDashboardViewport() === true;
@@ -118,6 +116,7 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         && document.getElementById('mobile-bottom-tabs')?.querySelector('[data-tab="labs"]')?.classList.contains('active') === true;
 
       mobileDashboard.renderMobileDashboard(mobileData, { resetScroll: true });
+      await wait(0);
       const firstRenderHtml = document.getElementById('main-content')?.innerHTML || '';
       const defaultDepsOk = document.body.classList.contains('mobile-dashboard-active') === true
         && document.documentElement.classList.contains('mobile-dashboard-active') === true
@@ -125,7 +124,8 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         && firstRenderHtml.includes('No widgets are visible.')
         && calls.some(call => call[0] === 'scrollTo' && call[1] === 0 && call[2] === 0)
         && calls.some(call => call[0] === 'loadContextCardTips')
-        && calls.some(call => call[0] === 'loadCatalog');
+        && calls.some(call => call[0] === 'loadCatalog')
+        && calls.some(call => call[0] === 'cacheCatalog' && call[1] === true);
       outcomes.defaultDepsRenderEmptyWidgetStackAndRunShellHooks = defaultDepsOk || {
         bodyActive: document.body.classList.contains('mobile-dashboard-active'),
         rootActive: document.documentElement.classList.contains('mobile-dashboard-active'),
@@ -187,18 +187,16 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       if (activeProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', activeProfile);
       window.matchMedia = saved.matchMedia;
-      if (saved.navigate) window.navigate = saved.navigate;
-      else delete window.navigate;
-      if (saved.toggleMobileSidebar) window.toggleMobileSidebar = saved.toggleMobileSidebar;
-      else delete window.toggleMobileSidebar;
-      if (saved.openChatPanel) window.openChatPanel = saved.openChatPanel;
-      else delete window.openChatPanel;
-      if (saved.loadContextCardTips) window.loadContextCardTips = saved.loadContextCardTips;
-      else delete window.loadContextCardTips;
-      if (saved.loadCatalog) window.loadCatalog = saved.loadCatalog;
-      else delete window.loadCatalog;
       if (saved.scrollTo) window.scrollTo = saved.scrollTo;
       else delete window.scrollTo;
+      mobileDashboard.configureMobileDashboardView({
+        navigate: () => {},
+        toggleMobileSidebar: () => {},
+        openChatPanel: () => {},
+        loadContextCardTips: () => {},
+        loadCatalog: async () => null,
+        cacheCatalog: () => {},
+      });
       document.body.classList.remove('mobile-dashboard-active', 'mobile-tabs-active');
       document.documentElement.classList.remove('mobile-dashboard-active', 'mobile-tabs-active');
       document.documentElement.style.removeProperty('--mobile-visual-bottom-offset');
