@@ -206,6 +206,15 @@ export const SECONDARY_UNIT_CONVERSIONS = {
     { unit: 'mg/l', factor: 1000, type: 'multiply' },
     { unit: 'g/l', factor: 1, type: 'multiply' }
   ],
+  // Lp(a): SI unit is nmol/l (particle count). Mass units (mg/l, mg/dl) report total
+  // particle mass and have NO exact molar conversion — the ratio depends on apo(a)
+  // isoform size and the assay. ~2.4 nmol/L per mg/dL (i.e. ~0.24 nmol/L per mg/L, so
+  // factor 4.167) is a widely-used approximation only; the 2022 EAS consensus
+  // discourages mg↔nmol conversion for clinical decisions. Sanity check: Unilabs SK's
+  // 0–300 mg/L (= 0–30 mg/dL) upper-normal ≈ 72 nmol/L, near the schema optimalMax 75.
+  'lipids.lpA': [
+    { unit: 'mg/l', factor: 4.167, type: 'multiply' }
+  ],
   'iron.iron': [
     { unit: 'µg/l', factor: 55.85, type: 'multiply' },
     { unit: 'mg/l', factor: 0.05585, type: 'multiply' },

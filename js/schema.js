@@ -1,6 +1,8 @@
 // @ts-check
 // schema.js — Marker definitions, unit conversions, pricing, optimal ranges
 
+import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
+
 // ═══════════════════════════════════════════════
 // MARKER SCHEMA (no personal data — just biomarker definitions)
 // ═══════════════════════════════════════════════
@@ -346,7 +348,7 @@ export const UNIT_CONVERSIONS = {
   'differential.basophils':   { factor: 1, usUnit: 'K/µL',    type: 'multiply' }
 };
 
-export { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
+export { SECONDARY_UNIT_CONVERSIONS };
 
 // Returns the converted {value, unit} in the *other* unit system for dual-display,
 // or null when no conversion exists. `displayValue` is what the user currently sees
@@ -378,18 +380,55 @@ export function getAlternateUnit(dotKey, displayValue, isUSMode) {
 }
 
 // Convert a value the user typed in `inputUnit` to canonical SI for storage.
-// Used by manual-entry's per-field unit picker.
+// Used by manual-entry's per-field unit picker. Handles the SI unit, the primary
+// US-conventional unit (UNIT_CONVERSIONS), and any secondary clinical unit
+// (SECONDARY_UNIT_CONVERSIONS, e.g. mg/L for Lp(a) or g/L for cholesterol).
 export function convertUserInputToSI(dotKey, value, inputUnit) {
-  const conv = UNIT_CONVERSIONS[dotKey];
-  if (!conv || !Number.isFinite(value)) return value;
+  if (!Number.isFinite(value)) return value;
   const dot = dotKey.indexOf('.');
   if (dot < 0) return value;
   const cat = dotKey.slice(0, dot), mkr = dotKey.slice(dot + 1);
   const siUnit = MARKER_SCHEMA[cat]?.markers?.[mkr]?.unit;
-  if (inputUnit === siUnit) return value;
-  if (conv.type === 'multiply') return parseFloat((value / conv.factor).toPrecision(6));
-  if (conv.type === 'hba1c') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
-  return value;
+  // SI input (or no unit chosen) is already canonical.
+  if (!inputUnit || inputUnit === siUnit) return value;
+  const conv = UNIT_CONVERSIONS[dotKey];
+  if (conv) {
+    if (conv.type === 'multiply' && inputUnit === conv.usUnit) return parseFloat((value / conv.factor).toPrecision(6));
+    if (conv.type === 'hba1c' && inputUnit === '%') return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+  }
+  const secondaries = SECONDARY_UNIT_CONVERSIONS[dotKey];
+  if (secondaries) {
+    for (const sec of secondaries) {
+      if (sec.type === 'multiply' && inputUnit === sec.unit) return parseFloat((value / sec.factor).toPrecision(6));
+      if (sec.type === 'hba1c' && inputUnit === sec.unit) return parseFloat(((value - 2.15) * 10.929).toFixed(1));
+    }
+  }
+  return value; // unrecognized unit — store as typed rather than guessing
+}
+
+// Inverse of convertUserInputToSI: express a canonical-SI value in `targetUnit`
+// (SI / primary US / secondary clinical). Used by manual entry's range sanity
+// check so the "did you mean?" warning compares in the unit the user is typing.
+export function convertSIToInputUnit(dotKey, siValue, targetUnit) {
+  if (!Number.isFinite(siValue)) return siValue;
+  const dot = dotKey.indexOf('.');
+  if (dot < 0) return siValue;
+  const cat = dotKey.slice(0, dot), mkr = dotKey.slice(dot + 1);
+  const siUnit = MARKER_SCHEMA[cat]?.markers?.[mkr]?.unit;
+  if (!targetUnit || targetUnit === siUnit) return siValue;
+  const conv = UNIT_CONVERSIONS[dotKey];
+  if (conv) {
+    if (conv.type === 'multiply' && targetUnit === conv.usUnit) return parseFloat((siValue * conv.factor).toPrecision(6));
+    if (conv.type === 'hba1c' && targetUnit === '%') return parseFloat(((siValue / 10.929) + 2.15).toFixed(1));
+  }
+  const secondaries = SECONDARY_UNIT_CONVERSIONS[dotKey];
+  if (secondaries) {
+    for (const sec of secondaries) {
+      if (sec.type === 'multiply' && targetUnit === sec.unit) return parseFloat((siValue * sec.factor).toPrecision(6));
+      if (sec.type === 'hba1c' && targetUnit === sec.unit) return parseFloat(((siValue / 10.929) + 2.15).toFixed(1));
+    }
+  }
+  return siValue;
 }
 
 // ═══════════════════════════════════════════════

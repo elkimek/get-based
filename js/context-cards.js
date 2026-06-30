@@ -422,7 +422,7 @@ configureMedicalHistoryEditor({ recordChange, saveAndRefresh });
 configureLifestyleContextEditors({ recordChange, saveAndRefresh });
 
 // ── Card tips badges (async — waits for catalog) ──
-async function loadContextCardTips() {
+export async function loadContextCardTips() {
   const appWindow = /** @type {any} */ (window);
   if (!appWindow.isProductRecsEnabled || !appWindow.isProductRecsEnabled()) return;
   if (!appWindow.loadCatalog || !appWindow.getCardSlotKeys) return;

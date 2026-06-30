@@ -95,7 +95,10 @@ assert('Profile share module is startup-loaded',
   appDataIoSrc.includes("import './profile-share.js';"));
 assert('Settings Data tab exposes Share Profile action',
   settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
-  settingsSrc.includes('settingsWindow.openProfileShareModal?.()'));
+  settingsSrc.includes('settingsRuntime.openProfileShareModal()') &&
+  settingsSrc.includes('openProfileShareModal: (profileId) => settingsWindow.openProfileShareModal?.(profileId)') &&
+  read('js/app-shell-hooks.js').includes('configureSettingsRuntime') &&
+  read('js/app-shell-hooks.js').includes('openProfileShareModal'));
 assert('Share modal has dedicated shared-modal styling',
   modalCss.includes('#profile-share-overlay.modal-overlay') &&
   modalCss.includes('.profile-share-modal') &&
@@ -123,7 +126,9 @@ assert('Share profile has a top-level header action',
   read('js/shell-actions.js').includes("callShellRuntime('openProfileShareModal')"));
 assert('Mobile share path moves into client list menu',
   read('js/client-list.js').includes("label: 'Share Profile', action: 'share-profile'") &&
-  read('js/client-list.js').includes('window.openProfileShareModal?.(id)') &&
+  read('js/client-list.js').includes('clientListRuntime.openProfileShareModal(id)') &&
+  read('js/app-shell-hooks.js').includes('configureClientListRuntime') &&
+  read('js/app-shell-hooks.js').includes('openProfileShareModal') &&
   /@media \(max-width: 768px\), \(pointer: coarse\)[\s\S]*\.header-share-btn\s*\{[\s\S]*display:\s*none/.test(redesignCss));
 assert('Share modal can target a selected profile id',
   profileShareSrc.includes('openProfileShareModal(profileId = state.currentProfile)') &&

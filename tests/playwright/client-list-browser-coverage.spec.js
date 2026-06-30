@@ -6,6 +6,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
+    const { configureClientListRuntime } = await import('/js/client-list.js');
     const outcomes = {};
     const calls = [];
     const confirmQueue = [];
@@ -124,6 +125,13 @@ test('client list live menu actions dispatch exports share demos and profile sta
       window.importDataJSON = file => calls.push(['import-json', file?.name || '']);
       window.loadDemoData = demo => calls.push(['load-demo', demo]);
       window.openProfileShareModal = id => calls.push(['share-profile', id]);
+      configureClientListRuntime({
+        exportAllDataJSON: window.exportAllDataJSON,
+        exportClientJSON: window.exportClientJSON,
+        importDataJSON: window.importDataJSON,
+        loadDemoData: window.loadDemoData,
+        openProfileShareModal: window.openProfileShareModal,
+      });
       window.showConfirmDialog = async message => {
         calls.push(['confirm', message]);
         return confirmQueue.shift() === true;
