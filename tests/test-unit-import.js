@@ -745,6 +745,38 @@ const importCssSrc = read('css/import.css');
     && spadiaSnapshotOnlySource.entries[0].markers['fattyAcids.omega3Index'] === undefined
     && spadiaSnapshotOnlySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index');
 
+  const sourceNamedSpadiaSnapshot = {
+    entries: [{
+      date: '2024-07-04',
+      sourceFile: 'EDG328K.pdf',
+      markers: { 'fattyAcids.epaC20_5': 0.90 },
+      markerSources: { 'fattyAcids.epaC20_5': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_source_named' } },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_source_named',
+      fileName: 'EDG328K.pdf',
+      date: '2024-07-04',
+      sourceType: 'spadia',
+      sourceName: 'Spadia report',
+      markers: [
+        { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, matched: true },
+      ],
+    }],
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'source metadata note' },
+  };
+  migrateProfileData(sourceNamedSpadiaSnapshot);
+  assert('Profile migration uses Spadia source metadata without filename hints',
+    sourceNamedSpadiaSnapshot.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
+    && sourceNamedSpadiaSnapshot.entries[0].markers['fattyAcids.epaC20_5'] === undefined
+    && sourceNamedSpadiaSnapshot.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    && sourceNamedSpadiaSnapshot.importSnapshots[0].markers[0].suggestedCategoryLabel === 'Spadia'
+    && sourceNamedSpadiaSnapshot.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'source metadata note'
+    && sourceNamedSpadiaSnapshot.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
+    && sourceNamedSpadiaSnapshot.customMarkers['fattyAcids.epaC20_5'] === undefined);
+
   const datelessSpadiaFA = {
     entries: [{
       sourceFile: 'EDG328K.pdf',
@@ -826,6 +858,54 @@ const importCssSrc = read('css/import.css');
     && spadiaScopedCleanup.markerLabels['fattyAcids.omega3Index:2024-07-04'] === undefined
     && spadiaScopedCleanup.refOverrides['fattyAcids.omega3Index:2024-07-01'] === undefined
     && spadiaScopedCleanup.refOverrides['fattyAcids.omega3Index:2024-07-04'] === undefined);
+
+  const undatedGenericSnapshotReference = {
+    entries: [{
+      date: '2024-07-01',
+      sourceFile: 'EDG328K.pdf',
+      markers: { 'fattyAcids.omega3Index': 7.1 },
+      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_dated_source' } },
+    }],
+    customMarkers: {
+      'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [
+      {
+        id: 'snap_spadia_dated_source',
+        fileName: 'EDG328K.pdf',
+        date: '2024-07-01',
+        sourceType: 'spadia',
+        sourceName: 'Spadia report',
+        markers: [
+          { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, matched: true },
+        ],
+      },
+      {
+        id: 'snap_generic_undated_fa',
+        fileName: 'Other Lab Fatty Acids.pdf',
+        markers: [
+          { rawName: 'Omega-3 Index', value: 6.8, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, matched: true },
+        ],
+      },
+    ],
+    manualValues: { 'fattyAcids.omega3Index:2024-07-01': 7.1 },
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot note' },
+    markerLabels: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot label' },
+    refOverrides: { 'fattyAcids.omega3Index:2024-07-01': { min: 8, max: 12 } },
+  };
+  migrateProfileData(undatedGenericSnapshotReference);
+  assert('Profile migration keeps old scoped metadata when an undated generic snapshot still owns the key',
+    undatedGenericSnapshotReference.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    && undatedGenericSnapshotReference.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index'
+    && undatedGenericSnapshotReference.importSnapshots[1].markers[0].mappedKey === 'fattyAcids.omega3Index'
+    && undatedGenericSnapshotReference.manualValues['spadiaFA.omega3Index:2024-07-01'] === 7.1
+    && undatedGenericSnapshotReference.manualValues['fattyAcids.omega3Index:2024-07-01'] === 7.1
+    && undatedGenericSnapshotReference.markerValueNotes['spadiaFA.omega3Index:2024-07-01'] === 'shared undated snapshot note'
+    && undatedGenericSnapshotReference.markerValueNotes['fattyAcids.omega3Index:2024-07-01'] === 'shared undated snapshot note'
+    && undatedGenericSnapshotReference.markerLabels['spadiaFA.omega3Index:2024-07-01'] === 'shared undated snapshot label'
+    && undatedGenericSnapshotReference.markerLabels['fattyAcids.omega3Index:2024-07-01'] === 'shared undated snapshot label'
+    && undatedGenericSnapshotReference.refOverrides['spadiaFA.omega3Index:2024-07-01']?.min === 8
+    && undatedGenericSnapshotReference.refOverrides['fattyAcids.omega3Index:2024-07-01']?.min === 8);
 
   // ═══════════════════════════════════════
   // Results

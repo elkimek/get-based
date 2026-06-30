@@ -443,9 +443,22 @@ function _isSpadiaFattyAcidMarkerMetadata(marker) {
   return label.includes('spadia') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
 }
 
+function _hasFattyAcidSnapshotMarker(snap) {
+  return Array.isArray(snap?.markers) && snap.markers.some(marker => {
+    const key = marker?.mappedKey || marker?.suggestedKey || '';
+    if (_fattyAcidMarkerPart(key) || key.startsWith('spadiaFA.')) return true;
+    const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
+    return group.includes('fattyacid') || group.includes('mastnekyseliny');
+  });
+}
+
 function _isSpadiaFattyAcidSnapshot(snap) {
   if (_isSpadiaFattyAcidSource(snap?.fileName || '')) return true;
-  if (_isSpadiaFattyAcidSource(`${snap?.labName || ''} ${snap?.productLabel || ''}`)) return true;
+  const productText = `${snap?.labName || ''} ${snap?.productLabel || ''}`;
+  if (_isSpadiaFattyAcidSource(productText)) return true;
+  const sourceText = `${snap?.sourceType || ''} ${snap?.sourceName || ''} ${snap?.sourceLabel || ''} ${snap?.source || ''}`;
+  if (_isSpadiaFattyAcidSource(sourceText)) return true;
+  if (_normalizeProfileMarkerLabel(`${productText} ${sourceText}`).includes('spadia') && _hasFattyAcidSnapshotMarker(snap)) return true;
   return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
 }
 
@@ -536,7 +549,7 @@ function _profileHasStructuralMarkerKey(data, key) {
 function _profileHasStructuralMarkerKeyOnDate(data, key, date) {
   if (!date) return _profileHasStructuralMarkerKey(data, key);
   if (data.entries?.some(entry => entry.date === date && entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
-  if (data.importSnapshots?.some(snap => snap?.date === date && Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
+  if (data.importSnapshots?.some(snap => (!snap?.date || snap.date === date) && Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
   return false;
 }
 
