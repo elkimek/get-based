@@ -520,11 +520,13 @@ async function loadOrMigrateLibraries() {
       }
     }
 
-    // If the primary registry is corrupted or missing but the backup is
-    // valid, also scan OPFS directories. That catches libraries created
-    // after the backup but before an update/reload killed the worker.
+    // A valid registry is authoritative. Do not append disk-only directories
+    // here: with backup-first writes, a newer backup may intentionally omit a
+    // library that was deleted right before the worker stopped. Full directory
+    // reconstruction still happens below when both registry files are absent
+    // or unreadable.
     const recovered = await reconcileLibrariesWithDisk({
-      recoverOrphans: registry.source !== 'primary',
+      recoverOrphans: false,
     });
     if (registry.source !== 'primary' || registry.needsPersist || migrated || recovered.changed) {
       if (registry.source !== 'primary') {

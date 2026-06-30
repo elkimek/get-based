@@ -38,6 +38,23 @@ return (async function() {
     }
   }
 
+  async function readLensRegistryFile(name) {
+    const root = await navigator.storage.getDirectory();
+    const lensDir = await root.getDirectoryHandle('lens-local');
+    const fileHandle = await lensDir.getFileHandle(name);
+    const file = await fileHandle.getFile();
+    return JSON.parse(await file.text());
+  }
+
+  async function writeLensRegistryFile(name, payload) {
+    const root = await navigator.storage.getDirectory();
+    const lensDir = await root.getDirectoryHandle('lens-local');
+    const fileHandle = await lensDir.getFileHandle(name, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(payload));
+    await writable.close();
+  }
+
   function roundTrip(worker, msg, expectedType, timeoutMs = 5000) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -236,6 +253,23 @@ return (async function() {
   assert('backup registry recovery preserves explicit library model',
     backupRecoveredLib?.model === 'bge-small-en' && backupRecovered.activeModel === 'bge-small-en',
     `got ${JSON.stringify({ libModel: backupRecoveredLib?.model, activeModel: backupRecovered.activeModel })}`);
+
+  // Simulate a worker stop after the backup registry recorded a delete but
+  // before the stale primary registry and old OPFS directory were removed.
+  worker.terminate();
+  const stalePrimaryRegistry = await readLensRegistryFile('_libraries.json');
+  const interruptedDeleteRegistry = {
+    ...stalePrimaryRegistry,
+    activeId: 'default',
+    libraries: stalePrimaryRegistry.libraries.filter((l) => l.id !== created.id),
+    revision: (Number(stalePrimaryRegistry.revision) || 0) + 1,
+    updatedAt: Date.now(),
+  };
+  await writeLensRegistryFile('_libraries.backup.json', interruptedDeleteRegistry);
+  worker = spawnWorker();
+  const interruptedDeleteRecovered = await roundTrip(worker, { type: 'init' }, 'ready');
+  assert('newer backup delete registry does not resurrect stale OPFS directory',
+    !interruptedDeleteRecovered.libraries.some((l) => l.id === created.id));
 
   worker.terminate();
   await removeLensRegistryFiles(true);
