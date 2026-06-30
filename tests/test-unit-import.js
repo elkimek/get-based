@@ -689,6 +689,40 @@ const importCssSrc = read('css/import.css');
     && savedGenericFA.entries[0].markers['spadiaFA.epaC20_5'] === undefined
     && savedGenericFA.customMarkers['fattyAcids.epaC20_5']);
 
+  const negatedSpadiaSourceMetadata = {
+    entries: [{
+      date: '2026-01-20',
+      sourceFile: 'Non-Spadia generic fatty acids.csv',
+      markers: { 'fattyAcids.epaC20_5': 0.50 },
+      markerSources: {
+        'fattyAcids.epaC20_5': { file: 'Non-Spadia generic fatty acids.csv', snapshotId: 'snap_non_spadia_generic' },
+      },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_non_spadia_generic',
+      fileName: 'Non-Spadia generic fatty acids.csv',
+      labName: 'Non-Spadia Lab',
+      sourceName: 'Non-Spadia generic fatty acids',
+      date: '2026-01-20',
+      markers: [
+        { rawName: 'EPA C20:5', value: 0.50, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, suggestedCategoryLabel: 'Fatty Acids', suggestedGroup: 'Fatty Acids', matched: true },
+      ],
+    }],
+    markerValueNotes: { 'fattyAcids.epaC20_5:2026-01-20': 'generic note' },
+  };
+  migrateProfileData(negatedSpadiaSourceMetadata);
+  assert('Profile migration does not treat negated Spadia source metadata as Spadia',
+    negatedSpadiaSourceMetadata.entries[0].markers['fattyAcids.epaC20_5'] === 0.50
+    && negatedSpadiaSourceMetadata.entries[0].markers['spadiaFA.epaC20_5'] === undefined
+    && negatedSpadiaSourceMetadata.entries[0].markerSources['fattyAcids.epaC20_5']?.snapshotId === 'snap_non_spadia_generic'
+    && negatedSpadiaSourceMetadata.importSnapshots[0].markers[0].mappedKey === 'fattyAcids.epaC20_5'
+    && negatedSpadiaSourceMetadata.markerValueNotes['fattyAcids.epaC20_5:2026-01-20'] === 'generic note'
+    && negatedSpadiaSourceMetadata.markerValueNotes['spadiaFA.epaC20_5:2026-01-20'] === undefined
+    && negatedSpadiaSourceMetadata.customMarkers['fattyAcids.epaC20_5']);
+
   const sharedGenericAndSpadiaFA = {
     entries: [
       {
@@ -836,6 +870,32 @@ const importCssSrc = read('css/import.css');
     && datelessSpadiaSnapshotNoEntrySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
     && datelessSpadiaSnapshotNoEntrySource.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
     && datelessSpadiaSnapshotNoEntrySource.customMarkers['fattyAcids.epaC20_5'] === undefined);
+
+  const datedSpadiaSnapshotDatelessEntry = {
+    entries: [{
+      markers: { 'fattyAcids.epaC20_5': 0.90 },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_dated_dateless_entry',
+      fileName: 'EDG328K.pdf',
+      date: '2024-07-04',
+      markers: [
+        { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
+      ],
+    }],
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'dated snapshot note' },
+  };
+  migrateProfileData(datedSpadiaSnapshotDatelessEntry);
+  assert('Profile migration value-matches dated Spadia snapshots to dateless entries without source metadata',
+    datedSpadiaSnapshotDatelessEntry.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
+    && datedSpadiaSnapshotDatelessEntry.entries[0].markers['fattyAcids.epaC20_5'] === undefined
+    && datedSpadiaSnapshotDatelessEntry.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    && datedSpadiaSnapshotDatelessEntry.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'dated snapshot note'
+    && datedSpadiaSnapshotDatelessEntry.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
+    && datedSpadiaSnapshotDatelessEntry.customMarkers['fattyAcids.epaC20_5'] === undefined);
 
   const spadiaScopedCleanup = {
     entries: [{

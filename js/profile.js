@@ -430,17 +430,24 @@ function _repairUnitSuffixedStandardMarkers(data) {
   for (const key of toDelete) delete data.customMarkers[key];
 }
 
+function _hasPositiveSpadiaLabel(value) {
+  const compact = _normalizeProfileMarkerLabel(value);
+  if (!compact.includes('spadia')) return false;
+  const text = String(value || '').toLowerCase();
+  if (/\b(?:non|not|no|without)[\s_-]*spadia\b/.test(text)) return false;
+  return !/(?:non|not|no|without)spadia/.test(compact);
+}
+
 function _isSpadiaFattyAcidSource(value) {
   const compact = _normalizeProfileMarkerLabel(value);
-  return compact.includes('spadia') && (compact.includes('fattyacid') || compact.includes('mastnekyseliny'));
+  return _hasPositiveSpadiaLabel(value) && (compact.includes('fattyacid') || compact.includes('mastnekyseliny'));
 }
 
 function _isSpadiaFattyAcidMarkerMetadata(marker) {
   const key = marker?.mappedKey || marker?.suggestedKey || '';
   if (key.startsWith('spadiaFA.')) return true;
-  const label = _normalizeProfileMarkerLabel(marker?.suggestedCategoryLabel || '');
   const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
-  return label.includes('spadia') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
+  return _hasPositiveSpadiaLabel(marker?.suggestedCategoryLabel || '') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
 }
 
 function _hasFattyAcidSnapshotMarker(snap) {
@@ -458,7 +465,7 @@ function _isSpadiaFattyAcidSnapshot(snap) {
   if (_isSpadiaFattyAcidSource(productText)) return true;
   const sourceText = `${snap?.sourceType || ''} ${snap?.sourceName || ''} ${snap?.sourceLabel || ''} ${snap?.source || ''}`;
   if (_isSpadiaFattyAcidSource(sourceText)) return true;
-  if (_normalizeProfileMarkerLabel(`${productText} ${sourceText}`).includes('spadia') && _hasFattyAcidSnapshotMarker(snap)) return true;
+  if (_hasPositiveSpadiaLabel(`${productText} ${sourceText}`) && _hasFattyAcidSnapshotMarker(snap)) return true;
   return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
 }
 
@@ -571,10 +578,9 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
   if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, oldKey)) return false;
   if (snap?.id && entry.markerSources?.[oldKey]?.snapshotId === snap.id) return true;
   if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
-  if (snap?.date) {
-    return entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value);
-  }
-  return !entry.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value);
+  if (!_profileMarkerValuesMatch(entry.markers[oldKey], marker?.value)) return false;
+  if (snap?.date && entry.date) return entry.date === snap.date;
+  return !entry.date;
 }
 
 function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
