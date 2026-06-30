@@ -430,6 +430,259 @@ function _repairUnitSuffixedStandardMarkers(data) {
   for (const key of toDelete) delete data.customMarkers[key];
 }
 
+function _hasPositiveSpadiaLabel(value) {
+  const compact = _normalizeProfileMarkerLabel(value);
+  if (!compact.includes('spadia')) return false;
+  const text = String(value || '').toLowerCase();
+  if (/\b(?:non|not|no|without)[\s_-]*spadia\b/.test(text)) return false;
+  return !/(?:non|not|no|without)spadia/.test(compact);
+}
+
+function _isSpadiaFattyAcidSource(value) {
+  const compact = _normalizeProfileMarkerLabel(value);
+  return _hasPositiveSpadiaLabel(value) && (compact.includes('fattyacid') || compact.includes('mastnekyseliny'));
+}
+
+function _isSpadiaFattyAcidMarkerMetadata(marker) {
+  const key = marker?.mappedKey || marker?.suggestedKey || '';
+  if (key.startsWith('spadiaFA.')) return true;
+  const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
+  return _hasPositiveSpadiaLabel(marker?.suggestedCategoryLabel || '') && (!group || group.includes('fattyacid') || group.includes('mastnekyseliny'));
+}
+
+function _hasFattyAcidSnapshotMarker(snap) {
+  return Array.isArray(snap?.markers) && snap.markers.some(marker => {
+    const key = marker?.mappedKey || marker?.suggestedKey || '';
+    if (_fattyAcidMarkerPart(key) || key.startsWith('spadiaFA.')) return true;
+    const group = _normalizeProfileMarkerLabel(marker?.suggestedGroup || '');
+    return group.includes('fattyacid') || group.includes('mastnekyseliny');
+  });
+}
+
+function _snapshotSourceText(snap) {
+  const parts = [];
+  if (snap?.fileName) parts.push(snap.fileName);
+  if (snap?.sourceFile) parts.push(snap.sourceFile);
+  if (Array.isArray(snap?.sourceFiles)) parts.push(...snap.sourceFiles);
+  if (snap?.sourceType) parts.push(snap.sourceType);
+  if (snap?.sourceName) parts.push(snap.sourceName);
+  if (snap?.sourceLabel) parts.push(snap.sourceLabel);
+  if (snap?.source) parts.push(snap.source);
+  if (snap?.importer) parts.push(snap.importer);
+  if (snap?.importerName) parts.push(snap.importerName);
+  return parts.join(' ');
+}
+
+function _isSpadiaFattyAcidSnapshot(snap) {
+  const fileText = `${snap?.fileName || ''} ${snap?.sourceFile || ''} ${Array.isArray(snap?.sourceFiles) ? snap.sourceFiles.join(' ') : ''}`;
+  if (_isSpadiaFattyAcidSource(fileText)) return true;
+  const productText = `${snap?.labName || ''} ${snap?.productLabel || ''}`;
+  if (_isSpadiaFattyAcidSource(productText)) return true;
+  const sourceText = _snapshotSourceText(snap);
+  if (_isSpadiaFattyAcidSource(sourceText)) return true;
+  if (_hasPositiveSpadiaLabel(`${fileText} ${productText} ${sourceText}`) && _hasFattyAcidSnapshotMarker(snap)) return true;
+  return Array.isArray(snap?.markers) && snap.markers.some(_isSpadiaFattyAcidMarkerMetadata);
+}
+
+function _entrySourceText(entry) {
+  const parts = [];
+  if (entry?.sourceFile) parts.push(entry.sourceFile);
+  if (Array.isArray(entry?.sourceFiles)) parts.push(...entry.sourceFiles);
+  if (entry?.markerSources && typeof entry.markerSources === 'object') {
+    for (const source of Object.values(entry.markerSources)) {
+      if (source?.file) parts.push(source.file);
+    }
+  }
+  return parts.join(' ');
+}
+
+function _copyDateScopedProfileMarkerData(data, oldKey, nextKey, date = null) {
+  const copyExact = (obj, scopedDate) => {
+    if (!obj) return;
+    const from = `${oldKey}:${scopedDate}`;
+    const to = `${nextKey}:${scopedDate}`;
+    if (obj[from] !== undefined && obj[to] === undefined) obj[to] = obj[from];
+  };
+  const copyAll = (obj) => {
+    if (!obj) return;
+    const prefix = `${oldKey}:`;
+    for (const key of Object.keys(obj)) {
+      if (!key.startsWith(prefix)) continue;
+      const to = `${nextKey}:${key.slice(prefix.length)}`;
+      if (obj[to] === undefined) obj[to] = obj[key];
+    }
+  };
+  if (date) {
+    copyExact(data.manualValues, date);
+    copyExact(data.markerValueNotes, date);
+    copyExact(data.markerLabels, date);
+    copyExact(data.refOverrides, date);
+  } else {
+    copyAll(data.manualValues);
+    copyAll(data.markerValueNotes);
+    copyAll(data.markerLabels);
+    copyAll(data.refOverrides);
+  }
+}
+
+function _deleteDateScopedProfileMarkerData(data, oldKey, date = null) {
+  const deleteExact = (obj, scopedDate) => {
+    if (!obj) return;
+    delete obj[`${oldKey}:${scopedDate}`];
+  };
+  const deleteAll = (obj) => {
+    if (!obj) return;
+    const prefix = `${oldKey}:`;
+    for (const key of Object.keys(obj)) {
+      if (key.startsWith(prefix)) delete obj[key];
+    }
+  };
+  if (date) {
+    deleteExact(data.manualValues, date);
+    deleteExact(data.markerValueNotes, date);
+    deleteExact(data.markerLabels, date);
+    deleteExact(data.refOverrides, date);
+  } else {
+    deleteAll(data.manualValues);
+    deleteAll(data.markerValueNotes);
+    deleteAll(data.markerLabels);
+    deleteAll(data.refOverrides);
+  }
+}
+
+function _copyGlobalProfileMarkerData(data, oldKey, nextKey) {
+  if (data.refOverrides?.[oldKey] && !data.refOverrides[nextKey]) data.refOverrides[nextKey] = data.refOverrides[oldKey];
+  if (data.markerNotes?.[oldKey] && !data.markerNotes[nextKey]) data.markerNotes[nextKey] = data.markerNotes[oldKey];
+  if (data.markerLabels?.[oldKey] && !data.markerLabels[nextKey]) data.markerLabels[nextKey] = data.markerLabels[oldKey];
+}
+
+function _deleteGlobalProfileMarkerData(data, oldKey) {
+  if (data.refOverrides) delete data.refOverrides[oldKey];
+  if (data.markerNotes) delete data.markerNotes[oldKey];
+  if (data.markerLabels) delete data.markerLabels[oldKey];
+}
+
+function _profileHasStructuralMarkerKey(data, key) {
+  if (data.entries?.some(entry => entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
+  if (data.importSnapshots?.some(snap => Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
+  return false;
+}
+
+function _profileHasStructuralMarkerKeyOnDate(data, key, date) {
+  if (!date) return _profileHasStructuralMarkerKey(data, key);
+  if (data.entries?.some(entry => entry.date === date && entry.markers && Object.prototype.hasOwnProperty.call(entry.markers, key))) return true;
+  if (data.importSnapshots?.some(snap => (!snap?.date || snap.date === date) && Array.isArray(snap.markers) && snap.markers.some(m => m?.mappedKey === key || m?.suggestedKey === key))) return true;
+  return false;
+}
+
+function _fattyAcidMarkerPart(key) {
+  const prefix = 'fattyAcids.';
+  if (!key?.startsWith(prefix)) return null;
+  const markerPart = key.slice(prefix.length);
+  return markerPart && !markerPart.includes('.') ? markerPart : null;
+}
+
+function _profileMarkerValuesMatch(a, b) {
+  if (a === b) return true;
+  const aNum = Number(a);
+  const bNum = Number(b);
+  return Number.isFinite(aNum) && Number.isFinite(bNum) && Math.abs(aNum - bNum) < 1e-9;
+}
+
+function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
+  if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, oldKey)) return false;
+  if (snap?.id && entry.markerSources?.[oldKey]?.snapshotId === snap.id) return true;
+  if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
+  if (!_profileMarkerValuesMatch(entry.markers[oldKey], marker?.value)) return false;
+  if (snap?.date && entry.date) return entry.date === snap.date;
+  if (!entry.date && _entrySourceText(entry)) return false;
+  return !entry.date;
+}
+
+function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
+  if (!data.customMarkers) data.customMarkers = {};
+  const sourceDef = data.customMarkers[oldKey] || SPECIALTY_MARKER_DEFS[oldKey] || {};
+  const cmDef = {
+    ...sourceDef,
+    ...(data.customMarkers[nextKey] || {}),
+  };
+  cmDef.name = cmDef.name || sourceDef.name || nextKey.split('.').pop();
+  cmDef.unit = cmDef.unit || sourceDef.unit || '%';
+  cmDef.refMin = cmDef.refMin != null ? cmDef.refMin : (sourceDef.refMin != null ? sourceDef.refMin : null);
+  cmDef.refMax = cmDef.refMax != null ? cmDef.refMax : (sourceDef.refMax != null ? sourceDef.refMax : null);
+  cmDef.icon = cmDef.icon || sourceDef.icon || SPECIALTY_MARKER_DEFS[oldKey]?.icon;
+  cmDef.categoryLabel = 'Spadia';
+  cmDef.group = 'Fatty Acids';
+  data.customMarkers[nextKey] = cmDef;
+}
+
+function _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey) {
+  if (!renameLabEntryMarker(entry, oldKey, nextKey, { stamp: false })) return false;
+  _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
+  if (entry.date) {
+    _copyDateScopedProfileMarkerData(data, oldKey, nextKey, entry.date);
+  }
+  if (entry.date && !_profileHasStructuralMarkerKeyOnDate(data, oldKey, entry.date)) {
+    _deleteDateScopedProfileMarkerData(data, oldKey, entry.date);
+  }
+  return true;
+}
+
+function _repairSpadiaFattyAcidKeys(data) {
+  const renamedKeys = new Map();
+  const remapKey = (oldKey) => {
+    const markerPart = _fattyAcidMarkerPart(oldKey);
+    return markerPart ? `spadiaFA.${markerPart}` : null;
+  };
+  for (const entry of data.entries || []) {
+    if (!_isSpadiaFattyAcidSource(_entrySourceText(entry))) continue;
+    for (const oldKey of Object.keys(entry.markers || {})) {
+      const nextKey = remapKey(oldKey);
+      if (!nextKey) continue;
+      if (_remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey)) {
+        renamedKeys.set(oldKey, nextKey);
+      }
+    }
+  }
+  for (const snap of data.importSnapshots || []) {
+    if (!_isSpadiaFattyAcidSnapshot(snap)) continue;
+    if (!Array.isArray(snap.markers)) continue;
+    for (const marker of snap.markers) {
+      const oldKey = marker?.mappedKey?.startsWith('fattyAcids.') ? marker.mappedKey
+        : marker?.suggestedKey?.startsWith('fattyAcids.') ? marker.suggestedKey
+          : null;
+      const nextKey = remapKey(oldKey);
+      if (!nextKey) continue;
+      const def = SPECIALTY_MARKER_DEFS[oldKey] || {};
+      marker.mappedKey = nextKey;
+      marker.suggestedKey = null;
+      marker.suggestedName = marker.suggestedName || def.name || marker.rawName;
+      marker.suggestedCategoryLabel = 'Spadia';
+      marker.suggestedGroup = 'Fatty Acids';
+      marker.matched = true;
+      renamedKeys.set(oldKey, nextKey);
+      _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey);
+      if (snap?.date) {
+        _copyDateScopedProfileMarkerData(data, oldKey, nextKey, snap.date);
+      }
+      for (const entry of data.entries || []) {
+        if (_entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker)
+          && _remapSpadiaFattyAcidEntry(data, entry, oldKey, nextKey)) {
+          renamedKeys.set(oldKey, nextKey);
+        }
+      }
+    }
+  }
+  for (const [oldKey, nextKey] of renamedKeys) {
+    _copyGlobalProfileMarkerData(data, oldKey, nextKey);
+    if (_profileHasStructuralMarkerKey(data, oldKey)) continue;
+    _copyDateScopedProfileMarkerData(data, oldKey, nextKey);
+    _deleteDateScopedProfileMarkerData(data, oldKey);
+    _deleteGlobalProfileMarkerData(data, oldKey);
+    if (data.customMarkers) delete data.customMarkers[oldKey];
+  }
+}
+
 /**
  * @param {string} profileId
  * @param {ProfileData | null} [importedData]
@@ -559,6 +812,9 @@ export function migrateProfileData(data) {
   // Repair AI-imported duplicate markers such as `ALP (ukat/l)` that were
   // stored as custom keys instead of the existing standard schema marker.
   _repairUnitSuffixedStandardMarkers(data);
+  // Repair generic fattyAcids.* rows created from Spadia fatty-acid imports
+  // before product-specific category normalization existed for blood-classified reports.
+  _repairSpadiaFattyAcidKeys(data);
   // Fix corrupted FA-prefixed standard markers (bug: _normalizeFattyAcidMarkers rewrote blood work to FA categories)
   if (data.customMarkers && data.entries?.length) {
     // Phase 1: relocate markers whose key matches a standard schema marker

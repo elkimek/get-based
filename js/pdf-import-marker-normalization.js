@@ -9,6 +9,13 @@ import { _sanitizeAIMarker, reconcileImportMarkerMappings } from './pdf-import-m
 const _specialtyTypes = ['OAT', 'fattyAcids', 'Metabolomix+', 'DUTCH', 'HTMA', 'GI'];
 const standardCats = new Set(Object.keys(MARKER_SCHEMA));
 
+function _fattyAcidMarkerPart(key) {
+  const prefix = 'fattyAcids.';
+  if (!key?.startsWith(prefix)) return null;
+  const markerPart = key.slice(prefix.length);
+  return markerPart && !markerPart.includes('.') ? markerPart : null;
+}
+
 /**
  * @param {{ testType?: string, markers?: any[] }} parsed
  * @param {{
@@ -56,6 +63,44 @@ export function normalizeParsedImportMarkers(parsed, {
 function normalizeParsedImportMarker(m, { testType, detected, mode, emitDebugLogs }) {
   let mappedKey = m.mappedKey || null;
   let matched = !!mappedKey;
+
+  // Product detection is conservative for whole-report normalization when the
+  // model says "blood", but generic fattyAcids.* adapter keys are never the
+  // desired persisted keys for a detected fatty-acid product.
+  if (detected?.adapter?.id === 'fattyAcids' && detected.product?.prefix) {
+    const genericFattyAcidKey = mappedKey?.startsWith('fattyAcids.')
+      ? mappedKey
+      : (!matched && m.suggestedKey?.startsWith('fattyAcids.') ? m.suggestedKey : null);
+    if (genericFattyAcidKey) {
+      const markerPart = _fattyAcidMarkerPart(genericFattyAcidKey);
+      const sDef = SPECIALTY_MARKER_DEFS[genericFattyAcidKey];
+      if (markerPart && sDef) {
+        if (emitDebugLogs && isDebugMode()) {
+          console.log(`[Import Guard] Rewrote ${genericFattyAcidKey} -> ${detected.product.prefix}.${markerPart} (detected ${detected.product.label})`);
+        }
+        m.suggestedKey = `${detected.product.prefix}.${markerPart}`;
+        m.suggestedName = m.suggestedName || sDef?.name || m.rawName;
+        m.suggestedCategoryLabel = detected.product.label;
+        m.suggestedGroup = 'Fatty Acids';
+        mappedKey = null;
+        matched = false;
+      } else {
+        if (emitDebugLogs && isDebugMode()) {
+          console.log(`[Import Guard] Demoted invalid ${genericFattyAcidKey} for detected ${detected.product.label}`);
+        }
+        if (markerPart) {
+          m.suggestedKey = `${detected.product.prefix}.${markerPart}`;
+        } else if (m.suggestedKey === genericFattyAcidKey) {
+          m.suggestedKey = null;
+        }
+        m.suggestedName = m.suggestedName || m.rawName;
+        m.suggestedCategoryLabel = m.suggestedCategoryLabel || detected.product.label;
+        m.suggestedGroup = m.suggestedGroup || 'Fatty Acids';
+        mappedKey = null;
+        matched = false;
+      }
+    }
+  }
 
   // Guard: never allow standard blood work mappings for known specialty tests.
   // Only fire for well-defined specialty types, not for mixed/comprehensive reports.
