@@ -17,12 +17,31 @@ function installThrowingGetter(name) {
 
 function assertStorageWorks(name) {
   const storage = globalThis[name];
-  if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+  if (
+    !storage ||
+    typeof storage.getItem !== 'function' ||
+    typeof storage.setItem !== 'function' ||
+    typeof storage.removeItem !== 'function' ||
+    typeof storage.clear !== 'function' ||
+    typeof storage.key !== 'function'
+  ) {
     throw new Error(`${name} shim missing Storage API after importing ${setupFile}`);
   }
   storage.setItem('__throwing_getter_probe__', 'ok');
   if (storage.getItem('__throwing_getter_probe__') !== 'ok') {
     throw new Error(`${name} round-trip failed after importing ${setupFile}`);
+  }
+  if (storage.length !== 1 || storage.key(0) !== '__throwing_getter_probe__') {
+    throw new Error(`${name} key/length API failed after importing ${setupFile}`);
+  }
+  storage.removeItem('__throwing_getter_probe__');
+  if (storage.getItem('__throwing_getter_probe__') !== null || storage.length !== 0) {
+    throw new Error(`${name} removeItem failed after importing ${setupFile}`);
+  }
+  storage.setItem('__throwing_getter_probe__', 'ok');
+  storage.clear();
+  if (storage.getItem('__throwing_getter_probe__') !== null || storage.length !== 0) {
+    throw new Error(`${name} clear failed after importing ${setupFile}`);
   }
 }
 

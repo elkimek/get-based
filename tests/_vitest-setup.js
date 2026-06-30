@@ -50,7 +50,13 @@ function _readGlobalStorage(name) {
 function _needsStorageShim(storage) {
   if (!storage) return true;
   try {
-    if (typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
+    if (
+      typeof storage.getItem !== 'function' ||
+      typeof storage.setItem !== 'function' ||
+      typeof storage.removeItem !== 'function' ||
+      typeof storage.clear !== 'function' ||
+      typeof storage.key !== 'function'
+    ) {
       return true;
     }
     storage.getItem('__storage_shim_probe__');

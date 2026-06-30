@@ -4,6 +4,9 @@
   "private": true,
   "description": "getbased — open-source health dashboard (PWA)",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev-server": "node dev-server.js",
     "quality": "node scripts/quality-guardrails.mjs",
