@@ -814,6 +814,29 @@ const importCssSrc = read('css/import.css');
     && datelessSpadiaFA.manualValues['fattyAcids.omega3Index:2024-07-04'] === undefined
     && datelessSpadiaFA.markerValueNotes['fattyAcids.omega3Index:2024-07-04'] === undefined);
 
+  const datelessSpadiaSnapshotNoEntrySource = {
+    entries: [{
+      markers: { 'fattyAcids.epaC20_5': 0.90 },
+    }],
+    customMarkers: {
+      'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
+    },
+    importSnapshots: [{
+      id: 'snap_spadia_dateless_value_match',
+      fileName: 'EDG328K.pdf',
+      markers: [
+        { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
+      ],
+    }],
+  };
+  migrateProfileData(datelessSpadiaSnapshotNoEntrySource);
+  assert('Profile migration value-matches dateless Spadia snapshots to dateless entries without source metadata',
+    datelessSpadiaSnapshotNoEntrySource.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
+    && datelessSpadiaSnapshotNoEntrySource.entries[0].markers['fattyAcids.epaC20_5'] === undefined
+    && datelessSpadiaSnapshotNoEntrySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    && datelessSpadiaSnapshotNoEntrySource.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
+    && datelessSpadiaSnapshotNoEntrySource.customMarkers['fattyAcids.epaC20_5'] === undefined);
+
   const spadiaScopedCleanup = {
     entries: [{
       date: '2024-07-01',

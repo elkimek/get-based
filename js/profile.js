@@ -571,7 +571,10 @@ function _entryMatchesSpadiaSnapshotMarker(entry, snap, oldKey, marker) {
   if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, oldKey)) return false;
   if (snap?.id && entry.markerSources?.[oldKey]?.snapshotId === snap.id) return true;
   if (_isSpadiaFattyAcidSource(_entrySourceText(entry))) return true;
-  return !!(snap?.date && entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value));
+  if (snap?.date) {
+    return entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value);
+  }
+  return !entry.date && _profileMarkerValuesMatch(entry.markers[oldKey], marker?.value);
 }
 
 function _ensureSpadiaFattyAcidCustomMarker(data, oldKey, nextKey) {
