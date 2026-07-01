@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.49', date: '2026-07-01', title: 'Add SNPs from small genetic reports',
+    forceShow: true,
+    items: [
+      '<b>Genome import is less all-or-nothing.</b> You can now add a single SNP manually when a lab only reports one or two variants instead of giving you a raw DNA file.',
+      '<b>Clinical SNP reports are supported as a review flow.</b> Report PDFs or text that mention catalog rsIDs and genotypes are parsed locally, shown in the same DNA preview, and then merged into your existing genetics data instead of replacing it.',
+      '<b>Strand normalization is visible in storage.</b> getbased keeps the reported genotype and the catalog-normalized genotype, so report calls like MTHFR <code>CC</code> can still map safely to the existing health SNP catalog.',
+    ]
+  },
+  {
     version: '1.10.48', date: '2026-07-01', title: 'Updated AI model recommendations',
     forceShow: true,
     items: [

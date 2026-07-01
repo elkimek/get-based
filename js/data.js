@@ -260,16 +260,20 @@ export async function saveImportedData(options = {}) {
     // keys to IndexedDB. Going through localStorage.setItem directly
     // would bypass that routing and re-introduce the 5 MB quota wall.
     await encryptedSetItem(key, value);
+  } catch (e) {
+    showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
+    return false;
+  }
+  try {
     broadcastDataChanged(state.currentProfile);
     scheduleAutoBackup();
     touchProfileTimestamp(state.currentProfile);
     if (dataWindow.invalidateLabContextCache) dataWindow.invalidateLabContextCache();
     onDataSaved(options);
-    return true;
   } catch (e) {
-    showNotification('Storage limit reached — clear old data or profiles to free space.', 'error');
-    return false;
+    if (dataWindow.isDebugMode?.()) console.warn('Post-save hook failed after data was persisted:', e);
   }
+  return true;
 }
 
 export function getFocusCardFingerprint() {

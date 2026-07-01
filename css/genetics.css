@@ -16,13 +16,16 @@
 .genetics-loading-stub:hover { border-color: var(--border); background: var(--bg-card); }
 .genetics-empty-stub-icon { font-size: 20px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
 .genetics-empty-stub-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.genetics-empty-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.genetics-empty-actions .genetics-action-link { font-size: 12px; color: var(--accent); }
+.genetics-empty-actions .genetics-action-link:hover { color: var(--purple); }
 .genetics-empty-stub-title { font-weight: 600; color: var(--text-primary); font-size: 14px; }
 .genetics-empty-stub-sub { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
 .genetics-empty-stub-arrow { font-size: 16px; color: var(--text-muted); align-self: center; flex-shrink: 0; }
 .genetics-empty-stub:hover .genetics-empty-stub-arrow { color: var(--purple); }
 
 /* DNA Import Preview */
-.dna-preview-modal { max-width: 560px; max-height: 80vh; display: flex; flex-direction: column; }
+.dna-preview-modal { width: min(90vw, 560px); max-width: 560px; max-height: 80vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .dna-preview-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
 .dna-preview-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .dna-preview-stats { font-size: 12px; color: var(--text-muted); }
@@ -44,6 +47,48 @@
 .dna-preview-group.expanded .dna-preview-expand-hint { display: none; }
 .dna-preview-disclaimer { padding: 8px 20px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border); }
 .dna-preview-actions { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); }
+.dna-manual-modal { width: min(92vw, 640px); max-width: 640px; max-height: min(88vh, 760px); }
+.dna-manual-header { background: linear-gradient(135deg, color-mix(in srgb, var(--purple) 10%, transparent), transparent 60%); }
+.dna-manual-snp-body { display: grid; gap: 14px; background: var(--bg-secondary); padding-bottom: 16px; }
+.dna-manual-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); padding: 12px; }
+.dna-manual-card-bulk { background: color-mix(in srgb, var(--bg-card) 94%, var(--purple) 6%); }
+.dna-manual-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.dna-manual-section-head span { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.dna-manual-section-head small { font-size: 11px; color: var(--text-muted); font-weight: 500; text-align: right; }
+.dna-manual-grid { display: grid; grid-template-columns: minmax(0, 1fr) 104px; gap: 10px; }
+.dna-manual-field { display: grid; gap: 6px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.dna-manual-source { padding: 0 2px; max-width: none; }
+.dna-manual-input,
+.dna-manual-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.dna-manual-input { min-height: 40px; padding: 9px 11px; }
+.dna-manual-genotype { text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 0.08em; }
+.dna-manual-textarea { resize: vertical; min-height: 104px; padding: 10px 11px; font-family: var(--font-mono); line-height: 1.45; }
+.dna-manual-input::placeholder,
+.dna-manual-textarea::placeholder { color: var(--text-muted); opacity: 0.72; }
+.dna-manual-input:hover,
+.dna-manual-textarea:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.dna-manual-input:focus,
+.dna-manual-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.dna-manual-help { margin: 0; padding: 4px 2px 0; font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+@media (max-width: 560px) {
+  .dna-preview-modal { max-width: min(96vw, 560px); }
+  .dna-manual-grid { grid-template-columns: 1fr; }
+  .dna-manual-section-head { display: grid; }
+  .dna-manual-section-head small { text-align: left; }
+}
 
 /* Shared genetics detail references used by marker details and the Genome page. */
 .detail-genetics { margin: 12px 0; padding: 10px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); border: 1px solid var(--border); }

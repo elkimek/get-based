@@ -357,6 +357,32 @@ function inferAnnotatedReportGenotype(rsid, entry, cells, columns) {
   return null;
 }
 
+const DNA_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
+function reverseComplementGenotype(genotype) {
+  return String(genotype || '').toUpperCase().split('').reverse().map(ch => DNA_COMPLEMENT[ch] || ch).join('');
+}
+function findGenotypeMatch(entry, genotype) {
+  const raw = String(genotype || '').trim().toUpperCase();
+  if (!entry || !entry.genotypes || !/^[ACGT]{1,2}$/.test(raw)) return null;
+  const tries = [];
+  const push = (value) => { if (value && !tries.includes(value)) tries.push(value); };
+  push(raw);
+  if (raw.length === 2) push(raw[1] + raw[0]);
+  push(sortAlleles(raw));
+  const rc = reverseComplementGenotype(raw);
+  const alleles = new Set(Object.keys(entry.genotypes).join('').split(''));
+  const palindromic = alleles.size === 2 && ((alleles.has('A') && alleles.has('T')) || (alleles.has('C') && alleles.has('G')));
+  if (!palindromic) {
+    push(rc);
+    if (rc.length === 2) push(rc[1] + rc[0]);
+    push(sortAlleles(rc));
+  }
+  for (const key of tries) {
+    if (entry.genotypes[key] != null) return { key, info: entry.genotypes[key] };
+  }
+  return null;
+}
+
 function parseAnnotatedSnpReport(text, snpTable) {
   const lines = text.split(/\r?\n/);
   const headerIndex = lines.findIndex(line => line.trim() && !line.trim().startsWith('#'));
@@ -387,6 +413,55 @@ function parseAnnotatedSnpReport(text, snpTable) {
     if (genotype) matches[rsid] = genotype;
   }
   return { matches, source: 'annotated-snp-report', totalLines: totalData, format: 'annotated-snp-report' };
+}
+
+function parseClinicalSnpGenotypeTail(tail) {
+  const cleaned = String(tail || '').replace(/\s+/g, ' ');
+  const matches = [...cleaned.matchAll(/(?:^|[^A-Z])([ACGT]{2})(?=\s*(?:[–-]|—|\b|$))/g)];
+  if (!matches.length) return null;
+  // Lab PDFs often prefix result rows with timestamps like 11:48CC; the last
+  // allele pair near the zygosity prose is the actual genotype.
+  return matches[matches.length - 1][1];
+}
+
+export function parseClinicalSnpReportText(text, options = {}) {
+  const source = options.source || options.fileName || 'Clinical SNP report';
+  const snpTable = _snpTable;
+  const body = String(text || '').replace(/\u00A0/g, ' ');
+  const matches = {};
+  let totalLines = 0;
+  const rsMatches = [...body.matchAll(/\b(rs\d+)\b/gi)];
+  for (let i = 0; i < rsMatches.length; i++) {
+    const rsid = rsMatches[i][1].toLowerCase();
+    const entry = snpTable?.[rsid];
+    if (!entry || matches[rsid]) continue;
+    totalLines++;
+    const start = Math.max(0, rsMatches[i].index - 90);
+    const end = i + 1 < rsMatches.length ? Math.min(body.length, rsMatches[i + 1].index) : Math.min(body.length, rsMatches[i].index + 220);
+    const chunk = body.slice(start, end);
+    const genotype = parseClinicalSnpGenotypeTail(chunk);
+    if (!genotype) continue;
+    const match = findGenotypeMatch(entry, genotype);
+    if (!match) continue;
+    matches[rsid] = {
+      genotype,
+      normalizedGenotype: match.key,
+      gene: entry.gene,
+      variant: entry.variant,
+      category: entry.category,
+      markers: entry.markers || [],
+      effect: match.info.effect,
+      valence: match.info.valence,
+      note: match.info.note,
+      source: { type: options.type || 'report-text', label: source, fileName: options.fileName || null, rawText: chunk.trim().slice(0, 500) },
+    };
+  }
+  return {
+    matches,
+    source,
+    totalLines,
+    coverage: { found: Object.keys(matches).length, total: Object.keys(snpTable || {}).filter(k => k.startsWith('rs')).length },
+  };
 }
 
 // Eagerly load SNP table when genetics data exists (e.g. after JSON import)
@@ -510,6 +585,63 @@ function resolveAPOE(matches) {
 // STORAGE
 // ═══════════════════════════════════════════════
 
+function recalculateGeneticsSummary(genetics) {
+  if (!genetics) return;
+  const apoe = resolveAPOE(genetics.snps || {});
+  const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
+  let significant = 0, moderate = 0, mild = 0, normal = 0;
+  for (const [rsid, data] of Object.entries(genetics.snps || {})) {
+    if (apoeRsids.has(rsid)) continue;
+    if (data.effect === 'significant') significant++;
+    else if (data.effect === 'moderate') moderate++;
+    else if (data.effect === 'mild') mild++;
+    else if (data.effect === 'none') normal++;
+  }
+  genetics.effects = { significant, moderate, mild, normal };
+  genetics.coverage = { found: Object.keys(genetics.snps || {}).length, total: Object.keys(_snpTable || {}).filter(k => k.startsWith('rs')).length };
+  if (apoe) genetics.apoe = apoe;
+  else delete genetics.apoe;
+}
+
+export function upsertGeneticsSnp(profileData, rsidInput, genotypeInput, source = {}) {
+  const rsid = String(rsidInput || '').trim().toLowerCase();
+  const genotype = String(genotypeInput || '').trim().toUpperCase();
+  if (!/^rs\d+$/.test(rsid)) return { ok: false, error: 'Enter a valid rsID, e.g. rs1801133.' };
+  if (!/^[ACGT]{1,2}$/.test(genotype)) return { ok: false, error: 'Enter a genotype using A/C/G/T, e.g. CT.' };
+  const entry = _snpTable?.[rsid];
+  if (!entry) return { ok: false, error: 'This SNP is not in the getbased health SNP catalog yet.' };
+  const match = findGenotypeMatch(entry, genotype);
+  if (!match) return { ok: false, error: 'That genotype does not match this SNP catalog entry.' };
+  if (!profileData.genetics) {
+    profileData.genetics = { source: 'Manual SNPs', importDate: new Date().toISOString().slice(0, 10), coverage: { found: 0, total: 0 }, effects: {}, snps: {}, catalogVersion: _catalogSignature(_snpTable) };
+  }
+  if (!profileData.genetics.snps) profileData.genetics.snps = {};
+  const sourceMeta = {
+    type: source.type || 'manual',
+    label: source.label || source.fileName || 'Manual entry',
+    fileName: source.fileName || null,
+    rawText: source.rawText || null,
+    addedAt: source.addedAt || new Date().toISOString(),
+  };
+  profileData.genetics.snps[rsid] = {
+    genotype,
+    normalizedGenotype: match.key,
+    gene: entry.gene,
+    variant: entry.variant,
+    category: entry.category || null,
+    markers: entry.markers || [],
+    effect: match.info.effect,
+    valence: match.info.valence,
+    note: match.info.note,
+    source: sourceMeta,
+  };
+  profileData.genetics.source = sourceMeta.label || profileData.genetics.source || 'Manual SNPs';
+  profileData.genetics.importDate = new Date().toISOString().slice(0, 10);
+  profileData.genetics.catalogVersion = _catalogSignature(_snpTable);
+  recalculateGeneticsSummary(profileData.genetics);
+  return { ok: true, rsid, snp: profileData.genetics.snps[rsid] };
+}
+
 export function saveGeneticsData(profileData, parseResult) {
   // Count effects for quick display (avoids needing SNP table at render time)
   const apoe = resolveAPOE(parseResult.matches);
@@ -533,6 +665,7 @@ export function saveGeneticsData(profileData, parseResult) {
   for (const [rsid, data] of Object.entries(parseResult.matches)) {
     profileData.genetics.snps[rsid] = {
       genotype: data.genotype,
+      normalizedGenotype: data.normalizedGenotype || findGenotypeMatch(_snpTable?.[rsid], data.genotype)?.key || data.genotype,
       gene: data.gene,
       variant: data.variant,
       category: data.category || null,
@@ -666,7 +799,12 @@ export function renderGeneticsSection() {
       <span class="genetics-empty-stub-icon" aria-hidden="true">&#129516;</span>
       <span class="genetics-empty-stub-body">
         <span class="genetics-empty-stub-title">Add your DNA data</span>
-        <span class="genetics-empty-stub-sub">Upload raw data from Ancestry, 23andMe, MyHeritage, FTDNA, or Living DNA — AI factors your variants into every lab interpretation. Files stay on this device.</span>
+        <span class="genetics-empty-stub-sub">Upload raw DNA, import a lab report PDF, or add one SNP manually. Files stay on this device.</span>
+        <span class="genetics-empty-actions">
+          <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-file')}>Raw DNA file</button>
+          <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-snp-report')}>Report PDF/text</button>
+          <button type="button" class="genetics-action-link" ${dnaActionAttrs('add-manual-snp')}>Add SNP manually</button>
+        </span>
       </span>
       <span class="genetics-empty-stub-arrow" aria-hidden="true">&rarr;</span>
     </div>`;
@@ -894,7 +1032,9 @@ export function renderGeneticsSection() {
   }
 
   html += `<div class="genetics-actions">
-    <button type="button" class="genetics-action-link" ${dnaActionAttrs('reimport-dna')}>Re-import</button>
+    <button type="button" class="genetics-action-link" ${dnaActionAttrs('add-manual-snp')}>Add SNP</button>
+    <button type="button" class="genetics-action-link" ${dnaActionAttrs('import-snp-report')}>Import report</button>
+    <button type="button" class="genetics-action-link" ${dnaActionAttrs('reimport-dna')}>Re-import raw DNA</button>
     <button type="button" class="genetics-action-link genetics-action-delete" ${dnaActionAttrs('delete-dna')}>Delete</button>
   </div>`;
   html += `</div></div>`;
@@ -928,6 +1068,167 @@ function reimportDNA() {
     if (file && window.handleDNAFile) window.handleDNAFile(file);
   };
   input.click();
+}
+
+let _dnaModalEscapeBound = false, _dnaBackdropMouseDownInside = false;
+
+function nudgeDnaModal() {
+  const dialog = document.querySelector('#dna-modal-overlay .modal');
+  if (!(dialog instanceof HTMLElement)) return;
+  dialog.classList.remove('modal-nudge'); void dialog.offsetWidth;
+  dialog.classList.add('modal-nudge');
+  dialog.addEventListener('animationend', () => dialog.classList.remove('modal-nudge'), { once: true });
+}
+
+function handleDnaBackdropMouseDown(event) {
+  const target = event.target;
+  _dnaBackdropMouseDownInside = target instanceof Element && !!target.closest('.modal');
+}
+
+function handleDnaBackdropClick(event) {
+  const target = event.target;
+  if (_dnaBackdropMouseDownInside) { _dnaBackdropMouseDownInside = false; return; }
+  if (!(target instanceof Element) || target.id !== 'dna-modal-overlay') return;
+  event.preventDefault();
+  nudgeDnaModal();
+}
+
+function handleDnaModalEscape(event) {
+  const overlay = document.getElementById('dna-modal-overlay');
+  if (event.key !== 'Escape' || !overlay?.classList.contains('show')) return;
+  event.preventDefault();
+  closeDNAImportPreview();
+}
+
+function openDnaModalOverlay(overlay, initialFocus) {
+  if (!overlay.dataset.dnaBackdropNudgeWired) {
+    overlay.addEventListener('mousedown', handleDnaBackdropMouseDown);
+    overlay.addEventListener('click', handleDnaBackdropClick);
+    overlay.dataset.dnaBackdropNudgeWired = '1';
+  }
+  if (!_dnaModalEscapeBound) { document.addEventListener('keydown', handleDnaModalEscape); _dnaModalEscapeBound = true; }
+  openModalOverlay(overlay, { initialFocus, focusDelay: 30, scrollLock: true });
+}
+
+async function openManualSnpModal() {
+  await loadSNPTable();
+  dnaWindow._pendingDNAImport = null;
+  const html = `<div class="dna-preview-header dna-manual-header">
+      <div>
+        <div class="dna-preview-title">Add SNPs manually</div>
+        <div class="dna-preview-stats">Paste one SNP or a whole small report table. Same path, no duplicate modes.</div>
+      </div>
+    </div>
+    <div class="dna-preview-body dna-manual-snp-body">
+      <div class="dna-manual-card dna-manual-card-bulk">
+        <div class="dna-manual-section-head">
+          <span>SNP calls</span>
+          <small>One per line: rsID + genotype. Notes after that are optional.</small>
+        </div>
+        <textarea id="manual-snp-bulk" class="dna-manual-textarea" rows="7" spellcheck="false" placeholder="rs1801133 CC&#10;rs1801131 AC&#10;rs429358 TT APOE report"></textarea>
+      </div>
+      <label class="dna-manual-field dna-manual-source">Source label
+        <input id="manual-snp-source" class="dna-manual-input" type="text" placeholder="Manual entry / lab report name" autocomplete="off">
+      </label>
+      <p class="dna-manual-help">Use a single line for one SNP, or paste a dozen lines. getbased validates each rsID, normalizes strand-aware genotypes, and merges accepted rows into existing genome data.</p>
+    </div>
+    <div class="dna-preview-actions">
+      <button type="button" class="import-btn import-btn-secondary" ${dnaActionAttrs('close-preview')}>Cancel</button>
+      <button type="button" class="import-btn import-btn-primary" ${dnaActionAttrs('save-manual-snp')}>Save SNPs</button>
+    </div>`;
+  let overlay = document.getElementById('dna-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'dna-modal-overlay';
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="modal dna-preview-modal dna-manual-modal" role="dialog" aria-label="Add SNPs manually">${html}</div>`;
+  openDnaModalOverlay(overlay, '#manual-snp-bulk');
+}
+
+export function parseManualSnpRows(singleRsid, singleGenotype, bulkText) {
+  const rows = [];
+  const addRow = (rsid, genotype, note = '') => rows.push({ rsid: String(rsid || '').trim(), genotype: String(genotype || '').trim(), note: String(note || '').trim() });
+  if (String(singleRsid || '').trim() || String(singleGenotype || '').trim()) addRow(singleRsid, singleGenotype);
+  for (const rawLine of String(bulkText || '').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = line.match(/^(rs\d+)\s*[,;:\t ]\s*([ACGT]{1,2})\b\s*(.*)$/i);
+    if (match) addRow(match[1], match[2], match[3]);
+    else rows.push({ rsid: '', genotype: '', note: line, error: `Could not read "${line}". Use: rs1801133 CC` });
+  }
+  return rows;
+}
+
+async function saveManualSnpFromModal() {
+  await loadSNPTable();
+  const rsid = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-snp-rsid'))?.value || '';
+  const genotype = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-snp-genotype'))?.value || '';
+  const bulk = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('manual-snp-bulk'))?.value || '';
+  const label = /** @type {HTMLInputElement | null} */ (document.getElementById('manual-snp-source'))?.value || 'Manual SNP entry';
+  const rows = parseManualSnpRows(rsid, genotype, bulk);
+  if (rows.length === 0) { showNotification('Add at least one rsID + genotype pair.', 'error'); return; }
+
+  const originalData = state.importedData;
+  const draftData = JSON.parse(JSON.stringify(originalData || {}));
+  const accepted = [], errors = [];
+  for (const [index, row] of rows.entries()) {
+    if (row.error) { errors.push(`Line ${index + 1}: ${row.error}`); continue; }
+    const source = { type: 'manual', label, rawText: [row.rsid, row.genotype, row.note].filter(Boolean).join(' ') || null };
+    const result = upsertGeneticsSnp(draftData, row.rsid, row.genotype, source);
+    if (!result.ok) errors.push(`${row.rsid || `Line ${index + 1}`}: ${result.error || 'Could not save SNP'}`);
+    else accepted.push(result);
+  }
+  if (accepted.length === 0) { showNotification(errors.slice(0, 3).join(' · ') || 'Could not save SNPs', 'error', 7000); return; }
+  state.importedData = draftData;
+  if (!await saveImportedData()) { state.importedData = originalData; return; }
+  closeModalOverlay('dna-modal-overlay');
+  const errorSuffix = errors.length ? ` (${errors.length} skipped)` : '';
+  showNotification(`Saved ${accepted.length} SNP${accepted.length === 1 ? '' : 's'}${errorSuffix}`, errors.length ? 'info' : 'success', 5000);
+  if (errors.length && window.isDebugMode?.()) console.warn('Manual SNP import skipped rows:', errors);
+  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+  if (window.navigate) window.navigate('genome');
+}
+
+async function importSnpReport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf,.txt,.csv,.text';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    await handleSnpReportFile(file);
+  };
+  input.click();
+}
+
+async function handleSnpReportFile(file) {
+  if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
+  _dnaImportRunning = true;
+  try {
+    showNotification('Reading SNP report...', 'info');
+    await loadSNPTable({ forceFresh: true });
+    let text = '';
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      const { extractPDFText } = await import('./pdf-import.js');
+      text = await extractPDFText(file);
+    } else {
+      text = await file.text();
+    }
+    const result = parseClinicalSnpReportText(text, { source: file.name, fileName: file.name, type: 'pdf-report' });
+    result.mergeSnps = true;
+    if (Object.keys(result.matches).length === 0) {
+      showNotification('No catalog SNP results found in this report. Add the SNP manually.', 'error');
+      _dnaImportRunning = false;
+      return;
+    }
+    showDNAImportPreview(result, file.name);
+  } catch (e) {
+    if (window.isDebugMode?.()) console.error('SNP report import error:', e);
+    showNotification(e.message || 'Failed to read SNP report', 'error');
+    _dnaImportRunning = false;
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1041,21 +1342,30 @@ function showDNAImportPreview(result, fileName) {
     document.body.appendChild(overlay);
   }
   overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
-  openModalOverlay(overlay);
+  openDnaModalOverlay(overlay, '.import-btn-primary');
 }
 
 function closeDNAImportPreview() {
   dnaWindow._pendingDNAImport = null;
   _dnaImportRunning = false;
   closeModalOverlay('dna-modal-overlay');
+  if (_dnaModalEscapeBound) { document.removeEventListener('keydown', handleDnaModalEscape); _dnaModalEscapeBound = false; }
 }
 
 async function confirmDNAImport() {
   const result = dnaWindow._pendingDNAImport;
   if (!result) return;
-  saveGeneticsData(state.importedData, result);
+  const originalData = state.importedData;
+  const draftData = JSON.parse(JSON.stringify(originalData || {}));
+  if (result.mergeSnps) {
+    for (const [rsid, snp] of Object.entries(result.matches || {})) {
+      const saved = upsertGeneticsSnp(draftData, rsid, snp.genotype, snp.source || { type: 'report-text', label: result.source });
+      if (!saved.ok) { showNotification(saved.error || `Could not save ${rsid}`, 'error'); _dnaImportRunning = false; return; }
+    }
+  } else saveGeneticsData(draftData, result);
+  state.importedData = draftData;
   if (!await saveImportedData()) {
-    _dnaImportRunning = false;
+    state.importedData = originalData; _dnaImportRunning = false;
     return;
   }
   dnaWindow._pendingDNAImport = null;
@@ -1153,7 +1463,7 @@ async function confirmDeleteDNA() {
   }
 }
 
-initDnaActionDelegates({ triggerDNAFilePicker: () => window.triggerDNAFilePicker?.(), closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, reimportDNA, toggleGeneticsCollapse, toggleGeneticsExpand });
+initDnaActionDelegates({ triggerDNAFilePicker: () => window.triggerDNAFilePicker?.(), closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS
@@ -1162,7 +1472,14 @@ Object.assign(window, {
   isDNAFile,
   isDNAFileByContent,
   detectDNAFile,
+  parseClinicalSnpReportText,
+  parseManualSnpRows,
+  upsertGeneticsSnp,
   handleDNAFile,
+  handleSnpReportFile,
+  importSnpReport,
+  openManualSnpModal,
+  saveManualSnpFromModal,
   closeDNAImportPreview,
   confirmDNAImport,
   confirmDeleteDNA,

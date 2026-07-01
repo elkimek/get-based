@@ -217,8 +217,10 @@ export function createLensPageHandlers(deps) {
     const genetics = state.importedData?.genetics || {};
     const hasSnps = Object.keys(genetics.snps || {}).length > 0;
     const affiliate = hasSnps ? '' : `<span class="lens-header-affiliate">No raw file? We recommend a <a href="https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447" target="_blank" rel="noopener sponsored">LivingDNA kit</a>.</span>`;
-    let html = renderLensHeader('Genome', 'Dedicated DNA workspace: actionable genetic modifiers, import status, mtDNA, and lab-linked context.',
-      `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import DNA file</button>${affiliate}`);
+    const genomeActions = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('import-dna')}>Import raw DNA</button>
+      <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('import-snp-report')}>Import report</button>
+      <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('add-manual-snp')}>Add SNP manually</button>${affiliate}`;
+    let html = renderLensHeader('Genome', 'Dedicated DNA workspace: actionable genetic modifiers, import status, mtDNA, and lab-linked context.', genomeActions, { className: 'genome-lens-header' });
     html += renderLensPageWidgets('genome', [
       { id: 'genome', title: 'Actionable Genetic Modifiers', description: 'Priority SNP context relevant to labs and goals', body: renderDashboardGenomeWidget(), size: 'full', opts: { source: 'Genome' } },
       importDetails ? { id: 'genome-import', title: 'Import Details', description: 'Source, counts, mtDNA, and file management', body: importDetails, size: 'full', opts: { source: 'Genome', dashboardId: '' } } : null,

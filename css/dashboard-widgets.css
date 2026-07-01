@@ -73,8 +73,14 @@
 .dashboard-widget-inline-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
 }
-.biology-scores-lens-header .dashboard-widget-inline-controls {
+.lens-page-header .dashboard-widget-inline-controls {
   margin-top: 14px;
+  column-gap: 14px;
+  row-gap: 10px;
+}
+.genome-lens-header .lens-header-affiliate {
+  flex-basis: 100%;
+  margin-top: 2px;
 }
 .biology-score-header-actions {
   display: flex;

@@ -61,6 +61,9 @@ assert('detectDNAFile exported', typeof dna.detectDNAFile === 'function');
 assert('isDNAFile exported', typeof dna.isDNAFile === 'function');
 assert('parseDNAFile exported', typeof dna.parseDNAFile === 'function');
 assert('saveGeneticsData exported', typeof dna.saveGeneticsData === 'function');
+assert('upsertGeneticsSnp exported', typeof dna.upsertGeneticsSnp === 'function');
+assert('parseManualSnpRows exported', typeof dna.parseManualSnpRows === 'function');
+assert('parseClinicalSnpReportText exported', typeof dna.parseClinicalSnpReportText === 'function');
 assert('deleteGeneticsData exported', typeof dna.deleteGeneticsData === 'function');
 assert('buildGeneticsContext exported', typeof dna.buildGeneticsContext === 'function');
 assert('buildFullGeneticsContext exported', typeof dna.buildFullGeneticsContext === 'function');
@@ -315,6 +318,37 @@ assert('SNP has variant', profileData.genetics?.snps?.rs1801133?.variant === 'C6
 assert('SNP has functional category', profileData.genetics?.snps?.rs1801133?.category === 'methylation');
 assert('SNP has marker links', Array.isArray(profileData.genetics?.snps?.rs1801133?.markers));
 
+const manualProfile = { genetics: JSON.parse(JSON.stringify(profileData.genetics)) };
+const beforeManualCount = Object.keys(manualProfile.genetics.snps || {}).length;
+const manualC677T = dna.upsertGeneticsSnp(manualProfile, 'rs1801133', 'CC', {
+  type: 'manual',
+  label: 'Unilabs thrombophilia report',
+  rawText: 'CC – homozygot pre štandardnú alelu'
+});
+assert('Manual SNP upsert succeeds for catalog SNP', manualC677T.ok === true, manualC677T.error);
+assert('Manual SNP preserves existing SNP map instead of replacing genetics', Object.keys(manualProfile.genetics.snps || {}).length === beforeManualCount);
+assert('Manual SNP keeps reported genotype', manualProfile.genetics.snps.rs1801133?.genotype === 'CC');
+assert('Manual SNP records normalized catalog genotype', manualProfile.genetics.snps.rs1801133?.normalizedGenotype === 'GG');
+assert('Manual SNP stores source metadata', manualProfile.genetics.snps.rs1801133?.source?.type === 'manual' && manualProfile.genetics.snps.rs1801133?.source?.label === 'Unilabs thrombophilia report');
+assert('Manual SNP rejects unknown rsID', dna.upsertGeneticsSnp(manualProfile, 'rs999999999', 'AA', { type: 'manual' }).ok === false);
+assert('Manual SNP rejects malformed genotype', dna.upsertGeneticsSnp(manualProfile, 'rs1801133', 'C?', { type: 'manual' }).ok === false);
+const manualRows = dna.parseManualSnpRows('rs1801133', 'CC', 'rs1801131 AC Unilabs line\nrs429358;TT\nnot parseable');
+assert('Manual SNP bulk parser combines single row and pasted rows', manualRows.length === 4 && manualRows[0].rsid === 'rs1801133' && manualRows[1].rsid === 'rs1801131' && manualRows[1].note === 'Unilabs line');
+assert('Manual SNP bulk parser accepts semicolon delimiters', manualRows[2].rsid === 'rs429358' && manualRows[2].genotype === 'TT');
+assert('Manual SNP bulk parser reports unreadable lines without throwing', manualRows[3].error && manualRows[3].note === 'not parseable');
+const bulkProfile = { genetics: { snps: {} } };
+for (const row of manualRows.slice(0, 3)) dna.upsertGeneticsSnp(bulkProfile, row.rsid, row.genotype, { type: 'manual', label: 'Bulk paste', rawText: row.note });
+assert('Manual SNP bulk rows can save multiple catalog SNPs', Object.keys(bulkProfile.genetics.snps).length === 3 && bulkProfile.genetics.snps.rs1801131?.normalizedGenotype === 'TG');
+
+const clinicalReportText = `Trombofilné varianty\nMTHFR: 677C>T   rs1801133 BPO\n04.05.26 11:48CC – homozygot pre štandardnú alelu\nMTHFR: 1298A>C   rs1801131 BPO\n04.05.26 11:48AC – heterozygot`;
+const clinicalResult = dna.parseClinicalSnpReportText(clinicalReportText, { source: 'Unilabs report' });
+assert('Clinical SNP report detects two report SNPs', Object.keys(clinicalResult.matches).length === 2, JSON.stringify(clinicalResult.matches));
+assert('Clinical SNP report extracts rs1801133 reported genotype', clinicalResult.matches.rs1801133?.genotype === 'CC');
+assert('Clinical SNP report normalizes rs1801133 CC to catalog reference', clinicalResult.matches.rs1801133?.normalizedGenotype === 'GG');
+assert('Clinical SNP report extracts rs1801131 heterozygous genotype', clinicalResult.matches.rs1801131?.genotype === 'AC');
+assert('Clinical SNP report normalizes rs1801131 AC to catalog heterozygous', clinicalResult.matches.rs1801131?.normalizedGenotype === 'TG');
+assert('Clinical SNP report carries source label', clinicalResult.source === 'Unilabs report');
+
 // Delete
 dna.deleteGeneticsData(profileData);
 assert('deleteGeneticsData removes genetics', profileData.genetics === undefined);
@@ -353,6 +387,7 @@ console.log('11. Window Exports');
 assert('window.isDNAFile exists', typeof window.isDNAFile === 'function');
 assert('window.handleDNAFile exists', typeof window.handleDNAFile === 'function');
 assert('window.confirmDNAImport exists', typeof window.confirmDNAImport === 'function');
+assert('window.openManualSnpModal exists', typeof window.openManualSnpModal === 'function');
 assert('window.closeDNAImportPreview exists', typeof window.closeDNAImportPreview === 'function');
 assert('window.deleteGeneticsData exists', typeof window.deleteGeneticsData === 'function');
 assert('window._buildGeneticsContext exists', typeof window._buildGeneticsContext === 'function');
@@ -400,12 +435,26 @@ assert('Genome lens avoids duplicated full genetics surfaces',
   lensPagesSrc.includes("renderLensPageWidgets('genome'") &&
   !viewsSrc.includes('Imported Genome Data'));
 
+assert('Genome lens exposes raw, report, and manual SNP import actions with scoped spacing class',
+  lensPagesSrc.includes("lensPageActionAttrs('import-dna')") &&
+  lensPagesSrc.includes("lensPageActionAttrs('import-snp-report')") &&
+  lensPagesSrc.includes("lensPageActionAttrs('add-manual-snp')") &&
+  lensPagesSrc.includes('Add SNP manually') &&
+  lensPagesSrc.includes("className: 'genome-lens-header'"));
+const lensShellSrc = await fetchWithRetry('js/lens-page-shell.js');
+assert('Genome lens action delegate opens report and manual SNP flows',
+  lensShellSrc.includes("action === 'import-snp-report'") &&
+  lensShellSrc.includes("callLensPageRuntime('importSnpReport')") &&
+  lensShellSrc.includes("action === 'add-manual-snp'") &&
+  lensShellSrc.includes("callLensPageRuntime('openManualSnpModal')"));
+
 const stylesSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/dashboard-core.css'),
   await fetchWithRetry('css/dashboard-widgets.css'),
   await fetchWithRetry('css/dashboard-welcome.css'),
   await fetchWithRetry('css/dashboard-data.css'),
+  await fetchWithRetry('css/genetics.css'),
 ].join('\n');
 const genomeCategoryCss = (stylesSrc.match(/\.db-genome-category\s*\{([^}]*)\}/) || [null, ''])[1];
 assert('dashboard genome category groups avoid duplicate severity border',
@@ -414,21 +463,63 @@ assert('dashboard genome category groups avoid duplicate severity border',
   genomeCategoryCss.includes('color-mix(in srgb, var(--bg-secondary)'));
 assert('dashboard genome SNP rows keep severity left border',
   stylesSrc.includes('.db-snp-significant') && stylesSrc.includes('border-left-color: var(--db-snp-tone)'));
+assert('Lens page headers space CTA controls away from header copy',
+  stylesSrc.includes('.lens-page-header .dashboard-widget-inline-controls') &&
+  stylesSrc.includes('margin-top: 14px') &&
+  stylesSrc.includes('column-gap: 14px') &&
+  stylesSrc.includes('row-gap: 10px'));
+assert('Genome lens header keeps affiliate link on its own row',
+  stylesSrc.includes('.genome-lens-header .lens-header-affiliate') &&
+  stylesSrc.includes('flex-basis: 100%'));
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
 const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
+assert('genetics actions expose manual SNP and report import escape hatches',
+  dnaSrc.includes("dnaActionAttrs('add-manual-snp')") &&
+  dnaSrc.includes("dnaActionAttrs('import-snp-report')") &&
+  dnaSrc.includes("accept = '.pdf,.txt,.csv,.text'") &&
+  dnaSrc.includes('manual-snp-bulk') &&
+  dnaSrc.includes('Save SNPs') &&
+  dnaSrc.includes('Same path, no duplicate modes'));
+assert('manual SNP UI uses one paste surface instead of duplicate single/bulk mechanisms',
+  dnaSrc.includes('<textarea id="manual-snp-bulk"') &&
+  !dnaSrc.includes('id="manual-snp-rsid"') &&
+  !dnaSrc.includes('id="manual-snp-genotype"') &&
+  !dnaSrc.includes('Single SNP'));
+assert('manual SNP modal uses genetics-styled controls instead of generic form-input fields',
+  dnaSrc.includes('dna-manual-input') &&
+  dnaSrc.includes('dna-manual-textarea') &&
+  !dnaSrc.includes('id="manual-snp-rsid" class="form-input"'));
+assert('manual SNP CSS gives inputs app-native surfaces and focus rings',
+  stylesSrc.includes('.dna-manual-input') &&
+  stylesSrc.includes('background: var(--bg-primary)') &&
+  stylesSrc.includes('box-shadow: 0 0 0 3px'));
+assert('manual/report SNP imports stage changes in a draft and restore memory on save failure',
+  dnaSrc.includes('const originalData = state.importedData') &&
+  dnaSrc.includes('const draftData = JSON.parse(JSON.stringify(originalData || {}))') &&
+  dnaSrc.includes('upsertGeneticsSnp(draftData') &&
+  dnaSrc.includes('state.importedData = draftData') &&
+  dnaSrc.includes('state.importedData = originalData'));
+assert('manual/report SNP imports merge through upsert instead of replacing genetics',
+  dnaSrc.includes('result.mergeSnps') && dnaSrc.includes('upsertGeneticsSnp(draftData'));
 assert('DNA import preview separates beneficial findings', dnaSrc.includes('Beneficial findings') && dnaSrc.includes("impact: m.valence === 'protective' ? 'beneficial' : m.effect"));
-assert('DNA preview modal uses shared overlay lifecycle helpers',
+assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nudge',
   dnaSrc.includes("from './modal-lifecycle.js'") &&
+    dnaSrc.includes('nudgeDnaModal') &&
+    dnaSrc.includes("classList.add('modal-nudge')") &&
+    dnaSrc.includes('handleDnaBackdropClick') &&
+    dnaSrc.includes("target.id !== 'dna-modal-overlay'") &&
+    dnaSrc.includes('handleDnaModalEscape') &&
+    dnaSrc.includes("event.key !== 'Escape'") &&
     dnaMtDnaSrc.includes("from './modal-lifecycle.js'") &&
-    dnaSrc.includes('openModalOverlay(overlay)') &&
+    dnaSrc.includes('openDnaModalOverlay(overlay') &&
     dnaMtDnaSrc.includes('openModalOverlay(overlay)') &&
     ((dnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
-      + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 3);
+      + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 4);
 assert('DNA import success waits for persistence',
-  /async function confirmDNAImport\(\)[\s\S]{0,220}await saveImportedData\(\)/.test(dnaSrc));
-const dnaSaveFailureBlock = (dnaSrc.match(/if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
+  /async function confirmDNAImport\(\)[\s\S]{0,900}await saveImportedData\(\)/.test(dnaSrc));
+const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
 assert('DNA import save failure resets running flag but keeps preview retryable',
   dnaSaveFailureBlock.includes('_dnaImportRunning = false') &&
   dnaSaveFailureBlock.includes('return;') &&

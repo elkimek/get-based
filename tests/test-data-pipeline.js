@@ -574,6 +574,8 @@ const S = window._labState;
   assert('marker-analysis has detectTrendAlerts function', markerAnalysisSrc.includes('export function detectTrendAlerts('));
   assert('marker-analysis has getKeyTrendMarkers function', markerAnalysisSrc.includes('export function getKeyTrendMarkers('));
   assert('data.js keeps marker-analysis compatibility exports', dataJsSrc.includes("} from './marker-analysis.js'"));
+  assert('saveImportedData reports failure only for persistence errors, not post-save hooks',
+    /await encryptedSetItem\(key, value\);\s*\}\s*catch \(e\) \{[\s\S]*?return false;[\s\S]*?\}\s*try \{[\s\S]*?onDataSaved\(options\);[\s\S]*?\}\s*catch \(e\) \{[\s\S]*?Post-save hook failed after data was persisted[\s\S]*?\}\s*return true;/.test(dataJsSrc));
 
   // PhenoAge coefficients present
   assert('data.js has PhenoAge xb calculation', dataJsSrc.includes('-19.907'));

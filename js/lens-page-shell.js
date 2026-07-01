@@ -57,6 +57,10 @@ function handleLensPageShellClick(event) {
     callLensPageRuntime('removeDashboardWidgetFromLens', id);
   } else if (action === 'import-dna') {
     callLensPageRuntime('triggerDNAFilePicker');
+  } else if (action === 'import-snp-report') {
+    callLensPageRuntime('importSnpReport');
+  } else if (action === 'add-manual-snp') {
+    callLensPageRuntime('openManualSnpModal');
   } else if (action === 'reimport-dna') {
     if (typeof lensPageRuntime().reimportDNA === 'function') callLensPageRuntime('reimportDNA');
     else callLensPageRuntime('triggerDNAFilePicker');
