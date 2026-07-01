@@ -83,8 +83,9 @@ function installLensPageShellDelegates() {
   document.addEventListener('click', handleLensPageShellClick);
 }
 
-export function renderLensHeader(title, subtitle, actions = '') {
-  return `<div class="category-header lens-page-header">
+export function renderLensHeader(title, subtitle, actions = '', options = {}) {
+  const extraClass = options?.className ? ` ${escapeAttr(String(options.className))}` : '';
+  return `<div class="category-header lens-page-header${extraClass}">
     <h2>${escapeHTML(title)}</h2>
     <p>${escapeHTML(subtitle)}</p>
     ${actions ? `<div class="dashboard-widget-inline-controls">${actions}</div>` : ''}

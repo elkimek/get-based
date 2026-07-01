@@ -336,8 +336,6 @@ export function renderDashboardBiologicalCoherenceWidget(ctx, computeBiologyScor
         <div class="db-bio-coherence-number"><strong>${escapeHTML(String(Math.round(scoreValue)))}</strong><span>/100</span></div>
       </div>
       <div class="db-bio-coherence-summary">
-        <h3>${escapeHTML(score.title)}</h3>
-        <p>${escapeHTML(score.summary)}</p>
         <p class="db-bio-coherence-insight">${escapeHTML(insight)}</p>
         ${renderScoreStatusMeta(score)}
       </div>
