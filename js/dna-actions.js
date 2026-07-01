@@ -29,6 +29,15 @@ function handleDnaActionClick(event) {
   if (action === 'import-file') {
     event.preventDefault();
     dnaActionHandlers.triggerDNAFilePicker?.();
+  } else if (action === 'add-manual-snp') {
+    event.preventDefault();
+    dnaActionHandlers.openManualSnpModal?.();
+  } else if (action === 'save-manual-snp') {
+    event.preventDefault();
+    dnaActionHandlers.saveManualSnpFromModal?.();
+  } else if (action === 'import-snp-report') {
+    event.preventDefault();
+    dnaActionHandlers.importSnpReport?.();
   } else if (action === 'toggle-genetics-collapse') {
     event.preventDefault();
     dnaActionHandlers.toggleGeneticsCollapse?.();
