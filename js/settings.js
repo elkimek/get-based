@@ -1101,7 +1101,7 @@ function renderPrivacyAnalyticsSection() {
   return `<div class="settings-action-row">
     <div class="settings-copy">
       <div class="settings-copy-title">Send anonymous usage stats</div>
-      <div class="settings-copy-desc">Cookieless pageviews and outbound affiliate clicks only. No health data, viewed records, user identity, or health context is sent.</div>
+      <div class="settings-copy-desc">I track cookieless pageviews and outbound affiliate clicks only. No health data, viewed records, user identity, or health context is sent.</div>
       <div class="privacy-setting-note">Takes effect on next launch.</div>
     </div>
     <label class="toggle-switch">
