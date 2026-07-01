@@ -69,6 +69,7 @@ import {
 } from './api-provider-storage.js';
 import {
   deduplicateModels,
+  findPreferredModel,
   fetchOpenRouterModelPricing,
   fetchOpenRouterModels,
   fetchVeniceModels,
@@ -100,6 +101,7 @@ export {
 } from './api-transport.js';
 export {
   deduplicateModels,
+  findPreferredModel,
   fetchOpenRouterModelPricing,
   fetchOpenRouterModels,
   fetchVeniceModels,
@@ -328,10 +330,11 @@ export async function exchangeOpenRouterCode(code, returnedState) {
   sessionStorage.removeItem('or_oauth_state');
   return data.key;
 }
-const ROUTSTR_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.1-pro', 'grok-4'];
-const PPQ_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'grok-', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
-const PPQ_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3-flash-preview', 'grok-4'];
+const ROUTSTR_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-k2', 'moonshotai/kimi-k2', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
+const ROUTSTR_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
+const PPQ_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gpt-oss', 'gemini-3', 'gemini-2', 'google/gemini-3', 'google/gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-k2', 'moonshotai/kimi-k2', 'grok-', 'x-ai/grok-4', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'kimi', 'perplexity'];
+const PPQ_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
+const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
 const PPQ_EXCLUDE = ['codex', 'audio', 'image', 'embed', 'tts', 'whisper', 'video', 'nano-banana'];
 const PPQ_PRIVATE_MODELS = [
   { id: 'private/kimi-k2-6', name: 'Kimi K2.6 (Private TEE)', input: ['text', 'image'], pricing: { input_per_1M_tokens: '1.58', output_per_1M_tokens: '5.51' } },
@@ -803,8 +806,8 @@ export async function fetchRoutstrModels() {
       return id.replace(/-\d{8}$/, '');
     });
     models.sort(function(a, b) {
-      const aRec = ROUTSTR_RECOMMENDED.some(function(r) { return a.id === r || a.id.startsWith(r); });
-      const bRec = ROUTSTR_RECOMMENDED.some(function(r) { return b.id === r || b.id.startsWith(r); });
+      const aRec = isRecommendedModel('routstr', a.id);
+      const bRec = isRecommendedModel('routstr', b.id);
       if (aRec !== bRec) return aRec ? -1 : 1;
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
@@ -822,7 +825,7 @@ export async function fetchRoutstrModels() {
     localStorage.setItem('labcharts-routstr-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-routstr-models', JSON.stringify(models));
     if (!localStorage.getItem('labcharts-routstr-model') && models.length) {
-      const claude = models.find(function(m) { return m.id === 'claude-sonnet-4.6'; });
+      const claude = findPreferredModel(models, ROUTSTR_DEFAULT_CANDIDATES);
       if (claude) setRoutstrModel(claude.id);
     }
     return models;
@@ -957,8 +960,8 @@ export async function fetchPpqModels(key) {
       return id.replace(/-\d{8}$/, '');
     });
     models.sort(function(a, b) {
-      const aRec = PPQ_RECOMMENDED.some(function(r) { return a.id === r || a.id.startsWith(r); });
-      const bRec = PPQ_RECOMMENDED.some(function(r) { return b.id === r || b.id.startsWith(r); });
+      const aRec = isRecommendedModel('ppq', a.id);
+      const bRec = isRecommendedModel('ppq', b.id);
       if (aRec !== bRec) return aRec ? -1 : 1;
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
@@ -985,7 +988,7 @@ export async function fetchPpqModels(key) {
     localStorage.setItem('labcharts-ppq-private-models', JSON.stringify(privateModels));
     syncPpqModelSelection(models, privateModels);
     if (!localStorage.getItem('labcharts-ppq-model') && models.length) {
-      const claude = models.find(function(m) { return m.id === 'claude-sonnet-4.6'; });
+      const claude = findPreferredModel(models, PPQ_DEFAULT_CANDIDATES);
       if (claude) setPpqModel(claude.id);
     }
     return getPpqPrivateMode() && privateModels.length ? privateModels : models;
@@ -1070,7 +1073,10 @@ export async function fetchCustomApiModels(baseUrl, key) {
       return { id: m.id, name: m.name || m.id };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
     localStorage.setItem('labcharts-custom-models', JSON.stringify(models));
-    if (!getCustomApiModel() && models.length) setCustomApiModel(models[0].id);
+    if (!getCustomApiModel() && models.length) {
+      const preferred = findPreferredModel(models, CUSTOM_DEFAULT_CANDIDATES);
+      setCustomApiModel((preferred || models[0]).id);
+    }
     return models;
   } catch (e) { return []; }
 }

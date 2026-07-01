@@ -542,6 +542,26 @@
 .settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }
 
 /* Privacy status card and collapsible configure */
+.settings-modal .settings-privacy-section {
+  padding-top: 2px;
+}
+.privacy-overview-row {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.privacy-overview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--accent-fill);
+  font-size: 15px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
 .privacy-status-card {
   display: flex; align-items: flex-start; gap: 10px;
   padding: 10px 14px; border-radius: var(--radius-sm);
@@ -562,11 +582,25 @@
 .privacy-configure-toggle {
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--text-muted); cursor: pointer;
-  padding: 4px 0; user-select: none;
+  margin-top: 12px; padding: 4px 0; user-select: none;
 }
 .privacy-configure-toggle:hover { color: var(--text-secondary); }
 .privacy-configure-arrow { font-size: 9px; transition: transform 0.15s; }
 .privacy-configure-body { padding-top: 8px; }
+.privacy-setting-row {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.privacy-setting-row + .privacy-setting-row {
+  margin-top: 12px;
+}
+.privacy-setting-note {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
 
 /* Pending-tombstone confirm UI in Settings Sync. */
 .sync-tombstone-banner {

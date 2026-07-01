@@ -85,6 +85,35 @@ function ppqPrivateModelsCacheKnown() {
   return localStorage.getItem('labcharts-ppq-private-models') !== null;
 }
 
+const VENICE_E2EE_DEFAULT_CANDIDATES = ['e2ee-glm-5-2', 'e2ee-glm-5-2-p', 'glm-5-2'];
+const PPQ_PRIVATE_DEFAULT_CANDIDATES = ['private/glm-5-2'];
+
+function normalizedPreferredModelId(id) {
+  return String(id || '').toLowerCase().replace(/[_.]/g, '-');
+}
+
+function modelMatchesPreferredId(modelId, preferredId) {
+  if (!modelId || !preferredId) return false;
+  const id = String(modelId);
+  const preferred = String(preferredId);
+  if (id === preferred) return true;
+  if (id.startsWith(`${preferred}:`) || id.startsWith(`${preferred}-`) || id.startsWith(`${preferred}@`)) return true;
+  const normalized = normalizedPreferredModelId(id);
+  const normalizedPreferred = normalizedPreferredModelId(preferred);
+  if (normalized === normalizedPreferred) return true;
+  return normalized.startsWith(`${normalizedPreferred}:`)
+    || normalized.startsWith(`${normalizedPreferred}-`)
+    || normalized.startsWith(`${normalizedPreferred}@`);
+}
+
+function findPreferredStoredModel(models, preferredIds) {
+  for (const id of preferredIds) {
+    const found = models.find(function(model) { return modelMatchesPreferredId(model?.id, id); });
+    if (found) return found;
+  }
+  return null;
+}
+
 export function modelSupportsVeniceE2EE(model) {
   const supports = model?.model_spec?.capabilities?.supportsE2EE;
   if (supports === true) return true;
@@ -95,6 +124,10 @@ export function modelSupportsVeniceE2EE(model) {
 function preferredVeniceModelId(models, savedId, preferLlama = false) {
   if (!models.length) return '';
   if (savedId && modelListHasId(models, savedId)) return savedId;
+  if (!preferLlama) {
+    const preferred = findPreferredStoredModel(models, VENICE_E2EE_DEFAULT_CANDIDATES);
+    if (preferred) return preferred.id;
+  }
   if (preferLlama) {
     const llama = models.find(function(m) { return m.id && m.id.includes('llama-3.3-70b'); });
     if (llama) return llama.id;
@@ -226,7 +259,8 @@ export function syncPpqModelSelection(regularModels, privateModels) {
   if (privateOn) {
     if (privateModels.length && !modelListHasId(privateModels, current)) {
       const saved = localStorage.getItem('labcharts-ppq-model-private');
-      const next = saved && modelListHasId(privateModels, saved) ? saved : privateModels[0].id;
+      const preferred = findPreferredStoredModel(privateModels, PPQ_PRIVATE_DEFAULT_CANDIDATES);
+      const next = saved && modelListHasId(privateModels, saved) ? saved : (preferred?.id || privateModels[0].id);
       setPpqModel(next);
       localStorage.setItem('labcharts-ppq-model-private', next);
     }

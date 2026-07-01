@@ -67,13 +67,19 @@ assert('MODEL_PRICING has openrouter block', schemaSrc.includes('openrouter:'));
 assert('Has openrouter _default fallback', schemaSrc.includes("'_default':") && schemaSrc.includes('approx: true'));
 assert('getModelPricing checks openrouter-pricing cache', schemaSrc.includes('labcharts-openrouter-pricing'));
 assert('OPENROUTER_CURATED whitelist exists', apiModelsSrc.includes('OPENROUTER_CURATED'));
+assert('Curated: anthropic/claude-sonnet-5 prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-5'"));
 assert('Curated: anthropic/claude-sonnet prefix', apiModelsSrc.includes("'anthropic/claude-sonnet-4'"));
 assert('Curated: anthropic/claude-opus prefix', apiModelsSrc.includes("'anthropic/claude-opus-4'"));
 assert('Curated: openai/gpt prefix', apiModelsSrc.includes("'openai/gpt-5'"));
 assert('Curated: google/gemini-3 prefix', apiModelsSrc.includes("'google/gemini-3'"));
 assert('Curated: google/gemini-2 prefix', apiModelsSrc.includes("'google/gemini-2'"));
+assert('Recommended: Gemini 3.5 Flash', apiModelsSrc.includes("'google/gemini-3.5-flash'"));
 assert('Curated: deepseek prefix', apiModelsSrc.includes("'deepseek/deepseek'"));
 assert('Curated: qwen prefix', apiModelsSrc.includes("'qwen/qwen'"));
+assert('Curated: z-ai/glm-5 prefix', apiModelsSrc.includes("'z-ai/glm-5'"));
+assert('Curated: moonshotai/kimi-k2 prefix', apiModelsSrc.includes("'moonshotai/kimi-k2'"));
+assert('Recommended: GLM 5.2', apiModelsSrc.includes("'z-ai/glm-5.2'"));
+assert('Recommended: Kimi K2.7 Code', apiModelsSrc.includes("'moonshotai/kimi-k2.7-code'"));
 assert('Curated: x-ai/grok prefix', apiModelsSrc.includes("'x-ai/grok'"));
 assert('OPENROUTER_EXCLUDE exists', apiModelsSrc.includes('OPENROUTER_EXCLUDE'));
 assert('Excludes codex variants', apiModelsSrc.includes("'codex'"));
@@ -83,6 +89,7 @@ assert('Exclude filter applied in fetch', apiModelsSrc.includes('OPENROUTER_EXCL
 assert('fetchOpenRouterModels extracts pricing.prompt', apiModelsSrc.includes('m.pricing.prompt'));
 assert('fetchOpenRouterModels converts to per-million', apiModelsSrc.includes('* 1_000_000'));
 assert('fetchOpenRouterModels caches pricing', apiModelsSrc.includes("'labcharts-openrouter-pricing'"));
+assert('OpenRouter default prefers GPT 5.5 then Sonnet 5 when fetched', apiModelsSrc.includes("'openai/gpt-5.5', 'anthropic/claude-sonnet-5'"));
 assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
 assert('window.getOpenRouterPricing is function', typeof window.getOpenRouterPricing === 'function');
 

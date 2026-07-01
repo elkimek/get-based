@@ -39,11 +39,13 @@ export function deduplicateModels(models, familyFn) {
 
 // Curated: latest-gen medically capable models only (prefixes matched against IDs)
 const OPENROUTER_CURATED = [
-  'anthropic/claude-sonnet-4', 'anthropic/claude-opus-4',
+  'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4', 'anthropic/claude-opus-4',
   'openai/gpt-5',
   'google/gemini-3', 'google/gemini-2',
   'deepseek/deepseek',
   'qwen/qwen', 'qwen/qwq',
+  'z-ai/glm-5',
+  'moonshotai/kimi-k2',
   'x-ai/grok',
 ];
 
@@ -53,32 +55,83 @@ const OPENROUTER_CURATED = [
 // Anthropic: "claude-model-version" (hyphens: 4-6, with date suffix)
 // Venice: "model-version" (hyphens: 4-6, no provider prefix)
 const OPENROUTER_RECOMMENDED = [
-  'anthropic/claude-sonnet-4.6', 'anthropic/claude-opus-4.7',
+  'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
+  'anthropic/claude-opus-4.8', 'anthropic/claude-opus-4.7',
   'openai/gpt-5.5', 'openai/gpt-5.4',
-  'google/gemini-3.1-pro',
+  'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
+  'z-ai/glm-5.2',
+  'moonshotai/kimi-k2.7-code', 'moonshotai/kimi-k2.6',
   'x-ai/grok-4',
 ];
+const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
-const ROUTSTR_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.1-pro', 'grok-4'];
+const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k2.7-code', 'moonshotai/kimi-k2.7-code', 'kimi-k2.6', 'moonshotai/kimi-k2.6', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
-const PPQ_RECOMMENDED = ['claude-sonnet-4.6', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3-flash-preview', 'grok-4'];
+const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k2.7-code', 'kimi-k2.7-code', 'moonshotai/kimi-k2.6', 'kimi-k2.6', 'x-ai/grok-4.3', 'grok-4'];
 const PPQ_PRIVATE_RECOMMENDED = ['private/kimi-k2-6', 'private/glm-5-2', 'private/gpt-oss-120b'];
 
+function normalizedModelId(modelId) {
+  return String(modelId || '').toLowerCase().replace(/[_.]/g, '-');
+}
+
+function isClaudeSonnet5Model(modelId) {
+  return /(^|[/-])claude-sonnet-5($|[-:])/.test(normalizedModelId(modelId));
+}
+
+function isCustomRecommendedModel(modelId) {
+  if (isClaudeSonnet5Model(modelId)) return true;
+  return /(^|[/-])claude-(sonnet-4-6|opus-4-8|opus-4-7)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gpt-5-[45]($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])gemini-3-(5-flash|flash-preview)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])glm-5-2($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])kimi-k2-(7-code|6)($|[-:])/.test(normalizedModelId(modelId))
+    || /(^|[/-])grok-4($|[-:])/.test(normalizedModelId(modelId));
+}
+
+function modelStartsWithRecommended(modelId, prefix) {
+  const id = normalizedModelId(modelId);
+  const p = normalizedModelId(prefix);
+  const slug = id.split('/').pop();
+  return id.startsWith(p) || slug.startsWith(p);
+}
+
+export function modelMatchesPreferredId(modelId, preferredId) {
+  if (!modelId || !preferredId) return false;
+  const id = String(modelId);
+  if (id === preferredId) return true;
+  if (id.startsWith(`${preferredId}:`) || id.startsWith(`${preferredId}-`) || id.startsWith(`${preferredId}@`)) return true;
+  const normalizedId = normalizedModelId(id);
+  const normalizedPreferred = normalizedModelId(preferredId);
+  if (normalizedId === normalizedPreferred) return true;
+  return normalizedId.startsWith(`${normalizedPreferred}:`)
+    || normalizedId.startsWith(`${normalizedPreferred}-`)
+    || normalizedId.startsWith(`${normalizedPreferred}@`);
+}
+
+export function findPreferredModel(models, preferredIds) {
+  for (const id of preferredIds) {
+    const found = models.find(function(m) { return modelMatchesPreferredId(m?.id, id); });
+    if (found) return found;
+  }
+  return null;
+}
+
 export function isRecommendedModel(provider, modelId) {
-  if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelId.startsWith(prefix); });
+  if (provider === 'openrouter') return OPENROUTER_RECOMMENDED.some(function(prefix) { return modelStartsWithRecommended(modelId, prefix); });
   if (provider === 'venice') {
     if (modelId.startsWith('e2ee-')) return /qwen3-5-122b|gpt-oss-120b|qwen3-30b|glm-5/.test(modelId);
-    // claude-(sonnet-4-6|opus-4-7) is intentionally narrow. When newer
+    // claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7) is intentionally narrow. When newer
     // versions land, broaden the alternation rather than matching all 4.x.
-    return /^(claude-(sonnet-4-6|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3(-1)?-pro|grok-4[1-9]?)(-|$)/.test(modelId);
+    return /^(claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k2-7-code|kimi-k2-6|grok-4[1-9]?)(-|$)/.test(modelId);
   }
-  if (provider === 'routstr') return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
+  if (provider === 'routstr') return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
   if (provider === 'ppq') {
     if (isPpqPrivateModel(modelId)) return PPQ_PRIVATE_RECOMMENDED.includes(modelId);
-    return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelId.startsWith(r); });
+    return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
   }
+  if (provider === 'custom') return isCustomRecommendedModel(modelId);
   return false;
 }
 
@@ -119,8 +172,8 @@ export async function fetchOpenRouterModels(key) {
       return id.replace(/:\d{4}-\d{2}-\d{2}$/, '').replace(/-\d{8}$/, '');
     });
     models.sort(function(a, b) {
-      const aRec = OPENROUTER_RECOMMENDED.some(function(p) { return a.id.startsWith(p); });
-      const bRec = OPENROUTER_RECOMMENDED.some(function(p) { return b.id.startsWith(p); });
+      const aRec = isRecommendedModel('openrouter', a.id);
+      const bRec = isRecommendedModel('openrouter', b.id);
       if (aRec !== bRec) return aRec ? -1 : 1;
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
@@ -142,7 +195,7 @@ export async function fetchOpenRouterModels(key) {
     localStorage.setItem('labcharts-openrouter-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-openrouter-models', JSON.stringify(models));
     if (!localStorage.getItem('labcharts-openrouter-model') && models.length) {
-      const claude = models.find(function(m) { return m.id === 'anthropic/claude-sonnet-4.6'; });
+      const claude = findPreferredModel(models, OPENROUTER_DEFAULT_CANDIDATES);
       if (claude) setOpenRouterModel(claude.id);
     }
     return models;
