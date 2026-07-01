@@ -73,6 +73,9 @@
 .dashboard-widget-inline-controls {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
 }
+.biology-scores-lens-header .dashboard-widget-inline-controls {
+  margin-top: 14px;
+}
 .biology-score-header-actions {
   display: flex;
   align-items: center;

@@ -185,7 +185,7 @@ export function createLensPageHandlers(deps) {
     const contextReady = hasBiologyScoreContextReview(scoreData);
     const actions = `<div class="biology-score-header-actions">${contextReady ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="interpret-lens">Explain my Biology Scores</button>' : ''}
       ${renderDateRangeFilter()}</div>`;
-    let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions);
+    let html = renderLensHeader('Biology Scores', 'A quick overview of how major body systems look from your labs. Start with the score and pattern; open details when you want the marker-level explanation.', actions, { className: 'biology-scores-lens-header' });
     html += renderBiologyScoreContextBanner();
     if (!contextReady) {
       html += renderBiologyScoreContextAI(scoreData);
