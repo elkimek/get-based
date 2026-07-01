@@ -21,12 +21,74 @@ function readStoredArray(key) {
   catch { return []; }
 }
 
+function normalizedOptionId(modelId) {
+  return String(modelId || '')
+    .toLowerCase()
+    .replace(/[_.]/g, '-')
+    .replace(/:\d{4}-\d{2}-\d{2}$/, '')
+    .replace(/-\d{8}$/, '')
+    .replace(/@\d{8}$/, '');
+}
+
+function optionSlug(modelId) {
+  return normalizedOptionId(modelId).split('/').pop().replace(/^e2ee-/, '');
+}
+
+function recommendedFamilyKey(modelId) {
+  const slug = optionSlug(modelId);
+  if (slug.startsWith('claude-sonnet-')) return 'claude-sonnet';
+  if (slug.startsWith('claude-opus-')) return 'claude-opus';
+  if (/^(openai-)?gpt-5/.test(slug)) return 'gpt-5';
+  if (/^gemini-3.*pro/.test(slug)) return 'gemini-3-pro';
+  if (/^gemini-3.*flash/.test(slug)) return 'gemini-3-flash';
+  if (/^grok-4/.test(slug)) return 'grok-4';
+  if (/^qwen3/.test(slug)) return 'qwen3';
+  if (/^gpt-oss/.test(slug)) return 'gpt-oss';
+  if (/^glm-5/.test(slug)) return 'glm-5';
+  if (/^kimi-k2/.test(slug)) return 'kimi-k2';
+  return slug;
+}
+
+function modelVersionParts(modelId) {
+  const slug = optionSlug(modelId);
+  if (/^grok-41-fast($|-)/.test(slug)) return [4, 1];
+  if (/^grok-4-20($|-)/.test(slug)) return [4, 2, 0];
+  return (slug.match(/\d+/g) || []).map(Number);
+}
+
+function variantPenalty(modelId) {
+  return /(^|[-/])(beta|experimental|fast|lite|mini|preview)(-|$)/.test(normalizedOptionId(modelId)) ? -1 : 0;
+}
+
+function compareModelVersion(a, b) {
+  const aParts = modelVersionParts(a.id);
+  const bParts = modelVersionParts(b.id);
+  const len = Math.max(aParts.length, bParts.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (aParts[i] || 0) - (bParts[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return variantPenalty(a.id) - variantPenalty(b.id);
+}
+
+function latestRecommendedModels(provider, models) {
+  const bestByFamily = new Map();
+  for (const model of models) {
+    if (!isRecommendedModel(provider, model.id)) continue;
+    const family = recommendedFamilyKey(model.id);
+    const existing = bestByFamily.get(family);
+    if (!existing || compareModelVersion(model, existing) > 0) bestByFamily.set(family, model);
+  }
+  return Array.from(bestByFamily.values());
+}
+
 export function buildModelOptions(provider, models, currentModel, labelFn) {
-  const rec = models.filter(function(m) { return isRecommendedModel(provider, m.id); });
-  const rest = models.filter(function(m) { return !isRecommendedModel(provider, m.id); });
+  const rec = latestRecommendedModels(provider, models);
+  const recIds = new Set(rec.map(function(m) { return m.id; }));
+  const rest = models.filter(function(m) { return !recIds.has(m.id); });
   let html = '';
   if (rec.length) {
-    html += '<optgroup label="\u2605 Recommended for medical analysis">';
+    html += '<optgroup label="Recommended">';
     html += rec.map(function(m) { return '<option value="' + m.id + '"' + (currentModel === m.id ? ' selected' : '') + '>' + escapeHTML(labelFn(m)) + '</option>'; }).join('');
     html += '</optgroup>';
   }

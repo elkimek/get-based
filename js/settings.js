@@ -893,8 +893,14 @@ export function openSettingsModal(tab) {
     <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy">
       <div class="settings-group-title">AI Privacy Protection</div>
 
-      <div class="settings-section" id="privacy-section">
+      <div class="settings-section settings-privacy-section" id="privacy-section">
         ${renderPrivacySection()}
+      </div>
+
+      <div class="settings-group-title">Anonymous Usage Stats</div>
+
+      <div class="settings-section" id="privacy-analytics-section">
+        ${renderPrivacyAnalyticsSection()}
       </div>
     </div>
 
@@ -1031,8 +1037,13 @@ export function switchSettingsTab(tabId) {
 export function renderPrivacySection() {
   const piiUrl = getOllamaPIIUrl();
   const piiEnabled = isOllamaPIIEnabled();
-  return `<div class="local-ai-settings">
-    <div class="ai-provider-desc" style="margin-bottom:10px">Before any document or chat context is sent to AI for analysis — lab PDFs, EMF assessment reports, image-based imports — personal information (name, date of birth, ID numbers, address) is detected and replaced with fake data. Only lab values and content relevant to interpretation reach the AI provider.</div>
+  return `<div class="settings-action-row privacy-overview-row">
+      <div class="privacy-overview-icon" aria-hidden="true">&#128274;</div>
+      <div class="settings-copy">
+        <div class="settings-copy-title">Personal details are scrubbed before AI analysis</div>
+        <div class="settings-copy-desc">Names, dates of birth, ID numbers, and addresses are replaced before lab PDFs, EMF assessments, image imports, or chat context leave this device. Lab values and interpretation context are preserved.</div>
+      </div>
+    </div>
     <div class="privacy-status-card" id="privacy-status-card">
       <div class="privacy-status-icon" id="privacy-status-icon">&#128274;</div>
       <div class="privacy-status-body">
@@ -1040,7 +1051,7 @@ export function renderPrivacySection() {
         <div class="privacy-status-detail" id="privacy-status-detail"></div>
       </div>
     </div>
-    <div class="privacy-configure-toggle" data-settings-action="toggle-privacy-configure" style="margin-top:12px">
+    <div class="privacy-configure-toggle" data-settings-action="toggle-privacy-configure">
       <span class="privacy-configure-arrow" id="privacy-configure-arrow">&#9654;</span>
       Configure Local AI
     </div>
@@ -1063,32 +1074,40 @@ export function renderPrivacySection() {
         </div>
       </div>
     </div>
-    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:14px">
-      <span style="font-size:13px">Use local AI for privacy protection<br><span style="font-size:11px;color:var(--text-muted)">Requires a local AI server (configure above). When disabled, regex pattern matching is used instead.</span></span>
-      <label class="toggle-switch" style="margin-top:2px">
+    <div class="settings-action-row privacy-setting-row">
+      <div class="settings-copy">
+        <div class="settings-copy-title">Use local AI for privacy protection</div>
+        <div class="settings-copy-desc">Requires a local AI server. When disabled, regex pattern matching is used instead.</div>
+      </div>
+      <label class="toggle-switch">
         <input type="checkbox" id="pii-local-toggle" ${piiEnabled ? 'checked' : ''} data-settings-action="toggle-pii-local">
         <span class="toggle-slider"></span>
       </label>
     </div>
-    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px;margin-top:8px">
-      <span style="font-size:13px">Review obfuscated text before sending to AI<br><span style="font-size:11px;color:var(--text-muted)">Pause after privacy protection runs so you can inspect what the AI is about to receive. Adds one click per import — recommended.</span></span>
-      <label class="toggle-switch" style="margin-top:2px">
+    <div class="settings-action-row privacy-setting-row">
+      <div class="settings-copy">
+        <div class="settings-copy-title">Review obfuscated text before sending to AI</div>
+        <div class="settings-copy-desc">Pause after privacy protection runs so you can inspect what the AI is about to receive.</div>
+      </div>
+      <label class="toggle-switch">
         <input type="checkbox" id="pii-review-toggle" ${isPIIReviewEnabled() ? 'checked' : ''} data-settings-action="toggle-pii-review">
         <span class="toggle-slider"></span>
       </label>
     </div>
-  </div>
+  `;
+}
 
-  <div class="local-ai-settings" style="margin-top:16px">
-    <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">Anonymous Usage Stats</h4>
-    <div class="ai-provider-desc" style="margin-bottom:10px">No health data is ever sent. I track cookieless pageviews and outbound clicks on affiliate links so I can tell which integrations actually help users — never which user, what data they were viewing, or any health context.</div>
-    <div style="display:flex;align-items:start;justify-content:space-between;gap:12px">
-      <span style="font-size:13px">Send anonymous usage stats<br><span style="font-size:11px;color:var(--text-muted)">Toggle takes effect on next launch.</span></span>
-      <label class="toggle-switch" style="margin-top:2px">
-        <input type="checkbox" id="analytics-toggle" ${isAnalyticsEnabled() ? 'checked' : ''} data-settings-action="set-analytics">
-        <span class="toggle-slider"></span>
-      </label>
+function renderPrivacyAnalyticsSection() {
+  return `<div class="settings-action-row">
+    <div class="settings-copy">
+      <div class="settings-copy-title">Send anonymous usage stats</div>
+      <div class="settings-copy-desc">I track cookieless pageviews and outbound affiliate clicks only. No health data, viewed records, user identity, or health context is sent.</div>
+      <div class="privacy-setting-note">Takes effect on next launch.</div>
     </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="analytics-toggle" ${isAnalyticsEnabled() ? 'checked' : ''} data-settings-action="set-analytics">
+      <span class="toggle-slider"></span>
+    </label>
   </div>`;
 }
 

@@ -54,6 +54,8 @@ assert('hasAIProvider handles custom', apiProviderStorageSrc.includes("provider 
 assert('hasAIProvider custom requires URL', apiProviderStorageSrc.includes("hasCustomApiKey() && !!getCustomApiUrl()"));
 assert('getActiveModelId handles custom', apiModelsSrc.includes("provider === 'custom') return getCustomApiModel()"));
 assert('getActiveModelDisplay handles custom', apiModelsSrc.includes("provider === 'custom') return getCustomApiModelDisplay()"));
+assert('isRecommendedModel handles custom Sonnet 5', apiModelsSrc.includes("provider === 'custom'") && apiModelsSrc.includes('isCustomRecommendedModel'));
+assert('isRecommendedModel handles custom GLM and Kimi', apiModelsSrc.includes('glm-5-2') && apiModelsSrc.includes('kimi-k2-(7-code|6)'));
 assert('callClaudeAPI handles custom', apiSrc.includes("provider === 'custom') return callCustomAPI("));
 assert('supportsWebSearch false for custom', apiModelsSrc.includes("provider === 'custom') return false"));
 assert('supportsVision true for custom', apiModelsSrc.includes("provider === 'custom') return true"));

@@ -10,6 +10,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.48', date: '2026-07-01', title: 'Updated AI model recommendations',
+    forceShow: true,
+    items: [
+      '<b>Recommended AI models are cleaner.</b> Model pickers now show a shorter Recommended section with the latest available versions, including newer Claude, GPT, Gemini, Grok, GLM, and Kimi options when each provider offers them.',
+      '<b>Defaults are more predictable.</b> GPT-5.5 is preferred where available, with Claude fallbacks for regular cloud providers. GLM 5.2 is only auto-selected for private or end-to-end encrypted PPQ and Venice modes.',
+    ]
+  },
+  {
     version: '1.10.29', date: '2026-06-26', title: 'Biology Scores handle updates more safely',
     forceShow: true,
     items: [

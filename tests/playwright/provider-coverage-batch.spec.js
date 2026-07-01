@@ -165,11 +165,26 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       }));
       localStorage.setItem('labcharts-openrouter-model', 'anthropic/claude-sonnet-4.6');
       controls.renderOpenRouterModelDropdown([
+        { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
         { id: 'google/gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
+        { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
+        { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
+        { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
+        { id: 'anthropic/claude-sonnet-5', name: 'Claude Sonnet 5' },
         { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet 4.6' },
         { id: 'x-ai/grok-4', name: 'Grok 4' },
       ]);
-      const openRouterRecommended = !!document.querySelector('#openrouter-model-select optgroup[label*="Recommended"] option[value="anthropic/claude-sonnet-4.6"]');
+      const openRouterRecommendedGroup = document.querySelector('#openrouter-model-select optgroup[label="Recommended"]');
+      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+        && !!openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-4.6"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.1-pro"]')
+        && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="anthropic/claude-sonnet-4.6"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.1-pro"]')
+        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       const openRouterPricing = (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$3.00/M in');
 
       let fetchedPricing = false;
@@ -228,19 +243,55 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       ]);
       const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'routstr-a'
         && document.getElementById('routstr-model-select')?.value === 'routstr-a';
+      controls.renderRoutstrModelDropdown([
+        { id: 'grok-41-fast', name: 'Grok 4.1 Fast' },
+        { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
+      ]);
+      const routstrRecommendedGroup = document.querySelector('#routstr-model-select optgroup[label="Recommended"]');
+      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
+        && !routstrRecommendedGroup?.querySelector('option[value="grok-41-fast"]')
+        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="grok-41-fast"]');
 
       localStorage.setItem('labcharts-ppq-model', 'ppq-b');
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'ppq-b': { input: 0.5, output: 1.5 } }));
       controls.renderPpqModelDropdown([
         { id: 'ppq-a', name: 'PPQ A' },
         { id: 'ppq-b', name: 'PPQ B' },
+        { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
+        { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
+        { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
+        { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
+        { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
+        { id: 'grok-4.20', name: 'Grok 4.20' },
+        { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
       ]);
+      const ppqRecommendedGroup = document.querySelector('#ppq-model-select optgroup[label="Recommended"]');
+      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="grok-4.20"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
+      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.5-flash"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="gemini-3-flash-preview"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="gemini-3-flash-preview"]');
+      const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+        && !!ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
+        && !ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       controls.updatePpqModelPricing('ppq-b');
       const ppqModelPricing = document.getElementById('ppq-model-select')?.value === 'ppq-b'
         && (document.getElementById('ppq-model-pricing')?.textContent || '').includes('$0.50/M in');
 
       localStorage.setItem('labcharts-custom-model', 'outside-model');
-      controls.renderCustomApiModelDropdown([{ id: 'model-a', name: 'Model A' }]);
+      controls.renderCustomApiModelDropdown([
+        { id: 'model-a', name: 'Model A' },
+        { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
+        { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
+        { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
+      ]);
+      const customRecommendedGroup = document.querySelector('#custom-model-select optgroup[label="Recommended"]');
+      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
+        && !!customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
+        && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       const customModelRenders = document.getElementById('custom-model-select')?.value === '__custom'
         && document.getElementById('custom-manual-model')?.value === 'outside-model';
       document.getElementById('custom-manual-model').value = 'manual-model';
@@ -293,8 +344,13 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         veniceE2EEEnabled,
         veniceE2EERestored,
         routstrFallback,
+        routstrLatestGrokRecommended,
         ppqModelPricing,
+        ppqLatestGrokRecommended,
+        ppqLatestGeminiRecommended,
+        ppqLatestGlmKimiRecommended,
         customModelRenders,
+        customGlmKimiRecommended,
         customManualApplied,
         delegatesCovered,
       };
@@ -401,6 +457,7 @@ test('provider panels cover provider switching key saves balances custom API and
         if (href === 'https://openrouter.ai/api/v1/models') {
           return jsonResponse({
             data: [
+              { id: 'openai/gpt-5.5', name: 'GPT 5.5', pricing: { prompt: '0.000004', completion: '0.000012' }, architecture: { modality: 'text->text' } },
               { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet', pricing: { prompt: '0.000003', completion: '0.000015' }, architecture: { modality: 'text+image->text' } },
               { id: 'audio/not-used', name: 'Audio', pricing: { prompt: '0', completion: '0' } },
             ],
@@ -423,6 +480,8 @@ test('provider panels cover provider switching key saves balances custom API and
         if (href === 'https://api.ppq.ai/v1/models?type=chat') {
           return jsonResponse({
             data: [
+              { id: 'z-ai/glm-5.2', name: 'GLM 5.2', pricing: { input_per_1M_tokens: '1', output_per_1M_tokens: '3.2' } },
+              { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', pricing: { input_per_1M_tokens: '2', output_per_1M_tokens: '10' }, architecture: { input_modalities: ['text', 'image'] } },
               { id: 'claude-sonnet-4.6', name: 'Claude', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' }, architecture: { input_modalities: ['text', 'image'] } },
               { id: 'codex-not-used', name: 'Codex' },
             ],
@@ -434,6 +493,8 @@ test('provider panels cover provider switching key saves balances custom API and
         if (href === 'https://routstr.example/v1/models') {
           return jsonResponse({
             data: [
+              { id: 'z-ai/glm-5.2', name: 'GLM 5.2', enabled: true, pricing: { prompt: '0.000001', completion: '0.000003' } },
+              { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', enabled: true, pricing: { prompt: '0.000002', completion: '0.000010' }, architecture: { modality: 'text+image->text' } },
               { id: 'claude-sonnet-4.6', name: 'Claude Sonnet', enabled: true, pricing: { prompt: '0.000002', completion: '0.000006' }, architecture: { modality: 'text+image->text' } },
               { id: 'mistral-large', name: 'Mistral Large', enabled: true, pricing: { prompt: '0.000001', completion: '0.000003' } },
               { id: 'codex-preview', name: 'Codex Preview', enabled: true },
@@ -441,7 +502,7 @@ test('provider panels cover provider switching key saves balances custom API and
           });
         }
         if (href === 'https://custom.example/v1/models') {
-          return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'a-model', name: 'A Model' }] });
+          return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'z-ai/glm-5.2', name: 'GLM 5.2' }, { id: 'openai/gpt-5.5', name: 'GPT 5.5' }, { id: 'a-model', name: 'A Model' }] });
         }
         if (href === 'https://custom.example/v1/chat/completions') {
           return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
@@ -483,7 +544,7 @@ test('provider panels cover provider switching key saves balances custom API and
       panels.refreshOpenRouterBalance();
       await wait(50);
       const openRouterSaveAndBalance = document.getElementById('openrouter-key-status')?.textContent.includes('Connected')
-        && document.getElementById('openrouter-model-select')?.value === 'anthropic/claude-sonnet-4.6'
+        && document.getElementById('openrouter-model-select')?.value === 'openai/gpt-5.5'
         && (document.getElementById('or-balance')?.textContent || '').includes('$0.75');
 
       panel.innerHTML = `
@@ -520,7 +581,7 @@ test('provider panels cover provider switching key saves balances custom API and
       await wait(0);
       const routstrSaveRendersModels = document.getElementById('routstr-key-status')?.textContent.includes('Connected')
         && localStorage.getItem('labcharts-routstr-key') === 'sk-routstr-good'
-        && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-4.6'
+        && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-5'
         && JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]').includes('claude-sonnet-4.6');
 
       panels.handleRemoveRoutstrKey();
@@ -542,7 +603,7 @@ test('provider panels cover provider switching key saves balances custom API and
       await panels.refreshPpqBalance();
       await wait(0);
       const ppqSaveAndBalance = document.getElementById('ppq-key-status')?.textContent.includes('Connected')
-        && document.getElementById('ppq-model-select')?.value === 'claude-sonnet-4.6'
+        && document.getElementById('ppq-model-select')?.value === 'claude-sonnet-5'
         && (document.getElementById('ppq-balance')?.textContent || '').includes('$0.08');
 
       panel.innerHTML = `
@@ -553,7 +614,7 @@ test('provider panels cover provider switching key saves balances custom API and
       await wait(0);
       const customSaveRendersConnected = localStorage.getItem('labcharts-custom-url') === 'https://custom.example/v1'
         && document.getElementById('custom-key-status')?.textContent.includes('Connected')
-        && document.getElementById('custom-model-select')?.value === 'a-model';
+        && document.getElementById('custom-model-select')?.value === 'openai/gpt-5.5';
       window.handleRemoveCustomApi();
       await wait(0);
       const customRemoveRendersDisconnected = !localStorage.getItem('labcharts-custom-url')
