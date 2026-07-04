@@ -10,12 +10,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.61', date: '2026-07-04', title: 'Granular Context management',
+    version: '1.10.61', date: '2026-07-04', title: 'Control what AI uses as context',
     forceShow: true,
     items: [
-      '<b>Context is now fully manageable.</b> Manage → Context lets you choose which parts of your health data get used when getbased assembles AI context, including Genome, labs, wearables, light, Biology Scores, supplements and meds, and insight cards.',
-      '<b>Granularity without deleting data.</b> You can keep imported data in getbased while turning selected context sources off, so AI answers and missing-data nudges stop leaning on areas you do not want in the current context.',
-      '<b>Genome and lab context are more precise.</b> DNA and lab data can be included as a whole or narrowed by useful groups such as APOE, mtDNA, raw SNPs, other SNPs, blood markers, and specialty lab imports.',
+      '<b>You can now choose what AI uses.</b> Manage → Context lets you turn major context sources on or off, including Genome, labs, wearables, light, Biology Scores, supplements and meds, and insight cards.',
+      '<b>Turning context off does not delete data.</b> Imported data stays in getbased, but disabled sources stop shaping AI answers and missing-data nudges.',
+      '<b>Genome and labs have finer controls.</b> You can include DNA and lab context broadly, or narrow it down by groups like APOE, mtDNA, raw SNPs, other SNPs, blood markers, and specialty lab imports.',
     ]
   },
   {

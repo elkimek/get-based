@@ -99,11 +99,12 @@ assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMat
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
 assert('latest changelog documents granular Context management in user-readable terms',
-  /version:\s*'1\.10\.61'[\s\S]{0,1600}Context is now fully manageable/.test(changelogSrc)
+  /version:\s*'1\.10\.61'[\s\S]{0,1600}Control what AI uses as context/.test(changelogSrc)
+    && /version:\s*'1\.10\.61'[\s\S]{0,1600}You can now choose what AI uses/.test(changelogSrc)
     && /version:\s*'1\.10\.61'[\s\S]{0,1600}Manage → Context/.test(changelogSrc)
-    && /version:\s*'1\.10\.61'[\s\S]{0,1600}Granularity without deleting data/.test(changelogSrc)
+    && /version:\s*'1\.10\.61'[\s\S]{0,1600}Turning context off does not delete data/.test(changelogSrc)
     && /version:\s*'1\.10\.61'[\s\S]{0,1600}AI answers and missing-data nudges/.test(changelogSrc)
-    && /version:\s*'1\.10\.61'[\s\S]{0,1600}Genome and lab context are more precise/.test(changelogSrc)
+    && /version:\s*'1\.10\.61'[\s\S]{0,1600}Genome and labs have finer controls/.test(changelogSrc)
     && /version:\s*'1\.10\.61'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
 assert('previous changelog documents Biology Scores persistence and Profile Context cleanup in user-readable terms',
   /version:\s*'1\.10\.29'[\s\S]{0,1600}separate app updates from real context changes/.test(changelogSrc)
