@@ -242,18 +242,21 @@ labCtxMod.setLightSunContextEnabled(true);
       bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: ['face', 'hands'] },
     }],
   });
-  // Direct session APIs follow the broader Light & Sun source toggle.
+  // Direct session APIs are agent-callable and stay independent from the
+  // broader in-app Light & Sun source toggle.
   labCtxMod.setLightSunContextEnabled(false);
   const detail = getSunSessionDetail('locked');
   const offSlice = getSunSessionsSlice({ days: 30, fields: ['date', 'body', 'location'] });
-  assert('getSunSessionsSlice returns empty when Light & Sun context is off',
-    Array.isArray(offSlice) && offSlice.length === 0);
-  assert('getSunSessionDetail returns null when Light & Sun context is off',
-    detail === null);
+  assert('getSunSessionsSlice remains agent-visible when Light & Sun context is off',
+    Array.isArray(offSlice) && offSlice.length === 1 && offSlice[0].id === 'locked');
+  assert('getSunSessionsSlice body regions remain visible to agent helpers when Light & Sun context is off',
+    Array.isArray(offSlice[0].body.regions) && offSlice[0].body.regions.includes('face'));
+  assert('getSunSessionDetail remains agent-visible when Light & Sun context is off',
+    detail && detail.id === 'locked' && Array.isArray(detail.body.regions) && detail.body.regions.includes('hands'));
   assert('buildSunContext returns empty when Light & Sun context is off',
     buildSunContext({ tier: 'standard' }) === '');
 
-  // With Light & Sun context on, the session detail surfaces.
+  // With Light & Sun context on, the prompt context returns too.
   labCtxMod.setLightSunContextEnabled(true);
   const detailWithRegions = getSunSessionDetail('locked');
   assert('getSunSessionDetail: known id → projected session when Light & Sun context is on',

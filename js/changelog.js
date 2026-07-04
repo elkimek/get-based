@@ -10,7 +10,7 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.61', date: '2026-07-04', title: 'Control what AI uses as context',
+    version: '1.10.62', date: '2026-07-04', title: 'Control what AI uses as context',
     forceShow: true,
     items: [
       '<b>You can now choose what AI uses.</b> Manage → Context lets you turn major context sources on or off, including Genome, labs, wearables, light, Biology Scores, supplements and meds, and insight cards.',

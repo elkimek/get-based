@@ -861,6 +861,9 @@ async function _importDatabaseBundle(json) {
       for (const field of ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics']) {
         if (importData[field] != null) current[field] = importData[field];
       }
+      if (importData.contextSourceSettings && typeof importData.contextSourceSettings === 'object' && !Array.isArray(importData.contextSourceSettings)) {
+        current.contextSourceSettings = importData.contextSourceSettings;
+      }
       if (importData.interpretiveLens) current.interpretiveLens = importData.interpretiveLens;
       if (importData.contextNotes) current.contextNotes = importData.contextNotes;
       // Change history: merge by field+date, imported snapshot wins on conflict

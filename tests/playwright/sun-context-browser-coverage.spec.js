@@ -163,9 +163,12 @@ test('sun context browser coverage handles Light & Sun slices deficits and trimm
       });
       const fallbackFields = sunContext.getSunSessionsSlice({ days: 7, fields: ['invalid-only'], includeActive: false });
 
-      outcomes.sessionSliceAndDetailFollowLightSunSourceToggle =
-        privateSliceOff.length === 0
-        && detailOff === null
+      outcomes.sessionSliceAndDetailIgnoreLightSunSourceToggle =
+        privateSliceOff.length >= 1
+        && privateSliceOff[0].id === 'sun-session-0'
+        && privateSliceOff[0].body?.regions?.includes('chest')
+        && detailOff?.id === 'sun-session-0'
+        && detailOff?.body?.regions?.includes('chest')
         && privateSlice.length >= 1
         && Array.isArray(privateSlice[0].body?.regions)
         && privateSlice[0].body.regions.includes('chest')

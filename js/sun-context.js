@@ -815,11 +815,10 @@ const _SLICE_ALL_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere
 // Project a sun session to a canonical, cap-bounded shape. `fields`
 // gates each section so callers (especially the agent) can ask for
 // just the columns they need. `body` is in the default set so the AI
-// can reason about coverage fraction + sunscreen + glass-between. The
-// specific anatomical `regions` array follows the broader Light & Sun
-// context source toggle, so disabling Light & Sun removes it along with
-// the rest of that source's AI context.
-// `location` (sub-11km coords) still stays off by default.
+// can reason about coverage fraction + sunscreen + glass-between. Agent-
+// callable session APIs must remain independent from the in-app Context
+// source toggles. `location` (sub-11km coords) still stays off by default
+// unless the caller explicitly asks for it.
 function _projectSession(sess, fields) {
   const out = {};
   if (fields.includes('date') && sess.startedAt) {
@@ -856,11 +855,10 @@ function _projectSession(sess, fields) {
   }
   if (fields.includes('body') && sess.bodyExposure) {
     const b = sess.bodyExposure;
-    const includeRegions = isLightSunContextEnabled();
     out.body = {
       preset: b.preset || null,
       fraction: b.fraction != null ? +b.fraction.toFixed(2) : null,
-      regions: includeRegions && Array.isArray(b.regions) ? b.regions.slice() : [],
+      regions: Array.isArray(b.regions) ? b.regions.slice() : [],
       sunscreenSPF: b.sunscreenSPF || null,
       glassBetween: !!b.glassBetween,
     };
@@ -896,14 +894,12 @@ function _projectSession(sess, fields) {
 
 // Agent-callable. Returns a JSON-serialisable array of recent sun
 // sessions, projected to the requested fields, capped at `days` (max 90).
-// Default field set includes body summary (preset/fraction/sunscreen). The
-// regions[] array follows the broader Light & Sun context toggle. Location
-// stays off by default.
+// Default field set includes body summary (preset/fraction/sunscreen/regions).
+// Location stays off by default.
 /**
  * @param {{ days?: number, fields?: string[], includeActive?: boolean }} [opts]
  */
 export function getSunSessionsSlice({ days = 30, fields, includeActive = false } = {}) {
-  if (!isLightSunContextEnabled()) return [];
   const sessions = state.importedData?.sunSessions || [];
   if (sessions.length === 0) return [];
   const cap = Math.max(1, Math.min(90, Math.floor(days)));
@@ -929,7 +925,6 @@ export function getSunSessionsSlice({ days = 30, fields, includeActive = false }
 // full field set (caller already named the row, so we serve everything
 // we have on it). Returns null when not found.
 export function getSunSessionDetail(id) {
-  if (!isLightSunContextEnabled()) return null;
   const sessions = state.importedData?.sunSessions || [];
   const sess = sessions.find(s => s.id === id);
   if (!sess) return null;
