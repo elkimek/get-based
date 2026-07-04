@@ -1023,6 +1023,10 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       sunSessions: [{ id: 'sun-export', date: '2026-06-03' }],
       lightDevices: [{ id: 'light-export', name: 'Desk lamp' }],
       channelMixAI: { summary: 'balanced' },
+      contextSourceSettings: {
+        'lab-group-Fatty Acids': false,
+        'lab-group-Specialty Panel': true,
+      },
     };
     const downloadRecords = [];
     const blobTexts = new Map();
@@ -1104,6 +1108,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && downloadRecords[0].download.includes('getbased-export-facade')
         && activeClientExport.profile.name === 'Export Facade'
         && activeClientExport.entries[0].markers['biochemistry.glucose'] === 5.8
+        && activeClientExport.contextSourceSettings['lab-group-Fatty Acids'] === false
+        && activeClientExport.contextSourceSettings['lab-group-Specialty Panel'] === true
         && chatClientExport.chat.threads[0].id === 'thread-one'
         && chatClientExport.chat.messages['thread-one'][1].content.includes('Glucose')
         && allDataBundle.type === 'database'
@@ -1139,6 +1145,10 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
           markers: { 'vitamins.vitaminD': 44 },
         }],
         notes: [{ date: '2026-06-04', text: 'Single import note' }],
+        contextSourceSettings: {
+          'lab-group-Fatty Acids': false,
+          'lab-group-Specialty Panel': true,
+        },
         chat: {
           threads: [{ id: 'single-thread', title: 'Imported chat' }],
           messages: { 'single-thread': [{ role: 'user', content: 'Imported message' }] },
@@ -1154,6 +1164,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       outcomes.singleClientImportCreatesProfileDataAndChat = !!singleProfile
         && state.currentProfile === singleProfile.id
         && state.importedData.entries.some(entry => entry.markers?.['vitamins.vitaminD'] === 44)
+        && state.importedData.contextSourceSettings?.['lab-group-Fatty Acids'] === false
+        && state.importedData.contextSourceSettings?.['lab-group-Specialty Panel'] === true
         && singleThreads[0]?.id === 'single-thread'
         && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
 
@@ -1189,6 +1201,10 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
               manualValues: { 'coverage.marker': 9 },
               chatSummaries: [{ threadId: 'thread-one', text: 'Summary' }],
               changeHistory: [{ field: 'glucose', date: '2026-06-05', value: 5.8 }],
+              contextSourceSettings: {
+                'lab-group-Fatty Acids': true,
+                'lab-group-Specialty Panel': false,
+              },
             },
             chat: {
               threads: [{ id: 'bundle-thread', title: 'Bundle chat' }],
@@ -1224,6 +1240,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && profileStore.getProfiles().some(profile => profile.id === profileId && profile.name === 'Export Facade Merged')
         && mergedData.entries.some(entry => entry.markers?.['hematology.hemoglobin'] === 131)
         && mergedData.notes.some(note => note.text === 'Merged bundle note')
+        && mergedData.contextSourceSettings?.['lab-group-Fatty Acids'] === true
+        && mergedData.contextSourceSettings?.['lab-group-Specialty Panel'] === false
         && mergedThreads.some(thread => thread.id === 'bundle-thread')
         && !!newBundleProfile;
 
