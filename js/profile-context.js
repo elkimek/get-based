@@ -2,6 +2,7 @@
 // profile-context.js — lightweight profile modifiers for deterministic scoring.
 
 import { state } from './state.js';
+import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
 
 const LOW_MUSCLE_TERMS = ['low muscle mass', 'muscle wasting', 'muscle atrophy', 'sarcopenia', 'wheelchair', 'neuromuscular', 'cmt', 'charcot', 'neuropathy', 'myopathy', 'muscular dystrophy', 'cachexia', 'amputation'];
 const LOW_SUNLIGHT_TERMS = ['wheelchair', 'bedbound', 'housebound', 'minimal sun', 'minimal outdoor', 'low sunlight', 'little sun', 'no sun', 'indoors', 'homebound', 'limited mobility', 'minimal uvb', 'low uvb'];
@@ -14,6 +15,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** @param {unknown} text @param {string[]} terms */
 function textMatchesAny(text, terms) { const value = String(text || '').toLowerCase(); return terms.some(term => value.includes(term)); }
+
+function profileContextSetting(slug, importedValue = true, ignoreContextToggles = false) {
+  if (ignoreContextToggles) return true;
+  return isContextSourceEnabled(slug, { defaultValue: importedValue !== false });
+}
 
 function hasMeaningfulSnp(stored) {
   const effect = String(stored?.effect || '').toLowerCase();
@@ -29,13 +35,22 @@ function isHormonalContraception(value) {
   return HORMONAL_CONTRACEPTION_TERMS.some(term => text.includes(term));
 }
 
-function collectGeneticModifiers(data) {
+function collectGeneticModifiers(data, options = {}) {
+  const includeSummary = profileContextSetting('genetics-summary', true, options.ignoreContextToggles);
+  const includePriority = profileContextSetting('genetics-priority', true, options.ignoreContextToggles);
   const genetics = data?.genetics || null;
-  const snps = genetics?.snps || {};
+  const snps = includePriority ? (genetics?.snps || {}) : {};
   const flags = [];
   const genes = new Set();
   const categories = new Set();
   const markerLinks = new Set();
+  if (!includeSummary && !includePriority) {
+    return {
+      includeSummary, includePriority, hasGenetics: false, snpCount: 0, genes, categories, markerLinks,
+      apoe: '', methylationRisk: false, b12Risk: false, vitaminDRisk: false, ironRisk: false,
+      lipidRisk: false, fattyAcidRisk: false, bilirubinRisk: false, hormoneRisk: false, flags,
+    };
+  }
   for (const stored of Object.values(snps)) {
     if (!hasMeaningfulSnp(stored)) continue;
     const gene = String(stored?.gene || '').toUpperCase();
@@ -44,7 +59,7 @@ function collectGeneticModifiers(data) {
     if (category) categories.add(category);
     for (const marker of stored?.markers || []) markerLinks.add(marker);
   }
-  const apoe = genetics?.apoe || (genes.has('APOE') ? 'APOE variant present' : '');
+  const apoe = (includeSummary && genetics?.apoe) || (includePriority && genes.has('APOE') ? 'APOE variant present' : '');
   const methylationRisk = ['MTHFR', 'MTR', 'MTRR', 'CBS'].some(g => genes.has(g)) || categories.has('methylation');
   const b12Risk = ['TCN2', 'FUT2', 'MTR', 'MTRR'].some(g => genes.has(g)) || categories.has('vitaminB12');
   const vitaminDRisk = ['CYP2R1', 'GC', 'VDR', 'DHCR7', 'CYP24A1'].some(g => genes.has(g)) || categories.has('vitaminD');
@@ -63,7 +78,8 @@ function collectGeneticModifiers(data) {
   if (fattyAcidRisk) flags.push('Genetic context: fatty-acid desaturase/elongation variants may affect omega-3/omega-6 marker interpretation.');
   if (bilirubinRisk) flags.push('Genetic context: bilirubin-handling variants may explain isolated bilirubin elevation without treating it as generic liver strain.');
   if (hormoneRisk) flags.push('Genetic context: sex-hormone pathway variants may affect SHBG/androgen/estrogen interpretation.');
-  return { hasGenetics: !!genetics, snpCount: Object.keys(snps).length, genes, categories, markerLinks, apoe, methylationRisk, b12Risk, vitaminDRisk, ironRisk, lipidRisk, fattyAcidRisk, bilirubinRisk, hormoneRisk, flags };
+  const hasGenetics = !!genetics && (includeSummary || Object.keys(snps).length > 0);
+  return { includeSummary, includePriority, hasGenetics, snpCount: Object.keys(snps).length, genes, categories, markerLinks, apoe, methylationRisk, b12Risk, vitaminDRisk, ironRisk, lipidRisk, fattyAcidRisk, bilirubinRisk, hormoneRisk, flags };
 }
 
 function latestMetricValue(metric, field = 'd7') {
@@ -71,9 +87,9 @@ function latestMetricValue(metric, field = 'd7') {
   return Number.isFinite(v) ? Number(v) : null;
 }
 
-function collectBodyModifiers(data) {
+function collectBodyModifiers(data, options = {}) {
   const settings = data?.biologyScoreContextSettings || {};
-  const includeBody = settings.includeBodyContext !== false;
+  const includeBody = profileContextSetting('wearables', settings.includeBodyContext, options.ignoreContextToggles);
   const summary = data?.wearableSummary || null;
   const metrics = summary?.metrics || {};
   const flags = [];
@@ -91,9 +107,9 @@ function collectBodyModifiers(data) {
   return { includeBody, hasBodyData: !!summary && Object.keys(metrics).length > 0, hrv7, rhr7, sleep7, lowRecovery, sleepStrain, flags };
 }
 
-function collectLightModifiers(data) {
+function collectLightModifiers(data, options = {}) {
   const settings = data?.biologyScoreContextSettings || {};
-  const includeLight = settings.includeLightContext !== false;
+  const includeLight = profileContextSetting('light-sun', settings.includeLightContext, options.ignoreContextToggles);
   const flags = [];
   if (!includeLight) return { includeLight, hasLightData: false, flags };
   const now = Date.now();
@@ -130,37 +146,42 @@ export function getProfileAgeYears(date = new Date()) {
   return age > 0 ? Math.floor(age) : null;
 }
 
-export function getBiologyProfileContext() {
+export function getBiologyProfileContext(options = {}) {
   const data = /** @type {{diagnoses?: any, supplements?: Array<any>, exercise?: any, sleepRest?: any, lightCircadian?: any, stress?: any, diet?: any, environment?: any, healthGoals?: Array<any>, menstrualCycle?: any, contextNotes?: string, interpretiveLens?: string, genetics?: any, wearableSummary?: any, biologyScoreContextSettings?: any, sunSessions?: Array<any>, deviceSessions?: Array<any>, lightMeasurements?: Array<any>, sunDefaults?: any}} */ (state.importedData || {});
-  const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string}>, note?: string, flags?: Record<string, boolean>}} */ (data.diagnoses || {});
+  const includeInsightCards = profileContextSetting(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, true, options.ignoreContextToggles);
+  const includeSupplementsMeds = profileContextSetting(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, true, options.ignoreContextToggles);
+  const diagnoses = /** @type {{conditions?: Array<{name?: string, note?: string, severity?: string}>, note?: string, flags?: Record<string, boolean>}} */ (includeInsightCards ? (data.diagnoses || {}) : {});
   const conditions = Array.isArray(diagnoses.conditions) ? diagnoses.conditions : [];
   const flags = /** @type {Record<string, boolean>} */ (diagnoses.flags || {});
   const conditionText = conditions.map(c => `${c?.name || ''} ${c?.note || ''} ${c?.severity || ''}`).join(' ');
-  const supplements = Array.isArray(data.supplements) ? data.supplements.map(s => `${s?.name || ''} ${s?.note || ''} ${s?.type || ''}`).join(' ') : '';
-  const exercise = data.exercise || {};
-  const sleepRest = data.sleepRest || {};
-  const lightCircadian = data.lightCircadian || {};
-  const stress = data.stress || {};
-  const diet = data.diet || {};
-  const environment = data.environment || {};
-  const healthGoalsText = Array.isArray(data.healthGoals) ? data.healthGoals.map(g => typeof g === 'object' ? `${g?.goal || g?.name || ''} ${g?.priority || ''} ${g?.note || ''}` : String(g || '')).join(' ') : '';
+  const supplements = includeSupplementsMeds && Array.isArray(data.supplements) ? data.supplements.map(s => `${s?.name || ''} ${s?.note || s?.notes || ''} ${s?.type || ''}`).join(' ') : '';
+  const exercise = includeInsightCards ? (data.exercise || {}) : {};
+  const sleepRest = includeInsightCards ? (data.sleepRest || {}) : {};
+  const stress = includeInsightCards ? (data.stress || {}) : {};
+  const diet = includeInsightCards ? (data.diet || {}) : {};
+  const environment = includeInsightCards ? (data.environment || {}) : {};
+  const light = collectLightModifiers(data, options);
+  const lightCircadian = light.includeLight ? (data.lightCircadian || {}) : {};
+  const healthGoalsText = includeInsightCards && Array.isArray(data.healthGoals) ? data.healthGoals.map(g => typeof g === 'object' ? `${g?.goal || g?.name || ''} ${g?.priority || ''} ${g?.note || ''}` : String(g || '')).join(' ') : '';
   const exerciseText = `${exercise.frequency || ''} ${exercise.intensity || ''} ${exercise.activityLevel || ''} ${exercise.trainingLoad || ''} ${(exercise.types || []).join(' ')} ${exercise.note || exercise.notes || ''}`;
   const sleepText = `${sleepRest.quality || ''} ${sleepRest.duration || ''} ${sleepRest.schedule || ''} ${sleepRest.notes || sleepRest.note || ''}`;
   const lightText = `${lightCircadian.morningLight || ''} ${lightCircadian.daylight || ''} ${lightCircadian.eveningLight || ''} ${lightCircadian.screenUse || ''} ${lightCircadian.notes || lightCircadian.note || ''}`;
   const stressText = `${stress.level || ''} ${stress.workload || ''} ${stress.recovery || ''} ${stress.notes || stress.note || ''}`;
   const dietText = `${diet.type || ''} ${diet.pattern || ''} ${(diet.restrictions || []).join(' ')} ${diet.notes || diet.note || ''}`;
   const environmentText = `${environment.sun || ''} ${environment.outdoorTime || ''} ${environment.toxins || ''} ${environment.notes || environment.note || ''}`;
-  const mc = data.menstrualCycle || null;
+  const mc = includeInsightCards ? (data.menstrualCycle || null) : null;
   const menopauseStatus = flags.postmenopause ? 'postmenopause' : (mc?.menopauseStatus || mc?.cycleStatus || null);
-  const notes = [diagnoses.note, data.contextNotes, data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, environmentText, healthGoalsText].filter(Boolean).join(' ');
-  const genetic = collectGeneticModifiers(data);
-  const body = collectBodyModifiers(data);
-  const light = collectLightModifiers(data);
+  const notes = [diagnoses.note, includeInsightCards ? data.contextNotes : '', data.interpretiveLens, supplements, exerciseText, sleepText, lightText, stressText, dietText, environmentText, healthGoalsText].filter(Boolean).join(' ');
+  const genetic = collectGeneticModifiers(data, options);
+  const body = collectBodyModifiers(data, options);
   const allText = `${conditionText} ${notes}`;
   const lowMuscleMass = !!flags.lowMuscleMass || textMatchesAny(allText, LOW_MUSCLE_TERMS);
-  const lowSunlightExposure = !!flags.lowSunlight || textMatchesAny(allText, LOW_SUNLIGHT_TERMS) || !!light.lowLoggedSunlight || !!light.lowVitaminDSynthesis;
+  const lightContextEnabled = light.includeLight !== false;
+  const lowSunlightExposure = lightContextEnabled && (
+    !!flags.lowSunlight || textMatchesAny(allText, LOW_SUNLIGHT_TERMS) || !!light.lowLoggedSunlight || !!light.lowVitaminDSynthesis
+  );
   const acuteInflammationContext = !!flags.acuteIllnessNearDraw || textMatchesAny(allText, ACUTE_TERMS);
-  const recentHardTraining = !!flags.intenseTrainingRecent || textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(data.contextNotes, ['recent workout', 'trained yesterday', 'post-exercise']);
+  const recentHardTraining = !!flags.intenseTrainingRecent || textMatchesAny(exerciseText, HARD_TRAINING_TERMS) || textMatchesAny(includeInsightCards ? data.contextNotes : '', ['recent workout', 'trained yesterday', 'post-exercise']);
   const sex = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : null;
   const cycleStatus = sex === 'female' ? (flags.postmenopause ? 'postmenopause' : (mc ? (mc.cycleStatus || 'regular') : null)) : null;
   const hormoneTherapy = !!flags.hormoneTherapy || textMatchesAny(allText, TRT_TERMS) || (sex === 'female' && isHormonalContraception(mc?.contraceptive));

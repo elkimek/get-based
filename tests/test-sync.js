@@ -399,6 +399,9 @@ await import('../js/settings.js');
       && syncMessengerSrc.includes('owner: currentAppOwner()')
       && syncMessengerSrc.includes('ownerId: ownerProof.ownerId')
       && syncMessengerSrc.includes('signature: ownerProof.signature'));
+  assert('Agent Access context push ignores in-app Context source toggles',
+    syncMessengerSrc.includes('buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true })')
+      && syncMessengerSrc.includes('buildWearableSeriesSection(seriesDays, { ignoreContextToggles: true })'));
   assert('service worker precaches sync-messenger.js',
     serviceWorkerSrc.includes("'/js/sync-messenger.js'"));
   assert('service worker precaches settings-sync-panel.js',
@@ -1824,7 +1827,7 @@ await import('../js/settings.js');
   // drops them on cross-device sync. lightDailyVerdicts is a map keyed
   // by ISO date; channelMixAI is a singleton scalar.
   assert('DELTA_MAPS includes lightDailyVerdicts (v1.7.x AI verdict surface)',
-    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,2500}'lightDailyVerdicts'[\s\S]{0,200}\]/.test(deltaSearchSrc));
+    /const DELTA_MAPS\s*=\s*\[[\s\S]{0,2500}'lightDailyVerdicts'[\s\S]{0,500}\]/.test(deltaSearchSrc));
   assert('DELTA_SCALARS includes channelMixAI (v1.7.x AI verdict surface)',
     /const DELTA_SCALARS\s*=\s*\[[\s\S]{0,2500}'channelMixAI'[\s\S]{0,200}\]/.test(deltaSearchSrc));
   assert('DELTA_MAP_CONFIG defines manualValues keyIdFn (doubling-escape)',
@@ -2710,6 +2713,10 @@ await import('../js/settings.js');
   // DELTA_MAPS — keyed-object surfaces.
   assert('DELTA_MAPS includes wearablePrimaryOverride (per-metric source pick)',
     inList('DELTA_MAPS', 'wearablePrimaryOverride'));
+  assert('DELTA_MAPS includes contextSourceSettings (profile Context source preferences)',
+    inList('DELTA_MAPS', 'contextSourceSettings'));
+  assert('contextSourceSettings has a keyIdFn so lab group names with spaces sync per-row',
+    /contextSourceSettings:\s*\{[\s\S]{0,160}keyIdFn:\s*\(rawKey\)\s*=>\s*unsafeMapKeyToHexId\(rawKey,\s*'ctxu_'\)/.test(syncDeltaSurfaceConfigSrc));
 
   // DELTA_SCALARS — singleton-shape surfaces.
   assert('DELTA_SCALARS includes emfAssessment (EMF Baubiologie module)',
@@ -2741,6 +2748,7 @@ await import('../js/settings.js');
     'markerNotes', 'customMarkers', 'manualValues', 'refOverrides',
     'categoryLabels', 'categoryIcons', 'markerLabels',
     'wearablePrimaryOverride', 'genetics.snps', 'lightDailyVerdicts',
+    'contextSourceSettings',
     // Scalars
     'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian',
     'stress', 'loveLife', 'environment',

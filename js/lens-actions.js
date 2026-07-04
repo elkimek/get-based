@@ -53,6 +53,11 @@ function handleLensActionClick(event) {
   } else if (action === 'close-kb') {
     event.preventDefault();
     lensActionHandlers.closeKnowledgeBaseModal?.();
+  } else if (action === 'open-context') {
+    event.preventDefault();
+    lensActionHandlers.closeKnowledgeBaseModal?.();
+    const opener = /** @type {any} */ (typeof window !== 'undefined' ? window : {}).openContextModal;
+    if (typeof opener === 'function') setTimeout(() => opener(), 0);
   } else if (action === 'delete-doc') {
     event.preventDefault();
     lensActionHandlers.handleLocalLensDeleteDoc?.(actionEl.dataset.lensSource || '');

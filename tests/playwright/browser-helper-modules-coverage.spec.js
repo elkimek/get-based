@@ -122,6 +122,25 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
         && localStorage.getItem('labcharts-analytics-disabled') === 'true';
 
       utils.setAnalyticsEnabled(true);
+      const blocker = document.createElement('div');
+      blocker.id = 'context-hub-overlay';
+      blocker.className = 'confirm-overlay show';
+      document.body.appendChild(blocker);
+      utils.maybeShowAnalyticsConsent();
+      const analyticsDefersBehindModal =
+        utils.isStartupNudgeBlocked()
+        && !document.getElementById('analytics-consent-banner')
+        && !document.body.classList.contains('analytics-consent-visible');
+      blocker.remove();
+      utils.maybeShowAnalyticsConsent();
+      const resumedBanner = document.getElementById('analytics-consent-banner');
+      const analyticsResumesAfterModal =
+        !!resumedBanner
+        && document.querySelectorAll('#analytics-consent-banner').length === 1
+        && document.body.classList.contains('analytics-consent-visible');
+      resumedBanner?.remove();
+      document.body.classList.remove('analytics-consent-visible');
+
       utils.maybeShowAnalyticsConsent();
       utils.maybeShowAnalyticsConsent();
       const banner = document.getElementById('analytics-consent-banner');
@@ -147,6 +166,8 @@ test('browser helper coverage exercises url safety marker keys markdown brand as
       outcomes.analyticsConsentHelpersCoverStorageBannerAndDisable =
         analyticsCanEnable
         && analyticsCanDisable
+        && analyticsDefersBehindModal
+        && analyticsResumesAfterModal
         && analyticsBannerRendersOnce
         && analyticsDismissMarksSeenAndRemovesBanner
         && analyticsSeenConsentSuppressesBanner

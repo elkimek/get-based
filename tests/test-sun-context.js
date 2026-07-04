@@ -18,10 +18,11 @@ console.log('=== Sun Context Tests ===\n');
 await import('../js/state.js');
 // lab-context.js exposes buildLabContext via window — section 11 below
 // gates on its presence. Importing it makes the gate fire.
-await import('../js/lab-context.js');
+const labCtxMod = await import('../js/lab-context.js');
 const ctxMod = await import('../js/sun-context.js');
 await import('../js/sun-context-hooks.js');
 const { buildSunContext, configureSunContext } = ctxMod;
+labCtxMod.setLightSunContextEnabled(true);
 
   const orig = window._labState.importedData;
   function reset(seed = {}) {
@@ -241,27 +242,25 @@ const { buildSunContext, configureSunContext } = ctxMod;
       bodyExposure: { preset: 'face_hands', fraction: 0.05, regions: ['face', 'hands'] },
     }],
   });
-  // Default consent state: body-regions opt-in is off → body block emits
-  // preset/fraction/sunscreen but regions[] is stripped to [].
-  ctxMod.setBodyRegionsInAIContext(false);
+  // Direct session APIs follow the broader Light & Sun source toggle.
+  labCtxMod.setLightSunContextEnabled(false);
   const detail = getSunSessionDetail('locked');
-  assert('getSunSessionDetail: known id → projected session',
-    detail && detail.id === 'locked');
-  assert('getSunSessionDetail surfaces non-region fields when caller asks by id',
-    detail.date && detail.body && detail.atmosphere && detail.safety);
-  assert('getSunSessionDetail body block carries preset + fraction even when regions opt-in is off',
-    detail.body.preset === 'face_hands' && detail.body.fraction === 0.05);
-  assert('getSunSessionDetail strips regions array by default (privacy opt-in off)',
-    Array.isArray(detail.body.regions) && detail.body.regions.length === 0);
+  const offSlice = getSunSessionsSlice({ days: 30, fields: ['date', 'body', 'location'] });
+  assert('getSunSessionsSlice returns empty when Light & Sun context is off',
+    Array.isArray(offSlice) && offSlice.length === 0);
+  assert('getSunSessionDetail returns null when Light & Sun context is off',
+    detail === null);
+  assert('buildSunContext returns empty when Light & Sun context is off',
+    buildSunContext({ tier: 'standard' }) === '');
 
-  // With consent flag on, the regions array surfaces.
-  ctxMod.setBodyRegionsInAIContext(true);
+  // With Light & Sun context on, the session detail surfaces.
+  labCtxMod.setLightSunContextEnabled(true);
   const detailWithRegions = getSunSessionDetail('locked');
-  assert('getSunSessionDetail body block carries regions array when consent toggle is on',
+  assert('getSunSessionDetail: known id → projected session when Light & Sun context is on',
+    detailWithRegions && detailWithRegions.id === 'locked');
+  assert('getSunSessionDetail body block carries regions array when Light & Sun context is on',
     Array.isArray(detailWithRegions.body.regions)
     && detailWithRegions.body.regions.includes('face'));
-  // Restore default-off for the rest of the suite.
-  ctxMod.setBodyRegionsInAIContext(false);
 
   assert('getSunSessionDetail unknown id → null',
     getSunSessionDetail('does-not-exist') === null);

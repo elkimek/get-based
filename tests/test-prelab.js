@@ -33,16 +33,25 @@ const onboardingViewSrc = read('js/onboarding-view.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
     'The old sentinel early-return should be removed');
-  assert('hasLabData variable declared', labCtxSrc.includes('const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate)'),
-    'Should compute hasLabData from dates + singleDate categories');
+  assert('hasLabData respects lab marker context toggle',
+    labCtxSrc.includes('const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled()') &&
+    labCtxSrc.includes('const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate)') &&
+    labCtxSrc.includes('const hasLabData = includeLabMarkers && hasImportedLabData'),
+    'Should compute imported lab presence separately from the user-controlled lab marker context toggle');
   assert('No-data header includes profile context', labCtxSrc.includes("Profile context (sex:"),
     'No-data header should say "Profile context" not "Lab data"');
-  assert('No-data NOTE recommends tests and encourages all cards', labCtxSrc.includes('recommend which blood panels') && labCtxSrc.includes('encourage filling all of them'),
-    'NOTE should instruct AI to recommend panels and push for all cards');
+  assert('No-data NOTE recommends tests and respects Insight cards source',
+    labCtxSrc.includes('recommend which blood panels') &&
+      labCtxSrc.includes('The more Insight Context Cards') &&
+      labCtxSrc.includes('Insight Context Cards are turned off by the user'),
+    'NOTE should recommend panels, gently nudge enabled cards, and respect disabled cards');
   assert('No-data path flags missing demographics', labCtxSrc.includes('missingDemo') && labCtxSrc.includes("urge the user to set"),
     'Should add IMPORTANT warning when sex/DOB missing');
   assert('Lab values section gated by hasLabData', labCtxSrc.includes('if (hasLabData) {') && labCtxSrc.includes("const rangeLabel"),
     'Lab values + flagged results should be wrapped in if (hasLabData)');
+  assert('Biology Scores context receives Agent Access context override',
+    labCtxSrc.includes('buildBiologyScoresAIContext(data, { limit: 7, ignoreContextToggles })'),
+    'Agent Access should not lose Biology Score context flags when in-app Context sources are disabled');
   assert('Flagged results inside hasLabData guard', labCtxSrc.includes("const allFlags = getAllFlaggedMarkers(data)") && labCtxSrc.includes("if (flags.length > 0)"),
     'Flagged results should be inside the hasLabData block');
   assert('Staleness uses hasLabData guard', labCtxSrc.includes('if (hasLabData && data.dates.length > 0)'),
@@ -103,8 +112,11 @@ const onboardingViewSrc = read('js/onboarding-view.js');
     'Should instruct personalized recommendations');
   assert('Explains WHY for each panel', constSrc.includes('explain in one sentence WHY'),
     'Should instruct per-panel reasoning');
-  assert('Encourages filling ALL 9 cards', constSrc.includes('encourage filling ALL 9 profile cards'),
-    'Should push for all cards, not just a few');
+  assert('No-lab card nudge respects disabled Insight Context Cards',
+    constSrc.includes('Insight Context Cards are turned off by the user') &&
+      constSrc.includes('gently mention that filling relevant Insight Context Cards can sharpen recommendations') &&
+      constSrc.includes('do not overwhelm the user with a full checklist'),
+    'Should nudge gently when useful and respect disabled card context');
   assert('Sex and age critical instruction', constSrc.includes('Sex and age are critical for test recommendations'),
     'Should instruct AI about importance of demographics');
   assert('Urge to set sex/DOB in Settings', constSrc.includes('tell the user to set these in Settings'),

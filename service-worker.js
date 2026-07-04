@@ -112,6 +112,7 @@ const APP_SHELL = [
   '/js/supplement-impact.js',
   '/js/cycle.js',
   '/js/context-cards.js',
+  '/js/context-source-registry.js',
   '/js/context-card-summaries.js',
   '/js/context-card-editor-ui.js',
   '/js/context-card-medical-history-editor.js',

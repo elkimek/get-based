@@ -59,8 +59,11 @@ test('sync delta helper browser coverage exercises registry ids config and row c
     outcomes.mapConfigKeyIdFunctionsEscapeUnsafeSeparators =
       mapConfig.manualValues.keyIdFn('lipids_LDL:2026-06-09') === 'lipids__LDL_2026-06-09'
       && mapConfig.markerValueNotes.keyIdFn('marker_key:note') === 'marker__key_note'
+      && mapConfig.contextSourceSettings.keyIdFn('lab-markers') === 'lab-markers'
+      && mapConfig.contextSourceSettings.keyIdFn('lab-group-Fatty Acids') === 'ctxu_006c00610062002d00670072006f00750070002d00460061007400740079002000410063006900640073'
       && mapConfig.manualValues.keyIdFn('') === null
       && mapConfig.markerValueNotes.keyIdFn(null) === null
+      && mapConfig.contextSourceSettings.keyIdFn('') === null
       && mapConfig.manualValues.keyIdFn('bad/key') === null;
 
     const plainDecoded = await rowCodec.decodeRowPayload({

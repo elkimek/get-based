@@ -8,7 +8,7 @@ import { getActiveData, getFocusCardFingerprint } from './data.js';
 import { getAllFlaggedMarkers } from './marker-analysis.js';
 import { profileStorageKey } from './profile.js';
 import { callClaudeAPI, hasAIProvider, getAIProvider, getActiveModelId } from './api.js';
-import { injectLensChunks } from './lab-context.js';
+import { injectLensChunks, isGroupInAIContext, isInsightContextCardsEnabled, isLabMarkersContextEnabled, isSupplementsMedsContextEnabled } from './lab-context.js';
 import { hasLens, queryLens } from './lens.js';
 import { applyInlineMarkdown } from './markdown.js';
 import { computeAllImpacts } from './supplement-impact.js';
@@ -45,6 +45,16 @@ export function installFocusCardActionDelegates(root = typeof document !== 'unde
 
 if (typeof document !== 'undefined') installFocusCardActionDelegates();
 
+function focusCategoryInContext(data, catKey) {
+  const group = data?.categories?.[catKey]?.group;
+  return !group || isGroupInAIContext(group);
+}
+
+function getFocusFlaggedMarkers(data) {
+  if (!isLabMarkersContextEnabled()) return [];
+  return getAllFlaggedMarkers(data).filter(f => focusCategoryInContext(data, f.categoryKey));
+}
+
 export function renderFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
   const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey)); } catch(e) { return null; } })();
@@ -64,14 +74,17 @@ export function buildFocusContext() {
   if (!data.dates.length && !Object.values(data.categories).some(c => c.singleDate)) {
     return null;
   }
+  if (!isLabMarkersContextEnabled()) return null;
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const today = new Date().toISOString().slice(0, 10);
   const lastDate = data.dates[data.dates.length - 1];
+  const includeInsightCards = isInsightContextCardsEnabled();
+  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
   let ctx = `Profile: ${sexLabel}${age !== null ? ', age ' + age : ''}, today ${today}, last labs ${lastDate}\n`;
 
   const healthGoals = state.importedData.healthGoals || [];
-  if (healthGoals.length > 0) {
+  if (includeInsightCards && healthGoals.length > 0) {
     const byPriority = { major: [], mild: [], minor: [] };
     for (const g of healthGoals) (byPriority[g.severity] || byPriority.minor).push(g.text);
     const parts = [];
@@ -87,20 +100,18 @@ export function buildFocusContext() {
   }
 
   const diag = state.importedData.diagnoses;
-  if (hasCardContent(diag)) {
+  if (includeInsightCards && hasCardContent(diag)) {
     const conditions = (diag.conditions || []).map(c => `${c.name} (${c.severity})`);
     if (conditions.length > 0) ctx += `Conditions: ${conditions.join(', ')}\n`;
     if (diag.note) ctx += `Medical notes: ${diag.note}\n`;
   }
 
   const contextNotes = state.importedData.contextNotes || '';
-  if (contextNotes.trim()) {
+  if (includeInsightCards && contextNotes.trim()) {
     ctx += `Notes for AI: ${contextNotes.trim()}\n`;
   }
 
-  const aiWindow = /** @type {Window & typeof globalThis & { isGroupInAIContext?: (group: any) => boolean }} */ (window);
-  const _isAICtx = (catKey) => { const g = data.categories[catKey]?.group; return !g || (aiWindow.isGroupInAIContext ? aiWindow.isGroupInAIContext(g) : true); };
-  const flags = getAllFlaggedMarkers(data).filter(f => _isAICtx(f.categoryKey));
+  const flags = getFocusFlaggedMarkers(data);
   if (flags.length > 0) {
     ctx += `Flagged (${flags.length} total${flags.length > 15 ? ', showing top 15' : ''}):\n`;
     for (const f of flags.slice(0, 15)) {
@@ -109,7 +120,7 @@ export function buildFocusContext() {
   }
 
   const supps = (state.importedData.supplements || []).slice(0, 8);
-  if (supps.length > 0) {
+  if (includeSupplementsMeds && supps.length > 0) {
     ctx += `Supplements:\n`;
     for (const s of supps) {
       const pds = (s.periods && s.periods.length > 0) ? [...s.periods].sort((a, b) => a.start.localeCompare(b.start)) : [{ start: s.startDate, end: s.endDate }];
@@ -136,7 +147,7 @@ export function buildFocusContext() {
 
   const changes = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
-    if (!_isAICtx(catKey)) continue;
+    if (!focusCategoryInContext(data, catKey)) continue;
     for (const [, m] of Object.entries(cat.markers)) {
       const nonNull = m.values.filter(v => v !== null);
       if (nonNull.length < 2) continue;
@@ -188,8 +199,9 @@ export async function loadFocusCard(opts = {}) {
     }
     if (hasLens()) {
       const data = getActiveData();
-      const goals = (state.importedData.healthGoals || []).map(g => g.text).slice(0, 3).join('; ');
-      const flags = getAllFlaggedMarkers(data).slice(0, 5).map(f => f.name).join(', ');
+      const includeInsightCards = isInsightContextCardsEnabled();
+      const goals = includeInsightCards ? (state.importedData.healthGoals || []).map(g => g.text).slice(0, 3).join('; ') : '';
+      const flags = getFocusFlaggedMarkers(data).slice(0, 5).map(f => f.name).join(', ');
       const hint = [goals && 'Goals: ' + goals, flags && 'Flagged: ' + flags].filter(Boolean).join(' | ') || 'prioritize and summarize lab findings';
       const lensResult = await queryLens(hint);
       if (lensResult) ctx = injectLensChunks(ctx, lensResult);

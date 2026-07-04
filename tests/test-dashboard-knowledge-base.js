@@ -66,6 +66,7 @@ try {
   const lens = await import('../js/lens.js');
   const cards = await import('../js/context-cards.js');
   const contextCardsSrc = fs.readFileSync(new URL('../js/context-cards.js', import.meta.url), 'utf8');
+  const dashboardAISrc = fs.readFileSync(new URL('../js/context-card-dashboard-ai.js', import.meta.url), 'utf8');
   const { state } = await import('../js/state.js');
   _state = state;
 
@@ -214,6 +215,10 @@ try {
       /function updateChatContextStatus\(\)[\s\S]*?if \(!hasAIProvider\(\)\) \{[\s\S]*?status\.hidden = true;[\s\S]*?return;[\s\S]*?const contextState/.test(chatSrc));
     assert('chat header clears model before refreshing hidden context state in no-provider path',
       /if \(!hasAIProvider\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
+    assert('chat header reads Genome lookup status from Context source registry helper',
+      chatSrc.includes("import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';")
+      && /function isGenomeLookupContextActive\(\) \{[\s\S]{0,160}isContextSourceEnabled\(CONTEXT_SOURCE_IDS\.GENOME_INVENTORY\)/.test(chatSrc)
+      && !chatSrc.includes('labcharts-ai-ctx-genetics-inventory'));
 
     const appEventsSrc = fs.readFileSync('js/app-event-listeners.js', 'utf8');
     assert('global modal focus trap includes Context hub overlay id',
@@ -221,6 +226,26 @@ try {
     const lensSrc = fs.readFileSync('js/lens.js', 'utf8');
     assert('saveLensKey refreshes chat header after external KB key cache updates',
       /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModel\?\.\(\)/.test(lensSrc));
+    assert('Context hub owns optional AI data-source controls',
+      dashboardAISrc.includes('renderContextSourceControls')
+      && dashboardAISrc.includes('renderContextSourceSummary')
+      && dashboardAISrc.includes('context-source-affects')
+      && dashboardAISrc.includes('context-grounding-panel')
+      && dashboardAISrc.includes('getImportSnapshotProductLabel')
+      && dashboardAISrc.includes('hasInsightContextData')
+      && dashboardAISrc.includes("key: 'insight-cards'")
+      && dashboardAISrc.includes('hasSupplementsMedsData')
+      && dashboardAISrc.includes("key: 'supplements-meds'")
+      && dashboardAISrc.includes("key: 'lab-markers'")
+      && dashboardAISrc.includes("toggleKey: 'lab-group'")
+      && dashboardAISrc.includes('labStats.groups.map((group, index)')
+      && dashboardAISrc.includes('key: `lab-group-${index}-${group.name')
+      && dashboardAISrc.includes("key: 'genome-summary'")
+      && dashboardAISrc.includes("key: 'genome-priority'")
+      && dashboardAISrc.includes("key: 'light-sun'")
+      && dashboardAISrc.includes("key: 'body-wearables'")
+      && dashboardAISrc.includes("key: 'genome-lookup'")
+      && !dashboardAISrc.includes("key: 'body-regions'"));
   }
 
   // ─── 7. renderKnowledgeBaseSection still empty when not configured ───

@@ -257,14 +257,6 @@ function applySettingsToggle(actionEl) {
     settingsWindow.toggleAIPause?.(checked);
     return true;
   }
-  if (action === 'set-wearable-context') {
-    settingsWindow.setWearableContextEnabled?.(checked);
-    return true;
-  }
-  if (action === 'set-body-regions-context') {
-    settingsWindow.setBodyRegionsInAIContext?.(checked);
-    return true;
-  }
   if (action === 'toggle-pii-local') {
     toggleOllamaPII(checked);
     return true;
@@ -284,8 +276,6 @@ function isSettingsToggleAction(actionEl) {
   return actionEl.dataset.settingsAction === 'set-product-recs'
     || actionEl.dataset.settingsAction === 'set-debug-mode'
     || actionEl.dataset.settingsAction === 'toggle-ai-pause'
-    || actionEl.dataset.settingsAction === 'set-wearable-context'
-    || actionEl.dataset.settingsAction === 'set-body-regions-context'
     || actionEl.dataset.settingsAction === 'toggle-pii-local'
     || actionEl.dataset.settingsAction === 'toggle-pii-review'
     || actionEl.dataset.settingsAction === 'set-analytics';
@@ -855,31 +845,6 @@ export function openSettingsModal(tab) {
           <button class="ai-provider-btn${provider === 'ollama' ? ' active' : ''}" data-provider="ollama" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-3-8c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1z"/></svg> Local</button>
         </div>
         <div id="ai-provider-panel">${settingsWindow.renderAIProviderPanel(provider)}</div>
-      </div>
-
-      <div class="settings-group-title">AI Context</div>
-
-      <div class="settings-section" id="ai-context-section">
-        <div class="settings-action-row">
-          <div class="settings-copy">
-            <div class="settings-copy-title">Include wearable data</div>
-            <div class="settings-copy-desc">~200 tokens summarising HRV, sleep, recovery and trends from your connected wearables.</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="ai-ctx-wearables-toggle" ${settingsWindow.isWearableContextEnabled?.() ? 'checked' : ''} data-settings-action="set-wearable-context">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="settings-action-row">
-          <div class="settings-copy">
-            <div class="settings-copy-title">Share body regions in Sun &amp; Light context</div>
-            <div class="settings-copy-desc">Off by default. When on, specific anatomical regions you logged (face, chest, genitals…) are included in chat context and agent slices. Off keeps coverage fraction + preset names but strips the per-region anatomy.</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="ai-ctx-body-regions-toggle" ${settingsWindow.isBodyRegionsInAIContext?.() ? 'checked' : ''} data-settings-action="set-body-regions-context">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
       </div>
 
       <div class="settings-group-title">AI Usage</div>

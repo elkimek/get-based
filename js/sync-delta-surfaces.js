@@ -55,6 +55,10 @@ export const DELTA_MAPS = [
   'genetics.snps',
   // Singleton-per-day AI verdicts keyed by ISO date.
   'lightDailyVerdicts',
+  // Profile-scoped Context source preferences keyed by source slug. These
+  // affect Biology Score context review fingerprints, so they must travel
+  // with the synced review instead of living only in browser chrome storage.
+  'contextSourceSettings',
 ];
 
 // Singleton-shape importedData fields.

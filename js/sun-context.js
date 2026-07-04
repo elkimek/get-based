@@ -18,6 +18,7 @@ import {
   getRoomEveningHoursAfterSunset,
   roomUsesEveningAfterSunset,
 } from './light-env-evening.js';
+import { isLightSunContextEnabled } from './lab-context.js';
 
 const DEFAULT_TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
 
@@ -77,18 +78,10 @@ function _safeText(s, max = 80) {
 // ═══════════════════════════════════════════════
 // BODY REGIONS IN AI CONTEXT (per-profile, default OFF)
 // ═══════════════════════════════════════════════
-// Specific anatomical regions (face, breast-chest, genitals…) are the
-// most personally-identifying detail in a sun session. Sending them to a
-// non-E2EE AI provider (PPQ / Routstr / OpenRouter / Custom) without an
-// explicit consent gate would mean every chat that includes the standard-
-// tier session table — and every agent slice over getSunSessionsSlice() —
-// silently exfiltrates `regions: ['breast-chest','genitals',…]`.
-//
-// Default OFF. The chat session table renders preset names or a "—" when
-// disabled; agent slices project body summary (preset, fraction, sunscreen,
-// glassBetween) WITHOUT the regions array. Per-profile so each profile
-// keeps its own consent state — your "main" profile may opt in, a "Test"
-// profile stays off.
+// Legacy per-profile body-region preference. Context management now treats
+// body-region detail as part of Light & Sun, so AI projection follows the
+// Light & Sun source toggle instead. Keep these exports for older stored
+// preferences and tests that still call the public API.
 function _bodyRegionsCtxKey() {
   const pid = localStorage.getItem('labcharts-active-profile') || 'default';
   return `labcharts-${pid}-ai-include-body-regions`;
@@ -98,11 +91,13 @@ export function isBodyRegionsInAIContext() {
 }
 export function setBodyRegionsInAIContext(on) {
   localStorage.setItem(_bodyRegionsCtxKey(), on ? 'on' : 'off');
+  if (typeof window !== 'undefined') /** @type {any} */ (window).invalidateLabContextCache?.();
 }
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-export function buildSunContext({ tier = 'always' } = {}) {
+export function buildSunContext({ tier = 'always', ignoreContextToggles = false } = {}) {
+  if (!ignoreContextToggles && !isLightSunContextEnabled()) return '';
   const sessions = state.importedData?.sunSessions || [];
   const deviceSessions = state.importedData?.deviceSessions || [];
   // A user with only device sessions (winter PBM users, indoor SAD-
@@ -820,10 +815,10 @@ const _SLICE_ALL_FIELDS = ['date', 'duration', 'channels', 'safety', 'atmosphere
 // Project a sun session to a canonical, cap-bounded shape. `fields`
 // gates each section so callers (especially the agent) can ask for
 // just the columns they need. `body` is in the default set so the AI
-// can reason about coverage fraction + sunscreen + glass-between without
-// the user opting in — but the specific anatomical `regions` array is
-// stripped from the projected body unless the per-profile consent flag
-// (isBodyRegionsInAIContext) is set, even when `body` is requested.
+// can reason about coverage fraction + sunscreen + glass-between. The
+// specific anatomical `regions` array follows the broader Light & Sun
+// context source toggle, so disabling Light & Sun removes it along with
+// the rest of that source's AI context.
 // `location` (sub-11km coords) still stays off by default.
 function _projectSession(sess, fields) {
   const out = {};
@@ -861,10 +856,7 @@ function _projectSession(sess, fields) {
   }
   if (fields.includes('body') && sess.bodyExposure) {
     const b = sess.bodyExposure;
-    // Gate the regions[] array on the per-profile consent flag — preset +
-    // fraction + sunscreen still flow so the AI can reason about coverage,
-    // but the specific anatomy stays local until the user opts in.
-    const includeRegions = isBodyRegionsInAIContext();
+    const includeRegions = isLightSunContextEnabled();
     out.body = {
       preset: b.preset || null,
       fraction: b.fraction != null ? +b.fraction.toFixed(2) : null,
@@ -904,13 +896,14 @@ function _projectSession(sess, fields) {
 
 // Agent-callable. Returns a JSON-serialisable array of recent sun
 // sessions, projected to the requested fields, capped at `days` (max 90).
-// Default field set includes body summary (preset/fraction/sunscreen) but
-// strips the regions[] array unless the per-profile consent flag is set
-// (isBodyRegionsInAIContext). Location stays off by default.
+// Default field set includes body summary (preset/fraction/sunscreen). The
+// regions[] array follows the broader Light & Sun context toggle. Location
+// stays off by default.
 /**
  * @param {{ days?: number, fields?: string[], includeActive?: boolean }} [opts]
  */
 export function getSunSessionsSlice({ days = 30, fields, includeActive = false } = {}) {
+  if (!isLightSunContextEnabled()) return [];
   const sessions = state.importedData?.sunSessions || [];
   if (sessions.length === 0) return [];
   const cap = Math.max(1, Math.min(90, Math.floor(days)));
@@ -936,6 +929,7 @@ export function getSunSessionsSlice({ days = 30, fields, includeActive = false }
 // full field set (caller already named the row, so we serve everything
 // we have on it). Returns null when not found.
 export function getSunSessionDetail(id) {
+  if (!isLightSunContextEnabled()) return null;
   const sessions = state.importedData?.sunSessions || [];
   const sess = sessions.find(s => s.id === id);
   if (!sess) return null;

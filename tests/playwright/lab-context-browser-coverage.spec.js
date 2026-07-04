@@ -129,18 +129,136 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
             unknown_metric: { latest: 9, baseline: 6, trend30d: 'up', primarySource: 'manual' },
           },
         },
+        genetics: {
+          source: 'Coverage SNPs',
+          apoe: 'ε3/ε4',
+          snps: {
+            rs1801133: {
+              genotype: 'GA',
+              gene: 'MTHFR',
+              variant: 'C677T',
+              category: 'methylation',
+              effect: 'moderate',
+              valence: 'risk',
+              note: 'Reduced folate-cycle enzyme activity',
+              markers: ['coverage.ferritin'],
+            },
+            rs1800562: {
+              genotype: 'GG',
+              gene: 'HFE',
+              variant: 'C282Y',
+              category: 'iron',
+              effect: 'none',
+              valence: 'neutral',
+              note: 'No hemochromatosis risk from C282Y',
+              markers: ['iron.transferrinSat'],
+            },
+          },
+        },
       };
       window.buildSunContext = () => '[section:sun]\nSun context\n[/section:sun]\n\n';
       dataModule.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
 
+      labContext.setGroupInAIContext('specialty-coverage', false);
+      const groupDisabled = labContext.isGroupInAIContext('specialty-coverage') === false;
+      const groupSettingSyncedOff = state.importedData.contextSourceSettings?.['lab-group-specialty-coverage'] === false;
+      const groupProfile = localStorage.getItem('labcharts-active-profile');
+      const groupSettingsForProfile = state.importedData.contextSourceSettings;
+      state.importedData.contextSourceSettings = {};
+      localStorage.setItem('labcharts-active-profile', 'lab-context-other-profile');
+      const groupDefaultsOnInOtherProfile = labContext.isGroupInAIContext('specialty-coverage') === true;
+      localStorage.setItem('labcharts-active-profile', groupProfile || 'lab-context-browser-coverage');
+      state.importedData.contextSourceSettings = groupSettingsForProfile;
+      const groupScopedToProfile = labContext.isGroupInAIContext('specialty-coverage') === false;
+      localStorage.removeItem(`labcharts-${groupProfile || 'lab-context-browser-coverage'}-ai-ctx-lab-group-specialty-coverage`);
+      const groupProfileSettingControls = labContext.isGroupInAIContext('specialty-coverage') === false;
       labContext.setGroupInAIContext('specialty-coverage', true);
-      const groupEnabled = labContext.isGroupInAIContext('specialty-coverage') === true;
+      const groupEnabled = labContext.isGroupInAIContext('specialty-coverage') === true
+        && state.importedData.contextSourceSettings?.['lab-group-specialty-coverage'] === true;
+      labContext.setLabMarkersContextEnabled(false);
+      const labsOffContext = labContext.buildLabContext({ skipGroupFilter: false });
+      const labMarkersOff = labContext.isLabMarkersContextEnabled() === false
+        && labsOffContext.includes('Lab marker context is turned off')
+        && !labsOffContext.includes('Coverage Labs')
+        && !labsOffContext.includes('Flagged markers');
+      labContext.setLabMarkersContextEnabled(true);
+      const labMarkersOn = labContext.isLabMarkersContextEnabled() === true;
+      labContext.invalidateLabContextCache();
+      const directPreferenceBefore = labContext.buildLabContext({ skipGroupFilter: false });
+      state.importedData.contextSourceSettings = { ...(state.importedData.contextSourceSettings || {}), 'lab-markers': false };
+      const directPreferenceAfter = labContext.buildLabContext({ skipGroupFilter: false });
+      outcomes.directContextPreferenceChangesBreakLabContextCache =
+        directPreferenceBefore.includes('Coverage Labs')
+        && directPreferenceAfter.includes('Lab marker context is turned off')
+        && !directPreferenceAfter.includes('Coverage Labs');
+      labContext.setLabMarkersContextEnabled(true);
+      labContext.invalidateLabContextCache();
+      const directGroupPreferenceBefore = labContext.buildLabContext({ skipGroupFilter: false });
+      state.importedData.contextSourceSettings = { ...(state.importedData.contextSourceSettings || {}), 'lab-group-specialty-coverage': false };
+      const directGroupPreferenceAfter = labContext.buildLabContext({ skipGroupFilter: false });
+      outcomes.directGroupContextPreferenceChangesBreakLabContextCache =
+        directGroupPreferenceBefore.includes('Coverage Labs')
+        && !directGroupPreferenceAfter.includes('Coverage Labs');
+      labContext.setGroupInAIContext('specialty-coverage', true);
       labContext.setWearableContextEnabled(false);
       const wearableOff = labContext.isWearableContextEnabled() === false
         && await labContext.buildWearableSeriesSection(7) === '';
       labContext.setWearableContextEnabled(true);
       const wearableOn = labContext.isWearableContextEnabled() === true;
+      const bodyContextSynced = state.importedData.biologyScoreContextSettings?.includeBodyContext === true;
+      labContext.setInsightContextCardsEnabled(false);
+      labContext.setSupplementsMedsContextEnabled(true);
+      const insightOffSupplementsOnContext = labContext.buildLabContext({ skipGroupFilter: false });
+      const supplementsIndependentFromInsightCards =
+        labContext.isInsightContextCardsEnabled() === false
+        && labContext.isSupplementsMedsContextEnabled() === true
+        && insightOffSupplementsOnContext.includes('Magnesium')
+        && !insightOffSupplementsOnContext.includes('Medical History / Diagnoses');
+      labContext.setSupplementsMedsContextEnabled(false);
+      const supplementsOffContext = labContext.buildLabContext({ skipGroupFilter: false });
+      const supplementsMedsToggleOff =
+        labContext.isSupplementsMedsContextEnabled() === false
+        && !supplementsOffContext.includes('Magnesium');
+      labContext.setInsightContextCardsEnabled(true);
+      labContext.setSupplementsMedsContextEnabled(true);
+      labContext.setLightSunContextEnabled(false);
+      const lightContextOff = labContext.isLightSunContextEnabled() === false
+        && state.importedData.biologyScoreContextSettings?.includeLightContext === false
+        && !labContext.buildLabContext({ skipGroupFilter: false }).includes('[section:sun]');
+      labContext.setLightSunContextEnabled(true);
+      const lightContextOn = labContext.isLightSunContextEnabled() === true
+        && state.importedData.biologyScoreContextSettings?.includeLightContext === true;
+      labContext.setGeneticsInventoryInAIContext(false);
+      const geneticsInventoryOff = labContext.isGeneticsInventoryInAIContext() === false;
+      labContext.setGroupInAIContext('specialty-coverage', false);
+      labContext.setLabMarkersContextEnabled(false);
+      labContext.setInsightContextCardsEnabled(false);
+      labContext.setSupplementsMedsContextEnabled(false);
+      labContext.setLightSunContextEnabled(false);
+      labContext.setWearableContextEnabled(false);
+      labContext.setGeneticsSummaryInAIContext(false);
+      labContext.setGeneticsPriorityInAIContext(false);
+      labContext.setGeneticsInventoryInAIContext(false);
+      const agentAccessContext = labContext.buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true });
+      outcomes.agentAccessContextIgnoresContextToggles =
+        agentAccessContext.includes('Coverage Labs')
+        && agentAccessContext.includes('Medical History / Diagnoses')
+        && agentAccessContext.includes('Magnesium')
+        && agentAccessContext.includes('APOE:')
+        && agentAccessContext.includes('Imported SNP inventory for lookup')
+        && agentAccessContext.includes('HFE C282Y rs1800562: GG (neutral, Iron)')
+        && agentAccessContext.includes('[section:wearables]')
+        && agentAccessContext.includes('[section:sun]');
+      labContext.setGroupInAIContext('specialty-coverage', true);
+      labContext.setLabMarkersContextEnabled(true);
+      labContext.setInsightContextCardsEnabled(true);
+      labContext.setSupplementsMedsContextEnabled(true);
+      labContext.setLightSunContextEnabled(true);
+      labContext.setWearableContextEnabled(true);
+      labContext.setGeneticsSummaryInAIContext(true);
+      labContext.setGeneticsPriorityInAIContext(true);
+      labContext.setGeneticsInventoryInAIContext(false);
 
       const withLensBlock = labContext.injectLensChunks(
         '[section:interpretiveLens]\n## Interpretive Lens\nExisting lens\n[/section:interpretiveLens]\n\nBody',
@@ -213,14 +331,33 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && seriesBlock.includes('same scale');
 
       labContext.setWearableContextEnabled(true);
+      const contextWithoutGeneticsInventory = labContext.buildLabContext({ skipGroupFilter: false });
+      labContext.setGeneticsSummaryInAIContext(false);
+      const geneticsSummaryOffContext = labContext.buildLabContext({ skipGroupFilter: false });
+      const geneticsSummaryOff = labContext.isGeneticsSummaryInAIContext() === false
+        && !geneticsSummaryOffContext.includes('APOE:')
+        && geneticsSummaryOffContext.includes('MTHFR C677T');
+      labContext.setGeneticsSummaryInAIContext(true);
+      labContext.setGeneticsPriorityInAIContext(false);
+      const geneticsPriorityOffContext = labContext.buildLabContext({ skipGroupFilter: false });
+      const geneticsPriorityOff = labContext.isGeneticsPriorityInAIContext() === false
+        && geneticsPriorityOffContext.includes('APOE:')
+        && !geneticsPriorityOffContext.includes('MTHFR C677T');
+      labContext.setGeneticsPriorityInAIContext(true);
+      labContext.setGeneticsInventoryInAIContext(true);
+      const geneticsInventoryOn = labContext.isGeneticsInventoryInAIContext() === true;
       const context = labContext.buildLabContext({ skipGroupFilter: false });
       const summary = labContext.getContextSummary();
-      outcomes.groupAndWearableTogglesAreApplied = groupEnabled && wearableOff && wearableOn;
-      outcomes.buildLabContextIncludesSpecialtyLabsAndDiffs =
-        context.includes('Coverage Labs')
-        && context.includes('Context Change Timeline')
-        && context.includes('changed')
-        && context.includes('added: Added goal');
+      outcomes.groupWearableAndGeneticsTogglesAreApplied = groupDisabled && groupSettingSyncedOff && groupEnabled && groupDefaultsOnInOtherProfile && groupScopedToProfile && groupProfileSettingControls && labMarkersOff && labMarkersOn && wearableOff && wearableOn && bodyContextSynced && supplementsIndependentFromInsightCards && supplementsMedsToggleOff && lightContextOff && lightContextOn && geneticsInventoryOff && geneticsSummaryOff && geneticsPriorityOff && geneticsInventoryOn;
+      outcomes.geneticsInventoryToggleControlsNormalSnpContext =
+        !contextWithoutGeneticsInventory.includes('Imported SNP inventory for lookup')
+        && !contextWithoutGeneticsInventory.includes('HFE C282Y')
+        && context.includes('Imported SNP inventory for lookup')
+        && context.includes('HFE C282Y rs1800562: GG (neutral, Iron)');
+      outcomes.buildLabContextIncludesSpecialtyLabs = context.includes('Coverage Labs');
+      outcomes.buildLabContextIncludesChangeTimeline = context.includes('Context Change Timeline');
+      outcomes.buildLabContextIncludesDietDiff = context.includes('type: Standard') && context.includes('Mediterranean');
+      outcomes.buildLabContextIncludesAddedGoalDiff = context.includes('added: Added goal');
       outcomes.buildLabContextIncludesWearablesAndSunHook =
         context.includes('[section:wearables]')
         && context.includes('[section:sun]');

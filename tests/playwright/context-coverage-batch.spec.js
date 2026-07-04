@@ -462,13 +462,14 @@ test('context health dots and focus card cover cache fallback and empty states',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ healthUrl, focusUrl }) => {
-    const [{ state }, health, focus, summaries, profile, data] = await Promise.all([
+    const [{ state }, health, focus, summaries, profile, data, labContext] = await Promise.all([
       import('/js/state.js'),
       import(healthUrl),
       import(focusUrl),
       import('/js/context-card-summaries.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
+      import('/js/lab-context.js'),
     ]);
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -478,6 +479,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
+      activeProfile: localStorage.getItem('labcharts-active-profile'),
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       openRouterKey: localStorage.getItem('labcharts-openrouter-key'),
@@ -613,6 +615,8 @@ test('context health dots and focus card cover cache fallback and empty states',
       state.profileSex = 'male';
       state.profileDob = '1988-01-01';
       state.currentProfile = 'context-focus-profile';
+      localStorage.setItem('labcharts-active-profile', state.currentProfile);
+      labContext.setLabMarkersContextEnabled(true);
       data.invalidateActiveDataCache();
       const focusCacheKey = profile.profileStorageKey(state.currentProfile, 'focusCard');
       cacheKeys.push(focusCacheKey);
@@ -629,10 +633,16 @@ test('context health dots and focus card cover cache fallback and empty states',
       if (renderedFocusBody) document.getElementById('focus-card-body')?.replaceWith(renderedFocusBody);
       await focus.loadFocusCard({ refreshStale: false });
       outcomes.loadFocusCardKeepsFreshCachedText = document.getElementById('focus-card-body')?.textContent.includes('ApoB is the priority') === true;
+      labContext.setLabMarkersContextEnabled(false);
+      const focusContextOff = focus.buildFocusContext();
+      labContext.setLabMarkersContextEnabled(true);
       const focusContext = focus.buildFocusContext();
       outcomes.buildFocusContextIncludesProfileGoalsAndFlags = typeof focusContext === 'string'
         && focusContext.includes('Profile: male')
         && focusContext.includes('Goals: major: Improve insulin sensitivity')
+        && focusContext.includes('Flagged');
+      outcomes.buildFocusContextRespectsLabSourceToggle = focusContextOff === null
+        && typeof focusContext === 'string'
         && focusContext.includes('Flagged');
 
       localStorage.removeItem(focusCacheKey);
@@ -709,6 +719,8 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-openrouter-key', saved.openRouterKey);
       if (saved.ollamaModel == null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
+      if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
+      else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
       window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;

@@ -95,8 +95,6 @@ function handleNavActionClick(event) {
     appWindow.openCreateMarkerModal?.();
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
-  } else if (action === 'toggle-group-ai') {
-    toggleGroupAIContext(actionEl.dataset.navGroup || '');
   } else if (action === 'open-client-list') {
     window.openClientList?.();
   } else {
@@ -302,20 +300,13 @@ export function buildSidebar(data) {
     const flagHtml = group.totalFlagged > 0
       ? `<span class="flag-count">${group.totalFlagged}</span>`
       : '';
-    const appWindow = /** @type {any} */ (window);
-    const aiOn = appWindow.isGroupInAIContext && appWindow.isGroupInAIContext(groupName);
-    // axe nested-interactive: the AI toggle button cannot live inside an
-    // interactive parent. Disclosure is now its own <button>; AI toggle
-    // is a sibling, not a descendant. Arrow is also a sibling (decorative
-    // span, aria-hidden) AFTER the AI toggle — restores the original
-    // [label flag] [AI] [arrow] visual order. Sighted users still see
-    // the rotation cue; keyboard users use the toggle button.
+    // Disclosure is its own button so group headers stay accessible while the
+    // sidebar remains navigation-only. AI inclusion now lives in Context.
     html += `<div class="sidebar-group-header${collapsed ? ' collapsed' : ''}" data-group-name="${escapeAttr(groupName)}" ${_navActionAttrs('toggle-group', { group: groupName })}>
       <button class="sidebar-group-toggle" ${_navActionAttrs('toggle-group', { group: groupName })} aria-expanded="${!collapsed}" aria-label="${escapeAttr(groupName)} group">
         <span class="sidebar-group-label">${escapeHTML(groupName)}</span>
         ${flagHtml}
       </button>
-      <button class="sidebar-ai-toggle${aiOn ? ' active' : ''}" title="${aiOn ? 'Included in AI context' : 'Excluded from AI context — click to include'}" ${_navActionAttrs('toggle-group-ai', { group: groupName })} aria-label="Toggle AI context for ${escapeHTML(groupName)}">AI</button>
       <span class="sidebar-group-arrow" aria-hidden="true">\u25B8</span>
     </div>`;
     html += `<div class="sidebar-group-items" data-group-items="${escapeAttr(groupName)}"${collapsed ? ' style="display:none"' : ''}>`;
@@ -329,17 +320,6 @@ export function buildSidebar(data) {
 
 function _getGroupCollapsed(groupName) {
   try { return localStorage.getItem(`labcharts-navgroup-${groupName}`) === 'collapsed'; } catch(e) { return false; }
-}
-
-export function toggleGroupAIContext(groupName) {
-  const appWindow = /** @type {any} */ (window);
-  const isOn = appWindow.isGroupInAIContext && appWindow.isGroupInAIContext(groupName);
-  appWindow.setGroupInAIContext(groupName, !isOn);
-  const btn = /** @type {HTMLElement | null} */ (_findGroupHeader(groupName)?.querySelector('.sidebar-ai-toggle') || null);
-  if (btn) {
-    btn.classList.toggle('active', !isOn);
-    btn.title = !isOn ? 'Included in AI context' : 'Excluded from AI context — click to include';
-  }
 }
 
 export function toggleNavGroup(groupName) {
@@ -460,4 +440,4 @@ export function closeMobileSidebar() {
   closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, toggleGroupAIContext, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });
+Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });

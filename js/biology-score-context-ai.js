@@ -2,6 +2,15 @@
 // biology-score-context-ai.js — AI-assisted context flag review for deterministic Biology Scores.
 
 import { filterDatesByRange, saveImportedData } from './data.js';
+import {
+  isGeneticsPriorityInAIContext,
+  isGeneticsSummaryInAIContext,
+  isInsightContextCardsEnabled,
+  isLabMarkersContextEnabled,
+  isLightSunContextEnabled,
+  isSupplementsMedsContextEnabled,
+  isWearableContextEnabled,
+} from './lab-context.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString } from './utils.js';
 
@@ -44,9 +53,21 @@ function safeCondition(item) {
 }
 
 function geneticsSummary(imported) {
+  const includeSummary = isGeneticsSummaryInAIContext();
+  const includePriority = isGeneticsPriorityInAIContext();
+  if (!includeSummary && !includePriority) return null;
   const genetics = imported?.genetics || null;
-  const snps = genetics?.snps || {};
+  const snps = includePriority ? (genetics?.snps || {}) : {};
   if (!genetics && !Object.keys(snps).length) return null;
+  const out = {};
+  if (includeSummary) {
+    const source = safeContextText(genetics?.source, 80);
+    const apoe = safeContextText(genetics?.apoe, 40);
+    const mtdna = safeContextText(genetics?.mtdna || genetics?.mtDNA || genetics?.mtdnaHaplogroup || genetics?.mtDnaHaplogroup, 40);
+    if (source) out.source = source;
+    if (apoe) out.apoe = apoe;
+    if (mtdna) out.mtdna = mtdna;
+  }
   const categories = {};
   for (const stored of Object.values(snps)) {
     const effect = String(stored?.effect || '').toLowerCase();
@@ -55,23 +76,31 @@ function geneticsSummary(imported) {
     const cat = stored?.category || 'other';
     categories[cat] = (categories[cat] || 0) + 1;
   }
-  return { source: safeContextText(genetics?.source, 80), apoe: safeContextText(genetics?.apoe, 40), snpCount: Object.keys(snps).length, categories };
+  if (includePriority && Object.keys(snps).length) {
+    out.snpCount = Object.keys(snps).length;
+    out.categories = categories;
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function lightSummary(imported) {
+  const includeLightContext = isLightSunContextEnabled();
+  if (!includeLightContext) return { includeLightContext: false };
   return {
     lightCircadian: safeStructuredContext(imported?.lightCircadian, ['morningLight','daylight','eveningLight','screenUse','notes'], 120),
     sunSessions14d: Array.isArray(imported?.sunSessions) ? imported.sunSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
     deviceSessions14d: Array.isArray(imported?.deviceSessions) ? imported.deviceSessions.filter(s => Number(s?.endedAt || s?.startedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
     measurements14d: Array.isArray(imported?.lightMeasurements) ? imported.lightMeasurements.filter(m => Number(m?.capturedAt || 0) >= Date.now() - 14 * 86400000).length : 0,
-    includeLightContext: imported?.biologyScoreContextSettings?.includeLightContext !== false,
+    includeLightContext,
   };
 }
 
 function bodySummary(imported) {
+  const includeBodyContext = isWearableContextEnabled();
+  if (!includeBodyContext) return { includeBodyContext: false };
   const metrics = imported?.wearableSummary?.metrics || {};
   const pick = key => metrics[key] ? { d7: metrics[key].rolling?.d7, baseline: metrics[key].baseline, p25: metrics[key].baselineP25, p75: metrics[key].baselineP75 } : null;
-  return { includeBodyContext: imported?.biologyScoreContextSettings?.includeBodyContext !== false, hrv: pick('hrv_rmssd'), rhr: pick('rhr'), sleep: pick('sleep_score'), readiness: pick('readiness_score') };
+  return { includeBodyContext, hrv: pick('hrv_rmssd'), rhr: pick('rhr'), sleep: pick('sleep_score'), readiness: pick('readiness_score') };
 }
 
 function supplementsSummary(imported) {
@@ -90,35 +119,54 @@ function latest(data, cat, key) {
   return `${m.name || key}: ${m.values[idx]}${m.unit ? ` ${m.unit}` : ''} (${data?.dates?.[idx] || m.singleDate || 'date unknown'})`;
 }
 
-export function buildBiologyScoreContextFingerprint(data, range = state.dateRangeFilter || 'all') {
-  const imported = /** @type {any} */ (state.importedData || {});
-  const diagnoses = imported.diagnoses || {};
+const BIOLOGY_CONTEXT_LABS = [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']];
+
+function recentContextLabs(data) {
+  if (!isLabMarkersContextEnabled()) return [];
   const labs = [];
-  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c, k]) => {
+  BIOLOGY_CONTEXT_LABS.forEach(([c, k]) => {
     const v = latest(data, c, k);
     if (v) labs.push(v);
   });
+  return labs;
+}
+
+function buildInsightContextPayload(imported) {
+  const includeInsightCards = isInsightContextCardsEnabled();
+  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
+  const diagnoses = includeInsightCards ? (imported?.diagnoses || {}) : {};
+  return {
+    includeInsightCards,
+    includeSupplementsMeds,
+    currentExplicitFlags: includeInsightCards ? (diagnoses.flags || {}) : {},
+    diagnoses: includeInsightCards && Array.isArray(diagnoses.conditions) ? diagnoses.conditions.slice(0, 20).map(safeCondition).filter(Boolean) : [],
+    medicalNote: includeInsightCards ? safeContextText(diagnoses.note, 240) : '',
+    contextNotes: includeInsightCards ? safeContextText(imported?.contextNotes, 240) : '',
+    exercise: includeInsightCards ? safeStructuredContext(imported?.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140) : {},
+    sleepRest: includeInsightCards ? safeStructuredContext(imported?.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140) : {},
+    stress: includeInsightCards ? safeStructuredContext(imported?.stress, ['level','workload','recovery','majorStressors','notes'], 140) : {},
+    diet: includeInsightCards ? safeStructuredContext(imported?.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100) : {},
+    environment: includeInsightCards ? safeStructuredContext(imported?.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120) : {},
+    healthGoals: includeInsightCards && Array.isArray(imported?.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
+    menstrualCycle: includeInsightCards ? safeStructuredContext(imported?.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140) : {},
+    supplements: includeSupplementsMeds ? supplementsSummary(imported) : [],
+  };
+}
+
+export function buildBiologyScoreContextFingerprint(data, range = state.dateRangeFilter || 'all') {
+  const imported = /** @type {any} */ (state.importedData || {});
+  const insight = buildInsightContextPayload(imported);
+  const labs = recentContextLabs(data);
   const basis = JSON.stringify({
     range,
     dates: data?.dates || [],
     profileSex: state.profileSex || '',
     profileDob: state.profileDob || '',
-    flags: diagnoses.flags || {},
-    diagnoses: Array.isArray(diagnoses.conditions) ? diagnoses.conditions.slice(0, 20).map(safeCondition).filter(Boolean) : [],
-    note: safeContextText(diagnoses.note, 240),
-    contextNotes: safeContextText(imported.contextNotes, 240),
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
-    exercise: safeStructuredContext(imported.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140),
-    sleepRest: safeStructuredContext(imported.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140),
+    insight,
     light: lightSummary(imported),
-    stress: safeStructuredContext(imported.stress, ['level','workload','recovery','majorStressors','notes'], 140),
-    diet: safeStructuredContext(imported.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100),
-    environment: safeStructuredContext(imported.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120),
-    healthGoals: Array.isArray(imported.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
     genetics: geneticsSummary(imported),
     body: bodySummary(imported),
-    menstrualCycle: safeStructuredContext(imported.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140),
-    supplements: supplementsSummary(imported),
     labs,
   });
   return `biology-context:${hashString(basis)}`;
@@ -144,33 +192,18 @@ export function buildBiologyScoreContextFingerprintsByRange(rawData) {
 
 export function buildBiologyScoreContextMaterialSignature(data, range = state.dateRangeFilter || 'all') {
   const imported = /** @type {any} */ (state.importedData || {});
-  const diagnoses = imported.diagnoses || {};
-  const labs = [];
-  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c, k]) => {
-    const v = latest(data, c, k);
-    if (v) labs.push(v);
-  });
+  const insight = buildInsightContextPayload(imported);
+  const labs = recentContextLabs(data);
   const basis = JSON.stringify({
     range,
     dates: data?.dates || [],
     profileSex: state.profileSex || '',
     profileDob: state.profileDob || '',
-    flags: diagnoses.flags || {},
-    diagnoses: Array.isArray(diagnoses.conditions) ? diagnoses.conditions.slice(0, 20).map(safeCondition).filter(Boolean) : [],
-    note: safeContextText(diagnoses.note, 240),
-    contextNotes: safeContextText(imported.contextNotes, 240),
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
-    exercise: safeStructuredContext(imported.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140),
-    sleepRest: safeStructuredContext(imported.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140),
+    insight,
     light: lightSummary(imported),
-    stress: safeStructuredContext(imported.stress, ['level','workload','recovery','majorStressors','notes'], 140),
-    diet: safeStructuredContext(imported.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100),
-    environment: safeStructuredContext(imported.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120),
-    healthGoals: Array.isArray(imported.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
     genetics: geneticsSummary(imported),
     body: bodySummary(imported),
-    menstrualCycle: safeStructuredContext(imported.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140),
-    supplements: supplementsSummary(imported),
     labs,
   });
   return `biology-context-material:${hashString(basis)}`;
@@ -210,29 +243,17 @@ export function hasBiologyScoreContextReview(data = null) {
 
 function buildReviewContext(data) {
   const imported = /** @type {any} */ (state.importedData || {});
-  const diagnoses = imported.diagnoses || {};
+  const insight = buildInsightContextPayload(imported);
   const context = {
     profileSex: state.profileSex || 'not set',
     profileDob: state.profileDob || 'not set',
-    currentExplicitFlags: diagnoses.flags || {},
-    diagnoses: Array.isArray(diagnoses.conditions) ? diagnoses.conditions.slice(0, 20).map(safeCondition).filter(Boolean) : [],
-    medicalNote: safeContextText(diagnoses.note, 240),
-    contextNotes: safeContextText(imported.contextNotes, 240),
     interpretiveLens: safeContextText(imported.interpretiveLens, 240),
-    exercise: safeStructuredContext(imported.exercise, ['activityLevel','trainingLoad','recentHardTraining','lastWorkout','notes','injury','mobility'], 140),
-    sleepRest: safeStructuredContext(imported.sleepRest, ['quality','duration','schedule','chronotype','wakeTime','bedTime','notes'], 140),
+    insight,
     light: lightSummary(imported),
-    stress: safeStructuredContext(imported.stress, ['level','workload','recovery','majorStressors','notes'], 140),
-    diet: safeStructuredContext(imported.diet, ['type','pattern','restrictions','breakfast','lunch','dinner','notes'], 100),
-    environment: safeStructuredContext(imported.environment, ['outdoorTime','sun','toxins','mold','airQuality','notes'], 120),
-    healthGoals: Array.isArray(imported.healthGoals) ? imported.healthGoals.slice(0, 12).map(item => safeContextText(typeof item === 'object' ? JSON.stringify(item) : item, 140)) : [],
     genetics: geneticsSummary(imported),
     body: bodySummary(imported),
-    menstrualCycle: safeStructuredContext(imported.menstrualCycle, ['status','phase','cycleDay','regularity','contraception','hormoneTherapy','notes'], 140),
-    supplements: supplementsSummary(imported),
-    recentLabs: [],
+    recentLabs: recentContextLabs(data),
   };
-  [['biochemistry','creatinine'], ['biochemistry','egfr'], ['biochemistry','eGFR'], ['biochemistry','cystatinC'], ['proteins','hsCRP'], ['proteins','crp'], ['hematology','hemoglobin'], ['hematology','hct'], ['biochemistry','ck'], ['hormones','testosterone'], ['hormones','estradiol'], ['hormones','shbg']].forEach(([c,k]) => { const v = latest(data, c, k); if (v) context.recentLabs.push(v); });
   return `[section:untrusted-profile-context]\n${JSON.stringify(context, null, 2)}\n[/section:untrusted-profile-context]`;
 }
 

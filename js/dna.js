@@ -709,15 +709,20 @@ function _geneticsStalenessHint(genetics) {
 // CONTEXT ASSEMBLY
 // ═══════════════════════════════════════════════
 
-// Build genetics context string for AI — only non-"none" effects, relevant to current markers
-export function buildGeneticsContext(genetics, activeMarkerKeys) {
+// Build genetics context string for AI. Priority findings stay limited to
+// effectful/protective SNPs relevant to current markers; callers can opt into
+// a compact all-imported-SNP inventory for lookup questions.
+export function buildGeneticsContext(genetics, activeMarkerKeys, options = {}) {
   if (!genetics) return '';
-  if (!genetics.snps && !genetics.mtdna) return '';
+  if (!genetics.snps && !genetics.mtdna && !genetics.apoe) return '';
 
   const lines = [];
+  const includeGenomeSummary = options.includeGenomeSummary !== false;
+  const includePriorityFindings = options.includePriorityFindings !== false;
+  const includeSnpInventory = options.includeSnpInventory === true;
 
   // mtDNA haplogroup — always include when present
-  if (genetics.mtdna) {
+  if (includeGenomeSummary && genetics.mtdna) {
     const mt = genetics.mtdna;
     const cLabel = mt.coupling ? mt.coupling.label : 'coupling unknown';
     lines.push(`mtDNA Haplogroup: ${mt.haplogroup} (${cLabel})`);
@@ -733,25 +738,47 @@ export function buildGeneticsContext(genetics, activeMarkerKeys) {
   }
 
   // APOE haplotype — always include
-  if (genetics.apoe) {
+  if (includeGenomeSummary && genetics.apoe) {
     lines.push(`APOE: ${genetics.apoe}`);
   }
 
-  // Group SNPs by functional category — skip raw APOE component SNPs
-  // (haplotype shown instead). Prefer catalog metadata when loaded, but fall
-  // back to stored metadata so AI context still preserves categories from
-  // imported/exported profile data before the catalog cache is ready.
+  // Group priority SNP findings by functional category. When opted in, the
+  // compact inventory below lists every imported catalog call so chat can
+  // confirm a normal/neutral SNP exists instead of treating it as missing data.
   const snpTable = _snpTable;
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   const byCategory = {};
+  const inventory = [];
+  const impactLabelFor = (effect, valence) => {
+    if (valence === 'protective') return 'beneficial';
+    if (valence === 'neutral') return effect && effect !== 'none' ? `neutral/${effect}` : 'neutral';
+    if (effect === 'significant' || effect === 'moderate' || effect === 'mild') return `${effect} risk`;
+    if (effect === 'none') return 'normal/no impact';
+    return 'unclassified';
+  };
   for (const [rsid, stored] of Object.entries(genetics.snps || {})) {
-    if (genetics.apoe && apoeRsids.has(rsid)) continue; // haplotype covers these
     const entry = snpTable?.[rsid];
     const genotypeInfo = entry ? findGenotypeInfo(entry, stored.genotype) : {
       effect: stored.effect,
       note: stored.note,
       valence: stored.valence,
     };
+    const cat = entry?.category || stored.category || 'other';
+    const gene = stored.gene || entry?.gene || rsid;
+    const variant = stored.variant || entry?.variant || '';
+    const genotype = stored.genotype || '?';
+    const effect = genotypeInfo?.effect || stored.effect || '';
+    const valence = genotypeInfo?.valence || stored.valence || '';
+    const apoeComponent = genetics.apoe && apoeRsids.has(rsid);
+    if (includeSnpInventory) {
+      const componentLabel = apoeComponent ? ', APOE component' : '';
+      inventory.push(`${gene}${variant ? ' ' + variant : ''} ${rsid}: ${genotype} (${impactLabelFor(effect, valence)}, ${getSnpCategoryLabel(cat)}${componentLabel})`);
+    }
+
+    // APOE component SNPs are not detailed as separate findings when the
+    // combined haplotype is available; the optional inventory can still expose
+    // the raw imported calls for lookup/confirmation.
+    if (!includePriorityFindings || apoeComponent) continue;
     if (!genotypeInfo || (genotypeInfo.effect === 'none' && genotypeInfo.valence !== 'protective')) continue;
 
     // Filter to SNPs relevant to active markers (if provided)
@@ -761,13 +788,15 @@ export function buildGeneticsContext(genetics, activeMarkerKeys) {
       if (!hasRelevantMarker) continue;
     }
 
-    const cat = entry?.category || stored.category || 'other';
     if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(`${stored.gene} ${stored.variant}: ${stored.genotype} — ${genotypeInfo.note}`);
+    byCategory[cat].push(`${gene} ${variant}: ${genotype} — ${genotypeInfo.note}`);
   }
 
   for (const [cat, entries] of Object.entries(byCategory)) {
     lines.push(`${getSnpCategoryLabel(cat)} (${entries.length}): ${entries.join('; ')}`);
+  }
+  if (includeSnpInventory && inventory.length > 0) {
+    lines.push(`Imported SNP inventory for lookup (normal/no-impact calls are stored but not priority findings): ${inventory.join('; ')}`);
   }
 
   if (lines.length === 0) return '';
@@ -780,7 +809,7 @@ export function buildGeneticsContext(genetics, activeMarkerKeys) {
 
 // Full genetics dump for when user explicitly asks about genetics
 export function buildFullGeneticsContext(genetics) {
-  return buildGeneticsContext(genetics, null); // no marker filter = include all non-none
+  return buildGeneticsContext(genetics, null, { includeSnpInventory: true });
 }
 
 // ═══════════════════════════════════════════════

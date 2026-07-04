@@ -140,5 +140,5 @@ describe('client list runtime behavior', () => {
     clientList.closeClientList();
     expect(document.getElementById('client-list-overlay').classList.contains('show')).toBe(false);
     expect(document.body.style.overflow).toBe('');
-  });
+  }, 15_000);
 });

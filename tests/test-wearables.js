@@ -2159,9 +2159,9 @@ const syncSrc = await fetch('/js/sync-messenger.js').then(r => r.text());
 assert('pushContextToGateway reads seriesDays from getAgentWearableSeriesDays',
   /seriesDays\s*=\s*getAgentWearableSeriesDays\(\)/.test(syncSrc));
 assert('pushContextToGateway awaits buildWearableSeriesSection(seriesDays)',
-  /buildWearableSeriesSection\(seriesDays\)/.test(syncSrc));
+  /buildWearableSeriesSection\(seriesDays,\s*\{\s*ignoreContextToggles:\s*true\s*\}\)/.test(syncSrc));
 assert('pushContextToGateway swallows series errors (.catch → empty string)',
-  /buildWearableSeriesSection\(seriesDays\)\.catch\(\(\)\s*=>\s*''\)/.test(syncSrc));
+  /buildWearableSeriesSection\(seriesDays,\s*\{\s*ignoreContextToggles:\s*true\s*\}\)\.catch\(\(\)\s*=>\s*''\)/.test(syncSrc));
 assert('pushContextToGateway skips series build entirely when seriesDays === 0',
   /seriesDays\s*>\s*0[\s\S]{0,80}buildWearableSeriesSection/.test(syncSrc));
 assert('Series block is appended AFTER baseContext, not replacing it',

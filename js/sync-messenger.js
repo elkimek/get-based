@@ -503,7 +503,7 @@ export function pushContextToGateway() {
         return;
       }
       const { buildLabContext, buildWearableSeriesSection, getAgentWearableSeriesDays } = await import('./lab-context.js');
-      const baseContext = buildLabContext({ skipGroupFilter: true });
+      const baseContext = buildLabContext({ skipGroupFilter: true, ignoreContextToggles: true });
       // Optional wearable daily-series section - user picks 0 (off) / 7 /
       // 30 / 90 days in Settings -> Agent Access. Reads L1 IDB on the
       // browser. Before anything touches the relay, encrypt the rendered
@@ -512,7 +512,7 @@ export function pushContextToGateway() {
       // Append AFTER the rest so the section parser treats it as a sibling.
       const seriesDays = getAgentWearableSeriesDays();
       const seriesBlock = seriesDays > 0
-        ? await buildWearableSeriesSection(seriesDays).catch(() => '')
+        ? await buildWearableSeriesSection(seriesDays, { ignoreContextToggles: true }).catch(() => '')
         : '';
       const context = seriesBlock ? `${baseContext}\n${seriesBlock}\n` : baseContext;
       const encryptedContext = await encryptAgentContextForRelay(context, contextKey, profileId);

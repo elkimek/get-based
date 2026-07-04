@@ -366,14 +366,24 @@ assert('Full context includes GENETICS header', fullCtx.startsWith('GENETICS (')
 assert('Full context includes APOE', fullCtx.includes('APOE: ε3/ε4'));
 assert('Full context labels MTHFR under Methylation category', fullCtx.includes('Methylation') && fullCtx.includes('MTHFR C677T'));
 assert('Full context includes MTHFR', fullCtx.includes('MTHFR C677T'));
-assert('Full context excludes none-effect SNPs', !fullCtx.includes('Normal MTHFR'));
-assert('Full context excludes APOE component SNPs', !fullCtx.includes('APOE-part1'));
+assert('Full context includes compact SNP inventory for lookup', fullCtx.includes('Imported SNP inventory for lookup'));
+assert('Full context includes normal SNPs only in compact inventory', fullCtx.includes('HFE C282Y rs1800562: GG (normal/no impact') && !fullCtx.includes('No hemochromatosis risk from C282Y'));
+assert('Full context includes APOE component SNPs only as lookup inventory', fullCtx.includes('APOE APOE-part1 rs429358') && fullCtx.includes('APOE component') && !fullCtx.includes('APOE part 1 — one ε4 allele possible'));
 
 // Filtered context — only SNPs relevant to specific markers
 const filteredCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine']);
 assert('Filtered context includes MTHFR (maps to homocysteine)', filteredCtx.includes('MTHFR'));
 assert('Filtered context excludes FADS1 (not in filter)', !filteredCtx.includes('FADS1'));
 assert('Filtered context always includes APOE', filteredCtx.includes('APOE'));
+assert('Filtered context excludes compact SNP inventory by default', !filteredCtx.includes('Imported SNP inventory for lookup'));
+const noSummaryCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includeGenomeSummary: false });
+assert('Genetics context can exclude APOE and mtDNA summary while keeping priority SNPs',
+  !noSummaryCtx.includes('APOE:') && noSummaryCtx.includes('MTHFR C677T'));
+const noPriorityCtx = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includePriorityFindings: false });
+assert('Genetics context can exclude priority SNPs while keeping APOE summary',
+  noPriorityCtx.includes('APOE:') && !noPriorityCtx.includes('MTHFR C677T'));
+const filteredCtxWithInventory = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includeSnpInventory: true });
+assert('Filtered context can opt into non-marker SNP lookup inventory', filteredCtxWithInventory.includes('FADS1') && !filteredCtxWithInventory.includes('Intermediate desaturase activity'));
 
 // Empty genetics
 const emptyCtx = dna.buildGeneticsContext(null, []);

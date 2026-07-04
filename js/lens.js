@@ -703,6 +703,7 @@ export function openKnowledgeBaseModal() {
   modal.className = 'modal kb-modal settings-modal';
   modal.innerHTML = `
     <div class="gb-modal-head">
+      <button type="button" class="context-back-btn" ${lensActionAttrs('open-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
       <div>
         <div class="gb-modal-kicker">Local context</div>
         <div class="gb-modal-title">Knowledge Base</div>

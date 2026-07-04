@@ -11,13 +11,14 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
-test('sun context browser coverage handles consent slices deficits and trimming', async ({ page }) => {
+test('sun context browser coverage handles Light & Sun slices deficits and trimming', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const outcomes = await page.evaluate(async ({ sunContextUrl, stateUrl }) => {
-    const [sunContext, { state }] = await Promise.all([
+  const outcomes = await page.evaluate(async ({ sunContextUrl, stateUrl, labContextUrl }) => {
+    const [sunContext, { state }, labContext] = await Promise.all([
       import(sunContextUrl),
       import(stateUrl),
+      import(labContextUrl),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const saved = {
@@ -78,7 +79,6 @@ test('sun context browser coverage handles consent slices deficits and trimming'
         getMeteoConfig: () => ({ privacyRounding: 0.1 }),
       });
       localStorage.setItem('labcharts-active-profile', profileId);
-      localStorage.removeItem(`labcharts-${profileId}-ai-include-body-regions`);
       state.currentProfile = profileId;
 
       const rooms = Array.from({ length: 7 }, (_, i) => ({
@@ -148,9 +148,13 @@ test('sun context browser coverage handles consent slices deficits and trimming'
         sunCorrelations: { pairs: [{ channel: 'vitamin_d', biomarker: 'vitamins.vitaminD', r: 0.55, n: 18, lag: 7 }] },
       };
 
+      labContext.setLightSunContextEnabled(false);
+      const privateSliceOff = sunContext.getSunSessionsSlice({ days: 30, fields: ['date', 'body', 'location', 'invalid'], includeActive: false });
+      const detailOff = sunContext.getSunSessionDetail('sun-session-0');
+      const lightOff = !labContext.isLightSunContextEnabled();
+      labContext.setLightSunContextEnabled(true);
+      const lightOn = labContext.isLightSunContextEnabled();
       const privateSlice = sunContext.getSunSessionsSlice({ days: 30, fields: ['date', 'body', 'location', 'invalid'], includeActive: false });
-      sunContext.setBodyRegionsInAIContext(true);
-      const consentOn = sunContext.isBodyRegionsInAIContext();
       const detail = sunContext.getSunSessionDetail('sun-session-0');
       const activeSlice = sunContext.getSunSessionsSlice({
         days: 90,
@@ -158,21 +162,21 @@ test('sun context browser coverage handles consent slices deficits and trimming'
         includeActive: true,
       });
       const fallbackFields = sunContext.getSunSessionsSlice({ days: 7, fields: ['invalid-only'], includeActive: false });
-      sunContext.setBodyRegionsInAIContext(false);
-      const consentOff = !sunContext.isBodyRegionsInAIContext();
 
-      outcomes.sessionSliceAndDetailRespectBodyRegionConsent =
-        privateSlice.length >= 1
+      outcomes.sessionSliceAndDetailFollowLightSunSourceToggle =
+        privateSliceOff.length === 0
+        && detailOff === null
+        && privateSlice.length >= 1
         && Array.isArray(privateSlice[0].body?.regions)
-        && privateSlice[0].body.regions.length === 0
-        && consentOn
+        && privateSlice[0].body.regions.includes('chest')
+        && lightOff
+        && lightOn
         && detail?.body?.regions.includes('chest')
         && detail.location.lat === 50.1
         && detail.location.privacyRoundingDeg === 0.1
         && activeSlice.some(session => session.id === 'active-sun-session')
         && fallbackFields[0]?.durationMin > 0
-        && sunContext.getSunSessionDetail('missing-session') === null
-        && consentOff;
+        && sunContext.getSunSessionDetail('missing-session') === null;
 
       const alwaysContext = sunContext.buildSunContext({ tier: 'always' });
       const standardContext = sunContext.buildSunContext({ tier: 'standard' });
@@ -206,6 +210,7 @@ test('sun context browser coverage handles consent slices deficits and trimming'
     return outcomes;
   }, {
     sunContextUrl: moduleUrl('/js/sun-context.js'),
+    labContextUrl: '/js/lab-context.js',
     stateUrl: '/js/state.js',
   });
 

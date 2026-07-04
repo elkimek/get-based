@@ -10,7 +10,7 @@ import {
 import { getBiologyProfileContext } from './profile-context.js';
 import { getInputProfileModifier } from './biology-score-profile-modifiers.js';
 
-export function computeBloodFlowSignals(data, def) {
+export function computeBloodFlowSignals(data, def, options = {}) {
   const hct = getMarkerHit(data, 'hematology.hematocrit');
   const hgb = getMarkerHit(data, 'hematology.hemoglobin');
   const platelets = getMarkerHit(data, 'hematology.platelets');
@@ -20,7 +20,7 @@ export function computeBloodFlowSignals(data, def) {
   const sodium = getMarkerHit(data, 'electrolytes.sodium');
   const bunCreat = getMarkerHit(data, 'calculatedRatios.bunCreatRatio');
   const crp = getMarkerHit(data, 'proteins.crp');
-  const profileContext = getBiologyProfileContext();
+  const profileContext = options.profileContext || getBiologyProfileContext(options);
   const bunCreatModifier = bunCreat ? getInputProfileModifier(bunCreat, { label: 'BUN/creatinine ratio', weight: 0.35, paths: 'calculatedRatios.bunCreatRatio' }, profileContext) : {};
   const flags = [];
   const parts = [];
@@ -49,5 +49,5 @@ export function computeBloodFlowSignals(data, def) {
     flags.push('D-dimer is acute/contextual; elevated results need clinical context rather than wellness scoring.');
     if (dDimer.range?.max != null && dDimer.value > dDimer.range.max) flags.unshift('Clinical guardrail: elevated D-dimer is not a wellness signal; consider timely clinical review in context.');
   }
-  return finalizeCustomScore(def, parts, missing, flags);
+  return finalizeCustomScore(def, parts, missing, flags, { ...options, profileContext });
 }

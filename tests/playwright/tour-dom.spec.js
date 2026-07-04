@@ -179,6 +179,21 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       const legacyEncryptedFlagNoops = !document.getElementById('tour-overlay')
         && localStorage.getItem(emptyTourKey) === 'completed';
 
+      localStorage.removeItem(emptyTourKey);
+      const blocker = document.createElement('div');
+      blocker.id = 'context-hub-overlay';
+      blocker.className = 'confirm-overlay show';
+      document.body.appendChild(blocker);
+      tour.startEmptyTour(true);
+      await wait(50);
+      const autoTourDefersBehindModal =
+        !document.getElementById('tour-overlay')
+        && !document.getElementById('tour-spotlight')
+        && !document.getElementById('tour-tooltip')
+        && localStorage.getItem(emptyTourKey) !== 'completed';
+      blocker.remove();
+
+      localStorage.setItem(emptyTourKey, 'completed');
       tour.startEmptyTour(false);
       await wait(50);
       const manualRetriggerIgnoresCompletion = !!document.getElementById('tour-overlay')
@@ -278,6 +293,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         endTourCleansUp,
         autoTriggerCompletedNoops,
         legacyEncryptedFlagNoops,
+        autoTourDefersBehindModal,
         manualRetriggerIgnoresCompletion,
         guidedTourChoosesEmptyWelcomeText,
         guidedTourChoosesEmptyStepCount,
