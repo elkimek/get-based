@@ -483,7 +483,16 @@ assert('Genome lens header keeps affiliate link on its own row',
   stylesSrc.includes('flex-basis: 100%'));
 
 const dnaSrc = await fetchWithRetry('js/dna.js');
+const dnaRuntimeSrc = await fetchWithRetry('js/dna-runtime.js');
 const dnaMtDnaSrc = await fetchWithRetry('js/dna-mtdna.js');
+assert('dna.js delegates browser runtime hooks to dna-runtime',
+  dnaSrc.includes("from './dna-runtime.js'") &&
+    !/\bwindow\b/.test(dnaSrc));
+assert('dna-runtime owns DNA browser-global integration points',
+  dnaRuntimeSrc.includes('_pendingDNAImport') &&
+    dnaRuntimeSrc.includes('_snpTableCache') &&
+    dnaRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
+    dnaRuntimeSrc.includes('installDNAWindowBindings'));
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
 assert('genetics actions expose manual SNP and report import escape hatches',
   dnaSrc.includes("dnaActionAttrs('add-manual-snp')") &&
