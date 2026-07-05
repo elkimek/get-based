@@ -91,8 +91,12 @@ export function getSettingsMeteoConfig() {
 export function saveSettingsMeteoConfig(config) {
   const saveMeteoConfig = getRuntimeFunction('saveMeteoConfig');
   if (!saveMeteoConfig) return false;
-  saveMeteoConfig(config);
-  return true;
+  try {
+    saveMeteoConfig(config);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** @param {Record<string, any>} api */
