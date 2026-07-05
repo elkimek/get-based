@@ -64,6 +64,7 @@
     '/js/light-page-view.js',
     '/js/light-page-view-hooks.js',
     '/js/light-page-view-ui-hooks.js',
+    '/js/light-devices-runtime.js',
     '/js/light-devices-actions.js',
     '/js/light-channel-view.js',
     '/js/light-channel-view-hooks.js',

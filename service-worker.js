@@ -386,6 +386,7 @@ const APP_SHELL = [
   '/js/light-channels-ai-analysis.js',
   '/js/light-device-ai-analysis.js',
   '/js/light-sun-ai-hooks.js',
+  '/js/light-devices-runtime.js',
   '/js/light-devices.js',
   '/js/light-devices-actions.js',
   '/js/light-devices-store.js',
