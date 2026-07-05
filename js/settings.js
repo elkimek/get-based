@@ -1154,19 +1154,27 @@ function setMeteoMode(mode) {
   if (fields) fields.style.display = mode === 'selfhost' ? '' : 'none';
 }
 
+function notifyMeteoSaveUnavailable() {
+  showNotification('Sun data-source settings are still loading. Try again in a moment.', 'warning');
+}
+
 function saveMeteoSelfhost() {
   const cfg = getSettingsMeteoConfig();
   const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
   const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
   cfg.selfhostUrl = url;
   cfg.selfhostBearer = bearer;
-  saveSettingsMeteoConfig(cfg);
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+  }
 }
 
 function toggleMeteoRounding(enabled) {
   const cfg = getSettingsMeteoConfig();
   cfg.privacyRounding = enabled ? 0.1 : 0;
-  saveSettingsMeteoConfig(cfg);
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+  }
 }
 
 export function togglePrivacyConfigure() {

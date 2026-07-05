@@ -139,6 +139,10 @@ assert('Sun data-source delegate is installed on document change',
   /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(src));
 assert('Sun data-source delegate is scoped to its section',
   /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(src));
+assert('Sun data-source save handlers surface unavailable runtime saves',
+  /function notifyMeteoSaveUnavailable\(\)[\s\S]*Sun data-source settings are still loading/.test(src) &&
+    /function saveMeteoSelfhost\(\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src) &&
+    /function toggleMeteoRounding\(enabled\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src));
 assert('Legacy Sun data-source window handlers are removed',
   !src.includes('window._setMeteoMode')
     && !src.includes('window._saveMeteoSelfhost')
