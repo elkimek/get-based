@@ -8,7 +8,14 @@ import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
 import { findGenotypeInfo as findGenotypeInfoImpl, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
-import { installDNAWindowBindings } from './dna-window-bindings.js';
+import {
+  cacheDnaSnpTable, callDnaFileHandler, clearPendingDnaImport,
+  confirmDnaDeleteDialog, getDnaRuntimeState, getPendingDnaImport,
+  isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
+  navigateDnaRoute, publishDnaWindowBindings, refreshDnaShell,
+  refreshDnaSidebar, saveDnaRuntimeAndRefresh, setPendingDnaImport,
+  triggerDnaFilePicker, updateDnaChatNudge,
+} from './dna-runtime.js';
 import {
   HAPLOGROUP_LIST,
   closeMtDNAPreview,
@@ -22,12 +29,6 @@ import {
   resolveHaplogroup,
   setManualHaplogroup,
 } from './dna-mtdna.js';
-/** @typedef {Window & typeof globalThis & {
- *   _pendingDNAImport?: any,
- *   _getState: () => { importedData: any },
- *   _saveAndRefresh: () => Promise<void> | void
- * }} DnaWindow */
-const dnaWindow = /** @type {DnaWindow} */ (window);
 // ═══════════════════════════════════════════════
 // FORMAT DETECTION
 // ═══════════════════════════════════════════════
@@ -238,8 +239,8 @@ function loadSNPTable({ forceFresh = false } = {}) {
   if (!_snpTablePromise) {
     _snpTablePromise = fetch('data/snp-health.json', forceFresh ? { cache: 'no-store' } : undefined)
       .then(r => r.json())
-      .then(data => { _snpTable = data; window._snpTableCache = data; return data; })
-      .catch(err => { _snpTablePromise = null; if (window.isDebugMode?.()) console.error('Failed to load SNP table:', err); throw err; });
+      .then(data => { _snpTable = data; cacheDnaSnpTable(data); return data; })
+      .catch(err => { _snpTablePromise = null; logDnaDebugError('Failed to load SNP table:', err); throw err; });
   }
   return _snpTablePromise;
 }
@@ -840,7 +841,7 @@ export function renderGeneticsSection() {
     </div>`;
   }
   if (hasSnps && !_snpTable) {
-    loadSNPTable().then(() => { if (window.navigate) window.navigate('dashboard'); });
+    loadSNPTable().then(() => navigateDnaRoute('dashboard'));
     return '';
   }
   const snpTable = _snpTable;
@@ -1095,7 +1096,7 @@ function reimportDNA() {
   input.accept = '.txt,.csv';
   input.onchange = () => {
     const file = input.files?.[0];
-    if (file && window.handleDNAFile) window.handleDNAFile(file);
+    if (file) callDnaFileHandler(file);
   };
   input.click();
 }
@@ -1142,7 +1143,7 @@ function openDnaModalOverlay(overlay, initialFocus) {
 
 async function openManualSnpModal() {
   await loadSNPTable();
-  dnaWindow._pendingDNAImport = null;
+  clearPendingDnaImport();
   const html = `<div class="dna-preview-header dna-manual-header">
       <div>
         <div class="dna-preview-title">Add SNPs manually</div>
@@ -1216,9 +1217,9 @@ async function saveManualSnpFromModal() {
   closeModalOverlay('dna-modal-overlay');
   const errorSuffix = errors.length ? ` (${errors.length} skipped)` : '';
   showNotification(`Saved ${accepted.length} SNP${accepted.length === 1 ? '' : 's'}${errorSuffix}`, errors.length ? 'info' : 'success', 5000);
-  if (errors.length && window.isDebugMode?.()) console.warn('Manual SNP import skipped rows:', errors);
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('genome');
+  if (errors.length) logDnaDebugWarn('Manual SNP import skipped rows:', errors);
+  refreshDnaSidebar();
+  navigateDnaRoute('genome');
 }
 
 async function importSnpReport() {
@@ -1255,7 +1256,7 @@ async function handleSnpReportFile(file) {
     }
     showDNAImportPreview(result, file.name);
   } catch (e) {
-    if (window.isDebugMode?.()) console.error('SNP report import error:', e);
+    logDnaDebugError('SNP report import error:', e);
     showNotification(e.message || 'Failed to read SNP report', 'error');
     _dnaImportRunning = false;
   }
@@ -1269,7 +1270,7 @@ let _dnaImportRunning = false;
 
 export async function handleDNAFile(file) {
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return; }
-  if (window.isImportRunning && window.isImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return; }
+  if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return; }
   _dnaImportRunning = true;
   try {
     showNotification('Parsing DNA file...', 'info');
@@ -1281,14 +1282,14 @@ export async function handleDNAFile(file) {
     }
     showDNAImportPreview(result, file.name);
   } catch (e) {
-    if (window.isDebugMode?.()) console.error('DNA import error:', e);
+    logDnaDebugError('DNA import error:', e);
     showNotification(e.message || 'Failed to parse DNA file', 'error');
     _dnaImportRunning = false;
   }
 }
 
 function showDNAImportPreview(result, fileName) {
-  dnaWindow._pendingDNAImport = result;
+  setPendingDnaImport(result);
 
   // Categorize matches by effect — skip raw APOE components when haplotype resolved
   const apoe = resolveAPOE(result.matches);
@@ -1376,14 +1377,14 @@ function showDNAImportPreview(result, fileName) {
 }
 
 function closeDNAImportPreview() {
-  dnaWindow._pendingDNAImport = null;
+  clearPendingDnaImport();
   _dnaImportRunning = false;
   closeModalOverlay('dna-modal-overlay');
   if (_dnaModalEscapeBound) { document.removeEventListener('keydown', handleDnaModalEscape); _dnaModalEscapeBound = false; }
 }
 
 async function confirmDNAImport() {
-  const result = dnaWindow._pendingDNAImport;
+  const result = getPendingDnaImport();
   if (!result) return;
   const originalData = state.importedData;
   const draftData = JSON.parse(JSON.stringify(originalData || {}));
@@ -1398,7 +1399,7 @@ async function confirmDNAImport() {
     state.importedData = originalData; _dnaImportRunning = false;
     return;
   }
-  dnaWindow._pendingDNAImport = null;
+  clearPendingDnaImport();
   _dnaImportRunning = false;
   closeModalOverlay('dna-modal-overlay');
   showNotification(`Imported ${result.coverage.found} SNPs from ${result.source}`, 'success');
@@ -1430,8 +1431,8 @@ async function confirmDNAImport() {
     dnaEl.innerHTML = `<p style="margin:0 0 6px">\uD83E\uDDEC <strong>${result.coverage.found} SNPs imported</strong> from ${escapeHTML(result.source)}</p>
       <div style="font-size:13px;line-height:1.8">${parts.join(' &nbsp;\u00B7&nbsp; ')}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:6px">I'll factor these into all your lab interpretations.</div>`;
-  } else if (window.updateChatNudge) {
-    window.updateChatNudge();
+  } else {
+    updateDnaChatNudge();
   }
 
   // Refresh sidebar (genetics nav count) AND dashboard. Without the
@@ -1440,8 +1441,7 @@ async function confirmDNAImport() {
   // Symptom that surfaced this: after re-importing on the same device
   // the dashboard correctly showed "43 SNPs" while the sidebar still
   // said "🧬 Genetics 40".
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('dashboard');
+  refreshDnaShell('dashboard');
 }
 
 // ═══════════════════════════════════════════════
@@ -1482,20 +1482,26 @@ export {
   setManualHaplogroup,
 };
 
-/// Custom confirm dialog so the destructive Delete on the genetics
-/// card matches the rest of the app's modal styling and respects the
-/// PWA / file:// contexts where the native window.confirm prompt
-/// would feel out of place.
+/// Custom confirm dialog so the destructive Delete on the genetics card
+/// matches the rest of the app's modal styling and respects PWA/file
+/// contexts where the native confirm prompt would feel out of place.
 async function confirmDeleteDNA() {
-  if (await window.showConfirmDialog('Delete genetic data? This cannot be undone.')) {
-    deleteGeneticsData(dnaWindow._getState().importedData);
-    await dnaWindow._saveAndRefresh();
+  if (await confirmDnaDeleteDialog()) {
+    const runtimeState = getDnaRuntimeState();
+    const targetState = runtimeState || state;
+    const originalData = JSON.parse(JSON.stringify(targetState.importedData || {}));
+    deleteGeneticsData(targetState.importedData);
+    if (!await saveDnaRuntimeAndRefresh()) {
+      targetState.importedData = originalData;
+      state.importedData = originalData;
+      showNotification('Could not save genetic data deletion. Try again after the app finishes loading.', 'error');
+    }
   }
 }
 
-initDnaActionDelegates({ triggerDNAFilePicker: () => window.triggerDNAFilePicker?.(), closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
+initDnaActionDelegates({ triggerDNAFilePicker: triggerDnaFilePicker, closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
-installDNAWindowBindings(window, {
+publishDnaWindowBindings({
   state, saveImportedData, buildGeneticsContext, getRelevantSNPs,
   isDNAFile, isDNAFileByContent, detectDNAFile, parseClinicalSnpReportText, parseManualSnpRows, upsertGeneticsSnp, handleDNAFile, handleSnpReportFile,
   importSnpReport, openManualSnpModal, saveManualSnpFromModal, closeDNAImportPreview, confirmDNAImport, confirmDeleteDNA, deleteGeneticsData,

@@ -217,6 +217,7 @@ const LEGACY_TESTS = [
   // Blob-backed Worker; the synchronous Worker shim added to _node-shim.js
   // (+ _vitest-setup.js) runs self-contained pure-JS workers in-process.
   // renderGeneticsSection returns an HTML string with no DOM dependency.
+  './test-dna-runtime.js',
   './test-dna.js',
   './test-dna-illumina-and-valence.js',
   // Batch 36 — family-history (source-inspection + getConditionsSummary;

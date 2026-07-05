@@ -10,9 +10,10 @@ export function installDNAWindowBindings(win, deps) {
     _getRelevantSNPs: getRelevantSNPs,
     _getState: () => state,
     _saveAndRefresh: async () => {
-      if (!await saveImportedData()) return;
+      if (!await saveImportedData()) return false;
       if (win.buildSidebar) try { win.buildSidebar(); } catch (e) {}
       if (win.navigate) win.navigate('dashboard');
+      return true;
     },
   });
 }

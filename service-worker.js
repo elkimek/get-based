@@ -256,6 +256,7 @@ const APP_SHELL = [
   '/js/dna-actions.js',
   '/js/dna-genotype.js',
   '/js/dna.js',
+  '/js/dna-runtime.js',
   '/js/dna-window-bindings.js',
   '/js/dna-mtdna.js',
   '/js/hardware.js',
