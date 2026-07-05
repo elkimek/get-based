@@ -388,6 +388,7 @@ const APP_SHELL = [
   '/js/sun-context-hooks.js',
   '/js/sun-correlations.js',
   '/js/sun-defaults.js',
+  '/js/sun-defaults-runtime.js',
   '/js/sun-onboarding-ai.js',
   '/js/sun-spectrum.js',
   '/js/sun-uvdata.js',

@@ -98,6 +98,7 @@ const LEGACY_TESTS = [
   // Batch 10 — sun + light pure-logic ports.
   './test-sun-correlations.js',
   './test-sun-defaults.js',
+  './test-sun-defaults-runtime.js',
   './test-sun.js',
   './test-light-env.js',
   './test-light-env-store.js',

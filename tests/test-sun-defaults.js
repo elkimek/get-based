@@ -22,6 +22,7 @@ console.log('=== Sun Defaults Tests ===\n');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
+const sunDefaultsRuntimeSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-runtime.js'), 'utf8');
 const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules.js'), 'utf8');
 const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.js'), 'utf8');
 const onboardingAiSrc = fs.readFileSync(path.join(root, 'js/sun-onboarding-ai.js'), 'utf8');
@@ -84,6 +85,12 @@ const {
     sunDefaultsSrc.includes('installLightSetupDelegates();') &&
     sunDefaultsSrc.includes("data-light-setup-action=") &&
     sunDefaultsSrc.includes("data-light-setup-input="));
+  assert('sun-defaults browser hooks are isolated in runtime adapter',
+    sunDefaultsSrc.includes("from './sun-defaults-runtime.js'") &&
+    !/\bwindow(\.|\s*\[)/.test(sunDefaultsSrc) &&
+    sunDefaultsRuntimeSrc.includes('getSunSetupCoords') &&
+    sunDefaultsRuntimeSrc.includes('exposeSunDefaultsBindings') &&
+    swSrc.includes("'/js/sun-defaults-runtime.js'"));
   assert('sun-defaults AI hooks route through startup wiring',
     typeof configureSunDefaults === 'function' &&
     sunDefaultsSrc.includes('maybeAnalyzeOnboardingAfterSave: () => {}') &&
