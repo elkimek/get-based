@@ -133,6 +133,7 @@ const APP_SHELL = [
   '/js/pdf-import-progress.js',
   '/js/pdf-import-ai-utils.js',
   '/js/pdf-import-review.js',
+  '/js/pdf-import-review-runtime.js',
   '/js/pdf-import-marker-mapping.js',
   '/js/pdf-import-marker-normalization.js',
   '/js/pdf-import-persistence.js',

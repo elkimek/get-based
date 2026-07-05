@@ -79,6 +79,7 @@
     '/js/mobile-dashboard.js',
     '/js/dashboard-widget-runtime.js',
     '/js/provider-local-ai-runtime.js',
+    '/js/pdf-import-review-runtime.js',
     '/js/schema.js',
     '/js/dna-window-bindings.js',
   ];

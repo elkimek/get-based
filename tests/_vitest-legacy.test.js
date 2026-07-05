@@ -86,6 +86,7 @@ const LEGACY_TESTS = [
   './test-wearables-runtime-config.js',
   './test-hardware.js',
   './test-provider-local-ai-runtime.js',
+  './test-pdf-import-review-runtime.js',
   // Batch 8 — lens parsers + a11y phase 3 + marker value notes.
   './test-lens-parsers.js',
   './test-a11y-phase3.js',

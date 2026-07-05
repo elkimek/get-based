@@ -73,6 +73,7 @@ assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/a
 assert('SW APP_SHELL includes settings data module', swAuditSrc.includes("'/js/settings-data.js'"));
 assert('SW APP_SHELL includes settings provider bridge module', swAuditSrc.includes("'/js/settings-provider-bridge.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
+assert('SW APP_SHELL includes PDF import review runtime module', swAuditSrc.includes("'/js/pdf-import-review-runtime.js'"));
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
 assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js/marker-analysis.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
