@@ -165,6 +165,7 @@
     "js/pdf-import-preflight.js",
     "js/pdf-import-progress.js",
     "js/pdf-import-review.js",
+    "js/pdf-import-review-runtime.js",
     "js/pdfjs-loader.js",
     "js/pii.js",
     "js/profile.js",

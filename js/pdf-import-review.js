@@ -30,10 +30,22 @@ import {
   renderImportMapInput,
   setImportExcludeButtonState,
 } from './import-review-row-actions.js';
+import {
+  clearPendingImportRuntime,
+  confirmImportFromRuntime,
+  getBatchImportContext,
+  getPendingImportFromRuntime,
+  getPendingImportRefLookup,
+  hasBatchImportContext,
+  markImportReviewDelegatesBound,
+  setPendingImportRuntime,
+  showPIIDiffViewerFromRuntime,
+  startBatchImport,
+  takeBatchImportResolve,
+} from './pdf-import-review-runtime.js';
 
 function clearPendingImport() {
-  window._pendingImport = null;
-  window._pendingImportRefLookup = null;
+  clearPendingImportRuntime();
   clearImportReviewDraft();
 }
 
@@ -55,18 +67,13 @@ function closestImportReviewElement(target, selector) {
   return el instanceof HTMLElement && el.closest('#import-modal') ? el : null;
 }
 
-function getImportReviewWindow() {
-  return typeof window !== 'undefined' ? /** @type {any} */ (window) : {};
-}
-
 function persistImportReviewDraftForState(parseResult = getPendingImport()) {
-  const appWindow = getImportReviewWindow();
   if (!parseResult) return;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
   saveImportReviewDraft(parseResult, {
     profileId: state.currentProfile || 'default',
     excludedIndices: Array.from(getExcludedImportIndices()),
-    isBatch: !!appWindow._batchImportContext,
+    isBatch: hasBatchImportContext(),
     debug: isDebugMode(),
   });
 }
@@ -129,16 +136,14 @@ function handleImportReviewClick(event) {
       openImportMarkerMapPicker(actionEl);
       break;
     case 'privacy-details': {
-      const appWindow = getImportReviewWindow();
       const pending = getPendingImport();
-      if (typeof appWindow.showPIIDiffViewer === 'function' && pending?.privacyOriginal && pending?.privacyObfuscated) {
-        appWindow.showPIIDiffViewer(pending.privacyOriginal, pending.privacyObfuscated);
+      if (pending?.privacyOriginal && pending?.privacyObfuscated) {
+        showPIIDiffViewerFromRuntime(pending.privacyOriginal, pending.privacyObfuscated);
       }
       break;
     }
     case 'confirm': {
-      const appWindow = getImportReviewWindow();
-      if (typeof appWindow.confirmImport === 'function') appWindow.confirmImport();
+      confirmImportFromRuntime();
       break;
     }
     default:
@@ -223,10 +228,7 @@ function updateImportMarkerUnitValue(controlEl, nextUnit) {
 }
 
 function initImportReviewDelegates() {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return;
-  const appWindow = getImportReviewWindow();
-  if (appWindow.__importReviewDelegatesBound) return;
-  appWindow.__importReviewDelegatesBound = true;
+  if (typeof document === 'undefined' || !markImportReviewDelegatesBound()) return;
   document.addEventListener('click', handleImportReviewClick);
   document.addEventListener('input', handleImportReviewInput);
   document.addEventListener('change', handleImportReviewChange);
@@ -236,14 +238,12 @@ function initImportReviewDelegates() {
 initImportReviewDelegates();
 
 export function getPendingImport() {
-  return window._pendingImport || null;
+  return getPendingImportFromRuntime();
 }
 
 export function resolveImportPreviewBatch(action) {
-  if (!window._batchImportResolve) return false;
-  const resolve = window._batchImportResolve;
-  window._batchImportResolve = null;
-  window._batchImportContext = null;
+  const resolve = takeBatchImportResolve();
+  if (!resolve) return false;
   hideImportOverlay();
   clearPendingImport();
   restoreDropZoneVisibility();
@@ -413,7 +413,7 @@ function openImportMarkerMapPicker(controlEl) {
   const idx = parseInt(controlEl.dataset.markerIdx, 10);
   const marker = result.markers[idx];
   if (!marker) return;
-  const refLookup = getImportReviewWindow()._pendingImportRefLookup || buildMarkerReference();
+  const refLookup = getPendingImportRefLookup() || buildMarkerReference();
   openImportMarkerMapModal({
     marker,
     currentKey: marker.mappedKey || '',
@@ -430,7 +430,7 @@ export function showImportPreview(parseResult) {
   const newMarkers = markers.filter(m => !m.matched && m.suggestedKey);
   const unmatched = markers.filter(m => !m.matched && !m.suggestedKey);
   const importCount = matched.length + newMarkers.length;
-  const batchCtx = window._batchImportContext;
+  const batchCtx = getBatchImportContext();
   const batchLabel = batchCtx ? `File ${batchCtx.current} of ${batchCtx.total}` : 'Lab import';
   modal.className = 'modal import-preview-modal';
   let html = `<div class="gb-modal-head import-preview-head">
@@ -588,8 +588,7 @@ export function showImportPreview(parseResult) {
       <button type="button" class="import-btn import-btn-primary" id="import-confirm-btn" ${importReviewActionAttrs('confirm')}${importDisabled}>${confirmLabel}</button>
     </div>`;
   if (!parseResult._importProfileId) parseResult._importProfileId = state.currentProfile;
-  window._pendingImport = parseResult;
-  window._pendingImportRefLookup = refLookup;
+  setPendingImportRuntime(parseResult, refLookup);
   modal.innerHTML = html;
   openModalOverlay(overlay);
   restoreExcludedImportRows(parseResult);
@@ -619,7 +618,7 @@ export function mapUnmatchedMarkerInput(inputEl) {
 
 function resolveImportMarkerKey(raw) {
   if (!raw) return '';
-  const refLookup = window._pendingImportRefLookup || buildMarkerReference();
+  const refLookup = getPendingImportRefLookup() || buildMarkerReference();
   if (refLookup[raw]) return raw;
   const normalized = raw.toLowerCase();
   for (const [key, def] of Object.entries(refLookup)) {
@@ -787,8 +786,7 @@ export function showImportPreviewAsync(result, current, total) {
   const dropZone = document.getElementById('drop-zone');
   if (dropZone) dropZone.style.display = 'none';
   return new Promise(resolve => {
-    window._batchImportResolve = resolve;
-    window._batchImportContext = { current, total };
+    startBatchImport(resolve, { current, total });
     showImportPreview(result);
   });
 }
