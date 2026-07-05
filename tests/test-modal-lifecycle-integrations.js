@@ -152,8 +152,9 @@ assert('settings modal opens and closes through shared overlay lifecycle helpers
 
 assert('settings tweaks panel uses shared overlay lifecycle helpers',
   settingsSrc.includes("from './modal-lifecycle.js'") &&
+    settingsSrc.includes("from './settings-runtime.js'") &&
     settingsSrc.includes('removeModalOverlay(overlay)') &&
-    /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*window\.matchMedia\?\.\(['"]\(max-width: 768px\)['"]\)\.matches === true[\s\S]*\}\s*\)/.test(settingsSrc) &&
+    /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/.test(settingsSrc) &&
     !settingsSrc.includes('_tweaksPriorBodyOverflow') &&
     !settingsSrc.includes("document.body.style.overflow = 'hidden'"));
 

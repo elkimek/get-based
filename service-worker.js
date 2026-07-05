@@ -174,6 +174,7 @@ const APP_SHELL = [
   '/js/settings.js',
   '/js/settings-data.js',
   '/js/settings-provider-bridge.js',
+  '/js/settings-runtime.js',
   '/js/settings-sync-panel.js',
   '/js/settings-agent-access-panel.js',
   '/js/feedback.js',

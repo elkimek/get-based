@@ -528,12 +528,22 @@ try {
 console.log('19. settings.js security + backup');
 try {
   const src = await fetchWithRetry('js/settings.js');
+  const runtimeSrc = await fetchWithRetry('js/settings-runtime.js');
   assert('settings.js imports renderEncryptionSection', src.includes('renderEncryptionSection'));
   assert('settings.js imports renderBackupSection', src.includes('renderBackupSection'));
   assert('settings.js has Security group', src.includes('Security'));
   assert('settings.js has Backup group', src.includes('Backup'));
   assert('settings.js has encryption-section id', src.includes('encryption-section'));
   assert('settings.js has backup-section id', src.includes('backup-section'));
+  assert('settings.js delegates browser runtime hooks to settings-runtime',
+    src.includes("from './settings-runtime.js'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(src));
+  assert('settings-runtime.js owns Settings browser-global publication',
+    runtimeSrc.includes('export function publishSettingsGlobals') &&
+    runtimeSrc.includes('Object.assign(getRuntimeWindow(), api)') &&
+    runtimeSrc.includes("getRuntimeFunction('requestAnimationFrame')") &&
+    runtimeSrc.includes("getRuntimeFunction('matchMedia')") &&
+    runtimeSrc.includes("getRuntimeFunction('getMeteoConfig')"));
 } catch (e) {
   assert('settings.js security check', false, e.message);
 }
