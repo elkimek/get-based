@@ -5,6 +5,15 @@ import { state } from './state.js';
 import { getActiveData } from './data.js';
 import { profileStorageKey } from './profile.js';
 import { safeMarkerId } from './utils.js';
+import {
+  addViewportInputCancelListeners,
+  closeMobileSidebarFromRuntime,
+  getViewportHeight,
+  getViewportScrollPosition,
+  restoreViewportScroll,
+  scrollViewportBy,
+  syncImportStatusFabFromRuntime,
+} from './views-router-runtime.js';
 
 export const CORE_ROUTES = new Set([
   'dashboard',
@@ -63,12 +72,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     const routeData = optionsOnlyData ? undefined : data;
     const routeCategory = isKnownRoute(requestedCategory, routeData) ? requestedCategory : 'dashboard';
     const activeCategory = routeCategory;
-    const preservedScroll = preserveScroll && typeof window !== 'undefined'
-      ? {
-          x: Number.isFinite(window.scrollX) ? window.scrollX : (window.pageXOffset || 0),
-          y: Number.isFinite(window.scrollY) ? window.scrollY : (window.pageYOffset || 0),
-        }
-      : null;
+    const preservedScroll = preserveScroll ? getViewportScrollPosition() : null;
 
     // Detect "re-render in place" (callsite is requesting a refresh of the
     // current view, not a real navigation). On in-place re-renders we use
@@ -113,12 +117,11 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     }
     _syncSidebarActive(activeCategory);
     // Close mobile sidebar on navigation
-    const appWindow = /** @type {any} */ (window);
-    if (appWindow.closeMobileSidebar) appWindow.closeMobileSidebar();
+    closeMobileSidebarFromRuntime();
     if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
       document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active');
     }
-    if (appWindow.syncImportStatusFab) appWindow.syncImportStatusFab();
+    syncImportStatusFabFromRuntime();
     destroyAllCharts?.();
     if (routeCategory === "dashboard") routeHandlers.dashboard?.(routeData);
     else if (routeCategory === "labs") routeHandlers.labs?.(routeData);
@@ -167,14 +170,9 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       const start = Date.now();
       let cancelled = false;
       const cancel = () => { cancelled = true; };
-      const inputOpts = { passive: true, capture: true };
-      window.addEventListener('wheel', cancel, inputOpts);
-      window.addEventListener('touchstart', cancel, inputOpts);
-      window.addEventListener('keydown', cancel, inputOpts);
+      const removeCancelListeners = addViewportInputCancelListeners(cancel);
       const cleanup = () => {
-        window.removeEventListener('wheel', cancel, inputOpts);
-        window.removeEventListener('touchstart', cancel, inputOpts);
-        window.removeEventListener('keydown', cancel, inputOpts);
+        removeCancelListeners();
         if (myToken === _navAnchorToken) _activeAnchor = null;
       };
       const reapply = () => {
@@ -189,10 +187,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
 }
 
 function _restorePixelScroll(pos) {
-  if (!pos || typeof window === 'undefined' || typeof window.scrollTo !== 'function') return;
-  try { window.scrollTo({ left: pos.x || 0, top: pos.y || 0, behavior: 'instant' }); } catch (_) {
-    try { window.scrollTo(pos.x || 0, pos.y || 0); } catch (__) {}
-  }
+  restoreViewportScroll(pos);
 }
 
 function _syncSidebarActive(routeCategory) {
@@ -217,6 +212,7 @@ function _syncSidebarActive(routeCategory) {
 //      navigation wasn't user-initiated (e.g. async refresh).
 function _captureScrollAnchor() {
   let el = document.activeElement;
+  const vh = getViewportHeight();
   // Walk up looking for a stable selector
   while (el && el !== document.body && el !== document.documentElement) {
     const sel = _stableSelectorFor(el);
@@ -224,7 +220,7 @@ function _captureScrollAnchor() {
       const rect = el.getBoundingClientRect();
       // Skip if the anchor is off-screen — would still work but
       // intent-wise we want a viewport-visible anchor.
-      if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      if (rect.bottom > 0 && rect.top < vh) {
         return { selector: sel, viewportTop: rect.top };
       }
     }
@@ -247,7 +243,6 @@ function _captureScrollAnchor() {
   // room card has its rect-center off-screen, so smaller off-to-the-
   // side elements with centers inside the viewport beat it.
   const candidates = document.querySelectorAll('[data-id], [data-screen-id], [data-room-id]');
-  const vh = window.innerHeight;
   const viewportCenter = vh / 2;
   let containingBest = null;
   let containingBestArea = Infinity;
@@ -301,8 +296,6 @@ function _restoreScrollAnchor(anchor) {
   const rect = el.getBoundingClientRect();
   const delta = rect.top - anchor.viewportTop;
   if (Math.abs(delta) > 1) {
-    try { window.scrollBy({ top: delta, behavior: 'instant' }); } catch (_) {
-      try { window.scrollBy(0, delta); } catch (__) {}
-    }
+    scrollViewportBy(delta);
   }
 }

@@ -207,6 +207,7 @@
     "js/tour.js",
     "js/url-safety.js",
     "js/utils.js",
+    "js/views-router-runtime.js",
     "js/views-router.js",
     "js/views.js",
     "js/wearable-adapters.js",
