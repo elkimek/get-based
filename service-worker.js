@@ -180,6 +180,7 @@ const APP_SHELL = [
   '/js/feedback.js',
   '/js/tour.js',
   '/js/changelog.js',
+  '/js/client-list-runtime.js',
   '/js/client-list.js',
   '/js/nav.js',
   '/js/views-router.js',

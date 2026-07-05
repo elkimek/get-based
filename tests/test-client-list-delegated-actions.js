@@ -56,6 +56,10 @@ assert('client-list routes app-shell actions through injectable runtime',
     clientListSrc.includes('clientListRuntime.exportClientJSON(id, true)') &&
     clientListSrc.includes('clientListRuntime.importDataJSON(file)') &&
     clientListSrc.includes('clientListRuntime.loadDemoData(actionEl.dataset.clDemo'));
+assert('client-list routes browser globals through client-list runtime adapter',
+  clientListSrc.includes("from './client-list-runtime.js'") &&
+    clientListSrc.includes('publishClientListWindowBindings') &&
+    !/\bwindow(?:\.|\s*\[)/.test(clientListSrc));
 assert('client-list modal uses shared overlay lifecycle helpers',
   clientListSrc.includes("from './modal-lifecycle.js'") &&
     clientListUsesScrollLockedOverlay &&
@@ -69,6 +73,10 @@ assert('height display rounds cm to whole numbers and inches to one decimal',
   clientListSrc.includes("unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm))") &&
     clientListSrc.includes("next === 'in' ? '0.1' : '1'") &&
     clientListSrc.includes("heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : Math.round(heightRaw)"));
+assert('latitude AI refinement rechecks provider availability inside debounce',
+  clientListSrc.includes('const hasAIProvider = hasClientListAIProvider();') &&
+    clientListSrc.includes('if (!hasClientListAIProvider()) return;') &&
+    /_clLatTimer\s*=\s*setTimeout/.test(clientListSrc));
 
 [
   'close',
