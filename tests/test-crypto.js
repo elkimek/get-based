@@ -428,10 +428,32 @@ try {
 console.log('17. profile.js async');
 try {
   const src = await fetchWithRetry('js/profile.js');
+  const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
+  const swSrc = await fetchWithRetry('service-worker.js');
   assert('loadProfile is async', src.includes('async function loadProfile'));
   assert('saveProfiles is async', src.includes('async function saveProfiles'));
   assert('initProfilesCache exists', src.includes('async function initProfilesCache'));
   assert('loadProfile uses encryptedGetItem', src.includes('encryptedGetItem'));
+  assert('profile.js delegates browser refresh wiring to profile-runtime',
+    src.includes("from './profile-runtime.js'") &&
+    src.includes('await invalidateProfileContextCache()') &&
+    src.includes('await reloadProfileRuntimeShell(profileId)') &&
+    runtimeSrc.includes('export async function invalidateProfileContextCache') &&
+    runtimeSrc.includes('export async function reloadProfileRuntimeShell'));
+  assert('profile delete awaits profile list save before completion',
+    src.includes('await saveProfiles(updated)') &&
+    (src.includes('await loadProfile(updated[0].id)') || src.includes('await refreshProfileButton()')));
+  assert('saveProfiles rejects failed profile-list writes',
+    /catch \(e\) \{[\s\S]{0,200}throw e;/.test(src));
+  assert('profile.js no longer calls profile-load UI globals through window',
+    !/window\.(loadChatPersonality|loadChatThreads|loadChatHistory|renderThreadList|destroyAllCharts|buildSidebar|navigate|renderProfileButton)/.test(src));
+  assert('profile-runtime keeps profile UI refresh module-owned',
+    runtimeSrc.includes("import('./chat-personalities.js')") &&
+    runtimeSrc.includes("import('./chat-threads.js')") &&
+    runtimeSrc.includes("import('./data.js')") &&
+    !runtimeSrc.includes('Object.assign(window'));
+  assert('Service worker precaches profile runtime module',
+    swSrc.includes("'/js/profile-runtime.js'"));
 } catch (e) {
   assert('profile.js async check', false, e.message);
 }

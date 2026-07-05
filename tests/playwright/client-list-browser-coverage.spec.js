@@ -7,9 +7,11 @@ test('client list live menu actions dispatch exports share demos and profile sta
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { configureClientListRuntime } = await import('/js/client-list.js');
+    const profile = await import('/js/profile.js');
     const outcomes = {};
     const calls = [];
     const confirmQueue = [];
+    let previousProfileDeps = null;
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -136,6 +138,9 @@ test('client list live menu actions dispatch exports share demos and profile sta
         calls.push(['confirm', message]);
         return confirmQueue.shift() === true;
       };
+      previousProfileDeps = profile.configureProfileDeps({
+        showConfirmDialog: window.showConfirmDialog,
+      });
       HTMLInputElement.prototype.click = function() {
         calls.push(['input-click', this.id || this.type || 'input']);
       };
@@ -251,6 +256,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       window.loadDemoData = saved.loadDemoData;
       window.openProfileShareModal = saved.openProfileShareModal;
       window.showConfirmDialog = saved.showConfirmDialog;
+      if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
       HTMLInputElement.prototype.click = saved.inputClick;
       document.querySelectorAll('.notification-container,.notification-toast').forEach(el => el.remove());
     }

@@ -101,6 +101,7 @@ const APP_SHELL = [
   '/js/import-drop-zone.js',
   '/js/ai-verdict-engine.js',
   '/js/profile.js',
+  '/js/profile-runtime.js',
   '/js/data.js',
   '/js/marker-analysis.js',
   '/js/blob-storage.js',

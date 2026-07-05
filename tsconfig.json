@@ -163,6 +163,7 @@
     "js/pdfjs-loader.js",
     "js/pii.js",
     "js/profile.js",
+    "js/profile-runtime.js",
     "js/profile-share.js",
     "js/recommendation-actions.js",
     "js/recommendations.js",

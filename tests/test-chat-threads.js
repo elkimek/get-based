@@ -278,14 +278,20 @@ assert('isSensitiveKey matches thread index (crypto.js SENSITIVE_PATTERNS)',
 // ═══════════════════════════════════════════════
 console.log('15. Profile Delete Cleanup (source inspection)');
 const profileSrc = read('js/profile.js');
+const profileRuntimeSrc = read('js/profile-runtime.js');
 assert('deleteProfile removes chat-threads key', profileSrc.includes('chat-threads'));
 assert('deleteProfile removes chat-t_ keys', profileSrc.includes('chat-t_'));
 assert('deleteProfile removes chatRailOpen', profileSrc.includes('chatRailOpen'));
 assert('loadProfile resets chatThreads', profileSrc.includes('state.chatThreads = []'));
 assert('loadProfile resets currentThreadId', profileSrc.includes('state.currentThreadId = null'));
-assert('loadProfile reloads active profile chat threads', profileSrc.includes('window.loadChatThreads?.()'));
-assert('loadProfile reloads active profile chat history', profileSrc.includes('await window.loadChatHistory?.()'));
-assert('loadProfile rerenders chat rail after profile switch', profileSrc.includes('window.renderThreadList?.()'));
+assert('loadProfile delegates runtime refresh after profile switch',
+  profileSrc.includes('await reloadProfileRuntimeShell(profileId)'));
+assert('profile-runtime reloads active profile chat threads',
+  profileRuntimeSrc.includes('chatThreads.loadChatThreads?.()'));
+assert('profile-runtime reloads active profile chat history',
+  profileRuntimeSrc.includes('await chatHistory.loadChatHistory?.()'));
+assert('profile-runtime rerenders chat rail after profile switch',
+  profileRuntimeSrc.includes('chatThreads.renderThreadList?.()'));
 
 // ═══════════════════════════════════════════════
 // 16. Thread Search Extraction (source inspection)

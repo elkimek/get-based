@@ -4,7 +4,8 @@
 import { state } from './state.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { COUNTRY_LATITUDES, LATITUDE_BANDS } from './constants.js';
-import { showNotification } from './utils.js';
+import { callClaudeAPI } from './api.js';
+import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 import { encryptedSetItem, encryptedGetItem, encryptedRemoveItem } from './crypto.js';
 import { normalizeLightEnvironmentEveningFields } from './light-env-evening.js';
 import {
@@ -14,6 +15,28 @@ import {
   syncLabEntryInsulinMirror,
 } from './lab-entry.js';
 import { normalizeContextSourceSettings } from './context-source-registry.js';
+import {
+  dispatchProfileSwitched,
+  invalidateProfileContextCache,
+  refreshProfileButton,
+  reloadProfileRuntimeShell,
+} from './profile-runtime.js';
+
+const profileDeps = {
+  callClaudeAPI,
+  isDebugMode,
+  showConfirmDialog,
+  showNotification,
+};
+
+export function configureProfileDeps(deps = {}) {
+  const previous = { ...profileDeps };
+  if (typeof deps.callClaudeAPI === 'function') profileDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (typeof deps.isDebugMode === 'function') profileDeps.isDebugMode = deps.isDebugMode;
+  if (typeof deps.showConfirmDialog === 'function') profileDeps.showConfirmDialog = deps.showConfirmDialog;
+  if (typeof deps.showNotification === 'function') profileDeps.showNotification = deps.showNotification;
+  return previous;
+}
 
 /**
  * @typedef {{ country: string, zip: string }} ProfileLocation
@@ -154,7 +177,8 @@ export async function saveProfiles(profiles) {
     const value = JSON.stringify(profiles);
     await encryptedSetItem('labcharts-profiles', value);
   } catch (e) {
-    showNotification('Storage limit reached — could not save profile changes.', 'error');
+    profileDeps.showNotification('Storage limit reached — could not save profile changes.', 'error');
+    throw e;
   }
 }
 
@@ -955,7 +979,7 @@ export function migrateProfileData(data) {
 export async function loadProfile(profileId) {
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
-  /** @type {any} */ (window).invalidateLabContextCache?.();
+  await invalidateProfileContextCache();
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const defaultData = createDefaultProfileData();
   state.importedData = savedImported ? (function() {
@@ -987,11 +1011,7 @@ export async function loadProfile(profileId) {
       } catch {}
       // Surface to the user via the global notification system if available;
       // fall back to console so headless paths still log it.
-      if (typeof window !== 'undefined' && window.showNotification) {
-        window.showNotification('Profile data was corrupted and could not be loaded. The original bytes were saved as a backup — open Settings → Data to export them or contact support.', 'error', 12000);
-      } else {
-        console.error('[loadProfile] corrupted JSON for', profileId, '— saved to imported-corrupt');
-      }
+      profileDeps.showNotification('Profile data was corrupted and could not be loaded. The original bytes were saved as a backup — open Settings → Data to export them or contact support.', 'error', 12000);
       return defaultData;
     }
   })() : defaultData;
@@ -1013,21 +1033,7 @@ export async function loadProfile(profileId) {
   state.chatThreads = [];
   state.currentThreadId = null;
   state.markerRegistry = {};
-  window.loadChatPersonality();
-  window.loadChatThreads?.();
-  if (state.chatThreads.length > 0) window.ensureActiveThread?.();
-  await window.loadChatHistory?.();
-  if (state.currentProfile !== profileId) return;
-  window.renderThreadList?.();
-  window.updateChatHeaderTitle?.();
-  window.updatePersonalityBar?.();
-  window.updateDiscussButton?.();
-  window.destroyAllCharts();
-  window.buildSidebar();
-  window.navigate(window.getInitialView?.() || 'dashboard');
-  window.updateHeaderDates();
-  window.updateHeaderRangeToggle();
-  window.renderProfileButton();
+  await reloadProfileRuntimeShell(profileId);
   // Refresh wearable summary for the freshly-loaded profile so the strip
   // reflects THIS profile's L1 IDB rather than carrying over stale state
   // from the boot profile. Both modules dynamic-imported to avoid circular
@@ -1138,10 +1144,10 @@ export function touchProfileTimestamp(profileId) {
  */
 export async function deleteProfile(profileId, onComplete) {
   const profiles = getProfiles();
-  if (profiles.length <= 1) { showNotification("Cannot delete the last profile", "error"); return; }
-  if (await window.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
+  if (profiles.length <= 1) { profileDeps.showNotification("Cannot delete the last profile", "error"); return; }
+  if (await profileDeps.showConfirmDialog('Delete this profile and all its data? This cannot be undone.')) {
     const updated = profiles.filter(p => p.id !== profileId);
-    saveProfiles(updated);
+    await saveProfiles(updated);
     // The `-imported` blob lives in IndexedDB now → encryptedRemoveItem
     // hits both backends so the IDB residue is also wiped.
     await encryptedRemoveItem(profileStorageKey(profileId, 'imported'));
@@ -1184,11 +1190,11 @@ export async function deleteProfile(profileId, onComplete) {
     // tombstoned rows; CRDT LWW handles cross-device conflict resolution.
     import('./sync.js').then(m => m.deleteProfileFromRelay(profileId)).catch(() => {});
     if (state.currentProfile === profileId) {
-      loadProfile(updated[0].id);
+      await loadProfile(updated[0].id);
     } else {
-      window.renderProfileButton();
+      await refreshProfileButton();
     }
-    showNotification('Profile deleted', 'info');
+    profileDeps.showNotification('Profile deleted', 'info');
     if (onComplete) onComplete();
   }
 }
@@ -1209,13 +1215,11 @@ export async function switchProfile(profileId) {
   await loadProfile(profileId);
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
-  showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');
+  profileDeps.showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');
   // Modules with per-profile module-singleton state (sun.js region map cache,
   // overlay cache, tick counters, in-flight rehydrate flag) listen for this
   // event so their caches don't bleed across profiles after a switch.
-  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    try { window.dispatchEvent(new CustomEvent('labcharts-profile-switched', { detail: { profileId } })); } catch (_) {}
-  }
+  dispatchProfileSwitched(profileId);
   // Push updated context to messenger gateway so bots see the new profile
   import('./sync.js').then(m => m.pushContextToGateway()).catch(() => {});
 }
@@ -1343,7 +1347,7 @@ export async function detectLatitudeWithAI(country, zip) {
   if (getLocationCache()[cacheKey] !== undefined) return;
   try {
     var locationStr = zip ? country + ' ' + zip : country;
-    var { text: response } = await window.callClaudeAPI({
+    var { text: response } = await profileDeps.callClaudeAPI({
       system: 'You are a geography assistant. Reply with ONLY a number \u2014 the approximate latitude in decimal degrees (positive for North, negative for South). No text, no degree symbol, just the number.',
       messages: [{ role: 'user', content: 'Latitude of: ' + locationStr }],
       maxTokens: 10
@@ -1359,7 +1363,7 @@ export async function detectLatitudeWithAI(country, zip) {
       }
     }
   } catch(e) {
-    if (window.isDebugMode()) console.warn('[Location] AI detection failed:', e);
+    if (profileDeps.isDebugMode()) console.warn('[Location] AI detection failed:', e);
   }
 }
 

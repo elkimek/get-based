@@ -517,6 +517,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   {
     const startupUiSrc = fetchSrc('js/startup-ui.js');
     const profileSrc = fetchSrc('js/profile.js');
+    const profileRuntimeSrc = fetchSrc('js/profile-runtime.js');
     const viewsSrc = fetchSrc('js/views.js');
     const routerSrc = fetchSrc('js/views-router.js');
     const navSrc = fetchSrc('js/nav.js');
@@ -536,7 +537,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /requireStartupRuntime\('navigate',\s*callStartupRuntime\('getInitialView'\)\s*\|\|\s*'dashboard'\)/.test(startupUiSrc)
       && !/window\.showDashboard\(\);/.test(startupUiSrc));
     assert('profile.js: profile switch restores that profile route',
-      /window\.navigate\(window\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileSrc));
+      profileSrc.includes('await reloadProfileRuntimeShell(profileId)')
+      && /views\.navigate\(views\.getInitialView\?\.\(\) \|\| 'dashboard'\)/.test(profileRuntimeSrc));
     assert('nav.js: sidebar rebuild preserves current route selection',
       /export function syncSidebarActive/.test(navSrc)
       && /nav\.innerHTML\s*=\s*html;\s*syncSidebarActive\(state\.currentView \|\| 'dashboard'\)/.test(navSrc));

@@ -87,6 +87,7 @@ const highValueCheckJsModules = [
   'js/light-tool-camera-modals.js',
   'js/pdf-import.js',
   'js/profile.js',
+  'js/profile-runtime.js',
   'js/recommendations.js',
   'js/settings.js',
   'js/sun.js',
