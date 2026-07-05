@@ -17,6 +17,12 @@ import {
 } from './wearables-connect.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
+import {
+  closeWearableSettingsModal,
+  confirmWearableSettingsAction,
+  exposeWearableSettingsBindings,
+  navigateWearablesDashboard,
+} from './wearables-settings-runtime.js';
 
 let wearableSettingsDelegatesInstalled = false;
 
@@ -161,7 +167,7 @@ export function setWearableStripHidden(hidden) {
   const key = _wearableStripHiddenKey();
   if (hidden) localStorage.setItem(key, '1');
   else localStorage.removeItem(key);
-  if (window.navigate) window.navigate('dashboard');
+  navigateWearablesDashboard();
 }
 
 // Vendor logo / mark beside the adapter name. Backed by brands/<vendor>/
@@ -407,16 +413,15 @@ function handleManualOpenDashboard() {
   // Settings modal is an overlay; let the caller close it by dispatching the
   // same Escape path the close button uses. We just navigate the underlying
   // dashboard — the user hits Escape / closes Settings manually.
-  if (window.closeSettings) window.closeSettings();
-  if (window.navigate) window.navigate('dashboard');
+  closeWearableSettingsModal();
+  navigateWearablesDashboard();
   requestAnimationFrame(() => {
     document.getElementById('wearable-strip')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
 async function handleManualDisconnect() {
-  if (typeof window.showConfirmDialog !== 'function') return;
-  if (await window.showConfirmDialog(
+  if (await confirmWearableSettingsAction(
     'Delete all manual entries? This removes every weight / BP / pulse entry you\'ve logged manually. Data from connected wearables (Oura, Withings, etc.) is untouched. Can\'t be undone.'
   )) {
     try {
@@ -434,7 +439,7 @@ async function handleManualDisconnect() {
       await refreshManualSummary(profileId);
       showNotification?.('All manual entries deleted', 'success');
       refreshSettingsWearables();
-      if (window.navigate) window.navigate('dashboard');
+      navigateWearablesDashboard();
     } catch (e) {
       showNotification?.(`Couldn't delete: ${e.message}`, 'error', 4000);
     }
@@ -518,7 +523,7 @@ async function importAppleHealthFlow(file) {
     });
     showNotification?.(`Apple Health imported — ${res.rows} days`, 'success', 3000);
     refreshSettingsWearables();
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearablesDashboard();
   } catch (e) {
     showNotification?.(`Apple Health import failed: ${e.message}`, 'error', 6000);
     if (text) text.textContent = `Failed: ${e.message}`;
@@ -535,7 +540,7 @@ async function handleWearableSyncNow(adapterId, triggerEl) {
     const res = await syncNow(adapterId, { force: true });
     showNotification?.(`${name} synced (${res.rows ?? 0} new)`, 'success', 2500);
     refreshSettingsWearables();
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearablesDashboard();
   } catch { /* syncNow already notified */ }
   finally {
     btn?.classList.remove('is-syncing');
@@ -551,7 +556,7 @@ async function handleWearableBackfill(adapterId) {
     await syncWearableSummary(getActiveProfileId(), listConnectedSources());
     showNotification?.(`${name} backfilled ${bf.rows} days`, 'success');
     refreshSettingsWearables();
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearablesDashboard();
   } catch (e) {
     showNotification?.(`Backfill failed: ${e.message}`, 'error', 4000);
   }
@@ -563,7 +568,7 @@ async function handleWearableDisconnect(adapterId) {
     await disconnectWearable(adapterId, { deleteData: true });
     showNotification?.(`${name} disconnected`, 'success');
     refreshSettingsWearables();
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearablesDashboard();
   }
 }
 
@@ -574,7 +579,7 @@ function refreshSettingsWearables() {
 
 installWearableSettingsDelegates();
 
-Object.assign(window, {
+exposeWearableSettingsBindings({
   setWearableStripHidden,
   isWearableStripHidden,
   renderWearablesSettingsSection,
