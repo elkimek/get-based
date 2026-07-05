@@ -462,6 +462,13 @@ try {
     exportSrc.includes('refreshImportRuntimeShell') &&
     exportSrc.includes('publishExportGlobals') &&
     exportRuntimeSrc.includes('export async function refreshImportRuntimeShell'));
+  assert('export-runtime falls back to published globals when shell module imports fail',
+    exportRuntimeSrc.includes('function getRuntimeFunction(module, name)') &&
+    exportRuntimeSrc.includes('module?.[name]') &&
+    exportRuntimeSrc.includes('runtime[name]') &&
+    exportRuntimeSrc.includes("getRuntimeFunction(chatThreads, 'loadChatThreads')") &&
+    exportRuntimeSrc.includes("getRuntimeFunction(nav, 'buildSidebar')") &&
+    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')"));
   assert('export.js no longer calls import UI globals through window',
     !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
   assert('Service worker precaches export runtime module',

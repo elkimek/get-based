@@ -7,6 +7,13 @@ function getRuntimeWindow() {
     : /** @type {any} */ (globalThis);
 }
 
+function getRuntimeFunction(module, name) {
+  const runtime = getRuntimeWindow();
+  if (typeof module?.[name] === 'function') return module[name];
+  if (typeof runtime[name] === 'function') return runtime[name];
+  return null;
+}
+
 export async function getWalletBundleSettings() {
   const runtime = getRuntimeWindow();
   const mintUrl = typeof runtime.cashuGetMintUrl === 'function'
@@ -66,11 +73,17 @@ export async function refreshImportRuntimeShell(options = {}) {
     import('./views.js').catch(() => null),
   ]);
 
-  chatThreads?.loadChatThreads?.();
-  nav?.buildSidebar?.();
-  data?.updateHeaderDates?.();
-  if (profileButton) nav?.renderProfileButton?.();
-  views?.navigate?.(route);
+  const loadChatThreads = getRuntimeFunction(chatThreads, 'loadChatThreads');
+  const buildSidebar = getRuntimeFunction(nav, 'buildSidebar');
+  const updateHeaderDates = getRuntimeFunction(data, 'updateHeaderDates');
+  const renderProfileButton = getRuntimeFunction(nav, 'renderProfileButton');
+  const navigate = getRuntimeFunction(views, 'navigate');
+
+  loadChatThreads?.();
+  buildSidebar?.();
+  updateHeaderDates?.();
+  if (profileButton) renderProfileButton?.();
+  navigate?.(route);
 }
 
 export function publishExportGlobals(api) {
