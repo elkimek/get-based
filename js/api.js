@@ -92,7 +92,7 @@ import {
  *   clearE2EESession?: () => void
  * }} ApiWindow */
 
-const apiWindow = /** @type {ApiWindow} */ (window);
+const apiWindow = /** @type {ApiWindow} */ (typeof window !== 'undefined' ? window : {});
 
 export {
   AI_IMPORT_REQUEST_TIMEOUT_MS,
@@ -1133,36 +1133,38 @@ export async function callClaudeAPI(opts, provider = getAIProvider()) {
   throw new Error('Unknown AI provider: ' + provider + '. Please select a provider in Settings.');
 }
 
-Object.assign(window, {
-  getVeniceKey, saveVeniceKey, hasVeniceKey,
-  getVeniceModel, setVeniceModel, getVeniceModelDisplay,
-  getOpenRouterKey, saveOpenRouterKey, hasOpenRouterKey,
-  getOpenRouterModel, setOpenRouterModel, getOpenRouterModelDisplay,
-  getRoutstrKey, saveRoutstrKey, hasRoutstrKey,
-  getRoutstrModel, setRoutstrModel, getRoutstrModelDisplay, getRoutstrNodeUrl,
-  getPpqKey, savePpqKey, hasPpqKey,
-  getPpqModel, setPpqModel, getPpqModelDisplay,
-  getPpqPrivateMode, setPpqPrivateMode, isPpqPrivateModel, isPpqPrivateModeActive,
-  getPpqCreditId, savePpqCreditId,
-  getOllamaMainModel, setOllamaMainModel,
-  getOllamaPIIUrl, setOllamaPIIUrl,
-  getOllamaPIIModel, setOllamaPIIModel,
-  getOpenRouterBalance,
-  getVeniceBalance,
-  fetchVeniceModels, fetchOpenRouterModels, getOpenRouterPricing,
-  fetchRoutstrModels, createRoutstrAccount, getRoutstrBalance,
-  fetchPpqModels, createPpqAccount, getPpqBalance, createPpqTopup, checkPpqTopupStatus,
-  generatePKCE, startOpenRouterOAuth, exchangeOpenRouterCode,
-  deduplicateModels,
-  isRecommendedModel,
-  getActiveModelId, getActiveModelDisplay,
-  renderModelPricingHint,
-  getAIProvider, setAIProvider, hasAIProvider, markAISettingsLocal,
-  supportsVision, supportsWebSearch, isE2EEModel, isVeniceE2EEActive, getVeniceE2EE, setVeniceE2EE,
-  validateVeniceKey, validateOpenRouterKey, validateRoutstrKey, validatePpqKey, validateCustomApiKey,
-  getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey, hasCustomApiKey,
-  getCustomApiModel, setCustomApiModel, getCustomApiModelDisplay,
-  fetchCustomApiModels, callCustomAPI,
-  callOllamaChat, callOpenAICompatibleLocalAPI, callVeniceAPI, callOpenRouterAPI, callRoutstrAPI, callPpqPrivateAPI, callPpqAPI, callClaudeAPI,
-  needsMaxCompletionTokens
-});
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    getVeniceKey, saveVeniceKey, hasVeniceKey,
+    getVeniceModel, setVeniceModel, getVeniceModelDisplay,
+    getOpenRouterKey, saveOpenRouterKey, hasOpenRouterKey,
+    getOpenRouterModel, setOpenRouterModel, getOpenRouterModelDisplay,
+    getRoutstrKey, saveRoutstrKey, hasRoutstrKey,
+    getRoutstrModel, setRoutstrModel, getRoutstrModelDisplay, getRoutstrNodeUrl,
+    getPpqKey, savePpqKey, hasPpqKey,
+    getPpqModel, setPpqModel, getPpqModelDisplay,
+    getPpqPrivateMode, setPpqPrivateMode, isPpqPrivateModel, isPpqPrivateModeActive,
+    getPpqCreditId, savePpqCreditId,
+    getOllamaMainModel, setOllamaMainModel,
+    getOllamaPIIUrl, setOllamaPIIUrl,
+    getOllamaPIIModel, setOllamaPIIModel,
+    getOpenRouterBalance,
+    getVeniceBalance,
+    fetchVeniceModels, fetchOpenRouterModels, getOpenRouterPricing,
+    fetchRoutstrModels, createRoutstrAccount, getRoutstrBalance,
+    fetchPpqModels, createPpqAccount, getPpqBalance, createPpqTopup, checkPpqTopupStatus,
+    generatePKCE, startOpenRouterOAuth, exchangeOpenRouterCode,
+    deduplicateModels,
+    isRecommendedModel,
+    getActiveModelId, getActiveModelDisplay,
+    renderModelPricingHint,
+    getAIProvider, setAIProvider, hasAIProvider, markAISettingsLocal,
+    supportsVision, supportsWebSearch, isE2EEModel, isVeniceE2EEActive, getVeniceE2EE, setVeniceE2EE,
+    validateVeniceKey, validateOpenRouterKey, validateRoutstrKey, validatePpqKey, validateCustomApiKey,
+    getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey, hasCustomApiKey,
+    getCustomApiModel, setCustomApiModel, getCustomApiModelDisplay,
+    fetchCustomApiModels, callCustomAPI,
+    callOllamaChat, callOpenAICompatibleLocalAPI, callVeniceAPI, callOpenRouterAPI, callRoutstrAPI, callPpqPrivateAPI, callPpqAPI, callClaudeAPI,
+    needsMaxCompletionTokens
+  });
+}

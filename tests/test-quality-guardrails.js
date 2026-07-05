@@ -267,6 +267,7 @@ const wearablesWorkflowCheckJsModules = [
   'js/wearables-oura.js',
   'js/wearables-polar-auth.js',
   'js/wearables-polar.js',
+  'js/wearables-runtime.js',
   'js/wearables-settings-runtime.js',
   'js/wearables-settings-panel.js',
   'js/wearables-store.js',

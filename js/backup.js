@@ -10,7 +10,7 @@ const appWindow = /** @type {Window & typeof globalThis & {
   encryptedGetItem?: (key: string) => Promise<string | null>,
   getEncryptionEnabled?: () => boolean,
   showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any>,
-}} */ (window);
+}} */ (typeof window !== 'undefined' ? window : {});
 const getEncryptionEnabled = () => appWindow.getEncryptionEnabled?.() || false;
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
 const backupActionDelegateRoots = new WeakSet();
@@ -722,18 +722,20 @@ export function renderFolderBackupSection() {
   return html;
 }
 
-Object.assign(window, {
-  buildBackupSnapshot,
-  exportEncryptedBackup,
-  importEncryptedBackup,
-  scheduleAutoBackup,
-  getAutoBackupSnapshots,
-  restoreAutoBackup,
-  openBackupDB,
-  initFolderBackup,
-  pickFolderForBackup,
-  reauthorizeFolderBackup,
-  removeFolderBackup,
-  getFolderBackupState,
-  renderFolderBackupSection,
-});
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    buildBackupSnapshot,
+    exportEncryptedBackup,
+    importEncryptedBackup,
+    scheduleAutoBackup,
+    getAutoBackupSnapshots,
+    restoreAutoBackup,
+    openBackupDB,
+    initFolderBackup,
+    pickFolderForBackup,
+    reauthorizeFolderBackup,
+    removeFolderBackup,
+    getFolderBackupState,
+    renderFolderBackupSection,
+  });
+}

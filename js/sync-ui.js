@@ -57,6 +57,7 @@ function handleSyncUIClick(event) {
 }
 
 export function initSyncUIDelegates() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
   const appWindow = /** @type {any} */ (window);
   if (appWindow[SYNC_UI_DELEGATE_KEY]) return;
   document.addEventListener('click', handleSyncUIClick);

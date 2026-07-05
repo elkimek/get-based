@@ -11,7 +11,7 @@ const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';
 
 const chartWindow = /** @type {Window & typeof globalThis & {
   __labChartDateAdapterLoaded?: boolean
-}} */ (window);
+}} */ (typeof window !== 'undefined' ? window : {});
 
 let _chartJsLoad = null;
 let _chartDateAdapterLoad = null;
@@ -656,4 +656,6 @@ export function getMarkerDescription(markerId) {
   return cache[markerId] || null;
 }
 
-Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs, isChartDateAdapterReady });
+if (typeof window !== 'undefined') {
+  Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs, isChartDateAdapterReady });
+}

@@ -44,7 +44,7 @@ export {
  * }} DataWindowHooks
  */
 
-const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (window);
+const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (typeof window !== 'undefined' ? window : {});
 
 const DATA_ACTION_ATTR = 'data-lab-data-action';
 const DATA_CHANGE_ATTR = 'data-lab-data-change';
@@ -1059,4 +1059,6 @@ export function updateHeaderRangeToggle() {
   }
 }
 
-Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, invalidateActiveDataCache, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });
+if (typeof window !== 'undefined') {
+  Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, invalidateActiveDataCache, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });
+}

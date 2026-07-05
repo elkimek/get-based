@@ -25,7 +25,7 @@ const appWindow = /** @type {Window & typeof globalThis & {
   navigate: (category: string) => void,
   recordChange: (field: string) => void,
   __cycleDelegatesBound?: boolean
-}} */ (window);
+}} */ (typeof window !== 'undefined' ? window : {});
 
 function cycleActionAttrs(action, extra = '') {
   return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
@@ -791,4 +791,6 @@ export function renderMenstrualCycleSection(data, opts = {}) {
   return html;
 }
 
-Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, toggleCycleSymptomTag, _toggleCycleEditorFields });
+if (typeof window !== 'undefined') {
+  Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, toggleCycleSymptomTag, _toggleCycleEditorFields });
+}

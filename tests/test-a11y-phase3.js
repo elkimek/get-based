@@ -293,8 +293,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   // ─── 12. Weight input respects unit system ───
   const wearSrc = read('/js/wearables.js');
+  const wearRuntimeSrc = read('/js/wearables-runtime.js');
   assert('weight log inputs respect state.unitSystem',
     wearSrc.includes("state.unitSystem === 'US' ? 'lb' : 'kg'"));
+  assert('wearables dashboard browser hooks are isolated in runtime adapter',
+    wearSrc.includes("from './wearables-runtime.js'")
+      && !/\bwindow\b/.test(wearSrc)
+      && wearRuntimeSrc.includes('exposeWearablesBindings')
+      && wearRuntimeSrc.includes('getWearablesViewportSize'));
 
   // ─── 12b. Light-device browse modals close on backdrop click ───
   // Browse-style modals (Add device, picker) close on backdrop; form-input

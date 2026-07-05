@@ -13,7 +13,7 @@ const appWindow = /** @type {Window & typeof globalThis & {
   getFolderBackupState?: () => { folderName?: string | null, permissionLost?: boolean },
   migrateProfileData: (data: any) => void,
   navigate: (view: string) => void,
-}} */ (window);
+}} */ (typeof window !== 'undefined' ? window : {});
 const cryptoActionDelegateRoots = new WeakSet();
 const CRYPTO_ACTION_DELEGATE_KEY = Symbol.for('getbased.cryptoActionDelegatesInstalled');
 const CRYPTO_ACTION_ATTR = 'data-crypto-action';
@@ -1050,25 +1050,27 @@ export function toggleBackupSnapshots() {
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS
 // ═══════════════════════════════════════════════
-Object.assign(window, {
-  initEncryption,
-  initBroadcastChannel,
-  getEncryptionEnabled,
-  isUnlocked,
-  encryptedSetItem,
-  encryptedGetItem,
-  showEnableEncryptionModal,
-  maybeShowEncryptionNudge,
-  maybeShowBackupNudge,
-  disableEncryption,
-  changePassphrase,
-  broadcastDataChanged,
-  renderEncryptionSection,
-  renderBackupSection,
-  isSensitiveKey,
-  getCachedKey,
-  updateKeyCache,
-  decryptKeyCache,
-  loadBackupSnapshots,
-  toggleBackupSnapshots,
-});
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    initEncryption,
+    initBroadcastChannel,
+    getEncryptionEnabled,
+    isUnlocked,
+    encryptedSetItem,
+    encryptedGetItem,
+    showEnableEncryptionModal,
+    maybeShowEncryptionNudge,
+    maybeShowBackupNudge,
+    disableEncryption,
+    changePassphrase,
+    broadcastDataChanged,
+    renderEncryptionSection,
+    renderBackupSection,
+    isSensitiveKey,
+    getCachedKey,
+    updateKeyCache,
+    decryptKeyCache,
+    loadBackupSnapshots,
+    toggleBackupSnapshots,
+  });
+}
