@@ -6,6 +6,7 @@
 
 import './_node-shim.js';
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,7 @@ console.log('=== Sun Session Tests ===\n');
 
 await import('../js/state.js');
 const sun = await import('../js/sun.js');
+const sunChannelMetrics = await import('../js/sun-channel-metrics.js');
 const sunSessionModel = await import('../js/sun-session-model.js');
 const sunSessionsStore = await import('../js/sun-sessions-store.js');
 const {
@@ -34,7 +36,8 @@ const {
   startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession,
   markSessionRotated, setSessionSunscreen, setSessionCoverage, updateSession,
   rehydrateStaleSessions,
-  rollingChannelTotals, dailyChannelBreakdown, rollingVitaminDIU,
+  rollingChannelTotals, dailyChannelBreakdown, dailyVitaminDIUBreakdown, rollingVitaminDIU,
+  cumulativeVitaminDIUToday, vitaminDBudgetStatus,
   cumulativeMEDToday, cumulativeMEDYesterday,
   _applyAtmOverrides,
 } = sun;
@@ -91,6 +94,12 @@ const {
     setSessionSunscreen === sunSessionsStore.setSessionSunscreen &&
     setSessionCoverage === sunSessionsStore.setSessionCoverage &&
     SUN_ENGINE_VERSION === sunSessionsStore.SUN_ENGINE_VERSION);
+  assert('sun.js re-exports channel metrics facade API',
+    formatChannelUnit === sunChannelMetrics.formatChannelUnit &&
+    rollingVitaminDIU === sunChannelMetrics.rollingVitaminDIU &&
+    sun.dailyVitaminDIUBreakdown === sunChannelMetrics.dailyVitaminDIUBreakdown &&
+    sun.cumulativeVitaminDIUToday === sunChannelMetrics.cumulativeVitaminDIUToday &&
+    sun.vitaminDBudgetStatus === sunChannelMetrics.vitaminDBudgetStatus);
   {
     const sunSrc = read('js/sun.js');
     const storeSrc = read('js/sun-sessions-store.js');
@@ -343,26 +352,107 @@ const {
   assert('Bucket has device split field (=0 with no device sessions)',
     buckets.every(b => b.device === 0));
 
-  // ─── 8. rollingVitaminDIU (gated by window.vitaminDIU presence) ──────
+  // ─── 8. rollingVitaminDIU ────────────────────────────────────────────
   console.log('%c 8. rollingVitaminDIU ', 'font-weight:bold;color:#f59e0b');
 
-  // Without vitaminDIU wired, the function returns 0 — assert the contract.
-  if (typeof window.vitaminDIU !== 'function') {
-    assert('rollingVitaminDIU returns 0 when window.vitaminDIU not wired',
-      rollingVitaminDIU(7) === 0);
-  } else {
-    // Real engine wired — assert per-session conversion path.
+  reset();
+  await logCompletedSession({
+    startedAt: Date.now() - 86400 * 1000,
+    endedAt: Date.now() - 86400 * 1000 + 1800 * 1000,
+    doses: { vitamin_d: 100 },
+    atmosphere: { uvIndex: 7 },
+    safety: { fitzpatrick: 'III' },
+  });
+  const iu = rollingVitaminDIU(7);
+  assert('rollingVitaminDIU returns finite non-negative IU sum',
+    Number.isFinite(iu) && iu >= 0, `iu=${iu}`);
+  {
+    const localKey = (ts) => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
     reset();
+    const now = new Date();
+    const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
+    const beforeMidnight = yesterdayStart - 10 * 60 * 1000;
+    const afterMidnight = yesterdayStart + 10 * 60 * 1000;
     await logCompletedSession({
-      startedAt: Date.now() - 86400 * 1000,
-      endedAt: Date.now() - 86400 * 1000 + 1800 * 1000,
-      doses: { vitamin_d: 100 },
+      startedAt: beforeMidnight,
+      endedAt: afterMidnight,
+      doses: { vitamin_d: 40 },
       atmosphere: { uvIndex: 7 },
       safety: { fitzpatrick: 'III' },
+      bodyExposure: { fraction: 0.2, rotatedSides: false },
     });
-    const iu = rollingVitaminDIU(7);
-    assert('rollingVitaminDIU returns finite non-negative IU sum',
-      Number.isFinite(iu) && iu >= 0, `iu=${iu}`);
+    const breakdown = dailyVitaminDIUBreakdown(4);
+    const startBucket = breakdown.find(b => b.key === localKey(beforeMidnight));
+    const endBucket = breakdown.find(b => b.key === localKey(afterMidnight));
+    assert('dailyVitaminDIUBreakdown keys match local bucket dates',
+      breakdown.every(b => b.key === localKey(b.date.getTime())));
+    assert('completed midnight-crossing sessions stay on their start-day bucket',
+      startBucket?.sun > 0 && (endBucket?.sun || 0) === 0,
+      `start=${startBucket?.sun || 0} end=${endBucket?.sun || 0}`);
+  }
+  {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    reset();
+    await logCompletedSession({
+      startedAt: todayStart + 60 * 1000,
+      endedAt: todayStart + 2 * 60 * 1000,
+      doses: { vitamin_d: 60 },
+      atmosphere: { uvIndex: 7 },
+      safety: { fitzpatrick: 'III' },
+      bodyExposure: { fraction: 0.2, rotatedSides: false },
+    });
+    assert('cumulativeVitaminDIUToday counts same-day sun-session buckets',
+      cumulativeVitaminDIUToday() > 0);
+    reset();
+    const beforeMidnight = todayStart - 10 * 60 * 1000;
+    const afterMidnight = todayStart + 60 * 1000;
+    await logCompletedSession({
+      startedAt: beforeMidnight,
+      endedAt: afterMidnight,
+      doses: { vitamin_d: 6000 },
+      atmosphere: { uvIndex: 7 },
+      safety: { fitzpatrick: 'III' },
+      bodyExposure: { fraction: 0.2, rotatedSides: false },
+    });
+    const breakdown = dailyVitaminDIUBreakdown(2);
+    assert('today vitamin-D budget follows the same start-day bucket as the chart',
+      cumulativeVitaminDIUToday() === 0 &&
+      vitaminDBudgetStatus().sunIU === 0 &&
+      (breakdown.at(-2)?.sun || 0) > 0 &&
+      (breakdown.at(-1)?.sun || 0) === 0,
+      `budget=${cumulativeVitaminDIUToday()} todayBucket=${breakdown.at(-1)?.sun || 0}`);
+    const boundaryScript = `
+      import './tests/_node-shim.js';
+      const { state } = await import('./js/state.js');
+      const { vitaminDBudgetStatus } = await import('./js/sun.js');
+      Date.now = () => Date.parse('2026-07-04T06:30:00Z');
+      state.importedData = {
+        entries: [],
+        sunSessions: [],
+        supplements: [{
+          name: 'UTC boundary D3',
+          startDate: '2026-07-04',
+          ingredients: [{ name: 'Vitamin D3', amount: '25 mcg', timesPerDay: 1 }],
+        }],
+      };
+      const budget = vitaminDBudgetStatus();
+      if (budget.supplementIU !== 1000) {
+        console.error(JSON.stringify(budget));
+        process.exit(1);
+      }
+    `;
+    const boundary = spawnSync(process.execPath, ['--input-type=module', '-e', boundaryScript], {
+      cwd: ROOT,
+      env: { ...process.env, TZ: 'America/Los_Angeles' },
+      encoding: 'utf8',
+    });
+    assert('vitamin-D supplement budget includes legacy UTC-date defaults near local boundary',
+      boundary.status === 0,
+      (boundary.stderr || boundary.stdout || '').trim());
   }
 
   // ─── 9. MED today / yesterday ─────────────────────────────────────────
@@ -487,6 +577,7 @@ const {
 
   const fs = await import('node:fs/promises');
   const sunSrc = await fs.readFile(new URL('../js/sun.js', import.meta.url), 'utf8');
+  const metricsSrc = await fs.readFile(new URL('../js/sun-channel-metrics.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
   const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
@@ -513,9 +604,22 @@ const {
     aiHooksSrc.includes("import { maybeAnalyzeSessionAfterFinish } from './sun-ai-analysis.js';") &&
     aiHooksSrc.includes('configureSunSessionsStore({ maybeAnalyzeSessionAfterFinish })') &&
     appLightSunSrc.includes("import './light-sun-ai-hooks.js';"));
+  assert('Sun channel metrics owns unit formatting and vitamin-D rollups',
+    sunSrc.includes("from './sun-channel-metrics.js'") &&
+    metricsSrc.includes("import { ingredientDailyTotal } from './supplement-impact.js';") &&
+    metricsSrc.includes("import { getSessions } from './sun-sessions-store.js';") &&
+    metricsSrc.includes('export function formatChannelUnit') &&
+    metricsSrc.includes('export function rollingVitaminDIU') &&
+    metricsSrc.includes('export function dailyVitaminDIUBreakdown') &&
+    metricsSrc.includes('const ts = getSunSessionBucketTs(sess);') &&
+    metricsSrc.includes('localDayKey(bucketTs) !== todayKey') &&
+    metricsSrc.includes('function currentDateKeyRange') &&
+    !metricsSrc.includes('toISOString().slice(0, 10)') &&
+    !metricsSrc.includes('window.'));
   assert('Service worker precaches extracted sun session modules',
     swSrc.includes("'/js/sun-session-model.js'") &&
     swSrc.includes("'/js/sun-sessions-store.js'") &&
+    swSrc.includes("'/js/sun-channel-metrics.js'") &&
     swSrc.includes("'/js/light-sun-ai-hooks.js'"));
 
   // Restore
