@@ -100,6 +100,7 @@ const APP_SHELL = [
   '/js/secondary-unit-conversions.js',
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',
+  '/js/import-drop-zone-runtime.js',
   '/js/ai-verdict-engine.js',
   '/js/profile.js',
   '/js/profile-runtime.js',

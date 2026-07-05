@@ -197,6 +197,7 @@ const uiWorkflowCheckJsModules = [
   'js/dashboard-widget-controls.js',
   'js/dashboard-widgets.js',
   'js/import-drop-zone.js',
+  'js/import-drop-zone-runtime.js',
   'js/import-file-input.js',
   'js/import-loader.js',
   'js/import-marker-map-modal.js',

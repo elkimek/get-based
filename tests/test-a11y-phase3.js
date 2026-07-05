@@ -302,6 +302,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && wearRuntimeSrc.includes('exposeWearablesBindings')
       && wearRuntimeSrc.includes('getWearablesViewportSize'));
 
+  const importDropZoneSrc = read('/js/import-drop-zone.js');
+  const importDropZoneRuntimeSrc = read('/js/import-drop-zone-runtime.js');
+  assert('import drop-zone browser hooks are isolated in runtime adapter',
+    importDropZoneSrc.includes("from './import-drop-zone-runtime.js'")
+      && !/\bwindow\b/.test(importDropZoneSrc)
+      && importDropZoneRuntimeSrc.includes('isDropZoneImportRunning')
+      && importDropZoneRuntimeSrc.includes('handleDropZoneDNAFile'));
+
   // ─── 12b. Light-device browse modals close on backdrop click ───
   // Browse-style modals (Add device, picker) close on backdrop; form-input
   // modals (Log device session) require explicit Cancel/Save so accidental

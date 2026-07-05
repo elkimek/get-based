@@ -104,6 +104,7 @@
     "js/hardware.js",
     "js/image-utils.js",
     "js/import-drop-zone.js",
+    "js/import-drop-zone-runtime.js",
     "js/import-file-input.js",
     "js/import-loader.js",
     "js/lab-entry.js",
