@@ -469,6 +469,12 @@ try {
     exportRuntimeSrc.includes("getRuntimeFunction(chatThreads, 'loadChatThreads')") &&
     exportRuntimeSrc.includes("getRuntimeFunction(nav, 'buildSidebar')") &&
     exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')"));
+  assert('export-runtime can refresh imported chat threads without chat module fallback globals',
+    exportRuntimeSrc.includes('function loadChatThreadsFromStorageFallback') &&
+    exportRuntimeSrc.includes('labcharts-${state.currentProfile}-chat-threads') &&
+    exportRuntimeSrc.includes('function renderThreadListFallback') &&
+    exportRuntimeSrc.includes('function refreshChatThreadsRuntime(chatThreads)') &&
+    exportRuntimeSrc.includes('if (chat) refreshChatThreadsRuntime(chatThreads)'));
   assert('export.js no longer calls import UI globals through window',
     !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
   assert('Service worker precaches export runtime module',
