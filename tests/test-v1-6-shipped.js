@@ -214,12 +214,13 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 6. Scroll-anchor system ', 'font-weight:bold;color:#0891b2');
   {
     const routerSrc = fetchSrc('js/views-router.js');
+    const routerRuntimeSrc = fetchSrc('js/views-router-runtime.js');
     assert('views-router.js: _captureScrollAnchor exists', /function _captureScrollAnchor/.test(routerSrc));
     assert('views-router.js: _restoreScrollAnchor exists', /function _restoreScrollAnchor/.test(routerSrc));
     assert('views-router.js: modal-safe preserveScroll path exists',
       routerSrc.includes('preserveScroll')
       && routerSrc.includes('function _restorePixelScroll')
-      && routerSrc.includes('window.scrollTo'));
+      && routerSrc.includes('restoreViewportScroll'));
     assert('views-router.js: two-tier heuristic (containingBest + centerBest)',
       /containingBest[\s\S]{0,500}centerBest/.test(routerSrc));
     assert('views-router.js: containing-tier picks SMALLEST area (innermost)',
@@ -243,9 +244,17 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       /1200/.test(routerSrc) && /requestAnimationFrame\(reapply\)/.test(routerSrc));
     // v1.6.10: user-input cancel for the loop.
     assert('views-router.js: anchor loop cancels on wheel/touchstart/keydown',
-      /addEventListener\('wheel'/.test(routerSrc)
-      && /addEventListener\('touchstart'/.test(routerSrc)
-      && /addEventListener\('keydown'/.test(routerSrc));
+      routerSrc.includes('addViewportInputCancelListeners(cancel)')
+      && /addEventListener\('wheel'/.test(routerRuntimeSrc)
+      && /addEventListener\('touchstart'/.test(routerRuntimeSrc)
+      && /addEventListener\('keydown'/.test(routerRuntimeSrc));
+    assert('views-router.js routes viewport globals through runtime adapter',
+      routerSrc.includes("from './views-router-runtime.js'")
+      && !/\bwindow(?:\.|\s*\[)/.test(routerSrc));
+    assert('views-router.js: zero viewport height still allows anchor capture',
+      /hasViewportHeight\s*=\s*vh\s*>\s*0/.test(routerSrc)
+      && /!hasViewportHeight\s*\|\|\s*rect\.top\s*<\s*vh/.test(routerSrc)
+      && /hasViewportHeight\s*&&\s*rect\.top\s*>=\s*vh/.test(routerSrc));
     // v1.6.10: token cancellation across navigates.
     assert('views-router.js: _navAnchorToken bumped per navigate, old loops bail',
       /_navAnchorToken/.test(routerSrc) && /myToken\s*!==\s*_navAnchorToken/.test(routerSrc));

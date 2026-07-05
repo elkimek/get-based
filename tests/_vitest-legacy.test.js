@@ -171,6 +171,7 @@ const LEGACY_TESTS = [
   './test-tour.js',
   './test-settings-runtime.js',
   './test-settings-delegated-actions.js',
+  './test-views-router-runtime.js',
   './test-shell-delegated-actions.js',
   './test-nav-delegated-actions.js',
   './test-dashboard-widget-delegated-actions.js',

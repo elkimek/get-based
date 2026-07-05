@@ -342,6 +342,7 @@ const startupAppShellCheckJsModules = [
   'js/startup-ui.js',
   'js/theme.js',
   'js/tour.js',
+  'js/views-router-runtime.js',
   'js/views-router.js',
 ];
 const missingStartupAppShellCheckJsModules = startupAppShellCheckJsModules

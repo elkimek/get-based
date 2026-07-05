@@ -56,6 +56,7 @@
     '/js/category-customization.js',
     '/js/commit-hash.js',
     '/js/client-list-runtime.js',
+    '/js/views-router-runtime.js',
     '/js/focus-card.js',
     '/js/onboarding-view.js',
     '/js/marker-detail-modal.js',
