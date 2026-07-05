@@ -4,6 +4,18 @@
 import { DASHBOARD_WIDGET_SOURCE_ORDER, dashboardBiometricSelectionKey } from './dashboard-widgets.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus, safeMarkerId, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import {
+  deleteDashboardNote,
+  getDashboardViewportHeight,
+  navigateDashboardRoute,
+  openDashboardManualLogForm,
+  openDashboardMarkerDetail,
+  openDashboardNoteEditor,
+  openDashboardWearableDetail,
+  openDashboardWearablesSettings,
+  syncDashboardWearableNow,
+  triggerDashboardDnaPicker,
+} from './dashboard-widget-runtime.js';
 
 const DASHBOARD_WIDGET_KEYBOARD_ACTIONS = new Set([
   'open-biometric-manual-log',
@@ -112,8 +124,10 @@ export function createDashboardWidgetControls(deps) {
   }
 
   function getDashboardViewportTargetWidgetId() {
-    if (typeof document === 'undefined' || typeof window === 'undefined') return '';
-    const targetLine = Math.max(120, window.innerHeight * 0.36);
+    if (typeof document === 'undefined') return '';
+    const viewportHeight = getDashboardViewportHeight();
+    if (viewportHeight == null) return '';
+    const targetLine = Math.max(120, viewportHeight * 0.36);
     const widgets = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.dashboard-widget[data-widget-id]')]);
     for (const el of widgets) {
       const rect = el.getBoundingClientRect();
@@ -260,37 +274,36 @@ export function createDashboardWidgetControls(deps) {
       resetDashboardWidgets();
       closeDashboardWidgetPicker();
     } else if (action === 'connect-source') {
-      window.openSettingsModal?.('wearables');
+      openDashboardWearablesSettings();
       closeDashboardWidgetPicker();
     } else if (action === 'open-biometric-picker') {
       openDashboardBiometricPicker();
     } else if (action === 'sync-biometric-now') {
-      window.syncWearableNow?.(actionEl);
+      syncDashboardWearableNow(actionEl);
     } else if (action === 'remove-biometric-metric') {
       removeDashboardBiometricMetric(id);
     } else if (action === 'open-biometric-detail') {
-      if (window.openWearableDetail) window.openWearableDetail(id);
-      else window.openSettingsModal?.('wearables');
+      if (!openDashboardWearableDetail(id)) openDashboardWearablesSettings();
     } else if (action === 'open-biometric-manual-log') {
-      window.openManualLogForm?.(id, event);
+      openDashboardManualLogForm(id, event);
     } else if (action === 'open-marker-detail') {
-      if (safeMarkerId(id)) window.showDetailModal?.(id);
+      if (safeMarkerId(id)) openDashboardMarkerDetail(id);
     } else if (action === 'navigate') {
       const route = actionEl.dataset.dashboardWidgetRoute || '';
-      if (/^[a-zA-Z0-9_-]+$/.test(route)) window.navigate?.(route);
+      if (/^[a-zA-Z0-9_-]+$/.test(route)) navigateDashboardRoute(route);
     } else if (action === 'trigger-dna-picker') {
-      window.triggerDNAFilePicker?.();
+      triggerDashboardDnaPicker();
     } else if (action === 'open-note-editor') {
       const rawIndex = actionEl.dataset.dashboardWidgetIndex;
       if (rawIndex == null || rawIndex === '') {
-        window.openNoteEditor?.();
+        openDashboardNoteEditor();
       } else {
         const index = Number(rawIndex);
-        if (Number.isInteger(index) && index >= 0) window.openNoteEditor?.(null, index);
+        if (Number.isInteger(index) && index >= 0) openDashboardNoteEditor(index);
       }
     } else if (action === 'delete-note') {
       const index = Number(actionEl.dataset.dashboardWidgetIndex);
-      if (Number.isInteger(index) && index >= 0) window.deleteNote?.(index);
+      if (Number.isInteger(index) && index >= 0) deleteDashboardNote(index);
     }
   }
 
@@ -412,7 +425,7 @@ export function createDashboardWidgetControls(deps) {
 
   function addDashboardWidgetFromLens(id) {
     showDashboardWidget(id);
-    if (state.currentView && state.currentView !== 'dashboard') window.navigate?.(state.currentView);
+    if (state.currentView && state.currentView !== 'dashboard') navigateDashboardRoute(state.currentView);
     showNotification('Added to Dashboard', 'success');
   }
 
@@ -422,7 +435,7 @@ export function createDashboardWidgetControls(deps) {
     if (!prefs.hidden.includes(id)) prefs.hidden.push(id);
     saveDashboardWidgetPrefs(prefs);
     if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
-    else if (state.currentView) window.navigate?.(state.currentView);
+    else if (state.currentView) navigateDashboardRoute(state.currentView);
     showNotification('Removed from Dashboard', 'info');
   }
 

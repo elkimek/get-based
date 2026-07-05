@@ -84,6 +84,7 @@
     "js/dashboard-page-view.js",
     "js/dashboard-recommendation-widget.js",
     "js/dashboard-view-composition.js",
+    "js/dashboard-widget-runtime.js",
     "js/dashboard-widget-controls.js",
     "js/dashboard-widget-renderers.js",
     "js/dashboard-widgets.js",
