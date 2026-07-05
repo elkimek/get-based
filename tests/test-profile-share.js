@@ -145,11 +145,11 @@ assert('Window exports share helpers',
   profileShareSrc.includes('parseProfileShareIdFromLocation'));
 
 console.log('4. Export/import reuse and credential boundaries');
-const exportWindowAssign = exportSrc.match(/Object\.assign\(window,\s*\{([^}]*)\}\)/);
+const exportGlobalPublish = exportSrc.match(/publishExportGlobals\(\s*\{([^}]*)\}\)/);
 assert('buildClientExportObject stays module-only, not window-exposed',
   exportSrc.includes('export async function buildClientExportObject') &&
-  exportWindowAssign &&
-  !exportWindowAssign[1].includes('buildClientExportObject'));
+  exportGlobalPublish &&
+  !exportGlobalPublish[1].includes('buildClientExportObject'));
 assert('exportClientJSON downloads the reusable export object',
   exportSrc.includes('exportObj = await buildClientExportObject(profileId, includeChat)') &&
   exportSrc.includes('new Blob([JSON.stringify(exportObj, null, 2)]'));

@@ -429,6 +429,8 @@ console.log('17. profile.js async');
 try {
   const src = await fetchWithRetry('js/profile.js');
   const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
+  const exportSrc = await fetchWithRetry('js/export.js');
+  const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
   const swSrc = await fetchWithRetry('service-worker.js');
   assert('loadProfile is async', src.includes('async function loadProfile'));
   assert('saveProfiles is async', src.includes('async function saveProfiles'));
@@ -454,6 +456,16 @@ try {
     !runtimeSrc.includes('Object.assign(window'));
   assert('Service worker precaches profile runtime module',
     swSrc.includes("'/js/profile-runtime.js'"));
+  assert('export.js delegates browser runtime wiring to export-runtime',
+    exportSrc.includes("from './export-runtime.js'") &&
+    exportSrc.includes('getWalletBundleSettings') &&
+    exportSrc.includes('refreshImportRuntimeShell') &&
+    exportSrc.includes('publishExportGlobals') &&
+    exportRuntimeSrc.includes('export async function refreshImportRuntimeShell'));
+  assert('export.js no longer calls import UI globals through window',
+    !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
+  assert('Service worker precaches export runtime module',
+    swSrc.includes("'/js/export-runtime.js'"));
 } catch (e) {
   assert('profile.js async check', false, e.message);
 }

@@ -768,7 +768,7 @@ return (async function() {
   await wait(50);
   const staticNavCategories = new Set([
     'dashboard', 'labs', 'correlations', 'compare', 'recommendations',
-    'reports', 'knowledge', 'custom-markers', 'light', 'body', 'wearables',
+    'reports', 'knowledge', 'context', 'custom-markers', 'light', 'body', 'wearables',
     'emf', 'light-env-assessment', 'genome', 'genetics', 'insight',
   ]);
   const getFilterableNavItems = () => [...sidebar.querySelectorAll('.nav-item')]
