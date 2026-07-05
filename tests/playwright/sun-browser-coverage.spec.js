@@ -88,12 +88,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       getDeviceSessions: window.getDeviceSessions,
-      vitaminDIU: window.vitaminDIU,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      VITD_DAILY_SATURATION_IU: window.VITD_DAILY_SATURATION_IU,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      circadianMelanopicLux: window.circadianMelanopicLux,
-      ingredientDailyTotal: window.ingredientDailyTotal,
       geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
     };
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -173,16 +167,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         bodyArea: 'whole-body',
         doses: { vitamin_d: 2200, no_cv: 300, circadian: 800 },
       }];
-      window.vitaminDIU = (au, fitz, uvi, rotated) => (uvi != null && uvi < 3 ? 0 : Math.min(au * (rotated ? 2 : 1), 20000));
-      window.vitaminDIUPerSession = (au, fitz, uvi, rotated, genetics, bodyFraction) => {
-        if (uvi != null && uvi < 3) return 0;
-        const bodyCap = Number.isFinite(bodyFraction) && bodyFraction > 0 ? bodyFraction * 30000 : 20000;
-        return Math.min(au * (rotated ? 2 : 1), bodyCap, 20000);
-      };
-      window.VITD_DAILY_SATURATION_IU = 20000;
-      window.pbmJoulesPerCm2 = au => au / 1000;
-      window.circadianMelanopicLux = (au, durationMin) => au / Math.max(durationMin, 1);
-      window.ingredientDailyTotal = ing => ing.name.includes('Vitamin') ? { value: 125, unit: 'mcg' } : null;
 
       state.currentProfile = profileId;
       state.profiles = [{
@@ -211,7 +195,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
           name: 'D stack',
           startDate: new Date(todayStart).toISOString().slice(0, 10),
           ingredients: [
-            { name: 'Vitamin D3', amount: 125, unit: 'mcg' },
+            { name: 'Vitamin D3', amount: '125 mcg', timesPerDay: 1 },
             { name: 'Topical vitamin D cream', amount: 1000, unit: 'IU' },
           ],
         }],
@@ -238,8 +222,8 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 6, null, true, 0.24).includes('IU')
         && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 1, null, false, 0.24) === 'below UVI threshold'
         && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('saturated')
-        && sun.formatChannelUnit('nir_solar', 12400, 20) === '12 J/cm²'
-        && sun.formatChannelUnit('circadian', 52000, 10).includes('5.2k M-EDI lux')
+        && sun.formatChannelUnit('nir_solar', 12400, 20) === '1.2 J/cm²'
+        && sun.formatChannelUnit('circadian', 52000, 10).includes('53.2k M-EDI lux')
         && sun.formatChannelUnit('no_cv', 200, 20) === ''
         && sun.formatChannelUnit('circadian', 200, 1) === 'session too short';
 
@@ -350,12 +334,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       window.buildSidebar = saved.buildSidebar;
       window.navigate = saved.navigate;
       window.getDeviceSessions = saved.getDeviceSessions;
-      window.vitaminDIU = saved.vitaminDIU;
-      window.vitaminDIUPerSession = saved.vitaminDIUPerSession;
-      window.VITD_DAILY_SATURATION_IU = saved.VITD_DAILY_SATURATION_IU;
-      window.pbmJoulesPerCm2 = saved.pbmJoulesPerCm2;
-      window.circadianMelanopicLux = saved.circadianMelanopicLux;
-      window.ingredientDailyTotal = saved.ingredientDailyTotal;
       if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
       else delete navigator.geolocation;
       document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());

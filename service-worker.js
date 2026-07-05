@@ -360,6 +360,7 @@ const APP_SHELL = [
   // Sun + light modules are statically reachable from the app shell.
   '/js/sun.js',
   '/js/sun-active-session.js',
+  '/js/sun-channel-metrics.js',
   '/js/sun-session-model.js',
   '/js/sun-sessions-store.js',
   '/js/sun-session-ui.js',

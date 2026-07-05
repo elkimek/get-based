@@ -163,6 +163,7 @@ const healthDomainCheckJsModules = [
   'js/sun-active-session.js',
   'js/sun-ai-analysis.js',
   'js/sun-body-silhouette.js',
+  'js/sun-channel-metrics.js',
   'js/sun-context-hooks.js',
   'js/sun-correlations.js',
   'js/sun-onboarding-ai.js',
