@@ -191,6 +191,7 @@ const APP_SHELL = [
   '/js/views-router.js',
   '/js/dashboard-view-composition.js',
   '/js/dashboard-page-view.js',
+  '/js/mobile-dashboard-runtime.js',
   '/js/lens-pages.js',
   '/js/lens-page-shell.js',
   '/js/lens-library.js',

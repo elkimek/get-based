@@ -155,6 +155,7 @@
     "js/marker-detail-modal.js",
     "js/marker-detail-store.js",
     "js/mobile-dashboard.js",
+    "js/mobile-dashboard-runtime.js",
     "js/modal-lifecycle.js",
     "js/nav.js",
     "js/notes.js",

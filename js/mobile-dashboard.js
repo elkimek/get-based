@@ -8,6 +8,15 @@ import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } f
 import { getProfiles } from './profile.js';
 import { canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { loadContextHealthDots } from './context-cards.js';
+import {
+  addMobileDashboardBreakpointListener,
+  addMobileDashboardVisualViewportListener,
+  addMobileDashboardWindowListener,
+  exposeMobileDashboardBindings,
+  getMobileDashboardVisualBottomOffset,
+  isMobileDashboardRuntimeViewport,
+  scrollMobileDashboardToTop,
+} from './mobile-dashboard-runtime.js';
 
 const MOBILE_DASHBOARD_QUERY = '(max-width: 799px)';
 const MOBILE_WEARABLE_PRIORITY = [
@@ -123,16 +132,7 @@ export function installMobileDashboardActionDelegates(root = typeof document !==
 installMobileDashboardActionDelegates();
 
 export function isMobileDashboardViewport() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia(MOBILE_DASHBOARD_QUERY).matches;
-}
-
-function getMobileVisualBottomOffset() {
-  if (typeof window === 'undefined' || !window.visualViewport) return 0;
-  const layoutHeight = window.innerHeight || document.documentElement?.clientHeight || window.visualViewport.height;
-  const visualBottom = window.visualViewport.offsetTop + window.visualViewport.height;
-  return Math.max(0, Math.ceil(layoutHeight - visualBottom));
+  return isMobileDashboardRuntimeViewport(MOBILE_DASHBOARD_QUERY);
 }
 
 function syncMobileChromeRootState() {
@@ -142,10 +142,13 @@ function syncMobileChromeRootState() {
   const tabsActive = document.body.classList.contains('mobile-tabs-active');
   root.classList.toggle('mobile-dashboard-active', dashboardActive);
   root.classList.toggle('mobile-tabs-active', tabsActive);
+  const rootStyle = root.style;
   if (dashboardActive || tabsActive) {
-    root.style.setProperty('--mobile-visual-bottom-offset', `${getMobileVisualBottomOffset()}px`);
-  } else {
-    root.style.removeProperty('--mobile-visual-bottom-offset');
+    if (typeof rootStyle?.setProperty === 'function') {
+      rootStyle.setProperty('--mobile-visual-bottom-offset', `${getMobileDashboardVisualBottomOffset()}px`);
+    }
+  } else if (typeof rootStyle?.removeProperty === 'function') {
+    rootStyle.removeProperty('--mobile-visual-bottom-offset');
   }
 }
 
@@ -161,9 +164,9 @@ function initMobileChromeStateSync() {
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
-  window.addEventListener('resize', syncMobileChromeRootState, { passive: true });
-  window.visualViewport?.addEventListener('resize', syncMobileChromeRootState, { passive: true });
-  window.visualViewport?.addEventListener('scroll', syncMobileChromeRootState, { passive: true });
+  addMobileDashboardWindowListener('resize', syncMobileChromeRootState, { passive: true });
+  addMobileDashboardVisualViewportListener('resize', syncMobileChromeRootState, { passive: true });
+  addMobileDashboardVisualViewportListener('scroll', syncMobileChromeRootState, { passive: true });
 }
 
 function getMobileBottomTabForRoute(route) {
@@ -200,19 +203,20 @@ export function refreshMobileDashboardActiveTab() {
   mobileDashboardSetTab('dashboard', { fromScroll: true });
 }
 
-if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-  initMobileChromeStateSync();
-  const mobileDashboardMedia = window.matchMedia(MOBILE_DASHBOARD_QUERY);
-  const refreshDashboardForBreakpoint = () => {
-    if (state.currentView === 'dashboard') mobileDashboardDeps.navigate('dashboard');
-    else syncMobileBottomNav(state.currentView || 'dashboard');
-  };
-  if (typeof mobileDashboardMedia.addEventListener === 'function') {
-    mobileDashboardMedia.addEventListener('change', refreshDashboardForBreakpoint);
-  } else if (typeof mobileDashboardMedia.addListener === 'function') {
-    mobileDashboardMedia.addListener(refreshDashboardForBreakpoint);
-  }
-}
+const refreshDashboardForBreakpoint = () => {
+  if (state.currentView === 'dashboard') mobileDashboardDeps.navigate('dashboard');
+  else syncMobileBottomNav(state.currentView || 'dashboard');
+};
+addMobileDashboardBreakpointListener(MOBILE_DASHBOARD_QUERY, refreshDashboardForBreakpoint);
+initMobileChromeStateSync();
+
+// Keep legacy mobile dashboard globals available as soon as the module loads.
+exposeMobileDashboardBindings({
+  openMobileDashboardSearch,
+  mobileDashboardJump,
+  mobileDashboardSetTab,
+  refreshMobileDashboardActiveTab,
+});
 
 export function getMobileDashboardProfile() {
   const profiles = getProfiles() || [];
@@ -523,9 +527,7 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
     <button type="button" class="m-chat-fab" ${mobileDashboardActionAttrs('open-chat')} aria-label="Ask AI">${renderMobileIcon('chat')}</button>
     ${renderMobileBottomTabs('dashboard')}`;
 
-  if (resetScroll && typeof window.scrollTo === 'function') {
-    window.scrollTo(0, 0);
-  }
+  if (resetScroll) scrollMobileDashboardToTop();
   mobileDashboardDeps.setupDropZone();
   refreshMobileDashboardActiveTab();
   loadContextHealthDots();
@@ -533,10 +535,3 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
   mobileDashboardDeps.loadCommitHash();
   mobileDashboardDeps.loadCatalog().then(c => { mobileDashboardDeps.cacheCatalog(c); });
 }
-
-Object.assign(window, {
-  openMobileDashboardSearch,
-  mobileDashboardJump,
-  mobileDashboardSetTab,
-  refreshMobileDashboardActiveTab,
-});
