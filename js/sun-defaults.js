@@ -13,6 +13,16 @@ import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { SKIN_TYPE } from './constants.js';
+import {
+  exposeSunDefaultsBindings,
+  getSunSetupCoords,
+  getSunSetupProfileLocation,
+  hasSunDefaultsBrowserRuntime,
+  hasSunSetupPreciseLocationRequester,
+  navigateSunDefaultsRoute,
+  openSunSetupProfileLocationRuntime,
+  requestSunSetupPreciseLocationRuntime,
+} from './sun-defaults-runtime.js';
 
 // Map between Fitzpatrick Roman numeral and the SKIN_TYPE label used by the
 // Light & Circadian context card so both surfaces stay in sync.
@@ -703,12 +713,8 @@ function formatSetupLatitude(lat) {
 }
 
 function getSetupLocationStatus() {
-  const c = (typeof window !== 'undefined' && window.getSunCoords)
-    ? window.getSunCoords()
-    : null;
-  const loc = (typeof window !== 'undefined' && window.getProfileLocation)
-    ? window.getProfileLocation()
-    : {};
+  const c = getSunSetupCoords();
+  const loc = getSunSetupProfileLocation();
   const country = (loc?.country || '').trim();
   const lat = c ? formatSetupLatitude(c.lat) : '';
 
@@ -765,21 +771,15 @@ function refreshSetupLocationStatus() {
 
 function openLightSetupProfileLocation() {
   cancelReopenSunSetup();
-  setTimeout(() => {
-    if (window.openProfileLocationEditor) {
-      window.openProfileLocationEditor();
-    } else if (window.openClientList) {
-      window.openClientList();
-    }
-  }, 0);
+  setTimeout(openSunSetupProfileLocationRuntime, 0);
 }
 
 async function requestLightSetupPreciseLocation() {
-  if (!window.requestPreciseLocation) {
+  if (!hasSunSetupPreciseLocationRequester()) {
     showNotification('Precise location is unavailable here.');
     return null;
   }
-  const coords = await window.requestPreciseLocation();
+  const coords = await requestSunSetupPreciseLocationRuntime();
   refreshSetupLocationStatus();
   return coords;
 }
@@ -839,7 +839,7 @@ async function saveSunSetup() {
   closeSunSetupOverlay();
   showNotification(`Setup saved · light burden ${ottScore}/10`);
   maybeAnalyzeOnboardingAfterSave();
-  if (window.navigate) window.navigate('light');
+  navigateSunDefaultsRoute('light');
 }
 
 // Recompute the running Ott score whenever a checkbox toggles, and update
@@ -960,12 +960,12 @@ function _refreshSetupProgress() {
 async function dismissSunSetup() {
   await saveSunDefaults({ fitzpatrick: 'III', skipped: true, completedAt: Date.now() });
   closeSunSetupOverlay();
-  if (window.navigate) window.navigate('light');
+  navigateSunDefaultsRoute('light');
 }
 
-if (typeof window !== 'undefined') {
+if (hasSunDefaultsBrowserRuntime()) {
   installLightSetupDelegates();
-  Object.assign(window, {
+  exposeSunDefaultsBindings({
     getSunDefaults,
     saveSunDefaults,
     isLightOnboardingComplete: isOnboardingComplete,

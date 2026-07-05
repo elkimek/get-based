@@ -76,6 +76,7 @@
     '/js/light-channel-view.js',
     '/js/light-channel-view-hooks.js',
     '/js/light-channel-view-ui-hooks.js',
+    '/js/sun-defaults-runtime.js',
     '/js/sun-channel-metrics.js',
     '/js/sun-context-hooks.js',
     '/js/light-sessions-view.js',
