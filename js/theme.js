@@ -24,6 +24,81 @@ export const THEMES = [
   { id: 'neuromancer',   label: 'Neuromancer' },
 ];
 
+/**
+ * @typedef {{
+ *   dispatchThemeChange: (detail: Record<string, any>) => void,
+ *   refreshThemeDependentsFromRuntime: (options?: { settingsModalOpen?: boolean }) => void,
+ *   registerThemeRuntimeExports: (exportsByName: Record<string, any>) => void,
+ * }} ThemeRuntimeHooks
+ */
+
+function getFallbackThemeRuntimeGlobal() {
+  return typeof globalThis !== 'undefined'
+    ? /** @type {any} */ (globalThis)
+    : null;
+}
+
+/** @type {ThemeRuntimeHooks} */
+const fallbackThemeRuntime = {
+  dispatchThemeChange(detail) {
+    const runtime = getFallbackThemeRuntimeGlobal();
+    const CustomEventCtor = runtime?.CustomEvent;
+    if (!runtime || typeof CustomEventCtor !== 'function') return;
+    runtime.dispatchEvent(new CustomEventCtor('labcharts-themechange', { detail }));
+  },
+  refreshThemeDependentsFromRuntime(options = {}) {
+    const runtime = getFallbackThemeRuntimeGlobal();
+    if (!runtime) return;
+    runtime.applyAccentOverride?.();
+    runtime.updateSettingsUI?.();
+    runtime.updateTweaksUI?.();
+    if (typeof runtime.scheduleChartThemeRefresh === 'function') runtime.scheduleChartThemeRefresh();
+    else runtime.refreshChartThemeColors?.({ batchSize: 4 });
+    if (options.settingsModalOpen) runtime.refreshSettingsWearables?.();
+  },
+  registerThemeRuntimeExports(exportsByName) {
+    const runtime = getFallbackThemeRuntimeGlobal();
+    if (!runtime) return;
+    Object.assign(runtime, exportsByName);
+  },
+};
+
+/** @type {ThemeRuntimeHooks} */
+let themeRuntimeHooks = fallbackThemeRuntime;
+
+// Static imports of newly-added modules can break already-installed service
+// worker clients during cache transitions. Use the split runtime when it is
+// fetchable, but keep this module evaluable with the fallback above.
+if (typeof globalThis !== 'undefined') {
+  import('./theme-runtime.js')
+    .then(runtime => {
+      themeRuntimeHooks = {
+        dispatchThemeChange: typeof runtime.dispatchThemeChange === 'function'
+          ? runtime.dispatchThemeChange
+          : fallbackThemeRuntime.dispatchThemeChange,
+        refreshThemeDependentsFromRuntime: typeof runtime.refreshThemeDependentsFromRuntime === 'function'
+          ? runtime.refreshThemeDependentsFromRuntime
+          : fallbackThemeRuntime.refreshThemeDependentsFromRuntime,
+        registerThemeRuntimeExports: typeof runtime.registerThemeRuntimeExports === 'function'
+          ? runtime.registerThemeRuntimeExports
+          : fallbackThemeRuntime.registerThemeRuntimeExports,
+      };
+    })
+    .catch(() => {});
+}
+
+function dispatchThemeChange(detail) {
+  themeRuntimeHooks.dispatchThemeChange(detail);
+}
+
+function refreshThemeDependentsFromRuntime(options) {
+  themeRuntimeHooks.refreshThemeDependentsFromRuntime(options);
+}
+
+function registerThemeRuntimeExports(exportsByName) {
+  themeRuntimeHooks.registerThemeRuntimeExports(exportsByName);
+}
+
 export function getTimeFormat() { return localStorage.getItem('labcharts-time-format') || '24h'; }
 export function setTimeFormat(fmt) { localStorage.setItem('labcharts-time-format', fmt); }
 
@@ -105,11 +180,7 @@ export function setSunsetMode(enabled) {
   if (on) document.documentElement.dataset.sunsetMode = 'on';
   else delete document.documentElement.dataset.sunsetMode;
   applyThemeChrome(getTheme());
-  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    window.dispatchEvent(new CustomEvent('labcharts-themechange', {
-      detail: { theme: getTheme(), sunsetMode: on },
-    }));
-  }
+  dispatchThemeChange({ theme: getTheme(), sunsetMode: on });
 }
 
 export function setCrtEffectsEnabled(enabled) {
@@ -117,11 +188,7 @@ export function setCrtEffectsEnabled(enabled) {
   if (on) localStorage.setItem(CRT_EFFECTS_KEY, 'true');
   else localStorage.removeItem(CRT_EFFECTS_KEY);
   applyCrtEffectsAttr(on);
-  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    window.dispatchEvent(new CustomEvent('labcharts-themechange', {
-      detail: { theme: getTheme(), crtEffects: on },
-    }));
-  }
+  dispatchThemeChange({ theme: getTheme(), crtEffects: on });
 }
 
 export function setTheme(theme) {
@@ -130,22 +197,14 @@ export function setTheme(theme) {
   if (theme === 'dark') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
   applyThemeChrome(theme);
-  if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    window.dispatchEvent(new CustomEvent('labcharts-themechange', { detail: { theme } }));
-  }
+  dispatchThemeChange({ theme });
 }
 
 function refreshThemeDependents() {
-  window.applyAccentOverride?.();
-  window.updateSettingsUI?.();
-  window.updateTweaksUI?.();
-  if (window.scheduleChartThemeRefresh) window.scheduleChartThemeRefresh();
-  else window.refreshChartThemeColors?.({ batchSize: 4 });
   // If the Settings modal is open, the wearables list uses theme-aware
   // iconLight/iconDark assets, so refresh that panel in place.
-  if (document.getElementById('settings-modal')?.classList.contains('show')) {
-    window.refreshSettingsWearables?.();
-  }
+  const settingsModalOpen = document.getElementById('settings-modal')?.classList.contains('show') || false;
+  refreshThemeDependentsFromRuntime({ settingsModalOpen });
 }
 
 let toggleReturnTheme = 'dark';
@@ -176,4 +235,4 @@ export function getChartColors() {
   };
 }
 
-Object.assign(window, { getTheme, getThemeColor, getThemeColorScheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });
+registerThemeRuntimeExports({ getTheme, getThemeColor, getThemeColorScheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });

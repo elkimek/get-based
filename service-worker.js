@@ -83,6 +83,7 @@ const APP_SHELL = [
   '/js/state.js',
   '/js/utils.js',
   '/js/theme.js',
+  '/js/theme-runtime.js',
   '/js/api.js',
   '/js/api-models.js',
   '/js/api-provider-storage.js',

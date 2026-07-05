@@ -87,6 +87,7 @@ const LEGACY_TESTS = [
   './test-hardware.js',
   './test-provider-local-ai-runtime.js',
   './test-pdf-import-review-runtime.js',
+  './test-theme-runtime.js',
   // Batch 8 — lens parsers + a11y phase 3 + marker value notes.
   './test-lens-parsers.js',
   './test-a11y-phase3.js',

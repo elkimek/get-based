@@ -206,6 +206,7 @@
     "js/sun-uvdata.js",
     "js/sun.js",
     "js/theme.js",
+    "js/theme-runtime.js",
     "js/tour.js",
     "js/url-safety.js",
     "js/utils.js",
