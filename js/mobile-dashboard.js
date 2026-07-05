@@ -142,10 +142,13 @@ function syncMobileChromeRootState() {
   const tabsActive = document.body.classList.contains('mobile-tabs-active');
   root.classList.toggle('mobile-dashboard-active', dashboardActive);
   root.classList.toggle('mobile-tabs-active', tabsActive);
+  const rootStyle = root.style;
   if (dashboardActive || tabsActive) {
-    root.style.setProperty('--mobile-visual-bottom-offset', `${getMobileDashboardVisualBottomOffset()}px`);
-  } else {
-    root.style.removeProperty('--mobile-visual-bottom-offset');
+    if (typeof rootStyle?.setProperty === 'function') {
+      rootStyle.setProperty('--mobile-visual-bottom-offset', `${getMobileDashboardVisualBottomOffset()}px`);
+    }
+  } else if (typeof rootStyle?.removeProperty === 'function') {
+    rootStyle.removeProperty('--mobile-visual-bottom-offset');
   }
 }
 
@@ -204,9 +207,16 @@ const refreshDashboardForBreakpoint = () => {
   if (state.currentView === 'dashboard') mobileDashboardDeps.navigate('dashboard');
   else syncMobileBottomNav(state.currentView || 'dashboard');
 };
-if (addMobileDashboardBreakpointListener(MOBILE_DASHBOARD_QUERY, refreshDashboardForBreakpoint)) {
-  initMobileChromeStateSync();
-}
+addMobileDashboardBreakpointListener(MOBILE_DASHBOARD_QUERY, refreshDashboardForBreakpoint);
+initMobileChromeStateSync();
+
+// Keep legacy mobile dashboard globals available as soon as the module loads.
+exposeMobileDashboardBindings({
+  openMobileDashboardSearch,
+  mobileDashboardJump,
+  mobileDashboardSetTab,
+  refreshMobileDashboardActiveTab,
+});
 
 export function getMobileDashboardProfile() {
   const profiles = getProfiles() || [];
@@ -525,10 +535,3 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
   mobileDashboardDeps.loadCommitHash();
   mobileDashboardDeps.loadCatalog().then(c => { mobileDashboardDeps.cacheCatalog(c); });
 }
-
-exposeMobileDashboardBindings({
-  openMobileDashboardSearch,
-  mobileDashboardJump,
-  mobileDashboardSetTab,
-  refreshMobileDashboardActiveTab,
-});

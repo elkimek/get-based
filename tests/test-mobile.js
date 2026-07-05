@@ -82,6 +82,18 @@ return (async function() {
     !/\bwindow(\.|\s*\[)/.test(mobileDashboardSrc) &&
     mobileDashboardRuntimeSrc.includes('isMobileDashboardRuntimeViewport') &&
     mobileDashboardRuntimeSrc.includes('exposeMobileDashboardBindings'));
+  const breakpointListenerIndex = mobileDashboardSrc.indexOf('addMobileDashboardBreakpointListener(MOBILE_DASHBOARD_QUERY, refreshDashboardForBreakpoint);');
+  const chromeSyncIndex = mobileDashboardSrc.indexOf('initMobileChromeStateSync();');
+  const exposeBindingsIndex = mobileDashboardSrc.indexOf('exposeMobileDashboardBindings({');
+  const renderMobileDashboardIndex = mobileDashboardSrc.indexOf('export function renderMobileDashboard');
+  assert('mobile dashboard chrome sync starts even without breakpoint listener support',
+    breakpointListenerIndex >= 0 &&
+    chromeSyncIndex > breakpointListenerIndex &&
+    !mobileDashboardSrc.includes('if (addMobileDashboardBreakpointListener'));
+  assert('mobile dashboard legacy globals publish before first dashboard render',
+    exposeBindingsIndex >= 0 &&
+    renderMobileDashboardIndex > exposeBindingsIndex &&
+    mobileDashboardSrc.includes('refreshMobileDashboardActiveTab,'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',
     !mobileDashboardSrc.includes('id="mobile-light-section"') &&
     !mobileDashboardSrc.includes('id="mobile-body-section"') &&

@@ -84,6 +84,23 @@ try {
     viewportListeners.some(([type, listener, passive]) => type === 'scroll' && listener === resizeListener && passive === true));
   assert('getMobileDashboardVisualBottomOffset computes keyboard inset',
     getMobileDashboardVisualBottomOffset() === 88);
+  setRuntimeValue('visualViewport', {
+    offsetTop: 24,
+    addEventListener: (type, listener, options) => viewportListeners.push([type, listener, options?.passive === true]),
+  });
+  assert('getMobileDashboardVisualBottomOffset ignores transient missing viewport height',
+    getMobileDashboardVisualBottomOffset() === 0);
+  setRuntimeValue('visualViewport', {
+    height: 700,
+    addEventListener: (type, listener, options) => viewportListeners.push([type, listener, options?.passive === true]),
+  });
+  assert('getMobileDashboardVisualBottomOffset ignores transient missing viewport offset',
+    getMobileDashboardVisualBottomOffset() === 0);
+  setRuntimeValue('visualViewport', {
+    offsetTop: 24,
+    height: 700,
+    addEventListener: (type, listener, options) => viewportListeners.push([type, listener, options?.passive === true]),
+  });
   scrollMobileDashboardToTop();
   assert('scrollMobileDashboardToTop delegates to scrollTo',
     calls.some(call => call[0] === 'scroll' && call[1] === 0 && call[2] === 0));
@@ -100,6 +117,12 @@ try {
   assert('addMobileDashboardBreakpointListener supports legacy addListener',
     addMobileDashboardBreakpointListener('(max-width: 799px)', breakpointListener) === true &&
     mediaListeners.some(([type, listener]) => type === 'legacy' && listener === breakpointListener));
+  setRuntimeValue('matchMedia', query => ({
+    media: query,
+    matches: true,
+  }));
+  assert('addMobileDashboardBreakpointListener reports unsupported listener registration',
+    addMobileDashboardBreakpointListener('(max-width: 799px)', breakpointListener) === false);
 
   delete globalThis.window;
   assert('runtime adapter no-ops safely when window is missing',

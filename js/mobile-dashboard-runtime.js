@@ -7,6 +7,14 @@ function getRuntimeWindow() {
     : null;
 }
 
+function finitePositiveNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function finiteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 /** @param {string} query */
 export function isMobileDashboardRuntimeViewport(query) {
   const runtime = getRuntimeWindow();
@@ -18,8 +26,11 @@ export function getMobileDashboardVisualBottomOffset() {
   const visualViewport = runtime?.visualViewport;
   if (!runtime || !visualViewport) return 0;
   const root = typeof document !== 'undefined' ? document.documentElement : null;
-  const layoutHeight = runtime.innerHeight || root?.clientHeight || visualViewport.height;
-  const visualBottom = (visualViewport.offsetTop || 0) + (visualViewport.height || 0);
+  const layoutHeight = finitePositiveNumber(runtime.innerHeight) || finitePositiveNumber(root?.clientHeight);
+  const offsetTop = finiteNumber(visualViewport.offsetTop);
+  const visualHeight = finitePositiveNumber(visualViewport.height);
+  if (layoutHeight == null || offsetTop == null || visualHeight == null) return 0;
+  const visualBottom = offsetTop + visualHeight;
   return Math.max(0, Math.ceil(layoutHeight - visualBottom));
 }
 
