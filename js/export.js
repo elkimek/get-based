@@ -27,6 +27,16 @@ import {
   closeReportBuilder as closeReportBuilderImpl,
   openReportBuilder as openReportBuilderImpl,
 } from './export-report-builder.js';
+import {
+  clearDemoLoadingProfile,
+  destroyWalletRuntimeDB,
+  getWalletBundleSettings,
+  isDemoLoadingProfile,
+  markDemoLoadingProfile,
+  publishExportGlobals,
+  refreshImportRuntimeShell,
+  restoreWalletBundleSettings,
+} from './export-runtime.js';
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT FACADE
@@ -302,8 +312,7 @@ export async function buildAllDataBundle() {
     bundle.profiles.push(entry);
   }
   // Include Cashu wallet settings (mnemonic excluded for security — restore via seed phrase)
-  const walletMintUrl = typeof window.cashuGetMintUrl === 'function' ? await window.cashuGetMintUrl() : null;
-  const walletNodeUrl = typeof window.nostrGetSelectedNode === 'function' ? window.nostrGetSelectedNode() : null;
+  const { mintUrl: walletMintUrl, nodeUrl: walletNodeUrl } = await getWalletBundleSettings();
   if (walletMintUrl || walletNodeUrl) {
     bundle.wallet = { mintUrl: walletMintUrl, nodeUrl: walletNodeUrl };
   }
@@ -753,25 +762,20 @@ export function importDataJSON(file) {
       }
 
       migrateProfileData(state.importedData);
-      saveImportedData((/** @type {any} */ (globalThis))._demoLoadingProfileId === state.currentProfile
+      saveImportedData(isDemoLoadingProfile(state.currentProfile)
         ? { skipSync: true, reason: 'demo-import' }
         : {});
       if (json.chat) {
         await _importChatData(state.currentProfile, json.chat);
-        if (window.loadChatThreads) window.loadChatThreads();
       }
       // Demo-load completion: clear the loading sentinel (dashboard
       // empty-state renderer keys off this flag while data is en route).
-      if (window._demoLoadingProfileId === state.currentProfile) {
-        delete window._demoLoadingProfileId;
-      }
-      if (window.buildSidebar) window.buildSidebar();
-      if (window.updateHeaderDates) window.updateHeaderDates();
-      if (window.navigate) window.navigate('dashboard');
+      clearDemoLoadingProfile(state.currentProfile);
+      await refreshImportRuntimeShell({ chat: !!json.chat });
       const profileMsg = json.profile?.name ? ` into "${json.profile.name}"` : '';
       showNotification(`Imported ${count} date entr${count === 1 ? 'y' : 'ies'}${profileMsg}`, 'success');
     } catch (err) {
-      delete window._demoLoadingProfileId;
+      clearDemoLoadingProfile();
       showNotification('Error parsing JSON: ' + err.message, 'error');
     } finally {
       resolve();
@@ -947,11 +951,7 @@ async function _importDatabaseBundle(json) {
   // Restore Cashu wallet settings if present (mnemonic not included — user restores via seed phrase)
   if (json.wallet) {
     try {
-      if (json.wallet.mnemonic && typeof window.cashuRestoreWalletFromSeed === 'function') {
-        await window.cashuRestoreWalletFromSeed(json.wallet.mnemonic); // legacy bundles that included mnemonic
-      }
-      if (json.wallet.mintUrl && typeof window.cashuSetMintUrl === 'function') await window.cashuSetMintUrl(json.wallet.mintUrl);
-      if (json.wallet.nodeUrl && typeof window.nostrSetSelectedNode === 'function') window.nostrSetSelectedNode(json.wallet.nodeUrl);
+      await restoreWalletBundleSettings(json.wallet); // supports legacy bundles that included mnemonic
     } catch (e) {
       if (isDebugMode()) console.log('[import] Wallet restore failed:', e.message);
     }
@@ -1013,19 +1013,14 @@ export async function clearAllData() {
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database
-    if (typeof window.cashuDestroyWalletDB === 'function') {
-      try { await window.cashuDestroyWalletDB(); } catch {}
-    }
+    try { await destroyWalletRuntimeDB(); } catch {}
     localStorage.removeItem('labcharts-cashu-wallet-mint');
     localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
     localStorage.removeItem('labcharts-routstr-node');
     localStorage.removeItem('labcharts-routstr-key');
     localStorage.removeItem('labcharts-routstr-model');
     localStorage.removeItem('labcharts-routstr-models');
-    if (window.buildSidebar) window.buildSidebar();
-    if (window.updateHeaderDates) window.updateHeaderDates();
-    if (window.renderProfileButton) window.renderProfileButton();
-    if (window.navigate) window.navigate('dashboard');
+    await refreshImportRuntimeShell({ chat: true, profileButton: true });
     showNotification('All data cleared', 'info');
   }
 }
@@ -1066,7 +1061,7 @@ export async function loadDemoData(sex = 'male') {
     // "Loading demo data…" placeholder instead of the empty Welcome
     // hero during the 2-3s gap between switchProfile and
     // importDataJSON-finish. Cleared by the import completion path.
-    window._demoLoadingProfileId = profileId;
+    markDemoLoadingProfile(profileId);
     // Await switchProfile fully — it's now async, and racing it against
     // importDataJSON used to leave state.currentProfile pointing at the
     // OLD profile when FileReader fired, causing the demo to land in
@@ -1212,9 +1207,9 @@ export async function loadDemoData(sex = 'male') {
       }
     } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {
-    delete window._demoLoadingProfileId;
+    clearDemoLoadingProfile();
     showNotification('Could not load demo data: ' + err.message, 'error');
   }
 }
 
-Object.assign(window, { openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });
+publishExportGlobals({ openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });

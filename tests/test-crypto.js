@@ -429,6 +429,8 @@ console.log('17. profile.js async');
 try {
   const src = await fetchWithRetry('js/profile.js');
   const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
+  const exportSrc = await fetchWithRetry('js/export.js');
+  const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
   const swSrc = await fetchWithRetry('service-worker.js');
   assert('loadProfile is async', src.includes('async function loadProfile'));
   assert('saveProfiles is async', src.includes('async function saveProfiles'));
@@ -454,6 +456,38 @@ try {
     !runtimeSrc.includes('Object.assign(window'));
   assert('Service worker precaches profile runtime module',
     swSrc.includes("'/js/profile-runtime.js'"));
+  assert('export.js delegates browser runtime wiring to export-runtime',
+    exportSrc.includes("from './export-runtime.js'") &&
+    exportSrc.includes('getWalletBundleSettings') &&
+    exportSrc.includes('refreshImportRuntimeShell') &&
+    exportSrc.includes('publishExportGlobals') &&
+    exportRuntimeSrc.includes('export async function refreshImportRuntimeShell'));
+  assert('export-runtime falls back to published globals when shell module imports fail',
+    exportRuntimeSrc.includes('function getRuntimeFunction(module, name)') &&
+    exportRuntimeSrc.includes('module?.[name]') &&
+    exportRuntimeSrc.includes('runtime[name]') &&
+    exportRuntimeSrc.includes("getRuntimeFunction(chatThreads, 'loadChatThreads')") &&
+    exportRuntimeSrc.includes("getRuntimeFunction(nav, 'buildSidebar')") &&
+    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')"));
+  const exportRuntimeFunctionStart = exportRuntimeSrc.indexOf('function getRuntimeFunction(module, name)');
+  assert('export-runtime preserves browser runtime stubs before imported shell modules',
+    exportRuntimeFunctionStart >= 0 &&
+    exportRuntimeSrc.indexOf('typeof runtime[name]', exportRuntimeFunctionStart) <
+      exportRuntimeSrc.indexOf('typeof module?.[name]', exportRuntimeFunctionStart));
+  assert('export-runtime can refresh imported chat threads without chat module fallback globals',
+    exportRuntimeSrc.includes("from './crypto.js'") &&
+    exportRuntimeSrc.includes('function loadChatThreadsFromStorageFallback') &&
+    exportRuntimeSrc.includes('await encryptedGetItem(`labcharts-${state.currentProfile}-chat-threads`)') &&
+    exportRuntimeSrc.includes('return false') &&
+    exportRuntimeSrc.includes('labcharts-${state.currentProfile}-chat-threads') &&
+    exportRuntimeSrc.includes('function renderThreadListFallback') &&
+    exportRuntimeSrc.includes('async function refreshChatThreadsRuntime(chatThreads)') &&
+    exportRuntimeSrc.includes('if (!threadsLoaded) return') &&
+    exportRuntimeSrc.includes('if (chat) await refreshChatThreadsRuntime(chatThreads)'));
+  assert('export.js no longer calls import UI globals through window',
+    !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
+  assert('Service worker precaches export runtime module',
+    swSrc.includes("'/js/export-runtime.js'"));
 } catch (e) {
   assert('profile.js async check', false, e.message);
 }

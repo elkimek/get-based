@@ -55,6 +55,7 @@ return (async function() {
   console.log('%c 2. Client export structure (source) ', 'font-weight:bold;color:#f59e0b');
 
   const exportSrc = await fetch('/js/export.js').then(r => r.text());
+  const exportRuntimeSrc = await fetch('/js/export-runtime.js').then(r => r.text());
   const reportCoreSrc = await fetch('/js/export-report.js').then(r => r.text());
   const reportHtmlSrc = await fetch('/js/export-report-html.js').then(r => r.text());
   const reportBuilderSrc = await fetch('/js/export-report-builder.js').then(r => r.text());
@@ -442,9 +443,15 @@ return (async function() {
   assert('Clears sync timestamp', exportSrc.includes("localStorage.removeItem(`labcharts-${id}-sync-ts`)"));
   assert('Resets state.importedData', exportSrc.includes('state.importedData = { entries: []'));
   assert('Resets to single default profile via saveProfiles', exportSrc.includes('saveProfiles([{'));
-  assert('Clears Cashu wallet DB', exportSrc.includes('cashuDestroyWalletDB'));
+  assert('Clears Cashu wallet DB through export runtime',
+    exportSrc.includes('destroyWalletRuntimeDB') &&
+    exportRuntimeSrc.includes('cashuDestroyWalletDB'));
   assert('Clears Cashu wallet mint', exportSrc.includes("localStorage.removeItem('labcharts-cashu-wallet-mint')"));
-  assert('Calls navigate(dashboard) after clear', exportSrc.includes("window.navigate('dashboard')"));
+  assert('Calls navigate(dashboard) after clear through export runtime',
+    exportSrc.includes('refreshImportRuntimeShell({ chat: true, profileButton: true })') &&
+    exportRuntimeSrc.includes("route = 'dashboard'") &&
+    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')") &&
+    exportRuntimeSrc.includes('navigate?.(route)'));
 
   // ═══════════════════════════════════════
   // 10. Database bundle import — source inspection
@@ -474,8 +481,12 @@ return (async function() {
   console.log('%c 11. Bundle wallet metadata ', 'font-weight:bold;color:#f59e0b');
 
   assert('Bundle wallet export in source', exportSrc.includes('bundle.wallet = { mintUrl:'));
-  assert('Bundle wallet checks cashuGetMintUrl', exportSrc.includes('cashuGetMintUrl'));
-  assert('Bundle wallet checks nostrGetSelectedNode', exportSrc.includes('nostrGetSelectedNode'));
+  assert('Bundle wallet checks cashuGetMintUrl through export runtime',
+    exportSrc.includes('getWalletBundleSettings') &&
+    exportRuntimeSrc.includes('cashuGetMintUrl'));
+  assert('Bundle wallet checks nostrGetSelectedNode through export runtime',
+    exportSrc.includes('getWalletBundleSettings') &&
+    exportRuntimeSrc.includes('nostrGetSelectedNode'));
 
   // ═══════════════════════════════════════
   // 12. exportDataJSON is alias for exportClientJSON
@@ -916,6 +927,7 @@ return (async function() {
         focusCardSrc.includes('if (!cached.fingerprint) return;'),
         'loadFocusCard must skip AI refresh when cached.fingerprint is missing');
       const exportSrcLive = await fetch('/js/export.js').then(r => r.text());
+      const exportRuntimeSrcLive = await fetch('/js/export-runtime.js').then(r => r.text());
       assert('loadDemoData writes focusCard to localStorage (demo-only by code path)',
         exportSrcLive.includes("profileStorageKey(profileId, 'focusCard')") &&
         /demoJson\??\.focusCard\?\.text/.test(exportSrcLive),
@@ -970,7 +982,8 @@ return (async function() {
         'demo loader must seed Biology Scores context review locally');
       assert('loadDemoData does not depend on cross-device sync for demo Biology Scores',
         _loadDemoSection.includes('skipInitialSync: true')
-          && _loadDemoSection.includes('window._demoLoadingProfileId = profileId')
+          && _loadDemoSection.includes('markDemoLoadingProfile(profileId)')
+          && exportRuntimeSrcLive.includes('_demoLoadingProfileId')
           && exportSrcLive.includes("reason: 'demo-import'")
           && _loadDemoSection.includes("skipSync: true, reason: 'demo-biology-score-context'"),
         'demo loading must not sync an empty demo profile and wait for pull/rebroadcast to unlock Biology Scores');

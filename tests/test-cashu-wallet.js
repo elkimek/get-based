@@ -63,6 +63,7 @@ const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collector
 const cryptoSrc = await fetchWithRetry('js/crypto.js');
 const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
+const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
 const swSrc = await fetchWithRetry('service-worker.js');
 const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
 
@@ -236,9 +237,17 @@ assert('Wallet keys in GLOBAL_SETTINGS_KEYS', backupSrc.includes("'labcharts-cas
 console.log('12. Export/Import Integration');
 
 assert('Bundle includes wallet settings', exportSrc.includes('bundle.wallet'));
-assert('Bundle restores mint URL', exportSrc.includes('wallet.mintUrl') && exportSrc.includes('cashuSetMintUrl'));
-assert('Bundle restores node URL', exportSrc.includes('wallet.nodeUrl') && exportSrc.includes('nostrSetSelectedNode'));
-assert('clearAllData destroys wallet DB', exportSrc.includes('cashuDestroyWalletDB'));
+assert('Bundle restores mint URL through export runtime',
+  exportSrc.includes('restoreWalletBundleSettings') &&
+  exportRuntimeSrc.includes('wallet.mintUrl') &&
+  exportRuntimeSrc.includes('cashuSetMintUrl'));
+assert('Bundle restores node URL through export runtime',
+  exportSrc.includes('restoreWalletBundleSettings') &&
+  exportRuntimeSrc.includes('wallet.nodeUrl') &&
+  exportRuntimeSrc.includes('nostrSetSelectedNode'));
+assert('clearAllData destroys wallet DB through export runtime',
+  exportSrc.includes('destroyWalletRuntimeDB') &&
+  exportRuntimeSrc.includes('cashuDestroyWalletDB'));
 assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'labcharts-cashu-wallet-mint'") && exportSrc.includes("'labcharts-cashu-wallet-mnemonic'") && exportSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
