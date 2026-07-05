@@ -98,7 +98,15 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
-assert('latest changelog documents Biology Scores persistence and Profile Context cleanup in user-readable terms',
+assert('latest changelog documents granular Context management in user-readable terms',
+  /version:\s*'1\.10\.62'[\s\S]{0,1600}Control what AI uses as context/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,1600}You can now choose what AI uses/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,1600}Manage → Context/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,1600}Turning context off does not delete data/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,1600}AI answers and missing-data nudges/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,1600}Genome and labs have finer controls/.test(changelogSrc)
+    && /version:\s*'1\.10\.62'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
+assert('previous changelog documents Biology Scores persistence and Profile Context cleanup in user-readable terms',
   /version:\s*'1\.10\.29'[\s\S]{0,1600}separate app updates from real context changes/.test(changelogSrc)
     && /version:\s*'1\.10\.29'[\s\S]{0,1600}without paying for another AI unlock/.test(changelogSrc)
     && /version:\s*'1\.10\.29'[\s\S]{0,1600}Changed context still requires a refresh/.test(changelogSrc)

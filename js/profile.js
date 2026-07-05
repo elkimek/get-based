@@ -13,6 +13,7 @@ import {
   setLabEntryMarker,
   syncLabEntryInsulinMirror,
 } from './lab-entry.js';
+import { normalizeContextSourceSettings } from './context-source-registry.js';
 
 /**
  * @typedef {{ country: string, zip: string }} ProfileLocation
@@ -79,6 +80,7 @@ import {
  *   markerNotes: Record<string, any>,
  *   markerValueNotes: Record<string, any>,
  *   biologyScoreAI: Record<string, any>,
+ *   contextSourceSettings: Record<string, boolean>,
  *   importSnapshots: any[],
  *   markerLabels?: Record<string, any>,
  *   refOverrides?: Record<string, any>,
@@ -213,6 +215,7 @@ export function createDefaultProfileData() {
     markerNotes: {},
     markerValueNotes: {},
     biologyScoreAI: {},
+    contextSourceSettings: {},
     changeHistory: [],
     importSnapshots: [],
     biometrics: null,
@@ -915,6 +918,7 @@ export function migrateProfileData(data) {
   if (data.markerNotes === undefined) data.markerNotes = {};
   if (data.markerValueNotes === undefined) data.markerValueNotes = {};
   if (data.biologyScoreAI === undefined) data.biologyScoreAI = {};
+  data.contextSourceSettings = normalizeContextSourceSettings(data.contextSourceSettings);
   if (data.changeHistory === undefined) data.changeHistory = [];
   if (data.importSnapshots === undefined) data.importSnapshots = [];
   if (data.biometrics === undefined) data.biometrics = null;
@@ -951,6 +955,7 @@ export function migrateProfileData(data) {
 export async function loadProfile(profileId) {
   state.currentProfile = profileId;
   setActiveProfileId(profileId);
+  /** @type {any} */ (window).invalidateLabContextCache?.();
   const savedImported = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const defaultData = createDefaultProfileData();
   state.importedData = savedImported ? (function() {

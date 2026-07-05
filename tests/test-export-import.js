@@ -84,9 +84,14 @@ return (async function() {
   assert('Client export includes menstrualCycle', exportSrc.includes('menstrualCycle: data.menstrualCycle'));
   assert('Client export includes genetics', exportSrc.includes('genetics: data.genetics'));
   assert('Client export includes biometrics', exportSrc.includes('biometrics: data.biometrics'));
+  assert('Client export includes contextSourceSettings', exportSrc.includes('contextSourceSettings: data.contextSourceSettings || {}'));
   assert('Client export includes markerNotes', exportSrc.includes('markerNotes: data.markerNotes'));
   assert('Client export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
   assert('Client export includes chatSummaries', exportSrc.includes('chatSummaries: data.chatSummaries'));
+  assert('JSON import restores contextSourceSettings before migration',
+    exportSrc.includes('state.importedData.contextSourceSettings = json.contextSourceSettings'));
+  assert('Database bundle merge restores contextSourceSettings for existing profiles',
+    exportSrc.includes('current.contextSourceSettings = importData.contextSourceSettings'));
   assert('Supplement import preserves safe sourceUrl', exportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
   // Light & Sun stack — earlier export schema dropped these silently;
   // import learned them in v1.6.x but export hadn't followed suit.

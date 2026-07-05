@@ -80,8 +80,6 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
 [
   'toggle-ai-pause',
   'switch-ai-provider',
-  'set-wearable-context',
-  'set-body-regions-context',
   'toggle-privacy-configure',
   'test-pii-ollama',
   'set-pii-model',
@@ -98,6 +96,11 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
 ].forEach(action => {
   assert(`Settings action ${action} is rendered`, settingsSurfaceSrc.includes(`data-settings-action="${action}"`));
 });
+
+assert('Settings AI no longer owns context source toggles',
+  !settingsSurfaceSrc.includes('id="ai-context-section"') &&
+    !settingsSurfaceSrc.includes('data-settings-action="set-wearable-context"') &&
+    !settingsSurfaceSrc.includes('data-settings-action="set-body-regions-context"'));
 
 [
   'select-theme',

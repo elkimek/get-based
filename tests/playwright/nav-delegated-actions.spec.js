@@ -28,6 +28,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const { state } = await import('/js/state.js');
     const origDateRangeFilter = state.dateRangeFilter;
     const origCurrentView = state.currentView;
+    const origImportedData = state.importedData;
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
     const origOpenEMF = window.openEMFAssessmentEditor;
@@ -36,8 +37,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
-    const origIsGroupInAI = window.isGroupInAIContext;
-    const origSetGroupInAI = window.setGroupInAIContext;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
     let restoreNavActions = null;
 
@@ -64,11 +63,11 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
 
       state.dateRangeFilter = 'all';
       state.currentView = 'dashboard';
+      state.importedData = { ...(state.importedData || {}) };
       state.profiles = [{ id: state.currentProfile || 'default', name: 'Demo Client' }];
       localStorage.removeItem('labcharts-navgroup-Hormones');
 
       const calls = [];
-      const aiGroups = new Set();
       window.navigate = route => {
         calls.push(['navigate', route]);
         state.currentView = route;
@@ -83,13 +82,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.openContextModal = () => calls.push(['open-context']);
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       window.openClientList = () => calls.push(['open-client-list']);
-      window.isGroupInAIContext = group => aiGroups.has(group);
-      window.setGroupInAIContext = (group, on) => {
-        calls.push(['set-group-ai', group, on]);
-        if (on) aiGroups.add(group);
-        else aiGroups.delete(group);
-      };
-
       window.buildSidebar(fixtureData);
       window.renderProfileButton();
       nav.openRecommendationsFromSidebar();
@@ -116,7 +108,8 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         && document.querySelector('.sidebar-group-items[data-group-items="Hormones"]')?.style.display !== 'none'
         && groupHeader?.querySelector('.sidebar-group-toggle')?.getAttribute('aria-expanded') === 'true';
 
-      document.querySelector('.sidebar-group-header[data-group-name="Hormones"] .sidebar-ai-toggle')?.click();
+      const noDuplicateAIGroupToggle = !document.querySelector('.sidebar-ai-toggle')
+        && !document.querySelector('[data-nav-action="toggle-group-ai"]');
 
       document.querySelector('#sidebar-nav .nav-item[data-category="emf"]')?.click();
       document.querySelector('#sidebar-nav .nav-item[data-category="light-env-assessment"]')?.click();
@@ -135,8 +128,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         searchKeepsMatching: document.querySelector('#sidebar-nav .nav-item[data-category="thyroid"]')?.style.display !== 'none',
         groupCollapsed,
         groupExpanded,
-        aiToggleUpdatesContext: aiGroups.has('Hormones')
-          && calls.some(c => c[0] === 'set-group-ai' && c[1] === 'Hormones' && c[2] === true),
+        noDuplicateAIGroupToggle,
         utilitiesCallHandlers: calls.some(c => c[0] === 'open-emf')
           && calls.some(c => c[0] === 'open-light-env')
           && calls.some(c => c[0] === 'open-report-builder')
@@ -147,6 +139,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     } finally {
       state.dateRangeFilter = origDateRangeFilter;
       state.currentView = origCurrentView;
+      state.importedData = origImportedData;
       state.profiles = origProfiles;
       window.navigate = origNavigate;
       window.openEMFAssessmentEditor = origOpenEMF;
@@ -156,8 +149,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.openContextModal = origOpenContext;
       window.openCreateMarkerModal = origOpenCreateMarker;
       window.openClientList = origOpenClientList;
-      window.isGroupInAIContext = origIsGroupInAI;
-      window.setGroupInAIContext = origSetGroupInAI;
       if (origGroupStorage == null) localStorage.removeItem('labcharts-navgroup-Hormones');
       else localStorage.setItem('labcharts-navgroup-Hormones', origGroupStorage);
       window.buildSidebar?.();

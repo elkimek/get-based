@@ -150,10 +150,18 @@
     'createLineChart','getMarkerDescription'
   ];
 
-  // lab-context.js (5)
+  // lab-context.js
   const labContextExports = [
     'buildLabContext','invalidateLabContextCache','getContextSummary',
-    'isGroupInAIContext','setGroupInAIContext'
+    'isGroupInAIContext','setGroupInAIContext',
+    'isInsightContextCardsEnabled','setInsightContextCardsEnabled',
+    'isSupplementsMedsContextEnabled','setSupplementsMedsContextEnabled',
+    'isLabMarkersContextEnabled','setLabMarkersContextEnabled',
+    'isGeneticsSummaryInAIContext','setGeneticsSummaryInAIContext',
+    'isGeneticsPriorityInAIContext','setGeneticsPriorityInAIContext',
+    'isGeneticsInventoryInAIContext','setGeneticsInventoryInAIContext',
+    'isLightSunContextEnabled','setLightSunContextEnabled',
+    'isWearableContextEnabled','setWearableContextEnabled'
   ];
 
   // chat.js (23)

@@ -14,12 +14,21 @@ import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
 import { CANONICAL_METRICS, DEFAULT_METRIC_ORDER } from './wearable-adapters.js';
 import { buildBiologyScoresAIContext } from './biology-score-ai-context.js';
+import {
+  CONTEXT_SOURCE_IDS,
+  INSIGHT_CONTEXT_CHANGE_FIELDS,
+  getLabGroupContextSourceSlug,
+  isContextSourceEnabled,
+  setContextSourceEnabled,
+} from './context-source-registry.js';
 
 /**
- * @typedef {{ skipGroupFilter?: boolean }} LabContextOptions
+ * @typedef {{ skipGroupFilter?: boolean, ignoreContextToggles?: boolean }} LabContextOptions
  * @typedef {{
- *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[]) => string,
- *   buildSunContext?: (options: { tier: string }) => string,
+ *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[], options?: { includeGenomeSummary?: boolean, includePriorityFindings?: boolean, includeSnpInventory?: boolean }) => string,
+ *   isGeneticsInventoryInAIContext?: () => boolean,
+ *   isLightSunContextEnabled?: () => boolean,
+ *   buildSunContext?: (options: { tier: string, ignoreContextToggles?: boolean }) => string,
  * }} LabContextWindowHooks
  */
 
@@ -29,6 +38,44 @@ const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindo
 // LAB CONTEXT MEMOIZATION
 // ═══════════════════════════════════════════════
 let _labContextCache = { fingerprint: null, context: null };
+
+function _getActiveContextProfileId() {
+  try { return localStorage.getItem('labcharts-active-profile') || state.currentProfile || 'default'; }
+  catch { return state.currentProfile || 'default'; }
+}
+
+function _getStoredContextPreferencePart(profileId) {
+  const stored = [];
+  try {
+    const scopedPrefix = `labcharts-${profileId}-ai-ctx-`;
+    const legacyPrefix = 'labcharts-ai-ctx-';
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || (!key.startsWith(scopedPrefix) && !key.startsWith(legacyPrefix))) continue;
+      stored.push(`${key}=${localStorage.getItem(key) || ''}`);
+    }
+  } catch {}
+  return stored.sort().join(',');
+}
+
+function _getContextPreferencePart() {
+  const profileId = _getActiveContextProfileId();
+  return [
+    `activeProfile:${profileId}`,
+    `stateProfile:${state.currentProfile || ''}`,
+    `sources:${[
+      `${CONTEXT_SOURCE_IDS.INSIGHT_CARDS}:${isInsightContextCardsEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS}:${isSupplementsMedsContextEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.LAB_MARKERS}:${isLabMarkersContextEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.GENOME_SUMMARY}:${isGeneticsSummaryInAIContext() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.GENOME_PRIORITY}:${isGeneticsPriorityInAIContext() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.GENOME_INVENTORY}:${isGeneticsInventoryInAIContext() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.LIGHT_SUN}:${isLightSunContextEnabled() ? 'on' : 'off'}`,
+      `${CONTEXT_SOURCE_IDS.WEARABLES}:${isWearableContextEnabled() ? 'on' : 'off'}`,
+    ].join(',')}`,
+    `stored:${_getStoredContextPreferencePart(profileId)}`,
+  ].join('|');
+}
 
 function _getLabContextFingerprint() {
   const d = state.importedData;
@@ -44,8 +91,11 @@ function _getLabContextFingerprint() {
     state.unitSystem || '', state.rangeMode || '',
     d.interpretiveLens || '', d.contextNotes || '',
     JSON.stringify(d.notes || []), JSON.stringify(d.markerNotes || {}),
+    JSON.stringify(d.contextSourceSettings || {}),
+    JSON.stringify(d.biologyScoreContextSettings || {}),
     JSON.stringify(d.refOverrides || {}), JSON.stringify(d.categoryLabels || {}),
-    JSON.stringify(d.markerLabels || {})
+    JSON.stringify(d.markerLabels || {}),
+    _getContextPreferencePart()
   ].join('|'));
 }
 
@@ -54,12 +104,104 @@ export function invalidateLabContextCache() { _labContextCache = { fingerprint: 
 // ═══════════════════════════════════════════════
 // SPECIALTY LABS IN AI CONTEXT (per-group)
 // ═══════════════════════════════════════════════
+function _groupContextSlug(groupName) {
+  return getLabGroupContextSourceSlug(groupName);
+}
+
+function _groupContextLegacyKey(groupName) {
+  const group = String(groupName || '').replace(/[\u0000-\u001F\u007F]/g, ' ').trim();
+  return group ? `labcharts-ai-ctx-${group}` : null;
+}
+
 export function isGroupInAIContext(groupName) {
-  return localStorage.getItem(`labcharts-ai-ctx-${groupName}`) === 'on';
+  const slug = _groupContextSlug(groupName);
+  if (!slug) return true;
+  return isContextSourceEnabled(slug, { defaultValue: true, legacyKey: _groupContextLegacyKey(groupName) });
 }
 
 export function setGroupInAIContext(groupName, val) {
-  localStorage.setItem(`labcharts-ai-ctx-${groupName}`, val ? 'on' : 'off');
+  const slug = _groupContextSlug(groupName);
+  if (!slug) return;
+  setContextSourceEnabled(slug, !!val, { legacyKey: _groupContextLegacyKey(groupName) });
+  invalidateLabContextCache();
+}
+
+export function isGeneticsInventoryInAIContext() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY);
+}
+
+export function setGeneticsInventoryInAIContext(on) {
+  setContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY, on);
+  invalidateLabContextCache();
+}
+
+function _biologyScoreContextSettings() {
+  const imported = /** @type {any} */ (state.importedData || {});
+  if (!imported.biologyScoreContextSettings || typeof imported.biologyScoreContextSettings !== 'object') {
+    imported.biologyScoreContextSettings = {};
+  }
+  return imported.biologyScoreContextSettings;
+}
+
+function _profileContextEnabled(slug, defaultValue = true, legacyKey = null) {
+  return isContextSourceEnabled(slug, { defaultValue, legacyKey });
+}
+
+function _setProfileContextEnabled(slug, on, legacyKey = null) {
+  setContextSourceEnabled(slug, on, { legacyKey });
+  invalidateLabContextCache();
+}
+
+export function isInsightContextCardsEnabled() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS);
+}
+
+export function setInsightContextCardsEnabled(on) {
+  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.INSIGHT_CARDS, on);
+}
+
+export function isSupplementsMedsContextEnabled() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS);
+}
+
+export function setSupplementsMedsContextEnabled(on) {
+  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS, on);
+}
+
+export function isLabMarkersContextEnabled() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS);
+}
+
+export function setLabMarkersContextEnabled(on) {
+  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS, on);
+}
+
+export function isGeneticsSummaryInAIContext() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY);
+}
+
+export function setGeneticsSummaryInAIContext(on) {
+  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_SUMMARY, on);
+}
+
+export function isGeneticsPriorityInAIContext() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY);
+}
+
+export function setGeneticsPriorityInAIContext(on) {
+  _setProfileContextEnabled(CONTEXT_SOURCE_IDS.GENOME_PRIORITY, on);
+}
+
+export function isLightSunContextEnabled() {
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, {
+    defaultValue: state.importedData?.biologyScoreContextSettings?.includeLightContext !== false,
+  });
+}
+
+export function setLightSunContextEnabled(on) {
+  setContextSourceEnabled(CONTEXT_SOURCE_IDS.LIGHT_SUN, on);
+  _biologyScoreContextSettings().includeLightContext = !!on;
+  invalidateLabContextCache();
 }
 
 // ═══════════════════════════════════════════════
@@ -127,23 +269,27 @@ function summarizeChange(field, prev, curr) {
 // the full session table on every turn — same shape as every other
 // section in this file.
 
-export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter } = {}) {
+export function buildLabContext(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
   // skipGroupFilter: true → include all specialty groups regardless of AI toggle
-  // Used by sync/push so the relay always receives complete data
-  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '');
+  // ignoreContextToggles: true → Agent Access permission already granted; assemble full context
+  const fp = _getLabContextFingerprint() + (skipGroupFilter ? ':all' : '') + (ignoreContextToggles ? ':ignore-context-toggles' : '');
   if (_labContextCache.fingerprint === fp && _labContextCache.context) {
     if (isDebugMode()) console.log('[AI] Lab context cache hit');
     return _labContextCache.context;
   }
   if (isDebugMode()) console.log('[AI] Lab context cache miss — rebuilding');
-  const ctx = _buildLabContextInner({ skipGroupFilter });
+  const ctx = _buildLabContextInner({ skipGroupFilter, ignoreContextToggles });
   _labContextCache = { fingerprint: fp, context: ctx };
   return ctx;
 }
 
-function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter } = {}) {
+function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilter, ignoreContextToggles } = {}) {
   const data = getActiveData();
-  const hasLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
+  const includeLabMarkers = ignoreContextToggles || isLabMarkersContextEnabled();
+  const hasImportedLabData = data.dates.length > 0 || Object.values(data.categories).some(c => c.singleDate);
+  const hasLabData = includeLabMarkers && hasImportedLabData;
+  const includeInsightCards = ignoreContextToggles || isInsightContextCardsEnabled();
+  const includeSupplementsMeds = ignoreContextToggles || isSupplementsMedsContextEnabled();
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const sexLabel = state.profileSex === 'female' ? 'female' : state.profileSex === 'male' ? 'male' : 'not specified';
   const age = state.profileDob ? Math.floor((Date.now() - new Date(state.profileDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
@@ -160,7 +306,15 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const demoWarning = missingDemo.length > 0
       ? ` IMPORTANT: ${missingDemo.join(' and ')} not set — urge the user to set ${missingDemo.length > 1 ? 'these' : 'this'} in Settings first, as it directly affects which tests to recommend and how to interpret results.`
       : '';
-    ctx = `Profile context (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, today: ${today}):\n\nNo lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use their profile context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation. The more cards the user fills out (there are 9 total), the more targeted your recommendations become — encourage filling all of them.${demoWarning}\n\n`;
+    ctx = `Profile context (sex: ${sexLabel}${age !== null ? ', age: ' + age : ''}, today: ${today}):\n\n`;
+    if (hasImportedLabData && !includeLabMarkers) {
+      ctx += `Lab marker context is turned off by the user. Do not infer from imported blood-marker values unless the user explicitly provides them in the conversation.\n\n`;
+    } else {
+      const insightHint = includeInsightCards
+        ? ' The more Insight Context Cards the user fills out, the more targeted your recommendations become — encourage filling them when relevant.'
+        : ' Insight Context Cards are turned off by the user; do not infer from profile/lifestyle cards unless the user explicitly provides that context in the conversation.';
+      ctx += `No lab data has been imported yet.\nNOTE: The user has not imported any lab results. Use the enabled context below to recommend which blood panels and specific tests would be most valuable for them, and explain why each is relevant to their situation.${insightHint}${demoWarning}\n\n`;
+    }
   }
 
   // ── Staleness signal ──
@@ -175,7 +329,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 1. Health Goals (top priority — "what are you trying to solve?") ──
   const healthGoals = state.importedData.healthGoals || [];
-  if (healthGoals.length > 0) {
+  if (includeInsightCards && healthGoals.length > 0) {
     ctx += `[section:healthGoals]\n## Health Goals (Things to Solve)\n`;
     const byPriority = { major: [], mild: [], minor: [] };
     for (const g of healthGoals) (byPriority[g.severity] || byPriority.minor).push(g.text);
@@ -199,7 +353,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     // Build index of active lab categories
     const _activeCatKeys = [];
     for (const [_ck, _ct] of Object.entries(data.categories)) {
-      if (!skipGroupFilter && _ct.group && !isGroupInAIContext(_ct.group)) continue;
+      if (!skipGroupFilter && !ignoreContextToggles && _ct.group && !isGroupInAIContext(_ct.group)) continue;
       if (Object.entries(_ct.markers).some(([_, m]) => m.values.some(v => v !== null))) _activeCatKeys.push(_ck);
     }
     if (_activeCatKeys.length > 0) {
@@ -208,9 +362,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
     const rangeLabel = state.rangeMode === 'optimal' ? 'optimal' : 'reference';
     ctx += `Note: status labels below use ${rangeLabel} ranges.\n\n`;
-    ctx += buildBiologyScoresAIContext(data, { limit: 7 });
+    ctx += buildBiologyScoresAIContext(data, { limit: 7, ignoreContextToggles });
     for (const [catKey, cat] of Object.entries(data.categories)) {
-      if (!skipGroupFilter && cat.group && !isGroupInAIContext(cat.group)) continue;
+      if (!skipGroupFilter && !ignoreContextToggles && cat.group && !isGroupInAIContext(cat.group)) continue;
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null));
       if (markersWithData.length === 0) continue;
       const _catDate = cat.singleDate || (() => { for (let i = data.dates.length - 1; i >= 0; i--) { if (markersWithData.some(([_, m]) => m.values[i] !== null)) return data.dates[i]; } return null; })();
@@ -295,7 +449,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
     const allFlags = getAllFlaggedMarkers(data);
     const flags = allFlags.filter(f => {
       const cat = data.categories[f.categoryKey];
-      return !cat?.group || skipGroupFilter || isGroupInAIContext(cat.group);
+      return !cat?.group || skipGroupFilter || ignoreContextToggles || isGroupInAIContext(cat.group);
     });
     if (flags.length > 0) {
       ctx += `[critical]\nFlagged markers (details in sections above): ${flags.map(f => `${f.categoryKey}.${f.markerKey}`).join(', ')}\n`;
@@ -305,7 +459,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 5. User Notes ──
   const notes = (state.importedData.notes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-  if (notes.length > 0) {
+  if (includeInsightCards && notes.length > 0) {
     ctx += `[section:userNotes]\n## User Notes\n`;
     for (const n of notes) {
       ctx += `- ${fmtDate(n.date)}: ${n.text}\n`;
@@ -316,7 +470,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 5b. Marker Notes ──
   const markerNotes = state.importedData.markerNotes || {};
   const mnKeys = Object.keys(markerNotes);
-  if (mnKeys.length > 0) {
+  if (includeLabMarkers && mnKeys.length > 0) {
     ctx += `[section:markerNotes]\n## Marker Notes\n`;
     for (const key of mnKeys) {
       const [catKey, mKey] = key.split('.');
@@ -332,7 +486,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // are overall per-marker thoughts) — these reframe a specific data point.
   const mvNotes = state.importedData.markerValueNotes || {};
   const mvKeys = Object.keys(mvNotes);
-  if (mvKeys.length > 0) {
+  if (includeLabMarkers && mvKeys.length > 0) {
     // Group by marker so an AI scanning a single biomarker's history sees its
     // value-level annotations contiguously. Sort dates ascending within each
     // marker for chronological reading.
@@ -359,7 +513,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 6. Medical History ("what medical context applies?") ──
   const diag = state.importedData.diagnoses;
-  if (hasCardContent(diag)) {
+  if (includeInsightCards && hasCardContent(diag)) {
     ctx += `[section:diagnoses]\n## Medical History / Diagnoses\n`;
     if (diag.conditions && diag.conditions.length) {
       for (const c of diag.conditions) {
@@ -381,7 +535,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 7. Supplements & Medications ──
   const supps = state.importedData.supplements || [];
-  if (supps.length > 0) {
+  if (includeSupplementsMeds && supps.length > 0) {
     ctx += `[section:supplements]\n## Supplements & Medications\n`;
     for (const s of supps) {
       const pds = (s.periods && s.periods.length > 0) ? s.periods : [{ start: s.startDate, end: s.endDate }];
@@ -414,7 +568,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   const bio = state.importedData.biometrics;
   const _profileHeight = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
   const profileHeightCm = Number(_profileHeight.height) || 0;
-  if (profileHeightCm || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length))) {
+  if (includeInsightCards && (profileHeightCm || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length)))) {
     ctx += `[section:biometrics]\n## Biometrics\n`;
     if (profileHeightCm) {
       const htCm = profileHeightCm;
@@ -468,26 +622,37 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 8. Genetics ──
   const genetics = state.importedData.genetics;
-  if (genetics && genetics.snps && Object.keys(genetics.snps).length > 0) {
+  const snpCount = Object.keys(genetics?.snps || {}).length;
+  const hasGeneticsData = !!(genetics && (snpCount > 0 || genetics.mtdna || genetics.apoe));
+  const includeGeneticsSummary = ignoreContextToggles || isGeneticsSummaryInAIContext();
+  const includeGeneticsPriority = ignoreContextToggles || isGeneticsPriorityInAIContext();
+  const includeSnpInventory = ignoreContextToggles || isGeneticsInventoryInAIContext();
+  if (hasGeneticsData && (includeGeneticsSummary || includeGeneticsPriority || includeSnpInventory)) {
     // Collect active marker keys to filter relevant SNPs
     const activeMarkerKeys = hasLabData ? Object.entries(data.categories).flatMap(([catKey, cat]) =>
       Object.entries(cat.markers).filter(([_, m]) => m.values.some(v => v !== null)).map(([key]) => `${catKey}.${key}`)
     ) : [];
-    const geneticsCtx = labContextWindow._buildGeneticsContext ? labContextWindow._buildGeneticsContext(genetics, activeMarkerKeys) : '';
+    const geneticsCtx = labContextWindow._buildGeneticsContext
+      ? labContextWindow._buildGeneticsContext(genetics, activeMarkerKeys, {
+        includeGenomeSummary: includeGeneticsSummary,
+        includePriorityFindings: includeGeneticsPriority,
+        includeSnpInventory,
+      })
+      : '';
     if (geneticsCtx) {
       ctx += `[section:genetics]\n${geneticsCtx}\n[/section:genetics]\n\n`;
     }
   }
 
   // ── 8b. Wearables ──
-  if (isWearableContextEnabled()) {
+  if (ignoreContextToggles || isWearableContextEnabled()) {
     const wearableCtx = buildWearableContext(state.importedData);
     if (wearableCtx) ctx += `[section:wearables]\n${wearableCtx}\n[/section:wearables]\n\n`;
   }
 
   // ── 9. Menstrual Cycle (female only) ──
   const mc = state.importedData.menstrualCycle;
-  if (mc && state.profileSex === 'female') {
+  if (includeInsightCards && mc && state.profileSex === 'female') {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     ctx += `[section:menstrualCycle]\n## Menstrual Cycle\n`;
     const statusCtx = { perimenopause: 'Status: Perimenopause (irregular/transitional).', postmenopause: 'Status: Postmenopause (no active cycle).', pregnant: 'Status: Currently pregnant.', breastfeeding: 'Status: Currently breastfeeding (postpartum).', absent: 'Status: No active menstrual cycle.' };
@@ -545,7 +710,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 9. Diet & Digestion ("what lifestyle context?") ──
   const diet = state.importedData.diet;
-  if (hasCardContent(diet)) {
+  if (includeInsightCards && hasCardContent(diet)) {
     ctx += `[section:diet]\n## Diet & Digestion\n`;
     const parts = [];
     if (diet.type) parts.push(`Type: ${diet.type}`);
@@ -581,7 +746,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 10. Exercise ──
   const ex = state.importedData.exercise;
-  if (hasCardContent(ex)) {
+  if (includeInsightCards && hasCardContent(ex)) {
     ctx += `[section:exercise]\n## Exercise & Movement\n`;
     const parts = [];
     if (ex.frequency) parts.push(`Frequency: ${ex.frequency}`);
@@ -595,7 +760,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 11. Sleep & Rest ──
   const sl = state.importedData.sleepRest;
-  if (hasCardContent(sl)) {
+  if (includeInsightCards && hasCardContent(sl)) {
     ctx += `[section:sleepRest]\n## Sleep & Rest\n`;
     const parts = [];
     if (sl.duration) parts.push(`Duration: ${sl.duration}`);
@@ -613,7 +778,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // ── 12. Light & Circadian ──
   const lc = state.importedData.lightCircadian;
   const autoLat = getLatitudeFromLocation();
-  if (lc || autoLat) {
+  if ((ignoreContextToggles || isLightSunContextEnabled()) && (lc || autoLat)) {
     ctx += `[section:lightCircadian]\n## Light & Circadian\n`;
     const parts = [];
     if (lc) {
@@ -637,7 +802,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 13. Stress ──
   const st = state.importedData.stress;
-  if (hasCardContent(st)) {
+  if (includeInsightCards && hasCardContent(st)) {
     ctx += `[section:stress]\n## Stress\n`;
     const parts = [];
     if (st.level) parts.push(`Level: ${st.level}`);
@@ -650,7 +815,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 14. Love Life & Sexual Health ──
   const ll = state.importedData.loveLife;
-  if (hasCardContent(ll)) {
+  if (includeInsightCards && hasCardContent(ll)) {
     ctx += `[section:loveLife]\n## Love Life & Sexual Health\n`;
     const parts = [];
     if (ll.status) parts.push(`Status: ${ll.status}`);
@@ -667,7 +832,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 15. Environment ──
   const env = state.importedData.environment;
-  if (hasCardContent(env)) {
+  if (includeInsightCards && hasCardContent(env)) {
     ctx += `[section:environment]\n## Environment\n`;
     const parts = [];
     if (env.setting) parts.push(`Setting: ${env.setting}`);
@@ -687,7 +852,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 16. EMF Assessment (sub-section of Environment) ──
   const emf = state.importedData.emfAssessment;
-  if (emf && emf.assessments && emf.assessments.length > 0) {
+  if (includeInsightCards && emf && emf.assessments && emf.assessments.length > 0) {
     ctx += `### EMF Assessment (Baubiologie SBM-2015)\n`;
     const sorted = [...emf.assessments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const latest = sorted[0];
@@ -714,7 +879,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 17. Context Change Timeline ──
   const changeHistory = state.importedData.changeHistory || [];
-  if (changeHistory.length > 0) {
+  if (includeInsightCards && changeHistory.length > 0) {
     const fieldLabels = { diet: 'Diet & Digestion', exercise: 'Exercise', sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian', stress: 'Stress', loveLife: 'Love Life', environment: 'Environment', diagnoses: 'Medical History', healthGoals: 'Health Goals', interpretiveLens: 'Interpretive Lens', contextNotes: 'Context Notes', menstrualCycle: 'Menstrual Cycle' };
     // Group by field, sorted by date. Defensive against legacy entries that
     // somehow missed the date field — sorting on undefined throws and takes
@@ -728,6 +893,8 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       byField[entry.field].push(entry);
     }
     for (const entry of sorted) {
+      if (!INSIGHT_CONTEXT_CHANGE_FIELDS.includes(entry.field)) continue;
+      if (entry.field === 'lightCircadian' && !ignoreContextToggles && !isLightSunContextEnabled()) continue;
       const label = fieldLabels[entry.field] || entry.field;
       const fieldEntries = byField[entry.field];
       const idx = fieldEntries.indexOf(entry);
@@ -743,7 +910,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 18. Additional Context Notes ──
   const ctxNotes = state.importedData.contextNotes || '';
-  if (ctxNotes.trim()) {
+  if (includeInsightCards && ctxNotes.trim()) {
     ctx += `[section:contextNotes]\n## Additional Context Notes\n${ctxNotes.trim()}\n[/section:contextNotes]\n\n`;
   }
 
@@ -753,9 +920,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // the 30-day session table + biomarker correlations on every turn,
   // matching the pattern the rest of this file uses for every other
   // section (include if-data-exists, no keyword gating).
-  if (typeof window !== 'undefined' && typeof labContextWindow.buildSunContext === 'function') {
+  if ((ignoreContextToggles || isLightSunContextEnabled()) && typeof window !== 'undefined' && typeof labContextWindow.buildSunContext === 'function') {
     try {
-      ctx += labContextWindow.buildSunContext({ tier: 'standard' });
+      ctx += labContextWindow.buildSunContext({ tier: 'standard', ignoreContextToggles });
     } catch (e) { /* sun context is best-effort */ }
   }
 
@@ -768,48 +935,50 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 export function getContextSummary() {
   const areas = [];
   const data = getActiveData();
+  const includeInsightCards = isInsightContextCardsEnabled();
+  const includeSupplementsMeds = isSupplementsMedsContextEnabled();
   // Lab values
   const markerCount = Object.values(data.categories).reduce((sum, cat) =>
     sum + Object.values(cat.markers).filter(m => m.values.some(v => v !== null)).length, 0);
-  if (markerCount > 0) areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
+  if (isLabMarkersContextEnabled() && markerCount > 0) areas.push({ label: 'Lab values', detail: `${markerCount} markers` });
   // Context cards
   const diag = state.importedData.diagnoses;
-  if (diag && ((diag.conditions && diag.conditions.length) || diag.note || (Array.isArray(diag.familyHistory) && diag.familyHistory.length))) {
+  if (includeInsightCards && diag && ((diag.conditions && diag.conditions.length) || diag.note || (Array.isArray(diag.familyHistory) && diag.familyHistory.length))) {
     const cN = (diag.conditions && diag.conditions.length) || 0;
     const fN = (Array.isArray(diag.familyHistory) && diag.familyHistory.length) || 0;
     const detail = cN && fN ? `${cN} condition${cN !== 1 ? 's' : ''}, ${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : cN ? `${cN} condition${cN !== 1 ? 's' : ''}` : fN ? `${fN} family entr${fN !== 1 ? 'ies' : 'y'}` : 'notes';
     areas.push({ label: 'Medical History', detail });
   }
-  if (state.importedData.diet) areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
-  if (state.importedData.exercise) areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
-  if (state.importedData.sleepRest) areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
+  if (includeInsightCards && state.importedData.diet) areas.push({ label: 'Diet & Digestion', detail: state.importedData.diet.type || 'filled' });
+  if (includeInsightCards && state.importedData.exercise) areas.push({ label: 'Exercise', detail: state.importedData.exercise.frequency || 'filled' });
+  if (includeInsightCards && state.importedData.sleepRest) areas.push({ label: 'Sleep & Rest', detail: state.importedData.sleepRest.duration || 'filled' });
   const lc = state.importedData.lightCircadian;
   const autoLat = getLatitudeFromLocation();
-  if (lc || autoLat) areas.push({ label: 'Light & Circadian', detail: autoLat ? `lat ${autoLat}` : 'filled' });
-  if (state.importedData.stress) areas.push({ label: 'Stress', detail: state.importedData.stress.level || 'filled' });
-  if (state.importedData.loveLife) areas.push({ label: 'Love Life', detail: 'filled' });
-  if (state.importedData.environment) areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
+  if (isLightSunContextEnabled() && (lc || autoLat)) areas.push({ label: 'Light & Circadian', detail: autoLat ? `lat ${autoLat}` : 'filled' });
+  if (includeInsightCards && state.importedData.stress) areas.push({ label: 'Stress', detail: state.importedData.stress.level || 'filled' });
+  if (includeInsightCards && state.importedData.loveLife) areas.push({ label: 'Love Life', detail: 'filled' });
+  if (includeInsightCards && state.importedData.environment) areas.push({ label: 'Environment', detail: state.importedData.environment.setting || 'filled' });
   const emfData = state.importedData.emfAssessment;
-  if (emfData && emfData.assessments && emfData.assessments.length > 0) areas.push({ label: 'EMF Assessment', detail: `${emfData.assessments.length} assessment${emfData.assessments.length !== 1 ? 's' : ''}` });
+  if (includeInsightCards && emfData && emfData.assessments && emfData.assessments.length > 0) areas.push({ label: 'EMF Assessment', detail: `${emfData.assessments.length} assessment${emfData.assessments.length !== 1 ? 's' : ''}` });
   // Goals, lens, notes
   const goals = state.importedData.healthGoals || [];
-  if (goals.length > 0) areas.push({ label: 'Health Goals', detail: `${goals.length} goal${goals.length !== 1 ? 's' : ''}` });
+  if (includeInsightCards && goals.length > 0) areas.push({ label: 'Health Goals', detail: `${goals.length} goal${goals.length !== 1 ? 's' : ''}` });
   const lens = state.importedData.interpretiveLens || '';
   if (lens.trim()) areas.push({ label: 'Interpretive Lens', detail: 'set' });
   const ctxNotes = state.importedData.contextNotes || '';
-  if (ctxNotes.trim()) areas.push({ label: 'Context Notes', detail: 'set' });
+  if (includeInsightCards && ctxNotes.trim()) areas.push({ label: 'Context Notes', detail: 'set' });
   // Cycle
   const mc = state.importedData.menstrualCycle;
-  if (mc && state.profileSex === 'female') areas.push({ label: 'Menstrual Cycle', detail: `${mc.cycleLength || 28}-day` });
+  if (includeInsightCards && mc && state.profileSex === 'female') areas.push({ label: 'Menstrual Cycle', detail: `${mc.cycleLength || 28}-day` });
   // Supplements
   const supps = state.importedData.supplements || [];
-  if (supps.length > 0) areas.push({ label: 'Supplements', detail: `${supps.length} item${supps.length !== 1 ? 's' : ''}` });
+  if (includeSupplementsMeds && supps.length > 0) areas.push({ label: 'Supplements', detail: `${supps.length} item${supps.length !== 1 ? 's' : ''}` });
   // Notes
   const notes = state.importedData.notes || [];
-  if (notes.length > 0) areas.push({ label: 'User Notes', detail: `${notes.length} note${notes.length !== 1 ? 's' : ''}` });
+  if (includeInsightCards && notes.length > 0) areas.push({ label: 'User Notes', detail: `${notes.length} note${notes.length !== 1 ? 's' : ''}` });
   // Flagged
   const flags = getAllFlaggedMarkers(data);
-  if (flags.length > 0) areas.push({ label: 'Flagged Results', detail: `${flags.length} flagged` });
+  if (isLabMarkersContextEnabled() && flags.length > 0) areas.push({ label: 'Flagged Results', detail: `${flags.length} flagged` });
   return areas;
 }
 
@@ -864,29 +1033,18 @@ function _formatLensChunks(result) {
 // ═══════════════════════════════════════════════
 
 // Default ON when wearables are connected — opposite of the group-filter default
-// (which is OFF). Users turn OFF via Settings → AI → "Include wearable data".
+// (which is OFF). Users turn OFF via Context → Manage → Data sources.
 // Per-profile so each profile keeps its own preference (e.g. "Test" profile
 // excludes wearables from AI context, your "main" profile includes them).
-function _wearableCtxKey() {
-  const pid = localStorage.getItem('labcharts-active-profile') || 'default';
-  return `labcharts-${pid}-ai-ctx-wearables`;
-}
 export function isWearableContextEnabled() {
-  const v = localStorage.getItem(_wearableCtxKey());
-  // Migrate legacy global key (set in v1.21.x) — read once, write per-profile,
-  // delete the global. Idempotent: subsequent calls go straight to per-profile.
-  if (v === null) {
-    const legacy = localStorage.getItem('labcharts-ai-ctx-wearables');
-    if (legacy !== null) {
-      localStorage.setItem(_wearableCtxKey(), legacy);
-      localStorage.removeItem('labcharts-ai-ctx-wearables');
-      return legacy !== 'off';
-    }
-  }
-  return v !== 'off';
+  return isContextSourceEnabled(CONTEXT_SOURCE_IDS.WEARABLES, {
+    defaultValue: state.importedData?.biologyScoreContextSettings?.includeBodyContext !== false,
+  });
 }
 export function setWearableContextEnabled(on) {
-  localStorage.setItem(_wearableCtxKey(), on ? 'on' : 'off');
+  setContextSourceEnabled(CONTEXT_SOURCE_IDS.WEARABLES, on);
+  _biologyScoreContextSettings().includeBodyContext = !!on;
+  invalidateLabContextCache();
 }
 
 // Metric labels + units are derived from the canonical registry (single source
@@ -1070,8 +1228,8 @@ export function setAgentWearableSeriesDays(days) {
 export function isAgentWearableSeriesEnabled() { return getAgentWearableSeriesDays() > 0; }
 export function setAgentWearableSeriesEnabled(on) { setAgentWearableSeriesDays(on ? AGENT_SERIES_DEFAULT_DAYS : 0); }
 
-export async function buildWearableSeriesSection(days) {
-  if (!isWearableContextEnabled()) return '';
+export async function buildWearableSeriesSection(days, options = {}) {
+  if (!options.ignoreContextToggles && !isWearableContextEnabled()) return '';
   // If `days` not provided, read user preference. 0/off = no section.
   const N = (days != null) ? days : getAgentWearableSeriesDays();
   if (!N || N <= 0) return '';
@@ -1181,6 +1339,20 @@ Object.assign(window, {
   getContextSummary,
   isGroupInAIContext,
   setGroupInAIContext,
+  isInsightContextCardsEnabled,
+  setInsightContextCardsEnabled,
+  isSupplementsMedsContextEnabled,
+  setSupplementsMedsContextEnabled,
+  isLabMarkersContextEnabled,
+  setLabMarkersContextEnabled,
+  isGeneticsSummaryInAIContext,
+  setGeneticsSummaryInAIContext,
+  isGeneticsPriorityInAIContext,
+  setGeneticsPriorityInAIContext,
+  isGeneticsInventoryInAIContext,
+  setGeneticsInventoryInAIContext,
+  isLightSunContextEnabled,
+  setLightSunContextEnabled,
   isWearableContextEnabled,
   setWearableContextEnabled,
   isAgentWearableSeriesEnabled,

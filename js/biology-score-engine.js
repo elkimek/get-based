@@ -390,8 +390,9 @@ export function scoreLowOnly(value, threshold, lowFloor = 0) {
   return Math.round(clamp(lerp(clamp(value, lowFloor, threshold), lowFloor, threshold, 0, 99), 0, 99));
 }
 
-export function finalizeCustomScore(def, parts, missing, flags = []) {
-  const profileFlags = getScoreProfileFlags(def.id, getBiologyProfileContext());
+export function finalizeCustomScore(def, parts, missing, flags = [], options = {}) {
+  const profileContext = options.profileContext || getBiologyProfileContext(options);
+  const profileFlags = getScoreProfileFlags(def.id, profileContext);
   const allFlags = [...profileFlags, ...flags.filter(flag => !profileFlags.includes(flag))];
   const available = parts.filter(Boolean);
   const totalWeight = available.reduce((sum, p) => sum + p.weight, 0) + missing.reduce((sum, p) => sum + p.weight, 0);
@@ -427,8 +428,8 @@ function clinicalGuardrailForHit(hit) {
   return '';
 }
 
-export function computeWeightedComposite(data, def) {
-  const profileContext = getBiologyProfileContext();
+export function computeWeightedComposite(data, def, options = {}) {
+  const profileContext = options.profileContext || getBiologyProfileContext(options);
   const available = [], missing = [], flags = getScoreProfileFlags(def.id, profileContext);
   let availableWeight = 0, totalWeight = 0, scoreSum = 0;
   for (const input of def.inputs) {

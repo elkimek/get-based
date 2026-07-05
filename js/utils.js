@@ -371,11 +371,45 @@ export function setPIIReviewEnabled(on) { localStorage.setItem('labcharts-pii-re
 // Analytics: opt-out, default ON. Setting `analytics-disabled=true` suppresses
 // the Umami snippet on next page load. Cookieless, no personal data, no IP.
 const ANALYTICS_CONSENT_ACTION_ATTR = 'data-analytics-consent-action';
+/** @type {ReturnType<typeof setTimeout> | null} */
+let analyticsConsentRetryTimer = null;
 
 export function isAnalyticsEnabled() { return localStorage.getItem('labcharts-analytics-disabled') !== 'true'; }
 export function setAnalyticsEnabled(on) { localStorage.setItem('labcharts-analytics-disabled', on ? 'false' : 'true'); }
 function hasSeenAnalyticsConsent() { return localStorage.getItem('labcharts-analytics-consent-seen') === '1'; }
 function markAnalyticsConsentSeen() { localStorage.setItem('labcharts-analytics-consent-seen', '1'); }
+
+function isVisibleBlockingElement(el) {
+  const style = window.getComputedStyle?.(el);
+  if (style && (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')) return false;
+  const rect = el.getBoundingClientRect?.();
+  return !rect || rect.width > 0 || rect.height > 0 || style?.position === 'fixed';
+}
+
+export function isStartupNudgeBlocked() {
+  const selectors = [
+    '#legal-consent-overlay',
+    '.modal-overlay.show',
+    '.confirm-overlay.show',
+    '.chat-backdrop.open',
+    '#tour-overlay',
+  ];
+  return selectors.some(selector => Array.from(document.querySelectorAll(selector)).some(el => isVisibleBlockingElement(el)));
+}
+
+function clearAnalyticsConsentRetry() {
+  if (analyticsConsentRetryTimer === null) return;
+  clearTimeout(analyticsConsentRetryTimer);
+  analyticsConsentRetryTimer = null;
+}
+
+function scheduleAnalyticsConsentRetry() {
+  if (analyticsConsentRetryTimer !== null) return;
+  analyticsConsentRetryTimer = setTimeout(() => {
+    analyticsConsentRetryTimer = null;
+    maybeShowAnalyticsConsent();
+  }, 1200);
+}
 
 function handleAnalyticsConsentActionClick(event) {
   const target = event.target;
@@ -407,8 +441,13 @@ export function maybeShowAnalyticsConsent() {
     markAnalyticsConsentSeen();
     return;
   }
+  if (isStartupNudgeBlocked()) {
+    scheduleAnalyticsConsentRetry();
+    return;
+  }
   // Don't double-render if already in the DOM
   if (document.getElementById('analytics-consent-banner')) return;
+  clearAnalyticsConsentRetry();
   const banner = document.createElement('div');
   banner.id = 'analytics-consent-banner';
   banner.className = 'analytics-consent-banner';
@@ -430,12 +469,14 @@ export function maybeShowAnalyticsConsent() {
 }
 
 export function dismissAnalyticsConsent() {
+  clearAnalyticsConsentRetry();
   markAnalyticsConsentSeen();
   document.getElementById('analytics-consent-banner')?.remove();
   document.body.classList.remove('analytics-consent-visible');
 }
 
 export function dismissAnalyticsConsentAndDisable() {
+  clearAnalyticsConsentRetry();
   setAnalyticsEnabled(false);
   markAnalyticsConsentSeen();
   document.getElementById('analytics-consent-banner')?.remove();

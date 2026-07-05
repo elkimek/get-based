@@ -9,6 +9,7 @@ import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
 import { getLensSummary } from './lens.js';
+import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -260,6 +261,11 @@ export function updateSummaryButton() {
 }
 
 let _headerListenerAdded = false;
+function isGenomeLookupContextActive() {
+  try { return isContextSourceEnabled(CONTEXT_SOURCE_IDS.GENOME_INVENTORY); }
+  catch { return false; }
+}
+
 function getAIContextHeaderState() {
   const active = [];
   const pending = [];
@@ -269,6 +275,7 @@ function getAIContextHeaderState() {
     if (kb?.configured) active.push(kb.displayName || 'Knowledge Base');
     else if (kb?.enabled) pending.push('KB empty');
   } catch { /* Knowledge Base not initialised yet. */ }
+  if (isGenomeLookupContextActive()) active.push('Genome lookup');
   return { active, pending };
 }
 
@@ -570,4 +577,8 @@ IMPORTANT: On the very first line, output ONLY a single emoji that best captures
     showNotification(`Generation failed: ${error.message}`, 'error');
   }
   if (genBtn) { genBtn.disabled = false; genBtn.textContent = 'Generate'; }
+}
+
+if (typeof window !== 'undefined') {
+  Object.assign(window, { updateChatContextStatus });
 }

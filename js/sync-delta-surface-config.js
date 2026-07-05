@@ -3,6 +3,14 @@
 
 import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
 
+function unsafeMapKeyToHexId(rawKey, prefix) {
+  if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
+  if (_isAllowlistSafeId(rawKey)) return rawKey;
+  let hex = '';
+  for (let i = 0; i < rawKey.length; i++) hex += rawKey.charCodeAt(i).toString(16).padStart(4, '0');
+  return `${prefix}${hex}`;
+}
+
 // Per-array overrides for arrays that do not fit the default
 // `it.id` / tombstone-on-removal contract.
 export const DELTA_ARRAY_CONFIG = {
@@ -81,5 +89,8 @@ export const DELTA_MAP_CONFIG = {
       const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');
       return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
     },
+  },
+  contextSourceSettings: {
+    keyIdFn: (rawKey) => unsafeMapKeyToHexId(rawKey, 'ctxu_'),
   },
 };

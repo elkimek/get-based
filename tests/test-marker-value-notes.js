@@ -211,8 +211,8 @@ const state = (await import('../js/state.js')).state;
     labCtxSrc.includes('[/section:markerValueNotes]'));
   assert('Section heading reads "Per-Value Notes"',
     labCtxSrc.includes('## Per-Value Notes'));
-  assert('Per-value notes section is gated on map non-empty (no empty-section noise)',
-    /mvKeys = Object\.keys\(mvNotes\)[\s\S]{0,200}if \(mvKeys\.length > 0\)/.test(labCtxSrc));
+  assert('Per-value notes section is gated on lab context and map non-empty (no empty-section noise)',
+    /mvKeys = Object\.keys\(mvNotes\)[\s\S]{0,240}if \(includeLabMarkers && mvKeys\.length > 0\)/.test(labCtxSrc));
   assert('Notes are grouped by marker for contiguous reading',
     /byMarker\s*=\s*new Map\(\)/.test(labCtxSrc));
   assert('Within-marker entries sorted ascending by date',

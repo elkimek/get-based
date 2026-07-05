@@ -171,6 +171,7 @@ async function _importChatData(profileId, chat) {
  * @property {unknown} lightDailyVerdicts
  * @property {unknown} channelMixAI
  * @property {unknown} biologyScoreContextAI
+ * @property {Object.<string, boolean>} contextSourceSettings
  * @property {unknown} [chat]
  */
 
@@ -241,6 +242,7 @@ export async function buildClientExportObject(profileId, includeChat = false) {
     lightDailyVerdicts: data.lightDailyVerdicts || null,
     channelMixAI: data.channelMixAI || null,
     biologyScoreContextAI: data.biologyScoreContextAI || null,
+    contextSourceSettings: data.contextSourceSettings || {},
     importSnapshots: data.importSnapshots || []
   };
   if (includeChat) {
@@ -649,6 +651,9 @@ export function importDataJSON(file) {
       if (json.biologyScoreContextAI && typeof json.biologyScoreContextAI === 'object') {
         state.importedData.biologyScoreContextAI = json.biologyScoreContextAI;
       }
+      if (json.contextSourceSettings && typeof json.contextSourceSettings === 'object') {
+        state.importedData.contextSourceSettings = json.contextSourceSettings;
+      }
       // Import change history (merge by field+date, imported snapshot wins on conflict)
       if (Array.isArray(json.changeHistory)) {
         const changeHistory = ensureImportedArray(state.importedData, 'changeHistory');
@@ -856,6 +861,9 @@ async function _importDatabaseBundle(json) {
       for (const field of ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'menstrualCycle', 'emfAssessment', 'genetics', 'biometrics']) {
         if (importData[field] != null) current[field] = importData[field];
       }
+      if (importData.contextSourceSettings && typeof importData.contextSourceSettings === 'object' && !Array.isArray(importData.contextSourceSettings)) {
+        current.contextSourceSettings = importData.contextSourceSettings;
+      }
       if (importData.interpretiveLens) current.interpretiveLens = importData.interpretiveLens;
       if (importData.contextNotes) current.contextNotes = importData.contextNotes;
       // Change history: merge by field+date, imported snapshot wins on conflict
@@ -1001,7 +1009,7 @@ export async function clearAllData() {
     const defaultId = profiles[0]?.id || 'default';
     const defaultName = profiles[0]?.name || 'Profile 1';
     saveProfiles([{ id: defaultId, name: defaultName, sex: null, dob: null, location: { country: '', zip: '' }, tags: [], notes: '', status: 'active', avatar: null, height: null, heightUnit: 'cm', createdAt: Date.now(), lastUpdated: Date.now(), pinned: false }]);
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, changeHistory: [], importSnapshots: [] };
+    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, diet: null, exercise: null, sleepRest: null, lightCircadian: null, stress: null, loveLife: null, environment: null, interpretiveLens: '', contextNotes: '', customMarkers: {}, refOverrides: {}, menstrualCycle: null, emfAssessment: null, genetics: null, biometrics: null, markerNotes: {}, markerValueNotes: {}, biologyScoreAI: {}, contextSourceSettings: {}, changeHistory: [], importSnapshots: [] };
     state.currentProfile = defaultId;
     localStorage.setItem('labcharts-active-profile', defaultId);
     // Clear Cashu wallet database

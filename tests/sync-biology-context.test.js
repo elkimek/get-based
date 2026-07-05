@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { state } from '../js/state.js';
 import { createDefaultProfileData } from '../js/profile.js';
 import { mergePulledImportedData } from '../js/sync-pull-merge.js';
+import {
+  buildBiologyScoreContextFingerprint,
+  buildBiologyScoreContextFingerprintsByRange,
+  buildBiologyScoreContextMaterialSignature,
+  buildBiologyScoreContextMaterialSignaturesByRange,
+  hasBiologyScoreContextReview,
+} from '../js/biology-score-context-ai.js';
 
 const ALL_RANGE_REVIEW = {
   summary: 'Context checked locally',
@@ -24,7 +31,9 @@ describe('Biology Score context sync merge', () => {
     localStorage.clear();
     sessionStorage.clear();
     state.currentProfile = 'bio-context-profile';
+    localStorage.setItem('labcharts-active-profile', state.currentProfile);
     state.importedData = null;
+    state.dateRangeFilter = 'all';
   });
 
   it('preserves an all-range unlocked context review over a newer legacy single-range sync row', async () => {
@@ -107,5 +116,49 @@ describe('Biology Score context sync merge', () => {
     expect(result.merged.biologyScoreContextAI.fingerprintsByRange).toEqual(ALL_RANGE_REVIEW.fingerprintsByRange);
     expect(result.merged.biologyScoreContextAI.unlockedRanges).toEqual(['all', '1y', '6m', '3m']);
     expect(result.localDataChanged).toBe(true);
+  });
+
+  it('uses synced Context source settings when validating a remote Biology Scores review', async () => {
+    const scoreData = {
+      dates: ['2026-06-01'],
+      dateLabels: ['Jun 2026'],
+      categories: {
+        biochemistry: {
+          label: 'Biochemistry',
+          markers: {
+            creatinine: { name: 'Creatinine', values: [88], unit: 'umol/L' },
+          },
+        },
+      },
+    };
+    const remote = {
+      ...createDefaultProfileData(),
+      contextSourceSettings: { 'lab-markers': true, 'lab-group-Fatty Acids': false },
+    };
+    state.importedData = remote;
+    remote.biologyScoreContextAI = {
+      summary: 'Remote context checked with labs enabled',
+      suggestions: [],
+      updatedAt: 4000,
+      range: 'all',
+      fingerprint: buildBiologyScoreContextFingerprint(scoreData),
+      fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(scoreData),
+      contextSignature: buildBiologyScoreContextMaterialSignature(scoreData),
+      contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(scoreData),
+      unlockedRanges: ['all', '1y', '6m', '3m'],
+    };
+
+    const local = {
+      ...createDefaultProfileData(),
+      contextSourceSettings: {},
+    };
+    localStorage.setItem('labcharts-bio-context-profile-ai-ctx-lab-markers', 'off');
+    state.importedData = local;
+    const result = await mergePulledImportedData(state.currentProfile, remote);
+    state.importedData = result.merged;
+
+    expect(result.merged.contextSourceSettings?.['lab-markers']).toBe(true);
+    expect(result.merged.contextSourceSettings?.['lab-group-Fatty Acids']).toBe(false);
+    expect(hasBiologyScoreContextReview(scoreData)).toBe(true);
   });
 });

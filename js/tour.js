@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
-import { escapeAttr } from './utils.js';
+import { escapeAttr, isStartupNudgeBlocked } from './utils.js';
 
 const EMPTY_TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.', position: 'center' },
@@ -125,8 +125,13 @@ function getTourTargetElement(target) {
   }
 }
 
+function isStartupTourKey(storageKey) {
+  return storageKey === profileKey('emptyTour') || storageKey === profileKey('tour');
+}
+
 function runTour(steps, storageKey, auto) {
   if (document.getElementById('legal-consent-overlay')) return false;
+  if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;
   if (auto && isTourCompleted(storageKey)) return false;
   // Demo profiles are exploration sandboxes — re-firing the welcome
   // tour every time the user picks a different demo is noise. Manual

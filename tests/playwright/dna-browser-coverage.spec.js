@@ -136,6 +136,7 @@ i123456\t1\t100\tAA
     dna.saveGeneticsData(profileData, ancestry);
     const fullContext = dna.buildFullGeneticsContext(profileData.genetics);
     const filteredContext = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine']);
+    const filteredContextWithInventory = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine'], { includeSnpInventory: true });
     const emptyContext = dna.buildGeneticsContext(null, []);
     check('saveGeneticsData resolves APOE and effects',
       profileData.genetics?.apoe === '\u03B53/\u03B54' &&
@@ -145,8 +146,13 @@ i123456\t1\t100\tAA
     check('genetics context includes filtered genetics',
       fullContext.startsWith('GENETICS (') &&
       fullContext.includes('APOE: \u03B53/\u03B54') &&
+      fullContext.includes('Imported SNP inventory for lookup') &&
+      fullContext.includes('HFE C282Y rs1800562: GG (normal/no impact') &&
       filteredContext.includes('MTHFR') &&
       !filteredContext.includes('FADS1') &&
+      !filteredContext.includes('Imported SNP inventory for lookup') &&
+      filteredContextWithInventory.includes('FADS1') &&
+      !filteredContextWithInventory.includes('Intermediate desaturase activity') &&
       emptyContext === '');
     dna.deleteGeneticsData(profileData);
     check('deleteGeneticsData removes data', profileData.genetics === undefined);

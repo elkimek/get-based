@@ -160,6 +160,14 @@ function discussDietContaminants() {
   setTimeout(() => { if (typeof appWindow.useChatPrompt === 'function') appWindow.useChatPrompt('What food contaminants should I be concerned about based on my diet?'); }, 300);
 }
 
+function returnToContextModal() {
+  const appWindow = getAppWindow();
+  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
+  setTimeout(() => {
+    if (typeof appWindow.openContextModal === 'function') appWindow.openContextModal();
+  }, 0);
+}
+
 /** @param {MouseEvent} event */
 function handleLifestyleContextClick(event) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
@@ -174,6 +182,7 @@ function handleLifestyleContextClick(event) {
     case 'clear-health-goals': clearHealthGoals(); break;
     case 'save-interpretive-lens': saveInterpretiveLens(); break;
     case 'clear-interpretive-lens': clearInterpretiveLens(); break;
+    case 'back-to-context': returnToContextModal(); break;
     case 'discuss-diet-contaminants': discussDietContaminants(); break;
     case 'close-modal': { const appWindow = getAppWindow(); if (typeof appWindow.closeModal === 'function') appWindow.closeModal(); break; }
     default:
@@ -720,6 +729,8 @@ export function openInterpretiveLensEditor() {
       <button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Cancel</button>
       ${current ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-interpretive-lens')}>Clear</button>` : ''}
     </div>`);
+  modal.querySelector('.gb-modal-head')?.insertAdjacentHTML('afterbegin',
+    `<button type="button" class="context-back-btn" ${lifestyleActionAttrs('back-to-context')} aria-label="Back to Context" title="Back to Context"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>`);
   openModalOverlay(overlay);
   setTimeout(() => {
     const ta = getTextInput('interpretive-lens-textarea');

@@ -48,6 +48,7 @@ assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileSt
 assert('tour.js exports testable step navigation', tourSrc.includes('export function goToTourStep'));
 assert('tour.js does not publish tour API on window', !tourSrc.includes('Object.assign(window,') && !tourSrc.includes('window._tourGoToStep'));
 assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
+assert('startup auto tours wait behind open modals', tourSrc.includes('function isStartupTourKey(') && tourSrc.includes('if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;'));
 assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
 assert('startEmptyTour returns whether empty tour opened', tourSrc.includes('return runTour(EMPTY_TOUR_STEPS') && tourSrc.includes("profileKey('emptyTour')"));
 assert('startGuidedTour routes by visible empty state', tourSrc.includes('export function startGuidedTour') && tourSrc.includes("getTourTargetElement('.welcome-primary-panel')"));

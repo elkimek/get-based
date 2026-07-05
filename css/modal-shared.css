@@ -79,6 +79,40 @@
   border-color: var(--accent);
   background: var(--bg-hover);
 }
+.context-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.gb-modal-head > .context-back-btn + div {
+  margin-right: auto;
+}
+.context-back-btn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.context-back-btn:hover,
+.context-back-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
 .gb-form-body {
   padding: 24px 26px 26px;
 }
@@ -899,6 +933,13 @@
 .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: var(--text-secondary); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
 .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
 .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); background: #fff; }
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid color-mix(in srgb, var(--accent) 82%, transparent);
+  outline-offset: 3px;
+}
+.toggle-switch input:disabled + .toggle-slider {
+  cursor: not-allowed;
+}
 
 .emoji-picker { position: fixed; z-index: 10001; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 320px; max-height: 400px; display: flex; flex-direction: column; }
 .emoji-picker-search { padding: 8px; border-bottom: 1px solid var(--border); }
@@ -919,5 +960,6 @@
   .confirm-dialog { padding: 22px 18px; }
 }
 @media (pointer: coarse) {
-  .modal-close { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .modal-close,
+  .context-back-btn { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 }

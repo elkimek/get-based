@@ -10,6 +10,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.62', date: '2026-07-04', title: 'Control what AI uses as context',
+    forceShow: true,
+    items: [
+      '<b>You can now choose what AI uses.</b> Manage → Context lets you turn major context sources on or off, including Genome, labs, wearables, light, Biology Scores, supplements and meds, and insight cards.',
+      '<b>Turning context off does not delete data.</b> Imported data stays in getbased, but disabled sources stop shaping AI answers and missing-data nudges.',
+      '<b>Genome and labs have finer controls.</b> You can include DNA and lab context broadly, or narrow it down by groups like APOE, mtDNA, raw SNPs, other SNPs, blood markers, and specialty lab imports.',
+    ]
+  },
+  {
     version: '1.10.49', date: '2026-07-01', title: 'Add SNPs from small genetic reports',
     forceShow: true,
     items: [

@@ -29,8 +29,7 @@ assert('nav.js renders no inline event attributes',
 assert('nav.js renders delegated click actions',
   navSrc.includes('data-nav-action=') &&
     navSrc.includes("_navActionAttrs('navigate'") &&
-    navSrc.includes("_navActionAttrs('toggle-group'") &&
-    navSrc.includes("_navActionAttrs('toggle-group-ai'"));
+    navSrc.includes("_navActionAttrs('toggle-group'"));
 assert('nav.js renders delegated search input action',
   navSrc.includes('data-nav-input-action="filter-sidebar"'));
 assert('nav.js installs idempotent click and input delegates',
@@ -47,11 +46,22 @@ assert('nav.js installs idempotent click and input delegates',
   'open-knowledge-base',
   'open-custom-marker',
   'toggle-group',
-  'toggle-group-ai',
   'open-client-list',
 ].forEach(action => {
   assert(`nav action ${action} is handled`, navSrc.includes(`action === '${action}'`));
 });
+
+assert('Sidebar specialty groups are navigation-only, not duplicate AI controls',
+  !navSrc.includes('toggle-group-ai') &&
+    !navSrc.includes('sidebar-ai-toggle') &&
+    !navSrc.includes('toggleGroupAIContext') &&
+    !navSrc.includes('setGroupInAIContext'));
+
+assert('Genome remains a plain lens navigation row',
+  navSrc.includes('data-category="genome"') &&
+    navSrc.includes("_navNavigateAttrs('genome')") &&
+    !navSrc.includes('nav-genome-ai-toggle') &&
+    !navSrc.includes('toggleGenomeAIContext'));
 
 assert('Manage section exposes Context instead of standalone Knowledge Base',
   navSrc.includes('data-category="context"') &&

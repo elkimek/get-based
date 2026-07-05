@@ -229,13 +229,14 @@ export const SCORE_DEFINITIONS = [
   ...TIER2_BIOLOGY_SCORE_DEFINITIONS.map(def => ({ ...def, compute: computeWeightedComposite })),
 ];
 
-function computeBiologyScoresInternal(data, definitions) {
-  const profileContext = getBiologyProfileContext();
-  return definitions.map((def) => ({ ...def.compute(data, def), ...getBiologyScoreCopy(def.id, profileContext) }));
+function computeBiologyScoresInternal(data, definitions, options = {}) {
+  const profileContext = options.profileContext || getBiologyProfileContext(options);
+  const computeOptions = { ...options, profileContext };
+  return definitions.map((def) => ({ ...def.compute(data, def, computeOptions), ...getBiologyScoreCopy(def.id, profileContext) }));
 }
 
-export function computeBiologyScores(data) {
-  return computeBiologyScoresInternal(data, SCORE_DEFINITIONS);
+export function computeBiologyScores(data, options = {}) {
+  return computeBiologyScoresInternal(data, SCORE_DEFINITIONS, options);
 }
 
 export function getBiologyScoreMapping() {

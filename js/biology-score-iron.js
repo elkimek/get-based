@@ -9,7 +9,7 @@ import {
   scoreLowOnly,
 } from './biology-score-engine.js';
 
-export function computeIronHandling(data, def) {
+export function computeIronHandling(data, def, options = {}) {
   const ferritin = getMarkerHit(data, 'iron.ferritin');
   const tsat = getMarkerHit(data, 'iron.transferrinSat');
   const iron = getMarkerHit(data, 'iron.iron');
@@ -60,5 +60,5 @@ export function computeIronHandling(data, def) {
   add(copper, 'copper', 'Copper', 0.35, copper ? scoreAgainstRange(copper.value, copper.range) : null);
   if (!cerulo) missing.push({ key: 'ceruloplasmin', label: 'Ceruloplasmin', weight: 0.3 });
   else add(cerulo, 'ceruloplasmin', 'Ceruloplasmin', 0.3, scoreAgainstRange(cerulo.value, cerulo.range));
-  return finalizeCustomScore(def, parts, missing, flags);
+  return finalizeCustomScore(def, parts, missing, flags, options);
 }
