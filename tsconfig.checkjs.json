@@ -127,6 +127,7 @@
     "js/light-device-session-modal.js",
     "js/light-device-setup-modal.js",
     "js/light-devices-actions.js",
+    "js/light-devices-runtime.js",
     "js/light-devices.js",
     "js/light-devices-store.js",
     "js/light-env.js",

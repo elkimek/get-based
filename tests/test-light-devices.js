@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const _ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = rel => fs.readFileSync(path.join(_ROOT, rel), 'utf8');
 const _realFetch = globalThis.fetch;
 globalThis.fetch = async (url, opts) => {
   if (typeof url === 'string' && !/^https?:/.test(url)) {
@@ -607,6 +608,19 @@ const {
       pulse.modes === null);
     window._labState.importedData = orig;
   }
+
+  // ─── Runtime adapter ownership ─────────────────────────────────────
+  console.log('%c runtime adapter ownership ', 'font-weight:bold;color:#f59e0b');
+  const lightDevicesSrc = read('js/light-devices.js');
+  const lightDevicesRuntimeSrc = read('js/light-devices-runtime.js');
+  assert('light-devices routes shell hooks through light-devices-runtime',
+    lightDevicesSrc.includes("from './light-devices-runtime.js'") &&
+    !/\bwindow\./.test(lightDevicesSrc));
+  assert('light-devices-runtime owns browser-shell hooks and legacy publication',
+    lightDevicesRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
+    lightDevicesRuntimeSrc.includes("getRuntimeFunction('showPromptDialog')") &&
+    lightDevicesRuntimeSrc.includes("getRuntimeFunction('loadCatalog')") &&
+    lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

@@ -18,7 +18,6 @@
 //   importedData.lightDevices[]   — user's owned devices
 //   importedData.deviceSessions[] — session log
 
-import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -42,6 +41,20 @@ import {
 import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
 import { configureLightDeviceSetup, openAddDeviceDialog, openCustomDeviceDialog } from './light-device-setup-modal.js';
 import { installLightDevicesActionDelegates } from './light-devices-actions.js';
+import {
+  deleteLightDeviceSessionFromRuntime,
+  editLightDeviceSessionDurationFromRuntime,
+  editLightDeviceSessionModeFromRuntime,
+  getLightDeviceChannelDisplay,
+  getLightDeviceChannelHelpers,
+  loadLightDevicesCatalog,
+  navigateLightDevicesRoute,
+  openLightDeviceChannel,
+  promptLightDeviceSessionDuration,
+  publishLightDevicesWindowBindings,
+  refreshLightDevicesView,
+  renderLightDeviceAffiliateRowRuntime,
+} from './light-devices-runtime.js';
 
 /** @type {{ renderDeviceSessionAIDetail: (sess: any) => string }} */
 const lightDevicesDeps = {
@@ -175,7 +188,7 @@ export async function editDeviceSessionMode(id) {
     if (next === sess.mode) return;
     await updateDeviceSession(id, { mode: next });
     showNotification('Mode updated. Doses recomputed.', 'success');
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    refreshLightDevicesView();
   });
 }
 
@@ -189,11 +202,7 @@ export async function editDeviceSessionDuration(id) {
     return;
   }
   const current = Math.max(0, Math.round(sess.durationMin || 0));
-  const raw = await window.showPromptDialog?.('New duration (in minutes)', {
-    defaultValue: String(current),
-    okLabel: 'Save',
-    placeholder: 'e.g. 12',
-  });
+  const raw = await promptLightDeviceSessionDuration(current);
   if (raw === null || raw === undefined) return;
   const parsed = parseFloat(raw);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 600) {
@@ -204,7 +213,7 @@ export async function editDeviceSessionDuration(id) {
   if (next === current) return;
   await updateDeviceSession(id, { durationMin: next });
   showNotification(`Session duration set to ${next} min. Doses recomputed.`, 'success');
-  if (window.navigate && state.currentView === 'light') window.navigate('light');
+  refreshLightDevicesView();
 }
 
 // ─── UI: per-device-session detail modal ──────────────────────────────
@@ -235,14 +244,9 @@ export function openDeviceSessionDetail(id) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return;
-  const appWindow = /** @type {any} */ (window);
   const device = getDevices().find(d => d.id === sess.deviceId) || null;
-  /** @type {(value: any, channelKey?: string) => number} */
-  const channelTier = window.channelTier || (() => 0);
-  /** @type {(tier: number) => string} */
-  const tierLabel = window.tierLabel || (() => 'none');
-  /** @type {(...args: any[]) => string} */
-  const formatChannelUnit = window.formatChannelUnit || (() => '');
+  const { channelTier, tierLabel, formatChannelUnit } = getLightDeviceChannelHelpers();
+  const channelDisplay = getLightDeviceChannelDisplay(CHANNEL_DISPLAY);
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
 
   const start = formatDate(new Date(sess.startedAt).toISOString().slice(0, 10));
@@ -294,7 +298,7 @@ export function openDeviceSessionDetail(id) {
   const channelRows = sess.doses ? channelOrder
     .filter(k => sess.doses[k] != null)
     .map(k => {
-      const meta = (window.CHANNEL_DISPLAY || {})[k] || {};
+      const meta = channelDisplay[k] || {};
       const v = sess.doses[k] || 0;
       const t = channelTier(v, k);
       const tlabel = tierLabel(t);
@@ -385,22 +389,22 @@ export function openDeviceSessionDetail(id) {
     if (channelRow && overlay.contains(channelRow)) {
       const channel = channelRow.getAttribute('data-channel') || '';
       closeDialog();
-      appWindow._openChannelOnLightPage?.(channel);
+      openLightDeviceChannel(channel);
       return;
     }
     if (target.closest('#device-detail-edit-duration')) {
       closeDialog();
-      appWindow.editDeviceSessionDuration?.(sess.id);
+      editLightDeviceSessionDurationFromRuntime(sess.id);
       return;
     }
     if (target.closest('#device-detail-edit-mode')) {
       closeDialog();
-      appWindow.editDeviceSessionMode?.(sess.id);
+      editLightDeviceSessionModeFromRuntime(sess.id);
       return;
     }
     if (target.closest('#device-detail-delete')) {
       closeDialog();
-      appWindow.deleteDeviceSession?.(sess.id);
+      deleteLightDeviceSessionFromRuntime(sess.id);
     }
   });
   overlay.addEventListener('keydown', (event) => {
@@ -411,7 +415,7 @@ export function openDeviceSessionDetail(id) {
     event.preventDefault();
     const channel = channelRow.getAttribute('data-channel') || '';
     closeDialog();
-    appWindow._openChannelOnLightPage?.(channel);
+    openLightDeviceChannel(channel);
   });
   bindDetachedModalSyncRefresh({
     overlay,
@@ -504,7 +508,7 @@ export async function renderDevicesSection() {
   // Both fall back gracefully on missing data.
   let catalog = null;
   try {
-    if (window.loadCatalog) catalog = await window.loadCatalog();
+    catalog = await loadLightDevicesCatalog();
   } catch { /* offline / 404 — page still renders without affiliate row */ }
   let typesMeta = {};
   try {
@@ -539,9 +543,7 @@ export async function renderDevicesSection() {
   html += `<div class="light-devices-grid">`;
   for (const dev of devices) {
     const slug = dev.catalogSlug || dev.presetId || null;
-    const affRow = (slug && window.renderLightDeviceAffiliateRow)
-      ? window.renderLightDeviceAffiliateRow(catalog, slug)
-      : '';
+    const affRow = slug ? renderLightDeviceAffiliateRowRuntime(catalog, slug) : '';
     const typeMeta = typesMeta[dev.type] || {};
     const typeIcon = typeMeta.icon || '🔴';
     const typeLabel = typeMeta.label || dev.type || 'Device';
@@ -644,7 +646,7 @@ configureLightDeviceSetup({
   addCustomDevice,
   wireModal: _wireModal,
   refreshLightView: () => {
-    if (window.navigate && state.currentView === 'light') window.navigate('light');
+    refreshLightDevicesView();
   },
 });
 
@@ -661,7 +663,7 @@ export async function openDeviceSessionDialog(deviceId) {
     validateModeCoupling,
     renderBodySilhouette,
     bindBodySilhouette,
-    navigate: route => window.navigate?.(route),
+    navigate: navigateLightDevicesRoute,
   });
 }
 
@@ -722,48 +724,50 @@ function _openDevicePicker(devices) {
 export async function deleteDeviceSessionWithConfirm(id) {
   if (!await showConfirmDialog("Delete this device session? This can't be undone.")) return;
   await deleteDeviceSession(id);
-  if (window.navigate && state.currentView === 'light') window.navigate('light');
+  refreshLightDevicesView();
 }
 
 // ─── Window export ─────────────────────────────────────────────────────
 
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    loadLightDevicePresets,
-    getDevices,
-    getDeviceSessions,
-    addDeviceFromPreset,
-    hydrateDevicesFromPresets,
-    deleteLightDevice: async (id) => {
-      await deleteDevice(id);
-      if (window.navigate && state.currentView === 'light') window.navigate('light');
-    },
-    logDeviceSession,
-    startDeviceSession,
-    stopDeviceSession,
-    updateDeviceSession,
-    editDeviceSessionDuration,
-    editDeviceSessionMode,
-    getActiveDeviceSession,
-    renderActiveDeviceSessionCard,
-    ensureActiveDeviceTicker,
-    stopDeviceSessionAndNotify: async (id) => {
-      const sess = await stopDeviceSession(id);
-      if (sess) {
-        const device = getDevices().find(d => d.id === sess.deviceId);
-        const dur = Math.round(sess.durationMin || 0);
-        showNotification(`Saved · ${dur} min ${device ? device.brand + ' ' + device.model : 'device'} session.`);
-      }
-      if (window.navigate && state.currentView === 'light') window.navigate('light');
-    },
-    deleteDeviceSession: deleteDeviceSessionWithConfirm,
-    rollingDeviceTotals,
-    renderDevicesSection,
-    openDeviceSessionDetail,
-    openAddDeviceDialog,
-    openCustomDeviceDialog,
-    addCustomDevice,
-    openDeviceSessionDialog,
-    quickLogDeviceSession,
-  });
+export async function deleteLightDeviceAndRefresh(id) {
+  await deleteDevice(id);
+  refreshLightDevicesView();
 }
+
+export async function stopDeviceSessionAndNotify(id) {
+  const sess = await stopDeviceSession(id);
+  if (sess) {
+    const device = getDevices().find(d => d.id === sess.deviceId);
+    const dur = Math.round(sess.durationMin || 0);
+    showNotification(`Saved · ${dur} min ${device ? device.brand + ' ' + device.model : 'device'} session.`);
+  }
+  refreshLightDevicesView();
+}
+
+publishLightDevicesWindowBindings({
+  loadLightDevicePresets,
+  getDevices,
+  getDeviceSessions,
+  addDeviceFromPreset,
+  hydrateDevicesFromPresets,
+  deleteLightDevice: deleteLightDeviceAndRefresh,
+  logDeviceSession,
+  startDeviceSession,
+  stopDeviceSession,
+  updateDeviceSession,
+  editDeviceSessionDuration,
+  editDeviceSessionMode,
+  getActiveDeviceSession,
+  renderActiveDeviceSessionCard,
+  ensureActiveDeviceTicker,
+  stopDeviceSessionAndNotify,
+  deleteDeviceSession: deleteDeviceSessionWithConfirm,
+  rollingDeviceTotals,
+  renderDevicesSection,
+  openDeviceSessionDetail,
+  openAddDeviceDialog,
+  openCustomDeviceDialog,
+  addCustomDevice,
+  openDeviceSessionDialog,
+  quickLogDeviceSession,
+});
