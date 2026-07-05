@@ -8,6 +8,7 @@ import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs, initDnaActionDelegates } from './dna-actions.js';
 import { findGenotypeInfo as findGenotypeInfoImpl, findSnpHint as findSnpHintImpl, sortAlleles } from './dna-genotype.js';
+import { installDNAWindowBindings } from './dna-window-bindings.js';
 import {
   HAPLOGROUP_LIST,
   closeMtDNAPreview,
@@ -1494,44 +1495,10 @@ async function confirmDeleteDNA() {
 
 initDnaActionDelegates({ triggerDNAFilePicker: () => window.triggerDNAFilePicker?.(), closeDNAImportPreview, closeMtDNAPreview, confirmDeleteDNA, confirmDNAImport, confirmMtDNAImport, deleteMtDNAData, importSnpReport, openManualSnpModal, reimportDNA, saveManualSnpFromModal, toggleGeneticsCollapse, toggleGeneticsExpand });
 
-// ═══════════════════════════════════════════════
-// WINDOW EXPORTS
-// ═══════════════════════════════════════════════
-Object.assign(window, {
-  isDNAFile,
-  isDNAFileByContent,
-  detectDNAFile,
-  parseClinicalSnpReportText,
-  parseManualSnpRows,
-  upsertGeneticsSnp,
-  handleDNAFile,
-  handleSnpReportFile,
-  importSnpReport,
-  openManualSnpModal,
-  saveManualSnpFromModal,
-  closeDNAImportPreview,
-  confirmDNAImport,
-  confirmDeleteDNA,
-  deleteGeneticsData,
-  getSnpCategoryLabel,
-  SNP_CATEGORY_LABELS,
-  toggleGeneticsCollapse,
-  toggleGeneticsExpand,
-  reimportDNA,
-  handleMtDNAFile,
-  closeMtDNAPreview,
-  confirmMtDNAImport,
-  deleteMtDNAData,
-  detectMtDNAMismatch,
-  ensureHaplogroupTable,
-  setManualHaplogroup,
-  HAPLOGROUP_LIST,
-  _buildGeneticsContext: buildGeneticsContext,
-  _getRelevantSNPs: getRelevantSNPs,
-  _getState: () => state,
-  _saveAndRefresh: async () => {
-    if (!await saveImportedData()) return;
-    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-    if (window.navigate) window.navigate('dashboard');
-  },
+installDNAWindowBindings(window, {
+  state, saveImportedData, buildGeneticsContext, getRelevantSNPs,
+  isDNAFile, isDNAFileByContent, detectDNAFile, parseClinicalSnpReportText, parseManualSnpRows, upsertGeneticsSnp, handleDNAFile, handleSnpReportFile,
+  importSnpReport, openManualSnpModal, saveManualSnpFromModal, closeDNAImportPreview, confirmDNAImport, confirmDeleteDNA, deleteGeneticsData,
+  getSnpCategoryLabel, SNP_CATEGORY_LABELS, toggleGeneticsCollapse, toggleGeneticsExpand, reimportDNA,
+  handleMtDNAFile, closeMtDNAPreview, confirmMtDNAImport, deleteMtDNAData, detectMtDNAMismatch, ensureHaplogroupTable, setManualHaplogroup, HAPLOGROUP_LIST,
 });

@@ -33,10 +33,13 @@
     '/js/startup-maintenance.js',
     '/js/startup-ui.js',
     '/js/emf-facade.js',
+    '/js/schema-environment.js',
     '/js/views.js',
     '/js/import-file-input.js',
     '/js/import-drop-zone.js',
     '/js/recommendation-actions.js',
+    '/js/context-card-dashboard-ai.js',
+    '/js/context-card-dashboard-ai-actions.js',
     '/js/dashboard-recommendation-widget.js',
     '/js/supplement-impact.js',
     '/js/context-card-lifestyle-editors.js',
@@ -61,6 +64,7 @@
     '/js/light-page-view.js',
     '/js/light-page-view-hooks.js',
     '/js/light-page-view-ui-hooks.js',
+    '/js/light-devices-actions.js',
     '/js/light-channel-view.js',
     '/js/light-channel-view-hooks.js',
     '/js/light-channel-view-ui-hooks.js',
@@ -69,6 +73,7 @@
     '/js/compare-correlations.js',
     '/js/mobile-dashboard.js',
     '/js/schema.js',
+    '/js/dna-window-bindings.js',
   ];
 
   function assertServiceWorkerCache(sw) {
