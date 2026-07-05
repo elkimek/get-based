@@ -12,6 +12,11 @@ import {
 } from './api.js';
 import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, setOllamaPIIEnabled } from './pii.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
+import {
+  cacheLocalAiModelDetails,
+  getCachedLocalAiModelDetails,
+  updatePrivacyStatusCardFromRuntime,
+} from './provider-local-ai-runtime.js';
 
 let returnToChatIfOnboarding = function() {};
 const LOCAL_AI_NOT_CONNECTED_TEXT = 'Not connected \u2014 check URL and ensure your server is running';
@@ -60,8 +65,7 @@ export function initSettingsOllamaCheck() {
           ? ollama.modelDetails
           : (result.modelDetails || []);
         if (modelDetails.length > 0) {
-          window._lastOllamaModelDetails = modelDetails;
-          window._lastIsOllamaServer = isOllamaServer;
+          cacheLocalAiModelDetails(modelDetails, isOllamaServer);
           renderModelAdvisor(modelDetails, modelSelect, isOllamaServer);
         }
       } else if (result.available) {
@@ -72,13 +76,13 @@ export function initSettingsOllamaCheck() {
         text.textContent = 'Not connected \u2014 start your local server to use';
       }
       if (sameUrl) {
-        window.updatePrivacyStatusCard?.(result.available && result.models.length > 0);
+        updatePrivacyStatusCardFromRuntime(result.available && result.models.length > 0);
       } else {
-        window.updatePrivacyStatusCard?.();
+        updatePrivacyStatusCardFromRuntime();
       }
     });
   } else {
-    window.updatePrivacyStatusCard?.();
+    updatePrivacyStatusCardFromRuntime();
   }
 }
 
@@ -371,12 +375,11 @@ export async function testOllamaConnection() {
         ? ollamaResult.modelDetails
         : (result.modelDetails || []);
       if (modelDetails.length > 0 && modelSection && modelSelect) {
-        window._lastOllamaModelDetails = modelDetails;
-        window._lastIsOllamaServer = isOllamaServer;
+        cacheLocalAiModelDetails(modelDetails, isOllamaServer);
         renderModelAdvisor(modelDetails, modelSelect, isOllamaServer);
       }
     }
-    window.updatePrivacyStatusCard?.();
+    updatePrivacyStatusCardFromRuntime();
     returnToChatIfOnboarding();
   } catch (e) {
     dot.classList.add('disconnected');
@@ -429,18 +432,18 @@ export async function testPIIOllamaConnection() {
         piiSelect.innerHTML = models.map(m => `<option value="${escapeHTML(m)}" ${m === currentPII ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
       }
     }
-    window.updatePrivacyStatusCard?.();
+    updatePrivacyStatusCardFromRuntime();
   } catch (e) {
     dot.classList.add('disconnected');
     text.textContent = LOCAL_AI_NOT_CONNECTED_TEXT;
-    window.updatePrivacyStatusCard?.();
+    updatePrivacyStatusCardFromRuntime();
   }
 }
 
 export function refreshModelAdvisor() {
-  const details = window._lastOllamaModelDetails || [];
+  const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
   const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
+  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
 }
 
 export function copyOllamaPullCmd(cmd) {
@@ -451,14 +454,14 @@ export function applyHardwareOverride(vram) {
   const v = parseFloat(vram);
   if (isNaN(v) || v <= 0) { showNotification('Enter a valid VRAM amount in GB', 'error'); return; }
   saveHardwareOverride(v);
-  const details = window._lastOllamaModelDetails || [];
+  const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
   const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
+  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
 }
 
 export function clearHardwareOverride() {
   saveHardwareOverride(null);
-  const details = window._lastOllamaModelDetails || [];
+  const { modelDetails: details, isOllamaServer } = getCachedLocalAiModelDetails();
   const modelSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('local-ai-model-select'));
-  if (details.length) renderModelAdvisor(details, modelSelect, !!window._lastIsOllamaServer);
+  if (details.length) renderModelAdvisor(details, modelSelect, isOllamaServer);
 }

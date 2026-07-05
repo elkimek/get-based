@@ -355,6 +355,7 @@
     "js/marker-detail-editing.js",
     "js/notes.js",
     "js/profile-context.js",
+    "js/provider-local-ai-runtime.js",
     "js/provider-local-ai-controls.js",
     "js/provider-panel-delegates.js",
     "js/provider-ppq-panels.js",

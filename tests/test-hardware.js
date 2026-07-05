@@ -178,8 +178,12 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
 
   const ppSrc = read('js/provider-panels.js');
   const localAiControlsSrc = read('js/provider-local-ai-controls.js');
+  const localAiRuntimeSrc = read('js/provider-local-ai-runtime.js');
   const panelRenderSrc = read('js/provider-panel-renderers.js');
   assert('Provider local AI controls imports hardware.js', localAiControlsSrc.includes("from './hardware.js'"));
+  assert('Provider local AI controls imports runtime adapter', localAiControlsSrc.includes("from './provider-local-ai-runtime.js'"));
+  assert('Provider local AI runtime owns model details cache', localAiRuntimeSrc.includes('_lastOllamaModelDetails'));
+  assert('Provider local AI controls has no direct window refs', !/\bwindow(\.|\s*\[)/.test(localAiControlsSrc));
   assert('Provider renderer has advisor placeholder', panelRenderSrc.includes('local-ai-advisor'));
   assert('Provider local AI controls calls renderModelAdvisor', localAiControlsSrc.includes('renderModelAdvisor'));
   assert('Provider panels exports copyOllamaPullCmd', ppSrc.includes('copyOllamaPullCmd'));
