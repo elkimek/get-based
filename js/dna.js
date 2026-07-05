@@ -1488,8 +1488,14 @@ export {
 async function confirmDeleteDNA() {
   if (await confirmDnaDeleteDialog()) {
     const runtimeState = getDnaRuntimeState();
-    deleteGeneticsData((runtimeState || state).importedData);
-    await saveDnaRuntimeAndRefresh();
+    const targetState = runtimeState || state;
+    const originalData = JSON.parse(JSON.stringify(targetState.importedData || {}));
+    deleteGeneticsData(targetState.importedData);
+    if (!await saveDnaRuntimeAndRefresh()) {
+      targetState.importedData = originalData;
+      state.importedData = originalData;
+      showNotification('Could not save genetic data deletion. Try again after the app finishes loading.', 'error');
+    }
   }
 }
 

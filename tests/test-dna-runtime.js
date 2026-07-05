@@ -83,7 +83,7 @@ try {
   globalThis.isImportRunning = () => {
     throw new Error('import status failed');
   };
-  assert('isDnaLabImportRunning reports false on runtime errors', isDnaLabImportRunning() === false);
+  assert('isDnaLabImportRunning fails closed on runtime errors', isDnaLabImportRunning() === true);
 
   globalThis.handleDNAFile = file => calls.push(['handleDNAFile', file.name]);
   callDnaFileHandler({ name: 'dna.txt' });
@@ -117,10 +117,21 @@ try {
   globalThis._getState = () => state;
   assert('getDnaRuntimeState delegates state lookup',
     getDnaRuntimeState() === state);
+  delete globalThis._saveAndRefresh;
+  assert('saveDnaRuntimeAndRefresh reports false when hook is missing',
+    await saveDnaRuntimeAndRefresh() === false);
   globalThis._saveAndRefresh = async () => calls.push(['saveAndRefresh']);
   await saveDnaRuntimeAndRefresh();
   assert('saveDnaRuntimeAndRefresh delegates persistence',
     calls.some(call => call[0] === 'saveAndRefresh'));
+  globalThis._saveAndRefresh = async () => false;
+  assert('saveDnaRuntimeAndRefresh reports false when persistence fails',
+    await saveDnaRuntimeAndRefresh() === false);
+  globalThis._saveAndRefresh = async () => {
+    throw new Error('save failed');
+  };
+  assert('saveDnaRuntimeAndRefresh reports false when persistence throws',
+    await saveDnaRuntimeAndRefresh() === false);
 
   const table = { rs1801133: { gene: 'MTHFR' } };
   cacheDnaSnpTable(table);

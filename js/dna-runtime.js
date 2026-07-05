@@ -63,10 +63,12 @@ export function refreshDnaShell(route) {
 
 /** @returns {boolean} */
 export function isDnaLabImportRunning() {
+  const isImportRunning = getRuntimeFunction('isImportRunning');
+  if (!isImportRunning) return false;
   try {
-    return getRuntimeFunction('isImportRunning')?.() === true;
+    return isImportRunning() === true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -103,9 +105,15 @@ export function getDnaRuntimeState() {
   }
 }
 
-/** @returns {Promise<void>} */
+/** @returns {Promise<boolean>} */
 export async function saveDnaRuntimeAndRefresh() {
-  await getRuntimeFunction('_saveAndRefresh')?.();
+  const saveAndRefresh = getRuntimeFunction('_saveAndRefresh');
+  if (!saveAndRefresh) return false;
+  try {
+    return await saveAndRefresh() !== false;
+  } catch {
+    return false;
+  }
 }
 
 /** @param {any} result */
