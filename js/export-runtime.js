@@ -1,6 +1,7 @@
 // @ts-check
 // export-runtime.js - Browser runtime adapters for export/import flows.
 
+import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 
 function getRuntimeWindow() {
@@ -47,8 +48,8 @@ function sortedChatThreads() {
     .sort((a, b) => String(b?.updatedAt || '').localeCompare(String(a?.updatedAt || '')));
 }
 
-function loadChatThreadsFromStorageFallback() {
-  const raw = localStorage.getItem(`labcharts-${state.currentProfile}-chat-threads`);
+async function loadChatThreadsFromStorageFallback() {
+  const raw = await encryptedGetItem(`labcharts-${state.currentProfile}-chat-threads`);
   if (!raw) {
     state.chatThreads = [];
     return;
@@ -101,13 +102,13 @@ function renderThreadListFallback() {
   }).join('');
 }
 
-function refreshChatThreadsRuntime(chatThreads) {
+async function refreshChatThreadsRuntime(chatThreads) {
   const loadChatThreads = getRuntimeFunction(chatThreads, 'loadChatThreads');
   const ensureActiveThread = getRuntimeFunction(chatThreads, 'ensureActiveThread');
   const renderThreadList = getRuntimeFunction(chatThreads, 'renderThreadList');
 
-  if (loadChatThreads) loadChatThreads();
-  else loadChatThreadsFromStorageFallback();
+  if (loadChatThreads) await loadChatThreads();
+  else await loadChatThreadsFromStorageFallback();
 
   if (ensureActiveThread) ensureActiveThread();
   else ensureActiveThreadFallback();
@@ -180,7 +181,7 @@ export async function refreshImportRuntimeShell(options = {}) {
   const renderProfileButton = getRuntimeFunction(nav, 'renderProfileButton');
   const navigate = getRuntimeFunction(views, 'navigate');
 
-  if (chat) refreshChatThreadsRuntime(chatThreads);
+  if (chat) await refreshChatThreadsRuntime(chatThreads);
   buildSidebar?.();
   updateHeaderDates?.();
   if (profileButton) renderProfileButton?.();
