@@ -312,6 +312,7 @@ const chatWorkflowCheckJsModules = [
   'js/chat-panel.js',
   'js/chat-prompt-context.js',
   'js/chat-render.js',
+  'js/chat-send-runtime.js',
   'js/chat-summaries.js',
   'js/chat-thread-search.js',
   'js/chat-window-bindings.js',
