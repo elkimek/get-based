@@ -12,8 +12,8 @@ function getRuntimeWindow() {
 
 function getRuntimeFunction(module, name) {
   const runtime = getRuntimeWindow();
-  if (typeof module?.[name] === 'function') return module[name];
   if (typeof runtime[name] === 'function') return runtime[name];
+  if (typeof module?.[name] === 'function') return module[name];
   return null;
 }
 
@@ -52,13 +52,14 @@ async function loadChatThreadsFromStorageFallback() {
   const raw = await encryptedGetItem(`labcharts-${state.currentProfile}-chat-threads`);
   if (!raw) {
     state.chatThreads = [];
-    return;
+    return true;
   }
   try {
     const parsed = JSON.parse(raw);
     state.chatThreads = Array.isArray(parsed) ? parsed : [];
+    return true;
   } catch {
-    state.chatThreads = [];
+    return false;
   }
 }
 
@@ -106,9 +107,11 @@ async function refreshChatThreadsRuntime(chatThreads) {
   const loadChatThreads = getRuntimeFunction(chatThreads, 'loadChatThreads');
   const ensureActiveThread = getRuntimeFunction(chatThreads, 'ensureActiveThread');
   const renderThreadList = getRuntimeFunction(chatThreads, 'renderThreadList');
+  let threadsLoaded = true;
 
   if (loadChatThreads) await loadChatThreads();
-  else await loadChatThreadsFromStorageFallback();
+  else threadsLoaded = await loadChatThreadsFromStorageFallback();
+  if (!threadsLoaded) return;
 
   if (ensureActiveThread) ensureActiveThread();
   else ensureActiveThreadFallback();
