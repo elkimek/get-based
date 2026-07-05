@@ -24,18 +24,20 @@ console.log('=== Phase-Aware Reference Ranges Test ===\n');
 // Section 1 reads schema source; later sections need window.* handlers
 // exposed by data.js (Object.assign(window, …) at module load).
 const schemaSource = read('js/schema.js');
+const schemaEnvironmentSource = read('js/schema-environment.js');
 const schema = await import('../js/schema.js');
 const dataSource = read('js/data.js');
 const markerAnalysisSource = read('js/marker-analysis.js');
 await import('../js/data.js'); // populates window.getEffectiveRangeForDate etc
 const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
-  assert('PHASE_RANGES exported from schema.js', schemaSource.includes('export const PHASE_RANGES'));
-  assert('Estradiol in PHASE_RANGES', schemaSource.includes("'hormones.estradiol'"));
-  assert('Progesterone in PHASE_RANGES', schemaSource.includes("'hormones.progesterone'"));
+  assert('PHASE_RANGES re-exported from schema.js', schemaSource.includes('PHASE_RANGES') && schemaSource.includes('./schema-environment.js'));
+  assert('PHASE_RANGES defined in schema-environment.js', schemaEnvironmentSource.includes('export const PHASE_RANGES'));
+  assert('Estradiol in PHASE_RANGES', schemaEnvironmentSource.includes("'hormones.estradiol'"));
+  assert('Progesterone in PHASE_RANGES', schemaEnvironmentSource.includes("'hormones.progesterone'"));
 
   // Check all 4 phases exist for both markers
   for (const phase of ['menstrual', 'follicular', 'ovulatory', 'luteal']) {
-    assert(`Estradiol has ${phase} phase`, schemaSource.includes(`${phase}:`));
+    assert(`Estradiol has ${phase} phase`, schemaEnvironmentSource.includes(`${phase}:`));
   }
 
   // ═══════════════════════════════════════

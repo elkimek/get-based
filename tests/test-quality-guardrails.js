@@ -74,6 +74,9 @@ assert('CI keeps a dedicated typecheck step and skips duplicate script typecheck
   testWorkflowSrc.includes('name: Run typecheck') &&
     testWorkflowSrc.includes('run: npm run typecheck') &&
     testWorkflowSrc.includes('SKIP_TYPECHECK=1 ./run-tests.sh'));
+assert('CI enforces quality guardrails',
+  testWorkflowSrc.includes('name: Run quality guardrails') &&
+    testWorkflowSrc.includes('run: npm run quality'));
 const highValueCheckJsModules = [
   'js/api.js',
   'js/client-list.js',
@@ -176,6 +179,7 @@ assert('checkJs pilot includes health domain modules',
   missingHealthDomainCheckJsModules.length === 0,
   missingHealthDomainCheckJsModules.length ? `missing: ${missingHealthDomainCheckJsModules.join(', ')}` : '');
 const uiWorkflowCheckJsModules = [
+  'js/context-card-dashboard-ai-actions.js',
   'js/context-card-dashboard-ai.js',
   'js/context-card-editor-ui.js',
   'js/context-card-health-dots.js',

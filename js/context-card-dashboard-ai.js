@@ -30,10 +30,12 @@ import { isSyncEnabled } from './sync.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { migrateStoredContextSourceSettingsToProfile } from './context-source-registry.js';
+import {
+  configureDashboardAIActionDelegates,
+  dashboardAIActionAttrs,
+  installDashboardAIActionDelegates,
+} from './context-card-dashboard-ai-actions.js';
 
-const dashboardAIActionDelegateRoots = new WeakSet();
-const DASHBOARD_AI_ACTION_ATTR = 'data-dashboard-ai-action';
-const DASHBOARD_AI_ACTION_SELECTOR = `[${DASHBOARD_AI_ACTION_ATTR}]`;
 const appWindow = /** @type {Window & typeof globalThis & {
   openInterpretiveLensEditor?: () => void,
   openKnowledgeBaseModal?: () => void,
@@ -44,55 +46,19 @@ const appWindow = /** @type {Window & typeof globalThis & {
   updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 
-function dashboardAIActionAttrs(action) {
-  return `${DASHBOARD_AI_ACTION_ATTR}="${escapeAttr(action)}"`;
-}
-
-function closestDashboardAIAction(target) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
-      ? target.closest(DASHBOARD_AI_ACTION_SELECTOR)
-      : null
-  );
-}
-
-function runDashboardAIAction(action) {
-  if (action === 'open-interpretive-lens') appWindow.openInterpretiveLensEditor?.();
-  else if (action === 'open-knowledge-base') appWindow.openKnowledgeBaseModal?.();
-  else if (action === 'open-personalize-ai-picker') openContextModal();
-  else if (action === 'enable-encryption') appWindow.showEnableEncryptionModal?.();
-  else if (action === 'setup-sync') appWindow.showSyncSetupModal?.();
-  else if (action === 'setup-backup') appWindow.pickFolderForBackup?.();
-  else if (action === 'open-data-protection-picker') openDataProtectionPicker();
-  else return false;
-  return true;
-}
-
-function handleDashboardAIActionClick(event) {
-  const actionEl = closestDashboardAIAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
-  const action = actionEl.getAttribute(DASHBOARD_AI_ACTION_ATTR);
-  if (!runDashboardAIAction(action)) return;
-  event.preventDefault();
-  event.stopPropagation();
-}
-
-function handleDashboardAIActionKeydown(event) {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const actionEl = closestDashboardAIAction(event.target);
-  if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
-  if (event.target?.closest?.('button, a, input, textarea, select')) return;
-  handleDashboardAIActionClick(event);
-}
-
-export function installDashboardAIActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || dashboardAIActionDelegateRoots.has(root)) return;
-  dashboardAIActionDelegateRoots.add(root);
-  root.addEventListener('click', handleDashboardAIActionClick);
-  root.addEventListener('keydown', handleDashboardAIActionKeydown);
-}
+configureDashboardAIActionDelegates({
+  'open-interpretive-lens': () => appWindow.openInterpretiveLensEditor?.(),
+  'open-knowledge-base': () => appWindow.openKnowledgeBaseModal?.(),
+  'open-personalize-ai-picker': () => openContextModal(),
+  'enable-encryption': () => appWindow.showEnableEncryptionModal?.(),
+  'setup-sync': () => appWindow.showSyncSetupModal?.(),
+  'setup-backup': () => appWindow.pickFolderForBackup?.(),
+  'open-data-protection-picker': () => openDataProtectionPicker(),
+});
 
 if (typeof document !== 'undefined') installDashboardAIActionDelegates();
+
+export { installDashboardAIActionDelegates };
 
 // Dashboard "AI personalization" zone:
 //   - Full-width row for the Interpretive Lens, only if it is set.
