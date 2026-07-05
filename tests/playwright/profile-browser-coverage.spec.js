@@ -24,10 +24,9 @@ test('profile browser coverage exercises migration height and latitude helpers',
       profiles: clone(state.profiles),
       currentProfile: state.currentProfile,
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
-      callClaudeAPI: window.callClaudeAPI,
-      isDebugMode: window.isDebugMode,
       locationDisplay: document.getElementById('loc-lat-display'),
     };
+    let previousProfileDeps = null;
     const profileId = 'profile-browser-coverage';
     let latitudeCalls = 0;
 
@@ -91,11 +90,13 @@ test('profile browser coverage exercises migration height and latitude helpers',
       const latDisplay = document.createElement('div');
       latDisplay.id = 'loc-lat-display';
       document.body.appendChild(latDisplay);
-      window.callClaudeAPI = async () => {
-        latitudeCalls += 1;
-        return { text: '-34.6' };
-      };
-      window.isDebugMode = () => false;
+      previousProfileDeps = profile.configureProfileDeps({
+        callClaudeAPI: async () => {
+          latitudeCalls += 1;
+          return { text: '-34.6' };
+        },
+        isDebugMode: () => false,
+      });
 
       await profile.detectLatitudeWithAI('Argentina', 'C1000');
       await profile.detectLatitudeWithAI('Argentina', 'C1000');
@@ -112,10 +113,7 @@ test('profile browser coverage exercises migration height and latitude helpers',
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      if (saved.callClaudeAPI === undefined) delete window.callClaudeAPI;
-      else window.callClaudeAPI = saved.callClaudeAPI;
-      if (saved.isDebugMode === undefined) delete window.isDebugMode;
-      else window.isDebugMode = saved.isDebugMode;
+      if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
       document.getElementById('loc-lat-display')?.remove();
       if (saved.locationDisplay) document.body.appendChild(saved.locationDisplay);
     }
