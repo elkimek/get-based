@@ -1020,7 +1020,7 @@ export async function clearAllData() {
     localStorage.removeItem('labcharts-routstr-key');
     localStorage.removeItem('labcharts-routstr-model');
     localStorage.removeItem('labcharts-routstr-models');
-    await refreshImportRuntimeShell({ profileButton: true });
+    await refreshImportRuntimeShell({ chat: true, profileButton: true });
     showNotification('All data cleared', 'info');
   }
 }

@@ -448,7 +448,7 @@ return (async function() {
     exportRuntimeSrc.includes('cashuDestroyWalletDB'));
   assert('Clears Cashu wallet mint', exportSrc.includes("localStorage.removeItem('labcharts-cashu-wallet-mint')"));
   assert('Calls navigate(dashboard) after clear through export runtime',
-    exportSrc.includes('refreshImportRuntimeShell({ profileButton: true })') &&
+    exportSrc.includes('refreshImportRuntimeShell({ chat: true, profileButton: true })') &&
     exportRuntimeSrc.includes("route = 'dashboard'") &&
     exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')") &&
     exportRuntimeSrc.includes('navigate?.(route)'));
