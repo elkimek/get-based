@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const controlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-controls.js'), 'utf8');
+const runtimeSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-runtime.js'), 'utf8');
 const compositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
 const renderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
 const dashboardWidgetsCss = fs.readFileSync(path.join(root, 'css/dashboard-widgets.css'), 'utf8');
@@ -33,6 +34,14 @@ console.log('=== Dashboard Widget Delegated Actions ===');
 
 assert('dashboard widget controls render no inline event attributes',
   !/\bon(?:click|input|dragstart|dragover|drop)=/.test(controlsSrc));
+assert('dashboard widget controls import runtime adapter',
+  controlsSrc.includes("from './dashboard-widget-runtime.js'"));
+assert('dashboard widget runtime owns shell callbacks',
+  runtimeSrc.includes('openSettingsModal') &&
+    runtimeSrc.includes('syncWearableNow') &&
+    runtimeSrc.includes('openNoteEditor'));
+assert('dashboard widget controls has no direct window refs',
+  !/\bwindow(\.|\s*\[)/.test(controlsSrc));
 assert('dashboard widget renderers render no inline event attributes',
   !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(renderersSrc));
 assert('dashboard widget controls render delegated action attributes',
