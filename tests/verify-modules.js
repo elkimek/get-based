@@ -53,6 +53,7 @@
     '/js/wearables-settings-runtime.js',
     '/js/dashboard-view-composition.js',
     '/js/dashboard-page-view.js',
+    '/js/mobile-dashboard-runtime.js',
     '/js/lens-page-shell.js',
     '/js/chart-card-recs.js',
     '/js/category-glyphs.js',

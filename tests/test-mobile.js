@@ -76,6 +76,12 @@ return (async function() {
     !mobileDashboardSrc.includes('window.loadContextCardTips') &&
     !mobileDashboardSrc.includes('window.loadCatalog') &&
     !mobileDashboardSrc.includes('window._cachedCatalog'));
+  const mobileDashboardRuntimeSrc = await fetchWithRetry('js/mobile-dashboard-runtime.js');
+  assert('mobile dashboard browser chrome hooks are isolated in runtime adapter',
+    mobileDashboardSrc.includes("from './mobile-dashboard-runtime.js'") &&
+    !/\bwindow(\.|\s*\[)/.test(mobileDashboardSrc) &&
+    mobileDashboardRuntimeSrc.includes('isMobileDashboardRuntimeViewport') &&
+    mobileDashboardRuntimeSrc.includes('exposeMobileDashboardBindings'));
   assert('mobile dashboard no longer has static duplicate dashboard sections',
     !mobileDashboardSrc.includes('id="mobile-light-section"') &&
     !mobileDashboardSrc.includes('id="mobile-body-section"') &&
