@@ -37,6 +37,12 @@ import { getChatWebSearchEnabled } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
+import {
+  detectChatSendSupplementSlots,
+  getChatSendProviderAttestation,
+  getChatSendRecommendationRuntime,
+  isChatSendEMFRelevant,
+} from './chat-send-runtime.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -219,7 +225,7 @@ export async function sendChatMessage() {
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
   const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive()) || (_msgProvider === 'ppq' && isPpqPrivateModeActive());
-  const _msgAttestation = _msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation;
+  const _msgAttestation = getChatSendProviderAttestation(_msgProvider);
   const webSearchSupported = supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
   let aiMsgEl = null;
@@ -303,7 +309,7 @@ export async function sendChatMessage() {
       const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
       const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
       const webTag = webSearchEnabled ? ' \u00b7 \ud83c\udf10 web' : '';
-      const e2eeTag = _msgE2EE ? e2eeLockFootnote(_msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation) : '';
+      const e2eeTag = _msgE2EE ? e2eeLockFootnote(getChatSendProviderAttestation(_msgProvider)) : '';
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
       footnote.innerHTML = `${escapeHTML(_msgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
@@ -317,7 +323,7 @@ export async function sendChatMessage() {
       assistantMsg.finishReason = aiResult.finishReason || 'length';
     }
     if (webSearchEnabled) assistantMsg.webSearch = true;
-    if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = (_msgProvider === 'ppq' ? window._ppqAttestation : window._veniceAttestation) || _msgAttestation || null; }
+    if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = getChatSendProviderAttestation(_msgProvider) || _msgAttestation || null; }
     attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
@@ -326,7 +332,7 @@ export async function sendChatMessage() {
     state.chatHistory.push(assistantMsg);
 
     // Detect supplement slots from AI text — persist on message for re-rendering
-    const _recSlots = (window.isProductRecsEnabled && window.isProductRecsEnabled() && window.detectSupplementSlots) ? window.detectSupplementSlots(fullText) : [];
+    const _recSlots = detectChatSendSupplementSlots(fullText);
     if (_recSlots.length) assistantMsg.recSlots = _recSlots;
 
     // EMF hint with profile-level 30-day cooldown. Fires only when (a) EMF is
@@ -336,10 +342,9 @@ export async function sendChatMessage() {
     // to the DOM (so a stop-mid-stream doesn't burn the cooldown).
     (function maybeInjectEMFHint() {
       try {
-        if (!window.isProductRecsEnabled?.() || !window.detectEMFRelevance) return;
         const userText = state.chatHistory[state.chatHistory.length - 2]?.content || '';
         const turnText = `${userText}\n${fullText}`;
-        if (!window.detectEMFRelevance(turnText)) return;
+        if (!isChatSendEMFRelevant(turnText)) return;
         const assessments = state.importedData?.emfAssessment?.assessments || [];
         if (assessments.length) {
           const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
@@ -376,9 +381,9 @@ export async function sendChatMessage() {
     while (actionBarContainer.firstChild) aiMsgEl.appendChild(actionBarContainer.firstChild);
 
     // Async-render supplement recommendations before action bar
-    const renderRecommendationSectionSync = window.renderRecommendationSectionSync;
-    const loadCatalog = window.loadCatalog;
-    if (_recSlots.length && window.renderRecommendationSection && renderRecommendationSectionSync && loadCatalog) {
+    const recommendationRuntime = getChatSendRecommendationRuntime();
+    if (_recSlots.length && recommendationRuntime) {
+      const { renderRecommendationSectionSync, loadCatalog } = recommendationRuntime;
       loadCatalog().then(catalog => {
         if (!catalog?.slots || !aiMsgEl.isConnected) return;
         const sections = _recSlots.map(slot => {

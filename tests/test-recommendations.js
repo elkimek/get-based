@@ -229,7 +229,9 @@ globalThis.fetch = async (url, opts) => {
   assert('marker-detail-modal.js has rec-modal placeholder', markerDetailSrc.includes('rec-modal-'));
   assert('marker-detail-modal.js calls renderRecommendationSection', markerDetailSrc.includes('renderRecommendationSection'));
   assert('marker-detail-modal.js shows recs for any marker with catalog slot', markerDetailSrc.includes('isProductRecsEnabled'));
-  assert('chat-send.js calls detectSupplementSlots', chatSendSrc.includes('detectSupplementSlots'));
+  assert('chat-send.js delegates supplement slot detection through runtime adapter',
+    chatSendSrc.includes('detectChatSendSupplementSlots') &&
+    chatSendSrc.includes("from './chat-send-runtime.js'"));
   assert('chat-send.js detects recSlots for live rendering', chatSendSrc.includes('_recSlots'));
   assert('chat-render.js has rec-chat-wrapper class', chatRenderSrc.includes('rec-chat-wrapper'));
   assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));

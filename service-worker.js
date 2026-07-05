@@ -168,6 +168,7 @@ const APP_SHELL = [
   '/js/chat-empty-state.js',
   '/js/chat-render.js',
   '/js/chat-send.js',
+  '/js/chat-send-runtime.js',
   '/js/chat-icons.js',
   '/js/chat-personalities.js',
   '/js/chat-history.js',

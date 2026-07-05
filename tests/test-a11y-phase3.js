@@ -310,6 +310,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && importDropZoneRuntimeSrc.includes('isDropZoneImportRunning')
       && importDropZoneRuntimeSrc.includes('handleDropZoneDNAFile'));
 
+  const chatSendRuntimeSrc = read('/js/chat-send-runtime.js');
+  assert('chat-send browser hooks are isolated in runtime adapter',
+    chatSendSrc.includes("from './chat-send-runtime.js'")
+      && !/\bwindow(\.|\s*\[)/.test(chatSendSrc)
+      && chatSendRuntimeSrc.includes('getChatSendProviderAttestation')
+      && chatSendRuntimeSrc.includes('getChatSendRecommendationRuntime'));
+
   // ─── 12b. Light-device browse modals close on backdrop click ───
   // Browse-style modals (Add device, picker) close on backdrop; form-input
   // modals (Log device session) require explicit Cancel/Save so accidental
