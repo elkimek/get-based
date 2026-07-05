@@ -450,7 +450,8 @@ return (async function() {
   assert('Calls navigate(dashboard) after clear through export runtime',
     exportSrc.includes('refreshImportRuntimeShell({ profileButton: true })') &&
     exportRuntimeSrc.includes("route = 'dashboard'") &&
-    exportRuntimeSrc.includes('views?.navigate?.(route)'));
+    exportRuntimeSrc.includes("getRuntimeFunction(views, 'navigate')") &&
+    exportRuntimeSrc.includes('navigate?.(route)'));
 
   // ═══════════════════════════════════════
   // 10. Database bundle import — source inspection
