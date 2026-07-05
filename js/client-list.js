@@ -7,6 +7,16 @@ import { getProfiles, getActiveProfileId, createProfile, switchProfile, deletePr
 import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import {
+  closeClientListFromRuntime,
+  getClientHaplogroupList,
+  hasClientListAIProvider,
+  navigateClientListRoute,
+  publishClientListWindowBindings,
+  refreshClientProfileButton,
+  setClientManualHaplogroup,
+  showClientListNotification,
+} from './client-list-runtime.js';
 
 /**
  * @typedef {{
@@ -478,7 +488,7 @@ export function openClientForm(profileId) {
           <div class="cl-haplogroup-row">
             <select class="cl-form-input cl-haplogroup-select" id="cl-haplogroup" ${_clChangeAttrs('haplogroup-changed')}>
               <option value="">Not set</option>
-              ${window.HAPLOGROUP_LIST ? window.HAPLOGROUP_LIST.map(h => '<option value="' + h + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === h ? ' selected' : '') + '>' + h + '</option>').join('') : ''}
+              ${getClientHaplogroupList().map(h => '<option value="' + h + '"' + (state.importedData?.genetics?.mtdna?.haplogroup === h ? ' selected' : '') + '>' + h + '</option>').join('')}
             </select>
             <span id="cl-hg-coupling" class="cl-hg-coupling">${state.importedData?.genetics?.mtdna?.coupling?.shortLabel || ''}</span>
           </div>
@@ -521,8 +531,8 @@ export function openClientForm(profileId) {
 
 function _clGoToHealthMetrics(event) {
   if (event) event.preventDefault();
-  if (window.closeClientList) window.closeClientList();
-  if (window.navigate) window.navigate('dashboard');
+  closeClientListFromRuntime(closeClientList);
+  navigateClientListRoute('dashboard');
   requestAnimationFrame(() => {
     document.getElementById('wearable-strip')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -570,14 +580,14 @@ function _clSaveForm(e) {
       if (sex !== undefined) state.profileSex = sex;
       if (dob !== undefined) state.profileDob = dob;
     }
-    window.renderProfileButton();
-    window.showNotification(`"${name}" updated`, 'info');
+    refreshClientProfileButton();
+    showClientListNotification(`"${name}" updated`, 'info');
   } else {
     // Create new profile
     const id = createProfile(name, { sex, dob, location: { country, zip }, tags, notes, status, height, heightUnit, ...avatarUpdate });
     switchProfile(id);
-    window.renderProfileButton();
-    window.showNotification(`"${name}" created`, 'success');
+    refreshClientProfileButton();
+    showClientListNotification(`"${name}" created`, 'success');
   }
   _editingId = null;
   renderClientList();
@@ -592,7 +602,7 @@ async function _clHaplogroupChanged() {
     if (label) label.textContent = '';
     return;
   }
-  await window.setManualHaplogroup(hg);
+  await setClientManualHaplogroup(hg);
   // Update coupling label
   const mt = state.importedData?.genetics?.mtdna;
   if (label) label.textContent = mt?.coupling?.shortLabel || '';
@@ -621,7 +631,7 @@ async function _clAvatarChanged(input) {
       }
     }
   } catch {
-    window.showNotification('Could not load image', 'error');
+    showClientListNotification('Could not load image', 'error');
   }
   input.value = '';
 }
@@ -662,6 +672,7 @@ function _clUpdateLat() {
   var cache = getLocationCache();
   var cacheKey = (country + '|' + zip).toLowerCase();
   var cached = cache[cacheKey];
+  const hasAIProvider = hasClientListAIProvider();
 
   // Exact cache hit — show immediately, done
   if (cached !== undefined) {
@@ -681,8 +692,8 @@ function _clUpdateLat() {
     var bandLabel = getLatitudeFromLocation(country, zip);
     if (bandLabel) {
       el.style.color = 'var(--green)';
-      el.textContent = '\u2713 ' + bandLabel + (window.hasAIProvider() ? ' \u2014 refining\u2026' : '');
-    } else if (window.hasAIProvider()) {
+      el.textContent = '\u2713 ' + bandLabel + (hasAIProvider ? ' \u2014 refining\u2026' : '');
+    } else if (hasAIProvider) {
       el.style.color = 'var(--text-muted)';
       el.textContent = 'Detecting\u2026';
     } else {
@@ -693,21 +704,20 @@ function _clUpdateLat() {
 
   // Debounced AI refinement
   if (_clLatTimer) clearTimeout(_clLatTimer);
-  if (window.hasAIProvider()) {
-    _clLatTimer = setTimeout(function() {
-      detectLatitudeWithAI(country, zip).then(() => {
-        var freshCache = getLocationCache();
-        var updated = freshCache[(country + '|' + zip).toLowerCase()];
-        if (updated !== undefined) {
-          var cOnly = zip ? freshCache[(country + '|').toLowerCase()] : undefined;
-          var zSuffix = '';
-          if (zip && cOnly !== undefined) zSuffix = Math.round(updated) !== Math.round(cOnly) ? ' (ZIP-refined)' : ' (ZIP \u2014 same area)';
-          var display = document.getElementById('cl-lat-display');
-          if (display) _clShowLat(display, updated, zSuffix);
-        }
-      });
-    }, 1500);
-  }
+  _clLatTimer = setTimeout(function() {
+    if (!hasClientListAIProvider()) return;
+    detectLatitudeWithAI(country, zip).then(() => {
+      var freshCache = getLocationCache();
+      var updated = freshCache[(country + '|' + zip).toLowerCase()];
+      if (updated !== undefined) {
+        var cOnly = zip ? freshCache[(country + '|').toLowerCase()] : undefined;
+        var zSuffix = '';
+        if (zip && cOnly !== undefined) zSuffix = Math.round(updated) !== Math.round(cOnly) ? ' (ZIP-refined)' : ' (ZIP \u2014 same area)';
+        var display = document.getElementById('cl-lat-display');
+        if (display) _clShowLat(display, updated, zSuffix);
+      }
+    });
+  }, 1500);
 }
 
 function _clTagKeydown(e) {
@@ -744,7 +754,7 @@ function _clBackToList() {
 // ═══════════════════════════════════════════════
 function _clSelect(id) {
   switchProfile(id);
-  window.renderProfileButton();
+  refreshClientProfileButton();
   closeClientList();
 }
 
@@ -830,10 +840,10 @@ function _clToggleMenu(e, id, buttonEl = null) {
 function _clEdit(id) { _closeMenus(); openClientForm(id); }
 function _clPin(id) { updateProfileMeta(id, { pinned: true }); renderClientList(); }
 function _clUnpin(id) { updateProfileMeta(id, { pinned: false }); renderClientList(); }
-function _clFlag(id) { updateProfileMeta(id, { status: 'flagged' }); renderClientList(); window.renderProfileButton(); }
-function _clUnflag(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); window.renderProfileButton(); }
-function _clArchive(id) { updateProfileMeta(id, { status: 'archived' }); renderClientList(); window.renderProfileButton(); }
-function _clUnarchive(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); window.renderProfileButton(); }
+function _clFlag(id) { updateProfileMeta(id, { status: 'flagged' }); renderClientList(); refreshClientProfileButton(); }
+function _clUnflag(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); refreshClientProfileButton(); }
+function _clArchive(id) { updateProfileMeta(id, { status: 'archived' }); renderClientList(); refreshClientProfileButton(); }
+function _clUnarchive(id) { updateProfileMeta(id, { status: 'active' }); renderClientList(); refreshClientProfileButton(); }
 function _closeMenus() {
   const m = document.getElementById('cl-active-menu');
   const tools = document.getElementById('cl-tools-menu');
@@ -1061,7 +1071,7 @@ function openProfileLocationEditor() {
 
 installClientListDelegates();
 
-Object.assign(window, {
+publishClientListWindowBindings({
   openClientList, closeClientList, openClientForm, openProfileLocationEditor,
   _clSearch, _clSort, _clStatusFilter, _clTagFilter, _clSelect,
   _clSaveForm, _clSetSex, _clUpdateLat, _clTagKeydown, _clRemoveTag, _clBackToList,

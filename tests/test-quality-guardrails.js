@@ -79,6 +79,7 @@ assert('CI enforces quality guardrails',
     testWorkflowSrc.includes('run: npm run quality'));
 const highValueCheckJsModules = [
   'js/api.js',
+  'js/client-list-runtime.js',
   'js/client-list.js',
   'js/dashboard-widget-renderers.js',
   'js/dna.js',

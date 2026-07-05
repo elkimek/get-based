@@ -65,6 +65,7 @@
     "js/chat-threads.js",
     "js/chat-window-bindings.js",
     "js/chat.js",
+    "js/client-list-runtime.js",
     "js/client-list.js",
     "js/changelog.js",
     "js/commit-hash.js",
