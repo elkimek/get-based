@@ -91,6 +91,7 @@ const highValueCheckJsModules = [
   'js/profile-runtime.js',
   'js/recommendations.js',
   'js/settings.js',
+  'js/settings-runtime.js',
   'js/sun.js',
   'js/wearables.js',
 ];

@@ -13,6 +13,17 @@ import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { isProductRecsEnabled, setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { installSettingsProviderBridge, switchAIProviderBridge } from './settings-provider-bridge.js';
+import {
+  addSettingsRuntimeEventListener,
+  cancelSettingsFrame,
+  getSettingsMeteoConfig,
+  publishSettingsGlobals,
+  refreshSettingsChartThemeColors,
+  refreshSettingsRuntimeSurfaces,
+  requestSettingsFrame,
+  saveSettingsMeteoConfig,
+  settingsMediaMatches,
+} from './settings-runtime.js';
 import { loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
 import {
@@ -142,30 +153,29 @@ export function applyAccentOverride(id = getAccentOverride()) {
 }
 
 function refreshVisualSurfaces() {
-  window.updateSettingsUI?.();
-  window.updateTweaksUI?.();
+  const settingsVisible = document.getElementById('settings-modal')?.classList.contains('show') === true;
+  refreshSettingsRuntimeSurfaces({ settingsVisible });
   scheduleChartThemeRefresh();
-  if (document.getElementById('settings-modal')?.classList.contains('show')) {
-    window.refreshSettingsWearables?.();
-  }
 }
 
 let chartThemeRefreshFrame = 0;
 let chartThemeRefreshTimer = 0;
 function scheduleChartThemeRefresh() {
-  if (chartThemeRefreshFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(chartThemeRefreshFrame);
+  if (chartThemeRefreshFrame) cancelSettingsFrame(chartThemeRefreshFrame);
   if (chartThemeRefreshTimer) clearTimeout(chartThemeRefreshTimer);
-  const refresh = () => window.refreshChartThemeColors?.({ batchSize: 4 });
-  if (typeof window.requestAnimationFrame === 'function') {
-    chartThemeRefreshFrame = window.requestAnimationFrame(() => {
-      chartThemeRefreshFrame = 0;
-      chartThemeRefreshTimer = setTimeout(() => {
-        chartThemeRefreshTimer = 0;
-        refresh();
-      }, 0);
-    });
+  const refresh = () => refreshSettingsChartThemeColors({ batchSize: 4 });
+  const frame = requestSettingsFrame(() => {
+    chartThemeRefreshFrame = 0;
+    chartThemeRefreshTimer = setTimeout(() => {
+      chartThemeRefreshTimer = 0;
+      refresh();
+    }, 0);
+  });
+  if (frame !== null) {
+    chartThemeRefreshFrame = frame;
   } else {
     chartThemeRefreshTimer = setTimeout(() => {
+      chartThemeRefreshFrame = 0;
       chartThemeRefreshTimer = 0;
       refresh();
     }, 0);
@@ -189,21 +199,38 @@ function applyThemeChange(themeId) {
 function scheduleThemeChange(themeId) {
   pendingThemeId = themeId;
   markThemeControls(themeId);
-  if (themeChangeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(themeChangeFrame);
+  if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
   if (themeChangeTimer) clearTimeout(themeChangeTimer);
   const commit = () => {
     themeChangeTimer = 0;
     applyThemeChange(pendingThemeId);
   };
-  if (typeof window.requestAnimationFrame === 'function') {
-    themeChangeFrame = window.requestAnimationFrame(() => {
-      themeChangeFrame = window.requestAnimationFrame(() => {
-        themeChangeFrame = 0;
-        commit();
-      });
+  const frame = requestSettingsFrame(() => {
+    const nextFrame = requestSettingsFrame(() => {
+      themeChangeFrame = 0;
+      commit();
     });
+    if (nextFrame !== null) {
+      themeChangeFrame = nextFrame;
+    } else {
+      themeChangeFrame = 0;
+      commit();
+    }
+  });
+  if (frame !== null) {
+    themeChangeFrame = frame;
   } else {
-    themeChangeTimer = setTimeout(commit, 0);
+    themeChangeTimer = setTimeout(() => {
+      themeChangeFrame = 0;
+      commit();
+    }, 0);
+  }
+}
+
+function requestSettingsScrollFrame(callback) {
+  const frame = requestSettingsFrame(callback);
+  if (frame === null) {
+    setTimeout(callback, 0);
   }
 }
 
@@ -540,7 +567,7 @@ function installTweaksDelegates(overlay) {
 }
 
 export function selectTweaksTheme(themeId) {
-  if (themeChangeFrame && typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(themeChangeFrame);
+  if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
   if (themeChangeTimer) clearTimeout(themeChangeTimer);
   themeChangeFrame = 0;
   themeChangeTimer = 0;
@@ -684,15 +711,13 @@ export function openTweaksPanel() {
     openModalOverlay(overlay, {
       initialFocus: '#tweaks-panel button',
       focusDelay: 0,
-      scrollLock: window.matchMedia?.('(max-width: 768px)').matches === true,
+      scrollLock: settingsMediaMatches('(max-width: 768px)'),
     });
   }
 }
 
 applyAccentOverride();
-if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-themechange', () => applyAccentOverride());
-}
+addSettingsRuntimeEventListener('labcharts-themechange', () => applyAccentOverride());
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
@@ -925,10 +950,10 @@ export function openSettingsModal(tab) {
 }
 
 function scrollActiveSettingsTabIntoView() {
-  requestAnimationFrame(() => {
+  requestSettingsScrollFrame(() => {
     const bar = document.querySelector('#settings-modal .settings-tabs-bar');
     const active = /** @type {HTMLElement | null | undefined} */ (bar?.querySelector('.settings-tab-btn.active'));
-    if (!bar || !active || window.matchMedia('(min-width: 721px)').matches) return;
+    if (!bar || !active || settingsMediaMatches('(min-width: 721px)')) return;
     const padding = 12;
     const activeLeft = active.offsetLeft;
     const activeRight = activeLeft + active.offsetWidth;
@@ -1077,7 +1102,7 @@ function renderPrivacyAnalyticsSection() {
 }
 
 function _renderMeteoModeOption(mode, label, desc) {
-  const cur = (typeof window !== 'undefined' && window.getMeteoConfig) ? window.getMeteoConfig().mode : 'auto';
+  const cur = getSettingsMeteoConfig().mode || 'auto';
   const checked = cur === mode;
   return `<label style="display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;${checked ? 'background:var(--bg-card);border-color:var(--accent);' : ''}">
     <input type="radio" name="meteo-mode" value="${mode}" ${checked ? 'checked' : ''} data-sun-source-action="set-meteo-mode" style="margin-top:3px">
@@ -1095,7 +1120,7 @@ function _renderMeteoModeOption(mode, label, desc) {
 // privacy-flavored but stays here for cohesion (one place to configure
 // the data source).
 export function renderSunDataSourceSettings() {
-  const cfg = (typeof window !== 'undefined' && window.getMeteoConfig) ? window.getMeteoConfig() : { mode: 'auto', selfhostUrl: '', selfhostBearer: '', privacyRounding: 0.1 };
+  const cfg = getSettingsMeteoConfig();
   return `<div class="local-ai-settings" id="sun-data-source-section">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
     <div class="ai-provider-desc" style="margin-bottom:10px">Where the Light &amp; Sun lens fetches UV / ozone / atmosphere data. Lat/lon defaults to your country (no automatic geolocation). Manual entry always works.</div>
@@ -1122,33 +1147,37 @@ export function renderSunDataSourceSettings() {
 }
 
 function setMeteoMode(mode) {
-  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
-  const cfg = settingsWindow.getMeteoConfig();
+  const cfg = getSettingsMeteoConfig();
   cfg.mode = mode;
-  settingsWindow.saveMeteoConfig(cfg);
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+    return;
+  }
   const fields = document.getElementById('meteo-selfhost-fields');
   if (fields) fields.style.display = mode === 'selfhost' ? '' : 'none';
 }
 
+function notifyMeteoSaveUnavailable() {
+  showNotification('Sun data-source settings are still loading. Try again in a moment.', 'warning');
+}
+
 function saveMeteoSelfhost() {
-  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
-  const cfg = settingsWindow.getMeteoConfig();
+  const cfg = getSettingsMeteoConfig();
   const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
   const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
   cfg.selfhostUrl = url;
   cfg.selfhostBearer = bearer;
-  settingsWindow.saveMeteoConfig(cfg);
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+  }
 }
 
 function toggleMeteoRounding(enabled) {
-  if (!settingsWindow.getMeteoConfig || !settingsWindow.saveMeteoConfig) return;
-  const cfg = settingsWindow.getMeteoConfig();
+  const cfg = getSettingsMeteoConfig();
   cfg.privacyRounding = enabled ? 0.1 : 0;
-  settingsWindow.saveMeteoConfig(cfg);
-}
-
-if (typeof window !== 'undefined') {
-  window.renderSunDataSourceSettings = renderSunDataSourceSettings;
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+  }
 }
 
 export function togglePrivacyConfigure() {
@@ -1231,11 +1260,12 @@ export function closeSettingsModal() {
   settingsWindow.refreshMobileDashboardActiveTab?.();
 }
 
-Object.assign(window, {
+publishSettingsGlobals({
   openSettingsModal,
   closeSettingsModal,
   switchSettingsTab,
   renderPrivacySection,
+  renderSunDataSourceSettings,
   togglePrivacyConfigure,
   toggleOllamaPII,
   confirmDisablePIIReview,

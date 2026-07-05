@@ -173,6 +173,7 @@
     "js/provider-panels.js",
     "js/recommendations.js",
     "js/settings.js",
+    "js/settings-runtime.js",
     "js/service-worker-update.js",
     "js/shell-actions.js",
     "js/startup-foundation.js",

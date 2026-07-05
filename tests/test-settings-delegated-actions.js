@@ -37,7 +37,7 @@ const tweaksBlock = matchBlock('Tweaks panel', /export function openTweaksPanel\
 const renderThemeButtonBlock = matchBlock('renderThemeButton', /function renderThemeButton[\s\S]*?\n}\n\nfunction getAccentOverride/);
 
 const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
-const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*window\.matchMedia\?\.\(['"]\(max-width: 768px\)['"]\)\.matches === true[\s\S]*\}\s*\)/;
+const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/;
 
 assert('settings.js has no inline event attributes',
   !inlineHandlerRe.test(src));
@@ -58,6 +58,7 @@ assert('Tweaks panel installs delegated change listener',
   /overlay\.addEventListener\('change', handleTweaksChange\)/.test(src));
 assert('Tweaks panel uses shared overlay lifecycle helpers',
   src.includes("from './modal-lifecycle.js'") &&
+    src.includes("from './settings-runtime.js'") &&
     tweaksBlock &&
     tweaksLifecycleOpenRe.test(tweaksBlock) &&
     /removeModalOverlay\(overlay\)/.test(src) &&
@@ -138,6 +139,11 @@ assert('Sun data-source delegate is installed on document change',
   /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(src));
 assert('Sun data-source delegate is scoped to its section',
   /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(src));
+assert('Sun data-source save handlers surface unavailable runtime saves',
+  /function notifyMeteoSaveUnavailable\(\)[\s\S]*Sun data-source settings are still loading/.test(src) &&
+    /function setMeteoMode\(mode\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*return;[\s\S]*\}/.test(src) &&
+    /function saveMeteoSelfhost\(\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src) &&
+    /function toggleMeteoRounding\(enabled\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src));
 assert('Legacy Sun data-source window handlers are removed',
   !src.includes('window._setMeteoMode')
     && !src.includes('window._saveMeteoSelfhost')
