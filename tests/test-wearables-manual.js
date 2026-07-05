@@ -305,7 +305,11 @@ try {
   assert('deleteManualEntryFromDetail uses promise-style showConfirmDialog',
     /await\s+window\.showConfirmDialog\(/.test(delFn));
   assert('handleManualDisconnect uses promise-style showConfirmDialog',
-    /await\s+window\.showConfirmDialog\(/.test(handleDisconnectFn));
+    /await\s+confirmWearableSettingsAction\(/.test(handleDisconnectFn));
+  assert('wearables settings panel routes dashboard refresh through runtime adapter',
+    wearablesSettingsSrc.includes("from './wearables-settings-runtime.js'")
+    && wearablesSettingsSrc.includes('navigateWearablesDashboard()')
+    && !/\bwindow(?:\.|\s*\[)/.test(wearablesSettingsSrc));
 
   // ═══════════════════════════════════════
   // Note + chip parity (this-branch additions)
