@@ -37,6 +37,7 @@
     '/js/views.js',
     '/js/import-file-input.js',
     '/js/import-drop-zone.js',
+    '/js/import-drop-zone-runtime.js',
     '/js/recommendation-actions.js',
     '/js/context-card-dashboard-ai.js',
     '/js/context-card-dashboard-ai-actions.js',
