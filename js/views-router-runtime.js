@@ -60,7 +60,14 @@ export function restoreViewportScroll(pos) {
 
 export function getViewportHeight() {
   const runtime = getRuntimeWindow();
-  return Number.isFinite(runtime?.innerHeight) ? runtime.innerHeight : 0;
+  if (!runtime) return 0;
+  const height = Number(runtime.innerHeight);
+  if (Number.isFinite(height) && height > 0) return height;
+  const rootHeight = Number(runtime.document?.documentElement?.clientHeight);
+  if (Number.isFinite(rootHeight) && rootHeight > 0) return rootHeight;
+  const bodyHeight = Number(runtime.document?.body?.clientHeight);
+  if (Number.isFinite(bodyHeight) && bodyHeight > 0) return bodyHeight;
+  return 0;
 }
 
 /** @param {number} delta */

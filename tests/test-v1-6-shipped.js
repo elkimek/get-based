@@ -251,6 +251,10 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('views-router.js routes viewport globals through runtime adapter',
       routerSrc.includes("from './views-router-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(routerSrc));
+    assert('views-router.js: zero viewport height still allows anchor capture',
+      /hasViewportHeight\s*=\s*vh\s*>\s*0/.test(routerSrc)
+      && /!hasViewportHeight\s*\|\|\s*rect\.top\s*<\s*vh/.test(routerSrc)
+      && /hasViewportHeight\s*&&\s*rect\.top\s*>=\s*vh/.test(routerSrc));
     // v1.6.10: token cancellation across navigates.
     assert('views-router.js: _navAnchorToken bumped per navigate, old loops bail',
       /_navAnchorToken/.test(routerSrc) && /myToken\s*!==\s*_navAnchorToken/.test(routerSrc));

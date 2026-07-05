@@ -213,6 +213,7 @@ function _syncSidebarActive(routeCategory) {
 function _captureScrollAnchor() {
   let el = document.activeElement;
   const vh = getViewportHeight();
+  const hasViewportHeight = vh > 0;
   // Walk up looking for a stable selector
   while (el && el !== document.body && el !== document.documentElement) {
     const sel = _stableSelectorFor(el);
@@ -220,7 +221,7 @@ function _captureScrollAnchor() {
       const rect = el.getBoundingClientRect();
       // Skip if the anchor is off-screen — would still work but
       // intent-wise we want a viewport-visible anchor.
-      if (rect.bottom > 0 && rect.top < vh) {
+      if (rect.bottom > 0 && (!hasViewportHeight || rect.top < vh)) {
         return { selector: sel, viewportTop: rect.top };
       }
     }
@@ -243,17 +244,17 @@ function _captureScrollAnchor() {
   // room card has its rect-center off-screen, so smaller off-to-the-
   // side elements with centers inside the viewport beat it.
   const candidates = document.querySelectorAll('[data-id], [data-screen-id], [data-room-id]');
-  const viewportCenter = vh / 2;
+  const viewportCenter = hasViewportHeight ? vh / 2 : 0;
   let containingBest = null;
   let containingBestArea = Infinity;
   let centerBest = null;
   let centerBestDist = Infinity;
   for (const c of candidates) {
     const rect = c.getBoundingClientRect();
-    if (rect.bottom <= 0 || rect.top >= vh) continue;
+    if (rect.bottom <= 0 || (hasViewportHeight && rect.top >= vh)) continue;
     const sel = _stableSelectorFor(c);
     if (!sel) continue;
-    const containsCenter = rect.top <= viewportCenter && rect.bottom >= viewportCenter;
+    const containsCenter = hasViewportHeight && rect.top <= viewportCenter && rect.bottom >= viewportCenter;
     if (containsCenter) {
       const area = rect.width * rect.height;
       if (area < containingBestArea) {
@@ -262,7 +263,7 @@ function _captureScrollAnchor() {
       }
     } else {
       const center = rect.top + rect.height / 2;
-      const dist = Math.abs(center - viewportCenter);
+      const dist = hasViewportHeight ? Math.abs(center - viewportCenter) : Math.abs(Math.max(rect.top, 0));
       if (dist < centerBestDist) {
         centerBestDist = dist;
         centerBest = { selector: sel, viewportTop: rect.top };

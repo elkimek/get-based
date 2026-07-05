@@ -22,6 +22,7 @@ console.log('=== Views Router Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
+  'document',
   'scrollX',
   'scrollY',
   'pageXOffset',
@@ -104,6 +105,22 @@ try {
   setRuntimeValue('innerHeight', 777);
   assert('getViewportHeight reads runtime viewport height',
     getViewportHeight() === 777);
+
+  setRuntimeValue('innerHeight', 0);
+  setRuntimeValue('document', {
+    documentElement: { clientHeight: 642 },
+    body: { clientHeight: 321 },
+  });
+  assert('getViewportHeight falls back to documentElement height when innerHeight is zero',
+    getViewportHeight() === 642);
+
+  setRuntimeValue('innerHeight', NaN);
+  setRuntimeValue('document', {
+    documentElement: { clientHeight: 0 },
+    body: { clientHeight: 321 },
+  });
+  assert('getViewportHeight falls back to body height when root height is unavailable',
+    getViewportHeight() === 321);
 
   setRuntimeValue('scrollBy', (...args) => calls.push(['scroll-by', args]));
   scrollViewportBy(13);
