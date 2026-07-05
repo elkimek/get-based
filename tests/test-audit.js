@@ -97,6 +97,7 @@ assert('SW APP_SHELL includes DNA mtDNA helper module', swAuditSrc.includes("'/j
 assert('SW APP_SHELL includes service worker update module', swAuditSrc.includes("'/js/service-worker-update.js'"));
 assert('index loads app shell CSS bundle', indexSrc.includes('href="css/app-shell.css"'));
 assert('SW APP_SHELL includes app shell CSS bundle', swAuditSrc.includes("'/css/app-shell.css'"));
+assert('SW APP_SHELL includes theme runtime module', swAuditSrc.includes("'/js/theme-runtime.js'"));
 assert('app shell CSS loads after core CSS and before feature CSS',
   indexSrc.indexOf('href="styles.css"') < indexSrc.indexOf('href="css/app-shell.css"') &&
   indexSrc.indexOf('href="css/app-shell.css"') < indexSrc.indexOf('href="css/import.css"') &&
