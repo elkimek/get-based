@@ -42,6 +42,14 @@ import {
   setWearableDetailRange,
   wearableActionAttrs,
 } from './wearables-detail-modal.js';
+import {
+  closeWearablesModal,
+  exposeWearablesBindings,
+  getWearablesViewportSize,
+  navigateWearables,
+  openEMFAssessmentAfterWearablesModalClose,
+  openWearablesSettings,
+} from './wearables-runtime.js';
 
 export { isWearableStripHidden, setWearableStripHidden, renderWearablesSettingsSection } from './wearables-settings-panel.js';
 
@@ -70,7 +78,7 @@ function handleWearableActionClick(event) {
   } else if (action === 'choose-source') {
     chooseWearableSource(metricId, event);
   } else if (action === 'open-settings-wearables') {
-    window.openSettingsModal?.('wearables');
+    openWearablesSettings();
   } else if (action === 'dismiss-stub') {
     dismissWearableStub();
   } else if (action === 'toggle-strip') {
@@ -86,7 +94,7 @@ function handleWearableActionClick(event) {
   } else if (action === 'manual-log-cancel') {
     cancelManualLog(event);
   } else if (action === 'modal-close') {
-    window.closeModal?.();
+    closeWearablesModal();
   } else if (action === 'set-detail-range') {
     setWearableDetailRange(metricId, actionEl.dataset.wearableRange || '');
   } else if (action === 'open-detail-manual-add') {
@@ -96,8 +104,7 @@ function handleWearableActionClick(event) {
   } else if (action === 'close-detail-manual-add') {
     closeManualAddFromDetail();
   } else if (action === 'open-emf-assessment') {
-    window.closeModal?.();
-    setTimeout(() => window.openEMFAssessmentEditor?.(), 100);
+    openEMFAssessmentAfterWearablesModalClose();
   } else {
     handled = false;
   }
@@ -137,7 +144,7 @@ function installWearableDelegates() {
 }
 
 function rerenderCurrentView() {
-  if (window.navigate) window.navigate(state.currentView || 'dashboard');
+  navigateWearables(state.currentView || 'dashboard');
 }
 
 function resetOpenManualLogForms({ exceptMetricId = '' } = {}) {
@@ -264,7 +271,7 @@ function isDeltaStyleMetric(canon) {
 }
 
 function formatDelta(latest, baseline, metricId, canon) {
-  // Zero baseline happens when the metric is 0 across the window (e.g. activity
+  // Zero baseline happens when the metric is 0 across the period (e.g. activity
   // score on a ring that wasn't worn) — suppress the delta entirely rather than
   // rendering "→ —" which reads as "we measured something."
   if (!baseline || !isFinite(baseline)) return '';
@@ -482,7 +489,7 @@ function renderWearableStripStub() {
 
 function dismissWearableStub() {
   localStorage.setItem(`labcharts-wearable-stub-dismissed-${state.currentProfile}`, '1');
-  if (window.navigate) window.navigate('dashboard');
+  navigateWearables('dashboard');
 }
 
 export function renderWearableStrip() {
@@ -826,8 +833,7 @@ async function chooseWearableSource(metricId, event) {
   // the dropdown can disappear under the FAB — measure after insert and nudge.
   const pw = picker.offsetWidth || 200;
   const ph = picker.offsetHeight || 180;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const { width: vw, height: vh } = getWearablesViewportSize();
   const fabHotspot = { left: vw - 88, top: vh - 88 }; // chat-fab 56px + 24px margin + buffer
   let top = rect.bottom + 4;
   let left = Math.max(8, rect.left - 60);
@@ -854,7 +860,7 @@ async function chooseWearableSource(metricId, event) {
       await saveImportedData();
       await syncWearableSummary(getActiveProfileId(), listConnectedSources());
       picker.remove();
-      if (window.navigate) window.navigate('dashboard');
+      navigateWearables('dashboard');
     });
   });
 
@@ -892,7 +898,7 @@ async function syncWearableNow(triggerEl) {
       const res = await syncNow(sid, { force: true });
       totalRows += res?.rows ?? 0;
     }
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearables('dashboard');
     showNotification?.(
       totalRows > 0 ? `Wearables synced — ${totalRows} new row${totalRows === 1 ? '' : 's'}` : 'Wearables synced — already up to date',
       'success', 2000
@@ -909,7 +915,7 @@ async function syncWearableNow(triggerEl) {
 // card ORDER itself is persisted per-profile in importedData.wearableCardOrder.
 function toggleWearableReorder() {
   state._wearableReorderMode = !state._wearableReorderMode;
-  if (window.navigate) window.navigate('dashboard');
+  navigateWearables('dashboard');
 }
 
 async function moveWearableCard(metricId, delta) {
@@ -954,7 +960,7 @@ async function moveWearableCard(metricId, delta) {
   state.importedData.wearableCardOrder = ordered;
   const { saveImportedData } = await import('./data.js');
   await saveImportedData();
-  if (window.navigate) window.navigate('dashboard');
+  navigateWearables('dashboard');
 }
 
 // ─────────────────────────────────────────────────────────
@@ -1087,7 +1093,7 @@ function cancelManualLog(event) {
 
 installWearableDelegates();
 
-Object.assign(window, {
+exposeWearablesBindings({
   renderWearableStrip,
   setWearableStripHidden,
   isWearableStripHidden,

@@ -25,4 +25,6 @@ export const state = {
   compareDate2: null,
 };
 
-window._labState = state;
+if (typeof window !== 'undefined') {
+  window._labState = state;
+}

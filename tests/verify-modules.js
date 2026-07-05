@@ -47,6 +47,7 @@
     '/js/wearables-bp-detail-chart.js',
     '/js/wearables-formatters.js',
     '/js/wearables-manual-form-ui.js',
+    '/js/wearables-runtime.js',
     '/js/wearables-settings-runtime.js',
     '/js/dashboard-view-composition.js',
     '/js/dashboard-page-view.js',

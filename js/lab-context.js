@@ -32,7 +32,7 @@ import {
  * }} LabContextWindowHooks
  */
 
-const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (window);
+const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (typeof window !== 'undefined' ? window : {});
 
 // ═══════════════════════════════════════════════
 // LAB CONTEXT MEMOIZATION
@@ -566,7 +566,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 7b. Biometrics ──
   const bio = state.importedData.biometrics;
-  const _profileHeight = window.getProfileHeight ? window.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
+  const _profileHeight = labContextWindow.getProfileHeight ? labContextWindow.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
   const profileHeightCm = Number(_profileHeight.height) || 0;
   if (includeInsightCards && (profileHeightCm || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length)))) {
     ctx += `[section:biometrics]\n## Biometrics\n`;
@@ -1333,33 +1333,35 @@ export async function buildWearableSeriesSection(days, options = {}) {
   return `[section:${tag}]\n## Wearables — ${days}-day daily series (oldest→newest, "—" = no reading)\n${lines.join('\n')}${contextBlock}\n[/section:${tag}]`;
 }
 
-Object.assign(window, {
-  buildLabContext,
-  invalidateLabContextCache,
-  getContextSummary,
-  isGroupInAIContext,
-  setGroupInAIContext,
-  isInsightContextCardsEnabled,
-  setInsightContextCardsEnabled,
-  isSupplementsMedsContextEnabled,
-  setSupplementsMedsContextEnabled,
-  isLabMarkersContextEnabled,
-  setLabMarkersContextEnabled,
-  isGeneticsSummaryInAIContext,
-  setGeneticsSummaryInAIContext,
-  isGeneticsPriorityInAIContext,
-  setGeneticsPriorityInAIContext,
-  isGeneticsInventoryInAIContext,
-  setGeneticsInventoryInAIContext,
-  isLightSunContextEnabled,
-  setLightSunContextEnabled,
-  isWearableContextEnabled,
-  setWearableContextEnabled,
-  isAgentWearableSeriesEnabled,
-  setAgentWearableSeriesEnabled,
-  getAgentWearableSeriesDays,
-  setAgentWearableSeriesDays,
-  buildWearableContext,
-  buildWearableSeriesSection,
-  injectLensChunks,
-});
+if (typeof window !== 'undefined') {
+  Object.assign(window, {
+    buildLabContext,
+    invalidateLabContextCache,
+    getContextSummary,
+    isGroupInAIContext,
+    setGroupInAIContext,
+    isInsightContextCardsEnabled,
+    setInsightContextCardsEnabled,
+    isSupplementsMedsContextEnabled,
+    setSupplementsMedsContextEnabled,
+    isLabMarkersContextEnabled,
+    setLabMarkersContextEnabled,
+    isGeneticsSummaryInAIContext,
+    setGeneticsSummaryInAIContext,
+    isGeneticsPriorityInAIContext,
+    setGeneticsPriorityInAIContext,
+    isGeneticsInventoryInAIContext,
+    setGeneticsInventoryInAIContext,
+    isLightSunContextEnabled,
+    setLightSunContextEnabled,
+    isWearableContextEnabled,
+    setWearableContextEnabled,
+    isAgentWearableSeriesEnabled,
+    setAgentWearableSeriesEnabled,
+    getAgentWearableSeriesDays,
+    setAgentWearableSeriesDays,
+    buildWearableContext,
+    buildWearableSeriesSection,
+    injectLensChunks,
+  });
+}
