@@ -1149,7 +1149,10 @@ export function renderSunDataSourceSettings() {
 function setMeteoMode(mode) {
   const cfg = getSettingsMeteoConfig();
   cfg.mode = mode;
-  if (!saveSettingsMeteoConfig(cfg)) return;
+  if (!saveSettingsMeteoConfig(cfg)) {
+    notifyMeteoSaveUnavailable();
+    return;
+  }
   const fields = document.getElementById('meteo-selfhost-fields');
   if (fields) fields.style.display = mode === 'selfhost' ? '' : 'none';
 }
