@@ -11,6 +11,7 @@ import {
   CHAT_MESSAGE_INDEX_ATTR,
   chatMessageActionAttrs,
 } from './chat-message-action-attrs.js';
+import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
 
 let chatMessageDelegatesInstalled = false;
 export { chatMessageActionAttrs } from './chat-message-action-attrs.js';
@@ -156,10 +157,10 @@ export function buildActionBar(msgIndex) {
 
 export function regenerateLastMessage() {
   if (state.chatHistory.length < 2) return;
-  if (window.isChatStreaming?.()) return;
-  const renderChatMessages = window.renderChatMessages;
-  const sendChatMessage = window.sendChatMessage;
-  if (typeof renderChatMessages !== 'function' || typeof sendChatMessage !== 'function') return;
+  if (isChatRuntimeStreaming()) return;
+  const callbacks = getChatRegenerateCallbacks();
+  if (!callbacks) return;
+  const { renderChatMessages, sendChatMessage } = callbacks;
 
   state.chatHistory.pop();
   const lastUserMsg = state.chatHistory[state.chatHistory.length - 1];

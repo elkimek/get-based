@@ -347,6 +347,7 @@ console.log('Section 17: Source inspection');
 const chatSrc = read('js/chat.js');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatActionsSrc = read('js/chat-actions.js');
+const chatRuntimeSrc = read('js/chat-runtime.js');
 const chatMessageActionAttrsSrc = read('js/chat-message-action-attrs.js');
 const chatAttestationSrc = read('js/chat-attestation.js');
 const chatIconsSrc = read('js/chat-icons.js');
@@ -415,11 +416,26 @@ assert('chat incomplete heuristic does not continue on terminal high/low adjecti
 assert('chat renders output-limit note', chatContinuationSrc.includes('output limit reached'), 'found');
 assert('chat persists truncated assistant state', chatSendSrc.includes('assistantMsg.truncated = true'), 'found');
 assert('renderChatMessages restores truncated note', chatRenderSrc.includes('msg.truncated') && chatRenderSrc.includes('responseLimitNote()'), 'found');
-assert('regenerateLastMessage checks streaming state via chat.js callback',
-  chatActionsSrc.includes('window.isChatStreaming?.()') && chatSendSrc.includes('export function isChatStreaming'), 'found');
+assert('regenerateLastMessage checks streaming state via chat runtime',
+  chatActionsSrc.includes('isChatRuntimeStreaming()') &&
+    chatRuntimeSrc.includes("getRuntimeFunction('isChatStreaming')") &&
+    chatSendSrc.includes('export function isChatStreaming'), 'found');
 assert('regenerateLastMessage checks render/send callbacks before mutating',
-  chatActionsSrc.indexOf("typeof renderChatMessages !== 'function'") < chatActionsSrc.indexOf('state.chatHistory.pop()')
-    && chatActionsSrc.indexOf("typeof sendChatMessage !== 'function'") < chatActionsSrc.indexOf('state.chatHistory.pop()'), 'found');
+  chatActionsSrc.indexOf('const callbacks = getChatRegenerateCallbacks()') < chatActionsSrc.indexOf('state.chatHistory.pop()')
+    && chatRuntimeSrc.includes("getRuntimeFunction('renderChatMessages')")
+    && chatRuntimeSrc.includes("getRuntimeFunction('sendChatMessage')"), 'found');
+const directWindowGlobalRe = /\bwindow(?:\.|\s*\[)/;
+const chatRuntimeDelegates = [
+  ['chat-actions.js', chatActionsSrc],
+  ['chat-history.js', chatHistorySrc],
+  ['chat-personalities.js', chatPersonalitiesSrc],
+  ['chat-discussion-round-runner.js', chatDiscussionRoundRunnerSrc],
+];
+assert('chat modules delegate direct window globals to chat runtime',
+  chatRuntimeDelegates.every(([, src]) => src.includes("from './chat-runtime.js'") && !directWindowGlobalRe.test(src)) &&
+    chatRuntimeSrc.includes('export function renderChatMessagesRuntime') &&
+    chatRuntimeSrc.includes('export function getChatProviderAttestation'),
+  chatRuntimeDelegates.find(([name, src]) => !src.includes("from './chat-runtime.js'") || directWindowGlobalRe.test(src))?.[0] || 'missing runtime export');
 assert('chat-send.js imports chat icon helpers', chatSendSrc.includes("from './chat-icons.js'"), 'found');
 assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
 assert('chat window bindings import chat summary helpers',

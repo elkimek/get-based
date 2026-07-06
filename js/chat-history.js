@@ -12,6 +12,7 @@ import {
 } from './chat-threads.js';
 import { renderSavedSummaries } from './chat-summaries.js';
 import { getActivePersonality, updateChatHeaderTitle } from './chat-personalities.js';
+import { renderChatMessagesRuntime, updateDiscussButtonRuntime } from './chat-runtime.js';
 
 export function getChatStorageKey() {
   return `labcharts-${state.currentProfile}-chat`;
@@ -20,7 +21,7 @@ export function getChatStorageKey() {
 export async function loadChatHistory() {
   if (!state.currentThreadId) {
     state.chatHistory = [];
-    window.renderChatMessages?.();
+    renderChatMessagesRuntime();
     return;
   }
   try {
@@ -28,7 +29,7 @@ export async function loadChatHistory() {
     const stored = await encryptedGetItem(key);
     state.chatHistory = stored ? JSON.parse(stored) : [];
   } catch { state.chatHistory = []; }
-  window.renderChatMessages?.();
+  renderChatMessagesRuntime();
 }
 
 export async function saveChatHistory() {
@@ -76,9 +77,9 @@ export async function clearChatHistory() {
         renderSavedSummaries();
       }
     }
-    window.renderChatMessages?.();
+    renderChatMessagesRuntime();
     updateChatHeaderTitle();
-    window.updateDiscussButton?.();
+    updateDiscussButtonRuntime();
     showNotification('Chat history cleared', 'info');
   }
 }
