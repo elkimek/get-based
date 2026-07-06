@@ -70,7 +70,11 @@ assert('EMF editor close path preserves save and lightbox cleanup',
     emfSrc.includes('collectActiveAssessmentState();') &&
     emfSrc.includes("document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el));") &&
     emfSrc.includes('removeEMFEditorDelegates();') &&
-    emfSrc.includes('window.closeModal?.();'));
+    emfSrc.includes('closeEMFModalRuntime();'));
+assert('EMF editor runtime hooks avoid counted direct window globals',
+  emfSrc.includes("getEMFRuntimeFunction('closeModal')") &&
+    emfSrc.includes("getEMFRuntimeFunction('showPromptDialog')") &&
+    !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
 assert('EMF editor X button uses saving close action',
   editorSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-editor\')}'));
 assert('EMF import preview close path does not persist editor state',
