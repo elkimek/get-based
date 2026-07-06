@@ -272,6 +272,12 @@ const _realFetch = globalThis.fetch;
   assert('views.js delegates recommendation actions to recommendation-actions.js',
     viewsSrc.includes("from './recommendation-actions.js'") &&
     recommendationActionsSrc.includes('export function createRecommendationActions'));
+  assert('recommendation-actions.js delegates browser globals through recommendations runtime',
+    recommendationActionsSrc.includes("from './recommendations-runtime.js'")
+      && recommendationActionsSrc.includes('closeRecommendationsModal')
+      && recommendationActionsSrc.includes('openRecommendationsChatPanel')
+      && recommendationActionsSrc.includes('renderRecommendationsDetailSection')
+      && !/\bwindow(\.|\s*\[)/.test(recommendationActionsSrc));
   assert('dashboard has Recommendations widget surface', dashboardWidgetsSrc.includes("id: 'recommendations'") && dashboardWidgetsSrc.includes('renderDashboardRecommendationsWidget'));
   assert('dismissed recommendations render a Restore action',
     dashboardRecommendationWidgetSrc.includes("candidate.dismissed ? 'Restore' : 'Dismiss'") &&

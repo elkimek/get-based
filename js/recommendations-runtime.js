@@ -35,10 +35,23 @@ export async function loadRecommendationsCatalogRuntime() {
   return await loadCatalog();
 }
 
+export async function renderRecommendationsDetailSection(slotKey, options) {
+  const renderRecommendationSection = getRuntimeFunction('renderRecommendationSection');
+  if (!renderRecommendationSection) return '';
+  return await renderRecommendationSection(slotKey, options);
+}
+
 export function closeRecommendationsModal() {
   const closeModal = getRuntimeFunction('closeModal');
   if (!closeModal) return false;
   closeModal();
+  return true;
+}
+
+export function openRecommendationsChatPanel(prompt) {
+  const openChatPanel = getRuntimeFunction('openChatPanel');
+  if (!openChatPanel) return false;
+  openChatPanel(prompt);
   return true;
 }
 

@@ -3,6 +3,11 @@
 
 import { escapeAttr, escapeHTML } from './utils.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import {
+  closeRecommendationsModal,
+  openRecommendationsChatPanel,
+  renderRecommendationsDetailSection,
+} from './recommendations-runtime.js';
 
 let recommendationDetailDelegatesInstalled = false;
 
@@ -17,7 +22,7 @@ function handleRecommendationDetailClick(event) {
   if (!actionEl || !actionEl.closest('#detail-modal')) return;
   if (actionEl.dataset.recommendationDetailAction === 'close') {
     event.preventDefault();
-    window.closeModal?.();
+    closeRecommendationsModal();
   }
 }
 
@@ -49,7 +54,7 @@ export function createRecommendationActions({
       <h3>${escapeHTML(label || 'Recommendation')}</h3>
       <div class="dashboard-widget-empty">Loading options...</div>`;
     openModalOverlay(overlay);
-    Promise.resolve(window.renderRecommendationSection?.(slotKey, { label: 'Options', maxProducts: 4, markerStatus }))
+    Promise.resolve(renderRecommendationsDetailSection(slotKey, { label: 'Options', maxProducts: 4, markerStatus }))
       .then(html => {
         modal.innerHTML = `<button type="button" class="modal-close" aria-label="Close" ${recommendationDetailActionAttrs('close')}>&times;</button>
           <h3>${escapeHTML(label || 'Recommendation')}</h3>
@@ -69,7 +74,7 @@ export function createRecommendationActions({
     const prompt = candidate
       ? `Help me evaluate this recommendation from getbased.\nSource: ${candidate.source}\nRecommendation: ${candidate.label}\nReason: ${candidate.reason}\nSuggested first action: ${candidate.primaryAction || 'none listed'}\nWhat are the pros, cons, and safer non-product alternatives?`
       : 'Help me evaluate my current getbased recommendations. Which should I prioritize and why?';
-    window.openChatPanel?.(prompt);
+    openRecommendationsChatPanel(prompt);
   }
 
   function saveRecommendation(id, on = true) {
