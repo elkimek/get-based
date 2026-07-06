@@ -15,6 +15,7 @@ import { updateChatHeaderTitle } from './chat-personalities.js';
 import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
+import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
@@ -116,15 +117,12 @@ export function renderChatMessages() {
         html += _renderLensSources(msg.lensSources, msg.lensSourceName);
       }
       // EMF hint (persisted, single-line link to assessment editor)
-      if (msg.emfHint && window.isProductRecsEnabled?.()) {
+      if (msg.emfHint && isChatRenderProductRecsEnabled()) {
         html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a></div>`;
       }
       // Rec slots (persisted on message, rendered from catalog)
-      if (msg.recSlots?.length && window.isProductRecsEnabled?.() && window.renderRecommendationSectionSync && window._cachedCatalog?.slots) {
-        const recSections = msg.recSlots.map(slot => {
-          const slotLabel = window._cachedCatalog.slots[slot]?.label || slot.split('.').pop();
-          return window.renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
-        }).filter(Boolean);
+      if (msg.recSlots?.length) {
+        const recSections = renderChatRecommendationSections(msg.recSlots);
         if (recSections.length) {
           html += `<details class="rec-chat-wrapper" ${chatMessageActionAttrs('contain-click')}><summary class="rec-chat-summary">What can help</summary>`;
           let recBody = recSections.map(s => s.replace('rec-section-header', 'rec-chat-subheading')).join('');
