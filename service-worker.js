@@ -104,6 +104,7 @@ const APP_SHELL = [
   '/js/import-file-input.js',
   '/js/import-drop-zone.js',
   '/js/import-drop-zone-runtime.js',
+  '/js/ai-verdict-engine-runtime.js',
   '/js/ai-verdict-engine.js',
   '/js/profile.js',
   '/js/profile-runtime.js',

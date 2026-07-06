@@ -342,6 +342,7 @@
     "js/sync.js",
     "js/adapters.js",
     "js/ai-action-delegates.js",
+    "js/ai-verdict-engine-runtime.js",
     "js/ai-verdict-engine.js",
     "js/backup.js",
     "js/blob-storage.js",
