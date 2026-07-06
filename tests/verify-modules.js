@@ -40,6 +40,7 @@
     '/js/import-drop-zone.js',
     '/js/import-drop-zone-runtime.js',
     '/js/ai-verdict-engine-runtime.js',
+    '/js/chat-render-runtime.js',
     '/js/chat-send-runtime.js',
     '/js/recommendation-actions.js',
     '/js/context-card-dashboard-ai.js',

@@ -175,6 +175,7 @@ const APP_SHELL = [
   '/js/chat-discussion-ui.js',
   '/js/chat-onboarding.js',
   '/js/chat-empty-state.js',
+  '/js/chat-render-runtime.js',
   '/js/chat-render.js',
   '/js/chat-send.js',
   '/js/chat-send-runtime.js',

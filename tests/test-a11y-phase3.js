@@ -310,6 +310,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && importDropZoneRuntimeSrc.includes('isDropZoneImportRunning')
       && importDropZoneRuntimeSrc.includes('handleDropZoneDNAFile'));
 
+  const chatRenderSrc = read('/js/chat-render.js');
+  const chatRenderRuntimeSrc = read('/js/chat-render-runtime.js');
+  assert('chat-render browser hooks are isolated in runtime adapter',
+    chatRenderSrc.includes("from './chat-render-runtime.js'")
+      && !/\bwindow(\.|\s*\[)/.test(chatRenderSrc)
+      && chatRenderRuntimeSrc.includes('isChatRenderProductRecsEnabled')
+      && chatRenderRuntimeSrc.includes('renderChatRecommendationSections'));
+
   const chatSendRuntimeSrc = read('/js/chat-send-runtime.js');
   assert('chat-send browser hooks are isolated in runtime adapter',
     chatSendSrc.includes("from './chat-send-runtime.js'")
