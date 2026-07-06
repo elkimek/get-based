@@ -97,6 +97,7 @@
     '/js/charts-runtime.js',
     '/js/pdf-import-review-runtime.js',
     '/js/theme-runtime.js',
+    '/js/touch-tooltip-runtime.js',
     '/js/schema.js',
     '/js/dna-window-bindings.js',
     '/js/sync-diagnose-runtime.js',

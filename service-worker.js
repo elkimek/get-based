@@ -350,6 +350,7 @@ const APP_SHELL = [
   '/js/food-contaminants.js',
   '/js/cashu-wallet.js',
   '/js/nostr-discovery.js',
+  '/js/touch-tooltip-runtime.js',
   '/js/touch-tooltip.js',
   '/js/url-safety.js',
   // Wearables (added v1.22.0)

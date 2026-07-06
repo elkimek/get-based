@@ -7,6 +7,13 @@
 // the existing markup working while rendering one styled, viewport-clamped
 // tooltip for hover, focus, and long-press.
 
+import {
+  addTouchTooltipWindowListenersRuntime,
+  getTouchTooltipViewportRuntime,
+  hasTouchTooltipRuntime,
+  isTouchTooltipTouchRuntime,
+} from './touch-tooltip-runtime.js';
+
 const HOLD_MS = 500;
 const MAX_DRIFT_PX = 10;
 const TOOLTIP_ID = 'app-tooltip';
@@ -20,8 +27,7 @@ let _touchAnchor = null;
 let _lastTouchAt = 0;
 
 function _isTouchDevice() {
-  return typeof window !== 'undefined'
-    && (window.matchMedia('(hover: none)').matches || window.matchMedia('(pointer: coarse)').matches);
+  return isTouchTooltipTouchRuntime();
 }
 
 function _tooltipText(el) {
@@ -98,9 +104,10 @@ function _positionTooltip() {
     top = anchor.bottom + gap;
     placement = 'bottom';
   }
+  const viewport = getTouchTooltipViewportRuntime();
   let left = anchor.centerX - (tipRect.width / 2);
-  left = Math.max(margin, Math.min(left, window.innerWidth - tipRect.width - margin));
-  top = Math.max(margin, Math.min(top, window.innerHeight - tipRect.height - margin));
+  left = Math.max(margin, Math.min(left, viewport.width - tipRect.width - margin));
+  top = Math.max(margin, Math.min(top, viewport.height - tipRect.height - margin));
   _tooltip.style.left = `${Math.round(left)}px`;
   _tooltip.style.top = `${Math.round(top)}px`;
   _tooltip.dataset.placement = placement;
@@ -228,14 +235,16 @@ function _initAppTooltip() {
     }, { passive: true });
   }
   document.addEventListener('click', _hideTooltip, true);
-  window.addEventListener('scroll', () => {
-    if (_activeTarget && !_touchAnchor) _positionTooltip();
-    else if (_activeTarget) _hideTooltip();
-  }, true);
-  window.addEventListener('resize', _hideTooltip);
+  addTouchTooltipWindowListenersRuntime({
+    onScroll: () => {
+      if (_activeTarget && !_touchAnchor) _positionTooltip();
+      else if (_activeTarget) _hideTooltip();
+    },
+    onResize: _hideTooltip,
+  });
 }
 
-if (typeof window !== 'undefined') {
+if (hasTouchTooltipRuntime()) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initAppTooltip);
   } else {
