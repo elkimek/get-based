@@ -20,6 +20,11 @@ import {
   setVeniceModel,
 } from './api.js';
 import { buildModelOptions } from './provider-panel-renderers.js';
+import {
+  callProviderModelSmokeTestRuntime,
+  clearProviderE2EESessionRuntime,
+  refreshProviderModelUiRuntime,
+} from './provider-model-controls-runtime.js';
 
 export function updateVeniceModelPricing(modelId) {
   const el = document.getElementById('venice-model-pricing');
@@ -40,13 +45,13 @@ export function onVeniceModelDropdownChange(value) {
   const previous = getVeniceModel();
   setVeniceModel(value);
   localStorage.setItem(getVeniceE2EE() ? 'labcharts-venice-model-e2ee' : 'labcharts-venice-model-regular', value);
-  if (previous !== value) window.clearE2EESession?.();
+  if (previous !== value) clearProviderE2EESessionRuntime();
   updateVeniceModelPricing(value);
 }
 
 export function toggleVeniceE2EE(on) {
   setVeniceE2EE(on);
-  if (!on) window.clearE2EESession?.();
+  if (!on) clearProviderE2EESessionRuntime();
   // Swap model dropdown to E2EE or regular model list.
   const listKey = on ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
   let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
@@ -61,8 +66,7 @@ export function toggleVeniceE2EE(on) {
   }
   const el = document.getElementById('venice-e2ee-indicator');
   if (el) el.style.display = on ? '' : 'none';
-  window.updateChatHeaderModel?.();
-  window.refreshWebSearchToggle?.();
+  refreshProviderModelUiRuntime();
 }
 
 export function updateOpenRouterModelPricing(modelId) {
@@ -111,7 +115,7 @@ export async function applyCustomOpenRouterModel(modelId) {
   const indicator = document.getElementById('openrouter-model-health');
   if (indicator) { indicator.textContent = '\u23f3'; indicator.title = 'Checking...'; indicator.style.color = 'var(--text-muted)'; }
   try {
-    await window.callClaudeAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+    await callProviderModelSmokeTestRuntime();
     if (indicator) { indicator.textContent = '\u2713'; indicator.title = 'Model responding'; indicator.style.color = 'var(--green)'; }
     if (input && !inDropdown) input.style.borderColor = 'var(--green)';
     showNotification('Model set: ' + id, 'info');
@@ -182,8 +186,7 @@ export function togglePpqPrivateMode(on) {
   }
   const el = document.getElementById('ppq-private-indicator');
   if (el) el.style.display = on ? '' : 'none';
-  window.updateChatHeaderModel?.();
-  window.refreshWebSearchToggle?.();
+  refreshProviderModelUiRuntime();
 }
 
 export function updatePpqModelPricing(modelId) {

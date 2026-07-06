@@ -255,6 +255,7 @@
     "js/api-transport.js",
     "js/api-provider-storage.js",
     "js/api-models.js",
+    "js/provider-model-controls-runtime.js",
     "js/provider-model-controls.js",
     "js/provider-panel-renderers.js",
     "js/provider-qr.js",

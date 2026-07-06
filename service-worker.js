@@ -266,6 +266,7 @@ const APP_SHELL = [
   '/js/provider-local-ai-controls.js',
   '/js/provider-ppq-panels.js',
   '/js/provider-panel-renderers.js',
+  '/js/provider-model-controls-runtime.js',
   '/js/provider-model-controls.js',
   '/js/provider-panels.js',
   '/js/dna-actions.js',
