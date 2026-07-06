@@ -4,6 +4,14 @@
 import { state } from './state.js';
 import { initWearableScheduler, loadWearableRuntimeConfig, syncStaleWearablesNow } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
+import {
+  getStartupSunEngineVersionRuntime,
+  hasLightDevicePresetHydrationRuntime,
+  hasSunSessionRehydrateRuntime,
+  hydrateLightDevicesFromPresetsRuntime,
+  logStartupMaintenanceRuntime,
+  rehydrateStaleSunSessionsRuntime,
+} from './startup-maintenance-runtime.js';
 
 export function initializeStartupServices() {
   // Self-host OAuth client_id overrides - fire-and-forget. Resolves before
@@ -29,13 +37,13 @@ function scheduleSunSessionRehydrate() {
   // it doesn't block init; one network call per stale session,
   // serialized inside rehydrateStaleSessions. No-op when everything is
   // already stamped at the current version.
-  if (typeof window.rehydrateStaleSessions === 'function') {
+  if (hasSunSessionRehydrateRuntime()) {
     setTimeout(() => {
-      window.rehydrateStaleSessions().then(r => {
+      rehydrateStaleSunSessionsRuntime().then(r => {
         if (r?.rehydrated) {
           // Surface in debug console only - not worth a user-facing
           // notification for a silent self-heal.
-          if (window.console && console.log) console.log('[sun] self-healed', r.rehydrated, 'session(s) under v' + (window.SUN_ENGINE_VERSION || '?'));
+          logStartupMaintenanceRuntime('[sun] self-healed', r.rehydrated, 'session(s) under v' + getStartupSunEngineVersionRuntime());
         }
       }).catch(() => {});
     }, 1500); // give the engine modules time to settle
@@ -48,9 +56,9 @@ function hydrateUserLightDevicesFromPresets() {
   // / Trinity device records have no `modes` array, so the session-log
   // dialog can't render the mode picker for them. Idempotent - re-runs
   // are no-ops once devices carry the fields.
-  if (typeof window.hydrateDevicesFromPresets === 'function') {
-    window.hydrateDevicesFromPresets().then(dirty => {
-      if (dirty && window.console && console.log) console.log('[light] hydrated user devices from preset library');
+  if (hasLightDevicePresetHydrationRuntime()) {
+    hydrateLightDevicesFromPresetsRuntime().then(dirty => {
+      if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
     }).catch(() => {});
   }
 }
