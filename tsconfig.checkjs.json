@@ -158,6 +158,7 @@
     "js/light-tools.js",
     "js/main.js",
     "js/marker-detail-modal.js",
+    "js/marker-detail-runtime.js",
     "js/mobile-dashboard.js",
     "js/mobile-dashboard-runtime.js",
     "js/modal-lifecycle.js",

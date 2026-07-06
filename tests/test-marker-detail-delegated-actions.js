@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const modalSrc = fs.readFileSync(path.join(root, 'js/marker-detail-modal.js'), 'utf8');
 const editingSrc = fs.readFileSync(path.join(root, 'js/marker-detail-editing.js'), 'utf8');
 const actionSrc = fs.readFileSync(path.join(root, 'js/marker-detail-actions.js'), 'utf8');
+const runtimeSrc = fs.readFileSync(path.join(root, 'js/marker-detail-runtime.js'), 'utf8');
 const dashboardSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
 const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 
@@ -68,6 +69,17 @@ assert('dashboard passes the quick-marker pin dependency instead of relying on a
     modalSrc.includes("markerDetailActionAttrs('quick-pin', { id })"));
 assert('service worker precaches marker-detail-actions.js',
   swSrc.includes("'/js/marker-detail-actions.js'"));
+assert('service worker precaches marker-detail-runtime.js',
+  swSrc.includes("'/js/marker-detail-runtime.js'"));
+assert('marker-detail-modal delegates browser globals through runtime adapter',
+  modalSrc.includes("from './marker-detail-runtime.js'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(modalSrc) &&
+    runtimeSrc.includes('export function navigateMarkerDetailRuntime') &&
+    runtimeSrc.includes('export function hasRecommendationSectionRendererRuntime') &&
+    runtimeSrc.includes('export async function renderRecommendationSectionRuntime'));
+assert('marker-detail-modal only creates recommendation placeholders when renderer can fill them',
+  modalSrc.includes('const shouldRenderRecommendations = isProductRecsEnabledRuntime() && hasRecommendationSectionRendererRuntime();') &&
+    modalSrc.includes('if (shouldRenderRecommendations)'));
 
 [
   'close-modal',

@@ -153,6 +153,7 @@
     "js/marker-detail-actions.js",
     "js/marker-detail-editing.js",
     "js/marker-detail-modal.js",
+    "js/marker-detail-runtime.js",
     "js/marker-detail-store.js",
     "js/mobile-dashboard.js",
     "js/mobile-dashboard-runtime.js",
