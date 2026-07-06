@@ -32,6 +32,7 @@
     "js/biology-score-thyroid.js",
     "js/biology-score-tier1-definitions.js",
     "js/biology-score-tier2-definitions.js",
+    "js/biology-scores-runtime.js",
     "js/biology-scores.js",
     "js/chat-actions.js",
     "js/chat-attestation.js",
