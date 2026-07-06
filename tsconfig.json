@@ -303,6 +303,7 @@
     "js/supplements.js",
     "js/theme.js",
     "js/theme-runtime.js",
+    "js/touch-tooltip-runtime.js",
     "js/touch-tooltip.js",
     "js/tour.js",
     "js/url-safety.js",
