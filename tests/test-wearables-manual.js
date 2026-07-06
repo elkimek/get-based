@@ -83,6 +83,7 @@ assert('cancelManualLog on window', typeof window.cancelManualLog === 'function'
 
 const wearablesSrc = await fetch('js/wearables.js').then(r => r.text());
 const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
+const wearablesDetailRuntimeSrc = await fetch('js/wearables-detail-runtime.js').then(r => r.text());
 const manualFormUiSrc = await fetch('js/wearables-manual-form-ui.js').then(r => r.text());
 const wearablesSettingsSrc = await fetch('js/wearables-settings-panel.js').then(r => r.text());
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
@@ -295,15 +296,16 @@ try {
   const saveFn = wearablesDetailSrc.match(/async function saveManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   const delFn = wearablesDetailSrc.match(/async function deleteManualEntryFromDetail[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('saveManualEntryFromDetail re-renders dashboard strip',
-    /window\.navigate\([^)]*\)/.test(saveFn) && /['"]dashboard['"]/.test(saveFn));
+    /navigateWearableDetailRuntime\([^)]*dashboard/.test(saveFn));
   assert('deleteManualEntryFromDetail re-renders dashboard strip',
-    /window\.navigate\([^)]*\)/.test(delFn) && /['"]dashboard['"]/.test(delFn));
+    /navigateWearableDetailRuntime\([^)]*dashboard/.test(delFn));
   assert('deleteManualEntryFromDetail closes modal when last reading is removed',
-    /closeModal/.test(delFn));
+    /closeWearableDetailModalRuntime\(\)/.test(delFn));
 
   const handleDisconnectFn = wearablesSettingsSrc.match(/async function handleManualDisconnect[\s\S]*?\n\}\s*\n/)?.[0] || '';
   assert('deleteManualEntryFromDetail uses promise-style showConfirmDialog',
-    /await\s+window\.showConfirmDialog\(/.test(delFn));
+    /await\s+confirmWearableDetailActionRuntime\(/.test(delFn) &&
+      wearablesDetailRuntimeSrc.includes('showConfirmDialog'));
   assert('handleManualDisconnect uses promise-style showConfirmDialog',
     /await\s+confirmWearableSettingsAction\(/.test(handleDisconnectFn));
   assert('wearables settings panel routes dashboard refresh through runtime adapter',

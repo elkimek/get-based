@@ -1821,6 +1821,7 @@ assert('Service-worker static cache lists wearables-manual.js',
   /\/js\/wearables-manual\.js/.test(swSrc));
 assert('Service-worker static cache lists extracted wearable detail modules',
   /\/js\/wearables-detail-modal\.js/.test(swSrc) &&
+  /\/js\/wearables-detail-runtime\.js/.test(swSrc) &&
   /\/js\/wearables-bp-detail-chart\.js/.test(swSrc) &&
   /\/js\/wearables-formatters\.js/.test(swSrc) &&
   /\/js\/wearables-manual-form-ui\.js/.test(swSrc));

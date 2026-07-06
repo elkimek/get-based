@@ -224,6 +224,7 @@
     "js/wearables-apple-health.js",
     "js/wearables-connect.js",
     "js/wearables-bp-detail-chart.js",
+    "js/wearables-detail-runtime.js",
     "js/wearables-detail-modal.js",
     "js/wearables-fitbit-auth.js",
     "js/wearables-fitbit.js",

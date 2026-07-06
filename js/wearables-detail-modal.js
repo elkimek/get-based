@@ -18,6 +18,14 @@ import { formatValue, shortDate } from './wearables-formatters.js';
 import { _collectActiveChips, _renderNoteField, _renderTagChips, inputValueById, inputValueFromElement } from './wearables-manual-form-ui.js';
 import { renderBloodPressureChart } from './wearables-bp-detail-chart.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import {
+  closeWearableDetailModalRuntime,
+  confirmWearableDetailActionRuntime,
+  createWearableDetailChartRuntime,
+  hasWearableDetailChartRuntime,
+  navigateWearableDetailRuntime,
+  rememberWearableDetailModalTriggerRuntime,
+} from './wearables-detail-runtime.js';
 
 const WEARABLE_DETAIL_RANGES = [
   { key: '90d', days: 90, label: '90d', coverageSuffix: 'of last 90 days', emptyWindow: 'the last 90 days' },
@@ -75,7 +83,7 @@ export async function openWearableDetail(metricId, opts = {}) {
     return;
   }
 
-  if (!opts.fromRangeToggle) window.rememberModalTrigger?.();
+  if (!opts.fromRangeToggle) rememberWearableDetailModalTriggerRuntime();
 
   const rangeKey = getWearableDetailRange();
   const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
@@ -505,7 +513,7 @@ function _buildEMFSleepHint(metricId, m) {
 }
 
 function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
-  if (!window.Chart || !isChartDateAdapterReady()) {
+  if (!hasWearableDetailChartRuntime() || !isChartDateAdapterReady()) {
     ensureChartJs().then(() => {
       const currentCanvas = document.getElementById(canvas.id);
       if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series, manualSeries);
@@ -591,7 +599,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
     });
   }
 
-  state.chartInstances['modal'] = new window.Chart(canvas, {
+  const chart = createWearableDetailChartRuntime(canvas, {
     type: 'line',
     data: { datasets },
     options: {
@@ -630,6 +638,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
       },
     },
   });
+  if (chart) state.chartInstances['modal'] = chart;
 }
 
 export function openManualAddFromDetail(metricId, event) {
@@ -751,7 +760,7 @@ export async function saveManualEntryFromDetail(metricId, kind) {
     await refreshManualSummary(profileId);
     if (op !== _currentManualEntryOp(metricId)) return;
     showNotification?.('Saved', 'success');
-    if (window.navigate) window.navigate('dashboard');
+    navigateWearableDetailRuntime('dashboard');
     openWearableDetail(metricId);
   } catch (e) {
     showNotification?.(`Couldn't save: ${e.message}`, 'error', 4000);
@@ -760,10 +769,9 @@ export async function saveManualEntryFromDetail(metricId, kind) {
 
 export async function deleteManualEntryFromDetail(metricId, date) {
   const op = _bumpManualEntryOp(metricId);
-  if (typeof window.showConfirmDialog !== 'function') return;
   const canon = canonicalMetric(metricId);
   const label = canon?.label || metricId;
-  if (await window.showConfirmDialog(`Delete this ${label.toLowerCase()} reading from ${date}?`)) {
+  if (await confirmWearableDetailActionRuntime(`Delete this ${label.toLowerCase()} reading from ${date}?`)) {
     try {
       const { deleteManualMetric, refreshManualSummary } = await import('./wearables-manual.js');
       const profileId = getActiveProfileId();
@@ -776,12 +784,12 @@ export async function deleteManualEntryFromDetail(metricId, date) {
       await refreshManualSummary(profileId);
       if (op !== _currentManualEntryOp(metricId)) return;
       showNotification?.('Deleted', 'success');
-      if (window.navigate) window.navigate('dashboard');
+      navigateWearableDetailRuntime('dashboard');
       const stillHasMetric = !!state.importedData?.wearableSummary?.metrics?.[metricId];
       if (stillHasMetric) {
         openWearableDetail(metricId);
-      } else if (window.closeModal) {
-        window.closeModal();
+      } else {
+        closeWearableDetailModalRuntime();
       }
     } catch (e) {
       showNotification?.(`Couldn't delete: ${e.message}`, 'error', 4000);

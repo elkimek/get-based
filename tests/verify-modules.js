@@ -47,6 +47,7 @@
     '/js/context-card-lifestyle-runtime.js',
     '/js/context-card-lifestyle-editors.js',
     '/js/wearables-detail-modal.js',
+    '/js/wearables-detail-runtime.js',
     '/js/wearables-bp-detail-chart.js',
     '/js/wearables-formatters.js',
     '/js/wearables-manual-form-ui.js',
