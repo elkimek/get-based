@@ -258,6 +258,7 @@ const APP_SHELL = [
   '/js/compare-correlations.js',
   '/js/mobile-dashboard.js',
   '/js/views.js',
+  '/js/recommendations-runtime.js',
   '/js/recommendations.js',
   '/js/recommendations-region.js',
   '/js/crypto.js',

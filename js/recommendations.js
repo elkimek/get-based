@@ -10,6 +10,15 @@ import {
   regionLabel as formatRegionLabel,
   regionLookupChain as lookupRegionChain,
 } from './recommendations-region.js';
+import {
+  closeRecommendationsModal,
+  getRecommendationsSnpTable,
+  openRecommendationsEmfAssessment,
+  openRecommendationsLocationEditor,
+  openRecommendationsPrivacySettings,
+  registerRecommendationsRuntimeExports,
+  scheduleRecommendationsTask,
+} from './recommendations-runtime.js';
 
 // ═══════════════════════════════════════════════
 // CATALOG CACHE
@@ -40,7 +49,6 @@ function handleRecommendationActionClick(event) {
   if (!target) return;
   const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-rec-action]'));
   if (!actionEl) return;
-  const appWindow = /** @type {any} */ (window);
   const action = actionEl.dataset.recAction || '';
 
   if (action === 'copy-coupon') {
@@ -48,14 +56,14 @@ function handleRecommendationActionClick(event) {
     copyCouponCode(actionEl);
   } else if (action === 'close-modal') {
     event.preventDefault();
-    appWindow.closeModal?.();
+    closeRecommendationsModal();
   } else if (action === 'open-emf-assessment') {
     event.preventDefault();
-    appWindow.closeModal?.();
-    setTimeout(() => appWindow.openEMFAssessmentEditor?.(), 100);
+    closeRecommendationsModal();
+    scheduleRecommendationsTask(openRecommendationsEmfAssessment, 100);
   } else if (action === 'edit-region') {
     event.preventDefault();
-    (appWindow.openProfileLocationEditor || (() => {}))();
+    openRecommendationsLocationEditor();
   } else if (action === 'accept-disclosure') {
     event.preventDefault();
     event.stopPropagation();
@@ -64,7 +72,7 @@ function handleRecommendationActionClick(event) {
     for (const el of document.querySelectorAll('.rec-section-gated')) el.classList.remove('rec-section-gated');
   } else if (action === 'open-privacy-settings') {
     event.preventDefault();
-    appWindow.openSettingsTab?.('privacy');
+    openRecommendationsPrivacySettings();
   }
 }
 
@@ -349,7 +357,7 @@ function copyCouponCode(btn) {
     const orig = btn.textContent;
     btn.dataset.flashing = '1';
     btn.textContent = label;
-    setTimeout(() => {
+    scheduleRecommendationsTask(() => {
       btn.textContent = orig;
       delete btn.dataset.flashing;
     }, 1400);
@@ -561,7 +569,7 @@ const CARD_LABELS = {
 function _buildCardDNASection(cardKey) {
   const genetics = state.importedData?.genetics;
   if (!genetics || !genetics.snps) return '';
-  const snpTable = window._snpTableCache;
+  const snpTable = getRecommendationsSnpTable();
   if (!snpTable) return '';
   const hints = [];
   const apoeRsids = new Set(['rs429358', 'rs7412']);
@@ -644,7 +652,7 @@ function _buildEMFNudge() {
 export function buildDNAHints(slotKey) {
   const genetics = state.importedData?.genetics;
   if (!genetics || !genetics.snps) return [];
-  const snpTable = window._snpTableCache;
+  const snpTable = getRecommendationsSnpTable();
   if (!snpTable) return [];
 
   const hints = [];
@@ -733,8 +741,7 @@ function buildDisclosureFooter() {
   const r = getUserRegion();
   const label = regionLabel(r);
   // Link points to wherever the user can change their country. Click handler
-  // delegates to the host app via a global (window.openProfileLocationEditor)
-  // so this module stays decoupled. Falls back to '#' if no host is wired.
+  // delegates through the runtime adapter so this module stays decoupled.
   const editLink = `<a href="#" class="rec-region-edit" ${recActionAttrs('edit-region')} aria-label="Change country for product recommendations">change</a>`;
   return `<div class="rec-disclosure">Affiliate links are marked. Brands cannot pay for placement. <span class="rec-region-tag">Showing for ${escapeHTML(label)} · ${editLink}</span></div>`;
 }
@@ -967,8 +974,8 @@ export function detectSupplementSlots(text) {
 
   // Second pass: gene name matching for DNA-aware detection
   const genetics = state.importedData?.genetics;
-  if (genetics?.snps && window._snpTableCache) {
-    const snpTable = window._snpTableCache;
+  const snpTable = genetics?.snps ? getRecommendationsSnpTable() : null;
+  if (genetics?.snps && snpTable) {
     for (const [rsid, stored] of Object.entries(genetics.snps)) {
       const entry = snpTable[rsid];
       if (!entry || !entry.snpHints) continue;
@@ -1169,7 +1176,7 @@ export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opt
 // ═══════════════════════════════════════════════
 initRecommendationDelegates();
 
-Object.assign(window, {
+registerRecommendationsRuntimeExports({
   isProductRecsEnabled,
   setProductRecsEnabled,
   markRecDisclosureSeen: markDisclosureSeen,
