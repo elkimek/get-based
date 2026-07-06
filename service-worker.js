@@ -230,6 +230,7 @@ const APP_SHELL = [
   '/js/dashboard-recommendation-widget.js',
   '/js/recommendation-actions.js',
   '/js/chart-card-recs.js',
+  '/js/category-customization-runtime.js',
   '/js/category-glyphs.js',
   '/js/category-page-runtime.js',
   '/js/category-page-view.js',

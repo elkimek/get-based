@@ -189,6 +189,7 @@ const LEGACY_TESTS = [
   './test-wearables-detail-runtime.js',
   './test-wearables-runtime.js',
   './test-category-page-runtime.js',
+  './test-category-customization-runtime.js',
   './test-wearables-settings-runtime.js',
   './test-dashboard-widget-runtime.js',
   './test-marker-detail-runtime.js',

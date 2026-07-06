@@ -111,9 +111,12 @@ test('category customization covers rename icon and emoji picker browser paths',
       outcomes.renameCategoryRefreshesSidebarThroughConfiguredCallback = calls.some(call => call[0] === 'sidebar' && call[1] === true);
       outcomes.renameCategoryRefreshesForcedRoute = calls.some(call => call[0] === 'navigate' && call[1] === 'lipids' && call[2] === true);
       outcomes.categoryCustomizationDoesNotUseWindowBuildSidebar = categorySrc.includes('buildSidebar?:')
+        && categorySrc.includes("from './category-customization-runtime.js'")
+        && categorySrc.includes('showCategoryCustomizationPrompt')
+        && categorySrc.includes('getCategoryCustomizationViewportSize')
         && categorySrc.includes('getFallbackBuildSidebar')
         && categorySrc.includes('buildSidebar?.(data)')
-        && !categorySrc.includes('window.buildSidebar');
+        && !/\bwindow(?:\.|\s*\[)/.test(categorySrc);
       outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === undefined;
 
       window.showPromptDialog = async () => '  ApoB Better Name  ';

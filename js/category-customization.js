@@ -5,14 +5,19 @@ import { state } from './state.js';
 import { escapeHTML, showNotification } from './utils.js';
 import { getActiveData, saveImportedData } from './data.js';
 import { showDetailModal } from './marker-detail-modal.js';
+import {
+  getCategoryCustomizationBuildSidebar,
+  getCategoryCustomizationViewportSize,
+  navigateCategoryCustomizationRuntime,
+  showCategoryCustomizationPrompt,
+} from './category-customization-runtime.js';
 
-let _navigate = (route, data) => window.navigate?.(route, data);
+let _navigate = navigateCategoryCustomizationRuntime;
 /** @type {((data?: any) => void) | null} */
 let _buildSidebar = null;
 
 function getFallbackBuildSidebar() {
-  const runtime = typeof window !== 'undefined' ? /** @type {any} */ (window) : /** @type {any} */ (globalThis);
-  return typeof runtime.buildSidebar === 'function' ? runtime.buildSidebar : null;
+  return getCategoryCustomizationBuildSidebar();
 }
 
 /**
@@ -39,7 +44,7 @@ export async function renameCategory(categoryKey) {
   const cat = data.categories[categoryKey];
   if (!cat) return;
   const currentLabel = cat.label;
-  const newLabel = await window.showPromptDialog('Rename category:', {
+  const newLabel = await showCategoryCustomizationPrompt('Rename category:', {
     defaultValue: currentLabel,
     okLabel: 'Rename',
   });
@@ -65,7 +70,7 @@ export async function renameMarker(id) {
   const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
   const marker = data.categories[catKey]?.markers[mKey];
   if (!marker) return;
-  const newName = await window.showPromptDialog('Rename marker:', {
+  const newName = await showCategoryCustomizationPrompt('Rename marker:', {
     defaultValue: marker.name,
     okLabel: 'Rename',
   });
@@ -114,8 +119,9 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
 
   // Position near anchor
   const rect = anchorEl.getBoundingClientRect();
-  picker.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
-  picker.style.top = Math.min(rect.bottom + 4, window.innerHeight - 420) + 'px';
+  const viewport = getCategoryCustomizationViewportSize();
+  picker.style.left = Math.min(rect.left, viewport.width - 340) + 'px';
+  picker.style.top = Math.min(rect.bottom + 4, viewport.height - 420) + 'px';
 
   let activeCat = null;
   let searchTerm = '';
