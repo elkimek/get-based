@@ -123,6 +123,38 @@ let _editingAssessmentId = null;
 let _activeRoomIdx = 0;
 let emfEditorDelegatesInstalled = false;
 
+/**
+ * @returns {Record<string, any>}
+ */
+function getEMFRuntimeScope() {
+  return typeof window !== 'undefined'
+    ? /** @type {Record<string, any>} */ (window)
+    : /** @type {Record<string, any>} */ (globalThis);
+}
+
+/**
+ * @param {string} name
+ * @returns {((...args: any[]) => any) | null}
+ */
+function getEMFRuntimeFunction(name) {
+  const runtime = getEMFRuntimeScope();
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : null;
+}
+
+function closeEMFModalRuntime() {
+  getEMFRuntimeFunction('closeModal')?.();
+}
+
+/**
+ * @param {string} message
+ * @param {{ placeholder?: string, okLabel?: string }} [options]
+ * @returns {Promise<string | null | undefined> | string | null | undefined}
+ */
+function showEMFPromptRuntime(message, options) {
+  return getEMFRuntimeFunction('showPromptDialog')?.(message, options);
+}
+
 function emfAttrString(attrs) {
   return Object.entries(attrs)
     .filter(([, value]) => value !== undefined && value !== null)
@@ -152,7 +184,7 @@ function removeEMFEditorDelegates() {
 
 function closeEMFPreviewModal() {
   removeEMFEditorDelegates();
-  window.closeModal?.();
+  closeEMFModalRuntime();
 }
 
 function closeEMFEditorModal() {
@@ -160,7 +192,7 @@ function closeEMFEditorModal() {
   saveImportedData();
   document.querySelectorAll('.emf-lightbox').forEach(el => removeModalOverlay(el));
   removeEMFEditorDelegates();
-  window.closeModal?.();
+  closeEMFModalRuntime();
 }
 
 function _emfNumberAttr(el, name, fallback = 0) {
@@ -538,7 +570,7 @@ export async function handleEMFRoomDropdown(assessmentId, currentRoomIdx, value,
   }
   // Custom room
   if (value === '_custom') {
-    const name = await window.showPromptDialog('Room name:', {
+    const name = await showEMFPromptRuntime('Room name:', {
       placeholder: 'e.g. Master Bedroom',
       okLabel: 'Create',
     });
