@@ -82,6 +82,15 @@ import {
   renderTagsField,
   selectCtxOption,
 } from './context-card-editor-ui.js';
+import {
+  closeLifestyleContextModalAndNavigateRuntime,
+  closeLifestyleContextModalRuntime,
+  discussDietContaminantsRuntime,
+  markLifestyleContextDelegatesBoundRuntime,
+  openLightSetupFromLifestyleRuntime,
+  returnToLifestyleContextModalRuntime,
+  updateLifestyleChatHeaderModelRuntime,
+} from './context-card-lifestyle-runtime.js';
 
 /** @type {(field: string) => void} */
 let recordContextChange = () => {};
@@ -144,28 +153,16 @@ function getLifestyleIndex(el) {
   return Number.isInteger(idx) ? idx : -1;
 }
 
-function getAppWindow() { return typeof window !== 'undefined' ? /** @type {any} */ (window) : {}; }
-
 function openLightSetupFromContext() {
-  const appWindow = getAppWindow();
-  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
-  if (typeof appWindow.navigate === 'function') appWindow.navigate('light');
-  setTimeout(() => { if (typeof appWindow.reopenSunSetup === 'function') appWindow.reopenSunSetup(); }, 200);
+  openLightSetupFromLifestyleRuntime();
 }
 
 function discussDietContaminants() {
-  const appWindow = getAppWindow();
-  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
-  if (typeof appWindow.openChatPanel === 'function') appWindow.openChatPanel();
-  setTimeout(() => { if (typeof appWindow.useChatPrompt === 'function') appWindow.useChatPrompt('What food contaminants should I be concerned about based on my diet?'); }, 300);
+  discussDietContaminantsRuntime();
 }
 
 function returnToContextModal() {
-  const appWindow = getAppWindow();
-  if (typeof appWindow.closeModal === 'function') appWindow.closeModal();
-  setTimeout(() => {
-    if (typeof appWindow.openContextModal === 'function') appWindow.openContextModal();
-  }, 0);
+  returnToLifestyleContextModalRuntime();
 }
 
 /** @param {MouseEvent} event */
@@ -184,7 +181,7 @@ function handleLifestyleContextClick(event) {
     case 'clear-interpretive-lens': clearInterpretiveLens(); break;
     case 'back-to-context': returnToContextModal(); break;
     case 'discuss-diet-contaminants': discussDietContaminants(); break;
-    case 'close-modal': { const appWindow = getAppWindow(); if (typeof appWindow.closeModal === 'function') appWindow.closeModal(); break; }
+    case 'close-modal': closeLifestyleContextModalRuntime(); break;
     default:
       break;
   }
@@ -204,10 +201,8 @@ function handleLifestyleContextKeydown(event) {
 }
 
 function initLifestyleContextDelegates() {
-  if (typeof document === 'undefined' || typeof window === 'undefined') return;
-  const appWindow = getAppWindow();
-  if (appWindow.__lifestyleContextDelegatesBound) return;
-  appWindow.__lifestyleContextDelegatesBound = true;
+  if (typeof document === 'undefined') return;
+  if (!markLifestyleContextDelegatesBoundRuntime()) return;
   document.addEventListener('click', handleLifestyleContextClick, true);
   document.addEventListener('keydown', handleLifestyleContextKeydown);
 }
@@ -700,8 +695,7 @@ export function deleteHealthGoal(idx) {
 }
 
 export function closeHealthGoals() {
-  window.closeModal();
-  window.navigate(getActiveNavCategory());
+  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
   if ((state.importedData.healthGoals || []).length > 0) showNotification('Health goals saved', 'success');
 }
 
@@ -709,8 +703,7 @@ export function clearHealthGoals() {
   clearImportedArray(state.importedData, 'healthGoals');
   recordContextChange('healthGoals');
   saveImportedData();
-  window.closeModal();
-  window.navigate(getActiveNavCategory());
+  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
   showNotification('Health goals cleared', 'info');
 }
 
@@ -742,21 +735,19 @@ export function saveInterpretiveLens() {
   const ta = getTextInput('interpretive-lens-textarea');
   const text = ta ? ta.value.trim() : '';
   state.importedData.interpretiveLens = text || '';
-  window.updateChatHeaderModel?.();
+  updateLifestyleChatHeaderModelRuntime();
   recordContextChange('interpretiveLens');
   saveImportedData();
-  window.closeModal();
-  window.navigate(getActiveNavCategory());
+  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
   showNotification(text ? 'Interpretive lens saved' : 'Interpretive lens cleared', 'success');
 }
 
 export function clearInterpretiveLens() {
   state.importedData.interpretiveLens = '';
-  window.updateChatHeaderModel?.();
+  updateLifestyleChatHeaderModelRuntime();
   recordContextChange('interpretiveLens');
   saveImportedData();
-  window.closeModal();
-  window.navigate(getActiveNavCategory());
+  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
   showNotification('Interpretive lens cleared', 'info');
 }
 
