@@ -28,6 +28,7 @@
     '/js/app-event-listeners.js',
     '/js/startup-orchestrator.js',
     '/js/startup-foundation.js',
+    '/js/startup-maintenance-runtime.js',
     '/js/startup-profile.js',
     '/js/startup-oauth-callbacks.js',
     '/js/startup-maintenance.js',

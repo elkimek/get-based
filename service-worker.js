@@ -90,6 +90,7 @@ const APP_SHELL = [
   '/js/api-provider-storage.js',
   '/js/api-transport.js',
   '/js/startup-foundation.js',
+  '/js/startup-maintenance-runtime.js',
   '/js/startup-profile.js',
   '/js/startup-oauth-callbacks.js',
   '/js/startup-maintenance.js',

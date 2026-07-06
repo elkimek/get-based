@@ -188,6 +188,7 @@
     "js/service-worker-update.js",
     "js/shell-actions.js",
     "js/startup-foundation.js",
+    "js/startup-maintenance-runtime.js",
     "js/startup-maintenance.js",
     "js/startup-oauth-callbacks.js",
     "js/startup-orchestrator.js",
