@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from 'fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let serviceWorkerUpdate;
+const serviceWorkerUpdateSrc = readFileSync('js/service-worker-update.js', 'utf8');
 
 beforeEach(async () => {
   vi.resetModules();
@@ -17,6 +19,13 @@ afterEach(() => {
 });
 
 describe('service worker update prompt', () => {
+  it('delegates default browser globals through runtime helpers', () => {
+    expect(serviceWorkerUpdateSrc).toContain('function getDefaultServiceWorkerWindow()');
+    expect(serviceWorkerUpdateSrc).toContain('getDefaultServiceWorkerWindow()?.location || null');
+    expect(serviceWorkerUpdateSrc).toContain('getDefaultCacheStorage()');
+    expect(serviceWorkerUpdateSrc).not.toMatch(/\bwindow(?:\.|\s*\[)/);
+  });
+
   it('keeps development service workers opt-in only', () => {
     const { shouldRegisterServiceWorker } = serviceWorkerUpdate;
 

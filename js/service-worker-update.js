@@ -11,8 +11,32 @@ let dismissedWaitingWorker = null;
 let updateRequested = false;
 let reloadAvailable = false;
 let lastUpdateCheckAt = 0;
+
+/**
+ * @returns {(Window & { caches?: CacheStorage }) | null}
+ */
+function getDefaultServiceWorkerWindow() {
+  return typeof window !== 'undefined'
+    ? /** @type {Window & { caches?: CacheStorage }} */ (window)
+    : null;
+}
+
+/**
+ * @returns {ServiceWorkerContainer | null}
+ */
+function getDefaultServiceWorkerContainer() {
+  return typeof navigator !== 'undefined' ? navigator.serviceWorker : null;
+}
+
+/**
+ * @returns {CacheStorage | null}
+ */
+function getDefaultCacheStorage() {
+  return getDefaultServiceWorkerWindow()?.caches || null;
+}
+
 let reloadPage = () => {
-  if (typeof window !== 'undefined') window.location.reload();
+  getDefaultServiceWorkerWindow()?.location.reload();
 };
 
 export function isDevServiceWorkerHost(hostname) {
@@ -23,7 +47,7 @@ export function isDevServiceWorkerHost(hostname) {
 }
 
 export function shouldRegisterServiceWorker(
-  locationLike = typeof window !== 'undefined' ? window.location : null
+  locationLike = getDefaultServiceWorkerWindow()?.location || null
 ) {
   if (!locationLike) return false;
   return !isDevServiceWorkerHost(locationLike.hostname)
@@ -202,9 +226,9 @@ async function unregisterDevServiceWorkers(serviceWorkerContainer, cacheStorage)
 }
 
 export async function registerServiceWorkerUpdates({
-  win = typeof window !== 'undefined' ? window : null,
-  serviceWorkerContainer = typeof navigator !== 'undefined' ? navigator.serviceWorker : null,
-  cacheStorage = typeof window !== 'undefined' ? window.caches : null,
+  win = getDefaultServiceWorkerWindow(),
+  serviceWorkerContainer = getDefaultServiceWorkerContainer(),
+  cacheStorage = getDefaultCacheStorage(),
 } = {}) {
   if (!win || !serviceWorkerContainer) return null;
 
@@ -240,6 +264,6 @@ export async function registerServiceWorkerUpdates({
 // Skip SW registration on dev hosts by default. WebKit's HTTP cache layer can
 // otherwise keep serving stale module bytes in Tauri/webkit2gtk dev windows.
 // Use ?dev-sw=1 for explicit local offline smoke testing.
-if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+if (getDefaultServiceWorkerWindow() && getDefaultServiceWorkerContainer()) {
   registerServiceWorkerUpdates();
 }
