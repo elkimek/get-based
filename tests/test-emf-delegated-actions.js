@@ -75,6 +75,11 @@ assert('EMF editor runtime hooks avoid counted direct window globals',
   emfSrc.includes("getEMFRuntimeFunction('closeModal')") &&
     emfSrc.includes("getEMFRuntimeFunction('showPromptDialog')") &&
     !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
+assert('EMF interpretation runtime hooks avoid counted direct window globals',
+  emfInterpretationSrc.includes('function getEMFInterpretationRuntimeFunction') &&
+    emfInterpretationSrc.includes("getEMFInterpretationRuntimeFunction('closeModal')") &&
+    emfInterpretationSrc.includes("getEMFInterpretationRuntimeFunction('openChatPanel')") &&
+    !/\bwindow(?:\.|\s*\[)/.test(emfInterpretationSrc));
 assert('EMF editor X button uses saving close action',
   editorSrc.includes('class="modal-close" aria-label="Close" ${emfActionAttrs(\'close-editor\')}'));
 assert('EMF import preview close path does not persist editor state',
