@@ -34,6 +34,7 @@ console.log('=== Guided Tour Tests ===\n');
 console.log('1. Source Inspection');
 
 const tourSrc = read('js/tour.js');
+const tourRuntimeSrc = read('js/tour-runtime.js');
 
 assert('tour.js has startTour export', tourSrc.includes('export function startTour'));
 assert('tour.js has endTour export', tourSrc.includes('export function endTour'));
@@ -45,8 +46,17 @@ assert('tour.js has EMPTY_TOUR_STEPS array', tourSrc.includes('const EMPTY_TOUR_
 assert('tour.js has TOUR_STEPS array', tourSrc.includes('const TOUR_STEPS'));
 assert('tour.js imports state', tourSrc.includes("import { state } from './state.js'"));
 assert('tour.js imports profileStorageKey', tourSrc.includes("import { profileStorageKey } from './profile.js'"));
+assert('tour.js imports runtime browser hooks',
+  tourSrc.includes("import { getTourComputedStyle, getTourViewportSize, openTourChatPanel, scheduleTourTask } from './tour-runtime.js'"));
 assert('tour.js exports testable step navigation', tourSrc.includes('export function goToTourStep'));
 assert('tour.js does not publish tour API on window', !tourSrc.includes('Object.assign(window,') && !tourSrc.includes('window._tourGoToStep'));
+assert('tour.js keeps direct browser globals behind runtime adapter',
+  !/\bwindow(?:\.|\s*\[)/.test(tourSrc));
+assert('tour-runtime.js owns viewport style and chat adapters',
+  tourRuntimeSrc.includes('export function getTourViewportSize') &&
+    tourRuntimeSrc.includes('export function getTourComputedStyle') &&
+    tourRuntimeSrc.includes('export function openTourChatPanel') &&
+    tourRuntimeSrc.includes('export function scheduleTourTask'));
 assert('startTour respects auto flag', tourSrc.includes('if (auto && isTourCompleted(') && tourSrc.includes(') return'));
 assert('startup auto tours wait behind open modals', tourSrc.includes('function isStartupTourKey(') && tourSrc.includes('if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;'));
 assert('startTour returns whether tour opened', tourSrc.includes('return runTour(TOUR_STEPS') && tourSrc.includes('return true'));
@@ -65,7 +75,7 @@ assert('Empty step 2: Guided chat panel', tourSrc.includes("target: '.welcome-pr
 assert('Empty step 3: Demo cards', tourSrc.includes("target: '.demo-cards', title: 'Try a Populated Profile'"));
 assert('Empty step 4: Profile button', tourSrc.includes("target: '.profile-compact-btn', title: 'Profiles Stay Separate'"));
 assert('Empty step 5: Settings', tourSrc.includes("target: '.settings-btn', title: 'Settings & Connections'"));
-assert('Empty tour opens chat after completion', tourSrc.includes("activeTour?.storageKey === profileKey('emptyTour')") && tourSrc.includes('window.openChatPanel?.()'));
+assert('Empty tour opens chat after completion', tourSrc.includes("activeTour?.storageKey === profileKey('emptyTour')") && tourSrc.includes('scheduleTourTask') && tourSrc.includes('openTourChatPanel()'));
 
 const emptyStepsStart = tourSrc.indexOf('const EMPTY_TOUR_STEPS');
 const appStepsStart = tourSrc.indexOf('const TOUR_STEPS');
@@ -225,6 +235,7 @@ console.log('22. Service Worker');
 const swSrc = read('service-worker.js');
 
 assert('SW APP_SHELL includes /js/tour.js', swSrc.includes("'/js/tour.js'"));
+assert('SW APP_SHELL includes /js/tour-runtime.js', swSrc.includes("'/js/tour-runtime.js'"));
 assert('SW uses importScripts for version', swSrc.includes("importScripts('/version.js')"));
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 

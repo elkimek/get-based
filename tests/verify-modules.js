@@ -105,6 +105,7 @@
     '/js/notes-runtime.js',
     '/js/pdf-import-review-runtime.js',
     '/js/theme-runtime.js',
+    '/js/tour-runtime.js',
     '/js/touch-tooltip-runtime.js',
     '/js/utils-runtime.js',
     '/js/schema.js',

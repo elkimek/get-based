@@ -192,6 +192,7 @@ const APP_SHELL = [
   '/js/settings-sync-panel.js',
   '/js/settings-agent-access-panel.js',
   '/js/feedback.js',
+  '/js/tour-runtime.js',
   '/js/tour.js',
   '/js/changelog.js',
   '/js/client-list-runtime.js',
