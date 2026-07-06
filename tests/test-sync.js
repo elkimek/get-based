@@ -608,10 +608,11 @@ await import('../js/settings.js');
     syncConfigureSrc.includes("from './sync-recovery.js'")
       && syncRecoverySrc.includes('export function configureSyncRecovery')
       && syncRecoverySrc.includes('export function bindSyncRecoveryEvents')
-      && syncRecoverySrc.includes("document.addEventListener('visibilitychange'")
-      && syncRecoverySrc.includes("window.addEventListener('pageshow'")
-      && syncRecoverySrc.includes("window.addEventListener('online'")
-      && syncRecoverySrc.includes("window.addEventListener('offline'")
+      && syncRecoverySrc.includes("runtimeDocument.addEventListener('visibilitychange'")
+      && syncRecoverySrc.includes("runtimeWindow.addEventListener('pageshow'")
+      && syncRecoverySrc.includes("runtimeWindow.addEventListener('online'")
+      && syncRecoverySrc.includes("runtimeWindow.addEventListener('offline'")
+      && !/\bwindow(?:\.|\s*\[)/.test(syncRecoverySrc)
       && syncConfigureSrc.includes('configureSyncRecovery({')
       && syncInitSrc.includes('bindSyncRecoveryEvents();'));
   assert('service worker precaches sync-recovery.js',
