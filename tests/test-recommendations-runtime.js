@@ -7,10 +7,12 @@ import {
   getRecommendationsSnpTable,
   isRecommendationsProductRecsEnabled,
   loadRecommendationsCatalogRuntime,
+  openRecommendationsChatPanel,
   openRecommendationsEmfAssessment,
   openRecommendationsLocationEditor,
   openRecommendationsPrivacySettings,
   registerRecommendationsRuntimeExports,
+  renderRecommendationsDetailSection,
   scheduleRecommendationsTask,
 } from '../js/recommendations-runtime.js';
 
@@ -54,8 +56,13 @@ try {
     openEMFAssessmentEditor() { calls.push(['emf', this === runtime]); },
     openProfileLocationEditor() { calls.push(['location', this === runtime]); },
     openSettingsTab(tab) { calls.push(['settings', tab, this === runtime]); },
+    openChatPanel(prompt) { calls.push(['chat', prompt, this === runtime]); },
     isProductRecsEnabled() { calls.push(['enabled', this === runtime]); return true; },
     async loadCatalog() { calls.push(['catalog', this === runtime]); return { slots: { magnesium: { label: 'Magnesium' } } }; },
+    async renderRecommendationSection(slotKey, options) {
+      calls.push(['render', slotKey, options, this === runtime]);
+      return `<section>${slotKey}</section>`;
+    },
     setTimeout(callback, delay) {
       calls.push(['timeout', delay, this === runtime]);
       callback();
@@ -75,6 +82,15 @@ try {
       catalog?.slots?.magnesium?.label === 'Magnesium' &&
       calls.some(call => call[0] === 'enabled' && call[1] === true) &&
       calls.some(call => call[0] === 'catalog' && call[1] === true));
+  const detailHtml = await renderRecommendationsDetailSection('minerals.magnesium', { label: 'Options' });
+  assert('recommendations runtime delegates detail rendering and chat panel hooks',
+    detailHtml === '<section>minerals.magnesium</section>' &&
+      openRecommendationsChatPanel('Discuss this') &&
+      calls.some(call => call[0] === 'render'
+        && call[1] === 'minerals.magnesium'
+        && call[2]?.label === 'Options'
+        && call[3] === true) &&
+      calls.some(call => call[0] === 'chat' && call[1] === 'Discuss this' && call[2] === true));
   assert('recommendations runtime delegates host modal and editor hooks',
     closeRecommendationsModal() &&
       openRecommendationsEmfAssessment() &&
@@ -95,14 +111,18 @@ try {
   delete runtime.openEMFAssessmentEditor;
   delete runtime.openProfileLocationEditor;
   delete runtime.openSettingsTab;
+  delete runtime.openChatPanel;
   delete runtime.isProductRecsEnabled;
   delete runtime.loadCatalog;
+  delete runtime.renderRecommendationSection;
   delete runtime._snpTableCache;
   assert('recommendations runtime handles missing optional browser hooks',
     getRecommendationsSnpTable() === null &&
       isRecommendationsProductRecsEnabled() === false &&
       await loadRecommendationsCatalogRuntime() === null &&
+      await renderRecommendationsDetailSection('missing.slot', {}) === '' &&
       closeRecommendationsModal() === false &&
+      openRecommendationsChatPanel('No-op') === false &&
       openRecommendationsEmfAssessment() === false &&
       openRecommendationsLocationEditor() === false &&
       openRecommendationsPrivacySettings() === false);
@@ -112,6 +132,8 @@ try {
     getRecommendationsSnpTable() === null &&
       isRecommendationsProductRecsEnabled() === false &&
       await loadRecommendationsCatalogRuntime() === null &&
+      await renderRecommendationsDetailSection('missing.slot', {}) === '' &&
+      openRecommendationsChatPanel('No-op') === false &&
       registerRecommendationsRuntimeExports({ missingWindowProbe: true }) === false);
 } finally {
   restoreWindow();
