@@ -4,6 +4,9 @@
 import './_node-shim.js';
 import {
   deleteDashboardNote,
+  getDashboardDeviceSessions,
+  getDashboardLightSessions,
+  getDashboardSnpTableCache,
   getDashboardViewportHeight,
   navigateDashboardRoute,
   openDashboardManualLogForm,
@@ -26,6 +29,9 @@ console.log('=== Dashboard Widget Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'innerHeight',
+  'getSessions',
+  'getDeviceSessions',
+  '_snpTableCache',
   'openSettingsModal',
   'syncWearableNow',
   'openWearableDetail',
@@ -64,6 +70,25 @@ try {
   setRuntimeValue('innerHeight', 0);
   assert('getDashboardViewportHeight preserves zero-height runtime fallback',
     getDashboardViewportHeight() === 0);
+
+  const snpTable = { rs123: { rsid: 'rs123' } };
+  setRuntimeValue('getSessions', () => [{ id: 'sun-1' }]);
+  setRuntimeValue('getDeviceSessions', () => [{ id: 'device-1' }]);
+  setRuntimeValue('_snpTableCache', snpTable);
+  assert('runtime adapter reads dashboard renderer data hooks',
+    getDashboardLightSessions().length === 1 &&
+      getDashboardLightSessions()[0].id === 'sun-1' &&
+      getDashboardDeviceSessions().length === 1 &&
+      getDashboardDeviceSessions()[0].id === 'device-1' &&
+      getDashboardSnpTableCache() === snpTable);
+
+  setRuntimeValue('getSessions', () => { throw new Error('boom'); });
+  setRuntimeValue('getDeviceSessions', () => ({ id: 'not-array' }));
+  setRuntimeValue('_snpTableCache', null);
+  assert('runtime adapter falls back for missing renderer data hooks',
+    getDashboardLightSessions().length === 0 &&
+      getDashboardDeviceSessions().length === 0 &&
+      getDashboardSnpTableCache() === null);
 
   const actionEl = { dataset: { dashboardWidgetAction: 'sync-biometric-now' } };
   const event = { type: 'click' };
@@ -116,6 +141,9 @@ try {
   deleteDashboardNote(2);
   assert('runtime adapter no-ops safely when window is missing',
     getDashboardViewportHeight() === null &&
+      getDashboardLightSessions().length === 0 &&
+      getDashboardDeviceSessions().length === 0 &&
+      getDashboardSnpTableCache() === null &&
       openDashboardWearableDetail('sleep') === false &&
       calls.length === callCountBeforeMissingRuntime);
 } finally {
