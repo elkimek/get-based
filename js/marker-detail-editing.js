@@ -7,6 +7,10 @@ import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPrompt
 import { getActiveData, updateHeaderDates, convertDisplayToSI } from './data.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 import {
+  buildMarkerDetailSidebarRuntime,
+  navigateMarkerDetailRuntime,
+} from './marker-detail-runtime.js';
+import {
   deleteManualMarkerValue,
   editManualMarkerValue,
   getMarkerValueNote,
@@ -23,11 +27,13 @@ import {
 
 const markerDetailDeps = /** @type {{
   navigate: (category?: string, data?: any) => any,
+  buildSidebar: () => any,
   showDetailModal: (id?: string, opts?: any) => any,
   openManualEntryForm: (id?: string, prefillDate?: string) => any,
   closeModal: () => any,
 }} */ ({
-  navigate: (category, data) => window.navigate?.(category, data),
+  navigate: navigateMarkerDetailRuntime,
+  buildSidebar: buildMarkerDetailSidebarRuntime,
   showDetailModal: () => {},
   openManualEntryForm: () => {},
   closeModal: () => {},
@@ -46,6 +52,10 @@ function showDetailModal(id, opts) {
 
 function openManualEntryForm(id, prefillDate) {
   return markerDetailDeps.openManualEntryForm(id, prefillDate);
+}
+
+function buildSidebar() {
+  return markerDetailDeps.buildSidebar();
 }
 
 function closeModal() {
@@ -123,7 +133,7 @@ export async function saveManualEntry(id, opts = {}) {
   await saveManualMarkerValue({ dotKey, date, storedValue, noteText });
   // Remember the date session-wide so the next manual entry defaults to it.
   try { sessionStorage.setItem('labcharts-last-manual-date', date); } catch (_) {}
-  window.buildSidebar();
+  buildSidebar();
   updateHeaderDates();
   const targetCat = id.indexOf('_') !== -1 ? id.slice(0, id.indexOf('_')) : null;
   const data = getActiveData();
@@ -155,7 +165,7 @@ export async function deleteMarkerValue(id, date) {
   if (await showConfirmDialog(`Delete this value (${date})? This can't be undone.`)) {
     const deleted = await deleteManualMarkerValue(dotKey, date);
     if (!deleted) return;
-    window.buildSidebar();
+    buildSidebar();
     updateHeaderDates();
     // Re-open the detail modal to show updated values. buildSidebar
     // resets .active to Dashboard, so use state.currentView (kept in

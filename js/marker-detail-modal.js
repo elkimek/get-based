@@ -89,6 +89,7 @@ export function configureMarkerDetailModal(deps = {}) {
 
 configureMarkerDetailEditing({
   navigate: (...args) => markerDetailDeps.navigate(...args),
+  buildSidebar: () => buildMarkerDetailSidebarRuntime(),
   showDetailModal: (...args) => showDetailModal(...args),
   openManualEntryForm: (...args) => openManualEntryForm(...args),
   closeModal: () => closeModal(),
