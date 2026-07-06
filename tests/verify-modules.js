@@ -83,6 +83,7 @@
     '/js/light-channel-view-ui-hooks.js',
     '/js/sun-runtime.js',
     '/js/sun-defaults-runtime.js',
+    '/js/sun-body-silhouette-runtime.js',
     '/js/sun-channel-metrics.js',
     '/js/sun-context-hooks.js',
     '/js/light-sessions-view.js',

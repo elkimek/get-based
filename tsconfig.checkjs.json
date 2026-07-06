@@ -195,6 +195,7 @@
     "js/startup-ui.js",
     "js/sun-active-session.js",
     "js/sun-ai-analysis.js",
+    "js/sun-body-silhouette-runtime.js",
     "js/sun-body-silhouette.js",
     "js/sun-channel-metrics.js",
     "js/sun-context.js",
