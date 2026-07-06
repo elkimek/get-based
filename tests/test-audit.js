@@ -66,6 +66,7 @@ assert('SW CACHE_NAME uses semver', swAuditSrc.includes('`labcharts-v${self.APP_
 assert('SW treats app.getbased.health as production host', swAuditSrc.includes("'app.getbased.health'"));
 assert('SW APP_SHELL includes API models module', swAuditSrc.includes("'/js/api-models.js'"));
 assert('SW APP_SHELL includes API provider storage module', swAuditSrc.includes("'/js/api-provider-storage.js'"));
+assert('SW APP_SHELL includes provider model controls runtime module', swAuditSrc.includes("'/js/provider-model-controls-runtime.js'"));
 assert('SW APP_SHELL includes provider model controls module', swAuditSrc.includes("'/js/provider-model-controls.js'"));
 assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.includes("'/js/provider-local-ai-controls.js'"));
 assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("'/js/provider-ppq-panels.js'"));

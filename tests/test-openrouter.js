@@ -197,6 +197,7 @@ assert('SW uses importScripts for version', swSrc.includes("importScripts('/vers
 assert('SW CACHE_NAME uses semver', swSrc.includes('`labcharts-v${self.APP_VERSION}`'));
 assert('SW bypasses openrouter.ai', swSrc.includes('openrouter.ai'));
 assert('SW caches provider-panel-renderers.js', swSrc.includes('/js/provider-panel-renderers.js'));
+assert('SW caches provider-model-controls-runtime.js', swSrc.includes('/js/provider-model-controls-runtime.js'));
 assert('SW caches provider-model-controls.js', swSrc.includes('/js/provider-model-controls.js'));
 
 // ─── 7. Window function exports ───

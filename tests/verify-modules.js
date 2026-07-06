@@ -92,6 +92,7 @@
     '/js/mobile-dashboard.js',
     '/js/dashboard-widget-runtime.js',
     '/js/provider-local-ai-runtime.js',
+    '/js/provider-model-controls-runtime.js',
     '/js/api-runtime.js',
     '/js/charts-runtime.js',
     '/js/pdf-import-review-runtime.js',
