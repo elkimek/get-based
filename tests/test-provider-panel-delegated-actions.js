@@ -42,6 +42,12 @@ assert('provider panel renderers emit delegated action attributes',
   renderSrc.includes('data-provider-panel-action') &&
     renderSrc.includes('data-provider-panel-change') &&
     renderSrc.includes('data-provider-panel-key'));
+assert('provider panel renderers route Nostr browser globals through runtime adapter',
+  renderSrc.includes("from './provider-panel-renderers-runtime.js'") &&
+    renderSrc.includes('getSelectedRoutstrNodeFromRuntime()') &&
+    renderSrc.includes('discoverRoutstrNodesFromRuntime()') &&
+    renderSrc.includes('setSelectedRoutstrNodeFromRuntime(bestUrl)') &&
+    !/\bwindow(?:\.|\s*\[)/.test(renderSrc));
 assert('provider model controls emit delegated model attributes',
   modelControlsSrc.includes('data-provider-panel-change') &&
     modelControlsSrc.includes('data-provider-panel-key'));

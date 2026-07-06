@@ -15,6 +15,11 @@ import {
 } from './api.js';
 import { getOllamaConfig } from './pii.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panels.js';
+import {
+  discoverRoutstrNodesFromRuntime,
+  getSelectedRoutstrNodeFromRuntime,
+  setSelectedRoutstrNodeFromRuntime,
+} from './provider-panel-renderers-runtime.js';
 
 function readStoredArray(key) {
   try { return JSON.parse(localStorage.getItem(key) || '[]'); }
@@ -137,7 +142,7 @@ function renderOpenRouterProviderPanel() {
 function renderRoutstrProviderPanel() {
   const currentKey = getRoutstrKey();
   const rsModel = getRoutstrModel();
-  const nodeUrl = window.nostrGetSelectedNode ? window.nostrGetSelectedNode() : null;
+  const nodeUrl = getSelectedRoutstrNodeFromRuntime();
   const cachedRSModels = readStoredArray('labcharts-routstr-models');
   let rsModelHtml;
   if (cachedRSModels.length > 0) {
@@ -169,14 +174,15 @@ function renderRoutstrProviderPanel() {
     <div id="routstr-wallet-fund-area" style="display:none"></div>
   </div>`;
 
-  if (!nodeUrl && window.nostrDiscoverNodes) {
-    window.nostrDiscoverNodes().then(nodes => {
+  const discovery = !nodeUrl ? discoverRoutstrNodesFromRuntime() : null;
+  if (discovery) {
+    discovery.then(nodes => {
       const online = nodes.filter(n => n.online);
       if (online.length) {
         const best = online[0];
         const bestUrl = (best.urls && best.urls[0]) || '';
         if (!bestUrl) return;
-        window.nostrSetSelectedNode(bestUrl);
+        setSelectedRoutstrNodeFromRuntime(bestUrl);
         const label = document.getElementById('routstr-node-label');
         if (label) label.innerHTML = escapeHTML(best.name || bestUrl.replace(/^https?:\/\//, ''));
         const acts = document.getElementById('routstr-node-actions');
