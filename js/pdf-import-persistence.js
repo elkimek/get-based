@@ -6,6 +6,7 @@ import { showNotification, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { clearTombstone, deleteImportedArrayItems, recordTombstone } from './data-merge.js';
 import { deleteLabEntryMarker, isSnapshotDerivedHOMAIR } from './lab-entry.js';
+import { refreshImportedDataViewsRuntime } from './pdf-import-review-runtime.js';
 
 export function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -17,10 +18,8 @@ export function restoreImportedDataSnapshot(snapshot) {
 }
 
 export function refreshImportedDataViews() {
-  window.buildSidebar();
-  window.updateHeaderDates();
   // buildSidebar resets .active to Dashboard; use state.currentView.
-  window.navigate(state.currentView || 'dashboard');
+  refreshImportedDataViewsRuntime(state.currentView || 'dashboard');
 }
 
 function isValidISOCalendarDate(date) {

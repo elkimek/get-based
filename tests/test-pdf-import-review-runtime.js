@@ -11,6 +11,7 @@ import {
   getPendingImportRefLookup,
   hasBatchImportContext,
   markImportReviewDelegatesBound,
+  refreshImportedDataViewsRuntime,
   setPendingImportRuntime,
   showPIIDiffViewerFromRuntime,
   startBatchImport,
@@ -29,8 +30,11 @@ const RUNTIME_FIELDS = [
   '_batchImportResolve',
   '_batchImportContext',
   '__importReviewDelegatesBound',
+  'buildSidebar',
   'confirmImport',
+  'navigate',
   'showPIIDiffViewer',
+  'updateHeaderDates',
 ];
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -66,6 +70,18 @@ try {
   setPendingImportRuntime(parseResult, refLookup);
   assert('pending import stored in runtime', getPendingImportFromRuntime() === parseResult);
   assert('pending import ref lookup stored in runtime', getPendingImportRefLookup() === refLookup);
+
+  const viewCalls = [];
+  globalThis.buildSidebar = function() { viewCalls.push(['sidebar', this === globalThis]); };
+  globalThis.updateHeaderDates = function() { viewCalls.push(['dates', this === globalThis]); };
+  globalThis.navigate = function(route) { viewCalls.push(['navigate', route, this === globalThis]); };
+  assert('import persistence view refresh delegates through runtime hooks',
+    refreshImportedDataViewsRuntime('labs') === true &&
+      JSON.stringify(viewCalls) === JSON.stringify([
+        ['sidebar', true],
+        ['dates', true],
+        ['navigate', 'labs', true],
+      ]));
 
   clearPendingImportRuntime();
   assert('pending import clears to null', globalThis._pendingImport === null);
@@ -111,6 +127,7 @@ try {
   assert('PII diff callback preserves window receiver', diffThis === globalThis);
 
   delete globalThis.window;
+  assert('no-window view refresh returns false', refreshImportedDataViewsRuntime('labs') === false);
   assert('no-window pending import reads as null', getPendingImportFromRuntime() === null);
   assert('no-window ref lookup reads as null', getPendingImportRefLookup() === null);
   assert('no-window batch context reads as null', getBatchImportContext() === null);

@@ -7,6 +7,16 @@ function getRuntimeWindow() {
     : null;
 }
 
+/**
+ * @param {string} name
+ * @returns {Function | null}
+ */
+function getRuntimeFunction(name) {
+  const runtime = getRuntimeWindow();
+  const fn = runtime?.[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : null;
+}
+
 export function clearPendingImportRuntime() {
   const runtime = getRuntimeWindow();
   if (!runtime) return;
@@ -28,6 +38,27 @@ export function getPendingImportFromRuntime() {
 export function getPendingImportRefLookup() {
   const runtime = getRuntimeWindow();
   return runtime?._pendingImportRefLookup || null;
+}
+
+/** @param {string} route */
+export function refreshImportedDataViewsRuntime(route = 'dashboard') {
+  let refreshed = false;
+  const buildSidebar = getRuntimeFunction('buildSidebar');
+  if (buildSidebar) {
+    buildSidebar();
+    refreshed = true;
+  }
+  const updateHeaderDates = getRuntimeFunction('updateHeaderDates');
+  if (updateHeaderDates) {
+    updateHeaderDates();
+    refreshed = true;
+  }
+  const navigate = getRuntimeFunction('navigate');
+  if (navigate) {
+    navigate(route);
+    refreshed = true;
+  }
+  return refreshed;
 }
 
 /**
