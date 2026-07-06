@@ -16,6 +16,12 @@
 // reaches the browser. Same server-side-flow pattern as Oura + Withings.
 
 import { isDebugMode } from './utils.js';
+import {
+  exposeWearableAuthDebug,
+  getWearableAuthLocation,
+  getWearableAuthProfileId,
+  redirectWearableAuth,
+} from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL = 'https://auth.ultrahuman.com/authorise';
 const PROXY_URL     = '/api/proxy';
@@ -31,9 +37,10 @@ function randomState() {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export function pickRedirectUri(registeredUris, windowLocation = window.location) {
-  const origin = windowLocation.origin;
-  const hrefBase = origin + windowLocation.pathname;
+export function pickRedirectUri(registeredUris, locationLike = getWearableAuthLocation()) {
+  const origin = locationLike?.origin;
+  if (!origin) throw new Error('No registered Ultrahuman redirect URI matches current origin unknown');
+  const hrefBase = origin + locationLike.pathname;
   const exact = registeredUris.find(u => u === hrefBase || u === hrefBase + '/');
   if (exact) return exact;
   const byOrigin = registeredUris.find(u => u.startsWith(origin));
@@ -57,10 +64,10 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_ULTRAHUM
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
     state, redirectUri, startedAt: Date.now(), clientId,
-    profileId: window._labState?.currentProfile || null,
+    profileId: getWearableAuthProfileId(),
   }));
   const url = buildAuthorizeUrl({ clientId, redirectUri, scopes, state });
-  window.location.href = url;
+  redirectWearableAuth(url);
 }
 
 export async function completeOAuthCallback(urlParams) {
@@ -172,4 +179,4 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
   return run();
 }
 
-if (isDebugMode?.()) window._ultrahumanAuth = { buildAuthorizeUrl, completeOAuthCallback, isUltrahumanCallback, refreshTokens, withFreshToken };
+exposeWearableAuthDebug('_ultrahumanAuth', { buildAuthorizeUrl, completeOAuthCallback, isUltrahumanCallback, refreshTokens, withFreshToken }, Boolean(isDebugMode?.()));
