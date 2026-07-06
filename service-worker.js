@@ -361,6 +361,7 @@ const APP_SHELL = [
   '/js/wearables-settings-panel.js',
   '/js/wearables-store.js',
   '/js/wearables-summary.js',
+  '/js/wearables-connect-runtime.js',
   '/js/wearables-connect.js',
   '/js/wearables-oura.js',
   '/js/wearables-oura-auth.js',

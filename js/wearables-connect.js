@@ -24,6 +24,12 @@ import { fetchPolarDailyRange, fetchPolarPersonalInfo, registerPolarUser, commit
 import { beginOAuth as beginPolarOAuth, completeOAuthCallback as completePolarCallback, isPolarCallback, withFreshToken as polarWithFreshToken, DEFAULT_POLAR_SCOPES } from './wearables-polar-auth.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode, showNotification } from './utils.js';
+import {
+  addWearablesBeforeUnloadRuntime,
+  clearWearableOAuthCallbackRuntime,
+  getWearableOAuthSearchParamsRuntime,
+  navigateWearablesDashboardAfterConnectRuntime,
+} from './wearables-connect-runtime.js';
 
 const BACKFILL_DAYS = 90;
 
@@ -167,14 +173,14 @@ export const OAUTH_DISPATCH = {
 // Dispatches to the right vendor based on which pending sessionStorage entry
 // matches the incoming ?state= — lets multiple OAuth providers coexist.
 export async function handleOAuthCallbackOnLoad() {
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = getWearableOAuthSearchParamsRuntime();
   // Find the first registered adapter whose callback-matcher recognises this URL.
   const adapterId = Object.keys(OAUTH_DISPATCH).find(id => OAUTH_DISPATCH[id].isCallback(urlParams));
   if (!adapterId) return false;
 
   const disp = OAUTH_DISPATCH[adapterId];
   const result = await disp.complete(urlParams);
-  window.history.replaceState(null, '', window.location.pathname);
+  clearWearableOAuthCallbackRuntime();
 
   if (!result.ok) {
     showNotification?.(`${disp.displayName} connection failed: ${result.error}`, 'error', 5000);
@@ -248,7 +254,7 @@ export async function handleOAuthCallbackOnLoad() {
     } catch (e) { if (isDebugMode?.()) console.warn(`[wearables] ${disp.displayName} postConnect threw:`, e); }
   }
   showNotification?.(`${disp.displayName} connected — backfilling 90 days in background…`, 'info', 4000);
-  if (window.navigate) window.navigate('dashboard');
+  navigateWearablesDashboardAfterConnectRuntime();
   // Snapshot active profile now so the background IIFE writes into the same
   // profile even if the user swaps profiles during the backfill.
   const profileAtConnect = getActiveProfileId();
@@ -261,7 +267,7 @@ export async function handleOAuthCallbackOnLoad() {
         await syncWearableSummary(profileAtConnect, listConnectedSources());
       }
       showNotification?.(`${disp.displayName} backfilled ${bf.rows} days`, 'success');
-      if (window.navigate) window.navigate('dashboard');
+      navigateWearablesDashboardAfterConnectRuntime();
     } catch (e) {
       showNotification?.(`${disp.displayName} backfill failed: ${_scrubError(e.message)}`, 'error', 5000);
     }
@@ -391,7 +397,7 @@ export async function incrementalSyncWearable(adapterId, { force = false } = {})
 
   const lastSync = await getMeta(profileId, `last-sync:${adapterId}`);
   const fallbackStart = daysAgoIso(7);
-  // Always use AT LEAST a 7-day window. When `lastSync.endDate` is already
+  // Always use AT LEAST a 7-day sync range. When `lastSync.endDate` is already
   // today (because the user synced earlier the same day), the previous
   // `[today, today]` window sometimes returns no rows from Oura's /sleep —
   // observed bug where strip's "Sync now" did nothing while Settings →
@@ -549,7 +555,7 @@ export function initWearableScheduler() {
     if (document.visibilityState === 'visible') syncStaleWearablesNow();
   });
   _pollTimer = setInterval(syncStaleWearablesNow, POLL_INTERVAL_MS);
-  window.addEventListener('beforeunload', () => { if (_pollTimer) clearInterval(_pollTimer); });
+  addWearablesBeforeUnloadRuntime(() => { if (_pollTimer) clearInterval(_pollTimer); });
 }
 
 // ─────────────────────────────────────────────────────────
