@@ -115,6 +115,7 @@ const APP_SHELL = [
   '/js/pii.js',
   '/js/charts-runtime.js',
   '/js/charts.js',
+  '/js/notes-runtime.js',
   '/js/notes.js',
   '/js/supplement-action-delegates.js',
   '/js/supplements.js',
