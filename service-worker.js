@@ -392,6 +392,7 @@ const APP_SHELL = [
   '/js/sun-session-ai-render-hooks.js',
   '/js/sun-session-actions.js',
   '/js/sun-runtime.js',
+  '/js/sun-body-silhouette-runtime.js',
   '/js/sun-body-silhouette.js',
   '/js/sun-ai-analysis.js',
   '/js/sun-context.js',

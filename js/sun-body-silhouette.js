@@ -3,6 +3,13 @@
 
 import { escapeAttr } from './utils.js';
 import { buildBody, buildLandmarks, buildDetails } from './silhouette-paths.js';
+import {
+  addSunOverlayReadyListenerRuntime,
+  dispatchSunOverlayReadyRuntime,
+  getActiveSilhouetteProfileIdRuntime,
+  getSilhouetteProfilesRuntime,
+  removeSunOverlayReadyListenerRuntime,
+} from './sun-body-silhouette-runtime.js';
 
 // Anatomical regions for the silhouette picker. Limbs split into front/back
 // so front-of-legs and back-of-legs are independent — matters for
@@ -36,9 +43,9 @@ export const BODY_REGIONS = [
 // don't render an empty picker for first-time users.
 function _activeProfileSex() {
   try {
-    const id = (typeof window !== 'undefined' && window.getActiveProfileId) ? window.getActiveProfileId() : null;
+    const id = getActiveSilhouetteProfileIdRuntime();
     if (!id) return 'male';
-    const profiles = (typeof window !== 'undefined' && window.getProfiles) ? window.getProfiles() : [];
+    const profiles = getSilhouetteProfilesRuntime();
     const p = profiles.find(p => p.id === id);
     const s = (p?.sex || '').toString().toLowerCase();
     if (s.startsWith('f')) return 'female';
@@ -488,7 +495,7 @@ export function renderBodySilhouette(selected) {
   // caller re-renders when ready (renderBodySilhouette is sync; bind binds
   // the load promise + rebakes via dispatchEvent('sun-overlay-ready')).
   const selOverlayUrl = _renderSelectionOverlay(selected, () => {
-    try { window.dispatchEvent(new CustomEvent('sun-overlay-ready')); } catch (e) {}
+    dispatchSunOverlayReadyRuntime();
   });
   const overlayMatchesSelection = !!selOverlayUrl && _overlayCache.key === _selectedKey(selected);
   const overlayState = selected?.size
@@ -616,12 +623,12 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
   // (e.g., rootEl moved to a new parent).
   const _onOverlayReady = () => {
     if (!_alive()) {
-      window.removeEventListener('sun-overlay-ready', _onOverlayReady);
+      removeSunOverlayReadyListenerRuntime(_onOverlayReady);
       return;
     }
     rerender();
   };
-  window.addEventListener('sun-overlay-ready', _onOverlayReady);
+  addSunOverlayReadyListenerRuntime(_onOverlayReady);
   if (typeof document !== 'undefined' && document.body && typeof MutationObserver === 'function') {
     // Subtree observation — modal-close typically removes a grandparent
     // overlay (rootEl's immediate parent stays attached to it), so we
@@ -630,7 +637,7 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
     // when still connected.
     const detachObs = new MutationObserver(() => {
       if (!rootEl.isConnected) {
-        window.removeEventListener('sun-overlay-ready', _onOverlayReady);
+        removeSunOverlayReadyListenerRuntime(_onOverlayReady);
         detachObs.disconnect();
       }
     });
