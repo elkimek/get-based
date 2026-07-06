@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { buildReportHTML, exportPDFReport } from '../js/export-report-html.js';
+
+const exportReportHtmlSource = readFileSync(
+  'js/export-report-html.js',
+  'utf8',
+);
 
 function makeFlags() {
   return [
@@ -126,6 +132,13 @@ function resetReportState() {
 describe('report HTML runtime coverage', () => {
   beforeEach(() => {
     resetReportState();
+  });
+
+  it('keeps report renderer globals behind runtime helpers', () => {
+    expect(exportReportHtmlSource).toContain('function getReportRuntimeWindow()');
+    expect(exportReportHtmlSource).toContain('function openReportPreviewWindow()');
+    expect(exportReportHtmlSource).toContain('function getReportSnpTableCache()');
+    expect(exportReportHtmlSource).not.toMatch(/\bwindow(?:\.|\s*\[)/);
   });
 
   it('renders sparse dense genetics supplement context and trend report branches', () => {

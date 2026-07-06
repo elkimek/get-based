@@ -14,10 +14,25 @@ import {
   reportIncludes,
 } from './export-report.js';
 
+function getReportRuntimeWindow() {
+  return typeof window !== 'undefined' ? window : null;
+}
+
+function openReportPreviewWindow() {
+  const runtimeWindow = getReportRuntimeWindow();
+  return typeof runtimeWindow?.open === 'function'
+    ? runtimeWindow.open('', '_blank')
+    : null;
+}
+
+function getReportSnpTableCache() {
+  return getReportRuntimeWindow()?._snpTableCache || null;
+}
+
 export function exportPDFReport(options = {}) {
   const payload = buildPreparedReportPayload(options);
   const html = buildReportHTML(payload.profileName, payload.sexLabel, payload.data, payload.flags, payload.notes, payload.supps, payload.contextSections, payload.reportOptions);
-  const win = window.open('', '_blank');
+  const win = openReportPreviewWindow();
   if (!win) { showNotification('Pop-up blocked - please allow pop-ups for this site', 'error'); return false; }
   win.document.write(html);
   win.document.close();
@@ -42,7 +57,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const trendItems = buildTrendItems();
   const reportStats = buildReportStats();
   const genetics = state.importedData.genetics;
-  const snpTable = window._snpTableCache;
+  const snpTable = getReportSnpTableCache();
   const rangeModeLabel = getRangeModeLabel();
   const rangeModeTitle = rangeModeLabel.charAt(0).toUpperCase() + rangeModeLabel.slice(1);
   const headerDeck = buildHeaderDeck();
@@ -293,7 +308,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function buildHeaderDeck() {
     if (reportStats.totalWithData === 0) {
-      return 'No lab results are available for the selected report window. Non-lab sections are included only when selected and available.';
+      return 'No lab results are available for the selected report window; non-lab sections are included only when selected and available.';
     }
     const labDateText = data.dates.length === 1 ? '1 lab date' : `${data.dates.length} lab dates`;
     const markerText = reportStats.totalWithData === 1 ? '1 marker' : `${reportStats.totalWithData} markers`;
