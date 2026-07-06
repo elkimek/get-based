@@ -25,6 +25,7 @@ import {
   createDiscussionPersonaLabel, createDiscussionTypingIndicator, renderDiscussionRoundError,
   renderFinalDiscussionMessage,
 } from './chat-discussion-round-view.js';
+import { getChatProviderAttestation } from './chat-runtime.js';
 
 export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
   const container = document.getElementById('chat-messages');
@@ -94,6 +95,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
       const responseTruncated = isAIResponseTruncated(aiResult);
+      const attestation = getChatProviderAttestation('venice');
 
       typewriter.stop();
       renderFinalDiscussionMessage({
@@ -115,7 +117,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         usage,
         webSearch: request.webSearch,
         e2ee: request.e2ee,
-        attestation: window._veniceAttestation,
+        attestation,
       });
 
       const assistantMsg = buildDiscussionAssistantMessage({
@@ -123,7 +125,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         request,
         aiResult,
         responseTruncated,
-        attestation: window._veniceAttestation,
+        attestation,
       });
       if (usage && (usage.inputTokens || usage.outputTokens)) {
         assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };

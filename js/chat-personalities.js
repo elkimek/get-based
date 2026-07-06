@@ -10,6 +10,11 @@ import { CHAT_ICON_EDIT, CHAT_ICON_X } from './chat-icons.js';
 import { e2eeLockHTML } from './chat-attestation.js';
 import { getLensSummary } from './lens.js';
 import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';
+import {
+  getChatProviderAttestation,
+  openChatContextModalRuntime,
+  renderChatMessagesRuntime,
+} from './chat-runtime.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -203,7 +208,7 @@ export async function setChatPersonality(id, opts = {}) {
     saveChatThreadIndex();
   }
   if (state.chatHistory.length === 0) {
-    window.renderChatMessages?.();
+    renderChatMessagesRuntime();
   }
   renderThreadList();
   updateChatHeaderTitle();
@@ -287,10 +292,7 @@ function ensureChatContextStatus(el) {
     status = document.createElement('button');
     status.type = 'button';
     status.className = 'chat-context-status';
-    status.addEventListener('click', () => {
-      const opener = /** @type {any} */ (window).openContextModal;
-      if (typeof opener === 'function') opener();
-    });
+    status.addEventListener('click', () => openChatContextModalRuntime());
     parent.appendChild(status);
   }
   return status;
@@ -342,7 +344,7 @@ export function updateChatHeaderModel() {
   const e2ee = provider === 'venice' && isVeniceE2EEActive();
   const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();
   if (e2ee || ppqPrivate) {
-    el.innerHTML = escapeHTML(display) + e2eeLockHTML(ppqPrivate ? window._ppqAttestation : window._veniceAttestation);
+    el.innerHTML = escapeHTML(display) + e2eeLockHTML(getChatProviderAttestation(ppqPrivate ? 'ppq' : 'venice'));
   } else {
     el.textContent = display;
   }
@@ -505,7 +507,7 @@ export async function deleteCustomPersonality(id) {
     }
     updatePersonalityBar();
     updateChatHeaderTitle();
-    window.renderChatMessages?.();
+    renderChatMessagesRuntime();
   }
 }
 
