@@ -241,6 +241,11 @@ globalThis.fetch = async (url, opts) => {
   assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));
   assert('category-view-renderers.js keeps chart title text separate from tips host', categoryViewRenderersSrc.includes('chart-card-title-text') && categoryViewRenderersSrc.includes('chart-card-tips-host'));
   assert('category-page-view.js imports chart card recommendation module', categoryPageViewSrc.includes("from './chart-card-recs.js'"));
+  assert('category-page-view.js delegates catalog globals through runtime adapter',
+    categoryPageViewSrc.includes("from './category-page-runtime.js'")
+      && categoryPageViewSrc.includes('primeCategoryPageCatalogCache')
+      && categoryPageViewSrc.includes('getCategoryPageCatalogSlots')
+      && !/\bwindow(\.|\s*\[)/.test(categoryPageViewSrc));
   assert('chart-card-recs.js has loadChartCardRecs function', chartCardRecsSrc.includes('function loadChartCardRecs'));
   assert('marker-detail-modal.js scrollToRec auto-opens details', markerDetailSrc.includes('scrollToRec'));
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');

@@ -29,6 +29,7 @@
     "js/cashu-wallet.js",
     "js/category-customization.js",
     "js/category-glyphs.js",
+    "js/category-page-runtime.js",
     "js/category-page-view.js",
     "js/category-view-renderers.js",
     "js/chart-card-recs.js",

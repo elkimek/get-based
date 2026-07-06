@@ -231,6 +231,7 @@ const APP_SHELL = [
   '/js/recommendation-actions.js',
   '/js/chart-card-recs.js',
   '/js/category-glyphs.js',
+  '/js/category-page-runtime.js',
   '/js/category-page-view.js',
   '/js/category-view-renderers.js',
   '/js/category-customization.js',

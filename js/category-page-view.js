@@ -14,6 +14,7 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { createLineChart } from './charts.js';
 import { loadChartCardRecs } from './chart-card-recs.js';
 import { renderCategoryGlyph } from './category-glyphs.js';
+import { getCategoryPageCatalogSlots, primeCategoryPageCatalogCache } from './category-page-runtime.js';
 import {
   renderChartCard,
   renderTableView,
@@ -99,8 +100,8 @@ function sortCategoryChartEntries(entries, categoryKey) {
 
   // Default category landing sort: markers with catalog slots first, then
   // by status (out-of-range before normal).
-  const catalog = window._cachedCatalog;
-  const hasSlot = (k) => catalog?.slots?.[categoryKey + '.' + k] ? 0 : 1;
+  const catalogSlots = getCategoryPageCatalogSlots();
+  const hasSlot = (k) => catalogSlots?.[categoryKey + '.' + k] ? 0 : 1;
   const statusOrder = { high: 0, low: 0, normal: 1, missing: 2 };
   entries.sort(([ka, a], [kb, b]) => {
     const slotDiff = hasSlot(ka) - hasSlot(kb);
@@ -120,7 +121,7 @@ export function showCategory(categoryKey, preData) {
   // customMarker key can't break out of the HTML attribute context.
   if (!safeMarkerId(categoryKey)) return;
   // Ensure catalog is preloaded for sorting and rec links
-  if (window.loadCatalog && !window._cachedCatalog) window.loadCatalog().then(c => { window._cachedCatalog = c; });
+  primeCategoryPageCatalogCache();
   const rawData = preData || getActiveData();
   const data = filterDatesByRange(rawData);
   const cat = data.categories[categoryKey];

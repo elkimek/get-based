@@ -188,6 +188,7 @@ const LEGACY_TESTS = [
   './test-sync-diagnose-runtime.js',
   './test-wearables-detail-runtime.js',
   './test-wearables-runtime.js',
+  './test-category-page-runtime.js',
   './test-wearables-settings-runtime.js',
   './test-dashboard-widget-runtime.js',
   './test-marker-detail-runtime.js',
