@@ -77,6 +77,12 @@ assert('marker-detail-modal delegates browser globals through runtime adapter',
     runtimeSrc.includes('export function navigateMarkerDetailRuntime') &&
     runtimeSrc.includes('export function hasRecommendationSectionRendererRuntime') &&
     runtimeSrc.includes('export async function renderRecommendationSectionRuntime'));
+assert('marker-detail-editing delegates browser shell hooks through runtime adapter',
+  editingSrc.includes("from './marker-detail-runtime.js'") &&
+    editingSrc.includes('buildMarkerDetailSidebarRuntime') &&
+    editingSrc.includes('navigateMarkerDetailRuntime') &&
+    editingSrc.includes('buildSidebar: buildMarkerDetailSidebarRuntime') &&
+    !/\bwindow(?:\.|\s*\[)/.test(editingSrc));
 assert('marker-detail-modal only creates recommendation placeholders when renderer can fill them',
   modalSrc.includes('const shouldRenderRecommendations = isProductRecsEnabledRuntime() && hasRecommendationSectionRendererRuntime();') &&
     modalSrc.includes('if (shouldRenderRecommendations)'));
