@@ -54,6 +54,7 @@
     '/js/wearables-bp-detail-chart.js',
     '/js/wearables-formatters.js',
     '/js/wearables-manual-form-ui.js',
+    '/js/wearables-apple-health-runtime.js',
     '/js/wearables-runtime.js',
     '/js/wearables-settings-runtime.js',
     '/js/wearables-connect-runtime.js',

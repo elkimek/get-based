@@ -390,6 +390,7 @@ const APP_SHELL = [
   '/js/wearables-fitbit-auth.js',
   '/js/wearables-polar.js',
   '/js/wearables-polar-auth.js',
+  '/js/wearables-apple-health-runtime.js',
   '/js/wearables-apple-health.js',
   '/js/wearables-manual.js',
   '/js/brand-assets.js',
