@@ -30,6 +30,7 @@ const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');
 const onboardingViewSrc = read('js/onboarding-view.js');
+const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
 
   assert('No sentinel return string', !labCtxSrc.includes("return 'No lab data is currently loaded for this profile.'"),
     'The old sentinel early-return should be removed');
@@ -292,7 +293,8 @@ const onboardingViewSrc = read('js/onboarding-view.js');
       !chatEmptyStateSrc.includes('${!hasAIProvider() ? `<div class="chat-context-cards"'),
     'Context cards should stay available inside chat even after AI is connected');
   assert('Card onboarding focus opens card UI instead of AI prompt prefill',
-    onboardingViewSrc.includes('window.openChatPanel()') &&
+    onboardingViewSrc.includes('openOnboardingChatPanelRuntime()') &&
+      onboardingRuntimeSrc.includes("getRuntimeFunction('openChatPanel')") &&
       onboardingViewSrc.includes('chat-onboard-force-context-cards') &&
       chatEmptyStateSrc.includes('forceContextCards') &&
       onboardingViewSrc.includes('#chat-panel .chat-context-cards') &&

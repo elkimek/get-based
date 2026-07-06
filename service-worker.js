@@ -125,6 +125,7 @@ const APP_SHELL = [
   '/js/context-card-lifestyle-runtime.js',
   '/js/context-card-lifestyle-editors.js',
   '/js/focus-card.js',
+  '/js/onboarding-view-runtime.js',
   '/js/onboarding-view.js',
   '/js/emf-facade.js',
   '/js/emf.js',

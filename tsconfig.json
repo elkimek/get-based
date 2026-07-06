@@ -162,6 +162,7 @@
     "js/nav.js",
     "js/notes.js",
     "js/nostr-discovery.js",
+    "js/onboarding-view-runtime.js",
     "js/onboarding-view.js",
     "js/pdf-import.js",
     "js/pdf-import-marker-mapping.js",

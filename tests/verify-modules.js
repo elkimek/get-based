@@ -65,6 +65,7 @@
     '/js/client-list-runtime.js',
     '/js/views-router-runtime.js',
     '/js/focus-card.js',
+    '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
     '/js/marker-detail-modal.js',
     '/js/marker-detail-runtime.js',

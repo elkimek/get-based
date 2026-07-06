@@ -134,6 +134,7 @@ const LEGACY_TESTS = [
   './test-sync.js',
   './test-sync-modal-refresh.js',
   './test-sync-pull-active-refresh-runtime.js',
+  './test-onboarding-view-runtime.js',
   // Batch 17 — recommendations module.
   './test-recommendations.js',
   // Batch 19 — DNA-aware recommendation integration + image utils
