@@ -6,6 +6,14 @@ import { getActiveData, updateHeaderDates } from './data.js';
 import { profileStorageKey, setProfileSex, setProfileDob } from './profile.js';
 import { hasAIProvider } from './api.js';
 import { escapeAttr, showNotification } from './utils.js';
+import {
+  createOnboardingChatThreadRuntime,
+  navigateOnboardingRuntime,
+  openOnboardingChatPanelRuntime,
+  openOnboardingProviderChatRuntime,
+  rebuildOnboardingSidebarRuntime,
+  renderOnboardingChatMessagesRuntime,
+} from './onboarding-view-runtime.js';
 
 let _navigate = null;
 let _onboardingActionsInstalled = false;
@@ -123,9 +131,9 @@ export function completeOnboardingProfile() {
   if (sex) { state.profileSex = sex; setProfileSex(state.currentProfile, sex); }
   if (dob) { state.profileDob = dob; setProfileDob(state.currentProfile, dob); }
   const data = getActiveData();
-  window.buildSidebar(data);
+  rebuildOnboardingSidebarRuntime(data);
   updateHeaderDates(data);
-  (_navigate || window.navigate)?.('dashboard', data);
+  navigateOnboardingRuntime('dashboard', data, _navigate);
   showNotification("Profile set up \u2014 you're all set!", 'success');
 }
 
@@ -189,14 +197,15 @@ export function setOnboardingFocus(mode) {
     const cards = document.querySelector('.profile-context-cards');
     if (cards) {
       setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    } else if (window.openChatPanel) {
-      const appWindow = /** @type {any} */ (window);
+    } else {
+      const openChatPanel = openOnboardingChatPanelRuntime();
+      if (!openChatPanel) return;
       body.classList.remove('cards-focus');
-      Promise.resolve(appWindow.openChatPanel()).then(() => {
-        if (!document.querySelector('#chat-panel .chat-context-cards') && state.chatHistory.length > 0 && appWindow.createNewThread) {
-          appWindow.createNewThread();
+      openChatPanel.then(() => {
+        if (!document.querySelector('#chat-panel .chat-context-cards') && state.chatHistory.length > 0 && createOnboardingChatThreadRuntime()) {
+          // Thread creation re-renders the empty-state card set.
         } else {
-          window.renderChatMessages?.();
+          renderOnboardingChatMessagesRuntime();
         }
         setTimeout(() => {
           document.querySelector('#chat-panel .chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -213,7 +222,6 @@ export function openChatProviderQuiz() {
   localStorage.removeItem(skipKey);
   sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
   sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
-  if (window.openChatPanel) window.openChatPanel();
-  else if (window.toggleChatPanel) window.toggleChatPanel();
-  if (window.renderChatMessages) window.renderChatMessages();
+  openOnboardingProviderChatRuntime();
+  renderOnboardingChatMessagesRuntime();
 }
