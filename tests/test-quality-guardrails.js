@@ -116,6 +116,7 @@ const domainUiCheckJsModules = [
   'js/sun-context.js',
   'js/sun-defaults.js',
   'js/sun-defaults-runtime.js',
+  'js/sun-runtime.js',
   'js/sun-spectrum.js',
   'js/sun-uvdata.js',
 ];

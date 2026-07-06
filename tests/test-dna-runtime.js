@@ -6,7 +6,10 @@ import {
   callDnaFileHandler,
   clearPendingDnaImport,
   confirmDnaDeleteDialog,
+  clearPendingMtDnaImport,
+  getDnaProfileLatitudeBand,
   getDnaRuntimeState,
+  getPendingMtDnaImport,
   getPendingDnaImport,
   isDnaLabImportRunning,
   logDnaDebugError,
@@ -16,6 +19,7 @@ import {
   refreshDnaShell,
   refreshDnaSidebar,
   saveDnaRuntimeAndRefresh,
+  setPendingMtDnaImport,
   setPendingDnaImport,
   triggerDnaFilePicker,
   updateDnaChatNudge,
@@ -41,9 +45,11 @@ const runtimeKeys = [
   '_getRelevantSNPs',
   '_getState',
   '_pendingDNAImport',
+  '_pendingMtDNA',
   '_saveAndRefresh',
   '_snpTableCache',
   'buildSidebar',
+  'getLatitudeFromLocation',
   'handleDNAFile',
   'isDebugMode',
   'isImportRunning',
@@ -100,6 +106,15 @@ try {
   assert('updateDnaChatNudge delegates chat nudge refresh',
     calls.some(call => call[0] === 'updateChatNudge'));
 
+  globalThis.getLatitudeFromLocation = () => '40-50° (temperate)';
+  assert('getDnaProfileLatitudeBand delegates profile latitude lookup',
+    getDnaProfileLatitudeBand() === '40-50° (temperate)');
+  globalThis.getLatitudeFromLocation = () => {
+    throw new Error('location failed');
+  };
+  assert('getDnaProfileLatitudeBand reports null on runtime errors',
+    getDnaProfileLatitudeBand() === null);
+
   globalThis.showConfirmDialog = async message => {
     calls.push(['confirm', message]);
     return true;
@@ -145,6 +160,14 @@ try {
   clearPendingDnaImport();
   assert('clearPendingDnaImport clears published pending import',
     getPendingDnaImport() === null && globalThis._pendingDNAImport === null);
+
+  setPendingMtDnaImport({ resolved: { haplogroup: 'J' } });
+  assert('pending mtDNA import is published for browser flows',
+    getPendingMtDnaImport()?.resolved?.haplogroup === 'J' &&
+      globalThis._pendingMtDNA?.resolved?.haplogroup === 'J');
+  clearPendingMtDnaImport();
+  assert('clearPendingMtDnaImport clears published pending mtDNA import',
+    getPendingMtDnaImport() === null && globalThis._pendingMtDNA === null);
 
   let errorLogged = false;
   let warnLogged = false;

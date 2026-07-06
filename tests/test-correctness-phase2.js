@@ -71,6 +71,7 @@ const dashboardCompositionSrc = read('js/dashboard-view-composition.js');
 const importLoaderSrc = read('js/import-loader.js');
 const importFileInputSrc = read('js/import-file-input.js');
 const importDropZoneSrc = read('js/import-drop-zone.js');
+const importDropZoneRuntimeSrc = read('js/import-drop-zone-runtime.js');
 const commitHashSrc = read('js/commit-hash.js');
 const pwaAppShellAssets = [
   '/app',
@@ -237,6 +238,13 @@ assert('PDF import lazy loader is shared by file input and import-drop-zone.js',
   importDropZoneSrc.includes("from './import-loader.js'") &&
   importLoaderSrc.includes("import('./pdf-import.js')"),
   'separate per-module promise caches can issue duplicate first-use imports');
+assert('file input shares import browser-runtime adapter with drop zone',
+  importFileInputSrc.includes("from './import-drop-zone-runtime.js'") &&
+  importFileInputSrc.includes('detectImportDNAFileRuntime') &&
+  importFileInputSrc.includes('handleImportDNAFileRuntime') &&
+  !/\bwindow(?:\.|\s*\[)/.test(importFileInputSrc) &&
+  importDropZoneRuntimeSrc.includes('export function isDropZoneImportRunning'),
+  'file-picker import path should not keep a parallel set of window global lookups');
 assert('PDF lazy import failure notifies from file input and clears selection',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\.[\s\S]{0,120}e\.target\.value\s*=\s*''/.test(importFileInputSrc),
   'file-picker import path should fail loudly and clear stale selection');

@@ -107,6 +107,19 @@ import {
   cumulativeVitaminDIUToday,
   vitaminDBudgetStatus,
 } from './sun-channel-metrics.js';
+import {
+  addSunProfileSwitchListener,
+  exposeSunRuntimeBindings,
+  getSunDeviceSessionsRuntime,
+  hasSunBrowserRuntime,
+  hasSunGeolocationRuntime,
+  navigateSunRuntime,
+  openSunChannelOnLightPageRuntime,
+  rebuildSunSidebarRuntime,
+  renderLightChannelsLiveRuntime,
+  renderLightTodayStripRuntime,
+  requestSunGeolocationPositionRuntime,
+} from './sun-runtime.js';
 export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 export { renderSessionsList, renderSunSessionRow, openDetailedSessionDialog, openSunSessionDetail };
 export { quickLogSunSession, openStartSunSessionDialog, _wireBackdropClose, trapModalFocus };
@@ -148,10 +161,10 @@ export {
 // imports from this file (getSessions, formatChannelUnit, etc.), and a
 // reciprocal import would create a circular dependency that risks TDZ
 // errors at module-init time. Other features (rooms, screens, audits,
-// burden) already access their AI modules via window.* lookups; sun
-// follows the same pattern for consistency + cycle-safety. main.js
-// imports both modules in a deterministic order so the window functions
-// are available by the time sun.js's exports are first invoked.
+// burden) already access their AI modules through browser-runtime
+// lookups; sun follows the same pattern for consistency + cycle-safety.
+// main.js imports both modules in a deterministic order so the runtime
+// functions are available by the time sun.js's exports are first invoked.
 
 // `label` is the row-meta display; `pickerLabel` is what the dropdown
 // option shows (where the safety nudge belongs). Earlier the row-meta
@@ -452,7 +465,7 @@ export function rollingChannelTotals(days = 7) {
   const totals = {};
   for (const sess of getSessions()) {
     // Include in-progress sessions via live partial doses, but only when
-    // the session's startedAt is within the rolling window. A session
+    // the session's startedAt is within the rolling period. A session
     // forgotten-running for 25 hours should not perpetually inflate
     // the 7d total.
     if (!sess.endedAt) {
@@ -510,7 +523,7 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
     const v = sess.doses[channelKey];
     if (Number.isFinite(v)) buckets[i].sun += v;
   }
-  const devSessions = (typeof window !== 'undefined' && window.getDeviceSessions) ? window.getDeviceSessions() : [];
+  const devSessions = getSunDeviceSessionsRuntime();
   for (const ds of devSessions || []) {
     const ts = ds.endedAt || ds.startedAt;
     if (!ts || !ds.doses) continue;
@@ -610,7 +623,7 @@ function _refreshSurfaces(scrollAnchor) {
     _refreshSurfacesTimer = null;
     const anchor = _refreshSurfacesPendingAnchor;
     _refreshSurfacesPendingAnchor = null;
-    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+    rebuildSunSidebarRuntime();
     // Boot-time guard: state.currentView is undefined until the first
     // navigate() runs. If a sync pull or AI verdict tick fires during
     // that window, fall back to the DOM's active nav-item rather than
@@ -620,7 +633,7 @@ function _refreshSurfaces(scrollAnchor) {
       || /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'))?.dataset?.category
       || 'dashboard';
     const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
-    if (window.navigate) try { window.navigate(view, navOpts); } catch (e) {}
+    navigateSunRuntime(view, navOpts);
     setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
   }, 150);
 }
@@ -673,14 +686,12 @@ export function getSunCoords() {
 // Explicit one-time geolocation upgrade. Surfaces in Settings → Light & Sun
 // or via a "use precise location" button on the Light & Sun page.
 export async function requestPreciseLocation() {
-  if (!('geolocation' in navigator)) {
+  if (!hasSunGeolocationRuntime()) {
     showNotification('Browser geolocation not available — country-level estimate will be used.');
     return null;
   }
   try {
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 60_000 * 30, enableHighAccuracy: true });
-    });
+    const pos = await requestSunGeolocationPositionRuntime({ timeout: 8000, maximumAge: 60_000 * 30, enableHighAccuracy: true });
     if (!state.importedData.sunDefaults) state.importedData.sunDefaults = {};
     state.importedData.sunDefaults.coords = {
       lat: pos.coords.latitude,
@@ -751,14 +762,8 @@ configureSunActiveSession({
   interpolateAtmosphere,
   vitaminDIU,
   vitaminDIUPerSession,
-  renderLightChannelsLive: () => {
-    if (typeof window !== 'undefined') window.renderLightChannelsLive?.();
-  },
-  renderLightTodayStrip: () => (
-    typeof window !== 'undefined' && typeof window.renderLightTodayStrip === 'function'
-      ? window.renderLightTodayStrip()
-      : ''
-  ),
+  renderLightChannelsLive: renderLightChannelsLiveRuntime,
+  renderLightTodayStrip: renderLightTodayStripRuntime,
 });
 
 configureSunSessionUI({
@@ -789,9 +794,7 @@ configureSunSessionUI({
   applySunscreenMidSession,
   setOzoneOverrideMidSession,
   forgotStopPrompt: _forgotStopPrompt,
-  openChannelOnLightPage: channel => {
-    if (typeof window !== 'undefined') window._openChannelOnLightPage?.(channel);
-  },
+  openChannelOnLightPage: openSunChannelOnLightPageRuntime,
   solarZenithAngle,
   reconstructSpectrum,
   geneticVitaminDMultiplier,
@@ -812,14 +815,14 @@ function _resetSunModuleState() {
   resetSunSessionsStoreState();
 }
 
-if (typeof window !== 'undefined') {
-  window.SUN_ENGINE_VERSION = SUN_ENGINE_VERSION;
+if (hasSunBrowserRuntime()) {
   // Exposed so sun-ai-analysis.js can request a re-render after an async
   // analyzeSunSessionAI() completes — keeps that module from importing
   // sun.js's internal _refreshSurfaces directly (would be a back-edge).
-  window._refreshSunSurfaces = _refreshSurfaces;
-  window.addEventListener('labcharts-profile-switched', _resetSunModuleState);
-  Object.assign(window, {
+  addSunProfileSwitchListener(_resetSunModuleState);
+  exposeSunRuntimeBindings({
+    SUN_ENGINE_VERSION,
+    _refreshSunSurfaces: _refreshSurfaces,
     quickLogSunSession,
     startSession,
     stopSession,

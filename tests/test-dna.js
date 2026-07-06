@@ -421,7 +421,9 @@ assert('app-health-data-modules.js imports dna.js', appHealthDataModulesSrc.incl
 // classifier and is asserted below.
 const importFileInputSrc = await fetchWithRetry('js/import-file-input.js');
 assert('import-file-input.js routes DNA files via classifier', importFileInputSrc.includes('classifyImportFiles') && importFileInputSrc.includes('dnaFiles'));
-assert('import-file-input.js calls handleDNAFile', importFileInputSrc.includes('handleDNAFile'));
+assert('import-file-input.js routes DNA handling through runtime adapter',
+  importFileInputSrc.includes('handleImportDNAFileRuntime') &&
+  importFileInputSrc.includes("from './import-drop-zone-runtime.js'"));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
 assert('pdf-import.js checks isDNAFile in drop', pdfSrc.includes('isDNAFile'));
@@ -490,9 +492,16 @@ assert('dna.js delegates browser runtime hooks to dna-runtime',
     !/\bwindow\b/.test(dnaSrc));
 assert('dna-runtime owns DNA browser-global integration points',
   dnaRuntimeSrc.includes('_pendingDNAImport') &&
+    dnaRuntimeSrc.includes('_pendingMtDNA') &&
     dnaRuntimeSrc.includes('_snpTableCache') &&
+    dnaRuntimeSrc.includes("getRuntimeFunction('getLatitudeFromLocation')") &&
     dnaRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
     dnaRuntimeSrc.includes('installDNAWindowBindings'));
+assert('dna-mtdna delegates browser runtime hooks to dna-runtime',
+  dnaMtDnaSrc.includes("from './dna-runtime.js'") &&
+    dnaMtDnaSrc.includes('getDnaProfileLatitudeBand') &&
+    dnaMtDnaSrc.includes('refreshDnaShell') &&
+    !/\bwindow(?:\.|\s*\[)/.test(dnaMtDnaSrc));
 assert('genetics section collapses non-priority SNP calls', dnaSrc.includes('genetics-other-snps') && dnaSrc.includes('Other imported SNPs'));
 assert('genetics actions expose manual SNP and report import escape hatches',
   dnaSrc.includes("dnaActionAttrs('add-manual-snp')") &&

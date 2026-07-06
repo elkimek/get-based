@@ -200,6 +200,7 @@
     "js/sun-defaults.js",
     "js/sun-defaults-runtime.js",
     "js/sun-onboarding-ai.js",
+    "js/sun-runtime.js",
     "js/sun-session-actions.js",
     "js/sun-session-ai-render-hooks.js",
     "js/sun-session-model.js",
