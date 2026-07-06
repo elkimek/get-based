@@ -348,6 +348,7 @@
     "js/category-view-renderers.js",
     "js/changelog.js",
     "js/chart-card-recs.js",
+    "js/charts-runtime.js",
     "js/charts.js",
     "js/commit-hash.js",
     "js/compare-correlations.js",

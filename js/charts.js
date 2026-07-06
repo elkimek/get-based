@@ -5,28 +5,32 @@ import { state } from './state.js';
 import { getStatus, formatValue, loadScriptOnce } from './utils.js';
 import { getChartColors } from './theme.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope } from './marker-analysis.js';
+import {
+  createChartRuntime,
+  getChartConstructorRuntime,
+  getChartViewportWidthRuntime,
+  hasChartRuntime,
+  isChartDateAdapterReadyRuntime,
+  markChartDateAdapterReadyRuntime,
+} from './charts-runtime.js';
 
 const CHART_JS_SRC = '/vendor/chart.min.js';
 const CHART_DATE_ADAPTER_SRC = '/vendor/chartjs-adapter-native.js';
-
-const chartWindow = /** @type {Window & typeof globalThis & {
-  __labChartDateAdapterLoaded?: boolean
-}} */ (typeof window !== 'undefined' ? window : {});
 
 let _chartJsLoad = null;
 let _chartDateAdapterLoad = null;
 
 export function isChartDateAdapterReady() {
-  return chartWindow.__labChartDateAdapterLoaded === true;
+  return isChartDateAdapterReadyRuntime();
 }
 
 function ensureChartDateAdapter() {
-  if (isChartDateAdapterReady()) return Promise.resolve(window.Chart);
+  if (isChartDateAdapterReady()) return Promise.resolve(getChartConstructorRuntime());
   if (!_chartDateAdapterLoad) {
     _chartDateAdapterLoad = loadScriptOnce(CHART_DATE_ADAPTER_SRC)
       .then(() => {
-        chartWindow.__labChartDateAdapterLoaded = true;
-        return window.Chart;
+        markChartDateAdapterReadyRuntime();
+        return getChartConstructorRuntime();
       })
       .catch(err => {
         _chartDateAdapterLoad = null;
@@ -37,13 +41,14 @@ function ensureChartDateAdapter() {
 }
 
 export async function ensureChartJs() {
-  if (window.Chart) return ensureChartDateAdapter();
+  if (hasChartRuntime()) return ensureChartDateAdapter();
   if (!_chartJsLoad) {
     _chartJsLoad = loadScriptOnce(CHART_JS_SRC)
       .then(() => ensureChartDateAdapter())
       .then(() => {
-        if (!window.Chart) throw new Error('Chart.js did not initialize');
-        return window.Chart;
+        const ChartCtor = getChartConstructorRuntime();
+        if (!ChartCtor) throw new Error('Chart.js did not initialize');
+        return ChartCtor;
       });
   }
   return _chartJsLoad;
@@ -142,7 +147,7 @@ export const noteAnnotationPlugin = {
     const isTime = x.type === 'time';
     const chartDates = opts.chartDates || [];
     const dots = [];
-    const DOT_RADIUS = window.innerWidth <= 768 ? 8 : 5;
+    const DOT_RADIUS = getChartViewportWidthRuntime() <= 768 ? 8 : 5;
     const DOT_Y = top + DOT_RADIUS + 2;
     for (const note of opts.notes) {
       let pixelX;
@@ -465,7 +470,7 @@ export const phaseBandPlugin = {
 export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels) {
   const canvas = document.getElementById("chart-" + id);
   if (!canvas) return;
-  if (!window.Chart) {
+  if (!hasChartRuntime()) {
     ensureChartJs().then(() => {
       if (document.getElementById("chart-" + id)) createLineChart(id, marker, dateLabels, chartDates, phaseLabels);
     }).catch(() => {});
@@ -567,7 +572,7 @@ export function createLineChart(id, marker, dateLabels, chartDates, phaseLabels)
         ticks: { color: tc.tickColor, font: { size: 11 }, maxTicksLimit: 6, autoSkip: true, maxRotation: 0 },
         grid: { display: false } }
     : { ticks: { color: tc.tickColor, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } };
-  state.chartInstances[id] = new window.Chart(/** @type {HTMLCanvasElement} */ (canvas), {
+  state.chartInstances[id] = createChartRuntime(/** @type {HTMLCanvasElement} */ (canvas), {
     type: "line",
     data: { labels: chartLabels, datasets },
     options: { responsive:true, maintainAspectRatio:false,

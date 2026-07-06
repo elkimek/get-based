@@ -31,6 +31,7 @@
     "js/category-page-view.js",
     "js/category-view-renderers.js",
     "js/chart-card-recs.js",
+    "js/charts-runtime.js",
     "js/charts.js",
     "js/chat-actions.js",
     "js/chat-attestation.js",
