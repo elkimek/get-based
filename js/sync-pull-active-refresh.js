@@ -4,6 +4,12 @@
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 import { migrateProfileData } from './profile.js';
+import {
+  dispatchSyncAppliedRuntime,
+  navigatePulledActiveViewRuntime,
+  rebuildPulledSidebarRuntime,
+  refreshPulledChatRuntime,
+} from './sync-pull-active-refresh-runtime.js';
 
 const UPDATE_TOAST_COOLDOWN_MS = 2500;
 let lastUpdateToastProfileId = null;
@@ -57,10 +63,7 @@ export function refreshActiveProfileAfterPull({
 
   // Reload chat threads + active thread messages into memory and re-render.
   if (chatApplied) {
-    window.loadChatThreads?.();
-    window.ensureActiveThread?.();
-    window.renderThreadList?.();
-    window.loadChatHistory?.(); // reloads state.chatHistory from localStorage + renders
+    refreshPulledChatRuntime();
   }
 
   // Re-render whatever view the user is on so the merged state becomes
@@ -82,7 +85,7 @@ export function refreshActiveProfileAfterPull({
   // those entries appear/disappear without waiting for the next
   // local action. Cheap (~1ms) and doesn't disturb in-progress
   // forms in the main pane.
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
+  rebuildPulledSidebarRuntime();
 
   if (!shouldRefreshVisibleData) {
     // Profile-field / chat / displayPrefs handlers above already
@@ -91,7 +94,7 @@ export function refreshActiveProfileAfterPull({
     // survives duplicate no-op pull triggers.
     dbg(debug, `Pulled active profile ${profileId.slice(0,8)} — no visible data change, skipping re-render of '${cat}'`);
   } else {
-    window.navigate?.(cat, hasOpenModalOverlay() ? { preserveScroll: true } : undefined);
+    navigatePulledActiveViewRuntime(cat, hasOpenModalOverlay() ? { preserveScroll: true } : undefined);
     if (cat !== 'dashboard' && shouldShowUpdateToast(profileId)) {
       showNotification('Data updated from another device', 'success');
     }
@@ -103,9 +106,7 @@ export function refreshActiveProfileAfterPull({
   // navigate() above already rebuilt the inline page; this
   // event covers floating modals that aren't part of the main
   // tree. Greptile PR #178 P2 comment.
-  if (shouldRefreshVisibleData && typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    try { window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); } catch (_) {}
-  }
+  if (shouldRefreshVisibleData) dispatchSyncAppliedRuntime();
 
   return true;
 }

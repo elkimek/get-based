@@ -93,6 +93,7 @@
     '/js/schema.js',
     '/js/dna-window-bindings.js',
     '/js/sync-diagnose-runtime.js',
+    '/js/sync-pull-active-refresh-runtime.js',
   ];
 
   function assertServiceWorkerCache(sw) {

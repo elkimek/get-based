@@ -328,6 +328,7 @@ const APP_SHELL = [
   '/js/sync-reconcile.js',
   '/js/sync-pull-merge.js',
   '/js/sync-pull-maintenance.js',
+  '/js/sync-pull-active-refresh-runtime.js',
   '/js/sync-pull-active-refresh.js',
   '/js/sync-pull-rebroadcast.js',
   '/js/sync-pull.js',

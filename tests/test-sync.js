@@ -107,6 +107,7 @@ await import('../js/settings.js');
   const syncReconcileSrc = await fetchWithRetry('js/sync-reconcile.js');
   const syncPullMergeSrc = await fetchWithRetry('js/sync-pull-merge.js');
   const syncPullMaintenanceSrc = await fetchWithRetry('js/sync-pull-maintenance.js');
+  const syncPullActiveRefreshRuntimeSrc = await fetchWithRetry('js/sync-pull-active-refresh-runtime.js');
   const syncPullActiveRefreshSrc = await fetchWithRetry('js/sync-pull-active-refresh.js');
   const syncPullRebroadcastSrc = await fetchWithRetry('js/sync-pull-rebroadcast.js');
   const syncPullSrc = await fetchWithRetry('js/sync-pull.js');
@@ -657,10 +658,20 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes('shouldRefreshVisibleData')
       && syncPullActiveRefreshSrc.includes('hasOpenModalOverlay')
       && syncPullActiveRefreshSrc.includes('preserveScroll: true')
-      && syncPullActiveRefreshSrc.includes('window.navigate?.(cat,')
-      && syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')"));
+      && syncPullActiveRefreshSrc.includes('navigatePulledActiveViewRuntime(cat,')
+      && syncPullActiveRefreshSrc.includes('dispatchSyncAppliedRuntime()')
+      && syncPullActiveRefreshRuntimeSrc.includes("new runtime.CustomEvent('labcharts-sync-applied')"));
   assert('service worker precaches sync-pull-active-refresh.js',
     serviceWorkerSrc.includes("'/js/sync-pull-active-refresh.js'"));
+  assert('sync-pull-active-refresh-runtime.js owns active refresh browser hooks',
+    syncPullActiveRefreshSrc.includes("from './sync-pull-active-refresh-runtime.js'")
+      && !/\bwindow(?:\.|\s*\[)/.test(syncPullActiveRefreshSrc)
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)")
+      && syncPullActiveRefreshRuntimeSrc.includes("runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-applied'))"));
+  assert('service worker precaches sync-pull-active-refresh-runtime.js',
+    serviceWorkerSrc.includes("'/js/sync-pull-active-refresh-runtime.js'"));
   assert('modal refresh dirty-form guard is shared',
     utilsSrc.includes('export function hasDirtyFormFields')
       && utilsSrc.includes("querySelectorAll('input, textarea, select')")
@@ -757,7 +768,8 @@ await import('../js/settings.js');
       notesSrc.includes("openModalOverlay(overlay, { initialFocus: '#note-textarea', focusDelay: 50 })") &&
       notesSrc.includes('window.rememberModalTrigger?.()'));
   assert('active-profile sync broadcasts shared modal refresh event without marker special-casing',
-    syncPullActiveRefreshSrc.includes("new CustomEvent('labcharts-sync-applied')")
+    syncPullActiveRefreshSrc.includes('dispatchSyncAppliedRuntime()')
+      && syncPullActiveRefreshRuntimeSrc.includes("new runtime.CustomEvent('labcharts-sync-applied')")
       && !syncPullActiveRefreshSrc.includes('marker-detail-modal')
       && !syncPullActiveRefreshSrc.includes('showDetailModal(openId)')
       && !syncPullActiveRefreshSrc.includes('refreshOpenMarkerDetailModal'));
@@ -768,7 +780,7 @@ await import('../js/settings.js');
       && syncPullMergeSrc.includes('const localDataChanged = !importedDataMatches(localImportedBeforeMerge, merged)')
       && syncPullActiveRefreshSrc.includes('UPDATE_TOAST_COOLDOWN_MS')
       && syncPullActiveRefreshSrc.includes('shouldShowUpdateToast(profileId)')
-      && /if\s*\(shouldRefreshVisibleData[\s\S]{0,250}dispatchEvent\(new CustomEvent\('labcharts-sync-applied'\)/.test(syncPullActiveRefreshSrc));
+      && /if\s*\(shouldRefreshVisibleData\)\s*dispatchSyncAppliedRuntime\(\)/.test(syncPullActiveRefreshSrc));
   assert('sync-pull-rebroadcast.js owns pull-side rebroadcast scheduling',
     syncPullRebroadcastSrc.includes('export function maybeScheduleRebroadcast')
       && syncPullRebroadcastSrc.includes('consumeRebroadcastBudget(profileId)')
@@ -1323,7 +1335,9 @@ await import('../js/settings.js');
   // v1.7.4: pull re-renders whatever view the user is on, not just dashboard
   // (so a Light & Sun page picks up newly-merged sun sessions immediately
   // instead of just showing a "Data updated" toast).
-  assert('Pull re-renders the active view', syncPullActiveRefreshSrc.includes('window.navigate?.(cat,'));
+  assert('Pull re-renders the active view',
+    syncPullActiveRefreshSrc.includes('navigatePulledActiveViewRuntime(cat,')
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)"));
   assert('Pull calls migrateProfileData', syncPullActiveRefreshSrc.includes('migrateProfileData(state.importedData)'));
   assert('enableSync pulls before first enable push to avoid publishing stale local state',
     /await forcePull\(\)[\s\S]{0,300}await pushAllProfiles\(\)/.test(syncLifecycleSrc));
@@ -1484,8 +1498,11 @@ await import('../js/settings.js');
     syncPullSrc.includes('const chatApplied = chatData ? await applyChatData(profileId, chatData) : false')
       && syncPullActiveRefreshSrc.includes('if (chatApplied)'));
   assert('active chat thread is reselected after remote thread deletion',
-    syncPullActiveRefreshSrc.includes('window.loadChatThreads?.();')
-      && syncPullActiveRefreshSrc.includes('window.ensureActiveThread?.();'));
+    syncPullActiveRefreshSrc.includes('refreshPulledChatRuntime();')
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('ensureActiveThread')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('renderThreadList')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatHistory')?.()"));
   {
     const prevProfileId = state.currentProfile;
     const profileId = 'syncapplydel';
@@ -2837,7 +2854,8 @@ await import('../js/settings.js');
   // refresh the page to see a Genetics nav entry land from a peer's DNA
   // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
-    /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2400}window\.buildSidebar[\s\S]{0,1200}shouldRefreshVisibleData/.test(deltaSearchSrc));
+    /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2400}rebuildPulledSidebarRuntime\(\)[\s\S]{0,1200}shouldRefreshVisibleData/.test(deltaSearchSrc)
+      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()"));
 
   const localWithSnps = {
     genetics: {
