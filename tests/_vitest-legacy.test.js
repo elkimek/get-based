@@ -182,6 +182,7 @@ const LEGACY_TESTS = [
   './test-import-drop-zone-runtime.js',
   './test-mobile-dashboard-runtime.js',
   './test-sync-diagnose-runtime.js',
+  './test-wearables-detail-runtime.js',
   './test-wearables-runtime.js',
   './test-wearables-settings-runtime.js',
   './test-dashboard-widget-runtime.js',

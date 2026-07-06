@@ -102,11 +102,13 @@ return (async function() {
   // Detail modal closing must return focus to the triggering element so
   // keyboard users don't land on <body> and lose their place. The wiring
   // is: rememberModalTrigger() captures activeElement on open,
-  // closeModal() restores it. Exposed on window for wearables.js to call.
+  // closeModal() restores it. Wearables detail opens route through a
+  // runtime adapter so the modal module stays browser-global free.
   const viewsSrc = await fetch('js/views.js').then(r => r.text());
   const markerDetailSrc = await fetch('js/marker-detail-modal.js').then(r => r.text());
   const dashboardWidgetsSrc = await fetch('js/dashboard-widgets.js').then(r => r.text());
   const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
+  const wearablesDetailRuntimeSrc = await fetch('js/wearables-detail-runtime.js').then(r => r.text());
   assert('marker-detail-modal.js defines rememberModalTrigger', /function rememberModalTrigger\s*\(/.test(markerDetailSrc));
   assert('marker-detail-modal.js defines restoreModalTrigger', /function restoreModalTrigger\s*\(/.test(markerDetailSrc));
   assert('showDetailModal captures trigger before opening', /showDetailModal[\s\S]*?rememberModalTrigger\(\)/.test(markerDetailSrc));
@@ -116,7 +118,9 @@ return (async function() {
       /function closeModal\(\)[\s\S]{0,180}closeModalOverlay\('modal-overlay'\)/.test(markerDetailSrc));
   assert('rememberModalTrigger exported', markerDetailSrc.includes('export function rememberModalTrigger'));
   assert('rememberModalTrigger on window', /window\s*,\s*\{[\s\S]*?rememberModalTrigger/.test(viewsSrc));
-  assert('wearable detail modal captures trigger', wearablesDetailSrc.includes('window.rememberModalTrigger?.()'));
+  assert('wearable detail modal captures trigger',
+    wearablesDetailSrc.includes('rememberWearableDetailModalTriggerRuntime();') &&
+      /getRuntimeFunction\('rememberModalTrigger'\)\?\.\(\)/.test(wearablesDetailRuntimeSrc));
   assert('restoreModalTrigger guards against detached elements', /document\.contains\(el\)/.test(markerDetailSrc));
 
   // ═══════════════════════════════════════════════
