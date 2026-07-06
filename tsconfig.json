@@ -25,6 +25,7 @@
     "js/ai-verdict-engine.js",
     "js/backup.js",
     "js/blob-storage.js",
+    "js/biology-scores-runtime.js",
     "js/brand-assets.js",
     "js/cashu-wallet.js",
     "js/category-customization-runtime.js",

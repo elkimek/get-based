@@ -187,6 +187,7 @@ const LEGACY_TESTS = [
   './test-import-drop-zone-runtime.js',
   './test-mobile-dashboard-runtime.js',
   './test-sync-diagnose-runtime.js',
+  './test-biology-scores-runtime.js',
   './test-wearables-detail-runtime.js',
   './test-wearables-apple-health-runtime.js',
   './test-wearables-runtime.js',

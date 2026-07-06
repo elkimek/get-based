@@ -950,6 +950,14 @@ assert('Biology Score AI answers save with immediate sync so refresh/cross-devic
   biologyScoreSectionsSrc.includes("saveImportedData({ reason: 'biology-score-ai', immediate: true })"),
   biologyScoreSectionsSrc.slice(biologyScoreSectionsSrc.indexOf('export async function writeScoreAIAnswer'), biologyScoreSectionsSrc.indexOf('export function renderScoreAIAnswer')));
 const biologyScoresSrc = await fs.promises.readFile(new URL('../js/biology-scores.js', import.meta.url), 'utf8');
+const biologyScoresRuntimeSrc = await fs.promises.readFile(new URL('../js/biology-scores-runtime.js', import.meta.url), 'utf8');
+assert('Biology Scores delegates browser globals to runtime adapter',
+  biologyScoresSrc.includes("from './biology-scores-runtime.js'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(biologyScoresSrc) &&
+    biologyScoresRuntimeSrc.includes('export function navigateBiologyScoresRoute') &&
+    biologyScoresRuntimeSrc.includes('export function openBiologyScoresChatPanel') &&
+    biologyScoresRuntimeSrc.includes('export function openBiologyScoreMarkerDetail'),
+  biologyScoresSrc.slice(0, 1800));
 assert('refreshing a stale Biology Score AI explanation removes the stale warning in-place',
   /biology-score-ai-stale/.test(biologyScoresSrc)
   && /closest\('\.biology-score-ai'\)/.test(biologyScoresSrc)
@@ -1038,6 +1046,7 @@ window.callClaudeAPI = savedContextAIState.callClaudeAPI;
 
 const swSrc = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8');
 const biologyScoreShellFiles = [
+  '/js/biology-scores-runtime.js',
   '/js/biology-scores.js',
   '/js/biology-score-ai.js',
   '/js/biology-score-ai-context.js',

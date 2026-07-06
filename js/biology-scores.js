@@ -29,6 +29,17 @@ import { state } from './state.js';
 import { createNewThread } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
 import { buildBiologyScoreCoveragePlannerModel, formatBiologyScoreCoveragePlannerPrompt } from './biology-score-coverage-planner.js';
+import {
+  canOpenBiologyScoresChatPanel,
+  getBiologyScoresActiveData,
+  hasBiologyScoresAIProvider,
+  navigateBiologyScoresRoute,
+  openBiologyScoreMarkerDetail,
+  openBiologyScoresChatPanel,
+  scheduleBiologyScoresTask,
+  showBiologyScoresNotification,
+  useBiologyScoresChatPrompt,
+} from './biology-scores-runtime.js';
 
 let biologyScoreDelegatesInstalled = false;
 function installBiologyScoreDelegates() {
@@ -41,41 +52,39 @@ function installBiologyScoreDelegates() {
     const el = /** @type {HTMLElement} */ (actionEl);
     const action = el.dataset.biologyScoreAction;
     if (action === 'open-lens') {
-      window.navigate?.('biology-scores');
+      navigateBiologyScoresRoute('biology-scores');
       event.preventDefault();
     } else if (action === 'interpret-lens') {
-      window.openChatPanel?.();
-      setTimeout(() => {
-        const usePrompt = (/** @type {any} */ (window)).useChatPrompt;
-        usePrompt?.('Interpret my Biology Scores. Focus on the strongest and most strained patterns, any stale or mixed-date scores that need retesting, and the most useful next checks. Treat the scores as deterministic pattern summaries, not diagnoses.');
+      openBiologyScoresChatPanel();
+      scheduleBiologyScoresTask(() => {
+        useBiologyScoresChatPrompt('Interpret my Biology Scores. Focus on the strongest and most strained patterns, any stale or mixed-date scores that need retesting, and the most useful next checks. Treat the scores as deterministic pattern summaries, not diagnoses.');
       }, 250);
       event.preventDefault();
     } else if (action === 'plan-coverage-chat') {
-      const appWindow = /** @type {any} */ (window);
-      if (typeof appWindow.openChatPanel !== 'function') {
-        appWindow.showNotification?.('Chat is not available on this screen.', 'error');
+      if (!canOpenBiologyScoresChatPanel()) {
+        showBiologyScoresNotification('Chat is not available on this screen.', 'error');
         event.preventDefault();
         return;
       }
-      if (typeof appWindow.hasAIProvider === 'function' && !appWindow.hasAIProvider()) {
-        appWindow.showNotification?.('Connect an AI provider before making a lab plan.', 'error');
-        appWindow.openChatPanel?.();
+      if (hasBiologyScoresAIProvider() === false) {
+        showBiologyScoresNotification('Connect an AI provider before making a lab plan.', 'error');
+        openBiologyScoresChatPanel();
         event.preventDefault();
         return;
       }
-      const rawData = appWindow.getActiveData?.() || {};
+      const rawData = getBiologyScoresActiveData();
       const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
       const scores = computeBiologyScores(scoreData);
       const detailScores = scores.filter((score) => score.id !== 'biologicalCoherence');
       const coherence = scores.find((score) => score.id === 'biologicalCoherence');
       const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
       createNewThread();
-      appWindow.openChatPanel(formatBiologyScoreCoveragePlannerPrompt(planner));
+      openBiologyScoresChatPanel(formatBiologyScoreCoveragePlannerPrompt(planner));
       event.preventDefault();
     } else if (action === 'interpret-score-ai') {
       event.preventDefault();
       runEmbeddedScoreAI(el).catch((err) => {
-        window.showNotification?.(err?.message || 'Could not generate Biology Score answer', 'error');
+        showBiologyScoresNotification(err?.message || 'Could not generate Biology Score answer', 'error');
       });
     } else if (action === 'jump-to-domain') {
       const scoreId = el.dataset.biologyScoreId;
@@ -84,13 +93,13 @@ function installBiologyScoreDelegates() {
       if (state.currentView === 'biology-scores') {
         jumpToScore(scoreId);
       } else {
-        window.navigate?.('biology-scores');
+        navigateBiologyScoresRoute('biology-scores');
         jumpToScoreWhenReady(scoreId);
       }
     } else if (action === 'open-marker') {
       const markerId = el.dataset.biologyMarkerId;
       if (markerId) {
-        window.showDetailModal?.(markerId);
+        openBiologyScoreMarkerDetail(markerId);
         event.preventDefault();
       }
     }
@@ -130,7 +139,7 @@ async function runEmbeddedScoreAI(el) {
   const scoreId = el.dataset.biologyScoreId;
   const answerEl = scoreId ? document.querySelector(`[data-biology-score-ai-answer="${CSS.escape(scoreId)}"]`) : null;
   if (!scoreId || !answerEl) return;
-  const rawData = (/** @type {any} */ (globalThis)).getActiveData?.() || {};
+  const rawData = getBiologyScoresActiveData();
   const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
   const score = computeBiologyScores(scoreData).find(item => item.id === scoreId);
   if (!score) throw new Error('Score not found');
