@@ -53,27 +53,40 @@ function _kickSync(reason) {
   }, 100);
 }
 
-export function bindSyncRecoveryEvents() {
+function getDefaultSyncRecoveryRuntime() {
+  return {
+    win: typeof window !== 'undefined' ? window : null,
+    doc: typeof document !== 'undefined' ? document : null,
+    nav: typeof navigator !== 'undefined' ? navigator : null,
+  };
+}
+
+/** @param {{ win?: Window | null, doc?: Document | null, nav?: Navigator | null }} [runtime] */
+export function bindSyncRecoveryEvents({ win, doc, nav } = {}) {
   if (_eventsBound) return;
   _eventsBound = true;
+  const defaults = getDefaultSyncRecoveryRuntime();
+  const runtimeWindow = win === undefined ? defaults.win : win;
+  const runtimeDocument = doc === undefined ? defaults.doc : doc;
+  const runtimeNavigator = nav === undefined ? defaults.nav : nav;
 
-  if (typeof navigator !== 'undefined') {
-    _lastNetState = navigator.onLine ?? true;
+  if (runtimeNavigator) {
+    _lastNetState = runtimeNavigator.onLine ?? true;
   }
 
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') _kickSync('visibilitychange');
+  if (runtimeDocument) {
+    runtimeDocument.addEventListener('visibilitychange', () => {
+      if (runtimeDocument.visibilityState === 'visible') _kickSync('visibilitychange');
     });
   }
 
-  if (typeof window !== 'undefined') {
+  if (runtimeWindow) {
     // pageshow fires when the tab is restored from bfcache or rehydrated.
-    window.addEventListener('pageshow', (e) => {
+    runtimeWindow.addEventListener('pageshow', (e) => {
       if (e.persisted) _kickSync('pageshow-persisted');
     });
 
-    window.addEventListener('online', () => {
+    runtimeWindow.addEventListener('online', () => {
       _kickSync('online');
       if (!_lastNetState) {
         _lastNetState = true;
@@ -81,7 +94,7 @@ export function bindSyncRecoveryEvents() {
       }
     });
 
-    window.addEventListener('offline', () => {
+    runtimeWindow.addEventListener('offline', () => {
       _lastNetState = false;
       _notify('Offline — changes are saved locally and will sync when you reconnect.', 'info', 5000);
     });
