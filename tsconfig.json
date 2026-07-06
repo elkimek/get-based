@@ -179,6 +179,7 @@
     "js/profile-share.js",
     "js/recommendation-actions.js",
     "js/recommendations.js",
+    "js/api-runtime.js",
     "js/api.js",
     "js/api-provider-storage.js",
     "js/api-transport.js",

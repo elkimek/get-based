@@ -83,6 +83,13 @@ import {
   validateOpenRouterKey,
   validateVeniceKey,
 } from './api-models.js';
+import {
+  getApiLocationOriginRuntime,
+  getApiLocationPathnameRuntime,
+  getOllamaConfigRuntime,
+  setApiLocationHrefRuntime,
+  showOpenRouterInsufficientBalanceDialogRuntime,
+} from './api-runtime.js';
 
 /** @typedef {Window & typeof globalThis & {
  *   _veniceE2EE?: any,
@@ -259,10 +266,10 @@ export async function startOpenRouterOAuth() {
   if (_isValidAIProvider(previousProvider)) sessionStorage.setItem(OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY, previousProvider);
   sessionStorage.setItem('or_pkce_verifier', codeVerifier);
   sessionStorage.setItem('or_oauth_state', `sha256:${stateDigest}`);
-  const callbackUrl = window.location.origin + window.location.pathname;
+  const callbackUrl = getApiLocationOriginRuntime() + getApiLocationPathnameRuntime();
   // PKCE verifier-mismatch alone catches code-injection but not login-CSRF;
   // `state` binds the redirect to the tab that initiated it.
-  window.location.href = 'https://openrouter.ai/auth?callback_url=' + encodeURIComponent(callbackUrl) + '&code_challenge=' + encodeURIComponent(codeChallenge) + '&code_challenge_method=S256&state=' + encodeURIComponent(state);
+  setApiLocationHrefRuntime('https://openrouter.ai/auth?callback_url=' + encodeURIComponent(callbackUrl) + '&code_challenge=' + encodeURIComponent(codeChallenge) + '&code_challenge_method=S256&state=' + encodeURIComponent(state));
 }
 
 export function rememberOpenRouterOAuthPreviousProvider(provider = getAIProvider()) {
@@ -316,7 +323,7 @@ export async function exchangeOpenRouterCode(code, returnedState) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'HTTP-Referer': window.location.origin,
+      'HTTP-Referer': getApiLocationOriginRuntime(),
       'X-Title': 'getbased'
     },
     body: JSON.stringify({ code, code_verifier: codeVerifier, code_challenge_method: 'S256' })
@@ -370,7 +377,7 @@ async function _fetchWithRetry(url, options, retries = 2, useProxy = true, reque
 }
 
 export async function callOllamaChat({ system, messages, maxTokens, onStream, signal }) {
-  const config = window.getOllamaConfig();
+  const config = getOllamaConfigRuntime();
   const model = getOllamaMainModel();
   const ollamaMessages = [];
   if (system) ollamaMessages.push({ role: 'system', content: system });
@@ -551,11 +558,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
       // line — otherwise the user sees the modal AND a duplicate
       // inline error for the same condition (Greptile #192 review).
       const modalShown = providerName === 'OpenRouter'
-        && typeof window !== 'undefined'
-        && !!window.showInsufficientBalanceDialog;
-      if (modalShown) {
-        try { window.showInsufficientBalanceDialog(); } catch {}
-      }
+        && showOpenRouterInsufficientBalanceDialogRuntime();
       const balanceErr = /** @type {Error & { _modalShown?: boolean }} */ (new Error(`Insufficient ${providerName} balance.${hint}`));
       if (modalShown) balanceErr._modalShown = true;
       throw balanceErr;
@@ -647,7 +650,7 @@ async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { sys
 }
 
 export async function callOpenAICompatibleLocalAPI(opts) {
-  const config = window.getOllamaConfig();
+  const config = getOllamaConfigRuntime();
   const model = getOllamaMainModel();
   const url = config.url.replace(/\/+$/, '');
   const key = config.apiKey || 'not-needed';
@@ -782,7 +785,7 @@ export async function callOpenRouterAPI(opts) {
   return callOpenAICompatibleAPI(
     'https://openrouter.ai/api/v1/chat/completions',
     key, getOpenRouterModel(), 'OpenRouter', opts,
-    { 'HTTP-Referer': window.location.origin, 'X-Title': 'getbased' },
+    { 'HTTP-Referer': getApiLocationOriginRuntime(), 'X-Title': 'getbased' },
     { extraBody }
   );
 }

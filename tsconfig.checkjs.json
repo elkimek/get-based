@@ -249,6 +249,7 @@
     "js/wearables-withings-auth.js",
     "js/wearables-withings.js",
     "js/wearables.js",
+    "js/api-runtime.js",
     "js/api-transport.js",
     "js/api-provider-storage.js",
     "js/api-models.js",
