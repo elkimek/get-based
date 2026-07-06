@@ -184,6 +184,7 @@
     "js/recommendations.js",
     "js/api-runtime.js",
     "js/api.js",
+    "js/api-provider-storage-runtime.js",
     "js/api-provider-storage.js",
     "js/api-transport.js",
     "js/provider-local-ai-runtime.js",
