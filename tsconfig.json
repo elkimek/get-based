@@ -21,6 +21,7 @@
     "js/app-health-data-modules.js",
     "js/app-light-sun-modules.js",
     "js/app-ui-shell-modules.js",
+    "js/ai-verdict-engine-runtime.js",
     "js/ai-verdict-engine.js",
     "js/backup.js",
     "js/blob-storage.js",

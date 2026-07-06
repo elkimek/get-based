@@ -19,6 +19,14 @@
 //     similar but each consumer slots into different parent containers)
 
 import { hasAIProvider, callClaudeAPI } from './api.js';
+import {
+  dispatchAIVerdictUpdatedRuntime,
+  exposeAIVerdictSlotsDebugRuntime,
+  getAIVerdictConcurrencyCapRuntime,
+  hasAIVerdictRuntime,
+  isAIVerdictEngineDisabledRuntime,
+  refreshSunSurfacesRuntime,
+} from './ai-verdict-engine-runtime.js';
 import { saveImportedData } from './data.js';
 import { pushCurrentProfile, isSyncEnabled } from './sync.js';
 
@@ -44,7 +52,7 @@ import { pushCurrentProfile, isSyncEnabled } from './sync.js';
 // engine would need a per-device tiebreaker layer. Current design
 // accepts the race.
 
-// Global feature flag — set window.DISABLE_AI_VERDICTS = true at any
+// Global feature flag — set DISABLE_AI_VERDICTS on the browser runtime at any
 // time (DevTools console, settings UI, conditional ?disableAI=1 query
 // param wired into a future settings hook) to short-circuit ALL
 // analyses across all consumers. Useful for: (a) on-call disabling
@@ -52,9 +60,7 @@ import { pushCurrentProfile, isSyncEnabled } from './sync.js';
 // discovered, (b) users who want to keep the AI provider configured
 // for chat / lens but pause the per-row verdicts.
 function _engineDisabled() {
-  if (typeof window === 'undefined') return false;
-  const w = /** @type {Window & typeof globalThis & { DISABLE_AI_VERDICTS?: boolean }} */ (window);
-  return w.DISABLE_AI_VERDICTS === true;
+  return isAIVerdictEngineDisabledRuntime();
 }
 
 // Map raw API / parse errors to user-readable text. Without this the
@@ -106,16 +112,12 @@ const PURGE_DELAY_MS = 1500;
 // without engine-specific staggering.
 //
 // Cap of 2 leaves room for 1 user-initiated foreground call to run
-// alongside 1 background auto-fire. Adjustable via `window._aiConcurrencyCap`
+// alongside 1 background auto-fire. Adjustable via `_aiConcurrencyCap`
 // for testing or per-environment tuning.
 let _activeAICalls = 0;
 const _aiCallWaiters = [];
 function _aiCap() {
-  const aiWindow = typeof window !== 'undefined'
-    ? /** @type {Window & typeof globalThis & { _aiConcurrencyCap?: number }} */ (window)
-    : null;
-  const w = (aiWindow && Number.isFinite(aiWindow._aiConcurrencyCap))
-    ? aiWindow._aiConcurrencyCap : 2;
+  const w = getAIVerdictConcurrencyCapRuntime(2);
   // Clamp to [1, 8] — Number.isFinite already excludes Infinity/NaN, but a
   // user setting w=999 in DevTools would defeat the cap entirely.
   return Math.min(8, Math.max(1, Math.floor(w)));
@@ -137,10 +139,7 @@ function _releaseAISlot() {
 }
 // Diagnostic hook — useful for tests + manual debugging without
 // breaking encapsulation. Not a public API.
-if (typeof window !== 'undefined') {
-  const aiWindow = /** @type {Window & typeof globalThis & { _aiSlotsDebug?: () => { active: number, waiting: number, cap: number } }} */ (window);
-  aiWindow._aiSlotsDebug = () => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() });
-}
+exposeAIVerdictSlotsDebugRuntime(() => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() }));
 
 /**
  * Create an AI verdict engine bound to a particular feature's data shape.
@@ -190,7 +189,7 @@ export function createAIVerdict(cfg) {
     syncOnSave = true,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     autoFireRetryDelaysMs = [1000, 4000],
-    onStateChange, // optional hook for re-rendering — defaults to window._refreshSunSurfaces
+    onStateChange, // optional hook for re-rendering — defaults to the browser refresh hook
     getScrollAnchor, // optional (target) => '<css-selector>' — pinned through the
                      // post-verdict rebuild so the user stays on the row whose
                      // verdict just landed instead of the auto-pick heuristic
@@ -246,19 +245,15 @@ export function createAIVerdict(cfg) {
     }
     if (typeof onStateChange === 'function') {
       try { onStateChange(anchor); } catch (_) {}
-    } else if (typeof window !== 'undefined' && window._refreshSunSurfaces) {
-      try { window._refreshSunSurfaces(anchor); } catch (_) {}
+    } else {
+      refreshSunSurfacesRuntime(anchor);
     }
     // Broadcast a custom event so surfaces NOT covered by
     // _refreshSunSurfaces (e.g. the dashboard Light Today chip when
     // the user is on the dashboard during an auto-fire) can react
     // without a full navigate-rebuild. Listeners self-filter by view
     // and only re-render their own slice.
-    if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-      try {
-        window.dispatchEvent(new CustomEvent('labcharts-ai-verdict-updated'));
-      } catch (_) {}
-    }
+    dispatchAIVerdictUpdatedRuntime();
   }
 
   function isAnalyzing(id) {
@@ -517,7 +512,7 @@ export function createAIVerdict(cfg) {
 
   // Schedule an automatic purge on next tick. Timer rather than immediate
   // so the data layer + dependent modules are fully initialized first.
-  if (typeof window !== 'undefined') {
+  if (hasAIVerdictRuntime()) {
     setTimeout(purgeOrphaned, PURGE_DELAY_MS);
   }
 
