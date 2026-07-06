@@ -81,6 +81,7 @@ const APP_SHELL = [
   '/js/schema-environment.js',
   '/js/constants.js',
   '/js/state.js',
+  '/js/utils-runtime.js',
   '/js/utils.js',
   '/js/theme.js',
   '/js/theme-runtime.js',

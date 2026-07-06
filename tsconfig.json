@@ -307,6 +307,7 @@
     "js/touch-tooltip.js",
     "js/tour.js",
     "js/url-safety.js",
+    "js/utils-runtime.js",
     "js/utils.js",
     "js/views-router-runtime.js",
     "js/views-router.js",
