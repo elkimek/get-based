@@ -2,6 +2,12 @@
 // utils.js — Pure utility functions, notifications, dialogs
 
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import {
+  addUtilsRuntimeListener,
+  getUtilsElementStyleRuntime,
+  hasUtilsRuntime,
+  removeUtilsRuntimeListener,
+} from './utils-runtime.js';
 
 /// Encode all five HTML-special characters — &, <, >, ", '. Safe to use
 /// in both text content AND attribute contexts. The prior implementation
@@ -125,9 +131,9 @@ export function hasDirtyFormFields(root) {
 }
 
 export function bindSyncAppliedRefresh(refresh) {
-  if (typeof window === 'undefined' || typeof refresh !== 'function') return () => {};
-  window.addEventListener('labcharts-sync-applied', refresh);
-  return () => window.removeEventListener('labcharts-sync-applied', refresh);
+  if (!hasUtilsRuntime() || typeof refresh !== 'function') return () => {};
+  addUtilsRuntimeListener('labcharts-sync-applied', refresh);
+  return () => removeUtilsRuntimeListener('labcharts-sync-applied', refresh);
 }
 
 /**
@@ -141,13 +147,13 @@ export function bindDetachedModalSyncRefresh({
   bodySelector = '.modal-body',
   restoreSelector = '.modal-overlay.show .sun-detail-modal .modal-body',
 } = {}) {
-  if (typeof window === 'undefined' || typeof document === 'undefined' || !overlay || typeof opener !== 'function') return;
+  if (!hasUtilsRuntime() || typeof document === 'undefined' || !overlay || typeof opener !== 'function') return;
   let detached = false;
   const nativeRemove = overlay.remove.bind(overlay);
   const detach = () => {
     if (detached) return;
     detached = true;
-    window.removeEventListener('labcharts-sync-applied', onSync);
+    removeUtilsRuntimeListener('labcharts-sync-applied', onSync);
   };
   const restoreScroll = scrollTop => {
     const nextBodies = document.querySelectorAll(restoreSelector);
@@ -172,7 +178,7 @@ export function bindDetachedModalSyncRefresh({
     detach();
     nativeRemove();
   };
-  window.addEventListener('labcharts-sync-applied', onSync);
+  addUtilsRuntimeListener('labcharts-sync-applied', onSync);
 }
 
 /**
@@ -192,7 +198,7 @@ export function bindModalSyncRefresh({
   getScrollElement,
   preserveScroll = true,
 } = {}) {
-  if (typeof window === 'undefined' || typeof document === 'undefined' || typeof refresh !== 'function') {
+  if (!hasUtilsRuntime() || typeof document === 'undefined' || typeof refresh !== 'function') {
     return () => {};
   }
   /** @returns {HTMLElement | null} */
@@ -241,7 +247,7 @@ export function bindModalSyncRefresh({
   const detach = () => {
     if (detached) return;
     detached = true;
-    window.removeEventListener('labcharts-sync-applied', onSync);
+    removeUtilsRuntimeListener('labcharts-sync-applied', onSync);
   };
   const onSync = () => {
     const overlay = findOverlay();
@@ -265,7 +271,7 @@ export function bindModalSyncRefresh({
       }
     }
   };
-  window.addEventListener('labcharts-sync-applied', onSync);
+  addUtilsRuntimeListener('labcharts-sync-applied', onSync);
   return detach;
 }
 
@@ -380,7 +386,7 @@ function hasSeenAnalyticsConsent() { return localStorage.getItem('labcharts-anal
 function markAnalyticsConsentSeen() { localStorage.setItem('labcharts-analytics-consent-seen', '1'); }
 
 function isVisibleBlockingElement(el) {
-  const style = window.getComputedStyle?.(el);
+  const style = getUtilsElementStyleRuntime(el);
   if (style && (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')) return false;
   const rect = el.getBoundingClientRect?.();
   return !rect || rect.width > 0 || rect.height > 0 || style?.position === 'fixed';
@@ -555,7 +561,7 @@ export function showConfirmDialog(message) {
   });
 }
 
-/// Promise-based replacement for `window.prompt()`. Browsers block the
+/// Promise-based replacement for the native prompt dialog. Browsers block the
 /// native prompt in many common contexts (file://, sandboxed iframes,
 /// cross-origin workers, some PWA configurations) and its synchronous
 /// nature makes it awkward inside async flows. This helper reuses the

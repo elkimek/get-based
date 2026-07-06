@@ -678,12 +678,16 @@ await import('../js/settings.js');
       && utilsSrc.includes('export function bindModalSyncRefresh')
       && utilsSrc.includes('export function bindDetachedModalSyncRefresh')
       && utilsSrc.includes('export function bindDetailModalSyncRefresh')
-      && utilsSrc.includes("window.addEventListener('labcharts-sync-applied', onSync)")
+      && utilsSrc.includes("from './utils-runtime.js'")
+      && utilsSrc.includes("addUtilsRuntimeListener('labcharts-sync-applied', onSync)")
+      && utilsSrc.includes("removeUtilsRuntimeListener('labcharts-sync-applied', onSync)")
       && utilsSrc.includes('restoreScroll(scrollTop)')
       && utilsSrc.includes('isDetachedDirectOverlay(overlay)')
       && utilsSrc.includes('document.body.contains(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(overlay)')
       && utilsSrc.includes('hasDirtyFormFields(modal)'));
+  assert('service worker precaches utils runtime helper',
+    serviceWorkerSrc.includes("'/js/utils-runtime.js'"));
   assert('marker detail modal refreshes through shared sync-applied detail helper',
     markerDetailModalSrc.includes("bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync)")
       && markerDetailModalSrc.includes("modal.dataset.syncRefreshKind = 'marker'")
