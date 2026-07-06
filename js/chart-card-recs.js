@@ -3,11 +3,11 @@
 
 import { showNotification } from './utils.js';
 import { showDetailModal } from './marker-detail-modal.js';
+import { isRecommendationsProductRecsEnabled, loadRecommendationsCatalogRuntime } from './recommendations-runtime.js';
 
 export async function loadChartCardRecs() {
-  if (!window.isProductRecsEnabled || !window.isProductRecsEnabled()) return;
-  if (!window.loadCatalog) return;
-  const catalog = await window.loadCatalog();
+  if (!isRecommendationsProductRecsEnabled()) return;
+  const catalog = await loadRecommendationsCatalogRuntime();
   if (!catalog || !catalog.slots) return;
 
   const els = document.querySelectorAll('[id^="chart-rec-"]');
