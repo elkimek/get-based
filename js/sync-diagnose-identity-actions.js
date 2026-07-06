@@ -9,6 +9,7 @@ import {
   enableSyncForDiagnose,
   restoreMnemonicForDiagnose,
 } from './sync-diagnose-actions-context.js';
+import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 
 // "Rotate identity" - generate a fresh 24-word BIP-39 mnemonic, show
 // it (with QR for cross-device entry), confirm the user saved it, then
@@ -25,9 +26,7 @@ export async function confirmRotateIdentity(btn) {
     "• The old identity's data stays on the relay until it ages out (no immediate loss), but new pushes will go under the new identity.\n" +
     "• This is the recovery path when this device's relay-health check shows wedged (red dot above).\n\n" +
     "Proceed?";
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(warning)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(warning);
   if (!proceed) return;
 
   // Stage 2: generate the new mnemonic. BIP-39 256 bits = 24 words.

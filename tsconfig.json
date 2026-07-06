@@ -274,6 +274,7 @@
     "js/sync-diagnose-identity-actions.js",
     "js/sync-diagnose-relay-actions.js",
     "js/sync-diagnose-render.js",
+    "js/sync-diagnose-runtime.js",
     "js/sync-diagnose-ui.js",
     "js/sync-diagnostics-context.js",
     "js/sync-diagnostics-snapshot.js",
