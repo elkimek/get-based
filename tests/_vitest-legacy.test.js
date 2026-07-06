@@ -177,6 +177,7 @@ const LEGACY_TESTS = [
   // wearables-bp-merge source-inspection. The wearables-bp live DOM probe
   // moved to Playwright.
   './test-tour.js',
+  './test-tour-runtime.js',
   './test-settings-runtime.js',
   './test-settings-delegated-actions.js',
   './test-views-router-runtime.js',

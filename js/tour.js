@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, isStartupNudgeBlocked } from './utils.js';
+import { getTourComputedStyle, getTourViewportSize, openTourChatPanel, scheduleTourTask } from './tour-runtime.js';
 
 const EMPTY_TOUR_STEPS = [
   { target: null, title: 'Welcome to getbased', text: 'This quick tour is for a fresh profile. After the tour, guided chat will help you decide what to add first.', position: 'center' },
@@ -106,11 +107,12 @@ function _isActiveProfileDemo() {
 function isTourTargetVisible(el) {
   if (!el) return false;
   const rect = el.getBoundingClientRect();
-  const style = window.getComputedStyle(el);
+  const style = getTourComputedStyle(el);
+  const { width: viewportWidth } = getTourViewportSize();
   return rect.width > 0 &&
     rect.height > 0 &&
     rect.right > 0 &&
-    rect.left < window.innerWidth &&
+    rect.left < viewportWidth &&
     style.display !== 'none' &&
     style.visibility !== 'hidden' &&
     style.opacity !== '0';
@@ -250,8 +252,7 @@ function positionTooltip(rect, position) {
   if (!tooltip) return;
   const gap = 12;
   const pad = 8;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const { width: vw, height: vh } = getTourViewportSize();
 
   // Temporarily make tooltip visible to measure it
   tooltip.style.left = '0';
@@ -330,9 +331,9 @@ export function endTour() {
   if (spotlight) spotlight.remove();
   if (tooltip) tooltip.remove();
   if (shouldOpenEmptyChat) {
-    setTimeout(() => {
+    scheduleTourTask(() => {
       const panel = document.getElementById('chat-panel');
-      if (!panel?.classList.contains('open')) window.openChatPanel?.();
+      if (!panel?.classList.contains('open')) openTourChatPanel();
     }, 250);
   }
 }
