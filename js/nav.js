@@ -7,6 +7,16 @@ import { getActiveData, filterDatesByRange } from './data.js';
 import { countFlagged } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import {
+  exposeNavRuntimeGlobals,
+  navigateFromNavRuntime,
+  openClientListFromNavRuntime,
+  openContextFromNavRuntime,
+  openCreateMarkerFromNavRuntime,
+  openEMFAssessmentFromNavRuntime,
+  openKnowledgeBaseFromNavRuntime,
+  openReportBuilderFromNavRuntime,
+} from './nav-runtime.js';
 
 function _iconSvg(name) {
   const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -75,28 +85,27 @@ function handleNavActionClick(event) {
   const target = event.target instanceof Element ? event.target : null;
   const actionEl = /** @type {HTMLElement | null} */ (target?.closest('[data-nav-action]') || null);
   if (!actionEl || !_navActionScope(actionEl)) return;
-  const appWindow = /** @type {any} */ (window);
 
   const action = actionEl.dataset.navAction;
   let handled = true;
   if (action === 'navigate') {
-    window.navigate?.(actionEl.dataset.navRoute || actionEl.dataset.category || 'dashboard');
+    navigateFromNavRuntime(actionEl.dataset.navRoute || actionEl.dataset.category || 'dashboard');
   } else if (action === 'open-emf-assessment') {
-    window.openEMFAssessmentEditor?.();
+    openEMFAssessmentFromNavRuntime();
   } else if (action === 'open-light-assessment') {
     navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
-    appWindow.openKnowledgeBaseModal?.();
+    openKnowledgeBaseFromNavRuntime();
   } else if (action === 'open-report-builder') {
-    appWindow.openReportBuilder?.();
+    openReportBuilderFromNavRuntime();
   } else if (action === 'open-context') {
-    appWindow.openContextModal?.();
+    openContextFromNavRuntime();
   } else if (action === 'open-custom-marker') {
-    appWindow.openCreateMarkerModal?.();
+    openCreateMarkerFromNavRuntime();
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
   } else if (action === 'open-client-list') {
-    window.openClientList?.();
+    openClientListFromNavRuntime();
   } else {
     handled = false;
   }
@@ -130,7 +139,7 @@ function _renderConditionalNavItem({ key, icon, label, route = 'dashboard', acti
 }
 
 export function openRecommendationsFromSidebar() {
-  if (window.navigate) window.navigate('recommendations');
+  navigateFromNavRuntime('recommendations');
 }
 
 export function syncSidebarActive(route = state.currentView || 'dashboard') {
@@ -440,4 +449,4 @@ export function closeMobileSidebar() {
   closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
 
-Object.assign(window, { buildSidebar, filterSidebar, toggleNavGroup, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });
+exposeNavRuntimeGlobals({ buildSidebar, filterSidebar, toggleNavGroup, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });
