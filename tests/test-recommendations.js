@@ -28,7 +28,7 @@ await import('../js/recommendations.js');
 // Original test reads data/light-device-presets.json via fetchWithRetry —
 // pass through fs read.
 const _realFetch = globalThis.fetch;
-globalThis.fetch = async (url, opts) => {
+  globalThis.fetch = async (url, opts) => {
   if (typeof url === 'string' && !/^https?:/.test(url)) {
     const rel = url.replace(/^\//, '');
     try { return new Response(read(rel), { status: 200 }); }
@@ -37,6 +37,7 @@ globalThis.fetch = async (url, opts) => {
   return _realFetch(url, opts);
 };
   const recSrc = await fetchWithRetry('js/recommendations.js');
+  const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');
   const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
   const mainSrc = await fetchWithRetry('js/main.js');
   const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
@@ -73,6 +74,13 @@ globalThis.fetch = async (url, opts) => {
   assert('recommendations.js exports renderRecommendationSection', recSrc.includes('export async function renderRecommendationSection'));
   assert('recommendations.js exports renderRecommendationSectionSync', recSrc.includes('export function renderRecommendationSectionSync'));
   assert('recommendations.js exports detectSupplementSlots', recSrc.includes('export function detectSupplementSlots'));
+  assert('recommendations.js delegates browser hooks through runtime adapter',
+    recSrc.includes("from './recommendations-runtime.js'") &&
+      !/\bwindow(?:\.|\s*\[)/.test(recSrc) &&
+      !recSrc.includes('Object.assign(window') &&
+      recRuntimeSrc.includes('export function getRecommendationsSnpTable') &&
+      recRuntimeSrc.includes('export function registerRecommendationsRuntimeExports'),
+    recSrc.slice(0, 1800));
   assert('recommendations-region.js owns region hierarchy data',
     recRegionSrc.includes('REGION_HIERARCHY') &&
     recRegionSrc.includes('COUNTRY_TO_REGION') &&
@@ -295,6 +303,7 @@ globalThis.fetch = async (url, opts) => {
   console.log('%c 12. Infrastructure ', 'font-weight:bold;color:#f59e0b');
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
+  assert('SW includes recommendations-runtime.js', swSrc.includes('/js/recommendations-runtime.js'));
   assert('SW includes recommendations-region.js', swSrc.includes('/js/recommendations-region.js'));
   assert('SW includes recommendation-actions.js', swSrc.includes('/js/recommendation-actions.js'));
   assert('SW includes dashboard-recommendation-widget.js', swSrc.includes('/js/dashboard-recommendation-widget.js'));
