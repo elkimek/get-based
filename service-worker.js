@@ -312,6 +312,7 @@ const APP_SHELL = [
   '/js/sync-diagnostics-snapshot.js',
   '/js/sync-diagnostics-text.js',
   '/js/sync-diagnose-actions-context.js',
+  '/js/sync-diagnose-runtime.js',
   '/js/sync-diagnose-relay-actions.js',
   '/js/sync-diagnose-identity-actions.js',
   '/js/sync-diagnose-cutover-actions.js',

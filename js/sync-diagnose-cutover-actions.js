@@ -13,16 +13,15 @@ import {
   enablePhase2CutoverForDiagnose,
   pushProfileForDiagnose,
 } from './sync-diagnose-actions-context.js';
+import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 
 // "Reset window" - drops the rolling per-push telemetry log so the user
-// can start a fresh measurement window.
+// can start a fresh measurement span.
 export async function confirmResetDeltaTelemetry(btn) {
   const t = state.currentProfile ? getDeltaTelemetry(state.currentProfile) : null;
   const n = t?.summary?.count || 0;
   const message = `Reset the push-efficiency log? Drops the ${n} recent push entries used to compute the percentage. Your data and relay state aren't touched.`;
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(message)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(message);
   if (!proceed) return;
   if (state.currentProfile && resetDeltaTelemetry(state.currentProfile)) {
     try { showNotification('Telemetry window reset', 'success'); } catch {}
@@ -45,9 +44,7 @@ export async function confirmEnablePhase2(btn) {
     return;
   }
   const message = `Switch this device to lean sync mode?\n\nFrom now on, this device will only push per-row deltas instead of the full data blob. Other devices keep working normally.\n\nReversible any time via Disable.`;
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(message)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(message);
   if (!proceed) return;
   const result = enablePhase2CutoverForDiagnose(state.currentProfile);
   if (result.ok) {
@@ -75,9 +72,7 @@ export async function confirmBackfillBlockers(btn) {
     return;
   }
   const message = `Force a push for ${blockers.length} item${blockers.length === 1 ? '' : 's'} that haven't synced as deltas yet?\n\n${blockers.join(', ')}\n\nSafe — this just re-sends data that should already be on the relay.`;
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(message)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(message);
   if (!proceed) return;
   let cleared = 0;
   for (const name of blockers) {
@@ -98,9 +93,7 @@ export async function confirmBackfillBlockers(btn) {
 export async function confirmDisablePhase2(btn) {
   if (!state.currentProfile) return;
   const message = `Switch this device back to full-blob sync?\n\nPushes will include the full data blob again as a safety net. Use this if a peer device is missing data after going lean.\n\nNo data loss either way.`;
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(message)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(message);
   if (!proceed) return;
   if (disablePhase2CutoverForDiagnose(state.currentProfile)) {
     try { showNotification('Phase 2 disabled — back to dual-write', 'success'); } catch {}

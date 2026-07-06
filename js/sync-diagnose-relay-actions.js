@@ -7,6 +7,7 @@ import {
 } from './sync-relay-health.js';
 import { toggleSyncDetail } from './sync-ui.js';
 import { showSyncDiagnoseForActions } from './sync-diagnose-actions-context.js';
+import { confirmSyncDiagnoseActionRuntime } from './sync-diagnose-runtime.js';
 
 // "Compact storage" - calls POST /self/compact-owner on the relay,
 // HMAC-signed with the user's own writeKey. Drops every Evolu message
@@ -20,9 +21,7 @@ export async function confirmCompactRelay(btn) {
   // Helper unavailable (utils.js failed to load) -> proceed without
   // confirmation rather than dead-end the user. Safety net mirrors the
   // pattern in the confirm* helpers in the sibling action modules.
-  const proceed = (typeof window.showConfirmDialog === 'function')
-    ? await window.showConfirmDialog(message)
-    : true;
+  const proceed = await confirmSyncDiagnoseActionRuntime(message);
   if (!proceed) return;
   if (btn) { btn.disabled = true; btn.textContent = 'Compacting…'; }
   try {

@@ -91,6 +91,7 @@
     '/js/theme-runtime.js',
     '/js/schema.js',
     '/js/dna-window-bindings.js',
+    '/js/sync-diagnose-runtime.js',
   ];
 
   function assertServiceWorkerCache(sw) {
