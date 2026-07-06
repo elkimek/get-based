@@ -20,6 +20,7 @@ import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode } from './utils.js';
+import { exposeAppleHealthDebugBindings, getAppleHealthJSZip } from './wearables-apple-health-runtime.js';
 
 // ─────────────────────────────────────────────────────────
 // File ingestion entry point
@@ -86,12 +87,16 @@ export async function importAppleHealthFile(file, onProgress) {
 
 let _jszipLoad = null;
 function loadJSZip() {
-  if (window.JSZip) return Promise.resolve(window.JSZip);
+  const cachedJSZip = getAppleHealthJSZip();
+  if (cachedJSZip) return Promise.resolve(cachedJSZip);
   if (_jszipLoad) return _jszipLoad;
   _jszipLoad = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = '/vendor/jszip.min.js';
-    s.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip failed to load'));
+    s.onload = () => {
+      const loadedJSZip = getAppleHealthJSZip();
+      loadedJSZip ? resolve(loadedJSZip) : reject(new Error('JSZip failed to load'));
+    };
     s.onerror = () => reject(new Error('Failed to load /vendor/jszip.min.js'));
     document.head.appendChild(s);
   });
@@ -418,4 +423,4 @@ function normaliseUnit(metricId, value, unit) {
   }
 }
 
-if (isDebugMode?.()) window._appleHealth = { importAppleHealthFile, parseAppleHealthXml };
+if (isDebugMode?.()) exposeAppleHealthDebugBindings({ _appleHealth: { importAppleHealthFile, parseAppleHealthXml } });

@@ -807,8 +807,14 @@ assert('Apple Health LeanBodyMass lb unit converts to kg',
 // wraps JSZip access in a memoized loader. Pin the lazy-load pattern so a
 // future refactor can't silently break it again.
 const ahSrc = await fetch('/js/wearables-apple-health.js').then(r => r.text());
+const ahRuntimeSrc = await fetch('/js/wearables-apple-health-runtime.js').then(r => r.text());
 assert('Apple Health source defines loadJSZip lazy-loader',
   /function\s+loadJSZip\s*\(\s*\)/.test(ahSrc));
+assert('Apple Health delegates browser globals to runtime adapter',
+  ahSrc.includes("from './wearables-apple-health-runtime.js'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(ahSrc) &&
+    ahRuntimeSrc.includes('export function getAppleHealthJSZip') &&
+    ahRuntimeSrc.includes('export function exposeAppleHealthDebugBindings'));
 assert('loadJSZip memoizes via module-level _jszipLoad',
   /let\s+_jszipLoad\s*=\s*null/.test(ahSrc));
 assert('loadJSZip injects /vendor/jszip.min.js script tag',

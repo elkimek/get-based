@@ -188,6 +188,7 @@ const LEGACY_TESTS = [
   './test-mobile-dashboard-runtime.js',
   './test-sync-diagnose-runtime.js',
   './test-wearables-detail-runtime.js',
+  './test-wearables-apple-health-runtime.js',
   './test-wearables-runtime.js',
   './test-category-page-runtime.js',
   './test-category-customization-runtime.js',
