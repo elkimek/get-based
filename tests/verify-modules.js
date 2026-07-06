@@ -65,6 +65,7 @@
     '/js/focus-card.js',
     '/js/onboarding-view.js',
     '/js/marker-detail-modal.js',
+    '/js/marker-detail-runtime.js',
     '/js/marker-detail-editing.js',
     '/js/light-conditions-now.js',
     '/js/light-conditions-now-hooks.js',

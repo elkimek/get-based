@@ -14,6 +14,22 @@ import { getInsulinMirrorMarkerKey } from './lab-entry.js';
 import { installMarkerDetailActionDelegates, markerDetailActionAttrs } from './marker-detail-actions.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
+  askAIAboutMarkerRuntime,
+  buildMarkerDetailSidebarRuntime,
+  closeEMFInterpretationRuntime,
+  getRelevantSNPsRuntime,
+  hasRecommendationSectionRendererRuntime,
+  isDashboardQuickMarkerPinnedRuntime,
+  isProductRecsEnabledRuntime,
+  navigateMarkerDetailRuntime,
+  renameMarkerRuntime,
+  renderRecommendationSectionRuntime,
+  revertMarkerNameRuntime,
+  showEmojiPickerRuntime,
+  toggleDashboardQuickMarkerPinRuntime,
+  uninstallWearableModalFocusTrapRuntime,
+} from './marker-detail-runtime.js';
+import {
   configureMarkerDetailEditing,
   editRefRange,
   saveRefRange,
@@ -55,13 +71,13 @@ const markerDetailDeps = /** @type {{
   askAIAboutMarker: (id?: string) => any,
   showEmojiPicker: (el: Element, callback: (emoji?: string | null) => void, opts?: any) => any,
 }} */ ({
-  navigate: (category, data) => window.navigate?.(category, data),
-  isDashboardQuickMarkerPinned: () => false,
-  toggleDashboardQuickMarkerPin: (id) => globalThis.toggleDashboardQuickMarkerPin?.(id),
-  renameMarker: (id) => globalThis.renameMarker?.(id),
-  revertMarkerName: (id) => globalThis.revertMarkerName?.(id),
-  askAIAboutMarker: (id) => globalThis.askAIAboutMarker?.(id),
-  showEmojiPicker: () => {},
+  navigate: navigateMarkerDetailRuntime,
+  isDashboardQuickMarkerPinned: isDashboardQuickMarkerPinnedRuntime,
+  toggleDashboardQuickMarkerPin: toggleDashboardQuickMarkerPinRuntime,
+  renameMarker: renameMarkerRuntime,
+  revertMarkerName: revertMarkerNameRuntime,
+  askAIAboutMarker: askAIAboutMarkerRuntime,
+  showEmojiPicker: showEmojiPickerRuntime,
 });
 
 /**
@@ -700,7 +716,8 @@ export function showDetailModal(id, opts = {}) {
     }
   }
   // Collect inline SNPs for the unified rec section (genetics + actionable tips together)
-  const _inlineSNPs = (state.importedData.genetics?.snps && window._getRelevantSNPs) ? window._getRelevantSNPs(dotKey) : [];
+  const _inlineSNPs = state.importedData.genetics?.snps ? getRelevantSNPsRuntime(dotKey) : [];
+  const shouldRenderRecommendations = isProductRecsEnabledRuntime() && hasRecommendationSectionRendererRuntime();
   html += `<div class="gb-detail-actions">
     <div class="gb-detail-action-row">
       <button class="manual-entry-btn" ${markerDetailActionAttrs('open-manual-entry', { id })}>+ Add Value Manually</button>
@@ -721,7 +738,7 @@ export function showDetailModal(id, opts = {}) {
 	    </div>
 	  </div>`;
   // Recommendation placeholder — shown for any marker with a catalog slot
-  if (window.isProductRecsEnabled && window.isProductRecsEnabled()) {
+  if (shouldRenderRecommendations) {
     html += `<div id="rec-modal-${id}"></div>`;
   }
   html += `</div>`;
@@ -738,10 +755,10 @@ export function showDetailModal(id, opts = {}) {
     }, 0);
   }
   // Async-fill recommendation section (unified: genetics + actionable tips)
-  if (window.renderRecommendationSection) {
+  if (shouldRenderRecommendations) {
     const _latestVal = marker.values?.filter(v => v !== null).pop();
     const _markerStatus = _latestVal != null ? getStatus(_latestVal, r.min, r.max) : 'missing';
-    window.renderRecommendationSection(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
+    renderRecommendationSectionRuntime(id.replace('_','.'), { label: 'What can help', maxProducts: 3, inlineSNPs: _inlineSNPs, markerStatus: _markerStatus })
       .then(h => {
         const el = document.getElementById('rec-modal-' + id);
         if (h && el) {
@@ -1028,7 +1045,7 @@ export function saveCustomMarker() {
     };
   }
   saveImportedData();
-  window.buildSidebar();
+  buildMarkerDetailSidebarRuntime();
   closeModal();
   showNotification(`Created "${name}" in ${catLabel}`, 'success');
   // Register marker and open manual entry to add first value
@@ -1071,7 +1088,7 @@ export async function deleteCustomMarker(id) {
     deleteEmptyLabEntries(state.importedData);
     saveImportedData();
     closeModal();
-    window.buildSidebar();
+    buildMarkerDetailSidebarRuntime();
     updateHeaderDates();
     markerDetailDeps.navigate('dashboard');
     showNotification(`Deleted "${def.name}"${isLastInCat && siblingsInCat.length > 1 ? ` and ${siblingsInCat.length - 1} other marker(s)` : ''}`, 'info');
@@ -1092,10 +1109,10 @@ export function closeModal() {
   }
   if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
   document.removeEventListener('click', closeSuggestionsOnClickOutside);
-  if (window.closeEMFInterpretation) window.closeEMFInterpretation();
+  closeEMFInterpretationRuntime();
   // Detail-modal Tab focus trap (wearables) — uninstall explicitly so the
   // global keydown handler doesn't outlive the modal it scoped to.
-  if (window._uninstallWearableModalFocusTrap) window._uninstallWearableModalFocusTrap();
+  uninstallWearableModalFocusTrapRuntime();
   // Clear the active-detail-marker pointer so a later toggleAltUnits (fired
   // from Settings → Display) doesn't re-open this modal on top of Settings.
   state._activeDetailMarkerId = null;

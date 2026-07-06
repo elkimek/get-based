@@ -111,6 +111,7 @@ const domainUiCheckJsModules = [
   'js/light-conditions-now.js',
   'js/light-env.js',
   'js/marker-detail-modal.js',
+  'js/marker-detail-runtime.js',
   'js/pdf-import-review.js',
   'js/provider-panels.js',
   'js/sun-context.js',
