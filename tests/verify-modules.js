@@ -95,6 +95,7 @@
     '/js/provider-local-ai-runtime.js',
     '/js/provider-model-controls-runtime.js',
     '/js/api-runtime.js',
+    '/js/api-provider-storage-runtime.js',
     '/js/charts-runtime.js',
     '/js/notes-runtime.js',
     '/js/pdf-import-review-runtime.js',

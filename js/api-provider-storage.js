@@ -2,10 +2,14 @@
 // api-provider-storage.js — persisted AI provider settings, keys, and model caches.
 
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
+import {
+  dispatchAISettingsLocalChangedRuntime,
+  getOllamaConfigStorageRuntime,
+  refreshAIProviderSelectionRuntime,
+} from './api-provider-storage-runtime.js';
 
 function notifyAISelectionChanged() {
-  window.updateChatHeaderModel?.();
-  window.refreshWebSearchToggle?.();
+  refreshAIProviderSelectionRuntime();
 }
 
 export function getAIProvider() { return localStorage.getItem('labcharts-ai-provider') || 'openrouter'; }
@@ -23,7 +27,7 @@ export function markAISettingsLocal() {
   try {
     sessionStorage.setItem(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY, String(Date.now() + 5 * 60 * 1000));
   } catch {}
-  try { window.dispatchEvent(new CustomEvent('labcharts-ai-settings-local-changed')); } catch {}
+  dispatchAISettingsLocalChangedRuntime();
 }
 
 export function hasAIProvider() {
@@ -37,13 +41,13 @@ export function hasAIProvider() {
   return true; // Ollama — optimistic, errors caught at call time
 }
 
-export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || window.getOllamaConfig().model || 'llama3.2'; }
+export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || getOllamaConfigStorageRuntime().model || 'llama3.2'; }
 export function setOllamaMainModel(model) {
   localStorage.setItem('labcharts-ollama-model', model);
   markAISettingsLocal();
   notifyAISelectionChanged();
 }
-export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || window.getOllamaConfig().url; }
+export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || getOllamaConfigStorageRuntime().url; }
 export function setOllamaPIIUrl(url) {
   localStorage.setItem('labcharts-ollama-pii-url', url);
   markAISettingsLocal();
