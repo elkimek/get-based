@@ -110,6 +110,7 @@ const APP_SHELL = [
   '/js/blob-storage.js',
   '/js/data-merge.js',
   '/js/pii.js',
+  '/js/charts-runtime.js',
   '/js/charts.js',
   '/js/notes.js',
   '/js/supplement-action-delegates.js',
