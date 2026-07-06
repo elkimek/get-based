@@ -169,6 +169,11 @@ const importCssSrc = read('css/import.css');
       && !/\bwindow(?:\.|\s*\[)/.test(reviewSrc)
       && reviewRuntimeSrc.includes('runtime._pendingImport')
       && reviewRuntimeSrc.includes('runtime._batchImportContext'));
+  assert('PDF import persistence delegates view refresh through runtime adapter',
+    persistenceSrc.includes("from './pdf-import-review-runtime.js'")
+      && persistenceSrc.includes('refreshImportedDataViewsRuntime(state.currentView')
+      && reviewRuntimeSrc.includes('export function refreshImportedDataViewsRuntime')
+      && !/\bwindow(?:\.|\s*\[)/.test(persistenceSrc));
   assert('Re-review modal uses update wording instead of import wording',
     /parseResult\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc)
       && /result\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc));
