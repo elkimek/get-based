@@ -4,6 +4,12 @@
 import { state } from './state.js';
 import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
+import {
+  getDashboardDeviceSessions,
+  getDashboardLightSessions,
+  getDashboardSnpTableCache,
+  openDashboardMarkerDetail,
+} from './dashboard-widget-runtime.js';
 import { dashboardBiometricSelectionKey, DASHBOARD_MANUAL_BIOMETRIC_METRICS } from './dashboard-widgets.js';
 import { createDashboardRecommendationWidget } from './dashboard-recommendation-widget.js';
 import { ensureSNPTable, findGenotypeInfo, getSnpCategoryLabel } from './dna.js';
@@ -96,8 +102,8 @@ export function createDashboardWidgetRenderers(deps) {
   }
 
   function renderDashboardLightChannelsWidget() {
-    const sessions = (window.getSessions && window.getSessions()) || [];
-    const deviceSessionsAll = (window.getDeviceSessions && window.getDeviceSessions()) || [];
+    const sessions = getDashboardLightSessions();
+    const deviceSessionsAll = getDashboardDeviceSessions();
     const totalSessions = sessions.length + deviceSessionsAll.length;
     const lead = totalSessions === 0
       ? 'No light sessions yet. Start logging sun or device exposure to fill your channel rhythm.'
@@ -305,7 +311,7 @@ export function createDashboardWidgetRenderers(deps) {
     saveDashboardQuickMarkerPins(pins);
     showNotification(pinned ? 'Pinned to Quick Markers' : 'Removed from Quick Markers', pinned ? 'success' : 'info');
     if (state.currentView === 'dashboard') rerenderDashboardFromWidgetChange();
-    if (state._activeDetailMarkerId === id) window.showDetailModal?.(id);
+    if (state._activeDetailMarkerId === id) openDashboardMarkerDetail(id);
   }
 
   function getDashboardQuickMarkerCoreRanks() {
@@ -907,7 +913,7 @@ export function createDashboardWidgetRenderers(deps) {
     const genetics = state.importedData?.genetics;
     const snps = genetics?.snps || {};
     const apoe = genetics?.apoe;
-    const snpTable = typeof window !== 'undefined' ? window._snpTableCache : null;
+    const snpTable = getDashboardSnpTableCache();
     const snpCount = Object.keys(snps).length;
     if (snpCount && !snpTable) {
       refreshDashboardGenomeWidgetWhenSNPTableReady();

@@ -42,6 +42,10 @@ assert('dashboard widget runtime owns shell callbacks',
     runtimeSrc.includes('openNoteEditor'));
 assert('dashboard widget controls has no direct window refs',
   !/\bwindow(\.|\s*\[)/.test(controlsSrc));
+assert('dashboard widget renderers import runtime adapter',
+  renderersSrc.includes("from './dashboard-widget-runtime.js'"));
+assert('dashboard widget renderers have no direct window refs',
+  !/\bwindow(\.|\s*\[)/.test(renderersSrc));
 assert('dashboard widget renderers render no inline event attributes',
   !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(renderersSrc));
 assert('dashboard widget controls render delegated action attributes',

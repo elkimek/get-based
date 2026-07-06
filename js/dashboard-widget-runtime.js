@@ -1,5 +1,5 @@
 // @ts-check
-// dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls.
+// dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -25,6 +25,34 @@ export function getDashboardViewportHeight() {
 
 export function openDashboardWearablesSettings() {
   getRuntimeFunction('openSettingsModal')?.('wearables');
+}
+
+export function getDashboardLightSessions() {
+  const getSessions = getRuntimeFunction('getSessions');
+  if (!getSessions) return [];
+  try {
+    const sessions = getSessions();
+    return Array.isArray(sessions) ? sessions : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getDashboardDeviceSessions() {
+  const getDeviceSessions = getRuntimeFunction('getDeviceSessions');
+  if (!getDeviceSessions) return [];
+  try {
+    const sessions = getDeviceSessions();
+    return Array.isArray(sessions) ? sessions : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getDashboardSnpTableCache() {
+  const runtime = getRuntimeWindow();
+  if (!runtime) return null;
+  return runtime._snpTableCache || null;
 }
 
 /** @param {Element} actionEl */
