@@ -5,6 +5,8 @@ import './_node-shim.js';
 import {
   closeRecommendationsModal,
   getRecommendationsSnpTable,
+  isRecommendationsProductRecsEnabled,
+  loadRecommendationsCatalogRuntime,
   openRecommendationsEmfAssessment,
   openRecommendationsLocationEditor,
   openRecommendationsPrivacySettings,
@@ -52,6 +54,8 @@ try {
     openEMFAssessmentEditor() { calls.push(['emf', this === runtime]); },
     openProfileLocationEditor() { calls.push(['location', this === runtime]); },
     openSettingsTab(tab) { calls.push(['settings', tab, this === runtime]); },
+    isProductRecsEnabled() { calls.push(['enabled', this === runtime]); return true; },
+    async loadCatalog() { calls.push(['catalog', this === runtime]); return { slots: { magnesium: { label: 'Magnesium' } } }; },
     setTimeout(callback, delay) {
       calls.push(['timeout', delay, this === runtime]);
       callback();
@@ -65,6 +69,12 @@ try {
 
   assert('recommendations runtime reads SNP table cache',
     getRecommendationsSnpTable() === snpTable);
+  const catalog = await loadRecommendationsCatalogRuntime();
+  assert('recommendations runtime delegates product recs flag and catalog loader',
+    isRecommendationsProductRecsEnabled() === true &&
+      catalog?.slots?.magnesium?.label === 'Magnesium' &&
+      calls.some(call => call[0] === 'enabled' && call[1] === true) &&
+      calls.some(call => call[0] === 'catalog' && call[1] === true));
   assert('recommendations runtime delegates host modal and editor hooks',
     closeRecommendationsModal() &&
       openRecommendationsEmfAssessment() &&
@@ -85,9 +95,13 @@ try {
   delete runtime.openEMFAssessmentEditor;
   delete runtime.openProfileLocationEditor;
   delete runtime.openSettingsTab;
+  delete runtime.isProductRecsEnabled;
+  delete runtime.loadCatalog;
   delete runtime._snpTableCache;
   assert('recommendations runtime handles missing optional browser hooks',
     getRecommendationsSnpTable() === null &&
+      isRecommendationsProductRecsEnabled() === false &&
+      await loadRecommendationsCatalogRuntime() === null &&
       closeRecommendationsModal() === false &&
       openRecommendationsEmfAssessment() === false &&
       openRecommendationsLocationEditor() === false &&
@@ -96,6 +110,8 @@ try {
   delete globalThis.window;
   assert('recommendations runtime no-ops without browser window',
     getRecommendationsSnpTable() === null &&
+      isRecommendationsProductRecsEnabled() === false &&
+      await loadRecommendationsCatalogRuntime() === null &&
       registerRecommendationsRuntimeExports({ missingWindowProbe: true }) === false);
 } finally {
   restoreWindow();

@@ -255,6 +255,11 @@ const _realFetch = globalThis.fetch;
       && categoryPageViewSrc.includes('getCategoryPageCatalogSlots')
       && !/\bwindow(\.|\s*\[)/.test(categoryPageViewSrc));
   assert('chart-card-recs.js has loadChartCardRecs function', chartCardRecsSrc.includes('function loadChartCardRecs'));
+  assert('chart-card-recs.js delegates catalog globals through recommendations runtime',
+    chartCardRecsSrc.includes("from './recommendations-runtime.js'")
+      && chartCardRecsSrc.includes('isRecommendationsProductRecsEnabled')
+      && chartCardRecsSrc.includes('loadRecommendationsCatalogRuntime')
+      && !/\bwindow(\.|\s*\[)/.test(chartCardRecsSrc));
   assert('marker-detail-modal.js scrollToRec auto-opens details', markerDetailSrc.includes('scrollToRec'));
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
   assert('nav.js exposes recommendations sidebar helper', navSrc.includes('openRecommendationsFromSidebar'));

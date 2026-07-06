@@ -21,6 +21,20 @@ export function getRecommendationsSnpTable() {
   return runtime?._snpTableCache || null;
 }
 
+export function isRecommendationsProductRecsEnabled() {
+  try {
+    return Boolean(getRuntimeFunction('isProductRecsEnabled')?.());
+  } catch {
+    return false;
+  }
+}
+
+export async function loadRecommendationsCatalogRuntime() {
+  const loadCatalog = getRuntimeFunction('loadCatalog');
+  if (!loadCatalog) return null;
+  return await loadCatalog();
+}
+
 export function closeRecommendationsModal() {
   const closeModal = getRuntimeFunction('closeModal');
   if (!closeModal) return false;
