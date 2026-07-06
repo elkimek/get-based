@@ -196,6 +196,7 @@
     "js/provider-model-controls-runtime.js",
     "js/provider-model-controls.js",
     "js/provider-panel-delegates.js",
+    "js/provider-panel-renderers-runtime.js",
     "js/provider-panel-renderers.js",
     "js/provider-panels.js",
     "js/provider-ppq-panels.js",

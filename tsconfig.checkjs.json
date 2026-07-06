@@ -261,6 +261,7 @@
     "js/api-models.js",
     "js/provider-model-controls-runtime.js",
     "js/provider-model-controls.js",
+    "js/provider-panel-renderers-runtime.js",
     "js/provider-panel-renderers.js",
     "js/provider-qr.js",
     "js/provider-wallet-delegates.js",

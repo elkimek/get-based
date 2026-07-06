@@ -98,6 +98,7 @@
     '/js/dashboard-widget-runtime.js',
     '/js/provider-local-ai-runtime.js',
     '/js/provider-model-controls-runtime.js',
+    '/js/provider-panel-renderers-runtime.js',
     '/js/api-runtime.js',
     '/js/api-provider-storage-runtime.js',
     '/js/charts-runtime.js',

@@ -209,6 +209,7 @@ const LEGACY_TESTS = [
   './test-wearables-delegated-actions.js',
   './test-client-list-delegated-actions.js',
   './test-provider-wallet-delegated-actions.js',
+  './test-provider-panel-renderers-runtime.js',
   './test-provider-panel-delegated-actions.js',
   './test-chat-empty-state-delegated-actions.js',
   './test-modal-lifecycle-integrations.js',
