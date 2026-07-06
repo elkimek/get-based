@@ -57,6 +57,7 @@
     '/js/wearables-manual-form-ui.js',
     '/js/wearables-apple-health-runtime.js',
     '/js/wearables-runtime.js',
+    '/js/wearables-auth-runtime.js',
     '/js/wearables-settings-runtime.js',
     '/js/wearables-connect-runtime.js',
     '/js/dashboard-view-composition.js',

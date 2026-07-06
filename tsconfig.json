@@ -326,6 +326,7 @@
     "js/wearable-adapters.js",
     "js/wearables-apple-health-runtime.js",
     "js/wearables-apple-health.js",
+    "js/wearables-auth-runtime.js",
     "js/wearables-connect-runtime.js",
     "js/wearables-connect.js",
     "js/wearables-detail-runtime.js",

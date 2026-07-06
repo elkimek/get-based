@@ -823,6 +823,26 @@ assert('extractExportXml awaits loadJSZip() instead of bare window.JSZip',
   /const\s+JSZip\s*=\s*await\s+loadJSZip\(\)/.test(ahSrc));
 assert('No bare "JSZip not loaded" throw left in extractExportXml',
   !ahSrc.includes('JSZip not loaded — Apple Health'));
+const authRuntimeSrc = await fetch('/js/wearables-auth-runtime.js').then(r => r.text());
+const authModuleFiles = [
+  '/js/wearables-fitbit-auth.js',
+  '/js/wearables-oura-auth.js',
+  '/js/wearables-polar-auth.js',
+  '/js/wearables-ultrahuman-auth.js',
+  '/js/wearables-whoop-auth.js',
+  '/js/wearables-withings-auth.js',
+];
+const authModuleSources = await Promise.all(authModuleFiles.map(file => fetch(file).then(r => r.text())));
+assert('Wearable OAuth modules delegate browser globals to auth runtime',
+  authModuleSources.every(src =>
+    src.includes("from './wearables-auth-runtime.js'") &&
+    src.includes('getWearableAuthProfileId') &&
+    src.includes('redirectWearableAuth') &&
+    src.includes('exposeWearableAuthDebug') &&
+    !/\bwindow(?:\.|\s*\[)/.test(src)) &&
+    authRuntimeSrc.includes('export function getWearableAuthLocation') &&
+    authRuntimeSrc.includes('export function exposeWearableAuthDebug'),
+  authModuleFiles.find((file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index])) || 'missing runtime import');
 // (JSZip functional smoke — needs real browser <script> injection —
 // lives in test-wearables-dom.js. The loadJSZip source-pattern asserts
 // above run in Node.)

@@ -11,6 +11,12 @@
 // out of the browser via the proxy.
 
 import { isDebugMode } from './utils.js';
+import {
+  exposeWearableAuthDebug,
+  getWearableAuthLocation,
+  getWearableAuthProfileId,
+  redirectWearableAuth,
+} from './wearables-auth-runtime.js';
 
 const AUTHORIZE_URL = 'https://cloud.ouraring.com/oauth/authorize';
 const PROXY_URL = '/api/proxy';
@@ -43,10 +49,11 @@ function randomState() {
 
 // The redirect_uri must exactly match what's registered in the Oura developer
 // portal. We pick the registered URI that matches the current origin + path.
-export function pickRedirectUri(registeredUris, windowLocation = window.location) {
-  const origin = windowLocation.origin;
+export function pickRedirectUri(registeredUris, locationLike = getWearableAuthLocation()) {
+  const origin = locationLike?.origin;
+  if (!origin) throw new Error('No registered Oura redirect URI matches current origin unknown');
   // Prefer exact match on origin + pathname; fall back to origin match alone.
-  const hrefBase = origin + windowLocation.pathname;
+  const hrefBase = origin + locationLike.pathname;
   const exact = registeredUris.find(u => u === hrefBase || u === hrefBase + '/');
   if (exact) return exact;
   const byOrigin = registeredUris.find(u => u.startsWith(origin));
@@ -74,10 +81,10 @@ export function beginOAuth({ clientId, registeredUris, scopes = DEFAULT_OURA_SCO
   const redirectUri = pickRedirectUri(registeredUris);
   sessionStorage.setItem(STATE_KEY, JSON.stringify({
     state, redirectUri, startedAt: Date.now(), clientId,
-    profileId: window._labState?.currentProfile || null,
+    profileId: getWearableAuthProfileId(),
   }));
   const url = buildAuthorizeUrl({ clientId, redirectUri, scopes, state });
-  window.location.href = url;
+  redirectWearableAuth(url);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -233,4 +240,4 @@ export async function withFreshToken(connection, clientId, refreshedWrite, readL
   return run();
 }
 
-if (isDebugMode?.()) window._ouraAuth = { buildAuthorizeUrl, completeOAuthCallback, isOuraCallback, refreshTokens, withFreshToken };
+exposeWearableAuthDebug('_ouraAuth', { buildAuthorizeUrl, completeOAuthCallback, isOuraCallback, refreshTokens, withFreshToken }, Boolean(isDebugMode?.()));
