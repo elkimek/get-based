@@ -36,6 +36,13 @@ assert('nav.js installs idempotent click and input delegates',
   navSrc.includes('let navDelegatesInstalled = false') &&
     navSrc.includes("document.addEventListener('click', handleNavActionClick)") &&
     navSrc.includes("document.addEventListener('input', handleNavInput)"));
+assert('nav.js routes browser globals through runtime adapter',
+  navSrc.includes("from './nav-runtime.js'") &&
+    navSrc.includes('navigateFromNavRuntime(') &&
+    navSrc.includes('openEMFAssessmentFromNavRuntime()') &&
+    navSrc.includes('openClientListFromNavRuntime()') &&
+    navSrc.includes('exposeNavRuntimeGlobals({') &&
+    !/\bwindow(?:\.|\s*\[)/.test(navSrc));
 
 [
   'navigate',

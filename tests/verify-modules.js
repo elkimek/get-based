@@ -69,6 +69,7 @@
     '/js/category-customization.js',
     '/js/commit-hash.js',
     '/js/client-list-runtime.js',
+    '/js/nav-runtime.js',
     '/js/views-router-runtime.js',
     '/js/focus-card.js',
     '/js/onboarding-view-runtime.js',

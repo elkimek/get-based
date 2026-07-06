@@ -164,6 +164,7 @@
     "js/mobile-dashboard.js",
     "js/mobile-dashboard-runtime.js",
     "js/modal-lifecycle.js",
+    "js/nav-runtime.js",
     "js/nav.js",
     "js/notes-runtime.js",
     "js/notes.js",
