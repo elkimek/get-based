@@ -27,6 +27,7 @@
     "js/blob-storage.js",
     "js/brand-assets.js",
     "js/cashu-wallet.js",
+    "js/category-customization-runtime.js",
     "js/category-customization.js",
     "js/category-glyphs.js",
     "js/category-page-runtime.js",

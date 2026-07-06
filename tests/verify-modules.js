@@ -62,6 +62,7 @@
     '/js/mobile-dashboard-runtime.js',
     '/js/lens-page-shell.js',
     '/js/chart-card-recs.js',
+    '/js/category-customization-runtime.js',
     '/js/category-glyphs.js',
     '/js/category-page-runtime.js',
     '/js/category-page-view.js',
