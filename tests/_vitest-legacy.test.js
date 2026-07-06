@@ -178,6 +178,7 @@ const LEGACY_TESTS = [
   './test-settings-delegated-actions.js',
   './test-views-router-runtime.js',
   './test-chat-send-runtime.js',
+  './test-context-card-lifestyle-runtime.js',
   './test-import-drop-zone-runtime.js',
   './test-mobile-dashboard-runtime.js',
   './test-wearables-runtime.js',
