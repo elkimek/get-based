@@ -2,12 +2,21 @@
 // import-file-input.js - file picker import binding and routing
 
 import { loadPdfImport } from './import-loader.js';
+import {
+  detectDropZoneDNAFile as detectImportDNAFileRuntime,
+  handleDropZoneDNAFile as handleImportDNAFileRuntime,
+  handleDropZoneMtDNAFile as handleImportMtDNAFileRuntime,
+  hasDropZoneMtDNAHandler as hasImportMtDNAHandlerRuntime,
+  importDropZoneJSONFile as importJSONFileRuntime,
+  isDropZoneImportRunning as isImportRunningRuntime,
+  showDropZoneImportNotification as showImportNotificationRuntime,
+} from './import-drop-zone-runtime.js';
 
 let importInputBound = false;
 
 /** @param {Event & { target: HTMLInputElement }} e */
 export async function handleImportInputChange(e) {
-  if (window.isImportRunning && window.isImportRunning()) {
+  if (isImportRunningRuntime()) {
     e.target.value = '';
     return;
   }
@@ -17,7 +26,7 @@ export async function handleImportInputChange(e) {
   try {
     importMod = await loadPdfImport();
   } catch (err) {
-    window.showNotification?.('Could not load import module - check your connection and try again.', 'error');
+    showImportNotificationRuntime('Could not load import module - check your connection and try again.', 'error');
     e.target.value = '';
     return;
   }
@@ -25,19 +34,19 @@ export async function handleImportInputChange(e) {
   const files = Array.from(e.target.files);
   const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
   if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
-    window.showNotification?.("Unsupported file type. Use PDF, Excel (.xlsx), text, CSV, image, JSON, or DNA raw data (.txt/.csv).", "error");
+    showImportNotificationRuntime("Unsupported file type. Use PDF, Excel (.xlsx), text, CSV, image, JSON, or DNA raw data (.txt/.csv).", "error");
     e.target.value = '';
     return;
   }
 
-  for (const f of jsonFiles) window.importDataJSON(f);
+  for (const f of jsonFiles) importJSONFileRuntime(f);
   if (dnaFiles.length > 0) {
     for (const f of dnaFiles) {
       const header = await f.slice(0, 1500).text();
-      const fmt = window.detectDNAFile ? window.detectDNAFile(header) : null;
-      if ((fmt === 'mtdna' || fmt === '23andme-mito') && window.handleMtDNAFile) await window.handleMtDNAFile(f);
-      else if (fmt === '23andme-y') { window.showNotification?.('Y-chromosome DNA files are not supported', 'info'); }
-      else await window.handleDNAFile(f);
+      const fmt = detectImportDNAFileRuntime(header);
+      if ((fmt === 'mtdna' || fmt === '23andme-mito') && hasImportMtDNAHandlerRuntime()) await handleImportMtDNAFileRuntime(f);
+      else if (fmt === '23andme-y') { showImportNotificationRuntime('Y-chromosome DNA files are not supported', 'info'); }
+      else await handleImportDNAFileRuntime(f);
     }
   }
   else if (textFiles.length > 0) { for (const f of textFiles) await importMod.handleTextFile(f); }
@@ -55,7 +64,7 @@ export function bindImportFileInput() {
   document.getElementById("pdf-input")?.addEventListener("change", e => {
     handleImportInputChange(/** @type {Event & { target: HTMLInputElement }} */ (e)).catch(err => {
       console.error('[import-file-input] import handler failed:', err);
-      window.showNotification?.('Import failed - check the file and try again.', 'error');
+      showImportNotificationRuntime('Import failed - check the file and try again.', 'error');
     });
   });
   // Prevent browser from opening dropped files outside drop zone.

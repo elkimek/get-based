@@ -6,12 +6,14 @@ import { escapeHTML, showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs } from './dna-actions.js';
-
-/** @typedef {Window & typeof globalThis & {
- *   _pendingMtDNA?: any,
- *   getLatitudeFromLocation?: () => string | null
- * }} DnaMtDnaWindow */
-const dnaWindow = /** @type {DnaMtDnaWindow} */ (window);
+import {
+  clearPendingMtDnaImport,
+  getDnaProfileLatitudeBand,
+  getPendingMtDnaImport,
+  logDnaDebugError,
+  refreshDnaShell,
+  setPendingMtDnaImport,
+} from './dna-runtime.js';
 
 let _haplogroupTable = null;
 let _haplogroupTablePromise = null;
@@ -108,7 +110,7 @@ export function detectMtDNAMismatch(genetics) {
   const coupling = genetics.mtdna.coupling;
 
   // Get latitude band from profile
-  const bandStr = dnaWindow.getLatitudeFromLocation ? dnaWindow.getLatitudeFromLocation() : null;
+  const bandStr = getDnaProfileLatitudeBand();
   if (!bandStr) return null;
 
   const BANDS = ['<25\u00b0 latitude (tropical)', '25-40\u00b0 (subtropical)', '40-50\u00b0 (temperate)', '50-60\u00b0 (northern)', '>60\u00b0 (subarctic)'];
@@ -150,10 +152,10 @@ export async function handleMtDNAFile(file) {
     const coupling = classifyCoupling(resolved.haplogroup, hapTable);
     const hgData = hapTable.haplogroups[resolved.haplogroup];
     const source = file.name.toLowerCase().includes('23andme') || file.name.toLowerCase().includes('genome') ? 'mtDNA (23andMe)' : 'mtDNA CSV';
-    dnaWindow._pendingMtDNA = { mutations, resolved, coupling, hgData, source };
+    setPendingMtDnaImport({ mutations, resolved, coupling, hgData, source });
     _showMtDNAPreview(resolved, coupling, mutations, file.name);
   } catch (e) {
-    if (window.isDebugMode?.()) console.error('mtDNA import error:', e);
+    logDnaDebugError('mtDNA import error:', e);
     showNotification(e.message || 'Failed to parse mtDNA file', 'error');
   }
   _mtdnaImportRunning = false;
@@ -207,11 +209,11 @@ function _showMtDNAPreview(resolved, coupling, mutations, fileName) {
 
 export function closeMtDNAPreview() {
   closeModalOverlay('dna-modal-overlay');
-  dnaWindow._pendingMtDNA = null;
+  clearPendingMtDnaImport();
 }
 
 export async function confirmMtDNAImport() {
-  const pending = dnaWindow._pendingMtDNA;
+  const pending = getPendingMtDnaImport();
   if (!pending) return;
 
   if (!state.importedData.genetics) {
@@ -235,16 +237,14 @@ export async function confirmMtDNAImport() {
   if (!await saveImportedData()) return;
   closeMtDNAPreview();
   showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('dashboard');
+  refreshDnaShell('dashboard');
 }
 
 export async function deleteMtDNAData() {
   if (state.importedData.genetics) {
     delete state.importedData.genetics.mtdna;
     if (!await saveImportedData()) return;
-    if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-    if (window.navigate) window.navigate('dashboard');
+    refreshDnaShell('dashboard');
     showNotification('mtDNA haplogroup removed', 'info');
   }
 }
@@ -279,6 +279,5 @@ export async function setManualHaplogroup(haplogroup) {
   };
   if (!await saveImportedData()) return;
   showNotification(`Haplogroup ${hg} saved${coupling ? ' - ' + coupling.shortLabel : ''}`, 'success');
-  if (window.buildSidebar) try { window.buildSidebar(); } catch (e) {}
-  if (window.navigate) window.navigate('dashboard');
+  refreshDnaShell('dashboard');
 }

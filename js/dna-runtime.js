@@ -85,6 +85,15 @@ export function updateDnaChatNudge() {
   getRuntimeFunction('updateChatNudge')?.();
 }
 
+/** @returns {string | null} */
+export function getDnaProfileLatitudeBand() {
+  try {
+    return getRuntimeFunction('getLatitudeFromLocation')?.() || null;
+  } catch {
+    return null;
+  }
+}
+
 /** @returns {Promise<boolean>} */
 export async function confirmDnaDeleteDialog() {
   const confirmDialog = getRuntimeFunction('showConfirmDialog');
@@ -128,6 +137,20 @@ export function getPendingDnaImport() {
 
 export function clearPendingDnaImport() {
   getRuntimeWindow()._pendingDNAImport = null;
+}
+
+/** @param {any} result */
+export function setPendingMtDnaImport(result) {
+  getRuntimeWindow()._pendingMtDNA = result;
+}
+
+/** @returns {any} */
+export function getPendingMtDnaImport() {
+  return getRuntimeWindow()._pendingMtDNA || null;
+}
+
+export function clearPendingMtDnaImport() {
+  getRuntimeWindow()._pendingMtDNA = null;
 }
 
 /** @param {Record<string, any>} bindings */

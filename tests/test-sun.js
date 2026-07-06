@@ -580,6 +580,7 @@ const {
   const metricsSrc = await fs.readFile(new URL('../js/sun-channel-metrics.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
   const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
+  const runtimeSrc = await fs.readFile(new URL('../js/sun-runtime.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const aiHooksSrc = await fs.readFile(new URL('../js/light-sun-ai-hooks.js', import.meta.url), 'utf8');
   const swSrc = await fs.readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
@@ -616,6 +617,13 @@ const {
     metricsSrc.includes('function currentDateKeyRange') &&
     !metricsSrc.includes('toISOString().slice(0, 10)') &&
     !metricsSrc.includes('window.'));
+  assert('Sun browser hooks are isolated in runtime adapter',
+    sunSrc.includes("from './sun-runtime.js'") &&
+    !/\bwindow(?:\.|\s*\[)/.test(sunSrc) &&
+    runtimeSrc.includes('export function getSunDeviceSessionsRuntime') &&
+    runtimeSrc.includes('export function renderLightTodayStripRuntime') &&
+    runtimeSrc.includes('export function requestSunGeolocationPositionRuntime') &&
+    swSrc.includes("'/js/sun-runtime.js'"));
   assert('Service worker precaches extracted sun session modules',
     swSrc.includes("'/js/sun-session-model.js'") &&
     swSrc.includes("'/js/sun-sessions-store.js'") &&

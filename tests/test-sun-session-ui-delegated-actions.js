@@ -116,7 +116,8 @@ assert('sun.js configures active sun-session delegated actions',
     sunSrc.includes('applySunscreenMidSession,') &&
     sunSrc.includes('setOzoneOverrideMidSession,') &&
     sunSrc.includes('forgotStopPrompt: _forgotStopPrompt') &&
-    sunSrc.includes('openChannelOnLightPage: channel =>'));
+    sunSrc.includes('openChannelOnLightPage: openSunChannelOnLightPageRuntime') &&
+    sunSrc.includes("from './sun-runtime.js'"));
 
 [
   'ignore',
