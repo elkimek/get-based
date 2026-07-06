@@ -320,6 +320,7 @@
     "js/sync-init.js",
     "js/sync-lifecycle.js",
     "js/sync-runtime.js",
+    "js/sync-pull-active-refresh-runtime.js",
     "js/sync-pull-active-refresh.js",
     "js/sync-pull-maintenance.js",
     "js/sync-pull-merge.js",

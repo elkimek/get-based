@@ -1,6 +1,6 @@
 {
   "inlineEventAttributes": 0,
-  "windowReferences": 275,
+  "windowReferences": 266,
   "largeJsFilesOver800Lines": 28,
   "maxJsFileLines": 1511
 }
