@@ -10,17 +10,19 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import {
+  closeNoteModalRuntime,
+  exposeNoteEditorRuntime,
+  isNoteActionDelegatesBoundRuntime,
+  markNoteActionDelegatesBoundRuntime,
+  navigateAfterNoteChangeRuntime,
+  rememberNoteModalTriggerRuntime,
+} from './notes-runtime.js';
 
 let _noteActionDelegatesInstalled = false;
 
 const NOTE_ACTION_ATTR = 'data-note-action';
 const NOTE_ACTION_SELECTOR = `[${NOTE_ACTION_ATTR}]`;
-const appWindow = /** @type {Window & typeof globalThis & {
-  closeModal?: () => void,
-  saveNote?: (idx?: number | null) => void,
-  deleteNote?: (idx: number) => Promise<void>,
-  __noteActionDelegatesBound?: boolean,
-}} */ (typeof window !== 'undefined' ? window : {});
 
 function noteActionAttrs(action, attrs = {}) {
   let html = `${NOTE_ACTION_ATTR}="${escapeAttr(action)}"`;
@@ -51,13 +53,13 @@ function handleNoteActionClick(event) {
   if (!actionEl) return;
   const action = actionEl.getAttribute(NOTE_ACTION_ATTR);
   if (action === 'close') {
-    appWindow.closeModal?.();
+    closeNoteModalRuntime();
   } else if (action === 'save') {
-    appWindow.saveNote?.(parseNoteIndex(actionEl));
+    saveNote(parseNoteIndex(actionEl));
   } else if (action === 'delete') {
     const idx = parseNoteIndex(actionEl);
     if (idx === null) return;
-    appWindow.deleteNote?.(idx);
+    deleteNote(idx);
   } else {
     return;
   }
@@ -65,9 +67,9 @@ function handleNoteActionClick(event) {
 }
 
 export function installNoteActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || _noteActionDelegatesInstalled || appWindow.__noteActionDelegatesBound) return;
+  if (!root || _noteActionDelegatesInstalled || isNoteActionDelegatesBoundRuntime()) return;
   _noteActionDelegatesInstalled = true;
-  appWindow.__noteActionDelegatesBound = true;
+  markNoteActionDelegatesBoundRuntime();
   root.addEventListener('click', handleNoteActionClick);
 }
 
@@ -88,7 +90,7 @@ function refreshOpenNoteEditorOnSync({ modal }) {
   if (nextIdx >= 0) {
     openNoteEditor(null, nextIdx);
   } else {
-    window.closeModal?.();
+    closeNoteModalRuntime();
   }
 }
 
@@ -128,7 +130,7 @@ export function openNoteEditor(date, existingIdx) {
   modal.dataset.syncRefreshMode = isEditing ? 'edit' : 'add';
   modal.dataset.syncRefreshIndex = isEditing ? String(existingIdx) : '';
   modal.dataset.syncRefreshDate = defaultDate || '';
-  if (!wasOpen) window.rememberModalTrigger?.();
+  if (!wasOpen) rememberNoteModalTriggerRuntime();
   openModalOverlay(overlay, { initialFocus: '#note-textarea', focusDelay: 50 });
 }
 
@@ -148,9 +150,9 @@ export function saveNote(idx) {
     appendImportedArrayItem(state.importedData, 'notes', nextNote);
   }
   saveImportedData();
-  window.closeModal();
+  closeNoteModalRuntime();
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
-  window.navigate(activeNav?.dataset.category ?? "dashboard");
+  navigateAfterNoteChangeRuntime(activeNav?.dataset.category ?? "dashboard");
   showNotification('Note saved', 'success');
 }
 
@@ -160,11 +162,11 @@ export async function deleteNote(idx) {
   if (await showConfirmDialog("Delete this note? This can't be undone.")) {
     deleteImportedArrayItem(state.importedData, 'notes', idx);
     saveImportedData();
-    window.closeModal();
+    closeNoteModalRuntime();
     const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
-    window.navigate(activeNav?.dataset.category ?? "dashboard");
+    navigateAfterNoteChangeRuntime(activeNav?.dataset.category ?? "dashboard");
     showNotification('Note deleted', 'info');
   }
 }
 
-Object.assign(window, { openNoteEditor, saveNote, deleteNote });
+exposeNoteEditorRuntime({ openNoteEditor, saveNote, deleteNote });

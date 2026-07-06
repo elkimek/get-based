@@ -162,6 +162,7 @@
     "js/mobile-dashboard-runtime.js",
     "js/modal-lifecycle.js",
     "js/nav.js",
+    "js/notes-runtime.js",
     "js/notes.js",
     "js/nostr-discovery.js",
     "js/onboarding-view-runtime.js",

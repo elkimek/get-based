@@ -96,6 +96,7 @@
     '/js/provider-model-controls-runtime.js',
     '/js/api-runtime.js',
     '/js/charts-runtime.js',
+    '/js/notes-runtime.js',
     '/js/pdf-import-review-runtime.js',
     '/js/theme-runtime.js',
     '/js/touch-tooltip-runtime.js',
