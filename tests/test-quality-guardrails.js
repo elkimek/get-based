@@ -363,6 +363,7 @@ const pdfReportCheckJsModules = [
   'js/export-report-builder.js',
   'js/export-report-html.js',
   'js/pdf-import-ai-utils.js',
+  'js/pdf-import-file-utils.js',
   'js/pdf-import-marker-mapping.js',
   'js/pdf-import-marker-normalization.js',
   'js/pdf-import-persistence.js',

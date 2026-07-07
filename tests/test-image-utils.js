@@ -156,13 +156,16 @@ assert('Image badge in renderChatMessages', chatRenderSrc.includes('chat-image-b
 assert('buildVisionContent used in sendChatMessage', chatSendSrc.includes('buildVisionContent(imageBlocks'));
 
 const pdfSrc = await fetchWithRetry('js/pdf-import.js');
+const pdfFileUtilsSrc = await fetchWithRetry('js/pdf-import-file-utils.js');
 assert('assessTextQuality in pdf-import', pdfSrc.includes('export function assessTextQuality'));
 assert('extractPDFImages in pdf-import', pdfSrc.includes('export async function extractPDFImages'));
 assert('parseLabPDFWithAIImages in pdf-import', pdfSrc.includes('export async function parseLabPDFWithAIImages'));
 assert('handleImageFile in pdf-import', pdfSrc.includes('export async function handleImageFile'));
 assert('Image mode dialog for poor text quality', pdfSrc.includes("_showImageModeDialog"));
-assert('PDF reads use FileReader fallback after Blob.arrayBuffer aborts', pdfSrc.includes('function readFileArrayBuffer') && pdfSrc.includes('new FileReader()'));
-assert('PDF text extraction uses resilient file read helper', pdfSrc.includes('const arrayBuffer = await readFileArrayBuffer(file);'));
+assert('PDF reads use FileReader fallback after Blob.arrayBuffer aborts',
+  pdfFileUtilsSrc.includes('function readFileArrayBuffer') && pdfFileUtilsSrc.includes('new FileReader()'));
+assert('PDF text extraction uses resilient file read helper',
+  pdfFileUtilsSrc.includes('const arrayBuffer = await readFileArrayBuffer(file);'));
 
 // CSS source-string checks — runtime "rule is loaded in stylesheet"
 // version lives in tests/playwright/image-utils-dom.spec.js.

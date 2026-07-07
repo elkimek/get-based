@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization Pipeline Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const fileUtilsSrc = read('js/pdf-import-file-utils.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const schemaSrc = read('js/schema.js');
 const { UNIT_CONVERSIONS, MARKER_SCHEMA } = await import('../js/schema.js');
@@ -382,13 +383,13 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
     assert('garbled text (low alpha ratio) → poor', atq(garbled) === 'poor');
   } else {
     // Verify via source inspection
-    assert('assessTextQuality defined in source', src.includes('function assessTextQuality(text)'));
+    assert('assessTextQuality defined in source', fileUtilsSrc.includes('function assessTextQuality(text)'));
     assert('assessTextQuality exported', src.includes('assessTextQuality'));
-    assert('returns empty for falsy', src.includes("return 'empty'"));
-    assert('returns poor for short text', src.includes("return 'poor'"));
-    assert('returns good for normal text', src.includes("return 'good'"));
-    assert('checks word count < 30', src.includes('words.length < 30'));
-    assert('checks alpha ratio < 0.15', src.includes('alphaChars / totalChars < 0.15'));
+    assert('returns empty for falsy', fileUtilsSrc.includes("return 'empty'"));
+    assert('returns poor for short text', fileUtilsSrc.includes("return 'poor'"));
+    assert('returns good for normal text', fileUtilsSrc.includes("return 'good'"));
+    assert('checks word count < 30', fileUtilsSrc.includes('words.length < 30'));
+    assert('checks alpha ratio < 0.15', fileUtilsSrc.includes('alphaChars / totalChars < 0.15'));
   }
 
   // ═══════════════════════════════════════
@@ -399,9 +400,9 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
   assert('assessTextQuality is an export', src.includes('export function assessTextQuality'));
   assert('assessTextQuality on window', src.includes('assessTextQuality') &&
     (src.includes('Object.assign(window') || src.includes('window.')));
-  assert('word split on whitespace', src.includes("split(/\\s+/)"));
-  assert('alpha regex includes Latin Extended', src.includes('\\u00C0-\\u024F'));
-  assert('alpha regex includes Cyrillic', src.includes('\\u0400-\\u04FF'));
+  assert('word split on whitespace', fileUtilsSrc.includes("split(/\\s+/)"));
+  assert('alpha regex includes Latin Extended', fileUtilsSrc.includes('\\u00C0-\\u024F'));
+  assert('alpha regex includes Cyrillic', fileUtilsSrc.includes('\\u0400-\\u04FF'));
 
   // ═══════════════════════════════════════
   // 21. UNIT_CONVERSIONS completeness
