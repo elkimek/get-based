@@ -34,7 +34,9 @@ import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
 import {
   dispatchSyncOwnerChangedRuntime,
+  getSyncReloadUrlRuntime,
   refreshSyncedAIProviderUiRuntime,
+  scheduleSyncRuntimeReload,
   setSyncAppOwner,
 } from '../js/sync-runtime.js';
 import { getRecentSyncEvents, resetSyncStatus, updateSyncStatus } from '../js/sync-state.js';
@@ -222,6 +224,20 @@ describe('sync apply runtime behavior', () => {
       setSyncAppOwner(null);
       window.removeEventListener('labcharts-sync-owner-changed', recordOwnerEvent);
     }
+  });
+
+  it('routes sync reload path and delayed reload through runtime helpers', () => {
+    vi.useFakeTimers();
+    const reload = vi.fn();
+    vi.stubGlobal('window', { location: { pathname: '/sync-runtime-test', reload } });
+
+    expect(getSyncReloadUrlRuntime()).toBe('/sync-runtime-test');
+    expect(scheduleSyncRuntimeReload(250)).toBe(true);
+    expect(reload).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(250);
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 

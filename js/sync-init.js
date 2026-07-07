@@ -9,8 +9,9 @@ import { bindSyncRecoveryEvents } from './sync-recovery.js';
 import { reconcileLocalStorageWithEvolu } from './sync-reconcile.js';
 import { bindSyncSubscriptions, startRelayProbe } from './sync-subscriptions.js';
 import {
-  getSyncAppOwner, getSyncEvolu, setSyncAppOwner, setSyncAppOwnerError,
-  setSyncEvolu, setSyncQueries, setSyncQueryLoadedPromise,
+  getSyncAppOwner, getSyncEvolu, getSyncReloadUrlRuntime,
+  setSyncAppOwner, setSyncAppOwnerError, setSyncEvolu,
+  setSyncQueries, setSyncQueryLoadedPromise,
   setSyncReadyPromise,
 } from './sync-runtime.js';
 
@@ -45,7 +46,7 @@ export async function initSync() {
     const relay = getSyncRelay();
     const evolu = createEvolu(evoluWebDeps)(Schema, {
       name: SimpleName.orThrow("getbased4"),
-      reloadUrl: window.location.pathname,
+      reloadUrl: getSyncReloadUrlRuntime(),
       enableLogging: isDebugMode(),
       transports: [{ type: "WebSocket", url: relay }],
     });

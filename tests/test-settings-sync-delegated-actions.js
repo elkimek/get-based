@@ -40,6 +40,10 @@ assert('Settings sync delegates input events',
   /document\.addEventListener\('input', handleSettingsSyncInput\)/.test(src));
 assert('Settings sync actions are scoped to panel and modal roots',
   /closest\('#sync-section, #messenger-section, #sync-setup-overlay, #sync-restore-overlay'\)/.test(src));
+assert('Agent Access runtime refresh listeners use runtime adapter',
+  agentSrc.includes("addUtilsRuntimeListener('labcharts-sync-owner-changed'")
+    && agentSrc.includes("addUtilsRuntimeListener('labcharts-profile-switched'")
+    && !/\bwindow(?:\.|\s*\[)/.test(agentSrc));
 assert('Setup overlay backdrop nudges instead of closing',
   /target\.id === 'sync-setup-overlay'[\s\S]*nudgeSyncSetupDialog\(\)/.test(src));
 assert('Restore overlay backdrop closes restore dialog',

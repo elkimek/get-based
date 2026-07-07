@@ -85,6 +85,24 @@ export function dispatchSyncOwnerChangedRuntime(ownerId) {
   }
 }
 
+/** @param {string} [fallback] */
+export function getSyncReloadUrlRuntime(fallback = '/') {
+  const runtime = getSyncRuntimeWindow();
+  const pathname = runtime?.location?.pathname;
+  return typeof pathname === 'string' && pathname ? pathname : fallback;
+}
+
+/** @param {number} delayMs */
+export function scheduleSyncRuntimeReload(delayMs = 0) {
+  const runtime = getSyncRuntimeWindow();
+  const reload = runtime?.location?.reload;
+  if (!runtime?.location || typeof reload !== 'function') return false;
+  setTimeout(() => {
+    reload.call(runtime.location);
+  }, delayMs);
+  return true;
+}
+
 export function setSyncReadyPromise(promise) {
   _readyPromise = promise ?? null;
 }

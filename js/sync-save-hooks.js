@@ -6,6 +6,7 @@ import { profileStorageKey, createDefaultProfileData, migrateProfileData } from 
 import { getEncryptionEnabled, encryptedGetItem } from './crypto.js';
 import { markChatDataLocal } from './sync-chat-apply.js';
 import { pushContextToGateway } from './sync-messenger.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
 
 /** @type {(...args: any[]) => Promise<any>} */
 let _pushProfile = async () => {};
@@ -43,9 +44,8 @@ export function configureSyncSaveHooks({
 }
 
 export function bindSyncSaveHookEvents() {
-  if (_eventsBound || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
-  _eventsBound = true;
-  window.addEventListener('labcharts-ai-settings-local-changed', () => {
+  if (_eventsBound) return;
+  const bound = addUtilsRuntimeListener('labcharts-ai-settings-local-changed', () => {
     if (!_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
     if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
     const profileId = state.currentProfile;
@@ -55,6 +55,7 @@ export function bindSyncSaveHookEvents() {
       _pushProfile(profileId, importedData).catch(() => {});
     }, 250);
   });
+  if (bound) _eventsBound = true;
 }
 
 export function clearSyncSaveTimers() {
