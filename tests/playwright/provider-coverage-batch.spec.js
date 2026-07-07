@@ -501,6 +501,15 @@ test('provider panels cover provider switching key saves balances custom API and
             ],
           });
         }
+        if (href === '/api/proxy') {
+          const payload = JSON.parse(String(opts.body || '{}'));
+          if (payload.url === 'https://custom.example/v1/models') {
+            return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'z-ai/glm-5.2', name: 'GLM 5.2' }, { id: 'openai/gpt-5.5', name: 'GPT 5.5' }, { id: 'a-model', name: 'A Model' }] });
+          }
+          if (payload.url === 'https://custom.example/v1/chat/completions') {
+            return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+          }
+        }
         if (href === 'https://custom.example/v1/models') {
           return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'z-ai/glm-5.2', name: 'GLM 5.2' }, { id: 'openai/gpt-5.5', name: 'GPT 5.5' }, { id: 'a-model', name: 'A Model' }] });
         }
