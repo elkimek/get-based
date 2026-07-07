@@ -10,6 +10,7 @@ import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.j
 import { callClaudeAPI, hasAIProvider, supportsVision } from './api.js';
 import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } from './image-utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { getUtilsRuntimeHostname } from './utils-runtime.js';
 
 /**
  * @param {ParentNode} root
@@ -405,7 +406,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
   try {
     // Same fetch path supplements.js uses — /api/fetch-page on localhost,
     // POST /api/proxy on hosted. Reuses the existing trusted-host gates.
-    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
     let html;
     if (isLocal) {
       const res = await fetch('/api/fetch-page?url=' + encodeURIComponent(url));

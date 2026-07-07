@@ -17,12 +17,28 @@ export function getAppVersionRuntime(fallback = '') {
   return typeof version === 'string' && version ? version : fallback;
 }
 
+/** @param {string} [fallback] */
+export function getUtilsRuntimeHostname(fallback = '') {
+  const hostname = getUtilsRuntime()?.location?.hostname;
+  return typeof hostname === 'string' ? hostname : fallback;
+}
+
 /** @param {Record<string, any>} exportsByName */
 export function registerUtilsRuntimeExports(exportsByName) {
   const runtime = getUtilsRuntime();
   if (!runtime || !exportsByName) return false;
   Object.assign(runtime, exportsByName);
   return true;
+}
+
+/**
+ * @param {string} name
+ * @param {...any} args
+ */
+export function callUtilsRuntimeFunction(name, ...args) {
+  const runtime = getUtilsRuntime();
+  const fn = runtime?.[name];
+  return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 
 /**
@@ -49,6 +65,18 @@ export function openUtilsRuntimeWindow(url, target = '_blank', features) {
   if (typeof open !== 'function') return null;
   if (features === undefined) return open.call(runtime, url, target);
   return open.call(runtime, url, target, features);
+}
+
+/** @param {() => void} fn */
+export function scheduleUtilsAfterNextPaint(fn) {
+  const runtime = getUtilsRuntime();
+  const requestAnimationFrame = runtime?.requestAnimationFrame;
+  if (typeof requestAnimationFrame !== 'function') {
+    setTimeout(fn, 0);
+    return false;
+  }
+  requestAnimationFrame.call(runtime, () => setTimeout(fn, 0));
+  return true;
 }
 
 /**

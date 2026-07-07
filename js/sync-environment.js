@@ -1,6 +1,8 @@
 // @ts-check
 // sync-environment.js - relay URL and browser capability helpers.
 
+import { getUtilsRuntimeHostname } from './utils-runtime.js';
+
 const SYNC_RELAY_KEY = 'labcharts-sync-relay';
 const DEFAULT_RELAY = 'wss://sync.getbased.health';
 const ONION_RELAY = 'ws://udou6gehyfpfccdjpibmuttaoauawmh5cgzszffnskbvczppvr2sfjad.onion';
@@ -8,7 +10,7 @@ const ONION_RELAY = 'ws://udou6gehyfpfccdjpibmuttaoauawmh5cgzszffnskbvczppvr2sfj
 export function getSyncRelay() {
   const custom = localStorage.getItem(SYNC_RELAY_KEY);
   // On .onion, always use the onion relay (ignore stored clearnet relay)
-  if (window.location.hostname.endsWith('.onion')) return ONION_RELAY;
+  if (getUtilsRuntimeHostname().endsWith('.onion')) return ONION_RELAY;
   return custom || DEFAULT_RELAY;
 }
 

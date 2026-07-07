@@ -3,13 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addUtilsRuntimeListener,
+  callUtilsRuntimeFunction,
   dispatchUtilsRuntimeEvent,
   getAppVersionRuntime,
   getUtilsElementStyleRuntime,
+  getUtilsRuntimeHostname,
   hasUtilsRuntime,
   openUtilsRuntimeWindow,
   removeUtilsRuntimeListener,
   registerUtilsRuntimeExports,
+  scheduleUtilsAfterNextPaint,
 } from '../js/utils-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -23,6 +26,7 @@ function setRuntimeWindow(runtime) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   if (savedWindow) {
     Object.defineProperty(globalThis, 'window', savedWindow);
   } else {
@@ -58,6 +62,18 @@ describe('utils runtime adapter', () => {
     expect(runtime.openExample()).toBe('ok');
   });
 
+  it('delegates hostname reads and named runtime function calls', () => {
+    const openSettingsModal = vi.fn(section => `opened:${section}`);
+    setRuntimeWindow({
+      location: { hostname: 'localhost' },
+      openSettingsModal,
+    });
+
+    expect(getUtilsRuntimeHostname()).toBe('localhost');
+    expect(callUtilsRuntimeFunction('openSettingsModal', 'data')).toBe('opened:data');
+    expect(openSettingsModal).toHaveBeenCalledWith('data');
+  });
+
   it('delegates runtime event dispatch and window opening', () => {
     const dispatchEvent = vi.fn();
     const open = vi.fn(() => ({ document: {} }));
@@ -75,12 +91,41 @@ describe('utils runtime adapter', () => {
     expect(open).toHaveBeenCalledWith('/demo', '_blank');
   });
 
+  it('schedules callbacks after the next paint when requestAnimationFrame is available', () => {
+    vi.useFakeTimers();
+    const requestAnimationFrame = vi.fn(callback => {
+      callback();
+      return 1;
+    });
+    const callback = vi.fn();
+    setRuntimeWindow({ requestAnimationFrame });
+
+    expect(scheduleUtilsAfterNextPaint(callback)).toBe(true);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
+    expect(callback).not.toHaveBeenCalled();
+    vi.runOnlyPendingTimers();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to a timer when requestAnimationFrame is unavailable', () => {
+    vi.useFakeTimers();
+    const callback = vi.fn();
+    setRuntimeWindow({});
+
+    expect(scheduleUtilsAfterNextPaint(callback)).toBe(false);
+    expect(callback).not.toHaveBeenCalled();
+    vi.runOnlyPendingTimers();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
     delete globalThis.window;
 
     expect(hasUtilsRuntime()).toBe(false);
     expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
+    expect(getUtilsRuntimeHostname('fallback-host')).toBe('fallback-host');
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
+    expect(callUtilsRuntimeFunction('openExample')).toBeUndefined();
     expect(dispatchUtilsRuntimeEvent('demo-event')).toBe(false);
     expect(openUtilsRuntimeWindow('/demo')).toBeNull();
     expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);

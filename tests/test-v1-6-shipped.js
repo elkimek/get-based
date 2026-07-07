@@ -587,7 +587,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       && /recLinks\.length > 0 && !modalOpen/.test(chartCardRecsSrc));
     assert('data.js: range mode switch paints the active pill before view refresh',
       /function _afterNextPaint\(fn\)/.test(dataSrc)
-      && /window\.requestAnimationFrame\(\(\) => setTimeout\(fn,\s*0\)\)/.test(dataSrc)
+      && dataSrc.includes("import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';")
+      && /scheduleUtilsAfterNextPaint\(fn\)/.test(dataSrc)
       && /const token\s*=\s*\+\+_rangeModeRefreshToken/.test(dataSrc)
       && /_afterNextPaint\(\(\) => \{[\s\S]{0,500}dataWindow\.navigate\(state\.currentView \|\| 'dashboard',\s*data\)/.test(dataSrc));
     assert('range mode refresh preserves current category card order',

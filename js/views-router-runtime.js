@@ -33,6 +33,11 @@ export function syncImportStatusFabFromRuntime() {
   getRuntimeFunction('syncImportStatusFab')?.();
 }
 
+/** @param {string} view */
+export function navigateViewportRuntime(view) {
+  getRuntimeFunction('navigate')?.(view);
+}
+
 /** @param {() => void} cancel */
 export function addViewportInputCancelListeners(cancel) {
   const runtime = getRuntimeWindow();
