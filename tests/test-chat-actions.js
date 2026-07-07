@@ -693,7 +693,9 @@ assert('Updates thread metadata on switch', chatPersonalitiesSrc.includes('threa
 // ─── Section 20: state.js exposes _labState ───
 console.log('Section 20: State exposure');
 const stateSrc = read('js/state.js');
-assert('state.js exports _labState to window', stateSrc.includes('window._labState'), 'found');
+assert('state.js exports _labState through runtime adapter',
+  stateSrc.includes('registerUtilsRuntimeExports') && stateSrc.includes('_labState'),
+  'found');
 
 // ─── Cleanup ───
 if (hasState && origHistory) S.chatHistory = origHistory;

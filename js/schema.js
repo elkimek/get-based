@@ -2,6 +2,7 @@
 // schema.js — Marker definitions, unit conversions, pricing, optimal ranges
 
 import { SECONDARY_UNIT_CONVERSIONS } from './secondary-unit-conversions.js';
+import { getUtilsRuntimeFunction } from './utils-runtime.js';
 
 export { PHASE_RANGES, SBM_2015_THRESHOLDS, getEMFSeverity } from './schema-environment.js';
 
@@ -539,7 +540,8 @@ export function trackUsage(provider, modelId, inputTokens, outputTokens) {
     if (inp === 0 && out === 0) return;
 
     // Per-profile
-    const pid = window._getActiveProfileId ? window._getActiveProfileId() : 'default';
+    const getActiveProfileId = getUtilsRuntimeFunction('_getActiveProfileId');
+    const pid = getActiveProfileId ? getActiveProfileId() : 'default';
     const pKey = `labcharts-${pid}-usage`;
     const pu = JSON.parse(localStorage.getItem(pKey) || 'null') || _emptyUsage();
     pu.totalCost += cost; pu.totalInputTokens += inp; pu.totalOutputTokens += out; pu.requestCount++;
