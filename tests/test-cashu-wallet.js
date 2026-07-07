@@ -237,12 +237,13 @@ assert('Wallet keys in GLOBAL_SETTINGS_KEYS', backupSrc.includes("'labcharts-cas
 console.log('12. Export/Import Integration');
 
 assert('Bundle includes wallet settings', exportSrc.includes('bundle.wallet'));
+const exportImportSrc = await fetchWithRetry('js/export-import.js');
 assert('Bundle restores mint URL through export runtime',
-  exportSrc.includes('restoreWalletBundleSettings') &&
+  exportImportSrc.includes('restoreWalletBundleSettings') &&
   exportRuntimeSrc.includes('wallet.mintUrl') &&
   exportRuntimeSrc.includes('cashuSetMintUrl'));
 assert('Bundle restores node URL through export runtime',
-  exportSrc.includes('restoreWalletBundleSettings') &&
+  exportImportSrc.includes('restoreWalletBundleSettings') &&
   exportRuntimeSrc.includes('wallet.nodeUrl') &&
   exportRuntimeSrc.includes('nostrSetSelectedNode'));
 assert('clearAllData destroys wallet DB through export runtime',

@@ -162,8 +162,9 @@ await import('../js/context-cards.js');
   // ═══════════════════════════════════════
   console.log('13. Import');
 
-  assert('Import merges changeHistory (single-file path)', exportSrc.includes("Array.isArray(json.changeHistory)"));
-  assert('Import merges changeHistory (bundle path)', exportSrc.includes("Array.isArray(importData.changeHistory)"));
+  const exportImportSrc = read('js/export-import.js');
+  assert('Import merges changeHistory (single-file path)', exportImportSrc.includes("Array.isArray(json.changeHistory)"));
+  assert('Import merges changeHistory (bundle path)', exportImportSrc.includes("Array.isArray(importData.changeHistory)"));
 
   // ═══════════════════════════════════════
   // 14. AI context integration

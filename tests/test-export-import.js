@@ -55,6 +55,7 @@ return (async function() {
   console.log('%c 2. Client export structure (source) ', 'font-weight:bold;color:#f59e0b');
 
   const exportSrc = await fetch('/js/export.js').then(r => r.text());
+  const exportImportSrc = await fetch('/js/export-import.js').then(r => r.text());
   const exportRuntimeSrc = await fetch('/js/export-runtime.js').then(r => r.text());
   const reportCoreSrc = await fetch('/js/export-report.js').then(r => r.text());
   const reportHtmlSrc = await fetch('/js/export-report-html.js').then(r => r.text());
@@ -90,10 +91,10 @@ return (async function() {
   assert('Client export includes changeHistory', exportSrc.includes('changeHistory: data.changeHistory'));
   assert('Client export includes chatSummaries', exportSrc.includes('chatSummaries: data.chatSummaries'));
   assert('JSON import restores contextSourceSettings before migration',
-    exportSrc.includes('state.importedData.contextSourceSettings = json.contextSourceSettings'));
+    exportImportSrc.includes('state.importedData.contextSourceSettings = json.contextSourceSettings'));
   assert('Database bundle merge restores contextSourceSettings for existing profiles',
-    exportSrc.includes('current.contextSourceSettings = importData.contextSourceSettings'));
-  assert('Supplement import preserves safe sourceUrl', exportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
+    exportImportSrc.includes('current.contextSourceSettings = importData.contextSourceSettings'));
+  assert('Supplement import preserves safe sourceUrl', exportImportSrc.includes('entry.sourceUrl = sourceUrl.toString()'));
   // Light & Sun stack — earlier export schema dropped these silently;
   // import learned them in v1.6.x but export hadn't followed suit.
   assert('Client export includes sunSessions', exportSrc.includes('sunSessions: data.sunSessions'));
@@ -247,36 +248,36 @@ return (async function() {
   console.log('%c 4. Import validation (source) ', 'font-weight:bold;color:#f59e0b');
 
   // importDataJSON checks for entries array
-  assert('Import checks entries array', exportSrc.includes("!json.entries || !Array.isArray(json.entries)"));
-  assert('Import shows error for missing entries', exportSrc.includes("Invalid JSON format: missing entries array"));
+  assert('Import checks entries array', exportImportSrc.includes("!json.entries || !Array.isArray(json.entries)"));
+  assert('Import shows error for missing entries', exportImportSrc.includes("Invalid JSON format: missing entries array"));
 
   // Database bundle detection
-  assert('Import detects database bundle', exportSrc.includes("json.type === 'database' && Array.isArray(json.profiles)"));
-  assert('Import routes to _importDatabaseBundle', exportSrc.includes('_importDatabaseBundle(json)'));
+  assert('Import detects database bundle', exportImportSrc.includes("json.type === 'database' && Array.isArray(json.profiles)"));
+  assert('Import routes to _importDatabaseBundle', exportImportSrc.includes('_importDatabaseBundle(json)'));
 
   // Client export detection (v2 with profile metadata)
-  assert('Import detects client profile.name', exportSrc.includes('json.profile?.name'));
-  assert('Import creates profile from metadata', exportSrc.includes('createProfile(p.name'));
+  assert('Import detects client profile.name', exportImportSrc.includes('json.profile?.name'));
+  assert('Import creates profile from metadata', exportImportSrc.includes('createProfile(p.name'));
 
   // Import handles context fields
-  assert('Import handles diagnoses', exportSrc.includes("importContextField('diagnoses')"));
-  assert('Import handles diet', exportSrc.includes("importContextField('diet')"));
-  assert('Import handles exercise', exportSrc.includes("importContextField('exercise')"));
+  assert('Import handles diagnoses', exportImportSrc.includes("importContextField('diagnoses')"));
+  assert('Import handles diet', exportImportSrc.includes("importContextField('diet')"));
+  assert('Import handles exercise', exportImportSrc.includes("importContextField('exercise')"));
 
   // Import handles customMarkers merge
-  assert('Import merges customMarkers', exportSrc.includes('json.customMarkers && typeof json.customMarkers'));
-  assert('Import merges refOverrides', exportSrc.includes('json.refOverrides && typeof json.refOverrides'));
+  assert('Import merges customMarkers', exportImportSrc.includes('json.customMarkers && typeof json.customMarkers'));
+  assert('Import merges refOverrides', exportImportSrc.includes('json.refOverrides && typeof json.refOverrides'));
 
   // Import handles genetics, biometrics, emfAssessment
-  assert('Import handles genetics', exportSrc.includes('json.genetics && (json.genetics.snps || json.genetics.mtdna)'));
-  assert('Import handles biometrics', exportSrc.includes('json.biometrics && typeof json.biometrics'));
-  assert('Import handles emfAssessment', exportSrc.includes('json.emfAssessment && json.emfAssessment.assessments'));
-  assert('Import handles menstrualCycle', exportSrc.includes('json.menstrualCycle && typeof json.menstrualCycle'));
-  assert('Import handles markerNotes', exportSrc.includes('json.markerNotes && typeof json.markerNotes'));
+  assert('Import handles genetics', exportImportSrc.includes('json.genetics && (json.genetics.snps || json.genetics.mtdna)'));
+  assert('Import handles biometrics', exportImportSrc.includes('json.biometrics && typeof json.biometrics'));
+  assert('Import handles emfAssessment', exportImportSrc.includes('json.emfAssessment && json.emfAssessment.assessments'));
+  assert('Import handles menstrualCycle', exportImportSrc.includes('json.menstrualCycle && typeof json.menstrualCycle'));
+  assert('Import handles markerNotes', exportImportSrc.includes('json.markerNotes && typeof json.markerNotes'));
 
   // Legacy format migration (sleepCircadian -> sleepRest)
-  assert('Import migrates old sleepCircadian', exportSrc.includes('json.sleepCircadian'));
-  assert('Import handles v1 string-to-object migration', exportSrc.includes('migrations[field]'));
+  assert('Import migrates old sleepCircadian', exportImportSrc.includes('json.sleepCircadian'));
+  assert('Import handles v1 string-to-object migration', exportImportSrc.includes('migrations[field]'));
 
   // ═══════════════════════════════════════
   // 5. Data integrity — entry count match
@@ -459,21 +460,21 @@ return (async function() {
   console.log('%c 10. Database bundle import (source) ', 'font-weight:bold;color:#f59e0b');
 
   // _importDatabaseBundle merge logic
-  assert('Bundle import matches by id first', exportSrc.includes('profiles.find(p => p.id === bp.id)'));
-  assert('Bundle import falls back to name match', exportSrc.includes('profiles.find(p => p.name === bp.name)'));
+  assert('Bundle import matches by id first', exportImportSrc.includes('profiles.find(p => p.id === bp.id)'));
+  assert('Bundle import falls back to name match', exportImportSrc.includes('profiles.find(p => p.name === bp.name)'));
   assert('Bundle import does date-keyed entry upsert',
-    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportSrc));
-  assert('Bundle import deduplicates notes', exportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
-  assert('Bundle import deduplicates supplements', exportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
-  assert('Bundle import merges health goals', exportSrc.includes('healthGoals.some(x => x.text === g.text)'));
-  assert('Bundle import merges custom markers', exportSrc.includes("!current.customMarkers[key]"));
-  assert('Bundle import merges ref overrides', exportSrc.includes("!current.refOverrides[key]"));
-  assert('Bundle import replaces context fields', exportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
-  assert('Bundle import caps changeHistory at 200', exportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
-  assert('Bundle import merges chat summaries', exportSrc.includes('chatSummaries.findIndex'));
-  assert('Bundle import creates new profiles', exportSrc.includes("createProfile(bp.name || 'Imported'"));
-  assert('Bundle import loads first imported profile', exportSrc.includes('loadProfile(targetId)'));
-  assert('Bundle import handles wallet restore', exportSrc.includes('json.wallet'));
+    /const entries = ensureImportedArray\(current,\s*['"]entries['"]\)[\s\S]{0,260}entries\.findIndex\(ex => ex\.date === entry\.date\)[\s\S]{0,180}replaceImportedArrayItem\(current,\s*['"]entries['"],\s*idx,\s*entry\)/.test(exportImportSrc));
+  assert('Bundle import deduplicates notes', exportImportSrc.includes('notes.some(x => x.date === n.date && x.text === n.text)'));
+  assert('Bundle import deduplicates supplements', exportImportSrc.includes('supplements.some(x => x.name === s.name && x.startDate === s.startDate)'));
+  assert('Bundle import merges health goals', exportImportSrc.includes('healthGoals.some(x => x.text === g.text)'));
+  assert('Bundle import merges custom markers', exportImportSrc.includes("!current.customMarkers[key]"));
+  assert('Bundle import merges ref overrides', exportImportSrc.includes("!current.refOverrides[key]"));
+  assert('Bundle import replaces context fields', exportImportSrc.includes("for (const field of ['diagnoses', 'diet', 'exercise'"));
+  assert('Bundle import caps changeHistory at 200', exportImportSrc.includes("trimImportedArray(current, 'changeHistory', 200)"));
+  assert('Bundle import merges chat summaries', exportImportSrc.includes('chatSummaries.findIndex'));
+  assert('Bundle import creates new profiles', exportImportSrc.includes("createProfile(bp.name || 'Imported'"));
+  assert('Bundle import loads first imported profile', exportImportSrc.includes('loadProfile(targetId)'));
+  assert('Bundle import handles wallet restore', exportImportSrc.includes('json.wallet'));
 
   // ═══════════════════════════════════════
   // 11. Bundle includes wallet metadata
@@ -503,8 +504,8 @@ return (async function() {
   assert('_exportChatData reads chat-threads', exportSrc.includes('labcharts-${profileId}-chat-threads'));
   assert('_exportChatData reads thread messages', exportSrc.includes('labcharts-${profileId}-chat-t_${t.id}'));
   assert('_exportChatData returns threads+messages+personality', exportSrc.includes('return { threads, messages, personality, customPersonalities }'));
-  assert('_importChatData writes thread messages', exportSrc.includes("localStorage.setItem(`labcharts-${profileId}-chat-t_${t.id}`"));
-  assert('_importChatData deduplicates by thread id', exportSrc.includes('existingIds.has(t.id)'));
+  assert('_importChatData writes thread messages', exportImportSrc.includes("localStorage.setItem(`labcharts-${profileId}-chat-t_${t.id}`"));
+  assert('_importChatData deduplicates by thread id', exportImportSrc.includes('existingIds.has(t.id)'));
   assert('Client export optionally includes chat', exportSrc.includes('if (includeChat)'));
   assert('Bundle export always includes chat', exportSrc.includes('if (chat) entry.chat = chat'));
 
@@ -927,6 +928,7 @@ return (async function() {
         focusCardSrc.includes('if (!cached.fingerprint) return;'),
         'loadFocusCard must skip AI refresh when cached.fingerprint is missing');
       const exportSrcLive = await fetch('/js/export.js').then(r => r.text());
+      const exportImportSrcLive = await fetch('/js/export-import.js').then(r => r.text());
       const exportRuntimeSrcLive = await fetch('/js/export-runtime.js').then(r => r.text());
       assert('loadDemoData writes focusCard to localStorage (demo-only by code path)',
         exportSrcLive.includes("profileStorageKey(profileId, 'focusCard')") &&
@@ -936,10 +938,10 @@ return (async function() {
       // whole file would false-positive on clearAllData (which legitimately
       // wipes the focusCard cache when the profile is deleted) and on the
       // demo-loader's own comment that explicitly disclaims this guarantee.
-      const _importStart = exportSrcLive.indexOf('export function importDataJSON');
-      const _afterImport = exportSrcLive.indexOf('\nexport ', _importStart + 1);
+      const _importStart = exportImportSrcLive.indexOf('export function importDataJSON');
+      const _afterImport = exportImportSrcLive.indexOf('\nasync function _importDatabaseBundle', _importStart + 1);
       const _importBody = _importStart >= 0 && _afterImport > _importStart
-        ? exportSrcLive.slice(_importStart, _afterImport)
+        ? exportImportSrcLive.slice(_importStart, _afterImport)
         : '';
       assert('importDataJSON does NOT touch focusCard cache (so non-demo imports are unaffected)',
         _importBody.length > 0 && !_importBody.includes('focusCard'),
@@ -984,7 +986,7 @@ return (async function() {
         _loadDemoSection.includes('skipInitialSync: true')
           && _loadDemoSection.includes('markDemoLoadingProfile(profileId)')
           && exportRuntimeSrcLive.includes('_demoLoadingProfileId')
-          && exportSrcLive.includes("reason: 'demo-import'")
+          && exportImportSrcLive.includes("reason: 'demo-import'")
           && _loadDemoSection.includes("skipSync: true, reason: 'demo-biology-score-context'"),
         'demo loading must not sync an empty demo profile and wait for pull/rebroadcast to unlock Biology Scores');
       assert('loadDemoData awaits demo import before post-import Biology Scores validation',
