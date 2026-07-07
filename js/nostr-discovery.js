@@ -4,6 +4,7 @@
 
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
+import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
@@ -221,9 +222,9 @@ export function clearNodeCache() {
 }
 
 // ═══════════════════════════════════════════════
-// WINDOW EXPORTS
+// RUNTIME EXPORTS
 // ═══════════════════════════════════════════════
-Object.assign(window, {
+registerUtilsRuntimeExports({
   nostrDiscoverNodes: discoverNodes,
   nostrGetSelectedNode: getSelectedNodeUrl,
   nostrSetSelectedNode: setSelectedNodeUrl,
