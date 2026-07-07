@@ -11,6 +11,7 @@ import {
   loadLuxCalibration,
   saveLuxCalibration,
 } from './light-tool-camera.js';
+import { getUtilsRuntimeFunction, getUtilsRuntimeValue } from './utils-runtime.js';
 
 /**
  * @template {Element} T
@@ -70,7 +71,7 @@ export function closeGlassTransmission() { closeCameraTool('close-glass'); }
 
 /** @param {{ saveMeasurement?: AnyFunction }} [deps] */
 function getSaveMeasurement(deps = {}) {
-  const fn = deps.saveMeasurement || (typeof window !== 'undefined' ? window.saveMeasurement : null);
+  const fn = deps.saveMeasurement || getUtilsRuntimeFunction('saveMeasurement');
   if (typeof fn !== 'function') throw new Error('saveMeasurement dependency is required');
   return fn;
 }
@@ -258,9 +259,10 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       if (calibrationPanel) calibrationPanel.style.display = 'none';
     }
   };
-  if ('AmbientLightSensor' in window) {
+  const AmbientLightSensorCtor = getUtilsRuntimeValue('AmbientLightSensor');
+  if (typeof AmbientLightSensorCtor === 'function') {
     try {
-      const sensor = new window.AmbientLightSensor({ frequency: 4 });
+      const sensor = new AmbientLightSensorCtor({ frequency: 4 });
       sensor.addEventListener('reading', () => {
         currentLux = sensor.illuminance;
         renderLux(currentLux);
