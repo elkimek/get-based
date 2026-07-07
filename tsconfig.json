@@ -104,6 +104,7 @@
     "js/dna-window-bindings.js",
     "js/emf.js",
     "js/emf-facade.js",
+    "js/export-import.js",
     "js/export.js",
     "js/export-runtime.js",
     "js/feedback.js",

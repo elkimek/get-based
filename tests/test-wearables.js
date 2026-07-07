@@ -1666,9 +1666,9 @@ assert('coverageDays counts rows with at least one finite metric value (not bare
   /hasAnyValue\s*=\s*Object\.entries\(row\)\.some/.test(summarySrc));
 
 // P2: wearablePrimaryOverride pruned on import.
-const exportSrcP2 = await fetch('/js/export.js').then(r => r.text());
+const exportImportSrcP2 = await fetch('/js/export-import.js').then(r => r.text());
 assert('importDataJSON prunes wearablePrimaryOverride to live sources only',
-  /liveSources\s*=\s*new Set\(\[[\s\S]{0,120}wearableConnections[\s\S]{0,120}wearableSummary\?\.sources/.test(exportSrcP2));
+  /liveSources\s*=\s*new Set\(\[[\s\S]{0,120}wearableConnections[\s\S]{0,120}wearableSummary\?\.sources/.test(exportImportSrcP2));
 
 // P2: commitAfterWriteIfAny accepts pre-await connection snapshot.
 const connectSrcP2 = await fetch('/js/wearables-connect.js').then(r => r.text());
@@ -2124,6 +2124,7 @@ assert('hr_day declaration carries window:day flag so it routes through the day-
 console.log('17c. JSON Export — Wearables');
 
 const exportSrc = await fetch('/js/export.js').then(r => r.text());
+const exportImportSrc = await fetch('/js/export-import.js').then(r => r.text());
 assert('exportClientJSON includes wearableSummary',
   /wearableSummary:\s*data\.wearableSummary\s*\|\|\s*null/.test(exportSrc));
 assert('exportClientJSON includes wearableCardOrder (user reorder pref)',
@@ -2135,16 +2136,16 @@ assert('exportClientJSON does NOT include wearableConnections (tokens stay devic
   !/wearableConnections:\s*data\.wearableConnections/.test(exportSrc));
 // Importer round-trip
 assert('importDataJSON restores wearableSummary',
-  /json\.wearableSummary[\s\S]{0,80}state\.importedData\.wearableSummary\s*=\s*json\.wearableSummary/.test(exportSrc));
+  /json\.wearableSummary[\s\S]{0,80}state\.importedData\.wearableSummary\s*=\s*json\.wearableSummary/.test(exportImportSrc));
 assert('importDataJSON restores wearableCardOrder',
-  /state\.importedData\.wearableCardOrder\s*=\s*json\.wearableCardOrder/.test(exportSrc));
+  /state\.importedData\.wearableCardOrder\s*=\s*json\.wearableCardOrder/.test(exportImportSrc));
 // v1.28.0: wearablePrimaryOverride is PRUNED on import — entries pointing
 // at sources without a connection or rows get dropped. Assert the prune
 // logic exists; the destination assignment uses the pruned object, not
 // raw json.wearablePrimaryOverride.
 assert('importDataJSON prunes wearablePrimaryOverride to live sources only',
-  /state\.importedData\.wearablePrimaryOverride\s*=\s*pruned/.test(exportSrc) &&
-  /pruned\[metricId\]\s*=\s*sourceId/.test(exportSrc));
+  /state\.importedData\.wearablePrimaryOverride\s*=\s*pruned/.test(exportImportSrc) &&
+  /pruned\[metricId\]\s*=\s*sourceId/.test(exportImportSrc));
 
 // ═══════════════════════════════════════
 // 18. Agent series — daily-values matrix for MCP tools (v1.27.0)

@@ -54,8 +54,8 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
   assert('loadDemoData accepts sex param', exportSrc.includes("loadDemoData(sex = 'male')"));
   assert('References demo-female.json', exportSrc.includes('demo-female.json'));
   assert('References demo-male.json', exportSrc.includes('demo-male.json'));
-  assert('Calls setProfileSex', exportSrc.includes('setProfileSex'));
-  assert('Calls setProfileDob', exportSrc.includes('setProfileDob'));
+  assert('Passes sex into demo profile metadata', /createProfile\(name,\s*\{[^}]*sex/.test(exportSrc));
+  assert('Passes DOB into demo profile metadata', /createProfile\(name,\s*\{[^}]*dob/.test(exportSrc));
   assert('Sets DOB 1991-08-15 for female', exportSrc.includes('1991-08-15'));
   assert('Sets DOB 1987-11-22 for male', exportSrc.includes('1987-11-22'));
   assert('Sets onboarded to profile-set', exportSrc.includes("'profile-set'"));

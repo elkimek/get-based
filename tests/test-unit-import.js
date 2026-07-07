@@ -24,6 +24,7 @@ const src = read('js/pdf-import.js');
 const commitSrc = read('js/pdf-import-commit.js');
 const aiUtilsSrc = read('js/pdf-import-ai-utils.js');
 const exportSrc = read('js/export.js');
+const exportImportSrc = read('js/export-import.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const persistenceSrc = read('js/pdf-import-persistence.js');
@@ -73,7 +74,7 @@ const importCssSrc = read('css/import.css');
   assert('PDF import rolls back in-memory state when durable save fails',
     /const rollback = snapshotImportedData\(\)/.test(confirmBlock)
       && /if \(!saved\) \{[\s\S]{0,200}restoreImportedDataSnapshot\(rollback\)/.test(confirmBlock));
-  const jsonImportBlock = exportSrc.substring(exportSrc.indexOf('export function importDataJSON'), exportSrc.indexOf('function importContextField'));
+  const jsonImportBlock = exportImportSrc.substring(exportImportSrc.indexOf('export function importDataJSON'), exportImportSrc.indexOf('function importContextField'));
   assert('JSON import preserves markerSources.at instead of stamping wall-clock time',
     /\? \{ \.\.\.entry\.markerSources\[key\] \}/.test(jsonImportBlock)
       && !/\? \{ \.\.\.entry\.markerSources\[key\], at: importTs \}/.test(jsonImportBlock));
@@ -136,11 +137,11 @@ const importCssSrc = read('css/import.css');
     /if \(isReReview\)[\s\S]{0,260}clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapshotId\)/.test(confirmBlock)
       && /if \(snapIdx >= 0\)[\s\S]{0,420}else \{[\s\S]{0,120}state\.importedData\.importSnapshots\.push\(\{[\s\S]{0,80}id:\s*snapshotId/.test(confirmBlock));
   assert('Database bundle import merges importSnapshots into existing profiles',
-    /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportSrc));
+    /Array\.isArray\(importData\.importSnapshots\)[\s\S]{0,260}ensureImportedArray\(current,\s*['"]importSnapshots['"]\)[\s\S]{0,700}appendImportedArrayItem\(current,\s*['"]importSnapshots['"],\s*snap\)/.test(exportImportSrc));
   assert('Import restore clears snapshot tombstones and updates newer duplicate snapshot ids',
-    /clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportSrc)
-      && /clearTombstone\(current,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportSrc)
-      && /incomingAt >= existingAt/.test(exportSrc));
+    /clearTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportImportSrc)
+      && /clearTombstone\(current,\s*['"]importSnapshots['"],\s*snap\.id\)/.test(exportImportSrc)
+      && /incomingAt >= existingAt/.test(exportImportSrc));
   assert('Existing profile migration backfills importSnapshots array',
     /if \(data\.importSnapshots === undefined\) data\.importSnapshots = \[\]/.test(profileSrc));
   assert('Import snapshots are tombstone-aware delta array records',

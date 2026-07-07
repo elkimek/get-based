@@ -77,11 +77,12 @@ const state = (await import('../js/state.js')).state;
   console.log('%c 3. Export / Import ', 'font-weight:bold;color:#f59e0b');
 
   const exportSrc = read('js/export.js');
+  const exportImportSrc = read('js/export-import.js');
   assert('export.js exports markerValueNotes in the JSON profile',
     /markerValueNotes:\s*data\.markerValueNotes\s*\|\|\s*\{\}/.test(exportSrc));
-  assert('export.js import path merges markerValueNotes',
-    exportSrc.includes("if (json.markerValueNotes && typeof json.markerValueNotes === 'object')") &&
-    /Object\.assign\(state\.importedData\.markerValueNotes,\s*json\.markerValueNotes\)/.test(exportSrc));
+  assert('export-import.js import path merges markerValueNotes',
+    exportImportSrc.includes("if (json.markerValueNotes && typeof json.markerValueNotes === 'object')") &&
+    /Object\.assign\(state\.importedData\.markerValueNotes,\s*json\.markerValueNotes\)/.test(exportImportSrc));
 
   // ═══════════════════════════════════════
   // 4. saveManualEntry storage path (source-grep — IDB writes are async + browser-y)

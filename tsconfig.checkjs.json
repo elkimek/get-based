@@ -103,6 +103,7 @@
     "js/export-report-builder.js",
     "js/export-report-html.js",
     "js/export-report.js",
+    "js/export-import.js",
     "js/export.js",
     "js/export-runtime.js",
     "js/import-drop-zone.js",

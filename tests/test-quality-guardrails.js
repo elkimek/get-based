@@ -84,6 +84,7 @@ const highValueCheckJsModules = [
   'js/dashboard-widget-renderers.js',
   'js/dna.js',
   'js/dna-runtime.js',
+  'js/export-import.js',
   'js/export.js',
   'js/export-runtime.js',
   'js/lens.js',
