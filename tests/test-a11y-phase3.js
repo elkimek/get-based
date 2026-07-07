@@ -99,7 +99,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const utilsSrc = read('/js/utils.js');
   assert('utils.js analytics consent uses "me" not "us"',
     !utilsSrc.includes('help us improve getbased') && utilsSrc.includes('help me improve getbased'));
-  const settingsSrc = read('/js/settings.js');
+  const settingsSrc = `${read('/js/settings.js')}\n${read('/js/settings-privacy.js')}`;
   assert('settings.js privacy copy uses "I" not "we"',
     !settingsSrc.includes('We track cookieless') && settingsSrc.includes('I track cookieless'));
   assert('onboarding-view.js drops "us show" framing',
