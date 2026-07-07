@@ -205,6 +205,7 @@ const pwaAppShellAssets = [
   '/js/lens-library.js',
   '/js/dna-mtdna.js',
   '/js/lens-local.js',
+  '/js/lens-local-store.js',
   '/js/lens-local-worker.js',
   '/js/lens-local-utils.js',
   '/js/lens-local-parsers.js',
