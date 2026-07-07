@@ -23,6 +23,26 @@ export function getUtilsRuntimeHostname(fallback = '') {
   return typeof hostname === 'string' ? hostname : fallback;
 }
 
+/**
+ * @param {string} name
+ * @param {any} [fallback]
+ */
+export function getUtilsRuntimeValue(name, fallback = null) {
+  const runtime = getUtilsRuntime();
+  if (!runtime || !(name in runtime)) return fallback;
+  return runtime[name];
+}
+
+/**
+ * @param {string} name
+ * @returns {Function | null}
+ */
+export function getUtilsRuntimeFunction(name) {
+  const runtime = getUtilsRuntime();
+  const fn = runtime?.[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : null;
+}
+
 /** @param {Record<string, any>} exportsByName */
 export function registerUtilsRuntimeExports(exportsByName) {
   const runtime = getUtilsRuntime();

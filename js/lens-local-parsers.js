@@ -11,6 +11,7 @@
 // ingest a PDF or DOCX don't pay the parser cost.
 
 import { getPdfDocument } from './pdfjs-loader.js';
+import { getUtilsRuntimeValue } from './utils-runtime.js';
 
 const SUPPORTED_TEXT_EXTS = new Set(['txt', 'md', 'markdown', 'rst', 'json', 'csv', 'log']);
 
@@ -80,7 +81,7 @@ async function extractPdf(file) {
  */
 async function extractDocx(file) {
   await loadScript('/vendor/mammoth.browser.min.js');
-  const mammoth = window.mammoth;
+  const mammoth = getUtilsRuntimeValue('mammoth');
   if (!mammoth) throw new Error('mammoth failed to load');
   const buffer = await file.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer: buffer });
@@ -97,7 +98,7 @@ async function extractDocx(file) {
  */
 async function extractZip(file) {
   await loadScript('/vendor/jszip.min.js');
-  const JSZip = window.JSZip;
+  const JSZip = getUtilsRuntimeValue('JSZip');
   if (!JSZip) throw new Error('JSZip failed to load');
   const buffer = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(buffer);

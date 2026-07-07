@@ -12,6 +12,7 @@ import {
   renderNoteField,
   selectCtxOption,
 } from './context-card-editor-ui.js';
+import { callUtilsRuntimeFunction } from './utils-runtime.js';
 
 /** @type {(field: string) => void} */
 let recordContextChange = () => {};
@@ -543,7 +544,7 @@ export function saveDiagnoses() {
 export function closeDiagnoses() {
   editingConditionIndex = -1;
   editingFamilyHistoryIndex = -1;
-  window.closeModal();
+  callUtilsRuntimeFunction('closeModal');
 }
 
 export function clearDiagnoses() {
