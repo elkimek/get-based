@@ -37,6 +37,7 @@ const _realFetch = globalThis.fetch;
   return _realFetch(url, opts);
 };
   const recSrc = await fetchWithRetry('js/recommendations.js');
+  const recProductsSrc = await fetchWithRetry('js/recommendations-products.js');
   const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');
   const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
   const mainSrc = await fetchWithRetry('js/main.js');
@@ -64,12 +65,13 @@ const _realFetch = globalThis.fetch;
   console.log('%c 1. Module Structure ', 'font-weight:bold;color:#f59e0b');
 
   assert('recommendations.js exports loadCatalog', recSrc.includes('export async function loadCatalog'));
-  assert('recommendations.js exports isProductRecsEnabled', recSrc.includes('export function isProductRecsEnabled'));
-  assert('recommendations.js exports setProductRecsEnabled', recSrc.includes('export function setProductRecsEnabled'));
-  assert('recommendations.js exports hasSeenDisclosure', recSrc.includes('export function hasSeenDisclosure'));
-  assert('recommendations.js exports markDisclosureSeen', recSrc.includes('export function markDisclosureSeen'));
-  assert('recommendations.js exports getUserRegion', recSrc.includes('export function getUserRegion'));
-  assert('recommendations.js exports getProductsForSlot', recSrc.includes('export function getProductsForSlot'));
+  assert('recommendations.js re-exports product helper facade', recSrc.includes("from './recommendations-products.js'"));
+  assert('recommendations-products.js exports isProductRecsEnabled', recProductsSrc.includes('export function isProductRecsEnabled'));
+  assert('recommendations-products.js exports setProductRecsEnabled', recProductsSrc.includes('export function setProductRecsEnabled'));
+  assert('recommendations-products.js exports hasSeenDisclosure', recProductsSrc.includes('export function hasSeenDisclosure'));
+  assert('recommendations-products.js exports markDisclosureSeen', recProductsSrc.includes('export function markDisclosureSeen'));
+  assert('recommendations-products.js exports getUserRegion', recProductsSrc.includes('export function getUserRegion'));
+  assert('recommendations-products.js exports getProductsForSlot', recProductsSrc.includes('export function getProductsForSlot'));
   assert('recommendations.js deduplicates concurrent loadCatalog calls', recSrc.includes('_catalogPromise'));
   assert('recommendations.js exports renderRecommendationSection', recSrc.includes('export async function renderRecommendationSection'));
   assert('recommendations.js exports renderRecommendationSectionSync', recSrc.includes('export function renderRecommendationSectionSync'));
@@ -84,7 +86,7 @@ const _realFetch = globalThis.fetch;
   assert('recommendations-region.js owns region hierarchy data',
     recRegionSrc.includes('REGION_HIERARCHY') &&
     recRegionSrc.includes('COUNTRY_TO_REGION') &&
-    recSrc.includes("from './recommendations-region.js'"));
+    recProductsSrc.includes("from './recommendations-region.js'"));
 
   // ═══════════════════════════════════════
   // 2. Window exports
@@ -96,7 +98,7 @@ const _realFetch = globalThis.fetch;
   assert('markRecDisclosureSeen on window', typeof window.markRecDisclosureSeen === 'function');
   assert('renderRecommendationSection on window', typeof window.renderRecommendationSection === 'function');
   assert('renderRecommendationSectionSync on window', typeof window.renderRecommendationSectionSync === 'function');
-  assert('getUserRegion routes via COUNTRY_TO_REGION table', recSrc.includes('COUNTRY_TO_REGION[c]'));
+  assert('getUserRegion routes via COUNTRY_TO_REGION table', recProductsSrc.includes('COUNTRY_TO_REGION[c]'));
   assert('detectSupplementSlots on window', typeof window.detectSupplementSlots === 'function');
   assert('loadCatalog on window', typeof window.loadCatalog === 'function');
 
@@ -124,7 +126,7 @@ const _realFetch = globalThis.fetch;
   const origDisc = localStorage.getItem('labcharts-rec-disclosure');
   localStorage.removeItem('labcharts-rec-disclosure');
   // hasSeenDisclosure not on window but we can test via recSrc pattern
-  assert('Disclosure key uses labcharts-rec-disclosure', recSrc.includes("'labcharts-rec-disclosure'"));
+  assert('Disclosure key uses labcharts-rec-disclosure', recProductsSrc.includes("'labcharts-rec-disclosure'"));
   window.markRecDisclosureSeen();
   assert('markRecDisclosureSeen sets localStorage', localStorage.getItem('labcharts-rec-disclosure') === 'seen');
   // Restore
@@ -202,8 +204,8 @@ const _realFetch = globalThis.fetch;
   };
 
   // getProductsForSlot is exported but not on window — test via recSrc
-  assert('getProductsForSlot filters by region via hierarchy chain', recSrc.includes('regionLookupChain(region)'));
-  assert('getProductsForSlot returns empty for null catalog', recSrc.includes('if (!catalog || !catalog.products) return []'));
+  assert('getProductsForSlot filters by region via hierarchy chain', recProductsSrc.includes('regionLookupChain(region)'));
+  assert('getProductsForSlot returns empty for null catalog', recProductsSrc.includes('if (!catalog || !catalog.products) return []'));
 
   // ═══════════════════════════════════════
   // 8. B12/Folate schema + keyword safety
@@ -315,6 +317,7 @@ const _realFetch = globalThis.fetch;
 
   assert('SW includes recommendations.js', swSrc.includes('/js/recommendations.js'));
   assert('SW includes recommendations-runtime.js', swSrc.includes('/js/recommendations-runtime.js'));
+  assert('SW includes recommendations-products.js', swSrc.includes('/js/recommendations-products.js'));
   assert('SW includes recommendations-region.js', swSrc.includes('/js/recommendations-region.js'));
   assert('SW includes recommendation-actions.js', swSrc.includes('/js/recommendation-actions.js'));
   assert('SW includes dashboard-recommendation-widget.js', swSrc.includes('/js/dashboard-recommendation-widget.js'));
@@ -331,8 +334,8 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 13. Security ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Product URLs validated to https?', recSrc.includes("'https?://'") || recSrc.includes('/^https?:\\/\\//'));
-  assert('escapeHTML used for product rendering', recSrc.includes('escapeHTML(product.brand)'));
+  assert('Product URLs validated to https?', recProductsSrc.includes("'https?://'") || recProductsSrc.includes('/^https?:\\/\\//'));
+  assert('escapeHTML used for product rendering', recProductsSrc.includes('escapeHTML(product.brand)'));
   assert('escapeHTML used for slot label', recSrc.includes('escapeHTML(label)'));
 
   // ═══════════════════════════════════════
@@ -341,9 +344,9 @@ const _realFetch = globalThis.fetch;
   console.log('%c 14. Light-device catalog wiring ', 'font-weight:bold;color:#f59e0b');
 
   assert('getLightDeviceProduct exported',
-    recSrc.includes('export function getLightDeviceProduct'));
+    recProductsSrc.includes('export function getLightDeviceProduct'));
   assert('renderLightDeviceAffiliateRow exported',
-    recSrc.includes('export function renderLightDeviceAffiliateRow'));
+    recProductsSrc.includes('export function renderLightDeviceAffiliateRow'));
   assert('getLightDeviceProduct on window', typeof window.getLightDeviceProduct === 'function');
   assert('renderLightDeviceAffiliateRow on window', typeof window.renderLightDeviceAffiliateRow === 'function');
 
