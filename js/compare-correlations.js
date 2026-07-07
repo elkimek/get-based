@@ -8,6 +8,7 @@ import { getChartColors } from './theme.js';
 import { getActiveData } from './data.js';
 import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.js';
 import { ensureChartJs, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
+import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 
 /** @type {{ renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
 const compareCorrelationDeps = {
@@ -365,7 +366,7 @@ export function renderCorrelationChart() {
   if (state.chartInstances["correlation"]) { state.chartInstances["correlation"].destroy(); delete state.chartInstances["correlation"]; }
   const canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-correlation"));
   if (!canvas) return;
-  if (!window.Chart) {
+  if (!hasChartRuntime()) {
     ensureChartJs().then(() => {
       if (document.getElementById("chart-correlation")) renderCorrelationChart();
     }).catch(() => {});
@@ -395,7 +396,7 @@ export function renderCorrelationChart() {
   const minY = Math.min(0, ...allVals) - 10;
   const maxY = Math.max(100, ...allVals) + 10;
   const tc = getChartColors();
-  state.chartInstances["correlation"] = new window.Chart(canvas, {
+  const chart = createChartRuntime(canvas, {
     type: "line",
     data: { labels: data.dateLabels, datasets },
     options: {
@@ -426,6 +427,7 @@ export function renderCorrelationChart() {
     },
     plugins: [refBandPlugin, noteAnnotationPlugin, supplementBarPlugin]
   });
+  if (chart) state.chartInstances["correlation"] = chart;
 }
 
 installCompareCorrelationDelegates();

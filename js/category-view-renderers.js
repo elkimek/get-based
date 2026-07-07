@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, getStatus, formatValue, getTrend, safeMarkerId } from './utils.js';
 import { getChartColors } from './theme.js';
 import { ensureChartJs } from './charts.js';
+import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
@@ -294,7 +295,7 @@ export function renderFattyAcidsView(cat, categoryKey) {
 }
 
 export function renderFattyAcidsCharts(cat) {
-  if (!window.Chart) {
+  if (!hasChartRuntime()) {
     ensureChartJs().then(() => {
       if (document.getElementById("chart-fa-bar")) renderFattyAcidsCharts(cat);
     }).catch(() => {});
@@ -313,7 +314,7 @@ export function renderFattyAcidsCharts(cat) {
   }
   const ctx = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-fa-bar"));
   if (!ctx) return;
-  state.chartInstances["fa-bar"] = new window.Chart(ctx, {
+  const chart = createChartRuntime(ctx, {
     type: "bar",
     data: { labels: names, datasets: [
       { label:"Value", data:vals, backgroundColor:bgC, borderColor:brC, borderWidth:1, borderRadius:4 },
@@ -325,4 +326,5 @@ export function renderFattyAcidsCharts(cat) {
       scales: { x:{ticks:{color:tc.tickColor,font:{size:10},maxRotation:45},grid:{display:false}}, y:{ticks:{color:tc.tickColor},grid:{color:tc.gridColor}} }
     }
   });
+  if (chart) state.chartInstances["fa-bar"] = chart;
 }
