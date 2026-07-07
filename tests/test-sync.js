@@ -1246,6 +1246,17 @@ await import('../js/settings.js');
     syncRuntimeSrc.includes('export function dispatchSyncOwnerChangedRuntime')
       && syncRuntimeSrc.includes('new runtime.CustomEvent')
       && !/\bwindow(?:\.|\s*\[)/.test(syncRuntimeSrc));
+  assert('sync lifecycle reload and event hooks route through runtime adapters',
+    syncInitSrc.includes('getSyncReloadUrlRuntime()')
+      && syncIdentitySrc.includes('scheduleSyncRuntimeReload(500)')
+      && syncLifecycleSrc.includes('scheduleSyncRuntimeReload(250)')
+      && syncSaveHooksSrc.includes('addUtilsRuntimeListener')
+      && syncMessengerSrc.includes('addUtilsRuntimeListener')
+      && !/\bwindow(?:\.|\s*\[)/.test(syncInitSrc)
+      && !/\bwindow(?:\.|\s*\[)/.test(syncIdentitySrc)
+      && !/\bwindow(?:\.|\s*\[)/.test(syncLifecycleSrc)
+      && !/\bwindow(?:\.|\s*\[)/.test(syncSaveHooksSrc)
+      && !/\bwindow(?:\.|\s*\[)/.test(syncMessengerSrc));
   assert('AI setting changes schedule a sync push',
     syncSaveHooksSrc.includes("labcharts-ai-settings-local-changed")
       && syncSaveHooksSrc.includes('_pushProfile(profileId, importedData)'));
@@ -1271,7 +1282,9 @@ await import('../js/settings.js');
   // ═══════════════════════════════════════
   console.log('5. Evolu Configuration');
 
-  assert('reloadUrl uses window.location.pathname', syncInitSrc.includes('reloadUrl: window.location.pathname'));
+  assert('reloadUrl uses sync runtime path helper',
+    syncInitSrc.includes('reloadUrl: getSyncReloadUrlRuntime()')
+      && syncRuntimeSrc.includes('export function getSyncReloadUrlRuntime'));
   assert('enableLogging gated on debug mode', syncInitSrc.includes('enableLogging: isDebugMode()'));
   assert('Default relay is wss://sync.getbased.health', syncEnvironmentSrc.includes("wss://sync.getbased.health"));
   assert('Transport uses plural "transports" array (not singular)', syncInitSrc.includes('transports: [{ type:') && !syncInitSrc.includes('transport: { type:'));
@@ -1402,7 +1415,9 @@ await import('../js/settings.js');
     /Promise\.resolve\(evolu\.resetAppOwner/.test(syncLifecycleSrc),
     'awaiting resetAppOwner blocks the toggle when Evolu worker is hung');
   assert('disableSync resets Evolu identity for mnemonic regeneration', syncLifecycleSrc.includes('evolu.resetAppOwner('));
-  assert('disableSync reloads page after reset to kill Worker', syncLifecycleSrc.includes('window.location.reload()'));
+  assert('disableSync reloads page through sync runtime helper to kill Worker',
+    syncLifecycleSrc.includes('scheduleSyncRuntimeReload(250)')
+      && syncRuntimeSrc.includes('export function scheduleSyncRuntimeReload'));
   assert('disableSync clears sync timestamps',
     disableSyncSrc.includes('clearSyncDisableStorage();')
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));

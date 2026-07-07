@@ -86,7 +86,7 @@ test('sync configure browser coverage seeds local profiles through identity rest
       outcomes.configureSeedSchedulesReload =
         scheduledTimers.some(timer => (
           timer.delay === 500
-          && timer.source.includes('location.reload')
+          && timer.source.includes('reload.call')
         ));
     } catch (error) {
       thrownError = error;

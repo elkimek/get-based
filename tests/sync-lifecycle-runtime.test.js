@@ -20,6 +20,7 @@ function installLifecycleMocks(overrides = {}) {
     getSyncEvolu: vi.fn(() => ({ resetAppOwner: vi.fn(async () => {}) })),
     getSyncQueryLoadedPromise: vi.fn(() => Promise.resolve()),
     getSyncReadyPromise: vi.fn(() => Promise.resolve()),
+    scheduleSyncRuntimeReload: vi.fn(),
     setSyncAppOwnerError: vi.fn(),
     ...overrides,
   };
@@ -65,6 +66,7 @@ function installLifecycleMocks(overrides = {}) {
     getSyncEvolu: deps.getSyncEvolu,
     getSyncQueryLoadedPromise: deps.getSyncQueryLoadedPromise,
     getSyncReadyPromise: deps.getSyncReadyPromise,
+    scheduleSyncRuntimeReload: deps.scheduleSyncRuntimeReload,
     setSyncAppOwnerError: deps.setSyncAppOwnerError,
   }));
 
@@ -149,36 +151,25 @@ describe('sync lifecycle runtime behavior', () => {
   });
 
   it('disables sync, clears timers and snapshots, resets Evolu, and schedules reload', async () => {
-    vi.useFakeTimers();
     const resetAppOwner = vi.fn(async () => {});
-    const reload = vi.fn();
-    const priorLocation = globalThis.location;
-    globalThis.location = { reload };
     const deps = installLifecycleMocks({
       getSyncEvolu: vi.fn(() => ({ resetAppOwner })),
     });
     const { disableSync } = await loadLifecycle();
 
-    try {
-      await disableSync();
+    await disableSync();
 
-      expect(deps.setSyncEnabled).toHaveBeenCalledWith(false);
-      expect(deps.setSyncAppOwnerError).toHaveBeenCalledWith(null);
-      expect(deps.clearSyncSaveTimers).toHaveBeenCalled();
-      expect(deps.clearSyncPullTimers).toHaveBeenCalled();
-      expect(deps.clearSyncSubscriptionTimers).toHaveBeenCalled();
-      expect(deps.resetSyncStatus).toHaveBeenCalled();
-      expect(deps.renderSyncIndicator).toHaveBeenCalled();
-      expect(deps.clearSyncDisableStorage).toHaveBeenCalled();
-      expect(resetAppOwner).toHaveBeenCalledWith({ reload: false });
-      expect(deps.clearSyncRuntimeState).toHaveBeenCalled();
-      expect(deps.showNotification).toHaveBeenCalledWith('Sync disabled \u2014 reloading\u2026', 'success');
-
-      await vi.advanceTimersByTimeAsync(250);
-      expect(reload).toHaveBeenCalled();
-    } finally {
-      if (priorLocation) globalThis.location = priorLocation;
-      else delete globalThis.location;
-    }
+    expect(deps.setSyncEnabled).toHaveBeenCalledWith(false);
+    expect(deps.setSyncAppOwnerError).toHaveBeenCalledWith(null);
+    expect(deps.clearSyncSaveTimers).toHaveBeenCalled();
+    expect(deps.clearSyncPullTimers).toHaveBeenCalled();
+    expect(deps.clearSyncSubscriptionTimers).toHaveBeenCalled();
+    expect(deps.resetSyncStatus).toHaveBeenCalled();
+    expect(deps.renderSyncIndicator).toHaveBeenCalled();
+    expect(deps.clearSyncDisableStorage).toHaveBeenCalled();
+    expect(resetAppOwner).toHaveBeenCalledWith({ reload: false });
+    expect(deps.clearSyncRuntimeState).toHaveBeenCalled();
+    expect(deps.showNotification).toHaveBeenCalledWith('Sync disabled \u2014 reloading\u2026', 'success');
+    expect(deps.scheduleSyncRuntimeReload).toHaveBeenCalledWith(250);
   });
 });

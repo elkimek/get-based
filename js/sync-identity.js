@@ -5,6 +5,7 @@ import { loadScriptOnce, showNotification } from './utils.js';
 import {
   clearSyncDisableStorage,
 } from './sync-disable-cleanup.js';
+import { scheduleSyncRuntimeReload } from './sync-runtime.js';
 
 let _bip39Load = null;
 let _qrCodeLoad = null;
@@ -128,7 +129,7 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
       showNotification('Restored from mnemonic — reloading…', 'success');
     }
     // Reload so the app re-initializes from the restored CRDT identity.
-    setTimeout(() => window.location.reload(), 500);
+    scheduleSyncRuntimeReload(500);
     return true;
   } catch (e) {
     console.error('[sync] Restore failed:', e);

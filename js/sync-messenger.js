@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { bindSyncAppliedRefresh } from './utils.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
 
 const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
 const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
@@ -276,10 +277,10 @@ export function refreshAgentAccessFromSyncedProfile({ migrateLegacy = true, clea
   return withSeries;
 }
 
-if (typeof window !== 'undefined') {
-  bindSyncAppliedRefresh(() => { refreshAgentAccessFromSyncedProfile({ migrateLegacy: true }); });
-  window.addEventListener('labcharts-profile-switched', () => { refreshAgentAccessFromSyncedProfile({ migrateLegacy: false, clearWhenMissing: true }); });
-}
+bindSyncAppliedRefresh(() => { refreshAgentAccessFromSyncedProfile({ migrateLegacy: true }); });
+addUtilsRuntimeListener('labcharts-profile-switched', () => {
+  refreshAgentAccessFromSyncedProfile({ migrateLegacy: false, clearWhenMissing: true });
+});
 
 const AGENT_CONTEXT_CRYPTO_VERSION = 2;
 const AGENT_CONTEXT_AAD_PREFIX = 'getbased-agent-context-v2';

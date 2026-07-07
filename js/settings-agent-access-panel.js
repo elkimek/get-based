@@ -2,6 +2,7 @@
 // settings-agent-access-panel.js — Settings → Agent Access rendering/actions.
 
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { state } from './state.js';
 import {
   clearAgentAccessMigrationDirty,
@@ -364,8 +365,6 @@ export function refreshMessengerSectionForOwnerChange() {
   if (el) el.innerHTML = renderMessengerSection();
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('labcharts-sync-owner-changed', refreshMessengerSectionForOwnerChange);
-  bindSyncAppliedRefresh(refreshMessengerSectionForOwnerChange);
-  window.addEventListener('labcharts-profile-switched', refreshMessengerSectionForOwnerChange);
-}
+addUtilsRuntimeListener('labcharts-sync-owner-changed', refreshMessengerSectionForOwnerChange);
+bindSyncAppliedRefresh(refreshMessengerSectionForOwnerChange);
+addUtilsRuntimeListener('labcharts-profile-switched', refreshMessengerSectionForOwnerChange);

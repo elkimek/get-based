@@ -14,7 +14,8 @@ import { renderSyncIndicator } from './sync-ui.js';
 import { initSync } from './sync-init.js';
 import {
   clearSyncRuntimeState, getSyncAppOwner, getSyncAppOwnerError, getSyncEvolu,
-  getSyncQueryLoadedPromise, getSyncReadyPromise, setSyncAppOwnerError,
+  getSyncQueryLoadedPromise, getSyncReadyPromise, scheduleSyncRuntimeReload,
+  setSyncAppOwnerError,
 } from './sync-runtime.js';
 
 /** @param {{ skipPush?: boolean }} [options] */
@@ -106,5 +107,5 @@ export async function disableSync() {
   showNotification('Sync disabled — reloading…', 'success');
   // Reload regardless of whether Evolu cooperated. ~250ms gives the toast
   // time to render before the page swaps.
-  setTimeout(() => window.location.reload(), 250);
+  scheduleSyncRuntimeReload(250);
 }
