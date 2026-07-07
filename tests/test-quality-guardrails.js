@@ -101,6 +101,7 @@ const highValueCheckJsModules = [
   'js/settings.js',
   'js/settings-runtime.js',
   'js/sun.js',
+  'js/sun-uvdata-config.js',
   'js/wearables.js',
 ];
 const missingHighValueCheckJsModules = highValueCheckJsModules

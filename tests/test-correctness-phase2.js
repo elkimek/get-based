@@ -169,6 +169,7 @@ const pwaAppShellAssets = [
   '/js/sun-session-ui.js',
   '/js/sun-session-actions.js',
   '/js/sun-spectrum.js',
+  '/js/sun-uvdata-config.js',
   '/js/sun-uvdata.js',
   '/js/chat-window-bindings.js',
   '/js/chat-images.js',

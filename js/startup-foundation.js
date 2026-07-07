@@ -8,7 +8,7 @@ export async function initializeStartupFoundation() {
   // Initialize encryption (shows passphrase modal if enabled, blocks until unlocked).
   await initEncryption();
   // Decrypt the meteo config (selfhostBearer is sensitive at-rest; see
-  // sun-uvdata.js header note). Run AFTER initEncryption so the session
+  // sun-uvdata-config.js). Run AFTER initEncryption so the session
   // key is available to encryptedGetItem; the cache is then sync-readable
   // by getMeteoConfig() callers (sun-context.js, settings.js, providers).
   await initMeteoConfigCache();

@@ -429,6 +429,7 @@ const APP_SHELL = [
   '/js/sun-defaults-runtime.js',
   '/js/sun-onboarding-ai.js',
   '/js/sun-spectrum.js',
+  '/js/sun-uvdata-config.js',
   '/js/sun-uvdata.js',
   '/js/light-audit-ai-analysis.js',
   '/js/light-ai-save-hooks.js',
