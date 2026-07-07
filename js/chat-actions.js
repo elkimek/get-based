@@ -12,6 +12,7 @@ import {
   chatMessageActionAttrs,
 } from './chat-message-action-attrs.js';
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
+import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 let chatMessageDelegatesInstalled = false;
 export { chatMessageActionAttrs } from './chat-message-action-attrs.js';
@@ -206,7 +207,7 @@ export function toggleContextDetails(msgIndex) {
   if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
 }
 
-Object.assign(window, {
+registerUtilsRuntimeExports({
   regenerateLastMessage,
   copyMessage,
   toggleContextDetails,
