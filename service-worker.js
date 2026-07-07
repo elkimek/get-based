@@ -140,6 +140,7 @@ const APP_SHELL = [
   '/js/emf-interpretation.js',
   '/js/image-utils.js',
   '/js/pdf-import.js',
+  '/js/pdf-import-commit.js',
   '/js/pdf-import-file-utils.js',
   '/js/pdf-import-spreadsheet.js',
   '/js/pdf-import-preflight.js',

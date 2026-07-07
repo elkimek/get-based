@@ -23,11 +23,13 @@ console.log('=== Import Provenance Tests ===\n');
 // ─── 1. PDF Import Provenance ───
 console.log('1. PDF Import Provenance');
 const pdfSrc = read('js/pdf-import.js');
+const pdfCommitSrc = read('js/pdf-import-commit.js');
 const labEntrySrc = read('js/lab-entry.js');
 assert('Init markerSources on entry', labEntrySrc.includes('function ensureMarkerSources(entry)'));
-assert('Uses importTs timestamp', pdfSrc.includes('const importTs = Date.now()'));
-assert('Matched markers get markerSources', /setLabEntryMarker\(entry, m\.mappedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfSrc));
-assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfSrc));
+assert('PDF import facade re-exports commit actions', pdfSrc.includes("from './pdf-import-commit.js'"));
+assert('Uses importTs timestamp', pdfCommitSrc.includes('const importTs = Date.now()'));
+assert('Matched markers get markerSources', /setLabEntryMarker\(entry, m\.mappedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfCommitSrc));
+assert('New markers get markerSources', /setLabEntryMarker\(entry, m\.suggestedKey[\s\S]{0,180}source: \{ file: result\.fileName/.test(pdfCommitSrc));
 
 // ─── 2. Manual Entry Provenance ───
 console.log('\n2. Manual Entry Provenance');

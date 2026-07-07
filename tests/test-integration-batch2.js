@@ -253,7 +253,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // ═══════════════════════════════════════
   console.log('12. PDF filename storage');
 
-  const importSrc = read('/js/pdf-import.js');
+  const importSrc = read('/js/pdf-import-commit.js');
   assert('confirmImport stores sourceFile', importSrc.includes('entry.sourceFile = result.fileName'));
 
   const settingsDataSrc = read('/js/settings-data.js');

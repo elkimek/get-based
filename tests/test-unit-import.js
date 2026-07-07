@@ -21,6 +21,7 @@ function assert(name, condition, detail) {
 console.log('=== Unit Normalization on Import Tests ===\n');
 
 const src = read('js/pdf-import.js');
+const commitSrc = read('js/pdf-import-commit.js');
 const aiUtilsSrc = read('js/pdf-import-ai-utils.js');
 const exportSrc = read('js/export.js');
 const mappingSrc = read('js/pdf-import-marker-mapping.js');
@@ -56,13 +57,15 @@ const importCssSrc = read('css/import.css');
   // ═══════════════════════════════════════
   console.log('%c 3. confirmImport normalization ', 'font-weight:bold;color:#f59e0b');
 
-  const confirmBlock = src.substring(src.indexOf('function confirmImport'));
+  const confirmBlock = commitSrc.substring(commitSrc.indexOf('function confirmImport'));
+  assert('pdf-import facade re-exports commit actions',
+    /export\s*\{[^}]*confirmImport[^}]*deleteImportSnapshot[^}]*openImportReviewFromSnapshot[^}]*\}\s*from\s*['"]\.\/pdf-import-commit\.js['"]/.test(src));
   assert('matched markers normalized',
     confirmBlock.includes('normalizeToSI(m.mappedKey, m.value, m.unit)'));
   assert('new (custom) markers normalized',
     confirmBlock.includes('normalizeToSI(m.suggestedKey, m.value, m.unit)'));
   assert('confirmImport waits for async save before closing UI',
-    src.includes('export async function confirmImport') && /await\s+saveImportedData\([^)]*\)/.test(confirmBlock));
+    commitSrc.includes('export async function confirmImport') && /await\s+saveImportedData\([^)]*\)/.test(confirmBlock));
   assert('PDF import requests immediate sync push after durable save',
     /await\s+saveImportedData\(\{\s*immediate:\s*true\s*\}\)/.test(confirmBlock));
   assert('PDF import clears same-date entry tombstone when intentionally re-importing',
@@ -145,7 +148,7 @@ const importCssSrc = read('css/import.css');
       && /recordTombstone\(state\.importedData,\s*['"]importSnapshots['"],\s*snapId\)/.test(confirmBlock)
       && /deleteImportedArrayItems\(state\.importedData,\s*['"]importSnapshots['"]/.test(confirmBlock));
   assert('Snapshot marker deletes use lab-entry tombstones and HOMA-IR recalculation',
-    /import \{ deleteLabEntryMarker,/.test(src)
+    /import \{ deleteLabEntryMarker,/.test(commitSrc)
       && /deleteLabEntryMarker\(oldEntry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
       && /deleteLabEntryMarker\(entry, key,[\s\S]{0,80}mirrorInsulin:\s*true/.test(confirmBlock)
       && !/delete\s+(?:oldEntry|entry)\.markers\[key\]/.test(confirmBlock));
