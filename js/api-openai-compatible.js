@@ -77,7 +77,7 @@ async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, reques
   }
 }
 
-export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = {}) {
+export async function callOpenAICompatibleAPI(endpoint, key, model, providerName, { system, messages, maxTokens, onStream, signal, requestTimeoutMs, jsonMode, forceNonStream }, extraHeaders = {}, { useProxy = true, extraBody = {}, fetchImpl = null } = {}) {
   const apiMessages = [];
   if (system) apiMessages.push({ role: 'system', content: system });
   for (const msg of messages) apiMessages.push({ role: msg.role, content: msg.content });
@@ -94,7 +94,8 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
   if (jsonMode && providerName === 'Local AI') {
     body.response_format = { type: 'json_object' };
   }
-  if (onStream) {
+  const useStream = !!onStream && !forceNonStream;
+  if (useStream) {
     body.stream = true;
     body.stream_options = { include_usage: true };
   }
@@ -143,7 +144,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     throw new Error(errMsg);
   }
 
-  if (onStream) {
+  if (useStream) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';

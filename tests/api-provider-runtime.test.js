@@ -407,6 +407,27 @@ describe('API provider runtime behavior', () => {
     });
     expect(requestBody).not.toHaveProperty('max_tokens');
 
+    const onStream = vi.fn();
+    fetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: 'forced json' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 2, completion_tokens: 3 },
+    }));
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'fallback' }],
+      onStream,
+      forceNonStream: true,
+      requestTimeoutMs: 50,
+    })).resolves.toEqual({
+      text: 'forced json',
+      usage: { inputTokens: 2, outputTokens: 3 },
+      finishReason: 'stop',
+      truncated: false,
+    });
+    const forcedBody = JSON.parse(fetch.mock.calls.at(-1)[1].body);
+    expect(forcedBody).not.toHaveProperty('stream');
+    expect(forcedBody).not.toHaveProperty('stream_options');
+    expect(onStream).not.toHaveBeenCalled();
+
     window.showInsufficientBalanceDialog = vi.fn();
     fetch.mockResolvedValueOnce(new Response('{}', { status: 402 }));
     await expect(callOpenRouterAPI({
