@@ -10,6 +10,21 @@ let _appOwnerError = null;
 let _readyPromise = null;
 let _queryLoadedPromise = null;
 
+function getSyncRuntimeWindow() {
+  return typeof window !== 'undefined'
+    ? /** @type {any} */ (window)
+    : null;
+}
+
+/**
+ * @param {string} name
+ * @returns {Function | null}
+ */
+function getRuntimeFunction(name) {
+  const runtime = getSyncRuntimeWindow();
+  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+}
+
 export function getSyncEvolu() { return _evolu; }
 export function getSyncProfileQuery() { return _profileQuery; }
 export function getSyncTombstoneQuery() { return _tombstoneQuery; }
@@ -36,13 +51,38 @@ export function setSyncAppOwner(owner) {
   const next = owner ?? null;
   _appOwner = next;
   const nextId = next?.id || null;
-  if (prevId !== nextId && typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
-    try { window.dispatchEvent(new CustomEvent('labcharts-sync-owner-changed', { detail: { ownerId: nextId, ready: !!nextId } })); } catch (_) {}
-  }
+  if (prevId !== nextId) dispatchSyncOwnerChangedRuntime(nextId);
 }
 
 export function setSyncAppOwnerError(error) {
   _appOwnerError = error ?? null;
+}
+
+export function refreshSyncedAIProviderUiRuntime() {
+  let refreshed = false;
+  const updateHeader = getRuntimeFunction('updateChatHeaderModel');
+  if (updateHeader) {
+    updateHeader();
+    refreshed = true;
+  }
+  const refreshWebSearch = getRuntimeFunction('refreshWebSearchToggle');
+  if (refreshWebSearch) {
+    refreshWebSearch();
+    refreshed = true;
+  }
+  return refreshed;
+}
+
+/** @param {string | null} ownerId */
+export function dispatchSyncOwnerChangedRuntime(ownerId) {
+  const runtime = getSyncRuntimeWindow();
+  if (!runtime || typeof runtime.dispatchEvent !== 'function' || typeof runtime.CustomEvent !== 'function') return false;
+  try {
+    runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-owner-changed', { detail: { ownerId, ready: !!ownerId } }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function setSyncReadyPromise(promise) {

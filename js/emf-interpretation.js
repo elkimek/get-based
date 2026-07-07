@@ -18,6 +18,33 @@ import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-li
 
 let _aiAbortController = null;
 
+/**
+ * @returns {Record<string, any>}
+ */
+function getEMFInterpretationRuntimeScope() {
+  return typeof window !== 'undefined'
+    ? /** @type {Record<string, any>} */ (window)
+    : /** @type {Record<string, any>} */ (globalThis);
+}
+
+/**
+ * @param {string} name
+ * @returns {((...args: any[]) => any) | null}
+ */
+function getEMFInterpretationRuntimeFunction(name) {
+  const runtime = getEMFInterpretationRuntimeScope();
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : null;
+}
+
+function closeParentEMFModalRuntime() {
+  getEMFInterpretationRuntimeFunction('closeModal')?.();
+}
+
+function openEMFInterpretationChatRuntime(message) {
+  getEMFInterpretationRuntimeFunction('openChatPanel')?.(message);
+}
+
 function getAssessments(deps) {
   return deps?.getAssessments?.() || state.importedData.emfAssessment?.assessments || [];
 }
@@ -278,8 +305,8 @@ export function discussEMFInterpretation() {
   const text = overlay?._interpretText;
   if (!text) return;
   closeEMFInterpretation();
-  window.closeModal();
-  window.openChatPanel(`I'd like to discuss this EMF assessment interpretation further. Here's the interpretation:\n\n${text}\n\nWhat questions should I prioritize, and what are the most important next steps?`);
+  closeParentEMFModalRuntime();
+  openEMFInterpretationChatRuntime(`I'd like to discuss this EMF assessment interpretation further. Here's the interpretation:\n\n${text}\n\nWhat questions should I prioritize, and what are the most important next steps?`);
 }
 
 function _collectMitigationTags(assessment) {

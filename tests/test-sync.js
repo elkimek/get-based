@@ -1235,7 +1235,17 @@ await import('../js/settings.js');
   assert('applyAISettings has allowlist check', syncApplySrc.includes('AI_SETTINGS_KEYS.includes(key)'));
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
-  assert('applyAISettings refreshes chat provider UI on remote changes', syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
+  assert('applyAISettings refreshes chat provider UI through sync runtime hooks',
+    syncApplySrc.includes('refreshSyncedAIProviderUiRuntime()')
+      && syncRuntimeSrc.includes('export function refreshSyncedAIProviderUiRuntime')
+      && syncRuntimeSrc.includes("getRuntimeFunction('updateChatHeaderModel')")
+      && syncRuntimeSrc.includes("getRuntimeFunction('refreshWebSearchToggle')")
+      && !syncApplySrc.includes('window.updateChatHeaderModel')
+      && !syncApplySrc.includes('window.refreshWebSearchToggle'));
+  assert('sync runtime owner event dispatch avoids counted direct window refs',
+    syncRuntimeSrc.includes('export function dispatchSyncOwnerChangedRuntime')
+      && syncRuntimeSrc.includes('new runtime.CustomEvent')
+      && !/\bwindow(?:\.|\s*\[)/.test(syncRuntimeSrc));
   assert('AI setting changes schedule a sync push',
     syncSaveHooksSrc.includes("labcharts-ai-settings-local-changed")
       && syncSaveHooksSrc.includes('_pushProfile(profileId, importedData)'));
