@@ -12,6 +12,7 @@ import {
 import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
+import { refreshMobileDashboardActiveTabRuntime } from './chat-runtime.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
@@ -142,5 +143,5 @@ export function closeChatPanel() {
   document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus', 'chat-autostart-reserved');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
-  window.refreshMobileDashboardActiveTab?.();
+  refreshMobileDashboardActiveTabRuntime();
 }

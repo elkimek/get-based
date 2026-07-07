@@ -8,9 +8,10 @@ import { getEffectiveRange, getEffectiveRangeForDate, getLatestValueIndex } from
 import { openChatPanel } from './chat-panel.js';
 import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } from './chat-threads.js';
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
+import { closeChatModalRuntime } from './chat-runtime.js';
 
 async function openSourcePrompt(prompt, threadName, { closeModal = false } = {}) {
-  if (closeModal) window.closeModal?.();
+  if (closeModal) closeChatModalRuntime();
   loadChatThreads();
   ensureActiveThread();
   await loadChatHistory();

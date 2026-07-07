@@ -26,6 +26,32 @@ export function registerUtilsRuntimeExports(exportsByName) {
 }
 
 /**
+ * @param {string} name
+ * @param {Record<string, any>} [detail]
+ */
+export function dispatchUtilsRuntimeEvent(name, detail) {
+  const runtime = getUtilsRuntime();
+  const CustomEventCtor = runtime?.CustomEvent;
+  if (!runtime || typeof runtime.dispatchEvent !== 'function' || typeof CustomEventCtor !== 'function') return false;
+  runtime.dispatchEvent(new CustomEventCtor(name, detail === undefined ? undefined : { detail }));
+  return true;
+}
+
+/**
+ * @param {string | URL} url
+ * @param {string} [target]
+ * @param {string} [features]
+ * @returns {WindowProxy | null}
+ */
+export function openUtilsRuntimeWindow(url, target = '_blank', features) {
+  const runtime = getUtilsRuntime();
+  const open = runtime?.open;
+  if (typeof open !== 'function') return null;
+  if (features === undefined) return open.call(runtime, url, target);
+  return open.call(runtime, url, target, features);
+}
+
+/**
  * @param {EventListenerOrEventListenerObject} listener
  */
 function isEventListener(listener) {

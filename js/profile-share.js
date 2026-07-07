@@ -6,6 +6,7 @@ import { getProfiles } from './profile.js';
 import { buildClientExportObject, importDataJSON } from './export.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
 
 export const PROFILE_SHARE_SCHEMA = 'getbased-profile-share';
 export const PROFILE_SHARE_VERSION = 1;
@@ -737,7 +738,7 @@ export function initProfileShareLinks() {
   } else {
     setTimeout(handleProfileShareDeepLink, 0);
   }
-  window.addEventListener('hashchange', handleProfileShareDeepLink);
+  addUtilsRuntimeListener('hashchange', handleProfileShareDeepLink);
 }
 
 if (typeof window !== 'undefined') {

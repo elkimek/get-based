@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addUtilsRuntimeListener,
+  dispatchUtilsRuntimeEvent,
   getAppVersionRuntime,
   getUtilsElementStyleRuntime,
   hasUtilsRuntime,
+  openUtilsRuntimeWindow,
   removeUtilsRuntimeListener,
   registerUtilsRuntimeExports,
 } from '../js/utils-runtime.js';
@@ -56,12 +58,31 @@ describe('utils runtime adapter', () => {
     expect(runtime.openExample()).toBe('ok');
   });
 
+  it('delegates runtime event dispatch and window opening', () => {
+    const dispatchEvent = vi.fn();
+    const open = vi.fn(() => ({ document: {} }));
+    class CustomEventStub {
+      constructor(name, options) {
+        this.type = name;
+        this.detail = options?.detail;
+      }
+    }
+    setRuntimeWindow({ CustomEvent: CustomEventStub, dispatchEvent, open });
+
+    expect(dispatchUtilsRuntimeEvent('demo-event', { ok: true })).toBe(true);
+    expect(dispatchEvent.mock.calls[0][0]).toMatchObject({ type: 'demo-event', detail: { ok: true } });
+    expect(openUtilsRuntimeWindow('/demo', '_blank')).toMatchObject({ document: {} });
+    expect(open).toHaveBeenCalledWith('/demo', '_blank');
+  });
+
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
     delete globalThis.window;
 
     expect(hasUtilsRuntime()).toBe(false);
     expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
+    expect(dispatchUtilsRuntimeEvent('demo-event')).toBe(false);
+    expect(openUtilsRuntimeWindow('/demo')).toBeNull();
     expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
     expect(removeUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
     expect(getUtilsElementStyleRuntime({})).toBeNull();
