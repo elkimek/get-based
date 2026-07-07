@@ -279,6 +279,7 @@ assert('proxy extracts method field', proxySrc.includes('method: upstreamMethod'
 assert('proxy defaults to POST', proxySrc.includes("upstreamMethod || 'POST'"));
 assert('proxy skips body for GET', proxySrc.includes("fetchMethod !== 'GET'"));
 assert('_customApiFetchModels uses proxy', apiCustomSrc.includes('function _customApiFetchModels('));
+assert('_customApiFetchModels bases proxy decision on explicit URL', apiCustomSrc.includes('shouldProxyCustomApiUrl(url)'));
 assert('_customApiFetchModels sends method GET via proxy', apiCustomSrc.includes("method: 'GET'"));
 
 // ─── 18. needsMaxCompletionTokens — GPT-5 / o-series detection (#114) ───

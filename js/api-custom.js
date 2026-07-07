@@ -10,13 +10,13 @@ import {
 import { findPreferredModel } from './api-models.js';
 import {
   callOpenAICompatibleAPI,
-  useCustomApiProxy,
+  shouldProxyCustomApiUrl,
 } from './api-openai-compatible.js';
 
 const CUSTOM_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'gpt-5.5', 'anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4.6'];
 
 function _customApiFetchModels(url, key) {
-  if (useCustomApiProxy()) {
+  if (shouldProxyCustomApiUrl(url)) {
     return fetch('/api/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -67,7 +67,7 @@ export async function validateCustomApiKey(baseUrl, key) {
         headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
         body: probeBody
       };
-      const probe = useCustomApiProxy()
+      const probe = shouldProxyCustomApiUrl(url)
         ? await fetch('/api/proxy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -21,19 +21,20 @@ export function isTokenLimitFinish(reason) {
     || r.includes('max token');
 }
 
+export function shouldProxyCustomApiUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    return !['localhost', '127.0.0.1'].includes(u.hostname) && !u.hostname.startsWith('192.168.');
+  } catch {
+    return false;
+  }
+}
+
 // Only Custom API needs the proxy (arbitrary endpoints may lack CORS headers).
 // Known providers set CORS headers, so we call them directly and avoid hosted
 // proxy timeout limits.
 export function useCustomApiProxy() {
-  if (getAIProvider() === 'custom') {
-    try {
-      const u = new URL(getCustomApiUrl());
-      return !['localhost', '127.0.0.1'].includes(u.hostname) && !u.hostname.startsWith('192.168.');
-    } catch {
-      return false;
-    }
-  }
-  return false;
+  return getAIProvider() === 'custom' && shouldProxyCustomApiUrl(getCustomApiUrl());
 }
 
 const proxyFetch = createProxyFetch(useCustomApiProxy);

@@ -30,6 +30,7 @@ import {
   setVeniceModel,
   supportsVision,
   supportsWebSearch,
+  validateCustomApiKey,
   validateOpenRouterKey,
   validatePpqKey,
   validateRoutstrKey,
@@ -272,6 +273,30 @@ describe('API provider runtime behavior', () => {
     }));
     await fetchPpqModels('sk-ppq');
     expect(getPpqModel()).toBe('private/glm-5-2');
+  });
+
+  it('proxies Custom API validation for the explicit unsaved remote URL', async () => {
+    setAIProvider('openrouter');
+    setCustomApiUrl('http://localhost:11434/v1');
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'model-a', name: 'Model A' }] }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await expect(validateCustomApiKey('https://remote.example/v1', 'sk-custom')).resolves.toEqual({ valid: true });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/proxy', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"url":"https://remote.example/v1/models"'),
+    }));
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      url: 'https://remote.example/v1/models',
+      method: 'GET',
+      headers: { Authorization: 'Bearer sk-custom' },
+    });
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/proxy', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"url":"https://remote.example/v1/chat/completions"'),
+    }));
   });
 
   it('validates provider keys and reads balance endpoints defensively', async () => {
