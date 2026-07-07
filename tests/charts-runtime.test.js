@@ -66,4 +66,19 @@ describe('charts runtime adapter', () => {
     expect(/\bwindow(?:\.|\s*\[)/.test(chartsSrc)).toBe(false);
     expect(swSrc).toContain("'/js/charts-runtime.js'");
   });
+
+  it('keeps Chart.js construction behind the runtime adapter', () => {
+    const chartConsumers = [
+      readFileSync(new URL('../js/category-view-renderers.js', import.meta.url), 'utf8'),
+      readFileSync(new URL('../js/compare-correlations.js', import.meta.url), 'utf8'),
+      readFileSync(new URL('../js/wearables-bp-detail-chart.js', import.meta.url), 'utf8'),
+    ];
+
+    for (const src of chartConsumers) {
+      expect(src).toContain("from './charts-runtime.js'");
+      expect(src).toContain('createChartRuntime');
+      expect(src).toContain('hasChartRuntime');
+      expect(src).not.toContain('window.Chart');
+    }
+  });
 });

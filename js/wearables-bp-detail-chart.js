@@ -3,11 +3,12 @@
 import { state } from './state.js';
 import { adapterById, isMetricValueMeaningful } from './wearable-adapters.js';
 import { ensureChartJs, isChartDateAdapterReady } from './charts.js';
+import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getChartColors } from './theme.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 
 export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diastolicSeries = [], manualSeries = [], pairedMetric = null) {
-  if (!window.Chart || !isChartDateAdapterReady()) {
+  if (!hasChartRuntime() || !isChartDateAdapterReady()) {
     const retryToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     canvas.dataset.bpRenderToken = retryToken;
     ensureChartJs().then(() => {
@@ -137,7 +138,7 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
     return items?.[0]?.label || '';
   };
 
-  state.chartInstances['modal'] = new window.Chart(canvas, {
+  const chart = createChartRuntime(canvas, {
     type: 'line',
     data: { datasets },
     options: {
@@ -170,4 +171,5 @@ export function renderBloodPressureChart(canvas, canon, m, systolicSeries, diast
       },
     },
   });
+  if (chart) state.chartInstances['modal'] = chart;
 }
