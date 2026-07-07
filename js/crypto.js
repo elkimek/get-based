@@ -277,12 +277,12 @@ export function isEncryptedObject(o) {
 
 // TEST-ONLY: injects a freshly-derived key so behavioral tests can drive
 // the encrypt/decrypt round-trip without going through the passphrase
-// modal. Gated on window.__WEARABLES_TEST so a missed call site can't
+// modal. Gated on the runtime __WEARABLES_TEST flag so a missed call site can't
 // reach into production. The matching `_setEncryptionEnabledForTest`
 // pair lives below.
 export async function _setTestSessionKey(passphrase) {
   if (!appWindow.__WEARABLES_TEST) {
-    throw new Error('_setTestSessionKey is test-only — set window.__WEARABLES_TEST first');
+    throw new Error('_setTestSessionKey is test-only — enable the runtime __WEARABLES_TEST flag first');
   }
   if (passphrase === null) { _sessionKey = null; return; }
   const salt = crypto.getRandomValues(new Uint8Array(16));

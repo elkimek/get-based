@@ -1047,7 +1047,7 @@ export async function loadProfile(profileId) {
   ]).then(async ([manualMod, summaryMod, connectMod]) => {
     try { await manualMod.migrateBiometricsToManual(profileId, state.importedData?.biometrics); } catch {}
     // Profile-switch race guard: the user can swap profile A→B during the
-    // ~100ms cold-cache IDB read window. If that happens, abort BEFORE
+    // ~100ms cold-cache IDB read interval. If that happens, abort BEFORE
     // syncWearableSummary persists A's metrics into B's wearableSummary
     // and saves them under B's localStorage key. Same shape as the
     // v1.24.1 OAuth-callback profile-swap guard.

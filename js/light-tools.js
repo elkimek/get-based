@@ -610,7 +610,7 @@ export async function openEyeLevelAudit() {
         });
         // Try to bind each pause to an existing room by name; create
         // one if no match. Startup wiring injects getRooms/addRoom from
-        // light-env.js so this modal does not reach through window.
+        // light-env.js so this modal does not reach through browser globals.
         let bound = 0;
         const existingRooms = getLightRooms();
         const byLabel = new Map();
