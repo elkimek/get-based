@@ -20,6 +20,7 @@ import { configureMarkerDetailModal } from './marker-detail-modal.js';
 import { renderLightConditionsWidgetBody } from './light-conditions-now.js';
 import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
 import { renderLightTodayHero } from './light-today-ai.js';
+import { navigateViewportRuntime } from './views-router-runtime.js';
 import {
   configureMobileDashboardView,
   getMobileDashboardMarkers,
@@ -46,7 +47,7 @@ export function createDashboardViewComposition({
   let dashboardWidgetControls;
 
   function rerenderDashboardFromWidgetChange() {
-    if (state.currentView === 'dashboard') window.navigate?.('dashboard');
+    if (state.currentView === 'dashboard') navigateViewportRuntime('dashboard');
   }
 
   const dashboardWidgetRenderers = createDashboardWidgetRenderers({

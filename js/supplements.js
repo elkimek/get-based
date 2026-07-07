@@ -15,6 +15,7 @@ import { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } f
 import { openModalOverlay } from './modal-lifecycle.js';
 import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
+import { getUtilsRuntimeHostname } from './utils-runtime.js';
 import {
   computeAllImpacts,
   computeSupplementImpact,
@@ -392,7 +393,7 @@ async function fetchSupplementFromURL() {
   if (btn instanceof HTMLButtonElement) { btn.textContent = 'Fetching...'; btn.disabled = true; }
   try {
     // Fetch page HTML — use /api/fetch-page on localhost, proxy GET on hosted
-    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
     let html;
     if (isLocal) {
       const res = await fetch('/api/fetch-page?url=' + encodeURIComponent(url));

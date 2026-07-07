@@ -9,6 +9,7 @@ import { profileStorageKey, touchProfileTimestamp, migrateProfileData } from './
 import { encryptedSetItem, broadcastDataChanged, scheduleAutoBackup } from './crypto.js';
 import { onDataSaved } from './sync.js';
 import { recalculateLabEntryHOMAIR } from './lab-entry.js';
+import { scheduleUtilsAfterNextPaint } from './utils-runtime.js';
 import {
   countFlagged,
   detectTrendAlerts,
@@ -994,11 +995,7 @@ function _captureCategoryCardOrderForRangeRefresh(route) {
 }
 
 function _afterNextPaint(fn) {
-  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
-    setTimeout(fn, 0);
-    return;
-  }
-  window.requestAnimationFrame(() => setTimeout(fn, 0));
+  scheduleUtilsAfterNextPaint(fn);
 }
 
 export function switchRangeMode(mode) {

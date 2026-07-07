@@ -17,6 +17,7 @@ import { updateKeyCache } from './crypto.js';
 import { ensureQRCode } from './provider-qr.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import { renderPpqModelDropdown } from './provider-model-controls.js';
+import { callUtilsRuntimeFunction } from './utils-runtime.js';
 
 let returnToChatIfOnboarding = function() {};
 let _ppqCreating = false;
@@ -216,7 +217,7 @@ export async function handleRemovePpqKey() {
     localStorage.removeItem('labcharts-ppq-private-vision-models');
     localStorage.removeItem('labcharts-ppq-credit-id');
     showNotification('PPQ key removed', 'info');
-    window.openSettingsModal?.();
+    callUtilsRuntimeFunction('openSettingsModal');
   }
 }
 

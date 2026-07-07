@@ -7,6 +7,7 @@ import {
   closeMobileSidebarFromRuntime,
   getViewportHeight,
   getViewportScrollPosition,
+  navigateViewportRuntime,
   restoreViewportScroll,
   scrollViewportBy,
   syncImportStatusFabFromRuntime,
@@ -34,6 +35,7 @@ const runtimeKeys = [
   'removeEventListener',
   'closeMobileSidebar',
   'syncImportStatusFab',
+  'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -71,11 +73,14 @@ try {
 
   setRuntimeValue('closeMobileSidebar', () => calls.push(['close-sidebar']));
   setRuntimeValue('syncImportStatusFab', () => calls.push(['sync-fab']));
+  setRuntimeValue('navigate', view => calls.push(['navigate', view]));
   closeMobileSidebarFromRuntime();
   syncImportStatusFabFromRuntime();
+  navigateViewportRuntime('dashboard');
   assert('shell callbacks delegate to runtime hooks',
     calls.some(call => call[0] === 'close-sidebar') &&
-    calls.some(call => call[0] === 'sync-fab'));
+    calls.some(call => call[0] === 'sync-fab') &&
+    calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
 
   const listenerAdds = [];
   const listenerRemoves = [];
