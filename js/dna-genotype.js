@@ -27,8 +27,7 @@ function isPalindromicEntry(entry) {
   return (alleles.has('A') && alleles.has('T')) || (alleles.has('C') && alleles.has('G'));
 }
 
-function findStrandAwareKey(table, genotype, palindromic) {
-  if (!table || !genotype) return null;
+function buildStrandAwareKeys(genotype, palindromic) {
   const tries = [genotype];
   if (genotype.length === 2) tries.push(genotype[1] + genotype[0]);
   tries.push(sortAlleles(genotype));
@@ -38,18 +37,37 @@ function findStrandAwareKey(table, genotype, palindromic) {
     if (rc.length === 2) tries.push(rc[1] + rc[0]);
     tries.push(sortAlleles(rc));
   }
-  for (const k of tries) {
-    if (table[k] != null) return table[k];
+  return tries;
+}
+
+function findStrandAwareEntry(table, genotype, palindromic) {
+  if (!table || !genotype) return null;
+  for (const key of buildStrandAwareKeys(genotype, palindromic)) {
+    if (table[key] != null) return { key, value: table[key] };
   }
   return null;
 }
 
-export function findGenotypeInfo(entry, genotype) {
+export function findGenotypeKey(entry, genotype) {
   if (!entry || !entry.genotypes) return null;
-  return findStrandAwareKey(entry.genotypes, genotype, isPalindromicEntry(entry));
+  const raw = String(genotype || '').trim().toUpperCase();
+  if (!/^[ACGT]{1,2}$/.test(raw)) return null;
+  return findStrandAwareEntry(entry.genotypes, raw, isPalindromicEntry(entry))?.key || null;
+}
+
+export function findGenotypeMatch(entry, genotype) {
+  if (!entry || !entry.genotypes) return null;
+  const raw = String(genotype || '').trim().toUpperCase();
+  if (!/^[ACGT]{1,2}$/.test(raw)) return null;
+  const match = findStrandAwareEntry(entry.genotypes, raw, isPalindromicEntry(entry));
+  return match ? { key: match.key, info: match.value } : null;
+}
+
+export function findGenotypeInfo(entry, genotype) {
+  return findGenotypeMatch(entry, genotype)?.info || null;
 }
 
 export function findSnpHint(entry, genotype) {
   if (!entry || !entry.snpHints) return null;
-  return findStrandAwareKey(entry.snpHints, genotype, isPalindromicEntry(entry));
+  return findStrandAwareEntry(entry.snpHints, genotype, isPalindromicEntry(entry))?.value || null;
 }
