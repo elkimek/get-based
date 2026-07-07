@@ -117,6 +117,7 @@
     "js/lens-actions.js",
     "js/lens-cache.js",
     "js/lens-library.js",
+    "js/lens-local-store.js",
     "js/lens-local-worker.js",
     "js/lens-local.js",
     "js/lens-page-shell.js",
