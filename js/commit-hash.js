@@ -2,6 +2,7 @@
 // commit-hash.js - Footer app version and commit hash hydration
 
 import { escapeHTML } from './utils.js';
+import { getAppVersionRuntime } from './utils-runtime.js';
 
 let _cachedCommitHash = null;
 
@@ -19,7 +20,7 @@ function cacheAndRenderCommitHash(el, sha) {
 
 export function loadCommitHash() {
   const vEl = document.getElementById('app-version-text');
-  if (vEl && !vEl.textContent) vEl.textContent = window.APP_VERSION || '';
+  if (vEl && !vEl.textContent) vEl.textContent = getAppVersionRuntime();
   const el = document.getElementById('app-commit-hash');
   if (!el) return;
   if (_cachedCommitHash) {

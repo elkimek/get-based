@@ -11,6 +11,20 @@ export function hasUtilsRuntime() {
   return getUtilsRuntime() !== null;
 }
 
+/** @param {string} [fallback] */
+export function getAppVersionRuntime(fallback = '') {
+  const version = getUtilsRuntime()?.APP_VERSION;
+  return typeof version === 'string' && version ? version : fallback;
+}
+
+/** @param {Record<string, any>} exportsByName */
+export function registerUtilsRuntimeExports(exportsByName) {
+  const runtime = getUtilsRuntime();
+  if (!runtime || !exportsByName) return false;
+  Object.assign(runtime, exportsByName);
+  return true;
+}
+
 /**
  * @param {EventListenerOrEventListenerObject} listener
  */

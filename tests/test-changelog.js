@@ -47,7 +47,10 @@ const versionSrc = await fetchWithRetry('version.js');
 // ═══════════════════════════════════════
 console.log('1. Changelog Module Structure');
 
-assert('changelog.js uses window.APP_VERSION', changelogSrc.includes('window.APP_VERSION'));
+assert('changelog.js delegates APP_VERSION through utils runtime',
+  changelogSrc.includes("from './utils-runtime.js'")
+    && changelogSrc.includes('getAppVersionRuntime')
+    && !changelogSrc.includes('window.APP_VERSION'));
 assert('changelog.js has CHANGELOG array', changelogSrc.includes('const CHANGELOG'));
 assert('changelog.js exports openChangelog', changelogSrc.includes('export function openChangelog'));
 assert('changelog.js exports closeChangelog', changelogSrc.includes('export function closeChangelog'));
@@ -60,6 +63,9 @@ assert('changelog.js delegates modal close button without inline handlers',
   changelogSrc.includes('data-changelog-action') &&
     changelogSrc.includes('installChangelogDelegates(modal)') &&
     !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(changelogSrc));
+assert('changelog.js registers legacy globals through utils runtime',
+  changelogSrc.includes('registerUtilsRuntimeExports({ openChangelog, closeChangelog, maybeShowChangelog })')
+    && !/Object\.assign\(window/.test(changelogSrc));
 assert('changelog.js has getMajorMinor helper', changelogSrc.includes('function getMajorMinor'));
 assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('getMajorMinor(seen) !== getMajorMinor('));
 // forceShow patch-bump escape hatch — when a maintainer flags an entry as
