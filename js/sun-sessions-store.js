@@ -403,7 +403,7 @@ function _runHydrateSession(id, coords, { queueAfterExisting = false, warnContex
 //      so retro-logged sessions up to a week old hydrate against the
 //      actual session day rather than snapping to today's 00:00 hour.
 //      Bump forces v6 sessions older than 2d to replay against the
-//      wider window.
+//      wider interval.
 export const SUN_ENGINE_VERSION = 7;
 
 // Override the fetched atmosphere with user-set values (manual UVI, manual

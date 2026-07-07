@@ -460,7 +460,7 @@ export const ADAPTERS = [
       // Apple Health XML `type` attribute → canonical metric mapping. Populated
       // by the parser at import time, not fetched per-request.
       // hrv_day is derived in the parser by splitting SDNN samples into a
-      // night (22:00–06:00 local) and day (06:00–22:00) window.
+      // night (22:00–06:00 local) and day (06:00–22:00) period.
       // hr_day uses the raw HeartRate stream filtered to the day window —
       // RestingHeartRate is sleep-derived (Apple writes one per day at wake)
       // so it stays in the rhr slot via min-aggregation.

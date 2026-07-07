@@ -5,7 +5,7 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 
-// Use window.* to avoid circular import (crypto.js imports from backup.js)
+// Use runtime-owned globals to avoid circular import (crypto.js imports from backup.js)
 const appWindow = /** @type {Window & typeof globalThis & {
   encryptedGetItem?: (key: string) => Promise<string | null>,
   getEncryptionEnabled?: () => boolean,

@@ -209,7 +209,7 @@ const SYSTEM_PROMPT = [
   '  gray = not enough info (no doses computed, device record removed, missing parameters)',
   '',
   'Device-class biology:',
-  '  • PBM red+NIR (combined / pbm-targeted): cellular repair via cytochrome c oxidase, ~1–10 J/cm² per session is the typical target window. Vitamin-D yield is zero — irrelevant; do NOT flag.',
+  '  • PBM red+NIR (combined / pbm-targeted): cellular repair via cytochrome c oxidase, ~1–10 J/cm² per session is the typical target range; Vitamin-D yield is zero — irrelevant; do NOT flag.',
   '  • SAD light box: needs EYE-DIRECT exposure to deliver the 10000-lux circadian dose. "Eyes protected" defeats the purpose; flag yellow with a "remove the eye block to capture the SAD benefit" tip. Skin/UV channels will be zero — irrelevant.',
   '  • UVB / UVA phototherapy: eye protection MANDATORY (corneal damage). Vitamin-D / NO yield is the value. If eyes uncovered, flag RED.',
   '  • Dawn simulator: gentle ramp, low total dose; circadian-only. Don\'t flag low-tier numbers; the value is the timing, not the dose.',

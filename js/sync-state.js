@@ -8,7 +8,7 @@
 const _syncEvents = [];
 const _SYNC_EVENT_CAP = 12;
 
-// Per-profile rebroadcast counters with a 5-minute reset window.
+// Per-profile rebroadcast counters with a 5-minute reset interval.
 // Caps runaway rebroadcast loops if two devices' clocks skew enough
 // that same-id timestamp comparisons keep flipping which side "won".
 /** @type {Map<string, { count: number, since: number }>} */

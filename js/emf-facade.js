@@ -1,6 +1,8 @@
 // @ts-check
 // emf-facade.js - lazy window facade for the EMF assessment module
 
+import { registerUtilsRuntimeExports } from './utils-runtime.js';
+
 export const EMF_LAZY_WINDOW_FUNCTIONS = [
   'openEMFAssessmentEditor',
   'addEMFAssessment',
@@ -37,17 +39,21 @@ async function loadEMFModule() {
     });
   }
   const mod = await emfModulePromise;
+  const exportsByName = {};
   for (const fn of EMF_LAZY_WINDOW_FUNCTIONS) {
-    window[fn] = mod[fn];
+    exportsByName[fn] = mod[fn];
   }
+  registerUtilsRuntimeExports(exportsByName);
   return mod;
 }
 
 export function installEMFLazyFacade() {
+  const exportsByName = {};
   for (const fn of EMF_LAZY_WINDOW_FUNCTIONS) {
-    window[fn] = async function(...args) {
+    exportsByName[fn] = async function(...args) {
       const mod = await loadEMFModule();
       return mod[fn](...args);
     };
   }
+  registerUtilsRuntimeExports(exportsByName);
 }
