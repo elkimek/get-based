@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS } from './sun.js';
+import { getUtilsRuntimeFunction } from './utils-runtime.js';
 
 /**
  * @param {string} name
@@ -12,9 +13,7 @@ import { BODY_REGIONS } from './sun.js';
  * @returns {any}
  */
 function _windowDep(name, fallback = null) {
-  if (typeof window === 'undefined') return fallback;
-  const value = window[name];
-  return typeof value === 'function' ? value : fallback;
+  return getUtilsRuntimeFunction(name) || fallback;
 }
 
 /**

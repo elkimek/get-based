@@ -11,6 +11,7 @@ import { renderProfileContextCards, loadContextHealthDots } from './context-card
 import { computeBiologyScores, getBiologyScoreLensWidgets, renderBiologicalCoherenceLensHero, renderBiologyScoreCoveragePlanner, renderBiologyScoresActionSummary, scheduleBiologyScoreAIReconcile } from './biology-scores.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { renderBiologyScoreContextAI, hasCurrentBiologyScoreContextReview, hasBiologyScoreContextReview } from './biology-score-context-ai.js';
+import { getRecommendationsSnpTable, isRecommendationsProductRecsEnabled } from './recommendations-runtime.js';
 
 function markerHasData(marker) {
   return marker.values?.some(v => v !== null) ?? false;
@@ -311,7 +312,7 @@ export function createLensPageHandlers(deps) {
       <button type="button" class="dashboard-action-btn" ${lensPageActionAttrs('open-privacy-settings')}>Disclosure & settings</button>`;
     let html = `<div id="recommendations-page">`;
     html += renderLensHeader('Recommendations', 'A global action plan built from Labs, Body, Light, Genome, and Insight signals. Product links stay behind the existing disclosure.', actions);
-    if (!window.isProductRecsEnabled?.()) {
+    if (!isRecommendationsProductRecsEnabled()) {
       html += renderLensWidget('recommendations-disabled', 'Recommendations are off', 'Enable Tips & Recommendations to build this action surface', `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lensPageActionAttrs('open-privacy-settings')}>Open settings</button>`, 'full', { source: 'Recommendations', dashboardId: '' });
       html += `</div>`;
       main.innerHTML = html;
@@ -324,7 +325,7 @@ export function createLensPageHandlers(deps) {
       main.innerHTML = html;
       return;
     }
-    if (state.importedData?.genetics?.snps && !window._snpTableCache) {
+    if (state.importedData?.genetics?.snps && !getRecommendationsSnpTable()) {
       ensureSNPTable().then(() => { if (state.currentView === 'recommendations') showRecommendations(getActiveData()); }).catch(() => {});
     }
     html += `${renderRecommendationsPageGroups(ctx, catalog)}</div>`;

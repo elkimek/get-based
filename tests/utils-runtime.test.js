@@ -7,7 +7,9 @@ import {
   dispatchUtilsRuntimeEvent,
   getAppVersionRuntime,
   getUtilsElementStyleRuntime,
+  getUtilsRuntimeFunction,
   getUtilsRuntimeHostname,
+  getUtilsRuntimeValue,
   hasUtilsRuntime,
   openUtilsRuntimeWindow,
   removeUtilsRuntimeListener,
@@ -62,15 +64,20 @@ describe('utils runtime adapter', () => {
     expect(runtime.openExample()).toBe('ok');
   });
 
-  it('delegates hostname reads and named runtime function calls', () => {
+  it('delegates hostname reads named runtime values and named runtime function calls', () => {
     const openSettingsModal = vi.fn(section => `opened:${section}`);
+    const mammoth = { extractRawText: vi.fn() };
     setRuntimeWindow({
       location: { hostname: 'localhost' },
+      mammoth,
       openSettingsModal,
     });
 
     expect(getUtilsRuntimeHostname()).toBe('localhost');
+    expect(getUtilsRuntimeValue('mammoth')).toBe(mammoth);
+    expect(getUtilsRuntimeFunction('openSettingsModal')?.('data')).toBe('opened:data');
     expect(callUtilsRuntimeFunction('openSettingsModal', 'data')).toBe('opened:data');
+    expect(openSettingsModal).toHaveBeenCalledTimes(2);
     expect(openSettingsModal).toHaveBeenCalledWith('data');
   });
 
@@ -124,6 +131,8 @@ describe('utils runtime adapter', () => {
     expect(hasUtilsRuntime()).toBe(false);
     expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
     expect(getUtilsRuntimeHostname('fallback-host')).toBe('fallback-host');
+    expect(getUtilsRuntimeValue('mammoth', 'fallback-value')).toBe('fallback-value');
+    expect(getUtilsRuntimeFunction('openExample')).toBeNull();
     expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
     expect(callUtilsRuntimeFunction('openExample')).toBeUndefined();
     expect(dispatchUtilsRuntimeEvent('demo-event')).toBe(false);
