@@ -235,6 +235,7 @@ const APP_SHELL = [
   '/js/dashboard-widgets.js',
   '/js/dashboard-widget-runtime.js',
   '/js/dashboard-widget-controls.js',
+  '/js/dashboard-lab-widget-renderers.js',
   '/js/dashboard-widget-renderers.js',
   '/js/dashboard-recommendation-widget.js',
   '/js/recommendation-actions.js',

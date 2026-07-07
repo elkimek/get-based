@@ -287,13 +287,13 @@ const state = window._labState;
   assert('Biological Age equals (PhenoAge + Bortz) / 2',
     bioAge === Math.round(((phenoCheck + bortzCheck) / 2) * 10) / 10,
     `${bioAge} vs (${phenoCheck} + ${bortzCheck}) / 2`);
-  const dashboardRenderersSrc = fs.readFileSync(path.join(_ROOT, 'js/dashboard-widget-renderers.js'), 'utf-8');
+  const dashboardLabRenderersSrc = fs.readFileSync(path.join(_ROOT, 'js/dashboard-lab-widget-renderers.js'), 'utf-8');
   assert('Dashboard Biological Age widget reads calculated biologicalAge marker',
-    dashboardRenderersSrc.includes("['calculatedRatios', 'biologicalAge']"));
+    dashboardLabRenderersSrc.includes("['calculatedRatios', 'biologicalAge']"));
   assert('Dashboard Biological Age widget reads calculated PhenoAge row',
-    dashboardRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')"));
+    dashboardLabRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'phenoAge')"));
   assert('Dashboard Biological Age widget reads calculated Bortz row',
-    dashboardRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')"));
+    dashboardLabRenderersSrc.includes("getDashboardMarkerByPath(ctx.data, 'calculatedRatios', 'bortzAge')"));
 
   // ── Biological Age: only PhenoAge available → uses PhenoAge alone ──
   state.importedData.entries = [{
