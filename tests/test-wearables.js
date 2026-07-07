@@ -1004,7 +1004,7 @@ assert('lean_mass_kg has aria-label clarifying "fat-free"',
 // AI context cluster roll-ups — body comp + sleep architecture each
 // collapse into one line to keep prompt budget predictable. The
 // detail modal still drills each metric individually.
-const labCtxSrc = await fetch('/js/lab-context.js').then(r => r.text());
+const labCtxSrc = await fetch('/js/lab-context-wearables.js').then(r => r.text());
 assert('Body-comp roll-up keeps 8 keys (incl. fat_mass_kg)',
   /BODY_COMP_KEYS\s*=\s*\[[\s\S]*?'body_fat_pct'[\s\S]*?'fat_mass_kg'[\s\S]*?'nerve_health_score'[\s\S]*?\]/.test(labCtxSrc));
 assert('Sleep-arch roll-up covers the nine sleep canonicals',
@@ -2161,7 +2161,7 @@ assert('setAgentWearableSeriesEnabled exported',
   typeof labCtxAgent.setAgentWearableSeriesEnabled === 'function');
 assert('Agent series toggle is per-profile (key includes active-profile id)',
   labCtxAgent.buildWearableSeriesSection.toString().includes('isAgentWearableSeriesEnabled') ||
-  /labcharts-.*-agent-wearable-series/.test(await fetch('/js/lab-context.js').then(r => r.text())));
+  /labcharts-.*-agent-wearable-series/.test(await fetch('/js/lab-context-wearables.js').then(r => r.text())));
 
 // Behaviour: returns '' when toggle is off (default).
 labCtxAgent.setAgentWearableSeriesEnabled(false);
@@ -2195,17 +2195,17 @@ assert('Series block is appended AFTER baseContext, not replacing it',
   /seriesBlock\s*\?\s*`\$\{baseContext\}\\n\$\{seriesBlock\}/.test(syncSrc));
 
 // Section tag format: must include the day-count so the agent can parse it.
-const labSrc = await fetch('/js/lab-context.js').then(r => r.text());
+const labWearablesSrc = await fetch('/js/lab-context-wearables.js').then(r => r.text());
 assert('Series section tag is wearables-series-{N}d (not just "wearables")',
-  /tag\s*=\s*`wearables-series-\$\{days\}d`/.test(labSrc) &&
-  /\[section:\$\{tag\}\]/.test(labSrc));
+  /tag\s*=\s*`wearables-series-\$\{days\}d`/.test(labWearablesSrc) &&
+  /\[section:\$\{tag\}\]/.test(labWearablesSrc));
 assert('Series rendering rounds values to 1dp to keep token cost down',
-  /Math\.round\(v\s*\*\s*10\)\s*\/\s*10/.test(labSrc));
+  /Math\.round\(v\s*\*\s*10\)\s*\/\s*10/.test(labWearablesSrc));
 assert('Series uses → as the value separator (matches existing weekly-trend format)',
-  /series\.join\('→'\)/.test(labSrc));
+  /series\.join\('→'\)/.test(labWearablesSrc));
 assert('Series elides metrics with zero non-null daily values in the window',
-  /nonNullCount\s*===\s*0\)\s*continue/.test(labSrc) ||
-  /nonNullCount\s*===\s*0\)\s*\{\s*continue/.test(labSrc));
+  /nonNullCount\s*===\s*0\)\s*continue/.test(labWearablesSrc) ||
+  /nonNullCount\s*===\s*0\)\s*\{\s*continue/.test(labWearablesSrc));
 
 // Window exports for the toggle handler in Settings → Agent Access.
 assert('window.isAgentWearableSeriesEnabled exists',

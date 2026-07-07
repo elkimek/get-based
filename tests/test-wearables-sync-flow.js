@@ -339,8 +339,9 @@ try {
   localStorage.setItem('labcharts-messenger-token', 'test-mock-token-12345');
 
   const labContextSrc = await fetch('/js/lab-context.js').then(r => r.text());
+  const labContextWearablesSrc = await fetch('/js/lab-context-wearables.js').then(r => r.text());
   assert('buildLabContext emits [section:wearables] block', /\[section:wearables\]/.test(labContextSrc));
-  assert('buildLabContext emits [section:wearables-series-{N}d] block', /wearables-series-\$\{days\}d/.test(labContextSrc));
+  assert('buildWearableSeriesSection emits [section:wearables-series-{N}d] block', /wearables-series-\$\{days\}d/.test(labContextWearablesSrc));
 
   const syncMod = await import('../js/sync.js');
   syncMod.migrateLocalAgentAccessToProfile();

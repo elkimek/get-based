@@ -268,6 +268,7 @@ const APP_SHELL = [
   '/js/data-wipe.js',
   '/js/backup.js',
   '/js/lab-context.js',
+  '/js/lab-context-wearables.js',
   '/js/markdown.js',
   '/js/provider-qr.js',
   '/js/provider-panel-delegates.js',
