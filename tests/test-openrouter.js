@@ -35,6 +35,9 @@ await import('../js/provider-panels.js');
 console.log('1. api.js source inspection');
 const apiSrc = read('js/api.js');
 const apiModelsSrc = read('js/api-models.js');
+const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
+const apiOpenRouterSrc = read('js/api-openrouter.js');
+const apiOpenRouterOAuthSrc = read('js/api-openrouter-oauth.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('getOpenRouterKey exists', apiProviderStorageSrc.includes('function getOpenRouterKey()'));
 assert('saveOpenRouterKey exists', apiProviderStorageSrc.includes('function saveOpenRouterKey('));
@@ -45,19 +48,19 @@ assert('getOpenRouterModelDisplay exists', apiProviderStorageSrc.includes('funct
 assert('api.js re-exports OpenRouter model helpers', apiSrc.includes("from './api-models.js'"));
 assert('fetchOpenRouterModels exists', apiModelsSrc.includes('function fetchOpenRouterModels('));
 assert('validateOpenRouterKey exists', apiModelsSrc.includes('function validateOpenRouterKey('));
-assert('callOpenRouterAPI exists', apiSrc.includes('function callOpenRouterAPI('));
-assert('extraHeaders in helper signature', apiSrc.includes('extraHeaders = {}'));
-assert('extraHeaders spread in fetch headers', apiSrc.includes('...extraHeaders'));
+assert('callOpenRouterAPI exists', apiOpenRouterSrc.includes('function callOpenRouterAPI('));
+assert('extraHeaders in helper signature', apiOpenAICompatibleSrc.includes('extraHeaders = {}'));
+assert('extraHeaders spread in fetch headers', apiOpenAICompatibleSrc.includes('...extraHeaders'));
 assert('hasAIProvider handles openrouter', apiProviderStorageSrc.includes("provider === 'openrouter') return hasOpenRouterKey()"));
 assert('callClaudeAPI handles openrouter', apiSrc.includes("provider === 'openrouter') return callOpenRouterAPI("));
-assert('callOpenRouterAPI sends HTTP-Referer', apiSrc.includes("'HTTP-Referer'"));
-assert('callOpenRouterAPI sends X-Title', apiSrc.includes("'X-Title': 'getbased'"));
+assert('callOpenRouterAPI sends HTTP-Referer', apiOpenRouterSrc.includes("'HTTP-Referer'"));
+assert('callOpenRouterAPI sends X-Title', apiOpenRouterSrc.includes("'X-Title': 'getbased'"));
 // api.js carries the hyphenated 'anthropic/claude-sonnet-4-6' string as the
 // legacy-ID it migrates FROM — getOpenRouterModel() rewrites it to the dotted
 // canonical 'anthropic/claude-sonnet-4.6' (verified by the section-8 default
 // assertion). This checks the legacy-migration source string is still present.
 assert('provider storage still references legacy hyphenated ID for migration', apiProviderStorageSrc.includes("'anthropic/claude-sonnet-4-6'"));
-assert('OpenRouter API endpoint', apiSrc.includes('openrouter.ai/api/v1/chat/completions'));
+assert('OpenRouter API endpoint', apiOpenRouterSrc.includes('openrouter.ai/api/v1/chat/completions'));
 assert('OpenRouter models endpoint', apiModelsSrc.includes('openrouter.ai/api/v1/models'));
 
 // ─── 2. schema.js + api.js: curated models + dynamic pricing ───
@@ -284,11 +287,11 @@ assert('generatePKCE returns codeVerifier (43+ chars)', typeof pkce.codeVerifier
 assert('generatePKCE returns codeChallenge (43+ chars)', typeof pkce.codeChallenge === 'string' && pkce.codeChallenge.length >= 43);
 assert('codeVerifier is base64url (no +/=)', !/[+=\/]/.test(pkce.codeVerifier));
 assert('codeChallenge is base64url (no +/=)', !/[+=\/]/.test(pkce.codeChallenge));
-assert('startOpenRouterOAuth stores verifier in sessionStorage', apiSrc.includes("sessionStorage.setItem('or_pkce_verifier'"));
-assert('exchangeOpenRouterCode reads verifier from sessionStorage', apiSrc.includes("sessionStorage.getItem('or_pkce_verifier'"));
-assert('startOpenRouterOAuth redirects to openrouter.ai/auth', apiSrc.includes('openrouter.ai/auth?callback_url='));
-assert('exchangeOpenRouterCode posts to auth/keys endpoint', apiSrc.includes('openrouter.ai/api/v1/auth/keys'));
-const startOAuthFn = apiSrc.match(/export async function startOpenRouterOAuth\(\) \{[\s\S]*?\n\}/)?.[0] || '';
+assert('startOpenRouterOAuth stores verifier in sessionStorage', apiOpenRouterOAuthSrc.includes("sessionStorage.setItem('or_pkce_verifier'"));
+assert('exchangeOpenRouterCode reads verifier from sessionStorage', apiOpenRouterOAuthSrc.includes("sessionStorage.getItem('or_pkce_verifier'"));
+assert('startOpenRouterOAuth redirects to openrouter.ai/auth', apiOpenRouterOAuthSrc.includes('openrouter.ai/auth?callback_url='));
+assert('exchangeOpenRouterCode posts to auth/keys endpoint', apiOpenRouterOAuthSrc.includes('openrouter.ai/api/v1/auth/keys'));
+const startOAuthFn = apiOpenRouterOAuthSrc.match(/export async function startOpenRouterOAuth\(\) \{[\s\S]*?\n\}/)?.[0] || '';
 assert('startOpenRouterOAuth preserves the previous provider for cancel/deny',
   startOAuthFn.includes('OPENROUTER_OAUTH_PREVIOUS_PROVIDER_KEY') && startOAuthFn.includes('getAIProvider()'));
 assert('startOpenRouterOAuth does not persist OpenRouter before callback success',

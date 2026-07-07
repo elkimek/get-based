@@ -71,6 +71,14 @@ assert('SW APP_SHELL includes provider model controls module', swAuditSrc.includ
 assert('SW APP_SHELL includes provider local AI controls module', swAuditSrc.includes("'/js/provider-local-ai-controls.js'"));
 assert('SW APP_SHELL includes provider PPQ panels module', swAuditSrc.includes("'/js/provider-ppq-panels.js'"));
 assert('SW APP_SHELL includes API transport module', swAuditSrc.includes("'/js/api-transport.js'"));
+assert('SW APP_SHELL includes API OpenAI-compatible transport module', swAuditSrc.includes("'/js/api-openai-compatible.js'"));
+assert('SW APP_SHELL includes API local provider module', swAuditSrc.includes("'/js/api-local.js'"));
+assert('SW APP_SHELL includes API Venice provider module', swAuditSrc.includes("'/js/api-venice.js'"));
+assert('SW APP_SHELL includes API OpenRouter provider module', swAuditSrc.includes("'/js/api-openrouter.js'"));
+assert('SW APP_SHELL includes API OpenRouter OAuth module', swAuditSrc.includes("'/js/api-openrouter-oauth.js'"));
+assert('SW APP_SHELL includes API Routstr provider module', swAuditSrc.includes("'/js/api-routstr.js'"));
+assert('SW APP_SHELL includes API PPQ provider module', swAuditSrc.includes("'/js/api-ppq.js'"));
+assert('SW APP_SHELL includes API Custom provider module', swAuditSrc.includes("'/js/api-custom.js'"));
 assert('SW APP_SHELL includes settings privacy module', swAuditSrc.includes("'/js/settings-privacy.js'"));
 assert('SW APP_SHELL includes settings data module', swAuditSrc.includes("'/js/settings-data.js'"));
 assert('SW APP_SHELL includes settings provider bridge module', swAuditSrc.includes("'/js/settings-provider-bridge.js'"));
@@ -670,7 +678,7 @@ if (apoMatch) {
 // ═══════════════════════════════════════
 console.log('7. Error Handling');
 
-const apiSrc = read('js/api.js');
+const apiModelsSrc = read('js/api-models.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('Venice models JSON.parse guarded', apiProviderStorageSrc.includes('function readStoredArray(key)'));
 assert('OpenRouter models JSON.parse guarded', apiProviderStorageSrc.includes("readStoredArray('labcharts-openrouter-models')"));
@@ -703,7 +711,7 @@ assert('PDF import review modal uses delegated actions',
 // ═══════════════════════════════════════
 console.log('9. OpenRouter Curated List');
 
-const curatedMatch = apiSrc.match(/OPENROUTER_CURATED\s*=\s*\[([\s\S]*?)\]/);
+const curatedMatch = apiModelsSrc.match(/OPENROUTER_CURATED\s*=\s*\[([\s\S]*?)\]/);
 if (curatedMatch) {
   const curated = curatedMatch[1];
   assert('Curated uses anthropic/claude- prefix (no dots in version)', !curated.includes('claude-sonnet-4.6') && !curated.includes('claude-opus-4.6'));

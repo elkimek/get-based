@@ -26,6 +26,8 @@ const panelsSrc = read('js/provider-panels.js');
 const ppqSrc = read('js/provider-ppq-panels.js');
 const swSrc = read('service-worker.js');
 const apiSrc = read('js/api.js');
+const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
+const apiPpqSrc = read('js/api-ppq.js');
 const rendererSrc = read('js/provider-panel-renderers.js');
 const delegatesSrc = read('js/provider-panel-delegates.js');
 
@@ -52,21 +54,21 @@ assert('PPQ key removal clears private-mode caches',
     && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-private-vision-models')")
     && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-private-mode')")
     && ppqSrc.includes("localStorage.removeItem('labcharts-ppq-model-private')"));
-assert('PPQ Private branch uses Tinfoil wrapper', apiSrc.includes("import('../vendor/ppq-private-tee.js')") && apiSrc.includes('callPpqPrivateAPI'));
+assert('PPQ Private branch uses Tinfoil wrapper', apiPpqSrc.includes("import('../vendor/ppq-private-tee.js')") && apiSrc.includes('callPpqPrivateAPI'));
 assert('PPQ Tinfoil wrapper clears stale failed readiness',
   read('vendor/ppq-private-tee.js').includes('catch (e)')
     && read('vendor/ppq-private-tee.js').includes('clearPpqPrivateClient();')
     && read('vendor/ppq-private-tee.js').includes('throw e;'));
 assert('PPQ Private transport uses secure fetch and attestation',
-  apiSrc.includes('createPpqPrivateFetch({ apiBase: \'https://api.ppq.ai\' })')
-    && apiSrc.includes('fetchImpl: secure.fetch')
-    && apiSrc.includes('fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)')
-    && apiSrc.includes('apiWindow._ppqAttestation = secure.verification')
-    && apiSrc.includes('{ ...opts, webSearch: false }')
-    && apiSrc.includes("'https://api.ppq.ai/private/v1/chat/completions'"));
+  apiPpqSrc.includes('createPpqPrivateFetch({ apiBase: \'https://api.ppq.ai\' })')
+    && apiPpqSrc.includes('fetchImpl: secure.fetch')
+    && apiOpenAICompatibleSrc.includes('fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)')
+    && apiPpqSrc.includes('apiWindow._ppqAttestation = secure.verification')
+    && apiPpqSrc.includes('{ ...opts, webSearch: false }')
+    && apiPpqSrc.includes("'https://api.ppq.ai/private/v1/chat/completions'"));
 assert('PPQ private cache is gated on API-listed private entitlement',
-  apiSrc.includes('const privateModels = privateFromApi')
-    && !apiSrc.includes('privateFromApi.length ? privateFromApi : PPQ_PRIVATE_MODELS'));
+  apiPpqSrc.includes('const privateModels = privateFromApi')
+    && !apiPpqSrc.includes('privateFromApi.length ? privateFromApi : PPQ_PRIVATE_MODELS'));
 assert('PPQ Private Mode toggle renders in provider panel', rendererSrc.includes('ppq-private-toggle') && rendererSrc.includes('Private TEE Mode'));
 assert('PPQ Private Mode change is delegated', delegatesSrc.includes("'ppq-private-mode': 'togglePpqPrivateMode'"));
 assert('PPQ model fetch rerenders panel when private controls become available', ppqSrc.includes('_rerenderPpqPanelIfPrivateControlsAppeared') && ppqSrc.includes('fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch)'));

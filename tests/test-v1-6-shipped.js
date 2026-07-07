@@ -288,8 +288,12 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       api.FETCH_REQUEST_TIMEOUT_MS === 60000, `got ${api.FETCH_REQUEST_TIMEOUT_MS}`);
     assert('api.js: AI_IMPORT_REQUEST_TIMEOUT_MS exported = 180000',
       api.AI_IMPORT_REQUEST_TIMEOUT_MS === 180000, `got ${api.AI_IMPORT_REQUEST_TIMEOUT_MS}`);
-    const apiSrc = fetchSrc('js/api.js');
     const apiTransportSrc = fetchSrc('js/api-transport.js');
+    const streamingProviderSrc = [
+      fetchSrc('js/api-openai-compatible.js'),
+      fetchSrc('js/api-local.js'),
+      fetchSrc('js/api-venice.js'),
+    ].join('\n');
     assert('api-transport.js: readWithStallTimeout exists',
       /function readWithStallTimeout/.test(apiTransportSrc));
     assert('api-transport.js: fetchWithRetry composes AbortSignal.timeout + caller signal',
@@ -304,8 +308,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('api-transport.js: retry on transient network errors (TypeError / Failed to fetch / timeout)',
       /isNetwork\s*=\s*e\s+instanceof\s+TypeError/.test(apiTransportSrc)
       || /Failed to fetch.*Load failed.*NetworkError/.test(apiTransportSrc));
-    assert('api.js: stall-timeout wraps all 3 streaming branches',
-      (apiSrc.match(/readWithStallTimeout\(reader/g) || []).length >= 3);
+    assert('API provider modules: stall-timeout wraps all 3 streaming branches',
+      (streamingProviderSrc.match(/readWithStallTimeout\(reader/g) || []).length >= 3);
   }
 
   // ─── 8. v1.6.7 Sync offline/online toast affordance ─────────────────

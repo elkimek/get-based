@@ -61,12 +61,18 @@ describe('api runtime adapter', () => {
     expect(() => getOllamaConfigRuntime()).toThrow('Ollama config runtime is unavailable.');
   });
 
-  it('keeps api.js browser globals behind the adapter', () => {
-    const apiSrc = readFileSync(new URL('../js/api.js', import.meta.url), 'utf8');
+  it('keeps API provider browser globals behind the adapter', () => {
+    const openRouterSrc = readFileSync(new URL('../js/api-openrouter.js', import.meta.url), 'utf8');
+    const openRouterOAuthSrc = readFileSync(new URL('../js/api-openrouter-oauth.js', import.meta.url), 'utf8');
+    const localSrc = readFileSync(new URL('../js/api-local.js', import.meta.url), 'utf8');
     const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
-    expect(apiSrc).toContain("from './api-runtime.js'");
-    expect(/\bwindow(?:\.|\s*\[)/.test(apiSrc)).toBe(false);
+    expect(openRouterSrc).toContain("from './api-runtime.js'");
+    expect(openRouterOAuthSrc).toContain("from './api-runtime.js'");
+    expect(localSrc).toContain("from './api-runtime.js'");
+    expect(/\bwindow(?:\.|\s*\[)/.test(openRouterSrc)).toBe(false);
+    expect(/\bwindow(?:\.|\s*\[)/.test(openRouterOAuthSrc)).toBe(false);
+    expect(/\bwindow(?:\.|\s*\[)/.test(localSrc)).toBe(false);
     expect(swSrc).toContain("'/js/api-runtime.js'");
   });
 });

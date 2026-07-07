@@ -238,10 +238,13 @@ assert('getThreadPersonaCount uses Set', countSrc.includes('new Set'));
 
 // ── 24. API signal pass-through ──
 console.log('24. API signal pass-through');
-const apiSrc = read('js/api.js');
-assert('API passes signal to fetch', apiSrc.includes('signal') && apiSrc.includes('fetch('));
-assert('callOllamaChat has signal param', apiSrc.includes('callOllamaChat') && apiSrc.includes('signal }'));
-assert('callOpenAICompatibleAPI has signal param', apiSrc.includes('callOpenAICompatibleAPI') && apiSrc.includes('signal }'));
+const apiLocalSrc = read('js/api-local.js');
+const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
+assert('API passes signal to fetch',
+  (apiLocalSrc.includes('signal') && apiLocalSrc.includes('fetch(')) ||
+  (apiOpenAICompatibleSrc.includes('signal') && apiOpenAICompatibleSrc.includes('fetchWithApiRetry(')));
+assert('callOllamaChat has signal param', apiLocalSrc.includes('callOllamaChat') && apiLocalSrc.includes('signal })'));
+assert('callOpenAICompatibleAPI has signal param', apiOpenAICompatibleSrc.includes('callOpenAICompatibleAPI') && apiOpenAICompatibleSrc.includes('signal, requestTimeoutMs'));
 
 // ── 25. Auto message rendering ──
 console.log('25. Auto message rendering');

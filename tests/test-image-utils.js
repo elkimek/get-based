@@ -124,11 +124,11 @@ assert('parseLabPDFWithAIImages exported', typeof window.parseLabPDFWithAIImages
 // ═══════════════════════════════════════
 console.log('9. Source Code');
 
-const apiSrc = await fetchWithRetry('js/api.js');
+const apiLocalSrc = await fetchWithRetry('js/api-local.js');
 const apiModelsSrc = await fetchWithRetry('js/api-models.js');
 assert('supportsVision function in api-models.js', apiModelsSrc.includes('export function supportsVision'));
 assert('Vision models cached in fetchOpenRouterModels', apiModelsSrc.includes('labcharts-openrouter-vision-models'));
-assert('Ollama image normalization', apiSrc.includes('ollamaMsg.images = images'));
+assert('Ollama image normalization', apiLocalSrc.includes('ollamaMsg.images = images'));
 
 const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
 const chatSendSrc = await fetchWithRetry('js/chat-send.js');
