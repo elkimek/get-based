@@ -21,6 +21,7 @@ const emfSrc = fs.readFileSync(path.join(root, 'js/emf.js'), 'utf8');
 const emfInterpretationSrc = fs.readFileSync(path.join(root, 'js/emf-interpretation.js'), 'utf8');
 const exportReportBuilderSrc = fs.readFileSync(path.join(root, 'js/export-report-builder.js'), 'utf8');
 const lensSrc = fs.readFileSync(path.join(root, 'js/lens.js'), 'utf8');
+const lensKnowledgeBaseUiSrc = fs.readFileSync(path.join(root, 'js/lens-knowledge-base-ui.js'), 'utf8');
 const lensLibrarySrc = fs.readFileSync(path.join(root, 'js/lens-library.js'), 'utf8');
 const lightConditionsNowSrc = fs.readFileSync(path.join(root, 'js/light-conditions-now.js'), 'utf8');
 const lightDeviceAiSrc = fs.readFileSync(path.join(root, 'js/light-device-ai-analysis.js'), 'utf8');
@@ -56,9 +57,9 @@ const syncDiagnoseIdentitySrc = fs.readFileSync(path.join(root, 'js/sync-diagnos
 const syncDiagnoseRenderSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-render.js'), 'utf8');
 const syncDiagnoseUiSrc = fs.readFileSync(path.join(root, 'js/sync-diagnose-ui.js'), 'utf8');
 const utilsSrc = fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8');
-const knowledgeBaseModalSrc = lensSrc.slice(
-  lensSrc.indexOf('export function openKnowledgeBaseModal'),
-  lensSrc.indexOf('function _kbModalKeydown')
+const knowledgeBaseModalSrc = lensKnowledgeBaseUiSrc.slice(
+  lensKnowledgeBaseUiSrc.indexOf('function openKnowledgeBaseModal'),
+  lensKnowledgeBaseUiSrc.indexOf('function _kbModalKeydown')
 );
 
 let passed = 0;
@@ -178,7 +179,7 @@ assert('global focus trap top-overlay check includes confirm overlays',
   appEventsSrc.includes("'.modal-overlay.show, .confirm-overlay.show'"));
 
 assert('knowledge base modal uses shared lifecycle helpers',
-  lensSrc.includes("from './modal-lifecycle.js'") &&
+  lensKnowledgeBaseUiSrc.includes("from './modal-lifecycle.js'") &&
     knowledgeBaseModalSrc.includes('wireBackdropClose(overlay, closeKnowledgeBaseModal)') &&
     knowledgeBaseModalSrc.includes('openModalOverlay(overlay, {') &&
     knowledgeBaseModalSrc.includes("closeModalOverlay('kb-modal-overlay')") &&

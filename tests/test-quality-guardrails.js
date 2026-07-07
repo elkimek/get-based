@@ -89,6 +89,7 @@ const highValueCheckJsModules = [
   'js/export.js',
   'js/export-runtime.js',
   'js/lens.js',
+  'js/lens-knowledge-base-ui.js',
   'js/light-devices-runtime.js',
   'js/light-tool-camera-modals.js',
   'js/pdf-import-commit.js',

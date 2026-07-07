@@ -468,6 +468,7 @@ const APP_SHELL = [
   '/js/chat-thread-search.js',
   '/js/lens-actions.js',
   '/js/lens-cache.js',
+  '/js/lens-knowledge-base-ui.js',
   '/js/lens-url.js',
   '/js/lens.js',
   '/js/lens-local.js',

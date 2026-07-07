@@ -93,6 +93,7 @@ assert('SW APP_SHELL includes context card editor UI module', swAuditSrc.include
 assert('SW APP_SHELL includes context card medical history module', swAuditSrc.includes("'/js/context-card-medical-history-editor.js'"));
 assert('SW APP_SHELL includes EMF interpretation module', swAuditSrc.includes("'/js/emf-interpretation.js'"));
 assert('SW APP_SHELL includes lens action delegates module', swAuditSrc.includes("'/js/lens-actions.js'"));
+assert('SW APP_SHELL includes lens Knowledge Base UI module', swAuditSrc.includes("'/js/lens-knowledge-base-ui.js'"));
 assert('SW APP_SHELL includes lens library handlers module', swAuditSrc.includes("'/js/lens-library.js'"));
 assert('SW APP_SHELL includes lens cache helper module', swAuditSrc.includes("'/js/lens-cache.js'"));
 assert('SW APP_SHELL includes lens URL helper module', swAuditSrc.includes("'/js/lens-url.js'"));
@@ -225,6 +226,7 @@ const dashboardPageViewSrc = read('js/dashboard-page-view.js');
 const lensPageShellSrc = read('js/lens-page-shell.js');
 const lensSrc = read('js/lens.js');
 const lensActionsSrc = read('js/lens-actions.js');
+const lensKnowledgeBaseUiSrc = read('js/lens-knowledge-base-ui.js');
 const lensPagesSrc = read('js/lens-pages.js');
 const dnaActionsSrc = read('js/dna-actions.js');
 const categoryPageViewSrc = read('js/category-page-view.js');
@@ -337,11 +339,11 @@ assert('Lifestyle context actions use delegated handlers',
     && contextCardLifestyleSrc.includes('lifestyleActionAttrs')
     && !/\son(?:click|keydown)\s*=/.test(contextCardLifestyleSrc));
 assert('Lens settings controls use delegated handlers',
-  lensSrc.includes("from './lens-actions.js'")
+  lensKnowledgeBaseUiSrc.includes("from './lens-actions.js'")
     && lensActionsSrc.includes('function handleLensActionClick')
     && lensActionsSrc.includes('function handleLensActionChange')
     && lensActionsSrc.includes('export function lensActionAttrs')
-    && !/\son(?:click|change|input)\s*=/.test(lensSrc));
+    && !/\son(?:click|change|input)\s*=/.test(lensKnowledgeBaseUiSrc));
 assert('Lens page controls use delegated shell actions',
   lensPagesSrc.includes('lensPageActionAttrs')
     && lensPageShellSrc.includes('open-wearables-settings')

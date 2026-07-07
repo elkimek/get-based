@@ -124,6 +124,7 @@
     "js/lab-context-wearables.js",
     "js/lens-page-shell.js",
     "js/lens-pages.js",
+    "js/lens-knowledge-base-ui.js",
     "js/lens.js",
     "js/lens-local.js",
     "js/lens-local-parsers.js",
