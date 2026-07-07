@@ -5,7 +5,7 @@ import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { openUtilsRuntimeWindow } from './utils-runtime.js';
+import { openUtilsRuntimeWindow, registerUtilsRuntimeExports } from './utils-runtime.js';
 
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug Report', prefix: '[Bug]', ghLabel: 'bug', placeholder: 'Brief description of the bug' },
@@ -164,4 +164,4 @@ function _updateFeedbackPlaceholder() {
   if (titleInput) titleInput.placeholder = typeDef.placeholder;
 }
 
-Object.assign(window, { openFeedbackModal, closeFeedbackModal, submitFeedback, _updateFeedbackPlaceholder });
+registerUtilsRuntimeExports({ openFeedbackModal, closeFeedbackModal, submitFeedback, _updateFeedbackPlaceholder });
