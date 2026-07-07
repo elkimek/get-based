@@ -437,7 +437,7 @@ try {
   assert('CSS defines .wearable-manual-entry.has-note { flex-wrap: wrap }',
     /\.wearable-manual-entry\.has-note\s*\{[^}]*flex-wrap:\s*wrap/.test(stylesSrc));
 
-  const labCtxSrc = await fetch('js/lab-context.js').then(r => r.text());
+  const labCtxSrc = await fetch('js/lab-context-wearables.js').then(r => r.text());
   assert('buildWearableSeriesSection emits a "Manual-entry context" sub-block',
     /### Manual-entry context \(qualifies same-day values above\)/.test(labCtxSrc));
   assert('Context sub-block filters to manual rows with tags or notes in the date window',
