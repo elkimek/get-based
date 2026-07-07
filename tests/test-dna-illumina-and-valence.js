@@ -10,7 +10,7 @@
 //
 // Full port — parseDNAFile spins a Blob-backed Worker (synchronous Worker
 // shim in _node-shim.js); renderGeneticsSection returns an HTML string with
-// no DOM dependency. snp-health.json + dna.js source go through the
+// no DOM dependency. snp-health.json + DNA parser source go through the
 // fs-backed fetch shim; window._labState comes from state.js.
 
 import './_node-shim.js';
@@ -47,6 +47,7 @@ await import('../js/data.js');
 const dna = await import('../js/dna.js');
 const snpTable = await fetch('data/snp-health.json').then(r => r.json());
 const dnaSrc = await fetch('js/dna.js').then(r => r.text());
+const dnaParserSrc = await fetch('js/dna-parser.js').then(r => r.text());
 
 // ═══════════════════════════════════════
 // 1. Illumina GSGT format detection
@@ -68,8 +69,8 @@ assert('Filename without dnaera/ancestry/etc not recognized', !dna.isDNAFile({ n
 // worker source has a regex matching the literal string [Data]. A single
 // escape would silently render `/^[Data]/i` (a character class matching
 // D/a/t) — the parser would never advance past the [Header] block. This
-// bit us once during development. The dna.js source must contain `\\[Data\\]`.
-const dnaSrcForRegex = dnaSrc; // identical read — reuse the section-0 fetch
+// bit us once during development. The worker source must contain `\\[Data\\]`.
+const dnaSrcForRegex = dnaParserSrc;
 assert('Worker [Data] regex uses double-escaped brackets',
   dnaSrcForRegex.includes('/^\\\\[Data\\\\]/i'),
   'should match `\\\\[Data\\\\]` in source so worker sees \\[Data\\]');

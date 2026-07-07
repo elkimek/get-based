@@ -96,6 +96,7 @@
     "js/data-merge.js",
     "js/data.js",
     "js/dna.js",
+    "js/dna-parser.js",
     "js/dna-runtime.js",
     "js/dna-window-bindings.js",
     "js/emf.js",
