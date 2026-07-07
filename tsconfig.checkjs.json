@@ -118,6 +118,7 @@
     "js/lab-context-wearables.js",
     "js/lens-actions.js",
     "js/lens-cache.js",
+    "js/lens-knowledge-base-ui.js",
     "js/lens-library.js",
     "js/lens-local-store.js",
     "js/lens-local-worker.js",

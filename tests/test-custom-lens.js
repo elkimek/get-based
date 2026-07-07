@@ -37,6 +37,7 @@ await import('../js/lab-context.js');
 // ─── 1. lens.js source inspection ───
 console.log('1. lens.js source inspection');
 const lensSrc = read('js/lens.js');
+const lensKnowledgeBaseUiSrc = read('js/lens-knowledge-base-ui.js');
 const lensLibrarySrc = read('js/lens-library.js');
 assert('getLensConfig exists', lensSrc.includes('function getLensConfig()'));
 assert('saveLensConfig exists', lensSrc.includes('function saveLensConfig('));
@@ -72,7 +73,7 @@ assert('testLensConnection falls back to DEFAULT_TEST_PROBE', lensSrc.includes('
 assert('testLensConnection no longer hardcodes the vitamin D probe inline',
   !/['"]vitamin D deficiency supplementation['"][\s\S]{0,100}_doQuery/.test(lensSrc),
   'the probe should be read from config, not passed literally to _doQuery');
-assert('renderCustomLensSection includes lens-test-probe-input field', lensSrc.includes('lens-test-probe-input'));
+assert('renderCustomLensSection includes lens-test-probe-input field', lensKnowledgeBaseUiSrc.includes('lens-test-probe-input'));
 // Per-library embedding-model picker (step 3).
 assert('_showLibraryCreateDialog helper defined',
   lensLibrarySrc.includes('function _showLibraryCreateDialog'),
@@ -122,21 +123,21 @@ assert('Dialog recommendation steps down tiers when no match',
   'no tier-3-capable device should be told "no recommendation available" — step down to tier 2 or 1');
 
 assert('Setup block uses one-command curl | bash install',
-  lensSrc.includes('curl -sSL https://getbased.health/install.sh | bash'));
+  lensKnowledgeBaseUiSrc.includes('curl -sSL https://getbased.health/install.sh | bash'));
 assert('Setup block no longer instructs "lens serve" or "getbased-dashboard serve" manually',
-  !/lens serve\s*&nbsp;|getbased-dashboard serve\s*&nbsp;/.test(lensSrc),
+  !/lens serve\s*&nbsp;|getbased-dashboard serve\s*&nbsp;/.test(lensKnowledgeBaseUiSrc),
   'manual two-terminal flow was replaced by install.sh');
 assert('Setup block notes the Linux-only constraint',
-  /Linux only|Linux-only|\(Linux\)/.test(lensSrc),
+  /Linux only|Linux-only|\(Linux\)/.test(lensKnowledgeBaseUiSrc),
   'macOS/Windows users need to know services won\'t auto-start');
 assert('Setup block links to install.sh source for audit',
-  lensSrc.includes('github.com/elkimek/get-based-site/blob/main/install.sh'));
+  lensKnowledgeBaseUiSrc.includes('github.com/elkimek/get-based-site/blob/main/install.sh'));
 assert('Setup block documents the SHA256 verification path',
-  lensSrc.includes('install.sh.sha256') && lensSrc.includes('sha256sum -c'),
+  lensKnowledgeBaseUiSrc.includes('install.sh.sha256') && lensKnowledgeBaseUiSrc.includes('sha256sum -c'),
   'security-conscious users should have a pre-run verification option');
-assert('handleSaveLensConfig persists testProbe', lensSrc.includes('saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery })'));
+assert('handleSaveLensConfig persists testProbe', lensKnowledgeBaseUiSrc.includes('saveLensConfig({ name, url, enabled, topK, testProbe, backend, multiQuery })'));
 assert('Connected toast distinguishes zero-result case',
-  lensSrc.includes("the test query didn't find any close matches") && lensSrc.includes('your endpoint works'),
+  lensKnowledgeBaseUiSrc.includes("the test query didn't find any close matches") && lensKnowledgeBaseUiSrc.includes('your endpoint works'),
   'user with non-matching probe should see the endpoint worked, not "connection failed"');
 
 // ─── 2. Window function exports ───
@@ -345,8 +346,8 @@ assert('styles include error state', cssSrc.includes('.chat-lens-indicator.error
 
 // ─── 19. BUG 1 regression: handleRemoveLens uses promise-based showConfirmDialog ───
 console.log('\n19. handleRemoveLens promise form');
-assert('handleRemoveLens is async (uses promise-based showConfirmDialog)', /async function handleRemoveLens/.test(lensSrc));
-assert('handleRemoveLens awaits showConfirmDialog', /await\s+showConfirmDialog\(/.test(lensSrc.split('async function handleRemoveLens')[1] || ''));
+assert('handleRemoveLens is async (uses promise-based showConfirmDialog)', /async function handleRemoveLens/.test(lensKnowledgeBaseUiSrc));
+assert('handleRemoveLens awaits showConfirmDialog', /await\s+showConfirmDialog\(/.test(lensKnowledgeBaseUiSrc.split('async function handleRemoveLens')[1] || ''));
 
 // ─── 20. BUG 2 regression: testLensConnection works when disabled ───
 console.log('\n20. testLensConnection disabled-toggle flow');
@@ -357,9 +358,9 @@ assert('remote backend fetcher extracted', lensSrc.includes('function _fetchRemo
 
 // ─── 21. BUG 3 regression: toggle does not re-render inputs ───
 console.log('\n21. Toggle does not re-render section');
-assert('handleToggleLens does NOT call _rerenderLensSection', !/function handleToggleLens[\s\S]{0,300}_rerenderLensSection/.test(lensSrc));
-assert('handleToggleLens calls _updateLensStatusChip', /function handleToggleLens[\s\S]{0,300}_updateLensStatusChip/.test(lensSrc));
-assert('_updateLensStatusChip exists', lensSrc.includes('function _updateLensStatusChip()'));
+assert('handleToggleLens does NOT call _rerenderLensSection', !/function handleToggleLens[\s\S]{0,300}_rerenderLensSection/.test(lensKnowledgeBaseUiSrc));
+assert('handleToggleLens calls _updateLensStatusChip', /function handleToggleLens[\s\S]{0,300}_updateLensStatusChip/.test(lensKnowledgeBaseUiSrc));
+assert('_updateLensStatusChip exists', lensKnowledgeBaseUiSrc.includes('function _updateLensStatusChip()'));
 
 // ─── 21b. v1.20.x forward-compat: saved config without `backend` field ───
 console.log('\n21b. v1.20.x forward-compat migration');
@@ -395,8 +396,8 @@ assert('saveLensConfig guards clearLensCache by urlChanged/topKChanged', /urlCha
 
 // ─── 23. BUG 5 regression: status chip reflects error state ───
 console.log('\n23. Chip shows error state');
-assert('renderCustomLensSection chip branches on status.state === "error"', /status\.state === 'error'[\s\S]{0,300}Error/.test(lensSrc));
-assert('_updateLensStatusChip also branches on error', lensSrc.split('function _updateLensStatusChip')[1]?.includes("status.state === 'error'"));
+assert('renderCustomLensSection chip branches on status.state === "error"', /status\.state === 'error'[\s\S]{0,300}Error/.test(lensKnowledgeBaseUiSrc));
+assert('_updateLensStatusChip also branches on error', lensKnowledgeBaseUiSrc.split('function _updateLensStatusChip')[1]?.includes("status.state === 'error'"));
 
 // ─── 24. Indicator clears stale classes ───
 console.log('\n24. Indicator clears stale classes');
@@ -418,8 +419,8 @@ const localSrc = read('js/lens-local.js');
 assert('lens-local.js getStats forwards backend field',
   /backend:\s*r\.backend/.test(localSrc),
   'main-thread stats adapter must pass through the backend field from the worker');
-assert('lens.js stats row renders WebGPU/WASM label',
-  lensSrc.includes("s.backend === 'webgpu' ? 'WebGPU' : 'WASM'"),
+assert('Knowledge Base UI stats row renders WebGPU/WASM label',
+  lensKnowledgeBaseUiSrc.includes("s.backend === 'webgpu' ? 'WebGPU' : 'WASM'"),
   'users should see which engine is active — WebGPU is 3-10x faster than WASM');
 
 // ─── 25. Functional: cache preserved on enable toggle ───
@@ -440,11 +441,11 @@ window.updateKeyCache && window.updateKeyCache('labcharts-lens-key', '');
 
 // ─── 26. Audit: a11y — labels have for= attributes ───
 console.log('\n26. Accessibility: label–input associations');
-assert('Display name label has for="lens-name-input"', lensSrc.includes('for="lens-name-input"'));
-assert('Endpoint URL label has for="lens-url-input"', lensSrc.includes('for="lens-url-input"'));
-assert('API key label has for="lens-key-input"', lensSrc.includes('for="lens-key-input"'));
-assert('Passages per query label has for="lens-topk-input"', lensSrc.includes('for="lens-topk-input"'));
-assert('Enable toggle label has for="lens-enabled-toggle"', lensSrc.includes('for="lens-enabled-toggle"'));
+assert('Display name label has for="lens-name-input"', lensKnowledgeBaseUiSrc.includes('for="lens-name-input"'));
+assert('Endpoint URL label has for="lens-url-input"', lensKnowledgeBaseUiSrc.includes('for="lens-url-input"'));
+assert('API key label has for="lens-key-input"', lensKnowledgeBaseUiSrc.includes('for="lens-key-input"'));
+assert('Passages per query label has for="lens-topk-input"', lensKnowledgeBaseUiSrc.includes('for="lens-topk-input"'));
+assert('Enable toggle label has for="lens-enabled-toggle"', lensKnowledgeBaseUiSrc.includes('for="lens-enabled-toggle"'));
 
 // ─── 27. Audit: UX copy uses "passages" not "chunks" in user-facing text ───
 console.log('\n27. UX copy: passages not chunks');
