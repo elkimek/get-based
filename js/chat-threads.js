@@ -15,6 +15,7 @@ import {
   configureChatThreadSearch, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult,
 } from './chat-thread-search.js';
+import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 export { filterThreadList, invalidateThreadContentCache, jumpToSearchResult };
 
@@ -386,23 +387,21 @@ configureChatThreadSearch({
 installChatThreadDelegates();
 
 // Delegated thread actions + chat.js call sites hit these names.
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    loadChatThreads,
-    saveChatThreadIndex,
-    ensureActiveThread,
-    createNewThread,
-    switchToThread,
-    deleteThread,
-    renameThread,
-    renameThreadPrompt,
-    installChatThreadDelegates,
-    autoNameThread,
-    pruneOldThreads,
-    renderThreadList,
-    invalidateThreadContentCache,
-    filterThreadList,
-    jumpToSearchResult,
-    toggleThreadRail,
-  });
-}
+registerUtilsRuntimeExports({
+  loadChatThreads,
+  saveChatThreadIndex,
+  ensureActiveThread,
+  createNewThread,
+  switchToThread,
+  deleteThread,
+  renameThread,
+  renameThreadPrompt,
+  installChatThreadDelegates,
+  autoNameThread,
+  pruneOldThreads,
+  renderThreadList,
+  invalidateThreadContentCache,
+  filterThreadList,
+  jumpToSearchResult,
+  toggleThreadRail,
+});
