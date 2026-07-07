@@ -41,6 +41,14 @@ export function getPendingImportRefLookup() {
 }
 
 /** @param {string} route */
+export function navigateImportReviewRuntime(route = 'dashboard') {
+  const navigate = getRuntimeFunction('navigate');
+  if (!navigate) return false;
+  navigate(route);
+  return true;
+}
+
+/** @param {string} route */
 export function refreshImportedDataViewsRuntime(route = 'dashboard') {
   let refreshed = false;
   const buildSidebar = getRuntimeFunction('buildSidebar');
@@ -53,11 +61,7 @@ export function refreshImportedDataViewsRuntime(route = 'dashboard') {
     updateHeaderDates();
     refreshed = true;
   }
-  const navigate = getRuntimeFunction('navigate');
-  if (navigate) {
-    navigate(route);
-    refreshed = true;
-  }
+  if (navigateImportReviewRuntime(route)) refreshed = true;
   return refreshed;
 }
 

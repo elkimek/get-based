@@ -32,6 +32,11 @@ import { parseSyncPayload } from '../js/sync-payload.js';
 import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
 import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
+import {
+  dispatchSyncOwnerChangedRuntime,
+  refreshSyncedAIProviderUiRuntime,
+  setSyncAppOwner,
+} from '../js/sync-runtime.js';
 import { getRecentSyncEvents, resetSyncStatus, updateSyncStatus } from '../js/sync-state.js';
 import { state } from '../js/state.js';
 import {
@@ -192,6 +197,31 @@ describe('sync apply runtime behavior', () => {
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-rangeMode`)).toBe('functional');
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-phaseOverlay`)).toBe('1');
     expect(localStorage.getItem(`labcharts-${PROFILE_ID}-unknown`)).toBeNull();
+  });
+
+  it('routes synced AI and owner UI hooks through sync runtime helpers', () => {
+    const events = [];
+    const recordOwnerEvent = event => {
+      events.push(event.detail);
+    };
+    window.updateChatHeaderModel = vi.fn();
+    window.refreshWebSearchToggle = vi.fn();
+    window.addEventListener('labcharts-sync-owner-changed', recordOwnerEvent);
+
+    try {
+      expect(refreshSyncedAIProviderUiRuntime()).toBe(true);
+      expect(window.updateChatHeaderModel).toHaveBeenCalledTimes(1);
+      expect(window.refreshWebSearchToggle).toHaveBeenCalledTimes(1);
+
+      expect(dispatchSyncOwnerChangedRuntime('owner-runtime')).toBe(true);
+      expect(events.at(-1)).toEqual({ ownerId: 'owner-runtime', ready: true });
+
+      setSyncAppOwner({ id: 'owner-state' });
+      expect(events.at(-1)).toEqual({ ownerId: 'owner-state', ready: true });
+    } finally {
+      setSyncAppOwner(null);
+      window.removeEventListener('labcharts-sync-owner-changed', recordOwnerEvent);
+    }
   });
 });
 

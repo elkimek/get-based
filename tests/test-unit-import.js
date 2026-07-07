@@ -30,6 +30,7 @@ const settingsDataSrc = read('js/settings-data.js');
 const settingsSrc = read('js/settings.js');
 const reviewSrc = read('js/pdf-import-review.js');
 const reviewRuntimeSrc = read('js/pdf-import-review-runtime.js');
+const progressSrc = read('js/pdf-import-progress.js');
 const labEntrySrc = read('js/lab-entry.js');
 const profileSrc = read('js/profile.js');
 const importCssSrc = read('css/import.css');
@@ -174,6 +175,11 @@ const importCssSrc = read('css/import.css');
       && persistenceSrc.includes('refreshImportedDataViewsRuntime(state.currentView')
       && reviewRuntimeSrc.includes('export function refreshImportedDataViewsRuntime')
       && !/\bwindow(?:\.|\s*\[)/.test(persistenceSrc));
+  assert('PDF import progress delegates dashboard fallback navigation through runtime adapter',
+    progressSrc.includes("from './pdf-import-review-runtime.js'")
+      && progressSrc.includes("navigateImportReviewRuntime('dashboard')")
+      && reviewRuntimeSrc.includes('export function navigateImportReviewRuntime')
+      && !/\bwindow(?:\.|\s*\[)/.test(progressSrc));
   assert('Re-review modal uses update wording instead of import wording',
     /parseResult\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc)
       && /result\._reReviewSnapshotId[\s\S]{0,140}Update Import/.test(reviewSrc));

@@ -320,7 +320,9 @@ assert('sync preserves fresh OpenRouter OAuth provider/key against stale pull',
 assert('sync preserves fresh local AI settings against stale pull',
   syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
 assert('sync refreshes AI header after remote AI settings apply',
-  syncApplySrc.includes('window.updateChatHeaderModel?.()') && syncApplySrc.includes('window.refreshWebSearchToggle?.()'));
+  syncApplySrc.includes('refreshSyncedAIProviderUiRuntime()')
+    && !syncApplySrc.includes('window.updateChatHeaderModel')
+    && !syncApplySrc.includes('window.refreshWebSearchToggle'));
 assert('startup sync reconciliation pushes local AI setting drift',
   syncConfigureSrc.includes("from './sync-reconcile.js'")
     && syncSrc.includes("from './sync-configure.js'")

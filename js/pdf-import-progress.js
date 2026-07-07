@@ -2,6 +2,7 @@
 // pdf-import-progress.js — PDF import progress UI and header status state
 
 import { IMPORT_STEPS } from './constants.js';
+import { navigateImportReviewRuntime } from './pdf-import-review-runtime.js';
 import { escapeHTML } from './utils.js';
 
 const STEP_START_PCT = [5, 8, 12, 15, 95];
@@ -118,7 +119,7 @@ export function handleImportStatusClick() {
     if (progressBar) {
       progressBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      window.navigate('dashboard');
+      navigateImportReviewRuntime('dashboard');
     }
     return;
   }

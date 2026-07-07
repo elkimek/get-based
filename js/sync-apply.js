@@ -3,6 +3,7 @@
 
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
+import { refreshSyncedAIProviderUiRuntime } from './sync-runtime.js';
 
 export {
   applyChatData, getChatDataLocalLockRemainingMs, markChatDataLocal,
@@ -58,8 +59,7 @@ export async function applyAISettings(settings) {
     changed = true;
   }
   if (changed) {
-    window.updateChatHeaderModel?.();
-    window.refreshWebSearchToggle?.();
+    refreshSyncedAIProviderUiRuntime();
   }
 }
 
