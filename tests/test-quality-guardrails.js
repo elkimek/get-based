@@ -95,6 +95,7 @@ const highValueCheckJsModules = [
   'js/pdf-import.js',
   'js/profile.js',
   'js/profile-runtime.js',
+  'js/recommendations-products.js',
   'js/recommendations.js',
   'js/settings.js',
   'js/settings-runtime.js',

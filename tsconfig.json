@@ -192,6 +192,7 @@
     "js/profile-runtime.js",
     "js/profile-share.js",
     "js/recommendation-actions.js",
+    "js/recommendations-products.js",
     "js/recommendations-runtime.js",
     "js/recommendations.js",
     "js/api-runtime.js",

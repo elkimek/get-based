@@ -44,6 +44,7 @@
     '/js/chat-render-runtime.js',
     '/js/chat-send-runtime.js',
     '/js/recommendations-runtime.js',
+    '/js/recommendations-products.js',
     '/js/recommendation-actions.js',
     '/js/context-card-dashboard-ai.js',
     '/js/context-card-dashboard-ai-actions.js',

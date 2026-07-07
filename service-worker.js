@@ -266,6 +266,7 @@ const APP_SHELL = [
   '/js/mobile-dashboard.js',
   '/js/views.js',
   '/js/recommendations-runtime.js',
+  '/js/recommendations-products.js',
   '/js/recommendations.js',
   '/js/recommendations-region.js',
   '/js/crypto.js',

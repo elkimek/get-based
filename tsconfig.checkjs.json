@@ -194,6 +194,7 @@
     "js/profile.js",
     "js/profile-runtime.js",
     "js/provider-panels.js",
+    "js/recommendations-products.js",
     "js/recommendations-runtime.js",
     "js/recommendations.js",
     "js/settings.js",

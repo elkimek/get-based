@@ -164,6 +164,7 @@ assert('index loads marker detail modal CSS bundle', indexSrc.includes('href="cs
 assert('SW APP_SHELL includes marker detail modal CSS bundle', swAuditSrc.includes("'/css/marker-detail-modal.css'"));
 assert('index loads recommendations CSS bundle', indexSrc.includes('href="css/recommendations.css"'));
 assert('SW APP_SHELL includes recommendations CSS bundle', swAuditSrc.includes("'/css/recommendations.css'"));
+assert('SW APP_SHELL includes recommendations product module', swAuditSrc.includes("'/js/recommendations-products.js'"));
 const LIGHT_CSS_BUNDLES = [
   'css/light-sun.css',
   'css/light-channels.css',
