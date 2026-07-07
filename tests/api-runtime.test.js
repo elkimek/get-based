@@ -75,4 +75,15 @@ describe('api runtime adapter', () => {
     expect(/\bwindow(?:\.|\s*\[)/.test(localSrc)).toBe(false);
     expect(swSrc).toContain("'/js/api-runtime.js'");
   });
+
+  it('keeps API facade model re-exports backed by local imports', () => {
+    const apiSrc = readFileSync(new URL('../js/api.js', import.meta.url), 'utf8');
+    const modelImport = apiSrc.match(/import\s*\{[\s\S]*?\}\s*from\s*['"]\.\/api-models\.js['"]/)?.[0] || '';
+    const modelReExport = apiSrc.match(/export\s*\{[\s\S]*?\}\s*from\s*['"]\.\/api-models\.js['"]/)?.[0] || '';
+
+    for (const name of ['findPreferredModel', 'fetchOpenRouterModelPricing']) {
+      expect(modelImport).toContain(name);
+      expect(modelReExport).toContain(name);
+    }
+  });
 });

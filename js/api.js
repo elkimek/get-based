@@ -3,6 +3,8 @@
 
 import {
   deduplicateModels,
+  findPreferredModel,
+  fetchOpenRouterModelPricing,
   fetchOpenRouterModels,
   fetchVeniceModels,
   getActiveModelDisplay,
