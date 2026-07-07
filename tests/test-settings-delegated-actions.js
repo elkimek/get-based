@@ -8,8 +8,9 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const src = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
+const privacySrc = fs.readFileSync(path.join(root, 'js/settings-privacy.js'), 'utf8');
 const settingsDataSrc = fs.readFileSync(path.join(root, 'js/settings-data.js'), 'utf8');
-const settingsSurfaceSrc = `${src}\n${settingsDataSrc}`;
+const settingsSurfaceSrc = `${src}\n${privacySrc}\n${settingsDataSrc}`;
 
 let passed = 0;
 let failed = 0;
@@ -121,7 +122,7 @@ assert('Settings AI no longer owns context source toggles',
   'save-meteo-selfhost',
   'toggle-meteo-rounding',
 ].forEach(action => {
-  assert(`Sun data-source action ${action} is rendered`, src.includes(`data-sun-source-action="${action}"`));
+  assert(`Sun data-source action ${action} is rendered`, privacySrc.includes(`data-sun-source-action="${action}"`));
 });
 
 assert('Settings tabs use data-settings-tab',
@@ -136,18 +137,21 @@ assert('Delegated settings handler switches AI providers',
 assert('Delegated settings handler updates PII model selection',
   /action === 'set-pii-model'[\s\S]*setOllamaPIIModel\(actionEl instanceof HTMLSelectElement \? actionEl\.value : ''\)/.test(src));
 assert('Sun data-source delegate is installed on document change',
-  /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(src));
+  /document\.addEventListener\('change', handleSunDataSourceChange\)/.test(privacySrc));
 assert('Sun data-source delegate is scoped to its section',
-  /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(src));
+  /function closestSunDataSourceControl[\s\S]*closest\('#sun-data-source-section'\)/.test(privacySrc));
 assert('Sun data-source save handlers surface unavailable runtime saves',
-  /function notifyMeteoSaveUnavailable\(\)[\s\S]*Sun data-source settings are still loading/.test(src) &&
-    /function setMeteoMode\(mode\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*return;[\s\S]*\}/.test(src) &&
-    /function saveMeteoSelfhost\(\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src) &&
-    /function toggleMeteoRounding\(enabled\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(src));
+  /function notifyMeteoSaveUnavailable\(\)[\s\S]*Sun data-source settings are still loading/.test(privacySrc) &&
+    /function setMeteoMode\(mode\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*return;[\s\S]*\}/.test(privacySrc) &&
+    /function saveMeteoSelfhost\(\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc) &&
+    /function toggleMeteoRounding\(enabled\)[\s\S]*if \(!saveSettingsMeteoConfig\(cfg\)\) \{[\s\S]*notifyMeteoSaveUnavailable\(\);[\s\S]*\}/.test(privacySrc));
 assert('Legacy Sun data-source window handlers are removed',
   !src.includes('window._setMeteoMode')
     && !src.includes('window._saveMeteoSelfhost')
-    && !src.includes('window._toggleMeteoRounding'));
+    && !src.includes('window._toggleMeteoRounding')
+    && !privacySrc.includes('window._setMeteoMode')
+    && !privacySrc.includes('window._saveMeteoSelfhost')
+    && !privacySrc.includes('window._toggleMeteoRounding'));
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);
 if (failed > 0) process.exit(1);
