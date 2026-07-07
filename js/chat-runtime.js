@@ -37,6 +37,14 @@ export function openChatContextModalRuntime() {
   getRuntimeFunction('openContextModal')?.();
 }
 
+export function closeChatModalRuntime() {
+  getRuntimeFunction('closeModal')?.();
+}
+
+export function refreshMobileDashboardActiveTabRuntime() {
+  getRuntimeFunction('refreshMobileDashboardActiveTab')?.();
+}
+
 export function isChatRuntimeStreaming() {
   return Boolean(getRuntimeFunction('isChatStreaming')?.());
 }

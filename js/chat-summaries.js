@@ -10,6 +10,7 @@ import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
+import { openUtilsRuntimeWindow } from './utils-runtime.js';
 import {
   appendImportedArrayItem,
   deleteImportedArrayItems,
@@ -344,7 +345,7 @@ export function printSummary() {
   const name = _activeSummary.name || 'Summary';
   const html = renderMarkdown(_activeSummary.content);
   const dateLine = _activeSummary.date ? `Summarized ${new Date(_activeSummary.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + escapeHTML(_activeSummary.model) : ''}` : '';
-  const w = window.open('', '_blank');
+  const w = openUtilsRuntimeWindow('', '_blank');
   if (!w) { showNotification('Popup blocked \u2014 allow popups for this site', 'error'); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>${escapeHTML(name)} - Summary</title>
 <style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:40px auto;padding:0 20px;line-height:1.6;color:#1a1a1a}

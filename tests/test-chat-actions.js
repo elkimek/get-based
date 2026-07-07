@@ -428,6 +428,8 @@ const directWindowGlobalRe = /\bwindow(?:\.|\s*\[)/;
 const chatRuntimeDelegates = [
   ['chat-actions.js', chatActionsSrc],
   ['chat-history.js', chatHistorySrc],
+  ['chat-marker-prompts.js', chatMarkerPromptsSrc],
+  ['chat-panel.js', chatPanelSrc],
   ['chat-personalities.js', chatPersonalitiesSrc],
   ['chat-discussion-round-runner.js', chatDiscussionRoundRunnerSrc],
 ];

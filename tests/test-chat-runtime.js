@@ -3,10 +3,12 @@
 
 import './_node-shim.js';
 import {
+  closeChatModalRuntime,
   getChatProviderAttestation,
   getChatRegenerateCallbacks,
   isChatRuntimeStreaming,
   openChatContextModalRuntime,
+  refreshMobileDashboardActiveTabRuntime,
   renderChatMessagesRuntime,
   updateDiscussButtonRuntime,
 } from '../js/chat-runtime.js';
@@ -31,6 +33,8 @@ const runtimeKeys = [
   'renderChatMessages',
   'updateDiscussButton',
   'openContextModal',
+  'closeModal',
+  'refreshMobileDashboardActiveTab',
   'isChatStreaming',
   'sendChatMessage',
   '_ppqAttestation',
@@ -63,6 +67,8 @@ try {
   setRuntimeValue('renderChatMessages', () => calls.push(['render']));
   setRuntimeValue('updateDiscussButton', () => calls.push(['discuss']));
   setRuntimeValue('openContextModal', () => calls.push(['context']));
+  setRuntimeValue('closeModal', () => calls.push(['close']));
+  setRuntimeValue('refreshMobileDashboardActiveTab', () => calls.push(['refresh-mobile']));
   setRuntimeValue('isChatStreaming', () => false);
   setRuntimeValue('sendChatMessage', () => calls.push(['send']));
   setRuntimeValue('_ppqAttestation', ppqAttestation);
@@ -71,10 +77,14 @@ try {
   renderChatMessagesRuntime();
   updateDiscussButtonRuntime();
   openChatContextModalRuntime();
-  assert('chat runtime invokes render/discuss/context callbacks',
+  closeChatModalRuntime();
+  refreshMobileDashboardActiveTabRuntime();
+  assert('chat runtime invokes render/discuss/context/close/refresh callbacks',
     calls.some(call => call[0] === 'render') &&
       calls.some(call => call[0] === 'discuss') &&
-      calls.some(call => call[0] === 'context'));
+      calls.some(call => call[0] === 'context') &&
+      calls.some(call => call[0] === 'close') &&
+      calls.some(call => call[0] === 'refresh-mobile'));
 
   assert('chat runtime reports non-streaming state',
     isChatRuntimeStreaming() === false);

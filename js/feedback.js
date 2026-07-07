@@ -5,6 +5,7 @@ import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { openUtilsRuntimeWindow } from './utils-runtime.js';
 
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug Report', prefix: '[Bug]', ghLabel: 'bug', placeholder: 'Brief description of the bug' },
@@ -150,7 +151,7 @@ export function submitFeedback() {
   // Build URL (encodeURIComponent for proper %20 encoding)
   let url = `https://github.com/elkimek/get-based/issues/new?title=${encodeURIComponent(issueTitle)}&body=${encodeURIComponent(body)}`;
   if (typeDef.ghLabel) url += `&labels=${encodeURIComponent(typeDef.ghLabel)}`;
-  window.open(url, '_blank');
+  openUtilsRuntimeWindow(url, '_blank');
   showNotification('Opening GitHub issue...', 'success');
   closeFeedbackModal();
 }

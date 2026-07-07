@@ -1,6 +1,8 @@
 // @ts-check
 // legal-consent.js — first-launch Terms/Privacy gate and re-consent on document updates.
 
+import { dispatchUtilsRuntimeEvent } from './utils-runtime.js';
+
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 export const TERMS_VERSION = '2026-06-22';
 export const PRIVACY_VERSION = '2026-06-22';
@@ -106,7 +108,7 @@ function handleLegalConsentClick(event) {
     console.warn('[legal-consent] Failed to persist acceptance:', err);
   }
   closeLegalConsentGate();
-  window.dispatchEvent(new CustomEvent('legal-consent-accepted'));
+  dispatchUtilsRuntimeEvent('legal-consent-accepted');
   if (persisted) {
     globalThis.showNotification?.('Terms and Privacy accepted.', 'success', 3000);
   } else {
