@@ -3,6 +3,7 @@
 // APP_VERSION comes from /version.js (loaded as classic script before modules)
 
 import { escapeHTML } from './utils.js';
+import { getAppVersionRuntime, registerUtilsRuntimeExports } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
@@ -357,7 +358,7 @@ function getSeenVersion() {
 }
 
 function markChangelogSeen() {
-  localStorage.setItem('labcharts-changelog-seen', String(window.APP_VERSION));
+  localStorage.setItem('labcharts-changelog-seen', getAppVersionRuntime());
 }
 
 // Changelog items are authored in source code (CHANGELOG above) — trusted.
@@ -461,10 +462,11 @@ function _semverGt(a, b) {
 export function maybeShowChangelog() {
   if (document.getElementById('legal-consent-overlay')) return;
   const seen = getSeenVersion();
+  const appVersion = getAppVersionRuntime();
   // First visit — no changelog, just mark as seen
   if (!seen) { markChangelogSeen(); return; }
   // Only show What's New on minor/major bumps, not patch
-  if (getMajorMinor(seen) !== getMajorMinor(window.APP_VERSION)) {
+  if (appVersion && getMajorMinor(seen) !== getMajorMinor(appVersion)) {
     openChangelog(false);
     return;
   }
@@ -480,4 +482,4 @@ export function maybeShowChangelog() {
   if (hasForceShowAheadOfSeen) openChangelog(false);
 }
 
-Object.assign(window, { openChangelog, closeChangelog, maybeShowChangelog });
+registerUtilsRuntimeExports({ openChangelog, closeChangelog, maybeShowChangelog });

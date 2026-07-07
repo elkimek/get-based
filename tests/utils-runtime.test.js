@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addUtilsRuntimeListener,
+  getAppVersionRuntime,
   getUtilsElementStyleRuntime,
   hasUtilsRuntime,
   removeUtilsRuntimeListener,
+  registerUtilsRuntimeExports,
 } from '../js/utils-runtime.js';
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -45,10 +47,21 @@ describe('utils runtime adapter', () => {
     expect(getComputedStyle).toHaveBeenCalledWith(el);
   });
 
+  it('delegates app version reads and runtime export registration', () => {
+    const runtime = { APP_VERSION: '1.2.3' };
+    setRuntimeWindow(runtime);
+
+    expect(getAppVersionRuntime()).toBe('1.2.3');
+    expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(true);
+    expect(runtime.openExample()).toBe('ok');
+  });
+
   it('uses safe fallbacks when browser runtime hooks are missing', () => {
     delete globalThis.window;
 
     expect(hasUtilsRuntime()).toBe(false);
+    expect(getAppVersionRuntime('fallback-version')).toBe('fallback-version');
+    expect(registerUtilsRuntimeExports({ openExample: () => 'ok' })).toBe(false);
     expect(addUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
     expect(removeUtilsRuntimeListener('labcharts-sync-applied', vi.fn())).toBe(false);
     expect(getUtilsElementStyleRuntime({})).toBeNull();
