@@ -11,6 +11,8 @@ const controlsSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-control
 const runtimeSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-runtime.js'), 'utf8');
 const compositionSrc = fs.readFileSync(path.join(root, 'js/dashboard-view-composition.js'), 'utf8');
 const renderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-widget-renderers.js'), 'utf8');
+const labRenderersSrc = fs.readFileSync(path.join(root, 'js/dashboard-lab-widget-renderers.js'), 'utf8');
+const allRendererSrc = `${renderersSrc}\n${labRenderersSrc}`;
 const dashboardWidgetsCss = fs.readFileSync(path.join(root, 'css/dashboard-widgets.css'), 'utf8');
 const biometricOverviewSrc = renderersSrc.slice(
   renderersSrc.indexOf('function renderDashboardBiometricSyncStatus'),
@@ -45,9 +47,9 @@ assert('dashboard widget controls has no direct window refs',
 assert('dashboard widget renderers import runtime adapter',
   renderersSrc.includes("from './dashboard-widget-runtime.js'"));
 assert('dashboard widget renderers have no direct window refs',
-  !/\bwindow(\.|\s*\[)/.test(renderersSrc));
+  !/\bwindow(\.|\s*\[)/.test(allRendererSrc));
 assert('dashboard widget renderers render no inline event attributes',
-  !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(renderersSrc));
+  !/\bon(?:click|input|change|keydown|keyup|submit)=/.test(allRendererSrc));
 assert('dashboard widget controls render delegated action attributes',
   controlsSrc.includes('function dashboardWidgetActionAttrs') &&
     controlsSrc.includes('data-dashboard-widget-action=') &&
@@ -83,10 +85,10 @@ assert('dashboard biometric overview renders delegated widget actions',
     biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-detail'") &&
     biometricOverviewSrc.includes("dashboardWidgetActionAttrs('open-biometric-picker'"));
 assert('dashboard renderer body actions use the shared dashboard delegate contract',
-  renderersSrc.includes("dashboardWidgetActionAttrs('open-marker-detail'") &&
-    renderersSrc.includes("dashboardWidgetActionAttrs('navigate'") &&
-    renderersSrc.includes("dashboardWidgetActionAttrs('open-note-editor'") &&
-    renderersSrc.includes("dashboardWidgetActionAttrs('delete-note'"));
+  allRendererSrc.includes("dashboardWidgetActionAttrs('open-marker-detail'") &&
+    allRendererSrc.includes("dashboardWidgetActionAttrs('navigate'") &&
+    allRendererSrc.includes("dashboardWidgetActionAttrs('open-note-editor'") &&
+    allRendererSrc.includes("dashboardWidgetActionAttrs('delete-note'"));
 assert('dashboard renderer no longer duplicates the Genome lens DNA import CTA',
   !renderersSrc.includes("dashboardWidgetActionAttrs('trigger-dna-picker'"));
 assert('dashboard widget click delegate lets nested wearable actions handle inline forms',

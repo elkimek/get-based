@@ -81,6 +81,7 @@ const highValueCheckJsModules = [
   'js/api.js',
   'js/client-list-runtime.js',
   'js/client-list.js',
+  'js/dashboard-lab-widget-renderers.js',
   'js/dashboard-widget-renderers.js',
   'js/dna.js',
   'js/dna-runtime.js',

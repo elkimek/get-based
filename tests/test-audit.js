@@ -237,13 +237,14 @@ const lightPageViewSrc = read('js/light-page-view.js');
 const lightChannelViewSrc = read('js/light-channel-view.js');
 const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
 const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
+const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
 const dashboardViewCompositionSrc = read('js/dashboard-view-composition.js');
 const geneticsCssAuditSrc = read('css/genetics.css');
 const markerDetailCssAuditSrc = read('css/marker-detail-modal.css');
 const dnaSrc = read('js/dna.js');
-assert('Trend alert name escaped', dashboardRenderersSrc.includes('escapeHTML(alert.name)'));
-assert('Trend alert category escaped', dashboardRenderersSrc.includes('escapeHTML(alert.category)'));
-assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardRenderersSrc));
+assert('Trend alert name escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.name)'));
+assert('Trend alert category escaped', dashboardLabRenderersSrc.includes('escapeHTML(alert.category)'));
+assert('Flagged marker name escaped', /escapeHTML\(f\.name\)/.test(dashboardLabRenderersSrc));
 assert('Category label escaped in header', categoryPageViewSrc.includes('escapeHTML(cat.label)'));
 assert('marker.unit escaped in detail modal', /escapeHTML\(marker\.unit\)/.test(markerDetailSrc));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
@@ -362,7 +363,7 @@ const _SAFE_HELPERS = new Set([
   // is the markdown.js sanitized full renderer)
   'escapeHTML', 'renderMarkdown',
 ]);
-const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-editing.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
+const _SWEEP_FILES = ['views.js', 'dashboard-page-view.js', 'category-page-view.js', 'category-view-renderers.js', 'category-customization.js', 'focus-card.js', 'marker-detail-modal.js', 'marker-detail-editing.js', 'dashboard-lab-widget-renderers.js', 'dashboard-widget-renderers.js', 'light-conditions-now.js', 'light-page-view.js', 'light-channel-view.js', 'light-sessions-view.js', 'light-device-setup-modal.js', 'sun-session-ui.js', 'compare-correlations.js', 'mobile-dashboard.js', 'context-card-editor-ui.js', 'context-card-medical-history-editor.js', 'chat.js', 'charts.js'];
 
 function _sweepInnerHTML(filename, src) {
   const lines = src.split('\n');

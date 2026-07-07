@@ -91,6 +91,7 @@
     "js/crypto.js",
     "js/cycle.js",
     "js/dashboard-page-view.js",
+    "js/dashboard-lab-widget-renderers.js",
     "js/dashboard-recommendation-widget.js",
     "js/dashboard-view-composition.js",
     "js/dashboard-widget-runtime.js",

@@ -40,15 +40,15 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const focusCardSrc = read('/js/focus-card.js');
   const onboardingViewSrc = read('/js/onboarding-view.js');
   const markerDetailSrc = read('/js/marker-detail-modal.js');
-  const dashboardRenderersSrc = read('/js/dashboard-widget-renderers.js');
+  const dashboardLabRenderersSrc = read('/js/dashboard-lab-widget-renderers.js');
   assert('chart-card has role and tabindex',
     categoryViewRenderersSrc.match(/<div class="chart-card[^"]*" role="button" tabindex="0"/));
   assert('trend-alert-card has role and tabindex',
-    dashboardRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
+    dashboardLabRenderersSrc.includes('class="trend-alert-card ${cls}" role="button" tabindex="0"'));
   assert('alert-card (critical) has role and tabindex',
-    dashboardRenderersSrc.includes('class="alert-card ${cls}" role="button" tabindex="0"'));
+    dashboardLabRenderersSrc.includes('class="alert-card ${cls}" role="button" tabindex="0"'));
   assert('note-card has role and tabindex',
-    dashboardRenderersSrc.includes('class="note-card" role="button" tabindex="0"'));
+    dashboardLabRenderersSrc.includes('class="note-card" role="button" tabindex="0"'));
   assert('heatmap header td has role+tabindex',
     categoryViewRenderersSrc.includes('<tr><td role="button" tabindex="0"'));
   assert('heatmap cell td has role+tabindex',

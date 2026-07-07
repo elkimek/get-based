@@ -630,30 +630,31 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   const dashboardWidgetsSrc = read('js/dashboard-widgets.js');
   const dashboardControlsSrc = read('js/dashboard-widget-controls.js');
   const dashboardRenderersSrc = read('js/dashboard-widget-renderers.js');
+  const dashboardLabRenderersSrc = read('js/dashboard-lab-widget-renderers.js');
   const lensPagesSrc = read('js/lens-pages.js');
   const routerSrc = read('js/views-router.js');
-  assert('Marker Spotlight uses explicit priority scoring', dashboardRenderersSrc.includes('function scoreDashboardSpotlightHit') && dashboardRenderersSrc.includes('priorityScore'));
-  assert('Marker Spotlight scores range distance', dashboardRenderersSrc.includes('getDashboardSpotlightRangeSignal') && dashboardRenderersSrc.includes('rangeSignal.outside'));
-  assert('Marker Spotlight scores trend alert severity', dashboardRenderersSrc.includes('DASHBOARD_SPOTLIGHT_ALERT_SCORE') && dashboardRenderersSrc.includes('sudden_high: 90'));
-  assert('Marker Spotlight no longer picks first trend alert directly', !dashboardRenderersSrc.includes('const firstAlert = ctx.trendAlerts?.[0]'));
-  assert('Marker Spotlight renders priority reason', dashboardRenderersSrc.includes('db-spotlight-priority') && dashboardRenderersSrc.includes('priorityReason'));
+  assert('Marker Spotlight uses explicit priority scoring', dashboardLabRenderersSrc.includes('function scoreDashboardSpotlightHit') && dashboardLabRenderersSrc.includes('priorityScore'));
+  assert('Marker Spotlight scores range distance', dashboardLabRenderersSrc.includes('getDashboardSpotlightRangeSignal') && dashboardLabRenderersSrc.includes('rangeSignal.outside'));
+  assert('Marker Spotlight scores trend alert severity', dashboardLabRenderersSrc.includes('DASHBOARD_SPOTLIGHT_ALERT_SCORE') && dashboardLabRenderersSrc.includes('sudden_high: 90'));
+  assert('Marker Spotlight no longer picks first trend alert directly', !dashboardLabRenderersSrc.includes('const firstAlert = ctx.trendAlerts?.[0]'));
+  assert('Marker Spotlight renders priority reason', dashboardLabRenderersSrc.includes('db-spotlight-priority') && dashboardLabRenderersSrc.includes('priorityReason'));
   assert('Dashboard priority labels are user-facing, not numeric',
-    dashboardRenderersSrc.includes('function getDashboardPriorityLabel') &&
-    dashboardRenderersSrc.includes("'Needs attention'") &&
-    dashboardRenderersSrc.includes("'Watch closely'") &&
-    !dashboardRenderersSrc.includes('`Priority ${'));
+    dashboardLabRenderersSrc.includes('function getDashboardPriorityLabel') &&
+    dashboardLabRenderersSrc.includes("'Needs attention'") &&
+    dashboardLabRenderersSrc.includes("'Watch closely'") &&
+    !dashboardLabRenderersSrc.includes('`Priority ${'));
   assert('Dashboard has dynamic Quick Markers widget',
     dashboardWidgetsSrc.includes("id: 'quick-markers'") &&
     dashboardRenderersSrc.includes('renderDashboardQuickMarkersWidget') &&
     !viewsSrc.includes("id: 'stat-vitd'"));
   assert('Quick Markers use priority scoring and avoid Spotlight duplication',
-    dashboardRenderersSrc.includes('function scoreDashboardQuickMarkerHit') &&
-    dashboardRenderersSrc.includes('const spotlightId = getDashboardSpotlight(ctx)?.id') &&
-    dashboardRenderersSrc.includes('hit.id !== spotlightId'));
+    dashboardLabRenderersSrc.includes('function scoreDashboardQuickMarkerHit') &&
+    dashboardLabRenderersSrc.includes('const spotlightId = getDashboardSpotlight(ctx)?.id') &&
+    dashboardLabRenderersSrc.includes('hit.id !== spotlightId'));
   assert('Quick Markers support per-profile pins and goal matches',
-    dashboardRenderersSrc.includes('dashboardQuickMarkerPinsKey') &&
+    dashboardLabRenderersSrc.includes('dashboardQuickMarkerPinsKey') &&
     dashboardRenderersSrc.includes('toggleDashboardQuickMarkerPin') &&
-    dashboardRenderersSrc.includes('DASHBOARD_QUICK_MARKER_GOAL_RULES'));
+    dashboardLabRenderersSrc.includes('DASHBOARD_QUICK_MARKER_GOAL_RULES'));
   assert('Dashboard supports user-added single marker widgets',
     dashboardControlsSrc.includes('dashboardMarkerWidgetId') &&
     dashboardControlsSrc.includes('addDashboardMarkerWidget') &&
@@ -678,9 +679,9 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     !viewsSrc.includes("title: 'All Biomarkers'") &&
     !viewsSrc.includes('renderDashboardMarkerListWidget') &&
     !dashboardCssSrc.includes('.db-marker-row'));
-  const keyTrendsWidgetBlock = (dashboardRenderersSrc.match(/function renderDashboardKeyTrendsWidget\(ctx\) \{([\s\S]*?)\n\}/) || [null, ''])[1];
+  const keyTrendsWidgetBlock = (dashboardLabRenderersSrc.match(/function renderDashboardKeyTrendsWidget\(ctx\) \{([\s\S]*?)\n\}/) || [null, ''])[1];
   assert('Dashboard Key Trends uses compact rows instead of duplicate chart cards',
-    dashboardRenderersSrc.includes('function renderDashboardKeyTrendRow') &&
+    dashboardLabRenderersSrc.includes('function renderDashboardKeyTrendRow') &&
     keyTrendsWidgetBlock.includes('db-key-trend-list') &&
     !keyTrendsWidgetBlock.includes('renderChartCard') &&
     !keyTrendsWidgetBlock.includes('renderChartLayersDropdown') &&
@@ -689,6 +690,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     dashboardWidgetsSrc.includes("id: 'spotlight'") &&
     dashboardWidgetsSrc.includes("title: 'Current Priority'") &&
     dashboardRenderersSrc.includes('renderLabsPriorityBanner') &&
+    dashboardLabRenderersSrc.includes('function renderLabsPriorityBanner') &&
     dashboardCssSrc.includes('.labs-priority-banner'));
   const labsWidgetsBlock = (lensPagesSrc.match(/renderLensPageWidgets\('labs', \[([\s\S]*?)\]\);/) || [null, ''])[1];
   assert('Labs page demotes standalone alerts and full spotlight sections',
