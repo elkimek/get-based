@@ -76,6 +76,7 @@ assert('SW APP_SHELL includes settings data module', swAuditSrc.includes("'/js/s
 assert('SW APP_SHELL includes settings provider bridge module', swAuditSrc.includes("'/js/settings-provider-bridge.js'"));
 assert('SW APP_SHELL includes PDF import review module', swAuditSrc.includes("'/js/pdf-import-review.js'"));
 assert('SW APP_SHELL includes PDF import review runtime module', swAuditSrc.includes("'/js/pdf-import-review-runtime.js'"));
+assert('SW APP_SHELL includes PDF import commit module', swAuditSrc.includes("'/js/pdf-import-commit.js'"));
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
 assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js/marker-analysis.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
@@ -84,6 +85,7 @@ assert('SW APP_SHELL includes PDF import support modules',
   && swAuditSrc.includes("'/js/pdf-import-preflight.js'")
   && swAuditSrc.includes("'/js/pdf-import-progress.js'")
   && swAuditSrc.includes("'/js/pdf-import-ai-utils.js'")
+  && swAuditSrc.includes("'/js/pdf-import-commit.js'")
   && swAuditSrc.includes("'/js/pdf-import-marker-normalization.js'")
   && swAuditSrc.includes("'/js/pdf-import-persistence.js'"));
 assert('SW APP_SHELL includes context card summary module', swAuditSrc.includes("'/js/context-card-summaries.js'"));

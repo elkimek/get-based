@@ -173,6 +173,7 @@
     "js/onboarding-view-runtime.js",
     "js/onboarding-view.js",
     "js/pdf-import-ai-utils.js",
+    "js/pdf-import-commit.js",
     "js/pdf-import-file-utils.js",
     "js/pdf-import-marker-mapping.js",
     "js/pdf-import-marker-normalization.js",
