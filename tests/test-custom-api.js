@@ -38,6 +38,8 @@ await import('../js/provider-panels.js');
 console.log('1. api.js source inspection');
 const apiSrc = read('js/api.js');
 const apiModelsSrc = read('js/api-models.js');
+const apiCustomSrc = read('js/api-custom.js');
+const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
 const apiProviderStorageSrc = read('js/api-provider-storage.js');
 assert('getCustomApiUrl exists', apiProviderStorageSrc.includes('function getCustomApiUrl()'));
 assert('setCustomApiUrl exists', apiProviderStorageSrc.includes('function setCustomApiUrl('));
@@ -47,9 +49,9 @@ assert('hasCustomApiKey exists', apiProviderStorageSrc.includes('function hasCus
 assert('getCustomApiModel exists', apiProviderStorageSrc.includes('function getCustomApiModel()'));
 assert('setCustomApiModel exists', apiProviderStorageSrc.includes('function setCustomApiModel('));
 assert('getCustomApiModelDisplay exists', apiProviderStorageSrc.includes('function getCustomApiModelDisplay()'));
-assert('fetchCustomApiModels exists', apiSrc.includes('function fetchCustomApiModels('));
-assert('validateCustomApiKey exists', apiSrc.includes('function validateCustomApiKey('));
-assert('callCustomAPI exists', apiSrc.includes('function callCustomAPI('));
+assert('fetchCustomApiModels exists', apiCustomSrc.includes('function fetchCustomApiModels('));
+assert('validateCustomApiKey exists', apiCustomSrc.includes('function validateCustomApiKey('));
+assert('callCustomAPI exists', apiCustomSrc.includes('function callCustomAPI('));
 assert('hasAIProvider handles custom', apiProviderStorageSrc.includes("provider === 'custom') return hasCustomApiKey()"));
 assert('hasAIProvider custom requires URL', apiProviderStorageSrc.includes("hasCustomApiKey() && !!getCustomApiUrl()"));
 assert('getActiveModelId handles custom', apiModelsSrc.includes("provider === 'custom') return getCustomApiModel()"));
@@ -59,7 +61,8 @@ assert('isRecommendedModel handles custom GLM and Kimi', apiModelsSrc.includes('
 assert('callClaudeAPI handles custom', apiSrc.includes("provider === 'custom') return callCustomAPI("));
 assert('supportsWebSearch false for custom', apiModelsSrc.includes("provider === 'custom') return false"));
 assert('supportsVision true for custom', apiModelsSrc.includes("provider === 'custom') return true"));
-assert('callCustomAPI routes through proxy', apiSrc.includes("'Custom', opts,\n    {}"));
+assert('callCustomAPI routes through shared provider transport',
+  apiCustomSrc.includes("'Custom',\n    opts,\n    {}"));
 assert('saveCustomApiKey uses encryptedSetItem', apiProviderStorageSrc.includes("encryptedSetItem('labcharts-custom-key'"));
 assert('getCustomApiKey uses getCachedKey', apiProviderStorageSrc.includes("getCachedKey('labcharts-custom-key')"));
 
@@ -275,8 +278,9 @@ const proxySrc = read('api/proxy.js');
 assert('proxy extracts method field', proxySrc.includes('method: upstreamMethod'));
 assert('proxy defaults to POST', proxySrc.includes("upstreamMethod || 'POST'"));
 assert('proxy skips body for GET', proxySrc.includes("fetchMethod !== 'GET'"));
-assert('_customApiFetchModels uses proxy', apiSrc.includes('function _customApiFetchModels('));
-assert('_customApiFetchModels sends method GET via proxy', apiSrc.includes("method: 'GET'"));
+assert('_customApiFetchModels uses proxy', apiCustomSrc.includes('function _customApiFetchModels('));
+assert('_customApiFetchModels bases proxy decision on explicit URL', apiCustomSrc.includes('shouldProxyCustomApiUrl(url)'));
+assert('_customApiFetchModels sends method GET via proxy', apiCustomSrc.includes("method: 'GET'"));
 
 // ─── 18. needsMaxCompletionTokens — GPT-5 / o-series detection (#114) ───
 console.log('\n18. needsMaxCompletionTokens (#114)');
@@ -306,9 +310,9 @@ assert('rejects undefined', window.needsMaxCompletionTokens(undefined) === false
 assert('rejects gpt-50 (not GPT-5)', window.needsMaxCompletionTokens('gpt-50') === false);
 assert('rejects ozone (no o[1-9] at start)', window.needsMaxCompletionTokens('ozone') === false);
 assert('rejects openai/gpt-50', window.needsMaxCompletionTokens('openai/gpt-50') === false);
-assert('callOpenAICompatibleAPI uses needsMaxCompletionTokens', apiSrc.includes('needsMaxCompletionTokens(model)'));
-assert('body uses dynamic tokenLimitField', apiSrc.includes('[tokenLimitField]:'));
-assert('tokenLimitField defaults to max_tokens', apiSrc.includes("? 'max_completion_tokens' : 'max_tokens'"));
+assert('callOpenAICompatibleAPI uses needsMaxCompletionTokens', apiOpenAICompatibleSrc.includes('needsMaxCompletionTokens(model)'));
+assert('body uses dynamic tokenLimitField', apiOpenAICompatibleSrc.includes('[tokenLimitField]:'));
+assert('tokenLimitField defaults to max_tokens', apiOpenAICompatibleSrc.includes("? 'max_completion_tokens' : 'max_tokens'"));
 
 // ─── 19. Startup cache decrypts Custom API key (#124) ───
 // Regression: API_KEY_LS_KEYS must include 'labcharts-custom-key' so

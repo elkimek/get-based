@@ -30,6 +30,7 @@ import {
   setVeniceModel,
   supportsVision,
   supportsWebSearch,
+  validateCustomApiKey,
   validateOpenRouterKey,
   validatePpqKey,
   validateRoutstrKey,
@@ -274,6 +275,30 @@ describe('API provider runtime behavior', () => {
     expect(getPpqModel()).toBe('private/glm-5-2');
   });
 
+  it('proxies Custom API validation for the explicit unsaved remote URL', async () => {
+    setAIProvider('openrouter');
+    setCustomApiUrl('http://localhost:11434/v1');
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'model-a', name: 'Model A' }] }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await expect(validateCustomApiKey('https://remote.example/v1', 'sk-custom')).resolves.toEqual({ valid: true });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/proxy', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"url":"https://remote.example/v1/models"'),
+    }));
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      url: 'https://remote.example/v1/models',
+      method: 'GET',
+      headers: { Authorization: 'Bearer sk-custom' },
+    });
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/proxy', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"url":"https://remote.example/v1/chat/completions"'),
+    }));
+  });
+
   it('validates provider keys and reads balance endpoints defensively', async () => {
     fetch
       .mockResolvedValueOnce(new Response('', { status: 401 }))
@@ -381,6 +406,27 @@ describe('API provider runtime behavior', () => {
       ],
     });
     expect(requestBody).not.toHaveProperty('max_tokens');
+
+    const onStream = vi.fn();
+    fetch.mockResolvedValueOnce(jsonResponse({
+      choices: [{ message: { content: 'forced json' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 2, completion_tokens: 3 },
+    }));
+    await expect(callOpenRouterAPI({
+      messages: [{ role: 'user', content: 'fallback' }],
+      onStream,
+      forceNonStream: true,
+      requestTimeoutMs: 50,
+    })).resolves.toEqual({
+      text: 'forced json',
+      usage: { inputTokens: 2, outputTokens: 3 },
+      finishReason: 'stop',
+      truncated: false,
+    });
+    const forcedBody = JSON.parse(fetch.mock.calls.at(-1)[1].body);
+    expect(forcedBody).not.toHaveProperty('stream');
+    expect(forcedBody).not.toHaveProperty('stream_options');
+    expect(onStream).not.toHaveBeenCalled();
 
     window.showInsufficientBalanceDialog = vi.fn();
     fetch.mockResolvedValueOnce(new Response('{}', { status: 402 }));

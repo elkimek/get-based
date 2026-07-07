@@ -52,7 +52,7 @@ await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
-const apiSrc = await fetchWithRetry('js/api.js');
+const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
@@ -212,12 +212,12 @@ assert('Parses content JSON for name/about', discoverySrc.includes('content.name
 // ═══════════════════════════════════════
 console.log('10. API Node URL Guard');
 
-assert('getRoutstrNodeUrl exported', apiSrc.includes('export function getRoutstrNodeUrl'));
-assert('_requireNodeUrl guard exists', apiSrc.includes('function _requireNodeUrl'));
-assert('_requireNodeUrl throws on empty', apiSrc.includes("'No Routstr node selected"));
-assert('fetchRoutstrModels uses _requireNodeUrl', apiSrc.includes('const nodeUrl = _requireNodeUrl()'));
-assert('callRoutstrAPI uses _requireNodeUrl', apiSrc.includes("const nodeUrl = _requireNodeUrl();\n  return callOpenAICompatibleAPI") || apiSrc.includes('_requireNodeUrl()'));
-const rawNodeUrlCalls = (apiSrc.match(/getRoutstrNodeUrl\(\)\.replace/g) || []).length;
+assert('getRoutstrNodeUrl exported', apiRoutstrSrc.includes('export function getRoutstrNodeUrl'));
+assert('_requireNodeUrl guard exists', apiRoutstrSrc.includes('function _requireNodeUrl'));
+assert('_requireNodeUrl throws on empty', apiRoutstrSrc.includes("'No Routstr node selected"));
+assert('fetchRoutstrModels uses _requireNodeUrl', apiRoutstrSrc.includes('const nodeUrl = _requireNodeUrl()'));
+assert('callRoutstrAPI uses _requireNodeUrl', apiRoutstrSrc.includes("const nodeUrl = _requireNodeUrl();\n  return callOpenAICompatibleAPI") || apiRoutstrSrc.includes('_requireNodeUrl()'));
+const rawNodeUrlCalls = (apiRoutstrSrc.match(/getRoutstrNodeUrl\(\)\.replace/g) || []).length;
 assert('No unguarded getRoutstrNodeUrl().replace in API calls', rawNodeUrlCalls === 0, `found ${rawNodeUrlCalls} unguarded calls`);
 
 // ═══════════════════════════════════════

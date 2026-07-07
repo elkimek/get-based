@@ -64,7 +64,7 @@ assert('_sanitizeAIMarker drops both mappedKey and suggestedKey on bad input',
 
 // ─── 3. OpenRouter OAuth state param ───
 console.log('\n3. OAuth state hardening');
-const apiSrc = read('js/api.js');
+const apiSrc = read('js/api-openrouter-oauth.js');
 assert('startOpenRouterOAuth sends state param',
   apiSrc.includes("&state=' + encodeURIComponent(state)"),
   'login-CSRF needs state, PKCE alone is insufficient');
