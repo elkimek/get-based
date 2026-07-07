@@ -39,10 +39,13 @@ assert('isEvalSupported wins over extraOpts (via spread order)',
   'pin must apply after spread or a caller passing { isEvalSupported: true } reopens the CVE');
 
 const importSrc = read('js/pdf-import.js');
+const importFileUtilsSrc = read('js/pdf-import-file-utils.js');
 const importMappingSrc = read('js/pdf-import-marker-mapping.js');
 const importNormalizationSrc = read('js/pdf-import-marker-normalization.js');
-assert('pdf-import.js routes through getPdfDocument',
-  importSrc.includes('getPdfDocument') && !importSrc.includes('pdfjsLib.getDocument'),
+assert('pdf-import facade avoids direct pdf.js document access',
+  !importSrc.includes('pdfjsLib.getDocument'));
+assert('pdf-import-file-utils.js routes through getPdfDocument',
+  importFileUtilsSrc.includes('getPdfDocument') && !importFileUtilsSrc.includes('pdfjsLib.getDocument'),
   'no direct pdfjsLib.getDocument calls — they bypass the eval guard');
 const lensParsersSrc = read('js/lens-local-parsers.js');
 assert('lens-local-parsers.js routes through getPdfDocument',

@@ -78,7 +78,8 @@ assert('SW APP_SHELL includes PDF import review runtime module', swAuditSrc.incl
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
 assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js/marker-analysis.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
-  swAuditSrc.includes("'/js/pdf-import-spreadsheet.js'")
+  swAuditSrc.includes("'/js/pdf-import-file-utils.js'")
+  && swAuditSrc.includes("'/js/pdf-import-spreadsheet.js'")
   && swAuditSrc.includes("'/js/pdf-import-preflight.js'")
   && swAuditSrc.includes("'/js/pdf-import-progress.js'")
   && swAuditSrc.includes("'/js/pdf-import-ai-utils.js'")
