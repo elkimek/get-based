@@ -11,6 +11,7 @@ import { initializeStartupServices, runPostProfileStartupMaintenance } from './s
 import { installGlobalEventListeners, registerAppRefreshCallback } from './app-event-listeners.js';
 import { showNotification } from './utils.js';
 import { restorePendingImportReviewDraft } from './import-loader.js';
+import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 let appStarted = false;
 
@@ -39,7 +40,7 @@ export function startApp() {
   if (appStarted) return;
   appStarted = true;
 
-  window._getActiveProfileId = () => state.currentProfile;
+  registerUtilsRuntimeExports({ _getActiveProfileId: () => state.currentProfile });
   installEMFLazyFacade();
   installGlobalEventListeners();
   registerAppRefreshCallback();
