@@ -108,6 +108,20 @@ if (exists('dev-server.js')) {
   assert('dev-server.js re-checks redirect destinations',
     devSrc.match(/_isAllowedProxyUrl\(loc\)|_isAllowedProxyUrl\(redirect\)/g)?.length >= 3,
     '/api/check-url + /api/fetch-page + /proxy redirect-follow paths each need their own guard');
+  assert('dev-server.js uses shared proxy policy for generic proxy envelope',
+    devSrc.includes("from './lib/proxy-policy.js'")
+      && devSrc.includes('normalizeProxyMethod(upMethod)')
+      && devSrc.includes('sanitizeProxyHeaders(fwdHeaders)')
+      && devSrc.includes('PROXY_MAX_REQUEST_BYTES')
+      && devSrc.includes('PROXY_MAX_RESPONSE_BYTES'));
+  const edgeProxySrc = read('api/proxy.js');
+  assert('api/proxy.js uses shared proxy policy for URL and envelope guards',
+    edgeProxySrc.includes("from '../lib/proxy-policy.js'")
+      && edgeProxySrc.includes('isAllowedProxyUrl(url)')
+      && edgeProxySrc.includes('normalizeProxyMethod(upstreamMethod)')
+      && edgeProxySrc.includes('sanitizeProxyHeaders(headers)')
+      && edgeProxySrc.includes('PROXY_MAX_REQUEST_BYTES')
+      && edgeProxySrc.includes('PROXY_MAX_RESPONSE_BYTES'));
 } else {
   console.log('  (dev-server.js not present — production build, skipping CORS source asserts)');
 }

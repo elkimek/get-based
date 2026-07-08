@@ -4,121 +4,15 @@
 
 export const config = { runtime: 'edge' };
 
+import {
+  PROXY_MAX_REQUEST_BYTES,
+  PROXY_MAX_RESPONSE_BYTES,
+  isAllowedProxyUrl,
+  normalizeProxyMethod,
+  sanitizeProxyHeaders,
+} from '../lib/proxy-policy.js';
+
 const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
-
-// Allowlisted provider URL prefixes — these always pass without further
-// checks. User-configured endpoints (Custom API, decentralized Routstr
-// nodes) are allowed too, but only over HTTPS with a non-private host.
-const ALLOWED_ORIGINS = [
-  'https://openrouter.ai/',
-  'https://api.venice.ai/',
-  'https://api.routstr.com/',
-  'https://api.ppq.ai/',
-  'https://api.ouraring.com/',
-  'https://api.prod.whoop.com/',
-  'https://partner.ultrahuman.com/',
-  'https://wbsapi.withings.net/',
-  'https://api.fitbit.com/',
-  'https://www.polaraccesslink.com/',
-  'https://polarremote.com/',
-];
-
-/// Block literal IPs in private / reserved / cloud-metadata ranges so
-/// attackers can't use the proxy to probe Vercel's internal network or
-/// hit cloud metadata services (AWS/GCP 169.254.169.254, Azure
-/// 168.63.129.16). Hostnames that DNS-resolve to private IPs would still
-/// reach them; that's the next-tier fix (DNS resolution + re-check
-/// before fetch), out of scope for this pass.
-function _isBlockedHost(host) {
-  if (!host) return true;
-  // Strip IPv6 brackets if present — URL.hostname keeps them on bracketed
-  // literals depending on runtime, so normalise both shapes.
-  const h = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-  // Loopback + localhost aliases
-  if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
-  if (h.endsWith('.local') || h.endsWith('.localhost')) return true;
-  // Azure metadata
-  if (h === '168.63.129.16') return true;
-
-  // IPv6 literal: block loopback, unique-local (fc00::/7), link-local
-  // (fe80::/10), unspecified (::), IPv4-mapped (::ffff:127.0.0.1 / :a.b.c.d
-  // / :hex), and IPv4-compatible (::w.x.y.z). The check is conservative:
-  // any string containing ':' is treated as IPv6 and inspected.
-  if (h.includes(':')) {
-    const lower = h.toLowerCase();
-    if (lower === '::' || lower === '0:0:0:0:0:0:0:0') return true;
-    // fc00::/7 unique-local: high byte 0xfc or 0xfd (binary 1111110x)
-    if (/^fc[0-9a-f]{2}:/.test(lower) || /^fd[0-9a-f]{2}:/.test(lower)) return true;
-    // fe80::/10 link-local
-    if (/^fe[89ab][0-9a-f]:/.test(lower)) return true;
-    // IPv4-mapped/translated: ::ffff:a.b.c.d / ::ffff:0:a.b.c.d / ::a.b.c.d
-    const v4Embed = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (v4Embed) return _isBlockedHost(v4Embed[1]);
-    // IPv4-mapped hex form ::ffff:7f00:0001 etc — parse each 16-bit
-    // group independently so compressed forms like ::ffff:c0a8:101 keep
-    // their byte boundaries (192.168.1.1, not 12.10.129.1).
-    if (lower.startsWith('::ffff:')) {
-      const tail = lower.slice(7);
-      const groups = tail.split(':');
-      if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
-        const g0 = parseInt(groups[0], 16);
-        const g1 = parseInt(groups[1], 16);
-        const a = (g0 >> 8) & 0xff;
-        const b = g0 & 0xff;
-        const c = (g1 >> 8) & 0xff;
-        const d = g1 & 0xff;
-        return _isBlockedHost(`${a}.${b}.${c}.${d}`);
-      }
-    }
-    // 6to4 = 2002:WWXX:YYZZ::/48, with WWXX:YYZZ encoding IPv4.
-    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
-    if (sixToFour) {
-      const g0 = parseInt(sixToFour[1], 16);
-      const g1 = parseInt(sixToFour[2], 16);
-      const a = (g0 >> 8) & 0xff;
-      const b = g0 & 0xff;
-      const c = (g1 >> 8) & 0xff;
-      const d = g1 & 0xff;
-      return _isBlockedHost(`${a}.${b}.${c}.${d}`);
-    }
-    // Unknown / private IPv6 ranges we haven't enumerated — be safe and
-    // allow only globally routable (2000::/3) IPv6 addresses through.
-    return !/^[23][0-9a-f]{3}:/.test(lower);
-  }
-
-  // IPv4 literal check — reject strictly-decimal 0-255 octets in reserved ranges
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (!m) return false;
-  for (let i = 1; i <= 4; i++) {
-    const octet = m[i];
-    // Strict decimal — reject leading zeros (0255 is octal territory)
-    if (octet.length > 1 && octet[0] === '0') return true;
-    const n = +octet;
-    if (n > 255) return true;
-  }
-  const a = +m[1], b = +m[2];
-  if (a === 10) return true;                          // 10.0.0.0/8
-  if (a === 127) return true;                         // loopback
-  if (a === 169 && b === 254) return true;            // link-local + AWS/GCP metadata
-  if (a === 172 && b >= 16 && b <= 31) return true;   // 172.16.0.0/12
-  if (a === 192 && b === 168) return true;            // 192.168.0.0/16
-  if (a === 100 && b >= 64 && b <= 127) return true;  // CGNAT 100.64.0.0/10
-  if (a === 0) return true;                           // 0.0.0.0/8
-  return false;
-}
-
-function isAllowedUrl(url) {
-  if (ALLOWED_ORIGINS.some(origin => url.startsWith(origin))) return true;
-  // Allow any HTTPS endpoint (Custom API, decentralized Routstr nodes)
-  // provided the host is public — blocks SSRF into Vercel's internal
-  // network and cloud metadata services.
-  try {
-    const u = new URL(url);
-    if (u.protocol !== 'https:') return false;
-    if (_isBlockedHost(u.hostname)) return false;
-    return true;
-  } catch { return false; }
-}
 
 export default async function handler(req) {
   // CORS preflight
@@ -138,7 +32,21 @@ export default async function handler(req) {
 
   let payload;
   try {
-    payload = await req.json();
+    const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+    if (contentLength > PROXY_MAX_REQUEST_BYTES) {
+      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
+        status: 413,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    const rawBody = await req.text();
+    if (new TextEncoder().encode(rawBody).length > PROXY_MAX_REQUEST_BYTES) {
+      return new Response(JSON.stringify({ error: 'Proxy request body too large' }), {
+        status: 413,
+        headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+      });
+    }
+    payload = JSON.parse(rawBody);
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
@@ -212,21 +120,34 @@ export default async function handler(req) {
 
   const { url, headers, body, method: upstreamMethod } = payload;
 
-  if (!url || !isAllowedUrl(url)) {
+  if (!url || !isAllowedProxyUrl(url)) {
     return new Response(JSON.stringify({ error: 'URL not allowed' }), {
       status: 403,
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
+  const fetchMethod = normalizeProxyMethod(upstreamMethod);
+  if (!fetchMethod) {
+    return new Response(JSON.stringify({ error: 'Proxy method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
+  const safeHeaders = sanitizeProxyHeaders(headers);
+  if (!safeHeaders.ok) {
+    return new Response(JSON.stringify({ error: safeHeaders.error }), {
+      status: 400,
+      headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
-    const fetchMethod = (upstreamMethod || 'POST').toUpperCase();
+    const reqHeaders = { ...safeHeaders.headers };
+    const hasCT = Object.keys(reqHeaders).some(k => k.toLowerCase() === 'content-type');
+    if (fetchMethod !== 'GET' && !hasCT) reqHeaders['Content-Type'] = 'application/json';
     const fetchOpts = {
       method: fetchMethod,
-      headers: {
-        ...(fetchMethod !== 'GET' ? { 'Content-Type': 'application/json' } : {}),
-        ...headers,
-      },
+      headers: reqHeaders,
     };
     if (fetchMethod !== 'GET' && body) {
       fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
@@ -238,7 +159,7 @@ export default async function handler(req) {
     const isStream = contentType.includes('text/event-stream') || contentType.includes('application/x-ndjson');
 
     if (!isStream) {
-      const responseBody = await upstreamRes.text();
+      const responseBody = await readResponseTextWithCap(upstreamRes);
       return new Response(responseBody, {
         status: upstreamRes.status,
         headers: {
@@ -249,7 +170,7 @@ export default async function handler(req) {
     }
 
     // Stream SSE response through
-    return new Response(upstreamRes.body, {
+    return new Response(capReadableStream(upstreamRes.body, PROXY_MAX_RESPONSE_BYTES), {
       status: upstreamRes.status,
       headers: {
         ...corsHeaders(req),
@@ -264,6 +185,57 @@ export default async function handler(req) {
       headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
     });
   }
+}
+
+async function readResponseTextWithCap(response) {
+  const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+  if (contentLength > PROXY_MAX_RESPONSE_BYTES) throw new Error('Proxy response exceeds size cap');
+  const reader = response.body?.getReader?.();
+  if (!reader) return response.text();
+  const chunks = [];
+  let bytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value?.byteLength || 0;
+    if (bytes > PROXY_MAX_RESPONSE_BYTES) {
+      try { await reader.cancel(); } catch {}
+      throw new Error('Proxy response exceeds size cap');
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(bytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(out);
+}
+
+function capReadableStream(body, maxBytes) {
+  if (!body?.getReader || typeof ReadableStream !== 'function') return body;
+  const reader = body.getReader();
+  let bytes = 0;
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      bytes += value?.byteLength || 0;
+      if (bytes > maxBytes) {
+        try { await reader.cancel(); } catch {}
+        controller.error(new Error('Proxy response exceeds size cap'));
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
 }
 
 // Origins permitted to call /api/proxy. Lock to our production surfaces +
