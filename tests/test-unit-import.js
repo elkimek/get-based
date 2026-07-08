@@ -615,6 +615,45 @@ const importCssSrc = read('css/import.css');
     && cPeptideAlias.customMarkers['hormones.cPeptide'] === undefined
     && cPeptideAlias.markerValueNotes['diabetes.cPeptide:2026-05-01'] === 'legacy category');
 
+  const dividedDifferentialPct = {
+    entries: [{
+      date: '2026-06-01',
+      markers: {
+        'differential.neutrophilsPct': 0.00609,
+        'differential.monocytesPct': 0.00074,
+        'differential.lymphocytesPct': 0.328,
+      },
+      markerSources: {
+        'differential.neutrophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
+        'differential.monocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
+        'differential.lymphocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
+      },
+    }],
+    importSnapshots: [{
+      id: 'snap_cbc_fraction_pct',
+      fileName: 'cbc.pdf',
+      date: '2026-06-01',
+      markers: [
+        { rawName: 'B Neutrofily', value: 0.609, unit: '%', mappedKey: 'differential.neutrophilsPct', matched: true, refMin: 0.45, refMax: 0.70 },
+        { rawName: 'B Monocyty', value: 0.074, unit: 'PERCENTAGE', mappedKey: 'differential.monocytesPct', matched: true, refMin: 0.02, refMax: 0.12 },
+        { rawName: 'B Lymfocyty', value: 0.328, unit: '%', mappedKey: 'differential.lymphocytesPct', matched: true, refMin: 0.20, refMax: 0.45 },
+      ],
+    }],
+    refOverrides: {
+      'differential.neutrophilsPct': { refMin: 0.0045, refMax: 0.007, labRefMin: 0.0045, labRefMax: 0.007, refSource: 'import' },
+    },
+  };
+  migrateProfileData(dividedDifferentialPct);
+  assert('Profile migration repairs fraction-stored differential percent values divided during import',
+    dividedDifferentialPct.entries[0].markers['differential.neutrophilsPct'] === 0.609
+    && dividedDifferentialPct.entries[0].markers['differential.monocytesPct'] === 0.074
+    && dividedDifferentialPct.entries[0].markers['differential.lymphocytesPct'] === 0.328);
+  assert('Profile migration repairs divided imported differential percent reference overrides',
+    dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMin === 0.45
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMax === 0.70
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].labRefMin === 0.45
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].labRefMax === 0.70);
+
   const lipidAliases = {
     entries: [{ date: '2026-05-01', markers: { 'lipids.lpa': 42, 'lipids.totalCholesterol': 4.6, 'lipids.hdlCholesterol': 1.4, 'lipids.cholHdlRatio': 3.3 } }],
     customMarkers: {

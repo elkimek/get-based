@@ -229,6 +229,24 @@ function _hasPositiveSpadiaLabel(value) {
   return !/(?:non|not|no|without)spadia/.test(compact);
 }
 
+const FRACTION_STORED_PERCENT_MARKERS = new Set([
+  'differential.neutrophilsPct',
+  'differential.lymphocytesPct',
+  'differential.monocytesPct',
+]);
+
+/**
+ * @param {string | null | undefined} value
+ * @returns {boolean}
+ */
+function _isProfilePercentUnit(value) {
+  const normalized = String(value || '')
+    .toLowerCase()
+    .replace(/\s/g, '')
+    .replace(/[\u00b5\u03bc]/g, 'u');
+  return normalized === '%' || normalized === 'pct' || normalized === 'percent' || normalized === 'percentage';
+}
+
 /**
  * @param {string | null | undefined} value
  * @returns {boolean}
@@ -449,6 +467,73 @@ function _profileMarkerValuesMatch(a, b) {
 }
 
 /**
+ * @param {any} marker
+ * @returns {{ key: string, value: number, dividedValue: number } | null}
+ */
+function _fractionStoredPercentSnapshotMarker(marker) {
+  const key = marker?.mappedKey || marker?.suggestedKey || '';
+  if (!FRACTION_STORED_PERCENT_MARKERS.has(key)) return null;
+  if (!_isProfilePercentUnit(marker?.unit)) return null;
+  const value = Number(marker?.value);
+  if (!Number.isFinite(value) || value < 0 || value > 1) return null;
+  return {
+    key,
+    value,
+    dividedValue: parseFloat((value / 100).toPrecision(6)),
+  };
+}
+
+/**
+ * @param {ProfileData} data
+ * @param {string} key
+ * @param {any} marker
+ * @returns {void}
+ */
+function _repairFractionStoredPercentRefOverride(data, key, marker) {
+  const override = data.refOverrides?.[key];
+  if (!override || !_isProfilePercentUnit(marker?.unit)) return;
+  const pairs = [
+    ['refMin', 'refMin'],
+    ['refMax', 'refMax'],
+    ['labRefMin', 'refMin'],
+    ['labRefMax', 'refMax'],
+  ];
+  for (const [overrideField, markerField] of pairs) {
+    const raw = Number(marker?.[markerField]);
+    if (!Number.isFinite(raw) || raw < 0 || raw > 1) continue;
+    const divided = parseFloat((raw / 100).toPrecision(6));
+    if (_profileMarkerValuesMatch(override[overrideField], divided)) {
+      override[overrideField] = raw;
+    }
+  }
+}
+
+/**
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+function _repairFractionStoredPercentImports(data) {
+  if (!Array.isArray(data.importSnapshots) || !Array.isArray(data.entries)) return;
+  for (const snap of data.importSnapshots) {
+    if (!Array.isArray(snap?.markers)) continue;
+    for (const marker of snap.markers) {
+      const percentMarker = _fractionStoredPercentSnapshotMarker(marker);
+      if (!percentMarker) continue;
+      const { key, value, dividedValue } = percentMarker;
+      for (const entry of data.entries) {
+        if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, key)) continue;
+        const source = entry.markerSources?.[key];
+        const sourceMatches = (snap?.id && source?.snapshotId === snap.id)
+          || (snap?.date && entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[key], dividedValue));
+        if (!sourceMatches) continue;
+        if (_profileMarkerValuesMatch(entry.markers[key], dividedValue)) entry.markers[key] = value;
+      }
+      _repairFractionStoredPercentRefOverride(data, key, marker);
+    }
+  }
+}
+
+/**
  * @param {any} entry
  * @param {any} snap
  * @param {string} oldKey
@@ -574,5 +659,6 @@ export function repairProfileMarkerData(data) {
   _repairCanonicalMarkerAliases(data);
   _repairNamedStandardMarkerAliases(data);
   _repairUnitSuffixedStandardMarkers(data);
+  _repairFractionStoredPercentImports(data);
   _repairSpadiaFattyAcidKeys(data);
 }

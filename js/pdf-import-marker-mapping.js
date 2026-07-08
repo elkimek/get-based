@@ -12,6 +12,30 @@ function normalizeUnitStr(s) {
   return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/').replace(/^ug\/l$/, 'ng/ml');
 }
 
+function isPercentImportUnit(unit) {
+  const norm = normalizeUnitStr(String(unit || ''));
+  return norm === '%' || norm === 'pct' || norm === 'percent' || norm === 'percentage';
+}
+
+function isFractionStoredPercentMarker(key) {
+  const [catKey, markerKey] = String(key || '').split('.');
+  const marker = MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  const conv = UNIT_CONVERSIONS[key];
+  return !!marker
+    && (marker.unit || '') === ''
+    && marker.refMax != null
+    && marker.refMax <= 1
+    && conv?.type === 'multiply'
+    && conv.factor === 100
+    && isPercentImportUnit(conv.usUnit);
+}
+
+function normalizeFractionStoredPercentValue(key, value, unit) {
+  if (!isFractionStoredPercentMarker(key) || !isPercentImportUnit(unit)) return null;
+  const siValue = value > 1 ? value / 100 : value;
+  return parseFloat(siValue.toPrecision(6));
+}
+
 export const GENERIC_IMPORT_UNITS = [
   '',
   '%',
@@ -78,7 +102,10 @@ function isRecognizedUnitForMarker(key, unit) {
   const siUnit = getSchemaUnitForMarker(key);
   if (siUnit && aiUnit === normalizeUnitStr(siUnit)) return true;
   const primaryConv = UNIT_CONVERSIONS[key];
-  if (primaryConv?.type === 'multiply' && primaryConv.usUnit && aiUnit === normalizeUnitStr(primaryConv.usUnit)) return true;
+  if (primaryConv?.type === 'multiply' && primaryConv.usUnit) {
+    if (aiUnit === normalizeUnitStr(primaryConv.usUnit)) return true;
+    if (isPercentImportUnit(aiUnit) && isPercentImportUnit(primaryConv.usUnit)) return true;
+  }
   if (primaryConv?.type === 'hba1c' && aiUnit === '%') return true;
   const secondaryList = SECONDARY_UNIT_CONVERSIONS[key];
   if (secondaryList) {
@@ -655,6 +682,8 @@ export function normalizeToSI(key, value, unit) {
   // When a unit string is present, systematically evaluate all conversion registries
   if (unit) {
     const aiUnit = normalizeUnitStr(unit);
+    const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, aiUnit);
+    if (fractionPercentValue != null) return fractionPercentValue;
 
     // 1. Evaluate primary US conversions
     const primaryConv = UNIT_CONVERSIONS[key];
