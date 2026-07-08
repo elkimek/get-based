@@ -174,7 +174,7 @@ delete lipidRatioData.categories.lipids.markers.cholesterol;
 delete lipidRatioData.categories.lipids.markers.hdl;
 lipidRatioData.categories.lipids.markers.cholHdlRatio = marker('Chol/HDL Ratio', '', 0, 5, 3.1);
 const lipidRatioCardio = computeBiologyScores(lipidRatioData).find(score => score.id === 'cardiovascularLipoprotein');
-assert('cardiovascular score accepts schema Lipid Panel Chol/HDL ratio when present directly',
+assert('cardiovascular score accepts legacy Lipid Panel Chol/HDL ratio when present directly',
   lipidRatioCardio.available.some(i => i.key === 'cholHdlRatio' && i.dotKey === 'lipids.cholHdlRatio')
   && !lipidRatioCardio.missing.some(i => i.key === 'cholHdlRatio'),
   JSON.stringify({ available: lipidRatioCardio.available.map(i => [i.key, i.dotKey]), missing: lipidRatioCardio.missing }));

@@ -554,10 +554,12 @@ const state = window._labState;
     date: '2025-06-15',
     markers: {
       'lipids.triglycerides': 1.5,
+      'lipids.cholesterol': 4.5,
       'lipids.hdl': 1.5,
       'lipids.ldl': 3.0,
       'lipids.apoB': 1.0,
       'lipids.apoAI': 1.5,
+      'calculatedRatios.cholHdlRatio': 9.9,
       'differential.neutrophils': 4.0,
       'differential.lymphocytes': 2.0,
       'hematology.platelets': 250,
@@ -578,6 +580,11 @@ const state = window._labState;
   // LDL/HDL = 3.0/1.5 = 2.0
   assert('LDL/HDL ratio is 2.0', cr?.ldlHdlRatio?.values?.[0] === 2.0,
     `expected 2.0, got ${cr?.ldlHdlRatio?.values?.[0]}`);
+
+  // Total Chol/HDL = 4.5/1.5 = 3.0; computed component ratio wins over a direct imported ratio.
+  assert('Total Chol/HDL ratio is computed from components when available',
+    cr?.cholHdlRatio?.values?.[0] === 3.0,
+    `expected 3.0, got ${cr?.cholHdlRatio?.values?.[0]}`);
 
   // ApoB/ApoAI = 1.0/1.5 = 0.667
   assert('ApoB/ApoAI ratio is 0.667', cr?.apoBapoAIRatio?.values?.[0] === 0.667,
@@ -606,6 +613,17 @@ const state = window._labState;
   data = window.getActiveData();
   const tgHdlZero = data.categories.calculatedRatios?.markers?.tgHdlRatio?.values?.[0];
   assert('TG/HDL is null when HDL is zero', tgHdlZero == null, `got ${tgHdlZero}`);
+
+  // ── Direct lab-reported Chol/HDL ratio is retained when components are unavailable ──
+  state.importedData.entries = [{
+    date: '2025-06-15',
+    markers: { 'calculatedRatios.cholHdlRatio': 3.4 }
+  }];
+
+  data = window.getActiveData();
+  const directCholHdl = data.categories.calculatedRatios?.markers?.cholHdlRatio?.values?.[0];
+  assert('Direct imported Chol/HDL ratio is retained when components are missing',
+    directCholHdl === 3.4, `expected 3.4, got ${directCholHdl}`);
 
   // ═══════════════════════════════════════
   // Cleanup

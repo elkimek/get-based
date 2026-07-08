@@ -60,8 +60,12 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   }
   const hormonesBlock = schemaBlock.substring(schemaBlock.indexOf('  hormones:'), schemaBlock.indexOf('  electrolytes:'));
   const diabetesBlock = schemaBlock.substring(schemaBlock.indexOf('  diabetes:'), schemaBlock.indexOf('  tumorMarkers:'));
+  const lipidsBlock = schemaBlock.substring(schemaBlock.indexOf('  lipids:'), schemaBlock.indexOf('  iron:'));
+  const calculatedRatiosBlock = schemaBlock.substring(schemaBlock.indexOf('  calculatedRatios:'));
   assert('C-peptide has one canonical standard schema home under diabetes',
     diabetesBlock.includes('cPeptide: {') && !hormonesBlock.includes('cPeptide: {'));
+  assert('Chol/HDL ratio has one schema home under calculatedRatios',
+    !lipidsBlock.includes('cholHdlRatio: {') && calculatedRatiosBlock.includes('cholHdlRatio: {'));
 
   // ═══════════════════════════════════════
   // 2. SPECIALTY_MARKER_DEFS re-exported from adapters.js

@@ -123,6 +123,20 @@ function isRecognizedUnitForMarker(key, unit) {
 // handles `null` mappedKey/suggestedKey by deriving a safe key from rawName.
 const _SAFE_MARKER_KEY = /^[a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9_]*$/;
 
+const IMPORTABLE_CALCULATED_MARKER_KEYS = new Set([
+  'calculatedRatios.cholHdlRatio',
+]);
+
+function _isImportableCalculatedMarkerKey(key) {
+  if (!IMPORTABLE_CALCULATED_MARKER_KEYS.has(key)) return false;
+  const [catKey, markerKey] = String(key || '').split('.');
+  return !!MARKER_SCHEMA[catKey]?.calculated && !!MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+}
+
+function _hasImportReferenceKey(key, refLookup, existingKeys = null) {
+  return !!refLookup[key] || !!existingKeys?.has?.(key) || _isImportableCalculatedMarkerKey(key);
+}
+
 export function _sanitizeAIMarker(m) {
   if (typeof m.mappedKey === 'string' && !_SAFE_MARKER_KEY.test(m.mappedKey)) m.mappedKey = null;
   if (typeof m.suggestedKey === 'string' && !_SAFE_MARKER_KEY.test(m.suggestedKey)) m.suggestedKey = null;
@@ -391,7 +405,10 @@ const BLOOD_IMPORT_ALIASES = new Map([
   ['lpa', 'lipids.lpA'],
   ['lipoproteina', 'lipids.lpA'],
   ['nonhdl', 'lipids.nonHdl'],
-  ['cholhdl', 'lipids.cholHdlRatio'],
+  ['cholhdl', 'calculatedRatios.cholHdlRatio'],
+  ['cholhdlratio', 'calculatedRatios.cholHdlRatio'],
+  ['cholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
+  ['totalcholesterolhdlratio', 'calculatedRatios.cholHdlRatio'],
   ['zelezo', 'iron.iron'],
   ['ferritin', 'iron.ferritin'],
   ['transferin', 'iron.transferrin'],
@@ -489,7 +506,7 @@ function _knownImportKey(key, testType, refLookup, existingKeys, standardCats) {
   const catKey = key.split('.')[0];
   const standard = standardCats.has(catKey);
   if (testType !== 'blood' && testType !== 'biostarks' && standard) return null;
-  return (refLookup[key] || existingKeys.has(key)) ? key : null;
+  return _hasImportReferenceKey(key, refLookup, existingKeys) ? key : null;
 }
 
 function _buildExistingCustomMarkerNameLookup(existingKeys) {
@@ -627,7 +644,7 @@ function _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSu
   }
   if (!key) return null;
   if (key === 'biochemistry.creatinine' && unit && unit !== normalizeUnitStr('µmol/l')) return null;
-  return refLookup[key] ? key : null;
+  return _hasImportReferenceKey(key, refLookup) ? key : null;
 }
 
 export function reconcileImportMarkerMappings(markers, options = {}) {
@@ -734,7 +751,14 @@ export function buildMarkerReference() {
   const ref = {};
   const isFemale = state.profileSex === 'female';
   for (const [catKey, cat] of Object.entries(MARKER_SCHEMA)) {
-    if (cat.calculated) continue;
+    if (cat.calculated) {
+      for (const [markerKey, marker] of Object.entries(cat.markers)) {
+        const fullKey = `${catKey}.${markerKey}`;
+        if (!_isImportableCalculatedMarkerKey(fullKey)) continue;
+        ref[fullKey] = { name: marker.name, unit: marker.unit, refMin: marker.refMin, refMax: marker.refMax };
+      }
+      continue;
+    }
     for (const [markerKey, marker] of Object.entries(cat.markers)) {
       const rMin = isFemale && marker.refMin_f != null ? marker.refMin_f : marker.refMin;
       const rMax = isFemale && marker.refMax_f != null ? marker.refMax_f : marker.refMax;

@@ -324,7 +324,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'vitamins.methylmalonicAcid', 'diabetes.fructosamine', 'calculatedRatios.cholHdlRatio',
     // Unitless or % — no conversion
     'hormones.fai', 'hormones.freeTestosteronePercentage', 'hormones.bioactiveTestosteronePercentage',
-    'iron.transferrinSat', 'lipids.cholHdlRatio',
+    'iron.transferrinSat',
     // Activity units identical in US/SI
     'hormones.hCG',
     'hematology.rdwcv', 'hematology.hematocrit',

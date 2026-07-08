@@ -439,9 +439,10 @@ const importCssSrc = read('css/import.css');
     && mappingSrc.includes("'homocystein', 'coagulation.homocysteine'")
     && mappingSrc.includes("'reverset3', 'thyroid.reverseT3'")
     && mappingSrc.includes("'ddimer', 'coagulation.dDimer'")
-    && mappingSrc.includes("'cortisol', 'hormones.cortisol'"));
+    && mappingSrc.includes("'cortisol', 'hormones.cortisol'")
+    && mappingSrc.includes("'cholhdl', 'calculatedRatios.cholHdlRatio'"));
 
-  const { reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
+  const { buildMarkerReference, reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
   const { state } = await import('../js/state.js');
   const originalImportedData = state.importedData;
   state.importedData = {
@@ -460,6 +461,10 @@ const importCssSrc = read('css/import.css');
     }
   };
   try {
+    const markerRef = buildMarkerReference();
+    assert('Import reference exposes canonical calculated Chol/HDL ratio only',
+      markerRef['calculatedRatios.cholHdlRatio'] != null
+      && markerRef['lipids.cholHdlRatio'] == null);
     const importMarkers = [
       { rawName: 'S Glukóza', value: 4.56, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.glukoza' },
       { rawName: 'P Hořčík v ery', value: 2.56, unit: 'mmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.magnesiumEry' },
@@ -480,7 +485,8 @@ const importCssSrc = read('css/import.css');
       { rawName: 'Reverse T3', value: 0.33, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.reverseT3' },
       { rawName: 'D-dimer', value: 0.22, unit: 'mg/l FEU', matched: false, mappedKey: null, suggestedKey: 'custom.dDimer' },
       { rawName: 'Cortisol', value: 390, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.cortisol' },
-      { rawName: 'Lp(a)', value: 42, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.lpa' }
+      { rawName: 'Lp(a)', value: 42, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.lpa' },
+      { rawName: 'Total Cholesterol/HDL Ratio', value: 3.4, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.cholHdlRatio' }
     ];
     reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
     assert('Czech glucose reconciles to existing schema marker',
@@ -525,6 +531,9 @@ const importCssSrc = read('css/import.css');
       && importMarkers[18].matched && importMarkers[18].mappedKey === 'hormones.cortisol'
       && importMarkers[19].matched && importMarkers[19].mappedKey === 'lipids.lpA',
       JSON.stringify(importMarkers.slice(16, 20)));
+    assert('Lab-reported total cholesterol/HDL ratio maps to canonical calculated ratio key',
+      importMarkers[20].matched && importMarkers[20].mappedKey === 'calculatedRatios.cholHdlRatio',
+      JSON.stringify(importMarkers[20]));
     const gutMarkers = [
       { rawName: 'Fecal Calprotectin', value: 20, unit: 'µg/g', matched: false, mappedKey: null, suggestedKey: 'custom.fecalCalprotectin' },
       { rawName: 'Zonulin', value: 40, unit: 'ng/ml', matched: false, mappedKey: null, suggestedKey: 'custom.zonulin' },
