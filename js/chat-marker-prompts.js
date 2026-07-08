@@ -12,7 +12,8 @@ import { closeChatModalRuntime } from './chat-runtime.js';
 
 async function openSourcePrompt(prompt, threadName, { closeModal = false } = {}) {
   if (closeModal) closeChatModalRuntime();
-  loadChatThreads();
+  const threadsLoaded = await loadChatThreads();
+  if (threadsLoaded === false) return;
   ensureActiveThread();
   await loadChatHistory();
   if (state.chatHistory.length > 0) {

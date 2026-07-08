@@ -106,12 +106,12 @@ export async function openChatPanel(prefillMessage) {
   if (wsCb) wsCb.checked = getChatWebSearchEnabled();
   updateWebSearchToggleVisibility();
   // Load threads and ensure active thread
-  loadChatThreads();
-  ensureActiveThread();
+  const threadsLoaded = await loadChatThreads();
+  if (threadsLoaded !== false) ensureActiveThread();
   restoreRailState();
   renderThreadList();
   renderSavedSummaries();
-  await loadChatHistory();
+  if (threadsLoaded !== false) await loadChatHistory();
   panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));

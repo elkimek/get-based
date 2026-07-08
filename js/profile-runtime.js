@@ -30,9 +30,9 @@ export async function reloadProfileRuntimeShell(profileId) {
   ]);
 
   chatPersonalities.loadChatPersonality();
-  chatThreads.loadChatThreads?.();
-  if (state.chatThreads.length > 0) chatThreads.ensureActiveThread?.();
-  await chatHistory.loadChatHistory?.();
+  const threadsLoaded = await chatThreads.loadChatThreads?.();
+  if (threadsLoaded !== false && state.chatThreads.length > 0) chatThreads.ensureActiveThread?.();
+  if (threadsLoaded !== false) await chatHistory.loadChatHistory?.();
   if (state.currentProfile !== profileId) return;
 
   chatThreads.renderThreadList?.();

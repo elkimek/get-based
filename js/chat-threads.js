@@ -11,6 +11,7 @@ import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { CHAT_PERSONALITIES } from './constants.js';
+import { encryptedGetItem } from './crypto.js';
 import {
   configureChatThreadSearch, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult,
@@ -24,6 +25,8 @@ const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
+let blockedThreadIndexKey = null;
+let blockedThreadIndexNoticeShown = false;
 const noop = () => {};
 const asyncNoop = async () => {};
 const defaultPersonality = () => ({ name: 'Default', icon: '' });
@@ -76,53 +79,117 @@ function generateThreadId() {
   return 't_' + Date.now().toString(36);
 }
 
+function clearThreadIndexWriteBlock(key) {
+  if (blockedThreadIndexKey !== key) return;
+  blockedThreadIndexKey = null;
+  blockedThreadIndexNoticeShown = false;
+}
+
+function blockThreadIndexWrites(key) {
+  if (blockedThreadIndexKey !== key) blockedThreadIndexNoticeShown = false;
+  blockedThreadIndexKey = key;
+}
+
+function isThreadIndexWriteBlocked(key = getChatThreadsKey()) {
+  return blockedThreadIndexKey === key;
+}
+
+function notifyThreadIndexBlocked() {
+  if (blockedThreadIndexNoticeShown) return;
+  blockedThreadIndexNoticeShown = true;
+  showNotification('Conversations could not be read, so new chat creation is paused to protect saved chats.', 'error', 6000);
+}
+
+function parseThreadIndex(raw) {
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : null;
+}
+
 // ═══════════════════════════════════════════════
 // THREAD INDEX CRUD
 // ═══════════════════════════════════════════════
-export function loadChatThreads() {
-  const raw = localStorage.getItem(getChatThreadsKey());
-  if (raw) {
-    try {
-      state.chatThreads = JSON.parse(raw);
-    } catch { state.chatThreads = []; }
-  } else {
-    // Migration: convert legacy flat chat array to a thread
-    state.chatThreads = [];
-    const legacyKey = `labcharts-${state.currentProfile}-chat`;
-    const legacyRaw = localStorage.getItem(legacyKey);
-    if (legacyRaw) {
-      try {
-        const messages = JSON.parse(legacyRaw);
-        if (Array.isArray(messages) && messages.length > 0) {
-          const threadId = 't_migrated';
-          const now = new Date().toISOString();
-          state.chatThreads = [{
-            id: threadId,
-            name: 'Previous Chat',
-            createdAt: now,
-            updatedAt: now,
-            messageCount: messages.length,
-            personality: state.currentChatPersonality || 'default'
-          }];
-          // Write per-thread messages (plaintext — encryption handled by save)
-          localStorage.setItem(getChatThreadKey(threadId), legacyRaw);
-          saveChatThreadIndex();
-          // Leave legacy key in place for rollback safety
-        }
-      } catch {}
+export async function loadChatThreads() {
+  const key = getChatThreadsKey();
+  const storedRaw = localStorage.getItem(key);
+  if (storedRaw !== null) {
+    let raw = null;
+    try { raw = await encryptedGetItem(key); } catch { raw = null; }
+    if (raw === null) {
+      blockThreadIndexWrites(key);
+      notifyThreadIndexBlocked();
+      return false;
     }
+    try {
+      const threads = parseThreadIndex(raw);
+      if (!threads) throw new Error('Invalid chat thread index');
+      state.chatThreads = threads;
+      clearThreadIndexWriteBlock(key);
+      return true;
+    } catch {
+      blockThreadIndexWrites(key);
+      notifyThreadIndexBlocked();
+      return false;
+    }
+  }
+
+  // Migration: convert legacy flat chat array to a thread.
+  clearThreadIndexWriteBlock(key);
+  state.chatThreads = [];
+  const legacyKey = `labcharts-${state.currentProfile}-chat`;
+  const legacyStoredRaw = localStorage.getItem(legacyKey);
+  if (legacyStoredRaw === null) return true;
+
+  let legacyRaw = null;
+  try { legacyRaw = await encryptedGetItem(legacyKey); } catch { legacyRaw = null; }
+  if (legacyRaw === null) {
+    blockThreadIndexWrites(key);
+    notifyThreadIndexBlocked();
+    return false;
+  }
+  try {
+    const messages = JSON.parse(legacyRaw);
+    if (Array.isArray(messages) && messages.length > 0) {
+      const threadId = 't_migrated';
+      const now = new Date().toISOString();
+      state.chatThreads = [{
+        id: threadId,
+        name: 'Previous Chat',
+        createdAt: now,
+        updatedAt: now,
+        messageCount: messages.length,
+        personality: state.currentChatPersonality || 'default'
+      }];
+      // Write per-thread messages (plaintext — encryption handled by save)
+      localStorage.setItem(getChatThreadKey(threadId), legacyRaw);
+      saveChatThreadIndex();
+      // Leave legacy key in place for rollback safety
+    }
+    return true;
+  } catch {
+    blockThreadIndexWrites(key);
+    notifyThreadIndexBlocked();
+    return false;
   }
 }
 
 export function saveChatThreadIndex({ sync = true } = {}) {
+  if (isThreadIndexWriteBlocked()) {
+    notifyThreadIndexBlocked();
+    return false;
+  }
   localStorage.setItem(getChatThreadsKey(), JSON.stringify(state.chatThreads));
   if (sync) onChatSaved();
+  return true;
 }
 
 export function ensureActiveThread() {
+  if (isThreadIndexWriteBlocked()) {
+    notifyThreadIndexBlocked();
+    return false;
+  }
   if (state.currentThreadId) {
     const exists = state.chatThreads.find(t => t.id === state.currentThreadId);
-    if (exists) return;
+    if (exists) return true;
   }
   // Pick most recent thread or create new
   if (state.chatThreads.length > 0) {
@@ -131,9 +198,14 @@ export function ensureActiveThread() {
   } else {
     createNewThread({ sync: false });
   }
+  return true;
 }
 
 export function createNewThread({ sync = true } = {}) {
+  if (isThreadIndexWriteBlocked()) {
+    notifyThreadIndexBlocked();
+    return null;
+  }
   const id = generateThreadId();
   const now = new Date().toISOString();
   const p = chatThreadDeps.getActivePersonality() || defaultPersonality();

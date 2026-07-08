@@ -42,9 +42,9 @@ console.log('=== Chat Threads Tests ===\n');
 // in backup.js, the thread handlers in chat-threads.js, saveChatHistory /
 // loadChatHistory in chat.js — all exposed via Object.assign(window, ...).
 const stateModule = await import('../js/state.js');
-await import('../js/crypto.js');
+const cryptoModule = await import('../js/crypto.js');
 await import('../js/backup.js');
-await import('../js/chat-threads.js');
+const chatThreadsModule = await import('../js/chat-threads.js');
 await import('../js/chat.js');
 
 const st = stateModule.state;
@@ -157,7 +157,7 @@ const legacyMessages = [
   { role: 'assistant', content: 'Hi there!' }
 ];
 localStorage.setItem(legacyKey, JSON.stringify(legacyMessages));
-window.loadChatThreads();
+await chatThreadsModule.loadChatThreads();
 assert('migration creates 1 thread', st.chatThreads.length === 1);
 assert('migrated thread id is t_migrated', st.chatThreads[0].id === 't_migrated');
 assert('migrated thread named "Previous Chat"', st.chatThreads[0].name === 'Previous Chat');
@@ -193,13 +193,68 @@ assert('messages loaded back', st.chatHistory.length === 2);
 assert('message content matches', st.chatHistory[0].content === 'Test message');
 localStorage.removeItem(window.getChatThreadKey(rtThreadId));
 
-// Section 10 (rail-toggle persistence) + Section 11 (search filtering)
+// ═══════════════════════════════════════════════
+// 10. Encrypted Thread Index Load Guard
+// ═══════════════════════════════════════════════
+console.log('10. Encrypted Thread Index Load Guard');
+const _origWearablesTest = globalThis.__WEARABLES_TEST;
+const _origEncryptionEnabled = localStorage.getItem('labcharts-encryption-enabled');
+const guardedIndexKey = chatThreadsModule.getChatThreadsKey();
+globalThis.__WEARABLES_TEST = true;
+localStorage.setItem('labcharts-encryption-enabled', 'true');
+await cryptoModule._setTestSessionKey('thread-index-passphrase');
+const encryptedThread = {
+  id: 't_encrypted_index',
+  name: 'Encrypted Index',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  messageCount: 3,
+  personality: 'default'
+};
+await cryptoModule.encryptedSetItem(guardedIndexKey, JSON.stringify([encryptedThread]));
+const encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
+assert('thread index can be encrypted at rest', encryptedIndexRaw?.startsWith('v1:'));
+st.chatThreads = [];
+const encryptedLoadResult = await chatThreadsModule.loadChatThreads();
+assert('loadChatThreads decrypts encrypted thread index', encryptedLoadResult === true && st.chatThreads[0]?.id === encryptedThread.id);
+
+await cryptoModule._setTestSessionKey(null);
+st.chatThreads = [{
+  id: 't_memory_guard',
+  name: 'Memory Guard',
+  createdAt: encryptedThread.createdAt,
+  updatedAt: encryptedThread.updatedAt,
+  messageCount: 1,
+  personality: 'default'
+}];
+st.currentThreadId = null;
+const blockedLoadResult = await chatThreadsModule.loadChatThreads();
+assert('locked encrypted thread index reports blocked load', blockedLoadResult === false);
+assert('blocked load preserves in-memory thread list', st.chatThreads.length === 1 && st.chatThreads[0].id === 't_memory_guard');
+st.chatThreads = [];
+const saveWhileBlocked = chatThreadsModule.saveChatThreadIndex();
+assert('blocked thread index refuses overwrite', saveWhileBlocked === false);
+assert('blocked thread index stays untouched on disk', localStorage.getItem(guardedIndexKey) === encryptedIndexRaw);
+chatThreadsModule.ensureActiveThread();
+assert('ensureActiveThread does not create while index is blocked', st.chatThreads.length === 0);
+await sleep(2); chatThreadsModule.createNewThread();
+assert('createNewThread does not create while index is blocked', st.chatThreads.length === 0);
+
+localStorage.removeItem(guardedIndexKey);
+await chatThreadsModule.loadChatThreads();
+await cryptoModule._setTestSessionKey(null);
+if (_origEncryptionEnabled === null) localStorage.removeItem('labcharts-encryption-enabled');
+else localStorage.setItem('labcharts-encryption-enabled', _origEncryptionEnabled);
+if (_origWearablesTest === undefined) delete globalThis.__WEARABLES_TEST;
+else globalThis.__WEARABLES_TEST = _origWearablesTest;
+
+// Section 11 (rail-toggle persistence) + Section 12 (search filtering)
 // live in tests/playwright/chat-threads-dom.spec.js.
 
 // ═══════════════════════════════════════════════
-// 12. Thread Pruning (50 max)
+// 13. Thread Pruning (50 max)
 // ═══════════════════════════════════════════════
-console.log('12. Thread Pruning (50 max)');
+console.log('13. Thread Pruning (50 max)');
 st.chatThreads = [];
 for (let i = 0; i < 55; i++) {
   const ts = new Date(Date.now() - (55 - i) * 60000).toISOString();
@@ -221,9 +276,9 @@ for (let i = 0; i < 55; i++) {
 }
 
 // ═══════════════════════════════════════════════
-// 13. Backup Snapshot
+// 14. Backup Snapshot
 // ═══════════════════════════════════════════════
-console.log('13. Backup Snapshot');
+console.log('14. Backup Snapshot');
 // buildBackupSnapshot() early-returns null when `labcharts-profiles` is
 // absent (backup.js:104). Playwright has the bootstrapped profile registry;
 // in Node we seed a minimal one so the snapshot path runs.
@@ -253,7 +308,7 @@ if (!_origProfiles) localStorage.removeItem('labcharts-profiles');
 else localStorage.setItem('labcharts-profiles', _origProfiles);
 
 // ═══════════════════════════════════════════════
-// 14. Encryption Patterns
+// 15. Encryption Patterns
 // ═══════════════════════════════════════════════
 // crypto.js's SENSITIVE_PATTERNS all anchor on `^labcharts-[^-]+-chat…$`.
 // Real profile ids come from createProfile() as `Date.now().toString(36)`
@@ -266,7 +321,7 @@ else localStorage.setItem('labcharts-profiles', _origProfiles);
 // IS encrypted. The stale assertion is corrected here to match the code;
 // if plaintext-index is the intended design, that's a crypto.js change,
 // not a test one.
-console.log('14. Encryption Patterns');
+console.log('15. Encryption Patterns');
 const _encPid = 'mp567abc';
 assert('isSensitiveKey matches per-thread key', window.isSensitiveKey(`labcharts-${_encPid}-chat-t_abc123`));
 assert('isSensitiveKey matches legacy chat key', window.isSensitiveKey(`labcharts-${_encPid}-chat`));
@@ -274,9 +329,9 @@ assert('isSensitiveKey matches thread index (crypto.js SENSITIVE_PATTERNS)',
   window.isSensitiveKey(`labcharts-${_encPid}-chat-threads`));
 
 // ═══════════════════════════════════════════════
-// 15. Profile Delete Cleanup (source inspection)
+// 16. Profile Delete Cleanup (source inspection)
 // ═══════════════════════════════════════════════
-console.log('15. Profile Delete Cleanup (source inspection)');
+console.log('16. Profile Delete Cleanup (source inspection)');
 const profileSrc = read('js/profile.js');
 const profileRuntimeSrc = read('js/profile-runtime.js');
 assert('deleteProfile removes chat-threads key', profileSrc.includes('chat-threads'));
@@ -287,16 +342,16 @@ assert('loadProfile resets currentThreadId', profileSrc.includes('state.currentT
 assert('loadProfile delegates runtime refresh after profile switch',
   profileSrc.includes('await reloadProfileRuntimeShell(profileId)'));
 assert('profile-runtime reloads active profile chat threads',
-  profileRuntimeSrc.includes('chatThreads.loadChatThreads?.()'));
+  profileRuntimeSrc.includes('await chatThreads.loadChatThreads?.()'));
 assert('profile-runtime reloads active profile chat history',
   profileRuntimeSrc.includes('await chatHistory.loadChatHistory?.()'));
 assert('profile-runtime rerenders chat rail after profile switch',
   profileRuntimeSrc.includes('chatThreads.renderThreadList?.()'));
 
 // ═══════════════════════════════════════════════
-// 16. Thread Search Extraction (source inspection)
+// 17. Thread Search Extraction (source inspection)
 // ═══════════════════════════════════════════════
-console.log('16. Thread Search Extraction (source inspection)');
+console.log('17. Thread Search Extraction (source inspection)');
 const chatThreadsSrc = read('js/chat-threads.js');
 const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatThreadSearchSrc = read('js/chat-thread-search.js');
@@ -346,9 +401,9 @@ assert('chat-threads installs an idempotent click delegate',
   chatThreadsSrc.includes('installChatThreadDelegates();'));
 
 // ═══════════════════════════════════════════════
-// 17. CSS Inspection
+// 18. CSS Inspection
 // ═══════════════════════════════════════════════
-console.log('17. CSS Inspection');
+console.log('18. CSS Inspection');
 const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css'].map(read).join('\n');
 const indexSrc = read('index.html');
 assert('CSS has .chat-thread-rail', cssSrc.includes('.chat-thread-rail'));
@@ -363,9 +418,9 @@ assert('chat thread list is keyboard focusable', indexSrc.includes('id="chat-thr
 assert('CSS has focus-visible thread list outline', cssSrc.includes('.chat-thread-list:focus-visible'));
 
 // ═══════════════════════════════════════════════
-// 18. ensureActiveThread
+// 19. ensureActiveThread
 // ═══════════════════════════════════════════════
-console.log('18. ensureActiveThread');
+console.log('19. ensureActiveThread');
 const chatLockKey = 'labcharts-chat-local-lock-until';
 const previousChatLock = sessionStorage.getItem(chatLockKey);
 sessionStorage.removeItem(chatLockKey);
@@ -390,9 +445,9 @@ window.ensureActiveThread();
 assert('picks most recent thread', st.currentThreadId === 't_new');
 
 // ═══════════════════════════════════════════════
-// 19. Thread Personality
+// 20. Thread Personality
 // ═══════════════════════════════════════════════
-console.log('19. Thread Personality');
+console.log('20. Thread Personality');
 st.chatThreads = [];
 st.currentThreadId = null;
 st.currentChatPersonality = 'house';

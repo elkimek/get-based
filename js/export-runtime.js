@@ -109,7 +109,7 @@ async function refreshChatThreadsRuntime(chatThreads) {
   const renderThreadList = getRuntimeFunction(chatThreads, 'renderThreadList');
   let threadsLoaded = true;
 
-  if (loadChatThreads) await loadChatThreads();
+  if (loadChatThreads) threadsLoaded = await loadChatThreads() !== false;
   else threadsLoaded = await loadChatThreadsFromStorageFallback();
   if (!threadsLoaded) return;
 

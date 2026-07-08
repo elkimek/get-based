@@ -17,10 +17,21 @@ function getRuntimeFunction(name) {
 }
 
 export function refreshPulledChatRuntime() {
-  getRuntimeFunction('loadChatThreads')?.();
-  getRuntimeFunction('ensureActiveThread')?.();
-  getRuntimeFunction('renderThreadList')?.();
-  getRuntimeFunction('loadChatHistory')?.();
+  const finishRefresh = (threadsLoaded) => {
+    if (threadsLoaded === false) {
+      getRuntimeFunction('renderThreadList')?.();
+      return false;
+    }
+    getRuntimeFunction('ensureActiveThread')?.();
+    getRuntimeFunction('renderThreadList')?.();
+    return getRuntimeFunction('loadChatHistory')?.();
+  };
+
+  const loaded = getRuntimeFunction('loadChatThreads')?.();
+  if (loaded && typeof loaded.then === 'function') {
+    return loaded.then(finishRefresh);
+  }
+  return finishRefresh(loaded);
 }
 
 export function rebuildPulledSidebarRuntime() {

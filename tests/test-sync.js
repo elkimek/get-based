@@ -667,7 +667,7 @@ await import('../js/settings.js');
   assert('sync-pull-active-refresh-runtime.js owns active refresh browser hooks',
     syncPullActiveRefreshSrc.includes("from './sync-pull-active-refresh-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(syncPullActiveRefreshSrc)
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("const loaded = getRuntimeFunction('loadChatThreads')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)")
       && syncPullActiveRefreshRuntimeSrc.includes("runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-applied'))"));
@@ -1530,7 +1530,8 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes('if (chatApplied)'));
   assert('active chat thread is reselected after remote thread deletion',
     syncPullActiveRefreshSrc.includes('refreshPulledChatRuntime();')
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("const loaded = getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("if (threadsLoaded === false)")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('ensureActiveThread')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('renderThreadList')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatHistory')?.()"));
