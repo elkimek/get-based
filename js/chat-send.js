@@ -33,7 +33,7 @@ import {
 } from './chat-personalities.js';
 import { saveChatHistory } from './chat-history.js';
 import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
-import { getChatWebSearchEnabled } from './chat-panel.js';
+import { getChatWebSearchEnabled, isChatThreadInputBlocked } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
 } from './chat-discussion.js';
@@ -126,6 +126,10 @@ export function updateSendButtonState() {
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   if (!sendBtn) return;
   const hasContent = (input && input.value.trim()) || hasPendingAttachments();
+  if (input?.disabled && !_chatAbortController) {
+    sendBtn.disabled = true;
+    return;
+  }
   sendBtn.disabled = !hasContent && !_chatAbortController;
 }
 configureChatImages({ updateSendButtonState });
@@ -160,6 +164,7 @@ export async function sendChatMessage() {
     _chatAbortController = null;
     return;
   }
+  if (isChatThreadInputBlocked()) return;
 
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
@@ -175,6 +180,7 @@ export async function sendChatMessage() {
   // Ensure we have a thread
   if (!state.currentThreadId) {
     createNewThread();
+    if (!state.currentThreadId) return;
   }
 
   const discussionState = text && !hasImages ? getCurrentDiscussionState() : null;

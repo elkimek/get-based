@@ -310,7 +310,10 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
   await page.waitForSelector('#chat-panel');
 
   const results = await page.evaluate(async ({ chatPanelUrl }) => {
-    const chatPanel = await import(chatPanelUrl);
+    const [{ state }, chatPanel] = await Promise.all([
+      import('/js/state.js'),
+      import(chatPanelUrl),
+    ]);
     const outcomes = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
@@ -320,14 +323,19 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
     const backdrop = document.getElementById('chat-backdrop');
     const fab = document.getElementById('chat-fab');
     const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send-btn');
     const label = document.querySelector('#chat-panel .chat-websearch-toggle-label');
     const checkbox = document.getElementById('chat-websearch-checkbox');
+    const threadIndexKey = `labcharts-${state.currentProfile}-chat-threads`;
     const original = {
       panelClass: panel?.className,
       backdropClass: backdrop?.className,
       bodyClass: document.body.className,
       fabClass: fab?.className,
       inputValue: input?.value,
+      inputDisabled: input?.disabled,
+      inputPlaceholder: input?.placeholder,
+      sendDisabled: sendBtn?.disabled,
       labelDisplay: label?.style.display,
       checkboxChecked: checkbox?.checked,
       refreshMobileDashboardActiveTab: window.refreshMobileDashboardActiveTab,
@@ -359,6 +367,19 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       chatPanel.refreshWebSearchToggle();
       outcomes.webSearchToggleHidesForUnsupportedProvider = label?.style.display === 'none';
 
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem(threadIndexKey, '{bad json');
+      input?.blur();
+      await chatPanel.openChatPanel('blocked prompt');
+      outcomes.blockedThreadIndexDisablesComposer =
+        input?.disabled === true
+        && sendBtn?.disabled === true
+        && input?.placeholder === 'Conversations are paused to protect saved chats'
+        && document.activeElement !== input;
+
+      chatPanel.closeChatPanel();
+      localStorage.removeItem(threadIndexKey);
+      mobileRefreshes = 0;
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       chatPanel.toggleChatPanel();
       outcomes.togglePanelOpensChrome =
@@ -388,6 +409,9 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       document.body.className = original.bodyClass;
       if (fab && original.fabClass != null) fab.className = original.fabClass;
       if (input && original.inputValue != null) input.value = original.inputValue;
+      if (input && original.inputDisabled != null) input.disabled = original.inputDisabled;
+      if (input && original.inputPlaceholder != null) input.placeholder = original.inputPlaceholder;
+      if (sendBtn && original.sendDisabled != null) sendBtn.disabled = original.sendDisabled;
       if (label && original.labelDisplay != null) label.style.display = original.labelDisplay;
       if (checkbox && original.checkboxChecked != null) checkbox.checked = original.checkboxChecked;
     }

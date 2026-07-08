@@ -19,6 +19,7 @@ export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
 };
+let chatThreadInputBlocked = false;
 
 /** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
@@ -44,6 +45,10 @@ function updateWebSearchToggleVisibility() {
 
 export function refreshWebSearchToggle() {
   updateWebSearchToggleVisibility();
+}
+
+export function isChatThreadInputBlocked() {
+  return chatThreadInputBlocked;
 }
 
 // ═══════════════════════════════════════════════
@@ -107,6 +112,7 @@ export async function openChatPanel(prefillMessage) {
   updateWebSearchToggleVisibility();
   // Load threads and ensure active thread
   const threadsLoaded = await loadChatThreads();
+  chatThreadInputBlocked = threadsLoaded === false;
   if (threadsLoaded !== false) ensureActiveThread();
   restoreRailState();
   renderThreadList();
@@ -115,7 +121,7 @@ export async function openChatPanel(prefillMessage) {
   panelCallbacks.restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  if (input) {
+  if (input && !chatThreadInputBlocked) {
     if (prefillMessage) input.value = prefillMessage;
     input.focus();
   }
@@ -125,13 +131,16 @@ export function updateChatInputState() {
   const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
   const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
   const noAI = !hasAIProvider();
+  const blocked = chatThreadInputBlocked;
   if (input) {
-    input.disabled = noAI;
-    input.placeholder = noAI
-      ? (isAIPaused() ? 'AI features are paused' : 'Connect an AI provider in Settings to chat')
-      : 'Ask about your lab results...';
+    input.disabled = noAI || blocked;
+    input.placeholder = blocked
+      ? 'Conversations are paused to protect saved chats'
+      : noAI
+        ? (isAIPaused() ? 'AI features are paused' : 'Connect an AI provider in Settings to chat')
+        : 'Ask about your lab results...';
   }
-  if (sendBtn) sendBtn.disabled = noAI;
+  if (sendBtn) sendBtn.disabled = noAI || blocked;
   updateWebSearchToggleVisibility();
 }
 
