@@ -183,7 +183,9 @@ export const MARKER_SCHEMA = {
       basophils: { name: "Basophils #", unit: "10^9/l", refMin: 0.0, refMax: 0.2, desc: "The rarest white blood cells involved in allergic reactions and histamine release; markedly elevated in some blood cancers." },
       neutrophilsPct: { name: "Neutrophils %", unit: "", refMin: 0.45, refMax: 0.70, desc: "Proportion of white blood cells that are neutrophils; shifts in percentage help distinguish bacterial from viral infections." },
       lymphocytesPct: { name: "Lymphocytes %", unit: "", refMin: 0.20, refMax: 0.45, desc: "Proportion of white blood cells that are lymphocytes; relatively elevated in viral infections and lymphoproliferative disorders." },
-      monocytesPct: { name: "Monocytes %", unit: "", refMin: 0.02, refMax: 0.12, desc: "Proportion of white blood cells that are monocytes; elevated in chronic inflammation, tuberculosis, and recovery phases." }
+      monocytesPct: { name: "Monocytes %", unit: "", refMin: 0.02, refMax: 0.12, desc: "Proportion of white blood cells that are monocytes; elevated in chronic inflammation, tuberculosis, and recovery phases." },
+      eosinophilsPct: { name: "Eosinophils %", unit: "", refMin: 0.00, refMax: 0.05, desc: "Proportion of white blood cells that are eosinophils; elevated percentages are commonly associated with allergic, asthmatic, and parasitic patterns." },
+      basophilsPct: { name: "Basophils %", unit: "", refMin: 0.00, refMax: 0.02, desc: "Proportion of white blood cells that are basophils; small shifts can appear with allergic inflammation or some myeloproliferative patterns." }
     }
   },
   boneMetabolism: {
@@ -302,6 +304,8 @@ export const UNIT_CONVERSIONS = {
   'differential.neutrophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'differential.lymphocytesPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'differential.monocytesPct': { factor: 100, usUnit: '%', type: 'multiply' },
+  'differential.eosinophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
+  'differential.basophilsPct': { factor: 100, usUnit: '%', type: 'multiply' },
   'boneMetabolism.osteocalcin': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'tumorMarkers.psa': { factor: 1, usUnit: 'ng/ml', type: 'multiply' },
   'tumorMarkers.afp': { factor: 1.21, usUnit: 'ng/ml', type: 'multiply' },

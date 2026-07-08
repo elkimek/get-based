@@ -118,7 +118,7 @@ export async function confirmImport() {
   }
   entry.updatedAt = importTs;
   for (const m of matched) {
-    setLabEntryMarker(entry, m.mappedKey, normalizeToSI(m.mappedKey, m.value, m.unit), {
+    setLabEntryMarker(entry, m.mappedKey, normalizeToSI(m.mappedKey, m.value, m.unit, m), {
       now: importTs,
       source: { file: result.fileName || null, at: importTs, snapshotId },
     });
@@ -148,7 +148,7 @@ export async function confirmImport() {
   }
   // Save new (custom) marker values and definitions
   for (const m of newMarkers) {
-    setLabEntryMarker(entry, m.suggestedKey, normalizeToSI(m.suggestedKey, m.value, m.unit), {
+    setLabEntryMarker(entry, m.suggestedKey, normalizeToSI(m.suggestedKey, m.value, m.unit, m), {
       now: importTs,
       source: { file: result.fileName || null, at: importTs, snapshotId },
     });
@@ -177,8 +177,8 @@ export async function confirmImport() {
       if (m.refMin == null && m.refMax == null) continue;
       const ovr = state.importedData.refOverrides[m.mappedKey] || {};
       // Convert ranges from PDF units to SI (same as marker values)
-      const siMin = m.refMin != null ? normalizeToSI(m.mappedKey, m.refMin, m.unit) : null;
-      const siMax = m.refMax != null ? normalizeToSI(m.mappedKey, m.refMax, m.unit) : null;
+      const siMin = m.refMin != null ? normalizeToSI(m.mappedKey, m.refMin, m.unit, m) : null;
+      const siMax = m.refMax != null ? normalizeToSI(m.mappedKey, m.refMax, m.unit, m) : null;
       // Look up schema default to avoid storing redundant overrides
       const [ck, mk] = m.mappedKey.split('.');
       const schemaDef = MARKER_SCHEMA[ck]?.markers?.[mk];
@@ -289,7 +289,7 @@ function restoreLatestSnapshotMarkerForKey(entry, removedSnapshot, dotKey, now =
   const replacement = findLatestRestorableSnapshotMarker(removedSnapshot.date, removedSnapshot.id, dotKey);
   if (!replacement) return false;
   const { snap, marker } = replacement;
-  setLabEntryMarker(entry, dotKey, normalizeToSI(dotKey, marker.value, marker.unit), {
+  setLabEntryMarker(entry, dotKey, normalizeToSI(dotKey, marker.value, marker.unit, marker), {
     now,
     source: { file: snap.fileName || null, at: snap.importedAt || now, snapshotId: snap.id },
   });

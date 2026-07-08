@@ -70,12 +70,26 @@ console.log(' 2b. Fraction-stored percent imports ');
 
 assert('differential neutrophils 0.609 % stays 0.609 fraction',
   normalizeToSI('differential.neutrophilsPct', 0.609, '%') === 0.609);
+assert('differential neutrophils 0.609 % stays 0.609 even with whole-percent lab range',
+  normalizeToSI('differential.neutrophilsPct', 0.609, '%', { refMin: 45, refMax: 70 }) === 0.609);
 assert('differential neutrophils 60.9 % converts to 0.609 fraction',
   approx(normalizeToSI('differential.neutrophilsPct', 60.9, '%'), 0.609));
+assert('differential lymphocytes 0.332 % stays 0.332 fraction',
+  normalizeToSI('differential.lymphocytesPct', 0.332, '%') === 0.332);
+assert('differential lymphocytes 33.2 % converts to 0.332 fraction',
+  approx(normalizeToSI('differential.lymphocytesPct', 33.2, '%'), 0.332));
 assert('differential monocytes 0.074 PERCENTAGE stays 0.074 fraction',
   normalizeToSI('differential.monocytesPct', 0.074, 'PERCENTAGE') === 0.074);
 assert('differential monocytes 7.4 PERCENTAGE converts to 0.074 fraction',
   approx(normalizeToSI('differential.monocytesPct', 7.4, 'PERCENTAGE'), 0.074));
+assert('differential eosinophils 0.041 % stays 0.041 fraction',
+  normalizeToSI('differential.eosinophilsPct', 0.041, '%') === 0.041);
+assert('differential eosinophils 4.1 % converts to 0.041 fraction',
+  approx(normalizeToSI('differential.eosinophilsPct', 4.1, '%'), 0.041));
+assert('differential basophils 0.006 % stays 0.006 fraction',
+  normalizeToSI('differential.basophilsPct', 0.006, '%') === 0.006);
+assert('differential basophils 0.6 % with whole-percent lab range converts to 0.006 fraction',
+  approx(normalizeToSI('differential.basophilsPct', 0.6, '%', { refMin: 0, refMax: 2 }), 0.006));
 assert('HbA1c percent conversion is unchanged',
   approx(normalizeToSI('diabetes.hba1c', 5.7, '%'), 38.8, 0.5));
 

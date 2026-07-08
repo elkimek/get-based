@@ -62,9 +62,9 @@ const importCssSrc = read('css/import.css');
   assert('pdf-import facade re-exports commit actions',
     /export\s*\{[^}]*confirmImport[^}]*deleteImportSnapshot[^}]*openImportReviewFromSnapshot[^}]*\}\s*from\s*['"]\.\/pdf-import-commit\.js['"]/.test(src));
   assert('matched markers normalized',
-    confirmBlock.includes('normalizeToSI(m.mappedKey, m.value, m.unit)'));
+    confirmBlock.includes('normalizeToSI(m.mappedKey, m.value, m.unit, m)'));
   assert('new (custom) markers normalized',
-    confirmBlock.includes('normalizeToSI(m.suggestedKey, m.value, m.unit)'));
+    confirmBlock.includes('normalizeToSI(m.suggestedKey, m.value, m.unit, m)'));
   assert('confirmImport waits for async save before closing UI',
     commitSrc.includes('export async function confirmImport') && /await\s+saveImportedData\([^)]*\)/.test(confirmBlock));
   assert('PDF import requests immediate sync push after durable save',
@@ -486,7 +486,8 @@ const importCssSrc = read('css/import.css');
       { rawName: 'D-dimer', value: 0.22, unit: 'mg/l FEU', matched: false, mappedKey: null, suggestedKey: 'custom.dDimer' },
       { rawName: 'Cortisol', value: 390, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.cortisol' },
       { rawName: 'Lp(a)', value: 42, unit: 'nmol/l', matched: false, mappedKey: null, suggestedKey: 'custom.lpa' },
-      { rawName: 'Total Cholesterol/HDL Ratio', value: 3.4, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.cholHdlRatio' }
+      { rawName: 'Total Cholesterol/HDL Ratio', value: 3.4, unit: '', matched: false, mappedKey: null, suggestedKey: 'custom.cholHdlRatio' },
+      { rawName: 'Basophils %', value: 0.6, unit: '%', refMin: 0, refMax: 2, matched: false, mappedKey: null, suggestedKey: 'custom.basophilsPct' }
     ];
     reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
     assert('Czech glucose reconciles to existing schema marker',
@@ -523,8 +524,10 @@ const importCssSrc = read('css/import.css');
       importMarkers[13].matched && importMarkers[13].mappedKey === 'differential.lymphocytesPct');
     assert('Differential monocyte percentage label maps to percentage marker despite AI absolute key',
       importMarkers[14].matched && importMarkers[14].mappedKey === 'differential.monocytesPct');
-    assert('Unsupported differential percent does not overwrite absolute-count or stale custom marker',
-      !importMarkers[15].matched && importMarkers[15].mappedKey === null && importMarkers[15].suggestedKey === 'differential.eosinophilsPct');
+    assert('Differential eosinophil percent maps to percentage marker',
+      importMarkers[15].matched && importMarkers[15].mappedKey === 'differential.eosinophilsPct');
+    assert('Differential basophil percent maps to percentage marker',
+      importMarkers[21].matched && importMarkers[21].mappedKey === 'differential.basophilsPct');
     assert('Biology-score specialty-adjacent blood markers reconcile to standard schema keys',
       importMarkers[16].matched && importMarkers[16].mappedKey === 'thyroid.reverseT3'
       && importMarkers[17].matched && importMarkers[17].mappedKey === 'coagulation.dDimer'
@@ -624,6 +627,50 @@ const importCssSrc = read('css/import.css');
     && cPeptideAlias.customMarkers['hormones.cPeptide'] === undefined
     && cPeptideAlias.markerValueNotes['diabetes.cPeptide:2026-05-01'] === 'legacy category');
 
+  const legacyUnsupportedDifferentialPct = {
+    entries: [{
+      date: '2026-05-20',
+      markers: {
+        'differential.eosinophilsPct': 4.1,
+        'differential.basophilsPct': 0.6,
+      },
+      markerSources: {
+        'differential.eosinophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_new_pct' },
+        'differential.basophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_new_pct' },
+      },
+    }],
+    customMarkers: {
+      'differential.eosinophilsPct': { name: 'Eosinophils %', unit: '%', refMin: 0, refMax: 5 },
+      'differential.basophilsPct': { name: 'Basophils %', unit: '%', refMin: 0, refMax: 2 },
+    },
+    importSnapshots: [{
+      id: 'snap_cbc_new_pct',
+      fileName: 'cbc.pdf',
+      date: '2026-05-20',
+      markers: [
+        { rawName: 'Eosinophils %', value: 4.1, unit: '%', suggestedKey: 'differential.eosinophilsPct', matched: false, refMin: 0, refMax: 5 },
+        { rawName: 'Basophils %', value: 0.6, unit: '%', suggestedKey: 'differential.basophilsPct', matched: false, refMin: 0, refMax: 2 },
+      ],
+    }],
+    refOverrides: {
+      'differential.eosinophilsPct': { refMin: 0, refMax: 5, labRefMin: 0, labRefMax: 5, refSource: 'import' },
+      'differential.basophilsPct': { refMin: 0, refMax: 2, labRefMin: 0, labRefMax: 2, refSource: 'import' },
+    },
+  };
+  migrateProfileData(legacyUnsupportedDifferentialPct);
+  assert('Profile migration canonicalizes newly-supported differential percent custom markers',
+    legacyUnsupportedDifferentialPct.entries[0].markers['differential.eosinophilsPct'] === 0.041
+    && legacyUnsupportedDifferentialPct.entries[0].markers['differential.basophilsPct'] === 0.006
+    && legacyUnsupportedDifferentialPct.customMarkers['differential.eosinophilsPct'] === undefined
+    && legacyUnsupportedDifferentialPct.customMarkers['differential.basophilsPct'] === undefined);
+  assert('Profile migration repairs newly-supported differential percent snapshots and ranges',
+    legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].mappedKey === 'differential.eosinophilsPct'
+    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].suggestedKey === null
+    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].matched === true
+    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[1].mappedKey === 'differential.basophilsPct'
+    && legacyUnsupportedDifferentialPct.refOverrides['differential.eosinophilsPct'].refMax === 0.05
+    && legacyUnsupportedDifferentialPct.refOverrides['differential.basophilsPct'].refMax === 0.02);
+
   const dividedDifferentialPct = {
     entries: [{
       date: '2026-06-01',
@@ -631,11 +678,15 @@ const importCssSrc = read('css/import.css');
         'differential.neutrophilsPct': 0.00609,
         'differential.monocytesPct': 0.00074,
         'differential.lymphocytesPct': 0.328,
+        'differential.eosinophilsPct': 0.00041,
+        'differential.basophilsPct': 0.00006,
       },
       markerSources: {
         'differential.neutrophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.monocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.lymphocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
+        'differential.eosinophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
+        'differential.basophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
       },
     }],
     importSnapshots: [{
@@ -646,6 +697,8 @@ const importCssSrc = read('css/import.css');
         { rawName: 'B Neutrofily', value: 0.609, unit: '%', mappedKey: 'differential.neutrophilsPct', matched: true, refMin: 0.45, refMax: 0.70 },
         { rawName: 'B Monocyty', value: 0.074, unit: 'PERCENTAGE', mappedKey: 'differential.monocytesPct', matched: true, refMin: 0.02, refMax: 0.12 },
         { rawName: 'B Lymfocyty', value: 0.328, unit: '%', mappedKey: 'differential.lymphocytesPct', matched: true, refMin: 0.20, refMax: 0.45 },
+        { rawName: 'B Eosinofily', value: 0.041, unit: '%', mappedKey: 'differential.eosinophilsPct', matched: true, refMin: 0.00, refMax: 0.05 },
+        { rawName: 'B Basofily', value: 0.006, unit: '%', mappedKey: 'differential.basophilsPct', matched: true, refMin: 0.00, refMax: 0.02 },
       ],
     }],
     refOverrides: {
@@ -656,7 +709,9 @@ const importCssSrc = read('css/import.css');
   assert('Profile migration repairs fraction-stored differential percent values divided during import',
     dividedDifferentialPct.entries[0].markers['differential.neutrophilsPct'] === 0.609
     && dividedDifferentialPct.entries[0].markers['differential.monocytesPct'] === 0.074
-    && dividedDifferentialPct.entries[0].markers['differential.lymphocytesPct'] === 0.328);
+    && dividedDifferentialPct.entries[0].markers['differential.lymphocytesPct'] === 0.328
+    && dividedDifferentialPct.entries[0].markers['differential.eosinophilsPct'] === 0.041
+    && dividedDifferentialPct.entries[0].markers['differential.basophilsPct'] === 0.006);
   assert('Profile migration repairs divided imported differential percent reference overrides',
     dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMin === 0.45
     && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMax === 0.70
