@@ -267,6 +267,7 @@ async function evaluateBaseChecks(page, theme, viewport) {
         '.brand-mark',
         '.profile-compact-name',
         '.donate-btn',
+        '.donate-option',
         '.dashboard-widget-title',
         '.m-tab small',
         '.m-stat-label',
@@ -442,9 +443,15 @@ async function evaluateBaseChecks(page, theme, viewport) {
         !!document.querySelector('.dashboard-widget[data-widget-id="spotlight"]'));
       ok('desktop Key Trends widget renders compact rows',
         !!document.querySelector('.dashboard-widget[data-widget-id="key-trends"] .db-key-trend-row'));
-      const donate = document.querySelector('.donate-btn');
-      ok('desktop Donate button is visible and not icon-sized',
-        visible(donate) && rect(donate).width >= 64 && rect(donate).height >= 32 && /Donate/.test(donate.textContent || ''),
+      const donate = document.querySelector('.donate-split');
+      const bitcoinDonate = donate?.querySelector('.donate-option-bitcoin');
+      const kofiDonate = donate?.querySelector('.donate-option-kofi');
+      const bitcoinDonateHref = 'https://hydranode.org/btcpay/api/v1/invoices?storeId=BfxZicwEaRcJvJnkBPHdzGuCAonAhwLBb5vbWfjT2ZR1&checkoutDesc=Donate%20to%20getbased.health&price=&currency=USD&redirectURL=https%3A%2F%2Fgetbased.health%2Fthank-you';
+      ok('desktop donation split is visible and not icon-sized',
+        visible(donate) && rect(donate).width >= 120 && rect(donate).height >= 32
+          && bitcoinDonate?.getAttribute('href') === bitcoinDonateHref
+          && kofiDonate?.getAttribute('href') === 'https://ko-fi.com/getbased'
+          && /Bitcoin/.test(bitcoinDonate?.textContent || '') && /Ko-fi/.test(kofiDonate?.textContent || ''),
         donate ? `width=${rect(donate).width.toFixed(1)} height=${rect(donate).height.toFixed(1)} text="${donate.textContent.trim()}"` : 'missing');
       assertNoOverlap('.header > .brand, .header > .header-info, .header > .header-right', 'desktop header regions');
 
