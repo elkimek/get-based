@@ -543,9 +543,11 @@ export function getActiveData() {
         return (n != null && d != null && d !== 0) ? Math.round((n / d) * 1000) / 1000 : null;
       });
     };
+    const directCholHdlVals = getVals('calculatedRatios', 'cholHdlRatio');
     ratios.markers.tgHdlRatio.values = divide(getVals('lipids', 'triglycerides'), getVals('lipids', 'hdl'));
     ratios.markers.ldlHdlRatio.values = divide(getVals('lipids', 'ldl'), getVals('lipids', 'hdl'));
-    ratios.markers.cholHdlRatio.values = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
+    const computedCholHdlVals = divide(getVals('lipids', 'cholesterol'), getVals('lipids', 'hdl'));
+    ratios.markers.cholHdlRatio.values = computedCholHdlVals.map((value, i) => value != null ? value : (directCholHdlVals?.[i] ?? null));
     ratios.markers.apoBapoAIRatio.values = divide(getVals('lipids', 'apoB'), getVals('lipids', 'apoAI'));
     ratios.markers.nlr.values = divide(getVals('differential', 'neutrophils'), getVals('differential', 'lymphocytes'));
     ratios.markers.plr.values = divide(getVals('hematology', 'platelets'), getVals('differential', 'lymphocytes'));
