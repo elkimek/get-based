@@ -8,6 +8,7 @@ import {
   getSunSetupProfileLocation,
   hasSunDefaultsBrowserRuntime,
   hasSunSetupPreciseLocationRequester,
+  invokeSunDefaultsBinding,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
   requestSunSetupPreciseLocationRuntime,
@@ -29,6 +30,7 @@ const runtimeKeys = [
   'openClientList',
   'requestPreciseLocation',
   'navigate',
+  'saveSunSetup',
   'sunDefaultsProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -91,6 +93,21 @@ try {
   exposeSunDefaultsBindings({ sunDefaultsProbe: probe });
   assert('exposeSunDefaultsBindings publishes runtime bindings',
     globalThis.sunDefaultsProbe === probe);
+
+  let localCalls = 0;
+  let runtimeCalls = 0;
+  const localSave = () => { localCalls++; return 'local'; };
+  const runtimeSave = () => { runtimeCalls++; return 'runtime'; };
+  setRuntimeValue('saveSunSetup', runtimeSave);
+  assert('invokeSunDefaultsBinding prefers current runtime binding when replaced',
+    invokeSunDefaultsBinding('saveSunSetup', localSave) === 'runtime' &&
+    runtimeCalls === 1 &&
+    localCalls === 0);
+  setRuntimeValue('saveSunSetup', localSave);
+  assert('invokeSunDefaultsBinding uses local function when it is current',
+    invokeSunDefaultsBinding('saveSunSetup', localSave) === 'local' &&
+    runtimeCalls === 1 &&
+    localCalls === 1);
 
   delete globalThis.getSunCoords;
   delete globalThis.getProfileLocation;
