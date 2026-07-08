@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import {
-  getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem,
+  getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedGetItem, encryptedRemoveItem,
 } from './crypto.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { logSyncEvent } from './sync-state.js';
@@ -139,6 +139,11 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
  */
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
+  if (getEncryptionEnabled() && !isUnlocked()) {
+    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - encryption is locked`);
+    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - encryption locked`);
+    return false;
+  }
   // The thread index is a sensitive key, so writes must use the same encrypted
   // wrapper as normal chat saves.
   const threadsKey = `labcharts-${profileId}-chat-threads`;

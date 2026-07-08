@@ -1425,6 +1425,9 @@ await import('../js/settings.js');
     syncDisableCleanupSrc.includes("key === 'labcharts-sync-restore-join-pending'"));
   assert('applyChatData encrypts thread index writes',
     syncChatApplySrc.includes('await encryptedSetItem(threadsKey, JSON.stringify(mergedThreads))'));
+  assert('applyChatData skips chat writes while encryption is locked',
+    syncChatApplySrc.includes('getEncryptionEnabled() && !isUnlocked()')
+      && syncChatApplySrc.includes('encryption locked'));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
