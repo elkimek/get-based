@@ -40,7 +40,14 @@ assert('quality guardrail tracks inline event attribute budget',
 assert('quality guardrail tracks window global coupling budget',
   guardrailSrc.includes('WINDOW_REF_RE') &&
     guardrailSrc.includes('window(?:\\.|\\s*\\[)') &&
-    Object.hasOwn(baseline, 'windowReferences'));
+    Object.hasOwn(baseline, 'windowReferences') &&
+    baseline.windowReferences === 0);
+assert('quality guardrail tracks window facade assignment budget',
+  guardrailSrc.includes('WINDOW_GLOBAL_ASSIGN_RE') &&
+    guardrailSrc.includes('Object\\.assign\\(\\s*window') &&
+    guardrailSrc.includes('legacyWindowGlobalAssignments') &&
+    Object.hasOwn(baseline, 'windowGlobalAssignments') &&
+    Object.hasOwn(baseline, 'legacyWindowGlobalAssignments'));
 const forbiddenAppEventWindowGlobals = [
   'closeModal',
   'toggleChatPanel',

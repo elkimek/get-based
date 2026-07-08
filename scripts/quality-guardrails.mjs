@@ -12,6 +12,7 @@ const SYNTAX_DIRS = ['js', 'api', 'scripts'];
 const APP_JS_DIR = path.join(ROOT, 'js');
 const INLINE_EVENT_RE = /\bon(?:click|keydown|change|input|submit)=["']/g;
 const WINDOW_REF_RE = /\bwindow(?:\.|\s*\[)/g;
+const WINDOW_GLOBAL_ASSIGN_RE = /Object\.assign\(\s*window\b/g;
 // Keep this value in sync with the baseline key name largeJsFilesOver800Lines.
 const LARGE_FILE_LINE_LIMIT = 800;
 
@@ -56,14 +57,19 @@ function collectAppMetrics() {
   const files = walkFiles(APP_JS_DIR, new Set(['.js']));
   let inlineEventAttributes = 0;
   let windowReferences = 0;
+  let windowGlobalAssignments = 0;
+  let legacyWindowGlobalAssignments = 0;
   const largeFiles = [];
   let largestFile = { file: '', lines: 0 };
 
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
     const lines = source.split('\n').length;
+    const windowAssignmentCount = countMatches(source, WINDOW_GLOBAL_ASSIGN_RE);
     inlineEventAttributes += countMatches(source, INLINE_EVENT_RE);
     windowReferences += countMatches(source, WINDOW_REF_RE);
+    windowGlobalAssignments += windowAssignmentCount;
+    if (!file.endsWith('-window-bindings.js')) legacyWindowGlobalAssignments += windowAssignmentCount;
     if (lines >= LARGE_FILE_LINE_LIMIT) largeFiles.push({ file: repoRel(file), lines });
     if (lines > largestFile.lines) largestFile = { file: repoRel(file), lines };
   }
@@ -72,6 +78,8 @@ function collectAppMetrics() {
   return {
     inlineEventAttributes,
     windowReferences,
+    windowGlobalAssignments,
+    legacyWindowGlobalAssignments,
     largeJsFilesOver800Lines: largeFiles.length,
     largestFile,
     largeFiles,
@@ -118,6 +126,8 @@ function main() {
 
   compareBudget('inline event attributes in js/', metrics.inlineEventAttributes, baseline.inlineEventAttributes);
   compareBudget('window global references in js/', metrics.windowReferences, baseline.windowReferences);
+  compareBudget('window global assignments in js/', metrics.windowGlobalAssignments, baseline.windowGlobalAssignments);
+  compareBudget('legacy window global assignments in js/', metrics.legacyWindowGlobalAssignments, baseline.legacyWindowGlobalAssignments);
   compareBudget('large JS files (>=800 lines)', metrics.largeJsFilesOver800Lines, baseline.largeJsFilesOver800Lines);
 
   if (metrics.largestFile.lines <= baseline.maxJsFileLines) {
