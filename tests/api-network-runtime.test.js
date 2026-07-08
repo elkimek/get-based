@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import commitHandler from '../api/commit.js';
 import proxyHandler from '../api/proxy.js';
+import {
+  PROXY_MAX_REQUEST_BYTES,
+  PROXY_MAX_RESPONSE_BYTES,
+} from '../lib/proxy-policy.js';
 import shareHandler from '../api/share.js';
 
 const realFetch = globalThis.fetch;
@@ -371,6 +375,121 @@ describe('AI proxy runtime behavior', () => {
     }));
     expect(failed.status).toBe(502);
     expect(await responseJson(failed)).toEqual({ error: 'Upstream error: offline' });
+  });
+
+  it('preserves provider-compatible headers for proxied custom API calls', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+
+    const modelList = await proxyHandler(makeProxyRequest({
+      url: 'https://custom.example.com/v1/models',
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer custom-key',
+        'api-key': 'azure-key',
+        'OpenAI-Organization': 'org_123',
+        'OpenAI-Project': 'proj_123',
+      },
+    }));
+    expect(modelList.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://custom.example.com/v1/models', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer custom-key',
+        'api-key': 'azure-key',
+        'OpenAI-Organization': 'org_123',
+        'OpenAI-Project': 'proj_123',
+      },
+    });
+
+    const chatBody = JSON.stringify({
+      model: 'openai/gpt-5.5',
+      messages: [{ role: 'user', content: 'hello' }],
+      max_completion_tokens: 32,
+    });
+    const chat = await proxyHandler(makeProxyRequest({
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      headers: {
+        Authorization: 'Bearer sk-or',
+        'HTTP-Referer': 'https://app.getbased.health',
+        'X-Title': 'getbased',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': 'anthropic-key',
+      },
+      body: chatBody,
+    }));
+    expect(chat.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenLastCalledWith('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer sk-or',
+        'HTTP-Referer': 'https://app.getbased.health',
+        'X-Title': 'getbased',
+        'anthropic-version': '2023-06-01',
+        'x-api-key': 'anthropic-key',
+        'Content-Type': 'application/json',
+      },
+      body: chatBody,
+    });
+  });
+
+  it('constrains the generic proxy envelope before forwarding upstream', async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+
+    const badMethod = await proxyHandler(makeProxyRequest({
+      url: 'https://models.example.com/v1/delete',
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer key' },
+    }));
+    expect(badMethod.status).toBe(405);
+    expect(await responseJson(badMethod)).toEqual({ error: 'Proxy method not allowed' });
+
+    const badHeader = await proxyHandler(makeProxyRequest({
+      url: 'https://models.example.com/v1/chat',
+      headers: { Host: 'metadata.google.internal' },
+    }));
+    expect(badHeader.status).toBe(400);
+    expect(await responseJson(badHeader)).toEqual({ error: 'Proxy header not allowed: Host' });
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    const oversizedRequest = await proxyHandler(makeProxyRequest(undefined, {
+      rawBody: '{"pad":"' + 'x'.repeat(PROXY_MAX_REQUEST_BYTES + 1) + '"}',
+    }));
+    expect(oversizedRequest.status).toBe(413);
+    expect(await responseJson(oversizedRequest)).toEqual({ error: 'Proxy request body too large' });
+
+    globalThis.fetch = vi.fn(async () => new Response('{}', {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'content-length': String(PROXY_MAX_RESPONSE_BYTES + 1),
+      },
+    }));
+    const oversizedResponse = await proxyHandler(makeProxyRequest({
+      url: 'https://models.example.com/v1/chat',
+      headers: { Authorization: 'Bearer key' },
+    }));
+    expect(oversizedResponse.status).toBe(502);
+    expect(await responseJson(oversizedResponse)).toEqual({
+      error: 'Upstream error: Proxy response exceeds size cap',
+    });
+
+    globalThis.fetch = vi.fn(async () => jsonResponse({ ok: true }));
+    const put = await proxyHandler(makeProxyRequest({
+      url: 'https://www.polaraccesslink.com/v3/users/u/activity-transactions/t',
+      method: 'PUT',
+      headers: { Authorization: 'Bearer polar' },
+    }));
+    expect(put.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://www.polaraccesslink.com/v3/users/u/activity-transactions/t',
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bearer polar',
+          'Content-Type': 'application/json',
+        },
+      },
+    );
   });
 
   it('relays wearable OAuth token requests with server-side secrets', async () => {

@@ -275,8 +275,11 @@ assert('SW keeps same-origin localhost eligible for offline app-shell handling',
 // ─── 17. Proxy supports GET passthrough ───
 console.log('\n17. Proxy GET support');
 const proxySrc = read('api/proxy.js');
+const proxyPolicySrc = read('lib/proxy-policy.js');
 assert('proxy extracts method field', proxySrc.includes('method: upstreamMethod'));
-assert('proxy defaults to POST', proxySrc.includes("upstreamMethod || 'POST'"));
+assert('proxy defaults to POST through shared method policy',
+  proxySrc.includes('normalizeProxyMethod(upstreamMethod)')
+  && proxyPolicySrc.includes("String(method || 'POST')"));
 assert('proxy skips body for GET', proxySrc.includes("fetchMethod !== 'GET'"));
 assert('_customApiFetchModels uses proxy', apiCustomSrc.includes('function _customApiFetchModels('));
 assert('_customApiFetchModels bases proxy decision on explicit URL', apiCustomSrc.includes('shouldProxyCustomApiUrl(url)'));

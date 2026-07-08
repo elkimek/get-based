@@ -37,9 +37,15 @@ import {
   _browserLaunchCandidates,
   openDevBrowser,
   _sendProfileShareJSON,
+  _sendCappedProxyResponse,
   _validateProfileShareEnvelope,
   _handleProfileShareDev,
 } from '../dev-server.js';
+import {
+  PROXY_MAX_RESPONSE_BYTES,
+  normalizeProxyMethod,
+  sanitizeProxyHeaders,
+} from '../lib/proxy-policy.js';
 
 let passed = 0, failed = 0;
 const DEV_SERVER_PORT = parseInt(process.argv[2], 10) || 8000;
@@ -57,6 +63,30 @@ function assertThrows(name, fn, pattern) {
     const message = String(err?.message || err);
     assert(name, pattern ? pattern.test(message) : true, message);
   }
+}
+function makeMockResponse() {
+  return {
+    status: null,
+    headers: null,
+    chunks: [],
+    headersSent: false,
+    ended: false,
+    writeHead(status, headers) {
+      this.status = status;
+      this.headers = headers;
+      this.headersSent = true;
+    },
+    end(chunk = '') {
+      if (chunk) this.chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+      this.ended = true;
+    },
+    text() {
+      return Buffer.concat(this.chunks).toString();
+    },
+  };
+}
+function makeMockRequest(origin = LOOPBACK_ORIGIN) {
+  return { headers: { origin } };
 }
 
 console.log('\n── parseEnvLocal ──');
@@ -257,6 +287,76 @@ assert('blocks 6to4 private IP',       !_isAllowedProxyUrl('https://[2002:c0a8:0
 assert('blocks cloud metadata',        !_isAllowedProxyUrl('https://169.254.169.254/latest/meta-data/'));
 assert('blocks .local',                !_isAllowedProxyUrl('https://box.local/admin'));
 assert('blocks malformed URL',         !_isAllowedProxyUrl('not a url'));
+
+console.log('\n── shared proxy request policy ──');
+
+assert('proxy method policy allows current app method set',
+  normalizeProxyMethod('GET') === 'GET'
+  && normalizeProxyMethod('post') === 'POST'
+  && normalizeProxyMethod('PUT') === 'PUT');
+assert('proxy method policy rejects unused tunnel methods',
+  normalizeProxyMethod('DELETE') === null
+  && normalizeProxyMethod('PATCH') === null);
+{
+  const sanitized = sanitizeProxyHeaders({
+    Authorization: 'Bearer token',
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    'x-api-key': 'custom-key',
+  });
+  assert('proxy header policy preserves allowed API headers',
+    sanitized.ok
+      && sanitized.headers.Authorization === 'Bearer token'
+      && sanitized.headers.Accept === 'application/json'
+      && sanitized.headers['Content-Type'] === 'application/json'
+      && sanitized.headers['x-api-key'] === 'custom-key',
+    JSON.stringify(sanitized));
+}
+assert('proxy header policy rejects hop-by-hop headers',
+  sanitizeProxyHeaders({ Host: 'metadata.google.internal' }).ok === false
+  && sanitizeProxyHeaders({ 'X-Forwarded-Host': 'metadata.google.internal' }).ok === false);
+assert('proxy header policy rejects CRLF header injection',
+  sanitizeProxyHeaders({ Authorization: 'Bearer ok\r\nX-Bad: yes' }).ok === false);
+{
+  const upstream = new EventEmitter();
+  upstream.headers = { 'content-type': 'text/plain' };
+  upstream.statusCode = 201;
+  upstream.destroy = () => {};
+  const res = makeMockResponse();
+  _sendCappedProxyResponse(makeMockRequest(), res, upstream);
+  upstream.emit('data', Buffer.from('hello'));
+  assert('dev proxy waits to send unknown-length upstream headers until body cap is known',
+    res.headersSent === false && res.ended === false);
+  upstream.emit('end');
+  assert('dev proxy forwards complete unknown-length upstream response',
+    res.status === 201
+      && res.headers['Content-Type'] === 'text/plain'
+      && res.headers['Access-Control-Allow-Origin'] === LOOPBACK_ORIGIN
+      && res.text() === 'hello',
+    `${res.status} ${JSON.stringify(res.headers)} ${res.text()}`);
+}
+{
+  let destroyed = false;
+  const upstream = new EventEmitter();
+  upstream.headers = { 'content-type': 'application/json' };
+  upstream.statusCode = 200;
+  upstream.destroy = () => { destroyed = true; };
+  const res = makeMockResponse();
+  _sendCappedProxyResponse(makeMockRequest(), res, upstream);
+  upstream.emit('data', Buffer.alloc(PROXY_MAX_RESPONSE_BYTES));
+  assert('dev proxy does not send a partial success response at exactly the cap',
+    res.headersSent === false && res.ended === false);
+  upstream.emit('data', Buffer.alloc(1));
+  assert('dev proxy returns explicit 502 when unknown-length upstream exceeds cap',
+    res.status === 502
+      && destroyed
+      && res.headers['Content-Type'] === 'application/json'
+      && res.text() === '{"error":"Proxy response exceeds size cap"}',
+    `${res.status} ${JSON.stringify(res.headers)} ${res.text()}`);
+  upstream.emit('end');
+  assert('dev proxy cap failure is not overwritten by upstream end',
+    res.status === 502 && res.text() === '{"error":"Proxy response exceeds size cap"}');
+}
 
 console.log('\n── origin/CORS/profile share helpers ──');
 

@@ -14,6 +14,14 @@ import { fileURLToPath } from 'node:url';
 import { execFile, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import {
+  PROXY_MAX_REQUEST_BYTES,
+  PROXY_MAX_RESPONSE_BYTES,
+  isAllowedProxyUrl,
+  isProxyHostBlocked,
+  normalizeProxyMethod,
+  sanitizeProxyHeaders,
+} from './lib/proxy-policy.js';
 
 export const DEFAULT_UVDATA_UPSTREAM = 'https://uvdata.getbased.health';
 
@@ -302,87 +310,9 @@ if (fs.existsSync(ENV_LOCAL)) {
   console.log(`Loaded .env.local (${Object.keys(process.env).filter(k => k.endsWith('_CLIENT_SECRET')).length} secrets visible)`);
 }
 
-// ─── Proxy SSRF guard — mirrors api/proxy.js ALLOWED_ORIGINS + _isBlockedHost
-// Keep in sync with api/proxy.js when adding new vendor hosts.
-const _PROXY_ALLOWED_ORIGINS = [
-  'https://openrouter.ai/',
-  'https://api.venice.ai/',
-  'https://api.routstr.com/',
-  'https://api.ppq.ai/',
-  'https://api.ouraring.com/',
-  'https://api.prod.whoop.com/',
-  'https://partner.ultrahuman.com/',
-  'https://wbsapi.withings.net/',
-  'https://api.fitbit.com/',
-  'https://www.polaraccesslink.com/',
-  'https://polarremote.com/',
-];
-export function _proxyHostBlocked(host) {
-  if (!host) return true;
-  const h = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-  if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true;
-  if (h.endsWith('.local') || h.endsWith('.localhost')) return true;
-  if (h === '168.63.129.16') return true;
-  // IPv6 literal: same allowlist-only-2000::/3 strategy as api/proxy.js
-  if (h.includes(':')) {
-    const lower = h.toLowerCase();
-    if (lower === '::' || lower === '0:0:0:0:0:0:0:0') return true;
-    if (/^fc[0-9a-f]{2}:/.test(lower) || /^fd[0-9a-f]{2}:/.test(lower)) return true;
-    if (/^fe[89ab][0-9a-f]:/.test(lower)) return true;
-    const v4Embed = lower.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-    if (v4Embed) return _proxyHostBlocked(v4Embed[1]);
-    if (lower.startsWith('::ffff:')) {
-      const tail = lower.slice(7);
-      const groups = tail.split(':');
-      if (groups.length === 2 && groups.every(g => /^[0-9a-f]{1,4}$/.test(g))) {
-        const g0 = parseInt(groups[0], 16);
-        const g1 = parseInt(groups[1], 16);
-        const a = (g0 >> 8) & 0xff;
-        const b = g0 & 0xff;
-        const c = (g1 >> 8) & 0xff;
-        const d = g1 & 0xff;
-        return _proxyHostBlocked(`${a}.${b}.${c}.${d}`);
-      }
-    }
-    const sixToFour = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/.exec(lower);
-    if (sixToFour) {
-      const g0 = parseInt(sixToFour[1], 16);
-      const g1 = parseInt(sixToFour[2], 16);
-      const a = (g0 >> 8) & 0xff;
-      const b = g0 & 0xff;
-      const c = (g1 >> 8) & 0xff;
-      const d = g1 & 0xff;
-      return _proxyHostBlocked(`${a}.${b}.${c}.${d}`);
-    }
-    return !/^[23][0-9a-f]{3}:/.test(lower);
-  }
-  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (!m) return false;
-  for (let i = 1; i <= 4; i++) {
-    const octet = m[i];
-    if (octet.length > 1 && octet[0] === '0') return true;
-    const n = +octet;
-    if (n > 255) return true;
-  }
-  const a = +m[1], b = +m[2];
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  if (a === 0) return true;
-  return false;
-}
-export function _isAllowedProxyUrl(url) {
-  if (_PROXY_ALLOWED_ORIGINS.some(o => url.startsWith(o))) return true;
-  try {
-    const u = new URL(url);
-    if (u.protocol !== 'https:') return false;
-    if (_proxyHostBlocked(u.hostname)) return false;
-    return true;
-  } catch { return false; }
-}
+// ─── Proxy SSRF guard — shared with api/proxy.js
+export const _proxyHostBlocked = isProxyHostBlocked;
+export const _isAllowedProxyUrl = isAllowedProxyUrl;
 
 const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript',
@@ -591,6 +521,45 @@ const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
 export function _sendProfileShareJSON(req, res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
   res.end(JSON.stringify(body));
+}
+export function _sendCappedProxyResponse(req, res, proxyRes) {
+  const ct = proxyRes.headers?.['content-type'] || 'application/json';
+  const contentLength = parseInt(proxyRes.headers?.['content-length'] || '0', 10);
+  const proxyCorsHeaders = { ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
+  const fail = (message) => {
+    try { proxyRes.destroy?.(); } catch {}
+    res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+    res.end(JSON.stringify({ error: message }));
+  };
+  if (contentLength > PROXY_MAX_RESPONSE_BYTES) {
+    fail('Proxy response exceeds size cap');
+    return;
+  }
+  const chunks = [];
+  let responseBytes = 0;
+  let finished = false;
+  proxyRes.on('data', chunk => {
+    if (finished) return;
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    responseBytes += buf.length;
+    if (responseBytes > PROXY_MAX_RESPONSE_BYTES) {
+      finished = true;
+      fail('Proxy response exceeds size cap');
+      return;
+    }
+    chunks.push(buf);
+  });
+  proxyRes.on('end', () => {
+    if (finished) return;
+    finished = true;
+    res.writeHead(proxyRes.statusCode || 200, { 'Content-Type': ct, ...proxyCorsHeaders });
+    res.end(Buffer.concat(chunks, responseBytes));
+  });
+  proxyRes.on('error', (e) => {
+    if (finished) return;
+    finished = true;
+    fail('Upstream error: ' + (e?.message || e));
+  });
 }
 export function _validateProfileShareEnvelope(envelope) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) throw new Error('Missing encrypted profile payload.');
@@ -967,8 +936,22 @@ const server = http.createServer((req, res) => {
   // API: AI proxy — mirrors Vercel Edge Function for local CORS bypass
   if (pathname === '/api/proxy' && req.method === 'POST') {
     let body = '';
-    req.on('data', chunk => body += chunk);
+    let bytes = 0;
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      bytes += chunk.length;
+      if (bytes > PROXY_MAX_REQUEST_BYTES) {
+        aborted = true;
+        res.writeHead(413, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+        res.end('{"error":"Proxy request body too large"}');
+        req.destroy();
+        return;
+      }
+      body += chunk;
+    });
     req.on('end', () => {
+      if (aborted) return;
       try {
         const payload = JSON.parse(body);
 
@@ -1239,19 +1222,26 @@ const server = http.createServer((req, res) => {
         }
         const parsedUrl = new URL(targetUrl);
         const mod = parsedUrl.protocol === 'https:' ? https : http;
-        const fetchMethod = (upMethod || 'POST').toUpperCase();
+        const fetchMethod = normalizeProxyMethod(upMethod);
+        if (!fetchMethod) {
+          res.writeHead(405, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+          res.end('{"error":"Proxy method not allowed"}'); return;
+        }
+        const safeHeaders = sanitizeProxyHeaders(fwdHeaders);
+        if (!safeHeaders.ok) {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
+          res.end(JSON.stringify({ error: safeHeaders.error })); return;
+        }
         // Caller-provided headers win. We fall back to application/json ONLY
         // if the caller didn't supply a Content-Type — otherwise Fitbit / any
         // form-urlencoded token endpoint breaks (it gets our form body tagged
         // as JSON and can't parse the `client_id` out). Matches the spread
         // order already used in api/proxy.js.
-        const reqHeaders = { ...fwdHeaders };
+        const reqHeaders = { ...safeHeaders.headers };
         const hasCT = Object.keys(reqHeaders).some(k => k.toLowerCase() === 'content-type');
         if (fetchMethod !== 'GET' && !hasCT) reqHeaders['Content-Type'] = 'application/json';
         const proxyReq = mod.request(targetUrl, { method: fetchMethod, headers: reqHeaders }, (proxyRes) => {
-          const ct = proxyRes.headers['content-type'] || 'application/json';
-          res.writeHead(proxyRes.statusCode, { 'Content-Type': ct, ...corsHeaders(req), 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
-          proxyRes.pipe(res);
+          _sendCappedProxyResponse(req, res, proxyRes);
         });
         proxyReq.on('error', (e) => {
           res.writeHead(502, { 'Content-Type': 'application/json', ...corsHeaders(req) });
