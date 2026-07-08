@@ -64,6 +64,22 @@ assert('testosterone nmol/L passes through', normalizeToSI('hormones.testosteron
 assert('SI passthrough is case-insensitive (mmol/L vs schema mmol/l)', normalizeToSI('biochemistry.glucose', 5.5, 'MMOL/L') === 5.5);
 
 // ═══════════════════════════════════════════════
+// 2b. Fraction-stored percent imports
+// ═══════════════════════════════════════════════
+console.log(' 2b. Fraction-stored percent imports ');
+
+assert('differential neutrophils 0.609 % stays 0.609 fraction',
+  normalizeToSI('differential.neutrophilsPct', 0.609, '%') === 0.609);
+assert('differential neutrophils 60.9 % converts to 0.609 fraction',
+  approx(normalizeToSI('differential.neutrophilsPct', 60.9, '%'), 0.609));
+assert('differential monocytes 0.074 PERCENTAGE stays 0.074 fraction',
+  normalizeToSI('differential.monocytesPct', 0.074, 'PERCENTAGE') === 0.074);
+assert('differential monocytes 7.4 PERCENTAGE converts to 0.074 fraction',
+  approx(normalizeToSI('differential.monocytesPct', 7.4, 'PERCENTAGE'), 0.074));
+assert('HbA1c percent conversion is unchanged',
+  approx(normalizeToSI('diabetes.hba1c', 5.7, '%'), 38.8, 0.5));
+
+// ═══════════════════════════════════════════════
 // 3. Unknown explicit-unit passthrough (no heuristic guessing)
 // ═══════════════════════════════════════════════
 console.log(' 3. Unknown explicit-unit passthrough ');
