@@ -1,4 +1,10 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "**": false
+    }
+  },
   "buildCommand": "node scripts/fetch-catalog.mjs",
   "outputDirectory": ".",
   "routes": [
