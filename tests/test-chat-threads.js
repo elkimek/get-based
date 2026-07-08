@@ -212,11 +212,20 @@ const encryptedThread = {
   personality: 'default'
 };
 await cryptoModule.encryptedSetItem(guardedIndexKey, JSON.stringify([encryptedThread]));
-const encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
+let encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
 assert('thread index can be encrypted at rest', encryptedIndexRaw?.startsWith('v1:'));
 st.chatThreads = [];
 const encryptedLoadResult = await chatThreadsModule.loadChatThreads();
 assert('loadChatThreads decrypts encrypted thread index', encryptedLoadResult === true && st.chatThreads[0]?.id === encryptedThread.id);
+st.chatThreads[0].name = 'Encrypted Index Saved';
+const encryptedSaveResult = await chatThreadsModule.saveChatThreadIndex({ sync: false });
+encryptedIndexRaw = localStorage.getItem(guardedIndexKey);
+const encryptedSavedPlaintext = await cryptoModule.encryptedGetItem(guardedIndexKey);
+const encryptedSavedThreads = JSON.parse(encryptedSavedPlaintext || '[]');
+assert('saveChatThreadIndex keeps unlocked encrypted index encrypted',
+  encryptedSaveResult === true && encryptedIndexRaw?.startsWith('v1:'));
+assert('saveChatThreadIndex encrypted write round-trips index JSON',
+  encryptedSavedThreads[0]?.name === 'Encrypted Index Saved');
 
 await cryptoModule._setTestSessionKey(null);
 st.chatThreads = [{

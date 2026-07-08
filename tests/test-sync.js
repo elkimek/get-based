@@ -1423,8 +1423,8 @@ await import('../js/settings.js');
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
   assert('disableSync clears restore-join pending marker',
     syncDisableCleanupSrc.includes("key === 'labcharts-sync-restore-join-pending'"));
-  assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
-    syncChatApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
+  assert('applyChatData encrypts thread index writes',
+    syncChatApplySrc.includes('await encryptedSetItem(threadsKey, JSON.stringify(mergedThreads))'));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
@@ -1520,7 +1520,9 @@ await import('../js/settings.js');
       && syncChatApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
       && syncChatApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
   assert('applyChatData skips stale remote chat while local save is fresh',
-    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('shouldKeepLocalChatData(profileId)'));
+    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('await shouldKeepLocalChatData(profileId)'));
+  assert('applyChatData local freshness guard reads encrypted thread indexes',
+    syncChatApplySrc.includes('await encryptedGetItem(key) || localStorage.getItem(key)'));
   assert('chat freshness lock is shorter than two minutes',
     syncChatApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('skipped chat pulls retry after the local freshness lock expires',

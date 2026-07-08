@@ -50,7 +50,7 @@ export async function saveChatHistory() {
     const p = getActivePersonality();
     thread.personalityName = p.name;
     thread.personalityIcon = p.icon;
-    saveChatThreadIndex();
+    await saveChatThreadIndex();
     renderThreadList();
   }
 }
@@ -68,7 +68,7 @@ export async function clearChatHistory() {
         delete thread.summaryDate;
         delete thread.summaryModel;
         delete thread.summaryCost;
-        saveChatThreadIndex();
+        await saveChatThreadIndex();
         renderThreadList();
         if (state.importedData.chatSummaries) {
           deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.threadId === state.currentThreadId);

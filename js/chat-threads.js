@@ -11,7 +11,7 @@ import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { CHAT_PERSONALITIES } from './constants.js';
-import { encryptedGetItem } from './crypto.js';
+import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import {
   configureChatThreadSearch, filterThreadList,
   invalidateThreadContentCache, jumpToSearchResult,
@@ -159,9 +159,8 @@ export async function loadChatThreads() {
         messageCount: messages.length,
         personality: state.currentChatPersonality || 'default'
       }];
-      // Write per-thread messages (plaintext — encryption handled by save)
-      localStorage.setItem(getChatThreadKey(threadId), legacyRaw);
-      saveChatThreadIndex();
+      await encryptedSetItem(getChatThreadKey(threadId), legacyRaw);
+      await saveChatThreadIndex();
       // Leave legacy key in place for rollback safety
     }
     return true;
@@ -177,9 +176,18 @@ export function saveChatThreadIndex({ sync = true } = {}) {
     notifyThreadIndexBlocked();
     return false;
   }
-  localStorage.setItem(getChatThreadsKey(), JSON.stringify(state.chatThreads));
-  if (sync) onChatSaved();
-  return true;
+  const key = getChatThreadsKey();
+  const value = JSON.stringify(state.chatThreads);
+  return encryptedSetItem(key, value)
+    .then(() => {
+      if (sync) onChatSaved();
+      return true;
+    })
+    .catch((err) => {
+      console.warn('[chat-threads] failed to save thread index', err?.message || err);
+      showNotification('Could not save conversation list', 'error');
+      return false;
+    });
 }
 
 export function ensureActiveThread() {
@@ -263,7 +271,7 @@ export async function deleteThread(threadId) {
     recordDeletedChatThread(threadId);
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
-    saveChatThreadIndex();
+    await saveChatThreadIndex();
     // Remove per-thread messages
     localStorage.removeItem(getChatThreadKey(threadId));
     // Remove saved summary
