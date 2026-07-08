@@ -43,7 +43,6 @@ beforeEach(() => {
   globalThis.requestAnimationFrame = window.requestAnimationFrame;
   window.renderProfileButton = vi.fn();
   window.showNotification = vi.fn();
-  window.hasAIProvider = vi.fn(() => false);
   window.exportAllDataJSON = vi.fn();
   window.exportClientJSON = vi.fn();
   window.importDataJSON = vi.fn();

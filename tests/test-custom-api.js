@@ -28,10 +28,10 @@ function assert(name, condition, detail) {
 
 console.log('=== Custom API Provider Tests ===\n');
 
-// api.js + provider-panels.js expose the Custom-provider helpers via
-// Object.assign(window, ...).
+// api.js exposes Custom-provider helpers as ES module exports. provider-panels.js
+// still exposes UI handlers used by legacy HTML/event wiring.
 await import('../js/state.js');
-await import('../js/api.js');
+const api = await import('../js/api.js');
 await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
@@ -66,19 +66,19 @@ assert('callCustomAPI routes through shared provider transport',
 assert('saveCustomApiKey uses encryptedSetItem', apiProviderStorageSrc.includes("encryptedSetItem('labcharts-custom-key'"));
 assert('getCustomApiKey uses getCachedKey', apiProviderStorageSrc.includes("getCachedKey('labcharts-custom-key')"));
 
-// ─── 2. Window function exports ───
-console.log('\n2. Window function exports');
-assert('window.getCustomApiUrl is function', typeof window.getCustomApiUrl === 'function');
-assert('window.setCustomApiUrl is function', typeof window.setCustomApiUrl === 'function');
-assert('window.getCustomApiKey is function', typeof window.getCustomApiKey === 'function');
-assert('window.saveCustomApiKey is function', typeof window.saveCustomApiKey === 'function');
-assert('window.hasCustomApiKey is function', typeof window.hasCustomApiKey === 'function');
-assert('window.getCustomApiModel is function', typeof window.getCustomApiModel === 'function');
-assert('window.setCustomApiModel is function', typeof window.setCustomApiModel === 'function');
-assert('window.getCustomApiModelDisplay is function', typeof window.getCustomApiModelDisplay === 'function');
-assert('window.fetchCustomApiModels is function', typeof window.fetchCustomApiModels === 'function');
-assert('window.validateCustomApiKey is function', typeof window.validateCustomApiKey === 'function');
-assert('window.callCustomAPI is function', typeof window.callCustomAPI === 'function');
+// ─── 2. Module and UI handler exports ───
+console.log('\n2. Module and UI handler exports');
+assert('api.getCustomApiUrl is function', typeof api.getCustomApiUrl === 'function');
+assert('api.setCustomApiUrl is function', typeof api.setCustomApiUrl === 'function');
+assert('api.getCustomApiKey is function', typeof api.getCustomApiKey === 'function');
+assert('api.saveCustomApiKey is function', typeof api.saveCustomApiKey === 'function');
+assert('api.hasCustomApiKey is function', typeof api.hasCustomApiKey === 'function');
+assert('api.getCustomApiModel is function', typeof api.getCustomApiModel === 'function');
+assert('api.setCustomApiModel is function', typeof api.setCustomApiModel === 'function');
+assert('api.getCustomApiModelDisplay is function', typeof api.getCustomApiModelDisplay === 'function');
+assert('api.fetchCustomApiModels is function', typeof api.fetchCustomApiModels === 'function');
+assert('api.validateCustomApiKey is function', typeof api.validateCustomApiKey === 'function');
+assert('api.callCustomAPI is function', typeof api.callCustomAPI === 'function');
 assert('window.handleSaveCustomApi is function', typeof window.handleSaveCustomApi === 'function');
 assert('window.handleRemoveCustomApi is function', typeof window.handleRemoveCustomApi === 'function');
 assert('window.renderCustomApiModelDropdown is function', typeof window.renderCustomApiModelDropdown === 'function');
@@ -88,9 +88,9 @@ assert('window.applyCustomApiManualModel is function', typeof window.applyCustom
 console.log('\n3. URL management');
 const oldUrl = localStorage.getItem('labcharts-custom-url');
 localStorage.removeItem('labcharts-custom-url');
-assert('getCustomApiUrl returns empty by default', window.getCustomApiUrl() === '');
-window.setCustomApiUrl('https://api.example.com/v1');
-assert('setCustomApiUrl persists', window.getCustomApiUrl() === 'https://api.example.com/v1');
+assert('getCustomApiUrl returns empty by default', api.getCustomApiUrl() === '');
+api.setCustomApiUrl('https://api.example.com/v1');
+assert('setCustomApiUrl persists', api.getCustomApiUrl() === 'https://api.example.com/v1');
 assert('localStorage has labcharts-custom-url', localStorage.getItem('labcharts-custom-url') === 'https://api.example.com/v1');
 if (oldUrl) localStorage.setItem('labcharts-custom-url', oldUrl);
 else localStorage.removeItem('labcharts-custom-url');
@@ -100,8 +100,8 @@ console.log('\n4. Key management');
 const oldKey = localStorage.getItem('labcharts-custom-key');
 localStorage.removeItem('labcharts-custom-key');
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
-assert('getCustomApiKey returns empty by default', window.getCustomApiKey() === '');
-assert('hasCustomApiKey returns false without key', window.hasCustomApiKey() === false);
+assert('getCustomApiKey returns empty by default', api.getCustomApiKey() === '');
+assert('hasCustomApiKey returns false without key', api.hasCustomApiKey() === false);
 if (oldKey) localStorage.setItem('labcharts-custom-key', oldKey);
 
 // ─── 5. Model management ───
@@ -109,19 +109,19 @@ console.log('\n5. Model management');
 const oldModel = localStorage.getItem('labcharts-custom-model');
 const oldModels = localStorage.getItem('labcharts-custom-models');
 localStorage.removeItem('labcharts-custom-model');
-assert('getCustomApiModel returns empty by default', window.getCustomApiModel() === '');
-assert('getCustomApiModelDisplay with no model', window.getCustomApiModelDisplay() === '(no model selected)');
-window.setCustomApiModel('gpt-4o');
-assert('setCustomApiModel persists', window.getCustomApiModel() === 'gpt-4o');
+assert('getCustomApiModel returns empty by default', api.getCustomApiModel() === '');
+assert('getCustomApiModelDisplay with no model', api.getCustomApiModelDisplay() === '(no model selected)');
+api.setCustomApiModel('gpt-4o');
+assert('setCustomApiModel persists', api.getCustomApiModel() === 'gpt-4o');
 localStorage.setItem('labcharts-custom-models', JSON.stringify([
   { id: 'gpt-4o', name: 'GPT-4o' },
   { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' }
 ]));
-assert('getCustomApiModelDisplay resolves name from cache', window.getCustomApiModelDisplay() === 'GPT-4o');
-window.setCustomApiModel('claude-sonnet-4-6');
-assert('getCustomApiModelDisplay resolves second model', window.getCustomApiModelDisplay() === 'Claude Sonnet 4.6');
-window.setCustomApiModel('unknown-model-xyz');
-assert('getCustomApiModelDisplay falls back to model ID', window.getCustomApiModelDisplay() === 'unknown-model-xyz');
+assert('getCustomApiModelDisplay resolves name from cache', api.getCustomApiModelDisplay() === 'GPT-4o');
+api.setCustomApiModel('claude-sonnet-4-6');
+assert('getCustomApiModelDisplay resolves second model', api.getCustomApiModelDisplay() === 'Claude Sonnet 4.6');
+api.setCustomApiModel('unknown-model-xyz');
+assert('getCustomApiModelDisplay falls back to model ID', api.getCustomApiModelDisplay() === 'unknown-model-xyz');
 if (oldModel) localStorage.setItem('labcharts-custom-model', oldModel);
 else localStorage.removeItem('labcharts-custom-model');
 if (oldModels) localStorage.setItem('labcharts-custom-models', oldModels);
@@ -132,18 +132,18 @@ console.log('\n6. hasAIProvider integration');
 const oldProvider = localStorage.getItem('labcharts-ai-provider');
 const savedUrl = localStorage.getItem('labcharts-custom-url');
 const savedKey = localStorage.getItem('labcharts-custom-key');
-window.setAIProvider('custom');
+api.setAIProvider('custom');
 localStorage.removeItem('labcharts-custom-url');
 localStorage.removeItem('labcharts-custom-key');
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
-assert('hasAIProvider false without URL or key', window.hasAIProvider() === false);
+assert('hasAIProvider false without URL or key', api.hasAIProvider() === false);
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
-assert('hasAIProvider false with key but no URL', window.hasAIProvider() === false);
+assert('hasAIProvider false with key but no URL', api.hasAIProvider() === false);
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
-window.setCustomApiUrl('https://api.example.com/v1');
-assert('hasAIProvider false with URL but no key', window.hasAIProvider() === false);
+api.setCustomApiUrl('https://api.example.com/v1');
+assert('hasAIProvider false with URL but no key', api.hasAIProvider() === false);
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
-assert('hasAIProvider true with both URL and key', window.hasAIProvider() === true);
+assert('hasAIProvider true with both URL and key', api.hasAIProvider() === true);
 if (oldProvider) localStorage.setItem('labcharts-ai-provider', oldProvider);
 else localStorage.removeItem('labcharts-ai-provider');
 if (savedUrl) localStorage.setItem('labcharts-custom-url', savedUrl);
@@ -157,11 +157,11 @@ console.log('\n7. getActiveModelId / getActiveModelDisplay');
 const savedProvider2 = localStorage.getItem('labcharts-ai-provider');
 const savedModel2 = localStorage.getItem('labcharts-custom-model');
 const savedModels2 = localStorage.getItem('labcharts-custom-models');
-window.setAIProvider('custom');
-window.setCustomApiModel('my-custom-model');
-assert('getActiveModelId returns custom model', window.getActiveModelId() === 'my-custom-model');
+api.setAIProvider('custom');
+api.setCustomApiModel('my-custom-model');
+assert('getActiveModelId returns custom model', api.getActiveModelId() === 'my-custom-model');
 localStorage.setItem('labcharts-custom-models', JSON.stringify([{ id: 'my-custom-model', name: 'My Custom Model' }]));
-assert('getActiveModelDisplay returns display name', window.getActiveModelDisplay() === 'My Custom Model');
+assert('getActiveModelDisplay returns display name', api.getActiveModelDisplay() === 'My Custom Model');
 if (savedProvider2) localStorage.setItem('labcharts-ai-provider', savedProvider2);
 else localStorage.removeItem('labcharts-ai-provider');
 if (savedModel2) localStorage.setItem('labcharts-custom-model', savedModel2);
@@ -172,9 +172,9 @@ else localStorage.removeItem('labcharts-custom-models');
 // ─── 8. supportsWebSearch / supportsVision ───
 console.log('\n8. supportsWebSearch / supportsVision');
 const savedProvider3 = localStorage.getItem('labcharts-ai-provider');
-window.setAIProvider('custom');
-assert('supportsWebSearch returns false for custom', window.supportsWebSearch() === false);
-assert('supportsVision returns true for custom', window.supportsVision() === true);
+api.setAIProvider('custom');
+assert('supportsWebSearch returns false for custom', api.supportsWebSearch() === false);
+assert('supportsVision returns true for custom', api.supportsVision() === true);
 if (savedProvider3) localStorage.setItem('labcharts-ai-provider', savedProvider3);
 else localStorage.removeItem('labcharts-ai-provider');
 
@@ -186,14 +186,14 @@ localStorage.removeItem('labcharts-custom-url');
 localStorage.removeItem('labcharts-custom-key');
 window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
 try {
-  await window.callCustomAPI({ system: '', messages: [{ role: 'user', content: 'test' }] });
+  await api.callCustomAPI({ system: '', messages: [{ role: 'user', content: 'test' }] });
   assert('callCustomAPI throws without URL', false, 'did not throw');
 } catch (e) {
   assert('callCustomAPI throws without URL', e.message.includes('No Custom API URL'));
 }
-window.setCustomApiUrl('https://api.example.com/v1');
+api.setCustomApiUrl('https://api.example.com/v1');
 try {
-  await window.callCustomAPI({ system: '', messages: [{ role: 'user', content: 'test' }] });
+  await api.callCustomAPI({ system: '', messages: [{ role: 'user', content: 'test' }] });
   assert('callCustomAPI throws without key', false, 'did not throw');
 } catch (e) {
   assert('callCustomAPI throws without key', e.message.includes('No Custom API key'));
@@ -206,14 +206,14 @@ window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
 
 // ─── 10. fetchCustomApiModels returns empty without config ───
 console.log('\n10. fetchCustomApiModels edge cases');
-const emptyResult = await window.fetchCustomApiModels('', '');
+const emptyResult = await api.fetchCustomApiModels('', '');
 assert('fetchCustomApiModels returns [] with empty args', Array.isArray(emptyResult) && emptyResult.length === 0);
-const noKeyResult = await window.fetchCustomApiModels('https://api.example.com/v1', '');
+const noKeyResult = await api.fetchCustomApiModels('https://api.example.com/v1', '');
 assert('fetchCustomApiModels returns [] without key', Array.isArray(noKeyResult) && noKeyResult.length === 0);
 
 // ─── 11. Model pricing ───
 console.log('\n11. Model pricing');
-const pricing = window.renderModelPricingHint('custom', 'any-model');
+const pricing = api.renderModelPricingHint('custom', 'any-model');
 assert('custom pricing returns empty (unknown endpoint)', pricing === '');
 
 // ─── 12. settings.js + provider panel source inspection ───
@@ -284,32 +284,32 @@ assert('_customApiFetchModels sends method GET via proxy', apiCustomSrc.includes
 
 // ─── 18. needsMaxCompletionTokens — GPT-5 / o-series detection (#114) ───
 console.log('\n18. needsMaxCompletionTokens (#114)');
-assert('needsMaxCompletionTokens exists', typeof window.needsMaxCompletionTokens === 'function');
-assert('detects gpt-5', window.needsMaxCompletionTokens('gpt-5') === true);
-assert('detects gpt-5.4', window.needsMaxCompletionTokens('gpt-5.4') === true);
-assert('detects gpt-5-codex', window.needsMaxCompletionTokens('gpt-5-codex') === true);
-assert('detects openai/gpt-5 (prefixed)', window.needsMaxCompletionTokens('openai/gpt-5') === true);
-assert('detects openai/gpt-5.4 (prefixed)', window.needsMaxCompletionTokens('openai/gpt-5.4') === true);
-assert('detects o1', window.needsMaxCompletionTokens('o1') === true);
-assert('detects o1-mini', window.needsMaxCompletionTokens('o1-mini') === true);
-assert('detects o3', window.needsMaxCompletionTokens('o3') === true);
-assert('detects o3-mini', window.needsMaxCompletionTokens('o3-mini') === true);
-assert('detects o4-mini', window.needsMaxCompletionTokens('o4-mini') === true);
-assert('detects openai/o3 (prefixed)', window.needsMaxCompletionTokens('openai/o3') === true);
-assert('rejects gpt-4', window.needsMaxCompletionTokens('gpt-4') === false);
-assert('rejects gpt-4o', window.needsMaxCompletionTokens('gpt-4o') === false);
-assert('rejects gpt-4-turbo', window.needsMaxCompletionTokens('gpt-4-turbo') === false);
-assert('rejects gpt-3.5-turbo', window.needsMaxCompletionTokens('gpt-3.5-turbo') === false);
-assert('rejects claude-opus-4-6', window.needsMaxCompletionTokens('claude-opus-4-6') === false);
-assert('rejects llama-3.3-70b', window.needsMaxCompletionTokens('llama-3.3-70b') === false);
-assert('rejects gemini-3-pro', window.needsMaxCompletionTokens('gemini-3-pro') === false);
-assert('rejects deepseek-r1', window.needsMaxCompletionTokens('deepseek-r1') === false);
-assert('rejects empty string', window.needsMaxCompletionTokens('') === false);
-assert('rejects null', window.needsMaxCompletionTokens(null) === false);
-assert('rejects undefined', window.needsMaxCompletionTokens(undefined) === false);
-assert('rejects gpt-50 (not GPT-5)', window.needsMaxCompletionTokens('gpt-50') === false);
-assert('rejects ozone (no o[1-9] at start)', window.needsMaxCompletionTokens('ozone') === false);
-assert('rejects openai/gpt-50', window.needsMaxCompletionTokens('openai/gpt-50') === false);
+assert('needsMaxCompletionTokens exists', typeof api.needsMaxCompletionTokens === 'function');
+assert('detects gpt-5', api.needsMaxCompletionTokens('gpt-5') === true);
+assert('detects gpt-5.4', api.needsMaxCompletionTokens('gpt-5.4') === true);
+assert('detects gpt-5-codex', api.needsMaxCompletionTokens('gpt-5-codex') === true);
+assert('detects openai/gpt-5 (prefixed)', api.needsMaxCompletionTokens('openai/gpt-5') === true);
+assert('detects openai/gpt-5.4 (prefixed)', api.needsMaxCompletionTokens('openai/gpt-5.4') === true);
+assert('detects o1', api.needsMaxCompletionTokens('o1') === true);
+assert('detects o1-mini', api.needsMaxCompletionTokens('o1-mini') === true);
+assert('detects o3', api.needsMaxCompletionTokens('o3') === true);
+assert('detects o3-mini', api.needsMaxCompletionTokens('o3-mini') === true);
+assert('detects o4-mini', api.needsMaxCompletionTokens('o4-mini') === true);
+assert('detects openai/o3 (prefixed)', api.needsMaxCompletionTokens('openai/o3') === true);
+assert('rejects gpt-4', api.needsMaxCompletionTokens('gpt-4') === false);
+assert('rejects gpt-4o', api.needsMaxCompletionTokens('gpt-4o') === false);
+assert('rejects gpt-4-turbo', api.needsMaxCompletionTokens('gpt-4-turbo') === false);
+assert('rejects gpt-3.5-turbo', api.needsMaxCompletionTokens('gpt-3.5-turbo') === false);
+assert('rejects claude-opus-4-6', api.needsMaxCompletionTokens('claude-opus-4-6') === false);
+assert('rejects llama-3.3-70b', api.needsMaxCompletionTokens('llama-3.3-70b') === false);
+assert('rejects gemini-3-pro', api.needsMaxCompletionTokens('gemini-3-pro') === false);
+assert('rejects deepseek-r1', api.needsMaxCompletionTokens('deepseek-r1') === false);
+assert('rejects empty string', api.needsMaxCompletionTokens('') === false);
+assert('rejects null', api.needsMaxCompletionTokens(null) === false);
+assert('rejects undefined', api.needsMaxCompletionTokens(undefined) === false);
+assert('rejects gpt-50 (not GPT-5)', api.needsMaxCompletionTokens('gpt-50') === false);
+assert('rejects ozone (no o[1-9] at start)', api.needsMaxCompletionTokens('ozone') === false);
+assert('rejects openai/gpt-50', api.needsMaxCompletionTokens('openai/gpt-50') === false);
 assert('callOpenAICompatibleAPI uses needsMaxCompletionTokens', apiOpenAICompatibleSrc.includes('needsMaxCompletionTokens(model)'));
 assert('body uses dynamic tokenLimitField', apiOpenAICompatibleSrc.includes('[tokenLimitField]:'));
 assert('tokenLimitField defaults to max_tokens', apiOpenAICompatibleSrc.includes("? 'max_completion_tokens' : 'max_tokens'"));
@@ -335,13 +335,13 @@ console.log('\n20. Streaming finish_reason length');
 const savedProviderStream = localStorage.getItem('labcharts-ai-provider');
 const savedUrlStream = localStorage.getItem('labcharts-custom-url');
 const savedKeyStream = localStorage.getItem('labcharts-custom-key');
-const savedRuntimeKeyStream = window.getCustomApiKey ? window.getCustomApiKey() : '';
+const savedRuntimeKeyStream = api.getCustomApiKey();
 const savedModelStream = localStorage.getItem('labcharts-custom-model');
 const savedFetch = globalThis.fetch;
 try {
-  window.setAIProvider('custom');
-  window.setCustomApiUrl('http://localhost:9999/v1');
-  window.setCustomApiModel('stream-test-model');
+  api.setAIProvider('custom');
+  api.setCustomApiUrl('http://localhost:9999/v1');
+  api.setCustomApiModel('stream-test-model');
   window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
 
   const encoder = new TextEncoder();
@@ -355,7 +355,7 @@ try {
   }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 
   let streamed = '';
-  const result = await window.callCustomAPI({
+  const result = await api.callCustomAPI({
     system: '',
     messages: [{ role: 'user', content: 'test' }],
     maxTokens: 16,

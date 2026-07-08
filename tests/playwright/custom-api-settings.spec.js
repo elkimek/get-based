@@ -29,21 +29,19 @@ test('custom API provider panel renders from Settings AI', async ({ page }) => {
 test('custom API connected state renders model controls', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  await page.evaluate(() => {
-    if (typeof window.setCustomApiUrl !== 'function') throw new Error('window.setCustomApiUrl unavailable');
-    if (typeof window.setCustomApiModel !== 'function') throw new Error('window.setCustomApiModel unavailable');
-    if (typeof window.setAIProvider !== 'function') throw new Error('window.setAIProvider unavailable');
+  await page.evaluate(async () => {
+    const api = await import('/js/api.js');
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
     if (typeof window.switchAIProvider !== 'function') throw new Error('window.switchAIProvider unavailable');
 
-    window.setCustomApiUrl('https://api.test.com/v1');
+    api.setCustomApiUrl('https://api.test.com/v1');
     window.updateKeyCache?.('labcharts-custom-key', 'sk-test');
-    window.setCustomApiModel('test-model');
+    api.setCustomApiModel('test-model');
     localStorage.setItem('labcharts-custom-models', JSON.stringify([
       { id: 'test-model', name: 'Test Model' },
       { id: 'other-model', name: 'Other Model' },
     ]));
-    window.setAIProvider('custom');
+    api.setAIProvider('custom');
     window.openSettingsModal('ai');
     window.switchAIProvider('custom');
   });
@@ -69,11 +67,11 @@ test('custom API provider delegates save model changes and removal', async ({ pa
   await page.waitForFunction(() =>
     typeof window.openSettingsModal === 'function'
       && typeof window.switchAIProvider === 'function'
-      && typeof window.getCustomApiKey === 'function'
       && typeof window.updateKeyCache === 'function'
   );
 
   const results = await page.evaluate(async () => {
+    const api = await import('/js/api.js');
     const crypto = await import('/js/crypto.js');
     const outcomes = {};
     const storageKeys = [
@@ -86,7 +84,7 @@ test('custom API provider delegates save model changes and removal', async ({ pa
     const savedStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
     const savedSessionLock = sessionStorage.getItem('labcharts-ai-settings-local-lock-until');
     const savedFetch = window.fetch;
-    const savedCustomKey = window.getCustomApiKey();
+    const savedCustomKey = api.getCustomApiKey();
     const fetchCalls = [];
     const baseUrl = 'http://127.0.0.1:9999/v1';
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -173,7 +171,7 @@ test('custom API provider delegates save model changes and removal', async ({ pa
       const cachedModels = JSON.parse(localStorage.getItem('labcharts-custom-models') || '[]');
       outcomes.saveDelegatedActionPersistsAndLoadsModels =
         localStorage.getItem('labcharts-custom-url') === baseUrl
-        && window.getCustomApiKey() === 'sk-custom'
+        && api.getCustomApiKey() === 'sk-custom'
         && cachedModels.map(model => model.id).join('|') === 'alpha-model|beta-model'
         && localStorage.getItem('labcharts-custom-model') === 'alpha-model'
         && document.getElementById('custom-model-select')?.value === 'alpha-model'
@@ -207,12 +205,12 @@ test('custom API provider delegates save model changes and removal', async ({ pa
           && !document.getElementById('custom-model-select'),
         'custom API removal panel render'
       );
-      await waitFor(() => window.getCustomApiKey() === '', 'custom API key cache clear');
+      await waitFor(() => api.getCustomApiKey() === '', 'custom API key cache clear');
       outcomes.removeDelegatedActionClearsConnectionAndRerenders =
         localStorage.getItem('labcharts-custom-url') === null
         && localStorage.getItem('labcharts-custom-model') === null
         && localStorage.getItem('labcharts-custom-models') === null
-        && window.getCustomApiKey() === ''
+        && api.getCustomApiKey() === ''
         && document.getElementById('custom-key-status')?.textContent.includes('Not connected')
         && document.getElementById('custom-model-area') === null;
     } finally {

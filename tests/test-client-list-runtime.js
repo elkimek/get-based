@@ -2,6 +2,7 @@
 // test-client-list-runtime.js - Client-list browser runtime adapter behavior.
 
 import './_node-shim.js';
+import { getCachedKey, updateKeyCache } from '../js/crypto.js';
 import {
   closeClientListFromRuntime,
   getClientHaplogroupList,
@@ -28,16 +29,28 @@ const runtimeKeys = [
   'renderProfileButton',
   'showNotification',
   'setManualHaplogroup',
-  'hasAIProvider',
   '__clientListRuntimeProbe',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
+const savedAIStorage = {
+  provider: localStorage.getItem('labcharts-ai-provider'),
+  paused: localStorage.getItem('labcharts-ai-paused'),
+  openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
+  openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
+};
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
     if (typeof saved[key] === 'undefined') delete globalThis[key];
     else globalThis[key] = saved[key];
   }
+  if (savedAIStorage.provider == null) localStorage.removeItem('labcharts-ai-provider');
+  else localStorage.setItem('labcharts-ai-provider', savedAIStorage.provider);
+  if (savedAIStorage.paused == null) localStorage.removeItem('labcharts-ai-paused');
+  else localStorage.setItem('labcharts-ai-paused', savedAIStorage.paused);
+  if (savedAIStorage.openrouterKey == null) localStorage.removeItem('labcharts-openrouter-key');
+  else localStorage.setItem('labcharts-openrouter-key', savedAIStorage.openrouterKey);
+  updateKeyCache('labcharts-openrouter-key', savedAIStorage.openrouterCachedKey);
 }
 
 try {
@@ -84,14 +97,18 @@ try {
   assert('setClientManualHaplogroup returns false when hook is missing',
     await setClientManualHaplogroup('J2') === false);
 
-  globalThis.hasAIProvider = () => true;
-  assert('hasClientListAIProvider delegates truthy runtime provider state',
+  localStorage.setItem('labcharts-ai-provider', 'ollama');
+  localStorage.removeItem('labcharts-ai-paused');
+  assert('hasClientListAIProvider reads connected module provider state',
     hasClientListAIProvider() === true);
-  globalThis.hasAIProvider = () => { throw new Error('provider unavailable'); };
-  assert('hasClientListAIProvider returns false when runtime hook throws',
+  localStorage.setItem('labcharts-ai-paused', 'true');
+  assert('hasClientListAIProvider returns false when AI is paused',
     hasClientListAIProvider() === false);
-  delete globalThis.hasAIProvider;
-  assert('hasClientListAIProvider returns false when hook is missing',
+  localStorage.removeItem('labcharts-ai-paused');
+  localStorage.setItem('labcharts-ai-provider', 'openrouter');
+  localStorage.removeItem('labcharts-openrouter-key');
+  updateKeyCache('labcharts-openrouter-key', null);
+  assert('hasClientListAIProvider returns false when selected provider is unconfigured',
     hasClientListAIProvider() === false);
 
   publishClientListWindowBindings({ __clientListRuntimeProbe: () => 'ok' });

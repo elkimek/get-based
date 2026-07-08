@@ -21,9 +21,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Venice E2EE Tests ===\n');
 
-// Import api.js so its `Object.assign(window, ...)` exposes the
-// isE2EEModel / setVeniceE2EE / getVeniceE2EE / etc. handlers.
-await import('../js/api.js');
+// Import api.js directly for Venice provider helpers.
+const api = await import('../js/api.js');
 const cryptoMod = await import('../js/crypto.js');
 
 // 1. Source: api.js has isE2EEModel and E2EE branch
@@ -44,13 +43,13 @@ assert('Venice E2EE supports forced non-stream retry path',
   && /if\s*\(!useStream\)/.test(apiVeniceSrc)
   && /decryptChunk\(session\.privateKey,\s*encryptedContent\)/.test(apiVeniceSrc));
 
-// 2. window.isE2EEModel function
-assert('window.isE2EEModel is function', typeof window.isE2EEModel === 'function');
-assert('e2ee-llama-3.3-70b is E2EE', window.isE2EEModel('e2ee-llama-3.3-70b'));
-assert('llama-3.3-70b is not E2EE', !window.isE2EEModel('llama-3.3-70b'));
-assert('empty string is not E2EE', !window.isE2EEModel(''));
-assert('null is not E2EE', !window.isE2EEModel(null));
-assert('undefined is not E2EE', !window.isE2EEModel(undefined));
+// 2. api.js module exports
+assert('api.isE2EEModel is function', typeof api.isE2EEModel === 'function');
+assert('e2ee-llama-3.3-70b is E2EE', api.isE2EEModel('e2ee-llama-3.3-70b'));
+assert('llama-3.3-70b is not E2EE', !api.isE2EEModel('llama-3.3-70b'));
+assert('empty string is not E2EE', !api.isE2EEModel(''));
+assert('null is not E2EE', !api.isE2EEModel(null));
+assert('undefined is not E2EE', !api.isE2EEModel(undefined));
 
 // 3. venice-e2ee.js module loads and exports
 const e2eeMod = await import('../vendor/venice-e2ee.js');
@@ -140,19 +139,19 @@ instance.clearSession();
 assert('clearSession runs without error', true);
 
 // 13. E2EE toggle + model-driven state
-assert('window.setVeniceE2EE is function', typeof window.setVeniceE2EE === 'function');
-assert('window.getVeniceE2EE is function', typeof window.getVeniceE2EE === 'function');
-assert('window.isVeniceE2EEActive is function', typeof window.isVeniceE2EEActive === 'function');
+assert('api.setVeniceE2EE is function', typeof api.setVeniceE2EE === 'function');
+assert('api.getVeniceE2EE is function', typeof api.getVeniceE2EE === 'function');
+assert('api.isVeniceE2EEActive is function', typeof api.isVeniceE2EEActive === 'function');
 const savedE2EE = localStorage.getItem('labcharts-venice-e2ee');
 const savedModel = localStorage.getItem('labcharts-venice-model');
-window.setVeniceE2EE(true);
-assert('setVeniceE2EE(true) persists', window.getVeniceE2EE() === true);
-window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
-assert('isVeniceE2EEActive true with e2ee model', window.isVeniceE2EEActive());
-window.setVeniceModel('llama-3.3-70b');
-assert('isVeniceE2EEActive false with regular model', !window.isVeniceE2EEActive());
-window.setVeniceE2EE(false);
-assert('setVeniceE2EE(false) persists', window.getVeniceE2EE() === false);
+api.setVeniceE2EE(true);
+assert('setVeniceE2EE(true) persists', api.getVeniceE2EE() === true);
+api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+assert('isVeniceE2EEActive true with e2ee model', api.isVeniceE2EEActive());
+api.setVeniceModel('llama-3.3-70b');
+assert('isVeniceE2EEActive false with regular model', !api.isVeniceE2EEActive());
+api.setVeniceE2EE(false);
+assert('setVeniceE2EE(false) persists', api.getVeniceE2EE() === false);
 if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
 if (savedE2EE) localStorage.setItem('labcharts-venice-e2ee', savedE2EE);
 else localStorage.removeItem('labcharts-venice-e2ee');
@@ -164,7 +163,7 @@ const savedHeaderRefresh = window.updateChatHeaderModel;
 const savedWebToggleRefresh = window.refreshWebSearchToggle;
 window.updateChatHeaderModel = () => { veniceHeaderRefreshCount += 1; };
 window.refreshWebSearchToggle = () => { veniceWebToggleRefreshCount += 1; };
-window.setVeniceModel('llama-3.3-70b');
+api.setVeniceModel('llama-3.3-70b');
 assert('setVeniceModel refreshes chat header', veniceHeaderRefreshCount === 1, `count=${veniceHeaderRefreshCount}`);
 assert('setVeniceModel refreshes web-search state', veniceWebToggleRefreshCount === 1, `count=${veniceWebToggleRefreshCount}`);
 if (savedHeaderRefresh) window.updateChatHeaderModel = savedHeaderRefresh;
@@ -176,13 +175,13 @@ else localStorage.removeItem('labcharts-venice-model');
 
 // 14. supportsWebSearch respects E2EE model
 const savedProvider = localStorage.getItem('labcharts-ai-provider');
-window.setAIProvider('venice');
-window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
-assert('supportsWebSearch false with E2EE model', !window.supportsWebSearch());
-window.setVeniceModel('llama-3.3-70b');
-assert('supportsWebSearch true with regular model', window.supportsWebSearch());
+api.setAIProvider('venice');
+api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+assert('supportsWebSearch false with E2EE model', !api.supportsWebSearch());
+api.setVeniceModel('llama-3.3-70b');
+assert('supportsWebSearch true with regular model', api.supportsWebSearch());
 if (savedModel) localStorage.setItem('labcharts-venice-model', savedModel);
-if (savedProvider) window.setAIProvider(savedProvider);
+if (savedProvider) api.setAIProvider(savedProvider);
 else localStorage.removeItem('labcharts-ai-provider');
 
 // 15. Venice model cache handles stale E2EE selections
@@ -203,15 +202,15 @@ try {
       ]
     })
   });
-  window.setVeniceE2EE(true);
-  window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
-  await window.fetchVeniceModels('test-key');
+  api.setVeniceE2EE(true);
+  api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+  await api.fetchVeniceModels('test-key');
   const cachedE2EE = JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]');
   const cachedRegular = JSON.parse(localStorage.getItem('labcharts-venice-models') || '[]');
   assert('fetchVeniceModels uses supportsE2EE capability', cachedE2EE.length === 1 && cachedE2EE[0].id === 'e2ee-qwen3-5-122b-a10b', JSON.stringify(cachedE2EE.map(m => m.id)));
   assert('unsupported e2ee prefix is not cached as regular Venice model', !cachedRegular.some(m => m.id === 'e2ee-qwen3-30b-a3b-p'), JSON.stringify(cachedRegular.map(m => m.id)));
-  assert('stale E2EE model replaced with current E2EE model', window.getVeniceModel() === 'e2ee-qwen3-5-122b-a10b', window.getVeniceModel());
-  assert('stale E2EE prefix no longer active after capability cache', !window.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
+  assert('stale E2EE model replaced with current E2EE model', api.getVeniceModel() === 'e2ee-qwen3-5-122b-a10b', api.getVeniceModel());
+  assert('stale E2EE prefix no longer active after capability cache', !api.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
 } catch (e) {
   assert('Venice E2EE model cache refresh threw no error', false, e.message);
 } finally {
@@ -252,8 +251,8 @@ try {
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
     localStorage.removeItem('labcharts-venice-model-regular');
     localStorage.removeItem('labcharts-venice-model-e2ee');
-    window.setVeniceE2EE(false);
-    window.setVeniceModel('e2ee-qwen3-30b-a3b-p');
+    api.setVeniceE2EE(false);
+    api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
 
     let capturedModel = '';
     globalThis.fetch = async (_url, options) => {
@@ -268,10 +267,10 @@ try {
       };
     };
 
-    await window.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+    await api.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
     assert('deprecated E2EE prefix migrates to regular Venice model', capturedModel === 'llama-3.3-70b', capturedModel);
-    assert('deprecated E2EE prefix is inactive with empty capability cache', !window.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
-    assert('deprecated E2EE prefix does not enable Venice E2EE', window.getVeniceE2EE() === false);
+    assert('deprecated E2EE prefix is inactive with empty capability cache', !api.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
+    assert('deprecated E2EE prefix does not enable Venice E2EE', api.getVeniceE2EE() === false);
   } catch (e) {
     assert('deprecated E2EE prefix Venice call threw no error', false, e.message);
   } finally {
@@ -313,8 +312,8 @@ try {
     ]));
     localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([]));
     localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
-    window.setVeniceE2EE(true);
-    window.setVeniceModel('llama-3.3-70b');
+    api.setVeniceE2EE(true);
+    api.setVeniceModel('llama-3.3-70b');
 
     let completionCalls = 0;
     globalThis.fetch = async () => {
@@ -331,12 +330,12 @@ try {
 
     let errorMessage = '';
     try {
-      await window.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+      await api.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
     } catch (e) {
       errorMessage = e.message;
     }
     assert('missing Venice E2EE models blocks unencrypted fallback', errorMessage.includes('no current Venice E2EE model'), errorMessage);
-    assert('missing Venice E2EE models preserves E2EE toggle', window.getVeniceE2EE() === true);
+    assert('missing Venice E2EE models preserves E2EE toggle', api.getVeniceE2EE() === true);
     assert('missing Venice E2EE models skips completion request', completionCalls === 0, `calls=${completionCalls}`);
   } catch (e) {
     assert('missing Venice E2EE model guard threw no unexpected error', false, e.message);

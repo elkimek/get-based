@@ -1,6 +1,22 @@
 // @ts-check
 // biology-score-ai.js — embedded AI interpretation for deterministic Biology Scores.
 
+import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
+
+const biologyScoreAIDeps = {
+  callClaudeAPI,
+  hasAIProvider,
+  isAIPaused,
+};
+
+export function configureBiologyScoreAIDeps(deps = {}) {
+  const previous = { ...biologyScoreAIDeps };
+  if (typeof deps.callClaudeAPI === 'function') biologyScoreAIDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (typeof deps.hasAIProvider === 'function') biologyScoreAIDeps.hasAIProvider = deps.hasAIProvider;
+  if (typeof deps.isAIPaused === 'function') biologyScoreAIDeps.isAIPaused = deps.isAIPaused;
+  return previous;
+}
+
 /** @param {number | string | null | undefined} value */
 function formatRangeBound(value) {
   const n = Number(value);
@@ -39,13 +55,11 @@ function scoreLine(score) {
 /** @param {any} score */
 export async function generateBiologyScoreAIAnswer(score) {
   if (!score) throw new Error('Score not found');
-  const hasProvider = (/** @type {any} */ (window)).hasAIProvider?.();
+  const hasProvider = biologyScoreAIDeps.hasAIProvider();
   if (!hasProvider) throw new Error('Connect an AI provider first.');
-  if ((/** @type {any} */ (window)).isAIPaused?.()) throw new Error('AI features are paused.');
-  const callAI = (/** @type {any} */ (window)).callClaudeAPI;
-  if (!callAI) throw new Error('AI engine is not available on this screen.');
+  if (biologyScoreAIDeps.isAIPaused()) throw new Error('AI features are paused.');
   const system = `You explain deterministic getbased Biology Scores. The code already computed the score. Do not recalculate it, diagnose, prescribe, or overclaim. Answer the score question in 3-5 concise bullets. Use only the provided optimal/reference/cycle-phase ranges when describing thresholds; never invent alternate cutoffs or "ideal" ranges. Mention: what the pattern suggests, confidence/coverage limits, missing extended markers if important, and one practical next check/retest direction. Keep it readable for non-expert users.`;
-  const { text } = await callAI({
+  const { text } = await biologyScoreAIDeps.callClaudeAPI({
     system,
     messages: [{ role: 'user', content: scoreLine(score) }],
     maxTokens: 360,

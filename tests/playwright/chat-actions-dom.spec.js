@@ -9,6 +9,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
   );
 
   const results = await page.evaluate(async () => {
+    const api = await import('/js/api.js');
     const { buildActionBar } = await import('/js/chat-actions.js');
     const state = window._labState;
     const originalHistory = JSON.parse(JSON.stringify(state.chatHistory || []));
@@ -23,7 +24,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       ];
 
       const realContainer = document.getElementById('chat-messages');
-      const hasProvider = typeof window.hasAIProvider === 'function' ? window.hasAIProvider() : true;
+      const hasProvider = api.hasAIProvider();
       if (realContainer && hasProvider) {
         window.renderChatMessages();
         const aiMsgs = realContainer.querySelectorAll('.chat-msg.chat-ai');

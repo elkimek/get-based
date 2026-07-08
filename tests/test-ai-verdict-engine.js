@@ -24,6 +24,7 @@ return (async function () {
   console.log('%c AI Verdict Engine Tests ', 'background:#a855f7;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   const eng = await import('/js/ai-verdict-engine.js?bust=' + Date.now());
+  const api = await import('/js/api.js?bust=' + Date.now());
   const { createAIVerdict, hashString, dotPrefix, VERDICT_DOT_VALUES } = eng;
 
   // ─── 1. hashString — deterministic + djb2 properties ──────────────
@@ -271,7 +272,7 @@ return (async function () {
     ));
     try {
       // No provider configured in test — skip if so
-      if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+      if (api.hasAIProvider()) {
         await engine.analyze({ id: 'event-test' });
         assert('engine dispatches labcharts-ai-verdict-updated on state change', eventFired);
       } else {
@@ -297,7 +298,7 @@ return (async function () {
       { headers: { 'Content-Type': 'application/json' } }
     ));
     try {
-      if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+      if (api.hasAIProvider()) {
         await engine.analyze({ id: 'extra' });
         const stored = store.get('extra');
         assert('parseExtraFields output merged into saved verdict',
@@ -318,7 +319,7 @@ return (async function () {
   // that retry. Auth/quota errors are NOT retried (user-actionable).
   console.log('%c 12b. maybeAfterFinish retry on transient error ', 'font-weight:bold;color:#a855f7');
 
-  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+  if (api.hasAIProvider()) {
     // Helper that builds a fetch stub which fails the first N calls then succeeds.
     function makeFlakyFetch(failCount, errorBody) {
       let calls = 0;
@@ -455,7 +456,7 @@ return (async function () {
   // 3rd silently fails. Cap of 2 means the 3rd call waits its turn.
   console.log('%c 12c. Global AI concurrency cap ', 'font-weight:bold;color:#a855f7');
 
-  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+  if (api.hasAIProvider()) {
     const prevCap = window._aiConcurrencyCap;
     window._aiConcurrencyCap = 2;
     let inFlightObserved = 0;
@@ -525,7 +526,7 @@ return (async function () {
   // '<' in JSON at position 0" into the verdict UI, which is horrendous.
   console.log('%c 14. Error normalization (non-JSON response bodies) ', 'font-weight:bold;color:#a855f7');
 
-  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+  if (api.hasAIProvider()) {
     const cases = [
       { name: 'HTML 502 page', body: '<html><body><h1>502 Bad Gateway</h1></body></html>',
         expectMsg: /unexpected response|try again/i },
@@ -562,7 +563,7 @@ return (async function () {
   // maybeAfterFinish, and asserting zero fetches.
   console.log('%c 15. DISABLE_AI_VERDICTS gate covers maybeAfterFinish ', 'font-weight:bold;color:#a855f7');
 
-  if (typeof window.hasAIProvider === 'function' && window.hasAIProvider()) {
+  if (api.hasAIProvider()) {
     const { engine, store } = makeMinimalEngine({ autoFireRetryDelaysMs: [30] });
     let calls = 0;
     const origFetch = window.fetch;

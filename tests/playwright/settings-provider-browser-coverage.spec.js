@@ -28,7 +28,6 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     const oldGlobals = {
       fetch: window.fetch,
       updatePrivacyStatusCard: window.updatePrivacyStatusCard,
-      markAISettingsLocal: window.markAISettingsLocal,
       clipboard: navigator.clipboard,
     };
     const writes = [];
@@ -41,7 +40,6 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       for (const key of storageKeys) localStorage.removeItem(key);
       window.updateKeyCache?.('labcharts-ollama', '');
       window.updatePrivacyStatusCard = () => { privacyUpdates += 1; };
-      window.markAISettingsLocal = () => {};
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: {
@@ -227,7 +225,6 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     } finally {
       window.fetch = oldGlobals.fetch;
       window.updatePrivacyStatusCard = oldGlobals.updatePrivacyStatusCard;
-      window.markAISettingsLocal = oldGlobals.markAISettingsLocal;
       if (oldGlobals.clipboard) {
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: oldGlobals.clipboard });
       }

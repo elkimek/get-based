@@ -185,7 +185,8 @@
   // 2. WINDOW EXPORTS — all 300+ functions registered
   // ═══════════════════════════════════════════════
 
-  // api.js
+  // api.js is module-only; UI modules below still publish legacy window hooks.
+  const apiModule = await import('../js/api.js');
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
     'getVeniceModel','setVeniceModel','getVeniceModelDisplay',
@@ -427,8 +428,14 @@
     'renderCorrelationChips','renderCorrelationChart'
   ];
 
+  for (const name of apiExports) {
+    const val = apiModule[name];
+    const isFunc = typeof val === 'function';
+    assert(`api.${name} (api.js)`, val !== undefined, isFunc ? 'function' : typeof val);
+  }
+  console.log(`Checked ${apiExports.length} api.js module exports`);
+
   const allModules = {
-    'api.js': apiExports,
     'charts.js': chartsExports,
     'lab-context.js': labContextExports,
     'chat.js': chatExports,
@@ -604,7 +611,7 @@
   // ═══════════════════════════════════════════════
   // openChatPanel guards on hasAIProvider() — test the panel element directly
   const chatPanel = document.getElementById('chat-panel');
-  if (window.hasAIProvider()) {
+  if (apiModule.hasAIProvider()) {
     window.openChatPanel();
     assert('Chat panel opens (with AI provider)', chatPanel?.classList.contains('open'));
     window.closeChatPanel();
@@ -676,9 +683,9 @@
   // ═══════════════════════════════════════════════
   // 15. AI PROVIDER SYSTEM — basic checks
   // ═══════════════════════════════════════════════
-  const provider = window.getAIProvider();
+  const provider = apiModule.getAIProvider();
   assert('getAIProvider returns valid provider', ['openrouter','ppq','routstr','venice','ollama'].includes(provider));
-  const hasAI = window.hasAIProvider();
+  const hasAI = apiModule.hasAIProvider();
   assert('hasAIProvider returns boolean', typeof hasAI === 'boolean');
 
   // ═══════════════════════════════════════════════

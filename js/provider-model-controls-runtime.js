@@ -1,6 +1,18 @@
 // @ts-check
 // provider-model-controls-runtime.js - Browser runtime adapters for provider model controls.
 
+import { callClaudeAPI } from './api.js';
+
+const providerModelControlsRuntimeDeps = {
+  callClaudeAPI,
+};
+
+export function configureProviderModelControlsRuntimeDeps(deps = {}) {
+  const previous = { ...providerModelControlsRuntimeDeps };
+  if (typeof deps.callClaudeAPI === 'function') providerModelControlsRuntimeDeps.callClaudeAPI = deps.callClaudeAPI;
+  return previous;
+}
+
 function getProviderModelControlsRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -39,7 +51,5 @@ export function refreshProviderModelUiRuntime() {
 }
 
 export function callProviderModelSmokeTestRuntime() {
-  const callClaudeAPI = getRuntimeFunction('callClaudeAPI');
-  if (!callClaudeAPI) throw new Error('AI provider runtime is unavailable.');
-  return callClaudeAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
+  return providerModelControlsRuntimeDeps.callClaudeAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
 }

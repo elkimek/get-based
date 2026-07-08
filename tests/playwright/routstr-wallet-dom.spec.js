@@ -11,6 +11,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
   );
 
   const results = await page.evaluate(async () => {
+    const api = await import('/js/api.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -244,7 +245,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const refundReceivesToken = receivedToken === 'cashuArefundtoken';
       const refundDoesNotUseBackupImport = importedToken === null;
       const refundClearsPendingWithdraw = clearPendingWithdrawCalled;
-      const routstrKeyClearsAfterRefund = !window.getRoutstrKey?.();
+      const routstrKeyClearsAfterRefund = !api.getRoutstrKey();
 
       await window.showWalletSeedPhrase();
       await wait(50);

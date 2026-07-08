@@ -2,6 +2,7 @@
 // Biology Scores runtime adapter behavior.
 
 import './_node-shim.js';
+import { getCachedKey, updateKeyCache } from '../js/crypto.js';
 import {
   canOpenBiologyScoresChatPanel,
   getBiologyScoresActiveData,
@@ -31,6 +32,12 @@ console.log('=== Biology Scores Runtime Tests ===');
 
 const runtimeKeys = ['window'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const savedAIStorage = {
+  provider: localStorage.getItem('labcharts-ai-provider'),
+  paused: localStorage.getItem('labcharts-ai-paused'),
+  openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
+  openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
+};
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -47,6 +54,13 @@ function restoreRuntime() {
     if (descriptor) Object.defineProperty(globalThis, key, descriptor);
     else delete globalThis[key];
   }
+  if (savedAIStorage.provider == null) localStorage.removeItem('labcharts-ai-provider');
+  else localStorage.setItem('labcharts-ai-provider', savedAIStorage.provider);
+  if (savedAIStorage.paused == null) localStorage.removeItem('labcharts-ai-paused');
+  else localStorage.setItem('labcharts-ai-paused', savedAIStorage.paused);
+  if (savedAIStorage.openrouterKey == null) localStorage.removeItem('labcharts-openrouter-key');
+  else localStorage.setItem('labcharts-openrouter-key', savedAIStorage.openrouterKey);
+  updateKeyCache('labcharts-openrouter-key', savedAIStorage.openrouterCachedKey);
 }
 
 try {
@@ -57,7 +71,6 @@ try {
     openChatPanel(prompt) { calls.push(['chat', prompt, this === browserRuntime]); },
     useChatPrompt(prompt) { calls.push(['prompt', prompt, this === browserRuntime]); },
     showNotification(message, type) { calls.push(['notification', message, type, this === browserRuntime]); },
-    hasAIProvider() { calls.push(['has-ai', this === browserRuntime]); return false; },
     getActiveData() { calls.push(['data', this === browserRuntime]); return activeData; },
     showDetailModal(markerId) { calls.push(['detail', markerId, this === browserRuntime]); },
     setTimeout(callback, delay) {
@@ -67,6 +80,10 @@ try {
     },
   };
   setRuntimeValue('window', browserRuntime);
+  localStorage.setItem('labcharts-ai-provider', 'openrouter');
+  localStorage.removeItem('labcharts-ai-paused');
+  localStorage.removeItem('labcharts-openrouter-key');
+  updateKeyCache('labcharts-openrouter-key', null);
 
   navigateBiologyScoresRoute('biology-scores');
   openBiologyScoresChatPanel();
@@ -87,8 +104,7 @@ try {
   assert('biology runtime delegates prompt notification and provider hooks',
     providerStatus === false &&
       calls.some(call => call[0] === 'prompt' && call[1] === 'Interpret score' && call[2] === true) &&
-      calls.some(call => call[0] === 'notification' && call[1] === 'Saved' && call[2] === 'success' && call[3] === true) &&
-      calls.some(call => call[0] === 'has-ai' && call[1] === true));
+      calls.some(call => call[0] === 'notification' && call[1] === 'Saved' && call[2] === 'success' && call[3] === true));
   assert('biology runtime delegates active data and marker detail hooks',
     data === activeData &&
       calls.some(call => call[0] === 'data' && call[1] === true) &&
@@ -99,12 +115,11 @@ try {
       calls.some(call => call[0] === 'task'));
 
   delete browserRuntime.openChatPanel;
-  delete browserRuntime.hasAIProvider;
   delete browserRuntime.getActiveData;
   assert('biology runtime handles missing optional browser hooks',
     !canOpenBiologyScoresChatPanel() &&
       openBiologyScoresChatPanel('missing') === false &&
-      hasBiologyScoresAIProvider() === null &&
+      hasBiologyScoresAIProvider() === false &&
       Object.keys(getBiologyScoresActiveData()).length === 0);
 
   delete globalThis.window;
