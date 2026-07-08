@@ -67,6 +67,8 @@ const {
   OTT_QUESTIONS,
   getSunDefaults,
   configureSunDefaults,
+  collectSunSetupValues,
+  persistSunSetupValues,
   saveSunDefaults,
   isOnboardingComplete,
   ottScoreToLabel,
@@ -83,6 +85,7 @@ const {
     !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsSrc));
   assert('sun-defaults installs shared Light setup delegates',
     sunDefaultsSrc.includes('installLightSetupDelegates();') &&
+    sunDefaultsSrc.includes("invokeSunDefaultsBinding('saveSunSetup', saveSunSetup)") &&
     sunDefaultsSrc.includes("data-light-setup-action=") &&
     sunDefaultsSrc.includes("data-light-setup-input="));
   assert('sun-defaults browser hooks are isolated in runtime adapter',
@@ -278,10 +281,54 @@ const {
   assert('Subsequent save preserves earlier fitzpatrick',
     after2.fitzpatrick === 'III' && after2.eyewear === 'sunglasses');
 
+  const setupDom = new JSDOM(`<!doctype html><body>
+    <div class="light-setup-card">
+      <input id="setup-skin-range" value="3" data-set="1">
+      <input type="hidden" id="setup-photosensitive" value="severe">
+      <input type="hidden" id="setup-homelight" value="led-warm">
+      <input type="hidden" id="setup-eyewear" value="sunglasses">
+      <input type="checkbox" data-ott="morning-light-deficit" checked>
+      <input type="checkbox" data-ott="dim-workspace" checked>
+      <input type="checkbox" data-ott="low-outdoor-time">
+    </div>
+  </body>`);
+  const setupRoot = setupDom.window.document.querySelector('.light-setup-card');
+  const collected = collectSunSetupValues(setupRoot);
+  assert('collectSunSetupValues reads current hidden-choice setup UI',
+    collected.ok &&
+    collected.values.fitzpatrick === 'IV' &&
+    collected.values.skinIdx === 3 &&
+    collected.values.photosensitiveMeds === 'severe' &&
+    collected.values.homeLight === 'led-warm' &&
+    collected.values.eyewear === 'sunglasses' &&
+    collected.values.ottScore === 2 &&
+    collected.values.ott['morning-light-deficit'] === true &&
+    collected.values.ott['dim-workspace'] === true &&
+    collected.values.ott['low-outdoor-time'] === false);
+
+  const missingSkinDom = new JSDOM(`<!doctype html><body>
+    <div class="light-setup-card"><input id="setup-skin-range" value="2" data-set="0"></div>
+  </body>`);
+  const missingSkin = collectSunSetupValues(missingSkinDom.window.document.querySelector('.light-setup-card'));
+  assert('collectSunSetupValues blocks visual default skin type until confirmed',
+    missingSkin.ok === false && missingSkin.reason === 'skin-type-required');
+
+  window._labState.importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
+  await persistSunSetupValues(collected.values, 1234567890);
+  assert('persistSunSetupValues saves defaults and mirrors skin context in one path',
+    window._labState.importedData.sunDefaults.fitzpatrick === 'IV' &&
+    window._labState.importedData.sunDefaults.photosensitiveMeds === 'severe' &&
+    window._labState.importedData.sunDefaults.homeLight === 'led-warm' &&
+    window._labState.importedData.sunDefaults.eyewear === 'sunglasses' &&
+    window._labState.importedData.sunDefaults.ottScore === 2 &&
+    window._labState.importedData.sunDefaults.completedAt === 1234567890 &&
+    window._labState.importedData.lightCircadian?.skinType?.startsWith('IV'));
+
   // ─── 6. isOnboardingComplete gate ─────────────────────────────────────
   console.log('%c 6. Onboarding-complete gate ', 'font-weight:bold;color:#f59e0b');
 
   // Just fitzpatrick set is not enough — needs completedAt
+  window._labState.importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
   assert('isOnboardingComplete falsy without completedAt',
     !isOnboardingComplete());
 

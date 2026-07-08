@@ -13,6 +13,24 @@ function getRuntimeFunction(name) {
   return typeof runtime?.[name] === 'function' ? runtime[name].bind(runtime) : null;
 }
 
+/**
+ * Invoke the currently exposed runtime binding when it differs from the local
+ * module function. This keeps delegated document handlers stable when a
+ * cache-busted module instance replaces public bindings during browser tests.
+ *
+ * @param {string} name
+ * @param {Function} localFn
+ * @param {any[]} [args]
+ */
+export function invokeSunDefaultsBinding(name, localFn, args = []) {
+  const runtime = getRuntimeWindow();
+  const runtimeFn = runtime?.[name];
+  if (typeof runtimeFn === 'function' && runtimeFn !== localFn) {
+    return runtimeFn.apply(runtime, args);
+  }
+  return localFn(...args);
+}
+
 export function hasSunDefaultsBrowserRuntime() {
   return getRuntimeWindow() !== null;
 }

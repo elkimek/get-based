@@ -19,6 +19,7 @@ import {
   getSunSetupProfileLocation,
   hasSunDefaultsBrowserRuntime,
   hasSunSetupPreciseLocationRequester,
+  invokeSunDefaultsBinding,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
   requestSunSetupPreciseLocationRuntime,
@@ -116,15 +117,15 @@ function handleLightSetupClick(event) {
   switch (actionEl.dataset.lightSetupAction || '') {
     case 'reopen':
       event.preventDefault();
-      reopenSunSetup();
+      invokeSunDefaultsBinding('reopenSunSetup', reopenSunSetup);
       break;
     case 'dismiss':
       event.preventDefault();
-      dismissSunSetup();
+      invokeSunDefaultsBinding('dismissSunSetup', dismissSunSetup);
       break;
     case 'cancel-reopen':
       event.preventDefault();
-      cancelReopenSunSetup();
+      invokeSunDefaultsBinding('cancelReopenSunSetup', cancelReopenSunSetup);
       break;
     case 'set-step':
       event.preventDefault();
@@ -132,7 +133,7 @@ function handleLightSetupClick(event) {
       break;
     case 'save':
       event.preventDefault();
-      saveSunSetup();
+      invokeSunDefaultsBinding('saveSunSetup', saveSunSetup);
       break;
     case 'select-choice':
       event.preventDefault();
@@ -144,11 +145,11 @@ function handleLightSetupClick(event) {
       break;
     case 'open-profile-location':
       event.preventDefault();
-      openLightSetupProfileLocation();
+      invokeSunDefaultsBinding('openLightSetupProfileLocation', openLightSetupProfileLocation);
       break;
     case 'request-precise-location':
       event.preventDefault();
-      requestLightSetupPreciseLocation();
+      invokeSunDefaultsBinding('requestLightSetupPreciseLocation', requestLightSetupPreciseLocation);
       break;
   }
 }
@@ -784,10 +785,39 @@ async function requestLightSetupPreciseLocation() {
   return coords;
 }
 
-// Save handler — wired to button via window
-async function saveSunSetup() {
-  const root = document.querySelector('.light-setup-card');
-  if (!root) return;
+function readSetupFieldValue(root, id) {
+  const el = root?.querySelector?.(`#${id}`);
+  if (!el || !('value' in el)) return null;
+  const value = String(el.value || '');
+  return value || null;
+}
+
+function readSetupPhotosensitiveValue(root) {
+  const el = root?.querySelector?.('#setup-photosensitive');
+  if (!el) return 'none';
+  const type = 'type' in el ? String(el.type || '') : '';
+  if (type === 'checkbox') return el.checked ? 'moderate' : 'none';
+  return readSetupFieldValue(root, 'setup-photosensitive') || 'none';
+}
+
+function buildDefaultLightCircadianContext() {
+  return {
+    amLight: null,
+    daytime: null,
+    uvExposure: null,
+    skinType: null,
+    evening: [],
+    screenTime: null,
+    techEnv: [],
+    cold: null,
+    grounding: null,
+    mealTiming: [],
+    note: '',
+  };
+}
+
+export function collectSunSetupValues(root) {
+  if (!root) return { ok: false, reason: 'missing-root' };
   // Skin type comes from the emoji-slider range. The slider defaults to
   // position 2 (median III) but data-set="0" means the user hasn't
   // actively confirmed; they must tap a face or drag.
@@ -795,14 +825,8 @@ async function saveSunSetup() {
   const isSet = sliderEl?.dataset?.set === '1';
   const skinIdx = isSet ? parseInt(sliderEl?.value || '', 10) : -1;
   const fitzpatrick = (skinIdx >= 0 && skinIdx < 6) ? ROMAN[skinIdx] : null;
-  const homeLightEl = /** @type {HTMLSelectElement | null} */ (root.querySelector('#setup-homelight'));
-  const eyewearEl = /** @type {HTMLSelectElement | null} */ (root.querySelector('#setup-eyewear'));
-  const homeLight = homeLightEl?.value || null;
-  const eyewear = eyewearEl?.value || null;
   if (!fitzpatrick) {
-    setLightSetupStep('core');
-    showNotification('Tap a face to confirm your skin type.');
-    return;
+    return { ok: false, reason: 'skin-type-required' };
   }
   const ott = {};
   let ottScore = 0;
@@ -813,33 +837,57 @@ async function saveSunSetup() {
       if (cb.checked) ottScore++;
     }
   }
-  // photosensitiveMeds started as a boolean checkbox, then briefly used a
-  // native select. The current setup uses a hidden input driven by inline
-  // choice buttons so the option list stays inside the focused modal.
-  const psmEl = /** @type {HTMLInputElement | HTMLSelectElement | null} */ (root.querySelector('#setup-photosensitive'));
-  const photosensitiveMeds = (psmEl?.tagName === 'SELECT' || psmEl?.type === 'hidden')
-    ? (psmEl.value || 'none')
-    : (psmEl instanceof HTMLInputElement && psmEl.checked ? 'moderate' : 'none');
-  await saveSunDefaults({
-    fitzpatrick,
-    photosensitiveMeds,
-    homeLight,
-    eyewear,
-    ott,
-    ottScore,
-    completedAt: Date.now(),
+  return {
+    ok: true,
+    values: {
+      skinIdx,
+      fitzpatrick,
+      photosensitiveMeds: readSetupPhotosensitiveValue(root),
+      homeLight: readSetupFieldValue(root, 'setup-homelight'),
+      eyewear: readSetupFieldValue(root, 'setup-eyewear'),
+      ott,
+      ottScore,
+    },
+  };
+}
+
+export async function persistSunSetupValues(values, now = Date.now()) {
+  if (!values || !state.importedData) return null;
+  const d = getSunDefaults();
+  if (!d) return null;
+  Object.assign(d, {
+    fitzpatrick: values.fitzpatrick,
+    photosensitiveMeds: values.photosensitiveMeds,
+    homeLight: values.homeLight,
+    eyewear: values.eyewear,
+    ott: values.ott || {},
+    ottScore: Number(values.ottScore) || 0,
+    completedAt: now,
   });
-  // Mirror to lightCircadian.skinType so the context card reflects this answer
-  // (and vice-versa — getInitialFitzpatrick reads from lightCircadian as a fallback).
   if (!state.importedData.lightCircadian) {
-    state.importedData.lightCircadian = { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
+    state.importedData.lightCircadian = buildDefaultLightCircadianContext();
   }
-  state.importedData.lightCircadian.skinType = SKIN_TYPE[skinIdx];
+  state.importedData.lightCircadian.skinType = SKIN_TYPE[values.skinIdx];
   await saveImportedData();
+  return d;
+}
+
+async function saveSunSetup() {
+  const root = document.querySelector('.light-setup-card');
+  const collected = collectSunSetupValues(root);
+  if (!collected.ok) {
+    if (collected.reason === 'skin-type-required') {
+      setLightSetupStep('core');
+      showNotification('Tap a face to confirm your skin type.');
+    }
+    return false;
+  }
+  await persistSunSetupValues(collected.values);
   closeSunSetupOverlay();
-  showNotification(`Setup saved · light burden ${ottScore}/10`);
+  showNotification(`Setup saved · light burden ${collected.values.ottScore}/10`);
   maybeAnalyzeOnboardingAfterSave();
   navigateSunDefaultsRoute('light');
+  return true;
 }
 
 // Recompute the running Ott score whenever a checkbox toggles, and update
