@@ -43,6 +43,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
     'proteins.ceruloplasmin', 'lipids.apoB', 'lipids.apoAI',
     'hematology.mchc',
     'differential.neutrophilsPct', 'differential.lymphocytesPct', 'differential.monocytesPct',
+    'differential.eosinophilsPct', 'differential.basophilsPct',
     'boneMetabolism.osteocalcin', 'tumorMarkers.psa',
     'vitamins.vitaminA', 'vitamins.calcitriol'
   ];

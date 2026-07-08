@@ -30,9 +30,11 @@ function isFractionStoredPercentMarker(key) {
     && isPercentImportUnit(conv.usUnit);
 }
 
-function normalizeFractionStoredPercentValue(key, value, unit) {
+function normalizeFractionStoredPercentValue(key, value, unit, context = null) {
   if (!isFractionStoredPercentMarker(key) || !isPercentImportUnit(unit)) return null;
-  const siValue = value > 1 ? value / 100 : value;
+  const [catKey, markerKey] = String(key || '').split('.');
+  const [schemaRefMax, reportRefMax] = [Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax), Number(context?.refMax)];
+  const siValue = value > 1 || (reportRefMax > 1 && reportRefMax > schemaRefMax && !(Number.isFinite(schemaRefMax) && value <= schemaRefMax)) ? value / 100 : value;
   return parseFloat(siValue.toPrecision(6));
 }
 
@@ -628,8 +630,6 @@ function _resolveStandardBloodImportKey(marker, refLookup, differentialPercentSu
     const pctKey = `differential.${differentialStem}Pct`;
     return refLookup[pctKey] ? pctKey : null;
   }
-  if (compactBase === 'eosinofily' || compactBase === 'basofily') return null;
-
   const lookup = _buildStandardBloodNameLookup();
   const labels = [marker.rawName, marker.suggestedName];
   if (marker.mappedKey) labels.push(marker.mappedKey.split('.').pop());
@@ -688,7 +688,7 @@ export function reconcileImportMarkerMappings(markers, options = {}) {
   return markers;
 }
 
-export function normalizeToSI(key, value, unit) {
+export function normalizeToSI(key, value, unit, context = null) {
   if (value == null || isNaN(value)) return null;
 
   // Hematocrit: schema stores as % (40–50) but some labs report as fraction l/l (0.40–0.50)
@@ -699,7 +699,7 @@ export function normalizeToSI(key, value, unit) {
   // When a unit string is present, systematically evaluate all conversion registries
   if (unit) {
     const aiUnit = normalizeUnitStr(unit);
-    const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, aiUnit);
+    const fractionPercentValue = normalizeFractionStoredPercentValue(key, value, aiUnit, context);
     if (fractionPercentValue != null) return fractionPercentValue;
 
     // 1. Evaluate primary US conversions

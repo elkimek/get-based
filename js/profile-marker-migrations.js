@@ -233,6 +233,8 @@ const FRACTION_STORED_PERCENT_MARKERS = new Set([
   'differential.neutrophilsPct',
   'differential.lymphocytesPct',
   'differential.monocytesPct',
+  'differential.eosinophilsPct',
+  'differential.basophilsPct',
 ]);
 
 /**
@@ -468,18 +470,26 @@ function _profileMarkerValuesMatch(a, b) {
 
 /**
  * @param {any} marker
- * @returns {{ key: string, value: number, dividedValue: number } | null}
+ * @returns {{ key: string, canonicalValue: number, dividedValue: number | null, wholePercentValue: number | null } | null}
  */
 function _fractionStoredPercentSnapshotMarker(marker) {
   const key = marker?.mappedKey || marker?.suggestedKey || '';
   if (!FRACTION_STORED_PERCENT_MARKERS.has(key)) return null;
   if (!_isProfilePercentUnit(marker?.unit)) return null;
   const value = Number(marker?.value);
-  if (!Number.isFinite(value) || value < 0 || value > 1) return null;
+  if (!Number.isFinite(value) || value < 0 || value > 100) return null;
+  const [catKey, markerKey] = key.split('.');
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
+  const markerRefMax = Number(marker?.refMax);
+  const snapshotRangeUsesWholePercent = Number.isFinite(markerRefMax) && markerRefMax > 1;
+  const valueLooksCanonical = Number.isFinite(schemaRefMax) && value <= schemaRefMax;
+  const valueUsesWholePercent = value > 1 || (snapshotRangeUsesWholePercent && !valueLooksCanonical);
+  const canonicalValue = valueUsesWholePercent ? parseFloat((value / 100).toPrecision(6)) : value;
   return {
     key,
-    value,
-    dividedValue: parseFloat((value / 100).toPrecision(6)),
+    canonicalValue,
+    dividedValue: valueUsesWholePercent ? null : parseFloat((value / 100).toPrecision(6)),
+    wholePercentValue: valueUsesWholePercent ? value : null,
   };
 }
 
@@ -498,12 +508,21 @@ function _repairFractionStoredPercentRefOverride(data, key, marker) {
     ['labRefMin', 'refMin'],
     ['labRefMax', 'refMax'],
   ];
+  const markerRefMax = Number(marker?.refMax);
+  const snapshotRangeUsesWholePercent = Number.isFinite(markerRefMax) && markerRefMax > 1;
+  const [catKey, markerKey] = key.split('.');
+  const schemaRefMax = Number(MARKER_SCHEMA[catKey]?.markers?.[markerKey]?.refMax);
   for (const [overrideField, markerField] of pairs) {
     const raw = Number(marker?.[markerField]);
-    if (!Number.isFinite(raw) || raw < 0 || raw > 1) continue;
-    const divided = parseFloat((raw / 100).toPrecision(6));
-    if (_profileMarkerValuesMatch(override[overrideField], divided)) {
+    if (!Number.isFinite(raw) || raw < 0 || raw > 100) continue;
+    const rawLooksCanonical = Number.isFinite(schemaRefMax) && raw <= schemaRefMax;
+    const rawUsesWholePercent = raw > 1 || (snapshotRangeUsesWholePercent && !rawLooksCanonical);
+    const canonical = rawUsesWholePercent ? parseFloat((raw / 100).toPrecision(6)) : raw;
+    const divided = rawUsesWholePercent ? null : parseFloat((raw / 100).toPrecision(6));
+    if (divided != null && _profileMarkerValuesMatch(override[overrideField], divided)) {
       override[overrideField] = raw;
+    } else if (raw > 1 && _profileMarkerValuesMatch(override[overrideField], raw)) {
+      override[overrideField] = canonical;
     }
   }
 }
@@ -519,16 +538,28 @@ function _repairFractionStoredPercentImports(data) {
     for (const marker of snap.markers) {
       const percentMarker = _fractionStoredPercentSnapshotMarker(marker);
       if (!percentMarker) continue;
-      const { key, value, dividedValue } = percentMarker;
+      const { key, canonicalValue, dividedValue, wholePercentValue } = percentMarker;
+      if (!marker.mappedKey && marker.suggestedKey === key) {
+        marker.mappedKey = key;
+        marker.suggestedKey = null;
+        marker.matched = true;
+      }
       for (const entry of data.entries) {
         if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, key)) continue;
         const source = entry.markerSources?.[key];
         const sourceMatches = (snap?.id && source?.snapshotId === snap.id)
-          || (snap?.date && entry.date === snap.date && _profileMarkerValuesMatch(entry.markers[key], dividedValue));
+          || (snap?.date && entry.date === snap.date && (
+            (dividedValue != null && _profileMarkerValuesMatch(entry.markers[key], dividedValue))
+            || (wholePercentValue != null && _profileMarkerValuesMatch(entry.markers[key], wholePercentValue))
+          ));
         if (!sourceMatches) continue;
-        if (_profileMarkerValuesMatch(entry.markers[key], dividedValue)) entry.markers[key] = value;
+        if (dividedValue != null && _profileMarkerValuesMatch(entry.markers[key], dividedValue)) entry.markers[key] = canonicalValue;
+        if (wholePercentValue != null && _profileMarkerValuesMatch(entry.markers[key], wholePercentValue)) entry.markers[key] = canonicalValue;
       }
       _repairFractionStoredPercentRefOverride(data, key, marker);
+      if (data.customMarkers?.[key] && MARKER_SCHEMA[key.split('.')[0]]?.markers?.[key.split('.')[1]]) {
+        delete data.customMarkers[key];
+      }
     }
   }
 }

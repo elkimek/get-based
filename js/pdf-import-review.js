@@ -539,8 +539,8 @@ export function showImportPreview(parseResult) {
     if (m.refMin == null && m.refMax == null) continue;
     const schemaRef = refLookup[m.mappedKey];
     if (!schemaRef) continue;
-    const siMin = m.refMin != null ? normalizeToSI(m.mappedKey, m.refMin, m.unit) : null;
-    const siMax = m.refMax != null ? normalizeToSI(m.mappedKey, m.refMax, m.unit) : null;
+    const siMin = m.refMin != null ? normalizeToSI(m.mappedKey, m.refMin, m.unit, m) : null;
+    const siMax = m.refMax != null ? normalizeToSI(m.mappedKey, m.refMax, m.unit, m) : null;
     if ((siMin !== schemaRef.refMin && !(siMin != null && schemaRef.refMin != null && Math.abs(siMin - schemaRef.refMin) < 0.001)) ||
         (siMax !== schemaRef.refMax && !(siMax != null && schemaRef.refMax != null && Math.abs(siMax - schemaRef.refMax) < 0.001))) {
       rangesDiffCount++;
