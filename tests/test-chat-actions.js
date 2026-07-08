@@ -459,6 +459,10 @@ assert('chat.js imports chat render helpers', chatSrc.includes("from './chat-ren
 assert('chat-render.js exports renderChatMessages', chatRenderSrc.includes('export function renderChatMessages'), 'found');
 assert('chat.js imports chat send helpers', chatSrc.includes("from './chat-send.js'"), 'found');
 assert('chat-send.js exports sendChatMessage', chatSendSrc.includes('export async function sendChatMessage'), 'found');
+assert('sendChatMessage exits when blocked thread creation refuses a thread',
+  chatSendSrc.includes('isChatThreadInputBlocked()')
+    && /createNewThread\(\);[\s\S]{0,120}if \(!state\.currentThreadId\) return;/.test(chatSendSrc),
+  'found');
 assert('chat.js imports marker prompt helpers', chatSrc.includes("from './chat-marker-prompts.js'"), 'found');
 assert('chat-marker-prompts.js exports marker and correlation prompts',
   chatMarkerPromptsSrc.includes('export function askAIAboutMarker') &&

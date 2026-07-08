@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import {
-  getEncryptionEnabled, encryptedSetItem, encryptedGetItem, encryptedRemoveItem,
+  getEncryptionEnabled, isUnlocked, encryptedSetItem, encryptedGetItem, encryptedRemoveItem,
 } from './crypto.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
 import { logSyncEvent } from './sync-state.js';
@@ -39,9 +39,10 @@ export function getChatDataLocalLockRemainingMs(profileId) {
 }
 
 /** @param {string} profileId */
-function hasMeaningfulLocalChatData(profileId) {
+async function hasMeaningfulLocalChatData(profileId) {
   try {
-    const raw = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
+    const key = `labcharts-${profileId}-chat-threads`;
+    const raw = await encryptedGetItem(key) || localStorage.getItem(key);
     const threads = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(threads)) return false;
     return threads.some(thread => (Number(thread?.messageCount) || 0) > 0);
@@ -51,9 +52,9 @@ function hasMeaningfulLocalChatData(profileId) {
 }
 
 /** @param {string} profileId */
-function shouldKeepLocalChatData(profileId) {
+async function shouldKeepLocalChatData(profileId) {
   return getChatDataLocalLockRemainingMs(profileId) > 0
-    && hasMeaningfulLocalChatData(profileId);
+    && await hasMeaningfulLocalChatData(profileId);
 }
 
 /** @param {any} thread */
@@ -128,7 +129,7 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
     keptThreads.push(thread);
   }
   if (changed) {
-    localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(keptThreads));
+    await encryptedSetItem(`labcharts-${profileId}-chat-threads`, JSON.stringify(keptThreads));
   }
   return changed;
 }
@@ -138,8 +139,13 @@ async function applyChatThreadTombstones(profileId, existingThreads, deletedThre
  */
 export async function applyChatData(profileId, chatData) {
   if (!chatData || !Array.isArray(chatData.threads)) return false;
-  // Thread index: always plain localStorage (matches saveChatThreadIndex in chat.js).
-  // encryptAllSensitiveKeys handles at-rest encryption when session ends.
+  if (getEncryptionEnabled() && !isUnlocked()) {
+    dbg(`Skipped chatData for ${profileId.slice(0, 8)} - encryption is locked`);
+    logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - encryption locked`);
+    return false;
+  }
+  // The thread index is a sensitive key, so writes must use the same encrypted
+  // wrapper as normal chat saves.
   const threadsKey = `labcharts-${profileId}-chat-threads`;
   const existingRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
   let existingThreads = [];
@@ -155,7 +161,7 @@ export async function applyChatData(profileId, chatData) {
   }
   const tombstonesChanged = await applyChatThreadTombstones(profileId, existingThreads, deletedThreads);
 
-  if (shouldKeepLocalChatData(profileId)) {
+  if (await shouldKeepLocalChatData(profileId)) {
     writeLocalDeletedThreads(profileId, deletedThreads);
     dbg(`Skipped chatData for ${profileId.slice(0, 8)} - local chat has newer unsynced changes`);
     logSyncEvent('skip', `Chat pull skipped ${profileId.slice(0, 8)} - local changes pending`);
@@ -183,7 +189,7 @@ export async function applyChatData(profileId, chatData) {
 
   const mergedThreads = Array.from(mergedById.values())
     .sort((a, b) => (threadUpdatedAtMs(b) - threadUpdatedAtMs(a)) || String(a.id).localeCompare(String(b.id)));
-  localStorage.setItem(threadsKey, JSON.stringify(mergedThreads));
+  await encryptedSetItem(threadsKey, JSON.stringify(mergedThreads));
 
   for (const thread of existingThreads) {
     if (!thread || typeof thread.id !== 'string') continue;

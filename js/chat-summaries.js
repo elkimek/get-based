@@ -134,7 +134,7 @@ async function _generateSummary() {
     thread.summaryDate = now;
     thread.summaryModel = _modelDisplay;
     if (costInfo) thread.summaryCost = costInfo;
-    saveChatThreadIndex();
+    await saveChatThreadIndex();
 
     await _saveSummaryToProfile({
       id: 's_' + Date.now().toString(36),

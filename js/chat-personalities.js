@@ -206,7 +206,7 @@ export async function setChatPersonality(id, opts = {}) {
     const p = getActivePersonality();
     thread.personalityName = p.name;
     thread.personalityIcon = p.icon;
-    saveChatThreadIndex();
+    await saveChatThreadIndex();
   }
   if (state.chatHistory.length === 0) {
     renderChatMessagesRuntime();

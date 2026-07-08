@@ -53,7 +53,7 @@ export async function saveRoundChatHistory(threadId, messages) {
   if (thread) {
     if (thread.messageCount !== messages.length) thread.updatedAt = new Date().toISOString();
     thread.messageCount = messages.length;
-    saveChatThreadIndex();
+    await saveChatThreadIndex();
     renderThreadList();
   }
 }

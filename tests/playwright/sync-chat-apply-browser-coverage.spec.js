@@ -39,6 +39,7 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       'locked-gone',
       'locked-remote',
       'secret',
+      'locked-secret',
     ];
     const storageKeys = [
       'labcharts-encryption-enabled',
@@ -200,10 +201,24 @@ test('sync chat apply covers browser storage merge tombstone lock and encryption
       });
       const storedSecret = localStorage.getItem(msgKey('secret'));
       const decryptedSecret = await cryptoModule.encryptedGetItem(msgKey('secret'));
-      outcomes.encryptionEnabledWritesSensitiveMessagesEncrypted =
+      const storedSecretThreads = localStorage.getItem(threadsKey);
+      const decryptedSecretThreads = await cryptoModule.encryptedGetItem(threadsKey);
+      outcomes.encryptionEnabledWritesSensitiveChatDataEncrypted =
         encryptedApplied === true
         && storedSecret?.startsWith('v1:')
-        && JSON.parse(decryptedSecret || '[]')?.[0]?.content === 'encrypted remote message';
+        && storedSecretThreads?.startsWith('v1:')
+        && JSON.parse(decryptedSecret || '[]')?.[0]?.content === 'encrypted remote message'
+        && JSON.parse(decryptedSecretThreads || '[]')?.some(thread => thread.id === 'secret');
+
+      await cryptoModule._setTestSessionKey(null);
+      const lockedEncryptedApplied = await chatApply.applyChatData(profileId, {
+        threads: [{ id: 'locked-secret', messageCount: 1, updatedAt: '2026-06-08T15:30:00.000Z' }],
+        messages: { 'locked-secret': [{ role: 'assistant', content: 'must wait for unlock' }] },
+      });
+      outcomes.encryptionLockedSkipsChatApplyWithoutPlaintextRewrite =
+        lockedEncryptedApplied === false
+        && localStorage.getItem(threadsKey) === storedSecretThreads
+        && localStorage.getItem(msgKey('locked-secret')) === null;
     } finally {
       // Ensure the test-only crypto cleanup can run even if setup failed early.
       window.__WEARABLES_TEST = true;

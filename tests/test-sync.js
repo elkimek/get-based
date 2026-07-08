@@ -667,7 +667,7 @@ await import('../js/settings.js');
   assert('sync-pull-active-refresh-runtime.js owns active refresh browser hooks',
     syncPullActiveRefreshSrc.includes("from './sync-pull-active-refresh-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(syncPullActiveRefreshSrc)
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("const loaded = getRuntimeFunction('loadChatThreads')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)")
       && syncPullActiveRefreshRuntimeSrc.includes("runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-applied'))"));
@@ -1423,8 +1423,11 @@ await import('../js/settings.js');
       && /key\.endsWith\('-sync-ts'\)[\s\S]{0,200}localStorage\.removeItem\(key\)/.test(syncDisableCleanupSrc));
   assert('disableSync clears restore-join pending marker',
     syncDisableCleanupSrc.includes("key === 'labcharts-sync-restore-join-pending'"));
-  assert('applyChatData uses plain localStorage for thread index (matches saveChatThreadIndex)',
-    syncChatApplySrc.includes("localStorage.setItem(threadsKey, JSON.stringify(mergedThreads))"));
+  assert('applyChatData encrypts thread index writes',
+    syncChatApplySrc.includes('await encryptedSetItem(threadsKey, JSON.stringify(mergedThreads))'));
+  assert('applyChatData skips chat writes while encryption is locked',
+    syncChatApplySrc.includes('getEncryptionEnabled() && !isUnlocked()')
+      && syncChatApplySrc.includes('encryption locked'));
 
   // ═══════════════════════════════════════
   // 9. SETTINGS UI
@@ -1520,7 +1523,9 @@ await import('../js/settings.js');
       && syncChatApplySrc.includes('normalizeDeletedThreads(chatData.deletedThreads)')
       && syncChatApplySrc.includes('encryptedRemoveItem(`labcharts-${profileId}-chat-t_${thread.id}`)'));
   assert('applyChatData skips stale remote chat while local save is fresh',
-    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('shouldKeepLocalChatData(profileId)'));
+    syncChatApplySrc.includes('CHAT_LOCAL_LOCK_UNTIL_KEY') && syncChatApplySrc.includes('await shouldKeepLocalChatData(profileId)'));
+  assert('applyChatData local freshness guard reads encrypted thread indexes',
+    syncChatApplySrc.includes('await encryptedGetItem(key) || localStorage.getItem(key)'));
   assert('chat freshness lock is shorter than two minutes',
     syncChatApplySrc.includes('const CHAT_LOCAL_LOCK_MS = 90 * 1000'));
   assert('skipped chat pulls retry after the local freshness lock expires',
@@ -1530,7 +1535,8 @@ await import('../js/settings.js');
       && syncPullActiveRefreshSrc.includes('if (chatApplied)'));
   assert('active chat thread is reselected after remote thread deletion',
     syncPullActiveRefreshSrc.includes('refreshPulledChatRuntime();')
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("const loaded = getRuntimeFunction('loadChatThreads')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("if (threadsLoaded === false)")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('ensureActiveThread')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('renderThreadList')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('loadChatHistory')?.()"));
