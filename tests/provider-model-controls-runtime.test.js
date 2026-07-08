@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   callProviderModelSmokeTestRuntime,
   clearProviderE2EESessionRuntime,
+  configureProviderModelControlsRuntimeDeps,
   refreshProviderModelUiRuntime,
 } from '../js/provider-model-controls-runtime.js';
 
@@ -28,16 +29,20 @@ describe('provider model controls runtime adapter', () => {
     const updateChatHeaderModel = vi.fn();
     const refreshWebSearchToggle = vi.fn();
     const callClaudeAPI = vi.fn(async () => ({ content: 'ok' }));
+    const previousDeps = configureProviderModelControlsRuntimeDeps({ callClaudeAPI });
     setRuntimeWindow({
       clearE2EESession,
       updateChatHeaderModel,
       refreshWebSearchToggle,
-      callClaudeAPI,
     });
 
-    expect(clearProviderE2EESessionRuntime()).toBe(true);
-    expect(refreshProviderModelUiRuntime()).toBe(true);
-    await expect(callProviderModelSmokeTestRuntime()).resolves.toEqual({ content: 'ok' });
+    try {
+      expect(clearProviderE2EESessionRuntime()).toBe(true);
+      expect(refreshProviderModelUiRuntime()).toBe(true);
+      await expect(callProviderModelSmokeTestRuntime()).resolves.toEqual({ content: 'ok' });
+    } finally {
+      configureProviderModelControlsRuntimeDeps(previousDeps);
+    }
 
     expect(clearE2EESession).toHaveBeenCalledTimes(1);
     expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
@@ -53,7 +58,6 @@ describe('provider model controls runtime adapter', () => {
 
     expect(clearProviderE2EESessionRuntime()).toBe(false);
     expect(refreshProviderModelUiRuntime()).toBe(false);
-    expect(() => callProviderModelSmokeTestRuntime()).toThrow('AI provider runtime is unavailable.');
   });
 
   it('keeps provider-model-controls.js browser globals behind the adapter', () => {

@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
-import { getAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
+import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
@@ -703,7 +703,7 @@ addSettingsRuntimeEventListener('labcharts-themechange', () => applyAccentOverri
 installSunDataSourceDelegates();
 
 export function openSettingsModal(tab) {
-  settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();
+  settingsWindow._settingsHadProvider = hasAIProvider();
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   const provider = getAIProvider();

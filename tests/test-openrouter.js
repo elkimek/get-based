@@ -26,9 +26,10 @@ function assert(name, condition, detail) {
 
 console.log('=== OpenRouter Integration Tests ===\n');
 
-// api.js + provider-panels.js expose helpers via Object.assign(window, ...).
+// api.js exposes provider helpers as ES module exports; provider-panels.js
+// still exposes UI handlers used by legacy HTML/event wiring.
 await import('../js/state.js');
-await import('../js/api.js');
+const api = await import('../js/api.js');
 await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
@@ -94,15 +95,15 @@ assert('fetchOpenRouterModels converts to per-million', apiModelsSrc.includes('*
 assert('fetchOpenRouterModels caches pricing', apiModelsSrc.includes("'labcharts-openrouter-pricing'"));
 assert('OpenRouter default prefers GPT 5.5 then Sonnet 5 when fetched', apiModelsSrc.includes("'openai/gpt-5.5', 'anthropic/claude-sonnet-5'"));
 assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
-assert('window.getOpenRouterPricing is function', typeof window.getOpenRouterPricing === 'function');
+assert('api.getOpenRouterPricing is function', typeof api.getOpenRouterPricing === 'function');
 
 const oldPricing = localStorage.getItem('labcharts-openrouter-pricing');
 localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
   'anthropic/claude-sonnet-4-6': { input: 3.00, output: 15.00 }
 }));
-const dynResult = window.getOpenRouterPricing('anthropic/claude-sonnet-4-6');
+const dynResult = api.getOpenRouterPricing('anthropic/claude-sonnet-4-6');
 assert('getOpenRouterPricing reads cached pricing', dynResult && dynResult.input === 3.00 && dynResult.output === 15.00);
-assert('getOpenRouterPricing returns null for unknown', window.getOpenRouterPricing('unknown/model') === null);
+assert('getOpenRouterPricing returns null for unknown', api.getOpenRouterPricing('unknown/model') === null);
 if (oldPricing) localStorage.setItem('labcharts-openrouter-pricing', oldPricing);
 else localStorage.removeItem('labcharts-openrouter-pricing');
 
@@ -128,7 +129,7 @@ assert('settings installs provider bridge module', settingsSrc.includes('install
 assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
 assert('settings records existing provider before provider-key onboarding return',
-  settingsSrc.includes('settingsWindow._settingsHadProvider = !!settingsWindow.hasAIProvider?.();')
+  settingsSrc.includes('settingsWindow._settingsHadProvider = hasAIProvider();')
     && ppSrc.includes("if (getProviderPanelRuntimeValue('_settingsHadProvider')) return"));
 assert('renderAIProviderPanel handles openrouter', providerRenderSrc.includes("provider === 'openrouter'"));
 assert('handleSaveOpenRouterKey exists', ppSrc.includes('function handleSaveOpenRouterKey()'));
@@ -160,11 +161,11 @@ const oldProviderForRefresh = localStorage.getItem('labcharts-ai-provider');
 const oldOpenRouterModelForRefresh = localStorage.getItem('labcharts-openrouter-model');
 window.updateChatHeaderModel = () => { headerRefreshCount += 1; };
 window.refreshWebSearchToggle = () => { webToggleRefreshCount += 1; };
-window.setAIProvider('openrouter');
+api.setAIProvider('openrouter');
 assert('setAIProvider refreshes chat header', headerRefreshCount === 1, `count=${headerRefreshCount}`);
 assert('setAIProvider refreshes web-search state', webToggleRefreshCount === 1, `count=${webToggleRefreshCount}`);
 assert('setAIProvider marks AI settings as local', Number(sessionStorage.getItem('labcharts-ai-settings-local-lock-until') || 0) > Date.now());
-window.setOpenRouterModel('anthropic/claude-sonnet-4.6');
+api.setOpenRouterModel('anthropic/claude-sonnet-4.6');
 assert('setOpenRouterModel refreshes chat header', headerRefreshCount === 2, `count=${headerRefreshCount}`);
 assert('setOpenRouterModel refreshes web-search state', webToggleRefreshCount === 2, `count=${webToggleRefreshCount}`);
 if (oldHeaderRefresh) window.updateChatHeaderModel = oldHeaderRefresh;
@@ -203,17 +204,17 @@ assert('SW caches provider-panel-renderers.js', swSrc.includes('/js/provider-pan
 assert('SW caches provider-model-controls-runtime.js', swSrc.includes('/js/provider-model-controls-runtime.js'));
 assert('SW caches provider-model-controls.js', swSrc.includes('/js/provider-model-controls.js'));
 
-// ─── 7. Window function exports ───
-console.log('\n7. Window function exports');
-assert('window.getOpenRouterKey is function', typeof window.getOpenRouterKey === 'function');
-assert('window.saveOpenRouterKey is function', typeof window.saveOpenRouterKey === 'function');
-assert('window.hasOpenRouterKey is function', typeof window.hasOpenRouterKey === 'function');
-assert('window.getOpenRouterModel is function', typeof window.getOpenRouterModel === 'function');
-assert('window.setOpenRouterModel is function', typeof window.setOpenRouterModel === 'function');
-assert('window.getOpenRouterModelDisplay is function', typeof window.getOpenRouterModelDisplay === 'function');
-assert('window.fetchOpenRouterModels is function', typeof window.fetchOpenRouterModels === 'function');
-assert('window.validateOpenRouterKey is function', typeof window.validateOpenRouterKey === 'function');
-assert('window.callOpenRouterAPI is function', typeof window.callOpenRouterAPI === 'function');
+// ─── 7. Module and UI handler exports ───
+console.log('\n7. Module and UI handler exports');
+assert('api.getOpenRouterKey is function', typeof api.getOpenRouterKey === 'function');
+assert('api.saveOpenRouterKey is function', typeof api.saveOpenRouterKey === 'function');
+assert('api.hasOpenRouterKey is function', typeof api.hasOpenRouterKey === 'function');
+assert('api.getOpenRouterModel is function', typeof api.getOpenRouterModel === 'function');
+assert('api.setOpenRouterModel is function', typeof api.setOpenRouterModel === 'function');
+assert('api.getOpenRouterModelDisplay is function', typeof api.getOpenRouterModelDisplay === 'function');
+assert('api.fetchOpenRouterModels is function', typeof api.fetchOpenRouterModels === 'function');
+assert('api.validateOpenRouterKey is function', typeof api.validateOpenRouterKey === 'function');
+assert('api.callOpenRouterAPI is function', typeof api.callOpenRouterAPI === 'function');
 assert('window.handleSaveOpenRouterKey is function', typeof window.handleSaveOpenRouterKey === 'function');
 assert('window.handleRemoveOpenRouterKey is function', typeof window.handleRemoveOpenRouterKey === 'function');
 assert('window.renderOpenRouterModelDropdown is function', typeof window.renderOpenRouterModelDropdown === 'function');
@@ -222,20 +223,20 @@ assert('window.updateOpenRouterModelPricing is function', typeof window.updateOp
 // ─── 8. Key/model management (localStorage) ───
 console.log('\n8. Key/model management');
 const oldKey = localStorage.getItem('labcharts-openrouter-key');
-window.saveOpenRouterKey('test-key-123');
+api.saveOpenRouterKey('test-key-123');
 assert('saveOpenRouterKey stores to localStorage', localStorage.getItem('labcharts-openrouter-key') === 'test-key-123');
-assert('getOpenRouterKey returns saved key', window.getOpenRouterKey() === 'test-key-123');
-assert('hasOpenRouterKey returns true with key', window.hasOpenRouterKey() === true);
+assert('getOpenRouterKey returns saved key', api.getOpenRouterKey() === 'test-key-123');
+assert('hasOpenRouterKey returns true with key', api.hasOpenRouterKey() === true);
 localStorage.removeItem('labcharts-openrouter-key');
-assert('hasOpenRouterKey returns false without key', window.hasOpenRouterKey() === false);
-assert('getOpenRouterKey returns empty without key', window.getOpenRouterKey() === '');
+assert('hasOpenRouterKey returns false without key', api.hasOpenRouterKey() === false);
+assert('getOpenRouterKey returns empty without key', api.getOpenRouterKey() === '');
 if (oldKey) localStorage.setItem('labcharts-openrouter-key', oldKey);
 
 const oldModel = localStorage.getItem('labcharts-openrouter-model');
 localStorage.removeItem('labcharts-openrouter-model');
-assert('getOpenRouterModel defaults to anthropic/claude-sonnet-4.6', window.getOpenRouterModel() === 'anthropic/claude-sonnet-4.6');
-window.setOpenRouterModel('openai/gpt-4o');
-assert('setOpenRouterModel persists', window.getOpenRouterModel() === 'openai/gpt-4o');
+assert('getOpenRouterModel defaults to anthropic/claude-sonnet-4.6', api.getOpenRouterModel() === 'anthropic/claude-sonnet-4.6');
+api.setOpenRouterModel('openai/gpt-4o');
+assert('setOpenRouterModel persists', api.getOpenRouterModel() === 'openai/gpt-4o');
 if (oldModel) localStorage.setItem('labcharts-openrouter-model', oldModel);
 else localStorage.removeItem('labcharts-openrouter-model');
 
@@ -243,11 +244,11 @@ else localStorage.removeItem('labcharts-openrouter-model');
 console.log('\n9. hasAIProvider integration');
 const oldProvider = localStorage.getItem('labcharts-ai-provider');
 const oldORKey = localStorage.getItem('labcharts-openrouter-key');
-window.setAIProvider('openrouter');
+api.setAIProvider('openrouter');
 localStorage.removeItem('labcharts-openrouter-key');
-assert('hasAIProvider false for openrouter without key', window.hasAIProvider() === false);
-window.saveOpenRouterKey('sk-or-test');
-assert('hasAIProvider true for openrouter with key', window.hasAIProvider() === true);
+assert('hasAIProvider false for openrouter without key', api.hasAIProvider() === false);
+api.saveOpenRouterKey('sk-or-test');
+assert('hasAIProvider true for openrouter with key', api.hasAIProvider() === true);
 if (oldProvider) localStorage.setItem('labcharts-ai-provider', oldProvider);
 else localStorage.removeItem('labcharts-ai-provider');
 if (oldORKey) localStorage.setItem('labcharts-openrouter-key', oldORKey);
@@ -262,15 +263,15 @@ const savedPr = localStorage.getItem('labcharts-openrouter-pricing');
 localStorage.setItem('labcharts-openrouter-pricing', JSON.stringify({
   'anthropic/claude-sonnet-4-6': { input: 3.00, output: 15.00 }
 }));
-const pricing = window.renderModelPricingHint('openrouter', 'anthropic/claude-sonnet-4-6');
+const pricing = api.renderModelPricingHint('openrouter', 'anthropic/claude-sonnet-4-6');
 assert('renderModelPricingHint returns content for openrouter', pricing.length > 0);
 assert('pricing includes dollar amounts', pricing.includes('$'));
 assert('pricing is not approximate with cached data', !pricing.includes('~'));
-const unknownPricing = window.renderModelPricingHint('openrouter', 'unknown/model-xyz');
+const unknownPricing = api.renderModelPricingHint('openrouter', 'unknown/model-xyz');
 assert('unknown model pricing is approximate', unknownPricing.includes('~'));
 if (savedPr) localStorage.setItem('labcharts-openrouter-pricing', savedPr);
 else localStorage.removeItem('labcharts-openrouter-pricing');
-const ollamaPricing = window.renderModelPricingHint('ollama', '');
+const ollamaPricing = api.renderModelPricingHint('ollama', '');
 assert('ollama pricing still says Free', ollamaPricing.includes('Free'));
 
 // ─── 12. Key removal clears pricing cache ───
@@ -279,10 +280,10 @@ assert('handleRemoveOpenRouterKey clears pricing cache', ppSrc.includes("removeI
 
 // ─── 13. OAuth PKCE flow ───
 console.log('\n13. OAuth PKCE flow');
-assert('window.generatePKCE is function', typeof window.generatePKCE === 'function');
-assert('window.startOpenRouterOAuth is function', typeof window.startOpenRouterOAuth === 'function');
-assert('window.exchangeOpenRouterCode is function', typeof window.exchangeOpenRouterCode === 'function');
-const pkce = await window.generatePKCE();
+assert('api.generatePKCE is function', typeof api.generatePKCE === 'function');
+assert('api.startOpenRouterOAuth is function', typeof api.startOpenRouterOAuth === 'function');
+assert('api.exchangeOpenRouterCode is function', typeof api.exchangeOpenRouterCode === 'function');
+const pkce = await api.generatePKCE();
 assert('generatePKCE returns codeVerifier (43+ chars)', typeof pkce.codeVerifier === 'string' && pkce.codeVerifier.length >= 43);
 assert('generatePKCE returns codeChallenge (43+ chars)', typeof pkce.codeChallenge === 'string' && pkce.codeChallenge.length >= 43);
 assert('codeVerifier is base64url (no +/=)', !/[+=\/]/.test(pkce.codeVerifier));

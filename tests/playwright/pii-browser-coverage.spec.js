@@ -45,20 +45,18 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
     const savedStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
     const saved = {
       fetch: window.fetch,
-      markAISettingsLocal: window.markAISettingsLocal,
+      aiSettingsLock: sessionStorage.getItem('labcharts-ai-settings-local-lock-until'),
       bodyOverflow: document.body.style.overflow,
       abortSignalAnyDescriptor: Object.getOwnPropertyDescriptor(AbortSignal, 'any'),
     };
 
     const fetchCalls = [];
     let mode = 'ok';
-    let markCount = 0;
     let abortAnyPatched = false;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       cryptoStore.updateKeyCache('labcharts-ollama', null);
-      window.markAISettingsLocal = () => { markCount += 1; };
       providerStorage.setOllamaPIIUrl('http://localhost:11434');
       providerStorage.setOllamaPIIModel('privacy-qwen:7b');
 
@@ -153,7 +151,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         defaultConfig.url === 'http://localhost:11434' &&
         savedConfig.model === 'privacy-model' &&
         savedConfig.apiKey === 'pii-key' &&
-        markCount >= 1);
+        Number(sessionStorage.getItem('labcharts-ai-settings-local-lock-until') || 0) > Date.now());
 
       mode = 'ok';
       const ollamaOk = await pii.checkOllama('http://localhost:11434');
@@ -298,7 +296,8 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         probeError);
     } finally {
       window.fetch = saved.fetch;
-      window.markAISettingsLocal = saved.markAISettingsLocal;
+      if (saved.aiSettingsLock == null) sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
+      else sessionStorage.setItem('labcharts-ai-settings-local-lock-until', saved.aiSettingsLock);
       document.body.style.overflow = saved.bodyOverflow;
       document.querySelectorAll('.pii-warning-overlay').forEach(el => el.remove());
       if (abortAnyPatched && saved.abortSignalAnyDescriptor) {

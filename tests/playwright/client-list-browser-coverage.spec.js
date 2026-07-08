@@ -287,7 +287,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
     };
     const avatarData = 'data:image/png;base64,iVBORw0KGgo=';
     const now = Date.now();
-    const storageKeys = ['labcharts-active-profile', 'labcharts-profiles'];
+    const storageKeys = ['labcharts-active-profile', 'labcharts-profiles', 'labcharts-ai-provider', 'labcharts-ai-paused', 'labcharts-openrouter-key'];
     const saved = {
       profiles: clone(state.profiles),
       currentProfile: state.currentProfile,
@@ -296,7 +296,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       bodyOverflow: document.body.style.overflow,
       renderProfileButton: window.renderProfileButton,
       showNotification: window.showNotification,
-      hasAIProvider: window.hasAIProvider,
       navigate: window.navigate,
       HAPLOGROUP_LIST: window.HAPLOGROUP_LIST,
       setManualHaplogroup: window.setManualHaplogroup,
@@ -330,9 +329,11 @@ test('client list form live actions cover health link avatar haplogroup and loca
       };
       localStorage.setItem('labcharts-active-profile', 'client-active');
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
+      localStorage.removeItem('labcharts-ai-paused');
+      localStorage.removeItem('labcharts-openrouter-key');
       window.renderProfileButton = () => calls.push(['render-profile-button']);
       window.showNotification = (...args) => calls.push(['notification', ...args]);
-      window.hasAIProvider = () => false;
       window.navigate = route => calls.push(['navigate', route]);
       window.HAPLOGROUP_LIST = ['H', 'J', 'K'];
       window.setManualHaplogroup = async haplogroup => {
@@ -410,7 +411,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       }
       window.renderProfileButton = saved.renderProfileButton;
       window.showNotification = saved.showNotification;
-      window.hasAIProvider = saved.hasAIProvider;
       window.navigate = saved.navigate;
       window.HAPLOGROUP_LIST = saved.HAPLOGROUP_LIST;
       window.setManualHaplogroup = saved.setManualHaplogroup;
@@ -462,12 +462,12 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       bodyOverflow: document.body.style.overflow,
       renderProfileButton: window.renderProfileButton,
       showNotification: window.showNotification,
-      hasAIProvider: window.hasAIProvider,
     };
 
     try {
       localStorage.clear();
       localStorage.setItem('labcharts-sync-enabled', 'false');
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.setItem('labcharts-active-profile', 'client-list-helper-main');
       localStorage.setItem('labcharts-location-cache', JSON.stringify({
         'slovakia|': 48.7,
@@ -517,7 +517,6 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       window.renderProfileButton = () => calls.push(['render-profile-button']);
       window.showNotification = (...args) => calls.push(['notification', ...args]);
-      window.hasAIProvider = () => false;
 
       window.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list open');
@@ -612,7 +611,6 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       document.body.style.overflow = saved.bodyOverflow;
       window.renderProfileButton = saved.renderProfileButton;
       window.showNotification = saved.showNotification;
-      window.hasAIProvider = saved.hasAIProvider;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

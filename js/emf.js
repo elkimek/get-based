@@ -24,6 +24,18 @@ import {
   interpretEMFComparison as interpretEMFComparisonImpl,
 } from './emf-interpretation.js';
 
+const emfAIDeps = {
+  callClaudeAPI,
+  hasAIProvider,
+};
+
+export function configureEMFAIDeps(deps = {}) {
+  const previous = { ...emfAIDeps };
+  if (typeof deps.callClaudeAPI === 'function') emfAIDeps.callClaudeAPI = deps.callClaudeAPI;
+  if (typeof deps.hasAIProvider === 'function') emfAIDeps.hasAIProvider = deps.hasAIProvider;
+  return previous;
+}
+
 // ═══════════════════════════════════════════════
 // MEASUREMENT TYPES (display order)
 // ═══════════════════════════════════════════════
@@ -334,7 +346,7 @@ function renderEMFEditor(modal) {
     <div class="modal-unit">Room-by-room electromagnetic field measurements rated against SBM-2015 sleeping area standards.</div>
     <div class="emf-editor-actions">
       <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('add-assessment')}>+ New Assessment</button>
-      ${hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('trigger-pdf-import')}>Import PDF</button>
+      ${emfAIDeps.hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('trigger-pdf-import')}>Import PDF</button>
       <input type="file" id="emf-pdf-input" accept=".pdf" style="display:none" ${emfChangeAttrs('pdf-input')}>` : ''}
       <a href="data/emf-assessment-template.html" target="_blank" class="import-btn import-btn-secondary">Printable Template</a>
       ${sorted.length >= 2 ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('toggle-compare')}>${_compareMode ? 'Exit Compare' : 'Compare'}</button>` : ''}
@@ -412,7 +424,7 @@ function renderAssessmentDetail(a) {
     </div>
     <div class="emf-assessment-footer">
       <button type="button" class="import-btn import-btn-primary" ${emfActionAttrs('save')}>Save</button>
-      ${hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-assessment', { 'data-emf-assessment-id': a.id })}>Interpret</button>` : ''}
+      ${emfAIDeps.hasAIProvider() ? `<button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-assessment', { 'data-emf-assessment-id': a.id })}>Interpret</button>` : ''}
       <span style="flex:1"></span>
       <button type="button" class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${emfActionAttrs('delete-assessment', { 'data-emf-assessment-id': a.id })}>Delete Assessment</button>
     </div>
@@ -781,7 +793,7 @@ Return ONLY valid JSON:
 }`;
 
 export async function handleEMFPDF(file) {
-  if (!hasAIProvider()) {
+  if (!emfAIDeps.hasAIProvider()) {
     showNotification('Configure an AI provider in Settings first', 'error');
     return;
   }
@@ -830,7 +842,7 @@ export async function handleEMFPDF(file) {
   showNotification('AI is analyzing EMF report...', 'info', 5000);
 
   try {
-    const { text } = await callClaudeAPI({
+    const { text } = await emfAIDeps.callClaudeAPI({
       system: EMF_PARSE_SYSTEM,
       messages: [{ role: 'user', content: textToSend }],
       maxTokens: 4096,
@@ -1010,7 +1022,7 @@ function renderComparisonView(sorted) {
 
   html += `</tbody></table></div>`;
 
-  if (hasAIProvider()) {
+  if (emfAIDeps.hasAIProvider()) {
     html += `<div style="margin-top:12px">
       <button type="button" class="import-btn import-btn-secondary" ${emfActionAttrs('interpret-comparison')}>Interpret Changes</button>
     </div>`;

@@ -16,6 +16,16 @@ import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-li
  * @typedef {{ collectActiveAssessmentState?: () => void, getAssessments?: () => any[] }} EMFInterpretationDeps
  */
 
+const emfInterpretationRuntimeDeps = {
+  callClaudeAPI,
+};
+
+export function configureEMFInterpretationRuntimeDeps(deps = {}) {
+  const previous = { ...emfInterpretationRuntimeDeps };
+  if (typeof deps.callClaudeAPI === 'function') emfInterpretationRuntimeDeps.callClaudeAPI = deps.callClaudeAPI;
+  return previous;
+}
+
 let _aiAbortController = null;
 
 /**
@@ -235,7 +245,7 @@ function streamInterpretation(prompt, onComplete) {
   const modelId = getActiveModelId();
   const modelDisplay = getActiveModelDisplay();
 
-  callClaudeAPI({
+  emfInterpretationRuntimeDeps.callClaudeAPI({
     messages: [{ role: 'user', content: prompt }],
     system: EMF_SYSTEM,
     signal: _aiAbortController.signal,

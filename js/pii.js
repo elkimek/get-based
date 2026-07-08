@@ -2,7 +2,7 @@
 // pii.js — PII obfuscation (Ollama + regex), diff viewer
 
 import { showNotification, escapeHTML } from './utils.js';
-import { getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
+import { getOllamaPIIModel, getOllamaPIIUrl, markAISettingsLocal } from './api.js';
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
@@ -61,7 +61,7 @@ export async function saveOllamaConfig(config) {
   const json = JSON.stringify(config);
   await encryptedSetItem('labcharts-ollama', json);
   updateKeyCache('labcharts-ollama', json);
-  /** @type {Window & typeof globalThis & { markAISettingsLocal?: () => void }} */ (window).markAISettingsLocal?.();
+  markAISettingsLocal();
 }
 
 export async function checkOllama(url) {

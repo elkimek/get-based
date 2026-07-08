@@ -54,7 +54,8 @@ console.log('=== EMF Flow Tests ===\n');
 // Bring in the actual modules — dynamic import forces parse + top-level
 // execution, which is what registers the window facade.
 const { state } = await import('../js/state.js');
-await import('../js/emf.js');
+const emfMod = await import('../js/emf.js');
+const emfInterpretationMod = await import('../js/emf-interpretation.js');
 await import('../js/data.js'); // saveImportedData lives here
 
 assert('emf.js window facade loaded', typeof window.addEMFAssessment === 'function');
@@ -176,20 +177,19 @@ try { window.removeEMFPhoto(asmId, 0, 0); } catch (_) {}
 assert('removeEMFPhoto ran', true);
 
 // ── 6. Interpretation flow (stub the AI; bound with a timeout) ───────
-// streamInterpretation calls window.callClaudeAPI internally. interpret*
-// functions open modals that wait on user clicks — they don't return
-// promises, but their internal streamInterpretation IS async. Stub the AI
-// so it resolves immediately; the modal stays open until we don't care
-// anymore (closed by closeEMFInterpretation below).
-const origCallAI = window.callClaudeAPI;
-window.callClaudeAPI = async () => ({ text: 'Stub interpretation', usage: { inputTokens: 1, outputTokens: 1 } });
+// interpret* functions open modals that wait on user clicks — they don't
+// return promises, but their internal streamInterpretation IS async. Stub the
+// AI through the module dependency hook so it resolves immediately.
+const restoreInterpretationDeps = emfInterpretationMod.configureEMFInterpretationRuntimeDeps({
+  callClaudeAPI: async () => ({ text: 'Stub interpretation', usage: { inputTokens: 1, outputTokens: 1 } }),
+});
 try { window.interpretEMFAssessment(asmId); } catch (_) {}
 assert('interpretEMFAssessment ran', true);
 try { window.interpretEMFComparison(); } catch (_) {}
 assert('interpretEMFComparison ran', true);
 // Drain microtasks so the stubbed AI promises resolve.
 await new Promise(r => setTimeout(r, 50));
-window.callClaudeAPI = origCallAI;
+emfInterpretationMod.configureEMFInterpretationRuntimeDeps(restoreInterpretationDeps);
 
 try { window.closeEMFInterpretation(); } catch (_) {}
 assert('closeEMFInterpretation ran', true);
@@ -200,12 +200,15 @@ assert('discussEMFInterpretation ran', true);
 // ── 7. PDF import path (stubbed) ─────────────────────────────────────
 const origParsePDF = window.parsePDFFile;
 window.parsePDFFile = async () => 'EMF assessment\nBedroom\nacElectric: 12 V/m\n';
-window.callClaudeAPI = async () => ({ text: JSON.stringify({ assessments: [] }), usage: { inputTokens: 1, outputTokens: 1 } });
+const restoreEMFAIDeps = emfMod.configureEMFAIDeps({
+  hasAIProvider: () => true,
+  callClaudeAPI: async () => ({ text: JSON.stringify({ assessments: [] }), usage: { inputTokens: 1, outputTokens: 1 } }),
+});
 const fakePdf = new File([new Uint8Array(10)], 'probe.pdf', { type: 'application/pdf' });
 await withTimeout(() => window.handleEMFPDF(fakePdf));
 assert('handleEMFPDF ran', true);
 window.parsePDFFile = origParsePDF;
-window.callClaudeAPI = origCallAI;
+emfMod.configureEMFAIDeps(restoreEMFAIDeps);
 
 // ── 8. removeEMFRoom + deleteEMFAssessment ───────────────────────────
 window.addEMFRoom(asmId);

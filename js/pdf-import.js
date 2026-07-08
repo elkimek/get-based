@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { calculateCost, trackUsage } from './schema.js';
 import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, hashString } from './utils.js';
-import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS } from './api.js';
+import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -62,7 +62,6 @@ import {
 
 /**
  * @typedef {{
- *   startOpenRouterOAuth?: () => void,
  *   openSettingsModal?: (tab?: string) => void,
  *   loadDemoData?: (sex?: string) => void,
  *   maybeShowEncryptionNudge?: () => void,
@@ -76,6 +75,16 @@ import {
  */
 
 const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
+
+const pdfImportDeps = {
+  startOpenRouterOAuth,
+};
+
+export function configurePdfImportDeps(deps = {}) {
+  const previous = { ...pdfImportDeps };
+  if (typeof deps.startOpenRouterOAuth === 'function') pdfImportDeps.startOpenRouterOAuth = deps.startOpenRouterOAuth;
+  return previous;
+}
 
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
 export { tryParseJSON } from './pdf-import-ai-utils.js';
@@ -161,7 +170,7 @@ export function showAINeededDialog(action = 'import') {
   </div>`;
   openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 });
   const close = () => closeModalOverlay(overlay);
-  document.getElementById('ai-needed-or').onclick = () => { close(); if (pdfImportWindow.startOpenRouterOAuth) pdfImportWindow.startOpenRouterOAuth(); };
+  document.getElementById('ai-needed-or').onclick = () => { close(); pdfImportDeps.startOpenRouterOAuth(); };
   document.getElementById('ai-needed-key').onclick = () => { close(); if (pdfImportWindow.openSettingsModal) pdfImportWindow.openSettingsModal('ai'); };
   document.getElementById('ai-needed-demo').onclick = () => {
     close();

@@ -27,6 +27,7 @@ console.log('=== Image Utils Tests ===\n');
 // pdf-import.js + chat-images.js expose UI helpers via Object.assign(window, ...).
 // image-utils.js stays module-scoped; chat/image consumers import it directly.
 await import('../js/state.js');
+const api = await import('../js/api.js');
 const imageUtils = await import('../js/image-utils.js');
 await import('../js/pdf-import.js');
 await import('../js/chat-images.js');
@@ -46,7 +47,7 @@ assert('image utility exports stay module-scoped',
   && typeof window.isValidImageType === 'undefined'
   && typeof window.formatImageBlock === 'undefined'
   && typeof window.buildVisionContent === 'undefined');
-assert('supportsVision exported', typeof window.supportsVision === 'function');
+assert('supportsVision exported from api module', typeof api.supportsVision === 'function');
 assert('addImageAttachment exported', typeof window.addImageAttachment === 'function');
 assert('removeImageAttachment exported', typeof window.removeImageAttachment === 'function');
 assert('clearAttachments exported', typeof window.clearAttachments === 'function');

@@ -1,6 +1,8 @@
 // @ts-check
 // client-list-runtime.js - Browser runtime adapters for client-list UI shell hooks.
 
+import { hasAIProvider } from './api.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -60,7 +62,7 @@ export function setClientManualHaplogroup(haplogroup) {
 
 export function hasClientListAIProvider() {
   try {
-    return getRuntimeFunction('hasAIProvider')?.() === true;
+    return hasAIProvider() === true;
   } catch {
     return false;
   }

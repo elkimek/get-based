@@ -101,6 +101,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
     const controls = await import(controlsUrl);
+    const runtime = await import('/js/provider-model-controls-runtime.js');
     const delegates = await import('/js/provider-panel-delegates.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -130,12 +131,12 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
-      callClaudeAPI: window.callClaudeAPI,
       clearE2EESession: window.clearE2EESession,
       updateChatHeaderModel: window.updateChatHeaderModel,
       refreshWebSearchToggle: window.refreshWebSearchToggle,
       consoleWarn: console.warn,
     };
+    let previousRuntimeDeps = null;
 
     let clearCount = 0;
     let headerRefreshes = 0;
@@ -188,7 +189,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const openRouterPricing = (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$3.00/M in');
 
       let fetchedPricing = false;
-      window.callClaudeAPI = async () => ({ content: 'ok' });
+      previousRuntimeDeps = runtime.configureProviderModelControlsRuntimeDeps({
+        callClaudeAPI: async () => ({ content: 'ok' }),
+      });
       window.fetch = async function(url) {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'https://openrouter.ai/api/v1/models') {
@@ -211,7 +214,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         && (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$1.25/M in')
         && fetchedPricing;
 
-      window.callClaudeAPI = async () => { throw new Error('offline model'); };
+      runtime.configureProviderModelControlsRuntimeDeps({
+        callClaudeAPI: async () => { throw new Error('offline model'); },
+      });
       await controls.applyCustomOpenRouterModel('bad/model');
       const openRouterCustomFailure = document.getElementById('openrouter-model-health')?.title === 'offline model'
         && document.getElementById('openrouter-custom-model')?.style.borderColor === 'var(--red)';
@@ -356,7 +361,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       };
     } finally {
       window.fetch = oldGlobals.fetch;
-      window.callClaudeAPI = oldGlobals.callClaudeAPI;
+      if (previousRuntimeDeps) runtime.configureProviderModelControlsRuntimeDeps(previousRuntimeDeps);
       window.clearE2EESession = oldGlobals.clearE2EESession;
       window.updateChatHeaderModel = oldGlobals.updateChatHeaderModel;
       window.refreshWebSearchToggle = oldGlobals.refreshWebSearchToggle;
