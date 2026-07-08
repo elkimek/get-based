@@ -39,6 +39,18 @@ export function useCustomApiProxy() {
 
 const proxyFetch = createProxyFetch(useCustomApiProxy);
 
+export function redactApiSecretText(value, secrets = []) {
+  let text = String(value ?? '');
+  for (const secret of secrets) {
+    const s = String(secret || '');
+    if (s.length >= 6) text = text.split(s).join('[redacted]');
+  }
+  return text
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{6,}/gi, 'Bearer [redacted]')
+    .replace(/\bsk-[A-Za-z0-9._~+/=-]{6,}/g, '[redacted]')
+    .replace(/\bcashu[A-Za-z0-9._~+/=-]{8,}/gi, '[redacted]');
+}
+
 export async function fetchWithApiRetry(url, options, retries = 2, useProxy = true, requestTimeoutMs = FETCH_REQUEST_TIMEOUT_MS) {
   return fetchWithRetry(url, options, {
     retries,
@@ -116,7 +128,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       ? await fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs)
       : await fetchWithApiRetry(endpoint, requestInit, 2, useProxy, requestTimeoutMs);
   } catch (e) {
-    throw new Error(`Cannot reach ${providerName} API: ${e.message}`);
+    throw new Error(`Cannot reach ${providerName} API: ${redactApiSecretText(e.message, [key])}`);
   }
 
   if (!res.ok) {
@@ -126,7 +138,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       if (!errType || errType === 'AuthError' || errType === 'authentication_error') {
         throw new Error(`Invalid ${providerName} API key. Check your settings.`);
       }
-      throw new Error(`${providerName} API error: ${errType}`);
+      throw new Error(`${providerName} API error: ${redactApiSecretText(errType, [key])}`);
     }
     if (res.status === 402) {
       const hint = providerName === 'Routstr' ? ' Top up with Lightning or Cashu.'
@@ -140,7 +152,10 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
     }
     if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
     let errMsg = `${providerName} API error (${res.status})`;
-    try { const errBody = await res.json(); errMsg += `: ${errBody.error?.message || JSON.stringify(errBody.error)}`; } catch {}
+    try {
+      const errBody = await res.json();
+      errMsg += `: ${redactApiSecretText(errBody.error?.message || JSON.stringify(errBody.error), [key])}`;
+    } catch {}
     throw new Error(errMsg);
   }
 
@@ -160,7 +175,7 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       if (data === '[DONE]') return;
       try {
         const event = JSON.parse(data);
-        if (event.error) throw new Error(event.error.message || JSON.stringify(event.error));
+        if (event.error) throw new Error(redactApiSecretText(event.error.message || JSON.stringify(event.error), [key]));
         const choice = event.choices?.[0];
         const delta = choice?.delta;
         if (choice?.finish_reason) finishReason = choice.finish_reason;

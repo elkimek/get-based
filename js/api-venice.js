@@ -16,6 +16,7 @@ import {
   callOpenAICompatibleAPI,
   fetchWithApiRetry,
   isTokenLimitFinish,
+  redactApiSecretText,
 } from './api-openai-compatible.js';
 
 /** @typedef {Window & typeof globalThis & {
@@ -79,7 +80,7 @@ export async function callVeniceAPI(opts) {
   try {
     session = await apiWindow._veniceE2EE.createSession(modelId);
   } catch (e) {
-    throw new Error(`Venice E2EE setup failed: ${e.message}`);
+    throw new Error(`Venice E2EE setup failed: ${redactApiSecretText(e.message, [key])}`);
   }
   apiWindow._veniceAttestation = session.attestation ?? apiWindow._veniceAttestation ?? null;
   document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
@@ -114,14 +115,17 @@ export async function callVeniceAPI(opts) {
       signal
     }, 2, true, requestTimeoutMs);
   } catch (e) {
-    throw new Error(`Cannot reach Venice API: ${e.message}`);
+    throw new Error(`Cannot reach Venice API: ${redactApiSecretText(e.message, [key])}`);
   }
 
   if (!res.ok) {
     if (res.status === 401) throw new Error('Invalid Venice API key. Check your settings.');
     if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
     let errMsg = `Venice API error (${res.status})`;
-    try { const b = await res.json(); errMsg += `: ${b.error?.message || JSON.stringify(b.error)}`; } catch {}
+    try {
+      const b = await res.json();
+      errMsg += `: ${redactApiSecretText(b.error?.message || JSON.stringify(b.error), [key])}`;
+    } catch {}
     throw new Error(errMsg);
   }
 
@@ -153,6 +157,7 @@ export async function callVeniceAPI(opts) {
     if (data === '[DONE]') return;
     try {
       const event = JSON.parse(data);
+      if (event.error) throw new Error(redactApiSecretText(event.error.message || JSON.stringify(event.error), [key]));
       const choice = event.choices?.[0];
       if (choice?.finish_reason) finishReason = choice.finish_reason;
       else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
