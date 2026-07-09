@@ -307,6 +307,27 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
         && state.profileDob === '1985-04-12'
         && localStorage.getItem('labcharts-chat-nudge') === null;
 
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'profile');
+      localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
+      localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
+      onboarding.saveChatProfile(true);
+      outcomes.forcedProfileContinueSkipsConnectedProviderToExtras =
+        sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'extras'
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === null;
+
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      localStorage.removeItem('labcharts-custom-url');
+      localStorage.removeItem('labcharts-custom-key');
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'profile');
+      onboarding.saveChatProfile(true);
+      outcomes.forcedProfileContinueUsesProviderStepWhenDisconnected =
+        sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'provider'
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === '1'
+        && sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null;
+
       state.importedData = {
         ...profile.createDefaultProfileData(),
         entries: [],
@@ -329,7 +350,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
     }
     if (thrownError) throw thrownError;
 
-    outcomes.allDefaultCallbackOutcomesReached = Object.keys(outcomes).length === 2;
+    outcomes.allDefaultCallbackOutcomesReached = Object.keys(outcomes).length === 4;
     return outcomes;
   }, { onboardingUrl: moduleUrl('/js/chat-onboarding.js') });
 
@@ -467,14 +488,33 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       configureOnboardingForTest(onboarding);
       configureOnboardingForTest(appOnboarding);
 
-      const crumbs = onboarding._renderOnboardCrumbs(3, 5);
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      localStorage.removeItem('labcharts-custom-url');
+      localStorage.removeItem('labcharts-custom-key');
+      const crumbs = onboarding._renderOnboardCrumbs(3);
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      const connectedCrumbs = onboarding._renderOnboardCrumbs(3);
+      const connectedContextCrumbs = onboarding._renderOnboardCrumbs(4);
       const quizRoot = onboarding._renderProviderQuiz(null, '<Ada>');
       const quizCard = onboarding._renderProviderQuiz('card', 'Ada');
       const quizLocal = onboarding._renderProviderQuiz('local', 'Ada');
       const quizBitcoin = onboarding._renderProviderQuiz('bitcoin', 'Ada');
-      outcomes.renderHelpersEscapeAndBranch = crumbs.includes('Step 3 of 5')
+      outcomes.renderHelpersEscapeAndBranch = crumbs.includes('Step 3 of 4')
+        && crumbs.includes('Add-ons')
         && (crumbs.match(/chat-onboard-crumb active/g) || []).length === 3
+        && crumbs.includes('data-chat-onboarding-action="go-onboarding-step"')
+        && crumbs.includes('data-chat-step="2"')
+        && connectedCrumbs.includes('Step 2 of 3')
+        && connectedCrumbs.includes('Add-ons')
+        && connectedCrumbs.includes('data-chat-step="1"')
+        && (connectedCrumbs.match(/chat-onboard-crumb active/g) || []).length === 2
+        && connectedContextCrumbs.includes('Step 3 of 3')
+        && connectedContextCrumbs.includes('Context')
+        && crumbs.includes('chat-onboard-back-btn')
         && quizRoot.includes('Welcome, &lt;Ada&gt;')
+        && quizRoot.includes('Next, pick how you want to power the AI')
+        && !quizRoot.includes('One more step')
         && quizRoot.includes('chat-quiz-recommended')
         && quizCard.includes('or-oauth-btn')
         && quizLocal.includes('Local AI setup')
@@ -532,13 +572,60 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       onboarding.skipProviderSetup();
       outcomes.skipProviderSetupMarksLocalAndClearsSession =
         localStorage.getItem(`labcharts-onboard-provider-skipped-${profileId}`) === '1'
-        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null;
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'extras';
+
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'provider');
+      sessionStorage.setItem(`chat-onboard-provider-requested-${profileId}`, '1');
+      localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
+      onboarding.skipProviderSetup();
+      outcomes.skipProviderSetupFromSkippedCardsStillAdvancesToExtras =
+        sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'extras'
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === null;
 
       onboarding.skipOnboardingExtras();
       outcomes.skipExtrasMarksDoneAndNavigates =
         localStorage.getItem(`labcharts-onboard-extras-done-${profileId}`) === '1'
         && sessionStorage.getItem('welcome-details-open') === '1'
         && calls.includes('navigate:dashboard');
+      outcomes.skipExtrasFromForcedWizardShowsContextCardsAgain =
+        sessionStorage.getItem(`chat-onboard-force-step-${profileId}`) === 'cards'
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === '1'
+        && localStorage.getItem(`labcharts-onboard-context-cards-skipped-${profileId}`) === '1';
+
+      sessionStorage.setItem(`chat-onboard-force-context-cards-${profileId}`, '1');
+      onboarding.skipContextCards();
+      outcomes.skipContextCardsMarksLocalClearsForceAndRefreshes =
+        localStorage.getItem(`labcharts-onboard-extras-done-${profileId}`) === '1'
+        && localStorage.getItem(`labcharts-onboard-context-cards-skipped-${profileId}`) === '1'
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === null
+        && sessionStorage.getItem('welcome-details-open') === '1'
+        && calls.includes('update-nudge')
+        && calls.filter(call => call === 'render').length >= 2;
+
+      const forceStepKey = `chat-onboard-force-step-${profileId}`;
+      onboarding.goToOnboardingStep(1);
+      const forcedProfile = sessionStorage.getItem(forceStepKey) === 'profile';
+      onboarding.goToOnboardingStep(2);
+      const forcedProvider = sessionStorage.getItem(forceStepKey) === 'provider'
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === '1'
+        && sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null;
+      sessionStorage.setItem(`chat-onboard-force-context-cards-${profileId}`, '1');
+      onboarding.goToOnboardingStep(3);
+      const forcedExtras = sessionStorage.getItem(forceStepKey) === 'extras'
+        && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === null;
+      onboarding.goToOnboardingStep(4);
+      outcomes.goToOnboardingStepSetsExpectedSessionTargets =
+        forcedProfile
+        && forcedProvider
+        && forcedExtras
+        && sessionStorage.getItem(forceStepKey) === 'cards'
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === '1'
+        && localStorage.getItem(`labcharts-onboard-extras-done-${profileId}`) === '1';
 
       onboarding.showCycleNoMensesOptions();
       outcomes.noMensesOptionsSwitchViews =
@@ -610,11 +697,14 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
         loveLife: { status: 'connected' },
         environment: { air: 'filtered' },
       };
+      localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
       outcomes.countFilledCardsSeesAllContextCards = onboarding._countFilledCards() === 9;
       onboarding.onContextCardSaved();
       outcomes.contextCardSavedNudgesReadyAndRendersOpenPanel =
         calls.includes('nudge:ready')
         && calls.filter(call => call === 'render').length >= 5;
+      outcomes.contextCardSavedClearsCardSkip =
+        localStorage.getItem(`labcharts-onboard-context-cards-skipped-${profileId}`) === null;
 
       state.importedData = {
         ...profile.createDefaultProfileData(),

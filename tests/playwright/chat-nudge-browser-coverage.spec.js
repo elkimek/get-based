@@ -30,6 +30,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       'labcharts-chat-nudge-dismissed-chat-nudge-test',
       'labcharts-chat-nudge-dismissed-no-profile',
       'labcharts-chat-nudge-dismissed-named-profile',
+      'labcharts-onboard-context-cards-skipped-named-profile',
     ];
     const saved = {
       state: {
@@ -135,6 +136,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
         && !fabHasNudge();
 
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
+      localStorage.removeItem('labcharts-onboard-context-cards-skipped-named-profile');
       state.importedData = {
         entries: [{ date: '2026-06-11', markers: {} }],
         diagnoses: { text: 'low ferritin' },
@@ -151,6 +153,15 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
         && !fabHasNudge();
 
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
+      localStorage.setItem('labcharts-onboard-context-cards-skipped-named-profile', '1');
+      nudge.setChatNudge('context');
+      nudge.updateChatNudge();
+      outcomes.updateChatNudgeRespectsSkippedContextCards =
+        nudgeStage() == null
+        && !fabHasNudge();
+
+      localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
+      localStorage.removeItem('labcharts-onboard-context-cards-skipped-named-profile');
       state.importedData = {
         entries: [{ date: '2026-06-11', markers: {} }],
         diagnoses: { text: 'low ferritin' },
@@ -187,6 +198,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
     'updateChatNudgeShowsApiStageUntilDismissed',
     'updateChatNudgeShowsDataStageUntilDismissed',
     'updateChatNudgeShowsContextStageUntilDismissedWhenFewCardsAreFilled',
+    'updateChatNudgeRespectsSkippedContextCards',
     'updateChatNudgeClearsWhenEnoughContextCardsAreFilled',
     'allOutcomesReached',
   ];
