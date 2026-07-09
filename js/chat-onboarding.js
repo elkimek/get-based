@@ -70,6 +70,7 @@ function isChatOnboardingActionScope(actionEl) {
 }
 
 function openAiSettings() {
+  clearForcedOnboardingStep();
   closeChatPanel();
   setTimeout(() => {
     openSettingsModal('ai');
@@ -77,6 +78,7 @@ function openAiSettings() {
 }
 
 function openAiProviderSettings(provider) {
+  clearForcedOnboardingStep();
   closeChatPanel();
   setTimeout(() => {
     openSettingsModal('ai');
@@ -95,6 +97,7 @@ function handleChatOnboardingClick(event) {
   if (action === 'back-to-provider-quiz') {
     backToProviderQuiz();
   } else if (action === 'start-openrouter-oauth') {
+    clearForcedOnboardingStep();
     startOpenRouterOAuth();
   } else if (action === 'open-ai-settings') {
     openAiSettings();
@@ -104,6 +107,8 @@ function handleChatOnboardingClick(event) {
     setProviderQuizBranch(actionEl.dataset.chatProviderBranch || '');
   } else if (action === 'skip-provider-setup') {
     skipProviderSetup();
+  } else if (action === 'go-onboarding-step') {
+    goToOnboardingStep(Number(actionEl.dataset.chatStep || ''));
   }
 }
 
@@ -202,6 +207,14 @@ function switchAIProvider(provider) {
 
 function updateChatNudge() {
   onboardingCallbacks.updateChatNudge?.();
+}
+
+function forcedStepKey() {
+  return `chat-onboard-force-step-${state.currentProfile}`;
+}
+
+function clearForcedOnboardingStep() {
+  sessionStorage.removeItem(forcedStepKey());
 }
 
 export function useChatPrompt(text) {
@@ -353,7 +366,17 @@ export function saveChatProfile(advance) {
   renderProfileButton();
   _updateOnboardNextBtn();
   if (advance && name && state.profileSex) {
+    const shouldContinueOnboarding = !state.importedData?.entries?.length && !isAIPaused();
+    if (sessionStorage.getItem(forcedStepKey()) === 'profile' && shouldContinueOnboarding) {
+      goToOnboardingStep(hasAIProvider() ? 3 : 2);
+      return;
+    }
+    if (shouldContinueOnboarding) {
+      goToOnboardingStep(hasAIProvider() ? 3 : 2);
+      return;
+    }
     // Profile complete — advance to next stage
+    clearForcedOnboardingStep();
     updateChatNudge();
     renderChatMessages();
   }
@@ -494,14 +517,47 @@ function _refreshDashboardCycle() {
   }
 }
 
+function getOnboardingProgressMeta(currentStep) {
+  const providerConnected = hasAIProvider();
+  const labels = {
+    1: 'Basics',
+    2: 'AI setup',
+    3: 'Add-ons',
+    4: 'Context',
+  };
+  if (providerConnected && currentStep === 1) {
+    return {
+      step: 1,
+      total: 3,
+      label: labels[1],
+    };
+  }
+  if (providerConnected && currentStep >= 3) {
+    return {
+      step: currentStep - 1,
+      total: 3,
+      label: labels[currentStep] || 'Setup',
+    };
+  }
+  return {
+    step: currentStep,
+    total: 4,
+    label: labels[currentStep] || 'Setup',
+  };
+}
+
 // Thin progress strip shown at the top of each onboarding chat message.
-// 4 steps: 1) profile, 2) AI setup, 3) extras (cycle/supplements), 4) cards
-// + import. The dots make the funnel feel finite — a wall of unknown
-// length is a big drop-off driver for non-tech users.
-export function _renderOnboardCrumbs(currentStep, totalSteps = 4) {
-  const dots = Array.from({ length: totalSteps }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= currentStep ? ' active' : ''}"></span>`).join('');
-  return `<div class="chat-onboard-crumbs" aria-label="Onboarding step ${currentStep} of ${totalSteps}">
-    <span class="chat-onboard-crumbs-label">Step ${currentStep} of ${totalSteps}</span>
+// AI-connected users skip the AI setup phase, so the displayed progress is
+// mapped to a 3-step path while navigation still uses the internal 4 routes.
+export function _renderOnboardCrumbs(currentStep) {
+  const progress = getOnboardingProgressMeta(currentStep);
+  const dots = Array.from({ length: progress.total }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= progress.step ? ' active' : ''}"></span>`).join('');
+  const previousStep = currentStep === 3 && hasAIProvider() ? 1 : currentStep - 1;
+  const back = currentStep > 1
+    ? `<button type="button" class="chat-onboard-back-btn" ${chatOnboardingActionAttrs('go-onboarding-step', { step: previousStep })} aria-label="Back to previous onboarding step" title="Previous step">&larr;</button>`
+    : '';
+  return `<div class="chat-onboard-crumbs" aria-label="Onboarding step ${progress.step} of ${progress.total}: ${escapeAttr(progress.label)}">
+    <span class="chat-onboard-crumbs-main">${back}<span class="chat-onboard-crumbs-label">Step ${progress.step} of ${progress.total} &middot; ${escapeHTML(progress.label)}</span></span>
     <span class="chat-onboard-crumbs-dots" aria-hidden="true">${dots}</span>
   </div>`;
 }
@@ -548,7 +604,7 @@ export function _renderProviderQuiz(branch, name) {
       </div></div>`;
   }
   // Root question
-  return `<div class="chat-provider-quiz"><p>Welcome, ${safeName}! One more step &mdash; pick how you want to power the AI:</p>
+  return `<div class="chat-provider-quiz"><p>Welcome, ${safeName}! Next, pick how you want to power the AI:</p>
     <div class="chat-quiz-options">
       <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
         <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
@@ -604,7 +660,7 @@ export function skipProviderSetup() {
   localStorage.setItem(`labcharts-onboard-provider-skipped-${state.currentProfile}`, '1');
   sessionStorage.removeItem(`chat-onboard-provider-requested-${state.currentProfile}`);
   sessionStorage.removeItem(`chat-onboard-provider-branch-${state.currentProfile}`);
-  renderChatMessages();
+  goToOnboardingStep(3);
 }
 
 export function skipOnboardingExtras() {
@@ -613,6 +669,60 @@ export function skipOnboardingExtras() {
   sessionStorage.setItem('welcome-details-open', '1');
   // Re-render dashboard to reflect cycle + supplement changes from onboarding
   navigate('dashboard');
+  if (sessionStorage.getItem(forcedStepKey()) === 'extras') {
+    goToOnboardingStep(4);
+    return;
+  }
+  clearForcedOnboardingStep();
+  renderChatMessages();
+}
+
+export function skipContextCards() {
+  clearForcedOnboardingStep();
+  localStorage.setItem(`labcharts-onboard-extras-done-${state.currentProfile}`, '1');
+  localStorage.setItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`, '1');
+  localStorage.removeItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`);
+  sessionStorage.removeItem(`chat-onboard-force-context-cards-${state.currentProfile}`);
+  sessionStorage.setItem('welcome-details-open', '1');
+  navigate('dashboard');
+  updateChatNudge();
+  renderChatMessages();
+}
+
+export function continueAfterContextCards() {
+  clearForcedOnboardingStep();
+  localStorage.setItem(`labcharts-onboard-extras-done-${state.currentProfile}`, '1');
+  localStorage.setItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`, '1');
+  localStorage.removeItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`);
+  sessionStorage.removeItem(`chat-onboard-force-context-cards-${state.currentProfile}`);
+  sessionStorage.setItem('welcome-details-open', '1');
+  navigate('dashboard');
+  updateChatNudge();
+  renderChatMessages();
+}
+
+export function goToOnboardingStep(step) {
+  const target = Number(step);
+  if (!Number.isFinite(target)) return;
+  const profileId = state.currentProfile;
+  if (target <= 1) {
+    sessionStorage.setItem(forcedStepKey(), 'profile');
+  } else if (target === 2) {
+    sessionStorage.setItem(forcedStepKey(), 'provider');
+    sessionStorage.setItem(`chat-onboard-provider-requested-${profileId}`, '1');
+    sessionStorage.removeItem(`chat-onboard-provider-branch-${profileId}`);
+  } else if (target === 3) {
+    sessionStorage.setItem(forcedStepKey(), 'extras');
+    sessionStorage.removeItem(`chat-onboard-provider-requested-${profileId}`);
+    sessionStorage.removeItem(`chat-onboard-provider-branch-${profileId}`);
+    sessionStorage.removeItem(`chat-onboard-force-context-cards-${profileId}`);
+  } else {
+    sessionStorage.setItem(forcedStepKey(), 'cards');
+    sessionStorage.removeItem(`chat-onboard-provider-requested-${profileId}`);
+    sessionStorage.removeItem(`chat-onboard-provider-branch-${profileId}`);
+    sessionStorage.setItem(`chat-onboard-force-context-cards-${profileId}`, '1');
+    localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
+  }
   renderChatMessages();
 }
 
@@ -626,6 +736,8 @@ export function _countFilledCards() {
 }
 
 export function onContextCardSaved() {
+  localStorage.removeItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`);
+  localStorage.removeItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`);
   const filled = _countFilledCards();
   const hasData = state.importedData?.entries?.length > 0;
   if (!hasData) {

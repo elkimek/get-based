@@ -154,6 +154,219 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
   expectAll(results);
 });
 
+test('chat onboarding walks connected and disconnected funnels coherently', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const [
+      { renderEmptyChatState },
+      { state },
+      data,
+      chatOnboarding,
+    ] = await Promise.all([
+      import('/js/chat-empty-state.js'),
+      import('/js/state.js'),
+      import('/js/data.js'),
+      import('/js/chat-onboarding.js'),
+    ]);
+
+    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const saved = {
+      currentProfile: state.currentProfile,
+      profiles: clone(state.profiles),
+      profileSex: state.profileSex,
+      profileDob: state.profileDob,
+      currentChatPersonality: state.currentChatPersonality,
+      importedData: clone(state.importedData),
+      chatHistory: clone(state.chatHistory),
+    };
+    const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
+      const key = localStorage.key(i);
+      return [key, localStorage.getItem(key)];
+    }));
+    const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
+      const key = sessionStorage.key(i);
+      return [key, sessionStorage.getItem(key)];
+    }));
+    const existingPanel = document.getElementById('chat-panel');
+    const panel = existingPanel || document.createElement('div');
+    const container = document.createElement('div');
+    const savedPanelClass = panel.className;
+    const savedPanelId = panel.id;
+    const calls = [];
+    const outcomes = {};
+
+    const baseImportedData = () => ({
+      entries: [],
+      notes: [],
+      supplements: [],
+      healthGoals: [],
+      diagnoses: null,
+      diet: null,
+      exercise: null,
+      sleepRest: null,
+      lightCircadian: null,
+      stress: null,
+      loveLife: null,
+      environment: null,
+      menstrualCycle: null,
+      genetics: null,
+      wearableConnections: {},
+      interpretiveLens: '',
+      contextNotes: '',
+      customMarkers: {},
+      markerNotes: {},
+      markerValueNotes: {},
+      changeHistory: [],
+    });
+    const restoreStorage = (storage, snapshot) => {
+      storage.clear();
+      for (const [key, value] of snapshot) {
+        if (key && value != null) storage.setItem(key, value);
+      }
+    };
+    const setProvider = connected => {
+      localStorage.setItem('labcharts-ai-paused', 'false');
+      localStorage.setItem('labcharts-ai-provider', connected ? 'ollama' : 'custom');
+      if (!connected) {
+        localStorage.removeItem('labcharts-custom-url');
+        localStorage.removeItem('labcharts-custom-key');
+      }
+    };
+    const setupProfile = (profileId, connected) => {
+      localStorage.clear();
+      sessionStorage.clear();
+      setProvider(connected);
+      state.currentProfile = profileId;
+      state.profiles = [{ id: profileId, name: 'Default', tags: [], notes: '', status: 'active' }];
+      state.profileSex = null;
+      state.profileDob = null;
+      state.currentChatPersonality = 'default';
+      state.importedData = baseImportedData();
+      state.chatHistory = [];
+      data.invalidateActiveDataCache();
+      container.innerHTML = '';
+      panel.className = '';
+      renderEmptyChatState(container, panel);
+    };
+    const text = () => container.textContent || '';
+    const click = selector => {
+      const el = container.querySelector(selector);
+      if (!el) return false;
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      return true;
+    };
+    const finishStep1 = () => {
+      const nameInput = container.querySelector('#chat-onboard-name');
+      if (nameInput) nameInput.value = 'Ada';
+      click('[data-chat-empty-action="set-profile-sex"][data-sex="female"]');
+      click('[data-chat-empty-action="save-profile-advance"]');
+    };
+    const clickBack = () => click('.chat-onboard-back-btn[data-chat-onboarding-action="go-onboarding-step"]');
+    const continueStep3 = () => click('[data-chat-empty-action="skip-extras"]');
+
+    try {
+      panel.id = 'chat-panel';
+      if (!existingPanel) document.body.append(panel);
+      panel.append(container);
+      chatOnboarding.configureChatOnboarding({
+        navigate: route => calls.push(`navigate:${route}`),
+        renderChatMessages: () => renderEmptyChatState(container, panel),
+        renderProfileButton: () => {},
+        setChatNudge: () => {},
+        updateChatNudge: () => {},
+      });
+
+      setupProfile('walk-connected', true);
+      outcomes.connectedStartsAtProfile = text().includes('Step 1 of 3')
+        && text().includes('Basics');
+      finishStep1();
+      outcomes.connectedSkipsProviderToStep3 = text().includes('Step 2 of 3')
+        && text().includes('Add-ons')
+        && !text().includes('pick how you want to power the AI');
+      clickBack();
+      outcomes.connectedBackFromStep3ReturnsToProfile = text().includes('Step 1 of 3')
+        && text().includes('Basics');
+      finishStep1();
+      outcomes.connectedProfileContinueReturnsToStep3 = text().includes('Step 2 of 3')
+        && text().includes('Add-ons');
+      continueStep3();
+      outcomes.connectedStep3ContinuesToCardsOnly = text().includes('Step 3 of 3')
+        && text().includes('Context')
+        && text().includes('Add optional context')
+        && !!container.querySelector('.chat-context-cards')
+        && !container.querySelector('[data-chat-empty-action="start-lab-import"]');
+      click('[data-chat-empty-action="continue-after-context-cards"]');
+      outcomes.connectedCardsContinueShowsImportHandoff = text().includes('Context cards are saved for later')
+        && text().includes('Setup ready')
+        && text().includes('import labs or ask what to test')
+        && !text().includes('Step 4 of 4')
+        && !!container.querySelector('[data-chat-empty-action="start-lab-import"]')
+        && !!container.querySelector('[data-chat-empty-action="use-prompt"]')
+        && !!container.querySelector('[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
+      click('[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
+      outcomes.connectedHandoffReturnShowsCards = text().includes('Step 3 of 3')
+        && text().includes('Context')
+        && !!container.querySelector('.chat-context-cards');
+
+      setupProfile('walk-disconnected', false);
+      finishStep1();
+      outcomes.disconnectedProfileContinuesToProvider = text().includes('Step 2 of 4')
+        && text().includes('AI setup')
+        && text().includes('Next, pick how you want to power the AI')
+        && !text().includes('One more step');
+      click('[data-chat-onboarding-action="skip-provider-setup"]');
+      outcomes.disconnectedProviderSkipContinuesToStep3 = text().includes('Step 3 of 4')
+        && text().includes('Add-ons')
+        && text().includes('Continue to context cards');
+      clickBack();
+      outcomes.disconnectedBackFromStep3ReturnsToProvider = text().includes('Step 2 of 4')
+        && text().includes('AI setup')
+        && text().includes('pick how you want to power the AI');
+      click('[data-chat-onboarding-action="skip-provider-setup"]');
+      continueStep3();
+      outcomes.disconnectedStep4KeepsCardsBeforeConnect = text().includes('Step 4 of 4')
+        && text().includes('Context')
+        && !!container.querySelector('.chat-context-cards')
+        && container.querySelector('[data-chat-empty-action="continue-after-context-cards"]')?.textContent?.trim() === 'Continue'
+        && !container.querySelector('[data-chat-empty-action="request-lab-import-provider"]');
+      click('[data-chat-empty-action="continue-after-context-cards"]');
+      outcomes.disconnectedHandoffHasSingleConnectAndContextReturn = text().includes('connect AI when you are ready')
+        && text().includes('Setup ready')
+        && !text().includes('Step 4 of 4')
+        && container.querySelectorAll('[data-chat-empty-action="request-lab-import-provider"]').length === 1
+        && container.querySelectorAll('[data-chat-empty-action="open-provider-quiz"]').length === 0
+        && !!container.querySelector('[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
+    } finally {
+      state.currentProfile = saved.currentProfile;
+      state.profiles = saved.profiles;
+      state.profileSex = saved.profileSex;
+      state.profileDob = saved.profileDob;
+      state.currentChatPersonality = saved.currentChatPersonality;
+      state.importedData = saved.importedData;
+      state.chatHistory = saved.chatHistory;
+      data.invalidateActiveDataCache();
+      restoreStorage(localStorage, localSnapshot);
+      restoreStorage(sessionStorage, sessionSnapshot);
+      chatOnboarding.configureChatOnboarding({
+        navigate: () => {},
+        renderChatMessages: () => {},
+        renderProfileButton: () => {},
+        setChatNudge: () => {},
+        updateChatNudge: () => {},
+      });
+      container.remove();
+      panel.className = savedPanelClass;
+      panel.id = savedPanelId;
+      if (!existingPanel) panel.remove();
+    }
+
+    return outcomes;
+  });
+
+  expectAll(results);
+});
+
 test('chat empty-state renders remaining prompt states and actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
@@ -254,6 +467,9 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     });
     const clearBranchStorage = () => {
       localStorage.removeItem(`labcharts-onboard-extras-done-${profileId}`);
+      localStorage.removeItem(`labcharts-onboard-context-cards-skipped-${profileId}`);
+      localStorage.removeItem(`labcharts-onboard-context-cards-done-${profileId}`);
+      sessionStorage.removeItem(`chat-onboard-force-step-${profileId}`);
       sessionStorage.removeItem(`chat-onboard-force-context-cards-${profileId}`);
       sessionStorage.removeItem(`chat-onboard-provider-requested-${profileId}`);
       sessionStorage.removeItem(`chat-onboard-provider-branch-${profileId}`);
@@ -277,6 +493,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       clearBranchStorage();
       setProviderState({ connected: opts.connected !== false, paused: !!opts.paused });
       if (opts.extrasDone) localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
+      if (opts.contextCardsSkipped) localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
       if (opts.forceContextCards) sessionStorage.setItem(`chat-onboard-force-context-cards-${profileId}`, '1');
       if (opts.providerRequested) sessionStorage.setItem(`chat-onboard-provider-requested-${profileId}`, '1');
       if (opts.providerBranch) sessionStorage.setItem(`chat-onboard-provider-branch-${profileId}`, opts.providerBranch);
@@ -349,33 +566,130 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
 
       setFixture(fullContextData(), { extrasDone: true });
       const fullText = renderText();
+      container.querySelector('[data-chat-empty-action="start-lab-import"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       container.querySelector('[data-chat-empty-action="use-prompt"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       const promptInputValue = document.getElementById('chat-input')?.value || '';
-      outcomes.fullContextNoDataStateMarksPanelActive = panel.classList.contains('chat-onboarding-active');
-      outcomes.fullContextNoDataStateRendersCopy = fullText.includes('filled everything in');
+      outcomes.fullContextNoDataStateLeavesPanelInactive = !panel.classList.contains('chat-onboarding-active');
+      outcomes.fullContextNoDataStateRendersHandoffCopy = fullText.includes('Context complete')
+        && fullText.includes('context cards are complete')
+        && fullText.includes('import labs or ask what to test')
+        && !fullText.includes('Step 4 of 4');
+      outcomes.fullContextNoDataStateOffersImportAndReview =
+        calls.some(call => call[0] === 'input-click' && call[1] === 'pdf-input')
+        && !!container.querySelector('.chat-prompt-btn[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
       outcomes.fullContextNoDataPromptFillsInput = promptInputValue.includes('what blood tests should I get');
       outcomes.fullContextNoDataPromptTriggersSend = calls.some(call => call[0] === 'send-chat');
 
+      setFixture(fullContextData(), { extrasDone: true, connected: false });
+      const fullDisconnectedText = renderText();
+      outcomes.fullContextNoDataDisconnectedHasSingleConnectAction =
+        fullDisconnectedText.includes('connect AI when you are ready')
+        && fullDisconnectedText.includes('Context complete')
+        && !fullDisconnectedText.includes('Step 4 of 4')
+        && container.querySelectorAll('[data-chat-empty-action="request-lab-import-provider"]').length === 1
+        && container.querySelectorAll('[data-chat-empty-action="open-provider-quiz"]').length === 0
+        && !!container.querySelector('.chat-prompt-btn[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
+
       setFixture(partialContextData(), { extrasDone: true });
       const partialText = renderText();
-      container.querySelector('[data-chat-empty-action="scroll-context-cards"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      container.querySelector('[data-chat-empty-action="skip-context-cards"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.partialContextNoDataStateMarksPanelActive = panel.classList.contains('chat-onboarding-active');
       outcomes.partialContextNoDataStateRendersProgress = partialText.includes("You've filled 2 of 9 context areas");
       outcomes.partialContextNoDataStateRendersCards = !!container.querySelector('.chat-context-cards');
-      outcomes.partialContextNoDataStateScrollsCards = calls.some(call => call[0] === 'scroll');
+      outcomes.partialContextNoDataStateKeepsHandoffBelowCards =
+        !!container.querySelector('.chat-context-cards + .chat-onboard-actions')
+        && !!container.querySelector('[data-chat-empty-action="continue-after-context-cards"]');
+      outcomes.partialContextNoDataStateSkipsCards = localStorage.getItem(`labcharts-onboard-context-cards-skipped-${profileId}`) === '1'
+        && sessionStorage.getItem(`chat-onboard-force-context-cards-${profileId}`) === null
+        && calls.some(call => call[0] === 'render-chat');
 
       setFixture(baseImportedData({}), { extrasDone: true });
       const initialText = renderText();
-      container.querySelector('[data-chat-empty-action="start-lab-import"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.initialNoDataStateMarksPanelActive = panel.classList.contains('chat-onboarding-active');
-      outcomes.initialNoDataStateRendersCopy = initialText.includes("You're ready to go");
-      outcomes.initialNoDataStateStartsLabImport = calls.some(call => call[0] === 'input-click' && call[1] === 'pdf-input');
+      outcomes.initialNoDataStateRendersCopy = initialText.includes('Add optional context');
+      outcomes.initialNoDataStateDoesNotPushImportBeforeCards =
+        !!container.querySelector('.chat-context-cards')
+        && !!container.querySelector('.chat-context-cards + .chat-onboard-actions')
+        && !container.querySelector('[data-chat-empty-action="start-lab-import"]');
+      outcomes.initialNoDataStateOffersCardSkip = !!container.querySelector('[data-chat-empty-action="skip-context-cards"]');
+      outcomes.initialNoDataStateUsesCompactActionHierarchy =
+        container.querySelectorAll('.chat-onboard-step4-actions .chat-onboard-cta').length === 1
+        && container.querySelectorAll('.chat-onboard-step4-actions .chat-onboard-text-action').length === 1
+        && !!container.querySelector('.chat-onboard-primary-actions')
+        && !!container.querySelector('.chat-onboard-primary-actions-single')
+        && !!container.querySelector('.chat-onboard-tertiary-actions');
+      container.querySelector('[data-chat-empty-action="continue-after-context-cards"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const handoffText = renderText();
+      container.querySelector('[data-chat-empty-action="start-lab-import"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      outcomes.contextHandoffAppearsAfterContinueAndStartsLabImport =
+        localStorage.getItem(`labcharts-onboard-context-cards-done-${profileId}`) === '1'
+        && handoffText.includes('Context cards are saved for later')
+        && handoffText.includes('Setup ready')
+        && handoffText.includes('import labs or ask what to test')
+        && !handoffText.includes('Step 4 of 4')
+        && calls.some(call => call[0] === 'input-click' && call[1] === 'pdf-input');
+
+      setFixture(baseImportedData({}), { extrasDone: true, connected: false });
+      renderText();
+      container.querySelector('[data-chat-empty-action="continue-after-context-cards"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const disconnectedHandoffText = renderText();
+      outcomes.contextHandoffDisconnectedUsesSingleConnectAction =
+        disconnectedHandoffText.includes('connect AI when you are ready')
+        && disconnectedHandoffText.includes('Setup ready')
+        && !disconnectedHandoffText.includes('Step 4 of 4')
+        && container.querySelectorAll('[data-chat-empty-action="request-lab-import-provider"]').length === 1
+        && container.querySelectorAll('[data-chat-empty-action="open-provider-quiz"]').length === 0
+        && !!container.querySelector('.chat-prompt-btn[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
+
+      setFixture(baseImportedData({}), { extrasDone: true, contextCardsSkipped: true });
+      const skippedText = renderText();
+      outcomes.skippedContextNoDataStateLeavesPanelInactive = !panel.classList.contains('chat-onboarding-active');
+      outcomes.skippedContextNoDataStateOmitsCards = skippedText.includes('Context cards are skipped for now')
+        && skippedText.includes('Setup ready')
+        && !skippedText.includes('Step 4 of 4')
+        && !container.querySelector('.chat-onboard-back-btn[data-chat-onboarding-action="go-onboarding-step"]')
+        && !!container.querySelector('.chat-prompt-btn[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]')
+        && !container.querySelector('.chat-context-cards');
+
+      setFixture(baseImportedData({}), { extrasDone: true });
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'provider');
+      const forcedProviderText = renderText();
+      outcomes.forcedProviderStepShowsConnectedStateWhenProviderExists = forcedProviderText.includes('AI is connected')
+        && forcedProviderText.includes('AI connected')
+        && !forcedProviderText.includes('Step 2 of 4')
+        && forcedProviderText.includes('Continue')
+        && !!container.querySelector('[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="3"]')
+        && panel.classList.contains('chat-onboarding-active');
+
+      setFixture(baseImportedData({}), { extrasDone: true, connected: false });
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'provider');
+      const forcedDisconnectedProviderText = renderText();
+      outcomes.forcedProviderStepShowsPickerWithoutProvider = forcedDisconnectedProviderText.includes('pick how you want to power the AI')
+        && panel.classList.contains('chat-onboarding-active');
+
+      setFixture(baseImportedData({}), { extrasDone: true, contextCardsSkipped: true });
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'extras');
+      const forcedExtrasText = renderText();
+      outcomes.forcedExtrasStepOverridesDoneFlags = forcedExtrasText.includes('These optional context pieces')
+        && panel.classList.contains('chat-onboarding-active');
+
+      setFixture(baseImportedData({}), { extrasDone: true, contextCardsSkipped: true });
+      sessionStorage.setItem(`chat-onboard-force-step-${profileId}`, 'cards');
+      const forcedCardsText = renderText();
+      outcomes.forcedCardsStepOverridesSkippedFlag = forcedCardsText.includes('Add optional context')
+        && !!container.querySelector('.chat-context-cards');
 
       setFixture(labData({}), { extrasDone: true });
       const nudgeText = renderText();
       container.querySelector('[data-chat-empty-action="set-onboarding-focus"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.dataContextNudgeStateRendersCopy = nudgeText.includes('I can see your lab results');
       outcomes.dataContextNudgeStateRunsFocusAction = calls.some(call => call[0] === 'focus' && call[1] === 'cards');
+
+      setFixture(labData({}), { extrasDone: true, contextCardsSkipped: true });
+      const skippedDataText = renderText();
+      outcomes.skippedContextWithLabDataUsesGeneralPrompts =
+        !skippedDataText.includes('I can see your lab results')
+        && skippedDataText.includes('What are my most concerning results?');
 
       setFixture(labData({ diagnoses: { conditions: [{ name: 'baseline' }] }, diet: { style: 'high protein' }, exercise: { frequency: 'daily' } }), { extrasDone: true });
       const generalText = renderText();

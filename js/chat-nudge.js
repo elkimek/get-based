@@ -58,12 +58,14 @@ export function updateChatNudge() {
     if (dismissed !== 'data') setChatNudge('data');
     else setChatNudge(null);
   } else {
+    const contextCardsSkipped = localStorage.getItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`) === '1';
+    const contextCardsDone = localStorage.getItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`) === '1';
     const filledCards = ['diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'healthGoals']
       .filter(k => {
         const v = state.importedData?.[k];
         return v && typeof v === 'object' && Object.values(v).some(f => f != null && f !== '' && !(Array.isArray(f) && f.length === 0));
       }).length;
-    if (filledCards < 3 && dismissed !== 'context') setChatNudge('context');
+    if (!contextCardsSkipped && !contextCardsDone && filledCards < 3 && dismissed !== 'context') setChatNudge('context');
     else setChatNudge(null);
   }
 }

@@ -9,10 +9,11 @@ import { renderProfileContextCards } from './context-cards.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
 import {
+  chatOnboardingActionAttrs,
   _countFilledCards, _renderOnboardCrumbs, _renderProviderQuiz,
   _updateOnboardNextBtn, onboardHeightUnitChanged,
-  requestOnboardingLabImportProvider, saveChatLocation, saveChatProfile,
-  setChatProfileSex, skipOnboardingExtras, startOnboardingLabImport,
+  continueAfterContextCards, requestOnboardingLabImportProvider, saveChatLocation, saveChatProfile,
+  setChatProfileSex, skipContextCards, skipOnboardingExtras, startOnboardingLabImport,
   useChatPrompt,
 } from './chat-onboarding.js';
 
@@ -70,6 +71,10 @@ function handleChatEmptyClick(event) {
     callChatEmptyRuntime('_resumeAI');
   } else if (action === 'skip-extras') {
     skipOnboardingExtras();
+  } else if (action === 'continue-after-context-cards') {
+    continueAfterContextCards();
+  } else if (action === 'skip-context-cards') {
+    skipContextCards();
   } else if (action === 'open-cycle-editor') {
     closeChatPanel();
     callChatEmptyRuntime('openMenstrualCycleEditor');
@@ -164,20 +169,28 @@ export function _getNoDataPrompts() {
 export function renderEmptyChatState(container, panel) {
   installChatEmptyStateDelegates(container);
   const context = getEmptyChatContext();
+  const forcedStep = sessionStorage.getItem(`chat-onboard-force-step-${state.currentProfile}`) || '';
 
+  if (forcedStep === 'profile') return renderProfileOnboardingState(container, panel, context);
   if (!context.hasProfile) return renderProfileOnboardingState(container, panel, context);
   if (isAIPaused()) return renderAIPausedState(container, panel, context);
+  if (forcedStep === 'provider') return renderProviderSetupState(container, panel, context);
+  if (!context.hasData && forcedStep === 'extras') return renderOptionalContextState(container, panel, context);
   if (shouldRenderProviderSetup()) return renderProviderSetupState(container, panel, context);
 
   const filled = _countFilledCards();
   const extrasDone = localStorage.getItem(`labcharts-onboard-extras-done-${state.currentProfile}`);
-  const forceContextCards = sessionStorage.getItem(`chat-onboard-force-context-cards-${state.currentProfile}`) === '1';
+  const contextCardsSkipped = localStorage.getItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`) === '1';
+  const contextCardsDone = localStorage.getItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`) === '1';
+  const forceContextCards = forcedStep === 'cards' || sessionStorage.getItem(`chat-onboard-force-context-cards-${state.currentProfile}`) === '1';
 
   if (!context.hasData && !extrasDone && !forceContextCards) return renderOptionalContextState(container, panel, context);
   if (filled >= 9 && !context.hasData) return renderFullContextNoDataState(container, panel, context);
+  if (!context.hasData && contextCardsSkipped && !forceContextCards) return renderContextImportHandoffState(container, panel, context, true);
+  if (!context.hasData && contextCardsDone && !forceContextCards) return renderContextImportHandoffState(container, panel, context, false);
   if (!context.hasData && filled > 0) return renderPartialContextNoDataState(container, panel, context, filled);
   if (!context.hasData) return renderInitialNoDataState(container, panel, context);
-  if (filled < 3) return renderDataContextNudgeState(container, context);
+  if (filled < 3 && !contextCardsSkipped) return renderDataContextNudgeState(container, context);
 
   return renderGeneralPromptState(container, context);
 }
@@ -198,6 +211,10 @@ function setOnboardingActive(panel) {
 
 function renderChatContextCards() {
   return `<div class="chat-context-cards">${renderProfileContextCards()}</div>`;
+}
+
+function renderOnboardingCompleteLabel(label) {
+  return `<div class="chat-onboard-complete-label">${escapeHTML(label)}</div>`;
 }
 
 function shouldRenderProviderSetup() {
@@ -287,11 +304,25 @@ function renderAIPausedState(container, panel, { personality, name }) {
 
 function renderProviderSetupState(container, panel, { personality, name }) {
   setOnboardingActive(panel);
+  if (hasAIProvider()) return renderProviderConnectedState(container, { personality, name });
   const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(2)}
       ${_renderProviderQuiz(branch, name)}
+    </div>`;
+  return true;
+}
+
+function renderProviderConnectedState(container, { personality, name }) {
+  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+    <div class="chat-msg chat-ai">
+      ${renderOnboardingCompleteLabel('AI connected')}
+      <p>${escapeHTML(name)}, AI is connected. You can continue the setup or change providers from AI settings.</p>
+      <div class="chat-onboard-actions">
+        <button type="button" class="chat-onboard-cta" ${chatOnboardingActionAttrs('go-onboarding-step', { step: 3 })}>Continue</button>
+        <button type="button" class="chat-prompt-btn" ${chatOnboardingActionAttrs('open-ai-settings')}>Change AI provider</button>
+      </div>
     </div>`;
   return true;
 }
@@ -311,13 +342,12 @@ function renderOptionalContextState(container, panel, { personality }) {
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(3)}
-      <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when recommendations or AI imports need it.'} These optional context pieces make later interpretation more useful, but you can skip them and import labs now.</p>
+      <p>${hasAIProvider() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when recommendations or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
       <div class="chat-onboard-task-grid">${cards}</div>
       ${renderAffiliateDnaKitLink(hasSnps)}
       <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
       <div class="chat-onboard-actions chat-onboard-actions-row">
-        <button type="button" class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to import</button>
-        <button type="button" class="chat-prompt-btn" data-chat-empty-action="skip-extras">Skip optional setup</button>
+        <button type="button" class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to context cards</button>
       </div>
     </div>`;
   return true;
@@ -408,17 +438,19 @@ function renderWearableTask() {
 }
 
 function renderFullContextNoDataState(container, panel, { personality, name }) {
-  setOnboardingActive(panel);
+  panel?.classList.remove('chat-onboarding-active');
+  const providerConnected = hasAIProvider();
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
-      ${_renderOnboardCrumbs(4)}
-      <p>${escapeHTML(name)}, you filled everything in — I have a really complete picture of your lifestyle now. ${hasAIProvider() ? 'Even without lab data, I can already help:' : 'Import your labs or connect an AI provider to get personalized insights.'}</p>
+      ${renderOnboardingCompleteLabel('Context complete')}
+      <p>${escapeHTML(name)}, your context cards are complete. ${providerConnected ? 'Next, import labs or ask what to test when you are ready.' : 'Next, connect AI when you are ready to import labs or get recommendations.'}</p>
       <div class="chat-onboard-actions">
-        ${hasAIProvider()
-          ? `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on my full profile, what blood tests should I get and why?">What tests should I get?</button>
+        ${providerConnected
+          ? `<button type="button" class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on my full profile, what blood tests should I get and why?">Just tell me what to test</button>
              <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="What can you tell about my health from my lifestyle info?">Analyze my lifestyle</button>`
-          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
-             <button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
+          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>`}
+        <button type="button" class="chat-prompt-btn" ${chatOnboardingActionAttrs('go-onboarding-step', { step: 4 })}>Review context cards</button>
       </div>
     </div>`;
   return true;
@@ -435,13 +467,42 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
       <p>${filled >= 6 ? `Almost there, ${escapeHTML(name)}!` : filled >= 3 ? `Nice progress, ${escapeHTML(name)}!` : `Good start, ${escapeHTML(name)}!`} You've filled ${filled} of 9 context areas.</p>
       <div class="chat-onboard-progress"><div class="chat-onboard-progress-bar" style="width:${progressPct}%"></div></div>
       <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0">The more context I have, the better I can interpret results and recommend what to test. Everything is optional.</p>
-      <div class="chat-onboard-actions">
-        <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Continue context cards - ${remaining} area${remaining !== 1 ? 's' : ''} left</button>
-        ${providerConnected
-          ? `<button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="Based on what you know about me so far, what blood tests should I get?">Skip ahead - recommend tests</button>`
-          : `<button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI for recommendations</button>`}
-      </div>
       ${renderChatContextCards()}
+      <div class="chat-onboard-actions chat-onboard-step4-actions">
+        <div class="chat-onboard-primary-actions chat-onboard-primary-actions-single">
+          <button type="button" class="chat-onboard-cta" data-chat-empty-action="continue-after-context-cards">${providerConnected ? 'Continue to import' : 'Continue'}</button>
+        </div>
+        <div class="chat-onboard-tertiary-actions">
+          <button type="button" class="chat-onboard-text-action" data-chat-empty-action="skip-context-cards">Skip context cards</button>
+        </div>
+      </div>
+    </div>`;
+  return true;
+}
+
+function renderContextImportHandoffState(container, panel, { personality, name }, skipped) {
+  panel?.classList.remove('chat-onboarding-active');
+  const providerConnected = hasAIProvider();
+  const filled = _countFilledCards();
+  const contextCopy = skipped
+    ? `Context cards are skipped for now, ${escapeHTML(name)}. You can add them later from Profile Context when they are useful.`
+    : filled > 0
+      ? `Context is saved for now, ${escapeHTML(name)}.`
+      : `Context cards are saved for later, ${escapeHTML(name)}.`;
+  const nextCopy = providerConnected
+    ? 'Next, import labs or ask what to test when you are ready.'
+    : 'Next, connect AI when you are ready to import labs or get recommendations.';
+  container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
+    <div class="chat-msg chat-ai">
+      ${renderOnboardingCompleteLabel('Setup ready')}
+      <p>${contextCopy} ${nextCopy}</p>
+      <div class="chat-onboard-actions">
+        ${providerConnected
+          ? `<button type="button" class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
+             <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="I don't have any labs yet. Based on my profile, what blood tests should I get and why?">Just tell me what to test</button>`
+          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>`}
+        <button type="button" class="chat-prompt-btn" ${chatOnboardingActionAttrs('go-onboarding-step', { step: 4 })}>Add context cards</button>
+      </div>
     </div>`;
   return true;
 }
@@ -452,19 +513,16 @@ function renderInitialNoDataState(container, panel, { personality, name }) {
   container.innerHTML = `<div class="chat-persona-label">${personality.icon} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(4)}
-      <p>You're ready to go, ${escapeHTML(name)}. Tell me what you have or what you want to understand, and I'll guide the next step.</p>
-      <p style="font-size:13px;margin:4px 0"><strong>Have lab results?</strong> ${providerConnected ? "Import them directly and I'll build the dashboard." : 'Connect AI first for lab PDFs or photos. JSON and DNA files can still be imported from the header.'}</p>
-      <p style="font-size:13px;margin:4px 0"><strong>No labs yet?</strong> Add useful context below${providerConnected ? ', then ask for recommended tests when you are ready.' : ', then connect AI when you want recommendations.'}</p>
-      <div class="chat-onboard-actions">
-        ${providerConnected
-          ? `<button type="button" class="chat-onboard-cta" data-chat-empty-action="start-lab-import">Import a lab file</button>
-             <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
-             <button type="button" class="chat-prompt-btn" data-chat-empty-action="use-prompt" data-prompt="I don't have any labs yet. Based on my profile, what blood tests should I get and why?">Just tell me what to test</button>`
-          : `<button type="button" class="chat-onboard-cta" data-chat-empty-action="request-lab-import-provider">Connect AI to import labs</button>
-             <button type="button" class="chat-onboard-cta" data-chat-empty-action="scroll-context-cards">Add context below</button>
-             <button type="button" class="chat-prompt-btn" data-chat-empty-action="open-provider-quiz">Connect AI when ready</button>`}
-      </div>
+      <p><strong>Add optional context.</strong> These cards improve lab interpretation. Fill any that matter now; everything is optional.</p>
       ${renderChatContextCards()}
+      <div class="chat-onboard-actions chat-onboard-step4-actions">
+        <div class="chat-onboard-primary-actions chat-onboard-primary-actions-single">
+          <button type="button" class="chat-onboard-cta" data-chat-empty-action="continue-after-context-cards">${providerConnected ? 'Continue to import' : 'Continue'}</button>
+        </div>
+        <div class="chat-onboard-tertiary-actions">
+          <button type="button" class="chat-onboard-text-action" data-chat-empty-action="skip-context-cards">Skip context cards</button>
+        </div>
+      </div>
     </div>`;
   return true;
 }
