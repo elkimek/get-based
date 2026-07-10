@@ -11,7 +11,7 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.156', date: '2026-07-10', title: 'Import your menstrual cycle history',
+    version: '1.10.157', date: '2026-07-10', title: 'Import your menstrual cycle history',
     forceShow: true,
     items: [
       '<b>Cycle history can now come with you.</b> Import Apple Health, Drip, Natural Cycles, or an extracted Clue JSON export and review the detected periods before saving.',
