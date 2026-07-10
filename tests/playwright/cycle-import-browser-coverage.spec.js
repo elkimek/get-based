@@ -65,10 +65,16 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
 
   const preview = page.locator('#import-modal-overlay');
   await expect(preview).toHaveClass(/show/);
-  await expect(page.locator('#import-modal')).toContainText('Drip');
+  await expect(page.locator('#import-modal .gb-modal-title')).toHaveText('Review cycle import');
+  await expect(page.locator('#import-modal .gb-modal-kicker')).toContainText('Drip');
   await expect(page.locator('#import-modal')).toContainText('4 daily observations');
-  await expect(page.locator('#import-modal')).toContainText('2 derived periods');
-  await expect(page.locator('#import-modal')).toContainText('Daily observations stay on this device');
+  await expect(page.locator('#import-modal')).toContainText('2 periods found');
+  await expect(page.locator('#import-modal')).toContainText('Daily details stay on this device');
+  await expect(page.locator('#import-modal')).not.toContainText('No overlapping period entries found');
+  await expect(page.locator('#import-modal .import-review-warning')).toHaveCount(0);
+  await expect(page.locator('#import-modal .cycle-import-conflicts')).toHaveCount(0);
+  await expect(page.locator('#import-modal .cycle-import-row-status-ready')).toHaveCount(2);
+  await expect(page.locator('[data-cycle-import-action="confirm"]')).toHaveText('Import 2 periods');
   await expect(page.locator('#import-modal tbody tr')).toHaveCount(2);
   await page.screenshot({ path: testInfo.outputPath('cycle-import-preview-desktop.png') });
 
@@ -140,7 +146,8 @@ test('Natural Cycles ZIP import reaches the cycle preview through the file input
   await expect(preview).toHaveClass(/show/);
   await expect(page.locator('#import-modal')).toContainText('Natural Cycles');
   await expect(page.locator('#import-modal')).toContainText('5 daily observations');
-  await expect(page.locator('#import-modal')).toContainText('2 derived periods');
+  await expect(page.locator('#import-modal')).toContainText('2 periods found');
+  await expect(page.locator('#import-modal .import-review-warning')).toHaveCount(0);
   await page.locator('#import-modal .modal-close').click();
   await expect(preview).not.toHaveClass(/show/);
   await page.evaluate(async id => (await import('/js/cycle-store.js')).deleteCycleDB(id), profileId);
@@ -160,7 +167,9 @@ test('Clue JSON import is classified as cycle data and reaches the preview', asy
   await expect(preview).toHaveClass(/show/);
   await expect(page.locator('#import-modal')).toContainText('Clue');
   await expect(page.locator('#import-modal')).toContainText('5 daily observations');
-  await expect(page.locator('#import-modal')).toContainText('2 derived periods');
+  await expect(page.locator('#import-modal')).toContainText('2 periods found');
+  await expect(page.locator('#import-modal')).not.toContainText('synthetic fixtures');
+  await expect(page.locator('#import-modal .import-review-warning')).toHaveCount(0);
   await page.locator('#import-modal .modal-close').click();
   await expect(preview).not.toHaveClass(/show/);
   await page.evaluate(async id => (await import('/js/cycle-store.js')).deleteCycleDB(id), profileId);
@@ -317,4 +326,39 @@ test('cycle import preview stays within a mobile viewport', async ({ page }, tes
   await page.screenshot({ path: testInfo.outputPath('cycle-import-preview-mobile.png') });
   await page.locator('#import-modal .modal-close').click();
   await expect(overlay).not.toHaveClass(/show/);
+});
+
+test('cycle import only shows conflict controls and row warnings for real overlaps', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  const profileId = await initializeCycleProfile(page, 'cycle_import_conflicts');
+
+  await page.evaluate((csv) => {
+    import('/js/cycle-import.js').then(cycleImport => {
+      window._labState.importedData.menstrualCycle = {
+        periods: [{
+          startDate: '2026-04-01',
+          endDate: '2026-04-04',
+          flow: 'moderate',
+          source: 'manual',
+        }],
+      };
+      const parsed = cycleImport.parseDripCycleCsv(csv, 'drip-conflicts.csv');
+      void cycleImport.showCycleImportPreview(parsed);
+    });
+  }, DRIP_CSV);
+
+  const modal = page.locator('#import-modal');
+  await expect(page.locator('#import-modal-overlay')).toHaveClass(/show/);
+  await expect(modal.locator('.import-review-warning')).toContainText('1 imported period overlaps existing entries');
+  await expect(modal.locator('.cycle-import-conflicts')).toBeVisible();
+  await expect(modal.locator('.cycle-import-row-status-conflict')).toHaveText('Overlap · skip');
+  await expect(modal.locator('.cycle-import-row-status-ready')).toHaveCount(1);
+  await expect(modal.locator('[data-cycle-import-action="confirm"]')).toHaveText('Import 1 period');
+
+  await modal.locator('input[value="replace-overlapping"]').check();
+  await expect(modal.locator('.cycle-import-row-status-conflict')).toHaveText('Overlap · replace');
+  await expect(modal.locator('[data-cycle-import-action="confirm"]')).toHaveText('Import 2 periods');
+
+  await modal.locator('.modal-close').click();
+  await page.evaluate(async id => (await import('/js/cycle-store.js')).deleteCycleDB(id), profileId);
 });

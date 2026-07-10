@@ -581,68 +581,68 @@ export async function clearCycleProfileData() {
 }
 
 function conflictSummary(plan) {
-  if (!plan.conflicts.length) return 'No overlapping period entries found.';
-  return `${plan.conflicts.length} imported period${plan.conflicts.length !== 1 ? 's' : ''} overlap existing entries.`;
+  const count = plan.conflicts.length;
+  return `${count} imported period${count !== 1 ? 's' : ''} overlap${count === 1 ? 's' : ''} existing entries.`;
 }
-
-function renderPeriodRows(periods) {
-  return periods.slice(0, 18).map(period => `<tr>
-    <td data-label="Start">${escapeHTML(period.startDate || '')}</td>
-    <td data-label="End">${escapeHTML(period.endDate || period.startDate || '')}</td>
-    <td data-label="Flow">${escapeHTML(period.flow || 'moderate')}</td>
-    <td data-label="Symptoms">${escapeHTML((period.symptoms || []).join(', '))}</td>
-  </tr>`).join('');
+function renderPeriodRows(periods, conflictStarts, conflictMode) {
+  return periods.slice(0, 18).map(period => {
+    const hasConflict = conflictStarts.has(period.startDate);
+    const status = hasConflict
+      ? conflictMode === 'replace-overlapping' ? 'Overlap · replace' : 'Overlap · skip'
+      : 'Ready';
+    return `<tr data-import-status="${hasConflict ? 'unmatched' : 'matched'}">
+      <td class="cycle-import-status-cell" data-label="Status"><span class="cycle-import-row-status ${hasConflict ? 'cycle-import-row-status-conflict' : 'cycle-import-row-status-ready'}">${status}</span></td>
+      <td data-label="Start">${escapeHTML(period.startDate || '')}</td><td data-label="End">${escapeHTML(period.endDate || period.startDate || '')}</td>
+      <td data-label="Flow">${escapeHTML(period.flow || 'moderate')}</td><td data-label="Symptoms">${escapeHTML((period.symptoms || []).join(', '))}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderCycleImportPreview(parsed, conflictMode = 'keep-existing') {
   const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
   const source = parsed.sourceLabel || sourceLabel(parsed.source);
+  const observationCount = parsed.observations?.length || 0;
+  const conflictStarts = new Set(plan.conflicts.map(item => item.period.startDate));
+  const importCount = plan.importedToApply.length;
+  const confirmLabel = importCount ? `Import ${importCount} period${importCount !== 1 ? 's' : ''}`
+    : observationCount ? `Import ${observationCount} daily observation${observationCount !== 1 ? 's' : ''}` : 'Complete import';
   return `<div class="gb-modal-head import-preview-head">
-      <div>
-        <div class="gb-modal-kicker">Cycle import</div>
-        <div class="gb-modal-title">${escapeHTML(source)}</div>
-      </div>
+      <div><div class="gb-modal-kicker">Cycle import · ${escapeHTML(source)}</div><div class="gb-modal-title">Review cycle import</div></div>
       <button type="button" class="modal-close" ${importActionAttrs('close')} aria-label="Close import preview">&times;</button>
     </div>
     <div class="gb-form-body import-review-body">
       <div class="import-review-summary">
-        <div class="import-review-file">
-          <span class="import-review-label">File</span>
-          <strong>${escapeHTML(parsed.sourceFile || source)}</strong>
-        </div>
-        <div class="import-review-file">
-          <span class="import-review-label">Range</span>
-          <strong>${escapeHTML(parsed.detectedRange?.firstDate || '?')} - ${escapeHTML(parsed.detectedRange?.lastDate || '?')}</strong>
-        </div>
-        <div class="import-review-stats">
-          <span class="import-review-stat"><strong>${parsed.observations?.length || 0}</strong> daily observations</span>
-          <span class="import-review-stat import-review-stat-matched"><strong>${plan.importedPeriods.length}</strong> derived periods</span>
-          <span class="import-review-stat import-review-stat-unmatched"><strong>${plan.conflicts.length}</strong> conflicts</span>
-          <span class="import-review-stat"><strong>${plan.importedToApply.length}</strong> periods to sync</span>
+        <div class="import-review-file"><span class="import-review-label">File</span><strong>${escapeHTML(parsed.sourceFile || source)}</strong></div>
+        <div class="import-review-file"><span class="import-review-label">Range</span><strong>${escapeHTML(parsed.detectedRange?.firstDate || '?')} - ${escapeHTML(parsed.detectedRange?.lastDate || '?')}</strong></div>
+        <div class="import-review-stats" aria-label="Cycle import summary">
+          <span class="import-review-stat"><strong>${observationCount}</strong> daily observations</span><span class="import-review-stat import-review-stat-matched"><strong>${plan.importedPeriods.length}</strong> periods found</span>
+          ${plan.conflicts.length ? `<span class="import-review-stat import-review-stat-unmatched"><strong>${plan.conflicts.length}</strong> overlap${plan.conflicts.length !== 1 ? 's' : ''}</span>
+          <span class="import-review-stat import-review-stat-new"><strong>${importCount}</strong> will import</span>` : ''}
         </div>
       </div>
-      <div class="import-review-warning">${escapeHTML(conflictSummary(plan))} Daily observations stay on this device; compact period episodes sync across devices.</div>
-      ${parsed.warnings?.length ? `<div class="import-review-warning">${parsed.warnings.map(escapeHTML).join('<br>')}</div>` : ''}
-      <div class="cycle-import-conflicts" role="radiogroup" aria-label="Cycle import conflict handling">
-        ${[
-          ['keep-existing', 'Keep existing', 'Import non-overlapping periods and leave conflicts unchanged.'],
-          ['replace-overlapping', 'Replace overlaps', 'Replace overlapping existing period entries with imported periods.'],
-        ].map(([value, label, desc]) => `<label class="cycle-import-conflict-option">
-          <input type="radio" name="cycle-import-conflict" value="${value}" ${conflictMode === value ? 'checked' : ''} ${importActionAttrs('conflict-mode')}>
-          <span><strong>${label}</strong><small>${desc}</small></span>
+      ${plan.conflicts.length ? `<div class="import-review-warning cycle-import-conflict-warning" role="alert"><strong>${escapeHTML(conflictSummary(plan))}</strong><span>Choose how to handle the overlapping periods below.</span></div>` : ''}
+      ${parsed.warnings?.length ? `<div class="import-review-warning" role="alert">${parsed.warnings.map(escapeHTML).join('<br>')}</div>` : ''}
+      ${plan.conflicts.length ? `<div class="cycle-import-conflicts" role="radiogroup" aria-label="Cycle import conflict handling">
+        ${[['keep-existing', 'Keep existing', 'Import non-overlapping periods and leave conflicts unchanged.'],
+          ['replace-overlapping', 'Replace overlaps', 'Replace overlapping existing period entries with imported periods.']]
+          .map(([value, label, desc]) => `<label class="cycle-import-conflict-option">
+          <input type="radio" name="cycle-import-conflict" value="${value}" ${conflictMode === value ? 'checked' : ''} ${importActionAttrs('conflict-mode')}><span><strong>${label}</strong><small>${desc}</small></span>
         </label>`).join('')}
-      </div>
-      <div class="import-table-wrap cycle-import-table-wrap">
-        <table class="import-table import-review-table cycle-import-table">
-          <thead><tr><th>Start</th><th>End</th><th>Flow</th><th>Symptoms</th></tr></thead>
-          <tbody>${renderPeriodRows(plan.importedPeriods)}</tbody>
+      </div>` : ''}
+      <div class="cycle-import-table-heading"><strong>${plan.importedPeriods.length ? 'Periods found' : 'No periods found'}</strong><span>${plan.importedPeriods.length ? 'Check the dates and details before importing.' : 'Daily observations can still be saved on this device.'}</span></div>
+      ${plan.importedPeriods.length ? `<div class="import-table-wrap cycle-import-table-wrap">
+        <table class="import-table import-review-table cycle-import-table" aria-label="Periods detected in this import">
+          <thead><tr><th class="cycle-import-status-heading">Status</th><th>Start</th><th>End</th><th>Flow</th><th>Symptoms</th></tr></thead><tbody>${renderPeriodRows(plan.importedPeriods, conflictStarts, conflictMode)}</tbody>
         </table>
+      </div>` : ''}
+      ${plan.importedPeriods.length > 18 ? `<div class="cycle-import-more">Showing 18 of ${plan.importedPeriods.length} periods.</div>` : ''}
+      <div class="cycle-import-privacy-note">
+        <span class="cycle-import-privacy-icon" aria-hidden="true">&#128274;</span><span><strong>Daily details stay on this device.</strong><small>Period summaries can sync across devices when cross-device sync is enabled.</small></span>
       </div>
-      ${plan.importedPeriods.length > 18 ? `<div class="cycle-import-more">Showing 18 of ${plan.importedPeriods.length} derived periods.</div>` : ''}
     </div>
     <div class="import-review-actions">
-      <button type="button" class="dashboard-action-btn" ${importActionAttrs('close')}>Cancel</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${importActionAttrs('confirm')}>Import cycle data</button>
+      <button type="button" class="import-btn import-btn-secondary" ${importActionAttrs('close')}>Cancel</button>
+      <button type="button" class="import-btn import-btn-primary" ${importActionAttrs('confirm')}>${confirmLabel}</button>
     </div>`;
 }
 

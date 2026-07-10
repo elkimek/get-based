@@ -105,9 +105,9 @@ assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMat
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
 assert('latest changelog documents cycle import sources and local-data boundaries',
-  /version:\s*'1\.10\.156'[\s\S]{0,1200}Apple Health, Drip, Natural Cycles[\s\S]{0,600}extracted Clue JSON/.test(changelogSrc)
-  && /version:\s*'1\.10\.156'[\s\S]{0,1600}Detailed observations stay local/.test(changelogSrc)
-  && /version:\s*'1\.10\.156'[\s\S]{0,1600}Remove one batch, one source, or all cycle data/.test(changelogSrc));
+  /version:\s*'1\.10\.157'[\s\S]{0,1200}Apple Health, Drip, Natural Cycles[\s\S]{0,600}extracted Clue JSON/.test(changelogSrc)
+  && /version:\s*'1\.10\.157'[\s\S]{0,1600}Detailed observations stay local/.test(changelogSrc)
+  && /version:\s*'1\.10\.157'[\s\S]{0,1600}Remove one batch, one source, or all cycle data/.test(changelogSrc));
 assert('latest changelog documents granular Context management in user-readable terms',
   /version:\s*'1\.10\.62'[\s\S]{0,1600}Control what AI uses as context/.test(changelogSrc)
     && /version:\s*'1\.10\.62'[\s\S]{0,1600}You can now choose what AI uses/.test(changelogSrc)

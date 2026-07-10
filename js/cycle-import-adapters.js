@@ -102,11 +102,6 @@ export function mergeCycleImportObservations(source, groups) {
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const SCHEMA_REVIEW_WARNINGS = {
-  clue: 'Clue export formats can change. This adapter is validated with synthetic fixtures; review the detected periods before importing.',
-  natural_cycles: 'Natural Cycles export formats can change. This adapter is validated with synthetic fixtures; review the detected periods before importing.',
-};
-
 function finalizeImport(source, sourceLabel, fileName, observations, emptyPeriodWarning) {
   const merged = mergeCycleImportObservations(source, [observations]);
   if (!merged.length) return null;
@@ -123,10 +118,7 @@ function finalizeImport(source, sourceLabel, fileName, observations, emptyPeriod
     importId,
     observations: merged.map(row => ({ ...row, importId })),
     periods,
-    warnings: [
-      ...(!periods.length ? [emptyPeriodWarning] : []),
-      ...(SCHEMA_REVIEW_WARNINGS[source] ? [SCHEMA_REVIEW_WARNINGS[source]] : []),
-    ],
+    warnings: !periods.length ? [emptyPeriodWarning] : [],
     detectedRange: {
       firstDate: merged[0]?.date || null,
       lastDate: merged[merged.length - 1]?.date || null,
@@ -270,7 +262,7 @@ export function parseDripCycleCsv(text, fileName = 'drip.csv') {
     'Drip',
     fileName,
     observations,
-    'No period episodes could be derived from bleeding rows.',
+    'Drip includes daily observations, but no periods were detected.',
   );
 }
 
@@ -358,7 +350,7 @@ export function parseNaturalCyclesCsv(text, fileName = 'tracking_data.csv') {
     'Natural Cycles',
     fileName,
     observations,
-    'Natural Cycles had daily observations, but no menstrual-flow episodes were derived.',
+    'Natural Cycles includes daily observations, but no periods were detected.',
   );
 }
 
@@ -374,7 +366,7 @@ export function parseNaturalCyclesCsvBundle(files, archiveName = 'natural-cycles
     'Natural Cycles',
     archiveName,
     mergeCycleImportObservations('natural_cycles', parsed.map(result => result.observations)),
-    'Natural Cycles had daily observations, but no menstrual-flow episodes were derived.',
+    'Natural Cycles includes daily observations, but no periods were detected.',
   );
 }
 
@@ -487,6 +479,6 @@ export function parseClueCycleJson(value, fileName = 'clue-data.json') {
     'Clue',
     fileName,
     observations,
-    'Clue had tracked cycle observations, but no menstrual-flow episodes were derived.',
+    'Clue includes tracked cycle observations, but no periods were detected.',
   );
 }
