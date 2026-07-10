@@ -19,7 +19,7 @@
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
-    "@cashu/cashu-ts": "4.6.1",
+    "@cashu/cashu-ts": "4.7.0",
     "@playwright/test": "^1.60.0",
     "@vitest/coverage-v8": "^4.1.8",
     "fake-indexeddb": "^6.2.5",
