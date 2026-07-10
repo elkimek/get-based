@@ -36,7 +36,7 @@ test('wearables settings browser coverage exercises import and connection action
     const originalCurrentProfile = state.currentProfile;
     const originalImported = state.importedData;
     const originalNavigate = window.navigate;
-    const originalCloseSettings = window.closeSettings;
+    const originalCloseSettingsModal = window.closeSettingsModal;
     const originalShowConfirmDialog = window.showConfirmDialog;
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     const originalImportedLocalValue = localStorage.getItem(importedKey);
@@ -150,12 +150,12 @@ test('wearables settings browser coverage exercises import and connection action
       strip.id = 'wearable-strip';
       strip.scrollIntoView = () => calls.push(['scroll', 'wearable-strip']);
       document.body.append(strip);
-      window.closeSettings = () => calls.push(['closeSettings']);
+      window.closeSettingsModal = () => calls.push(['closeSettingsModal']);
       window.requestAnimationFrame = callback => setTimeout(() => callback(Date.now()), 0);
       window.handleManualOpenDashboard();
       await waitFor(() => calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip'));
       check('manual dashboard handler closes settings navigates and scrolls strip',
-        calls.some(call => call[0] === 'closeSettings')
+        calls.some(call => call[0] === 'closeSettingsModal')
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard')
         && calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip'));
 
@@ -185,8 +185,8 @@ test('wearables settings browser coverage exercises import and connection action
       state.importedData = originalImported;
       if (originalNavigate) window.navigate = originalNavigate;
       else delete window.navigate;
-      if (originalCloseSettings) window.closeSettings = originalCloseSettings;
-      else delete window.closeSettings;
+      if (originalCloseSettingsModal) window.closeSettingsModal = originalCloseSettingsModal;
+      else delete window.closeSettingsModal;
       if (originalShowConfirmDialog) window.showConfirmDialog = originalShowConfirmDialog;
       else delete window.showConfirmDialog;
       window.requestAnimationFrame = originalRequestAnimationFrame;

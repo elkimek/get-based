@@ -1,0 +1,6 @@
+Date;Temperature;Fertility Status;Period;Period Flow;Spotting;LH test;Cervical Mucus;Symptoms;Notes;Cramps
+2026-05-01;36,40;Red;true;light;false;negative;dry;Fatigue;start;true
+2026-05-02;36,44;Red;true;heavy;false;;;Headache;heavy day;false
+2026-05-10;36,70;Red;false;;true;positive;egg white;;spotting;false
+2026-05-14;36,78;Green;false;;false;positive;sticky;;ovulation;false
+2026-06-01;36,42;Red;true;medium;false;;;;next period;false

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HealthData locale="en_US">
+  <Record type="HKCategoryTypeIdentifierMenstrualFlow" value="HKCategoryValueMenstrualFlowLight" startDate="2026-03-01 08:00:00 +0000" />
+  <Record type="HKCategoryTypeIdentifierIntermenstrualBleeding" value="1" startDate="2026-03-01 12:00:00 +0000" />
+  <Record type="HKCategoryTypeIdentifierMenstrualFlow" value="HKCategoryValueMenstrualFlowHeavy" startDate="2026-03-02 08:00:00 +0000" />
+  <Record type="HKCategoryTypeIdentifierIntermenstrualBleeding" value="1" startDate="2026-03-10 08:00:00 +0000" />
+  <Record type="HKCategoryTypeIdentifierCervicalMucusQuality" value="HKCategoryValueCervicalMucusQualityEggWhite" startDate="2026-03-13 08:00:00 +0000" />
+  <Record type="HKCategoryTypeIdentifierOvulationTestResult" value="HKCategoryValueOvulationTestResultPositive" startDate="2026-03-14 08:00:00 +0000" />
+</HealthData>

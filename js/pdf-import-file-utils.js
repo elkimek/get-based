@@ -8,6 +8,7 @@ import { isXlsxFile } from './pdf-import-spreadsheet.js';
  * @typedef {{
  *   isDNAFile?: (file: File) => boolean,
  *   isDNAFileByContent?: (file: File) => Promise<boolean>,
+ *   isCycleImportFile?: (file: File) => Promise<boolean>,
  * }} ImportFileClassifierDeps
  */
 
@@ -96,7 +97,7 @@ export async function isPdfByMagic(file) {
 }
 
 // Shared classifier for both drop-zone and file-input paths. Returns
-// { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount }.
+// { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles, unsupportedCount }.
 // The PDF bucket includes magic-byte hits, so extension-less PDFs are
 // routed to the import pipeline instead of silently rejected.
 /**
@@ -105,24 +106,34 @@ export async function isPdfByMagic(file) {
  */
 export async function classifyImportFiles(files, deps = {}) {
   const fileList = Array.from(files || []);
-  const jsonFiles = fileList.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
+  const jsonCandidates = fileList.filter(f => f.name.endsWith('.json') || f.type === 'application/json');
+  const jsonFiles = [];
+  const cycleFiles = [];
+  for (const file of jsonCandidates) {
+    if (deps.isCycleImportFile && await deps.isCycleImportFile(file)) cycleFiles.push(file);
+    else jsonFiles.push(file);
+  }
   const pdfFiles = fileList.filter(f => f.name.endsWith('.pdf') || f.type === 'application/pdf');
   const imageFiles = fileList.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name) || f.type?.startsWith('image/'));
   const dnaFiles = fileList.filter(f => deps.isDNAFile && deps.isDNAFile(f));
   const textFiles = [];
-  const unmatched = fileList.filter(f => !jsonFiles.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f));
+  const unmatched = fileList.filter(f => !jsonCandidates.includes(f) && !pdfFiles.includes(f) && !imageFiles.includes(f) && !dnaFiles.includes(f));
   for (const f of unmatched) {
     if (/\.(txt|csv)$/i.test(f.name)) {
       if (deps.isDNAFileByContent && await deps.isDNAFileByContent(f)) dnaFiles.push(f);
       else textFiles.push(f);
     } else if (isXlsxFile(f)) {
       textFiles.push(f);
+    } else if (/\.(xml|zip)$/i.test(f.name) || ['application/xml', 'text/xml', 'application/zip', 'application/x-zip-compressed'].includes(f.type || '')) {
+      cycleFiles.push(f);
+    } else if (deps.isCycleImportFile && await deps.isCycleImportFile(f)) {
+      cycleFiles.push(f);
     } else if (await isPdfByMagic(f)) {
       pdfFiles.push(f);
     }
   }
-  const unsupportedCount = fileList.length - jsonFiles.length - pdfFiles.length - imageFiles.length - dnaFiles.length - textFiles.length;
-  return { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount };
+  const unsupportedCount = fileList.length - jsonFiles.length - pdfFiles.length - imageFiles.length - dnaFiles.length - textFiles.length - cycleFiles.length;
+  return { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles, unsupportedCount };
 }
 
 /**

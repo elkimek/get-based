@@ -283,6 +283,59 @@ select.import-unit-input {
   font-size: 12px;
   line-height: 1.45;
 }
+.cycle-import-conflicts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.cycle-import-conflict-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-card) 68%, transparent);
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.cycle-import-conflict-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+}
+.cycle-import-conflict-option input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+.cycle-import-conflict-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cycle-import-conflict-option strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.cycle-import-conflict-option small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.cycle-import-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cycle-import-more {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
 .import-review-actions {
   display: flex;
   justify-content: flex-end;
@@ -980,6 +1033,14 @@ select.import-unit-input {
   .import-range-option {
     padding: 12px;
   }
+  .cycle-import-conflicts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .cycle-import-conflict-option {
+    min-height: 44px;
+    padding: 10px;
+  }
   .import-review-actions {
     position: sticky;
     bottom: 0;
@@ -988,7 +1049,8 @@ select.import-unit-input {
     flex-wrap: wrap;
     box-shadow: 0 -8px 18px color-mix(in srgb, var(--bg-primary) 14%, transparent);
   }
-  .import-review-actions .import-btn {
+  .import-review-actions .import-btn,
+  .import-review-actions .dashboard-action-btn {
     flex: 1 1 calc(50% - 5px);
     min-height: 42px;
   }

@@ -212,13 +212,22 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       await wait(50);
 
       localStorage.removeItem(cycleTourKey);
-      tour.startCycleTour(false);
+      const cycleTourDefersWithoutVisibleSurface =
+        tour.startCycleTour(false) === false
+        && !document.getElementById('tour-overlay')
+        && !document.getElementById('tour-tooltip');
+      const cycleSurface = document.createElement('div');
+      cycleSurface.className = 'cycle-summary-card cycle-tour-test-surface';
+      cycleSurface.style.cssText = 'position:fixed;left:20px;top:20px;width:240px;height:120px;display:block';
+      document.body.appendChild(cycleSurface);
+      const cycleTourStartsOnVisibleSurface = tour.startCycleTour(false) === true;
       await wait(50);
       const cycleTourStartsAtCycleWelcomeTitle =
         document.getElementById('tour-tooltip')?.querySelector('h4')?.textContent === 'Cycle-Aware Lab Interpretation';
       const cycleTourStartsCentered =
         document.getElementById('tour-spotlight')?.style.display === 'none';
       tour.endTour();
+      cycleSurface.remove();
       await wait(50);
       const cycleTourCompletesKey = localStorage.getItem(cycleTourKey) === 'completed';
 
@@ -297,6 +306,8 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
         manualRetriggerIgnoresCompletion,
         guidedTourChoosesEmptyWelcomeText,
         guidedTourChoosesEmptyStepCount,
+        cycleTourDefersWithoutVisibleSurface,
+        cycleTourStartsOnVisibleSurface,
         cycleTourStartsAtCycleWelcomeTitle,
         cycleTourStartsCentered,
         cycleTourCompletesKey,
@@ -307,6 +318,7 @@ test('guided and cycle tour DOM creates navigates layers and restores overlays',
       };
     } finally {
       tour.endTour?.();
+      document.querySelectorAll('.cycle-tour-test-surface').forEach(el => el.remove());
       ['tour-overlay', 'tour-spotlight', 'tour-tooltip'].forEach(id => document.getElementById(id)?.remove());
       if (savedEmptyTourState) localStorage.setItem(emptyTourKey, savedEmptyTourState);
       else localStorage.removeItem(emptyTourKey);

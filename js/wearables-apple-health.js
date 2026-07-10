@@ -30,7 +30,7 @@ import { exposeAppleHealthDebugBindings, getAppleHealthJSZip } from './wearables
 // the file through TextDecoderStream so multi-GB exports don't hit V8's
 // ~512 MB max-string-length limit on file.text(). For zips: JSZip decompresses
 // to a Blob (bytes only, no JS string allocation) and we stream-decode that.
-export async function importAppleHealthFile(file, onProgress) {
+export async function importAppleHealthFile(file, onProgress, options = {}) {
   if (!file) throw new Error('No file provided');
   onProgress?.({ stage: 'reading', pct: 0 });
 
@@ -71,14 +71,32 @@ export async function importAppleHealthFile(file, onProgress) {
     coverageDays: rows.length,
     needsReauth: false,
   };
-  saveImportedData();
+  if (!await saveImportedData()) throw new Error('Apple Health connection could not be saved.');
 
   // Build the connected-sources map the same way wearables-connect.js does.
   const { listConnectedSources } = await import('./wearables-connect.js');
   await syncWearableSummary(profileId, listConnectedSources());
 
+  let cycleImport = null;
+  let cycleError = null;
+  try {
+    onProgress?.({ stage: 'checking-cycle', pct: 96, rows: rows.length, startDate, endDate });
+    const cycleMod = await import('./cycle-import.js');
+    const cycleParsed = await cycleMod.parseAppleHealthCycleBlob(xmlBlob, file.name || 'apple-health-export.xml', () => {
+      onProgress?.({ stage: 'parsing-cycle', pct: 96, rows: rows.length, startDate, endDate });
+    });
+    if (cycleParsed?.observations?.length) {
+      onProgress?.({ stage: 'reviewing-cycle', pct: 98, rows: rows.length, startDate, endDate });
+      await options.beforeCycleReview?.();
+      cycleImport = await cycleMod.showCycleImportPreview(cycleParsed);
+    }
+  } catch (err) {
+    cycleError = err?.message || String(err);
+    if (isDebugMode?.()) console.warn('[apple-health] cycle import skipped:', err);
+  }
+
   onProgress?.({ stage: 'done', pct: 100, rows: rows.length, startDate, endDate });
-  return { rows: rows.length, startDate, endDate };
+  return { rows: rows.length, startDate, endDate, cycleImport, cycleError };
 }
 
 // ─────────────────────────────────────────────────────────

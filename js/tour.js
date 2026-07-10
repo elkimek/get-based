@@ -37,6 +37,14 @@ const CYCLE_TOUR_STEPS = [
   { target: '#chat-fab', title: 'AI Knows Your Cycle', text: 'The AI chat factors in your cycle phase when interpreting every marker \u2014 ask it about any result for phase-aware insights.', position: 'left' },
 ];
 
+const CYCLE_SURFACE_TARGETS = [
+  '.cycle-summary-card',
+  '.cycle-draw-date',
+  '.cycle-draw-phases',
+  '.cycle-period-log',
+  '.cycle-alert',
+];
+
 // Active tour state
 let activeTour = null;
 
@@ -133,6 +141,7 @@ function isStartupTourKey(storageKey) {
 
 function runTour(steps, storageKey, auto) {
   if (document.getElementById('legal-consent-overlay')) return false;
+  if (auto && document.querySelector('.modal-overlay.show')) return false;
   if (auto && isStartupTourKey(storageKey) && isStartupNudgeBlocked()) return false;
   if (auto && isTourCompleted(storageKey)) return false;
   // Demo profiles are exploration sandboxes — re-firing the welcome
@@ -309,6 +318,7 @@ export function startGuidedTour(auto) {
 }
 
 export function startCycleTour(auto) {
+  if (!CYCLE_SURFACE_TARGETS.some(target => getTourTargetElement(target))) return false;
   return runTour(CYCLE_TOUR_STEPS, profileKey('cycleTour'), auto);
 }
 
@@ -316,8 +326,8 @@ export function goToTourStep(index) {
   goToStep(index);
 }
 
-export function endTour() {
-  const shouldOpenEmptyChat = activeTour?.storageKey === profileKey('emptyTour') &&
+export function endTour({ openEmptyChat = true } = {}) {
+  const shouldOpenEmptyChat = openEmptyChat && activeTour?.storageKey === profileKey('emptyTour') &&
     !state.importedData?.entries?.length &&
     state.chatHistory.length === 0;
   if (activeTour) {

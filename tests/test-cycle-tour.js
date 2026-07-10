@@ -73,6 +73,10 @@ const tour = await import('../js/tour.js');
   console.log('%c[7] startCycleTour delegates', 'font-weight:bold');
   assert('startCycleTour calls runTour with CYCLE_TOUR_STEPS', /startCycleTour.*\{[\s\S]*?runTour\(\s*CYCLE_TOUR_STEPS/.test(tourSrc));
   assert('startCycleTour uses cycleTour storage key', tourSrc.includes("profileKey('cycleTour')"));
+  const cycleSurfaceBlock = (tourSrc.match(/const CYCLE_SURFACE_TARGETS\s*=\s*\[([\s\S]*?)\];/)||[])[1] || '';
+  assert('startCycleTour requires a visible cycle surface', /startCycleTour.*\{[\s\S]*?CYCLE_SURFACE_TARGETS\.some/.test(tourSrc));
+  assert('Cycle surface guard does not count chat-only fallback', cycleSurfaceBlock && !cycleSurfaceBlock.includes('#chat-fab'));
+  assert('Automatic tours wait while a modal is open', tourSrc.includes("auto && document.querySelector('.modal-overlay.show')"));
 
   // --- 8. Module exports ---
   console.log('%c[8] Module exports', 'font-weight:bold');

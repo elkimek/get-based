@@ -35,7 +35,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldNavigate = window.navigate;
-    const oldCloseSettings = window.closeSettings;
+    const oldCloseSettingsModal = window.closeSettingsModal;
     const oldScrollIntoView = Element.prototype.scrollIntoView;
     const navigations = [];
     const docsClicks = [];
@@ -100,7 +100,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       ]);
 
       window.navigate = route => { navigations.push(route); };
-      window.closeSettings = () => { closedSettings += 1; };
+      window.closeSettingsModal = () => { closedSettings += 1; };
       Element.prototype.scrollIntoView = function scrollIntoView() {
         if (this.id === 'wearable-strip') scrolledToStrip += 1;
       };
@@ -191,7 +191,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
       window.navigate = oldNavigate;
-      window.closeSettings = oldCloseSettings;
+      window.closeSettingsModal = oldCloseSettingsModal;
       Element.prototype.scrollIntoView = oldScrollIntoView;
     }
     return failures;

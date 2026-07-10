@@ -1,0 +1,11 @@
+{
+  "source": "Clue",
+  "data": [
+    { "day": "2026-07-01T00:00:00.000Z", "period": "light", "pain": ["cramps"], "mood": ["sensitive"], "temperature": 36.41 },
+    { "day": "2026-07-02T00:00:00.000Z", "period": "heavy", "pain": ["headache"], "energy": ["exhausted"], "note": "heavy day" },
+    { "day": "2026-07-11T00:00:00.000Z", "period": "spotting" },
+    { "day": "2026-07-14T00:00:00.000Z", "cervical_fluid": "egg_white", "ovulation_test": "positive" },
+    { "day": "2026-08-01T00:00:00.000Z", "period": "medium" }
+  ],
+  "settings": { "locale": "en" }
+}

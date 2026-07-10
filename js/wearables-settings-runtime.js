@@ -17,7 +17,7 @@ function getRuntimeFunction(name) {
 }
 
 export function closeWearableSettingsModal() {
-  getRuntimeFunction('closeSettings')?.();
+  getRuntimeFunction('closeSettingsModal')?.();
 }
 
 export function navigateWearablesDashboard() {

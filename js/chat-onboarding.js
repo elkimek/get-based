@@ -105,6 +105,8 @@ function handleChatOnboardingClick(event) {
     openAiProviderSettings(actionEl.dataset.chatProvider || '');
   } else if (action === 'set-provider-branch') {
     setProviderQuizBranch(actionEl.dataset.chatProviderBranch || '');
+  } else if (action === 'start-file-import') {
+    startOnboardingFileImport();
   } else if (action === 'skip-provider-setup') {
     skipProviderSetup();
   } else if (action === 'go-onboarding-step') {
@@ -246,6 +248,17 @@ export function startOnboardingLabImport() {
     requestOnboardingLabImportProvider();
     return;
   }
+  const input = inputById('pdf-input');
+  if (!input) {
+    showNotification('Import control is not available on this screen.', 'error');
+    return;
+  }
+  closeChatPanel();
+  input.value = '';
+  input.click();
+}
+
+export function startOnboardingFileImport() {
   const input = inputById('pdf-input');
   if (!input) {
     showNotification('Import control is not available on this screen.', 'error');

@@ -9,6 +9,7 @@ import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
 import { getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import { getBloodDrawPhases, getNextBestDrawDate, detectPerimenopausePattern, detectCycleIronAlerts } from './cycle.js';
+import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { ingredientDailyTotal, effectiveTimesPerDay } from './supplement-impact.js';
@@ -675,7 +676,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   }
 
   // ── 9. Menstrual Cycle (female only) ──
-  const mc = state.importedData.menstrualCycle;
+  const mc = state.importedData.menstrualCycle ? upgradeMenstrualCycleProfile(state.importedData.menstrualCycle) : null;
   if (includeInsightCards && mc && state.profileSex === 'female') {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     ctx += `[section:menstrualCycle]\n## Menstrual Cycle\n`;
@@ -686,24 +687,51 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
       ctx += `Profile: ${mc.cycleLength || 28}-day cycle (${mc.periodLength || 5}-day period), ${regLabel}, ${mc.flow || 'moderate'} flow.`;
     }
     if (mc.contraceptive) {
-      const _hormonalBC = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection'];
-      const isHormonal = _hormonalBC.some(h => mc.contraceptive.toLowerCase().includes(h));
+      const isHormonal = isHormonalContraception(mc.contraceptive);
       ctx += ` Contraceptive: ${mc.contraceptive}${isHormonal ? ' (HORMONAL — suppresses natural cycle phases; phase-specific hormone ranges do NOT apply)' : ''}.`;
     }
     if (mc.conditions) ctx += ` Conditions: ${mc.conditions}.`;
     ctx += '\n';
-    const periods = (mc.periods || []).slice().sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+    const coverage = mc.coverage || {};
+    if (coverage.periodCount || coverage.firstDate || coverage.lastDate) {
+      const sourceNames = Object.keys(coverage.sources || {});
+      const sourceText = sourceNames.length ? `, sources: ${sourceNames.join(', ')}` : '';
+      ctx += `Coverage: ${coverage.periodCount || 0} observed periods`;
+      if (coverage.observationCount) ctx += `, ${coverage.observationCount} local daily observations`;
+      if (coverage.firstDate || coverage.lastDate) ctx += `, ${coverage.firstDate || '?'} to ${coverage.lastDate || '?'}`;
+      ctx += `${sourceText}.\n`;
+    }
+    const summary = mc.historySummary || {};
+    if (summary.recent12?.avgCycle || summary.recent12?.range || summary.recent12?.heavyRate != null) {
+      const parts = [];
+      if (summary.recent12.avgCycle) parts.push(`avg ${summary.recent12.avgCycle}d`);
+      if (summary.recent12.range) parts.push(`range ${summary.recent12.range[0]}-${summary.recent12.range[1]}d`);
+      if (summary.recent12.variability) parts.push(`${summary.recent12.variability} variability`);
+      if (summary.recent12.heavyRate != null) parts.push(`heavy flow ${Math.round(summary.recent12.heavyRate * 100)}%`);
+      ctx += `Recent 12 cycles: ${parts.join(', ')}.\n`;
+    }
+    if (summary.last12Months?.avgCycle || summary.last12Months?.variability || summary.allTime?.periodCount) {
+      const parts = [];
+      if (summary.last12Months?.avgCycle) parts.push(`last 12 months avg ${summary.last12Months.avgCycle}d`);
+      if (summary.last12Months?.variability) parts.push(`${summary.last12Months.variability} variability`);
+      if (summary.allTime?.avgCycle) parts.push(`all-time avg ${summary.allTime.avgCycle}d across ${summary.allTime.periodCount || 0} periods`);
+      ctx += `Longitudinal cycle summary: ${parts.join('; ')}.\n`;
+    }
+    if (Array.isArray(summary.flags) && summary.flags.length) {
+      ctx += `Cycle pattern flags: ${summary.flags.join('; ')}.\n`;
+    }
+    const periods = recentCyclePeriods(mc, 12);
     if (periods.length > 0) {
       const fmtD = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      ctx += `Recent periods: ${periods.slice(0, 6).map(p => {
+      ctx += `Recent periods: ${periods.map(p => {
         let desc = `${fmtD(p.startDate)}-${fmtD(p.endDate)} (${p.flow})`;
         if (p.symptoms?.length) desc += ` [${p.symptoms.join(', ')}]`;
+        if (p.source && p.source !== 'manual') desc += ` source:${p.source}`;
         return desc;
       }).join(', ')}\n`;
     }
     const _isActiveCycleCtx = !mc.cycleStatus || mc.cycleStatus === 'regular' || mc.cycleStatus === 'perimenopause';
-    const _hormonalBCCtx = ['ocp', 'pill', 'patch', 'ring', 'implant', 'mirena', 'hormonal iud', 'depo', 'injection'];
-    const _isHormonalBCCtx = mc.contraceptive && _hormonalBCCtx.some(h => mc.contraceptive.toLowerCase().includes(h));
+    const _isHormonalBCCtx = isHormonalContraception(mc.contraceptive);
     if (_isActiveCycleCtx && !_isHormonalBCCtx) {
       if (data.dates.length > 0) {
         const phases = getBloodDrawPhases(mc, data.dates);
@@ -711,7 +739,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
         if (phaseDates.length > 0) {
           ctx += `\nBlood draw cycle context:\n`;
           for (const [date, p] of phaseDates) {
-            ctx += `- ${fmtDate(date)}: Day ${p.cycleDay} (${p.phaseName} phase)\n`;
+            const basis = p.basedOnStartDate ? `, based on period ${p.basedOnStartDate}` : '';
+            const confidence = p.confidence ? `, confidence ${p.confidence}` : '';
+            ctx += `- ${fmtDate(date)}: day ${p.cycleDay}, ${p.phaseName.toLowerCase()} phase${confidence}${basis}\n`;
           }
         }
       }

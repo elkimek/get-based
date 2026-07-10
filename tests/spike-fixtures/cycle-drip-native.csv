@@ -1,0 +1,5 @@
+date,temperature.value,temperature.exclude,bleeding.value,bleeding.exclude,mucus.feeling,mucus.texture,mucus.value,mucus.exclude,note.value,pain.cramps,pain.headache,mood.fatigue
+2026-02-01,36.61,false,1,false,dry,,,false,start,true,false,true
+2026-02-02,36.72,true,3,false,,stretchy,eggwhite,false,heavy day,false,true,false
+2026-02-03,,,2,true,,,,,excluded,false,false,false
+2026-03-01,,,0,false,,,,,spotting,false,false,false

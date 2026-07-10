@@ -45,12 +45,13 @@ export function setupDropZone() {
       showDropZoneImportNotification('Could not load import module - check your connection and try again.', 'error');
       return;
     }
-    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await importMod.classifyImportFiles(files);
-    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
-      showDropZoneImportNotification("Unsupported file type. Use PDF, Excel (.xlsx), text, CSV, image, JSON, or DNA raw data (.txt/.csv).", "error");
+    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await importMod.classifyImportFiles(files);
+    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0 && cycleFiles.length === 0) {
+      showDropZoneImportNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
       return;
     }
-    for (const f of jsonFiles) importDropZoneJSONFile(f);
+    for (const f of jsonFiles) await importDropZoneJSONFile(f);
+    if (cycleFiles.length > 0) { for (const f of cycleFiles) await importMod.handleCycleImportFile(f); }
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
         const header = await f.slice(0, 1500).text();
@@ -60,11 +61,9 @@ export function setupDropZone() {
         else await handleDropZoneDNAFile(f);
       }
     }
-    else if (textFiles.length > 0) { for (const f of textFiles) await importMod.handleTextFile(f); }
-    else if (imageFiles.length > 0) { for (const f of imageFiles) await importMod.handleImageFile(f); }
-    else {
-      if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
-      else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
-    }
+    if (textFiles.length > 0) { for (const f of textFiles) await importMod.handleTextFile(f); }
+    if (imageFiles.length > 0) { for (const f of imageFiles) await importMod.handleImageFile(f); }
+    if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
+    else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
   });
 }

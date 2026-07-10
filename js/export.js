@@ -340,6 +340,10 @@ export async function clearAllData() {
         const { deleteWearablesDB } = await import('./wearables-store.js');
         await deleteWearablesDB(id);
       } catch {}
+      try {
+        const { deleteCycleDB } = await import('./cycle-store.js');
+        await deleteCycleDB(id);
+      } catch {}
     }
     // Reset to single default profile
     const defaultId = profiles[0]?.id || 'default';

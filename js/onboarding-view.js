@@ -51,6 +51,8 @@ function handleOnboardingActionClick(event) {
     completeOnboardingProfile();
   } else if (action === 'dismiss-profile') {
     dismissOnboarding();
+  } else if (action === 'import-file') {
+    openOnboardingImportFilePicker();
   } else if (action === 'open-provider-quiz') {
     openChatProviderQuiz();
   } else if (action === 'dismiss-ai-reminder') {
@@ -108,11 +110,22 @@ export function renderOnboardingBanner() {
         <input type="date" class="onboarding-dob-input" id="onboarding-dob" value="${state.profileDob || ''}" />
       </div>
       <div class="onboarding-actions">
+        <button type="button" class="onboarding-file-btn" ${onboardingActionAttrs('import-file')}>Import data file</button>
         <button type="button" class="onboarding-save-btn" ${onboardingActionAttrs('save-profile')}>Save & Continue</button>
         <button type="button" class="onboarding-skip-btn" ${onboardingActionAttrs('dismiss-profile')}>Skip for now</button>
       </div>
     </div>
   </div>`;
+}
+
+export function openOnboardingImportFilePicker() {
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('pdf-input'));
+  if (!input) {
+    showNotification('Import control is not available on this screen.', 'error');
+    return;
+  }
+  input.value = '';
+  input.click();
 }
 
 export function completeOnboardingSex(sex) {

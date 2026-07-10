@@ -76,11 +76,10 @@ export async function eraseAllLocalAppData() {
   }
 
   await deleteIndexedDBDatabasesByPrefix(
-    ['labcharts-wearables-'],
-    profileIds.map(id => `labcharts-wearables-${id}`),
+    ['labcharts-wearables-', 'labcharts-cycle-'],
+    profileIds.flatMap(id => [`labcharts-wearables-${id}`, `labcharts-cycle-${id}`]),
   );
   await deleteIndexedDBDatabase('labcharts-blobs');
   await deleteIndexedDBDatabase('getbased-cashu');
   await deleteAppCaches();
 }
-

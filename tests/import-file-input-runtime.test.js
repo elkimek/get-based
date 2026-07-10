@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => {
   const importModule = {
     classifyImportFiles: vi.fn(),
+    handleCycleImportFile: vi.fn(),
     handleTextFile: vi.fn(),
     handleImageFile: vi.fn(),
     handlePDFFile: vi.fn(),
@@ -44,6 +45,7 @@ function importBuckets(overrides = {}) {
     imageFiles: [],
     dnaFiles: [],
     textFiles: [],
+    cycleFiles: [],
     unsupportedCount: 0,
     ...overrides,
   };
@@ -102,6 +104,41 @@ describe('import file input runtime routing', () => {
 
     expect(mocks.importDropZoneJSONFile).toHaveBeenCalledWith(json);
     expect(target.value).toBe('');
+  });
+
+  it('routes cycle XML and ZIP files through the cycle importer', async () => {
+    const cycleFile = makeFile('export.xml');
+    mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({ cycleFiles: [cycleFile] }));
+
+    const target = await runInput([cycleFile]);
+
+    expect(mocks.importModule.handleCycleImportFile).toHaveBeenCalledWith(cycleFile);
+    expect(mocks.importModule.handleTextFile).not.toHaveBeenCalled();
+    expect(target.value).toBe('');
+  });
+
+  it('processes every supported bucket in a mixed selection', async () => {
+    const cycle = makeFile('export.xml');
+    const dna = makeFile('ancestry.txt', '#AncestryDNA');
+    const text = makeFile('labs.csv');
+    const image = makeFile('result.png');
+    const pdf = makeFile('report.pdf');
+    mocks.detectDropZoneDNAFile.mockReturnValue('ancestry');
+    mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({
+      cycleFiles: [cycle],
+      dnaFiles: [dna],
+      textFiles: [text],
+      imageFiles: [image],
+      pdfFiles: [pdf],
+    }));
+
+    await runInput([cycle, dna, text, image, pdf]);
+
+    expect(mocks.importModule.handleCycleImportFile).toHaveBeenCalledWith(cycle);
+    expect(mocks.handleDropZoneDNAFile).toHaveBeenCalledWith(dna);
+    expect(mocks.importModule.handleTextFile).toHaveBeenCalledWith(text);
+    expect(mocks.importModule.handleImageFile).toHaveBeenCalledWith(image);
+    expect(mocks.importModule.handlePDFFile).toHaveBeenCalledWith(pdf);
   });
 
   it('routes mtDNA files through the runtime mtDNA handler', async () => {
