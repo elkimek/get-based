@@ -9,11 +9,11 @@
 //   { source, date, importId?, bleeding?, symptoms?, bbtC?, cervicalMucus?,
 //     ovulationTest?, note?, importedAt }
 //
-// Compound key [source, date]. Source-level imports can be removed without
-// touching manual cycle profile fields in importedData.
+// Compound key [source, date, importId]. Keeping each import batch distinct
+// lets users remove a re-import without losing the earlier local observation.
 
 const DB_PREFIX = 'labcharts-cycle-';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_DAILY = 'daily-observations';
 const STORE_IMPORTS = 'imports';
 const STORE_META = 'meta';
@@ -22,6 +22,21 @@ const _dbPromises = new Map();
 
 function dbNameFor(profileId) {
   return DB_PREFIX + (profileId || 'default');
+}
+
+function withObservationIdentity(row) {
+  if (!row || typeof row !== 'object') return row;
+  const importId = String(row.importId || '').trim() || `legacy:${row.date || 'unknown'}`;
+  return row.importId === importId ? row : { ...row, importId };
+}
+
+function createDailyStore(db) {
+  const store = db.createObjectStore(STORE_DAILY, { keyPath: ['source', 'date', 'importId'] });
+  store.createIndex('by_source', 'source', { unique: false });
+  store.createIndex('by_source_date', ['source', 'date'], { unique: false });
+  store.createIndex('by_date', 'date', { unique: false });
+  store.createIndex('by_import', 'importId', { unique: false });
+  return store;
 }
 
 export function openCycleDB(profileId) {
@@ -33,13 +48,20 @@ export function openCycleDB(profileId) {
       return;
     }
     const req = indexedDB.open(name, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = event => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_DAILY)) {
-        const store = db.createObjectStore(STORE_DAILY, { keyPath: ['source', 'date'] });
-        store.createIndex('by_source', 'source', { unique: false });
-        store.createIndex('by_date', 'date', { unique: false });
-        store.createIndex('by_import', 'importId', { unique: false });
+      const oldVersion = /** @type {IDBVersionChangeEvent} */ (event).oldVersion;
+      if (oldVersion < 2 && db.objectStoreNames.contains(STORE_DAILY)) {
+        const upgradeTx = req.transaction;
+        const legacyRows = upgradeTx.objectStore(STORE_DAILY).getAll();
+        legacyRows.onsuccess = () => {
+          db.deleteObjectStore(STORE_DAILY);
+          const store = createDailyStore(db);
+          for (const row of legacyRows.result || []) store.put(withObservationIdentity(row));
+        };
+        legacyRows.onerror = () => upgradeTx.abort();
+      } else if (!db.objectStoreNames.contains(STORE_DAILY)) {
+        createDailyStore(db);
       }
       if (!db.objectStoreNames.contains(STORE_IMPORTS)) {
         const imports = db.createObjectStore(STORE_IMPORTS, { keyPath: 'importId' });
@@ -76,17 +98,16 @@ async function _encryptRowIfEnabled(row) {
   let crypto;
   try { crypto = await import('./crypto.js'); } catch { return row; }
   if (!crypto.getEncryptionEnabled?.()) return row;
-  const { source, date, importId, _payload, ...rest } = row;
-  if (_payload?._enc === 'v1') return row;
+  const identified = withObservationIdentity(row);
+  const { source, date, importId, _payload, ...rest } = identified;
+  if (_payload?._enc === 'v1') return identified;
   const env = await crypto.encryptObject(rest);
   if (!env) {
     const e = new Error('Cycle storage is encrypted; unlock with your passphrase before importing cycle data.');
     /** @type {Error & { code?: string }} */ (e).code = 'session-locked';
     throw e;
   }
-  return importId
-    ? { source, date, importId, _payload: env }
-    : { source, date, _payload: env };
+  return { source, date, importId, _payload: env };
 }
 
 async function _decryptRowIfWrapped(row) {
@@ -130,12 +151,14 @@ async function _decryptImportMetaIfWrapped(meta) {
 }
 
 function cleanRows(rows) {
-  return (Array.isArray(rows) ? rows : []).filter(row => row && row.source && row.date);
+  return (Array.isArray(rows) ? rows : [])
+    .filter(row => row && row.source && row.date)
+    .map(withObservationIdentity);
 }
 
 export async function upsertCycleObservation(profileId, row) {
   if (!row || !row.source || !row.date) throw new Error('upsertCycleObservation requires {source, date}');
-  const stamped = { importedAt: Date.now(), ...row };
+  const stamped = withObservationIdentity({ importedAt: Date.now(), ...row });
   const towrite = await _encryptRowIfEnabled(stamped);
   const db = await openCycleDB(profileId);
   const tx = db.transaction(STORE_DAILY, 'readwrite');
@@ -162,8 +185,9 @@ export async function getCycleObservation(profileId, source, date) {
   const db = await openCycleDB(profileId);
   const raw = await new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
-    const req = tx.objectStore(STORE_DAILY).get([source, date]);
-    req.onsuccess = () => resolve(req.result || null);
+    const req = tx.objectStore(STORE_DAILY).index('by_source_date')
+      .openCursor(IDBKeyRange.only([source, date]), 'prev');
+    req.onsuccess = () => resolve(req.result?.value || null);
     req.onerror = () => reject(req.error);
   });
   return raw ? _decryptRowIfWrapped(raw) : null;
@@ -173,7 +197,7 @@ export async function getCycleObservationRange(profileId, source, startDate, end
   const db = await openCycleDB(profileId);
   const raws = await new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
-    const store = tx.objectStore(STORE_DAILY);
+    const store = tx.objectStore(STORE_DAILY).index('by_source_date');
     const keyRange = IDBKeyRange.bound([source, startDate], [source, endDate]);
     const rows = [];
     const req = store.openCursor(keyRange);
@@ -196,7 +220,7 @@ export async function getCycleObservationRangeRaw(profileId, source, startDate, 
   const db = await openCycleDB(profileId);
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_DAILY, 'readonly');
-    const store = tx.objectStore(STORE_DAILY);
+    const store = tx.objectStore(STORE_DAILY).index('by_source_date');
     const keyRange = IDBKeyRange.bound([source, startDate], [source, endDate]);
     const rows = [];
     const req = store.openCursor(keyRange);

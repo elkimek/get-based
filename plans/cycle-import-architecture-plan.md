@@ -54,7 +54,7 @@ Suggested database:
 
 - DB prefix: `labcharts-cycle-`
 - Store: `daily-observations`
-- Key: `[source, date]` or `[source, date, importId]`
+- Key: `[source, date, importId]` so repeated imports remain independently removable.
 - Store: `imports`
 - Store: `meta`
 

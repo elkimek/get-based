@@ -305,7 +305,9 @@ export function buildCycleCoverage(periods, previousCoverage = null) {
   const previousSources = isPlainObject(previousCoverage?.sources) ? previousCoverage.sources : {};
   const sources = {};
   for (const [source, info] of Object.entries(previousSources)) {
-    if ((info?.observations || 0) > 0) sources[source] = { ...info, periods: 0 };
+    if ((info?.observations || 0) > 0 || (info?.periods || 0) > 0 || info?.importIds?.length) {
+      sources[source] = { ...info, periods: 0 };
+    }
   }
   for (const p of normalized) {
     const source = p.source || 'manual';

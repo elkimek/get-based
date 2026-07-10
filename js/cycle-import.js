@@ -74,7 +74,6 @@ function importActionAttrs(action, data = {}) {
 function sourceLabel(source) {
   return SOURCE_LABELS[source] || source;
 }
-
 function cloneJSON(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
@@ -87,7 +86,6 @@ function snapshotCycleState() {
     profileSex: state.profileSex,
   };
 }
-
 function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
   state.importedData.menstrualCycle = snapshot.menstrualCycle;
   restoreImportedArray(state.importedData, 'changeHistory', snapshot.changeHistory);
@@ -98,7 +96,6 @@ function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
     appWindow.renderProfileButton?.();
   }
 }
-
 async function persistCycleState() {
   if (!await saveImportedData()) throw new Error('Cycle data could not be saved. No changes were kept.');
 }
@@ -126,7 +123,6 @@ function isoDateFromApple(value) {
   const day = String(value || '').slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
 }
-
 function dateRangeForObservations(observations) {
   const dates = observations.map(row => row.date).filter(Boolean).sort();
   return { firstDate: dates[0] || null, lastDate: dates[dates.length - 1] || null };
@@ -146,7 +142,6 @@ const APPLE_OVULATION = {
   HKCategoryValueOvulationTestResultLuteinizingHormoneSurge: 'positive',
 };
 const APPLE_FLOW_PRIORITY = { spotting: 0, light: 1, moderate: 2, heavy: 3 };
-
 const RECORD_RE = /<Record\b([^>]*?)\/?>/g;
 const ATTR_RE = /(\w+)="([^"]*)"/g;
 
@@ -157,7 +152,6 @@ function parseAppleAttrs(raw) {
   while ((match = ATTR_RE.exec(raw)) !== null) attrs[match[1]] = match[2];
   return attrs;
 }
-
 function addObservation(map, source, date, patch) {
   if (!date) return;
   const key = `${source}|${date}`;
@@ -171,7 +165,6 @@ function addObservation(map, source, date, patch) {
   }
   map.set(key, next);
 }
-
 function processAppleCycleRecord(attrsRaw, byKey) {
   if (!/HKCategoryTypeIdentifier(MenstrualFlow|IntermenstrualBleeding|OvulationTestResult|CervicalMucusQuality)/.test(attrsRaw)) return;
   const attrs = parseAppleAttrs(attrsRaw);
@@ -190,7 +183,6 @@ function processAppleCycleRecord(attrsRaw, byKey) {
     addObservation(byKey, 'apple_health', date, { cervicalMucus: { quality: String(attrs.value || '').replace('HKCategoryValueCervicalMucusQuality', '').toLowerCase() } });
   }
 }
-
 function finalizeAppleHealthCycleImport(byKey, fileName) {
   const observations = Array.from(byKey.values()).sort((a, b) => a.date.localeCompare(b.date));
   if (observations.length === 0) return null;
@@ -219,7 +211,6 @@ export function parseAppleHealthCycleXml(xmlText, fileName = 'apple-health-expor
   while ((match = RECORD_RE.exec(xmlText)) !== null) processAppleCycleRecord(match[1], byKey);
   return finalizeAppleHealthCycleImport(byKey, fileName);
 }
-
 export async function parseAppleHealthCycleBlob(blob, fileName = 'apple-health-export.xml', onProgress = null) {
   const byKey = new Map();
   const reader = blob.stream()
@@ -277,7 +268,6 @@ function cycleFileKind(file) {
   if (name.endsWith('.csv') || file?.type === 'text/csv') return 'csv';
   return 'text';
 }
-
 export function isAppleHealthCycleFile(file) {
   return cycleFileKind(file) === 'xml';
 }
@@ -388,7 +378,6 @@ export { parseClueCycleJson, parseDripCycleCsv, parseNaturalCyclesCsv, parseNatu
 function overlaps(a, b) {
   return a.startDate <= (b.endDate || b.startDate) && (a.endDate || a.startDate) >= b.startDate;
 }
-
 export function buildCycleImportPlan(parsed, mc = state.importedData.menstrualCycle, conflictMode = 'keep-existing') {
   const imported = normalizeCyclePeriods(parsed?.periods || []);
   const existing = normalizeCyclePeriods(mc?.periods || []);
@@ -484,9 +473,11 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
     }
     const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
     const coverage = buildCycleCoverage(plan.mergedPeriods, state.importedData.menstrualCycle?.coverage || null);
+    const previousImportIds = coverage.sources[parsed.source]?.importIds || [];
     coverage.sources[parsed.source] = {
       ...(coverage.sources[parsed.source] || { periods: 0, observations: 0 }),
       importedAt: now,
+      importIds: Array.from(new Set([...previousImportIds, parsed.importId])),
     };
     const base = { ...(state.importedData.menstrualCycle || {}), periods: plan.mergedPeriods, coverage };
     state.importedData.menstrualCycle = await applyRawObservationCounts(base, profileId, parsed.source);
@@ -522,9 +513,18 @@ export async function deleteCycleImportFromProfile(importId) {
   if (!rawMeta && !meta && removed.length === 0 && !rawRows.some(row => row.importId === importId)) return false;
   if (!mc) { await clearCycleImport(profileId, importId); return true; }
   const snapshot = snapshotCycleState();
-  const next = { ...mc, periods: (mc.periods || []).filter(period => period.importId !== importId) };
+  const source = removed[0]?.source || meta?.source || rawMeta?.source || null;
+  const sources = { ...(mc.coverage?.sources || {}) };
+  if (source && sources[source]) {
+    sources[source] = { ...sources[source], importIds: (sources[source].importIds || []).filter(id => id !== importId) };
+  }
+  const next = {
+    ...mc,
+    periods: (mc.periods || []).filter(period => period.importId !== importId),
+    ...(mc.coverage ? { coverage: { ...mc.coverage, sources } } : {}),
+  };
   const remainingRows = rawRows.filter(row => row.importId !== importId);
-  state.importedData.menstrualCycle = await applyRawObservationCounts(next, profileId, removed[0]?.source || meta?.source || rawMeta?.source || null, remainingRows);
+  state.importedData.menstrualCycle = await applyRawObservationCounts(next, profileId, source, remainingRows);
   appWindow.recordChange?.('menstrualCycle');
   let persisted = false;
   try {
@@ -773,7 +773,8 @@ export function renderCycleImportSummarySection(mc) {
   const sourceRows = Object.entries(coverage.sources || {})
     .filter(([, info]) => (info?.periods || 0) > 0 || (info?.observations || 0) > 0)
     .map(([source, info]) => {
-      const importIds = Array.from(new Set((upgraded.periods || []).filter(period => period.source === source && period.importId).map(period => period.importId)));
+      const periodImportIds = (upgraded.periods || []).filter(period => period.source === source && period.importId).map(period => period.importId);
+      const importIds = Array.from(new Set([...(info.importIds || []), ...periodImportIds]));
       const batchButtons = importIds.map((id, idx) => `<button type="button" class="cycle-mini-action" ${importActionAttrs('delete-import', { importId: id })}>Remove batch ${idx + 1}</button>`).join('');
       return `<div class="cycle-source-row">
         <div class="cycle-source-main">
@@ -794,5 +795,4 @@ export function renderCycleImportSummarySection(mc) {
     ${sourceRows ? `<div class="cycle-source-list">${sourceRows}</div>` : ''}
   </section>`;
 }
-
 installCycleImportDelegates();

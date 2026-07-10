@@ -15,6 +15,7 @@ import {
   parseDripCycleCsv,
   parseNaturalCyclesCsv,
   parseNaturalCyclesCsvBundle,
+  renderCycleImportSummarySection,
 } from '../js/cycle-import.js';
 import {
   recentCyclePeriods,
@@ -32,6 +33,7 @@ import {
   getCycleImportMeta,
   getCycleImportMetaRaw,
   getCycleObservationRange,
+  resetCycleDB,
   saveCycleImportMeta,
   upsertCycleObservationBatch,
 } from '../js/cycle-store.js';
@@ -161,6 +163,34 @@ describe('cycle import phase 1 primitives', () => {
     expect(await getCycleImportMeta(profileId, 'imp1')).toBeNull();
 
     await deleteCycleDB(profileId).catch(() => {});
+  });
+
+  it('migrates v1 source-date rows to batch-aware observation identities', async () => {
+    const profileId = 'cycle-store-v1-migration';
+    const legacyDb = await new Promise((resolve, reject) => {
+      const request = indexedDB.open(`labcharts-cycle-${profileId}`, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('daily-observations', { keyPath: ['source', 'date'] });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const tx = legacyDb.transaction('daily-observations', 'readwrite');
+    tx.objectStore('daily-observations').put({
+      source: 'drip', date: '2025-12-31', importId: 'legacy-import', note: 'preserve me',
+    });
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    legacyDb.close();
+    resetCycleDB(profileId);
+
+    expect(await getAllCycleObservationsRaw(profileId)).toEqual([
+      expect.objectContaining({ source: 'drip', date: '2025-12-31', importId: 'legacy-import', note: 'preserve me' }),
+    ]);
+    await deleteCycleDB(profileId);
   });
 
   it('encrypts cycle observation details and import metadata at rest', async () => {
@@ -507,6 +537,38 @@ describe('cycle import phase 1 primitives', () => {
     expect(state.profileSex).toBe('female');
     expect(state.profiles[0].sex).toBe('female');
     await deleteCycleDB(profileId).catch(() => {});
+  });
+
+  it('preserves an earlier same-day batch when a re-import is removed', async () => {
+    const profileId = 'cycle-reimport-preservation';
+    state.currentProfile = profileId;
+    state.profileSex = 'female';
+    state.profiles = [{ id: profileId, name: 'Repeated import', sex: 'female' }];
+    localStorage.setItem('labcharts-active-profile', profileId);
+    localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
+    const parsed = (importId, flow) => ({
+      source: 'drip',
+      importId,
+      sourceFile: `${importId}.csv`,
+      observations: [{ source: 'drip', date: '2026-05-01', bleeding: { flow }, note: importId }],
+      periods: [{ startDate: '2026-05-01', endDate: '2026-05-01', flow, source: 'drip', importId }],
+    });
+
+    await commitCycleImport(parsed('import-a', 'moderate'));
+    await commitCycleImport(parsed('import-b', 'heavy'));
+    expect((await getAllCycleObservationsRaw(profileId)).map(row => row.importId).sort()).toEqual(['import-a', 'import-b']);
+    expect(state.importedData.menstrualCycle.coverage.sources.drip.importIds).toEqual(['import-a', 'import-b']);
+    expect(renderCycleImportSummarySection(state.importedData.menstrualCycle)).toContain('data-cycle-import-import-id="import-b"');
+
+    await deleteCycleImportFromProfile('import-b');
+    expect(await getCycleObservationRange(profileId, 'drip', '2026-05-01', '2026-05-01')).toEqual([
+      expect.objectContaining({ importId: 'import-a', note: 'import-a' }),
+    ]);
+    expect(state.importedData.menstrualCycle.periods).toEqual([
+      expect.objectContaining({ importId: 'import-a', flow: 'moderate' }),
+    ]);
+    expect(state.importedData.menstrualCycle.coverage.sources.drip.importIds).toEqual(['import-a']);
+    await deleteCycleDB(profileId);
   });
 
   it('deletes raw-only import batches and clears stale compact coverage', async () => {
