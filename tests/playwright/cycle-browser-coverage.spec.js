@@ -14,15 +14,17 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cycleUrl }) => {
-    const [{ state }, cycle, tour] = await Promise.all([
+    const [{ state }, cycle, tour, cycleStore] = await Promise.all([
       import('/js/state.js'),
       import(cycleUrl),
       import('/js/tour.js'),
+      import('/js/cycle-store.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
     const calls = [];
     let injectedNav = null;
+    let injectedCycleSurface = null;
     const saved = {
       importedData: clone(state.importedData),
       profileDob: state.profileDob,
@@ -67,8 +69,17 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         calls.push(['close']);
         overlay()?.classList.remove('show');
       };
-      window.navigate = category => calls.push(['navigate', category]);
+      window.navigate = category => {
+        calls.push(['navigate', category]);
+        if (category === 'cycle' && !injectedCycleSurface) {
+          injectedCycleSurface = document.createElement('button');
+          injectedCycleSurface.className = 'cycle-summary-card';
+          injectedCycleSurface.textContent = 'Cycle summary';
+          document.body.appendChild(injectedCycleSurface);
+        }
+      };
       window.recordChange = field => calls.push(['record', field]);
+      tour.endTour({ openEmptyChat: false });
       localStorage.removeItem(cycleTourKey);
 
       state.profileDob = '1974-01-01';
@@ -205,6 +216,12 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       await clearCancel;
       outcomes.clearCancelKeepsCycleData = !!state.importedData.menstrualCycle;
 
+      await cycleStore.upsertCycleObservation(state.currentProfile, {
+        source: 'clue', importId: 'clear-all-browser-import', date: '2026-07-01', note: 'must be deleted', bleeding: { flow: 'heavy' },
+      });
+      await cycleStore.saveCycleImportMeta(state.currentProfile, {
+        importId: 'clear-all-browser-import', source: 'clue', sourceFile: 'ClueBackup.json', observationCount: 1,
+      });
       const clearBefore = calls.length;
       const clearConfirm = cycle.clearMenstrualCycle();
       await waitForDialog('#confirm-ok');
@@ -216,6 +233,8 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
         && clearCalls.some(call => call[0] === 'close')
         && clearCalls.some(call => call[0] === 'navigate' && call[1] === 'cycle')
         && toasts().some(text => text.includes('Menstrual cycle data cleared'));
+      outcomes.clearConfirmDeletesRawCycleDatabase = (await cycleStore.getAllCycleObservationsRaw(state.currentProfile)).length === 0
+        && (await cycleStore.getAllCycleImportMetaRaw(state.currentProfile)).length === 0;
     } finally {
       state.importedData = saved.importedData;
       state.profileDob = saved.profileDob;
@@ -230,6 +249,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       else localStorage.removeItem(cycleTourKey);
       document.querySelectorAll('.notification-container,.notification-toast,.confirm-overlay').forEach(el => el.remove());
       injectedNav?.remove();
+      injectedCycleSurface?.remove();
       document.querySelectorAll('.nav-item.active').forEach(el => el.classList.remove('active'));
     }
 

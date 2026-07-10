@@ -11,6 +11,15 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.156', date: '2026-07-10', title: 'Import your menstrual cycle history',
+    forceShow: true,
+    items: [
+      '<b>Cycle history can now come with you.</b> Import Apple Health, Drip, Natural Cycles, or an extracted Clue JSON export and review the detected periods before saving.',
+      '<b>Detailed observations stay local.</b> Period summaries can sync for lab interpretation, while daily temperatures, fertility signs, symptoms, and notes remain on the importing device.',
+      '<b>Imports remain under your control.</b> Remove one batch, one source, or all cycle data, with encryption and full backups covering the local observations too.',
+    ]
+  },
+  {
     version: '1.10.62', date: '2026-07-04', title: 'Control what AI uses as context',
     forceShow: true,
     items: [

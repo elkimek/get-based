@@ -87,6 +87,14 @@ assert('SW APP_SHELL includes PDF import review runtime module', swAuditSrc.incl
 assert('SW APP_SHELL includes PDF import commit module', swAuditSrc.includes("'/js/pdf-import-commit.js'"));
 assert('SW APP_SHELL includes modal lifecycle module', swAuditSrc.includes("'/js/modal-lifecycle.js'"));
 assert('SW APP_SHELL includes marker analysis module', swAuditSrc.includes("'/js/marker-analysis.js'"));
+assert('SW APP_SHELL includes cycle import modules',
+  swAuditSrc.includes("'/js/cycle-import-adapters.js'")
+  && swAuditSrc.includes("'/js/cycle-import.js'")
+  && swAuditSrc.includes("'/js/cycle-store.js'")
+  && swAuditSrc.includes("'/js/cycle-summary.js'"));
+assert('SW APP_SHELL includes backup support modules',
+  swAuditSrc.includes("'/js/backup-cycle.js'")
+  && swAuditSrc.includes("'/js/backup-serialization.js'"));
 assert('SW APP_SHELL includes PDF import support modules',
   swAuditSrc.includes("'/js/pdf-import-file-utils.js'")
   && swAuditSrc.includes("'/js/pdf-import-spreadsheet.js'")

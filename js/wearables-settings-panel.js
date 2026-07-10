@@ -520,8 +520,12 @@ async function importAppleHealthFlow(file) {
       if (text) text.textContent = stage === 'done'
         ? `${rows} days imported (${startDate} – ${endDate})`
         : `${stage}… ${pct ?? 0}%`;
+    }, {
+      beforeCycleReview: () => closeWearableSettingsModal(),
     });
-    showNotification?.(`Apple Health imported — ${res.rows} days`, 'success', 3000);
+    const cycleSuffix = res.cycleImport ? ` + ${res.cycleImport.periods} cycle periods` : '';
+    showNotification?.(`Apple Health imported - ${res.rows} days${cycleSuffix}`, 'success', 3000);
+    if (res.cycleError) showNotification?.(`Cycle import skipped: ${res.cycleError}`, 'info', 5000);
     refreshSettingsWearables();
     navigateWearablesDashboard();
   } catch (e) {

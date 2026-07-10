@@ -13,7 +13,7 @@ import {
   _countFilledCards, _renderOnboardCrumbs, _renderProviderQuiz,
   _updateOnboardNextBtn, onboardHeightUnitChanged,
   continueAfterContextCards, requestOnboardingLabImportProvider, saveChatLocation, saveChatProfile,
-  setChatProfileSex, skipContextCards, skipOnboardingExtras, startOnboardingLabImport,
+  setChatProfileSex, skipContextCards, skipOnboardingExtras, startOnboardingFileImport, startOnboardingLabImport,
   useChatPrompt,
 } from './chat-onboarding.js';
 
@@ -102,6 +102,8 @@ function handleChatEmptyClick(event) {
     currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (action === 'start-lab-import') {
     startOnboardingLabImport();
+  } else if (action === 'start-file-import') {
+    startOnboardingFileImport();
   } else if (action === 'set-onboarding-focus') {
     callChatEmptyRuntime('setOnboardingFocus', actionEl.dataset.focus || '');
   }
@@ -394,7 +396,10 @@ function renderCycleTask(hasCycle) {
       <strong>Cycle context</strong>
       <small>${hasCycle ? 'Cycle tracking is already set.' : 'Helps interpret hormones, iron, and inflammation.'}</small>
     </span>
-    <button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="open-cycle-editor">${hasCycle ? 'Edit' : 'Set up'}</button>
+    <span class="chat-onboard-mini-actions">
+      <button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="open-cycle-editor">${hasCycle ? 'Edit' : 'Set up'}</button>
+      <button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="start-file-import">Import</button>
+    </span>
   </article>`;
 }
 

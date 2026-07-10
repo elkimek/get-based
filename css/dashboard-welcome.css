@@ -248,6 +248,17 @@ body.import-focus .welcome-hero > .drop-zone {
   color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s;
 }
 .onboarding-save-btn:hover { box-shadow: 0 2px 12px rgba(79, 140, 255, 0.25); }
+.onboarding-file-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.onboarding-file-btn:hover { border-color: var(--accent); }
 .onboarding-skip-btn {
   padding: 8px 16px; font-size: 13px; background: none; border: none;
   color: var(--text-muted); cursor: pointer; text-decoration: underline;

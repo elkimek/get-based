@@ -1461,15 +1461,18 @@ assert('Wearable-store exports getDailyRangeRaw + upsertDailyBatchRaw',
   /export\s+async\s+function\s+getDailyRangeRaw/.test(await fetch('/js/wearables-store.js').then(r => r.text())) &&
   /export\s+async\s+function\s+upsertDailyBatchRaw/.test(await fetch('/js/wearables-store.js').then(r => r.text())));
 
-// P0-3 + P0-4: disable + change-passphrase walk wearable IDB before/after
-// key swap. _walkWearableIDB exists and runs from both paths.
+// P0-3 + P0-4: disable + change-passphrase migrate every local raw store
+// before/after key swap.
 const cryptoSrc31 = await fetch('/js/crypto.js').then(r => r.text());
-assert('crypto.js defines _walkWearableIDB helper for re-encrypt / decrypt-to-plain',
-  /async function _walkWearableIDB\(mode\)/.test(cryptoSrc31));
-assert('disableEncryption walks wearable IDB BEFORE clearing the session key',
-  /disableEncryption[\s\S]*?_walkWearableIDB\([^)]*\)[\s\S]*?_sessionKey\s*=\s*null/.test(cryptoSrc31));
-assert('changePassphrase walks wearable IDB under the OLD key before key swap',
-  /_sessionKey\s*=\s*oldKey[\s\S]*?_walkWearableIDB[\s\S]*?_sessionKey\s*=\s*newKey/.test(cryptoSrc31));
+assert('crypto.js defines migrateLocalIDB for wearable and cycle raw stores',
+  /async function migrateLocalIDB\(mode\)/.test(cryptoSrc31)
+  && /getAllDailyRaw/.test(cryptoSrc31)
+  && /getAllCycleObservationsRaw/.test(cryptoSrc31)
+  && /getAllCycleImportMetaRaw/.test(cryptoSrc31));
+assert('disableEncryption decrypts local IDB BEFORE clearing the session key',
+  /disableEncryption[\s\S]*?migrateLocalIDB\('plain'\)[\s\S]*?_sessionKey\s*=\s*null/.test(cryptoSrc31));
+assert('changePassphrase decrypts under the old key and encrypts under the new key',
+  /_sessionKey\s*=\s*oldKey[\s\S]*?migrateLocalIDB\('plain'\)[\s\S]*?_sessionKey\s*=\s*newKey[\s\S]*?migrateLocalIDB\('encrypted'\)/.test(cryptoSrc31));
 
 // P0-5: encryption-on + session-locked refuses to silently write plaintext
 const storeSrc31 = await fetch('/js/wearables-store.js').then(r => r.text());

@@ -192,6 +192,9 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
       });
       const classified = await pdfImport.classifyImportFiles([
         new File(['{"ok":true}'], 'profile.json', { type: 'application/json' }),
+        new File([JSON.stringify({
+          data: [{ day: '2026-07-01T00:00:00.000Z', period: 'medium' }],
+        })], 'ClueBackup.json', { type: 'application/json' }),
         new File(['pdf by name'], 'report.pdf', { type: '' }),
         new File(['pdf by type'], 'report.bin', { type: 'application/pdf' }),
         magicPdf,
@@ -201,6 +204,8 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         new File(['date,marker,value\n2026-06-01,Glucose,5.4'], 'lab-results.csv', { type: 'text/csv' }),
         new File(['xlsx bytes'], 'lab-results.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
         new File(['plain notes'], 'notes.txt', { type: 'text/plain' }),
+        new File(['<HealthData />'], 'export.xml', { type: 'application/xml' }),
+        new File(['zip bytes'], 'apple-health.zip', { type: 'application/zip' }),
         new File(['unsupported'], 'archive.bin', { type: 'application/octet-stream' }),
       ]);
       outcomes.classifierBucketsKnownFileTypes = classified.jsonFiles.length === 1
@@ -208,6 +213,7 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         && classified.imageFiles.length === 1
         && classified.dnaFiles.length === 2
         && classified.textFiles.length === 3
+        && classified.cycleFiles.length === 3
         && classified.unsupportedCount === 1;
       outcomes.pdfMagicSniffChecksHeader = await pdfImport.isPdfByMagic(magicPdf) === true
         && await pdfImport.isPdfByMagic(new File(['NOPE'], 'not-pdf.bin')) === false;

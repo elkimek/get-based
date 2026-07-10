@@ -442,6 +442,12 @@ export function ensureImportedArray(importedData, arrayPath) {
   return next;
 }
 
+export function restoreImportedArray(importedData, arrayPath, items) {
+  const next = Array.isArray(items) ? items.slice() : [];
+  setAt(importedData, arrayPath, next);
+  return next;
+}
+
 function tombstoneChangedArrayIdentity(importedData, arrayPath, previousItem, nextItem) {
   const previousId = getConfiguredArrayItemId(arrayPath, previousItem);
   if (!previousId) return null;

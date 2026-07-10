@@ -17,7 +17,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Settings Runtime Tests ===\n');
 
-const runtimeKeys = ['window', 'navigate', 'closeSettings', 'showConfirmDialog', 'wearableProbe'];
+const runtimeKeys = ['window', 'navigate', 'closeSettingsModal', 'showConfirmDialog', 'wearableProbe'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -40,7 +40,7 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
-  setRuntimeValue('closeSettings', () => calls.push(['close-settings']));
+  setRuntimeValue('closeSettingsModal', () => calls.push(['close-settings']));
   setRuntimeValue('showConfirmDialog', async message => {
     calls.push(['confirm', message]);
     return message === 'confirm me';

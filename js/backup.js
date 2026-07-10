@@ -4,6 +4,9 @@
 import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
+import { collectCycleBackup, restoreCycleBackup } from './backup-cycle.js';
+import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
+export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
 // Use runtime-owned globals to avoid circular import (crypto.js imports from backup.js)
 const appWindow = /** @type {Window & typeof globalThis & {
@@ -184,7 +187,7 @@ export function buildBackupSnapshot() {
     const profileIds = new Set();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      const match = key && key.match(/^labcharts-([^-]+)-imported$/);
+      const match = key && key.match(/^labcharts-(.+)-imported$/);
       if (match) profileIds.add(match[1]);
     }
     for (const pid of profileIds) {
@@ -229,6 +232,8 @@ export function buildBackupSnapshot() {
     profileList: profiles,
     profiles: backupProfiles,
     wearableIDB: null, // populated async by augmentBackupWithWearables
+    cycleIDB: null,
+    cycleImportMeta: null,
   };
 }
 
@@ -292,6 +297,9 @@ export async function buildFullBackupSnapshot() {
   }
   const profileIds = (snap.profiles || []).map(p => p.profileId);
   snap.wearableIDB = await collectWearableIDB(profileIds);
+  const cycleBackup = await collectCycleBackup(profileIds);
+  snap.cycleIDB = cycleBackup.observations;
+  snap.cycleImportMeta = cycleBackup.importMeta;
   return snap;
 }
 
@@ -302,7 +310,7 @@ export async function exportEncryptedBackup() {
     return;
   }
 
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const blob = new Blob([serializeBackupSnapshot(backup)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -324,7 +332,7 @@ export function importEncryptedBackup(file) {
         showNotification('Invalid backup file format', 'error');
         return;
       }
-      const backup = JSON.parse(result);
+      const backup = parseBackupSnapshot(result);
       if (backup.format !== 'labcharts-backup' || !backup.profileList) {
         showNotification('Invalid backup file format', 'error');
         return;
@@ -366,7 +374,10 @@ export function importEncryptedBackup(file) {
           }
         }
 
-        restoreWearableIDB(backup.wearableIDB).finally(() => {
+        Promise.all([
+          restoreWearableIDB(backup.wearableIDB),
+          restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta),
+        ]).finally(() => {
           showNotification('Backup restored \u2014 reloading...', 'success');
           setTimeout(() => location.reload(), 1000);
         });
@@ -511,7 +522,10 @@ export async function restoreAutoBackup(id) {
     // Wearable L1 IDB rows live outside localStorage \u2014 restore them
     // separately so the strip's detail-modal chart history is preserved
     // along with everything else.
-    restoreWearableIDB(backup.wearableIDB).finally(() => {
+    Promise.all([
+      restoreWearableIDB(backup.wearableIDB),
+      restoreCycleBackup(backup.cycleIDB, backup.cycleImportMeta),
+    ]).finally(() => {
       showNotification('Backup restored \u2014 reloading...', 'success');
       setTimeout(() => location.reload(), 1000);
     });
@@ -587,7 +601,7 @@ export async function pickFolderForBackup() {
     const snapshot = await buildFullBackupSnapshot();
     if (snapshot) {
       const writable = await testFile.createWritable();
-      await writable.write(JSON.stringify(snapshot, null, 2));
+      await writable.write(serializeBackupSnapshot(snapshot));
       await writable.close();
     }
     await saveFolderHandle(handle);
@@ -650,7 +664,7 @@ async function writeFolderBackup() {
     }
     const snapshot = await buildFullBackupSnapshot();
     if (!snapshot) return;
-    const json = JSON.stringify(snapshot, null, 2);
+    const json = serializeBackupSnapshot(snapshot);
     const latestFile = await _folderHandle.getFileHandle('getbased-backup-latest.json', { create: true });
     const w1 = await latestFile.createWritable();
     await w1.write(json);

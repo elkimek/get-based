@@ -46,7 +46,11 @@ export function openWearablesDB(profileId) {
         db.createObjectStore(STORE_META, { keyPath: 'k' });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => { db.close(); resetWearablesDB(profileId); };
+      resolve(db);
+    };
     req.onerror = () => { _dbPromises.delete(name); reject(req.error); };
   });
   _dbPromises.set(name, p);
@@ -246,6 +250,16 @@ export async function getDailyRangeRaw(profileId, source, startDate, endDate) {
   });
 }
 
+export async function getAllDailyRaw(profileId) {
+  const db = await openWearablesDB(profileId);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_DAILY, 'readonly');
+    const req = tx.objectStore(STORE_DAILY).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // Raw write — accepts rows AS-IS without re-encrypting. Used by the
 // backup-restore path so wrapped rows go back into IDB untouched. Plain
 // rows that come from a non-encrypted backup land in a possibly-encrypted
@@ -358,6 +372,6 @@ export async function deleteWearablesDB(profileId) {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
-    req.onblocked = () => resolve(); // other tabs still hold it; deletion runs when they close
+    req.onblocked = () => reject(new Error('Wearable data deletion is blocked by another open tab.'));
   });
 }

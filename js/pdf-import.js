@@ -15,6 +15,7 @@ import {
   tryParseJSON,
 } from './pdf-import-ai-utils.js';
 import { extractXLSXText, isCsvTextFile, isTextImportFile, isXlsxFile } from './pdf-import-spreadsheet.js';
+import { handleCycleImportFile, isCycleImportFile, maybeHandleCycleTextImport } from './cycle-import.js';
 import {
   assessTextQuality as assessImportedTextQuality,
   classifyImportFiles as classifyImportFileBuckets,
@@ -105,6 +106,7 @@ export {
   showBatchImportProgress,
   showImportProgress,
 } from './pdf-import-progress.js';
+export { handleCycleImportFile } from './cycle-import.js';
 export { removeImportedEntry, renameImportedEntryDate } from './pdf-import-persistence.js';
 export {
   confirmImport,
@@ -338,6 +340,7 @@ export async function classifyImportFiles(files) {
   return classifyImportFileBuckets(files, {
     isDNAFile: pdfImportWindow.isDNAFile,
     isDNAFileByContent: pdfImportWindow.isDNAFileByContent,
+    isCycleImportFile,
   });
 }
 
@@ -355,12 +358,13 @@ export function setupDropZone() {
     if (isImportRunning()) { showNotification("Import already in progress", "info"); return; }
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
-    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, unsupportedCount } = await classifyImportFiles(files);
-    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0) {
-      showNotification("Unsupported file type. Use PDF, Excel (.xlsx), text, CSV, image, JSON, or DNA raw data (.txt/.csv).", "error");
+    const { jsonFiles, pdfFiles, imageFiles, dnaFiles, textFiles, cycleFiles = [], unsupportedCount } = await classifyImportFiles(files);
+    if (unsupportedCount > 0 && jsonFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0 && dnaFiles.length === 0 && textFiles.length === 0 && cycleFiles.length === 0) {
+      showNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
       return;
     }
-    for (const f of jsonFiles) pdfImportWindow.importDataJSON(f);
+    for (const f of jsonFiles) await pdfImportWindow.importDataJSON(f);
+    if (cycleFiles.length > 0) { for (const f of cycleFiles) await handleCycleImportFile(f); }
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {
         const header = await f.slice(0, 1500).text();
@@ -370,9 +374,9 @@ export function setupDropZone() {
         else await pdfImportWindow.handleDNAFile(f);
       }
     }
-    else if (textFiles.length > 0) { for (const f of textFiles) await handleTextFile(f); }
-    else if (imageFiles.length > 0) { for (const f of imageFiles) await handleImageFile(f); }
-    else if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
+    if (textFiles.length > 0) { for (const f of textFiles) await handleTextFile(f); }
+    if (imageFiles.length > 0) { for (const f of imageFiles) await handleImageFile(f); }
+    if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
     else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
   });
 }
@@ -920,6 +924,7 @@ export async function handleTextFile(file) {
   }
   const fileKind = isXlsx ? 'Excel workbook' : isCsv ? 'CSV' : 'Text file';
   if (!text.trim()) { showNotification(`${fileKind} is empty`, "error"); return; }
+  if (isCsv && await maybeHandleCycleTextImport(file, text)) return;
   await handlePDFFile(file, false, text);
 }
 
@@ -957,6 +962,7 @@ Object.assign(window, {
   handlePDFFile,
   handleImageFile,
   handleTextFile,
+  handleCycleImportFile,
   handleBatchPDFs,
   showBatchImportProgress,
   showImportPreviewAsync,

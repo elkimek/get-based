@@ -100,6 +100,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       await cryptoStore._setTestSessionKey(null);
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
+      localStorage.removeItem('labcharts-api-key');
       localStorage.setItem('labcharts-venice-key', 'plain-venice-key');
       document.getElementById('encryption-section').innerHTML = cryptoStore.renderEncryptionSection();
       outcomes.renderEncryptionSectionUsesDelegatedActions =

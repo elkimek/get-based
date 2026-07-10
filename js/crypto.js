@@ -102,10 +102,11 @@ if (typeof document !== 'undefined') installCryptoActionDelegates();
 // SENSITIVE KEY PATTERNS
 // ═══════════════════════════════════════════════
 const SENSITIVE_PATTERNS = [
-  /^labcharts-[^-]+-imported$/,
-  /^labcharts-[^-]+-chat$/,
-  /^labcharts-[^-]+-chat-threads$/,
-  /^labcharts-[^-]+-chat-t_.+$/,
+  /^labcharts-.+-imported$/,
+  /^labcharts-.+-chat$/,
+  /^labcharts-.+-chat-threads$/,
+  /^labcharts-.+-chat-t_.+$/,
+  /^labcharts-imported$/,
   /^labcharts-profiles$/,
   /^labcharts-api-key$/,
   /^labcharts-venice-key$/,
@@ -246,17 +247,21 @@ function formatEncryptedValue(iv, ciphertext) {
 // writing the plain object. Reads detect the envelope marker and decrypt
 // transparently; legacy plaintext rows pass through.
 
-export async function encryptObject(plainObj) {
-  if (!getEncryptionEnabled() || !_sessionKey) return null;
+async function encryptObjectWithKey(plainObj, key) {
   const json = JSON.stringify(plainObj);
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
-    _sessionKey,
+    key,
     enc.encode(json),
   );
   return { _enc: 'v1', iv, ct: new Uint8Array(ct) };
+}
+
+export async function encryptObject(plainObj) {
+  if (!getEncryptionEnabled() || !_sessionKey) return null;
+  return encryptObjectWithKey(plainObj, _sessionKey);
 }
 
 export async function decryptObject(envelope) {
@@ -288,6 +293,20 @@ export async function _setTestSessionKey(passphrase) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   _sessionKey = await deriveKey(passphrase, salt);
   return salt;
+}
+
+export async function _migrateAllStorageForTest(mode) {
+  if (!appWindow.__WEARABLES_TEST) throw new Error('_migrateAllStorageForTest is test-only.');
+  if (mode === 'encrypted') {
+    await migrateSensitiveKeys();
+    return migrateLocalIDB('encrypted');
+  }
+  if (mode === 'plain') {
+    const migrated = await migrateLocalIDB('plain');
+    await decryptAllSensitiveKeys();
+    return migrated;
+  }
+  throw new Error(`Unsupported migration mode: ${mode}`);
 }
 
 // ═══════════════════════════════════════════════
@@ -372,6 +391,8 @@ export async function initEncryption() {
   await new Promise((resolve) => {
     showPassphraseModal(resolve);
   });
+  await migrateSensitiveKeys();
+  await migrateLocalIDB('encrypted');
   await decryptKeyCache();
 }
 
@@ -560,6 +581,7 @@ export function showEnableEncryptionModal() {
   const strengthBars = /** @type {NodeListOf<HTMLElement>} */ (overlay.querySelectorAll('.passphrase-strength-bar'));
   const ruleItems = overlay.querySelectorAll('.passphrase-rules li');
   const barColors = ['var(--red)', 'var(--orange)', 'var(--yellow)', 'var(--green)'];
+  let migrationStarted = false;
 
   function updateStrengthMeter() {
     const p = input1.value;
@@ -591,17 +613,17 @@ export function showEnableEncryptionModal() {
     errorEl.textContent = '';
 
     try {
-      // Generate salt and derive key
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      localStorage.setItem('labcharts-encryption-salt', toBase64(salt));
-      const key = await deriveKey(p1, salt);
-      _sessionKey = key;
-
-      // Migrate all sensitive keys: read plaintext, re-write encrypted
+      if (!migrationStarted) {
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        localStorage.setItem('labcharts-encryption-salt', toBase64(salt));
+        _sessionKey = await deriveKey(p1, salt);
+        localStorage.setItem('labcharts-encryption-enabled', 'true');
+        migrationStarted = true;
+      }
       await migrateSensitiveKeys();
+      await migrateLocalIDB('encrypted');
       await decryptKeyCache();
 
-      localStorage.setItem('labcharts-encryption-enabled', 'true');
       overlay.style.display = 'none';
       overlay.innerHTML = '';
       showNotification('Encryption enabled \u2014 keep your passphrase safe', 'success');
@@ -612,7 +634,7 @@ export function showEnableEncryptionModal() {
     } catch (err) {
       errorEl.textContent = 'Encryption failed: ' + err.message;
       btn.disabled = false;
-      btn.textContent = 'Enable Encryption';
+      btn.textContent = migrationStarted ? 'Retry Encryption' : 'Enable Encryption';
     }
   });
 
@@ -729,7 +751,38 @@ export function maybeShowBackupNudge() {
   }, 500);
 }
 
+async function migrationProfileIds() {
+  const ids = new Set();
+  for (const profile of Array.isArray(state.profiles) ? state.profiles : []) {
+    if (profile?.id) ids.add(profile.id);
+  }
+  if (state.currentProfile) ids.add(state.currentProfile);
+  const active = localStorage.getItem('labcharts-active-profile');
+  if (active) ids.add(active);
+  let profilesRaw = localStorage.getItem('labcharts-profiles');
+  if (profilesRaw && isEncryptedValue(profilesRaw)) {
+    const parsed = parseEncryptedValue(profilesRaw);
+    if (!parsed || !_sessionKey) throw new Error('Encrypted profile list could not be read for storage migration.');
+    profilesRaw = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+  }
+  if (profilesRaw) {
+    const profiles = JSON.parse(profilesRaw);
+    for (const profile of Array.isArray(profiles) ? profiles : []) {
+      if (profile?.id) ids.add(profile.id);
+    }
+  }
+  return [...ids];
+}
+
+async function sensitiveBlobKeys() {
+  const keys = new Set(['labcharts-imported']);
+  for (const profileId of await migrationProfileIds()) keys.add(profileStorageKey(profileId, 'imported'));
+  return [...keys];
+}
+
 async function migrateSensitiveKeys() {
+  if (!_sessionKey) throw new Error('Encryption key is locked.');
+  const blobKeys = await sensitiveBlobKeys();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !isSensitiveKey(key)) continue;
@@ -738,77 +791,85 @@ async function migrateSensitiveKeys() {
     const { iv, ciphertext } = await encrypt(_sessionKey, raw);
     localStorage.setItem(key, formatEncryptedValue(iv, ciphertext));
   }
+  for (const key of blobKeys) {
+    const raw = await getBlob(key);
+    if (typeof raw !== 'string' || !raw || isEncryptedValue(raw)) continue;
+    const { iv, ciphertext } = await encrypt(_sessionKey, raw);
+    await setBlob(key, formatEncryptedValue(iv, ciphertext));
+  }
 }
 
 async function decryptAllSensitiveKeys() {
+  if (!_sessionKey) throw new Error('Encryption key is locked.');
+  const blobKeys = await sensitiveBlobKeys();
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !isSensitiveKey(key)) continue;
     const raw = localStorage.getItem(key);
     if (!raw || !isEncryptedValue(raw)) continue;
     const parsed = parseEncryptedValue(raw);
-    if (!parsed) continue;
-    try {
-      const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
-      localStorage.setItem(key, plaintext);
-    } catch {
-      // skip if can't decrypt
-    }
+    if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
+    const plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
+    localStorage.setItem(key, plaintext);
+  }
+  for (const key of blobKeys) {
+    const raw = await getBlob(key);
+    if (typeof raw !== 'string' || !isEncryptedValue(raw)) continue;
+    const parsed = parseEncryptedValue(raw);
+    if (!parsed) throw new Error(`Encrypted value ${key} is malformed.`);
+    await setBlob(key, await decrypt(_sessionKey, parsed.iv, parsed.ciphertext));
   }
 }
 
-// Walk every profile's wearable IndexedDB, decrypt rows with the CURRENT
-// session key, and rewrite them in the chosen mode:
-//   mode='plain'      → write back plaintext (used by disableEncryption)
-//   mode='re-encrypt' → re-encrypt with whatever the current _sessionKey is
-//                       (used by changePassphrase AFTER swapping the key)
-// Best-effort per-profile / per-row — failures don't abort the whole walk;
-// any unmigrated wrappers will surface on next read as `_payload`-shaped
-// rows the strip can't render, which is preferable to silently writing
-// over the user's intent.
-async function _walkWearableIDB(mode) {
-  let storeMod, profileMod;
-  try {
-    storeMod = await import('./wearables-store.js');
-    profileMod = await import('./profile.js');
-  } catch { return { walked: 0, errors: 1 }; }
-  const profiles = profileMod.getProfiles?.() || [];
-  let walked = 0, errors = 0;
-  for (const p of profiles) {
-    const KNOWN_SOURCES = ['oura', 'whoop', 'fitbit', 'withings', 'ultrahuman', 'polar', 'apple_health', 'manual'];
-    for (const src of KNOWN_SOURCES) {
-      try {
-        // Read raw (wrappers preserved). Decrypt each. Write back via the
-        // normal upsertDaily path which encrypts iff encryption is enabled
-        // post-this-call (mode='plain' wants encryption already DISABLED;
-        // mode='re-encrypt' wants the new key already SET).
-        const rows = await storeMod.getDailyRangeRaw(p.id, src, '2000-01-01', '2099-12-31');
-        if (rows.length === 0) continue;
-        for (const row of rows) {
-          if (!isEncryptedObject(row._payload)) continue; // plaintext — already in target shape for 'plain'; skip in re-encrypt too
-          try {
-            const decrypted = await decryptObject(row._payload);
-            if (!decrypted) { errors++; continue; }
-            // Rebuild plaintext shape: hoist decrypted fields back to top-level.
-            const plainRow = { source: row.source, date: row.date, ...decrypted };
-            await storeMod.upsertDaily(p.id, plainRow);
-            walked++;
-          } catch { errors++; }
-        }
-      } catch { /* db not yet created or other store-level error — skip */ }
+async function transformPayloadRows(rows, keyFields, mode) {
+  const changed = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (!row?._payload) {
+      if (mode === 'plain') continue;
+      const keys = {};
+      const payload = { ...row };
+      for (const key of keyFields) {
+        keys[key] = payload[key];
+        delete payload[key];
+      }
+      changed.push({ ...keys, _payload: await encryptObjectWithKey(payload, _sessionKey) });
+      continue;
     }
+    if (!isEncryptedObject(row._payload)) throw new Error('Encrypted IndexedDB row has an invalid envelope.');
+    if (mode === 'encrypted') continue;
+    const payload = await decryptObject(row._payload);
+    if (!payload) throw new Error('Encrypted IndexedDB row could not be decrypted.');
+    const keys = {};
+    for (const key of keyFields) keys[key] = row[key];
+    changed.push({ ...keys, ...payload });
   }
-  return { walked, errors };
+  return changed;
+}
+
+async function migrateLocalIDB(mode) {
+  if (!_sessionKey) throw new Error('Encryption key is locked.');
+  const [wearableStore, cycleStore] = await Promise.all([
+    import('./wearables-store.js'),
+    import('./cycle-store.js'),
+  ]);
+  let migrated = 0;
+  for (const profileId of await migrationProfileIds()) {
+    const wearableRows = await transformPayloadRows(await wearableStore.getAllDailyRaw(profileId), ['source', 'date'], mode);
+    const cycleRows = await transformPayloadRows(await cycleStore.getAllCycleObservationsRaw(profileId), ['source', 'date', 'importId'], mode);
+    const importRows = await transformPayloadRows(await cycleStore.getAllCycleImportMetaRaw(profileId), ['importId', 'source'], mode);
+    await wearableStore.upsertDailyBatchRaw(profileId, wearableRows);
+    await cycleStore.upsertCycleObservationBatchRaw(profileId, cycleRows);
+    await cycleStore.upsertCycleImportMetaBatchRaw(profileId, importRows);
+    migrated += wearableRows.length + cycleRows.length + importRows.length;
+  }
+  return migrated;
 }
 
 export async function disableEncryption() {
   if (await showConfirmDialog('Disable encryption? Your data will be stored in plaintext.')) {
     try {
-      // CRITICAL ORDER: walk wearable IDB BEFORE clearing _sessionKey, so
-      // rows can decrypt under the current key. Then localStorage walk,
-      // then drop the key. Without this the wearable IDB stays wrapped
-      // forever — the strip silently goes blank for any encrypted rows.
-      await _walkWearableIDB('plain');
+      // Decrypt every storage backend before dropping the only in-memory key.
+      await migrateLocalIDB('plain');
       await decryptAllSensitiveKeys();
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-salt');
@@ -884,26 +945,19 @@ export async function changePassphrase() {
         if (parsed) await decrypt(oldKey, parsed.iv, parsed.ciphertext);
       }
 
-      // Decrypt all with old key. Wearable IDB first — must run while
-      // _sessionKey still holds the OLD key so wrappers decrypt. The walk
-      // hoists every decrypted row back to plaintext via upsertDaily; the
-      // re-encrypt below puts them back under the NEW key.
+      // Decrypt every backend under the old key before replacing it.
       _sessionKey = oldKey;
-      await _walkWearableIDB('plain');
+      await migrateLocalIDB('plain');
       await decryptAllSensitiveKeys();
 
-      // Re-encrypt with new key (localStorage AND IDB).
+      // Re-encrypt localStorage, blob storage, and raw local databases.
       const newSalt = crypto.getRandomValues(new Uint8Array(16));
       localStorage.setItem('labcharts-encryption-salt', toBase64(newSalt));
       const newKey = await deriveKey(newP, newSalt);
       _sessionKey = newKey;
       await migrateSensitiveKeys();
+      await migrateLocalIDB('encrypted');
       await decryptKeyCache();
-      // Wearable IDB rows are currently plaintext (post-walk above). The
-      // upsertDaily path now encrypts under the new key for any future
-      // writes. Existing plaintext rows migrate write-on-touch on next
-      // mutation, same as the OFF→ON migration path documented in the
-      // encryption guide.
 
       overlay.style.display = 'none';
       overlay.innerHTML = '';

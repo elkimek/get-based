@@ -91,6 +91,10 @@ async function wipeProfileLocal(profileId) {
     const wsMod = await import('./wearables-store.js');
     await wsMod.deleteWearablesDB(profileId).catch(() => {});
   } catch {}
+  try {
+    const cycleMod = await import('./cycle-store.js');
+    await cycleMod.deleteCycleDB(profileId).catch(() => {});
+  } catch {}
 }
 
 // Soft-delete a profile's row on the relay so other devices stop seeing it.

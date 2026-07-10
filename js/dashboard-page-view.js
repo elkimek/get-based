@@ -215,10 +215,9 @@ export function createDashboardPageView(deps) {
           ? 'Chat will ask for context only when it helps, then route you to labs, DNA, wearables, light, or first-test planning.'
           : 'Chat starts with the basics, then guides AI setup only when it is needed for import or recommendations.');
       const secondaryAction = aiPaused
-        ? `<button type="button" class="welcome-action-btn" ${dashboardWelcomeActionAttrs('open-ai-settings')}>Re-enable AI</button>`
-        : (importReady
-          ? `<button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import directly</button>`
-          : '');
+        ? `<button type="button" class="welcome-action-btn" ${dashboardWelcomeActionAttrs('open-ai-settings')}>Re-enable AI</button>
+           <button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import file</button>`
+        : `<button type="button" class="welcome-action-btn welcome-direct-import-btn" ${dashboardWelcomeActionAttrs('direct-import')}>Import file</button>`;
       const primaryPanel = `<div class="welcome-primary-panel welcome-chat-panel">
           <span class="welcome-primary-kicker">Start here</span>
           <strong>${escapeHTML(primaryTitle)}</strong>
