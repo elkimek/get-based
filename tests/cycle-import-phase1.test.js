@@ -356,7 +356,7 @@ describe('cycle import phase 1 primitives', () => {
     const parsed = parseNaturalCyclesCsv(NATURAL_CYCLES_CSV, 'tracking_data.csv');
     expect(parsed).toMatchObject({ source: 'natural_cycles', sourceLabel: 'Natural Cycles' });
     expect(parsed.observations).toHaveLength(5);
-    expect(parsed.warnings.join(' ')).toContain('synthetic fixtures');
+    expect(parsed.warnings).toEqual([]);
     expect(parsed.observations[0]).toMatchObject({
       bbtC: 36.4,
       bleeding: { flow: 'light', excluded: false },
@@ -387,7 +387,7 @@ describe('cycle import phase 1 primitives', () => {
 
     expect(parsed).toMatchObject({ source: 'clue', sourceLabel: 'Clue' });
     expect(parsed.observations).toHaveLength(5);
-    expect(parsed.warnings.join(' ')).toContain('synthetic fixtures');
+    expect(parsed.warnings).toEqual([]);
     expect(parsed.observations[0]).toMatchObject({
       bbtC: 36.41,
       bleeding: { flow: 'light', excluded: false },
@@ -404,6 +404,18 @@ describe('cycle import phase 1 primitives', () => {
       ovulationTest: 'positive',
     });
     expect(parsed.periods.map(period => period.startDate)).toEqual(['2026-07-01', '2026-08-01']);
+  });
+
+  it('only warns when tracked observations do not produce a period', () => {
+    const parsed = parseClueCycleJson({
+      source: 'Clue',
+      data: [{ day: '2026-09-01', temperature: 36.5, pain: ['cramps'] }],
+    }, 'ClueBackup.json');
+
+    expect(parsed.periods).toEqual([]);
+    expect(parsed.warnings).toEqual([
+      'Clue includes tracked cycle observations, but no periods were detected.',
+    ]);
   });
 
   it('keeps menstrual flow when Clue or Natural Cycles also marks spotting that day', () => {
