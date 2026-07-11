@@ -71,6 +71,7 @@ import {
   configureRoutstrWalletPanels,
   clearRoutstrWalletTimers,
   refreshCashuWalletBalance,
+  refreshWalletSeedStatus,
   refreshRoutstrBalance,
   showRoutstrWalletFund,
   rsWalletFundCustomInput,
@@ -260,15 +261,7 @@ export function initSettingsModelFetch() {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
-    if (typeof getProviderPanelRuntimeValue('cashuHasWalletSeed') === 'function') Promise.resolve(callProviderPanelRuntime('cashuHasWalletSeed')).then(function(ready) {
-      const el = document.getElementById('routstr-wallet-device-status');
-      if (!el) return;
-      el.textContent = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
-      el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)';
-    }).catch(function() {
-      const el = document.getElementById('routstr-wallet-device-status');
-      if (el) { el.textContent = 'Local wallet setup unavailable'; el.style.color = 'var(--red)'; }
-    });
+    refreshWalletSeedStatus();
     if (typeof getProviderPanelRuntimeValue('cashuGetMintUrl') === 'function') Promise.resolve(callProviderPanelRuntime('cashuGetMintUrl')).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
       if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');

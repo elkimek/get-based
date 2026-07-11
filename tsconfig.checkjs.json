@@ -424,6 +424,7 @@
     "js/provider-ppq-panels.js",
     "js/provider-wallet-funding-recovery.js",
     "js/provider-wallet-panel-buttons.js",
+    "js/provider-wallet-panel-renderers.js",
     "js/recommendation-actions.js",
     "js/recommendations-region.js",
     "js/schema.js",

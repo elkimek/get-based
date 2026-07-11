@@ -28,6 +28,7 @@ import {
   _ensureNoPendingSwap,
   _isTerminalMintQuoteState,
   _pendingQuoteKey,
+  _legacyNamespacedPendingQuoteKey,
   _pendingQuoteDetails,
   _saveFeeProofs,
   _replaceFeeProofs,
@@ -426,10 +427,16 @@ export async function checkFundingStatus(quoteId) {
     const checked = await wallet.checkMintQuoteBolt11(quoteId);
     if (checked.state === cashuts.MintQuoteState.PAID) {
       const namespacedKey = await _pendingQuoteKey(mintUrl, quoteId);
+      const previousNamespacedKey = _legacyNamespacedPendingQuoteKey(mintUrl, quoteId);
       const legacyKey = PENDING_QUOTE_PREFIX + quoteId;
       const namespaced = await _getMeta(namespacedKey);
-      const pendingKey = namespaced != null ? namespacedKey : legacyKey;
-      const stored = namespaced != null ? namespaced : await _getMeta(legacyKey);
+      const previousNamespaced = namespaced == null ? await _getMeta(previousNamespacedKey) : null;
+      const pendingKey = namespaced != null
+        ? namespacedKey
+        : previousNamespaced != null ? previousNamespacedKey : legacyKey;
+      const stored = namespaced != null
+        ? namespaced
+        : previousNamespaced != null ? previousNamespaced : await _getMeta(legacyKey);
       const amount = _amountToNumber(stored?.amount ?? stored) || _amountToNumber(checked.amount) || 0;
       if (!amount) throw new Error('Cannot determine invoice amount — please contact support');
       let proofs;

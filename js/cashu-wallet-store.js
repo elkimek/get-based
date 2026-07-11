@@ -386,6 +386,10 @@ export async function _pendingQuoteKey(mintUrl, quoteId) {
   return PENDING_QUOTE_PREFIX + 'v2:' + await _digestStorageKey(`${_normalizeMintUrl(mintUrl)}\n${quoteId}`);
 }
 
+export function _legacyNamespacedPendingQuoteKey(mintUrl, quoteId) {
+  return PENDING_QUOTE_PREFIX + encodeURIComponent(_normalizeMintUrl(mintUrl)) + ':' + quoteId;
+}
+
 export function _pendingQuoteDetails(entry, fallbackMint) {
   const value = entry?.value;
   if (value && typeof value === 'object') {

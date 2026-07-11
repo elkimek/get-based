@@ -57,6 +57,7 @@ const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
@@ -261,9 +262,9 @@ assert('Routstr panel distinguishes synced node funds from device-local Cashu fu
   providerRenderSrc.includes('24-word Data Sync mnemonic')
     && providerRenderSrc.includes('12-word recovery seed stay on this device'));
 assert('Unseeded device UI explains separate sync and wallet identities',
-  walletPanelSrc.includes("Set up this device's Cashu wallet")
-    && walletPanelSrc.includes('does not copy spendable Cashu proofs')
-    && walletPanelSrc.includes('setup-wallet-seed'));
+  walletPanelRenderSrc.includes("Set up this device's Cashu wallet")
+    && walletPanelRenderSrc.includes('does not copy spendable Cashu proofs')
+    && walletPanelRenderSrc.includes('setup-wallet-seed'));
 assert('Node refund is gated before its network mutation until the local wallet has a seed',
   /doRoutstrNodeWithdraw\(\)[\s\S]*cashuHasWalletSeed[\s\S]*_ensureWalletSeed\(_withdrawRoutstrNodeToWallet\)[\s\S]*async function _withdrawRoutstrNodeToWallet\(\)[\s\S]*\/v1\/wallet\/refund/.test(walletPanelSrc));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
@@ -302,6 +303,7 @@ assert('SW caches cashu-wallet-store.js', swSrc.includes('/js/cashu-wallet-store
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panel-buttons.js', swSrc.includes('/js/provider-wallet-panel-buttons.js'));
+assert('SW caches provider-wallet-panel-renderers.js', swSrc.includes('/js/provider-wallet-panel-renderers.js'));
 assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
 assert('SW caches provider-wallet-funding-recovery.js', swSrc.includes('/js/provider-wallet-funding-recovery.js'));
 assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
@@ -363,7 +365,7 @@ assert('Funded legacy Routstr sessions bootstrap the shared session clock',
     && walletPanelSrc.includes('touchRoutstrSession()'));
 assert('Wallet panel keeps mint SSRF guard', walletPanelSrc.includes('isValidExternalUrl'));
 assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
-assert('Seed acknowledgment checkbox', walletPanelSrc.includes('routstr-seed-ack'));
+assert('Seed acknowledgment checkbox', walletPanelRenderSrc.includes('routstr-seed-ack'));
 assert('Wallet action buttons', walletPanelSrc.includes('routstrWalletActionButtons'));
 assert('Wallet panel owns fund timer cleanup', walletPanelSrc.includes('export function clearRoutstrWalletTimers()'));
 assert('Wallet funding auto-poll is bounded on mint/network failure',

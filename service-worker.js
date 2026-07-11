@@ -293,6 +293,7 @@ const APP_SHELL = [
   '/js/provider-panel-delegates.js',
   '/js/provider-wallet-runtime.js',
   '/js/provider-wallet-panel-buttons.js',
+  '/js/provider-wallet-panel-renderers.js',
   '/js/provider-wallet-panels.js',
   '/js/provider-wallet-funding-recovery.js',
   '/js/provider-wallet-delegates.js',

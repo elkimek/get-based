@@ -773,6 +773,29 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 1, pending: 1 });
   });
 
+  it('completes a paid invoice stored under the previous mint-namespaced quote key', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    const mint = 'https://mint.getbased.test/Bitcoin';
+    const quoteId = 'pre-upgrade-quote';
+    await wallet.setMintUrl(mint);
+    await store._setMeta(store._legacyNamespacedPendingQuoteKey(mint, quoteId), {
+      quote: quoteId,
+      amount: 27,
+      mint,
+      createdAt: Date.now() - 1000,
+    });
+    stub.mintQuoteStates.set(quoteId, 'PAID');
+
+    await expect(wallet.checkFundingStatus(quoteId)).resolves.toMatchObject({
+      paid: true,
+      minted: 27,
+      balance: 27,
+    });
+    await expect(store._getMeta(store._legacyNamespacedPendingQuoteKey(mint, quoteId))).resolves.toBeNull();
+  });
+
   it('aborts proof replacement atomically and keeps a full recovery token on storage failure', async () => {
     const stub = installCashuStub();
     const wallet = await loadWallet();
