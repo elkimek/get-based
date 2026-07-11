@@ -42,6 +42,14 @@ export function dispatchAISettingsLocalChangedRuntime() {
   }
 }
 
+export function touchRoutstrSessionClock() {
+  const stored = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0);
+  const previous = Number.isFinite(stored) ? stored : 0;
+  const updatedAt = Math.max(Date.now(), previous + 1);
+  localStorage.setItem('labcharts-routstr-session-updated-at', String(updatedAt));
+  return updatedAt;
+}
+
 export function getOllamaConfigStorageRuntime() {
   const getOllamaConfig = getRuntimeFunction('getOllamaConfig');
   if (!getOllamaConfig) return {};

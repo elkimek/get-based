@@ -118,6 +118,7 @@ await import('../js/settings.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
   const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
+  const apiProviderStorageRuntimeSrc = await fetchWithRetry('js/api-provider-storage-runtime.js');
   const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
@@ -1269,8 +1270,11 @@ await import('../js/settings.js');
       && syncApplySrc.includes('refreshSyncedRoutstrBalanceRuntime()')
       && syncRuntimeSrc.includes("getRuntimeFunction('refreshRoutstrBalance')")
       && apiProviderStorageSrc.includes('export function touchRoutstrSession()')
-      && apiProviderStorageSrc.includes("localStorage.setItem('labcharts-routstr-session-updated-at'")
-      && discoverySrc.includes("localStorage.setItem('labcharts-routstr-session-updated-at'"));
+      && apiProviderStorageRuntimeSrc.includes('export function touchRoutstrSessionClock()')
+      && apiProviderStorageRuntimeSrc.includes('Math.max(Date.now(), previous + 1)')
+      && apiProviderStorageSrc.includes('touchRoutstrSessionClock()')
+      && discoverySrc.includes('touchRoutstrSessionClock()')
+      && !discoverySrc.includes("localStorage.setItem('labcharts-routstr-session-updated-at'"));
   assert('Legacy profile rows cannot overwrite a newer clocked Routstr session',
     syncApplySrc.includes('routstrSessionKey && localRoutstrIsNewer')
       && !syncApplySrc.includes('routstrSessionKey && remoteRoutstrUpdatedAt > 0 && localRoutstrIsNewer'));

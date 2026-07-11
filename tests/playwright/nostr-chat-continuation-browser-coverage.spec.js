@@ -24,6 +24,7 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
     const originalWebSocket = window.WebSocket;
     const originalFetch = window.fetch;
     const originalWarn = console.warn;
+    const originalDateNow = Date.now;
 
     let thrownError = null;
     const wsInstances = [];
@@ -179,16 +180,21 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
       outcomes.cacheReturnsSameNodesWithoutRelayQueries = cached === nodes
         && wsInstances.length === relayCountAfterFirstDiscovery;
 
+      const frozenNow = 1_700_000_000_000;
+      Date.now = () => frozenNow;
+      localStorage.setItem('labcharts-routstr-session-updated-at', String(frozenNow + 1));
       nostr.setSelectedNodeUrl('https://node-a.example/base');
       nostr.setSelectedNodeUrl('http://127.0.0.1:11434');
       outcomes.selectedNodePersistsValidAndRejectsPrivateUrl = nostr.getSelectedNodeUrl() === 'https://node-a.example/base'
         && warnings.some(message => message.includes('Refusing Routstr node URL'));
+      outcomes.selectedNodeKeepsSessionClockMonotonic = localStorage.getItem('labcharts-routstr-session-updated-at') === String(frozenNow + 2);
     } catch (error) {
       thrownError = error;
     } finally {
       window.WebSocket = originalWebSocket;
       window.fetch = originalFetch;
       console.warn = originalWarn;
+      Date.now = originalDateNow;
       nostr.clearNodeCache();
       localStorage.clear();
       for (const [key, value] of savedStorage) {

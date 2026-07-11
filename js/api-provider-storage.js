@@ -6,6 +6,7 @@ import {
   dispatchAISettingsLocalChangedRuntime,
   getOllamaConfigStorageRuntime,
   refreshAIProviderSelectionRuntime,
+  touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
 
 function notifyAISelectionChanged() {
@@ -220,8 +221,7 @@ export function getOpenRouterPricing(modelId) {
 
 export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') || ''; }
 export function touchRoutstrSession() {
-  const previous = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0);
-  localStorage.setItem('labcharts-routstr-session-updated-at', String(Math.max(Date.now(), previous + 1)));
+  touchRoutstrSessionClock();
   markAISettingsLocal();
 }
 export async function saveRoutstrKey(key) {
