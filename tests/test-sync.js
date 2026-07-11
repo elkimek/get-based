@@ -1244,6 +1244,10 @@ await import('../js/settings.js');
       && syncApplySrc.includes("await encryptedSetItem(key, '')")
       && syncApplySrc.includes("updateKeyCache(key, '')"));
   assert('applyAISettings has allowlist check', syncApplySrc.includes('AI_SETTINGS_KEYS.includes(key)'));
+  assert('Pull selects the global Routstr session by its own clock across profile rows',
+    syncPullSrc.includes('selectPulledAISettings')
+      && syncPullSrc.includes('combinePulledAISettings')
+      && syncPullSrc.includes('latestRoutstrClock'));
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
   assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key,'));
   assert('Restored owner provider settings override stale local edit locks',

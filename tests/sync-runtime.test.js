@@ -8,6 +8,11 @@ import {
 import { _djb2 } from '../js/sync-delta-registry.js';
 import { applyAISettings, applyDisplayPrefs } from '../js/sync-apply.js';
 import {
+  combinePulledAISettings,
+  createPulledAISettingsSelection,
+  selectPulledAISettings,
+} from '../js/sync-pull.js';
+import {
   _applyArrayDelta,
   _planArrayDelta,
   _planKeyedMapDelta,
@@ -163,6 +168,29 @@ afterEach(() => {
 });
 
 describe('sync apply runtime behavior', () => {
+  it('selects a Routstr session by its own clock across newer unrelated profile rows', () => {
+    let selection = createPulledAISettingsSelection();
+    selection = selectPulledAISettings(selection, {
+      'labcharts-venice-model': 'newest-general-setting',
+      'labcharts-routstr-key': 'zero-balance-stale-key',
+      'labcharts-routstr-node': 'https://stale-node.example',
+      'labcharts-routstr-session-updated-at': '100',
+    }, 300);
+    selection = selectPulledAISettings(selection, {
+      'labcharts-venice-model': 'older-general-setting',
+      'labcharts-routstr-key': 'funded-key',
+      'labcharts-routstr-node': 'https://funded-node.example',
+      'labcharts-routstr-session-updated-at': '500',
+    }, 200);
+
+    expect(combinePulledAISettings(selection)).toEqual({
+      'labcharts-venice-model': 'newest-general-setting',
+      'labcharts-routstr-key': 'funded-key',
+      'labcharts-routstr-node': 'https://funded-node.example',
+      'labcharts-routstr-session-updated-at': '500',
+    });
+  });
+
   it('makes an encrypted Routstr key usable immediately after an inbound sync', async () => {
     window.__WEARABLES_TEST = true;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
