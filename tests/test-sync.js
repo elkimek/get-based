@@ -117,6 +117,9 @@ await import('../js/settings.js');
   const profileSrc = await fetchWithRetry('js/profile.js');
   const syncUiSrc = await fetchWithRetry('js/sync-ui.js');
   const syncPayloadCollectorsSrc = await fetchWithRetry('js/sync-payload-collectors.js');
+  const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
+  const apiProviderStorageRuntimeSrc = await fetchWithRetry('js/api-provider-storage-runtime.js');
+  const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
   const syncPayloadSrc = await fetchWithRetry('js/sync-payload.js');
   const syncRelayHealthSrc = await fetchWithRetry('js/sync-relay-health.js');
   const syncStateSrc = await fetchWithRetry('js/sync-state.js');
@@ -1224,17 +1227,36 @@ await import('../js/settings.js');
     'labcharts-venice-key', 'labcharts-openrouter-model',
     'labcharts-venice-model', 'labcharts-venice-e2ee', 'labcharts-ollama-model',
     'labcharts-ollama-pii-url', 'labcharts-ollama-pii-model',
-    'labcharts-ppq-key', 'labcharts-ppq-model', 'labcharts-routstr-key', 'labcharts-routstr-model'
+    'labcharts-ppq-key', 'labcharts-ppq-model', 'labcharts-routstr-key', 'labcharts-routstr-model',
+    'labcharts-routstr-session-updated-at'
   ];
   for (const key of expectedKeys) {
     assert(`AI_SETTINGS_KEYS includes ${key}`, syncPayloadCollectorsSrc.includes(`'${key}'`));
   }
 
-  assert('Encrypted keys use encryptedSetItem on apply', syncApplySrc.includes('ENCRYPTED_AI_KEYS') && syncApplySrc.includes('encryptedSetItem(key, val)'));
+  assert('Encrypted keys use encryptedSetItem and refresh the decrypted cache on apply',
+    syncApplySrc.includes('ENCRYPTED_AI_KEYS')
+      && syncApplySrc.includes('encryptedSetItem(key, val)')
+      && syncApplySrc.includes('updateKeyCache(key, val)'));
   assert('collectAISettings uses encryptedGetItem', syncPayloadCollectorsSrc.includes('encryptedGetItem(key)'));
+  assert('Cleared AI settings sync as tombstones and remove encrypted key caches on peers',
+    syncPayloadCollectorsSrc.includes('localStorage.getItem(key) !== null')
+      && syncPayloadCollectorsSrc.includes('settings[key] = null')
+      && syncApplySrc.includes("await encryptedSetItem(key, '')")
+      && syncApplySrc.includes("updateKeyCache(key, '')"));
   assert('applyAISettings has allowlist check', syncApplySrc.includes('AI_SETTINGS_KEYS.includes(key)'));
+  assert('Pull selects the global Routstr session by its own clock across profile rows',
+    syncPullSrc.includes('selectPulledAISettings')
+      && syncPullSrc.includes('combinePulledAISettings')
+      && syncPullSrc.includes('latestRoutstrClock'));
   assert('applyAISettings has size guard', syncApplySrc.includes('val.length > 10000'));
-  assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
+  assert('applyAISettings honors fresh local AI setting lock', syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key,'));
+  assert('Restored owner provider settings override stale local edit locks',
+    syncApplySrc.includes('options.preferRemote === true')
+      && syncPullSrc.includes('const preferRemoteAiSettings = isRestoreJoinPending()')
+      && syncPullSrc.includes('{ preferRemote: preferRemoteAiSettings }')
+      && syncIdentitySrc.includes("sessionStorage.removeItem('labcharts-ai-settings-local-lock-until')")
+      && syncIdentitySrc.includes("sessionStorage.removeItem('or_oauth_local_settings_lock_until')"));
   assert('applyAISettings refreshes chat provider UI through sync runtime hooks',
     syncApplySrc.includes('refreshSyncedAIProviderUiRuntime()')
       && syncRuntimeSrc.includes('export function refreshSyncedAIProviderUiRuntime')
@@ -1242,6 +1264,20 @@ await import('../js/settings.js');
       && syncRuntimeSrc.includes("getRuntimeFunction('refreshWebSearchToggle')")
       && !syncApplySrc.includes('window.updateChatHeaderModel')
       && !syncApplySrc.includes('window.refreshWebSearchToggle'));
+  assert('Newer Routstr sessions bypass stale local locks and refresh server balance',
+    syncApplySrc.includes('remoteRoutstrIsNewer')
+      && syncApplySrc.includes('localRoutstrIsNewer')
+      && syncApplySrc.includes('refreshSyncedRoutstrBalanceRuntime()')
+      && syncRuntimeSrc.includes("getRuntimeFunction('refreshRoutstrBalance')")
+      && apiProviderStorageSrc.includes('export function touchRoutstrSession()')
+      && apiProviderStorageRuntimeSrc.includes('export function touchRoutstrSessionClock()')
+      && apiProviderStorageRuntimeSrc.includes('Math.max(Date.now(), previous + 1)')
+      && apiProviderStorageSrc.includes('touchRoutstrSessionClock()')
+      && discoverySrc.includes('touchRoutstrSessionClock()')
+      && !discoverySrc.includes("localStorage.setItem('labcharts-routstr-session-updated-at'"));
+  assert('Legacy profile rows cannot overwrite a newer clocked Routstr session',
+    syncApplySrc.includes('routstrSessionKey && localRoutstrIsNewer')
+      && !syncApplySrc.includes('routstrSessionKey && remoteRoutstrUpdatedAt > 0 && localRoutstrIsNewer'));
   assert('sync runtime owner event dispatch avoids counted direct window refs',
     syncRuntimeSrc.includes('export function dispatchSyncOwnerChangedRuntime')
       && syncRuntimeSrc.includes('new runtime.CustomEvent')
@@ -1259,7 +1295,9 @@ await import('../js/settings.js');
       && !/\bwindow(?:\.|\s*\[)/.test(syncMessengerSrc));
   assert('AI setting changes schedule a sync push',
     syncSaveHooksSrc.includes("labcharts-ai-settings-local-changed")
-      && syncSaveHooksSrc.includes('_pushProfile(profileId, importedData)'));
+      && syncSaveHooksSrc.includes('_pushProfile(profileId, importedData)')
+      && syncSaveHooksSrc.includes('_isSyncing()')
+      && syncSaveHooksSrc.includes('scheduleAISettingsPush(profileId, importedData, attempt + 1)'));
 
   // ═══════════════════════════════════════
   // 4. MNEMONIC RESTORE
@@ -1443,6 +1481,11 @@ await import('../js/settings.js');
   assert('Mnemonic display with mask', settingsSyncPanelSrc.includes('sync-mnemonic') && settingsSyncPanelSrc.includes('MNEMONIC_MASK'));
   assert('Mnemonic toggle button has id', settingsSyncPanelSrc.includes('sync-mnemonic-toggle'));
   assert('Mnemonic toggle uses getElementById', settingsSyncPanelSrc.includes("getElementById('sync-mnemonic-toggle')"));
+  assert('Settings shows a safe Sync identity comparison code',
+    settingsSyncPanelSrc.includes('sync-identity-code')
+      && settingsSyncPanelSrc.includes('same 24-word Data Sync identity')
+      && settingsSyncPanelSrc.includes('this code doesn’t grant access to your data')
+      && syncIdentitySrc.includes('getSyncIdentityFingerprint'));
   assert('Restore from mnemonic button', settingsSyncPanelSrc.includes('Restore from mnemonic'));
   assert('Relay input under Advanced', settingsSyncPanelSrc.includes('sync-relay-input') && settingsSyncPanelSrc.includes('Advanced'));
   assert('Relay validation rejects non-wss and non-ws', settingsSyncPanelSrc.includes("!url.startsWith('wss://')") && settingsSyncPanelSrc.includes("!url.startsWith('ws://')"));

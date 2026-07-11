@@ -82,6 +82,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'toggle-wallet-menu') return _toggleWalletMenu();
   if (action === 'toggle-seed-blur') return _toggleSeedBlur(el);
   if (action === 'seed-ack-continue') return _call('walletSeedAcknowledged');
+  if (action === 'setup-wallet-seed') return _call('setupRoutstrWalletSeed');
   if (action === 'wallet-restore') return _call('doRoutstrWalletRestore');
   if (action === 'withdraw-lightning') return _call('showRoutstrWithdrawLightning');
   if (action === 'withdraw-token') return _call('showRoutstrWithdrawToken');

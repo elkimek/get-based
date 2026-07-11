@@ -73,6 +73,13 @@ export function refreshSyncedAIProviderUiRuntime() {
   return refreshed;
 }
 
+export function refreshSyncedRoutstrBalanceRuntime() {
+  const refreshBalance = getRuntimeFunction('refreshRoutstrBalance');
+  if (!refreshBalance) return false;
+  refreshBalance();
+  return true;
+}
+
 /** @param {string | null} ownerId */
 export function dispatchSyncOwnerChangedRuntime(ownerId) {
   const runtime = getSyncRuntimeWindow();

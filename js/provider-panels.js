@@ -71,6 +71,7 @@ import {
   configureRoutstrWalletPanels,
   clearRoutstrWalletTimers,
   refreshCashuWalletBalance,
+  refreshWalletSeedStatus,
   refreshRoutstrBalance,
   showRoutstrWalletFund,
   rsWalletFundCustomInput,
@@ -86,6 +87,7 @@ import {
   doRoutstrNodeWithdraw,
   _setActiveNodeAction,
   walletSeedAcknowledged,
+  setupRoutstrWalletSeed,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
   showRoutstrWithdrawLightning,
@@ -175,6 +177,7 @@ export {
   doRoutstrNodeWithdraw,
   _setActiveNodeAction,
   walletSeedAcknowledged,
+  setupRoutstrWalletSeed,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
   showRoutstrWithdrawLightning,
@@ -258,6 +261,7 @@ export function initSettingsModelFetch() {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
+    refreshWalletSeedStatus();
     if (typeof getProviderPanelRuntimeValue('cashuGetMintUrl') === 'function') Promise.resolve(callProviderPanelRuntime('cashuGetMintUrl')).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
       if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -757,6 +761,7 @@ Object.assign(window, {
   doRoutstrNodeWithdraw,
   _setActiveNodeAction,
   walletSeedAcknowledged,
+  setupRoutstrWalletSeed,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
   showRoutstrWithdrawLightning,

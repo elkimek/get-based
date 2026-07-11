@@ -6,6 +6,7 @@ import {
   dispatchAISettingsLocalChangedRuntime,
   getOllamaConfigStorageRuntime,
   refreshAIProviderSelectionRuntime,
+  touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
 
 function notifyAISelectionChanged() {
@@ -219,7 +220,15 @@ export function getOpenRouterPricing(modelId) {
 }
 
 export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') || ''; }
-export async function saveRoutstrKey(key) { await encryptedSetItem('labcharts-routstr-key', key); updateKeyCache('labcharts-routstr-key', key); markAISettingsLocal(); }
+export function touchRoutstrSession() {
+  touchRoutstrSessionClock();
+  markAISettingsLocal();
+}
+export async function saveRoutstrKey(key) {
+  await encryptedSetItem('labcharts-routstr-key', key);
+  updateKeyCache('labcharts-routstr-key', key);
+  touchRoutstrSession();
+}
 export function hasRoutstrKey() { return !!getRoutstrKey(); }
 export function getRoutstrModel() { return localStorage.getItem('labcharts-routstr-model') || 'claude-sonnet-4.6'; }
 export function setRoutstrModel(model) {

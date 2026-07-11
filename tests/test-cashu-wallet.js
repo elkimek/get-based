@@ -57,6 +57,7 @@ const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
@@ -145,6 +146,17 @@ assert('Counter source persisted for deterministic wallet', walletSrc.includes('
 assert('Counter reservations use atomic IndexedDB transactions',
   walletStoreSrc.includes("db.transaction(STORE_META, update ? 'readwrite' : 'readonly')") &&
   walletStoreSrc.includes('current + count'));
+assert('Cashu bearer proofs use encrypted IDB envelopes with hashed storage keys',
+  walletStoreSrc.includes("`enc:v1:${await _digestStorageKey(secret)}`")
+    && walletStoreSrc.includes('_payload: await _encryptWalletPayload(normalized)'));
+assert('Cashu recovery metadata uses encrypted IDB envelopes',
+  walletStoreSrc.includes("_payload: await _encryptWalletPayload({ value })"));
+assert('Cashu storage participates in encryption enable, disable, and passphrase migrations',
+  cryptoSrc.includes("import('./cashu-wallet-store.js')")
+    && cryptoSrc.includes('cashuStore.migrateCashuWalletStorage(mode)'));
+assert('Cashu encrypted writes fail closed while the encryption session is locked',
+  walletStoreSrc.includes("code = 'session-locked'")
+    && walletStoreSrc.includes('if (!envelope) throw _sessionLockedError()'));
 
 // ═══════════════════════════════════════
 // 5. CASHU WALLET — DEPOSIT RECOVERY
@@ -233,6 +245,8 @@ assert('fetchRoutstrModels uses _requireNodeUrl', apiRoutstrSrc.includes('const 
 assert('callRoutstrAPI uses _requireNodeUrl', apiRoutstrSrc.includes("const nodeUrl = _requireNodeUrl();\n  return callOpenAICompatibleAPI") || apiRoutstrSrc.includes('_requireNodeUrl()'));
 const rawNodeUrlCalls = (apiRoutstrSrc.match(/getRoutstrNodeUrl\(\)\.replace/g) || []).length;
 assert('No unguarded getRoutstrNodeUrl().replace in API calls', rawNodeUrlCalls === 0, `found ${rawNodeUrlCalls} unguarded calls`);
+assert('Routstr balance always bypasses the browser HTTP cache',
+  /\/v1\/balance\/info[\s\S]{0,180}cache:\s*'no-store'/.test(apiRoutstrSrc));
 
 // ═══════════════════════════════════════
 // 11. SYNC INTEGRATION
@@ -242,6 +256,17 @@ console.log('11. Sync Integration');
 assert('Wallet mnemonic excluded from generic settings sync', !syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Wallet mint excluded from generic settings sync', !syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mint'"));
 assert('Node URL in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-routstr-node'"));
+assert('Selected Routstr node changes schedule settings sync',
+  discoverySrc.includes('dispatchAISettingsLocalChangedRuntime()'));
+assert('Routstr panel distinguishes synced node funds from device-local Cashu funds',
+  providerRenderSrc.includes('24-word Data Sync mnemonic')
+    && providerRenderSrc.includes('12-word recovery seed stay on this device'));
+assert('Unseeded device UI explains separate sync and wallet identities',
+  walletPanelRenderSrc.includes("Set up this device's Cashu wallet")
+    && walletPanelRenderSrc.includes('does not copy spendable Cashu proofs')
+    && walletPanelRenderSrc.includes('setup-wallet-seed'));
+assert('Node refund is gated before its network mutation until the local wallet has a seed',
+  /doRoutstrNodeWithdraw\(\)[\s\S]*cashuHasWalletSeed[\s\S]*_ensureWalletSeed\(_withdrawRoutstrNodeToWallet\)[\s\S]*async function _withdrawRoutstrNodeToWallet\(\)[\s\S]*\/v1\/wallet\/refund/.test(walletPanelSrc));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Generic backup excludes wallet identity but keeps node preference',
   !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&
@@ -278,6 +303,7 @@ assert('SW caches cashu-wallet-store.js', swSrc.includes('/js/cashu-wallet-store
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panel-buttons.js', swSrc.includes('/js/provider-wallet-panel-buttons.js'));
+assert('SW caches provider-wallet-panel-renderers.js', swSrc.includes('/js/provider-wallet-panel-renderers.js'));
 assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
 assert('SW caches provider-wallet-funding-recovery.js', swSrc.includes('/js/provider-wallet-funding-recovery.js'));
 assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
@@ -334,9 +360,12 @@ assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
 assert('Deposit amount picker', walletPanelSrc.includes('routstr-deposit-amount'));
 assert('Node withdraw handler', walletPanelSrc.includes('doRoutstrNodeWithdraw'));
 assert('Wallet panel imports Routstr key helpers', walletPanelSrc.includes('getRoutstrKey') && walletPanelSrc.includes('saveRoutstrKey'));
+assert('Funded legacy Routstr sessions bootstrap the shared session clock',
+  walletPanelSrc.includes("b.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')")
+    && walletPanelSrc.includes('touchRoutstrSession()'));
 assert('Wallet panel keeps mint SSRF guard', walletPanelSrc.includes('isValidExternalUrl'));
 assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
-assert('Seed acknowledgment checkbox', walletPanelSrc.includes('routstr-seed-ack'));
+assert('Seed acknowledgment checkbox', walletPanelRenderSrc.includes('routstr-seed-ack'));
 assert('Wallet action buttons', walletPanelSrc.includes('routstrWalletActionButtons'));
 assert('Wallet panel owns fund timer cleanup', walletPanelSrc.includes('export function clearRoutstrWalletTimers()'));
 assert('Wallet funding auto-poll is bounded on mint/network failure',

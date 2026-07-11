@@ -62,6 +62,7 @@ export {
   getOpenRouterPricing,
   getRoutstrKey,
   saveRoutstrKey,
+  touchRoutstrSession,
   hasRoutstrKey,
   getRoutstrModel,
   setRoutstrModel,

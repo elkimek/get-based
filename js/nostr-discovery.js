@@ -5,6 +5,10 @@
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { registerUtilsRuntimeExports } from './utils-runtime.js';
+import {
+  dispatchAISettingsLocalChangedRuntime,
+  touchRoutstrSessionClock,
+} from './api-provider-storage-runtime.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
@@ -213,6 +217,8 @@ export function setSelectedNodeUrl(url) {
     return;
   }
   localStorage.setItem('labcharts-routstr-node', url);
+  touchRoutstrSessionClock();
+  dispatchAISettingsLocalChangedRuntime();
 }
 
 /** Clear node cache (force re-discovery on next call) */

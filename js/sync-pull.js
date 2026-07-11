@@ -14,7 +14,7 @@ import {
 } from './sync-pull-merge.js';
 import { maybeScheduleRebroadcast } from './sync-pull-rebroadcast.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
-import { clearRestoreJoinPending } from './sync-identity.js';
+import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.js';
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
@@ -31,6 +31,60 @@ var _pushProfile = _pushProfile || (async () => {});
 var _debug = _debug || (() => {});
 let _pulling = false;
 const _chatPullRetryTimers = new Map();
+const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
+const ROUTSTR_SESSION_KEYS = [
+  'labcharts-routstr-key',
+  'labcharts-routstr-node',
+  ROUTSTR_SESSION_UPDATED_AT_KEY,
+];
+
+export function createPulledAISettingsSelection() {
+  return {
+    latestAiSettings: null,
+    latestAiRowTs: -1,
+    latestRoutstrSettings: null,
+    latestRoutstrClock: -1,
+    latestRoutstrRowTs: -1,
+  };
+}
+
+/**
+ * AI settings are duplicated in every profile row. General settings follow
+ * the newest profile row, while the global Routstr session follows its own
+ * explicit clock so an unrelated newer profile save cannot hide funded keys.
+ */
+export function selectPulledAISettings(selection, settings, rowSyncedAt) {
+  if (!settings || typeof settings !== 'object') return selection;
+  const next = { ...selection };
+  const rowTs = Number.isFinite(Number(rowSyncedAt)) ? Number(rowSyncedAt) : 0;
+  if (rowTs > next.latestAiRowTs) {
+    next.latestAiSettings = settings;
+    next.latestAiRowTs = rowTs;
+  }
+  if (!ROUTSTR_SESSION_KEYS.some(key => Object.prototype.hasOwnProperty.call(settings, key))) return next;
+  const rawClock = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
+  const clock = Number.isFinite(rawClock) && rawClock >= 0 ? rawClock : 0;
+  if (clock > next.latestRoutstrClock
+      || clock === next.latestRoutstrClock && rowTs > next.latestRoutstrRowTs) {
+    next.latestRoutstrSettings = settings;
+    next.latestRoutstrClock = clock;
+    next.latestRoutstrRowTs = rowTs;
+  }
+  return next;
+}
+
+export function combinePulledAISettings(selection) {
+  if (!selection.latestAiSettings && !selection.latestRoutstrSettings) return null;
+  const combined = { ...(selection.latestAiSettings || {}) };
+  if (!selection.latestRoutstrSettings) return combined;
+  for (const key of ROUTSTR_SESSION_KEYS) delete combined[key];
+  for (const key of ROUTSTR_SESSION_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(selection.latestRoutstrSettings, key)) {
+      combined[key] = selection.latestRoutstrSettings[key];
+    }
+  }
+  return combined;
+}
 
 /** @param {{
  *   getEvolu?: () => any,
@@ -129,10 +183,14 @@ export async function onSyncReceived() {
     if (!rawRows || rawRows.length === 0) return;
 
     const rows = await prepareSyncPullRows(rawRows);
+    // A restored device is joining an existing owner, so the relay's provider
+    // session must win over any stale local key/5-minute edit lock left by the
+    // browser before restore. Capture before the first profile merge clears
+    // the restore marker; AI settings are applied once after the row loop.
+    const preferRemoteAiSettings = isRestoreJoinPending();
 
     let profilesChanged = false;
-    let latestAiSettings = null;
-    let latestAiTs = 0;
+    let aiSettingsSelection = createPulledAISettingsSelection();
 
     for (const row of rows) {
       try {
@@ -164,11 +222,7 @@ export async function onSyncReceived() {
         // routes through DecompressionStream)
         const { importedData, profile, aiSettings, chatData, displayPrefs } = await parseSyncPayload(row.dataJson);
 
-        // Track latest AI settings (apply once, from most recent row)
-        if (aiSettings && remoteUpdated > latestAiTs) {
-          latestAiSettings = aiSettings;
-          latestAiTs = remoteUpdated;
-        }
+        aiSettingsSelection = selectPulledAISettings(aiSettingsSelection, aiSettings, remoteUpdated);
 
         // Validate importedData shape. v4 (Phase 2 cutover) intentionally
         // omits importedData - it's null by design, not malformed. We
@@ -229,8 +283,10 @@ export async function onSyncReceived() {
       }
     }
 
-    // Apply AI settings once from the most recent row
-    if (latestAiSettings) await applyAISettings(latestAiSettings);
+    // Apply general settings from the newest row, but choose Routstr's global
+    // session by its own clock across every profile row.
+    const selectedAiSettings = combinePulledAISettings(aiSettingsSelection);
+    if (selectedAiSettings) await applyAISettings(selectedAiSettings, { preferRemote: preferRemoteAiSettings });
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {

@@ -130,17 +130,26 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         import { mergePulledImportedData, persistPulledImportedData } from '/js/sync-pull-merge.js?${helperBust}';
         import { refreshActiveProfileAfterPull } from '/js/sync-pull-active-refresh.js?${helperBust}';
         import * as syncMessenger from '/js/sync-messenger.js';
+        import { applyAISettings } from '/js/sync-apply.js';
+        import * as cryptoStore from '/js/crypto.js';
+        import { getRoutstrKey } from '/js/api-provider-storage.js';
         window.__syncE2EMergePulledImportedData = mergePulledImportedData;
         window.__syncE2EPersistPulledImportedData = persistPulledImportedData;
         window.__syncE2ERefreshActiveProfileAfterPull = refreshActiveProfileAfterPull;
         window.__syncE2EMessenger = syncMessenger;
+        window.__syncE2EApplyAISettings = applyAISettings;
+        window.__syncE2ECrypto = cryptoStore;
+        window.__syncE2EGetRoutstrKey = getRoutstrKey;
       `,
     });
     await page.waitForFunction(
       () => typeof window.__syncE2EMergePulledImportedData === 'function'
         && typeof window.__syncE2EPersistPulledImportedData === 'function'
         && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function'
-        && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function',
+        && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function'
+        && typeof window.__syncE2EApplyAISettings === 'function'
+        && typeof window.__syncE2ECrypto?._setTestSessionKey === 'function'
+        && typeof window.__syncE2EGetRoutstrKey === 'function',
       null,
       { timeout: 15000 }
     );
@@ -464,6 +473,40 @@ async function run(browser, testInfo) {
     contexts.push(deviceB.context);
     const { page: pageA } = deviceA;
     const { page: pageB } = deviceB;
+
+    const routstrSync = await pageB.evaluate(async () => {
+      window.__WEARABLES_TEST = true;
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      await window.__syncE2ECrypto._setTestSessionKey('RoutstrSyncE2EPass1!');
+      await window.__syncE2EApplyAISettings({
+        'labcharts-routstr-key': 'sk-local-zero-balance',
+        'labcharts-routstr-node': 'https://node.routstr.e2e/',
+        'labcharts-routstr-session-updated-at': '100',
+      });
+      sessionStorage.setItem('labcharts-ai-settings-local-lock-until', String(Date.now() + 60_000));
+      await window.__syncE2EApplyAISettings({
+        'labcharts-routstr-key': 'sk-routstr-two-device',
+        'labcharts-routstr-node': 'https://node.routstr.e2e/',
+        'labcharts-routstr-session-updated-at': '200',
+      });
+      await window.__syncE2EApplyAISettings({
+        'labcharts-routstr-key': 'sk-legacy-other-profile',
+        'labcharts-routstr-node': 'https://legacy-node.routstr.e2e/',
+      });
+      return {
+        rawKey: localStorage.getItem('labcharts-routstr-key'),
+        usableKey: window.__syncE2EGetRoutstrKey(),
+        node: localStorage.getItem('labcharts-routstr-node'),
+        updatedAt: localStorage.getItem('labcharts-routstr-session-updated-at'),
+      };
+    });
+    assert('Device B immediately uses encrypted Routstr session pulled from A',
+      routstrSync.rawKey?.startsWith('v1:')
+        && routstrSync.rawKey !== routstrSync.usableKey
+        && routstrSync.usableKey === 'sk-routstr-two-device'
+        && routstrSync.node === 'https://node.routstr.e2e/'
+        && routstrSync.updatedAt === '200',
+      JSON.stringify(routstrSync));
 
     const staleB = await getImportedData(pageB);
 

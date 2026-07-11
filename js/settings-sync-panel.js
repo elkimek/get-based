@@ -8,6 +8,7 @@ import {
   disableSync,
   getMnemonic,
   getMnemonicResolutionError,
+  getSyncIdentityFingerprint,
   getSyncBlocker,
   restoreFromMnemonic,
   getSyncRelay,
@@ -117,6 +118,8 @@ async function handleSettingsSyncClick(event) {
     toggleMnemonicVisibility();
   } else if (action === 'copy-mnemonic') {
     copyMnemonic();
+  } else if (action === 'copy-identity-code') {
+    copySyncIdentityCode();
   } else if (action === 'open-restore-dialog') {
     openRestoreMnemonicDialog();
   } else if (action === 'save-relay') {
@@ -249,6 +252,18 @@ export function renderSyncSection() {
         <span id="sync-status-text" style="font-size:12px;color:var(--text-muted)">Checking relay...</span>
       </div>
 
+      <div class="sync-identity-card" aria-labelledby="sync-identity-label">
+        <div class="sync-identity-card-head">
+          <div>
+            <div id="sync-identity-label" class="sync-identity-label">Sync identity</div>
+            <div id="sync-identity-code" class="sync-identity-code" aria-live="polite">Resolving…</div>
+          </div>
+          <button id="sync-identity-copy" class="import-btn import-btn-secondary sync-identity-copy" data-sync-action="copy-identity-code" aria-label="Copy Sync identity code" disabled>Copy</button>
+        </div>
+        <div class="sync-identity-help">Compare this code on your devices. Matching codes mean the same 24-word Data Sync identity is active.</div>
+        <div class="sync-identity-safety"><span aria-hidden="true">✓</span> Safe to compare — this code doesn’t grant access to your data</div>
+      </div>
+
       <div style="margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <label style="font-size:12px;font-weight:600;color:var(--text-secondary)">Your mnemonic</label>
@@ -312,6 +327,7 @@ async function toggleSync(enabled) {
   } else {
     try {
       _mnemonicCache = null;
+      _identityFingerprintCache = null;
       _mnemonicRetries = 0;
       clearTimeout(_mnemonicRetryTimer);
       await disableSync();
@@ -451,6 +467,7 @@ function syncSetupDone() {
   const el = document.getElementById('sync-section');
   if (el) el.innerHTML = renderSyncSection();
   loadMnemonic();
+  void loadSyncIdentityFingerprint();
   updateRelayStatus();
 }
 
@@ -517,7 +534,23 @@ async function updateRelayStatus() {
 let _mnemonicRetries = 0;
 let _mnemonicCache = null;
 let _mnemonicRetryTimer = null;
+let _identityFingerprintCache = null;
 const MNEMONIC_MASK = '\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022';
+
+async function loadSyncIdentityFingerprint() {
+  const codeEl = document.getElementById('sync-identity-code');
+  const copyBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-identity-copy'));
+  if (!codeEl || !isSyncEnabled()) return;
+  const fingerprint = await getSyncIdentityFingerprint();
+  if (!fingerprint) {
+    codeEl.textContent = getMnemonicResolutionError() ? 'Unavailable' : 'Resolving…';
+    if (copyBtn) copyBtn.disabled = true;
+    return;
+  }
+  _identityFingerprintCache = fingerprint;
+  codeEl.textContent = fingerprint;
+  if (copyBtn) copyBtn.disabled = false;
+}
 
 function loadMnemonic() {
   clearTimeout(_mnemonicRetryTimer);
@@ -531,6 +564,7 @@ function loadMnemonic() {
     el.style.userSelect = 'none';
     el.style.color = '';
     _mnemonicRetries = 0;
+    void loadSyncIdentityFingerprint();
     return;
   }
   // Stop polling immediately if Evolu surfaced an actual init error —
@@ -580,6 +614,15 @@ function copyMnemonic() {
     _clipboardClearTimer = setTimeout(() => {
       navigator.clipboard.writeText('').catch(() => {});
     }, 60000);
+  }).catch(() => {
+    showNotification('Could not access clipboard', 'error');
+  });
+}
+
+function copySyncIdentityCode() {
+  if (!_identityFingerprintCache) return;
+  navigator.clipboard.writeText(_identityFingerprintCache).then(() => {
+    showNotification('Sync identity code copied', 'success');
   }).catch(() => {
     showNotification('Could not access clipboard', 'error');
   });
@@ -684,6 +727,7 @@ function saveSyncRelay() {
 export function hydrateSettingsSyncPanel() {
   if (!isSyncEnabled()) return;
   loadMnemonic();
+  void loadSyncIdentityFingerprint();
   updateRelayStatus();
 }
 
@@ -693,6 +737,7 @@ Object.assign(window, {
   toggleSync,
   toggleMnemonicVisibility,
   copyMnemonic,
+  copySyncIdentityCode,
   openRestoreMnemonicDialog,
   closeRestoreMnemonicDialog,
   confirmRestoreMnemonic,

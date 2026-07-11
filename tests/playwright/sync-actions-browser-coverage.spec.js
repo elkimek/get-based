@@ -37,6 +37,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
     };
     let enabled = true;
     let ready = true;
+    let syncing = false;
     let timerId = 1;
     const timers = new Map();
     const boundListeners = [];
@@ -108,6 +109,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         },
         isSyncEnabled: () => enabled,
         isEvoluReady: () => ready,
+        isSyncing: () => syncing,
       });
 
       saveHooks.onDataSaved({ immediate: true });
@@ -145,6 +147,16 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       outcomes.aiSettingsEventDebouncesSingleProfilePush = pushes.length === 5
         && pushes[4].id === profileId
         && pushes[4].data.entries?.[0]?.date === '2026-06-09';
+
+      syncing = true;
+      window.dispatchEvent(new Event('labcharts-ai-settings-local-changed'));
+      await runPendingTimers();
+      outcomes.aiSettingsPushRetriesWhileEvoluIsBusy = pushes.length === 5
+        && Array.from(timers.values()).some(timer => timer.ms === 1000);
+      syncing = false;
+      await runPendingTimers();
+      outcomes.aiSettingsRetryFlushesAfterEvoluIsReady = pushes.length === 6
+        && pushes[5].id === profileId;
 
       localStorage.setItem('labcharts-messenger-enabled', 'true');
       localStorage.setItem('labcharts-messenger-token', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');

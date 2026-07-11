@@ -160,7 +160,10 @@ export function getCachedKey(lsKey) {
 }
 
 export function updateKeyCache(lsKey, value) {
-  if (value) _keyCache.set(lsKey, value);
+  // Empty string is a meaningful cached tombstone for encrypted provider keys:
+  // without it, getCachedKey() falls back to the on-disk `v1:` wrapper and can
+  // mistake encrypted emptiness for a usable credential.
+  if (value !== null && value !== undefined) _keyCache.set(lsKey, value);
   else _keyCache.delete(lsKey);
 }
 const PBKDF2_ITERATIONS = 600000;
@@ -848,11 +851,12 @@ async function transformPayloadRows(rows, keyFields, mode) {
 
 async function migrateLocalIDB(mode) {
   if (!_sessionKey) throw new Error('Encryption key is locked.');
-  const [wearableStore, cycleStore] = await Promise.all([
+  const [wearableStore, cycleStore, cashuStore] = await Promise.all([
     import('./wearables-store.js'),
     import('./cycle-store.js'),
+    import('./cashu-wallet-store.js'),
   ]);
-  let migrated = 0;
+  let migrated = await cashuStore.migrateCashuWalletStorage(mode);
   for (const profileId of await migrationProfileIds()) {
     const wearableRows = await transformPayloadRows(await wearableStore.getAllDailyRaw(profileId), ['source', 'date'], mode);
     const cycleRows = await transformPayloadRows(await cycleStore.getAllCycleObservationsRaw(profileId), ['source', 'date', 'importId'], mode);

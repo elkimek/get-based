@@ -160,6 +160,8 @@ function renderRoutstrProviderPanel() {
   const sectionLabel = 'font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;opacity:0.7';
   const walletHtml = `<div style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
     <div style="${sectionLabel}">\u26a1 Wallet</div>
+    <div style="font-size:10px;color:var(--text-muted);margin:-2px 0 3px">The funded Routstr node session syncs with your 24-word Data Sync mnemonic. Cashu proofs and their separate 12-word recovery seed stay on this device.</div>
+    <div id="routstr-wallet-device-status" style="font-size:10px;color:var(--text-muted);margin-bottom:7px">Checking local wallet setup\u2026</div>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
       <div style="font-size:13px;font-weight:600;color:var(--text-primary)"><span id="routstr-wallet-balance">\u26a1 loading...</span> <a href="#" data-provider-panel-action="refresh-cashu-wallet-balance" style="color:var(--accent);font-size:10px;text-decoration:none" title="Verify proofs against mint">\u21bb</a></div>
       <div id="routstr-wallet-actions" style="display:flex;gap:4px;flex-wrap:wrap">

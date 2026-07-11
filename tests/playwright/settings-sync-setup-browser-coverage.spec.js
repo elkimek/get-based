@@ -34,6 +34,7 @@ async function openIsolatedSyncSetupPage(page) {
       }
       export function getMnemonic() { return stub.mnemonic || null; }
       export function getMnemonicResolutionError() { return stub.mnemonicError || null; }
+      export async function getSyncIdentityFingerprint() { return stub.fingerprint || null; }
       export function getSyncBlocker() { return null; }
       export async function restoreFromMnemonic(mnemonic) {
         stub.calls.push({ fn: 'restoreFromMnemonic', mnemonic });
@@ -124,6 +125,7 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       calls: [],
       enabled: false,
       mnemonic,
+      fingerprint: 'A94F-2C71-B803',
       restoreResult: true,
       relay: 'wss://relay.example',
     };
@@ -175,6 +177,16 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       syncSection.innerHTML = syncPanel.renderSyncSection();
       syncPanel.hydrateSettingsSyncPanel();
       await waitFor(() => document.getElementById('sync-mnemonic')?.dataset.masked === 'true', 'masked mnemonic');
+      await waitFor(() => document.getElementById('sync-identity-code')?.textContent === 'A94F-2C71-B803', 'sync identity code');
+      outcomes.identityCodeIsProminentAndSafeToCompare =
+        document.querySelector('.sync-identity-card')?.textContent.includes('same 24-word Data Sync identity') === true
+        && document.querySelector('.sync-identity-card')?.textContent.includes('this code doesn’t grant access to your data') === true
+        && document.getElementById('sync-identity-copy')?.hasAttribute('disabled') === false;
+      document.querySelector('[data-sync-action="copy-identity-code"]')?.click();
+      await waitFor(() => clipboardWrites.includes('A94F-2C71-B803'), 'identity code clipboard write');
+      outcomes.copyIdentityCodeWritesNonSecretCode =
+        clipboardWrites.includes('A94F-2C71-B803')
+        && toasts().some(text => text.includes('Sync identity code copied'));
       document.querySelector('[data-sync-action="toggle-mnemonic"]')?.click();
       outcomes.toggleMnemonicShowsCachedWords =
         document.getElementById('sync-mnemonic')?.textContent === mnemonic
