@@ -1,0 +1,13 @@
+{
+  "mint": "https://mint.fixture.test/Bitcoin",
+  "unit": "sat",
+  "amount": 1,
+  "proof": {
+    "id": "0011223344556677",
+    "amount": 1,
+    "secret": "fixture-secret",
+    "C": "021111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "cashuA": "cashuAeyJ0b2tlbiI6W3sibWludCI6Imh0dHBzOi8vbWludC5maXh0dXJlLnRlc3QvQml0Y29pbiIsInByb29mcyI6W3siaWQiOiIwMDExMjIzMzQ0NTU2Njc3IiwiYW1vdW50IjoxLCJzZWNyZXQiOiJmaXh0dXJlLXNlY3JldCIsIkMiOiIwMjExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEifV19XSwidW5pdCI6InNhdCJ9",
+  "cashuB": "cashuBo2FteCFodHRwczovL21pbnQuZml4dHVyZS50ZXN0L0JpdGNvaW5hdWNzYXRhdIGiYWlIABEiM0RVZndhcIGjYWEBYXNuZml4dHVyZS1zZWNyZXRhY1ghAhERERERERERERERERERERERERERERERERERERERERER"
+}

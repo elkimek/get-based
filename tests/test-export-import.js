@@ -474,17 +474,18 @@ return (async function() {
   assert('Bundle import merges chat summaries', exportImportSrc.includes('chatSummaries.findIndex'));
   assert('Bundle import creates new profiles', exportImportSrc.includes("createProfile(bp.name || 'Imported'"));
   assert('Bundle import loads first imported profile', exportImportSrc.includes('loadProfile(targetId)'));
-  assert('Bundle import handles wallet restore', exportImportSrc.includes('json.wallet'));
+  assert('Bundle import handles non-secret wallet settings restore', exportImportSrc.includes('json.wallet'));
 
   // ═══════════════════════════════════════
-  // 11. Bundle includes wallet metadata
+  // 11. Bundle includes only non-secret wallet metadata
   // ═══════════════════════════════════════
-  console.log('%c 11. Bundle wallet metadata ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 11. Bundle non-secret wallet metadata ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Bundle wallet export in source', exportSrc.includes('bundle.wallet = { mintUrl:'));
-  assert('Bundle wallet checks cashuGetMintUrl through export runtime',
+  assert('Bundle wallet export includes only node URL in source', exportSrc.includes('bundle.wallet = { nodeUrl:'));
+  assert('Bundle wallet export excludes Cashu mint and seed settings',
     exportSrc.includes('getWalletBundleSettings') &&
-    exportRuntimeSrc.includes('cashuGetMintUrl'));
+    !exportRuntimeSrc.includes('cashuGetMintUrl') &&
+    !exportRuntimeSrc.includes('cashuGetWalletMnemonic'));
   assert('Bundle wallet checks nostrGetSelectedNode through export runtime',
     exportSrc.includes('getWalletBundleSettings') &&
     exportRuntimeSrc.includes('nostrGetSelectedNode'));

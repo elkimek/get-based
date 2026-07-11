@@ -294,6 +294,7 @@
     "js/provider-wallet-panels.js",
     "js/provider-wallet-runtime.js",
     "js/cashu-wallet.js",
+    "js/cashu-wallet-store.js",
     "js/nostr-discovery.js",
     "js/marker-detail-store.js",
     "js/health-goals-utils.js",

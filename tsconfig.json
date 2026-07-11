@@ -28,6 +28,7 @@
     "js/biology-scores-runtime.js",
     "js/brand-assets.js",
     "js/cashu-wallet.js",
+    "js/cashu-wallet-store.js",
     "js/category-customization-runtime.js",
     "js/category-customization.js",
     "js/category-glyphs.js",

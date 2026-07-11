@@ -284,7 +284,8 @@ async function tokenRoundtripAndSeedRestore() {
 
   rmSync(TOKEN_IMPORT_DIR, { recursive: true, force: true });
   const second = await openApp(TOKEN_IMPORT_DIR);
-  let returnToken;
+  let recovered;
+  let seed;
   try {
     const received = await second.page.evaluate(async ({ token, mint }) => {
       await window.cashuGenerateWalletSeed();
@@ -299,26 +300,43 @@ async function tokenRoundtripAndSeedRestore() {
       return { received: Number(recv?.received ?? recv) || 0, backupCreated: !!backup, sendBack };
     }, { token: tokenToSecond, mint: MINT_URL });
     if (!received.received || !received.backupCreated || !received.sendBack?.token) throw new Error('Token import/export failed');
-    returnToken = received.sendBack.token;
-  } finally { await second.context.close(); }
 
-  const recover = await openApp(USER_DATA_DIR);
-  try {
-    const recovered = await recover.page.evaluate(async (token) => {
-      const recv = await window.cashuReceiveToken(token);
-      return { received: Number(recv?.received ?? recv) || 0, balance: Number(await window.cashuGetBalance()) || 0, seedPresent: !!(await window.cashuGetWalletMnemonic()) };
-    }, returnToken);
-    if (!recovered.received) throw new Error('Return token receive failed');
-    const seedRestore = await seedRestoreSmoke();
-    if (!seedRestore.balance) throw new Error('Seed restore smoke did not recover a positive balance');
-    return { recovered: recovered.received, walletBalance: recovered.balance, seedRestoreBalance: seedRestore.balance };
-  } finally { await recover.context.close(); }
+    const recover = await openApp(USER_DATA_DIR);
+    try {
+      recovered = await recover.page.evaluate(async (token) => {
+        // The second profile received the original token, so its sender journal
+        // is now safe to clear before accepting the confirmed return token.
+        await window.cashuClearPendingWithdraw();
+        const recv = await window.cashuReceiveToken(token);
+        return {
+          received: Number(recv?.received ?? recv) || 0,
+          balance: Number(await window.cashuGetBalance()) || 0,
+          seed: await window.cashuGetWalletMnemonic(),
+        };
+      }, received.sendBack.token);
+      if (!recovered.received) throw new Error('Return token receive failed');
+      if (!recovered.seed) throw new Error('Cannot run seed restore smoke without a wallet mnemonic');
+      seed = recovered.seed;
+
+      // Only clear the second profile's return-token journal after the main
+      // profile has durably accepted that token.
+      await second.page.evaluate(async () => window.cashuClearPendingWithdraw());
+    } finally {
+      await recover.context.close();
+    }
+  } finally {
+    await second.context.close();
+  }
+
+  const seedRestore = await seedRestoreSmoke(seed);
+  if (!seedRestore.balance) throw new Error('Seed restore smoke did not recover a positive balance');
+  return {
+    recovered: recovered.received,
+    walletBalance: recovered.balance,
+    seedRestoreBalance: seedRestore.balance,
+  };
 }
-async function seedRestoreSmoke() {
-  const main = await openApp(USER_DATA_DIR);
-  let seed;
-  try { seed = await main.page.evaluate(async () => window.cashuGetWalletMnemonic()); }
-  finally { await main.context.close(); }
+async function seedRestoreSmoke(seed) {
   if (!seed) throw new Error('Cannot run seed restore smoke without a wallet mnemonic');
   rmSync(SEED_RESTORE_DIR, { recursive: true, force: true });
   const restored = await openApp(SEED_RESTORE_DIR);

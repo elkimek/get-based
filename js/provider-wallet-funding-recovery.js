@@ -12,7 +12,15 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
   if (typeof walletRuntime.cashuRecoverPendingFunding !== 'function') return setStatus('Pending deposit recovery is unavailable.', 'var(--red)');
   statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Checking pending Lightning deposits\u2026</div>';
   try {
+    const operationRecovery = typeof walletRuntime.cashuRecoverPendingWalletOperation === 'function'
+      ? await walletRuntime.cashuRecoverPendingWalletOperation()
+      : { recovered: 0 };
     const result = await walletRuntime.cashuRecoverPendingFunding();
+    if (!result.checked && operationRecovery.recovered > 0) {
+      setStatus('\u2713 +' + operationRecovery.recovered.toLocaleString() + ' sats recovered from an interrupted wallet operation.', 'var(--green)', true);
+      refreshBalance();
+      return;
+    }
     if (!result.checked) return setStatus('No pending Lightning deposits found.');
     if (result.recovered > 0) {
       const extra = [

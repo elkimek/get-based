@@ -122,24 +122,15 @@ async function refreshChatThreadsRuntime(chatThreads) {
 
 export async function getWalletBundleSettings() {
   const runtime = getRuntimeWindow();
-  const mintUrl = typeof runtime.cashuGetMintUrl === 'function'
-    ? await runtime.cashuGetMintUrl()
-    : null;
   const nodeUrl = typeof runtime.nostrGetSelectedNode === 'function'
     ? runtime.nostrGetSelectedNode()
     : null;
-  return { mintUrl, nodeUrl };
+  return { nodeUrl };
 }
 
 export async function restoreWalletBundleSettings(wallet) {
   if (!wallet) return;
   const runtime = getRuntimeWindow();
-  if (wallet.mnemonic && typeof runtime.cashuRestoreWalletFromSeed === 'function') {
-    await runtime.cashuRestoreWalletFromSeed(wallet.mnemonic);
-  }
-  if (wallet.mintUrl && typeof runtime.cashuSetMintUrl === 'function') {
-    await runtime.cashuSetMintUrl(wallet.mintUrl);
-  }
   if (wallet.nodeUrl && typeof runtime.nostrSetSelectedNode === 'function') {
     runtime.nostrSetSelectedNode(wallet.nodeUrl);
   }
