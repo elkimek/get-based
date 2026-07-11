@@ -11,11 +11,11 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.169', date: '2026-07-11', title: 'Private AI on Routstr',
+    version: '1.10.169', date: '2026-07-11', title: 'Private chats on Routstr',
     forceShow: true,
     items: [
-      '<b>Routstr now supports Private Mode on compatible nodes.</b> Prompts and replies are encrypted in your browser and only opened inside verified private AI hardware.',
-      '<b>Private Mode is easy to spot.</b> A lock shows when it is on, and your balance updates automatically after each chat.',
+      '<b>Private Mode is now available on supported Routstr nodes.</b> Your prompts and replies are encrypted in your browser and can only be read inside verified secure hardware.',
+      '<b>A lock shows when Private Mode is on.</b> Your balance updates automatically after each chat.',
     ]
   },
   {
