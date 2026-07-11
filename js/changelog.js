@@ -11,6 +11,14 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.169', date: '2026-07-11', title: 'Private chats on Routstr',
+    forceShow: true,
+    items: [
+      '<b>Private Mode is now available on supported Routstr nodes.</b> Your prompts and replies are encrypted in your browser and can only be read inside verified secure hardware.',
+      '<b>A lock shows when Private Mode is on.</b> Your balance updates automatically after each chat.',
+    ]
+  },
+  {
     version: '1.10.168', date: '2026-07-11', title: 'Routstr sync and wallet encryption',
     items: [
       '<b>Funded Routstr sessions now follow sync correctly.</b> A node key received on another encrypted device is usable immediately, so its shared node balance no longer appears disconnected until reload.',

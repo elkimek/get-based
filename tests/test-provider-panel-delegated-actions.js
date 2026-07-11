@@ -119,6 +119,7 @@ assert('service worker precaches provider panel delegate module',
 [
   'openrouter-model',
   'routstr-model',
+  'routstr-private-mode',
   'venice-model',
   'venice-e2ee',
   'ppq-model',

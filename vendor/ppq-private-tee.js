@@ -1,7 +1,10 @@
 // @ts-check
 // PPQ Private TEE transport wrapper. Lazy-loaded only when PPQ private/ models are used.
 
-import { SecureClient } from './tinfoil-browser.js';
+import {
+  clearTinfoilSecureFetchCache,
+  createTinfoilSecureFetch,
+} from '../js/tinfoil-secure-fetch.js';
 
 /** @typedef {{ fetch: typeof fetch, verification: any }} PpqPrivateFetch */
 
@@ -23,27 +26,25 @@ export async function createPpqPrivateFetch(opts = {}) {
   const apiBase = normalizeApiBase(opts.apiBase);
   if (!cachedClient || cachedApiBase !== apiBase) {
     cachedApiBase = apiBase;
-    cachedClient = new SecureClient({
-      baseURL: `${apiBase}/private/`,
+    cachedReady = createTinfoilSecureFetch({
+      baseUrl: `${apiBase}/private/`,
       attestationBundleURL: `${apiBase}/private`,
-      transport: 'ehbp',
     });
-    cachedReady = cachedClient.ready();
   }
   try {
-    await cachedReady;
+    cachedClient = await cachedReady;
   } catch (e) {
     clearPpqPrivateClient();
     throw e;
   }
   return {
     fetch: cachedClient.fetch,
-    verification: cachedClient.getVerificationDocument?.() || null,
+    verification: cachedClient.verification || null,
   };
 }
 
 export function clearPpqPrivateClient() {
-  try { cachedClient?.reset?.(); } catch {}
+  clearTinfoilSecureFetchCache();
   cachedClient = null;
   cachedApiBase = '';
   cachedReady = null;

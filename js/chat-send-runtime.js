@@ -27,7 +27,10 @@ function getRuntimeValue(name) {
 
 /** @param {string} provider */
 export function getChatSendProviderAttestation(provider) {
-  return getRuntimeValue(provider === 'ppq' ? '_ppqAttestation' : '_veniceAttestation');
+  const key = provider === 'ppq' ? '_ppqAttestation'
+    : provider === 'routstr' ? '_routstrAttestation'
+    : '_veniceAttestation';
+  return getRuntimeValue(key);
 }
 
 export function isChatSendProductRecsEnabled() {

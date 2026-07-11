@@ -30,6 +30,8 @@ const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
 const apiPpqSrc = read('js/api-ppq.js');
 const rendererSrc = read('js/provider-panel-renderers.js');
 const delegatesSrc = read('js/provider-panel-delegates.js');
+const tinfoilModule = await import('../vendor/tinfoil-browser.js');
+const ehbpModule = await import('../vendor/ehbp-browser.js');
 
 console.log('1. Extraction boundary');
 assert('PPQ panel module exists', ppqSrc.includes('provider-ppq-panels.js'));
@@ -75,7 +77,8 @@ assert('PPQ model fetch rerenders panel when private controls become available',
 assert('PPQ model fetch rerender only touches the PPQ panel', ppqSrc.includes("panel.querySelector('#ppq-model-area')"));
 assert('PPQ panel rerender refreshes balance on the new DOM', ppqSrc.includes('if (rerendered) _refreshPpqBalanceDisplay();'));
 assert('PPQ private transport wrapper exists', read('vendor/ppq-private-tee.js').includes('createPpqPrivateFetch'));
-assert('PPQ Tinfoil browser bundle exists', read('vendor/tinfoil-browser.js').includes('var SecureClient = class'));
+assert('Tinfoil browser bundle exports SecureClient', typeof tinfoilModule.SecureClient === 'function');
+assert('EHBP browser bundle exports request primitives', typeof ehbpModule.Identity === 'function' && typeof ehbpModule.decryptResponseWithToken === 'function');
 
 console.log('\n3. Runtime exports');
 assert('window.handleCreatePpqAccount exported', typeof window.handleCreatePpqAccount === 'function');
@@ -88,7 +91,10 @@ assert('window.cancelPpqTopup exported', typeof window.cancelPpqTopup === 'funct
 
 console.log('\n4. App shell');
 assert('service worker caches PPQ module', swSrc.includes("'/js/provider-ppq-panels.js'"));
-assert('service worker caches PPQ private TEE vendor files', swSrc.includes("'/vendor/ppq-private-tee.js'") && swSrc.includes("'/vendor/tinfoil-browser.js'"));
+assert('service worker caches private TEE vendor files',
+  swSrc.includes("'/vendor/ppq-private-tee.js'")
+    && swSrc.includes("'/vendor/tinfoil-browser.js'")
+    && swSrc.includes("'/vendor/ehbp-browser.js'"));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

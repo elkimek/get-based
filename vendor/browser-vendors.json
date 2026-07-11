@@ -1,15 +1,37 @@
 {
-  "schemaVersion": 1,
-  "runtime": {
-    "package": "@cashu/cashu-ts",
-    "version": "4.7.0",
-    "integrity": "sha512-u/R9nHCBFugQeTKf1NCZscKp6Zblo3ubX8mFA0Ar8+lpGaHSndWmsQUsSQ7vrNGmdGtqOTMiR7hErEqVCVOY+A==",
-    "entry": "scripts/vendor-entries/cashu.js",
-    "output": "vendor/cashu-ts.js",
-    "format": "iife",
-    "minified": true,
-    "sha256": "868680ab602d796e724ff3f2b482715c0ec2ea7cf3bf97ee770736a60a111e63"
-  },
+  "schemaVersion": 2,
+  "runtimes": [
+    {
+      "package": "@cashu/cashu-ts",
+      "version": "4.7.0",
+      "integrity": "sha512-u/R9nHCBFugQeTKf1NCZscKp6Zblo3ubX8mFA0Ar8+lpGaHSndWmsQUsSQ7vrNGmdGtqOTMiR7hErEqVCVOY+A==",
+      "entry": "scripts/vendor-entries/cashu.js",
+      "output": "vendor/cashu-ts.js",
+      "format": "iife",
+      "minified": true,
+      "sha256": "868680ab602d796e724ff3f2b482715c0ec2ea7cf3bf97ee770736a60a111e63"
+    },
+    {
+      "package": "tinfoil",
+      "version": "1.1.7",
+      "integrity": "sha512-vzxv96ELF2TCxD1lRoquHExZMdHTQqBA8q6DDZOkDhf2grl2XoKzXK+pUDOo02inQBa+mya+wOzYdT1JHqbumg==",
+      "entry": "scripts/vendor-entries/tinfoil.js",
+      "output": "vendor/tinfoil-browser.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "341cf3c4baeef05be9414d8408c10d253e381c614587ae28e621f4b95c027973"
+    },
+    {
+      "package": "ehbp",
+      "version": "0.2.3",
+      "integrity": "sha512-f7iLlhGpeE5xNOYASR3d529PzmBD7Pq5Yb/z0R7vQcxalwNuVTHhX6i4wDJRIVai18MznwoOQ3OWyT/EWaDJ3w==",
+      "entry": "scripts/vendor-entries/ehbp.js",
+      "output": "vendor/ehbp-browser.js",
+      "format": "es",
+      "minified": true,
+      "sha256": "c804562508342d94532e61c1a2c69ff407bdbdeccaa67cef564cbbf5193cef9c"
+    }
+  ],
   "bundler": {
     "package": "rolldown",
     "version": "1.0.3",

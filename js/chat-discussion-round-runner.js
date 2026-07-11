@@ -95,7 +95,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
       const responseTruncated = isAIResponseTruncated(aiResult);
-      const attestation = getChatProviderAttestation('venice');
+      const attestation = getChatProviderAttestation(request.provider);
 
       typewriter.stop();
       renderFinalDiscussionMessage({

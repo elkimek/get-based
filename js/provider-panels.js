@@ -9,7 +9,7 @@ import {
   getRoutstrKey, saveRoutstrKey,
   fetchRoutstrModels, validateRoutstrKey, createRoutstrAccount,
   setAIPaused,
-  setCustomApiModel, setOllamaMainModel, setPpqModel, setRoutstrModel,
+  setCustomApiModel, setOllamaMainModel, setPpqModel,
   getVeniceE2EE,
   getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey,
   fetchCustomApiModels, validateCustomApiKey,
@@ -17,6 +17,7 @@ import {
 } from './api.js';
 import { updateKeyCache, encryptedSetItem } from './crypto.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import {
@@ -32,14 +33,15 @@ import {
 import {
   applyCustomApiManualModel,
   applyCustomOpenRouterModel,
-  onOpenRouterDropdownChange,
-  onVeniceModelDropdownChange,
+  onOpenRouterDropdownChange, onRoutstrModelDropdownChange, onVeniceModelDropdownChange,
+  refreshRoutstrPrivateControls,
   renderCustomApiModelDropdown,
   renderOpenRouterModelDropdown,
   renderPpqModelDropdown,
   renderRoutstrModelDropdown,
   renderVeniceModelDropdown,
   togglePpqPrivateMode,
+  toggleRoutstrPrivateMode,
   toggleVeniceE2EE,
   updateCustomModelPricing,
   updateOpenRouterModelPricing,
@@ -252,7 +254,10 @@ export function initSettingsModelFetch() {
   }
   const rsKey = getRoutstrKey();
   if (rsKey && document.getElementById('routstr-model-area')) {
-    fetchRoutstrModels().then(function(models) { if (models.length) renderRoutstrModelDropdown(models); });
+    fetchRoutstrModels().then(function(models) {
+      if (models.length) renderRoutstrModelDropdown(models);
+      refreshRoutstrPrivateControls();
+    });
     refreshRoutstrBalance();
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
@@ -615,10 +620,7 @@ export async function handleSaveRoutstrKey() {
 export function handleRemoveRoutstrKey() {
   localStorage.removeItem('labcharts-routstr-key');
   updateKeyCache('labcharts-routstr-key', null);
-  localStorage.removeItem('labcharts-routstr-models');
-  localStorage.removeItem('labcharts-routstr-model');
-  localStorage.removeItem('labcharts-routstr-pricing');
-  localStorage.removeItem('labcharts-routstr-vision-models');
+  clearRoutstrModelCaches();
   showNotification('Routstr key removed', 'info');
   callProviderPanelRuntime('openSettingsModal');
 }
@@ -701,10 +703,10 @@ installProviderPanelDelegates({
   handleRemoveCustomApi,
   testOllamaConnection,
   onOpenRouterDropdownChange,
-  setRoutstrModel,
-  updateRoutstrModelPricing,
+  onRoutstrModelDropdownChange,
   onVeniceModelDropdownChange,
   toggleVeniceE2EE,
+  toggleRoutstrPrivateMode,
   togglePpqPrivateMode,
   setPpqModel,
   updatePpqModelPricing,
@@ -714,7 +716,6 @@ installProviderPanelDelegates({
   refreshModelAdvisor,
   applyCustomOpenRouterModel
 });
-
 
 // ═══════════════════════════════════════════════
 // WINDOW EXPORTS (for HTML onclick handlers)

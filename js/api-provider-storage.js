@@ -238,9 +238,41 @@ export function setRoutstrModel(model) {
 }
 export function getRoutstrModelDisplay() {
   const id = getRoutstrModel();
-  const cached = readStoredArray('labcharts-routstr-models');
+  const cached = [
+    ...readStoredArray('labcharts-routstr-models'),
+    ...readStoredArray('labcharts-routstr-private-models'),
+  ];
   const m = cached.find(function(x) { return x.id === id; });
   return m ? (m.name || m.id) : id;
+}
+export function isRoutstrTinfoilModel(modelId) {
+  return typeof modelId === 'string' && modelId.startsWith('tinfoil-');
+}
+export function isRoutstrPrivateModeActive() {
+  return isRoutstrTinfoilModel(getRoutstrModel());
+}
+export function syncRoutstrModelSelection(regularModels, privateModels) {
+  const current = getRoutstrModel();
+  if (isRoutstrTinfoilModel(current)) {
+    if (privateModels.length && !modelListHasId(privateModels, current)) {
+      const saved = localStorage.getItem('labcharts-routstr-model-private');
+      const preferred = findPreferredStoredModel(privateModels, [
+        'tinfoil-gemma4-31b',
+        'tinfoil-kimi-k2-6',
+        'tinfoil-deepseek-v4-pro',
+        'tinfoil-glm-5-2',
+      ]);
+      const next = saved && modelListHasId(privateModels, saved) ? saved : (preferred?.id || privateModels[0].id);
+      setRoutstrModel(next);
+      localStorage.setItem('labcharts-routstr-model-private', next);
+    }
+    return;
+  }
+  if (regularModels.length && !modelListHasId(regularModels, current)) {
+    const saved = localStorage.getItem('labcharts-routstr-model-regular');
+    const next = saved && modelListHasId(regularModels, saved) ? saved : regularModels[0].id;
+    setRoutstrModel(next);
+  }
 }
 
 export function getPpqKey() { return getCachedKey('labcharts-ppq-key') || ''; }

@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const createTinfoilSecureFetchMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../js/tinfoil-secure-fetch.js', () => ({
+  createTinfoilSecureFetch: createTinfoilSecureFetchMock,
+  clearTinfoilSecureFetchCache: vi.fn(),
+}));
+
 vi.mock('../vendor/venice-e2ee.js', () => ({
   createVeniceE2EE: vi.fn(() => ({
     createSession: vi.fn(async () => ({
@@ -19,6 +26,8 @@ vi.mock('../vendor/venice-e2ee.js', () => ({
 import { updateKeyCache } from '../js/crypto.js';
 import {
   callClaudeAPI,
+  fetchRoutstrModels,
+  isRoutstrPrivateModeActive,
   setAIProvider,
   setCustomApiModel,
   setCustomApiUrl,
@@ -29,6 +38,7 @@ import {
   setRoutstrModel,
   setVeniceE2EE,
   setVeniceModel,
+  supportsVision,
 } from '../js/api.js';
 
 const realFetch = globalThis.fetch;
@@ -132,6 +142,12 @@ beforeEach(() => {
     apiKey: 'local-api-key',
   });
   globalThis.showInsufficientBalanceDialog = undefined;
+  delete globalThis._routstrAttestation;
+  createTinfoilSecureFetchMock.mockReset();
+  createTinfoilSecureFetchMock.mockResolvedValue({
+    verification: { securityVerified: true, codeFingerprint: 'verified-routstr-code' },
+    fetch: (...args) => globalThis.fetch(...args),
+  });
 });
 
 afterEach(() => {
@@ -376,6 +392,111 @@ describe('AI provider request contracts', () => {
       max_tokens: 16,
       stream: true,
       stream_options: { include_usage: true },
+    });
+  });
+
+  it('routes advertised Routstr Tinfoil models through attested EHBP with a plaintext model hint', async () => {
+    const secret = 'sk-routstr-private-contract';
+    setAIProvider('routstr');
+    updateKeyCache('labcharts-routstr-key', secret);
+    localStorage.setItem('labcharts-routstr-node', 'https://private-node.example/');
+    localStorage.setItem('labcharts-routstr-private-models', JSON.stringify([{ id: 'tinfoil-glm-5-2' }]));
+    setRoutstrModel('tinfoil-glm-5-2');
+
+    await expect(callClaudeAPI(baseChatOptions({ webSearch: true }))).resolves.toMatchObject({
+      text: 'contract ok',
+      usage: { inputTokens: 11, outputTokens: 13 },
+    });
+
+    expect(createTinfoilSecureFetchMock).toHaveBeenCalledWith({ baseUrl: 'https://private-node.example' });
+    const request = providerRequestFromFetchCall();
+    expect(request.url).toBe('https://private-node.example/v1/chat/completions');
+    expect(request.headers).toMatchObject({
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+      'X-Routstr-Model': 'tinfoil-glm-5-2',
+    });
+    expect(request.body).toMatchObject({ model: 'glm-5-2', max_tokens: 32 });
+    expect(request.body).not.toHaveProperty('plugins');
+    expect(globalThis._routstrAttestation).toMatchObject({ securityVerified: true });
+    expect(isRoutstrPrivateModeActive()).toBe(true);
+    expect(supportsVision()).toBe(false);
+  });
+
+  it('caps Routstr private output reservations and extends only the default request timeout', async () => {
+    setAIProvider('routstr');
+    updateKeyCache('labcharts-routstr-key', 'sk-routstr-reservation-contract');
+    localStorage.setItem('labcharts-routstr-node', 'https://private-node.example');
+    setRoutstrModel('tinfoil-glm-5-2');
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const options = baseChatOptions({ maxTokens: 16384 });
+    delete options.requestTimeoutMs;
+
+    await callClaudeAPI(options);
+
+    expect(providerRequestFromFetchCall().body).toMatchObject({ max_tokens: 4096 });
+    expect(timeoutSpy).toHaveBeenCalledWith(180000);
+    timeoutSpy.mockRestore();
+  });
+
+  it('reports failed private requests so visible Routstr balances can settle automatically', async () => {
+    setAIProvider('routstr');
+    updateKeyCache('labcharts-routstr-key', 'sk-routstr-failed-contract');
+    localStorage.setItem('labcharts-routstr-node', 'https://private-node.example');
+    setRoutstrModel('tinfoil-glm-5-2');
+    createTinfoilSecureFetchMock.mockResolvedValue({
+      verification: { securityVerified: true },
+      fetch: vi.fn(async () => { throw new TypeError('connection dropped'); }),
+    });
+    let settledDetail = null;
+    const listener = event => { settledDetail = event.detail; };
+    globalThis.addEventListener('labcharts-routstr-request-settled', listener);
+
+    await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow('temporary reservation');
+
+    globalThis.removeEventListener('labcharts-routstr-request-settled', listener);
+    expect(settledDetail).toMatchObject({ failed: true, modelId: 'tinfoil-glm-5-2' });
+  });
+
+  it('explains a long encrypted connection failure without retrying the billable request', async () => {
+    setAIProvider('routstr');
+    updateKeyCache('labcharts-routstr-key', 'sk-routstr-slow-contract');
+    localStorage.setItem('labcharts-routstr-node', 'https://private-node.example');
+    setRoutstrModel('tinfoil-glm-5-2');
+    let now = 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const secureFetch = vi.fn(async () => {
+      now = 62000;
+      throw new TypeError('Failed to fetch');
+    });
+    createTinfoilSecureFetchMock.mockResolvedValue({
+      verification: { securityVerified: true },
+      fetch: secureFetch,
+    });
+
+    await expect(callClaudeAPI(baseChatOptions())).rejects.toThrow(
+      'encrypted Routstr connection ended after 61s before tinfoil-glm-5-2 returned a response'
+    );
+    expect(secureFetch).toHaveBeenCalledOnce();
+  });
+
+  it('separates node-advertised Routstr Tinfoil models from the regular catalog', async () => {
+    localStorage.setItem('labcharts-routstr-node', 'https://catalog.example');
+    globalThis.fetch = vi.fn(async () => jsonResponse({ data: [
+      { id: 'claude-sonnet-5', name: 'Claude', enabled: true, pricing: { prompt: '0.000001', completion: '0.000002' } },
+      { id: 'tinfoil-glm-5-2', name: 'Private GLM', enabled: true, pricing: { prompt: '0.000003', completion: '0.000004' } },
+      { id: 'tinfoil-disabled', name: 'Disabled', enabled: false },
+    ] }));
+
+    await expect(fetchRoutstrModels()).resolves.toEqual([
+      expect.objectContaining({ id: 'claude-sonnet-5' }),
+    ]);
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-private-models'))).toEqual([
+      expect.objectContaining({ id: 'tinfoil-glm-5-2' }),
+    ]);
+    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))).toMatchObject({
+      'claude-sonnet-5': { input: 1, output: 2 },
+      'tinfoil-glm-5-2': { input: 3, output: 4 },
     });
   });
 

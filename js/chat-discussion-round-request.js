@@ -5,7 +5,7 @@ import { CHAT_SYSTEM_PROMPT } from './constants.js';
 import { trackUsage } from './schema.js';
 import {
   getAIProvider, getActiveModelId, getActiveModelDisplay, supportsWebSearch,
-  isVeniceE2EEActive,
+  isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive,
 } from './api.js';
 import { buildLabContext, injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
@@ -32,7 +32,9 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   const provider = getAIProvider();
   const modelId = getActiveModelId(provider);
   const modelDisplay = getActiveModelDisplay(provider);
-  const e2ee = provider === 'venice' && isVeniceE2EEActive();
+  const e2ee = (provider === 'venice' && isVeniceE2EEActive())
+    || (provider === 'ppq' && isPpqPrivateModeActive())
+    || (provider === 'routstr' && isRoutstrPrivateModeActive());
   const webSearchSupported = supportsWebSearch(provider);
   const webSearch = getChatWebSearchEnabled() && webSearchSupported;
 

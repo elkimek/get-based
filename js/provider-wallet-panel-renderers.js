@@ -18,6 +18,20 @@ export function walletSeedOnboardingHtml(mnemonic) {
   </div>`;
 }
 
+export function routstrNodePickerRowHtml(node) {
+  const url = node.urls[0] || '';
+  const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
+  const label = escapeHTML(node.name || domain);
+  const models = node.modelCount + ' model' + (node.modelCount !== 1 ? 's' : '');
+  const hasPrivateTee = (node.models || []).some(model => String(model.id || '').startsWith('tinfoil-'));
+  const privateTee = hasPrivateTee ? ' <span style="font-size:9px;color:var(--green);font-weight:600">&#128274; Private TEE</span>' : '';
+  const onion = node.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+    <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}${privateTee}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
+    <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="connect-node" data-node-url="${escapeAttr(url)}">Connect</button>
+  </div>`;
+}
+
 export function walletSeedManagementHtml(mnemonic) {
   return `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>

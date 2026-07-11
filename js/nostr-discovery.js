@@ -9,6 +9,7 @@ import {
   dispatchAISettingsLocalChangedRuntime,
   touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
+import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
@@ -216,6 +217,7 @@ export function setSelectedNodeUrl(url) {
     if (typeof console !== 'undefined') console.warn('[Nostr] Refusing Routstr node URL — must be public https://', url);
     return;
   }
+  if (getSelectedNodeUrl() !== url) clearRoutstrModelCaches();
   localStorage.setItem('labcharts-routstr-node', url);
   touchRoutstrSessionClock();
   dispatchAISettingsLocalChangedRuntime();
