@@ -14,16 +14,19 @@
     "test:playwright": "playwright test",
     "typecheck": "tsc -p tsconfig.json",
     "typecheck:checkjs": "tsc -p tsconfig.checkjs.json",
+    "vendor:build": "node scripts/build-browser-vendors.mjs",
+    "vendor:check": "node scripts/build-browser-vendors.mjs --check",
     "test:watch": "vitest",
     "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.js",
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs"
   },
   "devDependencies": {
-    "@cashu/cashu-ts": "4.6.1",
+    "@cashu/cashu-ts": "4.7.0",
     "@playwright/test": "^1.60.0",
     "@vitest/coverage-v8": "^4.1.8",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
+    "rolldown": "1.0.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },

@@ -667,10 +667,12 @@ async function _importDatabaseBundle(json) {
   // Switch to the first imported profile (so user lands on real data, not empty default)
   const targetId = firstImportedId || state.currentProfile;
   await loadProfile(targetId);
-  // Restore Cashu wallet settings if present (mnemonic not included — user restores via seed phrase)
+  // Legacy bundles may include wallet identity fields. Deliberately restore
+  // only the Routstr node: a seed or mint without proofs/counters/recovery
+  // state is not a safe wallet backup.
   if (json.wallet) {
     try {
-      await restoreWalletBundleSettings(json.wallet); // supports legacy bundles that included mnemonic
+      await restoreWalletBundleSettings(json.wallet);
     } catch (e) {
       if (isDebugMode()) console.log('[import] Wallet restore failed:', e.message);
     }

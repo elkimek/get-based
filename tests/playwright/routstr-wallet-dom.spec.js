@@ -65,6 +65,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
 
     let currentMint = 'https://mint-old.example';
+    let walletBalance = 1500;
     let setMintUrl = null;
     let depositArgs = null;
     let recoverCalled = false;
@@ -108,7 +109,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         return oldGlobals.fetch.call(window, url, opts);
       };
 
-      window.cashuGetBalance = async () => 1500;
+      window.cashuGetBalance = async () => walletBalance;
       window.cashuGetMintUrl = async () => currentMint;
       window.cashuSetMintUrl = async url => {
         setMintUrl = url;
@@ -219,9 +220,19 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       await window.connectRoutstrNode(nodeUrl);
       await wait(100);
-      const connectSwitchesMint = setMintUrl === 'https://mint-required.example';
+      const fundedWalletRefusesMintSwitch = setMintUrl === null
+        && currentMint === 'https://mint-old.example'
+        && document.getElementById('routstr-node-picker')?.style.display === 'none';
+
+      walletBalance = 0;
+      await window.connectRoutstrNode(nodeUrl);
+      await wait(100);
+      const emptyWalletSwitchesMint = setMintUrl === 'https://mint-required.example';
+
+      walletBalance = 1500;
+      await window.connectRoutstrNode(nodeUrl);
+      await wait(100);
       const connectRendersDepositPicker = !!document.getElementById('routstr-deposit-amount');
-      const mintSwitchWarningVisible = (document.getElementById('routstr-node-picker')?.textContent || '').includes('Mint switched');
 
       await window.doRoutstrNodeDeposit(nodeUrl, 500);
       await wait(150);
@@ -331,9 +342,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       return {
         walletRenders,
         nodeBalanceRenders,
-        connectSwitchesMint,
+        fundedWalletRefusesMintSwitch,
+        emptyWalletSwitchesMint,
         connectRendersDepositPicker,
-        mintSwitchWarningVisible,
         depositUsesSessionKey,
         depositFailureChecksRecovery,
         depositFailureShowsRecovery,

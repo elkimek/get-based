@@ -24,8 +24,6 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-ollama-model',
   'labcharts-ollama-pii-url',
   'labcharts-ollama-pii-model',
-  'labcharts-cashu-wallet-mnemonic',  // Wallet seed (encrypted)
-  'labcharts-cashu-wallet-mint',       // Wallet mint URL
   'labcharts-routstr-node',           // Selected Routstr node
   'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)
   'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)

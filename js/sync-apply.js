@@ -39,7 +39,7 @@ function shouldKeepLocalAISetting(key) {
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
 }
 
-const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-cashu-wallet-mnemonic', 'labcharts-lens-key', 'labcharts-custom-key'];
+const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-lens-key', 'labcharts-custom-key'];
 
 /** @param {Record<string, any> | null | undefined} settings */
 export async function applyAISettings(settings) {

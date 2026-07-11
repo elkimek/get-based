@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "runtime": {
+    "package": "@cashu/cashu-ts",
+    "version": "4.7.0",
+    "integrity": "sha512-u/R9nHCBFugQeTKf1NCZscKp6Zblo3ubX8mFA0Ar8+lpGaHSndWmsQUsSQ7vrNGmdGtqOTMiR7hErEqVCVOY+A==",
+    "entry": "scripts/vendor-entries/cashu.js",
+    "output": "vendor/cashu-ts.js",
+    "format": "iife",
+    "minified": true,
+    "sha256": "868680ab602d796e724ff3f2b482715c0ec2ea7cf3bf97ee770736a60a111e63"
+  },
+  "bundler": {
+    "package": "rolldown",
+    "version": "1.0.3",
+    "integrity": "sha512-i00lAJ2ks1BYr7rjNjKC7BcqAS7nVfiT3QX1SI5aY+AFHblCmaUf9OE9dbdzDvW6dJxbi2ZCZiy9v3CcwOiX3g=="
+  }
+}

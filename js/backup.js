@@ -89,7 +89,7 @@ const GLOBAL_SETTINGS_KEYS = [
   'labcharts-venice-model', 'labcharts-openrouter-model', 'labcharts-routstr-model', 'labcharts-ppq-model',
   'labcharts-ollama', 'labcharts-ollama-model',
   'labcharts-ollama-pii-url', 'labcharts-ollama-pii-model',
-  'labcharts-cashu-wallet-mnemonic', 'labcharts-cashu-wallet-mint', 'labcharts-routstr-node',
+  'labcharts-routstr-node',
   'labcharts-time-format', 'labcharts-theme', 'labcharts-sunset-mode', 'labcharts-crt-effects', 'labcharts-debug',
   'labcharts-pii-review', 'labcharts-ollama-pii-enabled', 'labcharts-chat-sources',
   'labcharts-active-profile'

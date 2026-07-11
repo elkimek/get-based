@@ -271,10 +271,11 @@ export async function buildAllDataBundle() {
     if (chat) entry.chat = chat;
     bundle.profiles.push(entry);
   }
-  // Include Cashu wallet settings (mnemonic excluded for security — restore via seed phrase)
-  const { mintUrl: walletMintUrl, nodeUrl: walletNodeUrl } = await getWalletBundleSettings();
-  if (walletMintUrl || walletNodeUrl) {
-    bundle.wallet = { mintUrl: walletMintUrl, nodeUrl: walletNodeUrl };
+  // Wallet identity and proofs are deliberately excluded: exporting only a
+  // seed or mint would create an incomplete and unsafe wallet backup.
+  const { nodeUrl: walletNodeUrl } = await getWalletBundleSettings();
+  if (walletNodeUrl) {
+    bundle.wallet = { nodeUrl: walletNodeUrl };
   }
   return JSON.stringify(bundle, null, 2);
 }
@@ -299,8 +300,8 @@ export async function exportAllDataJSON() {
 export async function clearAllData() {
   const profiles = getProfiles();
   const msg = profiles.length > 1
-    ? `Clear ALL data across ${profiles.length} profiles? This cannot be undone.`
-    : 'Are you sure you want to clear all imported data? This cannot be undone.';
+    ? `Clear ALL data across ${profiles.length} profiles, including the Cashu wallet balance and seed? This cannot be undone.`
+    : 'Clear all imported data, including the Cashu wallet balance and seed? This cannot be undone.';
   if (await showConfirmDialog(msg)) {
     // Wipe storage for every profile
     for (const p of profiles) {

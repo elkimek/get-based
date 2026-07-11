@@ -40,6 +40,8 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       constructor(url, opts = {}) {
         this.url = url;
         this.opts = opts;
+        this.keyChain = { getKeysets: () => [{ id: 'browser-keyset' }] };
+        this.counters = { advanceToAtLeast: async () => {} };
         state.instances.push(this);
       }
 
@@ -108,6 +110,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       MintQuoteState: { PAID: 'PAID' },
       sumProofs,
       getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
+      getTokenMetadata: () => ({ mint: 'https://mint.browser-wallet.test/Bitcoin', unit: 'sat' }),
     };
     window.bip39 = {
       generateMnemonic: async () => 'abandon ability able about above absent absorb abstract absurd abuse access accident',
@@ -194,9 +197,12 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
 
       const exportedBeforeSend = await wallet.exportWallet();
       const sent = await wallet.sendAsToken(4);
+      const pendingSentToken = await wallet.recoverPendingWithdraw();
       outcomes.exportAndSend = exportedBeforeSend.includes('minted-mint-7')
         && sent.amount === 4
-        && sent.remaining === 13;
+        && sent.remaining === 13
+        && pendingSentToken === sent.token;
+      await wallet.clearPendingWithdraw();
 
       try {
         await wallet.depositToNode('https://node.wallet-browser.test///', 5, 'sk-existing');
@@ -253,8 +259,9 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       outcomes.clearPendingWithdraw = await wallet.recoverPendingWithdraw() === null;
       state.failMelt = false;
 
+      const balanceBeforeRestore = await wallet.getWalletBalance();
       const restore = await wallet.restoreWalletFromSeed(generated.mnemonic);
-      outcomes.restoreUsesSeed = restore.balance === 7
+      outcomes.restoreUsesSeedWithoutDeletingExistingFunds = restore.balance === balanceBeforeRestore + 7
         && restore.restoredCount === 7
         && state.instances.some(instance => instance.opts?.counterSource);
 
@@ -372,6 +379,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
       Wallet,
       sumProofs,
       getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
+      getTokenMetadata: () => ({ mint: 'https://mint.fee-coverage.test/Bitcoin', unit: 'sat' }),
     };
     window.bip39 = oldGlobals.bip39 || {};
     window.showNotification = () => {};

@@ -1104,7 +1104,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       const activeClientExport = JSON.parse(downloadRecords[0].text);
       const chatClientExport = JSON.parse(downloadRecords[1].text);
       const allDataBundle = JSON.parse(downloadRecords[2].text);
-      outcomes.downloadsIncludeActiveClientChatBundleAndWallet = downloadRecords.length === 3
+      outcomes.downloadsIncludeActiveClientChatAndNonSecretWalletSettings = downloadRecords.length === 3
         && downloadRecords[0].download.includes('getbased-export-facade')
         && activeClientExport.profile.name === 'Export Facade'
         && activeClientExport.entries[0].markers['biochemistry.glucose'] === 5.8
@@ -1115,8 +1115,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && allDataBundle.type === 'database'
         && allDataBundle.profiles.length === 1
         && allDataBundle.profiles[0].chat.threads[0].id === 'thread-one'
-        && allDataBundle.wallet.mintUrl === 'https://mint.example'
         && allDataBundle.wallet.nodeUrl === 'wss://relay.example'
+        && !Object.prototype.hasOwnProperty.call(allDataBundle.wallet, 'mintUrl')
         && revokedUrls.length === 3;
 
       class ErrorFileReader {
@@ -1169,10 +1169,11 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && singleThreads[0]?.id === 'single-thread'
         && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach';
 
+      let restoredMintUrl = null;
       Object.defineProperty(window, 'cashuSetMintUrl', {
         configurable: true,
         writable: true,
-        value: async () => {},
+        value: async url => { restoredMintUrl = url; },
       });
       Object.defineProperty(window, 'nostrSetSelectedNode', {
         configurable: true,
@@ -1243,7 +1244,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && mergedData.contextSourceSettings?.['lab-group-Fatty Acids'] === true
         && mergedData.contextSourceSettings?.['lab-group-Specialty Panel'] === false
         && mergedThreads.some(thread => thread.id === 'bundle-thread')
-        && !!newBundleProfile;
+        && !!newBundleProfile
+        && restoredMintUrl === null;
 
       const clearPromise = exportFacade.clearAllData();
       const cancelButton = await waitFor(() => document.getElementById('confirm-cancel'), 'clear data cancel button');

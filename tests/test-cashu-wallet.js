@@ -66,6 +66,14 @@ const exportSrc = await fetchWithRetry('js/export.js');
 const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
 const swSrc = await fetchWithRetry('service-worker.js');
 const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
+const canaryRoundtripSrc = canarySrc.slice(
+  canarySrc.indexOf('async function tokenRoundtripAndSeedRestore()'),
+  canarySrc.indexOf('async function seedRestoreSmoke(')
+);
+const canarySeedRestoreSrc = canarySrc.slice(
+  canarySrc.indexOf('async function seedRestoreSmoke('),
+  canarySrc.indexOf("if (phase === 'setup')")
+);
 
 // ═══════════════════════════════════════
 // 1. CASHU WALLET — MODULE EXPORTS
@@ -133,14 +141,19 @@ assert('Legacy untagged proofs migrated', walletSrc.includes('_migrateUntaggedPr
 assert('Fee proofs stored separately', walletSrc.includes('STORE_FEES'));
 assert('Fee proofs migrated from localStorage', walletSrc.includes("localStorage.getItem('cashu-fee-proofs')"));
 assert('Counter source persisted for deterministic wallet', walletSrc.includes('counterSource') && walletSrc.includes("'counter:'"));
-assert('Counter has per-keyset locking', walletSrc.includes('withLock(keysetId'));
+assert('Counter reservations use atomic IndexedDB transactions',
+  walletSrc.includes("db.transaction(STORE_META, update ? 'readwrite' : 'readonly')") &&
+  walletSrc.includes('current + count'));
 
 // ═══════════════════════════════════════
 // 5. CASHU WALLET — DEPOSIT RECOVERY
 // ═══════════════════════════════════════
 console.log('5. Deposit/Withdraw Recovery');
 
-assert('Pending deposit saved BEFORE node call', walletSrc.includes("_setMeta('pendingDeposit', token)"));
+const depositFnSrc = walletSrc.slice(walletSrc.indexOf('export async function depositToNode'));
+assert('Pending deposit saved BEFORE node call',
+  depositFnSrc.includes("_setMeta('pendingDeposit', pendingDeposit)") &&
+  depositFnSrc.indexOf("_setMeta('pendingDeposit', pendingDeposit)") < depositFnSrc.indexOf('fetch(nodeUrl'));
 assert('Pending deposit cleared after success', walletSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
 const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNodeWithdraw');
@@ -225,11 +238,14 @@ assert('No unguarded getRoutstrNodeUrl().replace in API calls', rawNodeUrlCalls 
 // ═══════════════════════════════════════
 console.log('11. Sync Integration');
 
-assert('Wallet mnemonic in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
-assert('Wallet mint in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mint'"));
+assert('Wallet mnemonic excluded from generic settings sync', !syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
+assert('Wallet mint excluded from generic settings sync', !syncPayloadCollectorsSrc.includes("'labcharts-cashu-wallet-mint'"));
 assert('Node URL in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labcharts-routstr-node'"));
-assert('Mnemonic in ENCRYPTED_AI_KEYS', syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
-assert('Wallet keys in GLOBAL_SETTINGS_KEYS', backupSrc.includes("'labcharts-cashu-wallet-mint'") && backupSrc.includes("'labcharts-routstr-node'"));
+assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
+assert('Generic backup excludes wallet identity but keeps node preference',
+  !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&
+  !backupSrc.includes("'labcharts-cashu-wallet-mnemonic'") &&
+  backupSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
 // 12. EXPORT/IMPORT INTEGRATION
@@ -238,10 +254,10 @@ console.log('12. Export/Import Integration');
 
 assert('Bundle includes wallet settings', exportSrc.includes('bundle.wallet'));
 const exportImportSrc = await fetchWithRetry('js/export-import.js');
-assert('Bundle restores mint URL through export runtime',
+assert('Bundle never restores incomplete wallet identity',
   exportImportSrc.includes('restoreWalletBundleSettings') &&
-  exportRuntimeSrc.includes('wallet.mintUrl') &&
-  exportRuntimeSrc.includes('cashuSetMintUrl'));
+  !exportRuntimeSrc.includes('wallet.mintUrl') &&
+  !exportRuntimeSrc.includes('wallet.mnemonic'));
 assert('Bundle restores node URL through export runtime',
   exportImportSrc.includes('restoreWalletBundleSettings') &&
   exportRuntimeSrc.includes('wallet.nodeUrl') &&
@@ -276,6 +292,15 @@ assert('Real-funds canary pending funding preflight is pure IDB inspection', can
 assert('Real-funds canary reset guard fails closed when wallet APIs are missing', canarySrc.includes('missing wallet APIs') && canarySrc.includes('Refusing to reset canary profile'));
 assert('Real-funds canary final state asserts clean pending/key invariants', canarySrc.includes('Final canary state is not clean') && canarySrc.includes('finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw'));
 assert('Real-funds canary avoids same persistent profile double-open during roundtrip', canarySrc.indexOf('await context.close();') < canarySrc.indexOf('const tokenRoundtrip = await tokenRoundtripAndSeedRestore();'));
+assert('Real-funds canary clears main sender journal before accepting confirmed return token',
+  canaryRoundtripSrc.includes('await window.cashuClearPendingWithdraw();\n        const recv = await window.cashuReceiveToken(token);'));
+assert('Real-funds canary clears second sender journal only after main receipt',
+  canaryRoundtripSrc.indexOf("if (!recovered.received) throw new Error('Return token receive failed')") <
+    canaryRoundtripSrc.indexOf('await second.page.evaluate(async () => window.cashuClearPendingWithdraw());'));
+assert('Real-funds canary passes the captured seed after closing the main profile',
+  canaryRoundtripSrc.includes('const seedRestore = await seedRestoreSmoke(seed);') &&
+    canarySeedRestoreSrc.includes('async function seedRestoreSmoke(seed)') &&
+    !canarySeedRestoreSrc.includes('openApp(USER_DATA_DIR)'));
 
 // ═══════════════════════════════════════
 // 15. VENDOR LIBRARIES

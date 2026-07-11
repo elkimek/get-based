@@ -351,8 +351,14 @@ export async function connectRoutstrNode(nodeUrl) {
   } catch {}
 
   const currentMint = await walletRuntime.cashuGetMintUrl();
+  const currentWalletBalance = await walletRuntime.cashuGetBalance();
   let mintSwitched = false;
   if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
+    if (currentWalletBalance > 0) {
+      showNotification('This node requires a different mint. Withdraw or back up the current wallet before switching.', 'error');
+      if (picker) picker.style.display = 'none';
+      return;
+    }
     try {
       await walletRuntime.cashuSetMintUrl(nodeMints[0]);
       mintSwitched = true;
@@ -366,7 +372,7 @@ export async function connectRoutstrNode(nodeUrl) {
     }
   }
 
-  const walletBalance = await walletRuntime.cashuGetBalance();
+  const walletBalance = mintSwitched ? await walletRuntime.cashuGetBalance() : currentWalletBalance;
   if (walletBalance < 1) {
     showNotification('Fund your wallet first' + (mintSwitched ? ' \u2014 mint was updated' : ''), 'error');
     showRoutstrWalletFund();
@@ -672,6 +678,9 @@ export async function doRoutstrSendToken(amount) {
       <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-textarea">${escapeHTML(result.token)}</textarea>
       <button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.token)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_tokenClipTimer">Copy Token</button>
     </div>`;
+    // The token is durably journaled before local proofs are replaced. Once it
+    // is visible in the DOM, normal UI recovery no longer needs that journal.
+    await walletRuntime.cashuClearPendingWithdraw?.();
     showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
