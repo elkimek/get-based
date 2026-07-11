@@ -254,6 +254,20 @@ async function loadWallet() {
   return import(/* @vite-ignore */ `../js/cashu-wallet.js?runtime=${importId++}`);
 }
 
+async function readCashuStore(storeName) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('getbased-cashu', 2);
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction(storeName, 'readonly');
+      const getAll = tx.objectStore(storeName).getAll();
+      getAll.onsuccess = () => { db.close(); resolve(getAll.result || []); };
+      getAll.onerror = () => { db.close(); reject(getAll.error); };
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
@@ -273,6 +287,68 @@ afterEach(() => {
 });
 
 describe('Cashu wallet runtime behavior', () => {
+  it('encrypts Cashu bearer state at rest and migrates it without changing wallet behavior', async () => {
+    const wallet = await loadWallet();
+    const store = await import('../js/cashu-wallet-store.js');
+    const cryptoModule = await import('../js/crypto.js');
+    const mint = 'https://mint.getbased.test/Bitcoin';
+    window.__WEARABLES_TEST = true;
+    try {
+      await wallet.setMintUrl(mint);
+      await wallet.generateWalletSeed();
+      await store._saveProofs([proof('wallet-bearer-secret', 9)], mint);
+      await store._saveFeeProofs([proof('fee-bearer-secret', 2)], mint);
+      await store._setMeta('pendingWithdraw', JSON.stringify({ token: 'cashu-sensitive-token', mint }));
+      await store._setMeta('pendingQuote:legacy-secret-quote', {
+        quote: 'legacy-secret-quote', amount: 12, mint,
+      });
+      await store._createCounterSource('encrypt-test', false).reserve('keyset-stub', 3);
+
+      expect((await readCashuStore('proofs'))[0].secret).toBe('wallet-bearer-secret');
+      expect((await readCashuStore('meta')).some(row => row.key === 'pendingQuote:legacy-secret-quote')).toBe(true);
+
+      localStorage.setItem('labcharts-encryption-enabled', 'true');
+      await cryptoModule._setTestSessionKey('CashuEncryptionPass1!');
+      await cryptoModule._migrateAllStorageForTest('encrypted');
+      await store._saveProofs([proof('new-encrypted-wallet-secret', 1)], mint);
+
+      const encryptedProofs = await readCashuStore('proofs');
+      const encryptedFees = await readCashuStore('fee-proofs');
+      const encryptedMeta = await readCashuStore('meta');
+      expect(encryptedProofs).toHaveLength(2);
+      expect(encryptedProofs.every(row => row.secret.startsWith('enc:v1:'))).toBe(true);
+      expect(JSON.stringify(encryptedProofs.map(row => row.secret))).not.toContain('wallet-secret');
+      expect(encryptedProofs.every(row => cryptoModule.isEncryptedObject(row._payload))).toBe(true);
+      expect(encryptedFees[0].secret).toMatch(/^enc:v1:/);
+      expect(cryptoModule.isEncryptedObject(encryptedFees[0]._payload)).toBe(true);
+      expect(encryptedMeta.find(row => row.key === 'pendingWithdraw')).not.toHaveProperty('value');
+      expect(cryptoModule.isEncryptedObject(encryptedMeta.find(row => row.key === 'pendingWithdraw')._payload)).toBe(true);
+      expect(encryptedMeta.some(row => row.key.includes('legacy-secret-quote'))).toBe(false);
+      expect(encryptedMeta.some(row => row.key.startsWith('pendingQuote:v2:'))).toBe(true);
+      expect(encryptedMeta.find(row => row.key.startsWith('counter:'))?.value).toBe(3);
+
+      await expect(wallet.getWalletBalance()).resolves.toBe(10);
+      await expect(store._getAllFeeProofs(mint)).resolves.toMatchObject([{ secret: 'fee-bearer-secret', amount: 2 }]);
+      await expect(store._getMeta('pendingWithdraw')).resolves.toContain('cashu-sensitive-token');
+      await expect(store._getMetaEntries('pendingQuote:')).resolves.toMatchObject([{
+        value: { quote: 'legacy-secret-quote', amount: 12, mint },
+      }]);
+
+      await cryptoModule._migrateAllStorageForTest('plain');
+      expect((await readCashuStore('proofs')).map(row => row.secret).sort()).toEqual([
+        'new-encrypted-wallet-secret', 'wallet-bearer-secret',
+      ]);
+      expect((await readCashuStore('fee-proofs'))[0].secret).toBe('fee-bearer-secret');
+      expect((await readCashuStore('meta')).find(row => row.key === 'pendingWithdraw')?.value).toContain('cashu-sensitive-token');
+    } finally {
+      try { await cryptoModule._migrateAllStorageForTest('plain'); } catch {}
+      localStorage.removeItem('labcharts-encryption-enabled');
+      try { await cryptoModule._setTestSessionKey(null); } catch {}
+      try { await wallet.destroyWalletDB(); } catch {}
+      delete window.__WEARABLES_TEST;
+    }
+  });
+
   it('stores mint and seed metadata while rejecting unsafe mint URLs', async () => {
     const wallet = await loadWallet();
 

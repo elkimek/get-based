@@ -219,7 +219,16 @@ export function getOpenRouterPricing(modelId) {
 }
 
 export function getRoutstrKey() { return getCachedKey('labcharts-routstr-key') || ''; }
-export async function saveRoutstrKey(key) { await encryptedSetItem('labcharts-routstr-key', key); updateKeyCache('labcharts-routstr-key', key); markAISettingsLocal(); }
+export function touchRoutstrSession() {
+  const previous = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0);
+  localStorage.setItem('labcharts-routstr-session-updated-at', String(Math.max(Date.now(), previous + 1)));
+  markAISettingsLocal();
+}
+export async function saveRoutstrKey(key) {
+  await encryptedSetItem('labcharts-routstr-key', key);
+  updateKeyCache('labcharts-routstr-key', key);
+  touchRoutstrSession();
+}
 export function hasRoutstrKey() { return !!getRoutstrKey(); }
 export function getRoutstrModel() { return localStorage.getItem('labcharts-routstr-model') || 'claude-sonnet-4.6'; }
 export function setRoutstrModel(model) {

@@ -14,7 +14,7 @@ import {
 } from './sync-pull-merge.js';
 import { maybeScheduleRebroadcast } from './sync-pull-rebroadcast.js';
 import { applyRemoteTombstones } from './sync-tombstones.js';
-import { clearRestoreJoinPending } from './sync-identity.js';
+import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.js';
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
@@ -129,6 +129,11 @@ export async function onSyncReceived() {
     if (!rawRows || rawRows.length === 0) return;
 
     const rows = await prepareSyncPullRows(rawRows);
+    // A restored device is joining an existing owner, so the relay's provider
+    // session must win over any stale local key/5-minute edit lock left by the
+    // browser before restore. Capture before the first profile merge clears
+    // the restore marker; AI settings are applied once after the row loop.
+    const preferRemoteAiSettings = isRestoreJoinPending();
 
     let profilesChanged = false;
     let latestAiSettings = null;
@@ -230,7 +235,7 @@ export async function onSyncReceived() {
     }
 
     // Apply AI settings once from the most recent row
-    if (latestAiSettings) await applyAISettings(latestAiSettings);
+    if (latestAiSettings) await applyAISettings(latestAiSettings, { preferRemote: preferRemoteAiSettings });
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {

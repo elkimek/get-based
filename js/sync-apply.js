@@ -1,9 +1,9 @@
 // @ts-check
 // sync-apply.js - apply inbound synced AI settings and display prefs.
 
-import { encryptedSetItem, encryptedGetItem } from './crypto.js';
+import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
 import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
-import { refreshSyncedAIProviderUiRuntime } from './sync-runtime.js';
+import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
 
 export {
   applyChatData, getChatDataLocalLockRemainingMs, markChatDataLocal,
@@ -12,6 +12,8 @@ export {
 const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
 const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
 const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
+const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
+const ROUTSTR_SESSION_KEYS = new Set(['labcharts-routstr-key', 'labcharts-routstr-node']);
 
 function hasLocalAISettingsLock() {
   try {
@@ -34,33 +36,66 @@ function shouldKeepLocalOpenRouterOAuthSetting(key) {
 }
 
 /** @param {string} key */
-function shouldKeepLocalAISetting(key) {
+function shouldKeepLocalAISetting(key, preferRemote = false) {
+  if (preferRemote) return false;
   return shouldKeepLocalOpenRouterOAuthSetting(key)
     || (AI_SETTINGS_KEYS.includes(key) && hasLocalAISettingsLock());
 }
 
 const ENCRYPTED_AI_KEYS = ['labcharts-openrouter-key', 'labcharts-venice-key', 'labcharts-routstr-key', 'labcharts-ppq-key', 'labcharts-ollama', 'labcharts-lens-key', 'labcharts-custom-key'];
 
-/** @param {Record<string, any> | null | undefined} settings */
-export async function applyAISettings(settings) {
+/** @param {Record<string, any> | null | undefined} settings
+ * @param {{ preferRemote?: boolean }} [options]
+ */
+export async function applyAISettings(settings, options = {}) {
   if (!settings) return;
   let changed = false;
+  let routstrSessionChanged = false;
+  const remoteRoutstrUpdatedAt = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
+  const localRoutstrUpdatedAt = Number(localStorage.getItem(ROUTSTR_SESSION_UPDATED_AT_KEY) || 0);
+  const remoteRoutstrIsNewer = Number.isFinite(remoteRoutstrUpdatedAt)
+    && remoteRoutstrUpdatedAt > localRoutstrUpdatedAt;
+  const localRoutstrIsNewer = Number.isFinite(localRoutstrUpdatedAt)
+    && localRoutstrUpdatedAt > remoteRoutstrUpdatedAt;
   for (const [key, val] of Object.entries(settings)) {
     if (!AI_SETTINGS_KEYS.includes(key)) continue;
-    if (typeof val !== 'string' || val.length > 10000) continue; // sanity check
-    if (shouldKeepLocalAISetting(key)) continue;
+    if (val !== null && (typeof val !== 'string' || val.length > 10000)) continue; // sanity check
+    const routstrSessionKey = ROUTSTR_SESSION_KEYS.has(key) || key === ROUTSTR_SESSION_UPDATED_AT_KEY;
+    // AI settings are global but are carried in every profile row. Once a
+    // clocked Routstr session lands, an older profile row with no clock (0)
+    // must not overwrite it with a legacy/stale key.
+    if (routstrSessionKey && localRoutstrIsNewer && options.preferRemote !== true) continue;
+    const preferRemoteSetting = options.preferRemote === true || (routstrSessionKey && remoteRoutstrIsNewer);
+    if (shouldKeepLocalAISetting(key, preferRemoteSetting)) continue;
     const before = await encryptedGetItem(key);
-    if (before === val) continue;
-    if (ENCRYPTED_AI_KEYS.includes(key)) {
+    const hasStoredValue = localStorage.getItem(key) !== null;
+    if (val === null ? before === '' && hasStoredValue : before === val) continue;
+    if (val === null) {
+      // Keep an empty stored value so subsequent pushes preserve the deletion
+      // tombstone instead of allowing an older peer to resurrect the key.
+      if (ENCRYPTED_AI_KEYS.includes(key)) {
+        await encryptedSetItem(key, '');
+        updateKeyCache(key, '');
+      } else {
+        localStorage.setItem(key, '');
+      }
+    } else if (ENCRYPTED_AI_KEYS.includes(key)) {
       await encryptedSetItem(key, val);
+      // Provider accessors are synchronous and read the decrypted in-memory
+      // cache. A key pulled after startup must update that cache immediately;
+      // otherwise they receive the on-disk `v1:` ciphertext wrapper until the
+      // next full reload and Routstr appears unsynced on the receiving device.
+      updateKeyCache(key, val);
     } else {
       localStorage.setItem(key, val);
     }
     changed = true;
+    if (routstrSessionKey) routstrSessionChanged = true;
   }
   if (changed) {
     refreshSyncedAIProviderUiRuntime();
   }
+  if (routstrSessionChanged) refreshSyncedRoutstrBalanceRuntime();
 }
 
 /** @param {string} profileId

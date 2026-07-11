@@ -59,6 +59,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'labcharts-routstr-models',
       'labcharts-routstr-pricing',
       'labcharts-routstr-vision-models',
+      'labcharts-routstr-session-updated-at',
       'labcharts-cashu-wallet-mint',
     ];
     const oldStorage = {};
@@ -217,6 +218,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       const walletRenders = !!document.getElementById('routstr-wallet-balance');
       const nodeBalanceRenders = (document.getElementById('routstr-node-balance')?.textContent || '').includes('777');
+      const fundedLegacySessionGetsSyncClock = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0) > 0;
+      const unseededWalletStatusRenders = (document.getElementById('routstr-wallet-device-status')?.textContent || '').includes('No 12-word wallet seed');
 
       await window.connectRoutstrNode(nodeUrl);
       await wait(100);
@@ -249,6 +252,15 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-dom');
       await window.doRoutstrNodeWithdraw();
+      await wait(50);
+      const refundBlockedUntilSeedAck = !refundCalled
+        && !!document.getElementById('routstr-seed-continue');
+      const refundSeedAck = document.getElementById('routstr-seed-ack');
+      if (refundSeedAck) {
+        refundSeedAck.checked = true;
+        refundSeedAck.dispatchEvent(new Event('change', { bubbles: true }));
+        window.walletSeedAcknowledged();
+      }
       await wait(150);
       const refundUsesSessionKey = refundCalled;
       const refundPersistsTokenBeforeReceive = savedPendingWithdraw?.token === 'cashuArefundtoken'
@@ -262,6 +274,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(50);
       const restoreInput = document.getElementById('routstr-restore-seed');
       const restoreTextareaRenders = !!restoreInput;
+      const unseededSetupExplainsMnemonicSplit = (document.getElementById('routstr-wallet-fund-area')?.textContent || '').includes('24-word Data Sync mnemonic')
+        && !!document.querySelector('[data-routstr-wallet-action="setup-wallet-seed"]');
       if (restoreInput) {
         restoreInput.value = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
       }
@@ -342,6 +356,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       return {
         walletRenders,
         nodeBalanceRenders,
+        fundedLegacySessionGetsSyncClock,
+        unseededWalletStatusRenders,
         fundedWalletRefusesMintSwitch,
         emptyWalletSwitchesMint,
         connectRendersDepositPicker,
@@ -349,6 +365,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         depositFailureChecksRecovery,
         depositFailureShowsRecovery,
         recoveryButtonCarriesToken,
+        refundBlockedUntilSeedAck,
         refundUsesSessionKey,
         refundPersistsTokenBeforeReceive,
         refundReceivesToken,
@@ -356,6 +373,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         refundClearsPendingWithdraw,
         routstrKeyClearsAfterRefund,
         restoreTextareaRenders,
+        unseededSetupExplainsMnemonicSplit,
         restoreUsesNormalizedMnemonic,
         restoreReportsBalance,
         seedGateRenders,

@@ -624,6 +624,62 @@
 .sync-tombstone-apply { background: var(--red); color: #fff; border-color: var(--red); }
 .sync-tombstone-reject { background: var(--green); color: #fff; border-color: var(--green); }
 
+/* Sync identity comparison card — intentionally more prominent than the
+   recovery phrase so device mismatches can be spotted without exposing it. */
+.sync-identity-card {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--accent-fill);
+  border: 1px solid var(--ref-border);
+  border-radius: 10px;
+}
+.sync-identity-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sync-identity-label {
+  margin-bottom: 3px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.sync-identity-code {
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1.25;
+}
+.sync-identity-copy {
+  flex: 0 0 auto;
+  min-width: 56px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.sync-identity-help {
+  margin-top: 9px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.sync-identity-safety {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--green);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+@media (max-width: 375px) {
+  .sync-identity-code { font-size: 15px; letter-spacing: .05em; }
+}
+
 @media (max-width: 720px) {
   .settings-modal {
     width: 100%;

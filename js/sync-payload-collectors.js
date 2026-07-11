@@ -25,6 +25,7 @@ export const AI_SETTINGS_KEYS = [
   'labcharts-ollama-pii-url',
   'labcharts-ollama-pii-model',
   'labcharts-routstr-node',           // Selected Routstr node
+  'labcharts-routstr-session-updated-at', // LWW clock for shared node session/balance refresh
   'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)
   'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)
 ];
@@ -69,6 +70,10 @@ export async function collectAISettings() {
   for (const key of AI_SETTINGS_KEYS) {
     const val = await encryptedGetItem(key);
     if (val) settings[key] = val;
+    // An explicitly stored empty value is a durable null tombstone. Missing
+    // settings remain omitted so never-configured providers do not bloat every
+    // profile payload.
+    else if (localStorage.getItem(key) !== null) settings[key] = null;
   }
   return settings;
 }

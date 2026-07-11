@@ -322,7 +322,7 @@ const syncApplySrc = read('js/sync-apply.js');
 assert('sync preserves fresh OpenRouter OAuth provider/key against stale pull',
   syncApplySrc.includes('shouldKeepLocalOpenRouterOAuthSetting') && syncApplySrc.includes("'labcharts-openrouter-key'"));
 assert('sync preserves fresh local AI settings against stale pull',
-  syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key)'));
+  syncApplySrc.includes('AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY') && syncApplySrc.includes('shouldKeepLocalAISetting(key,'));
 assert('sync refreshes AI header after remote AI settings apply',
   syncApplySrc.includes('refreshSyncedAIProviderUiRuntime()')
     && !syncApplySrc.includes('window.updateChatHeaderModel')

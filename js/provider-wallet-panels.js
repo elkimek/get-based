@@ -2,7 +2,7 @@
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { getRoutstrKey, saveRoutstrKey, fetchRoutstrModels, getRoutstrBalance } from './api.js';
+import { getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
 import { isValidExternalUrl } from './url-safety.js';
 import { ensureQRCode } from './provider-qr.js';
 import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
@@ -59,6 +59,7 @@ function _rsBalanceHtml(sats) {
 export function refreshCashuWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
   if (el) el.textContent = '\u26a1 verifying...';
+  _refreshWalletSeedStatus();
   if (walletRuntime.cashuCheckProofStates) {
     walletRuntime.cashuCheckProofStates().then(function(bal) {
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
@@ -72,7 +73,12 @@ export function refreshRoutstrBalance() {
   const el = document.getElementById('routstr-node-balance') || document.getElementById('routstr-balance');
   if (el) el.textContent = 'Balance: refreshing...';
   getRoutstrBalance().then(function(b) {
-    if (el && b) el.innerHTML = _rsBalanceHtml(b.sats);
+    if (el && b) {
+      el.innerHTML = _rsBalanceHtml(b.sats);
+      // Bootstrap pre-clock funded sessions without requiring another real-sats
+      // deposit. A stale zero-balance peer does not claim session freshness.
+      if (b.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')) touchRoutstrSession();
+    }
     else if (el) el.textContent = 'Balance: unavailable';
   });
 }
@@ -214,16 +220,30 @@ export async function doRoutstrWalletReceiveCashu() {
   let token = input.value.trim();
   if (token.startsWith('cashu:')) token = token.slice(6);
   if (!token || !token.startsWith('cashuA') && !token.startsWith('cashuB')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashuA or cashuB)</div>'; return; }
-  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
+  if (!await walletRuntime.cashuHasWalletSeed?.()) {
+    await _ensureWalletSeed(() => {
+      _renderWalletFundUI();
+      return _receiveRoutstrWalletCashu(token);
+    });
+    return;
+  }
+  await _receiveRoutstrWalletCashu(token, input, statusEl);
+}
+
+async function _receiveRoutstrWalletCashu(token, input = null, statusEl = null) {
+  statusEl = statusEl || document.getElementById('routstr-wfund-status');
+  input = input || _getWalletInput('routstr-wcashu-input');
+  if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
   try {
     const result = await walletRuntime.cashuReceiveToken(token);
-    input.value = '';
+    if (input) input.value = '';
     const fundArea = document.getElementById('routstr-wallet-fund-area');
     if (fundArea) { fundArea.style.display = 'none'; _setActiveWalletAction(null); }
     showNotification('Wallet funded \u26a1 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : ''), 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
+    else showNotification(e?.message || String(e), 'error');
   }
 }
 
@@ -461,6 +481,14 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
 }
 
 export async function doRoutstrNodeWithdraw() {
+  if (!await walletRuntime.cashuHasWalletSeed?.()) {
+    await _ensureWalletSeed(_withdrawRoutstrNodeToWallet);
+    return;
+  }
+  await _withdrawRoutstrNodeToWallet();
+}
+
+async function _withdrawRoutstrNodeToWallet() {
   const nodeUrl = (walletRuntime.nostrGetSelectedNode?.() || '').replace(/\/+$/, '');
   const key = getRoutstrKey();
   if (!nodeUrl || !key) { showNotification('No active node session', 'error'); return; }
@@ -509,6 +537,7 @@ export async function doRoutstrNodeWithdraw() {
 }
 
 async function _refreshRoutstrWalletBalance() {
+  _refreshWalletSeedStatus();
   const el = document.getElementById('routstr-wallet-balance');
   if (!el) return;
   try {
@@ -521,6 +550,19 @@ async function _refreshRoutstrWalletBalance() {
     const mintEl = document.getElementById('routstr-mint-label');
     if (mintEl && url) mintEl.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   });
+}
+
+async function _refreshWalletSeedStatus() {
+  const el = document.getElementById('routstr-wallet-device-status');
+  if (!el || typeof walletRuntime.cashuHasWalletSeed !== 'function') return;
+  try {
+    const ready = await walletRuntime.cashuHasWalletSeed();
+    el.textContent = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
+    el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)';
+  } catch {
+    el.textContent = 'Local wallet setup unavailable';
+    el.style.color = 'var(--red)';
+  }
 }
 
 let _activeNodeAction = null;
@@ -544,9 +586,9 @@ function _setActiveWalletAction(actionId) {
 
 async function _ensureWalletSeed(thenAction) {
   const hasSeed = await walletRuntime.cashuHasWalletSeed?.();
-  if (hasSeed) { thenAction(); return; }
+  if (hasSeed) { await thenAction(); return true; }
   const area = document.getElementById('routstr-wallet-fund-area');
-  if (!area) return;
+  if (!area) return false;
   area.style.display = 'block';
   const { mnemonic } = await walletRuntime.cashuGenerateWalletSeed();
   area.innerHTML = `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
@@ -562,15 +604,25 @@ async function _ensureWalletSeed(thenAction) {
     <button class="import-btn import-btn-primary" id="routstr-seed-continue" disabled style="margin-top:8px;width:100%;font-size:12px" data-routstr-wallet-action="seed-ack-continue">Continue</button>
   </div>`;
   _walletSeedThenAction = thenAction;
+  return false;
 }
 
 export function walletSeedAcknowledged() {
   const area = document.getElementById('routstr-wallet-fund-area');
   if (area) area.style.display = 'none';
   if (_walletSeedThenAction) {
-    _walletSeedThenAction();
+    const thenAction = _walletSeedThenAction;
     _walletSeedThenAction = null;
+    Promise.resolve(thenAction()).catch(e => showNotification(e?.message || String(e), 'error'));
   }
+  _refreshWalletSeedStatus();
+}
+
+export async function setupRoutstrWalletSeed() {
+  await _ensureWalletSeed(async () => {
+    showNotification('Local Cashu wallet is ready', 'success');
+    await showWalletSeedPhrase();
+  });
 }
 
 export async function showWalletSeedPhrase() {
@@ -595,8 +647,10 @@ export async function showWalletSeedPhrase() {
     </div>`;
   } else {
     area.innerHTML = `<div style="margin-top:8px">
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Restore Wallet from Seed</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">No seed yet \u2014 a seed is generated when you first deposit.</div>
+      <div style="font-size:12px;color:var(--text-primary);font-weight:600;margin-bottom:6px">Set up this device's Cashu wallet</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Your 24-word Data Sync mnemonic restores the Routstr node session, but does not copy spendable Cashu proofs or this separate 12-word recovery seed.</div>
+      <button class="import-btn import-btn-primary" style="font-size:11px;padding:5px 10px;width:100%;margin-bottom:10px" data-routstr-wallet-action="setup-wallet-seed">Create a new 12-word seed for this device</button>
+      <div class="or-oauth-divider"><span>or restore this device's wallet</span></div>
       <textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:12px;font-family:monospace;resize:none"></textarea>
       <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;margin-top:4px;width:100%" data-routstr-wallet-action="wallet-restore">Restore</button>
       <div id="routstr-restore-status"></div>
@@ -784,6 +838,7 @@ installRoutstrWalletDelegates({
   doRoutstrNodeWithdraw,
   _setActiveNodeAction,
   walletSeedAcknowledged,
+  setupRoutstrWalletSeed,
   showWalletSeedPhrase,
   showRoutstrWithdraw,
   showRoutstrWithdrawLightning,

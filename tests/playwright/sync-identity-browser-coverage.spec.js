@@ -60,6 +60,7 @@ test('sync identity browser coverage handles libraries getters pending restore a
       'ensureQRCodeUsesExistingGlobal',
       'ensureQRCodeRetriesAfterFailure',
       'mnemonicGettersUseInjectedOwner',
+      'fingerprintIsStableAndOwnerSpecific',
       'mnemonicGettersHandleThrownDeps',
       'pendingFlagReadsAndClears',
       'restoreJoinClearsSyncStorageAndMarksPending',
@@ -141,11 +142,18 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && loadedQRCode().createSvgTag().includes('data-routed-qr');
 
       identity.configureSyncIdentity({
-        getAppOwner: () => ({ mnemonic: 'alpha bravo charlie' }),
+        getAppOwner: () => ({ id: 'owner-alpha', mnemonic: 'alpha bravo charlie' }),
         getAppOwnerError: () => 'owner blocked',
       });
       outcomes.mnemonicGettersUseInjectedOwner = identity.getMnemonic() === 'alpha bravo charlie'
         && identity.getMnemonicResolutionError() === 'owner blocked';
+      const firstFingerprint = await identity.getSyncIdentityFingerprint();
+      const repeatedFingerprint = await identity.getSyncIdentityFingerprint();
+      identity.configureSyncIdentity({ getAppOwner: () => ({ id: 'owner-beta' }) });
+      const otherFingerprint = await identity.getSyncIdentityFingerprint();
+      outcomes.fingerprintIsStableAndOwnerSpecific = /^[0-9A-F]{4}(?:-[0-9A-F]{4}){2}$/.test(firstFingerprint || '')
+        && firstFingerprint === repeatedFingerprint
+        && otherFingerprint !== firstFingerprint;
 
       identity.configureSyncIdentity({
         getAppOwner: () => { throw new Error('owner getter failed'); },

@@ -80,6 +80,29 @@ export function getMnemonic() {
 }
 
 /**
+ * Return a short, non-secret code for visually comparing Sync identities.
+ *
+ * The code is derived from Evolu's public owner ID, not from the mnemonic.
+ * It therefore cannot restore or decrypt data, while still giving two
+ * devices a stable value that changes when their 24-word identity differs.
+ */
+export async function getSyncIdentityFingerprint() {
+  const appOwner = currentAppOwner();
+  const ownerId = appOwner?.id ? String(appOwner.id) : '';
+  if (!ownerId || !globalThis.crypto?.subtle) return null;
+  try {
+    const input = new TextEncoder().encode(`getbased-sync-identity-v1:${ownerId}`);
+    const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', input));
+    const shortHex = Array.from(digest.slice(0, 6), byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+    return `${shortHex.slice(0, 4)}-${shortHex.slice(4, 8)}-${shortHex.slice(8, 12)}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns the last Evolu owner-resolution error, or null. The Settings UI
  * uses this to show an actionable message instead of looping on "Resolving..."
  * for 30s when Evolu's worker fails to start (OPFS contention, locked
@@ -112,6 +135,10 @@ export async function restoreFromMnemonic(mnemonic, options = {}) {
   if (!evolu) return false;
   try {
     await evolu.restoreAppOwner(mnemonic);
+    // sessionStorage survives the reload below. Locks created under the old
+    // owner must not veto provider settings pulled from the restored owner.
+    sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
+    sessionStorage.removeItem('or_oauth_local_settings_lock_until');
     // After mnemonic restore, the new Evolu owner has zero rows; the old
     // delta snapshot would tell the planner "I already pushed these items",
     // leaving the new owner's relay empty. Drop snapshots so the first push

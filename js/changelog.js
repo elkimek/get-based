@@ -11,6 +11,21 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.168', date: '2026-07-11', title: 'Routstr sync and wallet encryption',
+    items: [
+      '<b>Funded Routstr sessions now follow sync correctly.</b> A node key received on another encrypted device is usable immediately, so its shared node balance no longer appears disconnected until reload.',
+      '<b>Cashu bearer data is encrypted at rest.</b> With app encryption enabled, wallet proofs, fee proofs, pending funding details, and recovery journals are AES-GCM protected in IndexedDB.',
+      '<b>The two balances are clearer.</b> Routstr node funds sync with the session; the Cashu wallet stays on the device to avoid copying spendable proofs between competing browsers.',
+      '<b>New devices cannot receive funds without a recovery seed.</b> Before importing a Cashu token or refunding a synced node balance, each browser must create or restore its separate 12-word Cashu seed.',
+      '<b>Routstr session changes reliably reach other devices.</b> Clearing a session after refund now syncs as a tombstone, and provider-setting pushes retry when Evolu is already busy.',
+      '<b>Open devices refresh shared node balances.</b> Routstr sessions carry their own update clock, so a newer deposit or refund replaces a stale local session and refreshes the receiving browser.',
+      '<b>Existing funded sessions migrate automatically.</b> Reading a funded pre-update Routstr session stamps it for sync, so no extra sats transfer is needed to repair an older second device.',
+      '<b>Node balances are always live.</b> Balance checks bypass the browser HTTP cache so a device cannot keep displaying an earlier zero response after receiving the funded session.',
+      '<b>Old profile rows cannot resurrect stale Routstr keys.</b> Once a clocked session arrives, legacy rows from another profile are ignored instead of overwriting it with an older zero-balance session.',
+      '<b>Device identity mismatches are visible.</b> Settings now shows a safe comparison code: matching codes mean both devices use the same 24-word Data Sync identity, without revealing the mnemonic.',
+    ]
+  },
+  {
     version: '1.10.157', date: '2026-07-10', title: 'Import your menstrual cycle history',
     forceShow: true,
     items: [

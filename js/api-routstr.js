@@ -114,7 +114,8 @@ export async function getRoutstrBalance() {
   if (!key) return null;
   try {
     const res = await fetch(_requireNodeUrl() + '/v1/balance/info', {
-      headers: { 'Authorization': 'Bearer ' + key }
+      headers: { 'Authorization': 'Bearer ' + key },
+      cache: 'no-store'
     });
     if (!res.ok) return null;
     const json = await res.json();

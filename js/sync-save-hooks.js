@@ -47,15 +47,25 @@ export function bindSyncSaveHookEvents() {
   if (_eventsBound) return;
   const bound = addUtilsRuntimeListener('labcharts-ai-settings-local-changed', () => {
     if (!_isSyncEnabled() || !state.currentProfile || !state.importedData) return;
-    if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
-    const profileId = state.currentProfile;
-    const importedData = state.importedData;
-    _aiSettingsPushTimer = setTimeout(() => {
-      _aiSettingsPushTimer = null;
-      _pushProfile(profileId, importedData).catch(() => {});
-    }, 250);
+    scheduleAISettingsPush(state.currentProfile, state.importedData);
   });
   if (bound) _eventsBound = true;
+}
+
+function scheduleAISettingsPush(profileId, importedData, attempt = 0) {
+  if (_aiSettingsPushTimer) clearTimeout(_aiSettingsPushTimer);
+  _aiSettingsPushTimer = setTimeout(async () => {
+    _aiSettingsPushTimer = null;
+    if (!_isSyncEnabled()) return;
+    if (!_isEvoluReady() || _isSyncing()) {
+      if (attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
+      return;
+    }
+    try {
+      const result = await _pushProfile(profileId, importedData);
+      if (result?.skipped && attempt < 60) scheduleAISettingsPush(profileId, importedData, attempt + 1);
+    } catch {}
+  }, attempt === 0 ? 250 : 1000);
 }
 
 export function clearSyncSaveTimers() {

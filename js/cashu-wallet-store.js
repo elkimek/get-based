@@ -1,7 +1,14 @@
 // @ts-check
 // cashu-wallet-store.js — Cashu proof, recovery journal, counter, and seed persistence
 
-import { encryptedSetItem, encryptedGetItem } from './crypto.js';
+import {
+  decryptObject,
+  encryptedSetItem,
+  encryptedGetItem,
+  encryptObject,
+  getEncryptionEnabled,
+  isEncryptedObject,
+} from './crypto.js';
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 
@@ -22,6 +29,65 @@ let _db = null;
 let _indexedDBFactory = null;
 let _legacyProofsMigrated = false;
 let _lastProofCheck = 0;
+
+function _sessionLockedError() {
+  const error = new Error('Cashu wallet storage is encrypted; unlock with your passphrase first.');
+  /** @type {Error & { code?: string }} */ (error).code = 'session-locked';
+  return error;
+}
+
+async function _digestStorageKey(value) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value))));
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function _proofStorageKeys(secret) {
+  return [String(secret), `enc:v1:${await _digestStorageKey(secret)}`];
+}
+
+async function _encryptWalletPayload(value) {
+  const envelope = await encryptObject(value);
+  if (!envelope) throw _sessionLockedError();
+  return envelope;
+}
+
+async function _proofForStorage(proof, mintUrl, mode = getEncryptionEnabled() ? 'encrypted' : 'plain') {
+  const normalized = _normalizeProofForStorage(proof, mintUrl);
+  if (mode === 'plain') return normalized;
+  const [, storageKey] = await _proofStorageKeys(normalized.secret);
+  return { secret: storageKey, _payload: await _encryptWalletPayload(normalized) };
+}
+
+async function _proofFromStorage(row) {
+  if (!row?._payload) return row;
+  if (!isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu proof has an invalid envelope.');
+  const proof = await decryptObject(row._payload).catch(() => null);
+  if (!proof) throw _sessionLockedError();
+  return proof;
+}
+
+async function _metaForStorage(key, value, mode = getEncryptionEnabled() ? 'encrypted' : 'plain') {
+  if (mode === 'plain' || String(key).startsWith('counter:')) return { key, value };
+  return { key, _payload: await _encryptWalletPayload({ value }) };
+}
+
+async function _metaFromStorage(row) {
+  if (!row?._payload) return row?.value ?? null;
+  if (!isEncryptedObject(row._payload)) throw new Error('Encrypted Cashu metadata has an invalid envelope.');
+  const payload = await decryptObject(row._payload).catch(() => null);
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'value')) throw _sessionLockedError();
+  return payload.value;
+}
+
+async function _getAllRaw(storeName) {
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
 
 export function configureCashuWalletStore(runtime) {
   Object.assign(storeRuntime, runtime);
@@ -84,46 +150,28 @@ export function _openDB() {
 
 async function _migrateUntaggedProofs() {
   if (_legacyProofsMigrated) return;
+  const proofs = await Promise.all((await _getAllRaw(STORE_PROOFS)).map(_proofFromStorage));
+  const untagged = proofs.filter(proof => !proof._mint);
+  if (untagged.length) await _saveProofs(untagged, DEFAULT_MINT);
   _legacyProofsMigrated = true;
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    const req = store.getAll();
-    req.onsuccess = () => {
-      for (const proof of (req.result || [])) {
-        if (!proof._mint) store.put({ ...proof, _mint: DEFAULT_MINT });
-      }
-    };
-    req.onerror = (event) => {
-      event.preventDefault?.();
-      reject(req.error);
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
 }
 
 export async function _getAllProofs(forMint) {
   await _migrateUntaggedProofs();
-  const db = await _openDB();
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readonly');
-    const req = tx.objectStore(STORE_PROOFS).getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(proof => _normalizeMintUrl(proof._mint) === mintUrl));
-    req.onerror = () => reject(req.error);
-  });
+  const proofs = await Promise.all((await _getAllRaw(STORE_PROOFS)).map(_proofFromStorage));
+  return proofs.filter(proof => _normalizeMintUrl(proof._mint) === mintUrl);
 }
 
 export async function _saveProofs(proofs, forMint) {
   if (!proofs.length) return;
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  const rows = await Promise.all(proofs.map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
-    for (const proof of proofs) store.put(_normalizeProofForStorage(proof, mintUrl));
+    for (const row of rows) store.put(row);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -131,11 +179,12 @@ export async function _saveProofs(proofs, forMint) {
 
 async function _deleteProofs(proofs) {
   if (!proofs.length) return;
+  const keys = (await Promise.all(proofs.map(proof => _proofStorageKeys(proof.secret)))).flat();
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
-    for (const proof of proofs) store.delete(proof.secret);
+    for (const key of keys) store.delete(key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -143,13 +192,15 @@ async function _deleteProofs(proofs) {
 
 export async function _replaceProofs(previousProofs, nextProofs, forMint) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
+  const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_PROOFS, 'readwrite');
     const store = tx.objectStore(STORE_PROOFS);
     try {
-      for (const proof of previousProofs || []) store.delete(proof.secret);
-      for (const proof of nextProofs || []) store.put(_normalizeProofForStorage(proof, mintUrl));
+      for (const key of previousKeys) store.delete(key);
+      for (const row of nextRows) store.put(row);
     } catch (error) {
       try { tx.abort(); } catch {}
       reject(error);
@@ -184,24 +235,9 @@ export async function _pruneSpentProofs(force = false, forMint) {
 }
 
 export async function _clearAllProofs() {
-  const db = await _openDB();
   const mintUrl = _normalizeMintUrl(await storeRuntime.getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    const req = store.getAll();
-    req.onsuccess = () => {
-      for (const proof of (req.result || [])) {
-        if (!proof._mint || _normalizeMintUrl(proof._mint) === mintUrl) store.delete(proof.secret);
-      }
-    };
-    req.onerror = (event) => {
-      event.preventDefault?.();
-      reject(req.error);
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  const proofs = await Promise.all((await _getAllRaw(STORE_PROOFS)).map(_proofFromStorage));
+  return _deleteProofs(proofs.filter(proof => !proof._mint || _normalizeMintUrl(proof._mint) === mintUrl));
 }
 
 export async function _getMeta(key) {
@@ -209,16 +245,19 @@ export async function _getMeta(key) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_META, 'readonly');
     const req = tx.objectStore(STORE_META).get(key);
-    req.onsuccess = () => resolve(req.result?.value ?? null);
+    req.onsuccess = () => {
+      Promise.resolve(_metaFromStorage(req.result)).then(resolve, reject);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
 export async function _setMeta(key, value) {
+  const row = await _metaForStorage(key, value);
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_META, 'readwrite');
-    tx.objectStore(STORE_META).put({ key, value });
+    tx.objectStore(STORE_META).put(row);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -235,13 +274,8 @@ export async function _deleteMeta(key) {
 }
 
 export async function _getMetaEntries(prefix) {
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readonly');
-    const req = tx.objectStore(STORE_META).getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(item => typeof item.key === 'string' && item.key.startsWith(prefix)));
-    req.onerror = () => reject(req.error);
-  });
+  const rows = (await _getAllRaw(STORE_META)).filter(item => typeof item.key === 'string' && item.key.startsWith(prefix));
+  return Promise.all(rows.map(async row => ({ key: row.key, value: await _metaFromStorage(row) })));
 }
 
 function _serializePreparedOutputs(cashuts, preview) {
@@ -348,8 +382,8 @@ export function _isTerminalMintQuoteState(state) {
   return String(state || '').toUpperCase() === 'EXPIRED';
 }
 
-export function _pendingQuoteKey(mintUrl, quoteId) {
-  return PENDING_QUOTE_PREFIX + encodeURIComponent(_normalizeMintUrl(mintUrl)) + ':' + quoteId;
+export async function _pendingQuoteKey(mintUrl, quoteId) {
+  return PENDING_QUOTE_PREFIX + 'v2:' + await _digestStorageKey(`${_normalizeMintUrl(mintUrl)}\n${quoteId}`);
 }
 
 export function _pendingQuoteDetails(entry, fallbackMint) {
@@ -371,11 +405,12 @@ export function _pendingQuoteDetails(entry, fallbackMint) {
 export async function _saveFeeProofs(proofs, forMint) {
   if (!proofs.length) return;
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  const rows = await Promise.all(proofs.map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_FEES, 'readwrite');
     const store = tx.objectStore(STORE_FEES);
-    for (const proof of proofs) store.put(_normalizeProofForStorage(proof, mintUrl));
+    for (const row of rows) store.put(row);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
@@ -383,13 +418,15 @@ export async function _saveFeeProofs(proofs, forMint) {
 
 export async function _replaceFeeProofs(previousProofs, nextProofs, forMint) {
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
+  const previousKeys = (await Promise.all((previousProofs || []).map(proof => _proofStorageKeys(proof.secret)))).flat();
+  const nextRows = await Promise.all((nextProofs || []).map(proof => _proofForStorage(proof, mintUrl)));
   const db = await _openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_FEES, 'readwrite');
     const store = tx.objectStore(STORE_FEES);
     try {
-      for (const proof of previousProofs || []) store.delete(proof.secret);
-      for (const proof of nextProofs || []) store.put(_normalizeProofForStorage(proof, mintUrl));
+      for (const key of previousKeys) store.delete(key);
+      for (const row of nextRows) store.put(row);
     } catch (error) {
       try { tx.abort(); } catch {}
       reject(error);
@@ -402,14 +439,9 @@ export async function _replaceFeeProofs(previousProofs, nextProofs, forMint) {
 }
 
 export async function _getAllFeeProofs(forMint) {
-  const db = await _openDB();
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_FEES, 'readonly');
-    const req = tx.objectStore(STORE_FEES).getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(proof => _normalizeMintUrl(proof._mint || DEFAULT_MINT) === mintUrl));
-    req.onerror = () => reject(req.error);
-  });
+  const proofs = await Promise.all((await _getAllRaw(STORE_FEES)).map(_proofFromStorage));
+  return proofs.filter(proof => _normalizeMintUrl(proof._mint || DEFAULT_MINT) === mintUrl);
 }
 
 async function _migrateFeeProofs() {
@@ -490,6 +522,69 @@ export function _createCounterSource(namespace = '', migrateLegacy = true) {
 export async function _counterNamespaceForSeed(seed) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', seed));
   return Array.from(digest.slice(0, 8), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** Rewrap bearer proofs and recovery metadata when app encryption changes.
+ * Counter values stay numeric so their cross-tab IDB increment remains atomic;
+ * they contain no bearer secret or credential. */
+export async function migrateCashuWalletStorage(mode) {
+  if (mode !== 'encrypted' && mode !== 'plain') throw new Error(`Unsupported Cashu migration mode: ${mode}`);
+  const [proofRows, metaRows, feeRows] = await Promise.all([
+    _getAllRaw(STORE_PROOFS),
+    _getAllRaw(STORE_META),
+    _getAllRaw(STORE_FEES),
+  ]);
+  const proofChanges = [];
+  const feeChanges = [];
+  for (const [rows, changes] of [[proofRows, proofChanges], [feeRows, feeChanges]]) {
+    for (const row of rows) {
+      const wrapped = !!row?._payload;
+      if ((mode === 'encrypted') === wrapped) continue;
+      const proof = await _proofFromStorage(row);
+      changes.push({ previousKey: row.secret, next: await _proofForStorage(proof, proof._mint || DEFAULT_MINT, mode) });
+    }
+  }
+  const metaChanges = [];
+  for (const row of metaRows) {
+    if (String(row?.key || '').startsWith('counter:')) continue;
+    const wrapped = !!row?._payload;
+    const legacyQuoteKey = mode === 'encrypted'
+      && String(row?.key || '').startsWith(PENDING_QUOTE_PREFIX)
+      && !String(row.key).startsWith(PENDING_QUOTE_PREFIX + 'v2:');
+    if ((mode === 'encrypted') === wrapped && !legacyQuoteKey) continue;
+    const value = await _metaFromStorage(row);
+    let key = row.key;
+    if (legacyQuoteKey) {
+      const details = _pendingQuoteDetails({ key, value }, DEFAULT_MINT);
+      if (details.quote) key = await _pendingQuoteKey(details.mint, details.quote);
+    }
+    metaChanges.push({ previousKey: row.key, next: await _metaForStorage(key, value, mode) });
+  }
+  if (!proofChanges.length && !metaChanges.length && !feeChanges.length) return 0;
+  const db = await _openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_PROOFS, STORE_META, STORE_FEES], 'readwrite');
+    const apply = (storeName, changes) => {
+      const store = tx.objectStore(storeName);
+      for (const change of changes) {
+        store.put(change.next);
+        const nextKey = storeName === STORE_META ? change.next.key : change.next.secret;
+        if (change.previousKey !== nextKey) store.delete(change.previousKey);
+      }
+    };
+    try {
+      apply(STORE_PROOFS, proofChanges);
+      apply(STORE_META, metaChanges);
+      apply(STORE_FEES, feeChanges);
+    } catch (error) {
+      try { tx.abort(); } catch {}
+      reject(error);
+      return;
+    }
+    tx.oncomplete = () => resolve(proofChanges.length + metaChanges.length + feeChanges.length);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Cashu encryption migration aborted'));
+  });
 }
 
 export async function _destroyWalletDBStorage() {
