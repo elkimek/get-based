@@ -4,6 +4,10 @@ Cashu proofs, counters, and recovery records are application-owned state in the
 `getbased-cashu` IndexedDB database. They are not generic settings and must not
 be copied independently through profile backup or settings sync.
 
+`js/cashu-wallet.js` owns protocol operations and the public wallet API.
+`js/cashu-wallet-store.js` owns proof transactions, recovery journals,
+deterministic counters, fee-proof storage, and encrypted mnemonic persistence.
+
 The wallet enforces these invariants:
 
 - Proof replacement is one IndexedDB transaction. A synchronous clone/write

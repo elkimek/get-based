@@ -51,6 +51,7 @@ await import('../js/cashu-wallet.js');
 await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
+const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
@@ -122,10 +123,10 @@ for (const fn of windowExports) {
 // ═══════════════════════════════════════
 console.log('3. Wallet Security');
 
-assert('Mnemonic uses encrypted storage', walletSrc.includes('encryptedSetItem') && walletSrc.includes('encryptedGetItem'));
+assert('Mnemonic uses encrypted storage', walletStoreSrc.includes('encryptedSetItem') && walletStoreSrc.includes('encryptedGetItem'));
 assert('Mnemonic key in SENSITIVE_PATTERNS', cryptoSrc.includes('labcharts-cashu-wallet-mnemonic'));
 assert('Mnemonic in API_KEY_LS_KEYS cache', cryptoSrc.includes("'labcharts-cashu-wallet-mnemonic'"));
-assert('Legacy plaintext mnemonic migration', walletSrc.includes("_setMeta('walletMnemonic', null)"));
+assert('Legacy plaintext mnemonic migration', walletStoreSrc.includes("_setMeta('walletMnemonic', null)"));
 assert('Wallet has global lock', walletSrc.includes('_withWalletLock'));
 assert('Fee operations have separate lock', walletSrc.includes('_withFeeLock'));
 assert('MAX_WALLET_BALANCE safety cap', walletSrc.includes('MAX_WALLET_BALANCE'));
@@ -135,15 +136,15 @@ assert('MAX_WALLET_BALANCE safety cap', walletSrc.includes('MAX_WALLET_BALANCE')
 // ═══════════════════════════════════════
 console.log('4. Proof Management');
 
-assert('Proofs stored in IndexedDB', walletSrc.includes('indexedDB.open('));
-assert('Proofs tagged with _mint for namespacing', walletSrc.includes('_mint: mintUrl') || walletSrc.includes('_mint'));
-assert('Legacy untagged proofs migrated', walletSrc.includes('_migrateUntaggedProofs'));
-assert('Fee proofs stored separately', walletSrc.includes('STORE_FEES'));
-assert('Fee proofs migrated from localStorage', walletSrc.includes("localStorage.getItem('cashu-fee-proofs')"));
-assert('Counter source persisted for deterministic wallet', walletSrc.includes('counterSource') && walletSrc.includes("'counter:'"));
+assert('Proofs stored in IndexedDB', walletStoreSrc.includes('indexedDB.open('));
+assert('Proofs tagged with _mint for namespacing', walletStoreSrc.includes('_mint: _normalizeMintUrl(mintUrl)'));
+assert('Legacy untagged proofs migrated', walletStoreSrc.includes('_migrateUntaggedProofs'));
+assert('Fee proofs stored separately', walletStoreSrc.includes('STORE_FEES'));
+assert('Fee proofs migrated from localStorage', walletStoreSrc.includes("localStorage.getItem('cashu-fee-proofs')"));
+assert('Counter source persisted for deterministic wallet', walletSrc.includes('counterSource') && walletStoreSrc.includes("'counter:'"));
 assert('Counter reservations use atomic IndexedDB transactions',
-  walletSrc.includes("db.transaction(STORE_META, update ? 'readwrite' : 'readonly')") &&
-  walletSrc.includes('current + count'));
+  walletStoreSrc.includes("db.transaction(STORE_META, update ? 'readwrite' : 'readonly')") &&
+  walletStoreSrc.includes('current + count'));
 
 // ═══════════════════════════════════════
 // 5. CASHU WALLET — DEPOSIT RECOVERY
@@ -273,6 +274,7 @@ assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'lab
 console.log('13. Service Worker Cache');
 
 assert('SW caches cashu-wallet.js', swSrc.includes('/js/cashu-wallet.js'));
+assert('SW caches cashu-wallet-store.js', swSrc.includes('/js/cashu-wallet-store.js'));
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panel-buttons.js', swSrc.includes('/js/provider-wallet-panel-buttons.js'));

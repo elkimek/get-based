@@ -1,29 +1,51 @@
 // @ts-check
 // cashu-wallet.js — In-app Cashu eCash wallet for decentralized AI payments
 // Uses cashu-ts (vendored IIFE → global `cashuts`) for protocol operations.
-// Proofs stored in IndexedDB, included in backup/sync.
+// Durable proofs, counters, recovery journals, and seed storage live in cashu-wallet-store.js.
 
 import { isDebugMode, loadScriptOnce } from './utils.js';
-import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { isValidExternalUrl } from './url-safety.js';
+import {
+  DEFAULT_MINT,
+  PENDING_QUOTE_PREFIX,
+  PENDING_SWAP_KEY,
+  configureCashuWalletStore,
+  _amountToNumber,
+  _normalizeMintUrl,
+  _getAllProofs,
+  _saveProofs,
+  _replaceProofs,
+  _pruneSpentProofs,
+  _clearAllProofs,
+  _getMeta,
+  _setMeta,
+  _deleteMeta,
+  _getMetaEntries,
+  _prepareDurableSwap,
+  _prepareDurableMint,
+  _resumeDurableMint,
+  _recoverPendingSwapUnlocked,
+  _ensureNoPendingSwap,
+  _isTerminalMintQuoteState,
+  _pendingQuoteKey,
+  _pendingQuoteDetails,
+  _saveFeeProofs,
+  _replaceFeeProofs,
+  _getAllFeeProofs,
+  _loadMnemonic,
+  _saveMnemonic,
+  _createCounterSource,
+  _counterNamespaceForSeed,
+  _destroyWalletDBStorage,
+} from './cashu-wallet-store.js';
 
 // ═══════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════
-const DEFAULT_MINT = 'https://mint.minibits.cash/Bitcoin';
 const WALLET_FEE_PCT = 0; // disabled for beta testing (normally 0.03 = 3%)
 const FEE_LN_ADDRESS = 'denimgecko11@primal.net';
 const FEE_MELT_MIN_SATS = 100; // don't attempt melt below this — mint fees eat it
 const MAX_WALLET_BALANCE = 25000; // safety cap until battle-tested
-const PROOF_CHECK_COOLDOWN = 60_000; // 60s between proof state checks
-let _lastProofCheck = 0;
-const DB_NAME = 'getbased-cashu';
-const DB_VERSION = 2;
-const STORE_PROOFS = 'proofs';
-const STORE_META = 'meta';
-const STORE_FEES = 'fee-proofs';
-const PENDING_QUOTE_PREFIX = 'pendingQuote:';
-const PENDING_SWAP_KEY = 'pendingSwap';
 const WALLET_LOCK_NAME = 'getbased-cashu-wallet';
 const FEE_LOCK_NAME = 'getbased-cashu-fees';
 const cashuWindow = /** @type {Window & typeof globalThis & {
@@ -57,32 +79,14 @@ async function _ensureBip39() {
   return _bip39Load;
 }
 
-function _amountToNumber(value) {
-  if (value == null) return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value === 'bigint') return Number(value);
-  if (typeof value === 'string') return Number(value) || 0;
-  if (typeof value.toNumber === 'function') return value.toNumber();
-  if (typeof value.toNumberUnsafe === 'function') return value.toNumberUnsafe();
-  if (typeof value.toBigInt === 'function') return Number(value.toBigInt());
-  return Number(value) || 0;
-}
-
 function _sumProofsAsNumber(cashuts, proofs) {
   return _amountToNumber(cashuts.sumProofs(proofs || []));
-}
-
-function _normalizeProofForStorage(proof, mintUrl) {
-  return { ...proof, amount: _amountToNumber(proof.amount), _mint: _normalizeMintUrl(mintUrl) };
 }
 
 function _encodeRecoveryToken(cashuts, mintUrl, proofs) {
   return cashuts.getEncodedToken({ mint: _normalizeMintUrl(mintUrl), proofs: proofs || [] });
 }
 
-function _normalizeMintUrl(url) {
-  return String(url || '').trim().replace(/\/+$/, '');
-}
 
 // ═══════════════════════════════════════════════
 // GLOBAL WALLET LOCK — prevents concurrent proof-mutating operations (C1)
@@ -126,474 +130,10 @@ function _withModuleFeeLock(fn) {
 }
 
 // ═══════════════════════════════════════════════
-// INDEXEDDB STORAGE
-// ═══════════════════════════════════════════════
-let _db = null;
-
-function _openDB() {
-  if (_db) return Promise.resolve(_db);
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = function(e) {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_PROOFS)) {
-        db.createObjectStore(STORE_PROOFS, { keyPath: 'secret' });
-      }
-      if (!db.objectStoreNames.contains(STORE_META)) {
-        db.createObjectStore(STORE_META, { keyPath: 'key' });
-      }
-      if (!db.objectStoreNames.contains(STORE_FEES)) {
-        db.createObjectStore(STORE_FEES, { keyPath: 'secret' });
-      }
-    };
-    req.onsuccess = function(e) {
-      _db = req.result;
-      _migrateFeeProofs().catch(() => {});
-      resolve(_db);
-    };
-    req.onerror = function(e) { reject(req.error); };
-  });
-}
-
-let _legacyProofsMigrated = false;
-
-async function _migrateUntaggedProofs() {
-  if (_legacyProofsMigrated) return;
-  _legacyProofsMigrated = true;
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    const req = store.getAll();
-    req.onsuccess = () => {
-      // Legacy proofs were all on DEFAULT_MINT (only mint before namespacing)
-      for (const p of (req.result || [])) {
-        if (!p._mint) store.put({ ...p, _mint: DEFAULT_MINT });
-      }
-    };
-    req.onerror = (e) => {
-      e.preventDefault?.();
-      reject(req.error);
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _getAllProofs(forMint) {
-  await _migrateUntaggedProofs();
-  const db = await _openDB();
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readonly');
-    const store = tx.objectStore(STORE_PROOFS);
-    const req = store.getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(p => _normalizeMintUrl(p._mint) === mintUrl));
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function _saveProofs(proofs, forMint) {
-  if (!proofs.length) return;
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    for (const p of proofs) store.put(_normalizeProofForStorage(p, mintUrl));
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _deleteProofs(proofs) {
-  if (!proofs.length) return;
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    for (const p of proofs) store.delete(p.secret);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _replaceProofs(previousProofs, nextProofs, forMint) {
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    try {
-      for (const proof of previousProofs || []) store.delete(proof.secret);
-      for (const proof of nextProofs || []) store.put(_normalizeProofForStorage(proof, mintUrl));
-    } catch (error) {
-      try { tx.abort(); } catch {}
-      reject(error);
-      return;
-    }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('Cashu proof update aborted'));
-  });
-}
-
-/** Check proof states against mint, delete spent proofs.
- *  Pending proofs are kept (may be in-flight melts).
- *  Returns unspent + pending proofs. Respects cooldown unless force=true.
- *  Must be called inside _withWalletLock when force=true. */
-async function _pruneSpentProofs(force = false, forMint) {
-  const now = Date.now();
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  const proofs = await _getAllProofs(mintUrl);
-  if (!proofs.length) return proofs;
-  // Never delete inputs while a prepared swap may be recoverable. They can
-  // appear spent even though the replacement signatures have not yet been
-  // restored into local storage.
-  if (await _getMeta(PENDING_SWAP_KEY)) return proofs;
-  if (!force && (now - _lastProofCheck) < PROOF_CHECK_COOLDOWN) return proofs;
-  try {
-    const wallet = await _getWallet(mintUrl);
-    const { unspent, spent, pending } = await wallet.groupProofsByState(proofs);
-    if (spent.length > 0) {
-      await _deleteProofs(spent);
-      if (isDebugMode()) console.log(`[cashu-wallet] Pruned ${spent.length} spent proofs` + (pending.length ? `, ${pending.length} pending (kept)` : ''));
-    }
-    _lastProofCheck = Date.now();
-    return [...unspent, ...pending];
-  } catch (e) {
-    if (isDebugMode()) console.warn('[cashu-wallet] Proof state check failed:', e.message);
-    return proofs; // on network error, return all proofs (don't delete anything)
-  }
-}
-
-async function _clearAllProofs() {
-  const db = await _openDB();
-  const mintUrl = _normalizeMintUrl(await getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_PROOFS, 'readwrite');
-    const store = tx.objectStore(STORE_PROOFS);
-    const req = store.getAll();
-    req.onsuccess = () => {
-      const all = req.result || [];
-      for (const p of all) {
-        if (!p._mint || _normalizeMintUrl(p._mint) === mintUrl) store.delete(p.secret);
-      }
-    };
-    req.onerror = (e) => {
-      e.preventDefault?.();
-      reject(req.error);
-    };
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _getMeta(key) {
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readonly');
-    const req = tx.objectStore(STORE_META).get(key);
-    req.onsuccess = () => resolve(req.result?.value ?? null);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function _setMeta(key, value) {
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readwrite');
-    tx.objectStore(STORE_META).put({ key, value });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _deleteMeta(key) {
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readwrite');
-    tx.objectStore(STORE_META).delete(key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _getMetaEntries(prefix) {
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_META, 'readonly');
-    const req = tx.objectStore(STORE_META).getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(item => typeof item.key === 'string' && item.key.startsWith(prefix)));
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function _serializePreparedOutputs(cashuts, preview) {
-  const outputData = [...(preview.sendOutputs || []), ...(preview.keepOutputs || [])];
-  return outputData.map(output => cashuts.OutputData.serialize(output));
-}
-
-async function _prepareDurableSwap(wallet, cashuts, operation, mintUrl, builder, localInputs) {
-  if (!wallet.ops || !cashuts.OutputData || typeof builder?.prepare !== 'function') return null;
-  const existing = await _getMeta(PENDING_SWAP_KEY);
-  if (existing) throw new Error('A previous Cashu operation needs recovery before another can start');
-  const preview = await builder.prepare();
-  const record = {
-    version: 1,
-    operation,
-    mint: mintUrl,
-    createdAt: Date.now(),
-    localInputs: (localInputs || []).map(proof => _normalizeProofForStorage(proof, mintUrl)),
-    outputs: _serializePreparedOutputs(cashuts, preview),
-  };
-  await _setMeta(PENDING_SWAP_KEY, record);
-  return { preview, record };
-}
-
-async function _prepareDurableMint(wallet, cashuts, mintUrl, amount, quote, pendingKey) {
-  if (typeof wallet.prepareMint !== 'function' || !cashuts.OutputData) return null;
-  const existing = await _getMeta(PENDING_SWAP_KEY);
-  if (existing) throw new Error('A previous Cashu operation needs recovery before another can start');
-  const preview = await wallet.prepareMint('bolt11', amount, quote);
-  const record = {
-    version: 1,
-    operation: 'mint',
-    mint: mintUrl,
-    quoteId: quote.quote,
-    pendingKey,
-    keysetId: preview.keysetId,
-    createdAt: Date.now(),
-    localInputs: [],
-    outputs: (preview.outputData || []).map(output => cashuts.OutputData.serialize(output)),
-  };
-  await _setMeta(PENDING_SWAP_KEY, record);
-  return { preview, record };
-}
-
-function _resumeDurableMint(cashuts, record) {
-  const outputData = record.outputs.map(output => cashuts.OutputData.deserialize(output));
-  return {
-    method: 'bolt11',
-    payload: { quote: record.quoteId, outputs: outputData.map(output => output.blindedMessage) },
-    outputData,
-    keysetId: record.keysetId,
-    quote: { quote: record.quoteId },
-  };
-}
-
-async function _recoverPendingSwapUnlocked() {
-  const record = await _getMeta(PENDING_SWAP_KEY);
-  if (!record) return { recovered: 0, pending: false };
-  const mintUrl = _normalizeMintUrl(record.mint);
-  if (!isValidExternalUrl(mintUrl) || !Array.isArray(record.outputs)) {
-    throw new Error('Cashu recovery journal is malformed; local proofs were left untouched');
-  }
-  const cashuts = await _cashuLib();
-  if (!cashuts.OutputData || !cashuts.Mint) throw new Error('Cashu runtime cannot restore the pending operation');
-  const outputData = record.outputs.map(output => cashuts.OutputData.deserialize(output));
-  const wallet = await _getWallet(mintUrl);
-  const mint = new cashuts.Mint(mintUrl);
-  const response = await mint.restore({ outputs: outputData.map(output => output.blindedMessage) });
-  const signaturesByOutput = new Map();
-  for (let i = 0; i < (response.outputs || []).length; i++) {
-    signaturesByOutput.set(response.outputs[i].B_, response.signatures?.[i]);
-  }
-  const recoveredProofs = [];
-  for (const output of outputData) {
-    const signature = signaturesByOutput.get(output.blindedMessage.B_);
-    if (!signature) continue;
-    const keyset = await wallet.keyChain.ensureKeysetKeys(signature.id);
-    recoveredProofs.push(output.toProof(signature, keyset));
-  }
-  if (!recoveredProofs.length) {
-    const inputs = record.localInputs || [];
-    if (inputs.length) {
-      const { unspent, pending } = await wallet.groupProofsByState(inputs);
-      if (unspent.length === inputs.length && !pending.length) {
-        await _deleteMeta(PENDING_SWAP_KEY);
-        return { recovered: 0, pending: false, notSubmitted: true };
-      }
-    }
-    throw new Error('Cashu operation is still pending at the mint; local proofs were left untouched');
-  }
-  await _replaceProofs(record.localInputs || [], recoveredProofs, mintUrl);
-  await _deleteMeta(PENDING_SWAP_KEY);
-  if (record.operation === 'mint' && record.pendingKey) await _deleteMeta(record.pendingKey);
-  if (record.operation === 'deposit') await _setMeta('pendingDeposit', null);
-  if (record.operation === 'withdraw' || record.operation === 'send') await _setMeta('pendingWithdraw', null);
-  return { recovered: _sumProofsAsNumber(cashuts, recoveredProofs), pending: false };
-}
-
-async function _ensureNoPendingSwap() {
-  if (!await _getMeta(PENDING_SWAP_KEY)) return;
-  await _recoverPendingSwapUnlocked();
-  if (await _getMeta(PENDING_SWAP_KEY)) throw new Error('A previous Cashu operation still needs recovery');
-}
-
-function _isTerminalMintQuoteState(state) {
-  const normalized = String(state || '').toUpperCase();
-  return normalized === 'EXPIRED';
-}
-
-function _pendingQuoteKey(mintUrl, quoteId) {
-  return PENDING_QUOTE_PREFIX + encodeURIComponent(_normalizeMintUrl(mintUrl)) + ':' + quoteId;
-}
-
-function _pendingQuoteDetails(entry, fallbackMint) {
-  const value = entry?.value;
-  if (value && typeof value === 'object') {
-    return {
-      quote: String(value.quote || ''),
-      amount: _amountToNumber(value.amount),
-      mint: _normalizeMintUrl(value.mint || fallbackMint),
-    };
-  }
-  return {
-    quote: String(entry?.key || '').slice(PENDING_QUOTE_PREFIX.length),
-    amount: _amountToNumber(value),
-    mint: _normalizeMintUrl(fallbackMint),
-  };
-}
-
-async function _saveFeeProofs(proofs, forMint) {
-  if (!proofs.length) return;
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_FEES, 'readwrite');
-    const store = tx.objectStore(STORE_FEES);
-    for (const p of proofs) store.put(_normalizeProofForStorage(p, mintUrl));
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _replaceFeeProofs(previousProofs, nextProofs, forMint) {
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  const db = await _openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_FEES, 'readwrite');
-    const store = tx.objectStore(STORE_FEES);
-    try {
-      for (const proof of previousProofs || []) store.delete(proof.secret);
-      for (const proof of nextProofs || []) store.put(_normalizeProofForStorage(proof, mintUrl));
-    } catch (error) {
-      try { tx.abort(); } catch {}
-      reject(error);
-      return;
-    }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('Cashu fee proof update aborted'));
-  });
-}
-
-async function _getAllFeeProofs(forMint) {
-  const db = await _openDB();
-  const mintUrl = _normalizeMintUrl(forMint || await getMintUrl());
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_FEES, 'readonly');
-    const req = tx.objectStore(STORE_FEES).getAll();
-    req.onsuccess = () => resolve((req.result || []).filter(p => _normalizeMintUrl(p._mint || DEFAULT_MINT) === mintUrl));
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function _migrateFeeProofs() {
-  const raw = localStorage.getItem('cashu-fee-proofs');
-  if (!raw) return;
-  try {
-    const proofs = JSON.parse(raw);
-    if (proofs.length) await _saveFeeProofs(proofs);
-    localStorage.removeItem('cashu-fee-proofs');
-  } catch {}
-}
-
-// ═══════════════════════════════════════════════
-// MNEMONIC STORAGE — encrypted only (C2/C3)
-// ═══════════════════════════════════════════════
-const _MNEMONIC_KEY = 'labcharts-cashu-wallet-mnemonic';
-
-async function _loadMnemonic() {
-  // Primary: encrypted localStorage
-  const encrypted = await encryptedGetItem(_MNEMONIC_KEY);
-  if (encrypted) return encrypted;
-  // Migration: move plaintext IDB → encrypted, then delete plaintext
-  const legacy = await _getMeta('walletMnemonic');
-  if (legacy) {
-    await encryptedSetItem(_MNEMONIC_KEY, legacy);
-    await _setMeta('walletMnemonic', null); // clear plaintext
-    return legacy;
-  }
-  return null;
-}
-
-async function _saveMnemonic(mnemonic) {
-  await encryptedSetItem(_MNEMONIC_KEY, mnemonic);
-}
-
-// ═══════════════════════════════════════════════
 // WALLET INSTANCE
 // ═══════════════════════════════════════════════
 let _wallet = null;
 let _mintUrl = null;
-
-// Persist deterministic wallet counters in IndexedDB to avoid "outputs already signed" errors.
-// Interface: reserve(keysetId, count) → { start, count }, advanceToAtLeast(keysetId, value)
-function _createCounterSource(namespace = '', migrateLegacy = true) {
-  function _readOrUpdate(keysetId, update) {
-    return _openDB().then(db => new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_META, update ? 'readwrite' : 'readonly');
-      const store = tx.objectStore(STORE_META);
-      const legacyKey = 'counter:' + keysetId;
-      const key = namespace ? `counter:${namespace}:${keysetId}` : legacyKey;
-      const req = store.get(key);
-      let result;
-      req.onsuccess = () => {
-        if (req.result || key === legacyKey || !migrateLegacy) {
-          const current = Number(req.result?.value) || 0;
-          result = update ? update(current) : current;
-          if (update) store.put({ key, value: result });
-          return;
-        }
-        const legacyReq = store.get(legacyKey);
-        legacyReq.onsuccess = () => {
-          const current = Number(legacyReq.result?.value) || 0;
-          result = update ? update(current) : current;
-          if (update) store.put({ key, value: result });
-        };
-        legacyReq.onerror = () => reject(legacyReq.error);
-      };
-      req.onerror = () => reject(req.error);
-      tx.oncomplete = () => resolve(result);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error || new Error('Cashu counter update aborted'));
-    }));
-  }
-
-  return {
-    async reserve(keysetId, count) {
-      if (!Number.isSafeInteger(count) || count < 0) throw new Error('reserve called with invalid count');
-      if (count === 0) return { start: await _readOrUpdate(keysetId, null), count: 0 };
-      let start = 0;
-      await _readOrUpdate(keysetId, current => {
-        start = current;
-        return current + count;
-      });
-      return { start, count };
-    },
-    async advanceToAtLeast(keysetId, value) {
-      if (!Number.isSafeInteger(value) || value < 0) throw new Error('advanceToAtLeast called with invalid value');
-      await _readOrUpdate(keysetId, current => Math.max(current, value));
-    }
-  };
-}
-
-async function _counterNamespaceForSeed(seed) {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', seed));
-  return Array.from(digest.slice(0, 8), byte => byte.toString(16).padStart(2, '0')).join('');
-}
 
 async function _getWallet(mintUrl) {
   const url = mintUrl || await getMintUrl();
@@ -612,6 +152,13 @@ async function _getWallet(mintUrl) {
   _mintUrl = url;
   return _wallet;
 }
+
+configureCashuWalletStore({
+  getMintUrl: () => getMintUrl(),
+  getWallet: mintUrl => _getWallet(mintUrl),
+  cashuLib: () => _cashuLib(),
+  sumProofsAsNumber: (cashuts, proofs) => _sumProofsAsNumber(cashuts, proofs),
+});
 
 // ═══════════════════════════════════════════════
 // PUBLIC API
@@ -1515,14 +1062,9 @@ export async function clearWallet() {
 /** Destroy entire wallet database (for clearAllData) */
 export async function destroyWalletDB() {
   return _withWalletLock(async () => {
-    _db = null;
     _wallet = null;
     _mintUrl = null;
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.deleteDatabase(DB_NAME);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    return _destroyWalletDBStorage();
   });
 }
 
