@@ -58,13 +58,13 @@ const OPENROUTER_CURATED = [
 const OPENROUTER_RECOMMENDED = [
   'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6',
   'anthropic/claude-opus-4.8', 'anthropic/claude-opus-4.7',
-  'openai/gpt-5.5', 'openai/gpt-5.4',
+  'openai/gpt-5.6-sol', 'openai/gpt-5.4',
   'google/gemini-3.5-flash', 'google/gemini-3-flash-preview',
   'z-ai/glm-5.2',
   'moonshotai/kimi-k2.7-code', 'moonshotai/kimi-k2.6',
   'x-ai/grok-4',
 ];
-const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
+const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'];
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
 const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k2.7-code', 'moonshotai/kimi-k2.7-code', 'kimi-k2.6', 'moonshotai/kimi-k2.6', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];

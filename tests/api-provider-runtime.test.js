@@ -82,11 +82,12 @@ describe('API provider runtime behavior', () => {
     fetch.mockResolvedValueOnce(jsonResponse({
       data: [
         {
-          id: 'openai/gpt-5.5',
-          name: 'GPT 5.5',
-          pricing: { prompt: '0.000004', completion: '0.000012' },
+          id: 'openai/gpt-5.6-sol',
+          name: 'GPT 5.6 Sol',
+          pricing: { prompt: '0.000005', completion: '0.000030' },
           architecture: { modality: 'text->text' },
         },
+        { id: 'openai/gpt-5.5', name: 'GPT 5.5' },
         {
           id: 'anthropic/claude-sonnet-4.6',
           name: 'Claude Sonnet 4.6',
@@ -137,8 +138,9 @@ describe('API provider runtime behavior', () => {
       'anthropic/claude-sonnet-5',
       'google/gemini-3.5-flash',
       'z-ai/glm-5.2',
-      'openai/gpt-5.5',
+      'openai/gpt-5.6-sol',
       'moonshotai/kimi-k2.7-code',
+      'openai/gpt-5.5',
     ]);
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
       'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
@@ -146,14 +148,14 @@ describe('API provider runtime behavior', () => {
       'google/gemini-3.5-flash': { input: 0.7, output: 3.75 },
       'z-ai/glm-5.2': { input: 1, output: 3 },
       'moonshotai/kimi-k2.7-code': { input: 0.56, output: 3.5 },
-      'openai/gpt-5.5': { input: 4, output: 12 },
+      'openai/gpt-5.6-sol': { input: 5, output: 30 },
     });
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-4.6');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-5');
     expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('google/gemini-3.5-flash');
-    expect(localStorage.getItem('labcharts-openrouter-model')).toBe('openai/gpt-5.5');
+    expect(localStorage.getItem('labcharts-openrouter-model')).toBe('openai/gpt-5.6-sol');
 
-    expect(await fetchOpenRouterModelPricing('openai/gpt-5.5')).toEqual({ input: 4, output: 12 });
+    expect(await fetchOpenRouterModelPricing('openai/gpt-5.6-sol')).toEqual({ input: 5, output: 30 });
 
     localStorage.setItem('labcharts-openrouter-pricing', '{}');
     updateKeyCache('labcharts-openrouter-key', 'sk-or');
@@ -444,6 +446,8 @@ describe('API provider runtime behavior', () => {
 
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-5')).toBe(true);
     expect(isRecommendedModel('openrouter', 'anthropic/claude-sonnet-4.6')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'openai/gpt-5.6-sol')).toBe(true);
+    expect(isRecommendedModel('openrouter', 'openai/gpt-5.5')).toBe(false);
     expect(isRecommendedModel('openrouter', 'google/gemini-3.5-flash')).toBe(true);
     expect(isRecommendedModel('openrouter', 'z-ai/glm-5.2')).toBe(true);
     expect(isRecommendedModel('openrouter', 'moonshotai/kimi-k2.7-code')).toBe(true);

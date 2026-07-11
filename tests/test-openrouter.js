@@ -93,7 +93,7 @@ assert('Exclude filter applied in fetch', apiModelsSrc.includes('OPENROUTER_EXCL
 assert('fetchOpenRouterModels extracts pricing.prompt', apiModelsSrc.includes('m.pricing.prompt'));
 assert('fetchOpenRouterModels converts to per-million', apiModelsSrc.includes('* 1_000_000'));
 assert('fetchOpenRouterModels caches pricing', apiModelsSrc.includes("'labcharts-openrouter-pricing'"));
-assert('OpenRouter default prefers GPT 5.5 then Sonnet 5 when fetched', apiModelsSrc.includes("'openai/gpt-5.5', 'anthropic/claude-sonnet-5'"));
+assert('OpenRouter default prefers GPT 5.6 Sol then Sonnet 5 when fetched', apiModelsSrc.includes("'openai/gpt-5.6-sol', 'anthropic/claude-sonnet-5'"));
 assert('getOpenRouterPricing function exists', apiProviderStorageSrc.includes('function getOpenRouterPricing('));
 assert('api.getOpenRouterPricing is function', typeof api.getOpenRouterPricing === 'function');
 
