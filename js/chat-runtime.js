@@ -58,5 +58,8 @@ export function getChatRegenerateCallbacks() {
 
 /** @param {string} provider */
 export function getChatProviderAttestation(provider) {
-  return getRuntimeValue(provider === 'ppq' ? '_ppqAttestation' : '_veniceAttestation');
+  const key = provider === 'ppq' ? '_ppqAttestation'
+    : provider === 'routstr' ? '_routstrAttestation'
+    : '_veniceAttestation';
+  return getRuntimeValue(key);
 }

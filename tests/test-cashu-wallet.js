@@ -54,8 +54,11 @@ const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
 const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
+const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
+const modelControlsSrc = await fetchWithRetry('js/provider-model-controls.js');
+const providerDelegatesSrc = await fetchWithRetry('js/provider-panel-delegates.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
 const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
@@ -67,6 +70,9 @@ const backupSrc = await fetchWithRetry('js/backup.js');
 const exportSrc = await fetchWithRetry('js/export.js');
 const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
 const swSrc = await fetchWithRetry('service-worker.js');
+const tinfoilSecureSrc = await fetchWithRetry('js/tinfoil-secure-fetch.js');
+const ppqTeeSrc = await fetchWithRetry('vendor/ppq-private-tee.js');
+const vendorManifest = JSON.parse(await fetchWithRetry('vendor/browser-vendors.json'));
 const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
 const canaryRoundtripSrc = canarySrc.slice(
   canarySrc.indexOf('async function tokenRoundtripAndSeedRestore()'),
@@ -352,7 +358,11 @@ assert('provider-panels imports wallet panel module', ppSrc.includes("from './pr
 assert('provider-panels configures wallet callbacks', ppSrc.includes('configureRoutstrWalletPanels({'));
 assert('provider-panels clears extracted wallet timers', ppSrc.includes('clearRoutstrWalletTimers();'));
 assert('provider-panels uses extracted Routstr balance refresh',
-  ppSrc.includes('renderRoutstrModelDropdown(models); });\n    refreshRoutstrBalance();') && !ppSrc.includes('_rsBalanceHtml'));
+  ppSrc.includes('fetchRoutstrModels().then')
+    && ppSrc.includes('renderRoutstrModelDropdown(models)')
+    && ppSrc.includes('refreshRoutstrPrivateControls()')
+    && ppSrc.includes('refreshRoutstrBalance()')
+    && !ppSrc.includes('_rsBalanceHtml'));
 assert('Routstr panel uses extracted wallet action buttons', providerRenderSrc.includes('routstrWalletActionButtons(null)'));
 assert('Routstr panel uses extracted node action buttons', providerRenderSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
 assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
@@ -378,6 +388,50 @@ assert('Wallet backup (export token)', walletPanelSrc.includes('showRoutstrWalle
 assert('Lightning withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawLightning'));
 assert('Cashu token withdraw UI', walletPanelSrc.includes('showRoutstrWithdrawToken'));
 assert('Provider QR helper lazy-loads QR library', providerQrSrc.includes('loadScriptOnce') && providerQrSrc.includes('/vendor/qrcode-generator.js'));
+assert('Routstr catalogs keep Tinfoil models separate from regular models',
+  apiRoutstrSrc.includes("localStorage.setItem('labcharts-routstr-private-models'")
+    && apiRoutstrSrc.includes('isRoutstrTinfoilModel(m.id)'));
+assert('Routstr Tinfoil model IDs fail closed into verified transport',
+  apiProviderStorageSrc.includes("modelId.startsWith('tinfoil-')")
+    && apiRoutstrSrc.includes("import('./tinfoil-secure-fetch.js')")
+    && apiRoutstrSrc.includes('useProxy: false')
+    && apiRoutstrSrc.includes('fetchImpl: secure.fetch'));
+assert('Routstr Tinfoil routing exposes only the required model metadata',
+  apiRoutstrSrc.includes("modelId.replace(/^tinfoil-/, '')")
+    && apiRoutstrSrc.includes("{ 'X-Routstr-Model': modelId }")
+    && apiRoutstrSrc.includes('webSearch: false'));
+assert('Routstr Private TEE toggle and privacy boundary are rendered',
+  providerRenderSrc.includes('routstr-private-toggle')
+    && providerRenderSrc.includes('decrypted only inside a verified Tinfoil TEE')
+    && providerRenderSrc.includes('session, selected model, and billing metadata'));
+assert('Routstr Private TEE mode is delegated and swaps model catalogs',
+  providerDelegatesSrc.includes("'routstr-private-mode': 'toggleRoutstrPrivateMode'")
+    && modelControlsSrc.includes("on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models'"));
+assert('Routstr node picker marks advertised private TEE support',
+  walletPanelRenderSrc.includes('routstrNodePickerRowHtml')
+    && walletPanelRenderSrc.includes("String(model.id || '').startsWith('tinfoil-')")
+    && walletPanelRenderSrc.includes('Private TEE'));
+assert('Changing Routstr nodes clears node-scoped private model state',
+  discoverySrc.includes("from './routstr-model-cache.js'")
+    && discoverySrc.includes('clearRoutstrModelCaches()'));
+assert('Shared Tinfoil transport binds verified origins and preserves plaintext proxy errors',
+  tinfoilSecureSrc.includes('Refusing Tinfoil request to unverified origin')
+    && tinfoilSecureSrc.includes('RESPONSE_NONCE_HEADER')
+    && tinfoilSecureSrc.includes('return response;'));
+assert('PPQ uses the shared Tinfoil transport', ppqTeeSrc.includes("from '../js/tinfoil-secure-fetch.js'"));
+assert('Service worker caches Routstr Tinfoil transport and EHBP runtime',
+  swSrc.includes("'/js/tinfoil-secure-fetch.js'")
+    && swSrc.includes("'/js/routstr-balance-settlement.js'")
+    && swSrc.includes("'/js/routstr-model-cache.js'")
+    && swSrc.includes("'/vendor/ehbp-browser.js'"));
+assert('Routstr private requests bound temporary reservations and refresh their balance after settlement',
+  apiRoutstrSrc.includes('ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS = 4096')
+    && apiRoutstrSrc.includes('ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS = 180000')
+    && apiRoutstrSrc.includes('notifyRoutstrRequestSettled({ failed, modelId })'));
+assert('Browser security vendor manifest records locked Tinfoil and EHBP runtimes',
+  vendorManifest.schemaVersion === 2
+    && vendorManifest.runtimes.some(runtime => runtime.package === 'tinfoil' && runtime.version === '1.1.7')
+    && vendorManifest.runtimes.some(runtime => runtime.package === 'ehbp' && runtime.version === '0.2.3'));
 
 // ═══════════════════════════════════════
 // 17. BIP-39 SEED GENERATION

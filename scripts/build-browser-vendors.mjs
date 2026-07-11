@@ -8,54 +8,87 @@ import { build } from 'rolldown';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK_ONLY = process.argv.includes('--check');
-const PACKAGE_NAME = '@cashu/cashu-ts';
-const ENTRY = 'scripts/vendor-entries/cashu.js';
-const OUTPUT = 'vendor/cashu-ts.js';
 const MANIFEST = 'vendor/browser-vendors.json';
+const TARGETS = [
+  {
+    package: '@cashu/cashu-ts',
+    entry: 'scripts/vendor-entries/cashu.js',
+    output: 'vendor/cashu-ts.js',
+    format: 'iife',
+  },
+  {
+    package: 'tinfoil',
+    entry: 'scripts/vendor-entries/tinfoil.js',
+    output: 'vendor/tinfoil-browser.js',
+    format: 'es',
+  },
+  {
+    package: 'ehbp',
+    entry: 'scripts/vendor-entries/ehbp.js',
+    output: 'vendor/ehbp-browser.js',
+    format: 'es',
+  },
+];
 
 const lock = JSON.parse(await fs.readFile(path.join(ROOT, 'package-lock.json'), 'utf8'));
-const packageEntry = lock.packages?.[`node_modules/${PACKAGE_NAME}`];
 const bundlerEntry = lock.packages?.['node_modules/rolldown'];
-if (!packageEntry?.version || !packageEntry?.integrity) throw new Error(`${PACKAGE_NAME} is missing version/integrity in package-lock.json`);
 if (bundlerEntry?.version !== '1.0.3' || !bundlerEntry?.integrity) throw new Error('rolldown must be directly locked to 1.0.3 with integrity metadata');
 
-const installedPackage = JSON.parse(await fs.readFile(
-  path.join(ROOT, 'node_modules', PACKAGE_NAME, 'package.json'),
-  'utf8'
-));
-if (installedPackage.version !== packageEntry.version) {
-  throw new Error(`node_modules has ${PACKAGE_NAME}@${installedPackage.version}; lockfile requires ${packageEntry.version}`);
-}
-
-const result = await build({
-  input: path.join(ROOT, ENTRY),
-  platform: 'browser',
-  write: false,
-  output: {
-    format: 'iife',
-    minify: true,
-    codeSplitting: false,
-    sourcemap: false,
-  },
-});
-const chunks = result.output.filter(item => item.type === 'chunk');
-if (chunks.length !== 1) throw new Error(`${PACKAGE_NAME} produced ${chunks.length} chunks; expected one`);
-const banner = `// @ts-nocheck\n// Generated from ${PACKAGE_NAME}@${packageEntry.version}; run npm run vendor:check.\n`;
-const cleanCode = chunks[0].code.replace(/^[ \t]+$/gm, '');
-const generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
-const outputSha256 = createHash('sha256').update(generated).digest('hex');
-const expectedManifest = {
-  schemaVersion: 1,
-  runtime: {
-    package: PACKAGE_NAME,
+const generatedTargets = [];
+for (const target of TARGETS) {
+  const packageEntry = lock.packages?.[`node_modules/${target.package}`];
+  if (!packageEntry?.version || !packageEntry?.integrity) {
+    throw new Error(`${target.package} is missing version/integrity in package-lock.json`);
+  }
+  const installedPackage = JSON.parse(await fs.readFile(
+    path.join(ROOT, 'node_modules', target.package, 'package.json'),
+    'utf8'
+  ));
+  if (installedPackage.version !== packageEntry.version) {
+    throw new Error(`node_modules has ${target.package}@${installedPackage.version}; lockfile requires ${packageEntry.version}`);
+  }
+  const result = await build({
+    input: path.join(ROOT, target.entry),
+    platform: 'browser',
+    write: false,
+    resolve: {
+      alias: {
+        zlib: path.join(ROOT, 'scripts/vendor-entries/zlib-browser-shim.js'),
+      },
+    },
+    output: {
+      format: target.format,
+      minify: true,
+      codeSplitting: false,
+      sourcemap: false,
+    },
+  });
+  const chunks = result.output.filter(item => item.type === 'chunk');
+  if (chunks.length !== 1) throw new Error(`${target.package} produced ${chunks.length} chunks; expected one`);
+  const banner = `// @ts-nocheck\n// Generated from ${target.package}@${packageEntry.version}; run npm run vendor:check.\n`;
+  const cleanCode = chunks[0].code.replace(/^[ \t]+$/gm, '');
+  const generated = banner + (cleanCode.endsWith('\n') ? cleanCode : `${cleanCode}\n`);
+  generatedTargets.push({
+    ...target,
     version: packageEntry.version,
     integrity: packageEntry.integrity,
-    entry: ENTRY,
-    output: OUTPUT,
-    format: 'iife',
+    generated,
+    sha256: createHash('sha256').update(generated).digest('hex'),
+  });
+}
+
+const expectedManifest = {
+  schemaVersion: 2,
+  runtimes: generatedTargets.map(target => ({
+    package: target.package,
+    version: target.version,
+    integrity: target.integrity,
+    entry: target.entry,
+    output: target.output,
+    format: target.format,
     minified: true,
-    sha256: outputSha256,
-  },
+    sha256: target.sha256,
+  })),
   bundler: {
     package: 'rolldown',
     version: bundlerEntry.version,
@@ -65,25 +98,34 @@ const expectedManifest = {
 const manifestText = JSON.stringify(expectedManifest, null, 2) + '\n';
 
 if (CHECK_ONLY) {
-  const [currentOutput, currentManifest] = await Promise.all([
-    fs.readFile(path.join(ROOT, OUTPUT), 'utf8').catch(() => ''),
+  const [currentOutputs, currentManifest] = await Promise.all([
+    Promise.all(generatedTargets.map(target => fs.readFile(path.join(ROOT, target.output), 'utf8').catch(() => ''))),
     fs.readFile(path.join(ROOT, MANIFEST), 'utf8').catch(() => ''),
   ]);
   let stale = false;
-  if (currentOutput !== generated) {
-    console.error(`${OUTPUT} is stale; run npm run vendor:build`);
-    stale = true;
+  for (let index = 0; index < generatedTargets.length; index += 1) {
+    const target = generatedTargets[index];
+    if (currentOutputs[index] !== target.generated) {
+      console.error(`${target.output} is stale; run npm run vendor:build`);
+      stale = true;
+    }
   }
   if (currentManifest !== manifestText) {
     console.error(`${MANIFEST} does not match the lockfile and generated bytes`);
     stale = true;
   }
   if (stale) process.exitCode = 1;
-  else console.log(`${OUTPUT} matches ${PACKAGE_NAME}@${packageEntry.version} (${outputSha256})`);
+  else {
+    for (const target of generatedTargets) {
+      console.log(`${target.output} matches ${target.package}@${target.version} (${target.sha256})`);
+    }
+  }
 } else {
   await Promise.all([
-    fs.writeFile(path.join(ROOT, OUTPUT), generated),
+    ...generatedTargets.map(target => fs.writeFile(path.join(ROOT, target.output), target.generated)),
     fs.writeFile(path.join(ROOT, MANIFEST), manifestText),
   ]);
-  console.log(`Built ${OUTPUT} from ${PACKAGE_NAME}@${packageEntry.version} (${outputSha256})`);
+  for (const target of generatedTargets) {
+    console.log(`Built ${target.output} from ${target.package}@${target.version} (${target.sha256})`);
+  }
 }

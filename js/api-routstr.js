@@ -4,18 +4,42 @@
 import {
   getRoutstrKey,
   getRoutstrModel,
+  isRoutstrPrivateModeActive,
+  isRoutstrTinfoilModel,
   setRoutstrModel,
+  syncRoutstrModelSelection,
 } from './api-provider-storage.js';
 import {
   deduplicateModels,
   findPreferredModel,
   isRecommendedModel,
+  needsMaxCompletionTokens,
 } from './api-models.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
+import { notifyRoutstrRequestSettled } from './routstr-balance-settlement.js';
 
 const ROUTSTR_CURATED = ['claude-', 'gpt-5', 'gpt-4', 'gemini-3', 'gemini-2', 'glm-5', 'z-ai/glm-5', 'kimi-k2', 'moonshotai/kimi-k2', 'grok-4', 'x-ai/grok-4', 'grok-3', 'llama-', 'qwen', 'deepseek-', 'mistral-', 'mimo-'];
 const ROUTSTR_DEFAULT_CANDIDATES = ['gpt-5.5', 'openai/gpt-5.5', 'claude-sonnet-5', 'claude-sonnet-4.6'];
 const ROUTSTR_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder', 'embed', 'tts', 'whisper', 'beta', 'preview', 'free', 'gratis'];
+const ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS = 180000;
+const ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS = 4096;
+const ROUTSTR_SLOW_CONNECTION_THRESHOLD_MS = 45000;
+
+/** @typedef {Window & typeof globalThis & { _routstrAttestation?: any }} RoutstrApiWindow */
+const apiWindow = /** @type {RoutstrApiWindow} */ (typeof window !== 'undefined' ? window : {});
+
+/** @param {unknown} error @param {number} elapsedMs @param {string} modelId */
+function privateRequestError(error, elapsedMs, modelId) {
+  const message = error instanceof Error ? error.message : String(error || 'Unknown error');
+  const slowConnectionEnded = elapsedMs >= ROUTSTR_SLOW_CONNECTION_THRESHOLD_MS
+    && /Cannot reach Routstr API:\s*(Failed to fetch|NetworkError)/i.test(message);
+  const reservationHint = 'The displayed node balance may include a temporary reservation and will refresh automatically.';
+  if (slowConnectionEnded) {
+    const elapsedSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+    return new Error(`The encrypted Routstr connection ended after ${elapsedSeconds}s before ${modelId} returned a response. The model may have exceeded the node's upstream timeout; try another Private TEE model. ${reservationHint}`);
+  }
+  return new Error(`${message} ${reservationHint}`);
+}
 
 export async function fetchRoutstrModels() {
   try {
@@ -23,7 +47,11 @@ export async function fetchRoutstrModels() {
     const res = await fetch(nodeUrl + '/v1/models');
     if (!res.ok) return [];
     const json = await res.json();
-    const all = (json.data || []).filter(function(m) {
+    const enabled = (json.data || []).filter(function(m) { return m.id && m.enabled !== false; });
+    const privateModels = enabled.filter(function(m) { return isRoutstrTinfoilModel(m.id); })
+      .sort(function(a, b) { return (a.name || a.id).localeCompare(b.name || b.id); });
+    const all = enabled.filter(function(m) {
+      if (isRoutstrTinfoilModel(m.id)) return false;
       if (!m.id || !m.enabled) return false;
       if (ROUTSTR_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;
       return ROUTSTR_CURATED.some(function(prefix) { return m.id.startsWith(prefix); });
@@ -38,7 +66,7 @@ export async function fetchRoutstrModels() {
       return (a.name || a.id).localeCompare(b.name || b.id);
     });
     const pricingCache = {};
-    for (const m of models) {
+    for (const m of [...models, ...privateModels]) {
       if (m.pricing && m.pricing.prompt && m.pricing.completion) {
         pricingCache[m.id] = {
           input: parseFloat(m.pricing.prompt) * 1_000_000,
@@ -47,17 +75,19 @@ export async function fetchRoutstrModels() {
       }
     }
     localStorage.setItem('labcharts-routstr-pricing', JSON.stringify(pricingCache));
-    const visionIds = (json.data || []).filter(function(m) {
+    const visionIds = enabled.filter(function(m) {
       if (!m.id || !m.architecture) return false;
       return (m.architecture.modality || '').includes('image') || (m.architecture.input_modalities || []).includes('image');
     }).map(function(m) { return m.id; });
     localStorage.setItem('labcharts-routstr-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-routstr-models', JSON.stringify(models));
+    localStorage.setItem('labcharts-routstr-private-models', JSON.stringify(privateModels));
+    syncRoutstrModelSelection(models, privateModels);
     if (!localStorage.getItem('labcharts-routstr-model') && models.length) {
       const claude = findPreferredModel(models, ROUTSTR_DEFAULT_CANDIDATES);
       if (claude) setRoutstrModel(claude.id);
     }
-    return models;
+    return isRoutstrPrivateModeActive() ? privateModels : models;
   } catch (e) {
     return [];
   }
@@ -85,10 +115,53 @@ export async function callRoutstrAPI(opts) {
   const key = getRoutstrKey();
   if (!key) throw new Error('No Routstr key configured. Fund your wallet and connect to a node in Settings.');
   const nodeUrl = _requireNodeUrl();
+  const modelId = getRoutstrModel();
+  if (isRoutstrTinfoilModel(modelId)) {
+    if (!globalThis.crypto?.subtle) throw new Error('Routstr Private TEE mode requires a secure context (HTTPS). Cannot encrypt on this page.');
+    const { createTinfoilSecureFetch } = await import('./tinfoil-secure-fetch.js');
+    let secure;
+    try {
+      secure = await createTinfoilSecureFetch({ baseUrl: nodeUrl });
+    } catch (e) {
+      throw new Error(`Routstr Private TEE setup failed: ${e.message}`);
+    }
+    apiWindow._routstrAttestation = secure.verification ?? apiWindow._routstrAttestation ?? null;
+    document.querySelector('.chat-header-model')?.dispatchEvent(new CustomEvent('e2ee-attestation'));
+    const enclaveModelId = modelId.replace(/^tinfoil-/, '');
+    const outputTokenField = needsMaxCompletionTokens(enclaveModelId) ? 'max_completion_tokens' : 'max_tokens';
+    const outputTokenLimit = Math.min(opts.maxTokens || ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS, ROUTSTR_PRIVATE_MAX_OUTPUT_TOKENS);
+    const requestStartedAt = Date.now();
+    let failed = true;
+    try {
+      const result = await callOpenAICompatibleAPI(
+        nodeUrl + '/v1/chat/completions',
+        key,
+        enclaveModelId,
+        'Routstr',
+        {
+          ...opts,
+          webSearch: false,
+          requestTimeoutMs: opts.requestTimeoutMs || ROUTSTR_PRIVATE_REQUEST_TIMEOUT_MS,
+        },
+        { 'X-Routstr-Model': modelId },
+        {
+          useProxy: false,
+          fetchImpl: secure.fetch,
+          extraBody: { [outputTokenField]: outputTokenLimit },
+        }
+      );
+      failed = false;
+      return result;
+    } catch (error) {
+      throw privateRequestError(error, Date.now() - requestStartedAt, modelId);
+    } finally {
+      notifyRoutstrRequestSettled({ failed, modelId });
+    }
+  }
   return callOpenAICompatibleAPI(
     nodeUrl + '/v1/chat/completions',
     key,
-    getRoutstrModel(),
+    modelId,
     'Routstr',
     opts
   );

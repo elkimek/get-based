@@ -38,6 +38,7 @@ const runtimeKeys = [
   'isChatStreaming',
   'sendChatMessage',
   '_ppqAttestation',
+  '_routstrAttestation',
   '_veniceAttestation',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -62,6 +63,7 @@ function restoreRuntime() {
 try {
   const calls = [];
   const ppqAttestation = { provider: 'ppq', verified: true };
+  const routstrAttestation = { provider: 'routstr', verified: true };
   const veniceAttestation = { provider: 'venice', verified: true };
   setRuntimeValue('window', globalThis);
   setRuntimeValue('renderChatMessages', () => calls.push(['render']));
@@ -72,6 +74,7 @@ try {
   setRuntimeValue('isChatStreaming', () => false);
   setRuntimeValue('sendChatMessage', () => calls.push(['send']));
   setRuntimeValue('_ppqAttestation', ppqAttestation);
+  setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
 
   renderChatMessagesRuntime();
@@ -107,6 +110,7 @@ try {
 
   assert('chat runtime reads provider attestations',
     getChatProviderAttestation('ppq') === ppqAttestation &&
+      getChatProviderAttestation('routstr') === routstrAttestation &&
       getChatProviderAttestation('venice') === veniceAttestation);
 
   delete globalThis.window;

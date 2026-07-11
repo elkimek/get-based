@@ -1,5 +1,5 @@
 // @ts-check
-// chat-attestation.js - Venice E2EE attestation lock markup
+// chat-attestation.js - E2EE provider attestation lock markup
 
 import { escapeAttr } from './utils.js';
 

@@ -20,6 +20,7 @@ console.log('=== Chat Send Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   '_ppqAttestation',
+  '_routstrAttestation',
   '_veniceAttestation',
   'isProductRecsEnabled',
   'detectSupplementSlots',
@@ -50,8 +51,10 @@ function restoreRuntime() {
 try {
   const calls = [];
   const ppqAttestation = { provider: 'ppq', verified: true };
+  const routstrAttestation = { provider: 'routstr', verified: true };
   const veniceAttestation = { provider: 'venice', verified: true };
   setRuntimeValue('_ppqAttestation', ppqAttestation);
+  setRuntimeValue('_routstrAttestation', routstrAttestation);
   setRuntimeValue('_veniceAttestation', veniceAttestation);
   setRuntimeValue('isProductRecsEnabled', () => {
     calls.push(['enabled']);
@@ -71,6 +74,8 @@ try {
 
   assert('getChatSendProviderAttestation reads PPQ attestation',
     getChatSendProviderAttestation('ppq') === ppqAttestation);
+  assert('getChatSendProviderAttestation reads Routstr attestation',
+    getChatSendProviderAttestation('routstr') === routstrAttestation);
   assert('getChatSendProviderAttestation reads Venice attestation for other providers',
     getChatSendProviderAttestation('venice') === veniceAttestation);
   assert('isChatSendProductRecsEnabled delegates runtime flag',

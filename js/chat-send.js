@@ -7,7 +7,7 @@ import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML } from './utils.js';
 import {
   getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider,
-  isPpqPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
+  isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
 } from './api.js';
 import { buildVisionContent, formatImageBlock } from './image-utils.js';
 import {
@@ -230,7 +230,9 @@ export async function sendChatMessage() {
   const _msgProvider = getAIProvider();
   const _msgModelId = getActiveModelId(_msgProvider);
   const _msgModelDisplay = getActiveModelDisplay(_msgProvider);
-  const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive()) || (_msgProvider === 'ppq' && isPpqPrivateModeActive());
+  const _msgE2EE = (_msgProvider === 'venice' && isVeniceE2EEActive())
+    || (_msgProvider === 'ppq' && isPpqPrivateModeActive())
+    || (_msgProvider === 'routstr' && isRoutstrPrivateModeActive());
   const _msgAttestation = getChatSendProviderAttestation(_msgProvider);
   const webSearchSupported = supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;

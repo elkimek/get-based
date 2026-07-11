@@ -9,6 +9,7 @@ import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js';
 import { recoverPendingWalletFunding as recoverPendingWalletFundingImpl } from './provider-wallet-funding-recovery.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
+  routstrNodePickerRowHtml,
   walletSeedManagementHtml,
   walletSeedMissingHtml,
   walletSeedOnboardingHtml,
@@ -16,6 +17,11 @@ import {
   walletWithdrawLightningHtml,
   walletWithdrawTokenHtml,
 } from './provider-wallet-panel-renderers.js';
+import { clearRoutstrModelCaches } from './routstr-model-cache.js';
+import {
+  clearRoutstrBalanceSettlementTimers,
+  installRoutstrBalanceSettlementRefresh,
+} from './routstr-balance-settlement.js';
 import { configureRoutstrWalletRuntime, walletRuntime } from './provider-wallet-runtime.js';
 
 export { configureRoutstrWalletRuntime };
@@ -91,6 +97,8 @@ export function refreshRoutstrBalance() {
   });
 }
 
+installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
+
 let _rsFundPollTimer = null;
 const FUNDING_POLL_INTERVAL_MS = 3000;
 const FUNDING_POLL_MAX_CONSECUTIVE_FAILURES = 3;
@@ -102,6 +110,7 @@ function _getWalletInput(id) {
 export function clearRoutstrWalletTimers() {
   if (_rsFundPollTimer) { clearInterval(_rsFundPollTimer); _rsFundPollTimer = null; }
   if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer); _rsCashuBackupTimer = null; }
+  clearRoutstrBalanceSettlementTimers();
   _walletSeedThenAction = null;
 }
 
@@ -345,17 +354,7 @@ export async function showRoutstrNodePicker() {
       area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>';
       return;
     }
-    area.innerHTML = '<div style="margin-top:8px">' + nodes.map(function(n) {
-      const url = n.urls[0] || '';
-      const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
-      const label = escapeHTML(n.name || domain);
-      const models = n.modelCount + ' model' + (n.modelCount !== 1 ? 's' : '');
-      const onion = n.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-        <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}</span></div>
-        <button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px" data-routstr-wallet-action="connect-node" data-node-url="${escapeAttr(url)}">Connect</button>
-      </div>`;
-    }).join('') + '</div>';
+    area.innerHTML = '<div style="margin-top:8px">' + nodes.map(routstrNodePickerRowHtml).join('') + '</div>';
   } catch (e) {
     area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(e.message) + '</div>';
   }
@@ -456,8 +455,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
     if (result.api_key) await saveRoutstrKey(result.api_key);
     walletRuntime.nostrSetSelectedNode(nodeUrl);
     if (result.api_key) {
-      localStorage.removeItem('labcharts-routstr-model');
-      localStorage.removeItem('labcharts-routstr-models');
+      clearRoutstrModelCaches();
     }
     const models = await fetchRoutstrModels();
     showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, '') + ' \u26a1 ' + amount.toLocaleString() + ' sats', 'success');

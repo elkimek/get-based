@@ -18,6 +18,7 @@ import {
   setOpenRouterModel,
   getRoutstrModel,
   getRoutstrModelDisplay,
+  isRoutstrPrivateModeActive,
   getPpqModel,
   getPpqModelDisplay,
   isPpqPrivateModel,
@@ -67,6 +68,7 @@ const OPENROUTER_DEFAULT_CANDIDATES = ['openai/gpt-5.5', 'anthropic/claude-sonne
 
 // Routstr uses bare model IDs (no provider prefix, dots: claude-sonnet-4.6)
 const ROUTSTR_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'glm-5.2', 'z-ai/glm-5.2', 'kimi-k2.7-code', 'moonshotai/kimi-k2.7-code', 'kimi-k2.6', 'moonshotai/kimi-k2.6', 'x-ai/grok-4.3', 'grok-4.3', 'grok-4'];
+const ROUTSTR_PRIVATE_RECOMMENDED = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
 
 // PPQ uses bare model IDs for regular routing and private/ IDs for Tinfoil TEE models.
 const PPQ_RECOMMENDED = ['claude-sonnet-5', 'claude-sonnet-4.6', 'claude-opus-4.8', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'z-ai/glm-5.2', 'glm-5.2', 'moonshotai/kimi-k2.7-code', 'kimi-k2.7-code', 'moonshotai/kimi-k2.6', 'kimi-k2.6', 'x-ai/grok-4.3', 'grok-4'];
@@ -126,7 +128,10 @@ export function isRecommendedModel(provider, modelId) {
     // versions land, broaden the alternation rather than matching all 4.x.
     return /^(claude-(sonnet-5|sonnet-4-6|opus-4-8|opus-4-7)|openai-gpt-5[2345](-codex)?|gemini-3-(5-flash|flash-preview)|zai-org-glm-5-2|z-ai-glm-5-2|glm-5-2|kimi-k2-7-code|kimi-k2-6|grok-4[1-9]?)(-|$)/.test(modelId);
   }
-  if (provider === 'routstr') return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
+  if (provider === 'routstr') {
+    if (modelId.startsWith('tinfoil-')) return ROUTSTR_PRIVATE_RECOMMENDED.includes(modelId);
+    return ROUTSTR_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
+  }
   if (provider === 'ppq') {
     if (isPpqPrivateModel(modelId)) return PPQ_PRIVATE_RECOMMENDED.includes(modelId);
     return PPQ_RECOMMENDED.some(function(r) { return modelId === r || modelStartsWithRecommended(modelId, r); });
@@ -330,6 +335,7 @@ export function supportsVision() {
     } catch { return false; }
   }
   if (provider === 'routstr') {
+    if (isRoutstrPrivateModeActive()) return false;
     const modelId = getRoutstrModel();
     try {
       const visionIds = JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]');

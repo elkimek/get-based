@@ -8,6 +8,7 @@ import {
   getOpenRouterModel,
   getPpqModel,
   getRoutstrModel,
+  isRoutstrPrivateModeActive,
   getVeniceE2EE,
   getVeniceModel,
   renderModelPricingHint,
@@ -159,6 +160,44 @@ export function renderRoutstrModelDropdown(models) {
   area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
     '<select class="api-key-input" id="routstr-model-select" style="margin-top:4px" data-provider-panel-change="routstr-model">' + opts + '</select>' +
     '<div id="routstr-model-pricing" style="margin-top:4px">' + renderModelPricingHint('routstr', currentModel) + '</div>';
+}
+
+export function refreshRoutstrPrivateControls() {
+  const controls = document.getElementById('routstr-private-controls');
+  if (!controls) return;
+  let privateModels = [];
+  try { privateModels = JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]'); } catch {}
+  controls.style.display = privateModels.length || isRoutstrPrivateModeActive() ? '' : 'none';
+  const toggle = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-private-toggle'));
+  if (toggle) toggle.checked = isRoutstrPrivateModeActive();
+  const indicator = document.getElementById('routstr-private-indicator');
+  if (indicator) indicator.style.display = isRoutstrPrivateModeActive() ? '' : 'none';
+}
+
+export function onRoutstrModelDropdownChange(value) {
+  setRoutstrModel(value);
+  localStorage.setItem(value.startsWith('tinfoil-') ? 'labcharts-routstr-model-private' : 'labcharts-routstr-model-regular', value);
+  updateRoutstrModelPricing(value);
+  refreshRoutstrPrivateControls();
+}
+
+export function toggleRoutstrPrivateMode(on) {
+  const listKey = on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models';
+  let models = [];
+  try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  if (!models.length) { refreshRoutstrPrivateControls(); return; }
+  const previousKey = on ? 'labcharts-routstr-model-regular' : 'labcharts-routstr-model-private';
+  const restoreKey = on ? 'labcharts-routstr-model-private' : 'labcharts-routstr-model-regular';
+  localStorage.setItem(previousKey, getRoutstrModel());
+  const restored = localStorage.getItem(restoreKey);
+  const privatePreferredIds = ['tinfoil-gemma4-31b', 'tinfoil-kimi-k2-6', 'tinfoil-deepseek-v4-pro', 'tinfoil-glm-5-2'];
+  const preferred = on ? privatePreferredIds.map(id => models.find(model => model.id === id)).find(Boolean) : null;
+  const next = restored && models.some(model => model.id === restored) ? restored : (preferred?.id || models[0].id);
+  setRoutstrModel(next);
+  localStorage.setItem(restoreKey, next);
+  renderRoutstrModelDropdown(models);
+  refreshRoutstrPrivateControls();
+  refreshProviderModelUiRuntime();
 }
 
 export function renderPpqModelDropdown(models) {

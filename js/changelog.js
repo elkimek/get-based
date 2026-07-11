@@ -11,6 +11,17 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.169', date: '2026-07-11', title: 'Private TEE models on Routstr',
+    forceShow: true,
+    items: [
+      '<b>Supporting Routstr nodes now offer Private TEE Mode.</b> getbased discovers their Tinfoil models and keeps them separate from regular models, so the privacy mode is explicit.',
+      '<b>Prompts and responses are verified and encrypted in your browser.</b> Private requests are decrypted only inside the node\'s attested Tinfoil enclave, and the chat header exposes the attestation details.',
+      '<b>The privacy boundary is visible.</b> The Routstr node still receives session, selected-model, and billing metadata; web search and images stay disabled for private requests.',
+      '<b>Private mode fails closed.</b> An attestation failure, unsupported browser, changed node, or missing private catalog cannot silently send the prompt over the regular Routstr transport.',
+      '<b>Temporary Routstr reservations are less alarming.</b> Private chats use a smaller output reservation and a longer response window, while the visible node balance refreshes until unused sats are released after success or failure.',
+    ]
+  },
+  {
     version: '1.10.168', date: '2026-07-11', title: 'Routstr sync and wallet encryption',
     items: [
       '<b>Funded Routstr sessions now follow sync correctly.</b> A node key received on another encrypted device is usable immediately, so its shared node balance no longer appears disconnected until reload.',
