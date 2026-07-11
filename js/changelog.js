@@ -15,7 +15,7 @@ const CHANGELOG = [
     forceShow: true,
     items: [
       '<b>Routstr now supports Private Mode on compatible nodes.</b> Prompts and replies are encrypted in your browser and only opened inside verified private AI hardware.',
-      '<b>Private chats are clearer to use.</b> A lock marks private models, and your node balance refreshes automatically while temporary payment holds are released.',
+      '<b>Private Mode is easy to spot.</b> A lock shows when it is on, and your balance updates automatically after each chat.',
     ]
   },
   {
