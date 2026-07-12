@@ -296,8 +296,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     ].join('\n');
     assert('api-transport.js: readWithStallTimeout exists',
       /function readWithStallTimeout/.test(apiTransportSrc));
-    assert('api-transport.js: fetchWithRetry composes AbortSignal.timeout + caller signal',
-      /AbortSignal\.timeout\(timeoutMs\)/.test(apiTransportSrc)
+    assert('api-transport.js: fetchWithRetry composes a clearable header timeout + caller signal',
+      /timeoutController/.test(apiTransportSrc)
+      && /clearRequestTimeout/.test(apiTransportSrc)
       && /AbortSignal\.any/.test(apiTransportSrc));
     // Polyfill path: when AbortSignal.any is unavailable, manual
     // AbortController forwards both signals. Without this older

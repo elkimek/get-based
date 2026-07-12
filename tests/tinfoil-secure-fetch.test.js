@@ -152,4 +152,37 @@ describe('verified Tinfoil EHBP transport', () => {
     expect(secureMocks.clients[0].reset).toHaveBeenCalledOnce();
     expect(secureMocks.clients[0].ready).toHaveBeenCalledTimes(2);
   });
+
+  it('reloads a custom attestation bundle before retrying a rotated PPQ key', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        type: 'urn:ietf:params:ehbp:error:key-config',
+      }), {
+        status: 422,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }))
+      .mockResolvedValueOnce(new Response('fresh attestation bundle'))
+      .mockResolvedValueOnce(new Response('ciphertext', {
+        headers: { 'Ehbp-Response-Nonce': 'nonce' },
+      }));
+    const secure = await createTinfoilSecureFetch({
+      baseUrl: 'https://api.ppq.ai/private/',
+      attestationBundleURL: 'https://api.ppq.ai/private',
+    });
+
+    const response = await secure.fetch('https://api.ppq.ai/private/v1/chat/completions', {
+      method: 'POST',
+      body: '{}',
+    });
+
+    expect(response.status).toBe(200);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+    expect(globalThis.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://api.ppq.ai/private/attestation',
+      { cache: 'reload' },
+    );
+    expect(secureMocks.clients[0].reset).toHaveBeenCalledOnce();
+    expect(secureMocks.clients[0].ready).toHaveBeenCalledTimes(2);
+  });
 });

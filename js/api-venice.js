@@ -23,6 +23,7 @@ import {
  *   _veniceE2EE?: any,
  *   _veniceE2EEKey?: string,
  *   _veniceAttestation?: any,
+ *   _veniceLastStreamDiagnostics?: any,
  *   clearE2EESession?: () => void
  * }} VeniceApiWindow */
 
@@ -98,7 +99,18 @@ export async function callVeniceAPI(opts) {
   }
 
   const useStream = !forceNonStream;
-  const body = { model: modelId, messages: apiMessages, max_tokens: maxTokens || 4096, stream: useStream };
+  const isGlmE2EE = /(?:^|-)glm(?:-|$)/i.test(modelId);
+  const body = /** @type {any} */ ({
+    model: modelId,
+    messages: apiMessages,
+    max_tokens: maxTokens || 4096,
+    stream: useStream,
+    venice_parameters: {
+      enable_e2ee: true,
+      ...(isGlmE2EE ? { disable_thinking: true, strip_thinking_response: true } : {}),
+    },
+    ...(isGlmE2EE ? { reasoning: { enabled: false } } : {}),
+  });
   if (useStream) body.stream_options = { include_usage: true };
   let res;
   try {
@@ -133,7 +145,8 @@ export async function callVeniceAPI(opts) {
     const data = await res.json();
     const usage = data.usage || {};
     const choice = data.choices?.[0];
-    const encryptedContent = choice?.message?.content || '';
+    const encryptedContent = choice?.message?.content || choice?.message?.reasoning_content || '';
+    if (!encryptedContent) throw new Error('Venice E2EE returned no encrypted response content.');
     const text = await decryptChunk(session.privateKey, encryptedContent);
     const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
     return {
@@ -148,31 +161,70 @@ export async function callVeniceAPI(opts) {
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
+  let reasoningBuf = '';
+  let hasContent = false;
   let inputTokens = 0;
   let outputTokens = 0;
   let finishReason = null;
+  const streamDiagnostics = {
+    model: modelId,
+    eventCount: 0,
+    contentChunks: 0,
+    reasoningChunks: 0,
+    deltaFields: [],
+    finishReason: null,
+    usageSeen: false,
+    doneSeen: false,
+    status: 'reading',
+  };
+  const MAX_HIDDEN_REASONING_CHUNKS = 128;
+  apiWindow._veniceLastStreamDiagnostics = streamDiagnostics;
   const handleVeniceLine = async (line, boundary) => {
     if (!line.startsWith('data: ')) return;
     const data = line.slice(6);
-    if (data === '[DONE]') return;
+    if (data === '[DONE]') {
+      streamDiagnostics.doneSeen = true;
+      return;
+    }
     try {
       const event = JSON.parse(data);
+      streamDiagnostics.eventCount += 1;
       if (event.error) throw new Error(redactApiSecretText(event.error.message || JSON.stringify(event.error), [key]));
       const choice = event.choices?.[0];
       if (choice?.finish_reason) finishReason = choice.finish_reason;
       else if (choice?.native_finish_reason) finishReason = choice.native_finish_reason;
-      if (choice?.delta?.content) {
-        const chunk = await decryptChunk(session.privateKey, choice.delta.content);
+      streamDiagnostics.finishReason = finishReason;
+      const delta = choice?.delta || choice?.message;
+      if (delta && typeof delta === 'object') {
+        for (const field of Object.keys(delta)) {
+          if (!streamDiagnostics.deltaFields.includes(field)) streamDiagnostics.deltaFields.push(field);
+        }
+      }
+      if (delta?.content) {
+        streamDiagnostics.contentChunks += 1;
+        const chunk = await decryptChunk(session.privateKey, delta.content);
+        hasContent = true;
         fullText += chunk;
         if (onStream) onStream(fullText);
+      } else if (delta?.reasoning_content && !hasContent) {
+        streamDiagnostics.reasoningChunks += 1;
+        if (streamDiagnostics.reasoningChunks > MAX_HIDDEN_REASONING_CHUNKS) {
+          streamDiagnostics.status = 'cancelled-reasoning-only';
+          try { await reader.cancel(); } catch {}
+          throw new Error(`Venice E2EE produced more than ${MAX_HIDDEN_REASONING_CHUNKS} hidden reasoning chunks without an answer. The stream was cancelled to limit further charges; choose another E2EE model or retry after Venice resolves the GLM response.`);
+        }
+        const reasoningChunk = await decryptChunk(session.privateKey, delta.reasoning_content);
+        reasoningBuf += reasoningChunk;
       }
       if (event.usage) {
+        streamDiagnostics.usageSeen = true;
         inputTokens = event.usage.prompt_tokens || inputTokens;
         outputTokens = event.usage.completion_tokens || outputTokens;
       }
     } catch (e) {
       if (e.name === 'OperationError') throw new Error('E2EE decryption failed - session may be stale. Try sending again.');
       if (boundary && e instanceof SyntaxError) return;
+      if (streamDiagnostics.status === 'reading') streamDiagnostics.status = 'error';
       throw e;
     }
   };
@@ -185,5 +237,15 @@ export async function callVeniceAPI(opts) {
     for (const line of lines) await handleVeniceLine(line, true);
   }
   if (buffer.startsWith('data: ')) await handleVeniceLine(buffer, false);
+  if (!fullText && reasoningBuf) {
+    fullText = reasoningBuf;
+    if (onStream) onStream(fullText);
+  }
+  if (!fullText.trim()) {
+    streamDiagnostics.status = 'empty';
+    const fields = streamDiagnostics.deltaFields.length ? streamDiagnostics.deltaFields.join(', ') : 'none';
+    throw new Error(`Venice E2EE stream ended without encrypted response content (events: ${streamDiagnostics.eventCount}, fields: ${fields}, finish: ${finishReason || 'none'}, usage: ${streamDiagnostics.usageSeen ? 'yes' : 'no'}).`);
+  }
+  streamDiagnostics.status = 'complete';
   return { text: fullText, usage: { inputTokens, outputTokens }, finishReason, truncated: isTokenLimitFinish(finishReason) };
 }

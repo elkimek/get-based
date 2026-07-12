@@ -42,6 +42,10 @@ assert('Venice E2EE supports forced non-stream retry path',
   && /stream:\s*useStream/.test(apiVeniceSrc)
   && /if\s*\(!useStream\)/.test(apiVeniceSrc)
   && /decryptChunk\(session\.privateKey,\s*encryptedContent\)/.test(apiVeniceSrc));
+assert('Venice GLM E2EE disables hidden reasoning and caps reasoning-only streams',
+  apiVeniceSrc.includes('disable_thinking: true')
+    && apiVeniceSrc.includes('reasoning: { enabled: false }')
+    && apiVeniceSrc.includes('MAX_HIDDEN_REASONING_CHUNKS'));
 
 // 2. api.js module exports
 assert('api.isE2EEModel is function', typeof api.isE2EEModel === 'function');
@@ -120,13 +124,17 @@ try {
   assert('crypto operations threw no error', false, e.message);
 }
 
-// 11. decryptChunk passthrough for non-hex content
-const pt1 = await e2eeMod.decryptChunk(keypair.privateKey, 'hello');
-assert('short non-hex passes through', pt1 === 'hello');
+// 11. decryptChunk fails closed for non-encrypted model output
+let plaintextError = '';
+try { await e2eeMod.decryptChunk(keypair.privateKey, 'hello'); } catch (e) { plaintextError = e.message; }
+assert('short non-hex response fails closed', plaintextError.includes('unencrypted content'), plaintextError);
 const pt2 = await e2eeMod.decryptChunk(keypair.privateKey, '');
 assert('empty string passes through', pt2 === '');
-const pt3 = await e2eeMod.decryptChunk(keypair.privateKey, null);
-assert('null passes through', pt3 === null);
+const pt3 = await e2eeMod.decryptChunk(keypair.privateKey, ' \n');
+assert('whitespace-only response passes through', pt3 === ' \n');
+let nullError = '';
+try { await e2eeMod.decryptChunk(keypair.privateKey, null); } catch (e) { nullError = e.message; }
+assert('non-string response fails closed', nullError.includes('must be a string'), nullError);
 
 // 12. createVeniceE2EE factory
 const instance = e2eeMod.createVeniceE2EE({ apiKey: 'test-key', verifyAttestation: false });
@@ -377,6 +385,29 @@ const chatAttestationSrc = read('js/chat-attestation.js');
 assert('chat send uses isVeniceE2EEActive', chatSendSrc.includes('isVeniceE2EEActive'));
 assert('chat send imports E2EE attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"));
 assert('chat attestation shows lock emoji for E2EE', chatAttestationSrc.includes('\\uD83D\\uDD12'));
+const limitedVenice = {
+  verificationLevel: 'binding',
+  nonceVerified: true,
+  signingKeyBound: true,
+  debugMode: false,
+  dcapVerified: false,
+  measurementsVerified: null,
+  errors: []
+};
+const limitedTooltip = chatAttestationMod.attestationTooltip(limitedVenice);
+const limitedLock = chatAttestationMod.e2eeLockHTML(limitedVenice);
+assert('Venice tooltip distinguishes binding checks from full verification',
+  limitedTooltip.includes('limited verification')
+    && limitedTooltip.includes('Client DCAP: not run')
+    && limitedTooltip.includes('Response origin binding: not verified'),
+  limitedTooltip);
+assert('Venice binding-only lock is amber and not verified',
+  limitedLock.includes('#f59e0b') && limitedLock.includes('~') && !limitedLock.includes('#22c55e'),
+  limitedLock);
+assert('Venice provider copy names limited checks and visible metadata',
+  providerRenderSrc.includes('does not currently validate the full DCAP chain')
+    && providerRenderSrc.includes('Venice still sees your API key')
+    && providerRenderSrc.includes('does not independently verify provider-side logging'));
 assert('chat exports refreshWebSearchToggle', chatSrc.includes('refreshWebSearchToggle'));
 
 console.log(results.join('\n'));

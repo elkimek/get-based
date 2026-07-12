@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { CHAT_SYSTEM_PROMPT } from './constants.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
-import { escapeHTML } from './utils.js';
+import { escapeHTML, showNotification } from './utils.js';
 import {
   getActiveModelDisplay, getActiveModelId, getAIProvider, hasAIProvider,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
@@ -444,8 +444,22 @@ export async function sendChatMessage() {
       // to avoid double-notifying the user.
       const errEl = document.createElement('div');
       errEl.className = 'chat-msg chat-ai';
-      errEl.innerHTML = `<span style="color:var(--red)">Error: ${escapeHTML(error.message)}</span>`;
+      const errorMessage = `Error: ${error.message || 'AI request failed'}`;
+      errEl.innerHTML = `<span style="color:var(--red)">${escapeHTML(errorMessage)}</span>`;
       container.appendChild(errEl);
+      const personality = getActivePersonality();
+      state.chatHistory.push({
+        role: 'assistant',
+        content: errorMessage,
+        error: true,
+        personalityName: personality.name,
+        personalityIcon: personality.icon,
+        provider: _msgProvider,
+        modelId: _msgModelId,
+        modelDisplay: _msgModelDisplay,
+      });
+      await saveChatHistory();
+      showNotification(errorMessage, 'error', 10000);
     }
   }
 

@@ -160,9 +160,10 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
     };
     outcomes.attestationMarkupReflectsState =
       attestation.attestationTooltip(null).includes('no data')
-      && attestation.attestationTooltip(okAttestation).includes('verified')
+      && attestation.attestationTooltip(okAttestation).includes('limited verification')
       && attestation.attestationTooltip(failedAttestation).includes('FAILED')
-      && attestation.e2eeLockHTML(okAttestation).includes('#22c55e')
+      && attestation.e2eeLockHTML(okAttestation).includes('#f59e0b')
+      && attestation.e2eeLockHTML(okAttestation).includes('~')
       && attestation.e2eeLockHTML(okAttestation).includes('&lt;quoted&gt;')
       && attestation.e2eeLockHTML(failedAttestation).includes('#ef4444')
       && attestation.e2eeLockFootnote(okAttestation).includes('e2ee');

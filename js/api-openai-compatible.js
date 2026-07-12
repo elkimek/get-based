@@ -4,6 +4,7 @@
 import { isDebugMode } from './utils.js';
 import {
   FETCH_REQUEST_TIMEOUT_MS,
+  createInitialResponseTimeout,
   createProxyFetch,
   fetchWithRetry,
   readWithStallTimeout,
@@ -64,28 +65,19 @@ export async function fetchWithApiRetry(url, options, retries = 2, useProxy = tr
 
 async function fetchWithOptionalTimeout(fetchImpl, endpoint, requestInit, requestTimeoutMs) {
   const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
-  const timeoutSig = AbortSignal.timeout(timeoutMs);
-  let signal;
-  if (!requestInit.signal) {
-    signal = timeoutSig;
-  } else if (typeof AbortSignal.any === 'function') {
-    signal = AbortSignal.any([requestInit.signal, timeoutSig]);
-  } else {
-    const ctl = new AbortController();
-    const fwd = (sig) => sig.addEventListener('abort', () => ctl.abort(sig.reason), { once: true });
-    if (requestInit.signal.aborted) ctl.abort(requestInit.signal.reason);
-    else fwd(requestInit.signal);
-    if (timeoutSig.aborted) ctl.abort(timeoutSig.reason);
-    else fwd(timeoutSig);
-    signal = ctl.signal;
-  }
+  const requestState = createInitialResponseTimeout(requestInit, timeoutMs);
   try {
-    return await fetchImpl(endpoint, { ...requestInit, signal });
+    return await fetchImpl(endpoint, requestState.fetchOptions);
   } catch (e) {
     const callerAborted = requestInit.signal?.aborted;
     const isTimeout = e?.name === 'TimeoutError' || (e?.name === 'AbortError' && !callerAborted);
     if (isTimeout) throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s - check your network`);
     throw e;
+  } finally {
+    // Private TEE fetch wrappers return a streaming decrypted Response. The
+    // initial-response timeout must stop once those headers arrive or it will
+    // abort a legitimate long PPQ/Routstr response body later.
+    requestState.clearRequestTimeout();
   }
 }
 
@@ -210,7 +202,13 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
       for (const line of lines) handleSSELine(line, true);
     }
     if (buffer.startsWith('data: ')) handleSSELine(buffer, false);
-    if (!fullText && reasoningBuf) fullText = reasoningBuf;
+    if (!fullText && reasoningBuf) {
+      fullText = reasoningBuf;
+      onStream(fullText);
+    }
+    if (!fullText.trim()) {
+      throw new Error(`${providerName} stream ended without response content. No usage was reported by the app; check the provider account before retrying.`);
+    }
     return { text: fullText, usage: { inputTokens, outputTokens }, finishReason, truncated: isTokenLimitFinish(finishReason) };
   }
 
@@ -220,6 +218,9 @@ export async function callOpenAICompatibleAPI(endpoint, key, model, providerName
   const msg = choice?.message;
   let text = msg?.content || '';
   if (!text && msg?.reasoning_content) text = msg.reasoning_content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  if (!String(text).trim()) {
+    throw new Error(`${providerName} returned no response content. No usage was reported by the app; check the provider account before retrying.`);
+  }
   const finishReason = choice?.finish_reason || choice?.native_finish_reason || null;
   return {
     text,

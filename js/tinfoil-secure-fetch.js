@@ -39,6 +39,24 @@ function optionsCacheKey(options) {
   return JSON.stringify(resolveOptions(options));
 }
 
+/**
+ * Force the browser HTTP cache to refresh a custom attestation bundle before
+ * re-attesting after an enclave key rotation. SecureClient verifies the bundle
+ * again itself; this preflight only prevents its subsequent fetch from reusing
+ * the stale response that caused the key-config mismatch.
+ * @param {TinfoilSecureOptions} options
+ */
+async function refreshAttestationBundleCache(options) {
+  if (!options.attestationBundleURL) return;
+  const attestationURL = `${normalizeBaseUrl(options.attestationBundleURL)}/attestation`;
+  const response = await fetch(attestationURL, { cache: 'reload' });
+  if (!response.ok) {
+    throw new Error(`Failed to refresh Tinfoil attestation bundle: HTTP ${response.status}`);
+  }
+  // Fully consume the response so the browser can commit the refreshed entry.
+  await response.arrayBuffer();
+}
+
 /** @param {TinfoilSecureOptions} options */
 async function prepareTinfoilClient(options) {
   const resolved = resolveOptions(options);
@@ -165,6 +183,7 @@ export async function createTinfoilSecureFetch(options) {
         return await fetchEhbpOnce(context, options, normalized);
       } catch (error) {
         if (!(error instanceof KeyConfigMismatchError)) throw error;
+        await refreshAttestationBundleCache(options);
         context.client.reset();
         try {
           await context.client.ready();
@@ -176,7 +195,15 @@ export async function createTinfoilSecureFetch(options) {
           clientCache.delete(optionsCacheKey(options));
           throw reattestError;
         }
-        return fetchEhbpOnce(context, options, normalized);
+        try {
+          return await fetchEhbpOnce(context, options, normalized);
+        } catch (retryError) {
+          if (retryError instanceof KeyConfigMismatchError) {
+            clientCache.delete(optionsCacheKey(options));
+            context.client.reset();
+          }
+          throw retryError;
+        }
       }
     },
   };

@@ -50,9 +50,13 @@ export function createProxyFetch(shouldUseProxy) {
   };
 }
 
-function buildFetchOptions(options, requestTimeoutMs) {
+export function createInitialResponseTimeout(options, requestTimeoutMs) {
   const timeoutMs = Number.isFinite(requestTimeoutMs) && requestTimeoutMs > 0 ? requestTimeoutMs : FETCH_REQUEST_TIMEOUT_MS;
-  const timeoutSig = AbortSignal.timeout(timeoutMs);
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => {
+    timeoutController.abort(new DOMException('The operation timed out.', 'TimeoutError'));
+  }, timeoutMs);
+  const timeoutSig = timeoutController.signal;
   let signal;
   if (!options.signal) {
     signal = timeoutSig;
@@ -72,7 +76,10 @@ function buildFetchOptions(options, requestTimeoutMs) {
     else fwd(timeoutSig);
     signal = ctl.signal;
   }
-  return { ...options, signal };
+  return {
+    fetchOptions: { ...options, signal },
+    clearRequestTimeout() { clearTimeout(timeoutId); },
+  };
 }
 
 export async function fetchWithRetry(
@@ -90,8 +97,9 @@ export async function fetchWithRetry(
   const fetchFn = useProxy ? proxyFetch : directFetch;
   for (let i = 0; i <= retries; i++) {
     let res;
+    const requestState = createInitialResponseTimeout(options, requestTimeoutMs);
     try {
-      res = await fetchFn(url, buildFetchOptions(options, requestTimeoutMs));
+      res = await fetchFn(url, requestState.fetchOptions);
     } catch (e) {
       // User-initiated abort - surface immediately without retry.
       if (options.signal?.aborted) throw e;
@@ -112,6 +120,12 @@ export async function fetchWithRetry(
         throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s — check your network`);
       }
       throw e;
+    } finally {
+      // The timeout protects only the wait for response headers. Leaving its
+      // signal armed after fetch() resolves aborts legitimate long streams.
+      // The caller's signal remains composed into fetchOptions.signal, so the
+      // Stop button can still cancel the response body at any time.
+      requestState.clearRequestTimeout();
     }
     if (res.status !== 429 || i === retries) return res;
     const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
