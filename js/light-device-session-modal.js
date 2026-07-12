@@ -110,6 +110,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   await hydrateDevicesFromPresets?.().catch(() => {});
   const device = getDevices?.()?.find(d => d.id === deviceId);
   if (!device) return;
+  const emitsUV = Array.isArray(device.peakWavelengths)
+    && device.peakWavelengths.some(nm => nm >= 280 && nm < 400);
 
   // Prefill from the user's last logged session on this device. First-time
   // logs fall through to vendor reference distance + sensible defaults.
@@ -118,7 +120,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm > 0
     ? last.distanceCm
     : (device.recommendedDistanceCm || 15);
-  const defaultEyesProtected = last.eyesProtected !== false;
+  const defaultEyesProtected = emitsUV ? true : last.eyesProtected !== false;
   const defaultRegions = _defaultRegionsForLastSession(last);
 
   // Mode picker renders only for devices with multiple valid modes.
@@ -174,7 +176,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
         </label>`;
       })()}
       <div class="ctx-label" style="display:block">
-        <span>Body area treated</span>
+        <span>Body area reached by the light</span>
         <div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">${renderBodySilhouette ? renderBodySilhouette(new Set(defaultRegions)) : ''}</div>
         <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div class="sun-silhouette-hint" id="dev-session-area-hint">Tap regions the panel reaches.</div>
@@ -182,12 +184,16 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
         </div>
       </div>
       <div class="ctx-label" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <span style="flex:1;min-width:0">Eyes protected (goggles or closed)</span>
+        <span style="flex:1;min-width:0">${emitsUV ? 'UV-rated eye protection in place' : 'Eyes protected (goggles or closed)'}</span>
         <label class="toggle-switch">
-          <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''} />
+          <input type="checkbox" id="dev-session-eyes"${defaultEyesProtected ? ' checked' : ''}${emitsUV ? ' aria-describedby="dev-session-uv-warning"' : ''} />
           <span class="toggle-slider"></span>
         </label>
       </div>
+      ${emitsUV ? `<div id="dev-session-uv-warning" class="sun-start-uvi-banner" role="alert"><div class="sun-uvi-warn">
+        <strong>UV eye protection required</strong><br>
+        <span>This device emits UV. Use UV-rated protective eyewear specified for the device; closed eyelids alone may not be adequate. Logging and timers are disabled while protection is unchecked.</span>
+      </div></div>` : ''}
       <p class="modal-body-hint" style="margin-top:8px">Save now to log a finished session, or Start to run a live timer (matches the sun-session pattern — handy when you want to walk away and come back).</p>
       <div class="modal-actions" style="margin-top:18px">
         <button class="import-btn import-btn-secondary" data-device-session-close>Cancel</button>
@@ -261,6 +267,21 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   }
   updateAreaHint(selectedRegions);
 
+  const syncUVSafety = () => {
+    if (!emitsUV) return true;
+    const protectedNow = !!_input(overlay, '#dev-session-eyes')?.checked;
+    for (const id of ['#dev-session-save', '#dev-session-start']) {
+      const button = /** @type {HTMLButtonElement|null} */ (overlay.querySelector(id));
+      if (button) button.disabled = !protectedNow;
+    }
+    const warning = overlay.querySelector('#dev-session-uv-warning > div');
+    warning?.classList.toggle('sun-uvi-warn', protectedNow);
+    warning?.classList.toggle('sun-uvi-extreme', !protectedNow);
+    return protectedNow;
+  };
+  _input(overlay, '#dev-session-eyes')?.addEventListener('change', syncUVSafety);
+  syncUVSafety();
+
   overlay.querySelector('#dev-session-clear')?.addEventListener('click', () => {
     selectedRegions.clear();
     if (silhouetteSlot && renderBodySilhouette) {
@@ -292,6 +313,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   }
 
   overlay.querySelector('#dev-session-save').addEventListener('click', async () => {
+    if (!syncUVSafety()) return;
     const durationMin = parseInt(_input(overlay, '#dev-session-duration')?.value || '', 10) || 10;
     const distanceCm = _readDistanceCm(overlay, device.recommendedDistanceCm || 15);
     const bodyAreas = Array.from(selectedRegions);
@@ -309,6 +331,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   });
 
   overlay.querySelector('#dev-session-start').addEventListener('click', async () => {
+    if (!syncUVSafety()) return;
     if (getActiveDeviceSession()) {
       showNotification('Another device session is already running. Stop it first.', 'error');
       return;

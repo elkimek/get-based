@@ -1,7 +1,6 @@
 // @ts-check
 // light-page-view-hooks.js - wire Light page feature dependencies at startup.
 
-import { loadCatalog, renderChannelDeficitDeviceRecs } from './recommendations.js';
 import {
   CHANNEL_DISPLAY,
   channelTier,
@@ -19,12 +18,12 @@ import {
   vitaminDBudgetStatus,
   weeklyChannelTier,
 } from './sun.js';
+import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 import { resumeActiveTickerIfNeeded } from './sun-active-session.js';
-import { renderSetupCard as renderSunSetupCard } from './sun-defaults.js';
+import { openLightSetup, renderSetupCard as renderSunSetupCard } from './sun-defaults.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import {
   ensureActiveDeviceTicker,
-  loadLightDevicePresets,
   openAddDeviceDialog,
   quickLogDeviceSession,
   renderActiveDeviceSessionCard,
@@ -33,7 +32,6 @@ import {
 import { getDeviceSessions, getDevices, rollingDeviceTotals } from './light-devices-store.js';
 import { openLightEnvironmentAssessment, renderEnvironmentAssessmentSummary } from './light-env.js';
 import { renderLightTools } from './light-tools.js';
-import { renderChannelMixVerdict } from './light-channels-ai-analysis.js';
 import { renderLightTodayDashboardChip, renderLightTodayHero } from './light-today-ai.js';
 import { configureLightPageView } from './light-page-view.js';
 
@@ -48,17 +46,15 @@ configureLightPageView({
   getDevices,
   getSessions,
   getSunCoords,
-  loadCatalog,
-  loadLightDevicePresets,
+  getCachedConditionsAtmosphere,
   openAddDeviceDialog,
   openChannelOnLightPage: _openChannelOnLightPage,
   openDetailedSessionDialog,
   openLightEnvironmentAssessment,
+  openLightSetup,
   quickLogDeviceSession,
   quickLogSunSession,
   renderActiveDeviceSessionCard,
-  renderChannelDeficitDeviceRecs,
-  renderChannelMixVerdict,
   renderDevicesSection,
   renderEnvironmentAssessmentSummary,
   renderLightTodayDashboardChip,

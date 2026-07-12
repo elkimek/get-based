@@ -22,6 +22,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const saved = {
       importedData: clone(state.importedData),
+      currentProfile: state.currentProfile,
     };
     let restoreDeps = null;
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
@@ -32,6 +33,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
     const calls = [];
     const host = document.createElement('div');
     const coords = { lat: 50.08, lon: 14.43, source: 'profile-precise' };
+    let currentCoords = null;
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
     const waitUntil = async (predicate, label) => {
       for (let i = 0; i < 100; i += 1) {
@@ -76,7 +78,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
 
     try {
       restoreDeps = conditions.configureLightConditionsNow({
-        getSunCoords: () => coords,
+        getSunCoords: () => currentCoords,
         solarZenithAngle: () => 38,
         computeUVConfidence: opts => {
           calls.push(['confidence', opts]);
@@ -99,6 +101,17 @@ test('conditions now browser coverage covers refresh cache manual override and i
         lightCircadian: { skinType: 'II - fair' },
       };
 
+      const transitionHost = document.createElement('div');
+      document.body.append(transitionHost);
+      transitionHost.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-location-transition' });
+      await waitUntil(() => slotText('cond-now-location-transition').includes('Set a country'), 'missing-location conditions state');
+      const fetchesBeforeLocation = calls.filter(call => call[0] === 'fetch').length;
+      currentCoords = coords;
+      transitionHost.innerHTML = conditions.renderConditionsNow({ variant: 'full', slotId: 'cond-now-location-transition' });
+      await waitUntil(() => slotText('cond-now-location-transition').includes('UV index'), 'location-aware rerender');
+      outcomes.locationAddedRefreshesExistingSlotImmediately = calls.filter(call => call[0] === 'fetch').length > fetchesBeforeLocation;
+      transitionHost.remove();
+
       host.innerHTML = conditions.renderLightConditionsWidgetBody({ variant: 'full', slotId: 'cond-now-coverage-full' });
       conditions.installLightConditionsActionDelegates(host);
       outcomes.widgetBodyRendersRefreshButton = !!host.querySelector('.conditions-now-refresh');
@@ -113,10 +126,41 @@ test('conditions now browser coverage covers refresh cache manual override and i
       outcomes.fullRenderShowsAirQuality = slotText('cond-now-coverage-full').includes('Air quality');
       outcomes.fullRenderShowsSource = slotText('cond-now-coverage-full').includes('Open-Meteo');
       outcomes.cachedAtmosphereAvailable = conditions.getCachedConditionsAtmosphere()?._appliedByTest === true;
+      state.currentProfile = 'coverage-other-profile';
+      outcomes.conditionsCacheIsProfileScoped = conditions.getCachedConditionsAtmosphere() === null;
+      state.currentProfile = saved.currentProfile;
+
+      const constantMed = conditions._timeToMed(10, 'III', null);
+      const sensitiveMed = conditions._timeToMed(10, 'III', null, 0.5);
+      outcomes.burnTimeUsesLocalIrradianceNotBodyArea = constantMed.kind === 'minutes' && constantMed.value === 20;
+      outcomes.photosensitivityConservativelyShortensBurnEstimate = sensitiveMed.kind === 'minutes' && sensitiveMed.value === 10;
+      const offsetSeconds = 5 * 3600;
+      const locationLocalAt = minutes => new Date(Date.now() + minutes * 60000 + offsetSeconds * 1000).toISOString().slice(0, 16);
+      const timezoneMed = conditions._timeToMed(10, 'III', {
+        daily: { sunset: locationLocalAt(120) },
+        hourly: {
+          time: [locationLocalAt(0), locationLocalAt(60), locationLocalAt(120)],
+          uv_index: [10, 10, 0],
+          utcOffsetSeconds: offsetSeconds,
+        },
+      });
+      outcomes.burnTimeParsesLocationTimezoneIndependently = timezoneMed.kind === 'minutes'
+        && Math.abs(timezoneMed.value - 20) <= 1;
 
       const compactHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-full' });
       outcomes.cacheHitRendersCompactRow = compactHtml.includes('conditions-now-row');
       outcomes.cacheHitRendersCompactSource = compactHtml.includes('Open-Meteo');
+      conditions.configureLightConditionsNow({ computeUVConfidence: () => 0.4 });
+      const lowConfidenceHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-full' });
+      outcomes.lowConfidenceWithholdsExactBurnCountdown = lowConfidenceHtml.includes('burn timing withheld')
+        && !lowConfidenceHtml.includes('to sunburn dose');
+      conditions.configureLightConditionsNow({ computeUVConfidence: () => 0.9 });
+      state.importedData.sunDefaults.photosensitiveMeds = 'moderate';
+      const medicationHtml = conditions.renderConditionsNow({ variant: 'compact', slotId: 'cond-now-coverage-full' });
+      outcomes.medicationFlagWithholdsPersonalizedBurnCountdown = medicationHtml.includes('medication sensitivity')
+        && !medicationHtml.includes('to sunburn dose');
+      state.importedData.sunDefaults.photosensitiveMeds = 'none';
+      conditions.configureLightConditionsNow({ computeUVConfidence: () => 0.73 });
       outcomes.elapsedShortFormatsMinutes = conditions._formatElapsedShort(65_000) === '1:05';
       outcomes.elapsedShortFormatsHours = conditions._formatElapsedShort(3_661_000) === '1:01:01';
 
@@ -215,6 +259,7 @@ test('conditions now browser coverage covers refresh cache manual override and i
     } finally {
       if (restoreDeps) conditions.configureLightConditionsNow(restoreDeps);
       state.importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

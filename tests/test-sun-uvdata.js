@@ -300,11 +300,11 @@ const {
       source: 'manual_meter', snapshotAgeSec: 999999, cloudCover: 1, zenithDeg: 89, uvIndex: 0,
     }) === 1.0);
 
-  // Manual override flag locks to 1.0 on any source (user typed UVI).
-  assert('manualOverridden=true forces 1.0 on Open-Meteo',
+  // A typed override is useful, but is not assumed to come from a calibrated meter.
+  assert('manualOverridden=true uses manual-entry confidence on Open-Meteo',
     computeUVConfidence({
       source: 'open_meteo', uvIndex: 5, manualOverridden: true,
-    }) === 1.0);
+    }) === UV_SOURCE_CONFIDENCE.manual_entry);
 
   // Floor at 0.05 — never returns 0 even under stacked worst-case.
   assert('floor at 0.05 with all penalties stacked',
@@ -398,8 +398,8 @@ const {
       /DEFAULT_UVDATA_UPSTREAM\s*=\s*'https:\/\/uvdata\.getbased\.health'/.test(apiProxySrc));
     assert('Vercel CAMS proxy surfaces missing hosted bearer explicitly',
       /CAMS hosted relay requires UVDATA_BEARER/.test(apiProxySrc));
-    assert('Light explainer says CAMS is the default atmosphere source',
-      /<strong>Atmosphere data\.<\/strong> CAMS by default/.test(lightPageViewSrc));
+    assert('Light explainer describes combined weather inputs in plain language',
+      /<strong>Weather data\.<\/strong> The app combines current UV and cloud data with atmosphere estimates/.test(lightPageViewSrc));
     assert('fetchJson defines _UV_RESPONSE_CAP_BYTES',
       /_UV_RESPONSE_CAP_BYTES\s*=\s*256\s*\*\s*1024/.test(uvSrc));
     assert('fetchJson does Content-Length pre-check',

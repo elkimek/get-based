@@ -69,12 +69,12 @@ export function buildBurdenContext() {
   if (!env) return '';
   const burden = computeIndoorBurden();
   const lines = [];
-  lines.push('### Indoor light burden — live snapshot of the user\'s active environment');
-  lines.push(`Tier: ${burden.label} (0=light / 1=moderate / 2=heavy)`);
-  lines.push(`Daytime indoor hours (d2): ${burden.d2.toFixed(1)}`);
-  lines.push(`Junk-light hours (d3 — LED-only / blue-after-sunset weighted): ${burden.d3.toFixed(1)}`);
-  lines.push(`Hardcoded heuristic interp this user is ABOUT to see: "${burden.interp}"`);
-  lines.push('Your job: write something more specific that references their actual rooms / screens, not just the tier label.');
+  lines.push('### Indoor light pattern — current rooms and screens');
+  lines.push(`Overall pattern: ${burden.label}`);
+  lines.push(`Daylight-gap estimate: ${burden.d2.toFixed(1)} (higher means more time in dim indoor spaces)`);
+  lines.push(`Evening-brightness estimate: ${burden.d3.toFixed(1)} (higher means more bright or blue-rich light after sunset)`);
+  lines.push(`Built-in summary: "${burden.interp}"`);
+  lines.push('Write a more specific observation that names the room or screen driving the pattern.');
 
   const rooms = (env.rooms || []).filter(isActiveToday);
   if (rooms.length) {
@@ -113,23 +113,23 @@ export function buildBurdenContext() {
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a user\'s LIVE indoor-light burden — the right-now snapshot of which rooms + screens they actively use, weighted by hours and source spectrum.',
+  'You summarize a user\'s current indoor-light pattern from the rooms and screens they mapped. The inputs are rough estimates, not clinical measurements.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = burden is light (d2 ≤ 4 AND d3 ≤ 2 AND no sleep-room contamination)',
-  '  yellow = moderate burden in one axis (long indoor hours OR meaningful evening blue, not both)',
-  '  red = heavy burden in both axes OR sleep-room contamination present',
+  '  green = the mapped routine includes useful daytime brightness and little bright or blue-rich light near bedtime',
+  '  yellow = one practical gap stands out: dim daytime spaces or prolonged evening brightness',
+  '  red = both gaps are substantial, or a bright screen is regularly used for a long time close to bedtime',
   '  gray = no rooms / screens mapped yet',
   '',
-  'You\'re replacing a hardcoded 5-branch heuristic that says generic things like "Plenty of indoor daytime hours. More outdoor light — especially before 10am — is the highest-leverage fix." Your job is to do better than that by NAMING the specific rooms / screens that are driving the burden, and picking a fix that is genuinely the highest-leverage move for THIS user, not a generic talking point.',
+  'Name the specific room or screen driving the pattern, then offer one realistic change the user can try. Do not diagnose sleep or claim a fixture controls hormones.',
   '',
   'Concrete patterns to call out when present:',
   '  • A specific room dominating d2 (e.g. "Office at 8 hr/day under cool LED is the bulk of d2")',
   '  • A specific screen dominating d3 (e.g. "TV at 4 hr after sunset accounts for most of the evening blue load")',
-  '  • Phone-in-bed if a phone is bound to a sleep-coded room',
-  '  • Daytime cave: all daytime rooms low-lux + warm = sleep is OK but daytime entrainment is failing',
-  '  • Mismatch: light load but a single hostile evening fixture undoes the rest',
+  '  • A phone used for a long time in a sleep room close to bedtime',
+  '  • All mapped daytime rooms are dim, with little recorded outdoor light',
+  '  • Most of the setup is calm at night but one bright fixture or screen dominates the evening',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',

@@ -6,10 +6,11 @@
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
-import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
-import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
 import { renderChannelChips } from './sun-session-ui.js';
+import { configureSunSessionStartUI, openStartSunSessionDialog } from './sun-session-start-ui.js';
+
+const SAFETY_ATMOSPHERE_MAX_AGE_MS = 15 * 60 * 1000;
 
 /**
  * @typedef {object} SunActiveSessionDeps
@@ -19,9 +20,12 @@ import { renderChannelChips } from './sun-session-ui.js';
  * @property {(id: any) => Promise<any>} stopSession
  * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
  * @property {() => any} getSunCoords
+ * @property {() => any} getCachedConditionsAtmosphere
+ * @property {(atMs?: number) => number} cumulativeOcularEffectiveDose8h
+ * @property {number} uviFetchTimeoutMs
  * @property {() => Promise<void> | void} saveImportedData
  * @property {(atm: any) => any} applyAtmOverrides
- * @property {() => void} refreshSurfaces
+ * @property {(scrollAnchor?: string) => void} refreshSurfaces
  * @property {(raw: any) => string} normalizePSMTier
  * @property {(tier?: any) => number} photosensitiveMedScale
  * @property {Array<{ key: string, label: string, pickerLabel?: string }>} eyeModes
@@ -39,6 +43,9 @@ const activeDeps = {
   stopSession: async () => null,
   hydrateSession: async () => null,
   getSunCoords: () => null,
+  getCachedConditionsAtmosphere: () => null,
+  cumulativeOcularEffectiveDose8h: () => 0,
+  uviFetchTimeoutMs: 5000,
   saveImportedData: async () => {},
   applyAtmOverrides: (atm) => atm,
   refreshSurfaces: () => {},
@@ -47,18 +54,24 @@ const activeDeps = {
   eyeModes: [], lensTints: [], postureOptions: [], surfaceOptions: [],
   fetchAtmosphere: async () => null, reconstructSpectrum: () => null,
   computeChannelDoses: () => ({}), erythemalSED: () => 0,
+  retinalUVdose: () => 0,
   fractionOfMED: () => 0, solarZenithAngle: () => 90,
+  computeUVConfidence: () => 0.5,
   interpolateAtmosphere: () => null,
-  vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+  vitaminDIU: (channelAu) => channelAu * 60,
   vitaminDIUPerSession: null,
   skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
   renderLightChannelsLive: () => {}, renderLightTodayStrip: () => '',
 };
 
 /** @param {(Partial<SunActiveSessionDeps> & Record<string, any>)} [deps] */
-export function configureSunActiveSession(deps = {}) { Object.assign(activeDeps, deps); }
+export function configureSunActiveSession(deps = {}) {
+  Object.assign(activeDeps, deps);
+  configureSunSessionStartUI({ ...activeDeps, ensureActiveTicker });
+}
 
 export { POSTURE_MULTIPLIERS, SURFACE_ALBEDO } from './sun-session-model.js';
+export { openStartSunSessionDialog };
 
 // Single-tap "I'm outside now" — starts a session with last-used defaults.
 // On stop: skips confirm dialog because the user explicitly tapped stop.
@@ -68,220 +81,24 @@ export async function quickLogSunSession() {
     await activeDeps.stopSession(active.id);
     await hydrateSunSessionFromProfileCoords(active.id);
     const sess = activeDeps.getSessions().find(s => s.id === active.id);
-    const dur = Math.round(sess?.durationMin || 0);
-    const summary = _plainStopSummary(sess, dur);
+    const durationMin = Number(sess?.durationMin) || 0;
+    const summary = _plainStopSummary(sess, durationMin);
     showNotification(summary, summary.includes('over your burn threshold') ? 'error' : 'success', 7000);
-    activeDeps.refreshSurfaces();
+    // The live card disappears during the rebuild. Anchor the first stable
+    // post-session widget so stopping cannot strand the user far down the
+    // newly shortened page.
+    activeDeps.refreshSurfaces('[data-widget-id="light-best-next-step"]');
     return;
   }
   return openStartSunSessionDialog();
 }
 
-async function _fetchCurrentUVI() {
-  const coords = activeDeps.getSunCoords();
-  if (!coords) return null;
-  try {
-    const atm = await activeDeps.fetchAtmosphere({
-      lat: coords.lat, lon: coords.lon, isoTime: new Date().toISOString(),
-    });
-    const overridden = activeDeps.applyAtmOverrides(atm);
-    return overridden?.uvIndex ?? null;
-  } catch (e) { return null; }
-}
-
-function _estimateMedMinutes(uvi, fitzpatrick, psmTier) {
-  if (!Number.isFinite(uvi) || uvi <= 0) return null;
-  const fitzMED = { I: 200, II: 250, III: 300, IV: 450, V: 600, VI: 1000 };
-  const baseMED = fitzMED[fitzpatrick] ?? fitzMED.III;
-  const med = baseMED * (activeDeps.photosensitiveMedScale(psmTier) || 1.0);
-  const irradiance = uvi * 25; // 1 UVI unit = 25 mW/m² CIE-erythemal irradiance.
-  const seconds = (med * 1000) / irradiance;
-  return Math.round(seconds / 60);
-}
-
-function _renderUVIPreflightBanner(uvi, fitzpatrick, psmTier) {
-  if (!Number.isFinite(uvi)) return '';
-  const psmHigh = psmTier === 'moderate' || psmTier === 'severe';
-  const fairSkin = fitzpatrick === 'I' || fitzpatrick === 'II';
-  if (uvi < 8 && !psmHigh && !fairSkin) return '';
-  if (uvi < 5 && !psmHigh) return '';
-  const medMin = _estimateMedMinutes(uvi, fitzpatrick, psmTier);
-  let cls = 'sun-uvi-warn';
-  let icon = '☀';
-  let title = '';
-  if (uvi >= 11) { cls = 'sun-uvi-extreme'; icon = '⚠'; title = `Extreme UV (UVI ${uvi.toFixed(1)})`; }
-  else if (uvi >= 8) { cls = 'sun-uvi-veryhigh'; title = `Very high UV (UVI ${uvi.toFixed(1)})`; }
-  else { title = `UV ${uvi.toFixed(1)} — burn risk elevated ${psmHigh ? 'by photosensitizer' : 'for fair skin'}`; }
-  const medLine = medMin ? `Estimated MED for Fitzpatrick ${fitzpatrick}${psmHigh ? ` + ${psmTier} photosensitizer` : ''}: ~${medMin} min uncovered.` : '';
-  return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine)} Sunscreen + cover up + a shorter session strongly suggested.</div>`;
-}
-
-function _buildStartSessionToast({ regionCount, uvi, psmTier, eyeMode }) {
-  const parts = [`Outdoor session started · ${regionCount} region${regionCount === 1 ? '' : 's'} exposed`];
-  const notes = [];
-  if (Number.isFinite(uvi) && uvi >= 11) notes.push(`extreme UV ${uvi.toFixed(1)}`);
-  else if (Number.isFinite(uvi) && uvi >= 8) notes.push(`high UV ${uvi.toFixed(1)}`);
-  const tier = activeDeps.normalizePSMTier(psmTier);
-  if (tier !== 'none') notes.push(`${tier} photosensitizer`);
-  if (eyeMode === 'direct') notes.push('eyes uncovered');
-  if (notes.length) parts.push(`${notes.join(' + ')} · keep it short`);
-  return parts.join(' · ');
-}
-
-export async function openStartSunSessionDialog() {
-  const last = activeDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
-  const lastRegions = new Set(last?.bodyExposure?.regions || []);
-  const defaultEye = last?.eyeExposure?.mode || 'direct';
-  const defaultLens = last?.eyeExposure?.lensTint || 'clear';
-  const defaultGlass = !!last?.bodyExposure?.glassBetween;
-  const defaultPosture = last?.posture || 'standing';
-  const defaultSurface = last?.surfaceAlbedo || 'grass';
-  const fitz = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-  const psm = state.importedData?.sunDefaults?.photosensitiveMeds || 'none';
-  const uviPromise = _fetchCurrentUVI();
-  let latestPreflightUvi = null;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Start sun session">
-    <div class="modal-header">
-      <h3>Start a sun session</h3>
-      <button type="button" class="modal-close" data-sun-start-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
-      <p class="modal-body-hint">Tap each body region that's uncovered right now. The session begins as soon as you hit Start.</p>
-      <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
-      <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered.</div>
-        <button type="button" class="ctx-btn-option" id="sun-start-clear" style="padding:2px 10px;font-size:11px">Clear</button>
-      </div>
-
-      <details class="sun-start-details">
-        <summary>Posture, surface, eyewear, sunscreen, glass — change defaults</summary>
-        <div class="sun-detailed-row" style="margin-top:10px">
-          <label class="ctx-label">Posture
-            <select id="start-posture" class="ctx-select">
-              ${activeDeps.postureOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultPosture ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Surface
-            <select id="start-surface" class="ctx-select">
-              ${activeDeps.surfaceOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultSurface ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-        <p class="sun-detailed-glass-hint">Lying flat catches more sun than standing (~40%). Reflective surfaces (sand, water, snow) bounce UV onto your skin from below.</p>
-        <div class="sun-detailed-row" style="margin-top:10px">
-          <label class="ctx-label">Eyes
-            <select id="start-eye-mode" class="ctx-select">
-              ${activeDeps.eyeModes.map(e => `<option value="${escapeAttr(e.key)}"${e.key === defaultEye ? ' selected' : ''}>${escapeHTML(e.pickerLabel || e.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Lens tint
-            <select id="start-lens-tint" class="ctx-select">
-              ${activeDeps.lensTints.map(l => `<option value="${escapeAttr(l.key)}"${l.key === defaultLens ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-        <div class="ctx-label sun-detailed-glass" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <span style="flex:1;min-width:0">Behind glass (window / car / sunroom)</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <p class="sun-detailed-glass-hint">Standard window glass blocks ~99% of UVB. Vitamin D synthesis stops; circadian and warmth signals still get through. We zero the burn dose accordingly. (Want to measure YOUR glass's transmission? Light tools → Window check.)</p>
-        <div class="ctx-label sun-detailed-glass" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <span style="flex:1;min-width:0">Plan to flip front ↔ back during the session</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="start-rotated" />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <p class="sun-detailed-glass-hint">Toggle on if you'll alternate sides — doubles the vitamin D estimate to reflect that fresh skin keeps synthesizing after the first side approaches saturation. You can also tap 🔄 Flip mid-session.</p>
-      </details>
-
-      <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" data-sun-start-close>Cancel</button>
-        <button class="import-btn import-btn-primary" id="start-confirm">☀ Start session</button>
-      </div>
-    </div>
-  </div>`;
-  const closeDialog = () => removeModalOverlay(overlay);
-  overlay.querySelectorAll('[data-sun-start-close]').forEach(btn => {
-    btn.addEventListener('click', closeDialog);
-  });
-  openAppendedModalOverlay(overlay, closeDialog);
-
-  const selected = new Set(lastRegions);
-  const slot = overlay.querySelector('#sun-start-silhouette-slot');
-  const hint = overlay.querySelector('#sun-start-hint');
-  const updateHint = () => {
-    const fraction = Array.from(selected).reduce((sum, key) => {
-      const r = BODY_REGIONS.find(b => b.key === key);
-      return sum + (r?.fraction || 0);
-    }, 0);
-    if (selected.size === 0) {
-      hint.textContent = 'Tap any body region to toggle whether it\'s uncovered.';
-    } else {
-      const labels = Array.from(selected).map(k => BODY_REGIONS.find(b => b.key === k)?.label || k).join(', ');
-      const pctLabel = fraction >= 0.94 ? 'full body' : `${(fraction * 100).toFixed(0)}% of skin`;
-      hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${pctLabel}) — ${labels}`;
-    }
-  };
-  overlay.querySelector('#sun-start-clear')?.addEventListener('click', () => {
-    selected.clear();
-    slot.innerHTML = renderBodySilhouette(selected);
-    updateHint();
-  });
-  bindBodySilhouette(slot, selected, updateHint);
-  updateHint();
-
-  uviPromise.then((uvi) => {
-    if (!Number.isFinite(uvi)) return;
-    latestPreflightUvi = uvi;
-    const banner = overlay.querySelector('#sun-start-uvi-banner');
-    if (!(banner instanceof HTMLElement)) return;
-    const html = _renderUVIPreflightBanner(uvi, fitz, psm);
-    if (html) {
-      banner.innerHTML = html;
-      banner.hidden = false;
-    }
-  }).catch(() => {});
-
-  overlay.querySelector('#start-confirm').addEventListener('click', async () => {
-    const eyeMode = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-eye-mode'))?.value || 'direct';
-    const lensTint = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-lens-tint'))?.value || 'clear';
-    const glassBetween = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#start-glass'))?.checked;
-    const posture = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-posture'))?.value || 'standing';
-    const surfaceAlbedo = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#start-surface'))?.value || 'grass';
-    const rotatedSides = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#start-rotated'))?.checked;
-    const regions = Array.from(selected);
-    if (regions.length === 0) {
-      hint.textContent = 'Tap at least one region before starting — what part of you is uncovered?';
-      hint.classList.add('sun-silhouette-hint-error');
-      setTimeout(() => hint.classList.remove('sun-silhouette-hint-error'), 2500);
-      return;
-    }
-    const coords = activeDeps.getSunCoords();
-    const id = await activeDeps.startSession({ regions, eyeMode, lensTint, glassBetween, posture, surfaceAlbedo, rotatedSides, location: coords });
-    closeDialog();
-    showNotification(_buildStartSessionToast({
-      regionCount: regions.length,
-      uvi: latestPreflightUvi,
-      psmTier: state.importedData?.sunDefaults?.photosensitiveMeds,
-      eyeMode,
-    }), 'success', 4500);
-    activeDeps.refreshSurfaces();
-    ensureActiveTicker();
-    return id;
-  });
-}
-
 function _plainStopSummary(sess, dur) {
-  if (!sess) return `Session saved — ${dur} min`;
-  const parts = [`Saved · ${dur} min outside`];
+  const durationLabel = dur > 0 && dur < 1 ? '<1 min' : `${Math.round(dur)} min`;
+  if (!sess) return `Session saved — ${durationLabel}`;
+  const parts = [`Saved · ${durationLabel} outside`];
+  const exactSafety = sess.calculation?.precision?.allowsExactSafety === true;
+  const highModelConfidence = Number(sess.calculation?.confidence?.score) >= 0.8;
   const fitz = sess.safety?.fitzpatrick || 'III';
   const uvi = sess.atmosphere?.uvIndex;
   const vitDAu = sess.doses?.vitamin_d || 0;
@@ -290,23 +107,25 @@ function _plainStopSummary(sess, dur) {
     const iu = (Number.isFinite(bf) && bf > 0 && typeof activeDeps.vitaminDIUPerSession === 'function')
       ? activeDeps.vitaminDIUPerSession(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
       : activeDeps.vitaminDIU(vitDAu, fitz, uvi, !!sess.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
-    if (iu >= 100) {
+    if (iu >= 100 && highModelConfidence) {
       const lo = Math.round(iu * 0.6 / 50) * 50;
       const hi = Math.round(iu * 1.5 / 50) * 50;
       parts.push(`~${lo}–${hi} IU vitamin D`);
     }
+  } else if (vitDAu > 0) {
+    parts.push('vitamin D estimate recorded');
   } else if (sess.bodyExposure?.glassBetween) {
-    parts.push('no vitamin D — glass blocks UVB');
-  } else if (uvi != null && uvi < 2) {
-    parts.push(`no vitamin D — UVI too low (${uvi.toFixed(1)})`);
+    parts.push('UVB blocked by glass');
   }
   const med = sess.safety?.medFraction || 0;
   if (med >= 1.0) {
-    parts.push('over your burn threshold — no more sun today');
+    parts.push(exactSafety ? 'modeled burn threshold reached' : 'rounded burn estimate is high');
   } else if (med >= 0.7) {
-    parts.push(`burn dose ${Math.round(med * 100)}% — close to limit, ease up`);
+    const pct = exactSafety ? Math.round(med * 100) : Math.round(med * 10) * 10;
+    parts.push(`${exactSafety ? '' : '~'}${pct}% modeled burn dose — avoid more UV today`);
   } else if (med >= 0.3) {
-    parts.push(`burn dose ${Math.round(med * 100)}% — well within safe range`);
+    const pct = exactSafety ? Math.round(med * 100) : Math.round(med * 10) * 10;
+    parts.push(`${exactSafety ? '' : '~'}${pct}% modeled burn dose`);
   }
   return parts.join(' · ');
 }
@@ -315,11 +134,50 @@ let _activeTicker = null;
 const _liveState = new Map();
 
 function _getLiveState(id) { return _liveState.get(id) || null; }
+function _restoreLiveStateFromCheckpoint(sess) {
+  const checkpoint = sess?.liveCheckpoint;
+  if (!sess?.id || !checkpoint || _liveState.has(sess.id)) return _getLiveState(sess?.id);
+  setSunLiveState(sess.id, {
+    ratePerMin: checkpoint.ratePerMin || null,
+    sedPerMin: Number(checkpoint.sedPerMin) || 0,
+    fitzpatrick: checkpoint.fitzpatrick || 'III',
+    medScale: Number.isFinite(checkpoint.medScale) ? checkpoint.medScale : 1,
+    psmTier: checkpoint.psmTier || 'none',
+    atm: checkpoint.atm || null,
+    zenith: Number.isFinite(checkpoint.zenith) ? checkpoint.zenith : null,
+    baselineZenith: Number.isFinite(checkpoint.baselineZenith) ? checkpoint.baselineZenith : null,
+    snapshotAt: Number(checkpoint.snapshotAt) || sess.startedAt,
+    committedDoses: { ...(checkpoint.committedDoses || {}) },
+    committedSED: Number(checkpoint.committedSED) || 0,
+    committedRetinalUV: Number(checkpoint.committedRetinalUV) || 0,
+    doseSegments: Array.isArray(checkpoint.doseSegments) ? checkpoint.doseSegments.map(segment => ({ ...segment })) : [],
+    fractionOfMEDFn: activeDeps.fractionOfMED,
+    pending: false,
+  });
+  return _getLiveState(sess.id);
+}
 export function setSunLiveState(id, patch) {
   const cur = _liveState.get(id) || {};
   _liveState.set(id, Object.assign(cur, patch));
 }
 export function clearSunLiveState(id) { _liveState.delete(id); }
+
+function _liveSafetyConfidence(live) {
+  if (!live?.atm) return { score: 0, exact: false };
+  const score = Number(activeDeps.computeUVConfidence({
+    source: live.atm.source,
+    snapshotAgeSec: live.atm?._camsMeta?.ageSec ?? null,
+    cloudCover: live.atm.cloudCover ?? null,
+    zenithDeg: live.zenith ?? null,
+    uvIndex: live.atm.uvIndex ?? null,
+    isStale: !!live.atm._stale,
+    manualOverridden: !!live.atm._uvOverridden,
+  }));
+  return {
+    score: Number.isFinite(score) ? score : 0,
+    exact: Number.isFinite(score) && score >= 0.65 && !live.atm._stale && live.psmTier === 'none',
+  };
+}
 
 export function _formatElapsed(ms) {
   const totalSec = Math.max(0, Math.floor(ms / 1000));
@@ -331,9 +189,9 @@ export function _formatElapsed(ms) {
   return `${m}:${pad(s)}`;
 }
 
-async function _snapshotActiveRate(sess) {
-  const cur = _getLiveState(sess.id);
-  if (cur && cur.ratePerMin) return cur;
+async function _snapshotActiveRate(sess, { force = false } = {}) {
+  const cur = _getLiveState(sess.id) || _restoreLiveStateFromCheckpoint(sess);
+  if (cur && cur.ratePerMin && !force) return cur;
   if (cur && cur.pending) return null;
   setSunLiveState(sess.id, { pending: true });
   try {
@@ -346,9 +204,20 @@ async function _snapshotActiveRate(sess) {
       fetchAtmosphere,
     } = activeDeps;
     const coords = sess.location || activeDeps.getSunCoords();
-    if (!coords) return null;
+    if (!coords) {
+      setSunLiveState(sess.id, { pending: false });
+      return null;
+    }
     const now = new Date();
     let atm = await fetchAtmosphere({ lat: coords.lat, lon: coords.lon, isoTime: now.toISOString() });
+    if (sess.endedAt) {
+      clearSunLiveState(sess.id);
+      return null;
+    }
+    const atmosphereAgeMs = Number.isFinite(atm?.fetchedAt) ? Date.now() - atm.fetchedAt : 0;
+    if (atm?._stale && atmosphereAgeMs > SAFETY_ATMOSPHERE_MAX_AGE_MS) {
+      throw new Error('Atmosphere data is too stale for live UV safety math');
+    }
     atm = activeDeps.applyAtmOverrides(atm);
     const priorAtm = _getLiveState(sess.id)?.atm;
     if (priorAtm && Number.isFinite(priorAtm.uvIndex) && Number.isFinite(atm?.uvIndex)) {
@@ -369,6 +238,8 @@ async function _snapshotActiveRate(sess) {
       ozoneDU: atm.ozoneDU ?? 300,
       altitudeM: coords.altitudeM ?? 0,
       cloudCover: (atm.cloudCover ?? 0) / 100,
+      aod: atm?.airQuality?.aod ?? null,
+      uvIndex: atm.uvIndex ?? null,
     });
     const liveBodyModifiers = {
       glassBetween: !!sess.bodyExposure?.glassBetween,
@@ -384,7 +255,7 @@ async function _snapshotActiveRate(sess) {
     const sedPerMin = erythemalSED({
       spectrum,
       durationMin: 1,
-      bodyExposureFraction: sess.bodyExposure?.fraction ?? 0,
+      incidenceMultiplier: 1,
       bodyModifiers: liveBodyModifiers,
     });
     const lcSkin = state.importedData?.lightCircadian?.skinType;
@@ -392,9 +263,16 @@ async function _snapshotActiveRate(sess) {
     const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || 'III';
     const psmTier = activeDeps.normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
     const medScale = activeDeps.photosensitiveMedScale(psmTier);
-    const existing = _getLiveState(sess.id) || {};
-    const isReSnapshot = !!existing.committedDoses;
-    const sliceStart = isReSnapshot ? Date.now() : sess.startedAt;
+    let existing = _getLiveState(sess.id) || {};
+    const isReSnapshot = !!(existing.atm || existing.committedDoses);
+    // The network request can take seconds. Commit that interval with the
+    // previous atmosphere before switching snapshots so it cannot disappear
+    // from the persisted totals.
+    if (isReSnapshot && existing.snapshotAt && !sess.paused) {
+      commitSunLiveSlice(sess);
+      existing = _getLiveState(sess.id) || existing;
+    }
+    const sliceStart = isReSnapshot ? (existing.snapshotAt || Date.now()) : sess.startedAt;
     setSunLiveState(sess.id, {
       ratePerMin, sedPerMin, fitzpatrick, medScale, psmTier, atm, zenith,
       baselineZenith: existing.baselineZenith ?? zenith,
@@ -407,10 +285,21 @@ async function _snapshotActiveRate(sess) {
     });
     return _getLiveState(sess.id);
   } catch (e) {
+    if (sess.endedAt) {
+      clearSunLiveState(sess.id);
+      return null;
+    }
     globalThis.console?.warn?.('snapshotActiveRate failed', e);
     setSunLiveState(sess.id, { pending: false });
     return null;
   }
+}
+
+// Explicit refresh hook used by lifecycle callers and regression tests. The
+// previous atmosphere continues integrating until the replacement snapshot is
+// ready, so a slow request cannot create a dose gap.
+export function refreshSunLiveRate(sess) {
+  return _snapshotActiveRate(sess, { force: true });
 }
 
 function _rateAtInstant(sess, instantMs) {
@@ -454,6 +343,7 @@ function _rateAtInstant(sess, instantMs) {
     altitudeM: coords.altitudeM ?? 0,
     cloudCover: (atmAtT.cloudCover ?? 0) / 100,
     aod: atmAtT?.airQuality?.aod ?? null,
+    uvIndex: atmAtT.uvIndex ?? null,
   });
   const bodyModifiers = {
     glassBetween: !!sess.bodyExposure?.glassBetween,
@@ -469,55 +359,47 @@ function _rateAtInstant(sess, instantMs) {
   const sedPerMin = erythemalSED({
     spectrum,
     durationMin: 1,
-    bodyExposureFraction: effFraction,
+    incidenceMultiplier: postureMult * albedoMult,
     bodyModifiers,
   });
   let retinalUVPerMin = 0;
   if (sess.eyeExposure?.mode === 'direct') {
-    const elev = 90 - zenith;
-    let gate = 1.0;
-    if (elev <= 5) gate = 0;
-    else if (elev < 10) gate = (elev - 5) / 5;
-    retinalUVPerMin = _retinalUVPerMin(spectrum) * gate;
+    retinalUVPerMin = activeDeps.retinalUVdose({
+      spectrum,
+      eyeExposure: { ...sess.eyeExposure, durationSec: 60 },
+      zenithDeg: zenith,
+    });
   }
   return { rate, sedPerMin, retinalUVPerMin };
 }
 
-function _retinalUVPerMin(spectrum) {
-  if (!spectrum) return 0;
-  const dlambda = 5;
-  let uv = 0;
-  for (let i = 0; i < spectrum.irradiance.length; i++) {
-    const nm = spectrum.wavelengths[i];
-    if (nm > 400) break;
-    uv += spectrum.irradiance[i] * dlambda;
-  }
-  return uv * 60;
-}
-
 function _integrateSlice(sess, startMs, endMs) {
-  const durationMin = Math.max(0, (endMs - startMs) / 60000);
-  if (durationMin <= 0) return { doses: {}, sed: 0, retinalUV: 0 };
-  const midMs = (startMs + endMs) / 2;
-  const r0 = _rateAtInstant(sess, startMs);
-  const r1 = _rateAtInstant(sess, midMs);
-  const r2 = _rateAtInstant(sess, endMs);
-  if (!r0 || !r1 || !r2) return { doses: {}, sed: 0, retinalUV: 0 };
-  const doses = {};
-  for (const k of Object.keys(r1.rate)) {
-    const a = r0.rate[k] ?? 0;
-    const m = r1.rate[k] ?? 0;
-    const b = r2.rate[k] ?? 0;
-    doses[k] = durationMin * (a + 4 * m + b) / 6;
+  if (endMs <= startMs) return { doses: {}, sed: 0, retinalUV: 0 };
+  const totals = { doses: {}, sed: 0, retinalUV: 0 };
+  const maxSliceMs = 5 * 60 * 1000;
+  for (let sliceStart = startMs; sliceStart < endMs; sliceStart += maxSliceMs) {
+    const sliceEnd = Math.min(endMs, sliceStart + maxSliceMs);
+    const durationMin = (sliceEnd - sliceStart) / 60000;
+    const midMs = (sliceStart + sliceEnd) / 2;
+    const r0 = _rateAtInstant(sess, sliceStart);
+    const r1 = _rateAtInstant(sess, midMs);
+    const r2 = _rateAtInstant(sess, sliceEnd);
+    if (!r0 || !r1 || !r2) continue;
+    for (const k of Object.keys(r1.rate)) {
+      const a = r0.rate[k] ?? 0;
+      const m = r1.rate[k] ?? 0;
+      const b = r2.rate[k] ?? 0;
+      totals.doses[k] = (totals.doses[k] || 0) + durationMin * (a + 4 * m + b) / 6;
+    }
+    totals.sed += durationMin * (r0.sedPerMin + 4 * r1.sedPerMin + r2.sedPerMin) / 6;
+    totals.retinalUV += durationMin * (r0.retinalUVPerMin + 4 * r1.retinalUVPerMin + r2.retinalUVPerMin) / 6;
   }
-  const sed = durationMin * (r0.sedPerMin + 4 * r1.sedPerMin + r2.sedPerMin) / 6;
-  const retinalUV = durationMin * (r0.retinalUVPerMin + 4 * r1.retinalUVPerMin + r2.retinalUVPerMin) / 6;
-  return { doses, sed, retinalUV };
+  return totals;
 }
 
 export function commitSunLiveSlice(sess) {
-  const live = _getLiveState(sess?.id);
-  if (!live || !live.ratePerMin || !live.snapshotAt) return;
+  const live = _getLiveState(sess?.id) || _restoreLiveStateFromCheckpoint(sess);
+  if (!live || !live.atm || !live.snapshotAt) return;
   const sliceStart = live.snapshotAt;
   const sliceEnd = Date.now();
   if (sliceEnd <= sliceStart) return;
@@ -528,23 +410,67 @@ export function commitSunLiveSlice(sess) {
   }
   const committedSED = (live.committedSED || 0) + sed;
   const committedRetinalUV = (live.committedRetinalUV || 0) + retinalUV;
-  setSunLiveState(sess.id, { committedDoses, committedSED, committedRetinalUV });
+  const doseSegments = [...(live.doseSegments || []), {
+    startedAt: sliceStart,
+    endedAt: sliceEnd,
+    source: 'sun',
+    bodyRegions: Array.isArray(sess.bodyExposure?.regions) ? [...sess.bodyExposure.regions] : [],
+    bodyFraction: Number(sess.bodyExposure?.fraction) || 0,
+    doses: { ...doses },
+    erythemalSED: sed,
+    ocularEffectiveDose: retinalUV,
+    atmosphere: {
+      source: live.atm?.source || null,
+      uvIndex: Number.isFinite(live.atm?.uvIndex) ? live.atm.uvIndex : null,
+      fetchedAt: Number.isFinite(live.atm?.fetchedAt) ? live.atm.fetchedAt : null,
+    },
+  }];
+  setSunLiveState(sess.id, {
+    committedDoses,
+    committedSED,
+    committedRetinalUV,
+    doseSegments,
+    snapshotAt: sliceEnd,
+  });
+  // Persist the integration boundary so a reload, crash, or mobile tab
+  // eviction does not rewrite the earlier session using today's latest
+  // coverage, sunscreen, or atmosphere. Runtime functions stay in memory;
+  // only serializable dose state is checkpointed.
+  sess.liveCheckpoint = {
+    ratePerMin: { ...(live.ratePerMin || {}) },
+    sedPerMin: Number(live.sedPerMin) || 0,
+    fitzpatrick: live.fitzpatrick || 'III',
+    medScale: Number.isFinite(live.medScale) ? live.medScale : 1,
+    psmTier: live.psmTier || 'none',
+    atm: live.atm || null,
+    zenith: Number.isFinite(live.zenith) ? live.zenith : null,
+    baselineZenith: Number.isFinite(live.baselineZenith) ? live.baselineZenith : null,
+    snapshotAt: sliceEnd,
+    committedDoses,
+    committedSED,
+    committedRetinalUV,
+    doseSegments,
+    savedAt: Date.now(),
+  };
+  Promise.resolve(activeDeps.saveImportedData()).catch(() => {});
 }
 
-export function liveDosesFor(sess) {
-  const live = _getLiveState(sess?.id);
+export function liveDosesFor(sess, atMs = Date.now()) {
+  const live = _getLiveState(sess?.id) || _restoreLiveStateFromCheckpoint(sess);
   if (!live) return null;
   if (sess?.paused) {
     const committed = live.committedDoses || {};
     const sed = live.committedSED || 0;
     const retinalUV = live.committedRetinalUV || 0;
     const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, medScale: live.medScale ?? 1.0 }) : 0;
-    return { doses: { ...committed }, sed, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, psmTier: live.psmTier, atm: live.atm, paused: true };
+    return { doses: { ...committed }, sed, ocularEffectiveDose: retinalUV, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, medScale: live.medScale, psmTier: live.psmTier, atm: live.atm, doseSegments: [...(live.doseSegments || [])], paused: true };
   }
-  if (!live.ratePerMin) return null;
+  // During the five-minute atmosphere refresh, ratePerMin is intentionally
+  // cleared but the last atmosphere snapshot remains usable. Continue
+  // integrating from the committed boundary so Stop cannot lose this gap.
+  if (!live.ratePerMin && !live.atm) return null;
   const sliceStart = live.snapshotAt || sess.startedAt;
-  const now = Date.now();
-  const { doses: sliceDoses, sed: sliceSed, retinalUV: sliceRetinalUV } = _integrateSlice(sess, sliceStart, now);
+  const { doses: sliceDoses, sed: sliceSed, retinalUV: sliceRetinalUV } = _integrateSlice(sess, sliceStart, atMs);
   const committed = live.committedDoses || {};
   const doses = { ...committed };
   for (const [k, v] of Object.entries(sliceDoses)) {
@@ -553,7 +479,25 @@ export function liveDosesFor(sess) {
   const sed = (live.committedSED || 0) + sliceSed;
   const retinalUV = (live.committedRetinalUV || 0) + sliceRetinalUV;
   const medFraction = live.fractionOfMEDFn ? live.fractionOfMEDFn({ sed, fitzpatrick: live.fitzpatrick, medScale: live.medScale ?? 1.0 }) : 0;
-  return { doses, sed, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, psmTier: live.psmTier, atm: live.atm };
+  const doseSegments = [...(live.doseSegments || [])];
+  if (atMs > sliceStart) {
+    doseSegments.push({
+      startedAt: sliceStart,
+      endedAt: atMs,
+      source: 'sun',
+      bodyRegions: Array.isArray(sess.bodyExposure?.regions) ? [...sess.bodyExposure.regions] : [],
+      bodyFraction: Number(sess.bodyExposure?.fraction) || 0,
+      doses: { ...sliceDoses },
+      erythemalSED: sliceSed,
+      ocularEffectiveDose: sliceRetinalUV,
+      atmosphere: {
+        source: live.atm?.source || null,
+        uvIndex: Number.isFinite(live.atm?.uvIndex) ? live.atm.uvIndex : null,
+        fetchedAt: Number.isFinite(live.atm?.fetchedAt) ? live.atm.fetchedAt : null,
+      },
+    });
+  }
+  return { doses, sed, ocularEffectiveDose: retinalUV, retinalUV, medFraction, fitzpatrick: live.fitzpatrick, medScale: live.medScale, psmTier: live.psmTier, atm: live.atm, doseSegments };
 }
 
 function _renderActiveCardBody(sess) {
@@ -561,17 +505,22 @@ function _renderActiveCardBody(sess) {
   const live = liveDosesFor(sess);
   let medStr = '';
   if (live && Number.isFinite(live.medFraction)) {
-    const pct = Math.round(live.medFraction * 100);
-    let label = 'safe', cls = '';
+    const confidence = _liveSafetyConfidence(live);
+    const rawPct = live.medFraction * 100;
+    const pct = confidence.exact ? Math.round(rawPct) : Math.round(rawPct / 10) * 10;
+    let label = 'low recorded dose', cls = '';
     if (live.medFraction >= 1) { label = 'over threshold'; cls = 'over'; }
     else if (live.medFraction >= 0.7) { label = 'high'; cls = 'warn'; }
     else if (live.medFraction >= 0.3) { label = 'moderate'; cls = ''; }
-    medStr = `<span class="sun-session-med ${cls}" title="Burn dose so far — ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(live.fitzpatrick)})">${pct}% burn dose · ${escapeHTML(label)}</span>`;
+    const qualifier = confidence.exact ? '' : '~';
+    const title = confidence.exact
+      ? `Modeled burn dose so far — ${pct}% of the Fitzpatrick ${live.fitzpatrick} threshold.`
+      : `Rounded burn estimate. Atmosphere or biological-response uncertainty prevents an exact display.`;
+    medStr = `<span class="sun-session-med ${cls}" title="${escapeAttr(title)}">${qualifier}${pct}% modeled burn dose · ${escapeHTML(label)}</span>`;
   }
   const channelChips = live?.doses ? renderChannelChips(live.doses, sess) : '';
   let vitaminDStr = '';
   if (live?.doses?.vitamin_d > 0) {
-    const elapsedMin = Math.max(0, (Date.now() - sess.startedAt) / 60000);
     const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
     const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
     const rotated = !!sess.bodyExposure?.rotatedSides;
@@ -579,13 +528,11 @@ function _renderActiveCardBody(sess) {
     const iu = (Number.isFinite(bf) && bf > 0 && typeof activeDeps.vitaminDIUPerSession === 'function')
       ? activeDeps.vitaminDIUPerSession(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null, bf)
       : activeDeps.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null);
-    const ratePerMin = elapsedMin > 0 ? iu / elapsedMin : 0;
     if (iu >= 50) {
-      const iuLabel = iu >= 10000 ? '~' + (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
-        : iu >= 1000 ? '~' + Math.round(iu / 100) * 100 + ' IU'
-        : '~' + Math.round(iu / 10) * 10 + ' IU';
-      const rateLabel = ratePerMin >= 100 ? `${Math.round(ratePerMin / 10) * 10} IU/min` : `${Math.round(ratePerMin)} IU/min`;
-      vitaminDStr = `<span class="sun-session-vitd" title="Approximate vitamin D₃ synthesis so far (central estimate; ±50% band — see session detail). Saturates around 20k IU per Holick photoisomerization plateau.">☀ ~${iuLabel} vit D · ${rateLabel}</span>`;
+      const iuLabel = iu >= 10000 ? (iu / 1000).toFixed(1).replace(/\.0$/, '') + 'k IU'
+        : iu >= 1000 ? Math.round(iu / 100) * 100 + ' IU'
+        : Math.round(iu / 10) * 10 + ' IU';
+      vitaminDStr = `<span class="sun-session-vitd" title="Modeled vitamin-D potential from recorded UV. This is a comparison estimate, not a measured result or a reason to extend the session.">☀ ~${iuLabel}-equivalent vitamin-D potential</span>`;
     }
   }
   let heatStr = '';
@@ -608,7 +555,11 @@ function _renderActiveCardBody(sess) {
 let _lastChannelRefreshAt = 0;
 const RETINAL_ALERT_GRACE_MS = 10 * 60 * 1000;
 function _tickActiveCards() {
-  const sessions = activeDeps.getSessions().filter(s => !s.endedAt);
+  // A sync conflict can temporarily leave more than one open record. The
+  // store chooses the freshest deterministically; only that canonical session
+  // may accrue live dose or receive Stop/pause alerts.
+  const canonicalActive = activeDeps.getActiveSession();
+  const sessions = canonicalActive ? [canonicalActive] : [];
   if (sessions.length === 0) {
     if (_activeTicker) { clearInterval(_activeTicker); _activeTicker = null; }
     return;
@@ -620,7 +571,7 @@ function _tickActiveCards() {
       const last = live.snapshotAt || 0;
       if (Date.now() - last > 5 * 60 * 1000) {
         commitSunLiveSlice(sess);
-        setSunLiveState(sess.id, { ratePerMin: null });
+        refreshSunLiveRate(sess);
       }
     }
 
@@ -628,17 +579,18 @@ function _tickActiveCards() {
     if (liveDoses && Number.isFinite(liveDoses.medFraction)) {
       const med = liveDoses.medFraction;
       const cur = _getLiveState(sess.id) || {};
+      const confidence = _liveSafetyConfidence(liveDoses);
       if (med >= 1.0 && !cur.alertedOver) {
         setSunLiveState(sess.id, { alertedOver: true });
-        showNotification(_jargonPrefix('med') + 'Burn threshold reached. Move to shade or cover up. Hydrate, no more direct sun today — damage from here is cumulative.', 'error', 10000);
+        showNotification(_jargonPrefix('med') + `${confidence.exact ? 'Modeled burn threshold reached.' : 'Modeled burn exposure may be at or above your threshold.'} Move to shade or cover up; do not wait for redness.`, 'error', 10000);
       } else if (med >= 0.7 && !cur.alerted70) {
         setSunLiveState(sess.id, { alerted70: true });
-        showNotification(_jargonPrefix('med') + '70% of your burn dose. Best move: head into shade for ~10 min, then decide. If you stay, watch for skin warmth or pinkness.', 'warning', 8000);
+        showNotification(_jargonPrefix('med') + `${confidence.exact ? 'Modeled burn dose is building.' : 'The rounded burn estimate is getting high.'} Shade or cover up now; do not use the estimate as a safe-time allowance.`, 'warning', 8000);
       }
     }
 
     if (liveDoses && Number.isFinite(liveDoses.retinalUV) && sess.eyeExposure?.mode === 'direct') {
-      const ruv = liveDoses.retinalUV;
+      const ruv = Math.max(liveDoses.retinalUV, Number(activeDeps.cumulativeOcularEffectiveDose8h?.()) || 0);
       const cur = _getLiveState(sess.id) || {};
       const elapsedMs = Date.now() - sess.startedAt;
       if (elapsedMs < RETINAL_ALERT_GRACE_MS) {
@@ -771,9 +723,16 @@ export async function hydrateSunSessionFromProfileCoords(id) {
   if (!coords) return;
   const sess = activeDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
-  sess.location = { lat: coords.lat, lon: coords.lon, altitudeM: 0, source: coords.source };
+  sess.location = {
+    lat: coords.lat,
+    lon: coords.lon,
+    altitudeM: Number.isFinite(coords.altitudeM) ? coords.altitudeM : (sess.location?.altitudeM ?? 0),
+    source: coords.source || sess.location?.source || null,
+  };
   await activeDeps.saveImportedData();
+  if (sess.doseIntegration?.method === 'live-time-integrated') return sess;
   await activeDeps.hydrateSession(id);
+  return sess;
 }
 
 const _JARGON_DEFINITIONS = {

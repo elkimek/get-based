@@ -246,8 +246,8 @@ const {
 
   assert('Daytime-only screen → green',
     computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 0, blueBlockerEnabled: false }).color === 'green');
-  assert('Blue blocker enabled → green (mitigated, regardless of hours)',
-    computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 5, blueBlockerEnabled: true }).color === 'green');
+  assert('Blue reduction lowers but does not erase evening screen burden',
+    computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 5, blueBlockerEnabled: true }).tier === 1);
   assert('0.5 hr evening, no blocker → tier 1 yellow',
     computeScreenStatus({ device: 'phone', eveningUseAfterSunset: 0.5 }).tier === 1);
   assert('2 hr evening, no blocker → tier 2 orange',
@@ -294,11 +294,10 @@ const {
     eveningHoursAfterSunset: 2,
   });
   axes = computeDeficitAxes();
-  assert('LED-cool room 10hr → d2 includes the 10 indoor hours',
-    axes.d2 === 10);
-  // 10 hr * 0.6 LED penalty + 1 evening bonus = 7
-  assert('LED-cool + evening → d3 ≈ 7 (10*0.6 + 1)',
-    Math.abs(axes.d3 - 7) < 1e-9, `got d3=${axes.d3}`);
+  assert('LED-cool room without lux reading → weighted daytime deficit',
+    axes.d2 === 8);
+  assert('LED-cool evening use counts only after-sunset hours',
+    Math.abs(axes.d3 - 2) < 1e-9, `got d3=${axes.d3}`);
 
   // Skipped today → not counted
   await setTodayActive('room', getEnvironment().rooms[0].id, false);
@@ -315,7 +314,7 @@ const {
     isActiveToday: item => item.id !== 'skipped-room',
   });
   assert('Model deficit axes are state-free and accept today filtering',
-    modelAxes.d2 === 10 && Math.abs(modelAxes.d3 - 8) < 1e-9,
+    modelAxes.d2 === 8 && Math.abs(modelAxes.d3 - 3) < 1e-9,
     `got d2=${modelAxes.d2}, d3=${modelAxes.d3}`);
 
   // ─── 9. computeIndoorBurden ──────────────────────────────────────────
@@ -335,10 +334,10 @@ const {
     fingerprint: 'old-env',
   };
   const emptyLoadHtml = renderEnvironmentSection({ embedded: true });
-  assert('Empty environment ignores stale burdenAI and stays Light load',
+  assert('Empty environment ignores stale burdenAI and stays unassessed',
     emptyLoadHtml.includes('light-env-summary-green') &&
-    emptyLoadHtml.includes('Light load') &&
-    !emptyLoadHtml.includes('Moderate load') &&
+    emptyLoadHtml.includes('Not assessed yet') &&
+    !emptyLoadHtml.includes('Some concerns found') &&
     !emptyLoadHtml.includes('stale moderate verdict'));
   const restoredBurdenRenderer = configureLightEnv({
     renderBurdenInterp: b => `<p class="light-env-summary-interp injected-burden">${b.interp}</p>`,
@@ -404,9 +403,9 @@ const {
     burden.tier === 2 && burden.color === 'red');
   assert('Burden interp is non-empty advice copy',
     typeof burden.interp === 'string' && burden.interp.length > 20);
-  assert('Burden parts list mentions both indoor + blue-after-sunset',
-    burden.parts.some(p => /indoors/.test(p)) &&
-    burden.parts.some(p => /blue-after-sunset/.test(p)));
+  assert('Burden parts list labels both scores as modeled scores',
+    burden.parts.some(p => /daylight-gap score/.test(p)) &&
+    burden.parts.some(p => /evening-brightness score/.test(p)));
   const modelBurden = computeIndoorBurdenForEnvironment({ rooms: [], screens: [] });
   assert('Model indoor burden distinguishes empty mapped exposure',
     modelBurden.tier === 0 &&
@@ -910,8 +909,8 @@ const {
       /Rooms tracked: 2/.test(ctx));
     assert('AI context counts screens (1)',
       /Screens tracked: 1/.test(ctx));
-    assert('AI context surfaces no-blue-blocker after-sunset screens',
-      /without blue-blocker/.test(ctx));
+    assert('AI context surfaces screens without blue reduction after sunset',
+      /without a blue-reduction setting/.test(ctx));
     window._labState.importedData = beforeCtx;
   }
 

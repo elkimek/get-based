@@ -51,13 +51,13 @@ function _safeText(s, max = 80) {
 }
 
 const _DEVICE_TYPE_DESCRIPTIONS = {
-  uvb: 'UVB phototherapy panel — vitamin-D synthesis + POMC; eye exposure must be blocked',
-  uva: 'UVA panel — nitric-oxide / cardiovascular benefit; no vitamin D; eye protection recommended',
-  combined: 'red + near-IR PBM panel — cellular repair, mitochondrial signaling',
-  'pbm-targeted': 'handheld / spot PBM device — close-range targeted dosing',
-  sad: 'SAD light box — 10000-lux white light for circadian / mood; requires eye-direct (not blocked) for benefit',
-  'dawn-sim': 'dawn simulator — gradual ramp, gentle circadian phase advance',
-  'full-spectrum': 'full-spectrum bulb — daytime alertness if used at sufficient duration',
+  uvb: 'UVB phototherapy device — modeled UVB exposure; approved eye protection is required',
+  uva: 'UVA device — modeled UVA exposure; follow the manufacturer\'s eye and skin precautions',
+  combined: 'red + near-infrared panel — exposure log, not a treatment-effect measurement',
+  'pbm-targeted': 'handheld red / near-infrared device — close-range exposure log',
+  sad: 'bright-light box — timing, distance, and open-eye use depend on the device instructions',
+  'dawn-sim': 'dawn simulator — gradual light ramp used around waking',
+  'full-spectrum': 'broad-spectrum lamp — logged daytime light exposure',
 };
 
 function _sevenDayRollup(currentSess) {
@@ -170,7 +170,7 @@ export function buildDeviceSessionContext(sess) {
         const tlabel = tierLabel(t);
         const target = meta.dailyTarget || 0;
         const pct = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-        display = pct != null ? `${tlabel} (${pct}% of daily target)` : tlabel;
+        display = pct != null ? `${tlabel} (${pct}% of the app comparison band)` : tlabel;
       }
       parts.push(`${meta.label || k}: ${display}`);
     }
@@ -185,7 +185,7 @@ export function buildDeviceSessionContext(sess) {
   lines.push('### User profile');
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
   else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
+  if (sd.dailyVitDTargetIU) lines.push(`User vitamin-D comparison setting: ${sd.dailyVitDTargetIU} IU-equivalent/day (not a measured requirement)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
   const rollup = _sevenDayRollup(sess);
@@ -203,17 +203,17 @@ const SYSTEM_PROMPT = [
   'Return ONLY valid JSON with three keys: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = on-protocol for the device type AND safe (eye protection where required, working distance reasonable, dose adequate)',
-  '  yellow = useful but with a caveat (sub-optimal distance, short duration, eye protection mismatched — e.g. SAD lamp with "eyes protected" zeroes the circadian channel)',
+  '  green = the record matches the device instructions and has no obvious safety flag',
+  '  yellow = the record has an input-quality, distance, timing, or setup caveat',
   '  red = unsafe or counterproductive (UVB/UVA panel without eye protection, handheld PBM at <5 cm, dose model returning zero on a properly logged session)',
   '  gray = not enough info (no doses computed, device record removed, missing parameters)',
   '',
-  'Device-class biology:',
-  '  • PBM red+NIR (combined / pbm-targeted): cellular repair via cytochrome c oxidase, ~1–10 J/cm² per session is the typical target range; Vitamin-D yield is zero — irrelevant; do NOT flag.',
-  '  • SAD light box: needs EYE-DIRECT exposure to deliver the 10000-lux circadian dose. "Eyes protected" defeats the purpose; flag yellow with a "remove the eye block to capture the SAD benefit" tip. Skin/UV channels will be zero — irrelevant.',
-  '  • UVB / UVA phototherapy: eye protection MANDATORY (corneal damage). Vitamin-D / NO yield is the value. If eyes uncovered, flag RED.',
-  '  • Dawn simulator: gentle ramp, low total dose; circadian-only. Don\'t flag low-tier numbers; the value is the timing, not the dose.',
-  '  • Full-spectrum bulb: daytime alertness; only meaningful at sustained durations (>30 min) and reasonable lux.',
+  'Device interpretation:',
+  '  • Red / near-infrared: report physical J/cm² when available, but do not claim repair, mitochondrial improvement, or a treatment effect.',
+  '  • Bright-light box: compare timing, duration, and distance with the device instructions. Open eyes may be part of normal use, but never advise staring at the source.',
+  '  • UVB / UVA phototherapy: approved eye protection is mandatory. If the record says eyes were unprotected, flag RED and advise stopping until the instructions are checked.',
+  '  • Dawn simulator: timing is more informative than the channel total.',
+  '  • Broad-spectrum lamp: describe the logged brightness and timing without promising alertness or sleep outcomes.',
   'Working distance matters: the dose model already applies an inverse-square correction capped at 3×; below 10 cm on a panel, mention that actual irradiance may be higher than the model captures.',
   '',
   'Mode (when the context lists a Mode line):',
@@ -222,7 +222,7 @@ const SYSTEM_PROMPT = [
   '  • Use the mode + firing-peaks lines as the primary cue for which device-class biology applies — override the device.type label when the firing peaks contradict it.',
   '',
   'tip: one sentence, max 14 words. Reference specific numbers + device-class context. Direct, no preamble.',
-  'detail: 1–2 sentences. Explain the why, naming dose / device-class fit / safety driver. No restating the data verbatim.',
+  'detail: 1–2 sentences. Explain the setup or safety driver and the model limitation. Treat calculated dose as an estimate unless measured by the device.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');

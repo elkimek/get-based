@@ -105,6 +105,12 @@ function _resolveFocusTarget(target, overlay) {
   return target;
 }
 
+function _syncModalOpenState() {
+  if (typeof document === 'undefined') return;
+  const hasOpenModal = !!document.querySelector('.modal-overlay.show, .confirm-overlay.show');
+  document.body?.classList.toggle('app-modal-open', hasOpenModal);
+}
+
 export function openModalOverlay(overlayOrId, options = {}) {
   const overlay = _resolveOverlay(overlayOrId);
   if (!overlay) return null;
@@ -115,6 +121,7 @@ export function openModalOverlay(overlayOrId, options = {}) {
     _overlayFocusTargets.set(overlay, activeElement);
   }
   overlay.classList.add(showClass);
+  _syncModalOpenState();
   if (options.scrollLock === true) _acquireOverlayScrollLock(overlay);
 
   if (options.initialFocus) {
@@ -137,6 +144,7 @@ export function closeModalOverlay(overlayOrId, options = {}) {
   if (!overlay) return null;
   const showClass = options.showClass || 'show';
   overlay.classList.remove(showClass);
+  _syncModalOpenState();
   _releaseOverlayScrollLock(overlay);
 
   if (options.restoreFocus !== false) {
@@ -240,6 +248,7 @@ export function trapModalFocus(overlay, options = {}) {
   const obs = new MutationObserver(() => {
     if (!document.body.contains(overlay)) {
       obs.disconnect();
+      _syncModalOpenState();
       restore();
     }
   });

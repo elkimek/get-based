@@ -4,16 +4,60 @@
 // Keep these constants out of UI/store modules so the active-session ticker,
 // persisted session store, and public sun.js facade all use one source.
 
-// Photosensitizing medication scale tiers — used by fractionOfMED() in
-// place of the legacy boolean flag. MED multipliers from AAD/Mayo Clinic
-// guidance: severe drugs (tetracyclines, retinoids systemic, amiodarone)
-// shift erythemal threshold ~4×; moderate (NSAIDs, thiazides, sulfa) ~2.5×;
-// mild (some antihistamines) ~1.5×.
+// v2 makes `safety.ocularEffectiveDose` the canonical ocular-UV field and
+// adds a versioned `calculation` record describing where each modeled result
+// came from. `safety.retinalUV` remains a read/write compatibility mirror for
+// older app versions and imports.
+export const SUN_SESSION_SCHEMA_VERSION = 2;
+
+export function ocularEffectiveDoseFromSafety(safety) {
+  const canonical = Number(safety?.ocularEffectiveDose);
+  if (Number.isFinite(canonical)) return canonical;
+  const legacy = Number(safety?.retinalUV);
+  return Number.isFinite(legacy) ? legacy : 0;
+}
+
+// Upgrade one stored record in place. The function is deliberately pure with
+// respect to storage: callers decide when to persist, which keeps ordinary
+// render reads synchronous and lets startup maintenance batch one save.
+export function upgradeSunSessionRecord(session) {
+  if (!session || typeof session !== 'object') return false;
+  let changed = false;
+  if ((session.schemaVersion ?? 0) < SUN_SESSION_SCHEMA_VERSION) {
+    session.schemaVersion = SUN_SESSION_SCHEMA_VERSION;
+    changed = true;
+  }
+  if (session.safety && typeof session.safety === 'object') {
+    const dose = ocularEffectiveDoseFromSafety(session.safety);
+    if (!Number.isFinite(Number(session.safety.ocularEffectiveDose))) {
+      session.safety.ocularEffectiveDose = dose;
+      changed = true;
+    }
+    // Compatibility mirror. New code reads the canonical field first.
+    if (!Number.isFinite(Number(session.safety.retinalUV))) {
+      session.safety.retinalUV = dose;
+      changed = true;
+    }
+  }
+  for (const segment of session.doseSegments || []) {
+    if (!segment || typeof segment !== 'object') continue;
+    if (!Number.isFinite(Number(segment.ocularEffectiveDose)) && Number.isFinite(Number(segment.retinalUV))) {
+      segment.ocularEffectiveDose = Number(segment.retinalUV);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+// Photosensitivity screening tiers are qualitative. They deliberately do not
+// scale MED: medication, dose, route, and individual response vary too much for
+// a category-level multiplier. UI callers use the tier to withhold exact burn
+// timing and surface a precaution instead.
 export const PHOTOSENSITIVE_MED_TIERS = [
   { key: 'none',     label: 'None',      medScale: 1.0,  examples: '' },
-  { key: 'mild',     label: 'Mild',      medScale: 0.7,  examples: 'antihistamines (most), some NSAIDs' },
-  { key: 'moderate', label: 'Moderate',  medScale: 0.4,  examples: 'NSAIDs, thiazide diuretics, sulfa antibiotics, St. John\'s Wort, topical retinol' },
-  { key: 'severe',   label: 'Severe',    medScale: 0.25, examples: 'tetracyclines (doxycycline), oral retinoids (isotretinoin), amiodarone, citrus essential oils on skin' },
+  { key: 'mild',     label: 'Possible',  medScale: 1.0,  examples: 'a medicine or topical product with a possible sun warning' },
+  { key: 'moderate', label: 'Known',     medScale: 1.0,  examples: 'a medicine with a known photosensitivity warning' },
+  { key: 'severe',   label: 'Strong warning', medScale: 1.0, examples: 'a prescriber or pharmacist advised strict sun precautions' },
 ];
 
 // Map tier key to multiplier; default to none (no scaling) on unknown.
@@ -23,8 +67,8 @@ export function photosensitiveMedScale(tier) {
 }
 
 // Normalize legacy boolean photosensitiveMeds storage into a tier key.
-// boolean true → 'moderate' (the previous fixed-0.4 multiplier semantically
-// matches moderate); boolean false / null / undefined → 'none'.
+// boolean true → 'moderate' for legacy records; no numeric MED multiplier is
+// inferred from that old flag.
 export function _normalizePSMTier(raw) {
   if (raw === true) return 'moderate';
   if (raw === false || raw == null) return 'none';
@@ -36,8 +80,8 @@ export function _normalizePSMTier(raw) {
 // position (front-only OR back-only at any one moment) — capped at the
 // anatomical max of ~0.55. Use the in-session "🔄 Flip" button (or the
 // `rotatedSides` toggle in the start dialog) to log that you exposed
-// both sides over the session; that doubles the effective body dose
-// the same way dminder's "100% naked" assumes alternating sides.
+// both sides over the session. Rotation changes anatomical history but does
+// not double an already area-integrated vitamin-D estimate.
 //
 // Cite: fractions derive from the Wallace rule of nines + Lund-Browder
 // (1944) chart, then halved (anterior face only). Face + hands ≈ 4.5%

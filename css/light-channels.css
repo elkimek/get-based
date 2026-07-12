@@ -66,7 +66,7 @@
 .light-pill-tier-1 { color: var(--text-secondary); }
 .light-pill-tier-2 { color: var(--text-primary); border-color: var(--text-muted); }
 .light-pill-tier-3 { color: var(--accent); border-color: var(--accent); }
-.light-pill-tier-4 { color: var(--green); border-color: var(--green); }
+.light-pill-tier-4 { color: var(--accent); border-color: var(--accent); border-width: 2px; }
 
 .light-channels-section {
   margin-top: 0;
@@ -262,14 +262,12 @@
 }
 /* Tier color scheme aligns with the chart's hit-target semantics
    (chart bars: gray <5%, faint accent <30%, accent 30-100%, GREEN at
-   target, GREEN above target). The header tier pill should match:
+   comparison band. The header tier pill uses intensity, not a green success state:
    - tier 0: muted gray (no exposure)
    - tier 1: low / accent muted
    - tier 2: moderate / accent
-   - tier 3: good / accent (approaching hit-target)
-   - tier 4: strong / GREEN (hit target across the week)
-   Previously tier 4 was RED which conflicted with the chart's
-   green-for-hit-target visual: same channel, opposite signal. */
+   - tier 3: regular / accent
+   - tier 4: high / stronger accent */
 .light-channel-detail-tierpill.tier1 { color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary); }
 .light-channel-detail-tierpill.tier2 {
   color: var(--accent);
@@ -282,9 +280,9 @@
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .light-channel-detail-tierpill.tier4 {
-  color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 40%, transparent);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* Hero stat block — the big number you actually want to see (e.g. "~1.8k IU

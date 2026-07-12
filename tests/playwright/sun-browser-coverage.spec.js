@@ -23,8 +23,8 @@ test('sun session model browser coverage exercises safety defaults and caveats',
 
     outcomes.photosensitiveTiersNormalizeLegacyAndUnknownInputs =
       model.PHOTOSENSITIVE_MED_TIERS.map(tier => tier.key).join(',') === 'none,mild,moderate,severe'
-      && model.photosensitiveMedScale('moderate') === 0.4
-      && model.photosensitiveMedScale('severe') === 0.25
+      && model.photosensitiveMedScale('moderate') === 1
+      && model.photosensitiveMedScale('severe') === 1
       && model.photosensitiveMedScale('unknown-tier') === 1
       && model._normalizePSMTier(true) === 'moderate'
       && model._normalizePSMTier(false) === 'none'
@@ -220,12 +220,12 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         && sun.tierDots(3) === '●●●○';
       outcomes.formatChannelUnitsCoverThresholdsAndFallbacks =
         sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 6, null, true, 0.24).includes('IU')
-        && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 1, null, false, 0.24) === 'below UVI threshold'
-        && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('saturated')
-        && sun.formatChannelUnit('nir_solar', 12400, 20) === '1.2 J/cm²'
-        && sun.formatChannelUnit('circadian', 52000, 10).includes('53.2k M-EDI lux')
+        && sun.formatChannelUnit('vitamin_d', 2000, 30, 'II', 0, null, false, 0.24) === 'no modeled vitamin-D potential'
+        && sun.formatChannelUnit('vitamin_d', 12000, 30, 'II', 6, null, true, 0.8).includes('model cap')
+        && sun.formatChannelUnit('nir_solar', 12400, 20) === '~41% of daily comparison'
+        && sun.formatChannelUnit('circadian', 52000, 10).includes('65.3k blue-weighted lux')
         && sun.formatChannelUnit('no_cv', 200, 20) === ''
-        && sun.formatChannelUnit('circadian', 200, 1) === 'session too short';
+        && sun.formatChannelUnit('circadian', 200, 1) === 'too short to compare';
 
       const totals = sun.rollingChannelTotals(7);
       const channelBreakdown = sun.dailyChannelBreakdown('vitamin_d', 3);

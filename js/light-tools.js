@@ -399,8 +399,8 @@ export function openSunriseLogger() {
   // we can still log a session but flag it so the user knows.
   const inGolden = cls.kind === 'sunrise' || cls.kind === 'sunset';
   const headerHint = inGolden
-    ? `Quick log for golden-hour outdoor light. Eye exposure is automatic — circadian channel maxed for the duration.`
-    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now — golden-hour benefits don't apply, but you can still log this as a regular outdoor session.`;
+    ? `Quick-log comfortable outdoor light near ${cls.kind}. The app records this as an outdoor-light exposure; never look at the sun.`
+    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now. You can still log a regular outdoor session.`;
   overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
     <div class="modal-header">
       <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(cls.label)}</span></h3>
@@ -683,7 +683,7 @@ export function renderLightTools() {
     flicker: {
       icon: '⚡',
       name: 'Flicker detector',
-      desc: 'Find PWM and rolling-shutter banding up to 25 kHz.',
+      desc: 'Look for PWM and rolling-shutter banding within your camera’s device-dependent range.',
       short: 'PWM risk',
     },
     darkness: {

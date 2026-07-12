@@ -166,7 +166,7 @@ const {
   assert('context emits "Doses (as displayed to user):" preamble',
     ctx.includes('Doses (as displayed to user):'));
   assert('context references human-formatted vit-D (IU output)',
-    /Vitamin D:.*IU/i.test(ctx) || /Vitamin D:.*minimal/i.test(ctx) || /Vitamin D:.*below UVI/i.test(ctx),
+    /Vitamin D potential:.*IU/i.test(ctx) || /Vitamin D potential:.*minimal/i.test(ctx) || /Vitamin D potential:.*below UVI/i.test(ctx),
     ctx);
   assert('context references MED %', ctx.includes('Burn dose: 42%'));
   assert('context references body fraction', ctx.includes('45%'));

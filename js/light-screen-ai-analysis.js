@@ -62,7 +62,7 @@ export function buildScreenContext(s) {
   // Bedroom-phone signal — the highest-leverage call-out for most users.
   if (s.device === 'phone' && room && /bedroom|sleep/i.test(room.name || '')) {
     lines.push('');
-    lines.push('NOTE: phone is bound to a sleep room. Phone-in-bed is the single largest junk-light vector for most users.');
+    lines.push('NOTE: this phone is used in a sleep room, so timing, brightness, and duration deserve extra attention.');
   }
 
   // User context
@@ -90,7 +90,7 @@ const SYSTEM_PROMPT = [
   '  gray = not enough data (no device set, no hours)',
   '',
   'Biology priors:',
-  '  • Phone-in-bed is the single largest junk-light vector for most users — bright, blue-shifted, eye-direct, often used until sleep onset (Cain & Gradisar 2010, LeBourgeois 2017). When a phone is bound to a sleep room, treat as red unless blue-blocker is active AND evening hours are <1.',
+  '  • For a phone used in bed, weigh timing, brightness, viewing distance, and duration. A blue-reduction setting can help with spectrum but does not erase brightness or sleep displacement.',
   '  • TV in living room evening — cool blue light + bright + multi-hour. Distance helps (vs phone), but spectrum + duration usually dominate.',
   '  • Monitor / laptop work after sunset — same physiology as TV but typically eye-direct + closer + longer-duration. Blue blocker (f.lux / Night Shift / amber glasses) is the cheapest mitigation.',
   '  • E-reader (e-ink) — backlight off OR warm-tinted = green; cool backlight on at night ≈ tablet impact.',

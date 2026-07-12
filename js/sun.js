@@ -55,9 +55,11 @@ import {
 } from './sun-session-model.js';
 import {
   fetchAtmosphere,
+  computeUVConfidence,
   interpolateAtmosphere,
   solarZenithAngle,
 } from './sun-uvdata.js';
+import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 import {
   circadianMelanopicLux,
   computeChannelDoses,
@@ -87,6 +89,7 @@ import {
   updateSession,
   hydrateSession,
   rehydrateStaleSessions,
+  buildSunSessionCalculation,
   _applyAtmOverrides,
   resetSunSessionsStoreState,
 } from './sun-sessions-store.js';
@@ -155,6 +158,7 @@ export {
   updateSession,
   hydrateSession,
   rehydrateStaleSessions,
+  buildSunSessionCalculation,
   _applyAtmOverrides,
 } from './sun-sessions-store.js';
 // NOTE: sun-ai-analysis.js is intentionally NOT imported here — it
@@ -174,7 +178,7 @@ export {
 // summary line. Row meta now shows just "Eyes uncovered ⚠" so the
 // safety state is conveyed by the icon, not a redundant warning string.
 export const EYE_MODES = [
-  { key: 'direct',         label: 'Eyes uncovered',     pickerLabel: 'Eyes uncovered (never stare at sun)', warn: true },
+  { key: 'direct',         label: 'Open sky',            pickerLabel: 'Outdoors, open sky (never look at the sun)', warn: true },
   { key: 'sunglasses',     label: 'Sunglasses',         pickerLabel: 'Sunglasses' },
   { key: 'clear-glasses',  label: 'Clear glasses',      pickerLabel: 'Clear glasses' },
   { key: 'closed-eyes',    label: 'Closed eyes',        pickerLabel: 'Closed eyes' },
@@ -191,7 +195,7 @@ export const LENS_TINTS = [
 ];
 
 // ─── Channel display metadata ─────────────────────────────────────────
-// Daily targets calibrated against a "good outdoor day" reference: roughly
+// Daily reference bands calibrated against a typical active outdoor day: roughly
 // 30-60 minutes of moderate-body-fraction (~30%) midday exposure for
 // skin channels, or 10-30 minutes of eye-direct outdoor light for eye
 // channels. Raw channel-au scales with body fraction × duration × spectral
@@ -199,34 +203,33 @@ export const LENS_TINTS = [
 // of these targets in a long session, which is the correct mathematical
 // outcome (they got a lot of that signal), not a UI bug.
 //
-// Calibration basis per channel noted inline. Targets are "ceiling for a
-// typical active outdoor day", not "minimum for benefit" — most users
-// will see 30-100% on most days.
+// These are comparison bands, not medical targets, minimum effective doses, or
+// safety limits. They let users compare their own pattern from day to day.
 export const CHANNEL_DISPLAY = {
-  vitamin_d:  { icon: '☀',  label: 'Vitamin D',          dailyTarget:    300, what: 'UVB on bare skin makes vitamin D. Stops increasing around the point your skin starts to redden — longer is not better.' },
+  vitamin_d:  { icon: '☀',  label: 'Vitamin D potential', dailyTarget:    300, what: 'An estimate of vitamin D your skin could make from this UVB exposure. It is not a blood-level measurement, and more sun is not always better.' },
   // POMC uses the McKinlay-Diffey erythemal action spectrum (CIE S 007 /
   // ISO 17166:1999, UVB-heavy) — accumulates ~4× slower per minute than
   // vit-D. ~30 min noon at face+hands ≈ 60 channel-au. Target 80 = strong
   // daily UVA-UVB exposure.
-  pomc:       { icon: '⚡',  label: 'Mood & hormones',    dailyTarget:     80, what: 'Sun on skin triggers a hormone cascade — α-MSH (the tan signal), β-endorphin (mood), ACTH (stress response). Part of why sun feels good.' },
+  pomc:       { icon: '⚡',  label: 'Skin UV response',    dailyTarget:     80, what: 'Tracks UV reaching uncovered skin. UV starts tanning and other skin responses, but it also adds to skin damage, so this is an exposure record—not a benefit score.' },
   // NO/cardiovascular uses UVA action spectrum (Liu/Oplander 2014).
   // BP-reducing dose ~30 min midday on 30-50% body ≈ 5000 channel-au.
   // Set to 5000 — matches the empirical threshold in the literature.
-  no_cv:      { icon: '❤',  label: 'Cardiovascular',     dailyTarget:   5000, what: 'UVA from skin releases nitric oxide — supports blood-vessel function, lowers blood pressure, improves circulation, dampens inflammation.' },
+  no_cv:      { icon: '❤',  label: 'UVA on skin',         dailyTarget:   5000, what: 'Tracks modeled UVA reaching uncovered skin. UVA can trigger short-lived nitric-oxide release, but this index does not predict blood pressure or cardiovascular outcomes.' },
   // Violet-eye (Opn5 360-440nm at eye). Hattar/Huberman recommend
   // 10-30 min outdoor morning light for dopamine + eye health. 30 min
   // morning walk eye-direct ≈ 8000 channel-au; target 8000.
-  violet_eye: { icon: '👁',  label: 'Outdoor eye light',  dailyTarget:   8000, what: 'Outdoor 360–400 nm hits sensors in eye and skin. Linked to eye health and dopamine release — the difference between "outside" and "window light" even when both feel bright.' },
+  violet_eye: { icon: '👁',  label: 'Outdoor light',       dailyTarget:   8000, what: 'Tracks short-wavelength outdoor light reaching the eyes without requiring you to look at the sun. It is a simple outdoor-light index, not an eye-health dose.' },
   // Circadian/melanopic at eye. ~30-60 min outdoor light entrains the
   // SCN. Per CIE S 026 melanopic luminous efficacy K_mel,v ≈ 614 lx/(W/m²).
   // 30 min direct outdoor = ~20000 channel-au. Keep target.
-  circadian:  { icon: '🌅', label: 'Body clock',         dailyTarget:  20000, what: 'Bright light at the eye sets your circadian rhythm — earlier bedtime, faster wake-up, deeper sleep. Strongest effect in the first 2 hours after sunrise.' },
+  circadian:  { icon: '🌅', label: 'Body clock light',    dailyTarget:  20000, what: 'Estimates bright, blue-weighted light reaching your eyes. Timing matters: brighter days and dimmer evenings usually give the body clock a clearer day–night signal.' },
   // NIR-solar broadband (600-1400nm). Wunsch/Jeffery optical tissue
   // window — solar NIR is ~250-400 W/m² at noon. 60 min @ 30% body =
   // ~30000 channel-au. Target 30000.
-  nir_solar:  { icon: '🔥', label: 'Cellular repair',    dailyTarget:  30000, what: 'Solar 600–1400 nm penetrates deep into tissue and reaches mitochondria. Supports recovery, raises local melatonin in cells, reduces inflammation. The half of sunlight that windows block.' },
-  pbm_red:    { icon: '🔴', label: 'Red light therapy',  dailyTarget:   8000, what: 'Narrowband red light (660 nm) from a therapy panel. Same target as solar red but more concentrated and indoor.' },
-  pbm_nir:    { icon: '🟣', label: 'Near-IR therapy',    dailyTarget:  10000, what: 'Narrowband near-infrared (810/850 nm) from a therapy panel. Reaches deeper tissue than visible red.' },
+  nir_solar:  { icon: '🔥', label: 'Solar red & infrared', dailyTarget: 30000, what: 'Tracks modeled red and near-infrared sunlight on exposed skin. Research on specific therapeutic devices does not establish a daily health target for ordinary sunlight.' },
+  pbm_red:    { icon: '🔴', label: 'Device red light',     dailyTarget:  8000, what: 'Tracks estimated red-light exposure from a device. Use the manufacturer’s distance, timing, and eye-safety instructions.' },
+  pbm_nir:    { icon: '🟣', label: 'Device near-infrared', dailyTarget: 10000, what: 'Tracks estimated near-infrared exposure from a device. This is an exposure log, not proof of a treatment effect.' },
 };
 
 // Map a raw dose value → qualitative tier 0-4 with plain-English labels.
@@ -258,7 +261,7 @@ export function weeklyChannelTier(value, channelKey) {
   return 4;
 }
 
-const TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
+const TIER_LABELS = ['none', 'light', 'moderate', 'regular', 'high'];
 const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●'];
 
 export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
@@ -284,21 +287,19 @@ export async function resumeSunSession(id) {
   _refreshSurfaces();
 }
 
-// Mid-session "I just flipped" hook. Sets rotatedSides=true on the
-// session record so the vit-D IU readout doubles (matches dminder's
-// "100% naked = both sides over the session" convention). Idempotent —
-// tapping again on an already-rotated session is a no-op so users
-// don't accidentally over-multiply.
+// Mid-session "I just flipped" hook. Rotation is stored as exposure context
+// and used by region-aware safety aggregation; it does not multiply the
+// already area-integrated vitamin-D estimate. Idempotent.
 export async function flipSidesMidSession(id) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   if (sess.bodyExposure?.rotatedSides) {
-    showNotification('Already logged as rotated — IU readout already accounts for both sides.', 'success', 3500);
+    showNotification('Already logged as rotated — both sides are recorded for regional safety history.', 'success', 3500);
     return;
   }
   const updated = await markSessionRotated(id);
   if (!updated) return;
-  showNotification('Logged as rotated — vit-D IU now reflects both sides exposed over the session.', 'success', 3500);
+  showNotification('Logged as rotated — both sides are now recorded without multiplying the vitamin-D estimate.', 'success', 3500);
   _refreshSurfaces();
 }
 
@@ -537,24 +538,82 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
 
 // Vitamin-D channel rollups live in sun-channel-metrics.js.
 
-// Cumulative MED today (for the safety gauge and pre-session warnings).
-// Includes the in-progress session's live partial burn-dose so the gauge
-// fills as you sit in the sun.
+const PRESET_REGIONS = {
+  face_hands: ['face', 'arms-front'],
+  tshirt: ['face', 'arms-front', 'legs-front'],
+  swimwear: ['face', 'breast-chest', 'arms-front', 'torso-front', 'abdomen', 'legs-front'],
+  sunbathing: ['face', 'breast-chest', 'arms-front', 'torso-front', 'abdomen', 'legs-front'],
+};
+
+function exposureRegions(bodyExposure = {}) {
+  if (Array.isArray(bodyExposure.regions) && bodyExposure.regions.length) return bodyExposure.regions;
+  const front = PRESET_REGIONS[bodyExposure.preset] || ['unknown-skin'];
+  if (!bodyExposure.rotatedSides) return front;
+  return [...front, ...front.map(key => key.endsWith('-front') ? key.replace(/-front$/, '-back') : key)];
+}
+
+function deviceExposureRegions(session = {}) {
+  if (Array.isArray(session.bodyAreas) && session.bodyAreas.length) return session.bodyAreas;
+  const map = {
+    face: ['face'], arms: ['arms-front'], torso: ['torso-front'], legs: ['legs-front'],
+    'whole-body': BODY_REGIONS.map(region => region.key), targeted: ['unknown-skin'],
+  };
+  return map[session.bodyArea] || ['unknown-skin'];
+}
+
+function overlapFraction(startedAt, endedAt, windowStart, windowEnd) {
+  const start = Number(startedAt);
+  const end = Number(endedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  return Math.max(0, Math.min(end, windowEnd) - Math.max(start, windowStart)) / (end - start);
+}
+
+function addRegionalDose(byRegion, regions, dose) {
+  if (!Number.isFinite(dose) || dose <= 0) return;
+  for (const region of regions?.length ? regions : ['unknown-skin']) {
+    byRegion.set(region, (byRegion.get(region) || 0) + dose);
+  }
+}
+
+function cumulativeMEDForWindow(windowStart, windowEnd) {
+  const byRegion = new Map();
+  for (const sess of getSessions()) {
+    const live = !sess.endedAt ? _liveDosesFor(sess, windowEnd) : null;
+    const safety = live || sess.safety;
+    const medFraction = Number(safety?.medFraction);
+    if (!Number.isFinite(medFraction) || medFraction <= 0) continue;
+    const segments = live?.doseSegments || sess.doseSegments;
+    const totalSed = Number(safety?.sed) || 0;
+    if (Array.isArray(segments) && segments.length && totalSed > 0) {
+      for (const segment of segments) {
+        const share = (Number(segment.erythemalSED) || 0) / totalSed;
+        const overlap = overlapFraction(segment.startedAt, segment.endedAt, windowStart, windowEnd);
+        addRegionalDose(byRegion, segment.bodyRegions, medFraction * share * overlap);
+      }
+    } else {
+      const end = sess.endedAt || windowEnd;
+      const overlap = overlapFraction(sess.startedAt, end, windowStart, windowEnd);
+      addRegionalDose(byRegion, exposureRegions(sess.bodyExposure), medFraction * overlap);
+    }
+  }
+  for (const sess of getSunDeviceSessionsRuntime() || []) {
+    const medFraction = Number(sess.safety?.medFraction);
+    if (!Number.isFinite(medFraction) || medFraction <= 0) continue;
+    const end = sess.endedAt || windowEnd;
+    const overlap = overlapFraction(sess.startedAt, end, windowStart, windowEnd);
+    addRegionalDose(byRegion, deviceExposureRegions(sess), medFraction * overlap);
+  }
+  return byRegion.size ? Math.max(...byRegion.values()) : 0;
+}
+
+// Highest cumulative MED on any one skin region today. This avoids adding
+// disjoint exposures (for example face at lunch and legs later) as though the
+// same patch received both, while remaining conservative for legacy records
+// whose anatomical coverage is unknown. UV-device sessions are included.
 export function cumulativeMEDToday() {
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  let total = 0;
-  for (const sess of getSessions()) {
-    if (!sess.endedAt) {
-      const live = _liveDosesFor(sess);
-      if (live && Number.isFinite(live.medFraction)) total += live.medFraction;
-      continue;
-    }
-    if (!sess.safety) continue;
-    if (sess.endedAt < dayStart) continue;
-    total += sess.safety.medFraction || 0;
-  }
-  return total;
+  return cumulativeMEDForWindow(dayStart, Date.now());
 }
 
 // Cumulative MED for the prior day. Skin doesn't fully reset overnight —
@@ -565,24 +624,32 @@ export function cumulativeMEDYesterday() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const yStart = todayStart - 86400000;
+  return cumulativeMEDForWindow(yStart, todayStart);
+}
+
+// Actinic-weighted ocular UV accumulated across sun and device sessions in
+// the preceding eight hours. Schema v2 reads `ocularEffectiveDose` first and
+// accepts `retinalUV` only as an import/backward-compatibility fallback.
+export function cumulativeOcularEffectiveDose8h(atMs = Date.now()) {
+  const windowStart = atMs - 8 * 60 * 60 * 1000;
   let total = 0;
-  for (const sess of getSessions()) {
-    // In-progress session that started yesterday and is still running today
-    // contributes its dose proportionally (yesterday's portion to yesterday).
-    if (!sess.endedAt) {
-      const startedAt = sess.startedAt || 0;
-      if (startedAt < yStart || startedAt >= todayStart) continue;
-      const live = _liveDosesFor(sess);
-      if (!live || !Number.isFinite(live.medFraction)) continue;
-      const totalElapsedMs = Date.now() - startedAt;
-      const yesterdayMs = Math.max(0, todayStart - startedAt);
-      const yesterdayShare = totalElapsedMs > 0 ? yesterdayMs / totalElapsedMs : 0;
-      total += live.medFraction * yesterdayShare;
-      continue;
+  const addSession = (sess, dose, segments = null) => {
+    if (!Number.isFinite(dose) || dose <= 0) return;
+    if (Array.isArray(segments) && segments.length) {
+      for (const segment of segments) {
+        const segmentDose = Number(segment.ocularEffectiveDose) || 0;
+        total += segmentDose * overlapFraction(segment.startedAt, segment.endedAt, windowStart, atMs);
+      }
+      return;
     }
-    if (!sess.safety) continue;
-    if (sess.endedAt < yStart || sess.endedAt >= todayStart) continue;
-    total += sess.safety.medFraction || 0;
+    total += dose * overlapFraction(sess.startedAt, sess.endedAt || atMs, windowStart, atMs);
+  };
+  for (const sess of getSessions()) {
+    const live = !sess.endedAt ? _liveDosesFor(sess, atMs) : null;
+    addSession(sess, Number(live?.ocularEffectiveDose ?? live?.retinalUV ?? sess.safety?.ocularEffectiveDose ?? sess.safety?.retinalUV), live?.doseSegments || sess.doseSegments);
+  }
+  for (const sess of getSunDeviceSessionsRuntime() || []) {
+    addSession(sess, Number(sess.safety?.ocularEffectiveDose ?? sess.safety?.retinalUV));
   }
   return total;
 }
@@ -655,7 +722,12 @@ export function getSunCoords() {
   // 1. Profile-cached precise coords (set via "Use precise location" upgrade)
   const profileLoc = state.importedData?.sunDefaults?.coords;
   if (profileLoc && Number.isFinite(profileLoc.lat) && Number.isFinite(profileLoc.lon)) {
-    return { lat: profileLoc.lat, lon: profileLoc.lon, source: 'profile-precise' };
+    return {
+      lat: profileLoc.lat,
+      lon: profileLoc.lon,
+      altitudeM: Number.isFinite(profileLoc.altitudeM) ? profileLoc.altitudeM : 0,
+      source: 'profile-precise',
+    };
   }
   // 2. Profile country → deterministic centroid (lat + lon both keyed off the
   // country, never off the device's tz). Earlier versions derived lon from
@@ -725,6 +797,7 @@ function _summarizeBodyExposure(sess) {
 
 configureSunSessionsStore({
   commitCurrentSlice: _commitCurrentSlice,
+  getLiveDoses: _liveDosesFor,
   setLiveState: _setLiveState,
   clearLiveState: _clearLiveState,
   formatElapsed: _formatElapsed,
@@ -735,6 +808,7 @@ configureSunSessionsStore({
   fractionOfMED,
   retinalUVdose,
   solarZenithAngle,
+  computeUVConfidence,
 });
 
 configureSunActiveSession({
@@ -744,6 +818,8 @@ configureSunActiveSession({
   stopSession,
   hydrateSession,
   getSunCoords,
+  getCachedConditionsAtmosphere,
+  cumulativeOcularEffectiveDose8h,
   saveImportedData: async () => { await saveImportedData(); },
   applyAtmOverrides: _applyAtmOverrides,
   refreshSurfaces: _refreshSurfaces,
@@ -758,7 +834,9 @@ configureSunActiveSession({
   computeChannelDoses,
   erythemalSED,
   fractionOfMED,
+  retinalUVdose,
   solarZenithAngle,
+  computeUVConfidence,
   interpolateAtmosphere,
   vitaminDIU,
   vitaminDIUPerSession,

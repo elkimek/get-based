@@ -96,7 +96,7 @@ const {
     eyesProtected: false,
   });
   assert('computeDeviceSessionDoses handles lux-only SAD fallback',
-    sadDose.doses.circadian === 10000 * 600 / 100);
+    Math.abs(sadDose.doses.circadian - (10000 * 0.75 * 0.0013262 * 600)) < 1e-9);
   const sadProtected = computeDeviceSessionDoses({
     device: { lux: 10000, recommendedDistanceCm: 30, peakWavelengths: [], mwPerCm2At15cm: null },
     durationMin: 10,
@@ -223,8 +223,8 @@ const {
   });
   assert('logDeviceSession returns a stamped session',
     sLux && sLux.id && sLux.id.startsWith('devsess_'));
-  assert('SAD lux fallback assigns circadian dose (lux × seconds / 100)',
-    Math.abs(sLux.doses.circadian - (10000 * 30 * 60 / 100)) < 1e-6,
+  assert('SAD lux fallback estimates melanopic dose from photopic lux',
+    Math.abs(sLux.doses.circadian - (10000 * 0.75 * 0.0013262 * 30 * 60)) < 1e-6,
     `got ${sLux.doses.circadian}`);
   assert('Session carries duration + distance + bodyArea + eyesProtected',
     sLux.durationMin === 30 && sLux.distanceCm === 30 &&

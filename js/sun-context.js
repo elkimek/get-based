@@ -20,7 +20,7 @@ import {
 } from './light-env-evening.js';
 import { isLightSunContextEnabled } from './lab-context.js';
 
-const DEFAULT_TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
+const DEFAULT_TIER_LABELS = ['none', 'light', 'moderate', 'regular', 'high'];
 
 /** @type {Record<string, any>} */
 const sunContextDeps = {
@@ -295,7 +295,7 @@ function alwaysTierBlock(sessions) {
 - Outdoor sessions: ${sessions.length} · device sessions: ${devSessions.length} · devices in library: ${devices.length}${baselineLine}${deviceListLine}
 - Today's cumulative MED: ${(medToday * 100).toFixed(0)}% (% of personal daily Min Erythemal Dose)${medToday > 1 ? ' (over MED — exposure risk)' : ''}
 ${activeSession ? `- ACTIVE SESSION in progress (started ${formatRelative(activeSession.startedAt)})\n` : ''}${lastSession ? `- Most recent outdoor session: ${formatRelative(lastSession.endedAt)} (${Math.round(lastSession.durationMin || 0)} min)\n` : ''}
-### 7-day rollup (sun + devices combined; ●●●●=hit weekly target, ●●●○=good, ●●○○=moderate, ●○○○=low, ○○○○=none)
+### 7-day rollup (sun + devices combined; dots compare exposure with the app reference band, not a health target)
 ${formatChannelTotals(totals7d)}
 
 `;
@@ -418,7 +418,7 @@ function lightEnvironmentBlock() {
     const blueOff = screens.filter(sc => sc.eveningUseAfterSunset && !sc.blueBlocker).length;
     s += `- Screens tracked: ${screens.length}`;
     if (evening > 0) s += `; ${evening} used after sunset`;
-    if (blueOff > 0) s += ` (${blueOff} without blue-blocker — direct retinal melatonin suppression)`;
+    if (blueOff > 0) s += ` (${blueOff} without a blue-reduction setting; brightness and timing still matter)`;
     s += '\n';
     // Per-screen one-liner: device type, hours, evening use, blocker status.
     for (const sc of screens) {
@@ -536,9 +536,9 @@ function lightEnvironmentBlock() {
       if (burden && typeof burden === 'object') {
         // Use the helper's own label so the AI surface matches the
         // page UI verbatim. The helper returns 3 tiers (0/1/2 →
-        // Light/Moderate/Heavy load); earlier code surfaced a 5-tier
+        // Few/Some/Several concerns); earlier code surfaced a 5-tier
         // map that didn't exist anywhere else.
-        const burdenLabel = burden.label || ['Light load', 'Moderate load', 'Heavy load'][burden.tier] || 'unknown';
+        const burdenLabel = burden.label || ['Few concerns found', 'Some concerns found', 'Several concerns found'][burden.tier] || 'unknown';
         let line = `- Indoor light burden: ${burdenLabel} (tier ${burden.tier}/2 · 0=light, 2=heavy across screens/sleep/daylight)`;
         if (typeof sunContextDeps.computeDeficitAxes === 'function') {
           try {
@@ -606,24 +606,24 @@ function lightEnvironmentBlock() {
 
 function detectDeficits(totals30d) {
   const out = [];
-  // Empty channels = clear deficit signal
+  // Empty channels describe missing exposure records, not biological deficits.
   if ((totals30d.vitamin_d || 0) === 0) {
-    out.push({ label: 'Channel 1 (vit D)', note: 'no UVB exposure logged in 30d — supplement-only path or geographic UVB unavailability' });
+    out.push({ label: 'Vitamin D potential', note: 'no modeled UVB-on-skin exposure logged in 30d; use 25(OH)D labs to assess actual vitamin D status' });
   }
   if ((totals30d.circadian || 0) === 0) {
-    out.push({ label: 'Channel 5 (circadian)', note: 'no eye-exposure outdoor light logged in 30d — SCN entrainment likely deficient (Hattar/Huberman literature suggests minimum AM dose)' });
+    out.push({ label: 'Body clock light', note: 'no open-sky outdoor-light sessions logged in 30d; this describes missing records, not a diagnosed circadian deficit' });
   }
   if ((totals30d.nir_solar || 0) === 0) {
-    out.push({ label: 'Channel 6 (NIR-solar)', note: 'no broadband NIR logged in 30d — Wunsch/Jeffery optical-tissue-window not active; consider solar exposure or PBM panel' });
+    out.push({ label: 'Solar red & infrared', note: 'no modeled solar red/infrared exposure logged in 30d; absence does not imply a treatment need' });
   }
   if ((totals30d.no_cv || 0) === 0) {
-    out.push({ label: 'Channel 3 (NO/cardiovascular)', note: 'no UVA exposure logged in 30d — Liu/Oplander photolabile NO release pathway not engaged' });
+    out.push({ label: 'UVA on skin', note: 'no modeled UVA-on-skin exposure logged in 30d; this is not a deficiency that requires corrective exposure' });
   }
   if ((totals30d.pbm_red || 0) === 0) {
-    out.push({ label: 'Channel 7 (PBM red 660nm)', note: 'no narrowband red-light therapy logged in 30d — Hamblin PBM cytochrome-c-oxidase + ATP-cascade pathway not engaged from device sources' });
+    out.push({ label: 'Device red light', note: 'no red-light device sessions logged in 30d; absence does not imply a health gap' });
   }
   if ((totals30d.pbm_nir || 0) === 0) {
-    out.push({ label: 'Channel 8 (PBM NIR 810/850nm)', note: 'no narrowband near-IR therapy logged in 30d — deeper-tissue Hamblin PBM not engaged from device sources' });
+    out.push({ label: 'Device near-infrared', note: 'no near-infrared device sessions logged in 30d; absence does not imply a health gap' });
   }
   return out;
 }
@@ -657,7 +657,7 @@ function standardTierBlock(sessions) {
   // 6-week trend per channel. Bucket by 7-day windows ending now;
   // bucket[5] = last 7d, bucket[0] = 35–42d ago. Sum channel-au across
   // both sun + device sessions per bucket so the AI sees the combined
-  // shape, then convert to user-facing units (IU / lux·h / J/cm²).
+  // shape, then convert to user-facing units or explicitly weighted indices.
   const WEEKS = 6;
   const now = Date.now();
   const all = [...sun, ...dev];
@@ -703,12 +703,13 @@ function standardTierBlock(sessions) {
 
   // Render: only emit channels with non-zero buckets so empty channels
   // don't bloat the block. Format depends on channel: IU for vit-D,
-  // lux·h for circadian, J/cm² for the three PBM-band channels, raw
+  // lux·h for circadian, weighted AU for the three red/NIR channels, raw
   // channel-au for no_cv and pomc (no canonical SI unit — the AI sees
   // the trend shape, not magnitude).
   const fmtIUCompact = (n) => n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
     : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
-  const fmtJ = (n) => n >= 10 ? `${Math.round(n)}` : n >= 1 ? n.toFixed(1) : n.toFixed(2);
+  const fmtAU = (n) => n >= 10000 ? `${(n / 1000).toFixed(0)}k`
+    : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
   const _luxHFromAu = (k, weeklyAu) => {
     // circadian channel-au needs duration to convert; bucket totals are
     // au-aggregates not lux-h. Approximation: use the always-tier helper
@@ -723,11 +724,11 @@ function standardTierBlock(sessions) {
   const labels = {
     vitamin_d: 'Vit-D (IU)',
     circadian: 'Body clock (lux·h)',
-    nir_solar: 'Cellular repair (J/cm²)',
-    pbm_red: 'Red 660nm (J/cm²)',
-    pbm_nir: 'NIR 810/850 (J/cm²)',
+    nir_solar: 'Solar red & infrared (weighted index)',
+    pbm_red: 'Red 660nm (weighted AU)',
+    pbm_nir: 'NIR 810/850 (weighted AU)',
     no_cv: 'Cardiovascular (au)',
-    pomc: 'Mood/hormones (au)',
+    pomc: 'Skin UV response (index)',
   };
   const lines = [];
   for (const k of channels) {
@@ -739,11 +740,7 @@ function standardTierBlock(sessions) {
     } else if (k === 'circadian') {
       formatted = b.map(v => v > 0 ? fmtIUCompact(_luxHFromAu(k, v)) : '0').join('→');
     } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
-      formatted = b.map(v => {
-        if (v <= 0) return '0';
-        const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(v) : v / 10000;
-        return fmtJ(j);
-      }).join('→');
+      formatted = b.map(v => v > 0 ? fmtAU(v) : '0').join('→');
     } else {
       // no_cv / pomc — raw channel-au, compact
       formatted = b.map(v => v > 0 ? fmtIUCompact(v) : '0').join('→');
@@ -835,11 +832,15 @@ function _projectSession(sess, fields) {
   }
   if (fields.includes('safety') && sess.safety) {
     const s = sess.safety;
+    const ocularEffectiveDose = s.ocularEffectiveDose ?? s.retinalUV;
     out.safety = {
       sed: s.sed != null ? +s.sed.toFixed(2) : null,
       medFraction: s.medFraction != null ? +s.medFraction.toFixed(2) : null,
       fitzpatrick: s.fitzpatrick || null,
-      retinalUV: s.retinalUV != null ? +s.retinalUV.toFixed(1) : null,
+      ocularEffectiveDose: ocularEffectiveDose != null ? +ocularEffectiveDose.toFixed(1) : null,
+      retinalUV: ocularEffectiveDose != null ? +ocularEffectiveDose.toFixed(1) : null,
+      modelConfidence: sess.calculation?.confidence?.level || null,
+      exactSafetyDisplay: sess.calculation?.precision?.allowsExactSafety ?? null,
     };
   }
   if (fields.includes('atmosphere') && sess.atmosphere) {
@@ -936,14 +937,14 @@ export function getSunSessionDetail(id) {
 // ─── Helpers ───────────────────────────────────────────────────────────
 
 const CHANNEL_LABELS = {
-  vitamin_d:  'Vit-D synthesis',
-  pomc:       'POMC/melanocortin',
-  no_cv:      'NO/cardiovascular',
-  violet_eye: 'Violet/outdoor-eye',
-  circadian:  'Circadian (melanopic)',
-  nir_solar:  'NIR-solar broadband',
-  pbm_red:    'PBM red',
-  pbm_nir:    'PBM near-IR',
+  vitamin_d:  'Vitamin-D potential',
+  pomc:       'Skin UV response',
+  no_cv:      'UVA on skin',
+  violet_eye: 'Outdoor light',
+  circadian:  'Body-clock light',
+  nir_solar:  'Solar red & infrared',
+  pbm_red:    'Device red light',
+  pbm_nir:    'Device near-infrared',
 };
 
 // 7-day rollup in user-meaningful units rather than opaque channel-au.
@@ -956,7 +957,7 @@ const CHANNEL_LABELS = {
 // Conventions per channel:
 //   vitamin_d: sum of per-session IU equivalents (Holick + Fitzpatrick gating)
 //   circadian: sum of melanopic lux·hours at the eye
-//   nir_solar / pbm_red / pbm_nir: sum of J/cm²
+//   nir_solar / pbm_red / pbm_nir: action-weighted, body-area-scaled AU
 //   pomc / no_cv / violet_eye: tier label only (no defensible single SI unit)
 //
 // `totals` carries the channel-au sums for tier classification; per-unit
@@ -1046,22 +1047,14 @@ function formatChannelTotals(totals) {
     }
   }
 
-  const pbmJ = (k) => {
-    let j = 0;
-    for (const s of [...sunSessions, ...deviceSessions]) {
-      const au = s.doses?.[k];
-      if (!Number.isFinite(au) || au <= 0) continue;
-      j += typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(au) : au / 10000;
-    }
-    return j;
-  };
-  const totalNirJ = pbmJ('nir_solar');
-  const totalRedJ = pbmJ('pbm_red');
-  const totalNirPbmJ = pbmJ('pbm_nir');
+  const totalNirAU = totals.nir_solar || 0;
+  const totalRedAU = totals.pbm_red || 0;
+  const totalNirPbmAU = totals.pbm_nir || 0;
 
   const fmtIU = (n) => n >= 1000 ? `~${(Math.round(n / 100) * 100).toLocaleString()} IU` : `~${Math.round(n / 10) * 10} IU`;
   const fmtLuxH = (n) => n >= 1000 ? `~${(Math.round(n / 100) * 100).toLocaleString()} lux·h` : `~${Math.round(n)} lux·h`;
-  const fmtJ = (n) => n >= 10 ? `${Math.round(n)} J/cm²` : n >= 1 ? `${n.toFixed(1)} J/cm²` : `${n.toFixed(2)} J/cm²`;
+  const fmtWeightedAU = (n) => n >= 10000 ? `${Math.round(n / 1000)}k weighted AU`
+    : n >= 1000 ? `${(n / 1000).toFixed(1)}k weighted AU` : `${Math.round(n)} weighted AU`;
   const tier = (k) => {
     const t = channelTier(totals[k] || 0, k);
     return `${tierLabel(t)}`;
@@ -1076,25 +1069,30 @@ function formatChannelTotals(totals) {
   // and therapy panels — calling them "therapy" was misleading when
   // the user has logged sun but no devices.
   const rows = [
-    `- Vitamin D synthesis: ${tier('vitamin_d')} ${dot('vitamin_d')} (${totalIU > 0 ? fmtIU(totalIU) : 'none'})`,
-    `- Mood & hormones (POMC / β-endorphin): ${tier('pomc')} ${dot('pomc')}`,
-    `- Cardiovascular (UVA / nitric oxide): ${tier('no_cv')} ${dot('no_cv')}`,
-    `- Outdoor eye light (violet / UV-A at the eye): ${tier('violet_eye')} ${dot('violet_eye')}`,
+    `- Vitamin D potential (IU-equivalent estimate): ${tier('vitamin_d')} ${dot('vitamin_d')} (${totalIU > 0 ? fmtIU(totalIU) : 'none'})`,
+    `- Skin UV response: ${tier('pomc')} ${dot('pomc')}`,
+    `- UVA on skin (modeled exposure): ${tier('no_cv')} ${dot('no_cv')}`,
+    `- Outdoor light at the eye (modeled index): ${tier('violet_eye')} ${dot('violet_eye')}`,
     `- Body clock (melanopic light at the eye): ${tier('circadian')} ${dot('circadian')} (${totalLuxHours > 0 ? fmtLuxH(totalLuxHours) : 'none'})`,
-    `- Cellular repair (broadband near-IR, 600-1400nm): ${tier('nir_solar')} ${dot('nir_solar')} (${totalNirJ > 0 ? fmtJ(totalNirJ) : 'none'})`,
-    `- Red wavelengths (~660nm, sun + any panels): ${tier('pbm_red')} ${dot('pbm_red')} (${totalRedJ > 0 ? fmtJ(totalRedJ) : 'none'})`,
-    `- Near-IR wavelengths (~810/850nm, sun + any panels): ${tier('pbm_nir')} ${dot('pbm_nir')} (${totalNirPbmJ > 0 ? fmtJ(totalNirPbmJ) : 'none'})`,
+    `- Solar red & infrared exposure (modeled 600-1400nm): ${tier('nir_solar')} ${dot('nir_solar')} (${totalNirAU > 0 ? fmtWeightedAU(totalNirAU) : 'none'})`,
+    `- Red wavelengths (~660nm, sun + any panels): ${tier('pbm_red')} ${dot('pbm_red')} (${totalRedAU > 0 ? fmtWeightedAU(totalRedAU) : 'none'})`,
+    `- Near-IR wavelengths (~810/850nm, sun + any panels): ${tier('pbm_nir')} ${dot('pbm_nir')} (${totalNirPbmAU > 0 ? fmtWeightedAU(totalNirPbmAU) : 'none'})`,
   ];
   return rows.join('\n');
 }
 
 function formatCorrelations(pairs) {
-  if (!Array.isArray(pairs) || pairs.length === 0) return '_no correlations computed yet_';
+  if (!Array.isArray(pairs) || pairs.length === 0) return '_not enough overlapping weekly data for exploratory associations_';
   // pairs: [{ channel, biomarker, r, n, p, lag }]
-  const sig = pairs.filter(p => p.n >= 14 && Math.abs(p.r) >= 0.3);
-  if (sig.length === 0) return '_no significant correlations (n≥14, |r|≥0.3) yet_';
-  const lines = ['| Channel | Biomarker | r | n | lag |', '|---------|-----------|---|---|-----|'];
-  for (const p of sig.slice(0, 12)) {
+  const exploratory = pairs.filter(p => p.n >= 8 && Math.abs(p.r) >= 0.5);
+  if (exploratory.length === 0) return '_no strong exploratory associations (n≥8, |r|≥0.5) yet_';
+  const lines = [
+    '_Exploratory only: correlation does not establish cause, and these pairs are not adjusted for other changes._',
+    '',
+    '| Channel | Biomarker | r | n | lag |',
+    '|---------|-----------|---|---|-----|',
+  ];
+  for (const p of exploratory.slice(0, 12)) {
     lines.push(`| ${CHANNEL_LABELS[p.channel] || p.channel} | ${p.biomarker} | ${p.r.toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
   }
   return lines.join('\n');

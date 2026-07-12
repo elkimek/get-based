@@ -183,11 +183,17 @@ export function computeRoomSeverity(room, measurements = []) {
 }
 
 export function computeDeficitAxes() {
-  return computeDeficitAxesForEnvironment(getEnvironment(), { isActiveToday });
+  return computeDeficitAxesForEnvironment(getEnvironment(), {
+    isActiveToday,
+    measurements: state.importedData?.lightMeasurements || [],
+  });
 }
 
 export function computeIndoorBurden() {
-  return computeIndoorBurdenForEnvironment(getEnvironment(), { isActiveToday });
+  return computeIndoorBurdenForEnvironment(getEnvironment(), {
+    isActiveToday,
+    axes: computeDeficitAxes(),
+  });
 }
 
 // ─── UI: Light Environment page (lives at /light-environment route) ───
@@ -379,11 +385,13 @@ function renderEnvironmentLoadSummary() {
   const aiVerdict = env?.burdenAI || null;
   const aiOk = hasMappedExposure && aiVerdict?.status === 'ok' && ['green','yellow','red'].includes(aiVerdict?.dot);
   const bannerColor = aiOk ? aiVerdict.dot : burden.color;
-  const bannerLabel = aiOk
-    ? ({ green: 'Light load', yellow: 'Moderate load', red: 'Heavy load' }[aiVerdict.dot])
-    : burden.label;
+  const bannerLabel = !hasMappedExposure
+    ? 'Not assessed yet'
+    : (aiOk
+      ? ({ green: 'Few concerns found', yellow: 'Some concerns found', red: 'Several concerns found' }[aiVerdict.dot])
+      : burden.label);
   return `<div class="light-env-summary light-env-summary-top light-env-summary-${bannerColor}">
-    <div class="light-env-summary-kicker">Indoor light load</div>
+    <div class="light-env-summary-kicker">Indoor light review</div>
     <div class="light-env-summary-head">
       <span class="light-env-summary-tier">${escapeHTML(bannerLabel)}</span>
       ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
@@ -445,7 +453,7 @@ export function renderEnvironmentAssessmentSummary() {
   }
   return `<div class="light-env-assessment-summary light-env-assessment-summary-${escapeAttr(burden.color)}">
     <div class="light-env-assessment-status">
-      <span class="light-env-summary-kicker">Indoor light load</span>
+      <span class="light-env-summary-kicker">Your indoor pattern</span>
       <span class="light-env-assessment-tier">${escapeHTML(burden.label)}</span>
       ${burden.parts.length ? `<span class="light-env-assessment-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
     </div>
@@ -669,7 +677,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   let stepHead, emptyCopy, quickPicks;
   if (/bedroom|sleep/.test(roomName)) {
     stepHead = 'Screens used in bed';
-    emptyCopy = 'Phone in bed is the single biggest pull on melatonin most users have. Add it here so the AI weights evening blue accurately.';
+    emptyCopy = 'Add any screen you regularly use in bed so the room summary includes its timing and brightness.';
     quickPicks = ['phone', 'tablet', 'tv'];
   } else if (/office|study|desk|work/.test(roomName)) {
     stepHead = 'Screens at this desk';
@@ -677,7 +685,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
     quickPicks = ['laptop', 'monitor', 'phone'];
   } else if (/living|family|den|lounge/.test(roomName)) {
     stepHead = 'Screens in this room';
-    emptyCopy = 'TV after sunset shifts melatonin most when it\'s a wall of cool blue. Worth mapping.';
+    emptyCopy = 'Add the TV or other evening screens here so the summary reflects the room you actually use.';
     quickPicks = ['tv', 'phone', 'tablet'];
   } else {
     stepHead = 'Screens used here';
@@ -736,7 +744,7 @@ export function renderEnvironmentSection(options = {}) {
     </div>`;
   if (rooms.length === 0) {
     html += `<div class="light-env-empty light-env-empty-cta">
-      <p><strong>Map your bedroom first.</strong> Sleep-room contamination is the highest-leverage signal in the modern light-environment literature (Brown TM 2022) — even ~1 lux of melanopic-EDI light at night measurably suppresses melatonin. We grade it for melatonin-friendly darkness, flicker, cool-LED contamination, and evening-blue exposure — and feed that grade into your circadian channel.</p>
+      <p><strong>Start with your bedroom.</strong> Log the light that is actually present while you sleep, then check the room's evening brightness, flicker, and light source. The goal is simple: a comfortably bright day and a dark, calm sleep space.</p>
       ${renderRoomQuickPicks(rooms)}
     </div>`;
   } else {

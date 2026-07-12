@@ -75,11 +75,11 @@ test('light environment model browser coverage scores picker room screen and bur
       && emptyRoom.label === 'Needs setup'
       && severeRoom.tier === 4
       && severeRoom.color === 'red'
-      && severeRoom.label === 'Severe'
+      && severeRoom.label === 'Highest light load'
       && severeRoom.reason.includes('blue light after sunset')
       && severeRoom.reason.includes('severe flicker measured')
-      && severeRoom.reason.includes('bedroom not dark enough')
-      && severeRoom.reason.includes('3.0 hr/day evening screen exposure here');
+      && severeRoom.reason.includes('bedroom light is above the nighttime reference')
+      && severeRoom.reason.includes('4.2 weighted hr/day evening screen exposure here');
 
     const screenUnknown = model.computeScreenStatus(null);
     const screenMitigated = model.computeScreenStatus({ eveningUseAfterSunset: 5, blueBlockerEnabled: true });
@@ -89,8 +89,8 @@ test('light environment model browser coverage scores picker room screen and bur
     const screenHeavy = model.computeScreenStatus({ eveningUseAfterSunset: 4, blueBlockerEnabled: false });
     outcomes.screenStatusCoversNullMitigatedDaytimeAndEscalatingEveningUse =
       screenUnknown.label === 'Unknown'
-      && screenMitigated.tier === 0
-      && screenMitigated.label === 'Mitigated'
+      && screenMitigated.tier === 1
+      && screenMitigated.label === 'Reduced'
       && screenDaytime.label === 'Daytime only'
       && screenMild.color === 'yellow'
       && screenModerate.color === 'orange'
@@ -121,17 +121,17 @@ test('light environment model browser coverage scores picker room screen and bur
       axes: { d2: 3, d3: 3 },
     });
     outcomes.environmentAxesAndBurdenRespectSkippedItemsAndInterpretationBranches =
-      axes.d2 === 9
-      && closeTo(axes.d3, 7.8)
+      closeTo(axes.d2, 7.2)
+      && closeTo(axes.d3, 4.7)
       && heavyBurden.tier === 2
       && heavyBurden.color === 'red'
-      && heavyBurden.parts.includes('9 hr indoors')
-      && heavyBurden.parts.includes('8 hr blue-after-sunset')
-      && heavyBurden.interp.includes('Outdoor morning light')
+      && heavyBurden.parts.includes('7 daylight-gap score')
+      && heavyBurden.parts.includes('5 evening-brightness score')
+      && heavyBurden.interp.includes('daytime outdoor break')
       && emptyBurden.interp.includes('No mapped exposure yet')
       && skippedBurden.interp.includes('Everything is skipped today')
       && axisOverrideBurden.tier === 1
-      && axisOverrideBurden.interp.includes('Evening blue exposure');
+      && axisOverrideBurden.interp.includes('Evening brightness');
 
     outcomes.allOutcomesReached = true;
     return outcomes;

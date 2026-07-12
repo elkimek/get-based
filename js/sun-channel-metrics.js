@@ -67,34 +67,37 @@ function getDeviceBodyFraction(session, fractionByKey) {
 export function formatChannelUnit(channelKey, channelAu, durationMin, fitzpatrick = 'III', uvi = null, zenith = null, rotatedSides = false, bodyFraction = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
   if (durationMin > 0 && durationMin < TOO_SHORT_FOR_CHANNEL_VERDICT_MIN) {
-    return 'session too short';
+    return 'too short to compare';
   }
   if (channelKey === 'vitamin_d') {
     const useSessionCap = Number.isFinite(bodyFraction) && bodyFraction > 0;
     const central = useSessionCap
       ? vitaminDIUPerSession(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null, bodyFraction)
       : vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides, state.importedData?.genetics || null);
-    if (central === 0) return 'below UVI threshold';
+    if (central === 0) return 'no modeled vitamin-D potential';
     const fmt = (n) => {
       if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       if (n >= 1000) return Math.round(n / 100) * 100;
       if (n >= 100) return Math.round(n / 10) * 10;
       return Math.round(n);
     };
-    if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU (saturated)`;
-    return `~${fmt(central)} IU`;
+    if (central >= VITD_SAT_FLAG) return `~${fmt(central)} IU-equivalent (model cap)`;
+    return `~${fmt(central)} IU-equivalent`;
   }
   if (channelKey === 'nir_solar' || channelKey === 'pbm_red' || channelKey === 'pbm_nir') {
-    const j = pbmJoulesPerCm2(channelAu);
-    if (j >= 10) return j.toFixed(0) + ' J/cm²';
-    if (j >= 1) return j.toFixed(1) + ' J/cm²';
-    return j.toFixed(2) + ' J/cm²';
+    // These channels are action-spectrum weighted and body-area scaled. They
+    // are useful as relative exposure indices but are not physical fluence.
+    // Device session details show actual J/cm² separately when output and
+    // spectral shares are available.
+    const dailyReference = { nir_solar: 30000, pbm_red: 8000, pbm_nir: 10000 }[channelKey];
+    const pct = Math.max(1, Math.round((channelAu / dailyReference) * 100));
+    return `~${pct}% of daily comparison`;
   }
   if (channelKey === 'circadian' && durationMin > 0) {
     const lux = circadianMelanopicLux(channelAu, durationMin);
-    if (lux >= 1000) return '~' + (lux / 1000).toFixed(1).replace(/\.0$/, '') + 'k M-EDI lux';
-    if (lux >= 100) return '~' + Math.round(lux / 10) * 10 + ' M-EDI lux';
-    return '~' + Math.round(lux) + ' M-EDI lux';
+    if (lux >= 1000) return '~' + (lux / 1000).toFixed(1).replace(/\.0$/, '') + 'k blue-weighted lux';
+    if (lux >= 100) return '~' + Math.round(lux / 10) * 10 + ' blue-weighted lux';
+    return '~' + Math.round(lux) + ' blue-weighted lux';
   }
   return '';
 }

@@ -89,7 +89,7 @@ test('light environment browser coverage handles summary modal prompt and source
         && window.closeLightEnvironmentAssessment === undefined
         && window.refreshLightEnvironmentAssessment === undefined
         && emptyFull.includes('Light environment')
-        && emptyFull.includes('Map your bedroom first')
+        && emptyFull.includes('Start with your bedroom')
         && !emptyEmbedded.includes('light-env-head')
         && emptySummary.includes('Start assessment');
 
@@ -141,7 +141,7 @@ test('light environment browser coverage handles summary modal prompt and source
       const mappedSummary = lightEnv.renderEnvironmentAssessmentSummary();
       const mappedSection = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.summaryUsesAIVerdictWhenMapped =
-        mappedSection.includes('Moderate load')
+        mappedSection.includes('Some concerns found')
         && mappedSummary.includes('Open assessment')
         && mappedSummary.includes('2 active today');
 

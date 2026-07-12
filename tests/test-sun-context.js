@@ -77,8 +77,8 @@ labCtxMod.setLightSunContextEnabled(true);
     /Outdoor sessions: 2/.test(always));
   assert('Always tier surfaces the active session warning',
     /ACTIVE SESSION in progress/.test(always));
-  assert('Always tier surfaces 7-day rollup header with tier-dot legend',
-    /7-day rollup \(sun \+ devices combined;.*hit weekly target.*moderate.*low.*none/.test(always));
+  assert('Always tier surfaces 7-day rollup header with neutral reference-band legend',
+    /7-day rollup \(sun \+ devices combined;.*app reference band.*not a health target/.test(always));
   // 30-day breakdown was dropped from always-tier in v1.7.18 (token compression).
   // It still backs deficit detection internally; the surface moved to standard tier.
   assert('Always tier omits 30-day totals header (compressed in v1.7.18)',
@@ -120,12 +120,12 @@ labCtxMod.setLightSunContextEnabled(true);
   const def = buildSunContext({ tier: 'always' });
   assert('Deficit block surfaces the "Active light deficits" header',
     /Active light deficits/.test(def));
-  assert('Circadian deficit cites Hattar / Huberman literature',
-    /Hattar|Huberman/.test(def));
-  assert('NIR-solar deficit cites Wunsch / Jeffery literature',
-    /Wunsch|Jeffery/.test(def));
-  assert('NO/cardiovascular deficit cites Liu / Oplander pathway',
-    /Liu|Oplander|Opländer/.test(def));
+  assert('Missing body-clock records are not described as a diagnosed deficit',
+    /missing records, not a diagnosed circadian deficit/.test(def));
+  assert('Missing solar red/infrared records do not imply a treatment need',
+    /absence does not imply a treatment need/.test(def));
+  assert('Missing UVA records are not framed as a deficiency',
+    /not a deficiency that requires corrective exposure/.test(def));
   assert('Vit-D deficit absent when vitamin_d > 0',
     !/Channel 1 \(vit D\)/.test(def));
 

@@ -18,6 +18,7 @@
 //   importedData.lightDevices[]   — user's owned devices
 //   importedData.deviceSessions[] — session log
 
+import { formatDeviceElapsedMs, relativeDeviceTimeShort } from './light-device-view-utils.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { CHANNEL_DISPLAY } from './sun.js';
@@ -258,6 +259,16 @@ export function openDeviceSessionDetail(id) {
   const irradianceStr = device?.mwPerCm2At15cm
     ? `${device.mwPerCm2At15cm} mW/cm² @ ${device?.recommendedDistanceCm || 15} cm`
     : (device?.lux ? `${device.lux.toLocaleString()} lux` : '—');
+  const calculation = sess.calculation || null;
+  const calculationSource = calculation?.provenance?.source || sess.physicalDoses?.source || 'not recorded';
+  const inputQuality = calculation?.confidence?.level || 'unknown';
+  const safety = sess.safety || null;
+  const modeledBurnPct = Number.isFinite(safety?.medFraction)
+    ? Math.round(safety.medFraction * 10) * 10
+    : null;
+  const ocularDose = Number.isFinite(safety?.ocularEffectiveDose)
+    ? Math.round(safety.ocularEffectiveDose * 10) / 10
+    : null;
   const distanceStr = sess.distanceCm ? `${sess.distanceCm} cm` : '—';
   // Prefer the precise bodyAreas[] list when present (sessions from
   // 2026-05-08+); fall back to the legacy broad-zone string for older
@@ -356,6 +367,21 @@ export function openDeviceSessionDetail(id) {
         </div>
       ` : ''}
 
+      <div class="sun-detail-section">
+        <div class="sun-detail-section-label">Calculation inputs</div>
+        <div class="sun-detail-section-value">
+          ${escapeHTML(inputQuality)} input quality · ${escapeHTML(calculationSource)}<br>
+          <small>Rounded because listed output, beam shape, distance, and actual device performance can differ. Follow the device instructions instead of using this estimate as a timer.</small>
+        </div>
+      </div>
+
+      ${modeledBurnPct != null || ocularDose != null ? `
+        <div class="sun-detail-section">
+          <div class="sun-detail-section-label">Safety estimates</div>
+          <div class="sun-detail-section-value">${modeledBurnPct != null ? `~${modeledBurnPct}% modeled burn dose` : ''}${modeledBurnPct != null && ocularDose != null ? ' · ' : ''}${ocularDose != null ? `${ocularDose} J/m² occupational effective-exposure reference` : ''}</div>
+        </div>
+      ` : ''}
+
       ${channelRows ? `
         <div class="sun-detail-section">
           <div class="sun-detail-section-label">Channels</div>
@@ -433,13 +459,6 @@ export function openDeviceSessionDetail(id) {
 // below patches every second — same pattern sun.js uses, so the two
 // surfaces feel consistent.
 
-function _formatElapsedMs(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
 export function renderActiveDeviceSessionCard() {
   const sess = getActiveDeviceSession();
   if (!sess) return '';
@@ -458,7 +477,7 @@ export function renderActiveDeviceSessionCard() {
   }
   const distLine = sess.distanceCm ? `${sess.distanceCm} cm` : '';
   const eyesLine = sess.eyesProtected ? 'eyes protected' : 'eyes uncovered';
-  const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
+  const elapsedText = formatDeviceElapsedMs(Date.now() - sess.startedAt);
   return `<section class="sun-session sun-session-active light-session-device" data-id="${escapeAttr(sess.id)}">
     <div class="sun-session-head">
       <span class="light-session-icon" aria-hidden="true">🔴</span>
@@ -483,7 +502,7 @@ function _tickActiveDeviceSession() {
     return;
   }
   if (typeof document === 'undefined') return;
-  const elapsedText = _formatElapsedMs(Date.now() - sess.startedAt);
+  const elapsedText = formatDeviceElapsedMs(Date.now() - sess.startedAt);
   document.querySelectorAll(`[data-live-elapsed-for="${CSS.escape(sess.id)}"]`).forEach(el => {
     if (el.textContent !== elapsedText) el.textContent = elapsedText;
   });
@@ -556,7 +575,7 @@ export async function renderDevicesSection() {
     const stats = statsByDevice[dev.id] || { count: 0, lastAt: 0 };
     const statsLine = stats.count === 0
       ? 'No sessions yet'
-      : `${stats.count} session${stats.count !== 1 ? 's' : ''} · last ${_relativeTimeShort(stats.lastAt)}`;
+      : `${stats.count} session${stats.count !== 1 ? 's' : ''} · last ${relativeDeviceTimeShort(stats.lastAt)}`;
     html += `<div class="light-device-card light-device-card-type-${escapeAttr(dev.type)}" data-id="${escapeAttr(dev.id)}">
       <div class="light-device-head">
         <span class="light-device-icon" aria-hidden="true">${typeIcon}</span>
@@ -622,24 +641,6 @@ function _renderDeviceChannelChips(channelKeys) {
 // / "N weeks ago" / "N months ago". Specifically NOT "X minutes ago"
 // because device sessions are typically minutes-long therapy bouts —
 // the user cares about the day-grain cadence, not freshness.
-function _relativeTimeShort(ts) {
-  if (!ts) return 'never';
-  const days = Math.floor((Date.now() - ts) / (24 * 3600 * 1000));
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) {
-    const w = Math.floor(days / 7);
-    return `${w} week${w !== 1 ? 's' : ''} ago`;
-  }
-  if (days < 365) {
-    const m = Math.floor(days / 30);
-    return `${m} month${m !== 1 ? 's' : ''} ago`;
-  }
-  const y = Math.floor(days / 365);
-  return `${y} year${y !== 1 ? 's' : ''} ago`;
-}
-
 configureLightDeviceSetup({
   loadPresets: loadLightDevicePresets,
   addDeviceFromPreset,

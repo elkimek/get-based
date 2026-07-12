@@ -254,7 +254,7 @@ export function _openAllSessionsModal() {
       <header class="light-sessions-modal-head">
         <div>
           <h3 id="light-all-sessions-title">${escapeHTML(title)}</h3>
-          <p>Outdoor sun and therapy device history</p>
+          <p>Outdoor and light-device history</p>
         </div>
         <button class="modal-close" aria-label="Close" data-light-sessions-close>×</button>
       </header>

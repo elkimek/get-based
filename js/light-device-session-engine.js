@@ -6,6 +6,15 @@
 // spectrum synthesis, and SAD-lux fallback.
 
 import { BODY_REGIONS } from './sun-body-silhouette.js';
+import {
+  validateModeCoupling as defaultValidateModeCoupling,
+  effectiveDeviceForMode as defaultEffectiveDeviceForMode,
+  synthesizeDeviceSpectrum as defaultSynthesizeDeviceSpectrum,
+  computeChannelDoses as defaultComputeChannelDoses,
+  erythemalSED as defaultErythemalSED,
+  retinalUVdose as defaultRetinalUVdose,
+  heuristicPeakShares as defaultHeuristicPeakShares,
+} from './sun-spectrum.js';
 
 /**
  * @typedef {object} DeviceSessionDoseInput
@@ -40,10 +49,13 @@ export const DEVICE_TYPE_CHANNELS = {
 function _runtimeDeps(deps = {}) {
   const w = typeof window !== 'undefined' ? window : {};
   return {
-    validateModeCoupling: deps.validateModeCoupling || w.validateModeCoupling,
-    effectiveDeviceForMode: deps.effectiveDeviceForMode || w.effectiveDeviceForMode,
-    synthesizeDeviceSpectrum: deps.synthesizeDeviceSpectrum || w.synthesizeDeviceSpectrum,
-    computeChannelDoses: deps.computeChannelDoses || w.computeChannelDoses,
+    validateModeCoupling: deps.validateModeCoupling || w.validateModeCoupling || defaultValidateModeCoupling,
+    effectiveDeviceForMode: deps.effectiveDeviceForMode || w.effectiveDeviceForMode || defaultEffectiveDeviceForMode,
+    synthesizeDeviceSpectrum: deps.synthesizeDeviceSpectrum || w.synthesizeDeviceSpectrum || defaultSynthesizeDeviceSpectrum,
+    computeChannelDoses: deps.computeChannelDoses || w.computeChannelDoses || defaultComputeChannelDoses,
+    erythemalSED: deps.erythemalSED || w.erythemalSED || defaultErythemalSED,
+    retinalUVdose: deps.retinalUVdose || w.retinalUVdose || defaultRetinalUVdose,
+    heuristicPeakShares: deps.heuristicPeakShares || w.heuristicPeakShares || defaultHeuristicPeakShares,
   };
 }
 
@@ -94,10 +106,12 @@ export function computeDeviceSessionDoses({
   const distanceFactor = deviceDistanceFactor(device, distanceCm);
   const durationSec = durationMin * 60;
   const eyeMode = eyesProtected ? 'closed-eyes' : 'direct';
-  const { effectiveDeviceForMode, synthesizeDeviceSpectrum, computeChannelDoses } = _runtimeDeps(deps);
+  const { effectiveDeviceForMode, synthesizeDeviceSpectrum, computeChannelDoses, erythemalSED, retinalUVdose, heuristicPeakShares } = _runtimeDeps(deps);
   const hasPeaks = Array.isArray(device?.peakWavelengths) && device.peakWavelengths.length > 0;
   const hasIrradiance = (device?.mwPerCm2At15cm || 0) > 0;
   let doses = {};
+  let physicalDoses = null;
+  let safety = null;
 
   if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
     const effectiveDevice = effectiveDeviceForMode
@@ -114,14 +128,56 @@ export function computeDeviceSessionDoses({
       bodyExposureFraction,
       eyeExposure: { mode: eyeMode, durationSec },
     });
+    const totalFluence = (Number(effectiveDevice?.mwPerCm2At15cm) || 0) * distanceFactor * durationSec / 1000;
+    const peaks = effectiveDevice.peakWavelengths || [];
+    const hasDeclaredShares = Array.isArray(effectiveDevice.peakShares) && effectiveDevice.peakShares.length === peaks.length;
+    const rawShares = hasDeclaredShares
+      ? effectiveDevice.peakShares
+      : (heuristicPeakShares ? heuristicPeakShares(peaks, effectiveDevice.type) : peaks.map(() => 1 / Math.max(1, peaks.length)));
+    const positiveShares = rawShares.map(value => Math.max(0, Number(value) || 0));
+    const shareTotal = positiveShares.reduce((sum, value) => sum + value, 0);
+    const shares = shareTotal > 0
+      ? positiveShares.map(value => value / shareTotal)
+      : peaks.map(() => 1 / Math.max(1, peaks.length));
+    const shareIn = (min, max) => peaks.reduce((sum, nm, i) => sum + (nm >= min && nm < max ? (shares[i] || 0) : 0), 0);
+    physicalDoses = {
+      totalJPerCm2: totalFluence,
+      uvbJPerCm2: totalFluence * shareIn(280, 320),
+      uvaJPerCm2: totalFluence * shareIn(320, 400),
+      redJPerCm2: totalFluence * shareIn(600, 700),
+      nirJPerCm2: totalFluence * shareIn(700, 1100),
+      source: hasDeclaredShares ? 'declared-spectrum' : 'heuristic-spectrum',
+    };
+    if (erythemalSED) {
+      const sed = erythemalSED({ spectrum, durationMin, incidenceMultiplier: 1 });
+      const retinalUV = retinalUVdose
+        ? retinalUVdose({ spectrum, eyeExposure: { mode: eyeMode, durationSec }, zenithDeg: null })
+        : 0;
+      safety = {
+        sed,
+        ocularEffectiveDose: retinalUV,
+        retinalUV, // compatibility mirror for pre-v2 session consumers
+        estimated: true,
+        source: physicalDoses.source,
+      };
+    }
   } else {
     // Lux-only fallback (SAD lamps without per-band irradiance / peaks).
+    // Photopic lux is not melanopic irradiance. Prefer a declared melanopic
+    // EDI; otherwise use a clearly approximate daylight-like mDER of 0.75.
     const lux = device?.lux || 0;
-    if (!eyesProtected && lux > 0) doses.circadian = lux * distanceFactor * durationSec / 100;
+    const melanopicEdiLux = Number.isFinite(device?.melanopicEdiLux)
+      ? device.melanopicEdiLux
+      : lux * 0.75;
+    if (!eyesProtected && melanopicEdiLux > 0) {
+      doses.circadian = melanopicEdiLux * distanceFactor * 0.0013262 * durationSec;
+    }
   }
 
   return {
     doses,
+    physicalDoses,
+    safety,
     mode: resolvedMode,
     bodyExposureFraction,
     distanceFactor,

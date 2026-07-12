@@ -136,7 +136,7 @@ test('light device session engine browser coverage covers mode area distance and
           && call[1].eyeMode === 'direct'
           && call[1].durationSec === 300),
       sadLuxFallbackOnlyCountsUnprotectedEyes:
-        sadDirect.doses.circadian === 60000
+        approx(sadDirect.doses.circadian, 10000 * 0.75 * 0.0013262 * 600)
         && Object.keys(sadProtected.doses).length === 0
         && sadProtected.eyeMode === 'closed-eyes',
     };

@@ -510,8 +510,11 @@ assert('Light page grid uses zero-min track for mobile',
   /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
 assert('Light page splits conditions, logging, and setup into separate widgets',
   !lightPageViewSrc.includes('class="light-top-grid"') &&
-  lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-session-log'") &&
-  lightPageViewSrc.indexOf("id: 'light-session-log'") < lightPageViewSrc.indexOf("id: 'light-setup'"));
+  lightPageViewSrc.includes("id: 'light-conditions-now'") &&
+  lightPageViewSrc.includes("id: 'light-session-log'") &&
+  lightPageViewSrc.includes("id: 'light-setup'") &&
+  lightPageViewSrc.includes('if (!basicsReady && !setupDeferred) widgets.push(setupWidget)') &&
+  lightPageViewSrc.includes('if (basicsReady || setupDeferred) widgets.push(setupWidget)'));
 assert('Light dashboard registry exposes only dashboard-safe Light widgets',
   dashboardWidgetsBlock.includes("id: 'light-today'") &&
   dashboardWidgetsBlock.includes("id: 'light-conditions-now'") &&
@@ -544,7 +547,7 @@ assert('Light page dashboard toggles are explicitly scoped',
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-session-log' }") &&
   lightPageViewSrc.includes("opts: { source: 'Light', dashboardId: 'light-channels' }") &&
   /id: 'light-setup'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
-  /id: 'light-guidance'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
+  /id: 'light-best-next-step'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   /id: 'light-sessions'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   /id: 'light-devices'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   /id: 'light-environment'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&

@@ -217,7 +217,7 @@ const {
   const requiredOttKeys = [
     'morning-light-deficit', 'glass-mediated-daytime', 'dim-workspace',
     'cool-led-evening', 'evening-screens', 'bright-after-sunset',
-    'sleep-not-dark', 'sunscreen-blocks-uvb', 'sunglasses-outside',
+    'sleep-not-dark', 'late-bedtime-light', 'low-daylight-room',
     'low-outdoor-time',
   ];
   for (const k of requiredOttKeys) {

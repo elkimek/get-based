@@ -387,7 +387,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
     lightChannelViewSrc.includes('class="light-pill-sparkline"') &&
     /<svg class="light-pill-sparkline"[^>]*aria-hidden="true"/.test(lightChannelViewSrc));
   assert('pill carries sr-only tier + day-count label for assistive tech',
-    /class="sr-only">\$\{tlabel\(t7\)\}, \$\{dc\.n\} of 7 days hit target/.test(lightChannelViewSrc));
+    /class="sr-only">\$\{tlabel\(t7\)\} comparison band, exposure recorded on \$\{dc\.n\} of 7 days/.test(lightChannelViewSrc));
   assert('detail panel is role=region with aria-label',
     /class="light-channel-detail"[\s\S]{0,200}role="region" aria-label="\$\{escapeHTML\(meta\.label/.test(lightChannelViewSrc));
   assert('detail close button has aria-label',

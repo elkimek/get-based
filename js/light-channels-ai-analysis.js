@@ -32,12 +32,12 @@ function _setMix(v) {
 }
 
 const _CHANNEL_DEF = {
-  vitamin_d:  { label: 'Vitamin D synthesis',     biology: 'UVB 290–315 nm on skin → 7-DHC → previtamin D3' },
-  circadian:  { label: 'Body clock / melanopic',  biology: '450–490 nm at the eye → SCN melanopsin → cortisol/melatonin phase' },
-  nir_solar:  { label: 'Cellular repair (solar NIR)', biology: '660–850 nm penetrates deep, supports mitochondria + recovery' },
-  no_cv:      { label: 'Cardiovascular NO',       biology: 'UVA-violet on skin → nitric oxide release → vasodilation, BP' },
-  pomc:       { label: 'Mood / α-MSH',            biology: 'UVA on skin → POMC cleavage → α-MSH, β-endorphin' },
-  violet_eye: { label: 'Violet-eye dopamine',     biology: '360–440 nm at the eye → retinal dopamine, myopia + mood' },
+  vitamin_d:  { label: 'Vitamin D potential',      biology: 'modeled UVB on skin; IU-equivalent estimate, not a blood measurement' },
+  circadian:  { label: 'Body clock light',         biology: 'blue-weighted brightness at the eye; timing and duration matter' },
+  nir_solar:  { label: 'Solar red and infrared',   biology: 'modeled red and near-infrared sunlight on exposed skin' },
+  no_cv:      { label: 'UVA on skin',               biology: 'modeled UVA exposure; cannot predict a cardiovascular outcome' },
+  pomc:       { label: 'Skin UV response',          biology: 'modeled skin UV exposure; not a mood or hormone measurement' },
+  violet_eye: { label: 'Outdoor light',             biology: 'short-wavelength outdoor light at the eye; not an eye-health dose' },
 };
 
 function _runtime() {
@@ -131,7 +131,7 @@ export function buildChannelMixContext() {
   const sd = state.importedData?.sunDefaults || {};
   const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
+  if (sd.dailyVitDTargetIU) lines.push(`User vitamin-D comparison setting: ${sd.dailyVitDTargetIU} IU-equivalent/day (not a measured requirement)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
   // Latest 25-OH-D for context
@@ -147,34 +147,29 @@ export function buildChannelMixContext() {
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a user\'s 7-day light-channel mix — six biological channels driven by light: vitamin D synthesis, circadian/melanopic, cellular repair (NIR), cardiovascular NO, mood/α-MSH (POMC), and violet-eye. The user already sees a per-channel tier dot for each. Your job is to give one synthesis verdict that reasons ACROSS the channels.',
+  'You help a user understand their 7-day light-exposure pattern across six modeled channels.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = at least 4 of 6 channels at "good" or "strong" tier, no critical-channel deficit',
-  '  yellow = 2–3 channels lit, or one critical channel (vit-D in winter, circadian) at sub-tier',
-  '  red = ≤1 channel lit, OR no sun sessions in 7 days, OR vit-D + circadian both at "none"',
+  '  green = a regular, well-documented daytime-light pattern with no safety concern',
+  '  yellow = the pattern is sparse, irregular, or has an input-quality caveat',
+  '  red = a recorded safety concern, not merely a low exposure channel',
   '  gray = no logged sessions',
   '',
-  'CRITICAL: pick a tip that hits MULTIPLE channels with one action. Examples of high-leverage cross-channel actions:',
-  '  • Morning outdoor walk (15 min before 9 am) → circadian + violet_eye + low-dose NIR + low POMC ALL at once',
-  '  • Midday outdoor session with arms uncovered → vitamin_d + no_cv + pomc + nir_solar in 15 min',
-  '  • Sunrise watching with eyes-direct → circadian + violet_eye + start-of-day no_cv + cortisol awakening',
-  '  • Late-afternoon walk → no_cv + pomc + nir_solar (skips vitamin_d but UVB has dropped anyway)',
-  'AVOID single-channel nudges like "more outdoor light before 9 am for circadian" — that\'s what the user already sees in the per-channel pill drill-downs. Your value is the SYNTHESIS — name the action that maximizes channels-per-minute-outdoors.',
+  'Pick one low-friction action that improves the usefulness of the pattern, usually a repeatable outdoor-light break or a dimmer evening routine.',
+  'Never optimize for channels-per-minute, uncovered skin, removed sunglasses, or looking toward the solar disc.',
   '',
-  'When the user has logged device sessions but no outdoor sun: the high-leverage call is OUTDOOR — even 10 min outside delivers channels (violet_eye, NIR, no_cv, low POMC) that no panel can fill. Don\'t recommend more device time when outdoors is missing.',
-  'When the user has outdoor sessions but they\'re all at one solar phase (all sunrise, or all midday): the high-leverage move is the OTHER phase — sunrise users already have circadian, need vit-D from midday; midday users have vit-D, need circadian from morning.',
-  'When all 6 channels are lit: green verdict + maintenance copy. Don\'t invent gaps.',
+  'A low UVA, skin-UV, infrared, or outdoor-light index is not a deficiency and does not justify corrective exposure.',
+  'Vitamin D potential is an estimate; mention 25(OH)D labs when actual status matters. UVI 3 or higher calls for normal sun protection.',
   '',
   'tip: one sentence, max 18 words. The single multi-channel action.',
-  'detail: 2–3 sentences. Acknowledge what\'s working (cite specific channels), name the gap with biology, give the concrete cross-channel fix. Reference 25-OH-D if present.',
+  'detail: 2–3 sentences. Name the observed pattern, explain one limitation, and give one safe, concrete next step.',
   '',
   'NEVER use jargon acronyms in the user-facing tip or detail. Specifically:',
   '  • Write "red-light therapy" or "near-infrared light" — NOT "PBM" or "photobiomodulation"',
   '  • Write "circadian" — NOT "SCN" or "melanopic" alone',
-  '  • Write "mood/α-MSH" only if you also explain it in plain language; otherwise just write "mood"',
-  '  • Write "cardiovascular nitric oxide" or "blood-vessel" — NOT "NO" alone',
+  '  • Write "skin UV exposure" rather than hormone-pathway acronyms',
+  '  • Write "UVA on skin" rather than claiming a cardiovascular result',
   'The internal channel keys (vit-D, circadian, no_cv, pomc, etc) are for YOUR reasoning — translate to plain English in the output.',
   '',
   'No "you should" — be observational. No emoji.',
@@ -284,7 +279,7 @@ export function renderChannelMixVerdict(staticFallback) {
     </div>`;
   }
   // Idle, OR cached but stale (channels shifted since last run).
-  const ctaLabel = stale ? '✨ Refresh AI verdict (your mix changed)' : '✨ Get AI synthesis of your mix';
+  const ctaLabel = stale ? '✨ Refresh summary (your pattern changed)' : '✨ Summarize my light pattern';
   return `<div class="light-channel-mix-ai">
     ${staticFallback || ''}
     <button class="sun-session-ai-refresh light-channel-mix-ai-cta" ${aiActionAttrs('refresh-channel-mix')}>${escapeHTML(ctaLabel)}</button>

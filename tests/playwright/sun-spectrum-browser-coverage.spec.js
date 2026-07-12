@@ -230,12 +230,12 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && geneResult.contributors.length === 6;
 
       outcomes.vitaminDConversions = mod.vitaminDIURaw(-1, 'II', 8) === 0
-        && mod.vitaminDIU(100, 'II', 1.5) === 0
-        && mod.vitaminDIU(100, 'II', 2.5) < mod.vitaminDIU(100, 'II', 3)
+        && mod.vitaminDIU(100, 'II', 0) === 0
+        && mod.vitaminDIU(100, 'II', 1.5) === mod.vitaminDIU(100, 'II', 3)
         && mod.vitaminDIU(100, 'VI', 8) < mod.vitaminDIU(100, 'II', 8)
-        && mod.vitaminDIU(100, 'II', 8, true) === 2 * mod.vitaminDIU(100, 'II', 8, false)
+        && mod.vitaminDIU(100, 'II', 8, true) === mod.vitaminDIU(100, 'II', 8, false)
         && mod.vitaminDIU(10000, 'II', 8) === mod.VITD_DAILY_SATURATION_IU
-        && mod.vitaminDIURaw(100, 'II', 8, false, genetics) < mod.vitaminDIURaw(100, 'II', 8)
+        && mod.vitaminDIURaw(100, 'II', 8, false, genetics) === mod.vitaminDIURaw(100, 'II', 8)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * window.VITD_PER_SESSION_BODYFRAC_CAP_IU)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, null) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIUPerSession(10, 'II', 8, false, null, 0.37) === mod.vitaminDIURaw(10, 'II', 8);

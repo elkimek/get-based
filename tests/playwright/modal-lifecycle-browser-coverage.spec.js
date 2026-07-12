@@ -77,7 +77,8 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       await waitUntil(() => document.activeElement?.id === 'open-helper-input', 'open helper focus target');
       const helperOpenedAndFocused =
         classOverlay.classList.contains('show')
-        && document.activeElement?.id === 'open-helper-input';
+        && document.activeElement?.id === 'open-helper-input'
+        && document.body.classList.contains('app-modal-open');
       modalLifecycle.openModalOverlay(classOverlay, { initialFocus: '#open-helper-close', focusDelay: 0 });
       await waitUntil(() => document.activeElement?.id === 'open-helper-close', 'repeat open helper focus target');
       const repeatOpenKeptOverlayShownAndFocused =
@@ -89,6 +90,7 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
         helperOpenedAndFocused
         && repeatOpenKeptOverlayShownAndFocused
         && !classOverlay.classList.contains('show')
+        && !document.body.classList.contains('app-modal-open')
         && document.activeElement?.id === 'open-helper-opener';
       classOverlay.remove();
       opener.remove();

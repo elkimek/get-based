@@ -22,6 +22,91 @@
   flex-shrink: 0;
 }
 
+.light-setup-value-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+.light-setup-value-preview span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-secondary));
+  font-size: 11px;
+}
+.light-setup-value-preview b {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  color: var(--accent-text, #fff);
+  background: var(--accent);
+  font-size: 10px;
+}
+
+.light-setup-basics-ready {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--green) 6%, var(--bg-card));
+}
+.light-setup-basics-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.light-setup-basics-copy strong { color: var(--text-primary); }
+.light-setup-basics-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.light-setup-basics-status {
+  color: var(--green);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.light-setup-basics-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.light-setup-optional-details {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 62%, transparent);
+}
+.light-setup-optional-details > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+.light-setup-optional-details[open] > summary { margin-bottom: 12px; }
+.light-setup-optional-details .light-setup-step + .light-setup-step { margin-top: 14px; }
+
+@media (max-width: 640px) {
+  .light-setup-basics-ready { align-items: stretch; flex-direction: column; }
+  .light-setup-basics-actions .dashboard-action-btn { flex: 1 1 auto; }
+  .light-setup-actions[data-setup-actions="core"] .import-btn { flex: 1 1 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .light-setup-chip,
   .light-ott-badge.tier-changed {

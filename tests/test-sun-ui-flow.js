@@ -251,14 +251,16 @@ return (async function() {
 
   const modalLifecycleSrc = await fetch('js/modal-lifecycle.js').then(r => r.text());
   const sunActiveSrc = await fetch('js/sun-active-session.js').then(r => r.text());
+  const sunStartSrc = await fetch('js/sun-session-start-ui.js').then(r => r.text());
   assert('modal-lifecycle.js owns modal backdrop and focus helpers',
     /export function wireBackdropClose/.test(modalLifecycleSrc)
       && /export function trapModalFocus/.test(modalLifecycleSrc));
-  assert('sun-active-session.js opens through shared appended modal lifecycle helpers',
-    /from '\.\/modal-lifecycle\.js'/.test(sunActiveSrc)
-      && /openAppendedModalOverlay\(overlay/.test(sunActiveSrc)
-      && /removeModalOverlay\(overlay\)/.test(sunActiveSrc)
-      && !/wireBackdropClose\s*\(/.test(sunActiveSrc));
+  assert('sun session start UI opens through shared appended modal lifecycle helpers',
+    /from '\.\/modal-lifecycle\.js'/.test(sunStartSrc)
+      && /openAppendedModalOverlay\(overlay/.test(sunStartSrc)
+      && /removeModalOverlay\(overlay\)/.test(sunStartSrc)
+      && !/wireBackdropClose\s*\(/.test(sunStartSrc)
+      && /openStartSunSessionDialog/.test(sunActiveSrc));
   {
     const globalModalDeps = [];
     for (const file of [

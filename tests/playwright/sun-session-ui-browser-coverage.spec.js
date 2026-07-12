@@ -152,8 +152,8 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
 
       const endedHost = document.createElement('div');
       endedHost.innerHTML = sunUI.renderSunSessionRow(sessions[1]);
-      outcomes.endedRowWithoutDurationFallsBackToInProgress = endedHost.textContent.includes('in progress')
-        && endedHost.textContent.includes('safe')
+      outcomes.endedRowWithoutDurationUsesUnavailableLabel = endedHost.textContent.includes('duration unavailable')
+        && endedHost.textContent.includes('low recorded dose')
         && endedHost.textContent.includes('Sunglasses');
 
       outcomes.noDosesRenderNoChips = sunUI.renderChannelChips(null) === '';
@@ -168,9 +168,9 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       const pomcLowHost = document.createElement('div');
       pomcLowHost.innerHTML = sunUI.renderChannelChips({ pomc: 4 }, { durationMin: 15 });
       outcomes.edgeChipValuesUseExpectedUnitsAndThresholds = edgeChipHost.textContent.includes('~900 IU')
-        && edgeChipHost.textContent.includes('8.4 J/cm')
+        && edgeChipHost.textContent.includes('~40% of daily comparison')
         && edgeChipHost.textContent.includes('~5.2k lux')
-        && edgeChipHost.textContent.includes('\u2713 120%')
+        && edgeChipHost.textContent.includes('120% ref')
         && pomcLowHost.textContent.includes('POMC')
         && !pomcLowHost.querySelector('[data-channel="pomc"] .sun-chip-value');
 
@@ -204,7 +204,7 @@ test('sun session UI covers alternate list detail and chip rendering paths', asy
       sunUI.openSunSessionDetail('manual-atm');
       const manualDetail = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
       const manualText = manualDetail?.textContent || '';
-      outcomes.manualAtmosphereShowsOverrideWithoutUvSplit = manualText.includes('UVI (manual)')
+      outcomes.manualAtmosphereShowsOverrideWithoutUvSplit = manualText.includes('UV index (manual)')
         && manualText.includes('Manual entry')
         && manualText.includes('sea level')
         && !manualText.includes('UV split');

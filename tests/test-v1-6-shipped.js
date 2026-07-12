@@ -42,7 +42,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 1. v1.6.7 CAMS source-flip guard (sun-active-session.js _snapshotActiveRate) ─
   console.log('%c 1. CAMS source-flip guard ', 'font-weight:bold;color:#0891b2');
   {
-    const sunActiveSrc = fetchSrc('js/sun-active-session.js');
+    const sunActiveSrc = fetchSrc('js/sun-session-start-ui.js') + fetchSrc('js/sun-active-session.js');
     // Three independent signals must align for the guard to fire:
     // (a) primary source differs, (b) confidence dropped >0.15,
     // (c) UVI delta >25% of prior. All three checks must appear in
@@ -522,8 +522,8 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
     assert('light-channel-view.js: zero-hit channel pill shows 0/7 not em-dash',
       /return \{ txt: `\$\{n\}\/7`/.test(lightChannelViewSrc));
     const sunSrc = fetchSrc('js/sun.js');
-    assert('sun.js: Eyes-mode option shortened ("never stare at sun")',
-      /Eyes uncovered \(never stare at sun\)/.test(sunSrc));
+    assert('sun.js: open-sky eye mode carries explicit solar-gaze warning',
+      /Outdoors, open sky \(never look at the sun\)/.test(sunSrc));
   }
 
   // ─── 18. Refresh restores the active view ───────────────────────────
@@ -673,7 +673,7 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   // ─── 20. sun-session start avoids warning-toast stack ───────────────
   console.log('%c 20. sun-session start notification restraint ', 'font-weight:bold;color:#0891b2');
   {
-    const sunActiveSrc = fetchSrc('js/sun-active-session.js');
+    const sunActiveSrc = fetchSrc('js/sun-session-start-ui.js') + fetchSrc('js/sun-active-session.js');
     const startHandler = sunActiveSrc.slice(
       sunActiveSrc.indexOf("overlay.querySelector('#start-confirm').addEventListener"),
       sunActiveSrc.indexOf('function _plainStopSummary')

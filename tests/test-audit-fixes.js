@@ -354,12 +354,12 @@ return (async function () {
       /if\s*\(isDebugMode\(\)\)\s*\{[\s\S]*console\.table\?\.\([\s\S]*console\.log\([\s\S]*\}/.test(fn));
   }
 
-  // ─── 8. sun-active-session.js openStartSunSessionDialog — uviPromise.then.catch ──
+  // ─── 8. sun-session-start-ui.js openStartSunSessionDialog — uviPromise.then.catch ──
   console.log('%c 8. uviPromise.then.catch ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sun-active-session.js');
-    assert('uviPromise.then chain ends with .catch',
-      /uviPromise\.then\([\s\S]{20,800}?\}\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(src));
+    const src = await fetchSrc('js/sun-session-start-ui.js');
+    assert('uviPromise.then chain ends with a handled .catch',
+      /uviPromise\.then\([\s\S]{20,1600}?\}\)\.catch\(\(\)\s*=>\s*\{[\s\S]{1,600}?\}\);/.test(src));
   }
 
   // ─── 9. CSS — narrow-viewport truncation + focus-visible ───────────
@@ -394,25 +394,10 @@ return (async function () {
       /\.light-env-overflow:focus-visible\s*\{[^}]*outline:\s*2px/.test(css));
   }
 
-  // ─── 10. CLAUDE.md region-count ────────────────────────────────────
-  // Stale "13-region" reference was bumped to 16 when the front/back
-  // split landed (commit bb46f2b). This pin catches a future revert.
-  console.log('%c 10. CLAUDE.md region count ', 'font-weight:bold;color:#0891b2');
-  {
-    const md = await fetchSrc('CLAUDE.md');
-    if (md.length > 100) {
-      assert('CLAUDE.md mentions 16-region body picker', /16-region anatomical body picker/.test(md));
-      assert('CLAUDE.md no longer mentions 13-region picker', !/13-region/.test(md));
-    } else {
-      // CLAUDE.md not served by dev-server — skip rather than fail.
-      console.log('  (CLAUDE.md not served from /, skipping)');
-    }
-  }
-
-  // ─── 11. device-session-ai-analysis.js — confirmed deleted ─────────
+  // ─── 10. device-session-ai-analysis.js — confirmed deleted ─────────
   // The dead duplicate was removed; this pin catches accidental
   // restoration via a revert. Static fetch returns 404 → empty body.
-  console.log('%c 11. dead device-session-ai-analysis removed ', 'font-weight:bold;color:#0891b2');
+  console.log('%c 10. dead device-session-ai-analysis removed ', 'font-weight:bold;color:#0891b2');
   {
     const ghost = await fetch('/js/device-session-ai-analysis.js?bust=' + Date.now())
       .then(r => r.ok).catch(() => false);

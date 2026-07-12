@@ -111,6 +111,81 @@
 .light-widget-prompt-cta {
   flex-shrink: 0;
 }
+
+/* Deterministic activation card: one action, one reason, no AI required. */
+.light-page .dashboard-widget[data-widget-id="light-best-next-step"] .dashboard-widget-body {
+  padding: 0;
+}
+.light-next-step {
+  --next-tone: var(--accent);
+  position: relative;
+  display: grid;
+  grid-template-columns: 5px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 150px;
+  padding: 22px 24px 22px 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 88% 10%, color-mix(in srgb, var(--next-tone) 14%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-card) 96%, transparent);
+}
+.light-next-step-marker {
+  align-self: stretch;
+  border-radius: 0 8px 8px 0;
+  background: var(--next-tone);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--next-tone) 45%, transparent);
+}
+.light-next-step-content { min-width: 0; }
+.light-next-step-kicker {
+  margin-bottom: 5px;
+  color: var(--next-tone);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.light-next-step h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(19px, 2.2vw, 26px);
+  line-height: 1.16;
+}
+.light-next-step p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.light-next-step-reason {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.light-next-step-reason span {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.light-next-step-cta {
+  min-width: 170px;
+  min-height: 44px;
+  justify-content: center;
+  background: var(--next-tone);
+  border-color: var(--next-tone);
+}
+.light-next-step-setup,
+.light-next-step-loading { --next-tone: var(--accent); }
+.light-next-step-daylight,
+.light-next-step-done { --next-tone: var(--green); }
+.light-next-step-caution,
+.light-next-step-evening { --next-tone: var(--orange); }
+.light-next-step-danger { --next-tone: var(--red); }
+.light-next-step-active { --next-tone: var(--cyan); }
+.light-next-step-neutral { --next-tone: var(--text-muted); }
 .light-widget-loading {
   color: var(--text-muted);
   font-size: 12px;
@@ -279,6 +354,26 @@
   cursor: pointer; font-family: inherit;
 }
 .sun-chip-more:hover { color: var(--accent); border-color: var(--accent); }
+.sun-detail-technical {
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+}
+.sun-detail-technical summary {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.sun-detail-technical-body {
+  padding: 0 12px 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.sun-detail-technical-body p { margin: 4px 0; }
 
 /* Unified sessions list — sun + device sessions interleaved
    chronologically. Row shape mirrors the sun-only list with an extra
@@ -416,6 +511,18 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 
 /* Detailed (past) session modal — silhouette picker + form fields */
 .sun-detailed-modal, .sun-start-modal { max-width: 560px; }
+.sun-start-modal .modal-body {
+  position: relative;
+}
+.sun-start-modal .modal-actions {
+  position: sticky;
+  bottom: -1px;
+  z-index: 3;
+  margin-left: -4px;
+  margin-right: -4px;
+  padding: 14px 4px 4px;
+  background: linear-gradient(to bottom, transparent, var(--bg-card) 14px);
+}
 
 /* Per-session detail modal — opened by clicking a session row */
 .sun-detail-modal { max-width: 540px; }
@@ -560,10 +667,8 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   .sun-detail-atm { grid-template-columns: 1fr 1fr; }
   .sun-detail-atm strong { font-size: 12px; }
 }
-/* Channel-row tier chips inside the session detail modal — same scheme
-   as the .light-channel-detail-tierpill in the Light page panel:
-   tier 4 (hit weekly target) is GREEN, not red. Mirrors the chart's
-   green-for-hit-target visual so the user gets one consistent signal. */
+/* Channel-row tier chips inside the session detail modal use intensity rather
+   than green success semantics; the comparison band is not a health target. */
 .sun-detail-channel-row.sun-chip-tier-1 .sun-detail-channel-tier {
   color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary);
 }
@@ -578,9 +683,9 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .sun-detail-channel-row.sun-chip-tier-4 .sun-detail-channel-tier {
-  color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 40%, transparent);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .sun-detail-atm {
   display: grid;
@@ -834,20 +939,21 @@ svg.sun-silhouette text.sun-silhouette-label {
   margin: 4px 0 0 24px; font-size: 11px; color: var(--text-muted); line-height: 1.45;
 }
 
-/* Pre-session UVI warning banner — surfaces extreme/very-high UV before
-   the user starts a session. Color escalates by tier. */
+/* Pre-session UVI status — confirms a resolved reading and escalates color
+   for extreme/very-high UV before the user starts a session. */
 .sun-start-uvi-banner {
   margin: 0 0 12px 0;
 }
-.sun-uvi-warn, .sun-uvi-veryhigh, .sun-uvi-extreme {
+.sun-uvi-ready, .sun-uvi-warn, .sun-uvi-veryhigh, .sun-uvi-extreme {
   padding: 10px 14px; border-radius: var(--radius-sm);
   font-size: 13px; line-height: 1.5;
   border: 1px solid; display: block;
 }
+.sun-uvi-ready    { background: var(--green-bg); border-color: var(--green); color: var(--text-primary); }
 .sun-uvi-warn     { background: var(--yellow-bg); border-color: var(--yellow); color: var(--text-primary); }
 .sun-uvi-veryhigh { background: var(--orange-bg); border-color: var(--orange); color: var(--text-primary); }
 .sun-uvi-extreme  { background: var(--red-bg); border-color: var(--red); color: var(--text-primary); }
-.sun-uvi-warn strong, .sun-uvi-veryhigh strong, .sun-uvi-extreme strong { color: var(--text-primary); }
+.sun-uvi-ready strong, .sun-uvi-warn strong, .sun-uvi-veryhigh strong, .sun-uvi-extreme strong { color: var(--text-primary); }
 
 /* Heat-stress chip on the active session card */
 .sun-session-heat {
@@ -1115,6 +1221,19 @@ svg.sun-silhouette text.sun-silhouette-label {
 }
 .sun-session-med.warn { background: var(--orange-bg); color: var(--orange); }
 .sun-session-med.over { background: var(--red-bg); color: var(--red); }
+.sun-session-confidence,
+.sun-session-sync-resolved {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.sun-session-confidence.confidence-high { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, var(--border)); }
+.sun-session-confidence.confidence-low { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 35%, var(--border)); }
+.sun-session-sync-resolved { color: var(--text-muted); }
+.sun-model-quality small { color: var(--text-secondary); line-height: 1.45; }
 
 /* Per-session AI verdict (inline in row + richer block in detail modal). */
 .sun-session-ai {
@@ -1271,8 +1390,25 @@ svg.sun-silhouette text.sun-silhouette-label {
 .light-ai-answer-yellow { border-left: 2px solid var(--yellow); }
 .light-ai-answer-red { border-left: 2px solid var(--red); }
 @media (max-width: 640px) {
+  .light-next-step {
+    grid-template-columns: 4px minmax(0, 1fr);
+    gap: 14px;
+    padding: 18px 16px 18px 0;
+  }
+  .light-next-step-cta {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+  }
+  .light-next-step-reason { flex-direction: column; gap: 2px; }
   .light-ai-panel-levels { grid-template-columns: 1fr; }
   .light-ai-answer-head { flex-direction: column; }
+}
+
+/* The one-third Log widget is already action-dense. Reorder controls add no
+   value here and force its short title onto two lines at ordinary laptops. */
+.light-page .dashboard-widget[data-widget-id="light-session-log"] .dashboard-widget-tool[data-lens-page-action="move-widget"] {
+  display: none;
 }
 .light-today-trends {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -1559,7 +1695,7 @@ svg.sun-silhouette text.sun-silhouette-label {
   color: var(--channel-accent);
   border-color: color-mix(in srgb, var(--channel-accent) 52%, var(--border));
 }
-.sun-chip-tier-4 { color: var(--green); border-color: var(--green); }
+.sun-chip-tier-4 { color: var(--channel-accent); border-color: var(--channel-accent); border-width: 2px; }
 
 .sun-empty {
   background: var(--bg-secondary); border: 1px dashed var(--border);
@@ -1686,4 +1822,37 @@ svg.sun-silhouette text.sun-silhouette-label {
     padding: 12px;
   }
 
+}
+@media (max-width: 640px) {
+  /* Reordering is a desktop organization task. On phones these controls
+     consume the whole widget header and push the actual safety content down. */
+  .light-page .dashboard-widget-tool[data-lens-page-action="move-widget"] {
+    display: none;
+  }
+  .light-page .dashboard-widget-tools {
+    width: auto;
+    margin-left: auto;
+  }
+  .light-page .light-widget-mini-btn,
+  .light-page .light-setup-summary-edit,
+  .light-page .sun-session-delete,
+  .light-page .sun-chip-more {
+    min-height: 36px;
+  }
+  .light-page .sun-session-delete {
+    min-width: 36px;
+    padding: 8px;
+  }
+  .light-page .sun-chip-more {
+    padding: 7px 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  .light-page .light-setup-summary-edit,
+  .light-page .sun-session-delete,
+  .light-page .sun-chip-more {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

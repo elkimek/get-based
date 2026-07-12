@@ -28,6 +28,7 @@ let _warnedAboutRejectedSelfhostUrl = false;
 // again any time the cached payload shape changes meaning.
 const CACHE_PREFIX = 'meteo:v2:';
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const STALE_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const NETWORK_TIMEOUT_MS = 8000;
 
 // Per-source BASELINE confidence — best-case under ideal conditions
@@ -78,10 +79,10 @@ export function computeUVConfidence(opts = {}) {
     zenithDeg = null,
     uvIndex = null,
     isStale = false,
-    manualOverridden = false, // user typed a UVI override → trust it absolutely
+    manualOverridden = false, // user-entered UVI override; useful, but not proof of meter calibration
   } = opts;
-  if (manualOverridden || source === 'manual_meter') return 1.0;
-  let c = UV_SOURCE_CONFIDENCE[source] ?? 0.6;
+  if (source === 'manual_meter') return 1.0;
+  let c = manualOverridden ? UV_SOURCE_CONFIDENCE.manual_entry : (UV_SOURCE_CONFIDENCE[source] ?? 0.6);
   // Normalise cloud cover (some atm payloads use percent).
   let cc = cloudCover;
   if (cc != null && cc > 1) cc = cc / 100;
@@ -199,7 +200,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   // Skipped on noCache so a user-triggered "force refresh" surfaces the
   // failure rather than silently returning stale data.
   if (!noCache) {
-    const stale = readStaleCache(rLat, rLon);
+    const stale = readStaleCache(rLat, rLon, time);
     if (stale) {
       return Object.assign({}, stale, { _stale: true, source: stale.source + '_stale' });
     }
@@ -736,19 +737,35 @@ function cacheMatchesConfig(cached, cfg) {
   return true;
 }
 
-// Walk every cached entry for these coords (any time bucket) and return the
-// most recently fetched one regardless of TTL. Used as the airplane-mode
-// fallback when all network providers fail.
-function readStaleCache(rLat, rLon) {
+// Return a recently fetched cache entry only when its validity hour is close to
+// the requested hour. Fetch recency alone is not enough: a retrospective
+// session fetched moments ago may describe yesterday and must never become the
+// live safety fallback for today.
+function readStaleCache(rLat, rLon, requestedIsoTime) {
   try {
     const prefix = `${CACHE_PREFIX}${rLat.toFixed(2)}_${rLon.toFixed(2)}_`;
+    const requestedMs = Date.parse(requestedIsoTime);
+    const maxValidityDistanceMs = 2 * 60 * 60 * 1000;
     let best = null;
+    let bestValidityDistance = Infinity;
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith(prefix)) continue;
       try {
         const obj = JSON.parse(localStorage.getItem(k));
-        if (obj && obj.fetchedAt && (!best || obj.fetchedAt > best.fetchedAt)) best = obj;
+        const hourBucket = k.slice(prefix.length);
+        const validMs = Date.parse(`${hourBucket}:00:00.000Z`);
+        const validityDistance = Number.isFinite(requestedMs) && Number.isFinite(validMs)
+          ? Math.abs(validMs - requestedMs)
+          : Infinity;
+        if (obj && obj.fetchedAt
+            && Date.now() - obj.fetchedAt <= STALE_CACHE_MAX_AGE_MS
+            && validityDistance <= maxValidityDistanceMs
+            && (validityDistance < bestValidityDistance
+              || (validityDistance === bestValidityDistance && (!best || obj.fetchedAt > best.fetchedAt)))) {
+          best = obj;
+          bestValidityDistance = validityDistance;
+        }
       } catch (e) {
         if (isSunDebugRuntime()) {
           console.warn('[sun-uvdata] readStaleCache parse failed', k, e?.name || e);

@@ -6,13 +6,13 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { renderLensHeader, renderLensPageWidgets } from './lens-page-shell.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList } from './light-sessions-view.js';
+import { buildBestNextStep, renderBestNextStep } from './light-next-step.js';
 import {
   mergeTotals,
   _channelSparkline,
   _channelDayCount,
   renderChannelPills,
   _toggleChannelDetail,
-  renderSuggestion,
 } from './light-channel-view.js';
 
 /** @type {Record<string, any>} */
@@ -31,6 +31,7 @@ const lightPageDeps = {
   rollingVitaminDIU: () => 0,
   vitaminDBudgetStatus: () => null,
   getSunCoords: () => null,
+  getCachedConditionsAtmosphere: () => null,
   resumeActiveTickerIfNeeded: () => {},
   ensureActiveDeviceTicker: () => {},
   openChannelOnLightPage: () => {},
@@ -41,20 +42,19 @@ const lightPageDeps = {
   navigate: () => {},
   requestPreciseLocation: () => {},
   openLightEnvironmentAssessment: () => {},
+  openLightSetup: () => {},
   renderSunDataSourceSettings: () => '',
   renderLightTodayDashboardChip: () => '',
   renderLightTodayHero: () => '',
   renderSunSessionRow: () => '',
   renderActiveDeviceSessionCard: () => '',
   renderSunSetupCard: () => '',
-  renderChannelMixVerdict: staticFallback => staticFallback,
-  renderChannelDeficitDeviceRecs: () => '',
-  loadCatalog: async () => null,
-  loadLightDevicePresets: async () => null,
   renderDevicesSection: async () => '',
   renderEnvironmentAssessmentSummary: () => '',
   renderLightTools: () => '',
 };
+
+let _lightAdvancedExpanded = false;
 
 /** @param {Partial<typeof lightPageDeps>} [deps] */
 export function configureLightPageView(deps = {}) {
@@ -84,17 +84,37 @@ function handleLightPageActionClick(event) {
   } else if (action === 'open-add-device') {
     lightPageDeps.openAddDeviceDialog();
   } else if (action === 'quick-log-sun') {
-    lightPageDeps.quickLogSunSession();
+    const wasActive = !!lightPageDeps.getActiveSession();
+    Promise.resolve(lightPageDeps.quickLogSunSession()).then(() => {
+      if (!wasActive) return;
+      requestAnimationFrame(() => {
+        document.querySelector('[data-widget-id="light-best-next-step"]')?.scrollIntoView({ block: 'start' });
+      });
+    }).catch(() => {});
   } else if (action === 'open-detailed-session') {
     lightPageDeps.openDetailedSessionDialog();
   } else if (action === 'navigate-light') {
     lightPageDeps.navigate('light');
   } else if (action === 'request-precise-location') {
-    lightPageDeps.requestPreciseLocation();
+    Promise.resolve(lightPageDeps.requestPreciseLocation())
+      .then(coords => { if (coords) lightPageDeps.navigate('light'); })
+      .catch(() => {});
   } else if (action === 'open-light-environment') {
     lightPageDeps.openLightEnvironmentAssessment();
+  } else if (action === 'open-light-setup') {
+    lightPageDeps.openLightSetup();
+  } else if (action === 'scroll-conditions') {
+    document.querySelector('[data-widget-id="light-conditions-now"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (action === 'scroll-live-session') {
+    document.querySelector('[data-widget-id="light-live-session"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else if (action === 'expand-light-tools') {
     _expandLightToolsSection();
+  } else if (action === 'show-advanced-light') {
+    _lightAdvancedExpanded = true;
+    lightPageDeps.navigate('light');
+  } else if (action === 'hide-advanced-light') {
+    _lightAdvancedExpanded = false;
+    lightPageDeps.navigate('light');
   }
 }
 
@@ -106,6 +126,41 @@ export function installLightPageActionDelegates(root = (typeof document !== 'und
 }
 
 if (typeof document !== 'undefined') installLightPageActionDelegates();
+
+function bestNextStepInput(now = new Date()) {
+  const sessions = lightPageDeps.getSessions() || [];
+  const deviceSessions = lightPageDeps.getDeviceSessions() || [];
+  const defaults = state.importedData?.sunDefaults || {};
+  const rooms = state.importedData?.lightEnvironment?.rooms || [];
+  return {
+    now,
+    sessions,
+    deviceSessions,
+    activeSun: lightPageDeps.getActiveSession() || null,
+    activeDevice: deviceSessions.find(session => !session.endedAt) || null,
+    atmosphere: lightPageDeps.getCachedConditionsAtmosphere() || null,
+    medToday: lightPageDeps.cumulativeMEDToday() || 0,
+    medYesterday: lightPageDeps.cumulativeMEDYesterday() || 0,
+    hasCoords: !!lightPageDeps.getSunCoords(),
+    hasSkinType: !!defaults.fitzpatrick,
+    setupDeferred: !!defaults.setupDismissedAt,
+    photosensitiveMedTier: defaults.photosensitiveMeds || 'none',
+    hasRooms: rooms.length > 0,
+  };
+}
+
+export function renderLightBestNextStep(now = new Date()) {
+  return renderBestNextStep(buildBestNextStep(bestNextStepInput(now)));
+}
+
+export function refreshLightBestNextStep() {
+  const slot = document.querySelector('[data-light-best-next-step]');
+  if (slot) slot.innerHTML = renderLightBestNextStep();
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('light-conditions-updated', refreshLightBestNextStep);
+}
 
 // ═══════════════════════════════════════════════
 // LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
@@ -125,8 +180,8 @@ export function renderDashboardLightChannelPills() {
       const meta = ch[k] || {};
       const t = tier(combinedTotals7d[k] || 0, k);
       const dc = _channelDayCount(k);
-      const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week. Tap for details.`;
-      return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-light-page-action="open-channel" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" aria-label="${escapeHTML((meta.label || k) + ', ' + dc.n + ' of 7 days hit target, tap to open detail')}">
+      const tip = `${meta.what || ''} — exposure recorded on ${dc.n} of 7 days. Tap for details and model assumptions.`;
+      return `<button type="button" class="light-pill light-pill-tier-${t} light-pill-dashboard" data-light-page-action="open-channel" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" aria-label="${escapeHTML((meta.label || k) + ', exposure recorded on ' + dc.n + ' of 7 days, tap to open detail')}">
         <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
         <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
         ${_channelSparkline(k)}
@@ -185,14 +240,13 @@ function renderLightWidgetPrompt(status, ctaLabel, ctaAction, hint, extraClass =
 
 function renderLightMethodsWidgetBody() {
   let html = `<details class="light-explainer">
-    <summary>How we estimate vitamin D, burn risk &amp; channels</summary>
+    <summary>How the estimates work</summary>
     <div class="light-explainer-body">
-      <p><strong>Burn dose (% MED).</strong> 1 MED = "minimal erythemal dose," the smallest UV dose that turns your skin slightly pink. Set per Fitzpatrick skin type (Type I = 200 J/m² CIE-erythemal, Type VI = 1000 J/m²). 100% means a sunburn is starting; 70% means stop or cover up soon. Yesterday's dose carries forward — when yesterday + today exceeds 100% the banner flags a back-to-back risk, even if today alone is under threshold.</p>
-      <p><strong>Vitamin D in IU.</strong> Bogh &amp; Wulf 2010 + Holick 2007. Roughly 60 IU per unit of vit-D-action-spectrum-weighted UVB at sea-level zenith (calibrated against dminder + NIWA at UVI 5-7), scaled by your Fitzpatrick type (melanin lowers it). Saturates at the tens-of-thousands-of-IU level per session — at high doses the skin photoisomerizes excess previtamin D back to inert tachysterol/lumisterol. <strong>Below UVI 2 there's no meaningful synthesis</strong> (Webb 2018, ramps in linearly between UVI 2 and 3) — winter mornings, low sun, behind glass all yield zero.</p>
-      <p><strong>The ±50% range.</strong> Estimate is "central x 0.6 to x 1.5" because the spectral reconstruction model, skin response, and exposed area all vary. Treat the band as honest — the central number alone is false precision.</p>
-      <p><strong>Channels.</strong> Sun does six things you can see on this page, each with its own action spectrum: vitamin D synthesis, circadian/melanopic light, cardiovascular nitric-oxide release, mood/alpha-MSH on skin, violet-eye dopamine, and near-infrared cellular repair. Sun and therapy panels both feed these channels by wavelength.</p>
-      <p><strong>Atmosphere data.</strong> CAMS by default — real ozone column and aerosols from the hosted getbased-uvdata relay, merged with Open-Meteo clouds, temperature, air quality, and hourly UV baseline. All math runs on-device — your location is rounded before network calls unless you change the privacy slider.</p>
-      <p><strong>Want the math?</strong> See <a href="https://github.com/elkimek/get-based/blob/main/dev-docs/sun-spectrum-model.md" target="_blank" rel="noopener">the contributor doc</a> for the Bird-Riordan reconstruction, action-spectrum table, and per-channel citations.</p>
+      <p><strong>Modeled burn dose.</strong> This compares recorded UV with the typical dose that can start visible redness for your selected skin type. It is not an exact countdown: skin response, medication, clouds, reflection, and sunscreen use all matter. Leave the sun before redness and use normal sun protection when UVI is 3 or higher.</p>
+      <p><strong>Vitamin-D potential.</strong> This is an IU-equivalent estimate based on UVB, exposed skin area, and skin type. It helps compare your own records; it is not a blood test, a required dose, or a guaranteed response.</p>
+      <p><strong>Uncertainty.</strong> Weather data, device output, posture, distance, and individual response all vary. Rounded values and input-quality labels show how much trust to place in a number.</p>
+      <p><strong>Exposure channels.</strong> The page separates the light you log into six easy-to-compare patterns: vitamin D potential, body-clock light, solar red/infrared, UVA on skin, skin UV response, and outdoor light. These are modeled exposure records—not proof that a health outcome changed.</p>
+      <p><strong>Weather data.</strong> The app combines current UV and cloud data with atmosphere estimates. Calculations run on your device, and location is rounded before requests unless you change the privacy setting.</p>
     </div>
   </details>`;
   const dataSourceSettings = lightPageDeps.renderSunDataSourceSettings();
@@ -238,25 +292,15 @@ export function renderLightTodayStrip() {
       deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
     }
   }
-  // Onboarding CTA — graduated by what's already filled in:
-  //   1. No Light setup yet (no skin type / location / Ott)  → "Set up Light & Sun"
-  //      The Light setup card is the FIRST thing on the Light page; without it
-  //      no other tracking math works correctly.
-  //   2. Setup done, no rooms                                → "Map a room"
-  //      Most users spend 8-14 h/day indoors — once setup is in, surface the
-  //      indoor environment as the natural next layer.
-  //   3. Both done                                            → no CTA
-  // Earlier draft only had the room CTA, which oversold the link target —
-  // clicking "Map a room" actually drops users at a page where Light setup
-  // is the dominant card. Naming it for what it actually leads to is more
-  // honest + improves the empty-state conversion path.
+  // Once location and skin sensitivity are ready, room mapping becomes the
+  // optional next setup layer.
   const sd = state.importedData?.sunDefaults;
-  const hasSetup = !!(sd && sd.completedAt && sd.fitzpatrick);
+  const hasSetup = !!(sd?.fitzpatrick && lightPageDeps.getSunCoords());
   const lightEnv = state.importedData?.lightEnvironment;
   const hasRooms = lightEnv && Array.isArray(lightEnv.rooms) && lightEnv.rooms.length > 0;
   let setupBtn = '';
   if (!hasSetup) {
-    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Skin type, location, indoor light, photosensitive meds — 30 seconds. Drives every Light & Sun calculation.">🌞 Set up Light & Sun</button>`;
+    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Add location and skin sensitivity to make current guidance more relevant.">🌞 Set up Light & Sun</button>`;
   } else if (!hasRooms) {
     setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`;
   }
@@ -279,12 +323,11 @@ export function renderLightTodayStrip() {
     cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun">☀ Log a sun session</button>${roomBtn}</div>`;
   }
 
-  // Burn-risk gauge — qualitative, plain English, no acronyms
+  // Modeled UV warning — never labels time in the sun as safe.
   const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medMsg = 'safe — well under your burn threshold';
-  if (medToday >= 1) { medCls = 'over'; medMsg = 'burn threshold reached — sunburn risk, no more sun today'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching burn threshold'; }
-  else if (medToday >= 0.3) { medCls = 'ok'; medMsg = 'moderate sun exposure today'; }
+  let medCls = 'ok', medMsg = 'moderate modeled UV recorded';
+  if (medToday >= 1) { medCls = 'over'; medMsg = 'modeled burn threshold reached — avoid more UV today'; }
+  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'high modeled UV recorded — choose shade'; }
 
   // Surface the burn-risk gauge only when it actually carries information.
   // Below 30% MED it's noise on a normal day — the user has the full
@@ -298,22 +341,19 @@ export function renderLightTodayStrip() {
   const devSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const devWeek = devSessionsAll.filter(s => (s.startedAt || 0) >= weekCutoff).length;
   const weekTotal = sunWeek + devWeek;
-  // Rolling 7-day vitamin D total in IU — sums per-session yields with
-  // each session's 20k saturation cap, so a week of three good sessions
+  // Rolling 7-day vitamin D IU-equivalent — sums per-session estimates with
+  // each session's high-exposure model guard, so a week of three sessions
   // doesn't get clipped to one session's maximum. Hidden when the total
   // is essentially zero (cloudy week / no UVB exposure / device-only).
   const weeklyIU = lightPageDeps.rollingVitaminDIU(7) || 0;
   let weeklyIUStr = '';
   if (weeklyIU >= 100) {
-    // Surface the same uncertainty band as session detail. The weekly
-    // total inherits each session's per-session uncertainty; using the
-    // central estimate ± 25% — aggregating across many sessions averages
-    // out per-session model error somewhat, so the band tightens vs the
-    // single-session model band (which is ±20-45% per zenith).
+    // The aggregate remains a heuristic; repeated sessions do not justify a
+    // validated accuracy percentage because biological response dominates.
     const fmt = (n) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
       : n >= 1000 ? Math.round(n / 100) * 100
       : Math.round(n / 10) * 10;
-    weeklyIUStr = `<span class="light-today-vitd" title="Approximate vitamin D₃ synthesized from sun over the last 7 days, summed per session and Fitzpatrick-scaled. Model accuracy ±25% across a week (Bird-Riordan + Bass-Paur, aggregated). Your blood 25(OH)D response to the same UV dose can vary 2-3× across individuals — calibrate against your own labs over time. Central estimate sits between Bogh 2010 lab values and Holick 2008 natural-sun extrapolations.">☀ ~${fmt(weeklyIU)} IU vitamin D this week</span>`;
+    weeklyIUStr = `<span class="light-today-vitd" title="Modeled vitamin-D potential from recorded UV over the last 7 days. Use it to compare your own pattern; it is not a measured vitamin-D result.">☀ ~${fmt(weeklyIU)} IU-equivalent this week</span>`;
   }
 
   // Vit-D budget cross-check — shows today's combined sun-derived +
@@ -327,9 +367,7 @@ export function renderLightTodayStrip() {
   if (b) {
     const fmtIU = (n) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
     if (b.exceedsSupplementUL) {
-      vitDBudgetChip = `<span class="light-today-vitd-warn" title="IOM 2010 Tolerable Upper Intake Level for vitamin D from supplements alone is 4000 IU/d. Today: ${fmtIU(b.supplementIU)} IU supplement + ~${fmtIU(b.sunIU)} IU sun = ~${fmtIU(b.total)} IU total. Supplement above UL — flag this with your clinician.">⚠ Vit D today: ${fmtIU(b.supplementIU)} IU supplement above 4000 IU UL (+${fmtIU(b.sunIU)} sun)</span>`;
-    } else if (b.supplementIU > 0 && b.total > 8000) {
-      vitDBudgetChip = `<span class="light-today-vitd-info" title="High combined dose today — sun usually self-regulates via photoisomerization plateau but supplements stack additively. Worth tracking serum 25(OH)D over time.">Vit D today: ~${fmtIU(b.total)} IU (${fmtIU(b.supplementIU)} supplement + ~${fmtIU(b.sunIU)} sun)</span>`;
+      vitDBudgetChip = `<span class="light-today-vitd-warn" title="The 4000 IU/day upper limit applies to supplements, not to the app's sunlight estimate. Review a higher supplement dose with a clinician.">⚠ Vitamin-D supplement: ${fmtIU(b.supplementIU)} IU today</span>`;
     }
   }
 
@@ -339,7 +377,7 @@ export function renderLightTodayStrip() {
   const altCoords = lightPageDeps.getSunCoords() || null;
   const altM = altCoords?.altitudeM || 0;
   const altChip = altM > 1500
-    ? `<span class="light-today-altitude" title="UV irradiance climbs ~10% per 1000m above sea level. At ${Math.round(altM)}m, expect ~${Math.round((altM / 1000) * 10)}% more UV than sea-level estimates.">⛰ +${Math.round((altM / 1000) * 10)}% UV (altitude ${Math.round(altM)}m)</span>`
+    ? `<span class="light-today-altitude" title="UV can be stronger at high altitude. Use the live UVI and normal sun protection rather than this badge as a timer.">⛰ High altitude · ${Math.round(altM)}m</span>`
     : '';
   return `<section class="light-today-strip">
     <div class="light-today-head">
@@ -420,31 +458,18 @@ export function showLight(_data) {
   const sessions = lightPageDeps.getSessions() || [];
   const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
   const totals30d = lightPageDeps.rollingChannelTotals(30) || {};
-  const medToday = lightPageDeps.cumulativeMEDToday() || 0;
   const deviceSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const totalSessions = sessions.length + deviceSessionsAll.length;
-  const sunCount = sessions.length;
   const widgets = [];
 
   let html = `<div class="light-page">
-    ${renderLensHeader('Light & Sun', 'Track your light exposure. See how it shapes your sleep, hormones, and lab results.')}`;
+    ${renderLensHeader('Light & Sun', 'Plan outdoor time safely, understand your light pattern, and make your daily routine easier to improve.')}`;
 
-  // AI hero verdict — synthesizes today's full picture (sun + devices +
-  // environment + trends) into one read. Sits above active-session and
-  // conditions so the user gets the "how am I doing?" answer before the
-  // raw inputs.
+  // Keep the optional AI read available, but let the deterministic action
+  // lead. Users without an AI provider get the same core product value.
+  let todayBody = '';
   try {
-    const todayBody = lightPageDeps.renderLightTodayHero() || '';
-    if (todayBody) {
-      widgets.push({
-        id: 'light-today',
-        title: 'Today',
-        description: 'Current light synthesis across sun, devices, and environment',
-        body: todayBody,
-        size: 'full',
-        opts: { source: 'Light', dashboardId: 'light-today' },
-      });
-    }
+    todayBody = lightPageDeps.renderLightTodayHero() || '';
   } catch (_) {}
 
   // Active sun session card — pinned at the very top of the page so the
@@ -475,6 +500,26 @@ export function showLight(_data) {
     });
   }
 
+  widgets.push({
+    id: 'light-best-next-step',
+    title: 'Best next step',
+    description: 'One practical action from current conditions and your recent records',
+    body: `<div data-light-best-next-step>${renderLightBestNextStep()}</div>`,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  });
+
+  if (todayBody) {
+    widgets.push({
+      id: 'light-today',
+      title: 'AI perspective',
+      description: 'Optional second opinion across outdoor time, devices, rooms, and screens',
+      body: todayBody,
+      size: 'full',
+      opts: { source: 'Light', dashboardId: 'light-today' },
+    });
+  }
+
   // Always-visible "Conditions now" panel — UVI / ozone / AQI / sun angle.
   // Tells the user whether right now is a good time to go out, even before
   // they have any session history.
@@ -483,6 +528,20 @@ export function showLight(_data) {
   // compact "Light setup saved" summary with an Edit button otherwise.
   let setupHtml = '';
   try { setupHtml = lightPageDeps.renderSunSetupCard() || ''; } catch (_) {}
+  const defaults = state.importedData?.sunDefaults || {};
+  const basicsReady = !!(defaults.fitzpatrick && lightPageDeps.getSunCoords());
+  const setupDeferred = !!(!defaults.fitzpatrick && defaults.setupDismissedAt);
+  const setupWidget = {
+    id: 'light-setup',
+    title: 'Light Setup',
+    description: 'Skin type, indoor light context, and personal light assumptions',
+    body: setupHtml,
+    size: 'full',
+    opts: { source: 'Light', dashboardId: '' },
+  };
+  // Best next step now owns activation. Keep incomplete setup close by, but
+  // do not make users finish the optional routine audit before seeing value.
+  if (!basicsReady && !setupDeferred) widgets.push(setupWidget);
   const conditionsBody = renderLightConditionsWidgetBody({ variant: 'full' });
   widgets.push({
     id: 'light-conditions-now',
@@ -501,22 +560,7 @@ export function showLight(_data) {
     size: 'third',
     opts: { source: 'Light', dashboardId: 'light-session-log' },
   });
-  widgets.push({
-    id: 'light-setup',
-    title: 'Light Setup',
-    description: 'Skin type, indoor light context, and personal light assumptions',
-    body: setupHtml,
-    size: 'full',
-    opts: { source: 'Light', dashboardId: '' },
-  });
-
-  // Slot id for the async-populated channel-deficit device recommendation
-  // panel. Declared at top scope so the post-render population block can
-  // reference it even when the page rendered without the parent
-  // sessions-list section (e.g. all sessions deleted, but device sessions
-  // push totalSessions ≥ 7 anyway). Stays null when the assignment branch
-  // didn't run; the population block guards on truthiness.
-  let deficitRecSlotId = null;
+  if (basicsReady || setupDeferred) widgets.push(setupWidget);
 
   // Combine sun + device totals so channels reflect every light source
   const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
@@ -542,86 +586,28 @@ export function showLight(_data) {
   const _wkTier = lightPageDeps.weeklyChannelTier || lightPageDeps.channelTier || (() => 0);
   const litChannels = channelKeysOrdered.filter(k => _wkTier(combined7d[k] || 0, k) > 0).length;
   let lead;
-  if (isEmpty) {
-    lead = "Sun isn't just vitamin D. Each pill is a different biological effect of light — they fill as you log sessions outdoors or with a therapy device. Tap any pill to see how to fill it.";
-  } else if (litChannels === 0) {
-    lead = `${totalSessions} session${totalSessions === 1 ? '' : 's'} logged but no channel has crossed the meaningful-dose threshold yet (sub-tier exposure). Tap any pill for what it tracks and a concrete next step.`;
+  if (litChannels === 0) {
+    lead = `${totalSessions} session${totalSessions === 1 ? '' : 's'} logged. Exposure is still in the lowest comparison band; open a card to see what was recorded and what affects the estimate.`;
   } else {
-    lead = `${litChannels} of 6 channels lit by your recent sessions. Tap any pill for what you've logged, the 7-day rhythm, and what would tip it up.`;
+    lead = `${litChannels} of 6 exposure patterns have enough data to compare. Open any card for the plain-language meaning, input quality, and a practical next step.`;
   }
   const channelsBody = `<div class="light-channels-section">
     <p class="light-section-hint">${lead}</p>
     ${renderChannelPills(combined7d, combined30d)}
     ${isEmpty ? getSunCoordsHint() : ''}
   </div>`;
-  widgets.push({
-    id: 'light-channels',
-    title: 'Your Light, By What It Does',
-    description: 'Channel doses from outdoor sun and therapy devices',
-    body: channelsBody,
-    size: 'full',
-    opts: { source: 'Light', dashboardId: 'light-channels' },
-  });
+  if (!isEmpty) {
+    widgets.push({
+      id: 'light-channels',
+      title: 'Your exposure patterns',
+      description: 'A clear view of what your outdoor and device sessions recorded',
+      body: channelsBody,
+      size: 'full',
+      opts: { source: 'Light', dashboardId: 'light-channels' },
+    });
+  }
 
   if (!isEmpty) {
-    let guidanceBody = '';
-    // Today's burn-risk card — sun-specific, gated on having sun sessions.
-    // A winter user with only device sessions doesn't need a "Sun exposure
-    // today: safe (0%)" panel taking up space. Surfaces once outdoor sun
-    // is part of the routine.
-    if (sunCount > 0) {
-      const medPct = Math.round(medToday * 100);
-      const medY = lightPageDeps.cumulativeMEDYesterday() || 0;
-      const combinedMED = medToday + medY;
-      let medCls = 'ok', medTitle = 'Sun exposure today: safe', medMsg = 'You\'re well under your burn threshold.';
-      if (medToday >= 1) { medCls = 'over'; medTitle = 'Burn threshold reached'; medMsg = 'You\'ve crossed your burn threshold for the day. Avoid more direct sun until tomorrow.'; }
-      else if (medToday >= 0.7) { medCls = 'warn'; medTitle = 'Approaching burn threshold'; medMsg = 'You\'re getting close to your daily limit. Move to shade or cover up if you go back out.'; }
-      else if (medToday >= 0.3) { medCls = 'ok'; medTitle = 'Moderate sun exposure today'; medMsg = 'A meaningful dose — well under your skin\'s threshold.'; }
-      // Carry-over chip — fires when today + yesterday combined exceeds
-      // 100%, even if today alone is under threshold. Skin doesn't reset
-      // overnight; back-to-back high-dose days are how vacation burns happen.
-      const carryChip = (combinedMED > 1.0 && medToday < 1.0)
-        ? `<div class="light-med-carryover" title="Yesterday ${Math.round(medY * 100)}% MED + today ${medPct}% MED. Skin partially carries dose between days — back-to-back exposure compounds burn risk.">⚠ Cumulative dose with yesterday: ${Math.round(combinedMED * 100)}% — go easy today.</div>`
-        : '';
-      guidanceBody += `<div class="light-med-banner light-med-${medCls}">
-        <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : '✓'}</div>
-        <div class="light-med-body">
-          <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of your burn threshold)</span>` : ''}</div>
-          <div class="light-med-sub">${medMsg}</div>
-          ${carryChip}
-        </div>
-      </div>`;
-    }
-
-    // Suggestion (channel-agnostic, reads merged totals).
-    // Wrapped by the channel-mix AI verdict — when AI is available the
-    // AI verdict replaces the hardcoded per-channel string with a
-    // multi-channel synthesis. Static suggestion stays as the fallback
-    // so users without AI still see something useful, and as the
-    // baseline content under the "Get AI synthesis" CTA before the
-    // user has clicked it.
-    const _staticSuggestion = renderSuggestion(combined7d);
-    guidanceBody += lightPageDeps.renderChannelMixVerdict(_staticSuggestion) || _staticSuggestion;
-
-    // Channel-deficit device recommendations — async slot. Surfaces a
-    // CTA card with matching catalog devices when (a) the user has a
-    // real baseline (≥7 logs) and (b) a device-fillable channel is
-    // empty over 30 days. PBM red/NIR are the cleanest cases — solar
-    // exposure can't realistically fill those, so a panel is the
-    // right answer. Catalog + presets are async-loaded; the slot
-    // stays empty if recs are off, region filters everything out, or
-    // the catalog isn't reachable.
-    deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
-    guidanceBody += `<div id="${escapeAttr(deficitRecSlotId)}"></div>`;
-    widgets.push({
-      id: 'light-guidance',
-      title: 'Guidance',
-      description: 'Burn risk, channel synthesis, and device-fillable gaps',
-      body: guidanceBody,
-      size: 'full',
-      opts: { source: 'Light', dashboardId: '' },
-    });
-
     // Unified sessions list — sun + device merged chronologically.
     // Active sun session is pinned at top of page; this list shows
     // historical (ended) ones. Skip the section header when empty so
@@ -636,7 +622,7 @@ export function showLight(_data) {
       widgets.push({
         id: 'light-sessions',
         title: `Recent Sessions${_countLabel}`,
-        description: 'Chronological outdoor sun and therapy device history',
+        description: 'Outdoor and light-device sessions, newest first',
         body: _unifiedHtml,
         size: 'full',
         opts: { source: 'Light', dashboardId: '' },
@@ -646,10 +632,15 @@ export function showLight(_data) {
 
   // Page-only Light workbench surfaces stay separate widgets so each one can
   // be reordered, scanned, and visually handled like the rest of the redesign.
-  const devicesSlotId = `light-devices-slot-${Date.now()}`;
-  const environmentSlotId = `light-environment-slot-${Date.now()}`;
-  const toolsSlotId = `light-tools-slot-${Date.now()}`;
-  widgets.push({
+  const devices = lightPageDeps.getDevices() || [];
+  const rooms = state.importedData?.lightEnvironment?.rooms || [];
+  const measurements = state.importedData?.lightMeasurements || [];
+  const hasConfiguredAdvancedData = devices.length > 0 || rooms.length > 0 || measurements.length > 0;
+  const showAdvanced = _lightAdvancedExpanded || hasConfiguredAdvancedData;
+  const devicesSlotId = showAdvanced ? `light-devices-slot-${Date.now()}` : '';
+  const environmentSlotId = showAdvanced ? `light-environment-slot-${Date.now()}` : '';
+  const toolsSlotId = showAdvanced ? `light-tools-slot-${Date.now()}` : '';
+  if (showAdvanced) widgets.push({
     id: 'light-devices',
     title: 'Light Devices',
     description: 'Therapy panels, SAD lamps, dawn simulators, and device logging',
@@ -657,7 +648,7 @@ export function showLight(_data) {
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
-  widgets.push({
+  if (showAdvanced) widgets.push({
     id: 'light-environment',
     title: 'Indoor Light Assessment',
     description: 'Rooms, screens, readings, and saved audit snapshots',
@@ -665,7 +656,7 @@ export function showLight(_data) {
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
-  widgets.push({
+  if (showAdvanced) widgets.push({
     id: 'light-tools',
     title: 'Measurement Tools',
     description: 'On-device light checks and room measurement workflows',
@@ -673,7 +664,7 @@ export function showLight(_data) {
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
-  widgets.push({
+  if (showAdvanced) widgets.push({
     id: 'light-methods',
     title: 'Methods & Sources',
     description: 'Estimation model, uncertainty, and sun data source controls',
@@ -681,40 +672,32 @@ export function showLight(_data) {
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
+  if (!showAdvanced) {
+    widgets.push({
+      id: 'light-explore',
+      title: 'Explore more',
+      description: 'Devices, indoor-light checks, measurement tools, and methods',
+      body: renderLightWidgetPrompt('Use these when you need them', 'Show advanced tools', 'show-advanced-light', 'You do not need these to start. Open them when you want to add a lamp, map a room, or inspect how an estimate works.'),
+      size: 'full',
+      opts: { source: 'Light', dashboardId: '' },
+    });
+  } else if (_lightAdvancedExpanded && !hasConfiguredAdvancedData) {
+    widgets.push({
+      id: 'light-explore',
+      title: 'Advanced tools',
+      description: 'Return to the focused everyday view',
+      body: renderLightWidgetPrompt('Keep the page focused', 'Hide advanced tools', 'hide-advanced-light', 'Your basic setup and session logging stay available.'),
+      size: 'full',
+      opts: { source: 'Light', dashboardId: '' },
+    });
+  }
 
   html += `${renderLensPageWidgets('light', widgets)}</div>`;
 
   main.innerHTML = html;
   main.querySelector('.light-page')?.classList.add('is-ready');
 
-  // Populate the channel-deficit device-rec slot. Same baseline gate as
-  // sun-context.js: ≥7 logged events of any kind. Device-fillable
-  // channels only — sun-derived deficits (vit_d, circadian, etc.) get
-  // suggested actions via renderSuggestion above; we don't try to sell
-  // a panel as a sun substitute.
-  if (deficitRecSlotId && totalSessions >= 7) {
-    const slot = document.getElementById(deficitRecSlotId);
-    if (slot) {
-      const DEVICE_CHANNELS = [
-        { key: 'pbm_red', label: 'red 660 nm (PBM)' },
-        { key: 'pbm_nir', label: 'near-IR 810/850 nm (PBM)' },
-      ];
-      const empty = DEVICE_CHANNELS.filter(c => (combined30d[c.key] || 0) === 0);
-      if (empty.length) {
-        Promise.all([lightPageDeps.loadCatalog(), lightPageDeps.loadLightDevicePresets()])
-          .then(([catalog, presetData]) => {
-            if (!catalog || !presetData?.presets) return;
-            const blocks = empty
-              .map(c => lightPageDeps.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: escapeHTML(c.label) }))
-              .filter(Boolean);
-            if (blocks.length && slot.isConnected) slot.innerHTML = blocks.join('');
-          })
-          .catch(() => { /* recs are best-effort */ });
-      }
-    }
-  }
-
-  Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
+  if (showAdvanced) Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
     const slot = document.getElementById(devicesSlotId);
     if (!slot) return;
     const devices = lightPageDeps.getDevices() || [];
@@ -722,13 +705,13 @@ export function showLight(_data) {
       ? devHtml
       : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Therapy panels, SAD lamps, and dawn simulators feed the same Light channels as outdoor sun.');
   }).catch(() => {});
-  const envSlot = document.getElementById(environmentSlotId);
+  const envSlot = showAdvanced ? document.getElementById(environmentSlotId) : null;
   if (envSlot) {
     const envHtml = lightPageDeps.renderEnvironmentAssessmentSummary() || '';
     envSlot.outerHTML = envHtml
       || renderLightWidgetPrompt('No rooms mapped', 'Open assessment', 'open-light-environment', 'Map bedroom, office, screens, and evening light so Light can interpret your indoor day.', 'light-environment-prompt');
   }
-  const toolsSlot = document.getElementById(toolsSlotId);
+  const toolsSlot = showAdvanced ? document.getElementById(toolsSlotId) : null;
   if (toolsSlot) {
     const toolsHtml = lightPageDeps.renderLightTools() || '';
     toolsSlot.outerHTML = toolsHtml

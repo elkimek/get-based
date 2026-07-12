@@ -128,6 +128,12 @@
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
   animation: analytics-consent-in 0.25s ease-out;
 }
+/* Consent remains available after the dialog closes, but it must never cover
+   or intercept controls in an active modal. */
+body.app-modal-open .analytics-consent-banner {
+  visibility: hidden;
+  pointer-events: none;
+}
 @keyframes analytics-consent-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
   to   { opacity: 1; transform: translate(-50%, 0); }

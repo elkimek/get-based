@@ -125,7 +125,7 @@ const {
   assert('context contains Device header', ctx.includes('### Device'));
   assert('context emits brand · model line', ctx.includes('Mitochondriak Maxi UVB'));
   assert('context emits device type description',
-    ctx.includes('UVB phototherapy panel'));
+    ctx.includes('UVB phototherapy device'));
   assert('context emits peak wavelengths in nm',
     ctx.includes('296 nm') && ctx.includes('850 nm'));
   assert('context emits irradiance line',

@@ -361,7 +361,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
 
       const suggestion = channel.renderSuggestion({ vitamin_d: 0, circadian: 200, nir_solar: 200, no_cv: 200, pomc: 200, violet_eye: 200 });
       const hiddenSuggestion = channel.renderSuggestion({ vitamin_d: 400, circadian: 400, nir_solar: 400, no_cv: 400, pomc: 400, violet_eye: 400 });
-      outcomes.suggestionPicksLowestTierAndHidesWhenHealthy = suggestion.includes('midday sun')
+      outcomes.suggestionPicksLowestTierAndHidesWhenHealthy = suggestion.includes('No vitamin D exposure is logged')
         && hiddenSuggestion === '';
 
       pills.find(pill => pill.dataset.channel === 'vitamin_d')?.click();
@@ -369,7 +369,7 @@ test('light channel view covers pills detail panels suggestions and light-page r
       const detail = host.querySelector('#light-pill-detail-vitamin_d');
       outcomes.detailPanelShowsHeroMixWeekChartCitationsAndActions = !!detail
         && detail.textContent.includes('Vitamin D')
-        && detail.textContent.includes('Daily beats banking')
+        && detail.textContent.includes('How to read this')
         && detail.textContent.includes('Action spectrum')
         && detail.textContent.includes('Next move')
         && !!detail.querySelector('.light-channel-mix')

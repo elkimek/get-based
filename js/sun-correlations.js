@@ -47,7 +47,7 @@ function pearson(xs, ys) {
 }
 
 // Bin sessions into N-day windows ending now
-function weeklyChannelSeries(sessions, deviceSessions, weeks = 12) {
+function weeklyChannelSeries(sessions, deviceSessions, weeks = 16) {
   const now = Date.now();
   const series = []; // [{startMs, endMs, channels: {}}, ...]
   for (let w = 0; w < weeks; w++) {
@@ -75,7 +75,7 @@ function weeklyChannelSeries(sessions, deviceSessions, weeks = 12) {
 // markers as a flat object keyed by `category.markerKey` (single dotted
 // string), not nested by category — earlier draft read e.values?.[cat]?.[m]
 // which never resolved.
-function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
+function weeklyBiomarkerValues(catKey, mKey, weeks = 16) {
   const entries = state.importedData?.entries || [];
   const flatKey = `${catKey}.${mKey}`;
   const now = Date.now();
@@ -97,7 +97,7 @@ function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
 
 // Compute correlation pairs (channel × biomarker). Skips pairs with <4
 // overlapping non-null weeks.
-export function computeSunCorrelations({ weeks = 12 } = {}) {
+export function computeSunCorrelations({ weeks = 16 } = {}) {
   const sessions = getSessions();
   const devSessions = state.importedData?.deviceSessions || [];
   if (sessions.length === 0 && devSessions.length === 0) return { pairs: [], computedAt: Date.now() };

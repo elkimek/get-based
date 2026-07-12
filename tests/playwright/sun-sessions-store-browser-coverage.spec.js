@@ -81,6 +81,19 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
 
       store.configureSunSessionsStore({
         commitCurrentSlice: sess => depCalls.push(['commit', sess.id]),
+        getLiveDoses: (sess, atMs) => {
+          depCalls.push(['get-live', sess.id, atMs]);
+          return {
+            doses: { vitamin_d: 321, circadian: 45 },
+            sed: 7.5,
+            medFraction: 0.42,
+            retinalUV: 3.2,
+            fitzpatrick: 'II',
+            medScale: 0.65,
+            psmTier: 'moderate',
+            atm: { uvIndex: 6.4, cloudCover: 35, source: 'open_meteo', _uvOverridden: true },
+          };
+        },
         setLiveState: (id, liveState) => depCalls.push([
           'live',
           id,
@@ -171,8 +184,18 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       results.stopSessionFreezesLiveElapsedAndTriggersAi = stopped?.endedAt
         && stopped.durationMin > 1
         && stopped.eyeExposure?.durationSec > 60
+        && stopped.doses?.vitamin_d === 321
+        && stopped.safety?.sed === 7.5
+        && stopped.safety?.medFraction === 0.42
+        && stopped.safety?.retinalUV === 3.2
+        && stopped.safety?.photosensitiveMedTier === 'moderate'
+        && stopped.atmosphere?.uvIndex === 6.4
+        && stopped.atmosphere?._uvOverridden == null
+        && stopped.doseIntegration?.method === 'live-time-integrated'
+        && stopped.engineVersion === store.SUN_ENGINE_VERSION
         && !elapsed.hasAttribute('data-live-elapsed-for')
         && elapsed.textContent.startsWith('elapsed:')
+        && depCalls.some(call => call[0] === 'get-live' && call[1] === activeId && call[2] === stopped.endedAt)
         && depCalls.some(call => call[0] === 'clear' && call[1] === activeId)
         && aiCalls.includes(activeId);
       elapsed.remove();
@@ -245,6 +268,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       document.querySelectorAll('[data-live-elapsed-for]').forEach(el => el.remove());
       store.configureSunSessionsStore({
         commitCurrentSlice: () => {},
+        getLiveDoses: () => null,
         setLiveState: () => {},
         clearLiveState: () => {},
         formatElapsed: ms => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,

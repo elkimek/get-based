@@ -60,8 +60,7 @@ assert('Every caveat entry is a non-empty string', bad.length === 0,
 //   (a) it imports LIGHTING_HARDWARE_CAVEATS (or _TEXT),
 //   (b) it spreads / includes the constant somewhere (not just imported
 //       and then dropped).
-// The 7 importing AI-analysis modules. These are listed in CLAUDE.md
-// memory + audited regularly; if a new AI surface is added that
+// The 7 importing AI-analysis modules are audited here; if a new AI surface is added that
 // recommends fixtures, it MUST be added here.
 const importers = [
   'js/light-audit-ai-analysis.js',

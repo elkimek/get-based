@@ -505,7 +505,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       outcomes.screenContextIncludesBedroomPhoneAndBlueBlocker = screenContext.includes('Device: phone')
         && screenContext.includes('Used in: Bedroom SYSTEM ignoreBedroom')
         && screenContext.includes('Blue blocker active: no')
-        && screenContext.includes('Phone-in-bed');
+        && screenContext.includes('this phone is used in a sleep room');
       const screenFp = screenAI.getScreenFingerprint(phoneScreen);
       outcomes.screenFingerprintChangesWithBlueBlocker = !!screenFp
         && screenFp !== screenAI.getScreenFingerprint({ ...phoneScreen, blueBlockerEnabled: true })
@@ -822,7 +822,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       };
 
       const channelContext = channelAI.buildChannelMixContext();
-      outcomes.channelContextIncludesTiersSourceMixAndLab = channelContext.includes('Vitamin D synthesis (vitamin_d): 7d tier "good"')
+      outcomes.channelContextIncludesTiersSourceMixAndLab = channelContext.includes('Vitamin D potential (vitamin_d): 7d tier "good"')
         && channelContext.includes('Outdoor sun: 2 session(s)')
         && channelContext.includes('Light-therapy devices: 1 session(s)')
         && channelContext.includes('Health goals: SAD support; Raise vitamin D')
@@ -841,8 +841,8 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       outcomes.channelFingerprintChangesWithTierMix = !!channelFp && channelFp !== channelFpChanged;
 
       const burdenContext = burdenAI.buildBurdenContext();
-      outcomes.burdenContextIncludesAxesRoomsScreensAndUser = burdenContext.includes('Indoor light burden')
-        && burdenContext.includes('Junk-light hours')
+      outcomes.burdenContextIncludesAxesRoomsScreensAndUser = burdenContext.includes('Indoor light pattern')
+        && burdenContext.includes('Evening-brightness estimate')
         && burdenContext.includes('Office')
         && burdenContext.includes('TV (Bedroom): 3 hr/day, 2 hr after sunset')
         && burdenContext.includes('Reported bedtime') === false;
@@ -861,12 +861,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && dayContext.includes('### Device sessions (1)')
         && dayContext.includes('### Tool measurements (1)')
         && dayContext.includes('Last 7 days context')
-        && dayContext.includes('Weekly vit-D synthesis')
+        && dayContext.includes('Cumulative vitamin-D potential')
         && dayContext.includes('days since last sunrise session');
       const trends = todayAI.computeLightTrends(today);
       outcomes.trendsDetectSunriseGapDropAndLowVitD = trends.signals.some(s => s.includes('days since last sunrise session'))
         && trends.signals.some(s => s.includes('Light activity dropped'))
-        && trends.signals.some(s => s.includes('Weekly vit-D synthesis'));
+        && trends.signals.some(s => s.includes('Weekly vitamin-D potential'));
       const dayFp = todayAI.getDayFingerprint(dayTarget);
       state.importedData.lightMeasurements.push({ ...lightMeasurement, id: 'today-cct', tool: 'cct', value: 4200 });
       const dayFpChanged = todayAI.getDayFingerprint(dayTarget);
@@ -921,7 +921,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const idleBurdenHtml = burdenAI.renderBurdenInterp({ interp: 'static burden' });
       const idleHeroHtml = todayAI.renderLightTodayHero();
       const idleChipHtml = todayAI.renderLightTodayDashboardChip();
-      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = idleChannelHtml.includes('Get AI synthesis')
+      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = idleChannelHtml.includes('Summarize my light pattern')
         && idleBurdenHtml.includes('Get AI verdict')
         && idleHeroHtml.includes("Run today's verdict")
         && idleChipHtml.includes("Get today's AI verdict");

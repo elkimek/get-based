@@ -195,7 +195,7 @@ await import('../js/state.js');
     assert('hero renders with "Today\'s light" header',
       idle.includes("Today's light"));
     assert('hero explains its AI question and data tiers',
-      idle.includes('Question this AI answers') && idle.includes('Minimum useful data') && idle.includes('Extended confidence data'));
+      idle.includes('Question this AI answers') && idle.includes('Works with') && idle.includes('Gets more specific with'));
 
     // Add a session so auto-fire gating allows analysis. Use the REAL
     // current-day fingerprint on the cached verdict — post-2026-05-08
@@ -316,7 +316,7 @@ await import('../js/state.js');
     withProvider();
     const idle = mod.renderChannelMixVerdict(fallback);
     assert('channel-mix render shows CTA + fallback when no verdict',
-      idle.includes('Get AI synthesis') && idle.includes('static-fallback'));
+      idle.includes('Summarize my light pattern') && idle.includes('static-fallback'));
 
     window._labState.importedData.channelMixAI = okVerdict('green');
     const currentFp = mod.getChannelMixFingerprint();

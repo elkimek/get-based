@@ -36,9 +36,10 @@ const {
   startSession, stopSession, logCompletedSession, deleteSession, pauseSession, resumeSession,
   markSessionRotated, setSessionSunscreen, setSessionCoverage, updateSession,
   rehydrateStaleSessions,
+  buildSunSessionCalculation,
   rollingChannelTotals, dailyChannelBreakdown, dailyVitaminDIUBreakdown, rollingVitaminDIU,
   cumulativeVitaminDIUToday, vitaminDBudgetStatus,
-  cumulativeMEDToday, cumulativeMEDYesterday,
+  cumulativeMEDToday, cumulativeMEDYesterday, cumulativeOcularEffectiveDose8h,
   _applyAtmOverrides,
 } = sun;
 
@@ -85,6 +86,10 @@ const {
     sun.POSTURE_OPTIONS === sunSessionModel.POSTURE_OPTIONS &&
     sun.SURFACE_OPTIONS === sunSessionModel.SURFACE_OPTIONS &&
     sun.PHOTOSENSITIVE_MED_TIERS === sunSessionModel.PHOTOSENSITIVE_MED_TIERS);
+  assert('Sun session schema v2 exposes canonical ocular-dose migration helpers',
+    sunSessionModel.SUN_SESSION_SCHEMA_VERSION === 2
+      && typeof sunSessionModel.upgradeSunSessionRecord === 'function'
+      && typeof sunSessionModel.ocularEffectiveDoseFromSafety === 'function');
   assert('sun.js re-exports persisted session store API',
     getSessions === sunSessionsStore.getSessions &&
     startSession === sunSessionsStore.startSession &&
@@ -140,7 +145,7 @@ const {
     channelTier(150, 'unknown_channel') === 1);
 
   assert('tierLabel(0) === "none"', tierLabel(0) === 'none');
-  assert('tierLabel(4) === "strong"', tierLabel(4) === 'strong');
+  assert('tierLabel(4) === "high"', tierLabel(4) === 'high');
   assert('tierLabel(99) → "none" (out-of-range fallback)', tierLabel(99) === 'none');
 
   assert('tierDots(0) shows all empty', tierDots(0) === '○○○○');
@@ -165,22 +170,79 @@ const {
   assert('Session is persisted into importedData.sunSessions',
     getSessions().length === 1 && getSessions()[0].id === id1);
   assert('Session has no endedAt (in progress)', getSessions()[0].endedAt === null);
+  assert('New session starts on the current schema version',
+    getSessions()[0].schemaVersion === sunSessionModel.SUN_SESSION_SCHEMA_VERSION);
   assert('getActiveSession finds the in-progress one',
     getActiveSession() && getActiveSession().id === id1);
+  let duplicateStartThrew = false;
+  try { await startSession({ exposurePreset: 'face_hands' }); } catch (e) { duplicateStartThrew = /already active/.test(e.message); }
+  assert('startSession enforces one active sun session at the store boundary', duplicateStartThrew);
+  getSessions().push({ id: 'sync-newer-active', startedAt: Date.now(), endedAt: null, updatedAt: Date.now() + 1 });
+  assert('getActiveSession deterministically selects the freshest synced active record',
+    getActiveSession()?.id === 'sync-newer-active');
+  assert('Older synced active timer is closed with an auditable supersession link',
+    getSessions().find(session => session.id === id1)?.syncResolution?.canonicalSessionId === 'sync-newer-active'
+      && Number.isFinite(getSessions().find(session => session.id === id1)?.endedAt));
+  getSessions().splice(getSessions().findIndex(session => session.id === 'sync-newer-active'), 1);
   assert('Body fraction matches preset (tshirt = 0.20)',
     Math.abs(getSessions()[0].bodyExposure.fraction - 0.20) < 1e-9);
   assert('Eye mode threaded through (sunglasses)',
     getSessions()[0].eyeExposure.mode === 'sunglasses');
 
-  // stop populates durationMin + endedAt + clears active
-  await new Promise(r => setTimeout(r, 30));
+  // A synced duplicate already superseded id1. stopSession is idempotent and
+  // must not extend or rewrite that completed audit record.
+  const supersededEndedAt = getSessions()[0].endedAt;
   await stopSession(id1);
-  const stopped = getSessions().find(s => s.id === id1);
+  assert('stopSession leaves an already-ended synced duplicate unchanged',
+    getSessions()[0].endedAt === supersededEndedAt);
+
+  // Start a fresh canonical timer to exercise ordinary stop behavior.
+  const stopId = await startSession({ exposurePreset: 'tshirt', eyeMode: 'sunglasses' });
+  await new Promise(r => setTimeout(r, 30));
+  await stopSession(stopId);
+  const stopped = getSessions().find(s => s.id === stopId);
   assert('stopSession populates endedAt', stopped.endedAt && stopped.endedAt > stopped.startedAt);
   assert('stopSession populates durationMin', typeof stopped.durationMin === 'number');
   assert('stopSession assigns eyeExposure.durationSec from elapsed time',
     Number.isFinite(stopped.eyeExposure.durationSec) && stopped.eyeExposure.durationSec >= 0);
   assert('After stop, getActiveSession → null', getActiveSession() === null);
+
+  const legacySafety = { retinalUV: 12.5 };
+  const legacyRecord = { id: 'legacy-ocular', safety: legacySafety };
+  assert('Schema migration copies legacy retinalUV into canonical ocularEffectiveDose',
+    sunSessionModel.upgradeSunSessionRecord(legacyRecord)
+      && legacyRecord.schemaVersion === 2
+      && legacyRecord.safety.ocularEffectiveDose === 12.5
+      && sunSessionModel.ocularEffectiveDoseFromSafety(legacyRecord.safety) === 12.5);
+
+  const highQualityCalculation = buildSunSessionCalculation({
+    session: {
+      location: { lat: 50.1, lon: 14.4 },
+      safety: { photosensitiveMedTier: 'none' },
+      doseIntegration: { method: 'live-time-integrated' },
+    },
+    atmosphere: { source: 'manual_meter', uvIndex: 6, cloudCover: 0 },
+    integrationMethod: 'live-time-integrated',
+    zenithDeg: 30,
+  });
+  assert('Meter-anchored live calculation is high-confidence and allows exact safety display',
+    highQualityCalculation.confidence.level === 'high'
+      && highQualityCalculation.precision.allowsExactSafety === true
+      && highQualityCalculation.provenance.atmosphere.kind === 'measured');
+  const lowQualityCalculation = buildSunSessionCalculation({
+    session: {
+      location: { lat: 50.1, lon: 14.4 },
+      safety: { photosensitiveMedTier: 'none' },
+      doseIntegration: { method: 'midpoint-estimate' },
+    },
+    atmosphere: { source: 'open_meteo', uvIndex: 1, cloudCover: 95, _stale: true },
+    integrationMethod: 'midpoint-estimate',
+    zenithDeg: 82,
+  });
+  assert('Stale low-sun midpoint calculation is low-confidence and withholds exact safety display',
+    lowQualityCalculation.confidence.level === 'low'
+      && lowQualityCalculation.precision.allowsExactSafety === false
+      && lowQualityCalculation.confidence.reasons.length >= 4);
 
   // start with regions (anatomical picker path)
   const id2 = await startSession({ regions: ['face', 'arms-front'], eyeMode: 'direct' });
@@ -202,10 +264,13 @@ const {
   // callable through the public sun.js facade.
   await pauseSession(id2);
   assert('pauseSession marks active session paused',
-    sess2.paused === true && Number.isFinite(sess2.pausedAt));
+    sess2.paused === true && Number.isFinite(sess2.pausedAt) && sess2.updatedAt === sess2.pausedAt);
+  const pausedAt = sess2.pausedAt;
   await resumeSession(id2);
   assert('resumeSession clears paused state',
-    sess2.paused === false && sess2.pausedAt === undefined);
+    sess2.paused === false && sess2.pausedAt === undefined
+      && sess2.updatedAt >= pausedAt
+      && sess2.pausePeriods?.length === 1);
   const beforeRotate = Date.now() - 1;
   await markSessionRotated(id2);
   assert('markSessionRotated sets rotatedSides and stamps updatedAt',
@@ -286,6 +351,32 @@ const {
   // updateSession on unknown id → null
   const nullPatch = await updateSession('sun_nope', { notes: 'x' });
   assert('updateSession on unknown id → null', nullPatch === null);
+
+  const segmentStart = Date.now() - 100 * 60000;
+  reset({ sunSessions: [{
+    id: 'segmented-edit',
+    startedAt: segmentStart,
+    endedAt: segmentStart + 100 * 60000,
+    durationMin: 100,
+    eyeExposure: { mode: 'direct', durationSec: 6000 },
+    doses: { vitamin_d: 20 },
+    safety: { sed: 10, medFraction: 1, retinalUV: 4, fitzpatrick: 'III' },
+    doseIntegration: { method: 'live-time-integrated' },
+    doseSegments: [
+      { startedAt: segmentStart, endedAt: segmentStart + 50 * 60000, bodyRegions: ['face'], doses: { vitamin_d: 10 }, erythemalSED: 5, ocularEffectiveDose: 2 },
+      { startedAt: segmentStart + 50 * 60000, endedAt: segmentStart + 100 * 60000, bodyRegions: ['arms-front'], doses: { vitamin_d: 10 }, erythemalSED: 5, ocularEffectiveDose: 2 },
+    ],
+  }] });
+  const trimmedSession = await updateSession('segmented-edit', { durationMin: 75 });
+  assert('Shortening a live-integrated session trims segments instead of midpoint rehydrating',
+    trimmedSession.doseSegments.length === 2
+      && trimmedSession.doseSegments[1].endedAt === segmentStart + 75 * 60000
+      && Math.abs(trimmedSession.doses.vitamin_d - 15) < 1e-9
+      && trimmedSession.doseIntegration.method === 'live-time-integrated-trimmed');
+  const extendedSession = await updateSession('segmented-edit', { durationMin: 90 });
+  assert('Extending beyond observed segments is explicitly downgraded to a midpoint estimate',
+    !extendedSession.doseSegments
+      && extendedSession.doseIntegration.method === 'midpoint-estimate-after-duration-edit');
 
   // ─── 6. rollingChannelTotals ─────────────────────────────────────────
   console.log('%c 6. rollingChannelTotals ', 'font-weight:bold;color:#f59e0b');
@@ -463,14 +554,16 @@ const {
   await logCompletedSession({
     startedAt: Date.now() - 60000, endedAt: Date.now() - 1,
     safety: { medFraction: 0.4 },
+    bodyExposure: { regions: ['face'], fraction: 0.04 },
   });
   await logCompletedSession({
     startedAt: Date.now() - 120000, endedAt: Date.now() - 90000,
     safety: { medFraction: 0.3 },
+    bodyExposure: { regions: ['legs-front'], fraction: 0.15 },
   });
   const todayMED = cumulativeMEDToday();
-  assert('cumulativeMEDToday sums today\'s sessions (0.4+0.3=0.7)',
-    Math.abs(todayMED - 0.7) < 1e-9, `got ${todayMED}`);
+  assert('cumulativeMEDToday returns the highest regional dose instead of summing disjoint skin',
+    Math.abs(todayMED - 0.4) < 1e-9, `got ${todayMED}`);
 
   // Yesterday's session — startedAt = midnight - 1h, endedAt = midnight - 1s
   const now = new Date();
@@ -485,7 +578,12 @@ const {
     Math.abs(yMED - 0.6) < 1e-9, `got ${yMED}`);
   // today total still includes only today's sessions
   assert('Today\'s MED unchanged after adding a yesterday-ended session',
-    Math.abs(cumulativeMEDToday() - 0.7) < 1e-9);
+    Math.abs(cumulativeMEDToday() - 0.4) < 1e-9);
+  reset({ sunSessions: [
+    { id: 'eye-sun', startedAt: Date.now() - 60 * 60000, endedAt: Date.now() - 30 * 60000, safety: { retinalUV: 12 } },
+  ] });
+  assert('cumulativeOcularEffectiveDose8h includes recent actinic eye dose',
+    Math.abs(cumulativeOcularEffectiveDose8h() - 12) < 1e-9);
 
   // Sessions without safety must not crash either accumulator
   await logCompletedSession({

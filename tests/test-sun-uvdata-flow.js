@@ -208,19 +208,29 @@ const {
   // When all providers fail, fetchAtmosphere falls back to a stale-cache
   // lookup. Seed localStorage with a matching cache entry, then drive
   // fetchAtmosphere with all providers blocked → readStaleCache fires.
-  // Cache key prefix is `sun-uvdata-cache-{rLat}_{rLon}_...`; we stash
-  // a synthetic entry that the lookup can find.
-  const stalePrefix = 'sun-uvdata-cache-50.00_14.00_';
-  localStorage.setItem(stalePrefix + 'stale', JSON.stringify({
+  // A historical bucket fetched more recently must not beat a slightly older
+  // entry that actually matches the requested hour.
+  const stalePrefix = 'meteo:v2:50.00_14.00_';
+  const requested = new Date();
+  const currentBucket = requested.toISOString().slice(0, 13);
+  const historicalBucket = new Date(requested.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 13);
+  localStorage.setItem(stalePrefix + currentBucket, JSON.stringify({
     uvIndex: 4.2, ozoneDU: 300, cloudCover: 30, temperatureC: 12,
-    source: 'cams', confidence: 0.5, fetchedAt: Date.now() - 86400000,
+    source: 'cams', confidence: 0.5, fetchedAt: Date.now() - 2 * 3600 * 1000,
+  }));
+  localStorage.setItem(stalePrefix + historicalBucket, JSON.stringify({
+    uvIndex: 12, ozoneDU: 280, cloudCover: 0, temperatureC: 30,
+    source: 'cams', confidence: 0.5, fetchedAt: Date.now() - 1000,
   }));
   saveMeteoConfig({ ...origCfg, mode: 'open-meteo' });
   window.fetch = () => Promise.reject(new Error('all providers blocked'));
-  await withTimeout(() => fetchAtmosphere({ lat: 50, lon: 14, isoTime: new Date().toISOString() }));
+  const staleAtm = await fetchAtmosphere({ lat: 50, lon: 14, isoTime: requested.toISOString() });
   // Cleanup stash
-  localStorage.removeItem(stalePrefix + 'stale');
-  assert('fetchAtmosphere all-providers-fail path reached readStaleCache fallback', true);
+  localStorage.removeItem(stalePrefix + currentBucket);
+  localStorage.removeItem(stalePrefix + historicalBucket);
+  assert('stale fallback uses the validity hour, not the most recently fetched historical bucket',
+    staleAtm?._stale === true && staleAtm.uvIndex === 4.2,
+    JSON.stringify(staleAtm));
 
   window.fetch = origFetch;
 

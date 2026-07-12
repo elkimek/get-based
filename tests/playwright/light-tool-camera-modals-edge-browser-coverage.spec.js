@@ -180,7 +180,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       await waitFor(() => savedReadings.some(item => item.kind === 'lux' && item.meta.roomId === 'camera-room'), 'camera lux save');
       const cameraLux = savedReadings.find(item => item.kind === 'lux' && item.meta.roomId === 'camera-room');
       check('Lux camera fallback calibrates resets and saves',
-        cameraLuxLine.includes('Camera estimate')
+        cameraLuxLine.includes('Camera brightness proxy')
         && !!cameraLux
         && cameraLux.value >= 390
         && cameraLux.value <= 410
@@ -240,7 +240,7 @@ test('light tool camera modals cover camera fallback calibration flicker cct spe
       await modals.openSpectrumClassifier({ roomId: 'spectrum-camera-room' }, deps);
       recordDelegatedClose('spectrum camera modal', 'close-spec');
       await waitFor(
-        () => /Fluorescent|confidence/i.test(document.getElementById('spec-result')?.textContent || ''),
+        () => /Fluorescent|reading quality/i.test(document.getElementById('spec-result')?.textContent || ''),
         'spectrum camera classification'
       );
       document.getElementById('spec-save')?.click();

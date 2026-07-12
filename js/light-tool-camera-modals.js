@@ -189,7 +189,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       _luxState.stream = stream;
       const lock = await lockCameraForMeasurement(stream);
       if (closed) return;
-      sourceLine.innerHTML = `Camera estimate (calibration ${_luxState.calibration.toFixed(2)}×, ±30%). ${cameraLockStatusLine(lock)}`;
+      sourceLine.innerHTML = `Camera brightness proxy (calibration ${_luxState.calibration.toFixed(2)}×; device-dependent, not a calibrated lux meter). ${cameraLockStatusLine(lock)}`;
       const video = document.createElement('video');
       video.srcObject = stream;
       video.muted = true;
@@ -329,7 +329,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       _luxState.calibration = clamped;
       saveLuxCalibration(clamped);
       if (calCurrentEl) calCurrentEl.textContent = `${clamped.toFixed(2)}×`;
-      sourceLine.innerHTML = `Camera estimate (calibration ${clamped.toFixed(2)}×, ±30%). Calibrated against ${refLux} lux reference.`;
+      sourceLine.innerHTML = `Camera brightness proxy (calibration ${clamped.toFixed(2)}×). Anchored to the entered ${refLux} lux reference for this device and camera mode.`;
       showNotification(`Lux meter calibrated · factor ${clamped.toFixed(2)}×`);
     });
   }
@@ -338,7 +338,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
       _luxState.calibration = 1.0;
       saveLuxCalibration(1.0);
       if (calCurrentEl) calCurrentEl.textContent = `1.00×`;
-      sourceLine.innerHTML = `Camera estimate (calibration 1.00×, ±30%). Reset to default.`;
+      sourceLine.innerHTML = 'Camera brightness proxy (default calibration; device-dependent, not absolute lux).';
       showNotification('Lux calibration reset to 1.00×');
     });
   }
@@ -433,8 +433,9 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     //   1. Frame-luma variance (detects PWM up to fps/2 Hz only — useless
     //      above ~30 Hz on a 60 fps camera). Kept for slow flicker /
     //      mains-frequency 50/60 Hz visibility.
-    //   2. Intra-frame ROW banding from rolling shutter via the shared
-    //      computeRowBanding() helper — detects PWM at 100 Hz – 25 kHz
+    //   2. Intra-frame row banding from rolling shutter via the shared
+    //      computeRowBanding() helper. Detectable frequencies depend on the
+    //      camera's undocumented sensor readout time.
     //      that frame-rate sampling literally cannot see.
     //
     // Use 64x48 capture so we have enough rows to see banding cleanly.
@@ -491,14 +492,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     else if (peakBanding > 0.10) { score = 2; label = 'Visible flicker — eye-strain risk'; }
     else if (peakBanding > 0.04 || frameRatio > 0.12) { score = 1; label = 'Mild flicker, likely OK for most'; }
     else if (aeActive) { score = 0; label = 'Below detection threshold (camera in auto mode)'; }
-    else { score = 0; label = 'Flicker-free (no rolling-shutter banding detected)'; }
-
-    // Frequency estimate from stripe count + assumed 25ms readout
-    let freq = '';
-    if (peakStripes >= 2) {
-      const estHz = peakStripes * 40; // N / 0.025s
-      freq = ` · ~${estHz} Hz (rolling-shutter banding)`;
-    }
+    else { score = 0; label = 'No banding detected — flicker may still be outside camera range'; }
 
     lastResult = {
       score, label,
@@ -506,7 +500,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
       stripes: peakStripes,
       frameRatio,
     };
-    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong>${escapeHTML(freq)}<br><small style="color:var(--text-muted)">banding ${peakBanding.toFixed(3)} · frame-luma ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''}</small>`;
+    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong><br><small style="color:var(--text-muted)">qualitative camera proxy · banding ${peakBanding.toFixed(3)} · frame-luma ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''}</small>`;
   }
 
   queryRequired(overlay, '#flicker-save').addEventListener('click', async () => {
@@ -639,26 +633,20 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       const NOISE_FLOOR_LUMA = 2;
       const meanLux = Math.max(0, (meanLuma - NOISE_FLOOR_LUMA) * 0.5 * calFactor);
       const peakLux = Math.max(0, (peakLuma - NOISE_FLOOR_LUMA) * 0.5 * calFactor);
-      // Thresholds anchored to circadian literature:
-      //   Brainard 2001:        ≥ 1.5–2 lux at the cornea suppresses
-      //                         melatonin in ~30% of sensitive individuals
-      //   Phillips 2019:        5–10 lux for 5h shifts circadian phase
-      //                         by ~30 min in a population study
-      //   Phipps-Nelson 2003:   100 lux for 6.5h is full suppression
-      // We grade chronic (mean) and acute (peak) on different scales —
-      // acute light spikes are circadian disruptions even when the mean
-      // looks fine.
+      // Compare mean and peak brightness with simple nighttime reference
+      // bands. Camera-derived lux remains approximate and cannot predict an
+      // individual's melatonin suppression or circadian phase shift.
       let label, cls;
       if (meanLux < 0.3 && peakLux < 1) {
-        label = 'Excellent — true darkness'; cls = 'ok';
+        label = 'Very dark — below the app reference'; cls = 'ok';
       } else if (meanLux < 1 && peakLux < 5) {
-        label = 'Good — minor leak, melatonin mostly preserved'; cls = 'ok';
+        label = 'Dark with a small light leak'; cls = 'ok';
       } else if (meanLux < 5 && peakLux < 20) {
-        label = 'Moderate leak — 20–30% melatonin attenuation likely'; cls = 'warn';
+        label = 'Noticeable light leak — worth checking'; cls = 'warn';
       } else if (peakLux >= 20 && meanLux < 5) {
         label = 'Bright spikes detected — investigate notifications / passing lights'; cls = 'warn';
       } else {
-        label = 'Significant — circadian phase shift likely'; cls = 'over';
+        label = 'Bright for a sleep space — find the source'; cls = 'over';
       }
       result = { meanLux, peakLux, lockMode: lock.exposure, isoLocked: lock.iso != null, calFactor, label, cls };
       // Honesty caveat when ISO couldn't be pinned — pixel values are
@@ -775,14 +763,14 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       for (let i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; b += data[i + 2]; }
       const px = data.length / 4;
       r /= px; g /= px; b /= px;
-      // Crude CCT estimate from R/B ratio (McCamy approximation, very rough)
+      // Crude color-temperature proxy from the camera's processed R/B ratio.
       const sum = r + g + b || 1;
       const rN = r / sum, bN = b / sum;
       // Higher b/r ratio → cooler. Map to 1800–7000K.
       const ratio = bN / Math.max(rN, 0.01);
       const cct = Math.round(1800 + Math.min(5200, ratio * 4500));
-      // Melanopic ratio (B / R+G+B) — circadian impact independent of CCT.
-      // Two LEDs at the same CCT can have very different blue spikes.
+      // Blue-channel share (B / R+G+B). This is not CIE melanopic EDI or mDER;
+      // camera spectral response and image processing vary by device.
       const melanopic = bN;
       const { bandingRatio, stripes } = computeRowBanding(data, canvas.width, canvas.height);
       bandingPeaks.push(bandingRatio);
@@ -798,10 +786,10 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       // on top of it would mislead. Same for melanopic / PWM annotations.
       if (lock.whiteBalance === 'manual') {
         const melanopicNote = melanopic > 0.32
-          ? `<span style="color:var(--orange);font-size:11px">⚠ high melanopic load (${(melanopic * 100).toFixed(0)}%) — daytime use only</span>`
+          ? `<span style="color:var(--orange);font-size:11px">higher camera blue-channel share (${(melanopic * 100).toFixed(0)}%) — qualitative only</span>`
           : melanopic < 0.25
-          ? `<span style="color:var(--green);font-size:11px">✓ sleep-safe melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`
-          : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load (${(melanopic * 100).toFixed(0)}%)</span>`;
+          ? `<span style="color:var(--green);font-size:11px">lower camera blue-channel share (${(melanopic * 100).toFixed(0)}%) — not a sleep-safety measurement</span>`
+          : `<span style="color:var(--text-muted);font-size:11px">mixed camera blue-channel share (${(melanopic * 100).toFixed(0)}%)</span>`;
         const pwmNote = peakBanding > 0.10 && stripes >= 2
           ? `<br><span style="color:var(--orange);font-size:11px">⚠ PWM dimming detected — open Flicker Detector for severity</span>`
           : '';
@@ -838,7 +826,8 @@ function cctTone(k) {
 }
 
 function solarCoherence(k) {
-  // Compare to solar CCT for current local hour (rough)
+  // Rough appearance comparison only. CCT does not determine melanopic
+  // potency or sleep safety, so this never renders a biological verdict.
   const hr = new Date().getHours();
   let solarK;
   if (hr < 6 || hr >= 20) solarK = 2000;
@@ -846,9 +835,9 @@ function solarCoherence(k) {
   else if (hr < 10 || hr >= 16) solarK = 5000;
   else solarK = 5500;
   const diff = Math.abs(k - solarK);
-  if (diff < 800) return `<span style="color:var(--green)">✓ matches solar time (~${solarK} K)</span>`;
-  if (diff < 1500) return `<span style="color:var(--text-secondary)">slight mismatch (solar now ~${solarK} K)</span>`;
-  return `<span style="color:var(--orange)">⚠ mismatch — solar is ~${solarK} K right now</span>`;
+  if (diff < 800) return `<span style="color:var(--text-secondary)">similar in color to outdoor light at this hour (~${solarK} K)</span>`;
+  if (diff < 1500) return `<span style="color:var(--text-secondary)">somewhat different in color from outdoors (~${solarK} K)</span>`;
+  return `<span style="color:var(--text-secondary)">different in color from outdoors (~${solarK} K) · CCT alone does not predict sleep impact</span>`;
 }
 
 // ─── Tool 4: Spectrum Classifier (simplified) ────────────────────────
@@ -940,10 +929,11 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
       // Discount confidence by 30% when WB couldn't be locked — under
       // auto-WB the R/G/B ratios reflect camera correction, not source.
       if (lock.whiteBalance !== 'manual') result = { ...result, confidence: result.confidence * 0.7, reason: result.reason + ' (camera auto-WB → low confidence)' };
-      const circadianBadge = result.circadian === 'sleep-safe' ? `<span style="color:var(--green);font-size:11px">✓ sleep-safe spectrum</span>`
-        : result.circadian === 'day-only' ? `<span style="color:var(--orange);font-size:11px">⚠ day-only — high melanopic load</span>`
-        : `<span style="color:var(--text-muted);font-size:11px">mixed melanopic load</span>`;
-      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· melanopic ratio ${(result.melanopic * 100).toFixed(0)}%</span>`;
+      const circadianBadge = result.circadian === 'sleep-safe' ? `<span style="color:var(--green);font-size:11px">lower camera blue share</span>`
+        : result.circadian === 'day-only' ? `<span style="color:var(--orange);font-size:11px">higher camera blue share</span>`
+        : `<span style="color:var(--text-muted);font-size:11px">mixed camera blue share</span>`;
+      const quality = result.confidence >= 0.75 ? 'higher' : result.confidence >= 0.55 ? 'medium' : 'low';
+      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${quality} reading quality</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· blue-channel proxy ${(result.melanopic * 100).toFixed(0)}% · not CIE melanopic EDI</span>`;
       if (_specState.running && !closed) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
@@ -990,11 +980,8 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
 }
 
 // Spectrum classifier — RGB ratio + rolling-shutter PWM banding +
-// melanopic indicator. The melanopic ratio is a coarse approximation
-// of the SPD's stimulation of the ipRGCs (intrinsically photosensitive
-// retinal ganglion cells) that drive circadian phase. Phone-camera blue
-// channels peak around 450-470 nm, close to the melanopsin peak at 480
-// nm — close enough for a relative comparison across light sources.
+// blue-channel indicator. It is useful only for relative comparisons made
+// with the same camera settings; it is not a melanopic measurement.
 // Returns label + confidence + reason + melanopic (0–1) + circadian
 // classification (sleep-safe / mixed / day-only).
 function classifyLight({ r, g, b, peakBanding, stripes }) {
@@ -1014,16 +1001,16 @@ function classifyLight({ r, g, b, peakBanding, stripes }) {
     return { label: 'Fluorescent / CFL', confidence: 0.75, reason: 'PWM banding + green spike — fluorescent signature.', melanopic, circadian };
   }
   if (rN > 0.40 && bN < 0.20) {
-    return { label: 'Incandescent / halogen', confidence: 0.8, reason: 'Red-rich, low blue — filament-style emitter, sleep-safe.', melanopic, circadian };
+    return { label: 'Incandescent / halogen', confidence: 0.8, reason: 'Red-rich, lower camera blue share — filament-style emitter.', melanopic, circadian };
   }
   if (bN > 0.36 && !heavyPWM) {
-    return { label: 'Cool LED (4000K+)', confidence: 0.75, reason: 'Blue-rich, near-flicker-free — daytime / focus light.', melanopic, circadian };
+    return { label: 'Cool LED (4000K+)', confidence: 0.75, reason: 'Blue-rich; no banding detected in the camera range.', melanopic, circadian };
   }
   if (bN > 0.36 && heavyPWM) {
-    return { label: 'Cool LED with PWM dimming', confidence: 0.75, reason: 'Blue-rich + visible PWM stripes — eye-strain risk on dim setting.', melanopic, circadian };
+    return { label: 'Cool LED with visible banding', confidence: 0.75, reason: 'Blue-rich + visible rolling-shutter bands. Use the Flicker tool for a closer check.', melanopic, circadian };
   }
   if (rN > 0.32 && bN < 0.30 && !heavyPWM) {
-    return { label: 'Warm LED (2700–3000K)', confidence: 0.75, reason: 'Slight red lift, near-flicker-free — evening-friendly.', melanopic, circadian };
+    return { label: 'Warm LED (2700–3000K)', confidence: 0.75, reason: 'Slight red lift; no banding detected in the camera range.', melanopic, circadian };
   }
   if (rN > 0.32 && bN < 0.30 && heavyPWM) {
     return { label: 'Warm LED with PWM dimming', confidence: 0.7, reason: 'Warm + PWM stripes — replace with flicker-free for evening rooms.', melanopic, circadian };

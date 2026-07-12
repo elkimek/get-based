@@ -20,6 +20,7 @@ console.log('=== Light Devices Store Tests ===\n');
 
 const { state } = await import('../js/state.js');
 const {
+  DEVICE_SESSION_SCHEMA_VERSION,
   addCustomDevice,
   addDeviceFromPresetRecord,
   configureLightDevicesStore,
@@ -131,13 +132,27 @@ const logged = await logDeviceSession({
   notes: 'morning',
 });
 const loggedDevice = getDevices()[0];
+const expectedCircadian10 = 10000 * 0.75 * 0.0013262 * 10 * 60;
 assert('logDeviceSession persists dose, lastSession, updatedAt, and analyzer hook',
   logged?.id?.startsWith('devsess_')
-    && logged.doses.circadian === 10000 * 10 * 60 / 100
+    && Math.abs(logged.doses.circadian - expectedCircadian10) < 1e-9
     && logged.notes === 'morning'
     && loggedDevice.lastSession.durationMin === 10
     && Number.isFinite(loggedDevice.updatedAt)
     && analysisCalls === 1);
+assert('device session stores versioned provenance and input quality',
+  logged.schemaVersion === DEVICE_SESSION_SCHEMA_VERSION
+    && logged.calculation?.provenance?.source === 'lux-proxy'
+    && logged.calculation?.confidence?.level === 'low'
+    && logged.calculation?.precision?.allowsExactSafety === false);
+assert('store rejects an invalid zero-duration session',
+  await logDeviceSession({ deviceId: 'sad-1', durationMin: 0 }) === null);
+const normalized = await logDeviceSession({
+  deviceId: 'sad-1', durationMin: 5, distanceCm: -2, bodyAreas: ['face', 'not-a-region', 'face'], eyesProtected: false,
+});
+assert('store normalizes distance and anatomical regions at its boundary',
+  normalized?.distanceCm === 30
+    && JSON.stringify(normalized.bodyAreas) === JSON.stringify(['face']));
 
 const startedId = await startDeviceSession({ deviceId: 'sad-1', distanceCm: 30, eyesProtected: false });
 const active = getActiveDeviceSession();
@@ -152,16 +167,25 @@ assert('stopDeviceSession finalizes active session and recomputes dose',
     && stopped.durationMin >= 4.9
     && stopped.doses.circadian > 0
     && getDevices()[0].lastSession.durationMin >= 4.9
-    && analysisCalls === 2);
+    && analysisCalls === 3);
+
+getDeviceSessions().push(
+  { id: 'sync-device-old', deviceId: 'sad-1', startedAt: 100, updatedAt: 110, endedAt: null },
+  { id: 'sync-device-new', deviceId: 'sad-1', startedAt: 200, updatedAt: 220, endedAt: null },
+);
+assert('getActiveDeviceSession resolves synced duplicate timers deterministically',
+  getActiveDeviceSession()?.id === 'sync-device-new'
+    && getDeviceSessions().find(session => session.id === 'sync-device-old')?.syncResolution?.canonicalSessionId === 'sync-device-new');
+getDeviceSessions().splice(getDeviceSessions().findIndex(session => session.id === 'sync-device-new'), 1);
 
 const edited = await updateDeviceSession(logged.id, { durationMin: 20, notes: 'edited' });
 assert('updateDeviceSession recomputes duration-derived fields and stamps sync freshness',
   edited?.durationMin === 20
     && edited.notes === 'edited'
     && edited.endedAt === edited.startedAt + 20 * 60 * 1000
-    && edited.doses.circadian === 10000 * 20 * 60 / 100
+    && Math.abs(edited.doses.circadian - expectedCircadian10 * 2) < 1e-9
     && Number.isFinite(edited.updatedAt)
-    && analysisCalls === 3);
+    && analysisCalls === 4);
 assert('updateDeviceSession returns null for missing session',
   await updateDeviceSession('missing', { durationMin: 1 }) === null);
 
@@ -186,7 +210,51 @@ const totals = rollingDeviceTotals(7);
 assert('rollingDeviceTotals sums only in-window finite doses',
   totals.circadian === 100 && totals.pbm_red === 5);
 
-console.log('%c 3. Boundary ownership ', 'font-weight:bold;color:#f59e0b');
+console.log('%c 3. UV device physics and safety ', 'font-weight:bold;color:#f59e0b');
+const { computeDeviceSessionDoses } = await import('../js/light-device-session-engine.js');
+const uvDevice = {
+  type: 'uvb',
+  peakWavelengths: [295],
+  peakShares: [1],
+  mwPerCm2At15cm: 1,
+  recommendedDistanceCm: 15,
+};
+const uvSmallArea = computeDeviceSessionDoses({
+  device: uvDevice,
+  durationMin: 10,
+  distanceCm: 15,
+  bodyAreas: ['face'],
+  eyesProtected: false,
+});
+const uvLargeArea = computeDeviceSessionDoses({
+  device: uvDevice,
+  durationMin: 10,
+  distanceCm: 15,
+  bodyArea: 'whole-body',
+  eyesProtected: true,
+});
+assert('UV device stores physical fluence in J/cm²',
+  Math.abs(uvSmallArea.physicalDoses.totalJPerCm2 - 0.6) < 1e-9
+    && Math.abs(uvSmallArea.physicalDoses.uvbJPerCm2 - 0.6) < 1e-9);
+assert('UV-device local SED is independent of total body area',
+  uvSmallArea.safety.sed > 0
+    && Math.abs(uvSmallArea.safety.sed - uvLargeArea.safety.sed) < 1e-9);
+assert('UV-device eye hazard uses eye-protection state',
+  uvSmallArea.safety.retinalUV > 0 && uvLargeArea.safety.retinalUV === 0);
+assert('Declared peak shares are labeled as declared, not heuristic',
+  uvSmallArea.safety.source === 'declared-spectrum');
+const unnormalizedDevice = computeDeviceSessionDoses({
+  device: { ...uvDevice, peakWavelengths: [295, 660], peakShares: [-1, 3] },
+  durationMin: 10,
+  distanceCm: 15,
+  bodyAreas: ['face'],
+  eyesProtected: true,
+});
+assert('Declared physical peak shares are clamped and normalized once',
+  unnormalizedDevice.physicalDoses.uvbJPerCm2 === 0
+    && Math.abs(unnormalizedDevice.physicalDoses.redJPerCm2 - unnormalizedDevice.physicalDoses.totalJPerCm2) < 1e-9);
+
+console.log('%c 4. Boundary ownership ', 'font-weight:bold;color:#f59e0b');
 const uiSrc = read('js/light-devices.js');
 const storeSrc = read('js/light-devices-store.js');
 const appLightSunSrc = read('js/app-light-sun-modules.js');

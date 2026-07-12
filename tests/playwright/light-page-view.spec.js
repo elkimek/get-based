@@ -251,9 +251,9 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         && midday.includes('Midday window')
         && evening.includes('Evening sun window');
       outcomes.noSetupStripShowsSetupCta = morning.includes('Set up Light');
-      outcomes.noSetupStripShowsBurnRisk = morning.includes('approaching burn threshold');
-      outcomes.noSetupStripShowsAltitudeChip = morning.includes('+17% UV');
-      outcomes.noSetupStripShowsWeeklyVitD = morning.includes('~1800 IU vitamin D this week');
+      outcomes.noSetupStripShowsBurnRisk = morning.includes('high modeled UV recorded');
+      outcomes.noSetupStripShowsAltitudeChip = morning.includes('High altitude');
+      outcomes.noSetupStripShowsWeeklyVitD = morning.includes('~1800 IU-equivalent this week');
       outcomes.noSetupStripShowsDashboardChip = morning.includes('light-dashboard-chip-test');
 
       state.importedData = {
@@ -294,18 +294,24 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.getDevices = () => [];
       window.getSessions = () => [];
       window.getDeviceSessions = () => [];
+      window.cumulativeMEDToday = () => 0;
+      window.cumulativeMEDYesterday = () => 0;
       window.getSunCoords = () => null;
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPagePromptsForMissingCoords =
-        main?.textContent.includes('set your country in the profile editor') === true
-        && main?.querySelector('[data-light-page-action="request-precise-location"]') !== null;
+        main?.querySelector('[data-widget-id="light-best-next-step"]') !== null
+        && main?.textContent.includes('Add your location')
+        && main?.querySelector('[data-widget-id="light-channels"]') === null
+        && main?.querySelector('[data-widget-id="light-explore"] [data-light-page-action="show-advanced-light"]') !== null;
 
       window.getSunCoords = () => ({ source: 'country-band', lat: 49.2, lon: 16.6 });
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPageShowsCountryBandHint =
-        main?.textContent.includes('Calculations use your country (~49.2° lat)') === true;
+        main?.querySelector('[data-widget-id="light-channels"]') === null
+        && main?.querySelector('[data-widget-id="light-explore"]') !== null
+        && main?.textContent.includes('You do not need these to start') === true;
     } finally {
       state.importedData = saved.importedData;
       if (main && saved.mainHTML != null) main.innerHTML = saved.mainHTML;

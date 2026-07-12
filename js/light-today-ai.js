@@ -117,7 +117,7 @@ export function computeLightTrends(targetDate = new Date()) {
   const week = lightTodayDeps.rollingVitaminDIU(7);
   const target = state.importedData?.sunDefaults?.dailyVitDTargetIU;
   if (target && week < target * 7 * 0.4) {
-    out.signals.push(`Weekly vit-D synthesis ~${Math.round(week)} IU is well below your daily target × 7 (${target * 7} IU)`);
+    out.signals.push(`Weekly vitamin-D potential is ~${Math.round(week)} IU-equivalent, below the user's comparison setting; this does not establish vitamin-D status without a 25(OH)D lab`);
   }
   return out;
 }
@@ -211,7 +211,7 @@ export function buildDayContext(target) {
   const vit7 = lightTodayDeps.rollingVitaminDIU(7);
   lines.push('');
   lines.push('### Last 7 days context');
-  lines.push(`Cumulative vit-D synthesized from sun: ~${Math.round(vit7)} IU`);
+  lines.push(`Cumulative vitamin-D potential from recorded sun: ~${Math.round(vit7)} IU-equivalent (a model estimate, not measured vitamin D)`);
   // Channels surface as tier labels only — the raw scores
   // (melanopic-lux-min, J/cm², etc.) aren't user-meaningful, and
   // when the AI quoted them verbatim the verdict read like
@@ -230,7 +230,7 @@ export function buildDayContext(target) {
   lines.push('### User profile');
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
   else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
+  if (sd.dailyVitDTargetIU) lines.push(`User vitamin-D comparison setting: ${sd.dailyVitDTargetIU} IU-equivalent/day (not a measured requirement)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
   try {
@@ -266,24 +266,24 @@ export function getDayFingerprint(target) {
 }
 
 const SYSTEM_PROMPT = [
-  'You evaluate a single day of a user\'s light exposure. Return one verdict that synthesizes sun + light-therapy + indoor environment + recent trends against the user\'s goals.',
+  'You summarize a single day of recorded light exposure. Synthesize outdoor time, light devices, the indoor environment, and recent patterns into one useful observation.',
   'Return ONLY valid JSON: {"dot":"green|yellow|red|gray","tip":"string","detail":"string"}.',
   '',
   'dot:',
-  '  green = the day was on-protocol — sufficient outdoor / circadian exposure, safe burn doses, evening light environment supports sleep',
-  '  yellow = mostly OK but one specific gap (e.g., no sunrise + indoor-only screens, evening lights too bright, weekly vit-D under target trending)',
-  '  red = circadian-hostile day or unsafe (over MED + no eye protection, late-evening cool-bright light + no morning anchor, prolonged indoor with no daylight at all)',
+  '  green = the records show a useful mix of daytime outdoor light and a calmer evening setup, with no visible safety flag',
+  '  yellow = one practical gap is visible, such as little daytime outdoor light or bright, prolonged screen use near bedtime',
+  '  red = a clear recorded safety concern, such as high modeled UV exposure, or a strongly mistimed device session',
   '  gray = not enough data (no logged activity)',
   '',
-  'Weight the day relative to the USER\'S GOALS (vit-D restoration vs SAD relief vs sleep optimization vs general health). Reference 25-OH-D when present.',
-  'Trend signals (days since last sunrise, weekly vit-D under target, dropping activity) deserve mention when relevant.',
-  'Non-obvious patterns to flag: midday session followed by sleep room with measurable light; sunrise sessions logged only on weekends; long device sessions without paired sunlight; evening device sessions on a SAD lamp doing the OPPOSITE of what the user wants.',
+  'Use the USER\'S GOALS to choose relevance, but do not claim that light records diagnose, restore, treat, or optimize a health outcome. A 25-OH-D lab is context, not proof that a particular sun dose is required.',
+  'Trend signals such as fewer logged sessions or low modeled vitamin-D potential may be mentioned as record patterns, never as biological deficiency.',
+  'Useful patterns include daytime outdoor-light gaps, bright or prolonged screen use close to bedtime, and light-device timing that conflicts with the user\'s stated schedule.',
   '',
   ...LIGHTING_HARDWARE_CAVEATS,
   '',
   'tip: one sentence, max 18 words. The single highest-leverage observation or fix for this day. Direct.',
   'detail: 2–4 sentences. Synthesize: what worked + what didn\'t + the highest-leverage tomorrow-action. Recommendations involving fixtures or dimming MUST honor the hardware caveats above.',
-  'NUMBER DISCIPLINE: only quote numbers when they carry user-meaningful units that appear verbatim in the context block — vit-D IU, minutes outdoors, %MED, lux, °elevation. Channel weekly totals are reported as tier labels (none/low/moderate/good/strong); refer to them by tier ("strong body clock this week"), never as raw scores ("body clock 1202696"). Do not invent units that aren\'t in the context.',
+  'NUMBER DISCIPLINE: only quote numbers with units that appear verbatim in the context block — IU-equivalent model estimates, minutes outdoors, modeled burn dose, lux, or solar elevation. Describe channel bands as exposure levels, not health scores or targets. Do not invent units or imply that a modeled estimate is a measured outcome.',
   '',
   'No "you should" — be observational. No emoji.',
 ].join('\n');
@@ -334,10 +334,10 @@ const _autoFiredKeys = new Set();
 function renderLightTodayQuestion() {
   return `<section class="light-ai-question">
     <div class="light-ai-kicker">Question this AI answers</div>
-    <p>Is today’s light pattern supporting circadian rhythm, sleep, vitamin-D goals, and safe exposure?</p>
+    <p>What stands out in today’s outdoor time, device use, and evening light?</p>
     <div class="light-ai-panel-levels">
-      <div><span>Minimum useful data</span><strong><span>Sun/device sessions</span><span>Time of day</span><span>Duration</span></strong></div>
-      <div><span>Extended confidence data</span><strong><span>UV/MED</span><span>Lux/CCT/flicker</span><span>Sleep room darkness</span><span>7-day trends</span></strong></div>
+      <div><span>Works with</span><strong><span>Outdoor or device logs</span><span>Time of day</span><span>Duration</span></strong></div>
+      <div><span>Gets more specific with</span><strong><span>Current UV</span><span>Room measurements</span><span>Bedroom darkness</span><span>7-day patterns</span></strong></div>
     </div>
   </section>`;
 }

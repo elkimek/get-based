@@ -91,7 +91,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       promptHost.innerHTML = sunDefaults.renderSetupCard();
       document.body.appendChild(promptHost);
       outcomes.initialSetupPromptRendersActions =
-        promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Set up your light assumptions')
+        promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Get useful guidance in two quick steps')
+        && promptHost.querySelector('.light-setup-prompt')?.textContent.includes('Get one practical next step')
         && !!promptHost.querySelector('.light-widget-prompt-cta')
         && !!promptHost.querySelector('.dashboard-action-btn');
       promptHost.querySelector('.light-widget-prompt-cta')?.click();
@@ -129,7 +130,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       document.querySelector('[data-choice-group="setup-eyewear"][data-value="sunglasses"]')?.click();
       outcomes.coreChoicesUpdateProgressAndAria =
         document.getElementById('setup-skin-range')?.dataset.set === '1'
-        && document.querySelector('.light-setup-progress')?.textContent.trim() === '3/3 done'
+        && document.querySelector('.light-setup-progress')?.textContent.trim() === 'Skin confirmed'
+        && document.querySelector('.light-setup-progress')?.getAttribute('aria-label') === 'Skin sensitivity confirmed'
         && document.querySelector('[data-choice-group="setup-eyewear"][data-value="sunglasses"]')?.getAttribute('aria-pressed') === 'true';
 
       document.querySelector('.light-setup-next-btn')?.click();
@@ -166,7 +168,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       document.body.appendChild(host);
       outcomes.savedSummaryIncludesBannerAndAiBlock =
         host.querySelector('.light-setup-summary')?.textContent.includes('Your light setup')
-        && host.querySelector('.light-setup-photo-banner')?.textContent.includes('Severe photosensitizer')
+        && host.querySelector('.light-setup-photo-banner')?.textContent.includes('Strong warning')
+        && host.querySelector('.light-setup-photo-banner')?.textContent.includes('exact timing')
         && !!host.querySelector('#setup-ai-block');
 
       host.querySelector('.light-setup-summary-edit')?.click();
@@ -190,10 +193,25 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       await waitFor('#light-setup-focus-overlay');
       document.querySelector('.light-setup-skip-btn')?.click();
       await waitUntil(() => !document.getElementById('light-setup-focus-overlay'), 'skip overlay close');
-      outcomes.skipPersistsDefaultAndNavigatesLight =
-        state.importedData.sunDefaults.fitzpatrick === 'III'
-        && state.importedData.sunDefaults.skipped === true
+      outcomes.deferralPreservesUnknownSkinAndNavigatesLight =
+        state.importedData.sunDefaults.fitzpatrick == null
+        && state.importedData.sunDefaults.completedAt == null
+        && state.importedData.sunDefaults.setupDismissedAt != null
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 2;
+
+      state.importedData.sunDefaults = {};
+      window.reopenSunSetup();
+      await waitFor('#light-setup-focus-overlay', 'basic setup overlay');
+      document.querySelector('.ctx-skin-face[data-idx="1"]')?.click();
+      document.querySelector('.light-setup-basics-btn')?.click();
+      await waitUntil(() => !document.getElementById('light-setup-focus-overlay'), 'basic setup close');
+      const basicsHost = document.createElement('div');
+      basicsHost.innerHTML = sunDefaults.renderSetupCard();
+      outcomes.basicSetupUnlocksGuidanceWithoutRoutineAudit =
+        state.importedData.sunDefaults.fitzpatrick === 'II'
+        && state.importedData.sunDefaults.basicsCompletedAt != null
+        && state.importedData.sunDefaults.completedAt == null
+        && basicsHost.textContent.includes('Current guidance is unlocked');
     } finally {
       document.getElementById('light-setup-focus-overlay')?.remove();
       document.getElementById('setup-prompt-render-host')?.remove();

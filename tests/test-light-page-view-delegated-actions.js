@@ -59,7 +59,8 @@ assert('Light page feature hook wires runtime dependencies',
     && /renderLightTodayHero/.test(hooksSrc)
     && /renderDevicesSection/.test(hooksSrc)
     && /renderLightTools/.test(hooksSrc)
-    && /renderChannelDeficitDeviceRecs/.test(hooksSrc));
+    && /getCachedConditionsAtmosphere/.test(hooksSrc)
+    && /openLightSetup/.test(hooksSrc));
 assert('Light Today AI renderers are wired without a window facade',
   todayAiSrc.includes('registerAIActionHandler')
     && !todayAiSrc.includes('Object.assign(globalThis')

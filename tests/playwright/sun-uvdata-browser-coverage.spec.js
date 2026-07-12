@@ -154,7 +154,7 @@ test('sun uvdata browser coverage handles config cache globals and purging', asy
         isStale: true,
       });
       outcomes.confidenceHandlesManualOverridePenaltiesAndBounds =
-        mod.computeUVConfidence({ source: 'open_meteo', manualOverridden: true }) === 1
+        mod.computeUVConfidence({ source: 'open_meteo', manualOverridden: true }) === mod.UV_SOURCE_CONFIDENCE.manual_entry
         && lowConfidence >= 0.05
         && lowConfidence < 0.1
         && mod.computeUVConfidence({ source: 'unknown-provider', uvIndex: 99 }) <= 0.99;
@@ -404,7 +404,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && cacheFetches === 4;
 
       cleanupCache();
-      localStorage.setItem('meteo:v2:50.00_14.00_2026-06-01T08', JSON.stringify({
+      localStorage.setItem('meteo:v2:50.00_14.00_2026-06-01T12', JSON.stringify({
         uvIndex: 2.2,
         uvClearSky: 3.0,
         ozoneDU: 300,
@@ -415,9 +415,15 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         confidence: 0.5,
         fetchedAt: Date.now() - 2 * 60 * 60 * 1000,
       }));
+      localStorage.setItem('meteo:v2:50.00_14.00_2026-05-20T12', JSON.stringify({
+        uvIndex: 8.8,
+        source: 'open_meteo',
+        confidence: 0.5,
+        fetchedAt: Date.now() - 30 * 60 * 1000,
+      }));
       window.fetch = () => Promise.reject(new Error('offline'));
       const stale = await mod.fetchAtmosphere({ lat: 50, lon: 14, isoTime: iso });
-      outcomes.staleCacheFallbackUsesLatestMatchingCoords =
+      outcomes.staleCacheFallbackUsesClosestValidityHour =
         stale._stale === true
         && stale.source === 'open_meteo_stale'
         && stale.uvIndex === 2.2;

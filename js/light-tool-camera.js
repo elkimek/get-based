@@ -230,17 +230,17 @@ export function cameraLockStatusLine(lock) {
 // ─── Shared row-banding analyzer ───────────────────────────────────────
 //
 // The intra-frame rolling-shutter banding signal: a CMOS sensor reads out
-// rows top-to-bottom over ~15-33 ms. A PWM light source modulates during
+// rows top-to-bottom over a device-specific interval. A PWM light source modulates during
 // that readout, painting horizontal stripes. Detecting variance ROW-WISE
-// (per-row mean luma, then stddev across rows) reveals PWM at 100 Hz –
-// 25 kHz that frame-rate sampling literally cannot see.
+// (per-row mean luma, then stddev across rows) can reveal PWM that ordinary
+// frame-to-frame sampling misses. The frequency range is camera-dependent.
 //
 // Returns:
 //   frameMean   — mean luma across the whole frame (0–255 scale)
 //   frameMax    — max single-pixel luma (catches bright spikes)
 //   bandingRatio — stddev of row means / frame mean (PWM banding strength)
 //   stripes     — zero-crossings of detrended row signal across the frame
-//                 (rough N stripes / 25ms readout = N × 40 Hz PWM frequency)
+//                 (qualitative only without a measured sensor readout time)
 //   rowMeans    — Float32Array of per-row mean luma (debugging / future use)
 //
 // Used by flicker, spectrum, CCT, and (peripherally) sleep-darkness tools.

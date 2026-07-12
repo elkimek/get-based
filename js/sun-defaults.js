@@ -1,18 +1,16 @@
 // @ts-check
-// sun-defaults.js — Light lens onboarding: 3 setup questions + a 10-item
-// indoor-light burden audit grounded in current photobiology. Persists to
-// importedData.sunDefaults.
+// sun-defaults.js — Light lens basics plus an optional daily-routine check.
+// Persists to importedData.sunDefaults.
 //
-// These are the user's baseline — Fitzpatrick skin type for MED scaling,
-// indoor light environment for the deficit-axis derivation, eyewear pattern
-// for eye-channel gating, and a burden score (0–10) that frames their
-// starting circadian/UV alignment for the AI.
+// Location and confirmed skin sensitivity unlock the core guidance. Indoor
+// light, eyewear, and routine answers add context without blocking first use.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { SKIN_TYPE } from './constants.js';
+import { PHOTOSENSITIVE_MED_TIERS, _normalizePSMTier } from './sun-session-model.js';
 import {
   exposeSunDefaultsBindings,
   getSunSetupCoords,
@@ -53,18 +51,12 @@ function renderOnboardingAIBlock() {
 // rendered select. true → 'moderate' (matches the previous fixed ×2.5
 // MED reduction), false / null → 'none'. New string-tier storage passes
 // through unchanged.
-function _psmTierOf(raw) {
-  if (raw === true) return 'moderate';
-  if (raw === false || raw == null) return 'none';
-  return String(raw);
-}
-
-const PHOTOSENSITIVE_OPTIONS = [
-  { key: 'none', label: 'None', sub: 'No known photosensitizers' },
-  { key: 'mild', label: 'Mild', sub: 'Antihistamines or light NSAID use' },
-  { key: 'moderate', label: 'Moderate', sub: "NSAIDs, thiazides, sulfa, St. John's Wort, topical retinol" },
-  { key: 'severe', label: 'Severe', sub: 'Tetracyclines, oral retinoids, amiodarone, citrus oils on skin' },
-];
+const _psmTierOf = _normalizePSMTier;
+const PHOTOSENSITIVE_OPTIONS = PHOTOSENSITIVE_MED_TIERS.map(tier => ({
+  key: tier.key,
+  label: tier.label,
+  sub: tier.key === 'none' ? 'No known sun-sensitivity warning' : tier.examples,
+}));
 
 function fitzpatrickToSkinTypeIndex(fp) {
   return Math.max(0, ROMAN.indexOf(fp));
@@ -119,6 +111,11 @@ function handleLightSetupClick(event) {
       event.preventDefault();
       invokeSunDefaultsBinding('reopenSunSetup', reopenSunSetup);
       break;
+    case 'reopen-score':
+      event.preventDefault();
+      invokeSunDefaultsBinding('reopenSunSetup', reopenSunSetup);
+      setLightSetupStep('score');
+      break;
     case 'dismiss':
       event.preventDefault();
       invokeSunDefaultsBinding('dismissSunSetup', dismissSunSetup);
@@ -134,6 +131,10 @@ function handleLightSetupClick(event) {
     case 'save':
       event.preventDefault();
       invokeSunDefaultsBinding('saveSunSetup', saveSunSetup);
+      break;
+    case 'save-basics':
+      event.preventDefault();
+      saveSunSetupBasics();
       break;
     case 'select-choice':
       event.preventDefault();
@@ -228,57 +229,30 @@ export const EYEWEAR_OPTIONS = [
   { key: 'contacts-uv',   label: 'Contacts with UV block' },
 ];
 
-// ─── Indoor-light burden audit ────────────────────────────────────────
-// 10 yes/no questions grounded in current photobiology and circadian
-// research. Each "yes" represents a known light-environment gap and adds
-// 1 to the burden score (0–10 scale, higher = more indoor / disrupted).
-//
-// References for each question are inline so the rationale is auditable:
-//   1. Morning light: Brown et al. 2022 (CIE recommendations); Münch et al.
-//      JCEM 2017 — within ~1hr of waking, >100 lux outdoor entrains the SCN.
-//   2. Glass-mediated day: Hattar 2002 (ipRGC) + window glass blocks UVB
-//      almost entirely → no vit-D synthesis, no skin α-MSH, no NO release.
-//   3. Workspace lux: WELL Building / IES TM-30 — daytime workspace >300
-//      melanopic-EDI (≈500 lux at eye) for proper circadian drive.
-//   4. Cool LED at night: Spitschan & Cajochen — high-CCT light suppresses
-//      melatonin even at modest intensities.
-//   5. Evening screens: Chang et al. AJCN 2015 — backlit screen reading
-//      delays melatonin onset by ~90min.
-//   6. Bright overhead lights post-sunset: Cajochen — peri-sleep ambient
-//      light shifts circadian phase.
-//   7. ANY light during sleep: Cain et al. JCSM 2020 — even <5 lux at the
-//      pillow degrades insulin sensitivity overnight.
-//   8. Sunscreen blocking UVB: Holick — chemical sunscreens >SPF8 block
-//      the wavelengths required for vit-D synthesis on bare skin.
-//   9. Sunglasses outdoors: Lambert / Hattar — eye-mediated α-MSH and the
-//      pupillary-light reflex modulate skin/mood/hormone responses.
-//  10. Total outdoor time: Stein et al. — <30min/day outdoor correlates
-//      with myopia, low vit D, blunted circadian amplitude.
-// Each question carries a `why` sub-label rendered below the checkbox so the
-// user learns the photobiology rather than just self-reporting. Kept short
-// (one clause) — a teaching surface, not a citation block. Detailed
-// citations stay in the comment above for auditability.
+// ─── Daily-light routine check ────────────────────────────────────────
+// Ten plain-language prompts identify practical patterns the user can change.
+// The result describes the mapped routine; it is not a health score.
 export const OTT_QUESTIONS = [
-  { key: 'morning-light-deficit',    text: 'Do you get less than 5 minutes of outdoor daylight within an hour of waking?',
-    why: 'Morning daylight at the eye sets your central body clock — without it, sleep timing drifts.' },
+  { key: 'morning-light-deficit',    text: 'Do you usually miss outdoor daylight during the first hour after waking?',
+    why: 'Outdoor light is usually much brighter than indoor light and gives your day a clear starting signal.' },
   { key: 'glass-mediated-daytime',   text: 'Do you spend most of your daytime hours behind window glass (office, home, car)?',
-    why: 'Window glass blocks UVB almost entirely — no vitamin D, no nitric-oxide release through the skin.' },
-  { key: 'dim-workspace',            text: 'Is your daytime workspace below office-bright (under ~500 lux at eye-level)?',
-    why: 'Dim daytime light fails to reinforce the wake signal — the contrast with night collapses.' },
+    why: 'A bright-looking window is still usually much dimmer than stepping outside.' },
+  { key: 'dim-workspace',            text: 'Does your main daytime space feel dim, even with the lights on?',
+    why: 'A brighter day and dimmer evening create a clearer day–night contrast.' },
   { key: 'cool-led-evening',         text: 'Are most of your indoor lights after sunset cool / daylight-white (4000K+)?',
-    why: 'Cool / blue-rich light after sunset suppresses melatonin even at modest indoor intensities.' },
+    why: 'Cool, bright light can feel alerting late in the day; dimming often matters as much as color.' },
   { key: 'evening-screens',          text: 'Do you regularly use bright screens (phone, laptop, TV) in the 2 hours before bed?',
-    why: 'Backlit screen reading before bed delays melatonin onset by ~90 minutes (Chang et al. AJCN 2015).' },
+    why: 'Brightness, duration, and how close the screen is to bedtime can all make winding down harder.' },
   { key: 'bright-after-sunset',      text: 'Do you keep overhead room lights on at full brightness after sunset?',
-    why: 'Overhead light after sunset shifts your circadian phase and shortens deep sleep.' },
+    why: 'Lower, dimmer lighting makes the change from daytime to evening easier to see and feel.' },
   { key: 'sleep-not-dark',           text: 'Is your bedroom not fully dark while you sleep (LED indicators, streetlight, partner\'s screen)?',
-    why: 'Even <5 lux at the pillow degrades overnight insulin sensitivity (Cain et al. JCSM 2020).' },
-  { key: 'sunscreen-blocks-uvb',     text: 'Do you apply sunscreen on most sun-exposed days, including brief outdoor time?',
-    why: 'Chemical sunscreen above ~SPF 8 blocks the UVB wavelengths required for vitamin D synthesis.' },
-  { key: 'sunglasses-outside',       text: 'Do you wear sunglasses outdoors more often than not?',
-    why: 'Sunglasses block the eye-mediated α-MSH cascade — your skin and mood lose a key signal.' },
+    why: 'A darker room removes a common source of sleep disruption; comfort and preference still vary.' },
+  { key: 'late-bedtime-light',       text: 'Is your bedroom or bathroom brightly lit during the last hour before bed?',
+    why: 'Dimming the last part of the evening is a simple way to make the routine feel calmer.' },
+  { key: 'low-daylight-room',        text: 'Does your main daytime room have little useful daylight?',
+    why: 'Low daytime brightness makes the contrast between day and evening less clear.' },
   { key: 'low-outdoor-time',         text: 'Is your total outdoor time under 30 minutes on a typical day?',
-    why: 'Under 30 min/day outdoors correlates with low vitamin D, myopia, and a blunted circadian amplitude.' },
+    why: 'A short, repeatable outdoor break often adds more daylight than trying to brighten an entire room.' },
 ];
 
 // ─── Public API ────────────────────────────────────────────────────────
@@ -313,25 +287,27 @@ function reopenSunSetup() {
   openSunSetupOverlay();
 }
 
+export function openLightSetup() {
+  reopenSunSetup();
+}
+
 function cancelReopenSunSetup() {
   closeSunSetupOverlay();
   _setupForceOpen = false;
 }
 
-// Map an indoor-light burden score (0-10, higher = more indoor) to a
-// qualitative label + tier index for color coding. 0 = well-aligned light
-// environment, 10 = severe burden across all 10 audit signals.
+// Map the count of saved routine patterns to a qualitative label and color.
 //
 // Function name kept for backward-compat — call sites can still use
 // ottScoreToLabel() during the transition; alias `lightBurdenToLabel`
 // is the modern name and they share an implementation.
 export function ottScoreToLabel(score) {
   if (typeof score !== 'number') return { label: '—', tier: 0 };
-  if (score <= 1) return { label: 'well-aligned light environment', tier: 0 };
-  if (score <= 3) return { label: 'mostly aligned, minor gaps', tier: 1 };
-  if (score <= 5) return { label: 'moderate light burden', tier: 2 };
-  if (score <= 7) return { label: 'significant light burden', tier: 3 };
-  return { label: 'severe indoor-light burden', tier: 4 };
+  if (score <= 1) return { label: 'few patterns to review', tier: 0 };
+  if (score <= 3) return { label: 'a few patterns to review', tier: 1 };
+  if (score <= 5) return { label: 'several patterns to review', tier: 2 };
+  if (score <= 7) return { label: 'many patterns to review', tier: 3 };
+  return { label: 'most patterns to review', tier: 4 };
 }
 export const lightBurdenToLabel = ottScoreToLabel;
 
@@ -374,23 +350,23 @@ function renderSavedSummary() {
   const eyewearIcon = eyewearIconMap[d.eyewear] || '👁';
   const eyewearShort = (eyewearMeta?.label || d.eyewear || 'Not set').split('—')[0].split(/[(,]/)[0].trim();
 
-  // Lifestyle chip — keep using the existing tier-colored badge logic
+  // Routine chip — keep using the existing tier-colored badge logic.
   let ottChip;
   if (typeof d.ottScore === 'number') {
     const { label, tier } = ottScoreToLabel(d.ottScore);
-    ottChip = `<div class="light-setup-chip light-setup-chip-ott light-setup-chip-tier-${tier}" title="Indoor-light burden score (0–10): counts modern light-environment gaps — morning light deficit, glass-mediated days, dim workspace, cool LED at night, evening screens, bright after sunset, sleep darkness, sunscreen UVB block, sunglasses outdoors, total outdoor time.">
+    ottChip = `<div class="light-setup-chip light-setup-chip-ott light-setup-chip-tier-${tier}" title="Optional daily-routine check. A higher number means more saved patterns are worth reviewing; it is not a health score.">
       <div class="light-setup-chip-icon">☀</div>
       <div class="light-setup-chip-body">
-        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-label">Daily routine</div>
         <div class="light-setup-chip-value">${escapeHTML(label)}</div>
-        <div class="light-setup-chip-sub">${d.ottScore}/10 burden score</div>
+        <div class="light-setup-chip-sub">${d.ottScore}/10 patterns to review</div>
       </div>
     </div>`;
   } else if (d.skipped) {
     ottChip = `<div class="light-setup-chip light-setup-chip-skipped">
       <div class="light-setup-chip-icon">⏭</div>
       <div class="light-setup-chip-body">
-        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-label">Daily routine</div>
         <div class="light-setup-chip-value">Skipped</div>
         <div class="light-setup-chip-sub">tap Edit to fill in</div>
       </div>
@@ -399,20 +375,16 @@ function renderSavedSummary() {
     ottChip = `<div class="light-setup-chip light-setup-chip-unset">
       <div class="light-setup-chip-icon">·</div>
       <div class="light-setup-chip-body">
-        <div class="light-setup-chip-label">Light burden</div>
+        <div class="light-setup-chip-label">Daily routine</div>
         <div class="light-setup-chip-value">—</div>
       </div>
     </div>`;
   }
 
   const psmTier = _psmTierOf(d.photosensitiveMeds);
-  const psmCopy = {
-    mild:     { mult: '~1.4×', label: 'mild' },
-    moderate: { mult: '~2.5×', label: 'moderate' },
-    severe:   { mult: '~4×',   label: 'severe' },
-  }[psmTier];
+  const psmCopy = PHOTOSENSITIVE_MED_TIERS.find(tier => tier.key === psmTier && tier.key !== 'none');
   const photoBanner = psmCopy
-    ? `<div class="light-setup-photo-banner" title="${escapeAttr(`Burn threshold reduced ${psmCopy.mult} for ${psmCopy.label} photosensitizers. Edit to change tier or clear when no longer applicable.`)}">⚠ ${psmCopy.label.charAt(0).toUpperCase() + psmCopy.label.slice(1)} photosensitizer active — burn alerts trigger ${psmCopy.mult} sooner.</div>`
+    ? `<div class="light-setup-photo-banner" title="This qualitative flag does not multiply your burn threshold. Follow the product label or advice from your prescriber or pharmacist.">⚠ ${escapeHTML(psmCopy.label)} sun-sensitivity warning saved — exact timing and exposure-seeking prompts are withheld.</div>`
     : '';
   return `<div class="light-setup-summary">
     <div class="light-setup-summary-head">
@@ -424,7 +396,7 @@ function renderSavedSummary() {
     </div>
     ${photoBanner}
     <div class="light-setup-chips-grid">
-      <div class="light-setup-chip light-setup-chip-skin" title="${escapeAttr('Fitzpatrick ' + fpLabel + ' — drives MED math + UV tolerance.')}">
+      <div class="light-setup-chip light-setup-chip-skin" title="${escapeAttr('Fitzpatrick ' + fpLabel + ' — used to make modeled UV warnings more relevant.')}">
         <div class="light-setup-chip-icon">${skinEmoji}</div>
         <div class="light-setup-chip-body">
           <div class="light-setup-chip-label">Skin type</div>
@@ -452,39 +424,69 @@ function renderSavedSummary() {
 }
 
 export function renderSetupCard() {
-  return isOnboardingComplete() ? renderSavedSummary() : renderSetupPrompt();
+  if (isOnboardingComplete()) return renderSavedSummary();
+  if (getSunDefaults()?.fitzpatrick) return renderBasicsSummary();
+  return renderSetupPrompt();
 }
 
 function renderSetupPrompt() {
+  const deferred = !!getSunDefaults()?.setupDismissedAt;
   return `<div class="light-setup-prompt light-widget-prompt">
     <div class="light-widget-prompt-copy">
-      <strong>Set up your light assumptions</strong>
-      <p>Skin type, home lighting, and eyewear drive burn math and channel estimates.</p>
+      <strong>${deferred ? 'Continue setup when you’re ready' : 'Get useful guidance in two quick steps'}</strong>
+      <p>${deferred ? 'Confirm skin sensitivity to make UV warnings more relevant. Optional routine details can still wait.' : 'Add location and skin sensitivity first. The app can then explain current UV and give one practical next action.'}</p>
+      <div class="light-setup-value-preview" aria-label="What setup unlocks">
+        <span><b>1</b> See current conditions</span>
+        <span><b>2</b> Get one practical next step</span>
+        <span><b>3</b> Compare your weekly pattern</span>
+      </div>
     </div>
     <div class="light-setup-prompt-actions">
-      <button type="button" class="dashboard-action-btn" ${lightSetupActionAttrs('dismiss')}>Later</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" ${lightSetupActionAttrs('reopen')}>Set up</button>
+      ${deferred ? '' : `<button type="button" class="dashboard-action-btn" ${lightSetupActionAttrs('dismiss')}>Later</button>`}
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" ${lightSetupActionAttrs('reopen')}>${deferred ? 'Continue setup' : 'Set up'}</button>
     </div>
   </div>`;
 }
 
-function getSetupFilledCount() {
+function renderBasicsSummary() {
   const d = getSunDefaults() || {};
-  // Count how many of the 3 core questions are filled. Skin type counts only
-  // when actively tapped.
-  const skinFilled = !!getInitialFitzpatrick();
-  const homeFilled = !!d.homeLight;
-  const eyewearFilled = !!d.eyewear;
-  return [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
+  const coords = getSunSetupCoords();
+  if (!coords) {
+    return `<div class="light-setup-basics-ready light-setup-basics-incomplete">
+      <div class="light-setup-basics-copy">
+        <span class="light-setup-basics-status">One basic left</span>
+        <strong>Add your location</strong>
+        <p>Skin type ${escapeHTML(d.fitzpatrick || '—')} is saved. Add a profile location or allow precise location to unlock current conditions.</p>
+      </div>
+      <div class="light-setup-basics-actions">
+        <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lightSetupActionAttrs('reopen')}>Add location</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="light-setup-basics-ready">
+    <div class="light-setup-basics-copy">
+      <span class="light-setup-basics-status">Basics ready</span>
+      <strong>Current guidance is unlocked</strong>
+      <p>Skin type ${escapeHTML(d.fitzpatrick || '—')} and location are saved. Home lighting, eyewear, and the daily-routine check are optional refinements.</p>
+    </div>
+    <div class="light-setup-basics-actions">
+      <button type="button" class="dashboard-action-btn" ${lightSetupActionAttrs('reopen')}>Edit basics</button>
+      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${lightSetupActionAttrs('reopen-score')}>Add optional details</button>
+    </div>
+  </div>`;
 }
 
-function renderSetupActions(filledCount = getSetupFilledCount()) {
+function renderSetupActions() {
+  const basicsSaved = !!(getSunDefaults()?.fitzpatrick && getSunDefaults()?.basicsCompletedAt);
+  const hasSavedSetup = isOnboardingComplete() || basicsSaved;
   return `<div class="light-setup-actions" data-setup-actions="core">
-    ${isOnboardingComplete()
+    ${hasSavedSetup
       ? `<button class="import-btn import-btn-secondary" ${lightSetupActionAttrs('cancel-reopen')}>Cancel</button>
-         <button class="import-btn import-btn-primary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Next: Light score</button>`
+         <button class="import-btn import-btn-secondary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Daily routine</button>
+         <button class="import-btn import-btn-primary light-setup-basics-btn" ${lightSetupActionAttrs('save-basics')}>Save changes</button>`
       : `<button class="import-btn import-btn-tertiary light-setup-skip-btn" ${lightSetupActionAttrs('dismiss')}>I'll do this later</button>
-         <button class="import-btn import-btn-primary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Next: Light score</button>`}
+         <button class="import-btn import-btn-secondary light-setup-next-btn" ${lightSetupActionAttrs('set-step', { step: 'score' })}>Add routine details</button>
+         <button class="import-btn import-btn-primary light-setup-basics-btn" ${lightSetupActionAttrs('save-basics')}>Save basics &amp; start</button>`}
   </div>
   <div class="light-setup-actions" data-setup-actions="score">
     <button class="import-btn import-btn-secondary" ${lightSetupActionAttrs('set-step', { step: 'core' })}>Back</button>
@@ -544,32 +546,32 @@ function renderOttQuestion(q, index, checked) {
 
 function renderSetupEditor({ includeActions = true } = {}) {
   const d = getSunDefaults() || {};
-  const filledCount = getSetupFilledCount();
+  const skinReady = !!getInitialFitzpatrick();
   const ottBurden = d.ott ? Object.values(d.ott).filter(v => v).length : 0;
 
   let html = `<div class="light-setup-card light-setup-card-editor">
     <div class="light-setup-step-tabs" role="tablist" aria-label="Light setup steps">
       <button type="button" class="light-setup-step-tab active" data-setup-tab="core" role="tab" aria-selected="true" ${lightSetupActionAttrs('set-step', { step: 'core' })}>
         <span class="light-setup-step-tab-index">1</span>
-        <span>Core assumptions</span>
+        <span>Get started</span>
       </button>
       <button type="button" class="light-setup-step-tab" data-setup-tab="score" role="tab" aria-selected="false" ${lightSetupActionAttrs('set-step', { step: 'score' })}>
         <span class="light-setup-step-tab-index">2</span>
-        <span>Light score check</span>
+        <span>Daily routine <small>optional</small></span>
       </button>
     </div>
 
     <section class="light-setup-pane" data-setup-pane="core">
-    <div class="light-setup-title" tabindex="-1">Core assumptions
-      <span class="light-setup-progress" aria-label="${filledCount} of 3 questions done">${filledCount}/3 done</span>
+    <div class="light-setup-title" tabindex="-1">Unlock current guidance
+      <span class="light-setup-progress" aria-label="${skinReady ? 'Skin sensitivity confirmed' : 'Skin sensitivity still needed'}">${skinReady ? 'Skin confirmed' : 'Skin needed'}</span>
     </div>
-    <p class="light-setup-lead"><strong>Step 1 of 2.</strong> Calibrate the assumptions that drive burn threshold, indoor-light context, and eye-channel estimates. The next step asks the 10 light-score questions.</p>
+    <p class="light-setup-lead"><strong>Start here.</strong> Location and skin sensitivity are enough for current conditions and cautious UV guidance. Everything else can be added later.</p>
     ${renderSetupLocationStatus()}
 
     <div class="light-setup-fields-grid">
     <div class="light-setup-step">
       <label class="ctx-label" id="setup-skin-label-id">Skin type</label>
-      <p class="light-setup-step-why">Sets your burn threshold (MED) and how much UV you can take before getting red.</p>
+      <p class="light-setup-step-why">Helps estimate UV sensitivity. The result is a cautious model, not a promise of safe time in the sun.</p>
       <div class="ctx-skin-slider-wrap">
         <div class="ctx-skin-emojis" role="radiogroup" aria-labelledby="setup-skin-label-id">${['🧑🏻','🧑🏼','🧑🏽','🧑🏾','🧑🏿','🧑🏿'].map((e, i) => {
           const isActive = getInitialFitzpatrick() === ROMAN[i];
@@ -585,23 +587,27 @@ function renderSetupEditor({ includeActions = true } = {}) {
       </div>
     </div>
 
+    <details class="light-setup-optional-details">
+      <summary>Optional refinements: medicine warnings, home light, and eyewear</summary>
     <div class="light-setup-step light-setup-photo-row">
-      <div class="ctx-label"><strong>Photosensitizing meds / supplements</strong></div>
+      <div class="ctx-label"><strong>Medicine or product sun warning</strong></div>
+      <p class="light-setup-step-why">Choose the wording that matches the label or advice you received. Do not guess from a drug category.</p>
       ${renderSetupChoiceGroup('setup-photosensitive', PHOTOSENSITIVE_OPTIONS, _psmTierOf(d.photosensitiveMeds), 'light-setup-choice-grid-compact')}
-      <p class="light-setup-photo-why">Lowers your sunburn threshold so burn alerts trigger sooner. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">AAD list →</a></p>
+      <p class="light-setup-photo-why">This flag does not calculate or multiply your burn threshold. It pauses exposure-seeking guidance and removes exact timing. Follow the product label or your clinician’s advice. <a href="https://www.aad.org/public/everyday-care/sun-protection/sunburn/photosensitive-medications" target="_blank" rel="noopener">Learn about sun-sensitive medicines →</a></p>
     </div>
 
     <div class="light-setup-step">
       <div class="ctx-label">Home lighting</div>
-      <p class="light-setup-step-why">Shapes your indoor melanopic dose — what the AI sees for the half of your day spent inside.</p>
+      <p class="light-setup-step-why">Adds context about how bright and cool or warm your usual indoor light may be.</p>
       ${renderSetupChoiceGroup('setup-homelight', HOME_LIGHT_OPTIONS, d.homeLight, 'light-setup-choice-grid-compact')}
     </div>
 
     <div class="light-setup-step">
       <div class="ctx-label">Eyewear outside</div>
-      <p class="light-setup-step-why">Eye exposure to UV / 360–400 nm violet drives circadian + α-MSH / dopamine signals.</p>
+      <p class="light-setup-step-why">Helps estimate how much outdoor brightness reaches your eyes. Never look at the sun; use UV-protective eyewear when needed.</p>
       ${renderSetupChoiceGroup('setup-eyewear', EYEWEAR_OPTIONS, d.eyewear)}
     </div>
+    </details>
 
     </div>
     </section>
@@ -610,11 +616,11 @@ function renderSetupEditor({ includeActions = true } = {}) {
     <section class="light-setup-ott">
       <div class="light-setup-ott-head">
         <div>
-          <div class="light-setup-ott-kicker">Light score check</div>
-          <h4 tabindex="-1">Flag the light-environment gaps that are true for you</h4>
+          <div class="light-setup-ott-kicker">Daily light routine</div>
+          <h4 tabindex="-1">Which of these patterns sound like your usual day?</h4>
         </div>
       </div>
-      <p class="light-setup-body light-setup-ott-lead"><strong>Step 2 of 2.</strong> Tapped cards count as gaps. Leave a card unselected when the statement is not true for you.</p>
+      <p class="light-setup-body light-setup-ott-lead"><strong>Optional refinement.</strong> Select what is usually true. This improves indoor and evening suggestions—not a health grade.</p>
       ${renderOttScoreMeter(d.ott ? ottBurden : ((typeof d.ottScore === 'number') ? d.ottScore : 0))}
       <div class="light-setup-ott-questions">
         ${OTT_QUESTIONS.map((q, i) => renderOttQuestion(q, i, !!(d.ott && d.ott[q.key]))).join('')}
@@ -622,7 +628,7 @@ function renderSetupEditor({ includeActions = true } = {}) {
     </section>
     </section>
 
-    ${includeActions ? renderSetupActions(filledCount) : ''}
+    ${includeActions ? renderSetupActions() : ''}
   </div>`;
   return html;
 }
@@ -640,7 +646,7 @@ function openSunSetupOverlay() {
       <div>
         <div class="gb-modal-kicker">Light lens setup</div>
         <h3 id="light-setup-focus-title">Light setup</h3>
-        <p>Calibrate burn math, indoor-light context, and circadian assumptions for this profile.</p>
+        <p>Add the two basics for local guidance. Routine and indoor-light details are optional.</p>
       </div>
       <button type="button" class="modal-close" aria-label="Close light setup" data-light-setup-close>&times;</button>
     </header>
@@ -740,7 +746,7 @@ function getSetupLocationStatus() {
   return {
     tone: 'missing',
     value: 'No profile location set',
-    badge: 'optional',
+    badge: 'needed',
     detail: 'Set country in Profile for daylight and UV estimates, or share precise location once.',
     preciseLabel: 'Use precise location',
   };
@@ -872,6 +878,61 @@ export async function persistSunSetupValues(values, now = Date.now()) {
   return d;
 }
 
+export function collectSunSetupBasics(root) {
+  if (!root) return { ok: false, reason: 'missing-root' };
+  const skinRange = /** @type {HTMLInputElement | null} */ (root.querySelector('#setup-skin-range'));
+  const skinIdx = skinRange?.dataset?.set === '1' ? Number.parseInt(skinRange.value, 10) : -1;
+  const fitzpatrick = skinIdx >= 0 && skinIdx < ROMAN.length ? ROMAN[skinIdx] : null;
+  if (!fitzpatrick) return { ok: false, reason: 'skin-type-required' };
+  return {
+    ok: true,
+    values: {
+      skinIdx,
+      fitzpatrick,
+      photosensitiveMeds: readSetupPhotosensitiveValue(root),
+      homeLight: readSetupFieldValue(root, 'setup-homelight'),
+      eyewear: readSetupFieldValue(root, 'setup-eyewear'),
+    },
+  };
+}
+
+export async function persistSunSetupBasics(values, now = Date.now()) {
+  if (!values || !state.importedData) return null;
+  const d = getSunDefaults();
+  if (!d) return null;
+  Object.assign(d, {
+    fitzpatrick: values.fitzpatrick,
+    photosensitiveMeds: values.photosensitiveMeds || 'none',
+    basicsCompletedAt: now,
+  });
+  if (values.homeLight) d.homeLight = values.homeLight;
+  if (values.eyewear) d.eyewear = values.eyewear;
+  if (!state.importedData.lightCircadian) {
+    state.importedData.lightCircadian = buildDefaultLightCircadianContext();
+  }
+  state.importedData.lightCircadian.skinType = SKIN_TYPE[values.skinIdx];
+  await saveImportedData();
+  return d;
+}
+
+async function saveSunSetupBasics() {
+  const root = document.querySelector('.light-setup-card');
+  const collected = collectSunSetupBasics(root);
+  if (!collected.ok) {
+    showNotification('Tap a face to confirm your skin type.');
+    return false;
+  }
+  if (!getSunSetupCoords()) {
+    showNotification('Add a profile location or allow precise location first.');
+    return false;
+  }
+  await persistSunSetupBasics(collected.values);
+  closeSunSetupOverlay();
+  showNotification('Basics saved · current guidance is ready');
+  navigateSunDefaultsRoute('light');
+  return true;
+}
+
 async function saveSunSetup() {
   const root = document.querySelector('.light-setup-card');
   const collected = collectSunSetupValues(root);
@@ -884,15 +945,13 @@ async function saveSunSetup() {
   }
   await persistSunSetupValues(collected.values);
   closeSunSetupOverlay();
-  showNotification(`Setup saved · light burden ${collected.values.ottScore}/10`);
+  showNotification(`Setup saved · ${collected.values.ottScore}/10 routine patterns to review`);
   maybeAnalyzeOnboardingAfterSave();
   navigateSunDefaultsRoute('light');
   return true;
 }
 
-// Recompute the running Ott score whenever a checkbox toggles, and update
-// the friendly "Running score: 4/10 · indoor-leaning" indicator beneath
-// the question list so users see the score interpretation in real time.
+// Recompute the optional routine summary whenever a checkbox toggles.
 function _updateOttRunningScore() {
   const root = document.querySelector('.light-setup-card');
   if (!root) return;
@@ -977,24 +1036,16 @@ function _selectSetupChoice(button) {
   _refreshSetupProgress();
 }
 
-// Recompute the "X/3 done" progress hint from the live DOM state. Called
-// from each input's onchange/oninput so the counter advances on click,
-// not on Save — pre-fix the user clicked a skin face and got no
-// feedback that they'd just made progress.
+// Keep the required-readiness hint in sync as skin sensitivity changes.
 function _refreshSetupProgress() {
   const card = document.querySelector('.light-setup-card');
   if (!card) return;
   const skinRange = /** @type {HTMLInputElement | null} */ (card.querySelector('#setup-skin-range'));
-  const homeSelect = /** @type {HTMLSelectElement | null} */ (card.querySelector('#setup-homelight'));
-  const eyewearSelect = /** @type {HTMLSelectElement | null} */ (card.querySelector('#setup-eyewear'));
   const skinFilled = skinRange?.dataset.set === '1';
-  const homeFilled = !!homeSelect?.value;
-  const eyewearFilled = !!eyewearSelect?.value;
-  const filled = [skinFilled, homeFilled, eyewearFilled].filter(Boolean).length;
   const progress = card.querySelector('.light-setup-progress');
   if (progress) {
-    progress.textContent = `${filled}/3 done`;
-    progress.setAttribute('aria-label', `${filled} of 3 questions done`);
+    progress.textContent = skinFilled ? 'Skin confirmed' : 'Skin needed';
+    progress.setAttribute('aria-label', skinFilled ? 'Skin sensitivity confirmed' : 'Skin sensitivity still needed');
   }
   const saveBtn = card.closest('.light-setup-focus-modal')?.querySelector('.light-setup-save-btn')
     || card.querySelector('.light-setup-save-btn');
@@ -1003,10 +1054,9 @@ function _refreshSetupProgress() {
   }
 }
 
-// Skip-for-now — marks the setup as completed without filled answers.
-// Card disappears; a session log will start with default Fitzpatrick III.
+// Defer setup without inventing a skin type or marking guidance calibrated.
 async function dismissSunSetup() {
-  await saveSunDefaults({ fitzpatrick: 'III', skipped: true, completedAt: Date.now() });
+  await saveSunDefaults({ setupDismissedAt: Date.now() });
   closeSunSetupOverlay();
   navigateSunDefaultsRoute('light');
 }
@@ -1018,7 +1068,9 @@ if (hasSunDefaultsBrowserRuntime()) {
     saveSunDefaults,
     isLightOnboardingComplete: isOnboardingComplete,
     renderSunSetupCard: renderSetupCard,
+    openLightSetup,
     saveSunSetup,
+    saveSunSetupBasics,
     dismissSunSetup,
     reopenSunSetup,
     cancelReopenSunSetup,

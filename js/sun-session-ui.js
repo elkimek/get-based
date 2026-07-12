@@ -3,13 +3,12 @@
 // Core session storage, dose hydration, and sun math stay in sun.js. This
 // module receives those core operations through configureSunSessionUI() so
 // the UI layer can stay separate without importing sun.js and creating a cycle.
-
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
-
+import { sessionConfidenceBadge, formattedSessionMed } from './sun-session-display-utils.js';
 /**
  * @typedef {object} SunSessionUIDeps
  * @property {() => any[]} getSessions
@@ -45,7 +44,6 @@ import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-s
  * @property {(route: string, data?: any) => void} navigate
  * Runtime math hooks are also configured here; defaults are no-ops.
  */
-
 /** @type {SunSessionUIDeps & Record<string, any>} */
 const uiDeps = {
   getSessions: () => [],
@@ -84,7 +82,6 @@ const uiDeps = {
   vitaminDIU: null, vitaminDIUPerSession: null,
   pbmJoulesPerCm2: null, circadianMelanopicLux: null,
 };
-
 const sunSessionDelegateActions = {
   openSunSessionDetail,
   deleteSunSession,
@@ -99,11 +96,9 @@ const sunSessionDelegateActions = {
   forgotStopPrompt: id => uiDeps.forgotStopPrompt(id),
   openChannelOnLightPage: channel => uiDeps.openChannelOnLightPage(channel),
 };
-
 if (typeof document !== 'undefined') {
   installSunSessionActionDelegates(sunSessionDelegateActions);
 }
-
 /** @param {(Partial<SunSessionUIDeps> & Record<string, any>)} [deps] */
 export function configureSunSessionUI(deps = {}) {
   Object.assign(uiDeps, deps);
@@ -111,6 +106,28 @@ export function configureSunSessionUI(deps = {}) {
 
 function refreshLightView() {
   if (state.currentView === 'light') uiDeps.navigate('light');
+}
+
+function formatSessionDuration(durationMin) {
+  if (!Number.isFinite(durationMin)) return 'duration unavailable';
+  if (durationMin > 0 && durationMin < 1) return '<1 min';
+  return `${Math.round(durationMin)} min`;
+}
+
+function plainCalculationReason(reason) {
+  const text = String(reason || '').trim();
+  if (!text) return '';
+  if (/^UVI came from /i.test(text)) {
+    const source = text.replace(/^UVI came from /i, '').replace(/\.$/, '');
+    return `UV data came from ${source.toUpperCase()} weather data.`;
+  }
+  if (/Dose was integrated across live time slices/i.test(text)) {
+    return 'The estimate followed changing conditions during the session.';
+  }
+  if (/Low solar elevation increases spectral uncertainty/i.test(text)) {
+    return 'The sun was low in the sky, which makes the light estimate less certain.';
+  }
+  return text;
 }
 
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
@@ -126,16 +143,19 @@ export function renderSunSessionRow(sess) {
   const isActive = !sess.endedAt;
   const dur = isActive
     ? uiDeps.formatElapsed(Date.now() - sess.startedAt)
-    : (sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress');
+    : formatSessionDuration(sess.durationMin);
   const med = sess.safety?.medFraction;
   let medStr = '';
   if (med != null) {
     const pct = Math.round(med * 100);
-    let label = 'safe', cls = '';
-    if (med >= 1) { label = 'over threshold'; cls = 'over'; }
-    else if (med >= 0.7) { label = 'high'; cls = 'warn'; }
-    else if (med >= 0.3) { label = 'moderate'; cls = ''; }
-    medStr = `<span class="sun-session-med ${cls}" title="Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'III')})">Burn dose: ${escapeHTML(label)}</span>`;
+    let cls = '';
+    if (med >= 1) cls = 'over';
+    else if (med >= 0.7) cls = 'warn';
+    const exact = sess?.calculation?.precision?.allowsExactSafety !== false;
+    const title = exact
+      ? `Burn dose: ${pct}% of your burn threshold (Fitzpatrick ${sess.safety.fitzpatrick || 'III'})`
+      : `Rounded modeled burn dose. Exact display withheld because confidence is ${sess.calculation?.confidence?.level || 'limited'}.`;
+    medStr = `<span class="sun-session-med ${cls}" title="${escapeAttr(title)}">Burn dose: ${escapeHTML(formattedSessionMed(sess, { compact: true }))}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses, sess);
   // Active-session controls own their delegated actions so tapping them
@@ -146,8 +166,8 @@ export function renderSunSessionRow(sess) {
     const pauseAction = isPaused ? 'resume-session' : 'pause-session';
     const isRotated = !!sess.bodyExposure?.rotatedSides;
     const flipBtn = isRotated
-      ? `<button type="button" class="sun-session-ctl" disabled title="Already logged as rotated — vit-D IU already counts both sides." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
-      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Tap when you flip front↔back. Doubles vit-D IU to reflect that both sides got exposure." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
+      ? `<button type="button" class="sun-session-ctl" disabled title="Rotation recorded for this session." aria-label="Rotated"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Rotated ✓</span></button>`
+      : `<button type="button" class="sun-session-ctl" ${sunSessionActionAttrs('flip-sides', { id: sess.id })} title="Tap when you flip front↔back. This records the change without multiplying the dose." aria-label="Flip front-back"><span aria-hidden="true">🔄</span> <span class="sun-session-ctl-label">Flip</span></button>`;
     activeControls = `<div class="sun-session-active-controls" ${sunSessionActionAttrs('ignore')}>
       <div class="sun-session-ctl-primary">
         <button type="button" class="sun-session-ctl sun-session-ctl-stop" ${sunSessionActionAttrs('quick-log-sun')} title="Stop and save the current session"><span aria-hidden="true">⏹</span> <span class="sun-session-ctl-label">Stop &amp; save</span></button>
@@ -174,10 +194,12 @@ export function renderSunSessionRow(sess) {
       <span class="sun-session-duration"${isActive ? ' aria-live="off"' : ''}>${dur}</span>
       ${pausedBadge}
       ${medStr}
-      <button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>
+      ${sessionConfidenceBadge(sess)}
+      ${sess.syncResolution?.status === 'superseded' ? `<span class="sun-session-sync-resolved" title="Superseded duplicate timer; canonical session ${escapeAttr(sess.syncResolution.canonicalSessionId || 'unknown')} remains authoritative.">sync duplicate resolved</span>` : ''}
+      ${isActive ? '' : `<button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>`}
     </div>
     <div class="sun-session-meta">
-      ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
+      ${sess.syncResolution?.status === 'superseded' ? 'Preserved for audit · ' : ''}${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
     </div>
     ${forgotBanner}
     ${activeControls}
@@ -214,7 +236,9 @@ export function openSunSessionDetail(id) {
   // Modal title date: full month + day + year — avoids the "Sun session
   // — Sun, May 3" stutter and gives a clear timestamp at a glance.
   const fmtTitleDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
-  const dur = sess.durationMin ? `${Math.round(sess.durationMin)} min` : 'in progress';
+  const dur = end
+    ? formatSessionDuration(sess.durationMin)
+    : 'in progress';
   // Combined "When" string — a single cell beats three near-redundant ones
   // (Started / Ended / Duration). Renders "10:07–10:32 · 25 min" or
   // "10:07 · started 5 min ago" for in-progress sessions.
@@ -234,20 +258,21 @@ export function openSunSessionDetail(id) {
   const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
 
   // Burn-risk
-  const med = sess.safety?.medFraction;
-  let medStr = '—';
-  if (med != null) {
-    const pct = Math.round(med * 100);
-    let label = 'safe';
-    if (med >= 1) label = 'over threshold';
-    else if (med >= 0.7) label = 'high';
-    else if (med >= 0.3) label = 'moderate';
-    // Non-breaking space between number and label keeps them on one line.
-    medStr = `${pct}% · ${label}`;
-  }
+  const medStr = formattedSessionMed(sess);
+  const calculation = sess.calculation || null;
+  const confidenceReasons = Array.isArray(calculation?.confidence?.reasons)
+    ? calculation.confidence.reasons : [];
+  const plainConfidenceReasons = confidenceReasons.map(plainCalculationReason).filter(Boolean);
+  const modelQualityHtml = calculation ? `<div class="sun-detail-section sun-model-quality">
+    <div class="sun-detail-section-label">Estimate quality</div>
+    <div class="sun-detail-section-value">
+      <strong>${escapeHTML(calculation.confidence?.level || 'unknown')} input quality</strong><br>
+      <small>${escapeHTML(plainConfidenceReasons.join(' '))} Your actual skin response, sunscreen coverage, and posture can still differ from the estimate.</small>
+    </div>
+  </div>` : '';
 
-  // Per-channel breakdown. Real-world units (IU, J/cm², M-EDI lux)
-  // surface where defensible; tier-only for channels without a clean
+  // Per-channel breakdown. IU-equivalent and melanopic-proxy values surface
+  // where useful; weighted indices/tier-only for channels without a clean
   // single SI unit. See sun-spectrum.js {vitaminDIU, pbmJoulesPerCm2,
   // circadianMelanopicLux} for the conversions and their sources.
   // Compute zenith at session midpoint once so vit-D's uncertainty band
@@ -272,7 +297,7 @@ export function openSunSessionDetail(id) {
     return `<div class="sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-${t}" data-channel="${escapeAttr(k)}" ${sunSessionActionAttrs('open-channel', { channel: k })} role="button" tabindex="0" aria-label="${escapeAttr(ariaLabel)}">
       <span class="sun-detail-channel-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="sun-detail-channel-label">${escapeHTML(meta.label || k)}</span>
-      <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr(pctOfTarget + '% of typical-active-day target — calibrated to roughly 30-60 min of moderate-body-fraction midday exposure (skin channels) or 10-30 min eye-direct outdoor light (eye channels). Over 100% means you got more than typical, NOT more than safe — burn risk is the % MED chip, not this. Targets are dosing references, not exposure ceilings.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}%` : '')}</span>
+      <span class="sun-detail-channel-value"${pctOfTarget != null && !unitText ? ` title="${escapeAttr(pctOfTarget + '% of the app comparison band. This is a modeled exposure reference, not a health target or safety limit.')}"` : ''}>${unitText || (pctOfTarget != null ? `${pctOfTarget}% of reference` : '')}</span>
       <span class="sun-detail-channel-tier">${escapeHTML(tlabel)}</span>
       <span class="sun-detail-channel-chevron" aria-hidden="true">›</span>
     </div>`;
@@ -286,6 +311,7 @@ export function openSunSessionDetail(id) {
   // a UVA/UVB split so biohackers can audit the math behind the channels.
   const atm = sess.atmosphere;
   let atmHtml = '';
+  let uvSplitStr = '';
   if (atm) {
     const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : '—';
     // Open-Meteo free tier doesn't expose stratospheric ozone DU; engine
@@ -294,17 +320,17 @@ export function openSunSessionDetail(id) {
     const ozoneStr = atm.ozoneDU != null ? `${Math.round(atm.ozoneDU)} DU` : '— (default 300)';
     const cloud = atm.cloudCover != null ? `${Math.round(atm.cloudCover)}%` : '—';
     const aqPm25 = atm.airQuality?.pm25 != null ? Math.round(atm.airQuality.pm25) : '—';
-    let zenithStr = '—', elevStr = '';
+    let elevStr = '';
     try {
       if (sess.startedAt && sess.endedAt && loc && uiDeps.solarZenithAngle) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
         const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
-        zenithStr = `${z.toFixed(1)}°`;
         elevStr = `${Math.max(0, 90 - z).toFixed(1)}° above horizon`;
       }
     } catch (e) {}
     const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';
-    // UVA / UVB split — reconstruct the actual spectrum at session
+    // UVA / UVB split — reconstruct the actual spectrum for the collapsed
+    // technical disclosure. The default session summary stays plain-language.
     // midpoint and integrate over each band:
     //   UVB: 280–320 nm (vit-D synthesis + sunburn)
     //   UVA: 320–400 nm (NO release, POMC, photoaging)
@@ -313,7 +339,6 @@ export function openSunSessionDetail(id) {
     // more `~5%` placeholder when ozoneDU is missing — Bird-Riordan
     // already substitutes 300 DU internally so the spectrum is computed
     // either way.
-    let uvSplitStr = '';
     try {
       if (loc && uiDeps.reconstructSpectrum && uiDeps.solarZenithAngle && atm.uvIndex != null) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
@@ -325,6 +350,7 @@ export function openSunSessionDetail(id) {
             altitudeM: loc.altitudeM ?? 0,
             cloudCover: (atm.cloudCover ?? 0) / 100,
             aod: atm?.airQuality?.aod ?? null,
+            uvIndex: atm.uvIndex ?? null,
           });
           const dl = 5;
           let uvb = 0, uva = 0;
@@ -348,20 +374,35 @@ export function openSunSessionDetail(id) {
     const sourceLabels = { open_meteo: 'Open-Meteo', cams: 'CAMS', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
     const sourceStr = sourceLabels[atm.source] || atm.source || 'unknown';
     atmHtml = `<div class="sun-detail-atm">
-      <div title="WHO UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UVI${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
+      <div title="UV index at session midpoint${atm._uvOverridden ? ' (manual override active)' : ''}"><span>UV index${atm._uvOverridden ? ' (manual)' : ''}</span><strong>${uvi}</strong></div>
       <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."><span>Ozone</span><strong>${ozoneStr}</strong></div>
-      <div title="Cloud-cover modifier on direct beam. Diffuse scatter still passes through."><span>Cloud</span><strong>${cloud}</strong></div>
-      <div title="PM2.5 — fine particulate. Affects aerosol optical depth (AOD) and UV scattering."><span>PM2.5</span><strong>${aqPm25}</strong></div>
-      <div title="Solar zenith angle at session midpoint — angle between sun and vertical. 0° = directly overhead, 90° = horizon."><span>Zenith</span><strong>${zenithStr}</strong></div>
+      <div title="Cloud cover during the session"><span>Cloud cover</span><strong>${cloud}</strong></div>
+      <div title="PM2.5 fine-particle air pollution"><span>Fine particles</span><strong>${aqPm25}</strong></div>
+      <div title="Sun height above the horizon at session midpoint"><span>Sun height</span><strong>${elevStr || '—'}</strong></div>
       <div title="Altitude above sea level — UV climbs ~10% per 1000 m."><span>Altitude</span><strong>${altStr}</strong></div>
-      ${uvSplitStr ? `<div class="sun-detail-atm-uvsplit" title="UVB-to-UVA ratio at ground level, computed from the reconstructed Bird-Riordan spectrum. Driven by zenith, ozone, cloud cover, and aerosols."><span>UV split</span><strong>${uvSplitStr}</strong></div>` : ''}
-      <div class="sun-detail-atm-source"><span>Source</span><strong>${escapeHTML(sourceStr)}</strong></div>
+      <div class="sun-detail-atm-source"><span>Weather source</span><strong>${escapeHTML(sourceStr)}</strong></div>
     </div>`;
   }
 
+  const technicalModelHtml = (calculation || uvSplitStr) ? `<details class="sun-detail-technical">
+    <summary>Technical calculation details</summary>
+    <div class="sun-detail-technical-body">
+      ${calculation ? `<p><strong>Atmosphere:</strong> ${escapeHTML(calculation.provenance?.atmosphere?.kind || 'unknown')}</p>
+      <p><strong>Dose method:</strong> ${escapeHTML(calculation.provenance?.dose?.integrationMethod || 'unknown')}</p>
+      <p><strong>Light model:</strong> ${escapeHTML(calculation.provenance?.spectrum?.model || 'modeled spectrum')}</p>` : ''}
+      ${uvSplitStr ? `<p><strong>UV split:</strong> ${escapeHTML(uvSplitStr)}</p>` : ''}
+    </div>
+  </details>` : '';
+
   // Location summary string (uses `loc` declared above).
+  const locationSourceLabel = {
+    'profile-precise': 'precise profile location',
+    'country-band': 'country-level profile estimate',
+    gps: 'device location',
+    manual: 'manual location',
+  }[loc?.source] || loc?.source || 'unknown';
   const locStr = loc
-    ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${escapeHTML(loc.source || 'unknown')}`
+    ? `${loc.lat.toFixed(2)}°, ${loc.lon.toFixed(2)}° · ${escapeHTML(locationSourceLabel)}`
     : 'Location not recorded';
 
   const overlay = document.createElement('div');
@@ -395,11 +436,7 @@ export function openSunSessionDetail(id) {
         <div title="Session start–end and duration"><span>When</span><strong>${escapeHTML(whenStr)}</strong></div>
         <div title="Cumulative erythemal dose as a fraction of your personal MED (Fitzpatrick-scaled). 70%+ recommends shade; 100% is sunburn threshold."><span>Burn dose</span><strong>${escapeHTML(medStr)}</strong></div>
         ${sess.doses?.vitamin_d ? (() => {
-          const geneInfo = uiDeps.geneticVitaminDMultiplier(state.importedData?.genetics);
-          const geneNote = geneInfo.contributors.length > 0
-            ? ` Genetics applied (${(geneInfo.mult * 100 - 100).toFixed(0)}% net): ${geneInfo.contributors.map(c => `${c.gene} ${c.genotype} ×${c.multiplier.toFixed(2)}`).join(', ')}.`
-            : '';
-          return `<div title="Approximate vitamin D₃ synthesis (effective serum response). Holick 2008 + Bogh &amp; Wulf 2010 conversion, scaled by Fitzpatrick ${sess.safety?.fitzpatrick || 'III'}, gated by UVI ≥ 2-3 (Webb 2018), saturates around 20,000 IU per session.${sess.bodyExposure?.rotatedSides ? ' Doubled because both sides were exposed (rotated during session).' : ' Assumes you stayed on one side — tap the 🔄 Flip control during the session if you flipped front↔back.'}${geneNote} Model accuracy ±20-45% by zenith. Inter-individual blood 25(OH)D response to the same UV dose varies an additional 2-3×."><span>Vitamin D</span><strong>${escapeHTML(uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
+          return `<div title="Modeled vitamin D₃ IU-equivalent from the UVB action-weighted skin dose and exposed body area. This is not a measured vitamin D level or a guaranteed serum response. UVI anchors UV amplitude; Fitzpatrick type scales the estimate. Flipping and genetic variants are recorded as context but do not multiply the dose. Model uncertainty is substantial, especially at low sun angles."><span>Vitamin D estimate</span><strong>${escapeHTML(uiDeps.formatChannelUnit('vitamin_d', sess.doses.vitamin_d, sess.durationMin || 0, sess.safety?.fitzpatrick || 'III', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null))}</strong></div>`;
         })() : ''}
       </div>
 
@@ -421,9 +458,13 @@ export function openSunSessionDetail(id) {
       ` : ''}
 
       <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Per-channel dose</div>
+        <div class="sun-detail-section-label">What this session recorded</div>
         <div class="sun-detail-channels">${channelRows}</div>
       </div>
+
+      ${modelQualityHtml}
+
+      ${technicalModelHtml}
 
       ${atmHtml ? `
         <div class="sun-detail-section">
@@ -463,9 +504,9 @@ export function openSunSessionDetail(id) {
 // Per-channel chip value — small inline real-unit number rendered on
 // the chip. Channel-aware so units match what the user expects:
 //   vitamin_d → IU
-//   nir_solar → J/cm²
-//   circadian → ~k M-EDI lux (peak melanopic during the session)
-//   no_cv / pomc / violet_eye → percent of daily target
+//   nir_solar → weighted action-spectrum exposure index
+//   circadian → ~k melanopic-proxy lux (average during the session)
+//   no_cv / pomc / violet_eye → percent of the model comparison band
 // Returns '' when the value is sub-meaningful so chips for low channels
 // stay tight (icon + label only).
 function _sessionChipValue(channelKey, channelAu, sess) {
@@ -490,31 +531,28 @@ function _sessionChipValue(channelKey, channelAu, sess) {
     if (iu >= 1000) return `~${(iu / 1000).toFixed(1).replace(/\.0$/, '')}k IU`;
     return `~${Math.round(iu / 10) * 10} IU`;
   }
-  if (channelKey === 'nir_solar' && typeof uiDeps.pbmJoulesPerCm2 === 'function') {
-    const j = uiDeps.pbmJoulesPerCm2(channelAu);
-    if (j < 0.1) return '';
-    if (j >= 10) return `${Math.round(j)} J/cm²`;
-    return `${j.toFixed(1)} J/cm²`;
+  if (channelKey === 'nir_solar') {
+    const target = meta.dailyTarget || 30000;
+    const pct = Math.max(1, Math.round((channelAu / target) * 100));
+    return `~${pct}% of daily comparison`;
   }
   if (channelKey === 'circadian' && dur > 0 && typeof uiDeps.circadianMelanopicLux === 'function') {
     const lux = uiDeps.circadianMelanopicLux(channelAu, dur);
     if (lux < 100) return '';
-    // Round aggressively at this magnitude — peak M-EDI lux is a big
+    // Round aggressively at this magnitude — the proxy lux value is a big
     // number and chip-width-readable form beats decimal precision.
     if (lux >= 10000) return `~${Math.round(lux / 1000)}k lux`;
     if (lux >= 1000) return `~${(lux / 1000).toFixed(1)}k lux`;
     return `~${Math.round(lux / 10) * 10} lux`;
   }
-  // Unitless channels — percent-of-daily-target. Past hit-target the
-  // exact number is noise (the user got more than enough); collapse
-  // anything ≥ 200% to "✓ over" so the chip stays informative without
-  // a 4-digit percentage that adds nothing actionable.
+  // Unitless channels — percent of the model comparison band. This is not a
+  // treatment target, so avoid check marks that reward users for chasing it.
   const target = meta.dailyTarget || 0;
   if (target > 0) {
     const pct = Math.round(100 * channelAu / target);
     if (pct < 5) return '';
-    if (pct >= 200) return '✓ over';
-    if (pct >= 100) return `✓ ${pct}%`;
+    if (pct >= 200) return 'high exposure';
+    if (pct >= 100) return `${pct}% ref`;
     return `${pct}%`;
   }
   return '';

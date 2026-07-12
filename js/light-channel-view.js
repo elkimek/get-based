@@ -54,7 +54,7 @@ export function _channelSparkline(channelKey, totals = null) {
   const W = 47, H = 14, barW = 5, gap = 2;
   const colorFor = (total) => {
     if (dailyTarget <= 0 || total < dailyTarget * 0.05) return null; // faint stub
-    if (total >= dailyTarget) return 'var(--green)';
+    if (total >= dailyTarget) return 'var(--channel-accent, var(--accent))';
     if (total >= dailyTarget * 0.30) return 'var(--channel-accent, var(--accent))';
     return 'var(--channel-accent, var(--accent))';
   };
@@ -76,7 +76,8 @@ export function _channelSparkline(channelKey, totals = null) {
   return `<svg class="light-pill-sparkline" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>`;
 }
 
-// "X days" label for the pill — count of days that hit the meaningful-dose threshold.
+// "X days" label for the pill — count of days that reached the model's
+// meaningful-exposure band (30% of its nominal daily reference), not a target.
 export function _channelDayCount(channelKey) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
   if (!breakdown) return { txt: '—', n: 0 };
@@ -89,7 +90,7 @@ export function _channelDayCount(channelKey) {
   for (const d of days) if ((d.sun + d.device) >= floor) n++;
   // "4/7" reads as a fraction at a glance — much clearer than "4d",
   // which users were parsing as "4 days ago" instead of "4 of 7 days
-  // this week hit target". Tooltip + sr-only label still say it the
+  // this week reached the reference band". Tooltip + sr-only label say it the
   // long way for accessibility. Zero-hit channels show "0/7" too so
   // the format stays consistent across pills instead of an em-dash
   // (which read as "no data" instead of "zero days hit").
@@ -129,14 +130,14 @@ export function renderChannelPills(totals7d, totals30d) {
     const t30 = tier30(v30, k);
     const trendDir = t7 > t30 ? 'up' : t7 < t30 ? 'down' : 'flat';
     const dc = _channelDayCount(k);
-    const tip = `${meta.what || ''} — ${dc.n} of 7 days hit target this week.`;
+    const tip = `${meta.what || ''} — exposure recorded on ${dc.n} of 7 days.`;
     const detailId = `light-pill-detail-${k}`;
     html += `<button type="button" class="light-pill light-pill-tier-${t7} light-pill-interactive" data-light-channel-action="toggle-detail" data-channel="${escapeAttr(k)}" data-trend="${trendDir}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}">
       <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
       <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
       ${_channelSparkline(k)}
       <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
-      <span class="sr-only">${tlabel(t7)}, ${dc.n} of 7 days hit target this week, trending ${trendDir} vs last 30 days</span>
+      <span class="sr-only">${tlabel(t7)} comparison band, exposure recorded on ${dc.n} of 7 days, trending ${trendDir} vs last 30 days</span>
     </button>`;
   }
   html += `</div>`;
@@ -157,7 +158,7 @@ export function renderChannelPills(totals7d, totals30d) {
 // (e.g. measurement-methodology unless the engine uses that standard).
 const CHANNEL_CITATIONS = {
   vitamin_d: {
-    spectrum: 'Pre-vitamin-D action spectrum (CIE 174:2006), peak ~298 nm UVB',
+    spectrum: 'UVB that can start vitamin D production in skin; the app models this most strongly near 298 nm.',
     refs: [
       { cite: 'Webb AR & Engelsen O (2006). "Calculated ultraviolet exposure levels for a healthy vitamin D status." Photochem Photobiol 82:1697',
         href: 'https://pubmed.ncbi.nlm.nih.gov/16958558/',
@@ -171,7 +172,7 @@ const CHANNEL_CITATIONS = {
     ],
   },
   circadian: {
-    spectrum: 'Melanopic action spectrum (CIE S 026/E:2018), peak ~490 nm',
+    spectrum: 'Blue-weighted visible light used as a body-clock-light proxy. The app uses an approximation, not a spectral meter reading.',
     refs: [
       { cite: 'Brown TM et al. (2022). "Recommendations for daytime, evening, and nighttime indoor light exposure." PLOS Biol 20:e3001571',
         href: 'https://doi.org/10.1371/journal.pbio.3001571',
@@ -185,11 +186,11 @@ const CHANNEL_CITATIONS = {
     ],
   },
   nir_solar: {
-    spectrum: 'Cytochrome-c-oxidase absorption (660-850 nm windows). Solar NIR and narrowband PBM share the same chromophore — sunlight just delivers a broadband version of what panels do.',
+    spectrum: 'Modeled red and near-infrared sunlight. Device-treatment studies do not establish a daily target for ordinary sunlight.',
     refs: [
       { cite: 'Hamblin MR (2018). "Mechanisms and Mitochondrial Redox Signaling in Photobiomodulation." Photochem Photobiol 94:199',
         href: 'https://pubmed.ncbi.nlm.nih.gov/29164625/',
-        why: 'Comprehensive review of how 600–1000 nm light reaches mitochondrial cytochrome c oxidase and triggers redox signaling — the same pathway whether the photons come from sunlight or a panel' },
+        why: 'Reviews proposed mechanisms for controlled red and near-infrared photobiomodulation; ordinary sunlight is broader and is not equivalent to a prescribed device dose' },
       { cite: 'Hamblin MR (2017). "Mechanisms and applications of the anti-inflammatory effects of photobiomodulation." AIMS Biophys 4:337',
         href: 'https://pubmed.ncbi.nlm.nih.gov/28748217/',
         why: 'Mechanism review focused on the anti-inflammatory effects — applies equally to narrowband panels and the NIR component of broadband solar' },
@@ -199,7 +200,7 @@ const CHANNEL_CITATIONS = {
     ],
   },
   no_cv: {
-    spectrum: 'UVA + violet (320-440 nm) on bare skin → photo-released NO',
+    spectrum: 'Modeled UVA reaching uncovered skin. The index does not predict a blood-pressure response.',
     refs: [
       { cite: 'Liu D et al. (2014). "UVA irradiation of human skin vasodilates arterial vasculature and lowers blood pressure independently of nitric oxide synthase." J Invest Dermatol 134:1839',
         href: 'https://pubmed.ncbi.nlm.nih.gov/24445737/',
@@ -213,7 +214,7 @@ const CHANNEL_CITATIONS = {
     ],
   },
   pomc: {
-    spectrum: 'UVA + UVB on skin keratinocytes → POMC → α-MSH/β-endorphin',
+    spectrum: 'Modeled UV reaching uncovered skin. It records exposure, not mood or hormone levels.',
     refs: [
       { cite: 'Fell GL et al. (2014). "Skin β-endorphin mediates addiction to UV light." Cell 157:1527',
         href: 'https://pubmed.ncbi.nlm.nih.gov/24949966/',
@@ -227,7 +228,7 @@ const CHANNEL_CITATIONS = {
     ],
   },
   violet_eye: {
-    spectrum: 'Violet 360-400 nm at the eye → OPN5/neuropsin + retinal dopamine release (cone-mediated). Distinct from the ipRGC/melanopic 490-nm circadian pathway.',
+    spectrum: 'Short-wavelength outdoor-light index at the eye. It does not require looking at the sun and is not a measured eye-health dose.',
     refs: [
       { cite: 'Torii H et al. (2017). "Violet light exposure can be a preventive strategy against myopia progression." EBioMedicine 15:210',
         href: 'https://pubmed.ncbi.nlm.nih.gov/28063778/',
@@ -276,9 +277,9 @@ function _renderChannelCitations(channelKey) {
 
 // 7-day stacked bar chart: per-day sun + device totals for one channel.
 // Always renders (even all-zero days) so the user has a baseline visual
-// reference. Includes a dashed target line at (dailyTarget / 7) so the
-// per-day chart shows what "hitting your weekly target evenly" looks
-// like. Numeric labels above each bar surface the actual numbers when
+// reference. Includes a dashed model-reference line so the per-day chart
+// is easy to compare without implying a treatment target. Numeric labels
+// above each bar surface the actual numbers when
 // non-zero.
 function _renderChannelWeekChart(channelKey) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
@@ -295,11 +296,10 @@ function _renderChannelWeekChart(channelKey) {
   const ch = getChannelDisplay();
   const meta = ch[channelKey] || {};
   const dailyTarget = meta.dailyTarget || 0;
-  const dailyTargetSlice = dailyTarget; // chart is per-day, so target IS the daily target
+  const dailyTargetSlice = dailyTarget;
   const observedMax = Math.max(0, ...days.map(d => d.sun + d.device));
   // Anchor the chart to whichever is bigger — the highest day or the
-  // target-per-day line. Without this, very-low-dose weeks compress
-  // the target off the top of the chart and lose context.
+  // model-reference line. Without this, low-exposure weeks lose context.
   const max = Math.max(observedMax, dailyTargetSlice * 1.2, 0.001);
 
   const W = 280, H = 96, padX = 18, padTop = 14, padBottom = 16;
@@ -351,14 +351,12 @@ function _renderChannelWeekChart(channelKey) {
   // Empty-day placeholder bar so the chart never reads as a giant blank.
   const placeholderH = 3;
 
-  // Color bar by how the day's dose stacks up against the daily target.
-  // Visual at-a-glance: green = hit/exceeded daily, accent = meaningful,
-  // muted = marginal. Encourages reading the chart as "did I check this
-  // box today?" instead of "what big number did I rack up?".
+  // Color intensity shows relative exposure without turning the comparison
+  // band into a green "goal achieved" state.
   const dayThreshold = _CHANNEL_DAY_THRESHOLD[channelKey] ?? 0.30;
   const colorForDay = (total) => {
     if (dailyTarget <= 0 || total < dailyTarget * 0.05) return { fill: 'var(--text-muted)', op: 0.40 };
-    if (total >= dailyTarget) return { fill: 'var(--green)', op: 1.0 };
+    if (total >= dailyTarget) return { fill: 'var(--channel-accent, var(--accent))', op: 1.0 };
     if (total >= dailyTarget * dayThreshold) return { fill: 'var(--channel-accent, var(--accent))', op: 0.85 };
     return { fill: 'var(--channel-accent, var(--accent))', op: 0.45 };
   };
@@ -373,26 +371,20 @@ function _renderChannelWeekChart(channelKey) {
     const isToday = d.date.getTime() === today.getTime();
     const labelTxt = total > 0 ? fmt(total, i) : '';
     const { fill: barFill, op: barOp } = colorForDay(total);
-    // Hit-target check mark — greener visual cue when the day cleared the
-    // daily target line. Reduces the urge to chase higher percentages
-    // ("more is better") past the saturation point.
-    const checkMark = (dailyTarget > 0 && total >= dailyTarget) ? `<text x="${x + barInner / 2}" y="${y - 12}" text-anchor="middle" font-size="11" fill="var(--green)" font-weight="700">✓</text>` : '';
     return `<g>
       ${total > 0 ? '' : `<rect x="${x}" y="${padTop + innerH - placeholderH}" width="${barInner}" height="${placeholderH}" fill="var(--text-muted)" opacity="0.20" rx="1"/>`}
       ${devH > 0 ? `<rect x="${x}" y="${y}" width="${barInner}" height="${devH}" fill="${barFill}" opacity="${barOp * 0.55}" rx="1"/>` : ''}
       ${sunH > 0 ? `<rect x="${x}" y="${y + devH}" width="${barInner}" height="${sunH}" fill="${barFill}" opacity="${barOp}" rx="1"/>` : ''}
-      ${checkMark}
-      ${labelTxt && !checkMark ? `<text x="${x + barInner / 2}" y="${y - 2}" text-anchor="middle" font-size="9" fill="var(--text-secondary)">${labelTxt}</text>` : ''}
+      ${labelTxt ? `<text x="${x + barInner / 2}" y="${y - 2}" text-anchor="middle" font-size="9" fill="var(--text-secondary)">${labelTxt}</text>` : ''}
       <text x="${x + barInner / 2}" y="${H - 3}" text-anchor="middle" font-size="10" fill="${isToday ? 'var(--text-primary)' : 'var(--text-muted)'}" font-weight="${isToday ? '700' : '400'}">${dayLetter(d.date)}</text>
     </g>`;
   }).join('');
 
-  // Target line — dashed accent, drawn under the bars so the bar fills sit
-  // on top of it visually. Surfaces the "what hitting the weekly target
-  // evenly looks like" reference. Only meaningful when target > 0.
+  // Dashed model-reference line, drawn under the bars. This is a comparison
+  // band from the exposure model, not a health or safety goal.
   const targetLine = dailyTargetSlice > 0
     ? `<line x1="${padX}" x2="${W - padX}" y1="${padTop + innerH - (dailyTargetSlice / max) * innerH}" y2="${padTop + innerH - (dailyTargetSlice / max) * innerH}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0.6"/>
-       <text x="${W - padX + 2}" y="${padTop + innerH - (dailyTargetSlice / max) * innerH + 3}" font-size="9" fill="var(--text-muted)" text-anchor="start">target</text>`
+       <text x="${W - padX + 2}" y="${padTop + innerH - (dailyTargetSlice / max) * innerH + 3}" font-size="9" fill="var(--text-muted)" text-anchor="start">reference</text>`
     : '';
 
   // SR readable summary
@@ -405,8 +397,8 @@ function _renderChannelWeekChart(channelKey) {
     return `${dayName(d.date)}: device ${fmt(d.device)}`;
   }).join('. ');
 
-  return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device · dashed line = even-pace daily target">
-    <div class="light-channel-weekchart-label">7-day rhythm <span class="light-channel-weekchart-legend"><span class="lc-leg-sun"></span> sun · <span class="lc-leg-dev"></span> device · <span class="lc-leg-tgt"></span> target</span></div>
+  return `<div class="light-channel-weekchart" title="Last 7 days · solid = sun, faded = device · dashed line = model reference">
+    <div class="light-channel-weekchart-label">7-day rhythm <span class="light-channel-weekchart-legend"><span class="lc-leg-sun"></span> sun · <span class="lc-leg-dev"></span> device · <span class="lc-leg-tgt"></span> reference</span></div>
     <svg viewBox="0 0 ${W + 32} ${H}" width="100%" height="${H}" aria-label="7-day per-day exposure: ${escapeAttr(srRows)}" role="img">
       <desc>${escapeHTML(srRows)}</desc>
       ${targetLine}
@@ -447,7 +439,7 @@ function _meaningfulDayCount(days, dailyTarget, threshold) {
 // circadian needs daily entrainment, vit-D plateaus per session
 // around 20k IU, NO release dissipates, NIR benefit is dose-per-
 // exposure not banked. The "X of 7 days" framing matches the biology;
-// the cumulative real-unit (IU / J/cm²) when defensible is shown as
+// a cumulative user-facing unit/index when defensible is shown as
 // a sub-line for completeness.
 function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, weeklyTier = 0) {
   const meta = getChannelDisplay()[channelKey] || {};
@@ -471,9 +463,9 @@ function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, wee
   if (channelKey === 'vitamin_d' && lightChannelDeps.rollingVitaminDIU) {
     const iu = lightChannelDeps.rollingVitaminDIU(7);
     if (iu >= 30) cumulative = `· ~${fmtIntK(iu)} IU total`;
-  } else if (channelKey === 'nir_solar' && lightChannelDeps.pbmJoulesPerCm2) {
-    const j = lightChannelDeps.pbmJoulesPerCm2(totalCurrent);
-    if (j >= 0.1) cumulative = `· ${j >= 10 ? Math.round(j) : j.toFixed(1)} J/cm² total`;
+  } else if (channelKey === 'nir_solar' && totalCurrent > 0) {
+    const pct = Math.max(1, Math.round((totalCurrent / (target * 7)) * 100));
+    cumulative = `· ~${pct}% of the weekly comparison`;
   }
 
   let primary = '';
@@ -483,17 +475,17 @@ function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, wee
     primarySub = 'no exposure logged this week';
   } else {
     primary = `${dayCountCur} of 7 days`;
-    // Channel-aware sub-label — what counts as "meaningful exposure"
+    // Channel-aware sub-label — what counts as a recorded day
     // varies per channel, but the framing stays consistent.
     const SUB_LABELS = {
-      vitamin_d:  'with meaningful UVB synthesis',
-      nir_solar:  'with meaningful NIR exposure',
-      circadian:  'with strong morning/midday daylight in your eyes',
-      no_cv:      'with meaningful UVA on bare skin',
-      pomc:       'with meaningful sun on bare skin',
-      violet_eye: 'with strong outdoor light reaching your eyes',
+      vitamin_d:  'with recorded vitamin-D potential',
+      nir_solar:  'with recorded red/infrared sunlight',
+      circadian:  'with regular daytime outdoor light',
+      no_cv:      'with recorded UVA exposure',
+      pomc:       'with recorded skin UV exposure',
+      violet_eye: 'with regular outdoor light',
     };
-    const subBase = SUB_LABELS[channelKey] || 'with meaningful exposure';
+    const subBase = SUB_LABELS[channelKey] || 'with recorded exposure';
     primarySub = `${subBase} ${cumulative}`.trim();
   }
 
@@ -523,20 +515,19 @@ function _channelHero(channelKey, totalCurrent, totalPrev, days7, daysPrev7, wee
   </div>`;
 }
 
-// Caption explaining why daily exposure beats banking one big day.
-// Channel-specific so the reason is biologically grounded, not generic.
+// Short education note explaining what the trend can and cannot tell the user.
 function _renderDailyBeatsBankingNote(channelKey) {
   const NOTES = {
-    vitamin_d:  'Skin photoisomerizes excess back to inactive isomers around 20k IU per session — daily 10-min sessions outperform one big day (Holick 2007, Webb 2018).',
-    nir_solar:  'Mitochondrial benefit is dose-dependent per exposure, not banked — daily 20-min walks deliver more cumulative cellular signal than one long session.',
-    circadian:  'Body clock entrainment depends on daily timing of morning light — one banked day doesn\'t prevent the next day\'s drift toward later sleep onset.',
-    no_cv:      'UVA-driven nitric oxide release happens during exposure and dissipates over hours — daily refreshes the vasodilatory + BP-lowering signal.',
-    pomc:       'POMC pathway tone resets between sessions — daily sun maintains α-MSH (tan signal) and β-endorphin (mood) baseline rather than spiking and crashing.',
-    violet_eye: 'Violet-eye dopamine release is per-exposure — daily outdoor minutes accumulate the myopia-protective + alertness signal that one long day can\'t bank.',
+    vitamin_d:  'This is an IU-equivalent estimate, not a blood test. Use the trend alongside 25(OH)D labs when vitamin D status matters.',
+    nir_solar:  'This index is useful for comparing your own outdoor pattern. It is not a recommended dose or a treatment score.',
+    circadian:  'Timing and consistency matter more than chasing a large number. Bright days and dim evenings create the clearest signal.',
+    no_cv:      'This records modeled UVA on skin. It cannot tell you whether blood pressure or circulation changed.',
+    pomc:       'This records skin UV exposure. A higher number also means more cumulative UV, so do not chase it.',
+    violet_eye: 'Ordinary outdoor light is enough. Never look at the sun, and use UV-protective eyewear when conditions call for it.',
   };
   const txt = NOTES[channelKey];
   if (!txt) return '';
-  return `<p class="light-channel-banking-note"><strong>Daily beats banking.</strong> ${escapeHTML(txt)}</p>`;
+  return `<p class="light-channel-banking-note"><strong>How to read this.</strong> ${escapeHTML(txt)}</p>`;
 }
 
 // Source-mix mini bar — what fraction of the week's dose came from sun
@@ -575,46 +566,46 @@ function _channelNextMove(channelKey, t7, totalCurrent, devices, atm) {
   // Per-channel recipes — each returns a concrete, time-aware suggestion.
   const recipes = {
     vitamin_d: {
-      empty: `UVB on bare skin makes vitamin D — needs UVI ≥ 3 and no glass. ${peakHHMM && peakUVI >= 3 ? `Today's UV peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}). 15-20 min in shorts at peak ≈ 1,000-2,000 IU.` : 'Glass blocks UVB; window-side sun yields zero.'}${matchingDevice ? ` Or a session on your ${dev}.` : ''}`,
-      low:   `${peakHHMM && peakUVI >= 3 ? `UV peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}). One more 15-20 min midday session this week tips you to good range.` : 'A midday session on a clear day would tip you up.'}${matchingDevice ? ` Or a longer session on your ${dev}.` : ''}`,
-      mod:   `Solid weekly base. ${peakHHMM ? `Today's peak: ${peakHHMM} (UVI ${peakUVI?.toFixed(1) || '?'}).` : 'Keep your current rhythm.'} One more session this week reaches strong.`,
-      good:  `Strong week. Consistency matters more than intensity from here — same rhythm next week maintains 25(OH)D.`,
-      strong:`Above typical-week target. Pull back if you're seeing pinkness; otherwise this is a solid trajectory for serum 25(OH)D.`,
+      empty: `No modeled vitamin D exposure is logged this week. ${peakHHMM && peakUVI >= 3 ? `Today's UVI peaks at <strong>${peakHHMM}</strong> (${peakUVI.toFixed(1)}).` : 'UVB may be too weak today.'} Use sun protection whenever UVI is 3 or higher.${matchingDevice ? ` Your ${dev} is another logged source; follow its instructions exactly.` : ''}`,
+      low:   `A small amount is logged. Treat the IU number as a trend estimate, not a reason to extend time in the sun.`,
+      mod:   `You have several modeled exposures this week. A 25(OH)D blood test is the useful check for actual vitamin D status.`,
+      good:  `Your pattern is around the app's weekly comparison band. More UV is not automatically better.`,
+      strong:`Your pattern is above the app's comparison band. Do not chase a higher number; avoid redness and follow normal sun protection.`,
     },
     circadian: {
-      empty: `Get morning daylight in your eyes — ideally outdoors before work, no sunglasses, no glass. 10-30 min in the first 2 hours after sunrise = strongest entrainment.${matchingDevice ? ` Or 30 min on your ${dev} on overcast days.` : ''}`,
-      low:   `Add a 15-20 min outdoor walk in your morning routine. Even cloudy mornings deliver 10-50× more melanopic light than indoor lighting.${matchingDevice ? ` Or a session on your ${dev}.` : ''}`,
-      mod:   `Healthy entrainment dose. Mornings have the biggest effect on sleep onset that night — keep prioritizing AM over midday.`,
-      good:  `Strong circadian signal. Consistent daily timing matters more than total dose at this point.`,
-      strong:`Strong consistent entrainment. Watch for evening light contamination (cool LEDs after sunset) which can blunt melatonin even with strong AM exposure.`,
+      empty: `Try a short outdoor break after waking or during the first part of your day. Face the open sky, not the sun.${matchingDevice ? ` Your ${dev} can help on dark mornings when used as directed.` : ''}`,
+      low:   `Add one repeatable outdoor-light moment to your morning or daytime routine. Consistency is more useful than chasing intensity.`,
+      mod:   `You have a developing daytime-light pattern. Check whether the timing is regular and evenings are comfortably dim.`,
+      good:  `Your daytime pattern is around the app's comparison band. Keep the timing steady and protect a dim wind-down before bed.`,
+      strong:`You logged plenty of daytime light. More is not the goal; evening light and sleep timing now provide more useful context.`,
     },
     nir_solar: {
-      empty: `Solar NIR is half of sunlight (600-1400 nm). 30-60 min outdoors at any time of day delivers a meaningful dose; window glass blocks ~70% of long NIR.${matchingDevice ? ` Or a 10-20 min session on your ${dev}.` : ''}`,
-      low:   `Add an outdoor walk this week — sunrise/sunset light is NIR-rich and won't push burn dose.${matchingDevice ? ` Or 15 min on your ${dev}.` : ''}`,
-      mod:   `Solid base. NIR doesn't need to be midday — golden-hour light delivers comparable dose without UVB burn risk.`,
-      good:  `Strong weekly NIR. Mitochondrial repair signal is well-saturated for this week.`,
-      strong:`Above typical-week NIR. No upper safety concern from broadband NIR — this is a maintenance pattern.`,
+      empty: `No outdoor red/infrared exposure is logged this week. An ordinary outdoor walk will create a useful personal baseline.${matchingDevice ? ` Device sessions on your ${dev} are tracked separately.` : ''}`,
+      low:   `A small outdoor-light baseline is forming. Compare weeks; there is no established daily sunlight target to hit.`,
+      mod:   `Your week contains several red/infrared sunlight exposures. Treat this as an exposure pattern, not a repair score.`,
+      good:  `Your pattern is around the app's comparison band. No extra session is needed just to fill the chart.`,
+      strong:`Your pattern is above the app's comparison band. The number does not establish extra biological benefit.`,
     },
     no_cv: {
-      empty: `UVA on bare skin (320-400 nm) photo-releases nitric oxide from skin stores. ${peakHHMM && peakUVI >= 3 ? `15-30 min outdoors anytime UV is up — today peaks at <strong>${peakHHMM}</strong> (UVI ${peakUVI.toFixed(1)}).` : 'Open-sky exposure during daylight hours.'} Sunscreen partially blocks UVA — bare-skin sessions count more.`,
-      low:   `Add a 20-30 min outdoor session this week with face + arms uncovered. UVA accumulates throughout the day, not just at solar noon.`,
-      mod:   `Healthy weekly UVA dose — sustained NO release supports BP + arterial function (Liu 2014).`,
-      good:  `Strong NO/cardiovascular signal. Good aggregate UVA exposure for vasodilatory benefit.`,
-      strong:`Above typical-week UVA. Be mindful of cumulative photoaging if this is a daily pattern; UVA is the long-wavelength culprit.`,
+      empty: `No modeled UVA-on-skin exposure is logged. That is not a deficiency score, and deliberately protected skin is not a problem to fix.`,
+      low:   `A small amount of UVA-on-skin exposure is logged. The app cannot infer a blood-pressure effect from it.`,
+      mod:   `Several UVA exposures are logged. Continue to use shade, clothing, and sunscreen based on the UV index.`,
+      good:  `Your pattern is around the app's comparison band. More UVA also means more photoaging exposure.`,
+      strong:`Your pattern is above the comparison band. Do not add unprotected exposure just to raise this index.`,
     },
     pomc: {
-      empty: `UVA + UVB on skin keratinocytes triggers POMC → α-MSH (tan signal) + β-endorphin (the "feels good in the sun" effect). Same recipe as cardiovascular — open-sky daylight on bare skin.`,
-      low:   `Same path as vit-D and NO/CV: midday outdoor sessions on bare skin. One more session this week tips you up.`,
-      mod:   `Healthy weekly POMC pathway activation.`,
-      good:  `Solid mood-hormone weekly signal.`,
-      strong:`Above typical-week POMC stimulus.`,
+      empty: `No uncovered-skin UV response is logged. This is not a wellness gap and does not need to be filled.`,
+      low:   `A small skin UV exposure is logged. The index records exposure; it does not measure mood or hormones.`,
+      mod:   `Several skin UV exposures are logged. Watch the burn-dose indicator rather than trying to raise this channel.`,
+      good:  `Your pattern is around the comparison band. More UV is not automatically better.`,
+      strong:`Your pattern is high. Avoid redness and cumulative exposure; do not chase this number.`,
     },
     violet_eye: {
-      empty: `Outdoor violet 360-440 nm hits ipRGC sensors in the eye — different from "bright window light," which window glass attenuates. 15-30 min outdoors with eyes uncovered (no sunglasses, no glass) builds the dopamine signal linked to myopia control + alertness.`,
-      low:   `Add an outdoor walk with eyes uncovered (no sunglasses) this week. Even 10 min counts — this channel saturates quickly.`,
-      mod:   `Healthy weekly outdoor-violet dose.`,
-      good:  `Solid violet-eye signal — keep eyes uncovered during morning outdoor time for the strongest effect.`,
-      strong:`Above typical-week. Sunglasses are still appropriate at high UVI for eye safety; the violet signal banks well below sunburn risk levels.`,
+      empty: `No open-sky outdoor light is logged. A normal outdoor break is enough to create a baseline; never look at the sun.`,
+      low:   `A little outdoor light is logged. Use comfortable, UV-protective eyewear whenever glare or the UV index calls for it.`,
+      mod:   `Several outdoor-light moments are logged. This is an exposure index, not an eye-health score.`,
+      good:  `Your pattern is around the comparison band. Keep it comfortable and never stare at the solar disc.`,
+      strong:`You logged plenty of outdoor light. More is not required, and normal eye protection still applies.`,
     },
   };
   const r = recipes[channelKey] || {};
@@ -781,12 +772,12 @@ export function renderSuggestion(totals7d) {
   const tier = lightChannelDeps.weeklyChannelTier;
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const SUGGESTIONS = {
-    vitamin_d:  'Get 10–15 minutes of midday sun on bare skin if your latitude allows — UVB drops sharply after 2 pm.',
-    circadian:  '10 minutes of outdoor light before 9 am tends to be the highest-leverage move for your sleep.',
-    nir_solar:  'Solar near-infrared is highest mid-morning to late afternoon. A walk outside catches the half of sunlight that windows block.',
-    no_cv:      'Afternoon UVA-rich daylight on uncovered skin supports blood-vessel health and circulation.',
-    pomc:       'A few minutes more uncovered daylight on skin engages the mood-hormone cascade.',
-    violet_eye: 'Outdoor 360–400 nm light reaches your eyes only outside — even a few extra minutes helps.',
+    vitamin_d:  'No vitamin D exposure is logged. Check today\'s UV and your 25(OH)D labs before acting on the estimate.',
+    circadian:  'A repeatable outdoor-light break early in your day is the simplest place to start.',
+    nir_solar:  'An ordinary outdoor walk will create a useful red and infrared exposure baseline.',
+    no_cv:      'This UVA index is low; that is not a deficiency and needs no corrective exposure.',
+    pomc:       'This skin UV index is low; that is not a wellness gap to fill.',
+    violet_eye: 'Try a comfortable outdoor break facing open sky—never the sun.',
   };
   let worstKey = null, worstTier = 5;
   for (const k of order) {

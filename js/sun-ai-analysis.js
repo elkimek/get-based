@@ -62,25 +62,22 @@ function _formatNumber(n, digits = 1) {
 }
 
 // Tells the AI what part of the solar cycle the session covered.
-// Sunrise + the non-UVA → UVA transition have specific biology that
-// midday sessions don't, and the model needs that signal explicitly
-// labelled — without it, low-dose sunrise sessions get judged on
-// vitamin-D yield (which is correctly zero) and miss the actual benefit
-// (melatonin clearance, NO release, cortisol awakening).
+// Describe the session's place in the daylight cycle without inventing sharp
+// biological or UVA-onset thresholds. The AI uses this as timing context only.
 function _classifySolarPhase(startElev, endElev) {
   if (startElev == null || endElev == null) return null;
   const rising = endElev > startElev;
   const lo = Math.min(startElev, endElev);
   const hi = Math.max(startElev, endElev);
   if (lo < 0 && hi > 0) return rising
-    ? 'civil dawn — sun crossed horizon mid-session (non-UVA → UVA onset)'
-    : 'civil dusk — sun set mid-session (UVA fadeout)';
+    ? 'civil dawn — sun crossed the horizon during the session'
+    : 'civil dusk — sun set during the session';
   if (lo < 3 && hi > 3) return rising
-    ? 'sunrise window — solar elevation crossed the UVA-onset threshold (~3°) mid-session'
-    : 'sunset window — solar elevation dropped below the UVA threshold (~3°) mid-session';
+    ? 'sunrise window — low-angle morning light brightened during the session'
+    : 'sunset window — low-angle evening light faded during the session';
   if (lo < 10 && hi > 10) return rising
-    ? 'post-sunrise — solar elevation crossed the UVB-onset threshold (~10°) mid-session'
-    : 'pre-sunset — solar elevation dropped below the UVB threshold (~10°) mid-session';
+    ? 'post-sunrise — the sun climbed during the session'
+    : 'pre-sunset — the sun dropped during the session';
   if (hi < 0) return 'pre-dawn / post-dusk — sun below horizon (no direct sunlight)';
   if (hi < 3) return rising ? 'twilight before sunrise' : 'twilight after sunset';
   if (hi < 10) return rising ? 'low morning sun (UVA-dominant, UVB minimal)' : 'low evening sun (UVA-dominant, UVB minimal)';
@@ -183,7 +180,7 @@ export function buildSingleSessionContext(sess) {
         const tlabel = tierLabel(t);
         const target = meta.dailyTarget || 0;
         const pct = (target > 0 && v > 0) ? Math.round(100 * v / target) : null;
-        display = pct != null ? `${tlabel} (${pct}% of daily target)` : tlabel;
+        display = pct != null ? `${tlabel} (${pct}% of the app's comparison band)` : tlabel;
       }
       parts.push(`${meta.label || k}: ${display}`);
     }
@@ -200,7 +197,7 @@ export function buildSingleSessionContext(sess) {
   if (sd.fitzpatrick) lines.push(`Skin type: Fitzpatrick ${sd.fitzpatrick}`);
   else if (lc.skinType) lines.push(`Skin type: ${lc.skinType}`);
   if (sd.photosensitiveMeds && sd.photosensitiveMeds !== 'none') lines.push(`Photosensitizing meds: ${sd.photosensitiveMeds}`);
-  if (sd.dailyVitDTargetIU) lines.push(`Vit-D daily target: ${sd.dailyVitDTargetIU} IU`);
+  if (sd.dailyVitDTargetIU) lines.push(`User vitamin-D comparison setting: ${sd.dailyVitDTargetIU} IU-equivalent/day (not a measured requirement)`);
   if (goals) lines.push(`Health goals: ${String(goals).slice(0, 200)}`);
 
   try {
@@ -234,12 +231,11 @@ const SYSTEM_PROMPT = [
   '  red = counterproductive (over MED, eye damage risk, or prolonged glass / heavy clothing wasted the session)',
   '  gray = not enough info (no doses computed, no weather, no body or eye data)',
   '',
-  'Solar phase matters. Different parts of the solar cycle carry distinct biology:',
-  '  • sunrise / civil dawn: blue+violet light pre-horizon clears pineal melatonin and triggers cortisol awakening; the moment the sun crosses the horizon and UVA begins to register (~3° elevation) drives nitric-oxide release from skin/mucosa and is the strongest natural circadian phase-advance signal of the day. Eye exposure during this transition is uniquely valuable and is ~1000× safer than direct gaze later in the arc.',
-  '  • sunset / civil dusk: mirror — phase-delaying signal, melatonin onset preparation. UVA fadeout still gives a final NO/POMC bump.',
-  '  • midday near-zenith: peak UVB → vitamin D, peak burn risk, weakest circadian phase signal.',
+  'Use plain language and prioritize what the user can do safely. Never tell the user to look at the sun, remove sunglasses, expose bare skin, or extend UV exposure to improve a score.',
+  'Daylight timing is context, not a guaranteed outcome. Morning/daytime light can support a clearer day-night pattern; evening light can affect sleep timing; midday generally carries the highest UV risk.',
   '',
-  'When "Solar phase" flags a sunrise/sunset transition or twilight window, the verdict MUST address that biology, even if every dose channel shows 0%. Heavy cloud cover dampens the spectral dose model but does NOT erase the value of the session: the visual brightening cue alone entrains the suprachiasmatic master clock, the photic zeitgeber works through retinal melanopsin which saturates at modest illuminance (~100-1000 lux), and being outdoors at this solar phase is qualitatively different from staying indoors. Vitamin-D yield will be near zero (UVB requires elevation > ~10°) and that is NEVER a yellow flag for a sunrise/sunset session — the value lives in circadian + NO + POMC + cortisol awakening, not in UVB-dependent channels. A green verdict is appropriate when the user attended the transition, even with cloud-suppressed doses.',
+  'Treat vitamin-D IU, UVA-on-skin, skin-UV, outdoor-light, and solar red/infrared values as modeled exposure estimates. Do not claim they improved hormones, mood, blood pressure, inflammation, repair, eye health, or lab values. A comparison band is not a treatment target or safety limit.',
+  'When confidence is limited, say so plainly and avoid precise conclusions. UVI 3 or higher calls for normal sun protection. Circadian light exposure never requires staring at the solar disc.',
   '',
   'tip: one sentence, max 14 words. Reference specific numbers + the solar phase when relevant. Direct, no preamble.',
   'detail: 1–2 sentences. Explain the why, naming the specific dose / MED% / channel / solar phase that drove the verdict. No restating the data verbatim.',

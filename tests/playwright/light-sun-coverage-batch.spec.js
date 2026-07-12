@@ -104,7 +104,7 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         },
         hydrateSession: async id => calls.push(['hydrate', id]),
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'test' }),
-        refreshSurfaces: () => calls.push(['refresh']),
+        refreshSurfaces: anchor => calls.push(['refresh', anchor]),
         wireBackdropClose: () => calls.push(['wire-backdrop']),
         trapModalFocus: () => calls.push(['trap-focus']),
         summarizeBodyExposure: sess => `${sess.bodyExposure?.regions?.length || 0} regions`,
@@ -158,7 +158,8 @@ test('sun session UI covers list detail edit delete and past-session save paths'
       const detailHtml = detailOverlay?.innerHTML || '';
       outcomes.detailShowsAtmosphereGenesAndModifiers = !!detailOverlay
         && detailText.includes('UV split')
-        && detailHtml.includes('GC TT')
+        && detailText.includes('Vitamin D estimate')
+        && !detailHtml.includes('GC TT')
         && detailText.includes('Behind glass')
         && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 6
         && !!detailOverlay.querySelector('.ai-detail-test');
@@ -291,6 +292,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       surfaceAlbedo: 'grass',
     }];
     const calls = [];
+    let spectrumSamples = 0;
 
     try {
       state.importedData = {
@@ -335,6 +337,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
             doses: { vitamin_d: 220 },
             safety: { medFraction: 0.83, fitzpatrick: 'II' },
             atmosphere: { uvIndex: 8.5 },
+            doseIntegration: { method: 'live-time-integrated' },
           });
           return sess;
         },
@@ -342,7 +345,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, altitudeM: 200 }),
         saveImportedData: async () => calls.push(['save']),
         applyAtmOverrides: atm => ({ ...atm, uvIndex: atm.uvIndex + 0.1 }),
-        refreshSurfaces: () => calls.push(['refresh']),
+        refreshSurfaces: anchor => calls.push(['refresh', anchor]),
         normalizePSMTier: raw => raw || 'none',
         photosensitiveMedScale: tier => tier === 'moderate' ? 0.65 : 1,
         eyeModes: [{ key: 'direct', label: 'Eyes uncovered' }, { key: 'sunglasses', label: 'Sunglasses' }],
@@ -352,7 +355,10 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       });
 
       window.fetchAtmosphere = async () => ({ uvIndex: 11.2, cloudCover: 10, ozoneDU: 290, source: 'open_meteo', confidence: 0.9, temperatureC: 34 });
-      window.reconstructSpectrum = () => ({ wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] });
+      window.reconstructSpectrum = () => {
+        spectrumSamples += 1;
+        return { wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] };
+      };
       window.computeChannelDoses = ({ durationMin }) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
       window.erythemalSED = ({ durationMin }) => 0.4 * durationMin;
       window.fractionOfMED = ({ sed, medScale }) => sed / (10 * medScale);
@@ -372,6 +378,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         interpolateAtmosphere: window.interpolateAtmosphere,
         vitaminDIU: window.vitaminDIU,
         vitaminDIUPerSession: window.vitaminDIUPerSession,
+        retinalUVdose: () => 0.1,
         renderLightChannelsLive: window.renderLightChannelsLive,
         renderLightTodayStrip: window.renderLightTodayStrip,
       });
@@ -423,6 +430,12 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         && live.medFraction > 0
         && live.retinalUV > 2;
 
+      const samplesBeforeLongSlice = spectrumSamples;
+      active.setSunLiveState('active-sun', { snapshotAt: Date.now() - 11 * 60 * 1000 });
+      active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.longRecoveredSlicesUseBoundedFiveMinuteIntegration = spectrumSamples - samplesBeforeLongSlice >= 9;
+      active.setSunLiveState('active-sun', { snapshotAt: Date.now() - 90 * 1000 });
+
       sessions.find(sess => sess.id === 'active-sun').paused = true;
       const paused = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
       outcomes.pausedLiveDosesUseCommittedValues = paused.paused === true
@@ -432,12 +445,40 @@ test('sun active session covers start dialog stop summary and live dose helpers'
 
       active.commitSunLiveSlice(sessions.find(sess => sess.id === 'active-sun'));
       const afterCommit = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
-      outcomes.commitSliceAccumulatesDoses = afterCommit.doses.vitamin_d > live.doses.vitamin_d;
+      outcomes.commitSliceMovesBoundaryWithoutDoubleCounting = Math.abs(afterCommit.doses.vitamin_d - live.doses.vitamin_d) < 0.05;
+      outcomes.commitSliceRecordsDurableDoseSegment = afterCommit.doseSegments.length >= 1
+        && afterCommit.doseSegments[0].bodyRegions.includes('face')
+        && afterCommit.doseSegments[0].endedAt > afterCommit.doseSegments[0].startedAt;
+
+      let resolveDelayedRefresh;
+      active.configureSunActiveSession({
+        fetchAtmosphere: () => new Promise(resolve => { resolveDelayedRefresh = resolve; }),
+      });
+      const beforeDelayedRefresh = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      const delayedRefreshPromise = active.refreshSunLiveRate(sessions.find(sess => sess.id === 'active-sun'));
+      await Promise.resolve();
+      resolveDelayedRefresh({ uvIndex: 7.8, cloudCover: 25, ozoneDU: 292, source: 'open_meteo', confidence: 0.9 });
+      await delayedRefreshPromise;
+      const afterDelayedRefresh = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.delayedAtmosphereRefreshDoesNotDropPendingDose = afterDelayedRefresh.doses.vitamin_d >= beforeDelayedRefresh.doses.vitamin_d
+        && afterDelayedRefresh.doseSegments.length >= beforeDelayedRefresh.doseSegments.length;
+      active.setSunLiveState('active-sun', { ratePerMin: null, pending: true });
+      const whileRefreshing = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
+      outcomes.stopBoundaryCanFinalizeWhileAtmosphereRefreshIsPending = whileRefreshing?.doses?.vitamin_d >= afterCommit.doses.vitamin_d;
 
       await active.quickLogSunSession();
       outcomes.quickLogStopsActiveSession = calls.some(call => call[0] === 'stop' && call[1] === 'active-sun')
-        && calls.some(call => call[0] === 'hydrate' && call[1] === 'active-sun')
-        && calls.some(call => call[0] === 'refresh');
+        && !calls.some(call => call[0] === 'hydrate' && call[1] === 'active-sun')
+        && calls.some(call => call[0] === 'refresh' && call[1] === '[data-widget-id="light-best-next-step"]');
+
+      sessions.push({
+        id: 'fallback-midpoint',
+        startedAt: Date.now() - 10 * 60 * 1000,
+        endedAt: Date.now(),
+        location: { lat: 50.08, lon: 14.43 },
+      });
+      await active.hydrateSunSessionFromProfileCoords('fallback-midpoint');
+      outcomes.completedSessionWithoutLiveTotalsStillUsesHydrationFallback = calls.some(call => call[0] === 'hydrate' && call[1] === 'fallback-midpoint');
 
       outcomes.elapsedFormattingCoversHourAndMinute = active._formatElapsed(3723000) === '1:02:03'
         && active._formatElapsed(65000) === '1:05';
@@ -470,6 +511,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         interpolateAtmosphere: () => null,
         vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
         vitaminDIUPerSession: null,
+        retinalUVdose: () => 0,
         renderLightChannelsLive: () => {},
         renderLightTodayStrip: () => '',
       });

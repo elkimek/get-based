@@ -49,7 +49,8 @@ const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-p
 const serviceWorkerSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
 const sunSrc = fs.readFileSync(path.join(root, 'js/sun.js'), 'utf8');
-const sunActiveSessionSrc = fs.readFileSync(path.join(root, 'js/sun-active-session.js'), 'utf8');
+const sunActiveSessionSrc = fs.readFileSync(path.join(root, 'js/sun-active-session.js'), 'utf8')
+  + fs.readFileSync(path.join(root, 'js/sun-session-start-ui.js'), 'utf8');
 const sunDefaultsSrc = fs.readFileSync(path.join(root, 'js/sun-defaults.js'), 'utf8');
 const sunSessionActionsSrc = fs.readFileSync(path.join(root, 'js/sun-session-actions.js'), 'utf8');
 const sunSessionUiSrc = fs.readFileSync(path.join(root, 'js/sun-session-ui.js'), 'utf8');

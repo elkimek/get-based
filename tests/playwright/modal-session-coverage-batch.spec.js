@@ -260,7 +260,7 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
       });
       outcomes.channelChipsRenderRealUnitValues = chipHost.textContent.includes('~1.6k IU')
         && chipHost.textContent.includes('~13k lux')
-        && chipHost.textContent.includes('over')
+        && chipHost.textContent.includes('high exposure')
         && !!chipHost.querySelector('.sun-chip-more');
 
       const shortHost = document.createElement('div');
@@ -482,7 +482,27 @@ test('device session dialog covers validation unit mode start and save paths', a
         && logPayload.bodyArea === 'legs'
         && Math.abs(logPayload.distanceCm - 30) < 0.1
         && logPayload.eyesProtected === false;
-      outcomes.hydratesDevicesOnEachOpen = calls.filter(call => call[0] === 'hydrate-devices').length === 3;
+
+      devices.push({
+        id: 'uv-coverage',
+        brand: 'CoverageLight',
+        model: 'UVB 311',
+        type: 'uvb',
+        peakWavelengths: [311],
+        recommendedDistanceCm: 30,
+        lastSession: { eyesProtected: false },
+      });
+      await deviceSessionModal.openDeviceSessionDialog('uv-coverage', deps);
+      overlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      const uvEyes = overlay?.querySelector('#dev-session-eyes');
+      outcomes.uvDeviceRequiresEyeProtection = !!overlay
+        && overlay.textContent.includes('UV eye protection required')
+        && uvEyes?.checked === true;
+      uvEyes?.click();
+      outcomes.uvDeviceDisablesActionsWithoutProtection = overlay?.querySelector('#dev-session-save')?.disabled === true
+        && overlay?.querySelector('#dev-session-start')?.disabled === true;
+      overlay?.remove();
+      outcomes.hydratesDevicesOnEachOpen = calls.filter(call => call[0] === 'hydrate-devices').length === 4;
     } finally {
       state.unitSystem = saved.unitSystem;
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());

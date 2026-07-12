@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
+import { _normalizePSMTier } from './sun-session-model.js';
 
 const LIGHT_CONDITIONS_ACTION_ATTR = 'data-light-conditions-action';
 const LIGHT_CONDITIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightConditionsActionDelegatesInstalled');
@@ -129,7 +130,10 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
 // coords) doesn't serve the previous profile's UVI/AQ/etc. Key is rounded
 // to 0.5° (~55 km) — much coarser than the network privacy rounding so
 // near-by points share a cache entry, but cross-country swaps don't.
-let _conditionsCache = null; // { coordKey, atm, fetchedAt }
+const CONDITIONS_FRESH_MS = 5 * 60 * 1000;
+const CONDITIONS_SAFETY_MAX_AGE_MS = 15 * 60 * 1000;
+const CONDITIONS_OFFLINE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+let _conditionsCache = null; // { profileKey, coordKey, atm, fetchedAt, cachedAt }
 let _conditionsFetchInFlight = false;
 // Per-slot 5min refresh intervals — keyed by deterministic slotId
 // ('cond-now-compact' / 'cond-now-full'). Survives strip re-renders
@@ -148,10 +152,31 @@ function _coordKey(coords) {
   return `${k(coords.lat)}_${k(coords.lon)}`;
 }
 
+function _profileKey() {
+  return String(state.currentProfile || 'default');
+}
+
+function _cacheMatches(coords) {
+  return !!(_conditionsCache
+    && _conditionsCache.profileKey === _profileKey()
+    && _conditionsCache.coordKey === _coordKey(coords));
+}
+
+function _cacheAgeMs() {
+  if (!_conditionsCache || !Number.isFinite(_conditionsCache.fetchedAt)) return Infinity;
+  return Math.max(0, Date.now() - _conditionsCache.fetchedAt);
+}
+
+function _cacheStoredAgeMs() {
+  if (!_conditionsCache || !Number.isFinite(_conditionsCache.cachedAt)) return Infinity;
+  return Math.max(0, Date.now() - _conditionsCache.cachedAt);
+}
+
 export function getCachedConditionsAtmosphere() {
   const coords = _getSunCoords();
-  const key = _coordKey(coords);
-  return (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
+  if (!_cacheMatches(coords) || _cacheAgeMs() > CONDITIONS_SAFETY_MAX_AGE_MS) return null;
+  if (_conditionsCache.atm?._stale) return null;
+  return _conditionsCache.atm;
 }
 
 function _centerConditionsNowMarker(slotOrId) {
@@ -176,11 +201,12 @@ export function renderConditionsNow(opts = {}) {
   // "always different" and re-swapped innerHTML, tearing this slot
   // down + restarting its loading spinner = visible blink.
   const slotId = opts.slotId || `cond-now-${variant}`;
-  // Schedule the initial fetch + 5min auto-refresh interval only the
-  // first time this slot is rendered — subsequent renders (e.g. from
-  // _refreshLiveChannelSurfaces) just reuse the existing interval.
+  // Keep one 5-minute interval per deterministic slot. An immediate refresh
+  // is scheduled separately below whenever this render returns a loading
+  // placeholder. That distinction matters when setup adds a location: the
+  // slot id already has an interval, but the newly rendered placeholder must
+  // not wait up to five minutes for its first location-aware refresh.
   if (!_conditionsIntervals.has(slotId)) {
-    setTimeout(() => _refreshConditions(slotId, variant), 50);
     const handle = setInterval(() => {
       if (!document.getElementById(slotId)) {
         clearInterval(handle);
@@ -199,12 +225,16 @@ export function renderConditionsNow(opts = {}) {
   // ~50ms later, which the user perceived as "conditions not persistent."
   try {
     const coords = _getSunCoords();
-    if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
-        && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
+    if (coords && _cacheMatches(coords) && !_conditionsCache.atm?._stale
+        && _cacheStoredAgeMs() < CONDITIONS_FRESH_MS) {
       setTimeout(() => _centerConditionsNowMarker(slotId), 0);
       return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="false">${_renderConditionsHTML(_conditionsCache.atm, coords, variant)}</div>`;
     }
   } catch (_) {}
+  setTimeout(() => {
+    const slot = document.getElementById(slotId);
+    if (slot?.getAttribute('aria-busy') === 'true') _refreshConditions(slotId, variant);
+  }, 50);
   // No aria-live on the wrapper — auto-refresh would re-announce the whole
   // strip every cycle. Only user-triggered refresh announces, via a separate
   // sr-only live region populated in _refreshConditions(opts.force).
@@ -234,7 +264,8 @@ async function _refreshConditions(slotId, variant, opts = {}) {
   // (profile swap) bust the cache. Force=true bypasses the throttle.
   const now = Date.now();
   const key = _coordKey(coords);
-  if (!opts.force && _conditionsCache && _conditionsCache.coordKey === key && (now - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
+  if (!opts.force && _cacheMatches(coords) && !_conditionsCache.atm?._stale
+      && _cacheStoredAgeMs() < CONDITIONS_FRESH_MS) {
     _resolveBusy();
     slot.innerHTML = _renderConditionsHTML(_conditionsCache.atm, coords, variant);
     _centerConditionsNowMarker(slot);
@@ -281,7 +312,9 @@ async function _refreshConditions(slotId, variant, opts = {}) {
     } catch (e) {
       online = false;
       fetchError = String(e?.message || e);
-      atm = (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
+      atm = _cacheMatches(coords) && _cacheAgeMs() <= CONDITIONS_OFFLINE_MAX_AGE_MS
+        ? _conditionsCache.atm
+        : null;
     }
     // Honor the minimum spin duration so the user can actually see feedback
     if (minSpinUntil) {
@@ -294,7 +327,10 @@ async function _refreshConditions(slotId, variant, opts = {}) {
       slot.innerHTML = `<div class="conditions-now-msg">Conditions data unavailable offline. Reconnect once and we'll cache it.${fetchError ? ` <small>(${escapeHTML(fetchError)})</small>` : ''}</div>`;
       return;
     }
-    _conditionsCache = { coordKey: key, atm, fetchedAt: now };
+    const sourceFetchedAt = Number.isFinite(atm.fetchedAt) ? atm.fetchedAt : Date.now();
+    const cachedAt = online ? Date.now() : (_conditionsCache?.cachedAt || 0);
+    _conditionsCache = { profileKey: _profileKey(), coordKey: key, atm, fetchedAt: sourceFetchedAt, cachedAt };
+    document.dispatchEvent(new CustomEvent('light-conditions-updated'));
     slot.setAttribute('aria-busy', 'false');
     slot.innerHTML = _renderConditionsHTML(atm, coords, variant, !online);
     _centerConditionsNowMarker(slot);
@@ -351,7 +387,7 @@ export async function _setManualUvi() {
   // the override applied. Fetch isn't re-issued — the override is applied
   // to whatever atm we have cached.
   _conditionsCache = null;
-  _notify(`Manual UVI ${v.toFixed(1)} applied — used for burn-time + vit-D-threshold math until cleared. (Spectrum stays driven by ozone + zenith + cloud cover.)`, 'success', 5000);
+  _notify(`Manual UVI ${v.toFixed(1)} applied — used to calibrate UV spectrum, burn-time, and vitamin-D estimates until cleared.`, 'success', 5000);
   _refreshConditionsNow();
 }
 
@@ -573,7 +609,30 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
                  (state.importedData?.lightCircadian?.skinType?.match?.(/^(I{1,3}|IV|VI?)\b/) || [])[1];
   const fp = userFp || 'III';
   const fpIsDefault = !userFp;
-  const medResult = uvi != null ? _timeToMed(uvi, fp, atm) : null;
+  const psmTier = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
+  const uvConfidence = typeof lightConditionsDeps.computeUVConfidence === 'function'
+    ? lightConditionsDeps.computeUVConfidence({
+      source: atm?.source,
+      snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
+      cloudCover: atm?.cloudCover ?? null,
+      zenithDeg: Number.isFinite(sunAngle) ? 90 - sunAngle : null,
+      uvIndex: atm?.uvIndex ?? null,
+      isStale: !!atm?._stale,
+      manualOverridden: !!atm?._uvOverridden,
+    })
+    : (atm?.confidence ?? null);
+  const uvConfidenceLevel = !Number.isFinite(uvConfidence)
+    ? 'unknown'
+    : uvConfidence >= 0.8 ? 'high' : uvConfidence >= 0.55 ? 'medium' : 'low';
+  // Exact burn countdowns are only shown when the atmosphere signal clears a
+  // minimum quality bar and no medication flag makes the biological response
+  // intrinsically unpredictable. UVI remains visible at lower confidence.
+  const allowsExactBurnTiming = Number.isFinite(uvConfidence)
+    && uvConfidence >= 0.65
+    && !atm?._stale
+    && psmTier === 'none';
+  const medResult = uvi != null && allowsExactBurnTiming ? _timeToMed(uvi, fp, atm, 1) : null;
+  const burnTimingUncertain = uvi != null && uvi > 0 && !allowsExactBurnTiming;
   const vitDLabel = _vitDLabel(uvi);
   // Daily peak forecast — when does UVI hit its max today
   const peakAt = atm.daily?.peakAt;
@@ -606,58 +665,23 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // it's actionable instead of a duplicate clock.
   const sunrise = atm.daily?.sunrise;
   const sunset = atm.daily?.sunset;
-  // Biological dawn / dusk — when UV-A first / last reaches the ground.
-  // For QB users this is the most meaningful moment of the day (Hattar
-  // ipRGC entrainment, eye-skin α-MSH cascade, retinal dopamine release).
-  const { firstUVA, lastUVA } = _computeUvaWindow(coords, sunrise || new Date());
   const events = [];
   // Sun-arc icon language (deliberately distinct so no two events share
   // the same emoji meaning):
   //   🌅 = geometric sunrise   (universal "sun crossing horizon")
-  //   ◐  = UV-A on (rising)    (half-sun rising — biological dawn)
   //   ☀  = peak UVI            (solar noon)
-  //   ◑  = UV-A off (setting)  (half-sun setting — biological dusk)
   //   🌇 = geometric sunset    (universal "sun below horizon")
   //   ⏵  = now                 (current time pointer)
-  if (sunrise) events.push({ icon: '🌅', label: _fmtTime(sunrise), ts: new Date(sunrise).getTime(), kind: 'sunrise', tooltip: 'Geometric sunrise — sun crosses horizon. UV-A still negligible, eye-light barely above twilight.' });
-  // Local-time HH:MM formatter — matches the format Open-Meteo returns
-  // (YYYY-MM-DDTHH:MM in the requested timezone) so all events on the
-  // sun-arc row are in the same timezone.
-  const localHHMM = (d) => {
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  if (firstUVA) {
-    events.push({
-      icon: '◐',
-      label: `${localHHMM(firstUVA)} · UV-A on`,
-      ts: firstUVA.getTime(),
-      kind: 'first-uva',
-      uvaEvent: true,
-      tooltip: 'Sun reaches ~5° elevation — atmospheric path short enough for 320-400 nm UV-A to penetrate. Biological dawn: eye + skin start receiving the violet/UV-A signals that drive circadian entrainment, α-MSH / β-endorphin, and retinal dopamine.',
-    });
-  }
+  if (sunrise) events.push({ icon: '🌅', label: _fmtTime(sunrise), ts: new Date(sunrise).getTime(), kind: 'sunrise', tooltip: 'Sunrise. Outdoor brightness builds quickly after this point; never look directly at the sun.' });
   if (peakAt)  events.push({ icon: '☀', label: `${_fmtTime(peakAt)}${peakUvi != null ? ` · UVI ${peakUvi.toFixed(1)}` : ''}`, ts: new Date(peakAt).getTime(), peak: true, kind: 'peak', tooltip: 'Solar noon — UVI at its daily maximum.' });
-  if (lastUVA) {
-    events.push({
-      icon: '◑',
-      label: `${localHHMM(lastUVA)} · UV-A off`,
-      ts: lastUVA.getTime(),
-      kind: 'last-uva',
-      uvaEvent: true,
-      tooltip: 'Sun drops below ~5° elevation — UV-A fades from the surface. Biological dusk window closes; melatonin synthesis ramps up.',
-    });
-  }
-  if (sunset)  events.push({ icon: '🌇', label: _fmtTime(sunset), ts: new Date(sunset).getTime(), kind: 'sunset', tooltip: 'Geometric sunset — sun drops below horizon. UV-A already gone for ~30-60 min.' });
+  if (sunset)  events.push({ icon: '🌇', label: _fmtTime(sunset), ts: new Date(sunset).getTime(), kind: 'sunset', tooltip: 'Sunset. Keeping indoor light comfortably dim after this can strengthen day–night contrast.' });
   const nowTs = Date.now();
   // Find next upcoming event for the "now" actionable readout
   const upcoming = events.filter(e => e.ts > nowTs).sort((a, b) => a.ts - b.ts);
   const nextEvent = upcoming[0];
   const nextEventLabel = nextEvent ? ({
     sunrise: 'sunrise',
-    'first-uva': 'UV-A on',
     peak: 'peak',
-    'last-uva': 'UV-A off',
     sunset: 'sunset',
   })[nextEvent.kind] : null;
   const minsToNext = nextEvent ? Math.round((nextEvent.ts - nowTs) / 60000) : null;
@@ -678,14 +702,11 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   const eventsWithNow = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
   const eventRailLabel = (e) => ({
     sunrise: 'Sunrise',
-    'first-uva': 'UV-A on',
     peak: 'Peak',
-    'last-uva': 'UV-A off',
     sunset: 'Sunset',
   })[e.kind] || (e.isNow ? 'Now' : 'Event');
   const eventRailTime = (e) => {
     if (e.isNow) return e.label.replace(/^now(?: · )?/, '') || 'current';
-    if (e.kind === 'first-uva' || e.kind === 'last-uva') return e.label.split(' · ')[0];
     return e.label;
   };
   const timelineTip = 'Today\'s sun timeline — left to right is the timeline through your day. Events left of the highlighted now-marker have passed; events to the right are upcoming.';
@@ -718,13 +739,14 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
 
   if (variant === 'compact') {
     // Dashboard variant — pills + a 1-line interpretation underneath so
-    // users see the actionable info (won't burn / X min to MED) without
+    // users see the actionable UV context without
     // opening the full Light & Sun page.
     const compactInterp = uvi != null ? (() => {
       let s = vitDLabel;
-      if (medResult?.kind === 'no-uv') s += ' · no burn risk';
-      else if (medResult?.kind === 'safe-til-sunset') s += ' · won\'t burn before sunset';
-      else if (medResult?.kind === 'minutes') s += ` · ~${_fmtMinutes(medResult.value)} to sunburn dose${fpIsDefault ? '*' : ''}`;
+      if (medResult?.kind === 'no-uv') s += ' · modeled burn dose is minimal right now';
+      else if (medResult?.kind === 'safe-til-sunset') s += ' · modeled burn threshold not reached before sunset';
+      else if (medResult?.kind === 'minutes') s += ` · ~${_fmtMinutes(medResult.value)} to modeled burn threshold${fpIsDefault ? '*' : ''}`;
+      else if (burnTimingUncertain) s += ` · burn timing withheld (${uvConfidenceLevel} confidence${psmTier !== 'none' ? ' + medication sensitivity' : ''})`;
       return s;
     })() : '';
     return `<div class="conditions-now-row">
@@ -742,7 +764,7 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   // 4-column grid where UVI spans 2 columns to dominate visually.
   const uviHeroTip = medResult && medResult.kind === 'minutes'
     ? TANNING_MODIFIERS_NOTE
-    : 'WHO UV index — sunburn intensity; vitamin-D synthesis rises as UVI climbs.';
+    : 'WHO UV index — an indicator of sunburn intensity. Vitamin-D potential can rise with UVI, but so does skin-damage risk.';
   const fpDefaultTip = 'No skin type set yet — using medium (Fitzpatrick III) as a default. Set your actual skin type in Light setup for a personalized estimate.';
   const sunPositionTip = `${SHADOW_RULE_HINT}\n\nSun elevation: ${sunAngle != null ? sunAngle + '°' : 'unknown'} above horizon.`;
   const ozoneTip = ozone != null
@@ -755,11 +777,11 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
       <div class="conditions-now-value conditions-now-value-hero">${uvi != null ? uvi : '—'}</div>
       ${uvi != null ? `<div class="conditions-now-interpretation">${escapeHTML(vitDLabel)}${(() => {
         if (!medResult) return '';
-        if (medResult.kind === 'no-uv') return ' · UV near zero, no burn risk';
-        if (medResult.kind === 'safe-til-sunset') return ' · won\'t burn before sunset';
-        if (medResult.kind === 'minutes') return ` · ~${_fmtMinutes(medResult.value)} to your sunburn dose${fpIsDefault ? '*' : ''}`;
+        if (medResult.kind === 'no-uv') return ' · modeled burn dose is minimal right now';
+        if (medResult.kind === 'safe-til-sunset') return ' · modeled burn threshold not reached before sunset';
+        if (medResult.kind === 'minutes') return ` · ~${_fmtMinutes(medResult.value)} to modeled burn threshold${fpIsDefault ? '*' : ''}`;
         return '';
-      })()}${fpIsDefault && medResult?.kind === 'minutes' ? ` <span class="conditions-now-asterisk"${_conditionsTooltipAttr(fpDefaultTip, { focusable: true })}>*</span>` : ''}</div>` : ''}
+      })()}${burnTimingUncertain ? ` · burn timing withheld (${escapeHTML(uvConfidenceLevel)} confidence${psmTier !== 'none' ? ' + medication sensitivity' : ''})` : ''}${fpIsDefault && medResult?.kind === 'minutes' ? ` <span class="conditions-now-asterisk"${_conditionsTooltipAttr(fpDefaultTip, { focusable: true })}>*</span>` : ''}</div>` : ''}
       ${(cloudChip || peakChip) ? `<div class="conditions-now-chips">
         ${cloudChip ? `<span class="conditions-now-chip">${escapeHTML(cloudChip)}</span>` : ''}
         ${peakChip ? `<span class="conditions-now-chip conditions-now-chip-peak">${escapeHTML(peakChip)}</span>` : ''}
@@ -786,20 +808,20 @@ function _renderConditionsHTML(atm, coords, variant, offline = false) {
   </div>
   ${sunEventsLine}
   <div class="conditions-now-footnote"${_conditionsTooltipAttr(TANNING_MODIFIERS_NOTE, { focusable: true })}>
-    Burn-time estimates are based on Fitzpatrick skin type — actual burn / tan response also depends on <strong>genetics</strong> (e.g. MC1R variants), <strong>diet</strong> (omega-3, antioxidants), <strong>recent sun history</strong>, <strong>circadian state</strong>, sleep, and hydration.
+    Burn timing is a modeled estimate, not a safe-time allowance. Leave the sun before redness and use shade, clothing, sunglasses, and sunscreen when UVI is 3 or higher.
   </div>
   ${trustFooter}`;
 }
 
 // ─── Conditions-strip helpers ─────────────────────────────────────────
 
-// What the UVI means for vit-D synthesis (Holick threshold).
+// A deliberately qualitative vitamin-D-potential label. This is a sunlight
+// model signal, not a claim about measured production or vitamin-D status.
 function _vitDLabel(uvi) {
-  if (uvi == null || uvi < 1) return 'no vit-D synthesis';
-  if (uvi < 3) return 'vit-D synthesis weak';
-  if (uvi < 6) return 'vit-D synthesis moderate';
-  if (uvi < 9) return 'vit-D synthesis strong';
-  return 'vit-D synthesis ample (burn risk dominates)';
+  if (uvi == null || uvi < 1) return 'very low vitamin-D potential';
+  if (uvi < 3) return 'low vitamin-D potential';
+  if (uvi < 6) return 'moderate vitamin-D potential';
+  return 'higher vitamin-D potential · protect skin';
 }
 
 // "Time to MED" for the user — accounts for the real UVI curve from now
@@ -812,27 +834,32 @@ function _vitDLabel(uvi) {
 //   { kind: 'no-uv' }                  — UV near zero, no risk to compute
 //   { kind: 'safe-til-sunset' }        — won't burn before sun is down
 //   { kind: 'minutes', value: N }      — N minutes from now to MED
-function _timeToMed(uvi, fitzpatrick, atm) {
+export function _timeToMed(uvi, fitzpatrick, atm, medScale = 1) {
   if (uvi == null || uvi < 0.5) return { kind: 'no-uv' };
   // Standard MED in J/m² by Fitzpatrick type. UVI 1 ≈ 25 mW/m² erythemal.
   const medJoules = { I: 200, II: 250, III: 300, IV: 450, V: 600, VI: 1000 };
-  const j = medJoules[fitzpatrick] || medJoules.III;
-  const bodyFraction = 0.20; // face + arms + hands + neck default
-  const ratePerUvi = 25 * bodyFraction; // mW/m² of erythemal per UVI unit
+  const safeMedScale = Number.isFinite(medScale) ? Math.max(0.1, Math.min(1, medScale)) : 1;
+  const j = (medJoules[fitzpatrick] || medJoules.III) * safeMedScale;
+  // UVI is already erythemally weighted irradiance per exposed square metre.
+  // Total exposed body area changes whole-body dose, not the time for any one
+  // uncovered skin patch to reach its MED.
+  const ratePerUvi = 25; // mW/m² of erythemal irradiance per UVI unit
 
   // Try the integrated path first — uses Open-Meteo's hourly UVI forecast
   // for today, accumulating dose from now until sunset.
   const hourly = atm?.hourly;
   const sunset = atm?.daily?.sunset;
   if (Array.isArray(hourly?.time) && Array.isArray(hourly?.uv_index) && sunset) {
-    const sunsetMs = new Date(sunset).getTime();
+    const offsetSeconds = Number(hourly.utcOffsetSeconds) || 0;
+    const sunsetMs = _locationLocalTimeMs(sunset, offsetSeconds);
     const now = Date.now();
     if (sunsetMs <= now) return { kind: 'no-uv' }; // already past sunset
     let cumulativeJ = 0;
     let lastT = now;
     for (let i = 0; i < hourly.time.length; i++) {
-      const tStart = new Date(hourly.time[i]).getTime();
-      const tEnd = i + 1 < hourly.time.length ? new Date(hourly.time[i + 1]).getTime() : tStart + 3600000;
+      const tStart = _locationLocalTimeMs(hourly.time[i], offsetSeconds);
+      const tEnd = i + 1 < hourly.time.length ? _locationLocalTimeMs(hourly.time[i + 1], offsetSeconds) : tStart + 3600000;
+      if (!Number.isFinite(tStart) || !Number.isFinite(tEnd)) continue;
       // Skip hours fully before now
       if (tEnd <= now) continue;
       // Stop at sunset
@@ -867,10 +894,22 @@ function _timeToMed(uvi, fitzpatrick, atm) {
   const jPerMin = erythemalRate * 60 / 1000;
   const naiveMin = Math.round(j / jPerMin);
   if (sunset) {
-    const minToSunset = Math.max(0, (new Date(sunset).getTime() - Date.now()) / 60000);
+    const offsetSeconds = Number(hourly?.utcOffsetSeconds) || 0;
+    const minToSunset = Math.max(0, (_locationLocalTimeMs(sunset, offsetSeconds) - Date.now()) / 60000);
     if (naiveMin > minToSunset) return { kind: 'safe-til-sunset' };
   }
   return { kind: 'minutes', value: naiveMin };
+}
+
+// Parse Open-Meteo's location-local timestamps independently of the device
+// timezone. Strings with an explicit offset/Z remain ordinary ISO timestamps.
+function _locationLocalTimeMs(value, offsetSeconds = 0) {
+  if (typeof value !== 'string') return new Date(value).getTime();
+  if (/[zZ]$|[+-]\d\d:\d\d$/.test(value)) return new Date(value).getTime();
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return new Date(value).getTime();
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], m[6] ? +m[6] : 0)
+    - (Number(offsetSeconds) || 0) * 1000;
 }
 
 // Format minutes as "Xh Ym" / "Xm" / "<1m"
@@ -909,43 +948,6 @@ function _sunPositionSub(elevDeg) {
   return `UV weak · shadow ${r}× height`;
 }
 
-// Compute the time of day when UV-A first reaches the ground (and when
-// it stops). UV-A 320-400 nm requires sun elevation ~5° above the horizon
-// — below that, atmospheric path is too long for meaningful 320-400 nm to
-// penetrate. This is "biological dawn" / "biological dusk" — the moments
-// when the eye + skin actually start receiving the violet/UV-A signals
-// that drive circadian entrainment, α-MSH / β-endorphin release, and
-// retinal dopamine. Much more biologically meaningful than civil sunrise.
-//
-// Returns { firstUVA: <Date>, lastUVA: <Date> } for the day, or nulls if
-// the sun never rises high enough (polar winter) or coords unavailable.
-//
-// Threshold: 5° elevation. Reference: Hattar / Lambert eye-skin axis
-// literature; OZONE-corrected UV-A penetration models (Madronich 1998).
-function _computeUvaWindow(coords, dateLike) {
-  if (!coords || typeof lightConditionsDeps.solarZenithAngle !== 'function') return { firstUVA: null, lastUVA: null };
-  const baseDate = dateLike ? new Date(dateLike) : new Date();
-  const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-  const SAMPLE_STEP_MIN = 1;
-  const ELEVATION_THRESHOLD_DEG = 5; // sun elevation above horizon for UV-A penetration
-  let firstUVA = null;
-  let lastUVA = null;
-  // Scan minute-by-minute through the day. Lighter than it looks — 1440
-  // calls to a small math function per render, debounced by the 5-min
-  // conditions cache, so amortized cost is trivial.
-  for (let m = 0; m < 24 * 60; m += SAMPLE_STEP_MIN) {
-    const t = new Date(day.getTime() + m * 60_000);
-    const zenith = _solarZenithAngle(t, coords);
-    if (zenith == null) continue;
-    const elevation = 90 - zenith;
-    if (elevation >= ELEVATION_THRESHOLD_DEG) {
-      if (!firstUVA) firstUVA = t;
-      lastUVA = t;
-    }
-  }
-  return { firstUVA, lastUVA };
-}
-
 // Sun-position narrative — uses the "shadow rule" as a UV-strength proxy.
 // Elevation drives UV intensity: shadow shorter than your height = sun
 // high = strong UV. Shadow longer than you = sun low = weak UV. Returns
@@ -967,12 +969,8 @@ function _shadowNarrative(elevDeg) {
 // makes sense to anyone not familiar with the heuristic.
 const SHADOW_RULE_HINT = 'Shadow rule: when your shadow is shorter than you, UV is high (strong sunburn risk). When shadow is longer than you, UV is weak. Used by dermatology orgs as a no-meter outdoor heuristic.';
 
-// The Fitzpatrick scale is a coarse model — actual burn / tan response is
-// modulated by genetics (MC1R / IRF4 / TYR variants), diet (omega-3,
-// lycopene, antioxidants), recent sun history (tan-induced photoadapt),
-// circadian state (melanin synthesis is rhythmic), sleep, and hydration.
-// Surfaced as a tooltip on the burn-estimate + as a footnote line.
-const TANNING_MODIFIERS_NOTE = 'Estimate based on Fitzpatrick skin type alone. Actual burn time also depends on genetics (e.g. MC1R variants), diet (omega-3 / antioxidants), recent sun history (tan), circadian state, sleep, and hydration. Use as a starting point, not gospel.';
+// Plain-language uncertainty note used by the burn estimate and footnote.
+const TANNING_MODIFIERS_NOTE = 'Modeled estimate based on UV index and Fitzpatrick skin type. Real response varies with recent UV exposure, medications, sunscreen coverage, clothing, and individual sensitivity. Leave the sun before redness appears.';
 
 // Friendly cloud-cover narrative — "Overcast" / "Partly cloudy" / "Clear sky".
 function _cloudNarrative(pct) {
