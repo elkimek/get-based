@@ -96,7 +96,28 @@ Slide-out panel with streaming. 2+custom personalities, stop/discuss buttons, co
 
 ### AI Provider System
 
-Six backends: PPQ, Routstr, OpenRouter, Venice, Local AI (Ollama/LM Studio/Jan), Custom. `callClaudeAPI(opts)` in `api.js` routes to the active provider while dedicated `api-*.js` provider modules own provider calls/account helpers. `hasAIProvider()` gates all AI features. Shared OpenAI-compatible request handling lives in `api-openai-compatible.js`; lower-level retries/timeouts live in `api-transport.js`. Venice E2EE uses ECDH + AES-256-GCM with per-chunk streaming decryption and a 30-minute TTL. PPQ and supporting Routstr nodes use Tinfoil remote attestation plus EHBP; Routstr Private TEE requests expose the bearer session and `X-Routstr-Model` routing/billing metadata to the proxy while encrypting the OpenAI-compatible body and enclave response. See `api.js`, `api-openai-compatible.js`, `api-transport.js`, `tinfoil-secure-fetch.js`, `provider-panels.js`, `provider-panel-renderers.js`, `cashu-wallet.js`.
+Six backends: PPQ, Routstr, OpenRouter, Venice, Local AI (Ollama/LM Studio/Jan), Custom. `callClaudeAPI(opts)` in `api.js` routes to the active provider while dedicated `api-*.js` provider modules own provider calls/account helpers. `hasAIProvider()` gates all AI features. Shared OpenAI-compatible request handling lives in `api-openai-compatible.js`; lower-level retries/timeouts live in `api-transport.js`. Venice Encrypted TEE Mode encrypts message content with ECDH + AES-256-GCM and decrypts per-chunk streaming output with a 30-minute session TTL; the surrounding request metadata remains visible, and current getbased integration performs binding checks rather than full attestation verification. PPQ and supporting Routstr nodes use Tinfoil remote attestation plus EHBP; Routstr Private TEE requests expose the bearer session and `X-Routstr-Model` routing/billing metadata to the proxy while encrypting the OpenAI-compatible body and enclave response. See `api.js`, `api-openai-compatible.js`, `api-transport.js`, `tinfoil-secure-fetch.js`, `provider-panels.js`, `provider-panel-renderers.js`, `cashu-wallet.js`.
+
+#### Venice Encrypted TEE Mode security boundary (updated 2026-07-12)
+
+The PPQ/Routstr attestation documentation was merged directly into `getbased-docs` `main` as commit `d6be95c`. Venice was deliberately excluded pending code and documentation fixes.
+
+Current implementation:
+
+- `js/api-venice.js` creates the vendored client with `createVeniceE2EE({ apiKey })`; it does not supply a `dcapVerifier`.
+- `vendor/venice-e2ee.js` parses hex or base64 Intel TDX quotes and checks the requested model, request nonce, signing-key binding, debug mode, and optional Venice server-verification fields. It reports parsed measurements and an explicit `binding`/`dcap`/`measured` verification level. Full DCAP quote/certificate/TCB verification still requires an injected verifier, so getbased does not currently perform it.
+- The client supports caller-supplied measurement allowlists, but getbased does not configure one because Venice has not published stable expected measurements.
+- Successful response content now fails closed unless it is encrypted; only empty or whitespace-only formatting chunks pass through.
+- Message `content` fields are encrypted, but the surrounding JSON, model, roles, token limit, streaming flags, API credential, timing, sizes, and network metadata remain visible to Venice. Documentation must say this explicitly instead of implying the entire request is opaque.
+- Response chunks carry a server ephemeral public key that is not independently bound to the attested model key by the current client protocol. Determine whether Venice provides a signature or other binding before claiming authenticated enclave-origin responses.
+
+Remaining repository scope:
+
+1. Add full browser-compatible DCAP and GPU-evidence validation only after its dependency, network, and supply-chain costs are accepted; configure a measurement allowlist only from an authenticated Venice publication.
+2. Implement response-signature verification when Venice documents the signed payload format and its binding to streaming E2EE output.
+3. Keep user and developer docs explicit about message-content encryption, metadata exposure, client-side binding checks, server-reported checks, full DCAP validation, measurement validation, and remaining trust assumptions.
+
+Full measurement verification and cryptographic response-origin binding may require Venice to publish expected measurements or extend its server protocol. Do not present Venice as equivalent to the PPQ/Routstr Tinfoil path unless those guarantees are actually implemented and verified client-side. Primary references: `https://docs.venice.ai/guides/features/tee-e2ee-models` and `https://github.com/elkimek/venice-e2ee`.
 
 ### AI Verdict Engine
 

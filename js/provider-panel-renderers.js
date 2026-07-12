@@ -252,14 +252,14 @@ function renderVeniceProviderPanel() {
     </div>
     ${hasE2EEModels ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
       <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="venice-e2ee-toggle" ${getVeniceE2EE() ? 'checked' : ''} data-provider-panel-change="venice-e2ee"><span class="toggle-slider"></span></label>
-      <span style="font-size:13px">End-to-End Encryption</span>
+      <span style="font-size:13px">Encrypted TEE Mode</span>
     </div>
-    <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;${isVeniceE2EEActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts encrypted in your browser, decrypted only inside a verified TEE. Web search and image attachments are disabled.</div>` : ''}`;
+    <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;${isVeniceE2EEActive() ? '' : 'display:none'}"><span style="color:var(--orange)">&#128274;~</span> Message content is encrypted in your browser. getbased checks quote freshness, key binding, and debug mode, but does not currently validate the full DCAP chain, GPU evidence, approved code measurements, or response signatures. Venice still sees your API key, model, roles, request settings, timing, sizes, and network metadata. Web search and images are disabled.</div>` : ''}`;
   } else {
     veniceModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="venice-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getVeniceModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
   }
   return `<div class="ai-provider-panel">
-    <div class="ai-provider-desc">Privacy-focused cloud AI. Uncensored models, no data stored. Requires API key.</div>
+    <div class="ai-provider-desc">Hosted Venice models with an optional encrypted-message mode. Requires an API key.</div>
     <div class="api-key-status" id="venice-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
     </div>
@@ -270,7 +270,7 @@ function renderVeniceProviderPanel() {
     </div>
     ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
     ${veniceModelHtml}
-    <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. No data is stored on their servers. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
+    <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. Requests are handled under Venice's privacy and retention policies; getbased does not independently verify provider-side logging. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
   </div>`;
 }
 

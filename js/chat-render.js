@@ -95,7 +95,10 @@ export function renderChatMessages() {
         imageBadge = `<div class="chat-image-badge">\uD83D\uDDBC ${msg.imageCount} image${msg.imageCount !== 1 ? 's' : ''} attached</div>`;
       }
     }
-    html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${renderMarkdown(msg.content)}${stoppedNote}`;
+    const messageBody = msg.error
+      ? `<span style="color:var(--red)">${escapeHTML(msg.content)}</span>`
+      : renderMarkdown(msg.content);
+    html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}">${imageBadge}${messageBody}${stoppedNote}`;
     if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
     if (msg.role === 'assistant') {
       if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens)) {

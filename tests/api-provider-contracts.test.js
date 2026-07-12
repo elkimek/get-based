@@ -395,6 +395,91 @@ describe('AI provider request contracts', () => {
     });
   });
 
+  it('returns encrypted Venice reasoning when a reasoning model emits no final content', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-reasoning');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-glm-contract');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-contract' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    globalThis.fetch = vi.fn(async () => streamResponse([
+      'data: {"choices":[{"delta":{"reasoning_content":"encrypted-reasoning"}}]}\n\n',
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":20,"completion_tokens":12}}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+    const onStream = vi.fn();
+
+    await expect(callClaudeAPI({
+      messages: [{ role: 'user', content: 'reason carefully' }],
+      maxTokens: 64,
+      onStream,
+      requestTimeoutMs: 1000,
+    })).resolves.toEqual({
+      text: 'decrypted:encrypted-reasoning',
+      usage: { inputTokens: 20, outputTokens: 12 },
+      finishReason: 'stop',
+      truncated: false,
+    });
+    expect(onStream).toHaveBeenCalledWith('decrypted:encrypted-reasoning');
+    const request = providerRequestFromFetchCall();
+    expect(request.body).toMatchObject({
+      venice_parameters: {
+        enable_e2ee: true,
+        disable_thinking: true,
+        strip_thinking_response: true,
+      },
+      reasoning: { enabled: false },
+    });
+  });
+
+  it('reports an empty Venice E2EE stream instead of silently rendering a blank answer', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-empty');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-empty-contract');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-empty-contract' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    globalThis.fetch = vi.fn(async () => streamResponse([
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+      'data: [DONE]\n\n',
+    ]));
+
+    await expect(callClaudeAPI({
+      messages: [{ role: 'user', content: 'empty response' }],
+      maxTokens: 64,
+      onStream: vi.fn(),
+      requestTimeoutMs: 1000,
+    })).rejects.toThrow('stream ended without encrypted response content');
+  });
+
+  it('cancels a runaway Venice reasoning-only stream', async () => {
+    setAIProvider('venice');
+    updateKeyCache('labcharts-venice-key', 'sk-venice-runaway');
+    setVeniceE2EE(true);
+    setVeniceModel('e2ee-glm-runaway');
+    localStorage.setItem('labcharts-venice-models', '[]');
+    localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-glm-runaway' }]));
+    localStorage.setItem('labcharts-venice-models-fetched-at', String(Date.now()));
+    const reasoningEvents = Array.from({ length: 129 }, (_, index) =>
+      `data: {"choices":[{"delta":{"reasoning_content":"encrypted-r${index}"}}]}\n\n`
+    );
+    globalThis.fetch = vi.fn(async () => streamResponse(reasoningEvents));
+
+    await expect(callClaudeAPI({
+      messages: [{ role: 'user', content: 'runaway reasoning' }],
+      maxTokens: 16384,
+      onStream: vi.fn(),
+      requestTimeoutMs: 1000,
+    })).rejects.toThrow('cancelled to limit further charges');
+    expect(globalThis._veniceLastStreamDiagnostics).toMatchObject({
+      contentChunks: 0,
+      reasoningChunks: 129,
+      status: 'cancelled-reasoning-only',
+    });
+  });
+
   it('routes advertised Routstr Tinfoil models through attested EHBP with a plaintext model hint', async () => {
     const secret = 'sk-routstr-private-contract';
     setAIProvider('routstr');
@@ -428,14 +513,14 @@ describe('AI provider request contracts', () => {
     updateKeyCache('labcharts-routstr-key', 'sk-routstr-reservation-contract');
     localStorage.setItem('labcharts-routstr-node', 'https://private-node.example');
     setRoutstrModel('tinfoil-glm-5-2');
-    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     const options = baseChatOptions({ maxTokens: 16384 });
     delete options.requestTimeoutMs;
 
     await callClaudeAPI(options);
 
     expect(providerRequestFromFetchCall().body).toMatchObject({ max_tokens: 4096 });
-    expect(timeoutSpy).toHaveBeenCalledWith(180000);
+    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 180000);
     timeoutSpy.mockRestore();
   });
 

@@ -58,7 +58,7 @@ All normal tracking works without AI. AI features can use:
 | **PPQ** | Private TEE mode and regular hosted models, with in-app balance/top-up support. |
 | **Routstr** | Decentralized Bitcoin AI through Nostr-discovered nodes and the built-in Cashu wallet. |
 | **OpenRouter** | A broad hosted model marketplace with OAuth or manual key setup. |
-| **Venice AI** | Hosted models with optional browser-side E2EE mode. |
+| **Venice AI** | Hosted models with optional browser-side message encryption and limited client attestation checks. |
 | **Local AI** | Any OpenAI-compatible local server, such as Ollama, LM Studio, Jan, or llama.cpp. |
 | **Custom API** | Bring your own OpenAI-compatible endpoint or proxy. |
 

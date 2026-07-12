@@ -104,6 +104,13 @@ assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${
 assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
+assert('latest changelog explains private AI reliability and Venice limits in user-readable terms',
+  /version:\s*'1\.10\.177'[\s\S]{0,1800}Long private replies can finish normally/.test(changelogSrc)
+    && /version:\s*'1\.10\.177'[\s\S]{0,1800}Reasoning-heavy models no longer leave an empty chat/.test(changelogSrc)
+    && /version:\s*'1\.10\.177'[\s\S]{0,1800}PPQ Private handles secure-server key changes/.test(changelogSrc)
+    && /version:\s*'1\.10\.177'[\s\S]{0,2200}connection metadata remains visible/.test(changelogSrc)
+    && /version:\s*'1\.10\.177'[\s\S]{0,2200}does not fully verify the hardware quote or running code by default/.test(changelogSrc)
+    && /version:\s*'1\.10\.177'[\s\S]{0,500}forceShow:\s*true/.test(changelogSrc));
 assert('latest changelog documents cycle import sources and local-data boundaries',
   /version:\s*'1\.10\.157'[\s\S]{0,1200}Apple Health, Drip, Natural Cycles[\s\S]{0,600}extracted Clue JSON/.test(changelogSrc)
   && /version:\s*'1\.10\.157'[\s\S]{0,1600}Detailed observations stay local/.test(changelogSrc)

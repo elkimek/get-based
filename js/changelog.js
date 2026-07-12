@@ -11,6 +11,16 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.177', date: '2026-07-12', title: 'More reliable private AI chats',
+    forceShow: true,
+    items: [
+      '<b>Long private replies can finish normally.</b> Once Venice, PPQ Private, or Routstr Private has connected, getbased no longer lets the startup timer cut off a reply that is still arriving.',
+      '<b>Reasoning-heavy models no longer leave an empty chat.</b> If a model produces no visible answer, getbased now shows a clear message instead of silently removing the thinking bubble.',
+      '<b>PPQ Private handles secure-server key changes.</b> When PPQ rotates its encryption key, getbased refreshes the security evidence and reconnects instead of repeatedly failing with a key mismatch.',
+      '<b>Venice privacy labels are more precise.</b> Message contents are encrypted between your browser and Venice\'s confidential-computing endpoint, but connection metadata remains visible and getbased does not fully verify the hardware quote or running code by default.',
+    ]
+  },
+  {
     version: '1.10.169', date: '2026-07-11', title: 'Private chats on Routstr',
     forceShow: true,
     items: [

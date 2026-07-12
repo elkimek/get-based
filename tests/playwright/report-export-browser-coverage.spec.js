@@ -855,7 +855,7 @@ Discussion focus:
       try {
         await report.generateReportAISummary({ dateRange: 'all' });
       } catch (err) {
-        emptyResponseThrows = String(err?.message || err).includes('AI returned an empty summary');
+        emptyResponseThrows = String(err?.message || err).includes('returned no response content');
       }
       outcomes.emptySummaryResponseThrows = emptyResponseThrows;
     } finally {

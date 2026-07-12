@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 // node_modules/@noble/secp256k1/index.js
 var secp256k1_CURVE = {
   p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn,
@@ -438,12 +439,23 @@ async function encryptMessage(aesKey, clientPubKeyBytes, plaintext) {
   out.set(new Uint8Array(ct), 77);
   return toHex(out);
 }
-async function decryptChunk(clientPrivateKey, hexString) {
-  if (!hexString || hexString.length < 154 || !/^[0-9a-f]+$/i.test(hexString)) {
+async function decryptChunk(clientPrivateKey, hexString, allowPlaintext = false) {
+  if (typeof hexString !== "string") {
+    throw new TypeError("Encrypted response content must be a string");
+  }
+  if (!hexString || /^\s+$/.test(hexString)) {
     return hexString;
   }
+  const encrypted = hexString.length >= 186 && /^[0-9a-f]+$/i.test(hexString);
+  if (!encrypted) {
+    if (allowPlaintext) return hexString;
+    throw new Error("Venice E2EE response contained unencrypted content");
+  }
   const raw = fromHex(hexString);
-  if (raw[0] !== 4) return hexString;
+  if (raw[0] !== 4) {
+    if (allowPlaintext) return hexString;
+    throw new Error("Venice E2EE response has an invalid ephemeral public key");
+  }
   const serverEphemeralPubKey = toHex(raw.slice(0, 65));
   const iv = raw.slice(65, 77);
   const ciphertext = raw.slice(77);
@@ -457,7 +469,7 @@ async function decryptChunk(clientPrivateKey, hexString) {
 }
 
 // src/stream.ts
-async function* decryptSSEStream(body, privateKey) {
+async function* decryptSSEStream(body, privateKey, allowPlaintextResponses = false) {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -481,7 +493,7 @@ async function* decryptSSEStream(body, privateKey) {
         const content = event.choices?.[0]?.delta?.content;
         if (content === void 0 || content === null) continue;
         try {
-          yield await decryptChunk(privateKey, content);
+          yield await decryptChunk(privateKey, content, allowPlaintextResponses);
         } catch (e) {
           if (e instanceof DOMException && e.name === "OperationError") {
             throw new Error(
@@ -505,7 +517,7 @@ async function* decryptSSEStream(body, privateKey) {
           const content = event.choices?.[0]?.delta?.content;
           if (content !== void 0 && content !== null) {
             try {
-              yield await decryptChunk(privateKey, content);
+              yield await decryptChunk(privateKey, content, allowPlaintextResponses);
             } catch (e) {
               if (e instanceof DOMException && e.name === "OperationError") {
                 throw new Error(
@@ -802,6 +814,18 @@ var TD_ATTRIBUTES_LEN = 8;
 var REPORT_DATA_OFFSET = TDX_BODY_OFFSET + 520;
 var REPORT_DATA_LEN = 64;
 var MIN_QUOTE_LEN = REPORT_DATA_OFFSET + REPORT_DATA_LEN;
+var MEASUREMENT_LAYOUT = [
+  ["mrSeam", 16],
+  ["mrSignerSeam", 64],
+  ["mrTd", 136],
+  ["mrConfigId", 184],
+  ["mrOwner", 232],
+  ["mrOwnerConfig", 280],
+  ["rtMr0", 328],
+  ["rtMr1", 376],
+  ["rtMr2", 424],
+  ["rtMr3", 472]
+];
 var TDX_TEE_TYPE = 129;
 function deriveEthAddress(pubKeyHex) {
   let hex = pubKeyHex.startsWith("0x") ? pubKeyHex.slice(2) : pubKeyHex;
@@ -823,9 +847,20 @@ function constantTimeEqual(a, b) {
   }
   return diff === 0;
 }
-function parseTdxQuote(quoteHex) {
-  const hex = quoteHex.startsWith("0x") ? quoteHex.slice(2) : quoteHex;
-  const bytes = fromHex(hex);
+function decodeQuote(quote) {
+  const value = quote.startsWith("0x") ? quote.slice(2) : quote;
+  if (value.length % 2 === 0 && /^[0-9a-f]+$/i.test(value)) return fromHex(value);
+  try {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const binary = atob(padded);
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  } catch {
+    throw new Error("TDX quote is neither valid hex nor base64");
+  }
+}
+function parseTdxQuote(quote) {
+  const bytes = decodeQuote(quote);
   if (bytes.length < MIN_QUOTE_LEN) {
     throw new Error(
       `TDX quote too short: ${bytes.length} bytes (need >= ${MIN_QUOTE_LEN})`
@@ -838,25 +873,81 @@ function parseTdxQuote(quoteHex) {
     );
   }
   return {
+    bytes,
     tdAttributes: bytes.slice(TD_ATTRIBUTES_OFFSET, TD_ATTRIBUTES_OFFSET + TD_ATTRIBUTES_LEN),
-    reportData: bytes.slice(REPORT_DATA_OFFSET, REPORT_DATA_OFFSET + REPORT_DATA_LEN)
+    reportData: bytes.slice(REPORT_DATA_OFFSET, REPORT_DATA_OFFSET + REPORT_DATA_LEN),
+    measurements: Object.fromEntries(
+      MEASUREMENT_LAYOUT.map(([name, offset]) => [
+        name,
+        toHex(bytes.slice(TDX_BODY_OFFSET + offset, TDX_BODY_OFFSET + offset + 48))
+      ])
+    )
   };
 }
-async function verifyAttestation(response, clientNonce, dcapVerifier) {
+function normalizeMeasurement(value) {
+  return value.toLowerCase().replace(/^0x/, "");
+}
+function verifyMeasurements(actual, expected, errors) {
+  let checked = 0;
+  let matched = true;
+  for (const [name, allowedValue] of Object.entries(expected)) {
+    const allowed = (Array.isArray(allowedValue) ? allowedValue : [allowedValue]).map(normalizeMeasurement);
+    checked += 1;
+    if (!actual[name] || !allowed.includes(normalizeMeasurement(actual[name]))) {
+      matched = false;
+      errors.push(`TDX measurement mismatch: ${name}`);
+    }
+  }
+  if (checked === 0) {
+    errors.push("Expected measurement policy is empty");
+    return false;
+  }
+  return matched;
+}
+async function verifyAttestation(response, clientNonce, verifierOrOptions) {
+  const options = typeof verifierOrOptions === "function" ? { dcapVerifier: verifierOrOptions } : verifierOrOptions ?? {};
+  const { dcapVerifier, requireDcap = false, expectedMeasurements, expectedModelId } = options;
   const errors = [];
   let nonceVerified = false;
   let signingKeyBound = false;
   let debugMode = false;
   let serverTdxValid = null;
+  let serverVerified = response.verified ?? null;
   let dcap;
+  let dcapVerified = false;
+  let measurements;
+  let measurementsVerified = null;
+  const result = () => ({
+    nonceVerified,
+    signingKeyBound,
+    debugMode,
+    serverTdxValid,
+    serverVerified,
+    dcap,
+    dcapVerified,
+    measurements,
+    measurementsVerified,
+    verificationLevel: dcapVerified ? measurementsVerified === true ? "measured" : "dcap" : nonceVerified && signingKeyBound && !debugMode ? "binding" : "none",
+    errors
+  });
   if (clientNonce.length !== 32) {
     errors.push(`Invalid client nonce length: ${clientNonce.length} (expected 32)`);
-    return { nonceVerified, signingKeyBound, debugMode, serverTdxValid, errors };
+    return result();
+  }
+  const clientNonceHex = toHex(clientNonce);
+  if (response.nonce && normalizeMeasurement(response.nonce) !== clientNonceHex) {
+    errors.push("Attestation response nonce does not match the requested nonce");
+  }
+  if (expectedModelId && response.model !== expectedModelId) {
+    errors.push(`Attestation model mismatch: expected ${expectedModelId}, received ${response.model || "missing"}`);
+  }
+  if (response.verified === false) {
+    errors.push("Venice reported that server-side attestation verification failed");
   }
   const signingKey = response.signing_key || response.signing_public_key;
   if (!signingKey) {
     errors.push("No signing key in attestation response");
-    return { nonceVerified, signingKeyBound, debugMode, serverTdxValid, errors };
+    return result();
   }
   if (response.server_verification) {
     const sv = response.server_verification;
@@ -866,18 +957,31 @@ async function verifyAttestation(response, clientNonce, dcapVerifier) {
         `Server TDX verification failed: ${sv.tdx.error || "unknown reason"}`
       );
     }
+    if (sv.tdx?.signatureValid === false) {
+      errors.push("Venice reported an invalid TDX quote signature");
+    }
+    if (sv.tdx?.certificateChainValid === false) {
+      errors.push("Venice reported an invalid TDX certificate chain");
+    }
+    if (sv.tdx?.attestationKeyMatch === false) {
+      errors.push("Venice reported a TDX attestation-key mismatch");
+    }
+    if (sv.nvidia && !sv.nvidia.valid) {
+      errors.push(`Venice reported failed NVIDIA attestation: ${sv.nvidia.error || "unknown reason"}`);
+    }
   }
   if (!response.intel_quote) {
     errors.push("No intel_quote in attestation response \u2014 cannot verify client-side");
-    return { nonceVerified, signingKeyBound, debugMode, serverTdxValid, errors };
+    return result();
   }
   let reportData;
   let tdAttributes;
+  let quoteBytes;
   try {
-    ({ reportData, tdAttributes } = parseTdxQuote(response.intel_quote));
+    ({ bytes: quoteBytes, reportData, tdAttributes, measurements } = parseTdxQuote(response.intel_quote));
   } catch (e) {
     errors.push(`Failed to parse TDX quote: ${e.message}`);
-    return { nonceVerified, signingKeyBound, debugMode, serverTdxValid, errors };
+    return result();
   }
   debugMode = (tdAttributes[0] & 1) !== 0;
   if (debugMode) {
@@ -930,21 +1034,35 @@ async function verifyAttestation(response, clientNonce, dcapVerifier) {
       );
     }
   }
-  if (dcapVerifier && response.intel_quote) {
-    const quoteHex = response.intel_quote.startsWith("0x") ? response.intel_quote.slice(2) : response.intel_quote;
+  if (expectedMeasurements) {
+    measurementsVerified = verifyMeasurements(measurements, expectedMeasurements, errors);
+  }
+  if (dcapVerifier) {
     try {
-      dcap = await dcapVerifier(fromHex(quoteHex));
+      dcap = await dcapVerifier(quoteBytes);
       const status = dcap.status;
-      if (status === "Revoked") {
-        errors.push("DCAP verification: TCB status is Revoked");
-      } else if (status === "OutOfDate" || status === "OutOfDateConfigurationNeeded") {
-        errors.push(`DCAP verification: TCB status is ${status} \u2014 platform firmware may need updating`);
+      const acceptedStatuses = /* @__PURE__ */ new Set([
+        "UpToDate",
+        "SWHardeningNeeded",
+        "ConfigurationNeeded",
+        "ConfigurationAndSWHardeningNeeded"
+      ]);
+      if (acceptedStatuses.has(status)) {
+        dcapVerified = true;
+      } else {
+        errors.push(`DCAP verification: unacceptable TCB status ${status || "Unknown"}`);
       }
     } catch (e) {
       errors.push(`DCAP verification failed: ${e.message}`);
     }
   }
-  return { nonceVerified, signingKeyBound, debugMode, serverTdxValid, dcap, errors };
+  if (requireDcap && !dcapVerified) {
+    errors.push(dcapVerifier ? "Full DCAP verification did not complete successfully" : "Full DCAP verification is required but no dcapVerifier was provided");
+  }
+  if (measurementsVerified === true && !dcapVerified) {
+    errors.push("Measurement allowlist requires successful DCAP verification of the quote");
+  }
+  return result();
 }
 
 // src/index.ts
@@ -956,8 +1074,14 @@ function createVeniceE2EE(options) {
     baseUrl = DEFAULT_BASE_URL,
     sessionTTL = DEFAULT_SESSION_TTL,
     verifyAttestation: shouldVerify = true,
-    dcapVerifier
+    dcapVerifier,
+    requireDcap = false,
+    expectedMeasurements,
+    allowPlaintextResponses = false
   } = options;
+  if (!shouldVerify && (requireDcap || expectedMeasurements)) {
+    throw new Error("Attestation policy cannot be required when verifyAttestation is false");
+  }
   let _session = null;
   let _pendingSession = null;
   async function fetchAttestation(modelId) {
@@ -992,7 +1116,12 @@ function createVeniceE2EE(options) {
     }
     let attestation;
     if (shouldVerify) {
-      attestation = await verifyAttestation(response, nonceBytes, dcapVerifier);
+      attestation = await verifyAttestation(response, nonceBytes, {
+        dcapVerifier,
+        requireDcap,
+        expectedMeasurements,
+        expectedModelId: modelId
+      });
       if (attestation.errors.length > 0) {
         throw new Error(
           `TEE attestation verification failed:
@@ -1034,10 +1163,10 @@ function createVeniceE2EE(options) {
     };
   }
   async function decrypt(hexChunk, session) {
-    return decryptChunk(session.privateKey, hexChunk);
+    return decryptChunk(session.privateKey, hexChunk, allowPlaintextResponses);
   }
   async function* decryptStream(body, session) {
-    yield* decryptSSEStream(body, session.privateKey);
+    yield* decryptSSEStream(body, session.privateKey, allowPlaintextResponses);
   }
   function clearSession() {
     if (_session) {

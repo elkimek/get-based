@@ -11,6 +11,7 @@ export function buildPersonalityPrompt(personality, customPersonality) {
 export function buildMultiPersonaInstruction(chatHistory, currentPersonaName) {
   const otherPersonas = new Set();
   for (const message of chatHistory || []) {
+    if (message.error) continue;
     if (message.role === 'assistant' && message.personalityName && message.personalityName !== currentPersonaName) {
       otherPersonas.add(message.personalityName);
     }
@@ -21,7 +22,7 @@ export function buildMultiPersonaInstruction(chatHistory, currentPersonaName) {
 
 export function buildTaggedChatMessages(chatHistory, currentPersonaName, limit = 30) {
   return (chatHistory || [])
-    .filter((message) => !message.joined && message.role)
+    .filter((message) => !message.joined && !message.error && message.role)
     .slice(-limit)
     .map((message) => {
       if (message.role === 'assistant' && message.personalityName && message.personalityName !== currentPersonaName) {

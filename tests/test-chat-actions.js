@@ -636,11 +636,13 @@ assert('chat-onboarding uses configured deps instead of direct window callback l
 console.log('Section 17a: Chat prompt-context helpers');
 const taggedMessages = buildTaggedChatMessages([
   { joined: true, joinName: 'Analyst' },
+  { role: 'assistant', personalityName: 'Analyst', content: 'Error: provider failed', error: true },
   { role: 'user', content: 'Review this' },
   { role: 'assistant', personalityName: 'Analyst', content: 'First opinion' },
   { role: 'assistant', personalityName: 'House', content: 'Current opinion' },
 ], 'House');
 assert('prompt context skips joined messages', taggedMessages.length === 3, JSON.stringify(taggedMessages));
+assert('prompt context skips persisted error messages', !taggedMessages.some(message => message.content.includes('provider failed')), JSON.stringify(taggedMessages));
 assert('prompt context tags other assistant personas', taggedMessages[1]?.content.startsWith('[Response from Analyst]'), taggedMessages[1]?.content);
 assert('prompt context leaves current persona untagged', taggedMessages[2]?.content === 'Current opinion', taggedMessages[2]?.content);
 const multiPersonaInstruction = buildMultiPersonaInstruction([

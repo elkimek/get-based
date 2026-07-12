@@ -395,16 +395,19 @@ return (async function() {
   // line's dataIndex=0. The value was today's manual value, but the tooltip
   // title showed the vendor row's older date.
   console.log('%c E. Manual Overlay Tooltip Date ', 'font-weight:bold;color:#f59e0b');
+  const vendorDay3 = reg.daysAgoIso(3);
+  const vendorDay2 = reg.daysAgoIso(2);
+  const vendorDay1 = reg.daysAgoIso(1);
   window._labState.importedData.wearableSummary = {
     sources: {
-      oura: { connectedSince: '2026-04-10', lastSyncAt: Date.now(), coverageDays: 3 },
+      oura: { connectedSince: vendorDay3, lastSyncAt: Date.now(), coverageDays: 3 },
       manual: { connectedSince: todayISO, lastSyncAt: Date.now(), coverageDays: 1 },
     },
     metrics: {
       rhr: {
         primarySource: 'oura',
         latest: 61,
-        latestDate: '2026-04-12',
+        latestDate: vendorDay1,
         baseline: 60,
         baselineP25: 58,
         baselineP75: 62,
@@ -415,9 +418,9 @@ return (async function() {
     },
   };
   await store.upsertDailyBatch(TEST_PROFILE, [
-    { source: 'oura', date: '2026-04-10', rhr: 60 },
-    { source: 'oura', date: '2026-04-11', rhr: 61 },
-    { source: 'oura', date: '2026-04-12', rhr: 62 },
+    { source: 'oura', date: vendorDay3, rhr: 60 },
+    { source: 'oura', date: vendorDay2, rhr: 61 },
+    { source: 'oura', date: vendorDay1, rhr: 62 },
     { source: 'manual', date: todayISO, rhr: 57 },
   ]);
   await window.openWearableDetail('rhr');
