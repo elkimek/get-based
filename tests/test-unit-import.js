@@ -303,19 +303,19 @@ const importCssSrc = read('css/import.css');
   assert('Vitamin A 50 µg/dL → ~1.745 µmol/L',
     Math.abs(vitASI - 1.745) < 0.05, `got ${vitASI}`);
 
-  // Calcitriol: 60 pg/mL → ~149.8 pmol/L
+  // Calcitriol: 60 pg/mL (= 60 ng/L) → ~144.0 pmol/L
   const calcSI = testNormalize('vitamins.calcitriol', 60, 'pg/ml');
-  assert('Calcitriol 60 pg/mL → ~149.8 pmol/L',
-    Math.abs(calcSI - 149.8) < 1, `got ${calcSI}`);
+  assert('Calcitriol 60 pg/mL → ~144.0 pmol/L',
+    Math.abs(calcSI - 144.0) < 1, `got ${calcSI}`);
 
   // Free T4: 1.2 ng/dL → ~15.44 pmol/L
   const ft4SI = testNormalize('thyroid.ft4', 1.2, 'ng/dl');
   assert('Free T4 1.2 ng/dL → ~15.44 pmol/L',
     Math.abs(ft4SI - 15.44) < 0.5, `got ${ft4SI}`);
 
-  // Free T3: 3.5 pg/dL → ~5.37 pmol/L
-  const ft3SI = testNormalize('thyroid.ft3', 3.5, 'pg/dl');
-  assert('Free T3 3.5 pg/dL → ~5.37 pmol/L',
+  // Free T3: the common conventional unit is pg/mL; pg/dL is 100× smaller.
+  const ft3SI = testNormalize('thyroid.ft3', 3.5, 'pg/ml');
+  assert('Free T3 3.5 pg/mL → ~5.37 pmol/L',
     Math.abs(ft3SI - 5.37) < 0.2, `got ${ft3SI}`);
 
   // Transferrin: 250 mg/dL → 2.5 g/L

@@ -53,6 +53,10 @@ assert('magnesium mg/L → mmol/L', approx(normalizeToSI('electrolytes.magnesium
 // Hormones
 assert('testosterone ng/ml → nmol/L', approx(normalizeToSI('hormones.testosterone', 10, 'ng/ml'), 34.7, 0.1));
 assert('estradiol pg/ml → pmol/L', approx(normalizeToSI('hormones.estradiol', 100, 'pg/ml'), 367, 1));
+assert('free T3 pg/ml → pmol/L', approx(normalizeToSI('thyroid.ft3', 3.5, 'pg/ml'), 5.374, 0.01));
+assert('free T3 pg/dl preserves the 100× unit difference', approx(normalizeToSI('thyroid.ft3', 3.5, 'pg/dl'), 0.05374, 0.001));
+assert('calcitriol pg/ml and ng/l convert identically',
+  approx(normalizeToSI('vitamins.calcitriol', 60, 'pg/ml'), normalizeToSI('vitamins.calcitriol', 60, 'ng/l'), 0.01));
 
 // ═══════════════════════════════════════════════
 // 2. SI passthrough

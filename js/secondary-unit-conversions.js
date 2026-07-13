@@ -271,7 +271,6 @@ export const SECONDARY_UNIT_CONVERSIONS = {
   ],
   'thyroid.ft3': [
     { unit: 'ng/l', factor: 0.6513, type: 'multiply' },
-    { unit: 'pg/ml', factor: 0.6513, type: 'multiply' },
     { unit: 'pg/dl', factor: 65.13, type: 'multiply' },
     { unit: 'pmol/l', factor: 1, type: 'multiply' }
   ],

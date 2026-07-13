@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.180', date: '2026-07-13', title: 'Correct lab unit conversions',
+    items: [
+      '<b>Free T3 and calcitriol values convert accurately.</b> Free T3 now uses the standard pg/mL conventional unit, and equivalent calcitriol pg/mL and ng/L results produce the same SI value.',
+    ]
+  },
+  {
     version: '1.10.179', date: '2026-07-13', title: 'Parathyroid hormone tracking',
     items: [
       '<b>PTH is now a standard lab marker.</b> Track parathyroid hormone in pmol/L or pg/mL, with common report names recognized during import.',
