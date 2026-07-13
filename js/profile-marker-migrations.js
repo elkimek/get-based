@@ -3,6 +3,7 @@
 
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { renameLabEntryMarker } from './lab-entry.js';
+import { normalizeToSI } from './pdf-import-marker-mapping.js';
 
 /**
  * @typedef {Record<string, any>} ProfileData
@@ -565,6 +566,71 @@ function _repairFractionStoredPercentImports(data) {
 }
 
 /**
+ * Repair values imported while a marker key was still custom, before that same
+ * key became part of the standard schema. Import snapshots retain the original
+ * value and unit, so only exact raw-value matches are safe to canonicalize.
+ *
+ * @param {ProfileData} data
+ * @returns {void}
+ */
+function _repairNewlyStandardizedImports(data) {
+  if (!Array.isArray(data.importSnapshots) || !Array.isArray(data.entries)) return;
+  const legacyCustomKeys = new Set(Object.keys(data.customMarkers || {}).filter(key => {
+    const [catKey, markerKey] = key.split('.');
+    return !!MARKER_SCHEMA[catKey]?.markers?.[markerKey];
+  }));
+  if (legacyCustomKeys.size === 0) return;
+  const snapshotBackedKeys = new Set();
+
+  for (const snap of data.importSnapshots) {
+    if (!Array.isArray(snap?.markers)) continue;
+    for (const marker of snap.markers) {
+      const key = marker?.mappedKey || marker?.suggestedKey || '';
+      if (!legacyCustomKeys.has(key) || FRACTION_STORED_PERCENT_MARKERS.has(key)) continue;
+      const rawValue = Number(marker?.value);
+      if (!Number.isFinite(rawValue)) continue;
+      const canonicalValue = normalizeToSI(key, rawValue, marker?.unit, marker);
+      if (!Number.isFinite(canonicalValue)) continue;
+      snapshotBackedKeys.add(key);
+
+      if (!marker.mappedKey && marker.suggestedKey === key) {
+        marker.mappedKey = key;
+        marker.suggestedKey = null;
+        marker.matched = true;
+      }
+
+      for (const entry of data.entries) {
+        if (!entry?.markers || !Object.prototype.hasOwnProperty.call(entry.markers, key)) continue;
+        const storedValue = entry.markers[key];
+        if (!_profileMarkerValuesMatch(storedValue, rawValue)) continue;
+        const source = entry.markerSources?.[key];
+        const sourceMatches = (snap?.id && source?.snapshotId === snap.id)
+          || (snap?.date && entry.date === snap.date);
+        if (sourceMatches) entry.markers[key] = canonicalValue;
+      }
+
+      const override = data.refOverrides?.[key];
+      if (override) {
+        const rangeFields = [
+          ['refMin', 'refMin'],
+          ['refMax', 'refMax'],
+          ['labRefMin', 'refMin'],
+          ['labRefMax', 'refMax'],
+        ];
+        for (const [overrideField, markerField] of rangeFields) {
+          const rawRange = Number(marker?.[markerField]);
+          if (!Number.isFinite(rawRange) || !_profileMarkerValuesMatch(override[overrideField], rawRange)) continue;
+          const canonicalRange = normalizeToSI(key, rawRange, marker?.unit, marker);
+          if (Number.isFinite(canonicalRange)) override[overrideField] = canonicalRange;
+        }
+      }
+    }
+  }
+
+  for (const key of snapshotBackedKeys) delete data.customMarkers[key];
+}
+
+/**
  * @param {any} entry
  * @param {any} snap
  * @param {string} oldKey
@@ -690,6 +756,7 @@ export function repairProfileMarkerData(data) {
   _repairCanonicalMarkerAliases(data);
   _repairNamedStandardMarkerAliases(data);
   _repairUnitSuffixedStandardMarkers(data);
+  _repairNewlyStandardizedImports(data);
   _repairFractionStoredPercentImports(data);
   _repairSpadiaFattyAcidKeys(data);
 }

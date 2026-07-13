@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.181', date: '2026-07-13', title: 'Consistent PTH chart values',
+    items: [
+      '<b>PTH results now share one chart scale.</b> Older pg/mL imports are converted to pmol/L alongside newer PTH results, including values imported before PTH became a standard marker.',
+    ]
+  },
+  {
     version: '1.10.180', date: '2026-07-13', title: 'Correct lab unit conversions',
     items: [
       '<b>Free T3 and calcitriol values convert accurately.</b> Free T3 now uses the standard pg/mL conventional unit, and equivalent calcitriol pg/mL and ng/L results produce the same SI value.',
