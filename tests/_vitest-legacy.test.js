@@ -81,6 +81,7 @@ const LEGACY_TESTS = [
   // and the expanded normalizeToSI() paths (secondary conv, SI passthrough,
   // unknown-unit passthrough, urea/BUN edge cases).
   './test-secondary-unit-conversions.js',
+  './test-pth-marker.js',
   './test-import-chart-data-integrity.js',
   // Batch 7 — wearables fetchers + hardware advisor.
   './test-wearables-fetchers.js',

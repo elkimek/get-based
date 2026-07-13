@@ -121,6 +121,10 @@ export const SECONDARY_UNIT_CONVERSIONS = {
   'hormones.fsh': [
     { unit: 'U/l', factor: 1, type: 'multiply' }
   ],
+  'hormones.pth': [
+    { unit: 'ng/l', factor: 9.43, type: 'multiply' },
+    { unit: 'pmol/l', factor: 1, type: 'multiply' }
+  ],
   'hormones.calcitonin': [
     { unit: 'pmol/l', factor: 0.292, type: 'multiply' },
     { unit: 'ng/l', factor: 1, type: 'multiply' }

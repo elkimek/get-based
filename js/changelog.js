@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.179', date: '2026-07-13', title: 'Parathyroid hormone tracking',
+    items: [
+      '<b>PTH is now a standard lab marker.</b> Track parathyroid hormone in pmol/L or pg/mL, with common report names recognized during import.',
+    ]
+  },
+  {
     version: '1.10.178', date: '2026-07-13', title: 'Cleaner Light guidance',
     items: [
       '<b>Light Guidance stays focused on your exposure.</b> It now combines sun safety with one useful next step, without treating unused red-light device channels as deficiencies or inserting product prompts.',
