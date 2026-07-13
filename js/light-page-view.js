@@ -48,9 +48,6 @@ const lightPageDeps = {
   renderActiveDeviceSessionCard: () => '',
   renderSunSetupCard: () => '',
   renderChannelMixVerdict: staticFallback => staticFallback,
-  renderChannelDeficitDeviceRecs: () => '',
-  loadCatalog: async () => null,
-  loadLightDevicePresets: async () => null,
   renderDevicesSection: async () => '',
   renderEnvironmentAssessmentSummary: () => '',
   renderLightTools: () => '',
@@ -510,14 +507,6 @@ export function showLight(_data) {
     opts: { source: 'Light', dashboardId: '' },
   });
 
-  // Slot id for the async-populated channel-deficit device recommendation
-  // panel. Declared at top scope so the post-render population block can
-  // reference it even when the page rendered without the parent
-  // sessions-list section (e.g. all sessions deleted, but device sessions
-  // push totalSessions ≥ 7 anyway). Stays null when the assignment branch
-  // didn't run; the population block guards on truthiness.
-  let deficitRecSlotId = null;
-
   // Combine sun + device totals so channels reflect every light source
   const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
   const devTotals30d = lightPageDeps.rollingDeviceTotals(30) || {};
@@ -603,20 +592,10 @@ export function showLight(_data) {
     const _staticSuggestion = renderSuggestion(combined7d);
     guidanceBody += lightPageDeps.renderChannelMixVerdict(_staticSuggestion) || _staticSuggestion;
 
-    // Channel-deficit device recommendations — async slot. Surfaces a
-    // CTA card with matching catalog devices when (a) the user has a
-    // real baseline (≥7 logs) and (b) a device-fillable channel is
-    // empty over 30 days. PBM red/NIR are the cleanest cases — solar
-    // exposure can't realistically fill those, so a panel is the
-    // right answer. Catalog + presets are async-loaded; the slot
-    // stays empty if recs are off, region filters everything out, or
-    // the catalog isn't reachable.
-    deficitRecSlotId = `light-deficit-rec-slot-${Date.now()}`;
-    guidanceBody += `<div id="${escapeAttr(deficitRecSlotId)}"></div>`;
     widgets.push({
       id: 'light-guidance',
       title: 'Guidance',
-      description: 'Burn risk, channel synthesis, and device-fillable gaps',
+      description: 'Burn risk and a high-leverage next step from your channel mix',
       body: guidanceBody,
       size: 'full',
       opts: { source: 'Light', dashboardId: '' },
@@ -686,33 +665,6 @@ export function showLight(_data) {
 
   main.innerHTML = html;
   main.querySelector('.light-page')?.classList.add('is-ready');
-
-  // Populate the channel-deficit device-rec slot. Same baseline gate as
-  // sun-context.js: ≥7 logged events of any kind. Device-fillable
-  // channels only — sun-derived deficits (vit_d, circadian, etc.) get
-  // suggested actions via renderSuggestion above; we don't try to sell
-  // a panel as a sun substitute.
-  if (deficitRecSlotId && totalSessions >= 7) {
-    const slot = document.getElementById(deficitRecSlotId);
-    if (slot) {
-      const DEVICE_CHANNELS = [
-        { key: 'pbm_red', label: 'red 660 nm (PBM)' },
-        { key: 'pbm_nir', label: 'near-IR 810/850 nm (PBM)' },
-      ];
-      const empty = DEVICE_CHANNELS.filter(c => (combined30d[c.key] || 0) === 0);
-      if (empty.length) {
-        Promise.all([lightPageDeps.loadCatalog(), lightPageDeps.loadLightDevicePresets()])
-          .then(([catalog, presetData]) => {
-            if (!catalog || !presetData?.presets) return;
-            const blocks = empty
-              .map(c => lightPageDeps.renderChannelDeficitDeviceRecs(catalog, c.key, presetData.presets, { label: escapeHTML(c.label) }))
-              .filter(Boolean);
-            if (blocks.length && slot.isConnected) slot.innerHTML = blocks.join('');
-          })
-          .catch(() => { /* recs are best-effort */ });
-      }
-    }
-  }
 
   Promise.resolve(lightPageDeps.renderDevicesSection()).then((devHtml) => {
     const slot = document.getElementById(devicesSlotId);

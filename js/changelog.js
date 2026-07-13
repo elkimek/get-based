@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.178', date: '2026-07-13', title: 'Cleaner Light guidance',
+    items: [
+      '<b>Light Guidance stays focused on your exposure.</b> It now combines sun safety with one useful next step, without treating unused red-light device channels as deficiencies or inserting product prompts.',
+    ]
+  },
+  {
     version: '1.10.177', date: '2026-07-12', title: 'More reliable private AI chats',
     forceShow: true,
     items: [

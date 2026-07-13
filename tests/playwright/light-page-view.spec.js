@@ -306,6 +306,27 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       lightPage.showLight(state.importedData);
       outcomes.emptyLightPageShowsCountryBandHint =
         main?.textContent.includes('Calculations use your country (~49.2° lat)') === true;
+
+      // Guidance should interpret logged exposure, not present unused PBM
+      // channels as deficiencies or mix product discovery into health advice.
+      window.getSessions = () => Array.from({ length: 7 }, (_, index) => ({
+        id: `sun-${index}`,
+        startedAt: Date.now() - (index + 1) * 86_400_000,
+        endedAt: Date.now() - (index + 1) * 86_400_000 + 600_000,
+      }));
+      window.rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
+      window.rollingDeviceTotals = () => ({ pbm_red: 0, pbm_nir: 0 });
+      syncLightPageDeps();
+      lightPage.showLight(state.importedData);
+      const guidance = main?.querySelector('[data-widget-id="light-guidance"], #light-guidance');
+      outcomes.guidanceKeepsProductsOutOfExposureAdvice =
+        main?.textContent.includes('Guidance') === true
+        && main?.textContent.includes('Burn risk and a high-leverage next step') === true
+        && main?.textContent.includes('Fill the red 660 nm') === false
+        && main?.textContent.includes('Fill the near-IR 810/850 nm') === false
+        && main?.querySelector('.rec-channel-deficit') === null
+        && main?.querySelector('[id^="light-deficit-rec-slot-"]') === null
+        && guidance !== null;
     } finally {
       state.importedData = saved.importedData;
       if (main && saved.mainHTML != null) main.innerHTML = saved.mainHTML;

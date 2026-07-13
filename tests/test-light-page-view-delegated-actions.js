@@ -54,12 +54,16 @@ assert('Light page view exposes dependency configurator',
     && /Object\.assign\(lightPageDeps, deps\)/.test(src));
 assert('Light page view avoids direct window globals',
   !/window\./.test(src));
-assert('Light page feature hook wires runtime dependencies',
+assert('Light page feature hook wires exposure dependencies without product recommendation coupling',
   /configureLightPageView\(\{/.test(hooksSrc)
     && /renderLightTodayHero/.test(hooksSrc)
     && /renderDevicesSection/.test(hooksSrc)
     && /renderLightTools/.test(hooksSrc)
-    && /renderChannelDeficitDeviceRecs/.test(hooksSrc));
+    && /renderChannelMixVerdict/.test(hooksSrc)
+    && !/renderChannelDeficitDeviceRecs/.test(hooksSrc)
+    && !/loadCatalog/.test(hooksSrc)
+    && !/loadLightDevicePresets/.test(hooksSrc)
+    && !/from '\.\/recommendations\.js'/.test(hooksSrc));
 assert('Light Today AI renderers are wired without a window facade',
   todayAiSrc.includes('registerAIActionHandler')
     && !todayAiSrc.includes('Object.assign(globalThis')

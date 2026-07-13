@@ -1,7 +1,6 @@
 // @ts-check
 // light-page-view-hooks.js - wire Light page feature dependencies at startup.
 
-import { loadCatalog, renderChannelDeficitDeviceRecs } from './recommendations.js';
 import {
   CHANNEL_DISPLAY,
   channelTier,
@@ -24,7 +23,6 @@ import { renderSetupCard as renderSunSetupCard } from './sun-defaults.js';
 import { _openChannelOnLightPage } from './light-channel-view.js';
 import {
   ensureActiveDeviceTicker,
-  loadLightDevicePresets,
   openAddDeviceDialog,
   quickLogDeviceSession,
   renderActiveDeviceSessionCard,
@@ -48,8 +46,6 @@ configureLightPageView({
   getDevices,
   getSessions,
   getSunCoords,
-  loadCatalog,
-  loadLightDevicePresets,
   openAddDeviceDialog,
   openChannelOnLightPage: _openChannelOnLightPage,
   openDetailedSessionDialog,
@@ -57,7 +53,6 @@ configureLightPageView({
   quickLogDeviceSession,
   quickLogSunSession,
   renderActiveDeviceSessionCard,
-  renderChannelDeficitDeviceRecs,
   renderChannelMixVerdict,
   renderDevicesSection,
   renderEnvironmentAssessmentSummary,
