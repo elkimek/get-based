@@ -777,21 +777,3 @@ export function renderLightTools() {
     </div>
   </div>`;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    openLuxMeter,
-    openFlickerDetector,
-    openDarknessMeter,
-    openCCTMeter,
-    openSpectrumClassifier,
-    openGlassTransmission,
-    openSunriseLogger,
-    openEyeLevelAudit,
-    getMeasurements,
-    getMeasurementsForRoom,
-    saveMeasurement,
-    deleteMeasurement,
-    renderLightTools,
-  });
-}

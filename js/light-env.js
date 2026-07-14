@@ -88,13 +88,18 @@ export {
 // before falling back to "Room N" so a fresh user lands on familiar labels.
 const DEFAULT_ROOM_NAMES = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
 
-/** @type {{ getMeasurementsForRoom: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null }} */
+/** @type {{ getMeasurementsForRoom: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null, openSpectrumClassifier: AnyFunction | null, openLuxMeter: AnyFunction | null, openFlickerDetector: AnyFunction | null, openCCTMeter: AnyFunction | null, openDarknessMeter: AnyFunction | null }} */
 const lightEnvDeps = {
   getMeasurementsForRoom: null,
   renderBurdenInterp: null,
   renderMeasurementAIInline: null,
   renderRoomAIBlock: null,
   renderScreenAIBlock: null,
+  openSpectrumClassifier: null,
+  openLuxMeter: null,
+  openFlickerDetector: null,
+  openCCTMeter: null,
+  openDarknessMeter: null,
 };
 
 export function configureLightEnv(deps = {}) {
@@ -1050,11 +1055,11 @@ export function getRooms() {
 function openLightEnvTool(tool, roomId) {
   const opts = roomId ? { roomId } : undefined;
   const openers = {
-    spectrum: globalThis.openSpectrumClassifier,
-    lux: globalThis.openLuxMeter,
-    flicker: globalThis.openFlickerDetector,
-    cct: globalThis.openCCTMeter,
-    darkness: globalThis.openDarknessMeter,
+    spectrum: lightEnvDeps.openSpectrumClassifier,
+    lux: lightEnvDeps.openLuxMeter,
+    flicker: lightEnvDeps.openFlickerDetector,
+    cct: lightEnvDeps.openCCTMeter,
+    darkness: lightEnvDeps.openDarknessMeter,
   };
   const opener = openers[tool];
   if (typeof opener === 'function') opener(opts);

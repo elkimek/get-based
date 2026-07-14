@@ -32,7 +32,7 @@ console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 // light-sessions-view.js → _openAllSessionsModal.
 await import('../js/state.js');
 await import('../js/sun.js');
-await import('../js/light-tools.js');
+const lightTools = await import('../js/light-tools.js');
 await import('../js/views.js');
 
 // Snapshot mutable state we touch.
@@ -140,17 +140,17 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
   console.log('%c 5. Latest-per-(roomId, tool) measurement model ', 'font-weight:bold;color:#0891b2');
   {
     const S = window._labState;
-    if (!S || !window.saveMeasurement || !window.getMeasurements) {
-      assert('saveMeasurement / getMeasurements exposed', false);
+    if (!S || typeof lightTools.saveMeasurement !== 'function' || typeof lightTools.getMeasurements !== 'function') {
+      assert('saveMeasurement / getMeasurements exported', false);
     } else {
       const _saved = JSON.parse(JSON.stringify(S.importedData));
       S.importedData.lightMeasurements = [];
       delete S.importedData._deleted;
       const r = 'room_test_retain';
-      await window.saveMeasurement('flicker', 1, { roomId: r });
-      await window.saveMeasurement('flicker', 3, { roomId: r });
-      await window.saveMeasurement('lux', 800, { roomId: r });
-      const rows = window.getMeasurements();
+      await lightTools.saveMeasurement('flicker', 1, { roomId: r });
+      await lightTools.saveMeasurement('flicker', 3, { roomId: r });
+      await lightTools.saveMeasurement('lux', 800, { roomId: r });
+      const rows = lightTools.getMeasurements();
       const flickerRows = rows.filter(m => m.tool === 'flicker' && m.roomId === r);
       const luxRows = rows.filter(m => m.tool === 'lux' && m.roomId === r);
       assert('Second save supersedes first — only one flicker row per (room, tool)',
@@ -170,9 +170,9 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       // audit records in a row and asserting both survive.
       S.importedData.lightMeasurements = [];
       delete S.importedData._deleted;
-      await window.saveMeasurement('audit', 4, { roomId: null, extra: { rooms: [{ index: 1, lux: 200, label: 'Bedroom' }] } });
-      await window.saveMeasurement('audit', 3, { roomId: null, extra: { rooms: [{ index: 1, lux: 800, label: 'Office' }] } });
-      const auditRows = window.getMeasurements().filter(m => m.tool === 'audit');
+      await lightTools.saveMeasurement('audit', 4, { roomId: null, extra: { rooms: [{ index: 1, lux: 200, label: 'Bedroom' }] } });
+      await lightTools.saveMeasurement('audit', 3, { roomId: null, extra: { rooms: [{ index: 1, lux: 800, label: 'Office' }] } });
+      const auditRows = lightTools.getMeasurements().filter(m => m.tool === 'audit');
       assert('Audit walkthroughs preserved across saves (no supersession)',
         auditRows.length === 2);
       const auditTombstones = (S.importedData._deleted?.lightMeasurements || []).length;

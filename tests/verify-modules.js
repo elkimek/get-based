@@ -187,11 +187,12 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, lensModule, piiModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, lensModule, lightToolsModule, piiModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
     import('../js/lens.js'),
+    import('../js/light-tools.js'),
     import('../js/pii.js'),
     import('../js/supplements.js'),
   ]);
@@ -232,6 +233,20 @@
     'handleLensBackendChange',
     'handleLocalLensDeleteDoc','handleLocalLensClear',
     'handleLibraryActivate','handleLibraryNew','handleLibraryRename','handleLibraryDelete',
+  ];
+
+  // light-tools.js (17 selected exports, module-only)
+  const lightToolsExports = [
+    'configureLightTools','installLightToolsActionDelegates',
+    'openLuxMeter','openFlickerDetector','openDarknessMeter','openCCTMeter',
+    'openSpectrumClassifier','openGlassTransmission','openSunriseLogger','openEyeLevelAudit',
+    'getMeasurements','getMeasurementsForRoom','saveMeasurement','deleteMeasurement',
+    'renderLightTools','normalizeGoldenHourMinutes','closeEyeLevelAudit'
+  ];
+  const lightToolsLegacyGlobals = [
+    'openLuxMeter','openFlickerDetector','openDarknessMeter','openCCTMeter',
+    'openSpectrumClassifier','openGlassTransmission','openSunriseLogger','openEyeLevelAudit',
+    'getMeasurements','getMeasurementsForRoom','saveMeasurement','deleteMeasurement','renderLightTools'
   ];
 
   // lab-context.js
@@ -481,6 +496,7 @@
     ['charts.js', chartsModule, chartsExports],
     ['cycle.js', cycleModule, cycleExports],
     ['lens.js', lensModule, lensExports],
+    ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pii.js', piiModule, piiExports],
     ['supplements.js', supplementsModule, supplementsExports],
   ]) {
@@ -495,6 +511,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of lightToolsLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
 
