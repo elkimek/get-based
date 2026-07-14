@@ -353,7 +353,10 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       setupOverlay.querySelector('[data-sync-setup-action="setup-back"]').click();
       const setupBackRestoresChoices = setupOverlay.querySelector('#sync-setup-choices')?.style.display === '';
 
-      window.syncSetupDone();
+      const setupDoneButton = document.createElement('button');
+      setupDoneButton.dataset.syncSetupAction = 'setup-done';
+      setupOverlay.querySelector('.confirm-dialog')?.appendChild(setupDoneButton);
+      setupDoneButton.click();
       const setupDoneCloses = !setupOverlay.classList.contains('show');
 
       syncState.setSyncEnabled(true);

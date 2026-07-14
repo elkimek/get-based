@@ -27,6 +27,7 @@ import {
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
 import { isSyncEnabled } from './sync.js';
+import { showSyncSetupModal } from './settings-sync-panel.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { migrateStoredContextSourceSettingsToProfile } from './context-source-registry.js';
@@ -39,18 +40,23 @@ import {
 const appWindow = /** @type {Window & typeof globalThis & {
   openInterpretiveLensEditor?: () => void,
   showEnableEncryptionModal?: () => void,
-  showSyncSetupModal?: () => void,
   pickFolderForBackup?: () => void,
   handleDNAFile?: (file: File) => void,
   updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
+
+let dashboardAISyncSetupHandler = showSyncSetupModal;
+
+export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
+  dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
+}
 
 configureDashboardAIActionDelegates({
   'open-interpretive-lens': () => appWindow.openInterpretiveLensEditor?.(),
   'open-knowledge-base': () => openKnowledgeBaseModal(),
   'open-personalize-ai-picker': () => openContextModal(),
   'enable-encryption': () => appWindow.showEnableEncryptionModal?.(),
-  'setup-sync': () => appWindow.showSyncSetupModal?.(),
+  'setup-sync': () => dashboardAISyncSetupHandler(),
   'setup-backup': () => appWindow.pickFolderForBackup?.(),
   'open-data-protection-picker': () => openDataProtectionPicker(),
 });
@@ -679,7 +685,7 @@ export function openDataProtectionPicker() {
       if (isConfigured) { close(); return; }
       close();
       if (pick === 'encryption' && typeof appWindow.showEnableEncryptionModal === 'function') appWindow.showEnableEncryptionModal();
-      else if (pick === 'sync' && typeof appWindow.showSyncSetupModal === 'function') appWindow.showSyncSetupModal();
+      else if (pick === 'sync') dashboardAISyncSetupHandler();
       else if (pick === 'backup' && typeof appWindow.pickFolderForBackup === 'function') appWindow.pickFolderForBackup();
     };
   });

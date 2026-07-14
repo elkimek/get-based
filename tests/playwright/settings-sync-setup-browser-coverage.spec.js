@@ -145,6 +145,15 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       throw new Error('sync-section fixture missing');
     }
     const outcomes = {};
+    const legacyWindowGlobals = [
+      'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic', 'copySyncIdentityCode',
+      'openRestoreMnemonicDialog', 'closeRestoreMnemonicDialog', 'confirmRestoreMnemonic',
+      'saveSyncRelay', 'closeSyncSetup', 'syncSetupNew', 'syncSetupRestore', 'syncSetupBack',
+      'syncSetupDoRestore', 'syncSetupDone', 'showSyncSetupModal', 'toggleMessenger',
+      'toggleMessengerToken', 'toggleMessengerContextKey', 'copyMessengerToken',
+      'copyMessengerContextKey', 'regenerateMessengerToken', 'regenerateMessengerContextKey',
+    ];
+    outcomes.legacyWindowFacadeStaysAbsent = legacyWindowGlobals.every(name => !(name in window));
 
     try {
       syncSection.innerHTML = syncPanel.renderSyncSection();

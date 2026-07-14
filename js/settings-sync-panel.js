@@ -732,28 +732,3 @@ export function hydrateSettingsSyncPanel() {
 }
 
 installSettingsSyncDelegates();
-
-Object.assign(window, {
-  toggleSync,
-  toggleMnemonicVisibility,
-  copyMnemonic,
-  copySyncIdentityCode,
-  openRestoreMnemonicDialog,
-  closeRestoreMnemonicDialog,
-  confirmRestoreMnemonic,
-  saveSyncRelay,
-  closeSyncSetup,
-  syncSetupNew,
-  syncSetupRestore,
-  syncSetupBack,
-  syncSetupDoRestore,
-  syncSetupDone,
-  showSyncSetupModal,
-  toggleMessenger,
-  toggleMessengerToken,
-  toggleMessengerContextKey,
-  copyMessengerToken,
-  copyMessengerContextKey,
-  regenerateMessengerToken,
-  regenerateMessengerContextKey,
-});

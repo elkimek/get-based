@@ -35,8 +35,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Cross-Device Sync Tests ===\n');
 
-// Load sync.js + settings.js so their window bindings populate
-// window.enableSync, window.toggleSync, etc.
+// Load the sync window bindings and the module-only Settings Sync panel.
 const { state } = await import('../js/state.js');
 const syncActions = await import('../js/sync-actions.js');
 const syncSaveHooks = await import('../js/sync-save-hooks.js');
@@ -48,6 +47,7 @@ const syncSubscriptions = await import('../js/sync-subscriptions.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
 const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
 await import('../js/sync.js');
+const settingsSyncPanel = await import('../js/settings-sync-panel.js');
 await import('../js/settings.js');
 
   const syncSrc = await fetchWithRetry('js/sync.js');
@@ -1705,14 +1705,25 @@ await import('../js/settings.js');
     assert(`window.${fn} exists`, typeof window[fn] === 'function');
   }
 
-  const settingsWindowFns = [
-    'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic',
-    'saveSyncRelay', 'closeSyncSetup', 'syncSetupNew',
-    'syncSetupRestore', 'syncSetupBack', 'syncSetupDoRestore', 'syncSetupDone',
-    'toggleMessenger', 'toggleMessengerToken', 'copyMessengerToken', 'regenerateMessengerToken'
+  const settingsSyncPanelExports = [
+    'renderMessengerSection', 'renderSyncSection', 'showSyncSetupModal',
+    'closeSyncSetup', 'closeRestoreMnemonicDialog', 'hydrateSettingsSyncPanel',
   ];
-  for (const fn of settingsWindowFns) {
-    assert(`window.${fn} exists`, typeof window[fn] === 'function');
+  for (const fn of settingsSyncPanelExports) {
+    assert(`settings-sync-panel.${fn} exists`, typeof settingsSyncPanel[fn] === 'function');
+  }
+
+  const settingsLegacyWindowFns = [
+    'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic',
+    'copySyncIdentityCode', 'openRestoreMnemonicDialog', 'closeRestoreMnemonicDialog',
+    'confirmRestoreMnemonic', 'saveSyncRelay', 'closeSyncSetup', 'syncSetupNew',
+    'syncSetupRestore', 'syncSetupBack', 'syncSetupDoRestore', 'syncSetupDone',
+    'showSyncSetupModal', 'toggleMessenger', 'toggleMessengerToken',
+    'toggleMessengerContextKey', 'copyMessengerToken', 'copyMessengerContextKey',
+    'regenerateMessengerToken', 'regenerateMessengerContextKey',
+  ];
+  for (const fn of settingsLegacyWindowFns) {
+    assert(`window.${fn} stays module-only`, !(fn in window));
   }
 
   // ═══════════════════════════════════════
