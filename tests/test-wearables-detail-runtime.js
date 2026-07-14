@@ -7,12 +7,15 @@ import { fileURLToPath } from 'url';
 import './_node-shim.js';
 import {
   closeWearableDetailModalRuntime,
+  configureWearableDetailRuntimeDeps,
   confirmWearableDetailActionRuntime,
   createWearableDetailChartRuntime,
   hasWearableDetailChartRuntime,
   navigateWearableDetailRuntime,
   rememberWearableDetailModalTriggerRuntime,
 } from '../js/wearables-detail-runtime.js';
+
+const originalWearableDetailRuntimeDeps = configureWearableDetailRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -48,10 +51,10 @@ try {
   setRuntimeValue('rememberModalTrigger', () => calls.push(['remember']));
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('closeModal', () => calls.push(['close']));
-  setRuntimeValue('showConfirmDialog', async message => {
+  configureWearableDetailRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(['confirm', message]);
     return message === 'delete';
-  });
+  } });
   setRuntimeValue('Chart', function Chart(canvas, config) {
     this.canvas = canvas;
     this.config = config;
@@ -78,7 +81,7 @@ try {
       chart?.config?.type === 'line' &&
       calls.some(call => call.join('|') === 'chart|chart-modal|line'));
 
-  delete globalThis.showConfirmDialog;
+  configureWearableDetailRuntimeDeps({ showConfirmDialog: null });
   delete globalThis.Chart;
   const missingConfirm = await confirmWearableDetailActionRuntime('delete');
   const missingChart = createWearableDetailChartRuntime({ id: 'chart-modal' }, { type: 'line' });
@@ -107,6 +110,7 @@ try {
       !/\bwindow(?:\.|\s*\[)/.test(detailSrc) &&
       swSrc.includes("'/js/wearables-detail-runtime.js'"));
 } finally {
+  configureWearableDetailRuntimeDeps(originalWearableDetailRuntimeDeps);
   restoreRuntime();
 }
 

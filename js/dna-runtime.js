@@ -4,13 +4,20 @@
 import { installDNAWindowBindings } from './dna-window-bindings.js';
 import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
+import { isDebugMode, showConfirmDialog } from './utils.js';
 
-const dnaRuntimeDeps = { getLatitudeFromLocation, isImportRunning };
+const dnaRuntimeDeps = { getLatitudeFromLocation, isDebugMode, isImportRunning, showConfirmDialog };
 
 export function configureDnaRuntimeDeps(deps = {}) {
   const previous = { ...dnaRuntimeDeps };
   if (typeof deps.getLatitudeFromLocation === 'function') dnaRuntimeDeps.getLatitudeFromLocation = deps.getLatitudeFromLocation;
+  if (typeof deps.isDebugMode === 'function') dnaRuntimeDeps.isDebugMode = deps.isDebugMode;
   if (typeof deps.isImportRunning === 'function') dnaRuntimeDeps.isImportRunning = deps.isImportRunning;
+  if ('showConfirmDialog' in deps) {
+    dnaRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
+      ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
+      : null;
+  }
   return previous;
 }
 
@@ -32,7 +39,7 @@ function getRuntimeFunction(name) {
 /** @returns {boolean} */
 function isDnaDebugMode() {
   try {
-    return getRuntimeFunction('isDebugMode')?.() === true;
+    return dnaRuntimeDeps.isDebugMode() === true;
   } catch {
     return false;
   }
@@ -105,7 +112,7 @@ export function getDnaProfileLatitudeBand() {
 
 /** @returns {Promise<boolean>} */
 export async function confirmDnaDeleteDialog() {
-  const confirmDialog = getRuntimeFunction('showConfirmDialog');
+  const confirmDialog = dnaRuntimeDeps.showConfirmDialog;
   if (!confirmDialog) return false;
   try {
     return await confirmDialog('Delete genetic data? This cannot be undone.') === true;

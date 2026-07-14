@@ -57,9 +57,10 @@ test('category customization covers rename icon and emoji picker browser paths',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ categoryUrl }) => {
-    const [{ state }, category] = await Promise.all([
+    const [{ state }, category, categoryRuntime] = await Promise.all([
       import('/js/state.js'),
       import(categoryUrl),
+      import('/js/category-customization-runtime.js'),
     ]);
     const categorySrc = await fetch(categoryUrl).then(response => response.text());
     const outcomes = {};
@@ -68,11 +69,14 @@ test('category customization covers rename icon and emoji picker browser paths',
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
-      prompt: window.showPromptDialog,
       buildSidebar: window.buildSidebar,
       navigate: window.navigate,
     };
     const calls = [];
+    let promptValue = null;
+    const previousCategoryRuntimeDeps = categoryRuntime.configureCategoryCustomizationRuntimeDeps({
+      showPromptDialog: async () => promptValue,
+    });
 
     try {
       const demo = await fetch('data/demo-male.json').then(r => r.json());
@@ -94,7 +98,7 @@ test('category customization covers rename icon and emoji picker browser paths',
       window.navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
       window.buildSidebar = data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]);
 
-      window.showPromptDialog = async () => '  Fallback Lipids  ';
+      promptValue = '  Fallback Lipids  ';
       await category.renameCategory('lipids');
       outcomes.renameCategoryKeepsSidebarFallback = state.importedData.categoryLabels?.lipids === 'Fallback Lipids'
         && calls.some(call => call[0] === 'fallbackSidebar' && call[1] === true);
@@ -104,7 +108,7 @@ test('category customization covers rename icon and emoji picker browser paths',
         navigate: window.navigate,
       });
 
-      window.showPromptDialog = async () => '  Better Lipids  ';
+      promptValue = '  Better Lipids  ';
       await category.renameCategory('lipids');
       outcomes.renameCategoryStoresTrimmedLabel = state.importedData.categoryLabels?.lipids === 'Better Lipids';
       outcomes.renameCategoryUpdatesCustomMarkerLabel = state.importedData.customMarkers['lipids.contextCustom']?.categoryLabel === 'Better Lipids';
@@ -119,7 +123,7 @@ test('category customization covers rename icon and emoji picker browser paths',
         && !/\bwindow(?:\.|\s*\[)/.test(categorySrc);
       outcomes.renameMissingCategoryNoops = await category.renameCategory('missing-category') === undefined;
 
-      window.showPromptDialog = async () => '  ApoB Better Name  ';
+      promptValue = '  ApoB Better Name  ';
       await category.renameMarker('lipids_apoB');
       outcomes.renameMarkerStoresDotKeyLabel = state.importedData.markerLabels?.['lipids.apoB'] === 'ApoB Better Name';
       category.revertMarkerName('lipids_apoB');
@@ -184,7 +188,7 @@ test('category customization covers rename icon and emoji picker browser paths',
     } finally {
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
-      window.showPromptDialog = saved.prompt;
+      categoryRuntime.configureCategoryCustomizationRuntimeDeps(previousCategoryRuntimeDeps);
       window.buildSidebar = saved.buildSidebar;
       window.navigate = saved.navigate;
       category.configureCategoryCustomization({

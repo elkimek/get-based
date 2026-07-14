@@ -2,12 +2,18 @@
 // import-drop-zone-runtime.js - Browser runtime adapters for drop-zone imports.
 
 import { isImportRunning } from './pdf-import-progress.js';
+import { showNotification } from './utils.js';
 
-const importDropZoneRuntimeDeps = { isImportRunning };
+const importDropZoneRuntimeDeps = { isImportRunning, showNotification };
 
 export function configureImportDropZoneRuntimeDeps(deps = {}) {
   const previous = { ...importDropZoneRuntimeDeps };
   if (typeof deps.isImportRunning === 'function') importDropZoneRuntimeDeps.isImportRunning = deps.isImportRunning;
+  if ('showNotification' in deps) {
+    importDropZoneRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
+      ? /** @type {typeof showNotification} */ (deps.showNotification)
+      : null;
+  }
   return previous;
 }
 
@@ -57,7 +63,7 @@ export function openDropZoneFilePicker() {
  * @param {string} [type]
  */
 export function showDropZoneImportNotification(message, type = 'info') {
-  getRuntimeFunction('showNotification')?.(message, type);
+  importDropZoneRuntimeDeps.showNotification?.(message, type);
 }
 
 /** @param {File} file */

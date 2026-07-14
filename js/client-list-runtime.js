@@ -2,6 +2,19 @@
 // client-list-runtime.js - Browser runtime adapters for client-list UI shell hooks.
 
 import { hasAIProvider } from './api.js';
+import { showNotification } from './utils.js';
+
+const clientListRuntimeDeps = { showNotification };
+
+export function configureClientListRuntimeDeps(deps = {}) {
+  const previous = { ...clientListRuntimeDeps };
+  if ('showNotification' in deps) {
+    clientListRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
+      ? /** @type {typeof showNotification} */ (deps.showNotification)
+      : null;
+  }
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -51,7 +64,7 @@ export function refreshClientProfileButton() {
  * @param {string} type
  */
 export function showClientListNotification(message, type) {
-  getRuntimeFunction('showNotification')?.(message, type);
+  clientListRuntimeDeps.showNotification?.(message, type);
 }
 
 /** @param {string} haplogroup */

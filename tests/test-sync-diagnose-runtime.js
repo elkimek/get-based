@@ -5,7 +5,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import './_node-shim.js';
-import { confirmSyncDiagnoseActionRuntime } from '../js/sync-diagnose-runtime.js';
+import {
+  configureSyncDiagnoseRuntimeDeps,
+  confirmSyncDiagnoseActionRuntime,
+} from '../js/sync-diagnose-runtime.js';
+
+const originalSyncDiagnoseRuntimeDeps = configureSyncDiagnoseRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -38,17 +43,17 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('showConfirmDialog', async message => {
+  configureSyncDiagnoseRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(message);
     return message === 'confirm';
-  });
+  } });
 
   const confirmed = await confirmSyncDiagnoseActionRuntime('confirm');
   const cancelled = await confirmSyncDiagnoseActionRuntime('cancel');
   assert('sync diagnose runtime delegates confirm dialog',
     confirmed === true && cancelled === false && calls.join('|') === 'confirm|cancel');
 
-  delete globalThis.showConfirmDialog;
+  configureSyncDiagnoseRuntimeDeps({ showConfirmDialog: null });
   const defaultFallback = await confirmSyncDiagnoseActionRuntime('missing');
   const explicitFallback = await confirmSyncDiagnoseActionRuntime('missing', { fallback: false });
   assert('sync diagnose runtime preserves missing-confirm fallback',
@@ -73,6 +78,7 @@ try {
       !/\bwindow(?:\.|\s*\[)/.test(identitySrc) &&
       swSrc.includes("'/js/sync-diagnose-runtime.js'"));
 } finally {
+  configureSyncDiagnoseRuntimeDeps(originalSyncDiagnoseRuntimeDeps);
   restoreRuntime();
 }
 

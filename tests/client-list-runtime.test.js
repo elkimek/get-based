@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
+import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
 
 let importId = 0;
 
@@ -43,6 +44,7 @@ beforeEach(() => {
   globalThis.requestAnimationFrame = window.requestAnimationFrame;
   window.renderProfileButton = vi.fn();
   window.showNotification = vi.fn();
+  configureClientListRuntimeDeps({ showNotification: window.showNotification });
   window.exportAllDataJSON = vi.fn();
   window.exportClientJSON = vi.fn();
   window.importDataJSON = vi.fn();
@@ -65,6 +67,7 @@ describe('client list runtime behavior', () => {
     const showNotificationSpy = vi.fn();
     window.renderProfileButton = renderProfileButtonSpy;
     window.showNotification = showNotificationSpy;
+    configureClientListRuntimeDeps({ showNotification: showNotificationSpy });
     const topLevelNames = () => [...document.querySelectorAll('.cl-list > .cl-row .cl-row-name')].map(el => el.textContent);
 
     clientList.openClientList();

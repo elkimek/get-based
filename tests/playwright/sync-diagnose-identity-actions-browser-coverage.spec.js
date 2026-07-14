@@ -9,13 +9,13 @@ test('sync diagnose identity actions cover rotate modal and apply paths', async 
   await page.waitForSelector('body');
 
   const results = await page.evaluate(async ({ actionsUrl }) => {
-    const [actions, context] = await Promise.all([
+    const [actions, context, confirmRuntime] = await Promise.all([
       import(actionsUrl),
       import('/js/sync-diagnose-actions-context.js'),
+      import('/js/sync-diagnose-runtime.js'),
     ]);
     const outcomes = {};
     const saved = {
-      showConfirmDialog: window.showConfirmDialog,
       bip39: window.bip39,
       qrcode: window.qrcode,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
@@ -41,6 +41,12 @@ test('sync diagnose identity actions cover rotate modal and apply paths', async 
     };
     const words = Array.from({ length: 24 }, (_, index) => `word${index + 1}`);
     let confirmResponses = [];
+    const previousConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
+      showConfirmDialog: async message => {
+        confirmMessages.push(String(message || ''));
+        return confirmResponses.length ? confirmResponses.shift() : true;
+      },
+    });
     let generatedBits = null;
     let qrData = null;
     let qrMade = false;
@@ -51,11 +57,6 @@ test('sync diagnose identity actions cover rotate modal and apply paths', async 
     try {
       document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.remove());
       clearNotifications();
-      window.showConfirmDialog = async message => {
-        confirmMessages.push(String(message || ''));
-        return confirmResponses.length ? confirmResponses.shift() : true;
-      };
-
       confirmResponses = [false];
       await actions.confirmRotateIdentity();
       outcomes.warningCancelStopsBeforeMnemonic = confirmMessages[0]?.includes('Rotate sync identity') === true
@@ -181,7 +182,7 @@ test('sync diagnose identity actions cover rotate modal and apply paths', async 
         restoreFromMnemonic: async () => false,
         isSyncEnabled: () => false,
       });
-      window.showConfirmDialog = saved.showConfirmDialog;
+      confirmRuntime.configureSyncDiagnoseRuntimeDeps(previousConfirmDeps);
       if (saved.bip39 === undefined) delete window.bip39;
       else window.bip39 = saved.bip39;
       if (saved.qrcode === undefined) delete window.qrcode;

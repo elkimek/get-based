@@ -103,8 +103,8 @@ function main() {
   const utils = fs.readFileSync(path.join(JS_DIR, 'utils.js'), 'utf8');
   assert('utils.js exports showPromptDialog',
     /export function showPromptDialog/.test(utils));
-  assert('showPromptDialog is exposed on window',
-    /Object\.assign\(window,[^)]*showPromptDialog/.test(utils));
+  assert('showPromptDialog stays module-only',
+    !/Object\.assign\(window,[^)]*showPromptDialog/.test(utils));
 
   console.log(`\nTotal: ${passed} passed, ${failed} failed.`);
   process.exit(failed > 0 ? 1 : 0);

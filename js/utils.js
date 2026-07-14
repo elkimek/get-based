@@ -663,7 +663,3 @@ export function loadScriptOnce(src) {
   _scriptLoadPromises.set(src, p);
   return p;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, { showNotification, showConfirmDialog, showPromptDialog, isDebugMode, setDebugMode, isPIIReviewEnabled, setPIIReviewEnabled, isAnalyticsEnabled, setAnalyticsEnabled, maybeShowAnalyticsConsent, dismissAnalyticsConsent, dismissAnalyticsConsentAndDisable, hasCardContent, escapeAttr, loadScriptOnce });
-}

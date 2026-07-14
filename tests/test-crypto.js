@@ -335,14 +335,15 @@ const expectedExports = [
   'openSettingsModal', 'closeSettingsModal',
   // chat.js
   'toggleChatPanel', 'closeChatPanel',
-  // utils.js
-  'showNotification', 'showConfirmDialog',
 ];
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
 }
 for (const name of ['getProfiles', 'saveProfiles', 'loadProfile', 'switchProfile', 'createProfile', 'deleteProfile', 'getProfileSex', 'setProfileSex', 'getProfileDob']) {
   assert(`profile.${name} exists`, typeof profileModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
+for (const name of ['showNotification', 'showConfirmDialog', 'showPromptDialog', 'isDebugMode', 'setDebugMode', 'isPIIReviewEnabled', 'setPIIReviewEnabled', 'isAnalyticsEnabled', 'setAnalyticsEnabled', 'maybeShowAnalyticsConsent', 'dismissAnalyticsConsent', 'dismissAnalyticsConsentAndDisable', 'hasCardContent', 'escapeAttr', 'loadScriptOnce']) {
   assert(`window.${name} stays module-only`, !(name in window));
 }
 

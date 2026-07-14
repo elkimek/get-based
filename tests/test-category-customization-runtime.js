@@ -2,11 +2,14 @@
 
 import './_node-shim.js';
 import {
+  configureCategoryCustomizationRuntimeDeps,
   getCategoryCustomizationBuildSidebar,
   getCategoryCustomizationViewportSize,
   navigateCategoryCustomizationRuntime,
   showCategoryCustomizationPrompt,
 } from '../js/category-customization-runtime.js';
+
+const originalCategoryCustomizationRuntimeDeps = configureCategoryCustomizationRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -60,6 +63,9 @@ try {
     },
   };
   setRuntimeValue('window', browserRuntime);
+  configureCategoryCustomizationRuntimeDeps({
+    showPromptDialog: browserRuntime.showPromptDialog.bind(browserRuntime),
+  });
 
   navigateCategoryCustomizationRuntime('lipids', { category: 'lipids' });
   assert('navigateCategoryCustomizationRuntime delegates to browser navigate',
@@ -83,7 +89,7 @@ try {
 
   delete browserRuntime.navigate;
   delete browserRuntime.buildSidebar;
-  delete browserRuntime.showPromptDialog;
+  configureCategoryCustomizationRuntimeDeps({ showPromptDialog: null });
   delete browserRuntime.innerWidth;
   delete browserRuntime.innerHeight;
   navigateCategoryCustomizationRuntime('missing');
@@ -100,6 +106,7 @@ try {
   navigateCategoryCustomizationRuntime('dashboard');
   assert('runtime hooks fall back to globalThis when window is missing', globalNavigateCalled);
 } finally {
+  configureCategoryCustomizationRuntimeDeps(originalCategoryCustomizationRuntimeDeps);
   restoreRuntime();
 }
 

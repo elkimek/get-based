@@ -56,8 +56,10 @@ try {
   const dnaFile = new File(['dna'], 'genome.txt', { type: 'text/plain' });
   const picker = { click: () => calls.push(['picker']) };
 
-  configureImportDropZoneRuntimeDeps({ isImportRunning: () => true });
-  setRuntimeValue('showNotification', (message, type) => calls.push(['notify', type, message]));
+  configureImportDropZoneRuntimeDeps({
+    isImportRunning: () => true,
+    showNotification: (message, type) => calls.push(['notify', type, message]),
+  });
   setRuntimeValue('importDataJSON', file => calls.push(['json', file.name]));
   setRuntimeValue('detectDNAFile', header => header.includes('MT') ? 'mtdna' : 'autosomal');
   setRuntimeValue('handleMtDNAFile', file => calls.push(['mtdna', file.name]));

@@ -1,6 +1,20 @@
 // @ts-check
 // wearables-detail-runtime.js - Browser runtime adapters for wearable detail modal hooks.
 
+import { showConfirmDialog } from './utils.js';
+
+const wearableDetailRuntimeDeps = { showConfirmDialog };
+
+export function configureWearableDetailRuntimeDeps(deps = {}) {
+  const previous = { ...wearableDetailRuntimeDeps };
+  if ('showConfirmDialog' in deps) {
+    wearableDetailRuntimeDeps.showConfirmDialog = typeof deps.showConfirmDialog === 'function'
+      ? /** @type {typeof showConfirmDialog} */ (deps.showConfirmDialog)
+      : null;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -47,6 +61,6 @@ export function closeWearableDetailModalRuntime() {
 
 /** @param {string} message */
 export async function confirmWearableDetailActionRuntime(message) {
-  const confirm = getRuntimeFunction('showConfirmDialog');
+  const confirm = wearableDetailRuntimeDeps.showConfirmDialog;
   return confirm ? !!await confirm(message) : false;
 }

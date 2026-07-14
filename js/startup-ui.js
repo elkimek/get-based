@@ -11,6 +11,19 @@ import { buildSidebar, renderProfileDropdown } from './nav.js';
 import { maybeShowBackupNudge } from './crypto.js';
 import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
+import { maybeShowAnalyticsConsent } from './utils.js';
+
+const startupUIDeps = { maybeShowAnalyticsConsent };
+
+export function configureStartupUIDeps(deps = {}) {
+  const previous = { ...startupUIDeps };
+  if ('maybeShowAnalyticsConsent' in deps) {
+    startupUIDeps.maybeShowAnalyticsConsent = typeof deps.maybeShowAnalyticsConsent === 'function'
+      ? /** @type {typeof maybeShowAnalyticsConsent} */ (deps.maybeShowAnalyticsConsent)
+      : null;
+  }
+  return previous;
+}
 
 function startupRuntime() {
   return /** @type {any} */ (globalThis);
@@ -87,7 +100,7 @@ function scheduleStartupNudges() {
   // New and tours also stay behind the gate; legal must be the topmost first
   // interaction for new users and stale-version re-consent.
   const showAnalyticsConsent = () => {
-    callStartupRuntime('maybeShowAnalyticsConsent');
+    startupUIDeps.maybeShowAnalyticsConsent?.();
   };
   if (legalGateShown) {
     startupRuntime().addEventListener('legal-consent-accepted', () => setTimeout(showAnalyticsConsent, 800), { once: true });

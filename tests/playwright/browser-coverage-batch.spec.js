@@ -927,10 +927,14 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     const cutoverActions = await import(cutoverUrl);
     const relayActions = await import(relayUrl);
     const actionContext = await import('/js/sync-diagnose-actions-context.js');
+    const confirmRuntime = await import('/js/sync-diagnose-runtime.js');
     const relayHealth = await import('/js/sync-relay-health.js');
     const state = window._labState;
     const outcomes = {};
-    const originalShowConfirm = window.showConfirmDialog;
+    let confirmAnswer = false;
+    const originalConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
+      showConfirmDialog: async () => confirmAnswer,
+    });
     const originalFetch = window.fetch;
     const hadBip39 = Object.prototype.hasOwnProperty.call(window, 'bip39');
     const originalBip39 = window.bip39;
@@ -953,7 +957,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
     }
 
     try {
-      window.showConfirmDialog = async () => false;
+      confirmAnswer = false;
       await identityActions.confirmRotateIdentity();
       outcomes.rotateCancelStopsBeforeModal = !document.querySelector('[aria-label="Rotate sync identity"]');
 
@@ -974,7 +978,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         disablePhase2Cutover: () => false,
         showSyncDiagnose: async () => {},
       });
-      window.showConfirmDialog = async () => true;
+      confirmAnswer = true;
       window.bip39 = { generateMnemonic: async () => mnemonic };
       window.qrcode = function fakeQRCode() {
         return {
@@ -1028,7 +1032,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         },
         showSyncDiagnose: async () => { showDiagnoseCalls++; },
       });
-      window.showConfirmDialog = async () => true;
+      confirmAnswer = true;
 
       const resetModal = makeModalButton('Reset window');
       await cutoverActions.confirmResetDeltaTelemetry(resetModal.btn);
@@ -1072,14 +1076,14 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         return { ok: false, status: 404, json: async () => ({}) };
       };
 
-      window.showConfirmDialog = async () => false;
+      confirmAnswer = false;
       const compactCancel = makeModalButton('Compact storage');
       await relayActions.confirmCompactRelay(compactCancel.btn);
       outcomes.compactCancelSkipsFetch = fetchCalls.length === 0
         && compactCancel.btn.disabled === false;
       compactCancel.overlay.remove();
 
-      window.showConfirmDialog = async () => true;
+      confirmAnswer = true;
       const compactModal = makeModalButton('Compact storage');
       await relayActions.confirmCompactRelay(compactModal.btn);
       outcomes.compactRelayPostsAndCloses = fetchCalls.some(call => call.method === 'POST'
@@ -1092,7 +1096,7 @@ test('sync diagnose action helpers cover guarded UI branches', async ({ page }) 
         && !document.body.contains(refreshModal.overlay)
         && showDiagnoseCalls === 1;
     } finally {
-      window.showConfirmDialog = originalShowConfirm;
+      confirmRuntime.configureSyncDiagnoseRuntimeDeps(originalConfirmDeps);
       window.fetch = originalFetch;
       if (hadBip39) window.bip39 = originalBip39;
       else delete window.bip39;

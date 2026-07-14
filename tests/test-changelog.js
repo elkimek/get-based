@@ -24,10 +24,9 @@ function assert(name, condition, detail) {
 
 console.log("=== What's New + Auto-Gating Tests ===\n");
 
-// utils.js exposes hasCardContent via Object.assign(window, ...).
 // changelog.js exposes openChangelog / closeChangelog / maybeShowChangelog.
 await import('../js/state.js');
-await import('../js/utils.js');
+const { hasCardContent } = await import('../js/utils.js');
 await import('../js/changelog.js');
 
 const changelogSrc = await fetchWithRetry('js/changelog.js');
@@ -199,14 +198,10 @@ assert("Settings has What's New button", settingsSrc.includes("What's New"));
 console.log('6. hasCardContent Utility');
 
 assert('hasCardContent exported from utils.js', utilsSrc.includes('export function hasCardContent'));
-assert('hasCardContent on window', typeof window.hasCardContent === 'function');
+assert('hasCardContent stays module-only', !('hasCardContent' in window));
 
-// Behavioral tests — pure-logic, run anywhere. Guard the call site so
-// that if `hasCardContent` ever fails to attach to window the rest of
-// the file still runs (the existence assertion above already records
-// the failure — without the guard, hcc(null) throws TypeError and
-// sections 7–12 silently skip).
-const hcc = window.hasCardContent;
+// Behavioral tests — pure logic through the module export.
+const hcc = hasCardContent;
 if (typeof hcc === 'function') {
   assert('hasCardContent(null) => false', hcc(null) === false);
   assert('hasCardContent(undefined) => false', hcc(undefined) === false);
