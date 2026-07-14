@@ -43,9 +43,9 @@ import {
 
 const realFetch = globalThis.fetch;
 const realLocationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
-const realGetOllamaConfig = globalThis.getOllamaConfig;
 
 const PROVIDER_KEY_CACHE_KEYS = [
+  'labcharts-ollama',
   'labcharts-openrouter-key',
   'labcharts-venice-key',
   'labcharts-routstr-key',
@@ -136,11 +136,11 @@ beforeEach(() => {
     writable: true,
     value: { origin: 'https://app.getbased.health', pathname: '/app', href: 'https://app.getbased.health/app' },
   });
-  globalThis.getOllamaConfig = () => ({
+  updateKeyCache('labcharts-ollama', JSON.stringify({
     url: 'http://localhost:11434',
     model: 'llama3.2',
     apiKey: 'local-api-key',
-  });
+  }));
   globalThis.showInsufficientBalanceDialog = undefined;
   delete globalThis._routstrAttestation;
   createTinfoilSecureFetchMock.mockReset();
@@ -154,8 +154,6 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   if (realLocationDescriptor) Object.defineProperty(globalThis, 'location', realLocationDescriptor);
   else delete globalThis.location;
-  if (realGetOllamaConfig) globalThis.getOllamaConfig = realGetOllamaConfig;
-  else delete globalThis.getOllamaConfig;
   clearProviderKeyCaches();
   vi.restoreAllMocks();
 });

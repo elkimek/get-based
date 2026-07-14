@@ -37,6 +37,8 @@ export {
   setAIPaused,
   markAISettingsLocal,
   hasAIProvider,
+  getOllamaConfig,
+  saveOllamaConfig,
   getOllamaMainModel,
   setOllamaMainModel,
   getOllamaPIIUrl,

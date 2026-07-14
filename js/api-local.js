@@ -2,12 +2,11 @@
 // api-local.js - Ollama/LM Studio/Jan provider adapters.
 
 import { readWithStallTimeout } from './api-transport.js';
-import { getOllamaMainModel } from './api-provider-storage.js';
-import { getOllamaConfigRuntime } from './api-runtime.js';
+import { getOllamaConfig, getOllamaMainModel } from './api-provider-storage.js';
 import { callOpenAICompatibleAPI } from './api-openai-compatible.js';
 
 export async function callOllamaChat({ system, messages, maxTokens, onStream, signal }) {
-  const config = getOllamaConfigRuntime();
+  const config = getOllamaConfig();
   const model = getOllamaMainModel();
   const ollamaMessages = [];
   if (system) ollamaMessages.push({ role: 'system', content: system });
@@ -104,7 +103,7 @@ export async function callOllamaChat({ system, messages, maxTokens, onStream, si
 }
 
 export async function callOpenAICompatibleLocalAPI(opts) {
-  const config = getOllamaConfigRuntime();
+  const config = getOllamaConfig();
   const model = getOllamaMainModel();
   const url = config.url.replace(/\/+$/, '');
   const key = config.apiKey || 'not-needed';

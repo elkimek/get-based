@@ -49,9 +49,3 @@ export function touchRoutstrSessionClock() {
   localStorage.setItem('labcharts-routstr-session-updated-at', String(updatedAt));
   return updatedAt;
 }
-
-export function getOllamaConfigStorageRuntime() {
-  const getOllamaConfig = getRuntimeFunction('getOllamaConfig');
-  if (!getOllamaConfig) return {};
-  return getOllamaConfig() || {};
-}

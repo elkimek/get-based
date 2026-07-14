@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   dispatchAISettingsLocalChangedRuntime,
-  getOllamaConfigStorageRuntime,
   refreshAIProviderSelectionRuntime,
 } from '../js/api-provider-storage-runtime.js';
 
@@ -26,17 +25,14 @@ afterEach(() => {
 });
 
 describe('api provider storage runtime adapter', () => {
-  it('delegates provider UI refresh hooks and Ollama config reads', () => {
+  it('delegates provider UI refresh hooks', () => {
     const updateChatHeaderModel = vi.fn();
     const refreshWebSearchToggle = vi.fn();
-    const getOllamaConfig = vi.fn(() => ({ model: 'llama-test', url: 'http://ollama.test' }));
-    setRuntimeWindow({ updateChatHeaderModel, refreshWebSearchToggle, getOllamaConfig });
+    setRuntimeWindow({ updateChatHeaderModel, refreshWebSearchToggle });
 
     expect(refreshAIProviderSelectionRuntime()).toBe(true);
-    expect(getOllamaConfigStorageRuntime()).toEqual({ model: 'llama-test', url: 'http://ollama.test' });
     expect(updateChatHeaderModel).toHaveBeenCalledTimes(1);
     expect(refreshWebSearchToggle).toHaveBeenCalledTimes(1);
-    expect(getOllamaConfig).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches the local AI settings change event', () => {
@@ -57,7 +53,6 @@ describe('api provider storage runtime adapter', () => {
 
     expect(refreshAIProviderSelectionRuntime()).toBe(false);
     expect(dispatchAISettingsLocalChangedRuntime()).toBe(false);
-    expect(getOllamaConfigStorageRuntime()).toEqual({});
   });
 
   it('keeps counted api provider storage globals behind the adapter', () => {

@@ -660,7 +660,3 @@ export function getMarkerDescription(markerId) {
   const cache = JSON.parse(localStorage.getItem('labcharts-marker-desc') || '{}');
   return cache[markerId] || null;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, { refBandPlugin, optimalBandPlugin, noteAnnotationPlugin, supplementBarPlugin, phaseBandPlugin, getNotesForChart, getSupplementsForChart, createLineChart, refreshChartThemeColors, getMarkerDescription, ensureChartJs, isChartDateAdapterReady });
-}

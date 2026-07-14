@@ -96,7 +96,7 @@ assert('Profile share module is startup-loaded',
 assert('Settings Data tab exposes Share Profile action',
   settingsDataSrc.includes("data-settings-action=\"share-profile\"") &&
   settingsSrc.includes('settingsRuntime.openProfileShareModal()') &&
-  settingsSrc.includes('openProfileShareModal: (profileId) => settingsWindow.openProfileShareModal?.(profileId)') &&
+  settingsSrc.includes('openProfileShareModal: () => {}') &&
   read('js/app-shell-hooks.js').includes('configureSettingsRuntime') &&
   read('js/app-shell-hooks.js').includes('openProfileShareModal'));
 assert('Share modal has dedicated shared-modal styling',
@@ -139,10 +139,11 @@ assert('Share result uses icon copy buttons',
   profileShareSrc.includes('class="profile-share-icon-btn" data-profile-share-action="copy"') &&
   profileShareSrc.includes('aria-label="Copy link"') &&
   profileShareSrc.includes('aria-label="Copy password"'));
-assert('Window exports share helpers',
-  profileShareSrc.includes('openProfileShareModal') &&
-  profileShareSrc.includes('decryptProfileShareEnvelope') &&
-  profileShareSrc.includes('parseProfileShareIdFromLocation'));
+assert('Profile share helpers stay module-only',
+  profileShareSrc.includes('export function openProfileShareModal') &&
+  profileShareSrc.includes('export async function decryptProfileShareEnvelope') &&
+  profileShareSrc.includes('export function parseProfileShareIdFromLocation') &&
+  !profileShareSrc.includes('Object.assign(window'));
 
 console.log('4. Export/import reuse and credential boundaries');
 const exportGlobalPublish = exportSrc.match(/publishExportGlobals\(\s*\{([^}]*)\}\)/);

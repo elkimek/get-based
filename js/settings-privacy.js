@@ -1,8 +1,8 @@
 // @ts-check
 // settings-privacy.js - Settings privacy and Sun data-source controls.
 
-import { getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
-import { isOllamaPIIEnabled, setOllamaPIIEnabled, getOllamaConfig, checkOpenAICompatible } from './pii.js';
+import { getOllamaConfig, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
+import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOpenAICompatible } from './pii.js';
 import { escapeAttr, isPIIReviewEnabled, isAnalyticsEnabled, showNotification } from './utils.js';
 import {
   getSettingsMeteoConfig,

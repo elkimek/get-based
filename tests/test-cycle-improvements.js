@@ -28,8 +28,7 @@ console.log('=== Cycle Improvements Test Suite ===\n');
 await import('../js/state.js');
 await import('../js/data.js');
 await import('../js/cycle.js');
-// charts.js exposes phaseBandPlugin etc. via Object.assign(window, ...).
-await import('../js/charts.js');
+const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 1: PERIOD_SYMPTOMS constant ──
   console.log('Section 1: PERIOD_SYMPTOMS constant');
   {
@@ -115,9 +114,9 @@ await import('../js/charts.js');
   // ── Section 7: phaseBandPlugin ──
   console.log('Section 7: phaseBandPlugin');
   {
-    assert('phaseBandPlugin exists on window', typeof window.phaseBandPlugin === 'object');
-    assert('phaseBandPlugin has id phaseBands', window.phaseBandPlugin?.id === 'phaseBands');
-    assert('phaseBandPlugin has beforeDraw', typeof window.phaseBandPlugin?.beforeDraw === 'function');
+    assert('phaseBandPlugin is a module export', typeof phaseBandPlugin === 'object');
+    assert('phaseBandPlugin has id phaseBands', phaseBandPlugin?.id === 'phaseBands');
+    assert('phaseBandPlugin has beforeDraw', typeof phaseBandPlugin?.beforeDraw === 'function');
   }
 
   // ── Section 8: createLineChart accepts 5th param ──

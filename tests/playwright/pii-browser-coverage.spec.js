@@ -144,9 +144,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         /^\d{2}\.\d{2}\.\d{4}$/.test(pii.fakeDate()) &&
         /^\d{10}$/.test(pii.fakePatientId()));
 
-      const defaultConfig = pii.getOllamaConfig();
-      await pii.saveOllamaConfig({ url: 'http://local-ai.test/', model: 'privacy-model', mode: 'openai', apiKey: 'pii-key' });
-      const savedConfig = pii.getOllamaConfig();
+      const defaultConfig = providerStorage.getOllamaConfig();
+      await providerStorage.saveOllamaConfig({ url: 'http://local-ai.test/', model: 'privacy-model', mode: 'openai', apiKey: 'pii-key' });
+      const savedConfig = providerStorage.getOllamaConfig();
       check('Ollama config defaults and encrypted save cache work',
         defaultConfig.url === 'http://localhost:11434' &&
         savedConfig.model === 'privacy-model' &&
@@ -444,7 +444,13 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
         stopState &&
         retryState &&
         streamedResult.includes('Reviewed after retry') &&
-        unloadCalls.some(body => body.includes('"keep_alive":0')));
+        unloadCalls.some(body => body.includes('"keep_alive":0')),
+        JSON.stringify({
+          stopState,
+          retryState,
+          keptEdit: streamedResult.includes('Reviewed after retry'),
+          unloadedModel: unloadCalls.some(body => body.includes('"keep_alive":0')),
+        }));
     } finally {
       window.fetch = saved.fetch;
       document.body.style.overflow = saved.bodyOverflow;

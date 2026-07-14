@@ -69,11 +69,6 @@ export function refreshSettingsRuntimeSurfaces(options = {}) {
   if (options.settingsVisible) runtime.refreshSettingsWearables?.();
 }
 
-/** @param {{ batchSize?: number }} [options] */
-export function refreshSettingsChartThemeColors(options = {}) {
-  getRuntimeFunction('refreshChartThemeColors')?.(options);
-}
-
 export function getSettingsMeteoConfig() {
   const getMeteoConfig = getRuntimeFunction('getMeteoConfig');
   if (!getMeteoConfig) return { ...DEFAULT_METEO_CONFIG };

@@ -22,6 +22,7 @@ test('api provider storage browser coverage handles provider gates and model cac
     const storageKeys = [
       'labcharts-ai-provider',
       'labcharts-ai-paused',
+      'labcharts-ollama',
       'labcharts-ollama-model',
       'labcharts-ollama-pii-url',
       'labcharts-ollama-pii-model',
@@ -52,6 +53,7 @@ test('api provider storage browser coverage handles provider gates and model cac
       'labcharts-api-provider-storage-bad-array',
     ];
     const cachedKeyNames = [
+      'labcharts-ollama',
       'labcharts-venice-key',
       'labcharts-openrouter-key',
       'labcharts-routstr-key',
@@ -65,7 +67,6 @@ test('api provider storage browser coverage handles provider gates and model cac
       keyCache: Object.fromEntries(cachedKeyNames.map(key => [key, cryptoStore.getCachedKey(key)])),
       updateChatHeaderModel: window.updateChatHeaderModel,
       refreshWebSearchToggle: window.refreshWebSearchToggle,
-      getOllamaConfig: window.getOllamaConfig,
     };
 
     const restoreStoredValue = (store, key, value) => {
@@ -84,7 +85,6 @@ test('api provider storage browser coverage handles provider gates and model cac
       for (const key of cachedKeyNames) cryptoStore.updateKeyCache(key, null);
       window.updateChatHeaderModel = () => { headerUpdates += 1; };
       window.refreshWebSearchToggle = () => { searchRefreshes += 1; };
-      window.getOllamaConfig = () => ({ url: 'http://localhost:11434', model: 'llama-default' });
       window.addEventListener('labcharts-ai-settings-local-changed', onLocalSettingsChanged);
 
       const defaultProvider = storage.getAIProvider();
@@ -135,6 +135,7 @@ test('api provider storage browser coverage handles provider gates and model cac
         && customAvailable
         && optimisticLocalProvider;
 
+      await storage.saveOllamaConfig({ url: 'http://localhost:11434', model: 'llama-default', mode: 'ollama', apiKey: '' });
       const defaultOllamaModel = storage.getOllamaMainModel();
       const defaultPiiUrl = storage.getOllamaPIIUrl();
       const defaultPiiModelFromWindowConfig = storage.getOllamaPIIModel();
@@ -143,7 +144,7 @@ test('api provider storage browser coverage handles provider gates and model cac
       const defaultPiiModelFromMainModel = storage.getOllamaPIIModel();
       storage.setOllamaPIIUrl('http://pii.local:11434');
       storage.setOllamaPIIModel('privacy-qwen:7b');
-      outcomes.ollamaSettingsUseWindowDefaultsAndPersistOverrides =
+      outcomes.ollamaSettingsUseStoredConfigAndPersistOverrides =
         defaultOllamaModel === 'llama-default'
         && savedOllamaModel === 'qwen2.5:7b'
         && defaultPiiUrl === 'http://localhost:11434'
@@ -272,7 +273,6 @@ test('api provider storage browser coverage handles provider gates and model cac
       window.removeEventListener('labcharts-ai-settings-local-changed', onLocalSettingsChanged);
       window.updateChatHeaderModel = saved.updateChatHeaderModel;
       window.refreshWebSearchToggle = saved.refreshWebSearchToggle;
-      window.getOllamaConfig = saved.getOllamaConfig;
       for (const [key, value] of Object.entries(saved.localStorage)) {
         restoreStoredValue(localStorage, key, value);
       }

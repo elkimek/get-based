@@ -6,9 +6,10 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
-  const results = await page.evaluate(async ({ controlsUrl, piiUrl }) => {
+  const results = await page.evaluate(async ({ controlsUrl, piiUrl, providerStorageUrl }) => {
     const controls = await import(controlsUrl);
     const pii = await import(piiUrl);
+    const providerStorage = await import(providerStorageUrl);
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -199,7 +200,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && document.getElementById('pii-model-select')?.options.length === 2
         && localStorage.getItem('labcharts-ollama-pii-enabled') === 'true';
 
-      await pii.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
+      await providerStorage.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
       document.getElementById('local-ai-model-select').innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
       await controls.renderModelAdvisor([
         { name: 'remote-small', size: 2000000000, quantLevel: 'Q4', paramSize: '2B' },
@@ -239,6 +240,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
   }, {
     controlsUrl: moduleUrl('/js/provider-local-ai-controls.js'),
     piiUrl: moduleUrl('/js/pii.js'),
+    providerStorageUrl: moduleUrl('/js/api-provider-storage.js'),
   });
 
   for (const [name, passed] of Object.entries(results)) {

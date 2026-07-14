@@ -74,7 +74,6 @@ test('client list live menu actions dispatch exports share demos and profile sta
       exportClientJSON: window.exportClientJSON,
       importDataJSON: window.importDataJSON,
       loadDemoData: window.loadDemoData,
-      openProfileShareModal: window.openProfileShareModal,
       showConfirmDialog: window.showConfirmDialog,
       inputClick: HTMLInputElement.prototype.click,
     };
@@ -126,13 +125,13 @@ test('client list live menu actions dispatch exports share demos and profile sta
       window.exportClientJSON = (...args) => calls.push(['export-client', ...args]);
       window.importDataJSON = file => calls.push(['import-json', file?.name || '']);
       window.loadDemoData = demo => calls.push(['load-demo', demo]);
-      window.openProfileShareModal = id => calls.push(['share-profile', id]);
+      const openProfileShareModal = id => calls.push(['share-profile', id]);
       configureClientListRuntime({
         exportAllDataJSON: window.exportAllDataJSON,
         exportClientJSON: window.exportClientJSON,
         importDataJSON: window.importDataJSON,
         loadDemoData: window.loadDemoData,
-        openProfileShareModal: window.openProfileShareModal,
+        openProfileShareModal,
       });
       window.showConfirmDialog = async message => {
         calls.push(['confirm', message]);
@@ -254,7 +253,6 @@ test('client list live menu actions dispatch exports share demos and profile sta
       window.exportClientJSON = saved.exportClientJSON;
       window.importDataJSON = saved.importDataJSON;
       window.loadDemoData = saved.loadDemoData;
-      window.openProfileShareModal = saved.openProfileShareModal;
       window.showConfirmDialog = saved.showConfirmDialog;
       if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
       HTMLInputElement.prototype.click = saved.inputClick;

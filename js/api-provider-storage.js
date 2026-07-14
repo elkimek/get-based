@@ -4,7 +4,6 @@
 import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
 import {
   dispatchAISettingsLocalChangedRuntime,
-  getOllamaConfigStorageRuntime,
   refreshAIProviderSelectionRuntime,
   touchRoutstrSessionClock,
 } from './api-provider-storage-runtime.js';
@@ -42,13 +41,25 @@ export function hasAIProvider() {
   return true; // Ollama — optimistic, errors caught at call time
 }
 
-export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || getOllamaConfigStorageRuntime().model || 'llama3.2'; }
+export function getOllamaConfig() {
+  const defaults = { url: 'http://localhost:11434', model: 'llama3.2', mode: 'ollama', apiKey: '' };
+  try { return { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama')) }; }
+  catch { return defaults; }
+}
+export async function saveOllamaConfig(config) {
+  const json = JSON.stringify(config);
+  await encryptedSetItem('labcharts-ollama', json);
+  updateKeyCache('labcharts-ollama', json);
+  markAISettingsLocal();
+}
+
+export function getOllamaMainModel() { return localStorage.getItem('labcharts-ollama-model') || getOllamaConfig().model || 'llama3.2'; }
 export function setOllamaMainModel(model) {
   localStorage.setItem('labcharts-ollama-model', model);
   markAISettingsLocal();
   notifyAISelectionChanged();
 }
-export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || getOllamaConfigStorageRuntime().url; }
+export function getOllamaPIIUrl() { return localStorage.getItem('labcharts-ollama-pii-url') || getOllamaConfig().url; }
 export function setOllamaPIIUrl(url) {
   localStorage.setItem('labcharts-ollama-pii-url', url);
   markAISettingsLocal();
