@@ -25,6 +25,7 @@ return (async function() {
   }
   const main = document.getElementById('main-content');
   const S = window._labState;
+  const supplements = await import('/js/supplements.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -374,12 +375,12 @@ return (async function() {
   const initialSuppCount = (S.importedData.supplements || []).length;
 
   // Open supplement editor
-  window.openSupplementsEditor();
+  supplements.openSupplementsEditor();
   await wait(50);
   assert('Supplement editor opens', modalOverlay.classList.contains('show'));
 
   // Show add form
-  window.showAddSuppForm();
+  supplements.showAddSuppForm();
   await wait(20);
   const nameInput = document.getElementById('supp-name');
   assert('Add form has name input', !!nameInput);
@@ -395,7 +396,7 @@ return (async function() {
   if (sourceInput) sourceInput.value = 'https://www.example.com/products/a?x=1';
 
   // Save
-  window.saveSupplement(-1);
+  supplements.saveSupplement(-1);
   await wait(50);
 
   // Verify data saved
@@ -424,7 +425,7 @@ return (async function() {
   // Delete the test supplement
   const testIdx = S.importedData.supplements.findIndex(s => s.name === '__UI_TEST_SUPP__');
   if (testIdx >= 0) {
-    window.deleteSupplement(testIdx);
+    supplements.deleteSupplement(testIdx);
     await wait(50);
   }
   assert('Supplement removed from state', (S.importedData.supplements || []).length === initialSuppCount);
@@ -436,9 +437,9 @@ return (async function() {
   const stillShows = suppSectionAfter?.innerHTML.includes('__UI_TEST_SUPP__');
   assert('Dashboard no longer shows deleted supplement', !stillShows);
 
-  window.openSupplementsEditor();
+  supplements.openSupplementsEditor();
   await wait(50);
-  window.showAddSuppForm();
+  supplements.showAddSuppForm();
   await wait(20);
   const invalidNameInput = document.getElementById('supp-name');
   if (invalidNameInput) invalidNameInput.value = '__UI_TEST_BAD_URL__';
@@ -447,7 +448,7 @@ return (async function() {
   const invalidSourceInput = document.getElementById('supp-url');
   if (invalidSourceInput) invalidSourceInput.value = 'javascript:alert(1)';
   const beforeInvalidSuppCount = (S.importedData.supplements || []).length;
-  window.saveSupplement(-1);
+  supplements.saveSupplement(-1);
   await wait(50);
   assert('Invalid supplement URL is rejected', (S.importedData.supplements || []).length === beforeInvalidSuppCount);
   assert('Invalid URL supplement not saved', !S.importedData.supplements?.some(s => s.name === '__UI_TEST_BAD_URL__'));
@@ -464,7 +465,7 @@ return (async function() {
     note: '',
     sourceUrl: 'javascript://example.com/%0Aalert(1)'
   }];
-  window.openSupplementsEditor();
+  supplements.openSupplementsEditor();
   await wait(50);
   const unsafeSuppRow = Array.from(document.querySelectorAll('.supp-list-item')).find(row => row.textContent.includes('__UI_TEST_UNSAFE_SOURCE__'));
   assert('Unsafe imported source URL does not render as link', unsafeSuppRow && !unsafeSuppRow.querySelector('.supp-list-source'));
@@ -477,9 +478,9 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 6. Supplement periods', 'font-weight:bold;color:#6366f1');
 
-  window.openSupplementsEditor();
+  supplements.openSupplementsEditor();
   await wait(50);
-  window.showAddSuppForm();
+  supplements.showAddSuppForm();
   await wait(20);
 
   // Count initial period rows
@@ -487,7 +488,7 @@ return (async function() {
   assert('Editor starts with 1 period row', periodRows.length === 1);
 
   // Add a second period
-  window.addPeriodRow();
+  supplements.addPeriodRow();
   await wait(50);
   const afterAdd = document.querySelectorAll('.supp-period-row');
   assert('Add period creates 2 rows', afterAdd.length === 2);
@@ -498,7 +499,7 @@ return (async function() {
   assert('Remove buttons visible with 2 rows', visibleRemove.length >= 1);
 
   // Remove second row
-  if (afterAdd[1]) window.removePeriodRow(afterAdd[1].querySelector('.supp-period-remove'));
+  if (afterAdd[1]) supplements.removePeriodRow(afterAdd[1].querySelector('.supp-period-remove'));
   await wait(50);
   assert('Remove period back to 1 row', document.querySelectorAll('.supp-period-row').length === 1);
 

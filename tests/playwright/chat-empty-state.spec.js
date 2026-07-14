@@ -27,7 +27,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const savedFns = {
       closeChatPanel: window.closeChatPanel,
       openMenstrualCycleEditor: window.openMenstrualCycleEditor,
-      openSupplementsEditor: window.openSupplementsEditor,
       triggerDNAFilePicker: window.triggerDNAFilePicker,
       openSettingsModal: window.openSettingsModal,
     };
@@ -47,7 +46,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
       window.closeChatPanel = () => calls.push('close-chat');
       window.openMenstrualCycleEditor = () => calls.push('open-cycle');
-      window.openSupplementsEditor = () => calls.push('open-supplements');
       window.triggerDNAFilePicker = () => calls.push('import-dna');
       window.openSettingsModal = tab => calls.push(`open-settings:${tab}`);
       HTMLInputElement.prototype.click = function() {
@@ -128,9 +126,10 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
         countrySaved: getProfileLocation('chat-empty-test').country === 'Germany',
         optionalActionsCalled: calls.includes('close-chat')
           && calls.includes('open-cycle')
-          && calls.includes('open-supplements')
           && calls.includes('import-dna')
           && calls.includes('open-settings:wearables'),
+        supplementsEditorOpenedThroughModule: document.getElementById('modal-overlay')?.classList.contains('show') === true
+          && document.querySelector('#detail-modal h3')?.textContent === 'Supplements & Medications',
         mtdnaInputScoped: inputClicks.includes('scoped') && !inputClicks.includes('stray'),
         optionalActionsStopPropagation: bubbledClicks === bubbledBeforeOptionalActions,
       };
@@ -143,6 +142,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       if (saved.profilesStorage === null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profilesStorage);
       Object.assign(window, savedFns);
+      document.getElementById('modal-overlay')?.classList.remove('show');
       HTMLInputElement.prototype.click = savedInputClick;
       strayMtDnaInput.remove();
       container.remove();
