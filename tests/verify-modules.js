@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/charts.js'),
@@ -199,6 +199,7 @@
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
+    import('../js/pdf-import.js'),
     import('../js/pii.js'),
     import('../js/settings-sync-panel.js'),
     import('../js/sun-context.js'),
@@ -433,14 +434,18 @@
     'openNoteEditor','saveNote','deleteNote'
   ];
 
-  // pdf-import.js (16)
+  // pdf-import.js (37 former browser globals, now module-only)
   const pdfImportExports = [
-    'buildMarkerReference','extractPDFText','tryParseJSON',
-    'parseLabPDFWithAI','showImportPreview','applyManualImportDate',
-    'closeImportModal','confirmImport','removeImportedEntry',
-    'setupDropZone','showImportProgress','hideImportProgress',
-    'handlePDFFile','handleImageFile','handleBatchPDFs',
-    'showBatchImportProgress','showImportPreviewAsync'
+    'deleteImportSnapshot','openImportReviewFromSnapshot',
+    'buildMarkerReference','reconcileImportMarkerMappings','extractPDFText','tryParseJSON',
+    'parseLabPDFWithAI','showAINeededDialog','showImportPreview','applyManualImportDate',
+    'mapUnmatchedMarker','mapUnmatchedMarkerInput','setImportReviewFilter',
+    'applyImportReviewFilters','toggleImportRow','closeImportModal','confirmImport',
+    'removeImportedEntry','renameImportedEntryDate','setupDropZone','classifyImportFiles',
+    'isPdfByMagic','showImportProgress','hideImportProgress','assessTextQuality',
+    'extractPDFImages','parseLabPDFWithAIImages','handlePDFFile','handleImageFile',
+    'handleTextFile','handleCycleImportFile','handleBatchPDFs','showBatchImportProgress',
+    'showImportPreviewAsync','syncImportStatusFab','handleImportStatusClick','isImportRunning'
   ];
 
   // pii.js (7, module-only)
@@ -584,6 +589,7 @@
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
+    ['pdf-import.js', pdfImportModule, pdfImportExports],
     ['pii.js', piiModule, piiExports],
     ['settings-sync-panel.js', settingsSyncPanelModule, settingsSyncPanelExports],
     ['sun-context.js', sunContextModule, sunContextExports],
@@ -615,6 +621,9 @@
   for (const name of lightToolsLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of pdfImportExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -636,7 +645,6 @@
     'export.js': exportExports,
     'nav.js': navExports,
     'notes.js': notesExports,
-    'pdf-import.js': pdfImportExports,
     'profile.js': profileExports,
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
@@ -736,7 +744,7 @@
     Object.keys(data.categories.biochemistry.markers).length > 0);
 
   // Check via window functions that depend on schema
-  const ref = window.buildMarkerReference();
+  const ref = pdfImportModule.buildMarkerReference();
   assert('buildMarkerReference returns object', typeof ref === 'object' && ref !== null && Object.keys(ref).length > 10,
     `Got ${typeof ref}, keys: ${ref ? Object.keys(ref).length : 0}`);
 

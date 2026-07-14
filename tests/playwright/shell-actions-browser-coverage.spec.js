@@ -20,6 +20,11 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const shellActions = await import(shellActionsUrl);
     const outcomes = {};
     const calls = [];
+    let importRunning = false;
+    const previousShellImportDeps = shellActions.configureShellImportDeps({
+      isImportRunning: () => importRunning,
+      handleImportStatusClick: () => calls.push(['handleImportStatusClick']),
+    });
     const originalFns = {
       toggleMobileSidebar: window.toggleMobileSidebar,
       closeMobileSidebar: window.closeMobileSidebar,
@@ -27,8 +32,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       openTweaksPanel: window.openTweaksPanel,
       openSettingsModal: window.openSettingsModal,
       openFeedbackModal: window.openFeedbackModal,
-      isImportRunning: window.isImportRunning,
-      handleImportStatusClick: window.handleImportStatusClick,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
       toggleThreadRail: window.toggleThreadRail,
@@ -87,7 +90,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         <textarea id="message-input" data-chat-key-action="message-input"></textarea>
       `;
       for (const name of Object.keys(originalFns)) bind(name);
-      window.isImportRunning = () => false;
       document.getElementById('pdf-input').addEventListener('click', () => calls.push(['pdf-input-click']));
       document.getElementById('chat-image-input').addEventListener('click', () => calls.push(['chat-image-input-click']));
 
@@ -121,7 +123,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
 
       const pickerClicksBeforeRunningImport = calls.filter(call => call[0] === 'pdf-input-click').length;
       const statusClicksBeforeRunningImport = calls.filter(call => call[0] === 'handleImportStatusClick').length;
-      window.isImportRunning = () => true;
+      importRunning = true;
       const runningImportPrevented = click('#trigger-import');
       outcomes.runningImportClickOpensStatusInsteadOfPicker = runningImportPrevented === true
         && calls.filter(call => call[0] === 'pdf-input-click').length === pickerClicksBeforeRunningImport
@@ -188,6 +190,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && personalitySpace.defaultPrevented === true
         && personalityEscape.defaultPrevented === false;
     } finally {
+      shellActions.configureShellImportDeps(previousShellImportDeps);
       for (const [name, value] of Object.entries(originalFns)) {
         if (value === undefined) delete window[name];
         else window[name] = value;

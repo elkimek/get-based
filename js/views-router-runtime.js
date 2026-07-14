@@ -1,6 +1,16 @@
 // @ts-check
 // views-router-runtime.js - Browser runtime adapters for routing scroll/window hooks.
 
+import { syncImportStatusFab } from './pdf-import-progress.js';
+
+const viewsRouterRuntimeDeps = { syncImportStatusFab };
+
+export function configureViewsRouterRuntimeDeps(deps = {}) {
+  const previous = { ...viewsRouterRuntimeDeps };
+  if (typeof deps.syncImportStatusFab === 'function') viewsRouterRuntimeDeps.syncImportStatusFab = deps.syncImportStatusFab;
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -30,7 +40,8 @@ export function closeMobileSidebarFromRuntime() {
 }
 
 export function syncImportStatusFabFromRuntime() {
-  getRuntimeFunction('syncImportStatusFab')?.();
+  if (!getRuntimeWindow()) return;
+  viewsRouterRuntimeDeps.syncImportStatusFab();
 }
 
 /** @param {string} view */

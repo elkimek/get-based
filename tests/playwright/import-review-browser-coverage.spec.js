@@ -12,11 +12,15 @@ test('import file input and drop zone route browser file types and busy states',
   const results = await page.evaluate(async ({ fileInputUrl, dropZoneUrl }) => {
     const fileInput = await import(fileInputUrl);
     const dropZoneModule = await import(dropZoneUrl);
+    const dropZoneRuntime = await import('/js/import-drop-zone-runtime.js');
     const outcomes = {};
     const calls = [];
+    let importRunning = false;
+    const previousDropZoneRuntimeDeps = dropZoneRuntime.configureImportDropZoneRuntimeDeps({
+      isImportRunning: () => importRunning,
+    });
     const originals = {
       importDataJSON: window.importDataJSON,
-      isImportRunning: window.isImportRunning,
       isDNAFileByContent: window.isDNAFileByContent,
       detectDNAFile: window.detectDNAFile,
       handleMtDNAFile: window.handleMtDNAFile,
@@ -57,12 +61,12 @@ test('import file input and drop zone route browser file types and busy states',
       window.handleDNAFile = async file => { calls.push(['dna', file.name]); };
       window.showNotification = (message, type) => { calls.push(['notify', type, message]); };
 
-      window.isImportRunning = () => true;
+      importRunning = true;
       setInputFiles(new File(['{"ok":true}'], 'busy.json', { type: 'application/json' }));
       await fileInput.handleImportInputChange({ target: input });
       outcomes.busyInputSkipsRouting = calls.length === 0;
 
-      window.isImportRunning = () => false;
+      importRunning = false;
       setInputFiles(
         new File(['{"ok":true}'], 'profile.json', { type: 'application/json' }),
         new File(['MTDNA raw data'], 'maternal.dna.txt', { type: 'text/plain' }),
@@ -84,7 +88,7 @@ test('import file input and drop zone route browser file types and busy states',
       dropZone.click();
       outcomes.dropZoneClickOpensPicker = calls.some(call => call[0] === 'picker');
 
-      window.isImportRunning = () => true;
+      importRunning = true;
       const beforeBusyDrop = calls.length;
       dispatchDrop(new File(['{"ok":true}'], 'drop-busy.json', { type: 'application/json' }));
       await flush();
@@ -92,7 +96,7 @@ test('import file input and drop zone route browser file types and busy states',
         .some(call => call[0] === 'notify' && call[2].includes('Import already in progress'))
         && !calls.slice(beforeBusyDrop).some(call => call[0] === 'json');
 
-      window.isImportRunning = () => false;
+      importRunning = false;
       const dragOver = new DragEvent('dragover', { bubbles: true, cancelable: true });
       dropZone.dispatchEvent(dragOver);
       outcomes.dragOverAddsClass = dropZone.classList.contains('drag-over');
@@ -106,6 +110,7 @@ test('import file input and drop zone route browser file types and busy states',
         .some(call => call[0] === 'json' && call[1] === 'drop-profile.json');
     } finally {
       if (originalClick) input.click = originalClick;
+      dropZoneRuntime.configureImportDropZoneRuntimeDeps(previousDropZoneRuntimeDeps);
       Object.assign(window, originals);
       if (dropZone.isConnected) dropZone.replaceWith(originalDropZone);
     }

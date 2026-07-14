@@ -26,6 +26,7 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
   const supplements = await import('/js/supplements.js');
+  const pdfImport = await import('/js/pdf-import.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -77,7 +78,8 @@ return (async function() {
     });
     const entriesHtml = window.renderDataEntriesSection();
     assert('Settings Data remove wrapper is callable', typeof window.removeImportedEntryFromSettings === 'function');
-    assert('Settings Data legacy remove bridge is callable', typeof window.removeImportedEntry === 'function');
+    assert('PDF import remove action is module-only', typeof pdfImport.removeImportedEntry === 'function'
+      && !('removeImportedEntry' in window));
     assert('Settings Data remove button uses delegated action',
       entriesHtml.includes('data-settings-action="remove-imported-entry"') && entriesHtml.includes('data-entry-date="2099-12-31"'));
     assert('Settings Data edit button uses delegated action',
@@ -333,7 +335,7 @@ return (async function() {
   // 4. IMPORT REVIEW — editable collection date
   // ═══════════════════════════════════════════════
   console.log('%c 4. Import review date editing', 'font-weight:bold;color:#6366f1');
-  window.showImportPreview({
+  pdfImport.showImportPreview({
     date: '2026-01-10',
     fileName: 'ui-flow-import.pdf',
     markers: [{ rawName: 'Glucose', value: 5.1, unit: 'mmol/L', matched: true, mappedKey: 'biochemistry.glucose' }]
@@ -344,25 +346,25 @@ return (async function() {
   assert('Import date input prefilled from extracted date', importDateInput?.value === '2026-01-10');
   assert('Import preview has one date input', document.querySelectorAll('#import-manual-date').length === 1);
   importDateInput.value = '2026-02-03';
-  window.applyManualImportDate(importDateInput.value);
+  pdfImport.applyManualImportDate(importDateInput.value);
   assert('Edited import date updates pending import', window._pendingImport?.date === '2026-02-03');
   const importBtn = document.getElementById('import-confirm-btn');
   assert('Import stays enabled after valid edited date', importBtn && !importBtn.disabled);
   importDateInput.value = '';
-  window.applyManualImportDate(importDateInput.value);
+  pdfImport.applyManualImportDate(importDateInput.value);
   assert('Clearing import date clears pending import date', window._pendingImport?.date === '');
   assert('Clearing import date disables import button', importBtn?.disabled === true);
-  window.closeImportModal();
+  pdfImport.closeImportModal();
   await wait(20);
 
-  window.showImportPreview({ date: '', fileName: 'ui-flow-no-date.pdf', markers: [] });
+  pdfImport.showImportPreview({ date: '', fileName: 'ui-flow-no-date.pdf', markers: [] });
   await wait(20);
   const missingDateInput = document.getElementById('import-manual-date');
   assert('Missing-date import still has one date input', document.querySelectorAll('#import-manual-date').length === 1);
   assert('Missing-date input starts empty', missingDateInput?.value === '');
   assert('Missing-date warning points to existing date input', document.querySelector('.import-review-date-warning')?.textContent.includes('set it above'));
   assert('Missing-date import starts disabled', document.getElementById('import-confirm-btn')?.disabled === true);
-  window.closeImportModal();
+  pdfImport.closeImportModal();
   await wait(20);
 
   // ═══════════════════════════════════════════════

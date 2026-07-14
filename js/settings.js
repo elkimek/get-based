@@ -1047,8 +1047,6 @@ publishSettingsGlobals({
   updateSettingsUI,
   renderDataEntriesSection,
   refreshDataEntriesSection,
-  removeImportedEntry: removeImportedEntryFromSettings,
-  renameImportedEntryDate: renameImportedEntryDateFromSettings,
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
   resetCurrentProfileUsage,

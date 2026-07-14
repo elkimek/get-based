@@ -540,7 +540,7 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       review.closeImportModal();
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
-      window.hideImportProgress?.('cancel');
+      pdfImport.hideImportProgress('cancel');
     }
 
     return outcomes;
@@ -620,7 +620,7 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
       ensureConfirmDialog();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
-      window.hideImportProgress?.('cancel');
+      pdfImport.hideImportProgress('cancel');
 
       const file = new File(['%PDF-1.4 scanned'], `scanned-${choice}.pdf`, { type: 'application/pdf' });
       const pending = pdfImport.handlePDFFile(file);
@@ -675,7 +675,7 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
       if (original.aiPaused == null) localStorage.removeItem('labcharts-ai-paused');
       else localStorage.setItem('labcharts-ai-paused', original.aiPaused);
-      window.hideImportProgress?.('cancel');
+      pdfImport.hideImportProgress('cancel');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
@@ -1176,7 +1176,7 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       setOrRemove('labcharts-pii-review', original.piiReview);
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
-      window.hideImportProgress?.('cancel');
+      pdfImport.hideImportProgress('cancel');
     }
 
     return outcomes;

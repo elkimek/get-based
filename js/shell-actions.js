@@ -1,7 +1,17 @@
 // @ts-check
 // shell-actions.js - delegated actions for static index.html controls
 
+import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
+
 let shellDelegatesInstalled = false;
+const shellImportDeps = { handleImportStatusClick, isImportRunning };
+
+export function configureShellImportDeps(deps = {}) {
+  const previous = { ...shellImportDeps };
+  if (typeof deps.handleImportStatusClick === 'function') shellImportDeps.handleImportStatusClick = deps.handleImportStatusClick;
+  if (typeof deps.isImportRunning === 'function') shellImportDeps.isImportRunning = deps.isImportRunning;
+  return previous;
+}
 
 function shellRuntime() {
   return /** @type {Record<string, any>} */ (globalThis);
@@ -31,8 +41,8 @@ function runShellAction(action) {
     callShellRuntime('closeMobileSidebar');
     return true;
   } else if (action === 'trigger-import') {
-    if (shellRuntime().isImportRunning?.()) {
-      callShellRuntime('handleImportStatusClick');
+    if (shellImportDeps.isImportRunning()) {
+      shellImportDeps.handleImportStatusClick();
       return true;
     }
     clickFileInput('pdf-input');
@@ -53,7 +63,7 @@ function runShellAction(action) {
     callShellRuntime('openFeedbackModal');
     return true;
   } else if (action === 'import-status') {
-    callShellRuntime('handleImportStatusClick');
+    shellImportDeps.handleImportStatusClick();
     return true;
   }
   return false;

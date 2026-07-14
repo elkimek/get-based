@@ -5,6 +5,7 @@ import './_node-shim.js';
 import {
   addViewportInputCancelListeners,
   closeMobileSidebarFromRuntime,
+  configureViewsRouterRuntimeDeps,
   getViewportHeight,
   getViewportScrollPosition,
   navigateViewportRuntime,
@@ -34,10 +35,10 @@ const runtimeKeys = [
   'addEventListener',
   'removeEventListener',
   'closeMobileSidebar',
-  'syncImportStatusFab',
   'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const originalViewsRouterRuntimeDeps = configureViewsRouterRuntimeDeps();
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -72,7 +73,7 @@ try {
     JSON.stringify(getViewportScrollPosition()) === JSON.stringify({ x: 56, y: 78 }));
 
   setRuntimeValue('closeMobileSidebar', () => calls.push(['close-sidebar']));
-  setRuntimeValue('syncImportStatusFab', () => calls.push(['sync-fab']));
+  configureViewsRouterRuntimeDeps({ syncImportStatusFab: () => calls.push(['sync-fab']) });
   setRuntimeValue('navigate', view => calls.push(['navigate', view]));
   closeMobileSidebarFromRuntime();
   syncImportStatusFabFromRuntime();
@@ -146,6 +147,7 @@ try {
     getViewportHeight() === 0 &&
     typeof addViewportInputCancelListeners(() => {}) === 'function');
 } finally {
+  configureViewsRouterRuntimeDeps(originalViewsRouterRuntimeDeps);
   restoreRuntime();
 }
 

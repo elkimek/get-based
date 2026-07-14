@@ -186,6 +186,11 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
 
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
+    const dnaRuntime = await import('/js/dna-runtime.js');
+    let importRunning = false;
+    const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
+      isImportRunning: () => importRunning,
+    });
 
     const profileId = `dna-autosomal-coverage-${Date.now()}`;
     state.currentProfile = profileId;
@@ -212,10 +217,10 @@ rs5882\t16\t57016092\tA\tG
 rs999999\t1\t100\tAG
 `;
 
-    window.isImportRunning = () => true;
+    importRunning = true;
     await window.handleDNAFile(textFile(validContent, 'busy.txt'));
     check('busy import blocks preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
-    window.isImportRunning = () => false;
+    importRunning = false;
 
     await window.handleDNAFile(textFile(noMatchContent, 'nomatch.txt'));
     check('no-match file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
@@ -278,6 +283,7 @@ rs999999\t1\t100\tAG
     const toastText = document.getElementById('notification-container')?.textContent || '';
     check('notifications rendered during flow', /DNA import|Imported|health-relevant/.test(toastText));
 
+    dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
     return { failures };
   });
 

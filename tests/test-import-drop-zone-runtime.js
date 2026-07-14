@@ -2,6 +2,7 @@
 
 import './_node-shim.js';
 import {
+  configureImportDropZoneRuntimeDeps,
   detectDropZoneDNAFile,
   handleDropZoneDNAFile,
   handleDropZoneMtDNAFile,
@@ -23,7 +24,6 @@ console.log('=== Import Drop Zone Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'document',
-  'isImportRunning',
   'showNotification',
   'importDataJSON',
   'detectDNAFile',
@@ -31,6 +31,7 @@ const runtimeKeys = [
   'handleDNAFile',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const originalImportRuntimeDeps = configureImportDropZoneRuntimeDeps();
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -55,7 +56,7 @@ try {
   const dnaFile = new File(['dna'], 'genome.txt', { type: 'text/plain' });
   const picker = { click: () => calls.push(['picker']) };
 
-  setRuntimeValue('isImportRunning', () => true);
+  configureImportDropZoneRuntimeDeps({ isImportRunning: () => true });
   setRuntimeValue('showNotification', (message, type) => calls.push(['notify', type, message]));
   setRuntimeValue('importDataJSON', file => calls.push(['json', file.name]));
   setRuntimeValue('detectDNAFile', header => header.includes('MT') ? 'mtdna' : 'autosomal');
@@ -98,6 +99,7 @@ try {
   assert('runtime adapter no-ops optional hooks when window is missing',
     isDropZoneImportRunning() === false && detectDropZoneDNAFile('MT raw data') === null);
 } finally {
+  configureImportDropZoneRuntimeDeps(originalImportRuntimeDeps);
   restoreRuntime();
 }
 
