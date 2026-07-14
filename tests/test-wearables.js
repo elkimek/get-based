@@ -2211,11 +2211,10 @@ assert('Series elides metrics with zero non-null daily values in the window',
   /nonNullCount\s*===\s*0\)\s*continue/.test(labWearablesSrc) ||
   /nonNullCount\s*===\s*0\)\s*\{\s*continue/.test(labWearablesSrc));
 
-// Window exports for the toggle handler in Settings → Agent Access.
-assert('window.isAgentWearableSeriesEnabled exists',
-  typeof window.isAgentWearableSeriesEnabled === 'function');
-assert('window.setAgentWearableSeriesEnabled exists',
-  typeof window.setAgentWearableSeriesEnabled === 'function');
+assert('window.isAgentWearableSeriesEnabled stays module-only',
+  !('isAgentWearableSeriesEnabled' in window));
+assert('window.setAgentWearableSeriesEnabled stays module-only',
+  !('setAgentWearableSeriesEnabled' in window));
 assert('window.pushContextToGateway is exposed (toggle re-pushes immediately)',
   typeof window.pushContextToGateway === 'function');
 

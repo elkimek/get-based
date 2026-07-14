@@ -18,11 +18,13 @@ import {
 import { getMeteoConfig } from './sun-uvdata.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
 import { computeDeficitAxes, computeIndoorBurden } from './light-env.js';
-import { configureLabContext } from './lab-context.js';
+import { configureDataContextDependencies } from './data.js';
+import { configureLabContext, invalidateLabContextCache } from './lab-context.js';
 import { isDebugMode } from './utils.js';
 import { buildSunContext, configureSunContext } from './sun-context.js';
 
 configureLabContext({ buildSunContext });
+configureDataContextDependencies({ invalidateLabContextCache });
 
 configureSunContext({
   bodyRegions: BODY_REGIONS,
@@ -33,6 +35,7 @@ configureSunContext({
   cumulativeMEDToday,
   getMeteoConfig,
   isDebugMode,
+  invalidateLabContextCache,
   pbmJoulesPerCm2,
   rollingChannelTotals,
   rollingDeviceTotals,

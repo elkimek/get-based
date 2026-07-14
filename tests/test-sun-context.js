@@ -16,8 +16,6 @@ function assert(name, condition, detail) {
 console.log('=== Sun Context Tests ===\n');
 
 await import('../js/state.js');
-// lab-context.js exposes buildLabContext via window — section 11 below
-// gates on its presence. Importing it makes the gate fire.
 const labCtxMod = await import('../js/lab-context.js');
 const ctxMod = await import('../js/sun-context.js');
 await import('../js/sun-context-hooks.js');
@@ -433,20 +431,16 @@ labCtxMod.setLightSunContextEnabled(true);
   // session table whenever sun sessions are present.
   console.log('%c 11. Sun standard-tier always included when data exists ', 'font-weight:bold;color:#f59e0b');
 
-  if (typeof window.buildLabContext === 'function') {
-    const labCtx = window.buildLabContext({});
-    const sessions = window.getSessions ? window.getSessions().filter(s => s.endedAt) : [];
-    if (sessions.length > 0) {
-      assert('Lab context always carries [section:sun] when sessions exist',
-        /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
-      assert('Lab context always includes weekly-trend (standard tier) when sessions exist',
-        /### Weekly trend \(last 6w/.test(labCtx));
-    } else {
-      assert('Lab context skips [section:sun] when no sessions',
-        !/\[section:sun\]/.test(labCtx));
-    }
+  const labCtx = labCtxMod.buildLabContext({});
+  const completedSessions = window.getSessions ? window.getSessions().filter(s => s.endedAt) : [];
+  if (completedSessions.length > 0) {
+    assert('Lab context always carries [section:sun] when sessions exist',
+      /\[section:sun\][\s\S]*\[\/section:sun\]/.test(labCtx));
+    assert('Lab context always includes weekly-trend (standard tier) when sessions exist',
+      /### Weekly trend \(last 6w/.test(labCtx));
   } else {
-    assert('window.buildLabContext exists', false, 'skipped — function missing');
+    assert('Lab context skips [section:sun] when no sessions',
+      !/\[section:sun\]/.test(labCtx));
   }
 
   // ─── 12. Token-budget guard ──────────────────────────────────────────

@@ -491,8 +491,8 @@ test('context health dots and focus card cover cache fallback and empty states',
       ollamaConfigCache: cryptoStore.getCachedKey('labcharts-ollama'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
       fetch: window.fetch,
-      buildLabContext: window.buildLabContext,
     };
+    const originalHealthDotDeps = health.configureContextCardHealthDots();
     const cacheKeys = [];
     const host = document.createElement('div');
 
@@ -571,7 +571,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       });
       const aiCalls = [];
       cryptoStore.updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' }));
-      window.buildLabContext = () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n');
+      health.configureContextCardHealthDots({
+        buildLabContext: () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n'),
+      });
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'http://ollama.test/v1/chat/completions') {
@@ -609,8 +611,7 @@ test('context health dots and focus card cover cache fallback and empty states',
         && localStorage.getItem(healthCacheKey) !== null;
 
       window.fetch = saved.fetch;
-      if (saved.buildLabContext === undefined) delete window.buildLabContext;
-      else window.buildLabContext = saved.buildLabContext;
+      health.configureContextCardHealthDots(originalHealthDotDeps);
 
       const demo = await fetch('data/demo-male.json').then(r => r.json());
       state.importedData = demo;
@@ -728,8 +729,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
       cryptoStore.updateKeyCache('labcharts-ollama', saved.ollamaConfigCache);
       window.fetch = saved.fetch;
-      if (saved.buildLabContext === undefined) delete window.buildLabContext;
-      else window.buildLabContext = saved.buildLabContext;
+      health.configureContextCardHealthDots(originalHealthDotDeps);
       for (const key of cacheKeys) localStorage.removeItem(key);
       host.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());

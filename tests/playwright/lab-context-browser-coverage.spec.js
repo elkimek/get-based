@@ -23,6 +23,22 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
     ]);
     const { state } = stateModule;
     const outcomes = {};
+    const legacyWindowGlobals = [
+      'buildLabContext', 'invalidateLabContextCache', 'getContextSummary',
+      'isGroupInAIContext', 'setGroupInAIContext',
+      'isInsightContextCardsEnabled', 'setInsightContextCardsEnabled',
+      'isSupplementsMedsContextEnabled', 'setSupplementsMedsContextEnabled',
+      'isLabMarkersContextEnabled', 'setLabMarkersContextEnabled',
+      'isGeneticsSummaryInAIContext', 'setGeneticsSummaryInAIContext',
+      'isGeneticsPriorityInAIContext', 'setGeneticsPriorityInAIContext',
+      'isGeneticsInventoryInAIContext', 'setGeneticsInventoryInAIContext',
+      'isLightSunContextEnabled', 'setLightSunContextEnabled',
+      'isWearableContextEnabled', 'setWearableContextEnabled',
+      'isAgentWearableSeriesEnabled', 'setAgentWearableSeriesEnabled',
+      'getAgentWearableSeriesDays', 'setAgentWearableSeriesDays',
+      'buildWearableContext', 'buildWearableSeriesSection', 'injectLensChunks',
+    ];
+    outcomes.legacyWindowFacadeStaysAbsent = legacyWindowGlobals.every(name => !(name in window));
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];

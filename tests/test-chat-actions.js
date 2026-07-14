@@ -31,7 +31,7 @@ console.log('=== Chat Actions Tests ===\n');
 // state.js exposes window._labState; chat.js + lab-context.js expose the
 // action-bar / context-summary handlers via Object.assign(window, ...).
 await import('../js/state.js');
-await import('../js/lab-context.js');
+const labContext = await import('../js/lab-context.js');
 await import('../js/chat.js');
 const { buildActionBar } = await import('../js/chat-actions.js');
 const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
@@ -55,12 +55,13 @@ assert('window._labState exists', hasState, hasState ? 'found' : 'not found');
 // ─── Section 1: Window exports ───
 console.log('Section 1: Window Exports');
 const requiredExports = [
-  'getContextSummary', 'regenerateLastMessage',
-  'copyMessage', 'toggleContextDetails'
+  'regenerateLastMessage', 'copyMessage', 'toggleContextDetails'
 ];
 for (const fn of requiredExports) {
   assert(`window.${fn} exists`, typeof window[fn] === 'function', typeof window[fn]);
 }
+assert('lab-context.getContextSummary exists', typeof labContext.getContextSummary === 'function');
+assert('window.getContextSummary stays module-only', !('getContextSummary' in window));
 assert('window.readAloud removed', typeof window.readAloud === 'undefined', typeof window.readAloud);
 
 // ─── Section 1a: Discuss Button UI ───
@@ -195,7 +196,7 @@ if (hasState) {
 
 // ─── Section 2: getContextSummary() ───
 console.log('Section 2: getContextSummary()');
-const summary = window.getContextSummary();
+const summary = labContext.getContextSummary();
 assert('getContextSummary returns array', Array.isArray(summary), typeof summary);
 if (summary.length > 0) {
   assert('Summary items have label', typeof summary[0].label === 'string', summary[0].label);

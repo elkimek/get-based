@@ -39,13 +39,25 @@ export {
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
  *   buildSidebar: (data?: unknown) => void,
- *   invalidateLabContextCache?: () => void,
  *   navigate: (route?: string, data?: unknown) => void,
  *   showDetailModal?: (id: string) => void,
  * }} DataWindowHooks
  */
 
 const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (typeof window !== 'undefined' ? window : {});
+
+/** @type {{ invalidateLabContextCache: (() => void) | null }} */
+const dataContextDeps = {
+  invalidateLabContextCache: null,
+};
+
+export function configureDataContextDependencies(deps = {}) {
+  const previous = { ...dataContextDeps };
+  if (Object.prototype.hasOwnProperty.call(deps, 'invalidateLabContextCache')) {
+    dataContextDeps.invalidateLabContextCache = deps.invalidateLabContextCache;
+  }
+  return previous;
+}
 
 const DATA_ACTION_ATTR = 'data-lab-data-action';
 const DATA_CHANGE_ATTR = 'data-lab-data-change';
@@ -269,7 +281,7 @@ export async function saveImportedData(options = {}) {
     broadcastDataChanged(state.currentProfile);
     scheduleAutoBackup();
     touchProfileTimestamp(state.currentProfile);
-    if (dataWindow.invalidateLabContextCache) dataWindow.invalidateLabContextCache();
+    dataContextDeps.invalidateLabContextCache?.();
     onDataSaved(options);
   } catch (e) {
     if (dataWindow.isDebugMode?.()) console.warn('Post-save hook failed after data was persisted:', e);

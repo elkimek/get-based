@@ -32,6 +32,7 @@ const sunContextDeps = {
   cumulativeMEDToday: () => 0,
   getMeteoConfig: () => ({ privacyRounding: 0.01 }),
   isDebugMode: () => false,
+  invalidateLabContextCache: null,
   pbmJoulesPerCm2: null,
   rollingChannelTotals: () => ({}),
   rollingDeviceTotals: () => ({}),
@@ -91,7 +92,7 @@ export function isBodyRegionsInAIContext() {
 }
 export function setBodyRegionsInAIContext(on) {
   localStorage.setItem(_bodyRegionsCtxKey(), on ? 'on' : 'off');
-  if (typeof window !== 'undefined') /** @type {any} */ (window).invalidateLabContextCache?.();
+  sunContextDeps.invalidateLabContextCache?.();
 }
 
 // ─── Public API ────────────────────────────────────────────────────────
