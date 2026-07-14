@@ -594,7 +594,7 @@ export async function clearMenstrualCycle() {
   }
 }
 
-function _toggleCycleEditorFields() {
+export function _toggleCycleEditorFields() {
   const status = getFieldValue('mc-cycle-status');
   const fields = document.getElementById('mc-active-fields');
   const periodLog = document.getElementById('mc-period-log-section');
@@ -790,8 +790,4 @@ export function renderMenstrualCycleSection(data, opts = {}) {
   }
   html += `</div>`;
   return html;
-}
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, { getCyclePhase, getNextBestDrawDate, getBloodDrawPhases, detectPerimenopausePattern, detectCycleIronAlerts, renderMenstrualCycleSection, openMenstrualCycleEditor, saveMenstrualCycle, clearMenstrualCycle, syncMenstrualCycleProfileFromForm, addPeriodEntry, deletePeriodEntry, toggleCycleSymptomTag, _toggleCycleEditorFields });
 }

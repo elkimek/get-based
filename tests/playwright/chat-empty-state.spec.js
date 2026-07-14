@@ -26,7 +26,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     };
     const savedFns = {
       closeChatPanel: window.closeChatPanel,
-      openMenstrualCycleEditor: window.openMenstrualCycleEditor,
       triggerDNAFilePicker: window.triggerDNAFilePicker,
       openSettingsModal: window.openSettingsModal,
     };
@@ -45,7 +44,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       if (chatMessages) chatMessages.innerHTML = '';
 
       window.closeChatPanel = () => calls.push('close-chat');
-      window.openMenstrualCycleEditor = () => calls.push('open-cycle');
       window.triggerDNAFilePicker = () => calls.push('import-dna');
       window.openSettingsModal = tab => calls.push(`open-settings:${tab}`);
       HTMLInputElement.prototype.click = function() {
@@ -110,6 +108,8 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       renderEmptyChatState(container, panel);
       const bubbledBeforeOptionalActions = bubbledClicks;
       container.querySelector('[data-chat-empty-action="open-cycle-editor"]')?.click();
+      const cycleEditorOpenedThroughModule = document.getElementById('modal-overlay')?.classList.contains('show') === true
+        && document.querySelector('#detail-modal .gb-modal-title')?.textContent === 'Menstrual Cycle';
       container.querySelector('[data-chat-empty-action="open-supplements-editor"]')?.click();
       container.querySelector('[data-chat-empty-action="import-dna"]')?.click();
       container.querySelector('[data-chat-empty-action="import-mtdna"]')?.click();
@@ -125,9 +125,9 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
         heightConverted: heightInput.value === '70.9',
         countrySaved: getProfileLocation('chat-empty-test').country === 'Germany',
         optionalActionsCalled: calls.includes('close-chat')
-          && calls.includes('open-cycle')
           && calls.includes('import-dna')
           && calls.includes('open-settings:wearables'),
+        cycleEditorOpenedThroughModule,
         supplementsEditorOpenedThroughModule: document.getElementById('modal-overlay')?.classList.contains('show') === true
           && document.querySelector('#detail-modal h3')?.textContent === 'Supplements & Medications',
         mtdnaInputScoped: inputClicks.includes('scoped') && !inputClicks.includes('stray'),
