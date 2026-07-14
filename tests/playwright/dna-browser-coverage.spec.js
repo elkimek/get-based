@@ -309,7 +309,11 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     };
 
     const { state } = await import('/js/state.js');
-    const dna = await import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`);
+    const [dna, dnaRuntime] = await Promise.all([
+      import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`),
+      import('/js/dna-runtime.js'),
+    ]);
+    const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps();
 
     const profileId = `dna-mtdna-coverage-${Date.now()}`;
     state.currentProfile = profileId;
@@ -332,28 +336,28 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     check('parseMtDNAMutations handles simple and 23andMe rows', jMutations.length === 9 && mt23Mutations.length === 6 && mt23Mutations[0].raw === '295T');
     check('resolveHaplogroup resolves direct and H fallback', resolvedJ?.haplogroup === 'J' && resolvedH?.haplogroup === 'H');
 
-    window.getLatitudeFromLocation = () => '<25\u00B0 latitude (tropical)';
+    dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '<25\u00B0 latitude (tropical)' });
     const mismatch = dna.detectMtDNAMismatch({
       mtdna: {
         haplogroup: 'J',
         coupling: { shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4], implications: 'test implications' },
       },
     });
-    window.getLatitudeFromLocation = () => '50-60\u00B0 (northern)';
+    dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '50-60\u00B0 (northern)' });
     const matched = dna.detectMtDNAMismatch({
       mtdna: {
         haplogroup: 'J',
         coupling: { shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4] },
       },
     });
-    window.getLatitudeFromLocation = () => 'unknown';
+    dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => 'unknown' });
     const invalidBand = dna.detectMtDNAMismatch({ mtdna: { haplogroup: 'J', coupling: { matchedLatBands: [3, 4] } } });
     check('detectMtDNAMismatch covers mismatch, match, invalid band', mismatch?.mismatch === true && matched?.mismatch === false && invalidBand === null);
 
     await window.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
     check('empty mtDNA file does not open preview', !document.getElementById('dna-modal-overlay')?.classList.contains('show'));
 
-    window.getLatitudeFromLocation = () => '<25\u00B0 latitude (tropical)';
+    dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '<25\u00B0 latitude (tropical)' });
     await window.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
@@ -388,6 +392,7 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     dna.ensureHaplogroupTable();
     check('haplogroup list exported', Array.isArray(window.HAPLOGROUP_LIST) && window.HAPLOGROUP_LIST.includes('J'));
 
+    dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
     return { failures };
   });
 

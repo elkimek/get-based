@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, formatDate } from './utils.js';
 import { getActiveData } from './data.js';
-import { profileStorageKey } from './profile.js';
+import { getProfiles, profileStorageKey } from './profile.js';
 import { loadContextHealthDots } from './context-cards.js';
 import { hasAIProvider, isAIPaused } from './api.js';
 import { loadCommitHash } from './commit-hash.js';
@@ -304,7 +304,7 @@ export function createDashboardPageView(deps) {
 
     // Auto-trigger guided tour on first populated dashboard visit as a fallback
     // for users who imported before seeing the empty-state tour.
-    const _p = callDashboardPageRuntime('getProfiles')?.find(p => p.id === state.currentProfile);
+    const _p = getProfiles().find(p => p.id === state.currentProfile);
     const _hasProfile = _p?.name && _p.name !== 'Default' && state.profileSex;
     if (_hasProfile && hasData) {
       startTour(true);

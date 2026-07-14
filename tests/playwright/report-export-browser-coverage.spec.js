@@ -10,12 +10,10 @@ test('report builder modal delegates presets categories AI state and preview exp
 
   const results = await page.evaluate(async ({ builderUrl }) => {
     const builder = await import(builderUrl);
+    const profile = await import('/js/profile.js');
     const state = window._labState;
     const outcomes = {};
-    if (typeof window.getProfiles !== 'function' || typeof window.saveProfiles !== 'function') {
-      throw new Error('Profile helpers are required for report export coverage setup.');
-    }
-    const originalProfiles = window.getProfiles();
+    const originalProfiles = profile.getProfiles();
     if (!Array.isArray(originalProfiles)) {
       throw new Error('Expected getProfiles to return the current profile list.');
     }
@@ -87,7 +85,7 @@ test('report builder modal delegates presets categories AI state and preview exp
         customMarkers: {},
       };
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles([{
+      await profile.saveProfiles([{
         id: 'report-export-coverage',
         name: 'Report Coverage',
         sex: 'male',
@@ -223,7 +221,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       state.profileDob = original.profileDob;
       state.dateRangeFilter = original.dateRangeFilter;
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles(original.profiles);
+      await profile.saveProfiles(original.profiles);
       window.open = original.open;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
@@ -248,16 +246,14 @@ test('report payload and HTML cover filtered context genetics and supplement bra
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reportUrl, htmlUrl }) => {
-    const [report, html] = await Promise.all([
+    const [report, html, profile] = await Promise.all([
       import(reportUrl),
       import(htmlUrl),
+      import('/js/profile.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
-    if (typeof window.getProfiles !== 'function' || typeof window.saveProfiles !== 'function') {
-      throw new Error('Profile helpers are required for report export coverage setup.');
-    }
-    const originalProfiles = window.getProfiles();
+    const originalProfiles = profile.getProfiles();
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
@@ -378,7 +374,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         },
       };
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles([{
+      await profile.saveProfiles([{
         id: 'report-payload-coverage',
         name: 'Payload Coverage',
         sex: 'female',
@@ -466,7 +462,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       state.unitSystem = original.unitSystem;
       window._snpTableCache = original.snpTable;
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles(original.profiles);
+      await profile.saveProfiles(original.profiles);
     }
 
     return outcomes;
@@ -747,12 +743,10 @@ test('report AI summary generation covers unavailable success and empty-response
 
   const results = await page.evaluate(async ({ reportUrl }) => {
     const report = await import(reportUrl);
+    const profile = await import('/js/profile.js');
     const state = window._labState;
     const outcomes = {};
-    if (typeof window.getProfiles !== 'function' || typeof window.saveProfiles !== 'function') {
-      throw new Error('Profile helpers are required for report AI summary coverage setup.');
-    }
-    const originalProfiles = window.getProfiles();
+    const originalProfiles = profile.getProfiles();
     const original = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
@@ -793,7 +787,7 @@ Discussion focus:
         customMarkers: {},
       };
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles([{
+      await profile.saveProfiles([{
         id: 'report-ai-coverage',
         name: 'Report AI Coverage',
         sex: 'male',
@@ -864,7 +858,7 @@ Discussion focus:
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       window.invalidateActiveDataCache?.();
-      await window.saveProfiles(original.profiles);
+      await profile.saveProfiles(original.profiles);
       window.fetch = original.fetch;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);

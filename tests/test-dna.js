@@ -494,7 +494,8 @@ assert('dna-runtime owns DNA browser-global integration points',
   dnaRuntimeSrc.includes('_pendingDNAImport') &&
     dnaRuntimeSrc.includes('_pendingMtDNA') &&
     dnaRuntimeSrc.includes('_snpTableCache') &&
-    dnaRuntimeSrc.includes("getRuntimeFunction('getLatitudeFromLocation')") &&
+    dnaRuntimeSrc.includes("from './profile.js'") &&
+    dnaRuntimeSrc.includes('dnaRuntimeDeps.getLatitudeFromLocation()') &&
     dnaRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
     dnaRuntimeSrc.includes('installDNAWindowBindings'));
 assert('dna-mtdna delegates browser runtime hooks to dna-runtime',

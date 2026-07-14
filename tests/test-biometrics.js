@@ -14,7 +14,7 @@ function assert(name, condition, detail) {
 console.log('=== Biometrics Tests ===\n');
 
 await import('../js/state.js');
-await import('../js/profile.js');
+const profile = await import('../js/profile.js');
 const labContext = await import('../js/lab-context.js');
 // Initialize profiles so getProfiles() / setProfileHeight() have something
 // to mutate. The Playwright environment runs main.js which seeds this.
@@ -26,28 +26,29 @@ if (!window._labState.profiles) {
 
   // Save originals
   const origBio = state.importedData.biometrics;
-  const origProfiles = JSON.parse(JSON.stringify(window.getProfiles()));
+  const origProfiles = JSON.parse(JSON.stringify(profile.getProfiles()));
 
   // ═══════════════════════════════════════
   // 1. Profile height getter/setter
   // ═══════════════════════════════════════
   console.log('1. Height on Profile');
 
-  assert('getProfileHeight is a function', typeof window.getProfileHeight === 'function');
-  assert('setProfileHeight is a function', typeof window.setProfileHeight === 'function');
+  assert('getProfileHeight is a module function', typeof profile.getProfileHeight === 'function');
+  assert('setProfileHeight is a module function', typeof profile.setProfileHeight === 'function');
+  assert('profile height helpers stay module-only', !('getProfileHeight' in window) && !('setProfileHeight' in window));
 
-  window.setProfileHeight(profileId, 180, 'cm');
-  let h = window.getProfileHeight(profileId);
+  profile.setProfileHeight(profileId, 180, 'cm');
+  let h = profile.getProfileHeight(profileId);
   assert('Height stored correctly', h.height === 180, `got ${h.height}`);
   assert('Height unit stored correctly', h.unit === 'cm', `got ${h.unit}`);
 
-  window.setProfileHeight(profileId, 175.5, 'in');
-  h = window.getProfileHeight(profileId);
+  profile.setProfileHeight(profileId, 175.5, 'in');
+  h = profile.getProfileHeight(profileId);
   assert('Height updates', h.height === 175.5);
   assert('Height unit updates', h.unit === 'in');
 
   // Restore
-  window.setProfileHeight(profileId, null, 'cm');
+  profile.setProfileHeight(profileId, null, 'cm');
 
   // ═══════════════════════════════════════
   // 2. Biometrics data migration
@@ -55,7 +56,7 @@ if (!window._labState.profiles) {
   console.log('2. Data Migration');
 
   const testData = {};
-  window.migrateProfileData(testData);
+  profile.migrateProfileData(testData);
   assert('migrateProfileData backfills biometrics', testData.biometrics === null);
 
   // ═══════════════════════════════════════
@@ -111,7 +112,7 @@ if (!window._labState.profiles) {
 
   // BMI = weight(kg) / height(m)^2
   // 82 kg / (1.80)^2 = 25.3
-  window.setProfileHeight(profileId, 180, 'cm');
+  profile.setProfileHeight(profileId, 180, 'cm');
   // Latest weight is 2026-03-15 at 185 lbs = 83.9 kg
   // BMI = 83.9 / 3.24 = 25.9
   const latestWeight = [...state.importedData.biometrics.weight].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -171,7 +172,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   state.importedData.biometrics = origBio;
   // Restore original profiles (height)
-  window.setProfileHeight(profileId, origProfiles.find(p => p.id === profileId)?.height || null, origProfiles.find(p => p.id === profileId)?.heightUnit || 'cm');
+  profile.setProfileHeight(profileId, origProfiles.find(p => p.id === profileId)?.height || null, origProfiles.find(p => p.id === profileId)?.heightUnit || 'cm');
 
   // ═══════════════════════════════════════
   // Summary

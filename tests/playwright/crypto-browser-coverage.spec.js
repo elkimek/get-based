@@ -47,6 +47,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       wearablesTest: window.__WEARABLES_TEST,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
+    let previousCryptoProfileDeps;
 
     try {
       for (const key of keys) localStorage.removeItem(key);
@@ -393,7 +394,6 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       view: state.currentView,
       importedData: state.importedData,
       buildSidebar: window.buildSidebar,
-      migrateProfileData: window.migrateProfileData,
       navigate: window.navigate,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
@@ -403,10 +403,10 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       document.getElementById('passphrase-overlay')?.remove();
       state.currentProfile = profileId;
       state.currentView = 'settings';
-      window.migrateProfileData = data => {
+      previousCryptoProfileDeps = cryptoStore.configureCryptoProfileDeps({ migrateProfileData: data => {
         calls.migrated += 1;
         data.migratedByTest = true;
-      };
+      } });
       window.buildSidebar = () => { calls.sidebar += 1; };
       window.navigate = view => { calls.navigated.push(view); };
       await cryptoStore.encryptedSetItem(importedKey, JSON.stringify({
@@ -522,8 +522,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       state.importedData = saved.importedData;
       if (saved.buildSidebar === undefined) delete window.buildSidebar;
       else window.buildSidebar = saved.buildSidebar;
-      if (saved.migrateProfileData === undefined) delete window.migrateProfileData;
-      else window.migrateProfileData = saved.migrateProfileData;
+      if (previousCryptoProfileDeps) cryptoStore.configureCryptoProfileDeps(previousCryptoProfileDeps);
       if (saved.navigate === undefined) delete window.navigate;
       else window.navigate = saved.navigate;
       if (originalBroadcastDescriptor) {

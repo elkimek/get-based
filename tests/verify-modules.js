@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/charts.js'),
@@ -201,6 +201,7 @@
     import('../js/light-tools.js'),
     import('../js/pdf-import.js'),
     import('../js/pii.js'),
+    import('../js/profile.js'),
     import('../js/settings-sync-panel.js'),
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
@@ -455,13 +456,14 @@
     'checkOllama'
   ];
 
-  // profile.js (28)
+  // profile.js (28 former browser globals, now module-only)
   const profileExports = [
     'profileStorageKey',
-    'getProfiles','saveProfiles','createDefaultProfileData','createProfile','deleteProfile','renameProfile','switchProfile',
+    'getProfiles','saveProfiles','initProfilesCache','createDefaultProfileData','createProfile','deleteProfile','renameProfile','switchProfile',
     'migrateProfileData',
     'getProfileSex','setProfileSex','getProfileDob','setProfileDob',
     'getProfileLocation','setProfileLocation',
+    'getProfileHeight','setProfileHeight',
     'getLocationCache',
     'latitudeToBand','getLatitudeFromLocation',
     'updateProfileMeta','getAllTags','touchProfileTimestamp',
@@ -591,6 +593,7 @@
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pdf-import.js', pdfImportModule, pdfImportExports],
     ['pii.js', piiModule, piiExports],
+    ['profile.js', profileModule, profileExports],
     ['settings-sync-panel.js', settingsSyncPanelModule, settingsSyncPanelExports],
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
@@ -624,6 +627,9 @@
   for (const name of pdfImportExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of profileExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -645,7 +651,6 @@
     'export.js': exportExports,
     'nav.js': navExports,
     'notes.js': notesExports,
-    'profile.js': profileExports,
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
     'theme.js': themeExports,
@@ -764,12 +769,12 @@
   // ═══════════════════════════════════════════════
   // 8. PROFILE SYSTEM — basic operations
   // ═══════════════════════════════════════════════
-  const profiles = window.getProfiles();
+  const profiles = profileModule.getProfiles();
   assert('getProfiles returns array', Array.isArray(profiles));
   assert('At least one profile', profiles.length >= 1);
-  const activeId = window.getActiveProfileId();
+  const activeId = profileModule.getActiveProfileId();
   assert('Active profile ID is string', typeof activeId === 'string' && activeId.length > 0);
-  const storageKey = window.profileStorageKey(activeId, 'imported');
+  const storageKey = profileModule.profileStorageKey(activeId, 'imported');
   assert('profileStorageKey works', typeof storageKey === 'string' && storageKey.includes(activeId));
 
   // ═══════════════════════════════════════════════

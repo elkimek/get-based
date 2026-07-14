@@ -10,11 +10,12 @@ return (async function() {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const S = window._labState;
   const backupModule = await import('/js/backup.js');
+  const profile = await import('/js/profile.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
-  const testProfileId = window.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
-  await window.switchProfile(testProfileId);
+  const testProfileId = profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  await profile.switchProfile(testProfileId);
 
   try {
 
@@ -662,7 +663,7 @@ return (async function() {
     const originalBiometrics = S.importedData.biometrics ? JSON.parse(JSON.stringify(S.importedData.biometrics)) : S.importedData.biometrics;
     const originalProfileSex = S.profileSex;
     const originalProfileDob = S.profileDob;
-    const originalProfiles = JSON.parse(JSON.stringify(window.getProfiles?.() || []));
+    const originalProfiles = JSON.parse(JSON.stringify(profile.getProfiles() || []));
     const originalSnpTable = window._snpTableCache;
     const oldOpen = window.open;
     const oldSetTimeout = window.setTimeout;
@@ -677,7 +678,7 @@ return (async function() {
     });
     window.setTimeout = fn => { if (typeof fn === 'function') fn(); return 0; };
     try {
-      const profiles = window.getProfiles?.() || [];
+      const profiles = profile.getProfiles() || [];
       let activeProfile = profiles.find(p => p.id === S.currentProfile);
       if (!activeProfile) {
         activeProfile = { id: S.currentProfile || 'default', name: 'Test Profile' };
@@ -692,7 +693,7 @@ return (async function() {
       });
       S.profileSex = 'male';
       S.profileDob = '1980-01-02';
-      await window.saveProfiles?.(profiles);
+      await profile.saveProfiles(profiles);
       S.importedData.biometrics = {
         weight: [{ date: '2026-05-15', value: 82, unit: 'kg', source: 'manual' }],
         bp: [{ date: '2026-05-15', sys: 118, dia: 76, source: 'manual' }],
@@ -814,7 +815,7 @@ return (async function() {
       S.importedData.biometrics = originalBiometrics;
       S.profileSex = originalProfileSex;
       S.profileDob = originalProfileDob;
-      await window.saveProfiles?.(originalProfiles);
+      await profile.saveProfiles(originalProfiles);
       window._snpTableCache = originalSnpTable;
       window.open = oldOpen;
       window.setTimeout = oldSetTimeout;
@@ -837,7 +838,7 @@ return (async function() {
   {
     // Snapshot then nuke state.importedData so the import has a clean slate.
     const snapshot = JSON.parse(JSON.stringify(S.importedData || {}));
-    const profilesBeforeDemoImport = JSON.parse(JSON.stringify(window.getProfiles?.() || []));
+    const profilesBeforeDemoImport = JSON.parse(JSON.stringify(profile.getProfiles() || []));
     const origSex = S.profileSex;
     const origDob = S.profileDob;
     S.importedData = { entries: [], notes: [], supplements: [], healthGoals: [],
@@ -867,11 +868,11 @@ return (async function() {
 
       // Demo JSON imports are guarded in product code. Exercise the allowed
       // path by marking the throwaway fixture profile as a demo profile.
-      const profiles = window.getProfiles?.() || [];
+      const profiles = profile.getProfiles() || [];
       const activeProfile = profiles.find(p => p.id === S.currentProfile);
       if (activeProfile && !activeProfile.tags?.includes('demo')) {
         activeProfile.tags = Array.from(new Set([...(activeProfile.tags || []), 'demo']));
-        await window.saveProfiles?.(profiles);
+        await profile.saveProfiles(profiles);
       }
 
       // importDataJSON consumes a File object via FileReader. Synthesize one.
@@ -1039,7 +1040,7 @@ return (async function() {
       S.importedData = snapshot;
       S.profileSex = origSex;
       S.profileDob = origDob;
-      await window.saveProfiles?.(profilesBeforeDemoImport);
+      await profile.saveProfiles(profilesBeforeDemoImport);
     }
   }
 
@@ -1081,7 +1082,7 @@ return (async function() {
       // loadFocusCard + loadContextHealthDots fire-and-forget paths.
       await wait(4000);
       const profileId = S.currentProfile;
-      const profileName = window.getProfiles?.().find(p => p.id === profileId)?.name;
+      const profileName = profile.getProfiles().find(p => p.id === profileId)?.name;
       assert('Demo profile created with expected name',
         profileName === 'Demo Sarah', `got "${profileName}"`);
 
@@ -1169,9 +1170,9 @@ return (async function() {
   } finally {
     // Restore original profile and delete the throwaway
     try {
-      const profiles = window.getProfiles();
-      await window.switchProfile(origProfileId);
-      window.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+      const profiles = profile.getProfiles();
+      await profile.switchProfile(origProfileId);
+      profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
     } catch (e) {
       console.error('Test cleanup failed:', e);
     }

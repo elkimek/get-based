@@ -32,6 +32,7 @@ import {
 } from './settings-privacy.js';
 import { loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
+import { getActiveProfileId } from './profile.js';
 import {
   confirmDisablePIIReview,
   refreshDataEntriesSection,
@@ -59,7 +60,7 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
 const settingsRuntime = {
   exportAllDataJSON: () => settingsWindow.exportAllDataJSON?.(),
   exportClientJSON: (profileId) => settingsWindow.exportClientJSON?.(profileId),
-  getActiveProfileId: () => settingsWindow.getActiveProfileId?.() || null,
+  getActiveProfileId,
   openProfileShareModal: () => {},
 };
 

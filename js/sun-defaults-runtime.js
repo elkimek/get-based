@@ -1,6 +1,16 @@
 // @ts-check
 // sun-defaults-runtime.js - Browser runtime adapters for Light setup defaults.
 
+import { getProfileLocation } from './profile.js';
+
+const sunDefaultsRuntimeDeps = { getProfileLocation };
+
+export function configureSunDefaultsRuntimeDeps(deps = {}) {
+  const previous = { ...sunDefaultsRuntimeDeps };
+  if (typeof deps.getProfileLocation === 'function') sunDefaultsRuntimeDeps.getProfileLocation = deps.getProfileLocation;
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -45,9 +55,9 @@ export function getSunSetupCoords() {
 
 export function getSunSetupProfileLocation() {
   try {
-    return getRuntimeFunction('getProfileLocation')?.() || {};
+    return sunDefaultsRuntimeDeps.getProfileLocation() || { country: '', zip: '' };
   } catch {
-    return {};
+    return { country: '', zip: '' };
   }
 }
 

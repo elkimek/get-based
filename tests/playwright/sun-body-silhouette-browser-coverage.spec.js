@@ -15,13 +15,13 @@ test('sun body silhouette covers stock render region map overlay and input paths
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ pathsUrl, silhouetteUrl }) => {
-    const silhouette = await import(silhouetteUrl);
+    const [silhouette, silhouetteRuntime] = await Promise.all([
+      import(silhouetteUrl),
+      import('/js/sun-body-silhouette-runtime.js'),
+    ]);
     const paths = await import(pathsUrl);
     const outcomes = {};
-    const saved = {
-      getActiveProfileId: window.getActiveProfileId,
-      getProfiles: window.getProfiles,
-    };
+    const previousSilhouetteRuntimeDeps = silhouetteRuntime.configureSunBodySilhouetteRuntimeDeps();
     const hosts = [];
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, attempts = 120) => {
@@ -50,8 +50,10 @@ test('sun body silhouette covers stock render region map overlay and input paths
 
     try {
       silhouette.resetBodySilhouetteState();
-      window.getActiveProfileId = () => 'profile-female';
-      window.getProfiles = () => [{ id: 'profile-female', sex: 'female' }];
+      silhouetteRuntime.configureSunBodySilhouetteRuntimeDeps({
+        getActiveProfileId: () => 'profile-female',
+        getProfiles: () => [{ id: 'profile-female', sex: 'female' }],
+      });
 
       const femaleParts = paths.buildBodyParts('female');
       const maleParts = paths.buildBodyParts('male');
@@ -74,12 +76,10 @@ test('sun body silhouette covers stock render region map overlay and input paths
         && !!femaleHost.querySelector('mask#sun-fig-mask-front image[href="/er-mask.png"]')
         && !!femaleHost.querySelector('image[href="/er.svg"]');
 
-      window.getActiveProfileId = () => {
-        throw new Error('profile lookup unavailable');
-      };
-      window.getProfiles = () => {
-        throw new Error('profiles unavailable');
-      };
+      silhouetteRuntime.configureSunBodySilhouetteRuntimeDeps({
+        getActiveProfileId: () => { throw new Error('profile lookup unavailable'); },
+        getProfiles: () => { throw new Error('profiles unavailable'); },
+      });
       const fallbackHost = mount(new Set());
       outcomes.profileLookupFailureFallsBackToMale = fallbackHost.querySelector('svg.sun-silhouette')?.dataset.sex === 'male';
 
@@ -155,10 +155,7 @@ test('sun body silhouette covers stock render region map overlay and input paths
       outcomes.detachedOverlayReadyDoesNotMutateHost = detachedHost.innerHTML === detachedSnapshot;
     } finally {
       silhouette.resetBodySilhouetteState();
-      if (saved.getActiveProfileId) window.getActiveProfileId = saved.getActiveProfileId;
-      else delete window.getActiveProfileId;
-      if (saved.getProfiles) window.getProfiles = saved.getProfiles;
-      else delete window.getProfiles;
+      silhouetteRuntime.configureSunBodySilhouetteRuntimeDeps(previousSilhouetteRuntimeDeps);
       for (const host of hosts) host.remove();
     }
 

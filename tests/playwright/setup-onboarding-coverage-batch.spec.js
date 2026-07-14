@@ -9,8 +9,9 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ sunDefaultsUrl }) => {
-    const [sunDefaults, { state }, data] = await Promise.all([
+    const [sunDefaults, sunDefaultsRuntime, { state }, data] = await Promise.all([
       import(sunDefaultsUrl),
+      import('/js/sun-defaults-runtime.js'),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
@@ -46,7 +47,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       profileDob: state.profileDob,
       navigate: window.navigate,
       getSunCoords: window.getSunCoords,
-      getProfileLocation: window.getProfileLocation,
       openProfileLocationEditor: window.openProfileLocationEditor,
       openClientList: window.openClientList,
       requestPreciseLocation: window.requestPreciseLocation,
@@ -54,6 +54,9 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
     const calls = [];
     const outcomes = {};
     let precise = false;
+    const previousSunDefaultsRuntimeDeps = sunDefaultsRuntime.configureSunDefaultsRuntimeDeps({
+      getProfileLocation: () => ({ country: 'Czechia', zip: '' }),
+    });
 
     try {
       state.currentProfile = 'setup-onboarding-coverage';
@@ -72,7 +75,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       window.getSunCoords = () => precise
         ? { source: 'profile-precise', lat: 50.087 }
         : { source: 'country-band', lat: 49.2 };
-      window.getProfileLocation = () => ({ country: 'Czechia' });
       window.openProfileLocationEditor = () => calls.push(['profile-location']);
       window.openClientList = () => calls.push(['client-list']);
       window.requestPreciseLocation = async () => {
@@ -207,7 +209,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       Object.assign(window, {
         navigate: saved.navigate,
         getSunCoords: saved.getSunCoords,
-        getProfileLocation: saved.getProfileLocation,
         openProfileLocationEditor: saved.openProfileLocationEditor,
         openClientList: saved.openClientList,
         requestPreciseLocation: saved.requestPreciseLocation,
@@ -216,6 +217,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         maybeAnalyzeOnboardingAfterSave: () => {},
         renderOnboardingAIBlock: () => '',
       });
+      sunDefaultsRuntime.configureSunDefaultsRuntimeDeps(previousSunDefaultsRuntimeDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

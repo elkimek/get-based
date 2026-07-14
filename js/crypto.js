@@ -10,9 +10,17 @@ import { ensureImportedArray } from './data-merge.js';
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
   buildSidebar: () => void,
-  migrateProfileData: (data: any) => void,
   navigate: (view: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
+const cryptoProfileDeps = {
+  migrateProfileData: /** @type {null | ((data: any) => void)} */ (null),
+};
+
+export function configureCryptoProfileDeps(deps = {}) {
+  const previous = { ...cryptoProfileDeps };
+  if (typeof deps.migrateProfileData === 'function') cryptoProfileDeps.migrateProfileData = deps.migrateProfileData;
+  return previous;
+}
 const cryptoActionDelegateRoots = new WeakSet();
 const CRYPTO_ACTION_DELEGATE_KEY = Symbol.for('getbased.cryptoActionDelegatesInstalled');
 const CRYPTO_ACTION_ATTR = 'data-crypto-action';
@@ -1000,7 +1008,7 @@ export function initBroadcastChannel() {
           state.importedData = JSON.parse(raw);
           ensureImportedArray(state.importedData, 'notes');
           ensureImportedArray(state.importedData, 'supplements');
-          appWindow.migrateProfileData(state.importedData);
+          cryptoProfileDeps.migrateProfileData?.(state.importedData);
           appWindow.buildSidebar();
           // buildSidebar resets the .active class to Dashboard, so source
           // the target view from state.currentView (kept in sync by

@@ -12,8 +12,10 @@ import {
   migrateProfileData,
   initProfilesCache,
 } from './profile.js';
-import { encryptedGetItem, encryptedSetItem } from './crypto.js';
+import { configureCryptoProfileDeps, encryptedGetItem, encryptedSetItem } from './crypto.js';
 import { ensureImportedArray } from './data-merge.js';
+
+configureCryptoProfileDeps({ migrateProfileData });
 
 async function migrateLegacyProfileStorage() {
   if (localStorage.getItem('labcharts-profiles')) return;

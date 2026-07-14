@@ -27,11 +27,12 @@ return (async function() {
   const S = window._labState;
   const supplements = await import('/js/supplements.js');
   const pdfImport = await import('/js/pdf-import.js');
+  const profile = await import('/js/profile.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
-  const testProfileId = window.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
-  await window.switchProfile(testProfileId);
+  const testProfileId = profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  await profile.switchProfile(testProfileId);
 
   try {
 
@@ -218,7 +219,7 @@ return (async function() {
 
   // Lens pages are dedicated workspaces; they should not duplicate sidebar
   // category navigation, and their page sections should be reorderable.
-  const lensOrderProfile = window.getActiveProfileId?.() || S.currentProfile || 'default';
+  const lensOrderProfile = profile.getActiveProfileId() || S.currentProfile || 'default';
   const labsOrderKey = `labcharts-${lensOrderProfile}-lensPageOrder-labs-v1`;
   const savedLabsOrder = localStorage.getItem(labsOrderKey);
   localStorage.removeItem(labsOrderKey);
@@ -741,30 +742,30 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 13. Profile operations', 'font-weight:bold;color:#6366f1');
 
-  const origProfileId = window.getActiveProfileId();
-  const origProfileCount = window.getProfiles().length;
+  const origProfileId = profile.getActiveProfileId();
+  const origProfileCount = profile.getProfiles().length;
 
   // Create test profile
-  const testProfileId = window.createProfile('__UI_TEST_PROFILE__');
+  const testProfileId = profile.createProfile('__UI_TEST_PROFILE__');
   assert('Profile created', !!testProfileId);
-  assert('Profile count increased', window.getProfiles().length === origProfileCount + 1);
+  assert('Profile count increased', profile.getProfiles().length === origProfileCount + 1);
 
   // Switch to new profile
-  window.switchProfile(testProfileId);
+  profile.switchProfile(testProfileId);
   await wait(50);
-  assert('Switched to new profile', window.getActiveProfileId() === testProfileId);
+  assert('Switched to new profile', profile.getActiveProfileId() === testProfileId);
   assert('Dashboard re-rendered for new profile', main.innerHTML.length > 100);
 
   // Switch back to original
-  window.switchProfile(origProfileId);
+  profile.switchProfile(origProfileId);
   await wait(50);
-  assert('Switched back to original profile', window.getActiveProfileId() === origProfileId);
+  assert('Switched back to original profile', profile.getActiveProfileId() === origProfileId);
 
   // Delete test profile (bypass confirm dialog — use saveProfiles to update cache)
-  window.saveProfiles(window.getProfiles().filter(p => p.id !== testProfileId));
+  profile.saveProfiles(profile.getProfiles().filter(p => p.id !== testProfileId));
   localStorage.removeItem(`labcharts-${testProfileId}-imported`);
-  assert('Test profile deleted', window.getProfiles().length === origProfileCount);
-  assert('Active profile unchanged', window.getActiveProfileId() === origProfileId);
+  assert('Test profile deleted', profile.getProfiles().length === origProfileCount);
+  assert('Active profile unchanged', profile.getActiveProfileId() === origProfileId);
 
   // ═══════════════════════════════════════════════
   // 14. SIDEBAR SEARCH — filter nav items
@@ -876,9 +877,9 @@ return (async function() {
   } finally {
     // Restore original profile and delete the throwaway
     try {
-      const profiles = window.getProfiles();
-      await window.switchProfile(origProfileId);
-      window.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+      const profiles = profile.getProfiles();
+      await profile.switchProfile(origProfileId);
+      profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
     } catch (e) {
       console.error('Test cleanup failed:', e);
     }
