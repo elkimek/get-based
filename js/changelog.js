@@ -11,40 +11,11 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
-    version: '1.10.183', date: '2026-07-14', title: 'Complete Apple Health imports',
+    version: '1.10.184', date: '2026-07-14', title: 'Smoother updates and more reliable health tracking',
     items: [
-      '<b>Apple Health exports keep every supported health metric.</b> Files selected through the main import button now save heart rate, HRV, weight, body composition, and other wearable data before offering menstrual-cycle review.',
-    ]
-  },
-  {
-    version: '1.10.182', date: '2026-07-14', title: 'Lighter, responsive app updates',
-    items: [
-      '<b>Returning visits reuse the complete installed app.</b> Versioned scripts, styles, fonts, and reference files no longer re-download in the background on every load, while live APIs and synced data always stay on the network.',
-      '<b>Update notices stay timely without installing every deployment.</b> A lightweight foreground check finds new versions, and the full offline update downloads only after you choose Update. Reloading still forces an immediate update check.',
-    ]
-  },
-  {
-    version: '1.10.181', date: '2026-07-13', title: 'Consistent PTH chart values',
-    items: [
-      '<b>PTH results now share one chart scale.</b> Older pg/mL imports are converted to pmol/L alongside newer PTH results, including values imported before PTH became a standard marker.',
-    ]
-  },
-  {
-    version: '1.10.180', date: '2026-07-13', title: 'Correct lab unit conversions',
-    items: [
-      '<b>Free T3 and calcitriol values convert accurately.</b> Free T3 now uses the standard pg/mL conventional unit, and equivalent calcitriol pg/mL and ng/L results produce the same SI value.',
-    ]
-  },
-  {
-    version: '1.10.179', date: '2026-07-13', title: 'Parathyroid hormone tracking',
-    items: [
-      '<b>PTH is now a standard lab marker.</b> Track parathyroid hormone in pmol/L or pg/mL, with common report names recognized during import.',
-    ]
-  },
-  {
-    version: '1.10.178', date: '2026-07-13', title: 'Cleaner Light guidance',
-    items: [
-      '<b>Light Guidance stays focused on your exposure.</b> It now combines sun safety with one useful next step, without treating unused red-light device channels as deficiencies or inserting product prompts.',
+      '<b>App updates are lighter and stay under your control.</b> Returning visits reuse installed files, while a small check lets you know when a new version is ready.',
+      '<b>Your health data imports more reliably.</b> Apple Health keeps supported heart, body, and cycle data, while PTH, Free T3, and calcitriol results import and chart consistently across common units.',
+      '<b>Light guidance is clearer.</b> It focuses on sun safety and one practical next step, without irrelevant device warnings or product prompts.',
     ]
   },
   {
