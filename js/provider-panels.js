@@ -97,7 +97,8 @@ import {
   doRoutstrSendToken,
   doRoutstrWithdrawQuote,
   doRoutstrWithdrawExecute,
-  doRoutstrWalletRestore
+  doRoutstrWalletRestore,
+  walletRuntime
 } from './provider-wallet-panels.js';
 
 function providerPanelRuntime() {
@@ -190,7 +191,6 @@ export {
   doRoutstrWalletRestore
 } from './provider-wallet-panels.js';
 
-
 // ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
@@ -223,7 +223,6 @@ export function switchAIProvider(provider) {
   initSettingsOllamaCheck();
   initSettingsModelFetch();
 }
-
 
 // ═══════════════════════════════════════════════
 // MODEL FETCH / BALANCE INIT
@@ -261,18 +260,18 @@ export function initSettingsModelFetch() {
     refreshRoutstrBalance();
   }
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
-  if (document.getElementById('routstr-wallet-balance') && typeof getProviderPanelRuntimeValue('cashuGetBalance') === 'function') {
-    callProviderPanelRuntime('cashuGetBalance').then(function(bal) {
+  if (document.getElementById('routstr-wallet-balance') && typeof walletRuntime.cashuGetBalance === 'function') {
+    walletRuntime.cashuGetBalance().then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
     refreshWalletSeedStatus();
-    if (typeof getProviderPanelRuntimeValue('cashuGetMintUrl') === 'function') Promise.resolve(callProviderPanelRuntime('cashuGetMintUrl')).then(function(url) {
+    if (typeof walletRuntime.cashuGetMintUrl === 'function') Promise.resolve(walletRuntime.cashuGetMintUrl()).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
       if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     });
     // H6: Check for pending deposit recovery
-    if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingDeposit') === 'function') callProviderPanelRuntime('cashuRecoverPendingDeposit').then(function(token) {
+    if (typeof walletRuntime.cashuRecoverPendingDeposit === 'function') walletRuntime.cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (area) {
@@ -288,7 +287,7 @@ export function initSettingsModelFetch() {
       }
     });
     // Check for pending withdraw recovery
-    if (typeof getProviderPanelRuntimeValue('cashuRecoverPendingWithdraw') === 'function') callProviderPanelRuntime('cashuRecoverPendingWithdraw').then(function(token) {
+    if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') walletRuntime.cashuRecoverPendingWithdraw().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
@@ -366,11 +365,12 @@ async function _recoverPendingToken(actionEl, clearName) {
   );
   const token = actionEl?.dataset?.token || fallbackInput?.value || '';
   try {
-    if (typeof getProviderPanelRuntimeValue('cashuReceiveToken') !== 'function' || typeof getProviderPanelRuntimeValue(clearName) !== 'function') {
+    const clearPendingToken = walletRuntime[clearName];
+    if (typeof walletRuntime.cashuReceiveToken !== 'function' || typeof clearPendingToken !== 'function') {
       throw new Error('Wallet recovery is unavailable');
     }
-    await callProviderPanelRuntime('cashuReceiveToken', token);
-    await callProviderPanelRuntime(clearName);
+    await walletRuntime.cashuReceiveToken(token);
+    await clearPendingToken();
     showNotification('Recovered!', 'success');
     reloadProviderPanelRuntime();
   } catch (e) {

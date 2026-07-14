@@ -14,6 +14,7 @@ import {
   generateWalletSeed as cashuGenerateWalletSeed,
   getFeePct as cashuGetFeePct,
   getMintUrl as cashuGetMintUrl,
+  getMaxWithdrawable as cashuGetMaxWithdrawable,
   getWalletBalance as cashuGetBalance,
   getWalletMnemonic as cashuGetWalletMnemonic,
   hasWalletSeed as cashuHasWalletSeed,
@@ -49,6 +50,7 @@ const walletRuntimeDefaults = {
   cashuGetBalance,
   cashuGetFeePct,
   cashuGetMintUrl,
+  cashuGetMaxWithdrawable,
   cashuGetWalletMnemonic,
   cashuHasWalletSeed,
   cashuImportWallet,
@@ -70,8 +72,10 @@ const walletRuntimeDefaults = {
 export const walletRuntime = { ...walletRuntimeDefaults };
 
 export function configureRoutstrWalletRuntime(overrides = {}) {
+  const previous = { ...walletRuntime };
   for (const key of Object.keys(walletRuntime)) {
     if (!Object.prototype.hasOwnProperty.call(walletRuntimeDefaults, key)) delete walletRuntime[key];
   }
   Object.assign(walletRuntime, walletRuntimeDefaults, overrides);
+  return previous;
 }

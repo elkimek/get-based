@@ -3,6 +3,7 @@
 
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
+import { destroyWalletDB } from './cashu-wallet.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -137,9 +138,7 @@ export async function restoreWalletBundleSettings(wallet) {
 }
 
 export async function destroyWalletRuntimeDB() {
-  const runtime = getRuntimeWindow();
-  if (typeof runtime.cashuDestroyWalletDB !== 'function') return;
-  await runtime.cashuDestroyWalletDB();
+  await destroyWalletDB();
 }
 
 export function markDemoLoadingProfile(profileId) {

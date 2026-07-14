@@ -449,7 +449,8 @@ return (async function() {
   assert('Resets to single default profile via saveProfiles', exportSrc.includes('saveProfiles([{'));
   assert('Clears Cashu wallet DB through export runtime',
     exportSrc.includes('destroyWalletRuntimeDB') &&
-    exportRuntimeSrc.includes('cashuDestroyWalletDB'));
+    exportRuntimeSrc.includes("import { destroyWalletDB } from './cashu-wallet.js'") &&
+    exportRuntimeSrc.includes('await destroyWalletDB()'));
   assert('Clears Cashu wallet mint', exportSrc.includes("localStorage.removeItem('labcharts-cashu-wallet-mint')"));
   assert('Calls navigate(dashboard) after clear through export runtime',
     exportSrc.includes('refreshImportRuntimeShell({ chat: true, profileButton: true })') &&

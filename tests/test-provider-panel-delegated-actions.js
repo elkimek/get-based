@@ -137,11 +137,11 @@ assert('service worker precaches provider panel delegate module',
 });
 
 assert('provider panel recovery uses mint-aware receiveToken instead of wallet import',
-  panelsSrc.includes("typeof getProviderPanelRuntimeValue('cashuReceiveToken')") &&
-    panelsSrc.includes("await callProviderPanelRuntime('cashuReceiveToken', token)") &&
+  panelsSrc.includes("typeof walletRuntime.cashuReceiveToken !== 'function'") &&
+    panelsSrc.includes('await walletRuntime.cashuReceiveToken(token)') &&
     !panelsSrc.includes('await appWindow.cashuImportWallet(token)'));
 assert('provider panel recovery awaits pending-token clear before reload',
-  /await callProviderPanelRuntime\('cashuReceiveToken', token\);[\s\S]*await callProviderPanelRuntime\(clearName\);[\s\S]*reloadProviderPanelRuntime\(\);/.test(panelsSrc));
+  /await walletRuntime\.cashuReceiveToken\(token\);[\s\S]*await clearPendingToken\(\);[\s\S]*reloadProviderPanelRuntime\(\);/.test(panelsSrc));
 assert('provider panel onboarding return uses runtime helper calls',
   panelsSrc.includes("getProviderPanelRuntimeValue('_settingsHadProvider')") &&
     panelsSrc.includes("callProviderPanelRuntime('hasAIProvider')") &&

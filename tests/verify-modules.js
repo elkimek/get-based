@@ -188,9 +188,10 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
+    import('../js/cashu-wallet.js'),
     import('../js/charts.js'),
     import('../js/crypto.js'),
     import('../js/cycle.js'),
@@ -428,6 +429,29 @@
     'importDataJSON','clearAllData','loadDemoData'
   ];
 
+  // cashu-wallet.js (33 exports; 32 former browser aliases, now module-only)
+  const cashuWalletExports = [
+    'getMintUrl','setMintUrl','generateWalletSeed','getWalletMnemonic','hasWalletSeed',
+    'extractTokenMintUrl','restoreWalletFromSeed','getWalletBalance','recoverPendingWalletOperation',
+    'checkProofStates','createFundingInvoice','checkFundingStatus','recoverPendingFunding',
+    'receiveToken','depositToNode','recoverPendingDeposit','clearPendingDeposit',
+    'recoverPendingWithdraw','clearPendingWithdraw','savePendingWithdrawToken',
+    'createWithdrawQuote','executeWithdraw','withdrawToAddress','getMaxWithdrawable',
+    'retryFeeAutoMelt','sendAsToken','getFeeBalance','redeemFees','exportWallet',
+    'importWallet','clearWallet','destroyWalletDB','getFeePct'
+  ];
+  const cashuWalletLegacyGlobals = [
+    'cashuGetBalance','cashuCheckProofStates','cashuCreateFundingInvoice','cashuCheckFundingStatus',
+    'cashuRecoverPendingFunding','cashuRecoverPendingWalletOperation','cashuReceiveToken',
+    'cashuDepositToNode','cashuExportWallet','cashuImportWallet','cashuClearWallet',
+    'cashuDestroyWalletDB','cashuRecoverPendingDeposit','cashuClearPendingDeposit',
+    'cashuRecoverPendingWithdraw','cashuClearPendingWithdraw','cashuSavePendingWithdrawToken',
+    'cashuSendAsToken','cashuCreateWithdrawQuote','cashuExecuteWithdraw','cashuWithdrawToAddress',
+    'cashuGetMaxWithdrawable','cashuRetryFeeAutoMelt','cashuGetFeeBalance','cashuRedeemFees',
+    'cashuGenerateWalletSeed','cashuGetWalletMnemonic','cashuHasWalletSeed',
+    'cashuRestoreWalletFromSeed','cashuGetMintUrl','cashuSetMintUrl','cashuGetFeePct'
+  ];
+
   // nav.js (5)
   const navExports = [
     'buildSidebar','filterSidebar','toggleNavGroup',
@@ -591,6 +615,7 @@
 
   for (const [moduleName, moduleApi, exports] of [
     ['backup.js', backupModule, backupExports],
+    ['cashu-wallet.js', cashuWalletModule, cashuWalletExports],
     ['charts.js', chartsModule, chartsExports],
     ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
@@ -656,6 +681,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of exportExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of cashuWalletLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
 

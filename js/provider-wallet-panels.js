@@ -24,7 +24,7 @@ import {
 } from './routstr-balance-settlement.js';
 import { configureRoutstrWalletRuntime, walletRuntime } from './provider-wallet-runtime.js';
 
-export { configureRoutstrWalletRuntime };
+export { configureRoutstrWalletRuntime, walletRuntime };
 export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
 const walletCallbacks = {
