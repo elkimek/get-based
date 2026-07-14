@@ -15,7 +15,7 @@ console.log('=== Biometrics Tests ===\n');
 
 await import('../js/state.js');
 await import('../js/profile.js');
-await import('../js/lab-context.js');
+const labContext = await import('../js/lab-context.js');
 // Initialize profiles so getProfiles() / setProfileHeight() have something
 // to mutate. The Playwright environment runs main.js which seeds this.
 if (!window._labState.profiles) {
@@ -130,17 +130,13 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   console.log('7. AI Context');
 
-  if (typeof window.buildLabContext === 'function') {
-    const ctx = window.buildLabContext();
-    assert('AI context includes biometrics section', ctx.includes('[section:biometrics]'));
-    assert('AI context includes height', ctx.includes('Height:'));
-    assert('AI context includes weight', ctx.includes('Weight'));
-    assert('AI context includes BMI', ctx.includes('BMI:'));
-    assert('AI context includes BP', ctx.includes('Blood Pressure'));
-    assert('AI context includes pulse', ctx.includes('Resting Pulse'));
-  } else {
-    assert('buildLabContext exists', false, 'function not found on window');
-  }
+  const ctx = labContext.buildLabContext();
+  assert('AI context includes biometrics section', ctx.includes('[section:biometrics]'));
+  assert('AI context includes height', ctx.includes('Height:'));
+  assert('AI context includes weight', ctx.includes('Weight'));
+  assert('AI context includes BMI', ctx.includes('BMI:'));
+  assert('AI context includes BP', ctx.includes('Blood Pressure'));
+  assert('AI context includes pulse', ctx.includes('Resting Pulse'));
 
   // ═══════════════════════════════════════
   // 8. Export includes biometrics

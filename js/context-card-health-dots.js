@@ -4,11 +4,25 @@
 import { state } from './state.js';
 import { callClaudeAPI, getActiveModelId, getAIProvider, hasAIProvider } from './api.js';
 import { CONTEXT_CARD_KEYS } from './context-card-summaries.js';
+import { buildLabContext } from './lab-context.js';
 import { profileStorageKey } from './profile.js';
 import { trackUsage } from './schema.js';
 import { hashString, hasCardContent, showNotification } from './utils.js';
 
 const DOT_COLORS = ['green', 'yellow', 'red', 'gray'];
+
+/** @type {{ buildLabContext: typeof buildLabContext }} */
+const contextHealthDotDeps = {
+  buildLabContext,
+};
+
+export function configureContextCardHealthDots(deps = {}) {
+  const previous = { ...contextHealthDotDeps };
+  if (typeof deps.buildLabContext === 'function') {
+    contextHealthDotDeps.buildLabContext = deps.buildLabContext;
+  }
+  return previous;
+}
 
 export function applyDotColor(key, color) {
   const dot = document.getElementById('ctx-dot-' + key);
@@ -106,9 +120,7 @@ function applyGrayDots(keys) {
 }
 
 function buildContextForStaleKeys(keys, staleKeys) {
-  const appWindow = /** @type {any} */ (window);
-  if (typeof appWindow.buildLabContext !== 'function') return '';
-  let ctx = appWindow.buildLabContext();
+  let ctx = contextHealthDotDeps.buildLabContext();
   if (typeof ctx !== 'string') return '';
   if (staleKeys.length >= keys.length) return ctx;
 

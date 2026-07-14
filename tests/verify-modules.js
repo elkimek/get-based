@@ -287,8 +287,23 @@
     'sunscreenTransmission','SUN_CHANNELS'
   ];
 
-  // lab-context.js
+  // lab-context.js (30, module-only)
   const labContextExports = [
+    'configureLabContext','buildLabContext','invalidateLabContextCache','getContextSummary',
+    'isGroupInAIContext','setGroupInAIContext',
+    'isInsightContextCardsEnabled','setInsightContextCardsEnabled',
+    'isSupplementsMedsContextEnabled','setSupplementsMedsContextEnabled',
+    'isLabMarkersContextEnabled','setLabMarkersContextEnabled',
+    'isGeneticsSummaryInAIContext','setGeneticsSummaryInAIContext',
+    'isGeneticsPriorityInAIContext','setGeneticsPriorityInAIContext',
+    'isGeneticsInventoryInAIContext','setGeneticsInventoryInAIContext',
+    'isLightSunContextEnabled','setLightSunContextEnabled',
+    'isWearableContextEnabled','setWearableContextEnabled',
+    'isAgentWearableSeriesEnabled','setAgentWearableSeriesEnabled',
+    'getAgentWearableSeriesDays','setAgentWearableSeriesDays',
+    'buildWearableContext','buildWearableSeriesSection','injectLensChunks'
+  ];
+  const labContextLegacyGlobals = [
     'buildLabContext','invalidateLabContextCache','getContextSummary',
     'isGroupInAIContext','setGroupInAIContext',
     'isInsightContextCardsEnabled','setInsightContextCardsEnabled',
@@ -298,7 +313,10 @@
     'isGeneticsPriorityInAIContext','setGeneticsPriorityInAIContext',
     'isGeneticsInventoryInAIContext','setGeneticsInventoryInAIContext',
     'isLightSunContextEnabled','setLightSunContextEnabled',
-    'isWearableContextEnabled','setWearableContextEnabled'
+    'isWearableContextEnabled','setWearableContextEnabled',
+    'isAgentWearableSeriesEnabled','setAgentWearableSeriesEnabled',
+    'getAgentWearableSeriesDays','setAgentWearableSeriesDays',
+    'buildWearableContext','buildWearableSeriesSection','injectLensChunks'
   ];
 
   // chat.js (23)
@@ -533,6 +551,7 @@
   for (const [moduleName, moduleApi, exports] of [
     ['charts.js', chartsModule, chartsExports],
     ['cycle.js', cycleModule, cycleExports],
+    ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pii.js', piiModule, piiExports],
@@ -560,8 +579,9 @@
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
-  assert('lab-context.js.configureLabContext module export',
-    typeof labContextModule.configureLabContext === 'function');
+  for (const name of labContextLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   for (const name of sunContextLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -570,7 +590,6 @@
   }
 
   const allModules = {
-    'lab-context.js': labContextExports,
     'chat.js': chatExports,
     'client-list.js': clientListExports,
     'context-cards.js': contextCardsExports,

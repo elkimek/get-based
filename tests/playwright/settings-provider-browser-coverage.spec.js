@@ -284,8 +284,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       listPendingTombstones: window.listPendingTombstones,
       openSettingsModal: window.openSettingsModal,
       updateSyncIndicator: window.updateSyncIndicator,
-      getAgentWearableSeriesDays: window.getAgentWearableSeriesDays,
-      setAgentWearableSeriesDays: window.setAgentWearableSeriesDays,
       pushContextToGateway: window.pushContextToGateway,
       clipboard: navigator.clipboard,
       fetch: window.fetch,
@@ -297,7 +295,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
     const openedTabs = [];
     let syncIndicatorUpdates = 0;
     let pushedContexts = 0;
-    let seriesDays = 0;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -307,8 +304,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       window.listPendingTombstones = () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }];
       window.openSettingsModal = tab => { openedTabs.push(tab); };
       window.updateSyncIndicator = () => { syncIndicatorUpdates += 1; };
-      window.getAgentWearableSeriesDays = () => seriesDays;
-      window.setAgentWearableSeriesDays = days => { seriesDays = days; localStorage.setItem('labcharts-agent-wearable-series-days', String(days)); };
       window.pushContextToGateway = () => { pushedContexts += 1; };
       window.fetch = async () => new Response('', { status: 200 });
       window.WebSocket = class {
@@ -437,7 +432,8 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       const seriesProfileId = localStorage.getItem('labcharts-active-profile') || 'default';
       const seriesDelegated = syncMessenger.getAgentAccessState().wearableSeriesDays === 30
         && localStorage.getItem(`labcharts-${seriesProfileId}-agent-wearable-series`) === '30'
-        && seriesDays === 0
+        && !('getAgentWearableSeriesDays' in window)
+        && !('setAgentWearableSeriesDays' in window)
         && pushedContexts >= 1;
       messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]').click();
       await waitFor(() => syncMessenger.getMessengerToken() !== token
@@ -502,8 +498,6 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       window.listPendingTombstones = oldGlobals.listPendingTombstones;
       window.openSettingsModal = oldGlobals.openSettingsModal;
       window.updateSyncIndicator = oldGlobals.updateSyncIndicator;
-      window.getAgentWearableSeriesDays = oldGlobals.getAgentWearableSeriesDays;
-      window.setAgentWearableSeriesDays = oldGlobals.setAgentWearableSeriesDays;
       window.pushContextToGateway = oldGlobals.pushContextToGateway;
       window.fetch = oldGlobals.fetch;
       window.WebSocket = oldGlobals.WebSocket;

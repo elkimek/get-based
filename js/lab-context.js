@@ -1093,36 +1093,3 @@ function _formatLensChunks(result) {
   lines.push('When your interpretation draws on these excerpts, cite the source. When it does not, say so.');
   return lines.join('\n');
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    buildLabContext,
-    invalidateLabContextCache,
-    getContextSummary,
-    isGroupInAIContext,
-    setGroupInAIContext,
-    isInsightContextCardsEnabled,
-    setInsightContextCardsEnabled,
-    isSupplementsMedsContextEnabled,
-    setSupplementsMedsContextEnabled,
-    isLabMarkersContextEnabled,
-    setLabMarkersContextEnabled,
-    isGeneticsSummaryInAIContext,
-    setGeneticsSummaryInAIContext,
-    isGeneticsPriorityInAIContext,
-    setGeneticsPriorityInAIContext,
-    isGeneticsInventoryInAIContext,
-    setGeneticsInventoryInAIContext,
-    isLightSunContextEnabled,
-    setLightSunContextEnabled,
-    isWearableContextEnabled,
-    setWearableContextEnabled,
-    isAgentWearableSeriesEnabled,
-    setAgentWearableSeriesEnabled,
-    getAgentWearableSeriesDays,
-    setAgentWearableSeriesDays,
-    buildWearableContext,
-    buildWearableSeriesSection,
-    injectLensChunks,
-  });
-}

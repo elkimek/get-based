@@ -14,6 +14,7 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
   const { buildSunContext } = await import('/js/sun-context.js');
+  const { buildLabContext } = await import('/js/lab-context.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -224,17 +225,10 @@ return (async function() {
   // ─── 6. lab-context.js integrates the sun section ────────────────────
   console.log('%c 6. lab-context integrates sun section ', 'font-weight:bold;color:#6366f1');
 
-  if (typeof window.buildLabContext === 'function') {
-    const labCtx = window.buildLabContext({ scope: 'full' });
-    assert('Full lab context includes the sun section',
-      typeof labCtx === 'string' && /\[section:sun\]/.test(labCtx),
-      `len=${typeof labCtx === 'string' ? labCtx.length : 'not-a-string'}`);
-  } else {
-    // buildLabContext is the public AI feed; the section must be wired
-    // through it for the chat panel to see sun data.
-    assert('window.buildLabContext exists', false,
-      'skipped — buildLabContext not on window');
-  }
+  const labCtx = buildLabContext({ scope: 'full' });
+  assert('Full lab context includes the sun section',
+    typeof labCtx === 'string' && /\[section:sun\]/.test(labCtx),
+    `len=${typeof labCtx === 'string' ? labCtx.length : 'not-a-string'}`);
 
   // ─── 7. Modal lifecycle wiring exists for Light & Sun modals ─────────
   // Modal focus/backdrop/scroll-lock belongs to the shared lifecycle module;

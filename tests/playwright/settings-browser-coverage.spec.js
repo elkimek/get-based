@@ -218,6 +218,7 @@ test('settings browser coverage renames imported entry dates through the data se
   await preparePage(page);
 
   const results = await page.evaluate(async () => {
+    const dataModule = await import('/js/data.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -236,10 +237,12 @@ test('settings browser coverage renames imported entry dates through the data se
       buildSidebar: window.buildSidebar,
       updateHeaderDates: window.updateHeaderDates,
       navigate: window.navigate,
-      invalidateLabContextCache: window.invalidateLabContextCache,
       storage: localStorage.getItem(`labcharts-${profileId}-imported`),
     };
     const calls = [];
+    const originalDataContextDeps = dataModule.configureDataContextDependencies({
+      invalidateLabContextCache: () => calls.push('invalidateLabContextCache'),
+    });
 
     try {
       state.currentProfile = profileId;
@@ -258,7 +261,6 @@ test('settings browser coverage renames imported entry dates through the data se
       window.buildSidebar = () => calls.push('buildSidebar');
       window.updateHeaderDates = () => calls.push('updateHeaderDates');
       window.navigate = view => calls.push(`navigate:${view}`);
-      window.invalidateLabContextCache = () => calls.push('invalidateLabContextCache');
 
       document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section"></section>');
       window.refreshDataEntriesSection();
@@ -287,7 +289,7 @@ test('settings browser coverage renames imported entry dates through the data se
       window.buildSidebar = saved.buildSidebar;
       window.updateHeaderDates = saved.updateHeaderDates;
       window.navigate = saved.navigate;
-      window.invalidateLabContextCache = saved.invalidateLabContextCache;
+      dataModule.configureDataContextDependencies(originalDataContextDeps);
       if (saved.storage == null) localStorage.removeItem(`labcharts-${profileId}-imported`);
       else localStorage.setItem(`labcharts-${profileId}-imported`, saved.storage);
       document.getElementById('data-entries-section')?.remove();
