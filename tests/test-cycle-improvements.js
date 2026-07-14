@@ -23,11 +23,10 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Cycle Improvements Test Suite ===\n');
 
-// Load state + data.js + cycle.js so window.getActiveData /
-// setPhaseOverlay / detectPerimenopausePattern / etc. exist.
+// Load state + data.js + cycle.js so the data globals and cycle module exist.
 await import('../js/state.js');
 await import('../js/data.js');
-await import('../js/cycle.js');
+const cycle = await import('../js/cycle.js');
 const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 1: PERIOD_SYMPTOMS constant ──
   console.log('Section 1: PERIOD_SYMPTOMS constant');
@@ -148,7 +147,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 11: detectPerimenopausePattern ──
   console.log('Section 11: detectPerimenopausePattern');
   {
-    assert('detectPerimenopausePattern is a window function', typeof window.detectPerimenopausePattern === 'function');
+    assert('detectPerimenopausePattern is a module function', typeof cycle.detectPerimenopausePattern === 'function');
 
     // Returns null for <35 age
     const youngMC = {
@@ -161,7 +160,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
       ]
     };
     const youngDob = '2005-01-01'; // ~20 years old
-    const youngResult = window.detectPerimenopausePattern(youngMC, youngDob);
+    const youngResult = cycle.detectPerimenopausePattern(youngMC, youngDob);
     assert('Returns null for age <35', youngResult === null);
 
     // Returns null for <4 periods
@@ -171,11 +170,11 @@ const { phaseBandPlugin } = await import('../js/charts.js');
         { startDate: '2025-02-01', endDate: '2025-02-05', flow: 'moderate' }
       ]
     };
-    const result2 = window.detectPerimenopausePattern(fewMC, '1980-01-01');
+    const result2 = cycle.detectPerimenopausePattern(fewMC, '1980-01-01');
     assert('Returns null for <4 periods', result2 === null);
 
     // Returns null for no DOB
-    assert('Returns null for no DOB', window.detectPerimenopausePattern(youngMC, null) === null);
+    assert('Returns null for no DOB', cycle.detectPerimenopausePattern(youngMC, null) === null);
   }
 
   // ── Section 12: detectPerimenopausePattern with qualifying data ──
@@ -192,7 +191,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
         { startDate: '2024-07-05', endDate: '2024-07-10', flow: 'heavy' }
       ]
     };
-    const periResult = window.detectPerimenopausePattern(periMC, '1979-01-01'); // ~45-46
+    const periResult = cycle.detectPerimenopausePattern(periMC, '1979-01-01'); // ~45-46
     assert('Detects perimenopause for qualifying data', periResult !== null);
     assert('Has indicators array', Array.isArray(periResult?.indicators));
     assert('Has 2+ indicators', periResult?.indicators?.length >= 2, `got ${periResult?.indicators?.length}: ${periResult?.indicators?.join(', ')}`);
@@ -203,7 +202,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 13: detectCycleIronAlerts empty ──
   console.log('Section 13: detectCycleIronAlerts empty cases');
   {
-    assert('detectCycleIronAlerts is a window function', typeof window.detectCycleIronAlerts === 'function');
+    assert('detectCycleIronAlerts is a module function', typeof cycle.detectCycleIronAlerts === 'function');
 
     // No heavy flow → no alerts
     const mc1 = {
@@ -213,11 +212,11 @@ const { phaseBandPlugin } = await import('../js/charts.js');
       ]
     };
     const data1 = window.getActiveData();
-    const alerts1 = window.detectCycleIronAlerts(mc1, data1);
+    const alerts1 = cycle.detectCycleIronAlerts(mc1, data1);
     assert('No alerts for no heavy flow', alerts1.length === 0);
 
     // Null mc → empty
-    assert('No alerts for null mc', window.detectCycleIronAlerts(null, data1).length === 0);
+    assert('No alerts for null mc', cycle.detectCycleIronAlerts(null, data1).length === 0);
   }
 
   // ── Section 14: detectCycleIronAlerts with heavy flow ──
@@ -234,7 +233,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const origEntries = state.importedData.entries;
     state.importedData.entries = [{ date: '2025-01-10', markers: { 'biochemistry.glucose': 5.0 } }];
     const data2 = window.getActiveData();
-    const alerts2 = window.detectCycleIronAlerts(mc2, data2);
+    const alerts2 = cycle.detectCycleIronAlerts(mc2, data2);
     assert('Info alert when no iron panel + heavy flow', alerts2.some(a => a.severity === 'info'), `got ${JSON.stringify(alerts2.map(a=>a.severity))}`);
     state.importedData.entries = origEntries;
   }

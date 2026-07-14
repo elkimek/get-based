@@ -6,6 +6,7 @@ import { hasAIProvider, isAIPaused } from './api.js';
 import { getActiveData } from './data.js';
 import { getProfileLocation, getProfiles } from './profile.js';
 import { renderProfileContextCards } from './context-cards.js';
+import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
@@ -78,7 +79,7 @@ function handleChatEmptyClick(event) {
     skipContextCards();
   } else if (action === 'open-cycle-editor') {
     closeChatPanel();
-    callChatEmptyRuntime('openMenstrualCycleEditor');
+    openMenstrualCycleEditor();
   } else if (action === 'open-supplements-editor') {
     closeChatPanel();
     openSupplementsEditor();

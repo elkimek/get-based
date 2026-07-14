@@ -187,9 +187,10 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, lensModule, piiModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, lensModule, piiModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
+    import('../js/cycle.js'),
     import('../js/lens.js'),
     import('../js/pii.js'),
     import('../js/supplements.js'),
@@ -296,13 +297,21 @@
     'openClientList','closeClientList','openClientForm','configureClientListRuntime'
   ];
 
-  // cycle.js (10)
+  // cycle.js (15, module-only)
   const cycleExports = [
     'getCyclePhase','getNextBestDrawDate','getBloodDrawPhases',
+    'calculateCycleStats','detectPerimenopausePattern','detectCycleIronAlerts',
     'renderMenstrualCycleSection',
     'openMenstrualCycleEditor','saveMenstrualCycle','clearMenstrualCycle',
     'syncMenstrualCycleProfileFromForm',
-    'addPeriodEntry','deletePeriodEntry'
+    'addPeriodEntry','deletePeriodEntry','toggleCycleSymptomTag','_toggleCycleEditorFields'
+  ];
+  const cycleLegacyGlobals = [
+    'getCyclePhase','getNextBestDrawDate','getBloodDrawPhases',
+    'detectPerimenopausePattern','detectCycleIronAlerts','renderMenstrualCycleSection',
+    'openMenstrualCycleEditor','saveMenstrualCycle','clearMenstrualCycle',
+    'syncMenstrualCycleProfileFromForm','addPeriodEntry','deletePeriodEntry',
+    'toggleCycleSymptomTag','_toggleCycleEditorFields'
   ];
 
   // data.js (26)
@@ -470,6 +479,7 @@
 
   for (const [moduleName, moduleApi, exports] of [
     ['charts.js', chartsModule, chartsExports],
+    ['cycle.js', cycleModule, cycleExports],
     ['lens.js', lensModule, lensExports],
     ['pii.js', piiModule, piiExports],
     ['supplements.js', supplementsModule, supplementsExports],
@@ -484,13 +494,15 @@
   for (const name of supplementLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of cycleLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'lab-context.js': labContextExports,
     'chat.js': chatExports,
     'client-list.js': clientListExports,
     'context-cards.js': contextCardsExports,
-    'cycle.js': cycleExports,
     'data.js': dataExports,
     'export.js': exportExports,
     'nav.js': navExports,
@@ -762,7 +774,7 @@
   // ═══════════════════════════════════════════════
   // 19. CYCLE HELPERS — pure function checks
   // ═══════════════════════════════════════════════
-  const phase = window.getCyclePhase('2026-02-15', {
+  const phase = cycleModule.getCyclePhase('2026-02-15', {
     cycleLength: 28, periodLength: 5, regularity: 'regular',
     periods: [{ startDate: '2026-02-01' }]
   });

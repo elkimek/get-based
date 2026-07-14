@@ -59,7 +59,6 @@ const SOURCE_LABELS = {
 };
 const appWindow = /** @type {Window & typeof globalThis & {
   recordChange?: (field: string) => void,
-  openMenstrualCycleEditor?: () => void,
   navigate?: (category: string) => void,
   renderProfileButton?: () => void,
   closeModal?: () => void,
@@ -67,6 +66,11 @@ const appWindow = /** @type {Window & typeof globalThis & {
 
 let pendingCycleImport = null;
 let cycleImportDelegatesInstalled = false;
+
+async function openCycleEditorFromImport() {
+  const { openMenstrualCycleEditor } = await import('./cycle.js');
+  openMenstrualCycleEditor();
+}
 
 function importActionAttrs(action, data = {}) {
   const attrs = [`${CYCLE_IMPORT_ACTION}="${escapeAttr(action)}"`];
@@ -665,7 +669,9 @@ async function handleCycleImportAction(event) {
       showNotification(`Cycle import complete - ${result.periods} periods, ${result.observations} local observations`, 'success', 1200);
       closeCycleImportPreview(result);
       appWindow.navigate?.('body');
-      setTimeout(() => { appWindow.openMenstrualCycleEditor?.(); }, appWindow.navigate ? 1550 : 0);
+      setTimeout(() => {
+        openCycleEditorFromImport().catch(error => showNotification(`Could not reopen cycle history: ${error.message}`, 'error'));
+      }, appWindow.navigate ? 1550 : 0);
     } catch (err) {
       target.removeAttribute('disabled');
       showNotification(`Cycle import failed: ${err.message}`, 'error');
@@ -675,13 +681,13 @@ async function handleCycleImportAction(event) {
     if (!source || !await showConfirmDialog(`Remove all ${sourceLabel(source)} cycle data from this profile?`)) return;
     await deleteCycleSourceFromProfile(source);
     showNotification(`${sourceLabel(source)} cycle data removed`, 'info');
-    appWindow.openMenstrualCycleEditor?.();
+    await openCycleEditorFromImport();
   } else if (action === 'delete-import') {
     const importId = target.dataset.cycleImportImportId || '';
     if (!importId || !await showConfirmDialog('Remove this imported cycle batch?')) return;
     await deleteCycleImportFromProfile(importId);
     showNotification('Imported cycle batch removed', 'info');
-    appWindow.openMenstrualCycleEditor?.();
+    await openCycleEditorFromImport();
   }
 }
 
