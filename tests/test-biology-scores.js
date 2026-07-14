@@ -641,37 +641,46 @@ assert('one Biology Scores context check unlocks all timeframe tabs', rangeUnloc
 const staleReview = { summary: 'Older context check kept usable', suggestions: [], fingerprint: 'biology-context:old-app-build', contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data), range: 'all', updatedAt: Date.now() - 86400000 };
 state.importedData.biologyScoreContextAI = staleReview;
 const staleWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('stale Biology Scores fingerprint keeps scores visible only when the material context signature still matches',
+assert('stale Biology Scores fingerprint keeps scores visible after the first context review',
   !hasCurrentBiologyScoreContextReview(data) && !staleWidgetHtml.includes('Biology Scores locked') && staleWidgetHtml.includes('db-bio-coherence-hero'),
   staleWidgetHtml);
 state.importedData.supplements = [{ name: 'TRT note', dose: 'hormone therapy; low muscle mass; acute illness near draw', startDate: '2026-06-10', notes: 'context modifier terms' }];
 const supplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('changed supplement context invalidates stale Biology Scores material signature before old context flags can unlock scores',
-  supplementChangedWidgetHtml.includes('Biology Scores locked'),
+assert('changed supplement context keeps Biology Scores visible and recommends a context refresh',
+  buildBiologyScoreContextMaterialSignature(data) !== staleReview.contextSignature
+    && !supplementChangedWidgetHtml.includes('Biology Scores locked')
+    && supplementChangedWidgetHtml.includes('db-bio-coherence-hero')
+    && renderBiologyScoreContextAI(data).includes('Context changed. Refresh recommended; your scores stay available.'),
   supplementChangedWidgetHtml);
 state.importedData.supplements = [{ name: 'Long supplement note', notes: `${'safe context '.repeat(30)} baseline tail` }];
 const longSupplementReview = { ...staleReview, contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data) };
 state.importedData.biologyScoreContextAI = longSupplementReview;
 state.importedData.supplements = [{ name: 'Long supplement note', notes: `${'safe context '.repeat(30)} hormone therapy low muscle mass acute illness near draw` }];
 const longSupplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('supplement material signature includes text beyond old truncation boundaries',
-  longSupplementChangedWidgetHtml.includes('Biology Scores locked'),
+assert('long supplement context changes do not relock Biology Scores',
+  buildBiologyScoreContextMaterialSignature(data) !== longSupplementReview.contextSignature
+    && !longSupplementChangedWidgetHtml.includes('Biology Scores locked')
+    && longSupplementChangedWidgetHtml.includes('db-bio-coherence-hero'),
   longSupplementChangedWidgetHtml);
-state.importedData.supplements = Array.from({ length: 31 }, (_, i) => ({ name: `Supplement ${i + 1}`, notes: i === 30 ? 'hormone therapy low muscle mass acute illness near draw' : 'ordinary' }));
+state.importedData.supplements = Array.from({ length: 31 }, (_, i) => ({ name: `Supplement ${i + 1}`, notes: 'ordinary' }));
+const overflowSupplementBaselineSignature = buildBiologyScoreContextMaterialSignature(data);
+state.importedData.supplements[30].notes = 'hormone therapy low muscle mass acute illness near draw';
 const overflowSupplementChangedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('supplement material signature includes score-relevant items beyond the old first-30 cap',
-  overflowSupplementChangedWidgetHtml.includes('Biology Scores locked'),
+assert('additional supplement context items do not relock Biology Scores',
+  buildBiologyScoreContextMaterialSignature(data) !== overflowSupplementBaselineSignature
+    && !overflowSupplementChangedWidgetHtml.includes('Biology Scores locked')
+    && overflowSupplementChangedWidgetHtml.includes('db-bio-coherence-hero'),
   overflowSupplementChangedWidgetHtml);
 delete state.importedData.supplements;
 state.importedData.biologyScoreContextAI = { summary: 'Legacy context review kept usable', suggestions: [], fingerprint: 'biology-context:old-app-build', range: 'all', updatedAt: Date.now() - 86400000 };
 const legacyStaleWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('legacy Biology Scores reviews without material signatures lock on stale fingerprints because changed labs/profile context cannot be ruled out',
-  !hasCurrentBiologyScoreContextReview(data) && legacyStaleWidgetHtml.includes('Biology Scores locked'),
+assert('legacy Biology Scores reviews remain unlocked when their fingerprint becomes stale',
+  !hasCurrentBiologyScoreContextReview(data) && !legacyStaleWidgetHtml.includes('Biology Scores locked') && legacyStaleWidgetHtml.includes('db-bio-coherence-hero'),
   legacyStaleWidgetHtml);
 state.importedData.biologyScoreContextAI = { ...staleReview, contextSignature: 'biology-context-material:different', contextSignaturesByRange: { all: 'biology-context-material:different' } };
 const mismatchedWidgetHtml = renderDashboardBiologicalCoherenceWidget({ data });
-assert('mismatched Biology Scores material context locks instead of trusting any review timestamp',
-  mismatchedWidgetHtml.includes('Biology Scores locked'),
+assert('mismatched Biology Scores material context requests refresh without relocking scores',
+  !mismatchedWidgetHtml.includes('Biology Scores locked') && mismatchedWidgetHtml.includes('db-bio-coherence-hero'),
   mismatchedWidgetHtml);
 state.importedData.biologyScoreContextAI = { summary: 'Context checked for tests', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(data), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(data), contextSignature: buildBiologyScoreContextMaterialSignature(data), contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(data), unlockedRanges: ['all', '1y', '6m', '3m'], range: state.dateRangeFilter || 'all', updatedAt: Date.now() };
 

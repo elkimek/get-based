@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.185', date: '2026-07-14', title: 'Biology Scores stay unlocked',
+    items: [
+      '<b>Biology Scores no longer relock after app or health-context updates.</b> Once you complete the context check, scores stay visible and changed context appears as a refresh recommendation.',
+    ]
+  },
+  {
     version: '1.10.184', date: '2026-07-14', title: 'Smoother updates and more reliable health tracking',
     items: [
       '<b>App updates are lighter and stay under your control.</b> Returning visits reuse installed files, while a small check lets you know when a new version is ready.',

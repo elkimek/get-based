@@ -242,18 +242,12 @@ export function hasCurrentBiologyScoreContextReview(data) {
   return review.range === range && review.fingerprint === expected;
 }
 
-export function hasBiologyScoreContextReview(data = null) {
+export function hasBiologyScoreContextReview(_data = null) {
   const review = (/** @type {any} */ (state.importedData))?.biologyScoreContextAI;
-  if (!review?.updatedAt) return false;
-  if (!data) return true;
-  if (hasCurrentBiologyScoreContextReview(data)) return true;
-  const range = state.dateRangeFilter || 'all';
-  const expected = buildBiologyScoreContextMaterialSignature(data, range);
-  if (review.contextSignaturesByRange && typeof review.contextSignaturesByRange === 'object') {
-    return review.contextSignaturesByRange[range] === expected;
-  }
-  if (review.contextSignature) return review.range === range && review.contextSignature === expected;
-  return false;
+  // A completed review is a one-time availability gate. Context freshness is
+  // tracked separately so changing data or app-side fingerprint logic can ask
+  // for a refresh without hiding scores the user has already unlocked.
+  return !!review?.updatedAt;
 }
 
 function buildReviewContext(data) {
@@ -343,7 +337,7 @@ export function renderBiologyScoreContextAI(data = null) {
   const current = data ? hasCurrentBiologyScoreContextReview(data) : !!review?.updatedAt;
   const hasReview = !!review?.updatedAt;
   const buttonLabel = hasReview ? 'Refresh check' : 'Unlock Biology Scores';
-  const status = current ? 'Context is up to date.' : hasReview ? 'Context needs a refresh.' : 'Context check required.';
+  const status = current ? 'Context is up to date.' : hasReview ? 'Context changed. Refresh recommended; your scores stay available.' : 'Context check required.';
   return `<section class="biology-context-ai-panel${current ? '' : ' biology-context-ai-required'}">
     <div class="biology-context-ai-head"><div><div class="biology-scores-eyebrow">Context check</div><p>Review the context used by Biology Scores.</p></div><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="analyze-context-ai">${buttonLabel}</button></div>
     <p class="biology-scores-note">${escapeHTML(status)}</p>

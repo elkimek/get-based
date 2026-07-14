@@ -166,7 +166,7 @@ export function createLensPageHandlers(deps) {
   function renderBiologyScoreContextStatus(scoreData) {
     const review = state.importedData?.biologyScoreContextAI;
     const suggestions = Array.isArray(review?.suggestions) ? review.suggestions.length : 0;
-    const status = hasCurrentBiologyScoreContextReview(scoreData) ? 'Context checked' : 'Context needs refresh';
+    const status = hasCurrentBiologyScoreContextReview(scoreData) ? 'Context checked' : 'Context changed · refresh recommended';
     const contextMeta = suggestions
       ? `${suggestions} suggested context ${suggestions === 1 ? 'flag' : 'flags'}`
       : 'No suggested context flags';
