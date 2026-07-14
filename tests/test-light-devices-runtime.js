@@ -4,6 +4,7 @@
 import './_node-shim.js';
 import { state } from '../js/state.js';
 import {
+  configureLightDevicesRuntimeDeps,
   deleteLightDeviceSessionFromRuntime,
   editLightDeviceSessionDurationFromRuntime,
   editLightDeviceSessionModeFromRuntime,
@@ -17,6 +18,8 @@ import {
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
 } from '../js/light-devices-runtime.js';
+
+const originalLightDevicesRuntimeDeps = configureLightDevicesRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -69,17 +72,17 @@ try {
     calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length === 2);
 
   let promptArgs = null;
-  globalThis.showPromptDialog = async (...args) => {
+  configureLightDevicesRuntimeDeps({ showPromptDialog: async (...args) => {
     promptArgs = args;
     return '17';
-  };
+  } });
   const raw = await promptLightDeviceSessionDuration(12);
   assert('promptLightDeviceSessionDuration delegates with duration defaults',
     raw === '17' &&
     promptArgs?.[0] === 'New duration (in minutes)' &&
     promptArgs?.[1]?.defaultValue === '12' &&
     promptArgs?.[1]?.okLabel === 'Save');
-  delete globalThis.showPromptDialog;
+  configureLightDevicesRuntimeDeps({ showPromptDialog: null });
   assert('promptLightDeviceSessionDuration returns undefined when prompt hook is missing',
     await promptLightDeviceSessionDuration(3) === undefined);
 
@@ -140,6 +143,7 @@ try {
   assert('publishLightDevicesWindowBindings installs legacy globals',
     globalThis.__lightRuntimeProbe?.() === 'ok');
 } finally {
+  configureLightDevicesRuntimeDeps(originalLightDevicesRuntimeDeps);
   restoreRuntime();
 }
 

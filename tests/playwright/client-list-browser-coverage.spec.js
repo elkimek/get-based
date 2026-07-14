@@ -273,8 +273,12 @@ test('client list form live actions cover health link avatar haplogroup and loca
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
+    const clientListRuntime = await import('/js/client-list-runtime.js');
     const outcomes = {};
     const calls = [];
+    const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
+      showNotification: (...args) => calls.push(['notification', ...args]),
+    });
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -293,7 +297,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       bodyOverflow: document.body.style.overflow,
       renderProfileButton: window.renderProfileButton,
-      showNotification: window.showNotification,
       navigate: window.navigate,
       HAPLOGROUP_LIST: window.HAPLOGROUP_LIST,
       setManualHaplogroup: window.setManualHaplogroup,
@@ -331,7 +334,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
       window.renderProfileButton = () => calls.push(['render-profile-button']);
-      window.showNotification = (...args) => calls.push(['notification', ...args]);
       window.navigate = route => calls.push(['navigate', route]);
       window.HAPLOGROUP_LIST = ['H', 'J', 'K'];
       window.setManualHaplogroup = async haplogroup => {
@@ -408,7 +410,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
         else localStorage.setItem(key, value);
       }
       window.renderProfileButton = saved.renderProfileButton;
-      window.showNotification = saved.showNotification;
+      clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
       window.navigate = saved.navigate;
       window.HAPLOGROUP_LIST = saved.HAPLOGROUP_LIST;
       window.setManualHaplogroup = saved.setManualHaplogroup;

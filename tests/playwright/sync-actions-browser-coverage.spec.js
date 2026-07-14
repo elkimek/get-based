@@ -579,13 +579,21 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
   const results = await page.evaluate(async ({ identityUrl }) => {
     // The cache-busted identity module statically imports this canonical
     // singleton, so configuring it here injects deps into that fresh instance.
-    const [identityActions, context] = await Promise.all([
+    const [identityActions, context, confirmRuntime] = await Promise.all([
       import(identityUrl),
       import('/js/sync-diagnose-actions-context.js'),
+      import('/js/sync-diagnose-runtime.js'),
     ]);
     const outcomes = {};
     const calls = [];
     const copied = [];
+    let confirmAnswer = false;
+    const previousConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
+      showConfirmDialog: async message => {
+        calls.push(['confirm', message]);
+        return confirmAnswer;
+      },
+    });
     const words = Array.from({ length: 24 }, (_, index) => `word${index + 1}`).join(' ');
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -595,22 +603,18 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
       throw new Error(`Timed out waiting for ${label}`);
     };
     const saved = {
-      confirm: window.showConfirmDialog,
       bip39: window.bip39,
       qrcode: window.qrcode,
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
 
     try {
-      window.showConfirmDialog = async message => {
-        calls.push(['confirm', message]);
-        return false;
-      };
+      confirmAnswer = false;
       await identityActions.confirmRotateIdentity(document.body);
       outcomes.cancelStopsBeforeMnemonic = calls.some(call => call[0] === 'confirm')
         && !document.querySelector('[aria-label="Rotate sync identity"]');
 
-      window.showConfirmDialog = async () => true;
+      confirmAnswer = true;
       window.bip39 = { generateMnemonic: async () => 'too few words' };
       await identityActions.confirmRotateIdentity(document.body);
       outcomes.malformedMnemonicNotifies = Array.from(document.querySelectorAll('.notification-toast.error'))
@@ -675,7 +679,7 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
         restoreFromMnemonic: async () => false,
         isSyncEnabled: () => false,
       });
-      window.showConfirmDialog = saved.confirm;
+      confirmRuntime.configureSyncDiagnoseRuntimeDeps(previousConfirmDeps);
       if (saved.bip39 === undefined) delete window.bip39;
       else window.bip39 = saved.bip39;
       if (saved.qrcode === undefined) delete window.qrcode;

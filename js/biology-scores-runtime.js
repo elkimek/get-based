@@ -2,6 +2,19 @@
 // biology-scores-runtime.js - Browser runtime adapters for Biology Scores UI hooks.
 
 import { hasAIProvider } from './api.js';
+import { showNotification } from './utils.js';
+
+const biologyScoresRuntimeDeps = { showNotification };
+
+export function configureBiologyScoresRuntimeDeps(deps = {}) {
+  const previous = { ...biologyScoresRuntimeDeps };
+  if ('showNotification' in deps) {
+    biologyScoresRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
+      ? /** @type {typeof showNotification} */ (deps.showNotification)
+      : null;
+  }
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -46,7 +59,7 @@ export function useBiologyScoresChatPrompt(prompt) {
  * @param {string} type
  */
 export function showBiologyScoresNotification(message, type = 'info') {
-  getRuntimeFunction('showNotification')?.(message, type);
+  biologyScoresRuntimeDeps.showNotification?.(message, type);
 }
 
 export function hasBiologyScoresAIProvider() {

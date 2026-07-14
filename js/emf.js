@@ -8,7 +8,7 @@ import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
 const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 function safeMediaType(t) { return SAFE_IMAGE_TYPES.includes(t) ? t : 'image/png'; }
 import { EMF_ROOM_PRESETS, EMF_SOURCES, EMF_MITIGATIONS, EMF_METER_PRESETS } from './constants.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isPIIReviewEnabled } from './utils.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, showPromptDialog, isPIIReviewEnabled } from './utils.js';
 import { saveImportedData } from './data.js';
 import { resizeImage, isValidImageType } from './image-utils.js';
 import { callClaudeAPI, hasAIProvider } from './api.js';
@@ -164,7 +164,7 @@ function closeEMFModalRuntime() {
  * @returns {Promise<string | null | undefined> | string | null | undefined}
  */
 function showEMFPromptRuntime(message, options) {
-  return getEMFRuntimeFunction('showPromptDialog')?.(message, options);
+  return showPromptDialog(message, options);
 }
 
 function emfAttrString(attrs) {

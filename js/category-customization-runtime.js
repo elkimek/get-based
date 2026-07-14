@@ -1,6 +1,20 @@
 // @ts-check
 // category-customization-runtime.js - Browser runtime hooks for category customization.
 
+import { showPromptDialog } from './utils.js';
+
+const categoryCustomizationRuntimeDeps = { showPromptDialog };
+
+export function configureCategoryCustomizationRuntimeDeps(deps = {}) {
+  const previous = { ...categoryCustomizationRuntimeDeps };
+  if ('showPromptDialog' in deps) {
+    categoryCustomizationRuntimeDeps.showPromptDialog = typeof deps.showPromptDialog === 'function'
+      ? /** @type {typeof showPromptDialog} */ (deps.showPromptDialog)
+      : null;
+  }
+  return previous;
+}
+
 /**
  * @returns {Record<string, any>}
  */
@@ -41,7 +55,7 @@ export function getCategoryCustomizationBuildSidebar() {
  * @returns {Promise<string | null | undefined> | string | null | undefined}
  */
 export function showCategoryCustomizationPrompt(message, options) {
-  return getRuntimeFunction('showPromptDialog')?.(message, options);
+  return categoryCustomizationRuntimeDeps.showPromptDialog?.(message, options);
 }
 
 /**

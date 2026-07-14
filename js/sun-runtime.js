@@ -1,6 +1,16 @@
 // @ts-check
 // sun-runtime.js - Browser runtime adapters for Sun session facade hooks.
 
+import { isDebugMode } from './utils.js';
+
+const sunRuntimeDeps = { isDebugMode };
+
+export function configureSunRuntimeDeps(deps = {}) {
+  const previous = { ...sunRuntimeDeps };
+  if (typeof deps.isDebugMode === 'function') sunRuntimeDeps.isDebugMode = deps.isDebugMode;
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -25,7 +35,7 @@ export function hasSunBrowserRuntime() {
 
 export function isSunDebugRuntime() {
   try {
-    return getRuntimeFunction('isDebugMode')?.() === true;
+    return sunRuntimeDeps.isDebugMode() === true;
   } catch {
     return false;
   }

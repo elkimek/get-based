@@ -2,6 +2,19 @@
 // light-devices-runtime.js - Browser runtime adapters for light-device UI shell hooks.
 
 import { state } from './state.js';
+import { showPromptDialog } from './utils.js';
+
+const lightDevicesRuntimeDeps = { showPromptDialog };
+
+export function configureLightDevicesRuntimeDeps(deps = {}) {
+  const previous = { ...lightDevicesRuntimeDeps };
+  if ('showPromptDialog' in deps) {
+    lightDevicesRuntimeDeps.showPromptDialog = typeof deps.showPromptDialog === 'function'
+      ? /** @type {typeof showPromptDialog} */ (deps.showPromptDialog)
+      : null;
+  }
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -37,7 +50,7 @@ export function refreshLightDevicesView() {
 
 /** @param {number} current */
 export function promptLightDeviceSessionDuration(current) {
-  return getRuntimeFunction('showPromptDialog')?.('New duration (in minutes)', {
+  return lightDevicesRuntimeDeps.showPromptDialog?.('New duration (in minutes)', {
     defaultValue: String(current),
     okLabel: 'Save',
     placeholder: 'e.g. 12',

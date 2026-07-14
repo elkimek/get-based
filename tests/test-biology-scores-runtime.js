@@ -5,6 +5,7 @@ import './_node-shim.js';
 import { getCachedKey, updateKeyCache } from '../js/crypto.js';
 import {
   canOpenBiologyScoresChatPanel,
+  configureBiologyScoresRuntimeDeps,
   getBiologyScoresActiveData,
   hasBiologyScoresAIProvider,
   navigateBiologyScoresRoute,
@@ -14,6 +15,8 @@ import {
   showBiologyScoresNotification,
   useBiologyScoresChatPrompt,
 } from '../js/biology-scores-runtime.js';
+
+const originalBiologyScoresRuntimeDeps = configureBiologyScoresRuntimeDeps();
 
 let passed = 0;
 let failed = 0;
@@ -80,6 +83,9 @@ try {
     },
   };
   setRuntimeValue('window', browserRuntime);
+  configureBiologyScoresRuntimeDeps({
+    showNotification: browserRuntime.showNotification.bind(browserRuntime),
+  });
   localStorage.setItem('labcharts-ai-provider', 'openrouter');
   localStorage.removeItem('labcharts-ai-paused');
   localStorage.removeItem('labcharts-openrouter-key');
@@ -128,6 +134,7 @@ try {
       openBiologyScoreMarkerDetail('biochemistry_glucose') === false &&
       openBiologyScoresChatPanel() === false);
 } finally {
+  configureBiologyScoresRuntimeDeps(originalBiologyScoresRuntimeDeps);
   restoreRuntime();
 }
 

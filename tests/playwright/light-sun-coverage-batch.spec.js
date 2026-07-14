@@ -790,6 +790,7 @@ test('light devices cover session detail edit log active card and rendered list 
 
   const results = await page.evaluate(async ({ devicesUrl, silhouetteUrl }) => {
     const lightDevices = await import(devicesUrl);
+    const lightDevicesRuntime = await import('/js/light-devices-runtime.js');
     const silhouette = await import(silhouetteUrl);
     const { profileStorageKey } = await import('/js/profile.js');
     const blobStorage = await import('/js/blob-storage.js');
@@ -807,12 +808,14 @@ test('light devices cover session detail edit log active card and rendered list 
       _openChannelOnLightPage: window._openChannelOnLightPage,
       loadCatalog: window.loadCatalog,
       renderLightDeviceAffiliateRow: window.renderLightDeviceAffiliateRow,
-      showPromptDialog: window.showPromptDialog,
       navigate: window.navigate,
       renderBodySilhouette: window.renderBodySilhouette,
       bindBodySilhouette: window.bindBodySilhouette,
     };
     const calls = [];
+    const previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
+      showPromptDialog: async () => '17',
+    });
 
     try {
       state.currentView = 'light';
@@ -876,7 +879,6 @@ test('light devices cover session detail edit log active card and rendered list 
       });
       window.loadCatalog = async () => ({ items: [] });
       window.renderLightDeviceAffiliateRow = (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`;
-      window.showPromptDialog = async () => '17';
       window.navigate = route => calls.push(['navigate', route]);
       window.renderBodySilhouette = silhouette.renderBodySilhouette;
       window.bindBodySilhouette = silhouette.bindBodySilhouette;
@@ -964,6 +966,7 @@ test('light devices cover session detail edit log active card and rendered list 
       if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
       else localStorage.setItem(importedStorageKey, originalImportedLocalValue);
       lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
+      lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
       Object.assign(window, savedWindow);
       document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
     }

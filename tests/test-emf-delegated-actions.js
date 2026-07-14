@@ -73,7 +73,7 @@ assert('EMF editor close path preserves save and lightbox cleanup',
     emfSrc.includes('closeEMFModalRuntime();'));
 assert('EMF editor runtime hooks avoid counted direct window globals',
   emfSrc.includes("getEMFRuntimeFunction('closeModal')") &&
-    emfSrc.includes("getEMFRuntimeFunction('showPromptDialog')") &&
+    emfSrc.includes('return showPromptDialog(message, options);') &&
     !/\bwindow(?:\.|\s*\[)/.test(emfSrc));
 assert('EMF interpretation runtime hooks avoid counted direct window globals',
   emfInterpretationSrc.includes('function getEMFInterpretationRuntimeFunction') &&

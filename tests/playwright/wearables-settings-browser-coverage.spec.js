@@ -9,11 +9,12 @@ test('wearables settings browser coverage exercises import and connection action
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const failures = await page.evaluate(async ({ panelUrl, stateUrl, profileUrl, storeUrl, blobUrl }) => {
-    const [{ state }, { profileStorageKey }, store, blobStorage] = await Promise.all([
+    const [{ state }, { profileStorageKey }, store, blobStorage, settingsRuntime] = await Promise.all([
       import(stateUrl),
       import(profileUrl),
       import(storeUrl),
       import(blobUrl),
+      import('/js/wearables-settings-runtime.js'),
     ]);
     await import(panelUrl);
 
@@ -37,7 +38,7 @@ test('wearables settings browser coverage exercises import and connection action
     const originalImported = state.importedData;
     const originalNavigate = window.navigate;
     const originalCloseSettingsModal = window.closeSettingsModal;
-    const originalShowConfirmDialog = window.showConfirmDialog;
+    const originalSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     const originalImportedLocalValue = localStorage.getItem(importedKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedKey);
@@ -165,7 +166,7 @@ test('wearables settings browser coverage exercises import and connection action
         date: '2026-06-02',
         weight: 80.2,
       });
-      window.showConfirmDialog = async () => true;
+      settingsRuntime.configureWearableSettingsRuntimeDeps({ showConfirmDialog: async () => true });
       await window.handleManualDisconnect();
       const manualRows = await store.countSource(profileId, 'manual');
       check('manual disconnect handler clears manual rows and connection',
@@ -187,8 +188,7 @@ test('wearables settings browser coverage exercises import and connection action
       else delete window.navigate;
       if (originalCloseSettingsModal) window.closeSettingsModal = originalCloseSettingsModal;
       else delete window.closeSettingsModal;
-      if (originalShowConfirmDialog) window.showConfirmDialog = originalShowConfirmDialog;
-      else delete window.showConfirmDialog;
+      settingsRuntime.configureWearableSettingsRuntimeDeps(originalSettingsRuntimeDeps);
       window.requestAnimationFrame = originalRequestAnimationFrame;
       document.querySelectorAll('#wearables-section,#wearable-strip,#confirm-dialog-overlay,.notification-container').forEach(el => el.remove());
     }

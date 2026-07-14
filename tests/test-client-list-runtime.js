@@ -5,6 +5,7 @@ import './_node-shim.js';
 import { getCachedKey, updateKeyCache } from '../js/crypto.js';
 import {
   closeClientListFromRuntime,
+  configureClientListRuntimeDeps,
   getClientHaplogroupList,
   hasClientListAIProvider,
   navigateClientListRoute,
@@ -13,6 +14,8 @@ import {
   setClientManualHaplogroup,
   showClientListNotification,
 } from '../js/client-list-runtime.js';
+
+const originalClientListRuntimeDeps = configureClientListRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -81,7 +84,9 @@ try {
   assert('refreshClientProfileButton delegates to runtime profile refresh',
     calls.some(call => call[0] === 'render-profile-button'));
 
-  globalThis.showNotification = (message, type) => calls.push(['notification', message, type]);
+  configureClientListRuntimeDeps({
+    showNotification: (message, type) => calls.push(['notification', message, type]),
+  });
   showClientListNotification('"Ada" updated', 'info');
   assert('showClientListNotification delegates runtime notification',
     calls.some(call => call[0] === 'notification' && call[1] === '"Ada" updated' && call[2] === 'info'));
@@ -115,6 +120,7 @@ try {
   assert('publishClientListWindowBindings installs legacy globals',
     globalThis.__clientListRuntimeProbe?.() === 'ok');
 } finally {
+  configureClientListRuntimeDeps(originalClientListRuntimeDeps);
   restoreRuntime();
 }
 

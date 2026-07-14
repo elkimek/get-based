@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/charts.js'),
@@ -206,6 +206,7 @@
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
     import('../js/supplements.js'),
+    import('../js/utils.js'),
   ]);
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
@@ -553,9 +554,13 @@
     'getChartColors'
   ];
 
-  // utils.js (2)
+  // utils.js (15 former browser globals, now module-only)
   const utilsExports = [
-    'showNotification','showConfirmDialog'
+    'showNotification','showConfirmDialog','showPromptDialog',
+    'isDebugMode','setDebugMode','isPIIReviewEnabled','setPIIReviewEnabled',
+    'isAnalyticsEnabled','setAnalyticsEnabled','maybeShowAnalyticsConsent',
+    'dismissAnalyticsConsent','dismissAnalyticsConsentAndDisable',
+    'hasCardContent','escapeAttr','loadScriptOnce'
   ];
 
   // views.js (36 — closeImportModal removed, lives in pdf-import.js)
@@ -598,6 +603,7 @@
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
+    ['utils.js', utilsModule, utilsExports],
   ]) {
     for (const name of exports) {
       const val = moduleApi[name];
@@ -642,6 +648,9 @@
   for (const name of sunSpectrumExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of utilsExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
@@ -654,7 +663,6 @@
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
     'theme.js': themeExports,
-    'utils.js': utilsExports,
     'views.js': viewsExports,
   };
 

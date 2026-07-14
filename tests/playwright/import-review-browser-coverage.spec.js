@@ -18,6 +18,7 @@ test('import file input and drop zone route browser file types and busy states',
     let importRunning = false;
     const previousDropZoneRuntimeDeps = dropZoneRuntime.configureImportDropZoneRuntimeDeps({
       isImportRunning: () => importRunning,
+      showNotification: (message, type) => { calls.push(['notify', type, message]); },
     });
     const originals = {
       importDataJSON: window.importDataJSON,
@@ -25,7 +26,6 @@ test('import file input and drop zone route browser file types and busy states',
       detectDNAFile: window.detectDNAFile,
       handleMtDNAFile: window.handleMtDNAFile,
       handleDNAFile: window.handleDNAFile,
-      showNotification: window.showNotification,
     };
     const input = document.getElementById('pdf-input');
     const originalDropZone = document.getElementById('drop-zone');
@@ -59,7 +59,6 @@ test('import file input and drop zone route browser file types and busy states',
       window.detectDNAFile = header => header.includes('MTDNA') ? 'mtdna' : 'autosomal';
       window.handleMtDNAFile = async file => { calls.push(['mtdna', file.name]); };
       window.handleDNAFile = async file => { calls.push(['dna', file.name]); };
-      window.showNotification = (message, type) => { calls.push(['notify', type, message]); };
 
       importRunning = true;
       setInputFiles(new File(['{"ok":true}'], 'busy.json', { type: 'application/json' }));

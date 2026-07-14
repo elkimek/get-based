@@ -258,7 +258,7 @@ assert('PDF lazy import failure notifies from drop zone',
   /try\s*{\s*importMod\s*=\s*await loadPdfImport\(\);[\s\S]{0,220}catch\s*\(err\)\s*{[\s\S]{0,220}Could not load import module - check your connection and try again\./.test(importDropZoneSrc),
   'drop-zone import path should fail loudly');
 assert('analytics consent remains deferred after first paint and behind legal gate',
-  /const showAnalyticsConsent = \(\) => \{\s*callStartupRuntime\('maybeShowAnalyticsConsent'\);\s*\};/.test(startupUiSrc)
+  /const showAnalyticsConsent = \(\) => \{\s*startupUIDeps\.maybeShowAnalyticsConsent\?\.\(\);\s*\};/.test(startupUiSrc)
   && /if \(legalGateShown\) \{\s*startupRuntime\(\)\.addEventListener\('legal-consent-accepted', \(\) => setTimeout\(showAnalyticsConsent, 800\), \{ once: true \}\);\s*\} else \{\s*setTimeout\(showAnalyticsConsent, 800\);\s*\}/.test(startupUiSrc),
   'first-run banner should stay deferred and must resume after Terms/Privacy acceptance');
 assert('legal gate runs before changelog and resumes changelog only after accept',

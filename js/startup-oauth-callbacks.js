@@ -13,6 +13,19 @@ import {
   markOpenRouterOAuthSettingsLocal,
 } from './api.js';
 import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
+import { showNotification as showAppNotification } from './utils.js';
+
+const startupOAuthCallbackDeps = { showNotification: showAppNotification };
+
+export function configureStartupOAuthCallbackDeps(deps = {}) {
+  const previous = { ...startupOAuthCallbackDeps };
+  if ('showNotification' in deps) {
+    startupOAuthCallbackDeps.showNotification = typeof deps.showNotification === 'function'
+      ? /** @type {typeof showAppNotification} */ (deps.showNotification)
+      : null;
+  }
+  return previous;
+}
 
 function startupRuntime() {
   return /** @type {Record<string, any>} */ (globalThis);
@@ -39,7 +52,7 @@ function replaceCurrentUrl() {
 }
 
 function showNotification(message, type, duration) {
-  callStartupRuntime('showNotification', message, type, duration);
+  startupOAuthCallbackDeps.showNotification?.(message, type, duration);
 }
 
 function openChatAfterInit() {

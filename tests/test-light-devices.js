@@ -617,9 +617,9 @@ const {
   assert('light-devices routes shell hooks through light-devices-runtime',
     lightDevicesSrc.includes("from './light-devices-runtime.js'") &&
     !/\bwindow\./.test(lightDevicesSrc));
-  assert('light-devices-runtime owns browser-shell hooks and legacy publication',
+  assert('light-devices-runtime owns browser-shell hooks and explicit utility dependency',
     lightDevicesRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
-    lightDevicesRuntimeSrc.includes("getRuntimeFunction('showPromptDialog')") &&
+    lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.showPromptDialog') &&
     lightDevicesRuntimeSrc.includes("getRuntimeFunction('loadCatalog')") &&
     lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
 

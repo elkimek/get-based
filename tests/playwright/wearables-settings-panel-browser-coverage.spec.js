@@ -219,10 +219,11 @@ test('wearables settings panel browser coverage deletes manual data after confir
       return false;
     };
 
-    const [{ state }, settings, store] = await Promise.all([
+    const [{ state }, settings, store, settingsRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-settings-panel.js'),
       import('/js/wearables-store.js'),
+      import('/js/wearables-settings-runtime.js'),
     ]);
 
     const profileId = `wearables-settings-delete-${Date.now()}`;
@@ -231,7 +232,7 @@ test('wearables settings panel browser coverage deletes manual data after confir
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldNavigate = window.navigate;
-    const oldShowConfirmDialog = window.showConfirmDialog;
+    const oldSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
     const navigations = [];
     const confirmMessages = [];
 
@@ -278,10 +279,10 @@ test('wearables settings panel browser coverage deletes manual data after confir
       ]);
 
       window.navigate = route => { navigations.push(route); };
-      window.showConfirmDialog = async message => {
+      settingsRuntime.configureWearableSettingsRuntimeDeps({ showConfirmDialog: async message => {
         confirmMessages.push(message);
         return true;
-      };
+      } });
       document.body.insertAdjacentHTML('beforeend', `
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
@@ -318,7 +319,7 @@ test('wearables settings panel browser coverage deletes manual data after confir
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
       window.navigate = oldNavigate;
-      window.showConfirmDialog = oldShowConfirmDialog;
+      settingsRuntime.configureWearableSettingsRuntimeDeps(oldSettingsRuntimeDeps);
     }
     return failures;
   });

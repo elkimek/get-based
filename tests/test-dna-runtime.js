@@ -113,16 +113,16 @@ try {
   assert('getDnaProfileLatitudeBand reports null on runtime errors',
     getDnaProfileLatitudeBand() === null);
 
-  globalThis.showConfirmDialog = async message => {
+  configureDnaRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(['confirm', message]);
     return true;
-  };
+  } });
   assert('confirmDnaDeleteDialog delegates confirmation',
     await confirmDnaDeleteDialog() === true &&
       calls.some(call => call[0] === 'confirm' && call[1].includes('Delete genetic data')));
-  globalThis.showConfirmDialog = async () => {
+  configureDnaRuntimeDeps({ showConfirmDialog: async () => {
     throw new Error('dialog failed');
-  };
+  } });
   assert('confirmDnaDeleteDialog reports false on dialog errors',
     await confirmDnaDeleteDialog() === false);
 
@@ -171,12 +171,12 @@ try {
   let warnLogged = false;
   console.error = () => { errorLogged = true; };
   console.warn = () => { warnLogged = true; };
-  globalThis.isDebugMode = () => false;
+  configureDnaRuntimeDeps({ isDebugMode: () => false });
   logDnaDebugError('hidden');
   logDnaDebugWarn('hidden');
   assert('debug logs are gated off when debug mode is false',
     !errorLogged && !warnLogged);
-  globalThis.isDebugMode = () => true;
+  configureDnaRuntimeDeps({ isDebugMode: () => true });
   logDnaDebugError('shown');
   logDnaDebugWarn('shown');
   assert('debug logs are emitted when debug mode is true',

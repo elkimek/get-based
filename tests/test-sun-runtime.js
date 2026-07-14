@@ -4,6 +4,7 @@
 import './_node-shim.js';
 import {
   addSunProfileSwitchListener,
+  configureSunRuntimeDeps,
   exposeSunRuntimeBindings,
   getSunDeviceSessionsRuntime,
   hasSunBrowserRuntime,
@@ -16,6 +17,8 @@ import {
   renderLightTodayStripRuntime,
   requestSunGeolocationPositionRuntime,
 } from '../js/sun-runtime.js';
+
+const originalSunRuntimeDeps = configureSunRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -68,7 +71,7 @@ try {
   setRuntimeValue('_openChannelOnLightPage', channel => calls.push(['channel', channel]));
   const profileListener = () => calls.push(['profile-switch']);
   setRuntimeValue('addEventListener', (type, listener) => calls.push(['listener', type, listener]));
-  setRuntimeValue('isDebugMode', () => true);
+  configureSunRuntimeDeps({ isDebugMode: () => true });
 
   assert('hasSunBrowserRuntime detects browser runtime',
     hasSunBrowserRuntime() === true);
@@ -117,7 +120,7 @@ try {
   setRuntimeValue('navigate', () => { throw new Error('boom'); });
   setRuntimeValue('renderLightChannelsLive', () => { throw new Error('boom'); });
   setRuntimeValue('_openChannelOnLightPage', () => { throw new Error('boom'); });
-  setRuntimeValue('isDebugMode', () => { throw new Error('boom'); });
+  configureSunRuntimeDeps({ isDebugMode: () => { throw new Error('boom'); } });
   rebuildSunSidebarRuntime();
   navigateSunRuntime('dashboard');
   renderLightChannelsLiveRuntime();
@@ -153,6 +156,7 @@ try {
     calls.length === beforeNoWindowCalls &&
     globalThis.sunRuntimeProbe === probe);
 } finally {
+  configureSunRuntimeDeps(originalSunRuntimeDeps);
   restoreRuntime();
 }
 

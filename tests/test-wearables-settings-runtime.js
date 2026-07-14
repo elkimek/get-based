@@ -4,10 +4,13 @@
 import './_node-shim.js';
 import {
   closeWearableSettingsModal,
+  configureWearableSettingsRuntimeDeps,
   confirmWearableSettingsAction,
   exposeWearableSettingsBindings,
   navigateWearablesDashboard,
 } from '../js/wearables-settings-runtime.js';
+
+const originalWearableSettingsRuntimeDeps = configureWearableSettingsRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -41,10 +44,10 @@ try {
   const calls = [];
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('closeSettingsModal', () => calls.push(['close-settings']));
-  setRuntimeValue('showConfirmDialog', async message => {
+  configureWearableSettingsRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(['confirm', message]);
     return message === 'confirm me';
-  });
+  } });
 
   navigateWearablesDashboard();
   closeWearableSettingsModal();
@@ -62,6 +65,7 @@ try {
     globalThis.wearableProbe === probe);
 
   delete globalThis.window;
+  configureWearableSettingsRuntimeDeps({ showConfirmDialog: null });
   navigateWearablesDashboard();
   closeWearableSettingsModal();
   const missingConfirm = await confirmWearableSettingsAction('confirm me');
@@ -69,6 +73,7 @@ try {
   assert('runtime adapter no-ops safely when window is missing',
     !missingConfirm && globalThis.wearableProbe === probe);
 } finally {
+  configureWearableSettingsRuntimeDeps(originalWearableSettingsRuntimeDeps);
   restoreRuntime();
 }
 

@@ -402,9 +402,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     window.navigate = view => {
       window.__startupUICalls.push(['navigate', view]);
     };
-    window.maybeShowAnalyticsConsent = () => {
-      window.__startupUICalls.push('maybeShowAnalyticsConsent');
-    };
     window.openSettingsModal = section => {
       window.__startupUICalls.push(['openSettingsModal', section]);
     };
@@ -443,6 +440,11 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
 
     try {
       const startupUi = await import(startupUiUrl);
+      startupUi.configureStartupUIDeps({
+        maybeShowAnalyticsConsent: () => {
+          window.__startupUICalls.push('maybeShowAnalyticsConsent');
+        },
+      });
       startupUi.renderStartupUI();
       const deferredWorkCompleted = await waitUntil(() => window.__startupUICalls
         .filter(call => call === 'renderSyncIndicator').length >= 2);
