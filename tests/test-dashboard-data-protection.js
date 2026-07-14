@@ -28,12 +28,9 @@ function assert(name, condition, detail) {
 console.log('=== Data Protection Dashboard Tests ===\n');
 
 // context-cards.js exposes renderDataProtectionCta + openDataProtectionPicker +
-// showEnableEncryptionModal + pickFolderForBackup; showSyncSetupModal is
-// bound by settings-sync-panel.js through settings.js (Playwright gets it for
-// free via main.js — in Node we import settings explicitly so the section-7
-// window-export check sees it).
+// showEnableEncryptionModal + pickFolderForBackup. Sync setup stays module-only.
 const cards = await import('../js/context-cards.js');
-await import('../js/settings.js');
+const settingsSyncPanel = await import('../js/settings-sync-panel.js');
 
 const make = (overrides) => ({
   encryption: false,
@@ -94,12 +91,14 @@ const make = (overrides) => ({
 // Section 6 (picker open/dismiss — live DOM) lives in
 // tests/playwright/dashboard-data-protection.spec.js.
 
-// ─── 7. Window exports ───────────────────────────────────
+// ─── 7. Public APIs ──────────────────────────────────────
 {
   assert('window.openDataProtectionPicker exists',
     typeof window.openDataProtectionPicker === 'function');
-  assert('window.showSyncSetupModal exists',
-    typeof window.showSyncSetupModal === 'function');
+  assert('settings-sync-panel.showSyncSetupModal exists',
+    typeof settingsSyncPanel.showSyncSetupModal === 'function');
+  assert('window.showSyncSetupModal stays module-only',
+    !('showSyncSetupModal' in window));
   assert('window.showEnableEncryptionModal exists',
     typeof window.showEnableEncryptionModal === 'function');
   assert('window.pickFolderForBackup exists',

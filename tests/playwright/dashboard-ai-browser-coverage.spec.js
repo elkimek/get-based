@@ -40,7 +40,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const savedGlobals = {
       showDirectoryPicker: originalShowDirectoryPicker,
       showEnableEncryptionModal: window.showEnableEncryptionModal,
-      showSyncSetupModal: window.showSyncSetupModal,
       pickFolderForBackup: window.pickFolderForBackup,
       openInterpretiveLensEditor: window.openInterpretiveLensEditor,
       handleDNAFile: window.handleDNAFile,
@@ -59,6 +58,8 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     let clickedInputId = null;
     let handledDnaFile = null;
 
+    dashboardAi.configureDashboardAISyncSetup(() => calls.push('sync'));
+
     try {
       window.setTimeout = (fn, delay, ...args) => {
         timers.push(delay);
@@ -66,7 +67,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         return timers.length;
       };
       window.showEnableEncryptionModal = () => calls.push('encryption');
-      window.showSyncSetupModal = () => calls.push('sync');
       window.pickFolderForBackup = () => calls.push('backup');
       window.openInterpretiveLensEditor = () => calls.push('lens');
       window.handleDNAFile = file => {
@@ -238,6 +238,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       host.remove();
       document.querySelectorAll('#data-protection-picker-overlay,#ai-personalize-picker-overlay,#dna-dashboard-input')
         .forEach(el => el.remove());
+      dashboardAi.configureDashboardAISyncSetup();
       HTMLInputElement.prototype.click = originalInputClick;
       for (const [name, original] of Object.entries(savedGlobals)) {
         if (name === 'showDirectoryPicker' && !hadShowDirectoryPicker) delete window[name];

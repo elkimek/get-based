@@ -187,7 +187,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
@@ -195,6 +195,7 @@
     import('../js/lens.js'),
     import('../js/light-tools.js'),
     import('../js/pii.js'),
+    import('../js/settings-sync-panel.js'),
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
     import('../js/supplements.js'),
@@ -250,6 +251,20 @@
     'openLuxMeter','openFlickerDetector','openDarknessMeter','openCCTMeter',
     'openSpectrumClassifier','openGlassTransmission','openSunriseLogger','openEyeLevelAudit',
     'getMeasurements','getMeasurementsForRoom','saveMeasurement','deleteMeasurement','renderLightTools'
+  ];
+
+  // settings-sync-panel.js (6, module-only)
+  const settingsSyncPanelExports = [
+    'renderMessengerSection','renderSyncSection','showSyncSetupModal',
+    'closeSyncSetup','closeRestoreMnemonicDialog','hydrateSettingsSyncPanel'
+  ];
+  const settingsSyncPanelLegacyGlobals = [
+    'toggleSync','toggleMnemonicVisibility','copyMnemonic','copySyncIdentityCode',
+    'openRestoreMnemonicDialog','closeRestoreMnemonicDialog','confirmRestoreMnemonic',
+    'saveSyncRelay','closeSyncSetup','syncSetupNew','syncSetupRestore','syncSetupBack',
+    'syncSetupDoRestore','syncSetupDone','showSyncSetupModal','toggleMessenger',
+    'toggleMessengerToken','toggleMessengerContextKey','copyMessengerToken',
+    'copyMessengerContextKey','regenerateMessengerToken','regenerateMessengerContextKey'
   ];
 
   // sun-context.js (6, module-only)
@@ -521,6 +536,7 @@
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pii.js', piiModule, piiExports],
+    ['settings-sync-panel.js', settingsSyncPanelModule, settingsSyncPanelExports],
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
@@ -539,6 +555,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of lightToolsLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   assert('lab-context.js.configureLabContext module export',
