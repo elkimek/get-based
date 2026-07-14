@@ -24,12 +24,11 @@ function assert(name, condition, detail) {
 
 console.log('=== Image Utils Tests ===\n');
 
-// pdf-import.js + chat-images.js expose UI helpers via Object.assign(window, ...).
-// image-utils.js stays module-scoped; chat/image consumers import it directly.
+// PDF and image helpers are consumed through their module APIs.
 await import('../js/state.js');
 const api = await import('../js/api.js');
 const imageUtils = await import('../js/image-utils.js');
-await import('../js/pdf-import.js');
+const pdfImport = await import('../js/pdf-import.js');
 await import('../js/chat-images.js');
 const { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } = imageUtils;
 
@@ -103,11 +102,11 @@ assert('Empty text omitted', noText.length === 1);
 // ═══════════════════════════════════════
 console.log('5. assessTextQuality');
 
-assert('assessTextQuality exported', typeof window.assessTextQuality === 'function');
-assert('Empty text = empty', window.assessTextQuality('') === 'empty');
-assert('Null text = empty', window.assessTextQuality(null) === 'empty');
-assert('Short text = poor', window.assessTextQuality('just a few words') === 'poor');
-assert('Good text', window.assessTextQuality('This is a normal lab report with glucose creatinine albumin and many other biomarker results that span multiple lines of text with values and reference ranges included for comprehensive analysis') === 'good');
+assert('assessTextQuality exported', typeof pdfImport.assessTextQuality === 'function');
+assert('Empty text = empty', pdfImport.assessTextQuality('') === 'empty');
+assert('Null text = empty', pdfImport.assessTextQuality(null) === 'empty');
+assert('Short text = poor', pdfImport.assessTextQuality('just a few words') === 'poor');
+assert('Good text', pdfImport.assessTextQuality('This is a normal lab report with glucose creatinine albumin and many other biomarker results that span multiple lines of text with values and reference ranges included for comprehensive analysis') === 'good');
 
 // HTML structure + CSS-rule checks (sections 6+7) live in
 // tests/playwright/image-utils-dom.spec.js.
@@ -117,8 +116,11 @@ assert('Good text', window.assessTextQuality('This is a normal lab report with g
 // ═══════════════════════════════════════
 console.log('8. PDF Image Fallback');
 
-assert('extractPDFImages exported', typeof window.extractPDFImages === 'function');
-assert('parseLabPDFWithAIImages exported', typeof window.parseLabPDFWithAIImages === 'function');
+assert('extractPDFImages exported', typeof pdfImport.extractPDFImages === 'function');
+assert('parseLabPDFWithAIImages exported', typeof pdfImport.parseLabPDFWithAIImages === 'function');
+assert('PDF import helpers stay module-only', !('assessTextQuality' in window)
+  && !('extractPDFImages' in window)
+  && !('parseLabPDFWithAIImages' in window));
 
 // ═══════════════════════════════════════
 // 9. Source code checks

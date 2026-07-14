@@ -7,6 +7,16 @@ function getRuntimeWindow() {
     : null;
 }
 
+const pdfImportReviewRuntimeDeps = {
+  confirmImport: () => import('./pdf-import-commit.js').then(module => module.confirmImport()),
+};
+
+export function configurePdfImportReviewRuntimeDeps(deps = {}) {
+  const previous = { ...pdfImportReviewRuntimeDeps };
+  if (typeof deps.confirmImport === 'function') pdfImportReviewRuntimeDeps.confirmImport = deps.confirmImport;
+  return previous;
+}
+
 /**
  * @param {string} name
  * @returns {Function | null}
@@ -25,9 +35,8 @@ export function clearPendingImportRuntime() {
 }
 
 export function confirmImportFromRuntime() {
-  const runtime = getRuntimeWindow();
-  const confirmImport = runtime?.confirmImport;
-  if (typeof confirmImport === 'function') confirmImport.call(runtime);
+  if (!getRuntimeWindow()) return;
+  return pdfImportReviewRuntimeDeps.confirmImport();
 }
 
 export function getPendingImportFromRuntime() {

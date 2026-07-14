@@ -21,6 +21,7 @@ test('views router browser coverage exercises route state and scroll restoration
       import(profileUrl),
       import(stateUrl),
     ]);
+    const routerRuntime = await import('/js/views-router-runtime.js');
     const outcomes = {};
     const { state } = stateModule;
     const fixture = document.getElementById('fixture');
@@ -29,9 +30,7 @@ test('views router browser coverage exercises route state and scroll restoration
     const originalScrollTo = window.scrollTo;
     const originalScrollBy = window.scrollBy;
     const originalCloseMobileSidebar = window.closeMobileSidebar;
-    const originalSyncImportStatusFab = window.syncImportStatusFab;
     const hadCloseMobileSidebar = Object.prototype.hasOwnProperty.call(window, 'closeMobileSidebar');
-    const hadSyncImportStatusFab = Object.prototype.hasOwnProperty.call(window, 'syncImportStatusFab');
     const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
     const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
     const originalPageXOffset = Object.getOwnPropertyDescriptor(window, 'pageXOffset');
@@ -42,6 +41,9 @@ test('views router browser coverage exercises route state and scroll restoration
     const coverageLastViewKey = profileModule.profileStorageKey(coverageProfile, 'lastViewV1');
     const extraLastViewKey = profileModule.profileStorageKey(extraProfile, 'lastViewV1');
     const calls = [];
+    const previousRouterRuntimeDeps = routerRuntime.configureViewsRouterRuntimeDeps({
+      syncImportStatusFab: () => calls.push(['syncFab']),
+    });
     const scrollByCalls = [];
     const scrollToCalls = [];
     const categoryData = { categories: { lipids: { label: 'Lipids', markers: {} } } };
@@ -92,7 +94,6 @@ test('views router browser coverage exercises route state and scroll restoration
       localStorage.removeItem(coverageLastViewKey);
       localStorage.removeItem(extraLastViewKey);
       window.closeMobileSidebar = () => calls.push(['closeSidebar']);
-      window.syncImportStatusFab = () => calls.push(['syncFab']);
       window.scrollTo = arg => {
         scrollToCalls.push(typeof arg === 'object' ? { left: arg.left, top: arg.top, behavior: arg.behavior } : arg);
       };
@@ -275,8 +276,7 @@ test('views router browser coverage exercises route state and scroll restoration
       window.scrollBy = originalScrollBy;
       if (hadCloseMobileSidebar) window.closeMobileSidebar = originalCloseMobileSidebar;
       else delete window.closeMobileSidebar;
-      if (hadSyncImportStatusFab) window.syncImportStatusFab = originalSyncImportStatusFab;
-      else delete window.syncImportStatusFab;
+      routerRuntime.configureViewsRouterRuntimeDeps(previousRouterRuntimeDeps);
       restoreDescriptor('scrollX', originalScrollX);
       restoreDescriptor('scrollY', originalScrollY);
       restoreDescriptor('pageXOffset', originalPageXOffset);

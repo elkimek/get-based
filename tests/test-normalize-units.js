@@ -366,7 +366,7 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
   // ═══════════════════════════════════════
   console.log('%c 19. assessTextQuality ', 'font-weight:bold;color:#f59e0b');
 
-  // assessTextQuality is exported on window
+  // assessTextQuality is consumed through the PDF import module.
   const atq = assessTextQuality;
   if (atq) {
     assert('empty text → empty', atq('') === 'empty');
@@ -398,8 +398,7 @@ const { assessTextQuality } = await import('../js/pdf-import.js');
   console.log('%c 20. assessTextQuality — source verification ', 'font-weight:bold;color:#f59e0b');
 
   assert('assessTextQuality is an export', src.includes('export function assessTextQuality'));
-  assert('assessTextQuality on window', src.includes('assessTextQuality') &&
-    (src.includes('Object.assign(window') || src.includes('window.')));
+  assert('assessTextQuality stays module-only', !('assessTextQuality' in window));
   assert('word split on whitespace', fileUtilsSrc.includes("split(/\\s+/)"));
   assert('alpha regex includes Latin Extended', fileUtilsSrc.includes('\\u00C0-\\u024F'));
   assert('alpha regex includes Cyrillic', fileUtilsSrc.includes('\\u0400-\\u04FF'));

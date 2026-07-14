@@ -2,6 +2,15 @@
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
 
 import { installDNAWindowBindings } from './dna-window-bindings.js';
+import { isImportRunning } from './pdf-import-progress.js';
+
+const dnaRuntimeDeps = { isImportRunning };
+
+export function configureDnaRuntimeDeps(deps = {}) {
+  const previous = { ...dnaRuntimeDeps };
+  if (typeof deps.isImportRunning === 'function') dnaRuntimeDeps.isImportRunning = deps.isImportRunning;
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -63,10 +72,8 @@ export function refreshDnaShell(route) {
 
 /** @returns {boolean} */
 export function isDnaLabImportRunning() {
-  const isImportRunning = getRuntimeFunction('isImportRunning');
-  if (!isImportRunning) return false;
   try {
-    return isImportRunning() === true;
+    return dnaRuntimeDeps.isImportRunning() === true;
   } catch {
     return true;
   }

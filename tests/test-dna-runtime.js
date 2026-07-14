@@ -5,6 +5,7 @@ import {
   cacheDnaSnpTable,
   callDnaFileHandler,
   clearPendingDnaImport,
+  configureDnaRuntimeDeps,
   confirmDnaDeleteDialog,
   clearPendingMtDnaImport,
   getDnaProfileLatitudeBand,
@@ -52,7 +53,6 @@ const runtimeKeys = [
   'getLatitudeFromLocation',
   'handleDNAFile',
   'isDebugMode',
-  'isImportRunning',
   'navigate',
   'showConfirmDialog',
   'triggerDNAFilePicker',
@@ -61,6 +61,7 @@ const runtimeKeys = [
 const originals = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const originalError = console.error;
 const originalWarn = console.warn;
+const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
 
 try {
   for (const key of runtimeKeys) delete globalThis[key];
@@ -84,11 +85,11 @@ try {
   try { refreshDnaSidebar(); } catch (_) { sidebarThrew = true; }
   assert('refreshDnaSidebar swallows sidebar refresh errors', !sidebarThrew);
 
-  globalThis.isImportRunning = () => true;
+  configureDnaRuntimeDeps({ isImportRunning: () => true });
   assert('isDnaLabImportRunning delegates true state', isDnaLabImportRunning() === true);
-  globalThis.isImportRunning = () => {
-    throw new Error('import status failed');
-  };
+  configureDnaRuntimeDeps({
+    isImportRunning: () => { throw new Error('import status failed'); },
+  });
   assert('isDnaLabImportRunning fails closed on runtime errors', isDnaLabImportRunning() === true);
 
   globalThis.handleDNAFile = file => calls.push(['handleDNAFile', file.name]);
@@ -196,6 +197,7 @@ try {
       globalThis._getState() === state &&
       typeof globalThis._saveAndRefresh === 'function');
 } finally {
+  configureDnaRuntimeDeps(originalDnaRuntimeDeps);
   console.error = originalError;
   console.warn = originalWarn;
   for (const key of runtimeKeys) {

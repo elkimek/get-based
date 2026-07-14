@@ -5,6 +5,7 @@ import './_node-shim.js';
 
 import {
   clearPendingImportRuntime,
+  configurePdfImportReviewRuntimeDeps,
   confirmImportFromRuntime,
   getBatchImportContext,
   getPendingImportFromRuntime,
@@ -31,7 +32,6 @@ const RUNTIME_FIELDS = [
   '_batchImportContext',
   '__importReviewDelegatesBound',
   'buildSidebar',
-  'confirmImport',
   'navigate',
   'showPIIDiffViewer',
   'updateHeaderDates',
@@ -107,14 +107,12 @@ try {
   assert('delegate binding flag stored in runtime', globalThis.__importReviewDelegatesBound === true);
 
   let confirmCalls = 0;
-  let confirmThis = null;
-  globalThis.confirmImport = function() {
-    confirmCalls++;
-    confirmThis = this;
-  };
+  const previousReviewRuntimeDeps = configurePdfImportReviewRuntimeDeps({
+    confirmImport: () => { confirmCalls++; },
+  });
   confirmImportFromRuntime();
-  assert('confirm callback is called from runtime', confirmCalls === 1);
-  assert('confirm callback preserves window receiver', confirmThis === globalThis);
+  assert('confirm callback uses configured module dependency', confirmCalls === 1);
+  configurePdfImportReviewRuntimeDeps(previousReviewRuntimeDeps);
 
   let diffArgs = null;
   let diffThis = null;
