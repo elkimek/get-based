@@ -365,6 +365,10 @@ export async function isCycleImportFile(file) {
 export async function parseCycleImportFile(file) {
   if (!file) return null;
   const context = await buildCycleFileContext(file);
+  return parseCycleImportContext(context);
+}
+
+async function parseCycleImportContext(context) {
   for (const adapter of CYCLE_IMPORT_ADAPTERS) {
     if (!await adapter.detect(context)) continue;
     const parsed = await adapter.parse(context);
@@ -744,10 +748,25 @@ export function installCycleImportDelegates() {
 
 export async function handleCycleImportFile(file) {
   let parsed = null;
+  let importLabel = 'Cycle';
   try {
-    parsed = await parseCycleImportFile(file);
+    const context = await buildCycleFileContext(file);
+    const appleHealthEntry = context.kind === 'zip' ? appleHealthArchiveEntry(context) : null;
+    if (context.kind === 'xml' || appleHealthEntry) {
+      importLabel = 'Apple Health';
+      const xmlBlob = context.kind === 'xml' ? context.file : await appleHealthEntry.async('blob');
+      const { importAppleHealthFile } = await import('./wearables-apple-health.js');
+      showNotification('Importing Apple Health data...', 'info', 1600);
+      const result = await importAppleHealthFile(file, null, { xmlBlob });
+      const cycleSuffix = result.cycleImport ? ` + ${result.cycleImport.periods} cycle periods` : '';
+      showNotification(`Apple Health imported - ${result.rows} days${cycleSuffix}`, 'success', 3000);
+      if (result.cycleError) showNotification(`Cycle import skipped: ${result.cycleError}`, 'info', 5000);
+      appWindow.navigate?.('dashboard');
+      return true;
+    }
+    parsed = await parseCycleImportContext(context);
   } catch (err) {
-    showNotification(`Cycle import failed: ${err.message}`, 'error');
+    showNotification(`${importLabel} import failed: ${err.message}`, 'error');
     return false;
   }
   if (!parsed) {

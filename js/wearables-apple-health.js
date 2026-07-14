@@ -35,13 +35,15 @@ export async function importAppleHealthFile(file, onProgress, options = {}) {
   onProgress?.({ stage: 'reading', pct: 0 });
 
   const name = (file.name || '').toLowerCase();
-  let xmlBlob;
-  if (name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
-    xmlBlob = await extractExportXmlBlob(file, onProgress);
-  } else if (name.endsWith('.xml') || file.type === 'application/xml' || file.type === 'text/xml') {
-    xmlBlob = file;
-  } else {
-    throw new Error(`Unrecognised file type (got "${name}") — expected Apple Health export.zip or export.xml`);
+  let xmlBlob = options.xmlBlob || null;
+  if (!xmlBlob) {
+    if (name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+      xmlBlob = await extractExportXmlBlob(file, onProgress);
+    } else if (name.endsWith('.xml') || file.type === 'application/xml' || file.type === 'text/xml') {
+      xmlBlob = file;
+    } else {
+      throw new Error(`Unrecognised file type (got "${name}") — expected Apple Health export.zip or export.xml`);
+    }
   }
   if (!xmlBlob || xmlBlob.size === 0) throw new Error('Empty XML payload');
 

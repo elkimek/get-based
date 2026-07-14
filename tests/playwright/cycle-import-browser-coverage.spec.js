@@ -28,6 +28,9 @@ const CLUE_JSON = JSON.stringify({
 });
 
 const APPLE_HEALTH_CYCLE_XML = `<HealthData>
+  <Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" sourceName="Watch" startDate="2026-03-01 01:00:00 +0000" value="47" />
+  <Record type="HKQuantityTypeIdentifierRestingHeartRate" unit="count/min" sourceName="Watch" startDate="2026-03-01 07:00:00 +0000" value="58" />
+  <Record type="HKQuantityTypeIdentifierBodyMass" unit="kg" sourceName="Scale" startDate="2026-03-01 08:00:00 +0000" value="68.5" />
   <Record type="HKCategoryTypeIdentifierMenstrualFlow" value="HKCategoryValueMenstrualFlowLight" startDate="2026-03-01 08:00:00 +0000" />
   <Record type="HKCategoryTypeIdentifierMenstrualFlow" value="HKCategoryValueMenstrualFlowHeavy" startDate="2026-03-02 08:00:00 +0000" />
 </HealthData>`;
@@ -228,6 +231,70 @@ test('Apple Health Settings import closes Settings before showing cycle review',
     await (await import('/js/cycle-store.js')).deleteCycleDB(id).catch(() => {});
     await (await import('/js/wearables-store.js')).deleteWearablesDB(id).catch(() => {});
   }, profileId);
+});
+
+test('shared Apple Health ZIP import saves wearable metrics before cycle review', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+  const profileId = await initializeCycleProfile(page, 'apple_health_shared_import');
+  await page.addScriptTag({ url: '/vendor/jszip.min.js' });
+  const zipBase64 = await page.evaluate(async xml => {
+    const zip = new window.JSZip();
+    zip.file('apple_health_export/export.xml', xml);
+    return zip.generateAsync({ type: 'base64' });
+  }, APPLE_HEALTH_CYCLE_XML);
+
+  await page.locator('#pdf-input').setInputFiles({
+    name: 'export.zip',
+    mimeType: 'application/zip',
+    buffer: Buffer.from(zipBase64, 'base64'),
+  });
+
+  const preview = page.locator('#import-modal-overlay');
+  await expect(preview).toHaveClass(/show/);
+  await expect(page.locator('#import-modal')).toContainText('Apple Health');
+
+  const wearableImport = await page.evaluate(async id => {
+    const [{ state }, store] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/wearables-store.js'),
+    ]);
+    const row = await store.getDaily(id, 'apple_health', '2026-03-01');
+    return {
+      row,
+      connection: state.importedData.wearableConnections?.apple_health,
+    };
+  }, profileId);
+  expect(wearableImport.row).toMatchObject({
+    hrv_sdnn: 47,
+    rhr: 58,
+    weight: 68.5,
+  });
+  expect(wearableImport.connection).toMatchObject({
+    source: 'file-import',
+    fileName: 'export.zip',
+    coverageDays: 1,
+  });
+
+  await page.locator('[data-cycle-import-action="confirm"]').click();
+  await expect(preview).not.toHaveClass(/show/);
+  await expect.poll(() => page.evaluate(() => window._labState.importedData.menstrualCycle?.periods?.length || 0)).toBe(1);
+
+  const periods = await page.evaluate(id => {
+    const result = window._labState.importedData.menstrualCycle.periods.map(period => ({
+      startDate: period.startDate,
+      endDate: period.endDate,
+      source: period.source,
+    }));
+    return Promise.all([
+      import('/js/cycle-store.js').then(store => store.deleteCycleDB(id).catch(() => {})),
+      import('/js/wearables-store.js').then(store => store.deleteWearablesDB(id).catch(() => {})),
+    ]).then(() => result);
+  }, profileId);
+  expect(periods).toEqual([{
+    startDate: '2026-03-01',
+    endDate: '2026-03-02',
+    source: 'apple_health',
+  }]);
 });
 
 test('Body cycle action opens the contextual cycle picker', async ({ page }, testInfo) => {
