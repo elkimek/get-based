@@ -720,7 +720,7 @@ const VITD_SATURATION_IU = 20000;
 // limited to ~11k regardless of how aggressive the panel is. Real
 // biology lands closer to 15k per 100%-body for Type II skin; we use
 // 30k to avoid under-attributing yield for sub-saturating sessions.
-const VITD_PER_SESSION_BODYFRAC_CAP_IU = 30000;
+export const VITD_PER_SESSION_BODYFRAC_CAP_IU = 30000;
 
 // UVI threshold gate. Webb 2018, Lehmann 2013, McKenzie 2009 (NIWA):
 // no meaningful vit D synthesis below UVI ~2-3 because the 295-300 nm
@@ -1076,29 +1076,3 @@ export function validateModeCoupling(device, modeId) {
 
 export const SUN_CHANNELS = CHANNELS.map(({ id, key, label }) => ({ id, key, label }));
 export { erythemalAt, vitaminDAt, melanopicAt, opn5At, ccoAt, noReleaseAt };
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    reconstructSpectrum,
-    synthesizeDeviceSpectrum,
-    effectiveDeviceForMode,
-    validateModeCoupling,
-    heuristicPeakShares,
-    computeChannelDoses,
-    erythemalSED,
-    fractionOfMED,
-    vitaminDIU,
-    vitaminDIURaw,
-    vitaminDIUPerSession,
-    VITD_DAILY_SATURATION_IU,
-    VITD_PER_SESSION_BODYFRAC_CAP_IU,
-    vitaminDIURange,
-    geneticVitaminDMultiplier,
-    pbmJoulesPerCm2,
-    circadianMelanopicLux,
-    retinalUVdose,
-    glassTransmission,
-    sunscreenTransmission,
-    SUN_CHANNELS,
-  });
-}

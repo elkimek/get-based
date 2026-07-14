@@ -20,7 +20,6 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       fetch: window.fetch,
       getOllamaConfig: window.getOllamaConfig,
       solarZenithAngle: window.solarZenithAngle,
-      vitaminDIU: window.vitaminDIU,
       refreshSunSurfaces: window._refreshSunSurfaces,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
@@ -328,7 +327,6 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       window.fetch = saved.fetch;
       window.getOllamaConfig = saved.getOllamaConfig;
       window.solarZenithAngle = saved.solarZenithAngle;
-      window.vitaminDIU = saved.vitaminDIU;
       window._refreshSunSurfaces = saved.refreshSunSurfaces;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);

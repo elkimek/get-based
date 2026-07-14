@@ -31,13 +31,6 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
-      fetchAtmosphere: window.fetchAtmosphere,
-      reconstructSpectrum: window.reconstructSpectrum,
-      computeChannelDoses: window.computeChannelDoses,
-      erythemalSED: window.erythemalSED,
-      fractionOfMED: window.fractionOfMED,
-      retinalUVdose: window.retinalUVdose,
-      solarZenithAngle: window.solarZenithAngle,
       consoleWarn: console.warn,
     };
     const results = {};
@@ -94,7 +87,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       });
       console.warn = (...args) => warnings.push(args.map(String).join(' '));
 
-      window.fetchAtmosphere = async () => {
+      const fetchAtmosphere = async () => {
         fetchCalls += 1;
         return {
           uvIndex: 5,
@@ -103,26 +96,26 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
           airQuality: { aod: 0.15 },
         };
       };
-      window.reconstructSpectrum = args => {
+      const reconstructSpectrum = args => {
         lastSpectrumArgs = args;
         return { wavelengths: [300, 305], irradiance: [1, 0.8] };
       };
-      window.computeChannelDoses = args => {
+      const computeChannelDoses = args => {
         lastDoseArgs = args;
         return { vitamin_d: 66, circadian: 11 };
       };
-      window.erythemalSED = () => 13;
-      window.fractionOfMED = () => 0.25;
-      window.retinalUVdose = () => 0.02;
-      window.solarZenithAngle = () => 35;
+      const erythemalSED = () => 13;
+      const fractionOfMED = () => 0.25;
+      const retinalUVdose = () => 0.02;
+      const solarZenithAngle = () => 35;
       store.configureSunSessionsStore({
-        fetchAtmosphere: window.fetchAtmosphere,
-        reconstructSpectrum: window.reconstructSpectrum,
-        computeChannelDoses: window.computeChannelDoses,
-        erythemalSED: window.erythemalSED,
-        fractionOfMED: window.fractionOfMED,
-        retinalUVdose: window.retinalUVdose,
-        solarZenithAngle: window.solarZenithAngle,
+        fetchAtmosphere,
+        reconstructSpectrum,
+        computeChannelDoses,
+        erythemalSED,
+        fractionOfMED,
+        retinalUVdose,
+        solarZenithAngle,
       });
 
       const activeId = await store.startSession({
@@ -261,13 +254,6 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       data.invalidateActiveDataCache();
-      window.fetchAtmosphere = saved.fetchAtmosphere;
-      window.reconstructSpectrum = saved.reconstructSpectrum;
-      window.computeChannelDoses = saved.computeChannelDoses;
-      window.erythemalSED = saved.erythemalSED;
-      window.fractionOfMED = saved.fractionOfMED;
-      window.retinalUVdose = saved.retinalUVdose;
-      window.solarZenithAngle = saved.solarZenithAngle;
       console.warn = saved.consoleWarn;
       localStorage.clear();
       for (const [key, value] of storage) {

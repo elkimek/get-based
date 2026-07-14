@@ -190,20 +190,16 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
     const saved = {
       currentView: state.currentView,
       importedData: JSON.parse(JSON.stringify(state.importedData)),
-      vitaminDIU: window.vitaminDIU,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      circadianMelanopicLux: window.circadianMelanopicLux,
       navigate: window.navigate,
     };
 
     try {
       state.currentView = 'light';
       state.importedData = { ...state.importedData, genetics: { snps: [] } };
-      window.vitaminDIU = () => 900;
-      window.vitaminDIUPerSession = () => 1550;
-      window.pbmJoulesPerCm2 = () => 12.4;
-      window.circadianMelanopicLux = () => 12600;
+      const vitaminDIU = () => 900;
+      const vitaminDIUPerSession = () => 1550;
+      const pbmJoulesPerCm2 = () => 12.4;
+      const circadianMelanopicLux = () => 12600;
       window.navigate = route => calls.push(['navigate', route]);
 
       sunUI.configureSunSessionUI({
@@ -238,10 +234,10 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
         tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
         formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
-        vitaminDIU: window.vitaminDIU,
-        vitaminDIUPerSession: window.vitaminDIUPerSession,
-        pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-        circadianMelanopicLux: window.circadianMelanopicLux,
+        vitaminDIU,
+        vitaminDIUPerSession,
+        pbmJoulesPerCm2,
+        circadianMelanopicLux,
       });
 
       const chipHost = document.createElement('div');
@@ -286,10 +282,6 @@ test('sun session UI covers chip units and detailed dialog validation paths', as
     } finally {
       state.currentView = saved.currentView;
       state.importedData = saved.importedData;
-      window.vitaminDIU = saved.vitaminDIU;
-      window.vitaminDIUPerSession = saved.vitaminDIUPerSession;
-      window.pbmJoulesPerCm2 = saved.pbmJoulesPerCm2;
-      window.circadianMelanopicLux = saved.circadianMelanopicLux;
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
       sunUI.configureSunSessionUI({

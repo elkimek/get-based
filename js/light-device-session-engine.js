@@ -6,6 +6,12 @@
 // spectrum synthesis, and SAD-lux fallback.
 
 import { BODY_REGIONS } from './sun-body-silhouette.js';
+import {
+  computeChannelDoses as computeSpectrumChannelDoses,
+  effectiveDeviceForMode as getEffectiveDeviceForMode,
+  synthesizeDeviceSpectrum as synthesizeSpectrumForDevice,
+  validateModeCoupling as validateDeviceModeCoupling,
+} from './sun-spectrum.js';
 
 /**
  * @typedef {object} DeviceSessionDoseInput
@@ -38,12 +44,11 @@ export const DEVICE_TYPE_CHANNELS = {
 };
 
 function _runtimeDeps(deps = {}) {
-  const w = typeof window !== 'undefined' ? window : {};
   return {
-    validateModeCoupling: deps.validateModeCoupling || w.validateModeCoupling,
-    effectiveDeviceForMode: deps.effectiveDeviceForMode || w.effectiveDeviceForMode,
-    synthesizeDeviceSpectrum: deps.synthesizeDeviceSpectrum || w.synthesizeDeviceSpectrum,
-    computeChannelDoses: deps.computeChannelDoses || w.computeChannelDoses,
+    validateModeCoupling: deps.validateModeCoupling || validateDeviceModeCoupling,
+    effectiveDeviceForMode: deps.effectiveDeviceForMode || getEffectiveDeviceForMode,
+    synthesizeDeviceSpectrum: deps.synthesizeDeviceSpectrum || synthesizeSpectrumForDevice,
+    computeChannelDoses: deps.computeChannelDoses || computeSpectrumChannelDoses,
   };
 }
 

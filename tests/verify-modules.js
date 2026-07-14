@@ -187,7 +187,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, sunContextModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
@@ -196,6 +196,7 @@
     import('../js/light-tools.js'),
     import('../js/pii.js'),
     import('../js/sun-context.js'),
+    import('../js/sun-spectrum.js'),
     import('../js/supplements.js'),
   ]);
   const apiExports = [
@@ -259,6 +260,16 @@
   const sunContextLegacyGlobals = [
     'buildSunContext','getSunSessionsSlice','getSunSessionDetail',
     'isBodyRegionsInAIContext','setBodyRegionsInAIContext'
+  ];
+
+  // sun-spectrum.js (21 former browser globals, now module-only)
+  const sunSpectrumExports = [
+    'reconstructSpectrum','synthesizeDeviceSpectrum','effectiveDeviceForMode','validateModeCoupling',
+    'heuristicPeakShares','computeChannelDoses','erythemalSED','fractionOfMED',
+    'vitaminDIU','vitaminDIURaw','vitaminDIUPerSession','VITD_DAILY_SATURATION_IU',
+    'VITD_PER_SESSION_BODYFRAC_CAP_IU','vitaminDIURange','geneticVitaminDMultiplier',
+    'pbmJoulesPerCm2','circadianMelanopicLux','retinalUVdose','glassTransmission',
+    'sunscreenTransmission','SUN_CHANNELS'
   ];
 
   // lab-context.js
@@ -511,6 +522,7 @@
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pii.js', piiModule, piiExports],
     ['sun-context.js', sunContextModule, sunContextExports],
+    ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
   ]) {
     for (const name of exports) {
@@ -532,6 +544,9 @@
   assert('lab-context.js.configureLabContext module export',
     typeof labContextModule.configureLabContext === 'function');
   for (const name of sunContextLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of sunSpectrumExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
 
