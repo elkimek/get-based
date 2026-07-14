@@ -15,10 +15,7 @@ test('custom API provider panel renders from Settings AI', async ({ page }) => {
   expect(providerValues).toContain('custom');
   expect(providerValues.indexOf('custom')).toBeLessThan(providerValues.indexOf('ollama'));
 
-  await page.evaluate(() => {
-    if (typeof window.switchAIProvider !== 'function') throw new Error('window.switchAIProvider unavailable');
-    window.switchAIProvider('custom');
-  });
+  await page.locator('.ai-provider-btn[data-provider="custom"]').click();
 
   await expect(page.locator('#custom-url-input')).toHaveCount(1);
   await expect(page.locator('#custom-key-input')).toHaveCount(1);
@@ -33,8 +30,6 @@ test('custom API connected state renders model controls', async ({ page }) => {
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-    if (typeof window.switchAIProvider !== 'function') throw new Error('window.switchAIProvider unavailable');
-
     api.setCustomApiUrl('https://api.test.com/v1');
     cryptoStore.updateKeyCache('labcharts-custom-key', 'sk-test');
     api.setCustomApiModel('test-model');
@@ -44,8 +39,8 @@ test('custom API connected state renders model controls', async ({ page }) => {
     ]));
     api.setAIProvider('custom');
     window.openSettingsModal('ai');
-    window.switchAIProvider('custom');
   });
+  await page.locator('.ai-provider-btn[data-provider="custom"]').click();
 
   await expect(page.locator('#custom-key-status')).toContainText('Connected');
   await expect(page.locator('#custom-model-select')).toHaveCount(1);
@@ -65,14 +60,12 @@ test('custom API provider delegates save model changes and removal', async ({ pa
   ];
 
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.openSettingsModal === 'function'
-      && typeof window.switchAIProvider === 'function'
-  );
+  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const crypto = await import('/js/crypto.js');
+    const providerPanels = await import('/js/provider-panels.js');
     const outcomes = {};
     const storageKeys = [
       'labcharts-ai-provider',
@@ -147,7 +140,7 @@ test('custom API provider delegates save model changes and removal', async ({ pa
 
       window.openSettingsModal('ai');
       await waitFor(() => document.getElementById('ai-provider-panel'), 'settings AI panel');
-      window.switchAIProvider('custom');
+      providerPanels.switchAIProvider('custom');
       await waitFor(() =>
         document.getElementById('custom-url-input') && document.getElementById('custom-key-input'),
         'custom API panel controls'

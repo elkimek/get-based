@@ -43,8 +43,6 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       currentProfile: state.currentProfile,
       profiles: state.profiles,
       fetch: window.fetch,
-      initSettingsOllamaCheck: window.initSettingsOllamaCheck,
-      initSettingsModelFetch: window.initSettingsModelFetch,
       getMeteoConfig: window.getMeteoConfig,
       saveMeteoConfig: window.saveMeteoConfig,
       theme: localStorage.getItem('labcharts-theme'),
@@ -74,8 +72,6 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         if (href.endsWith('/api/commit')) return jsonResponse({ sha: 'abcdef1234567890', ref: 'main' });
         return jsonResponse({});
       };
-      window.initSettingsOllamaCheck = () => {};
-      window.initSettingsModelFetch = () => {};
       localStorage.removeItem('labcharts-accent');
       localStorage.removeItem('labcharts-sunset-mode');
       localStorage.removeItem('labcharts-crt-effects');
@@ -179,8 +175,6 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       return results;
     } finally {
       window.fetch = saved.fetch;
-      window.initSettingsOllamaCheck = saved.initSettingsOllamaCheck;
-      window.initSettingsModelFetch = saved.initSettingsModelFetch;
       window.getMeteoConfig = saved.getMeteoConfig;
       window.saveMeteoConfig = saved.saveMeteoConfig;
       state.currentProfile = saved.currentProfile;

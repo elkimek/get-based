@@ -2,17 +2,12 @@ import { expect, test } from './coverage-fixture.js';
 
 test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.openSettingsModal === 'function'
-      && typeof window.switchAIProvider === 'function'
-      && typeof window.connectRoutstrNode === 'function'
-      && typeof window.doRoutstrNodeDeposit === 'function'
-      && typeof window.doRoutstrNodeWithdraw === 'function'
-  );
+  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
+    const providerPanels = await import('/js/provider-panels.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -215,7 +210,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       window.openSettingsModal('ai');
       await wait(100);
-      window.switchAIProvider('routstr');
+      providerPanels.switchAIProvider('routstr');
       await wait(150);
 
       const walletRenders = !!document.getElementById('routstr-wallet-balance');
@@ -223,23 +218,23 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const fundedLegacySessionGetsSyncClock = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0) > 0;
       const unseededWalletStatusRenders = (document.getElementById('routstr-wallet-device-status')?.textContent || '').includes('No 12-word wallet seed');
 
-      await window.connectRoutstrNode(nodeUrl);
+      await providerPanels.connectRoutstrNode(nodeUrl);
       await wait(100);
       const fundedWalletRefusesMintSwitch = setMintUrl === null
         && currentMint === 'https://mint-old.example'
         && document.getElementById('routstr-node-picker')?.style.display === 'none';
 
       walletBalance = 0;
-      await window.connectRoutstrNode(nodeUrl);
+      await providerPanels.connectRoutstrNode(nodeUrl);
       await wait(100);
       const emptyWalletSwitchesMint = setMintUrl === 'https://mint-required.example';
 
       walletBalance = 1500;
-      await window.connectRoutstrNode(nodeUrl);
+      await providerPanels.connectRoutstrNode(nodeUrl);
       await wait(100);
       const connectRendersDepositPicker = !!document.getElementById('routstr-deposit-amount');
 
-      await window.doRoutstrNodeDeposit(nodeUrl, 500);
+      await providerPanels.doRoutstrNodeDeposit(nodeUrl, 500);
       await wait(150);
       const fundAreaText = document.getElementById('routstr-wallet-fund-area')?.textContent || '';
       const depositUsesSessionKey = depositArgs?.url === nodeUrl
@@ -253,7 +248,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
-      await window.doRoutstrNodeWithdraw();
+      await providerPanels.doRoutstrNodeWithdraw();
       await wait(50);
       const refundBlockedUntilSeedAck = !refundCalled
         && !!document.getElementById('routstr-seed-continue');
@@ -261,7 +256,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       if (refundSeedAck) {
         refundSeedAck.checked = true;
         refundSeedAck.dispatchEvent(new Event('change', { bubbles: true }));
-        window.walletSeedAcknowledged();
+        providerPanels.walletSeedAcknowledged();
       }
       await wait(150);
       const refundUsesSessionKey = refundCalled;
@@ -272,7 +267,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const refundClearsPendingWithdraw = clearPendingWithdrawCalled;
       const routstrKeyClearsAfterRefund = !api.getRoutstrKey();
 
-      await window.showWalletSeedPhrase();
+      await providerPanels.showWalletSeedPhrase();
       await wait(50);
       const restoreInput = document.getElementById('routstr-restore-seed');
       const restoreTextareaRenders = !!restoreInput;
@@ -281,12 +276,12 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       if (restoreInput) {
         restoreInput.value = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
       }
-      await window.doRoutstrWalletRestore();
+      await providerPanels.doRoutstrWalletRestore();
       await wait(50);
       const restoreUsesNormalizedMnemonic = restoredMnemonic === restoreInput?.value;
       const restoreReportsBalance = (document.getElementById('routstr-restore-status')?.textContent || '').includes('4,321');
 
-      await window.showRoutstrWalletFund();
+      await providerPanels.showRoutstrWalletFund();
       await wait(50);
       const continueBtn = document.getElementById('routstr-seed-continue');
       const ack = document.getElementById('routstr-seed-ack');
@@ -298,7 +293,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         ack.checked = true;
         ack.dispatchEvent(new Event('change', { bubbles: true }));
         seedAckEnablesContinue = !continueBtn.disabled;
-        window.walletSeedAcknowledged();
+        providerPanels.walletSeedAcknowledged();
         await wait(50);
         seedAckProceedsToFunding = !!document.getElementById('routstr-wcashu-input');
       }

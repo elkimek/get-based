@@ -35,9 +35,11 @@ import {
   validatePpqKey,
   validateRoutstrKey,
 } from '../js/api.js';
+import { configureApiRuntimeCallbacks } from '../js/api-runtime.js';
 
 const realFetch = globalThis.fetch;
 const realLocation = globalThis.location;
+let previousApiRuntimeCallbacks;
 
 function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
@@ -66,7 +68,7 @@ beforeEach(() => {
   clearKeyCaches();
   globalThis.fetch = vi.fn();
   globalThis.location = { origin: 'https://getbased.test', pathname: '/app' };
-  window.showInsufficientBalanceDialog = undefined;
+  previousApiRuntimeCallbacks = configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
 });
 
 afterEach(() => {
@@ -74,6 +76,7 @@ afterEach(() => {
   if (realLocation) globalThis.location = realLocation;
   else delete globalThis.location;
   clearKeyCaches();
+  configureApiRuntimeCallbacks(previousApiRuntimeCallbacks);
   vi.restoreAllMocks();
 });
 
@@ -430,13 +433,14 @@ describe('API provider runtime behavior', () => {
     expect(forcedBody).not.toHaveProperty('stream_options');
     expect(onStream).not.toHaveBeenCalled();
 
-    window.showInsufficientBalanceDialog = vi.fn();
+    const showInsufficientBalanceDialog = vi.fn();
+    configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
     fetch.mockResolvedValueOnce(new Response('{}', { status: 402 }));
     await expect(callOpenRouterAPI({
       messages: [{ role: 'user', content: 'hello again' }],
       requestTimeoutMs: 50,
     })).rejects.toMatchObject({ _modalShown: true });
-    expect(window.showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
+    expect(showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
   });
 
   it('reports model capabilities across providers', () => {

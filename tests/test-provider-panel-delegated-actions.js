@@ -56,6 +56,9 @@ assert('provider-panels installs provider panel delegates',
     panelsSrc.includes('installProviderPanelDelegates({') &&
     panelsSrc.includes('handleSaveOpenRouterKey') &&
     panelsSrc.includes('setOllamaMainModel'));
+assert('provider panel handlers stay module-only',
+  !panelsSrc.includes('Object.assign(window') &&
+    !panelsSrc.includes('WINDOW EXPORTS'));
 assert('provider panel delegates install idempotent listeners',
   delegatesSrc.includes('let providerPanelDelegatesInstalled = false') &&
     delegatesSrc.includes("document.addEventListener('click', _handleProviderPanelClick)") &&

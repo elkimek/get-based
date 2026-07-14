@@ -32,10 +32,7 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
   });
   expect(viewportWidth <= 720 || overflowingProvider === null).toBe(true);
 
-  await page.evaluate(() => {
-    if (typeof window.switchAIProvider !== 'function') throw new Error('window.switchAIProvider unavailable');
-    window.switchAIProvider('openrouter');
-  });
+  await page.locator('.ai-provider-btn[data-provider="openrouter"]').click();
 
   await expect(page.locator('#openrouter-key-input')).toHaveCount(1);
   await expect(page.locator('#openrouter-key-status')).toHaveCount(1);
