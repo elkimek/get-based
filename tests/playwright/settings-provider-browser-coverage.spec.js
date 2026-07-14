@@ -10,6 +10,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
     const controls = await import(controlsUrl);
     const pii = await import(piiUrl);
     const providerStorage = await import(providerStorageUrl);
+    const cryptoStore = await import('/js/crypto.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -39,7 +40,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.updateKeyCache?.('labcharts-ollama', '');
+      cryptoStore.updateKeyCache('labcharts-ollama', '');
       window.updatePrivacyStatusCard = () => { privacyUpdates += 1; };
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
@@ -233,7 +234,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
-      window.updateKeyCache?.('labcharts-ollama', oldStorage['labcharts-ollama'] || '');
+      cryptoStore.updateKeyCache('labcharts-ollama', oldStorage['labcharts-ollama'] || '');
       document.getElementById('local-ai-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }

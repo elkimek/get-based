@@ -32,6 +32,7 @@ console.log('=== Custom API Provider Tests ===\n');
 // still exposes UI handlers used by legacy HTML/event wiring.
 await import('../js/state.js');
 const api = await import('../js/api.js');
+const cryptoModule = await import('../js/crypto.js');
 await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
@@ -99,7 +100,7 @@ else localStorage.removeItem('labcharts-custom-url');
 console.log('\n4. Key management');
 const oldKey = localStorage.getItem('labcharts-custom-key');
 localStorage.removeItem('labcharts-custom-key');
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 assert('getCustomApiKey returns empty by default', api.getCustomApiKey() === '');
 assert('hasCustomApiKey returns false without key', api.hasCustomApiKey() === false);
 if (oldKey) localStorage.setItem('labcharts-custom-key', oldKey);
@@ -135,14 +136,14 @@ const savedKey = localStorage.getItem('labcharts-custom-key');
 api.setAIProvider('custom');
 localStorage.removeItem('labcharts-custom-url');
 localStorage.removeItem('labcharts-custom-key');
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 assert('hasAIProvider false without URL or key', api.hasAIProvider() === false);
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
+cryptoModule.updateKeyCache('labcharts-custom-key', 'test-key');
 assert('hasAIProvider false with key but no URL', api.hasAIProvider() === false);
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 api.setCustomApiUrl('https://api.example.com/v1');
 assert('hasAIProvider false with URL but no key', api.hasAIProvider() === false);
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
+cryptoModule.updateKeyCache('labcharts-custom-key', 'test-key');
 assert('hasAIProvider true with both URL and key', api.hasAIProvider() === true);
 if (oldProvider) localStorage.setItem('labcharts-ai-provider', oldProvider);
 else localStorage.removeItem('labcharts-ai-provider');
@@ -150,7 +151,7 @@ if (savedUrl) localStorage.setItem('labcharts-custom-url', savedUrl);
 else localStorage.removeItem('labcharts-custom-url');
 if (savedKey) localStorage.setItem('labcharts-custom-key', savedKey);
 else localStorage.removeItem('labcharts-custom-key');
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 
 // ─── 7. getActiveModelId / getActiveModelDisplay ───
 console.log('\n7. getActiveModelId / getActiveModelDisplay');
@@ -184,7 +185,7 @@ const savedUrlErr = localStorage.getItem('labcharts-custom-url');
 const savedKeyErr = localStorage.getItem('labcharts-custom-key');
 localStorage.removeItem('labcharts-custom-url');
 localStorage.removeItem('labcharts-custom-key');
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 try {
   await api.callCustomAPI({ system: '', messages: [{ role: 'user', content: 'test' }] });
   assert('callCustomAPI throws without URL', false, 'did not throw');
@@ -202,7 +203,7 @@ if (savedUrlErr) localStorage.setItem('labcharts-custom-url', savedUrlErr);
 else localStorage.removeItem('labcharts-custom-url');
 if (savedKeyErr) localStorage.setItem('labcharts-custom-key', savedKeyErr);
 else localStorage.removeItem('labcharts-custom-key');
-window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', '');
+cryptoModule.updateKeyCache('labcharts-custom-key', '');
 
 // ─── 10. fetchCustomApiModels returns empty without config ───
 console.log('\n10. fetchCustomApiModels edge cases');
@@ -345,7 +346,7 @@ try {
   api.setAIProvider('custom');
   api.setCustomApiUrl('http://localhost:9999/v1');
   api.setCustomApiModel('stream-test-model');
-  window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', 'test-key');
+  cryptoModule.updateKeyCache('labcharts-custom-key', 'test-key');
 
   const encoder = new TextEncoder();
   globalThis.fetch = async () => new Response(new ReadableStream({
@@ -376,7 +377,7 @@ try {
   else localStorage.removeItem('labcharts-custom-url');
   if (savedKeyStream) localStorage.setItem('labcharts-custom-key', savedKeyStream);
   else localStorage.removeItem('labcharts-custom-key');
-  window.updateKeyCache && window.updateKeyCache('labcharts-custom-key', savedRuntimeKeyStream);
+  cryptoModule.updateKeyCache('labcharts-custom-key', savedRuntimeKeyStream);
   if (savedModelStream) localStorage.setItem('labcharts-custom-model', savedModelStream);
   else localStorage.removeItem('labcharts-custom-model');
 }

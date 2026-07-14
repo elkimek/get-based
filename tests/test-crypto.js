@@ -41,10 +41,9 @@ function assert(name, condition, detail) {
 
 console.log('=== Crypto / Encryption / Backup Tests ===\n');
 
-// Load the app module surface so the Object.assign(window, …) blocks run and
-// the window-export checks below resolve.
+// Load the app module surface and verify crypto through its ESM exports.
 await import('../js/state.js');
-await import('../js/crypto.js');
+const cryptoModule = await import('../js/crypto.js');
 await import('../js/pii.js');
 await import('../js/data.js');
 await import('../js/profile.js');
@@ -65,48 +64,44 @@ if (!localStorage.getItem('labcharts-profiles')) {
 if (typeof window.initProfilesCache === 'function') await window.initProfilesCache();
 
 // ═══════════════════════════════════════════════
-// 1. Module & window exports exist
+// 1. Module exports exist without legacy window globals
 // ═══════════════════════════════════════════════
-console.log('1. Module & window exports');
-assert('window.initEncryption exists', typeof window.initEncryption === 'function');
-assert('window.initBroadcastChannel exists', typeof window.initBroadcastChannel === 'function');
-assert('window.getEncryptionEnabled exists', typeof window.getEncryptionEnabled === 'function');
-assert('window.isUnlocked exists', typeof window.isUnlocked === 'function');
-assert('window.encryptedSetItem exists', typeof window.encryptedSetItem === 'function');
-assert('window.encryptedGetItem exists', typeof window.encryptedGetItem === 'function');
-assert('window.showEnableEncryptionModal exists', typeof window.showEnableEncryptionModal === 'function');
-assert('window.disableEncryption exists', typeof window.disableEncryption === 'function');
-assert('window.changePassphrase exists', typeof window.changePassphrase === 'function');
+console.log('1. Module exports');
+const cryptoExports = [
+  'initEncryption', 'initBroadcastChannel', 'getEncryptionEnabled', 'isUnlocked',
+  'encryptedSetItem', 'encryptedGetItem', 'showEnableEncryptionModal',
+  'maybeShowEncryptionNudge', 'maybeShowBackupNudge', 'disableEncryption',
+  'changePassphrase', 'broadcastDataChanged', 'renderEncryptionSection',
+  'renderBackupSection', 'isSensitiveKey', 'getCachedKey', 'updateKeyCache',
+  'decryptKeyCache', 'loadBackupSnapshots', 'toggleBackupSnapshots',
+];
+for (const name of cryptoExports) {
+  assert(`crypto.${name} exists`, typeof cryptoModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
 assert('backup.exportEncryptedBackup module export exists', typeof backupModule.exportEncryptedBackup === 'function');
 assert('backup.importEncryptedBackup module export exists', typeof backupModule.importEncryptedBackup === 'function');
 assert('window.exportEncryptedBackup stays module-only', !('exportEncryptedBackup' in window));
 assert('window.importEncryptedBackup stays module-only', !('importEncryptedBackup' in window));
-assert('window.broadcastDataChanged exists', typeof window.broadcastDataChanged === 'function');
-assert('window.renderEncryptionSection exists', typeof window.renderEncryptionSection === 'function');
-assert('window.renderBackupSection exists', typeof window.renderBackupSection === 'function');
-assert('window.isSensitiveKey exists', typeof window.isSensitiveKey === 'function');
-assert('window.getCachedKey exists', typeof window.getCachedKey === 'function');
-assert('window.updateKeyCache exists', typeof window.updateKeyCache === 'function');
-assert('window.decryptKeyCache exists', typeof window.decryptKeyCache === 'function');
 assert('window.initProfilesCache exists', typeof window.initProfilesCache === 'function');
 
 // ═══════════════════════════════════════════════
 // 2. Sensitive key detection
 // ═══════════════════════════════════════════════
 console.log('2. Sensitive key detection');
-assert('labcharts-default-imported is sensitive', window.isSensitiveKey('labcharts-default-imported'));
-assert('labcharts-abc123-imported is sensitive', window.isSensitiveKey('labcharts-abc123-imported'));
-assert('labcharts-default-chat is sensitive', window.isSensitiveKey('labcharts-default-chat'));
-assert('labcharts-profiles is sensitive', window.isSensitiveKey('labcharts-profiles'));
-assert('labcharts-api-key IS sensitive', window.isSensitiveKey('labcharts-api-key'));
-assert('labcharts-venice-key IS sensitive', window.isSensitiveKey('labcharts-venice-key'));
-assert('labcharts-openrouter-key IS sensitive', window.isSensitiveKey('labcharts-openrouter-key'));
-assert('labcharts-ollama IS sensitive', window.isSensitiveKey('labcharts-ollama'));
-assert('labcharts-ai-provider is NOT sensitive', !window.isSensitiveKey('labcharts-ai-provider'));
-assert('labcharts-default-units is NOT sensitive', !window.isSensitiveKey('labcharts-default-units'));
-assert('labcharts-encryption-enabled is NOT sensitive', !window.isSensitiveKey('labcharts-encryption-enabled'));
-assert('labcharts-time-format is NOT sensitive', !window.isSensitiveKey('labcharts-time-format'));
-assert('labcharts-default-focusCard is NOT sensitive', !window.isSensitiveKey('labcharts-default-focusCard'));
+assert('labcharts-default-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-default-imported'));
+assert('labcharts-abc123-imported is sensitive', cryptoModule.isSensitiveKey('labcharts-abc123-imported'));
+assert('labcharts-default-chat is sensitive', cryptoModule.isSensitiveKey('labcharts-default-chat'));
+assert('labcharts-profiles is sensitive', cryptoModule.isSensitiveKey('labcharts-profiles'));
+assert('labcharts-api-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-api-key'));
+assert('labcharts-venice-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-venice-key'));
+assert('labcharts-openrouter-key IS sensitive', cryptoModule.isSensitiveKey('labcharts-openrouter-key'));
+assert('labcharts-ollama IS sensitive', cryptoModule.isSensitiveKey('labcharts-ollama'));
+assert('labcharts-ai-provider is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-ai-provider'));
+assert('labcharts-default-units is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-units'));
+assert('labcharts-encryption-enabled is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-encryption-enabled'));
+assert('labcharts-time-format is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-time-format'));
+assert('labcharts-default-focusCard is NOT sensitive', !cryptoModule.isSensitiveKey('labcharts-default-focusCard'));
 
 // ═══════════════════════════════════════════════
 // 3. Web Crypto API key derivation round-trip
@@ -190,11 +185,11 @@ console.log('5. Non-sensitive keys plaintext');
 try {
   const testKey = 'labcharts-test-nonsensitive';
   const testVal = 'plain-value-123';
-  await window.encryptedSetItem(testKey, testVal);
+  await cryptoModule.encryptedSetItem(testKey, testVal);
   const stored = localStorage.getItem(testKey);
   assert('Non-sensitive key stored as plaintext', stored === testVal, `got: ${stored}`);
   assert('Non-sensitive key has no v1: prefix', !stored.startsWith('v1:'));
-  const retrieved = await window.encryptedGetItem(testKey);
+  const retrieved = await cryptoModule.encryptedGetItem(testKey);
   assert('Non-sensitive key retrieved correctly', retrieved === testVal, `got: ${retrieved}`);
   localStorage.removeItem(testKey);
 } catch (e) {
@@ -206,7 +201,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('6. encryptedGetItem null handling');
 try {
-  const result = await window.encryptedGetItem('labcharts-nonexistent-key-xyz');
+  const result = await cryptoModule.encryptedGetItem('labcharts-nonexistent-key-xyz');
   assert('encryptedGetItem returns null for missing key', result === null);
 } catch (e) {
   assert('encryptedGetItem null handling', false, e.message);
@@ -251,11 +246,11 @@ try {
 // ═══════════════════════════════════════════════
 console.log('9. Security section rendering');
 try {
-  const html = window.renderEncryptionSection();
+  const html = cryptoModule.renderEncryptionSection();
   assert('renderEncryptionSection returns HTML', typeof html === 'string' && html.length > 50);
   assert('Encryption section has status card', html.includes('encryption-status-card'));
   assert('Encryption section uses delegated actions', html.includes('data-crypto-action=') && !html.includes('onclick='));
-  const backupHtml = window.renderBackupSection();
+  const backupHtml = cryptoModule.renderBackupSection();
   assert('renderBackupSection returns HTML', typeof backupHtml === 'string' && backupHtml.length > 50);
   assert('Backup section has download button', backupHtml.includes('Download Backup'));
   assert('Backup section has restore button', backupHtml.includes('Restore Backup'));
@@ -271,9 +266,9 @@ console.log('10. Encryption enabled state');
 {
   const wasEnabled = localStorage.getItem('labcharts-encryption-enabled');
   localStorage.removeItem('labcharts-encryption-enabled');
-  assert('getEncryptionEnabled returns false when disabled', window.getEncryptionEnabled() === false);
+  assert('getEncryptionEnabled returns false when disabled', cryptoModule.getEncryptionEnabled() === false);
   localStorage.setItem('labcharts-encryption-enabled', 'true');
-  assert('getEncryptionEnabled returns true when enabled', window.getEncryptionEnabled() === true);
+  assert('getEncryptionEnabled returns true when enabled', cryptoModule.getEncryptionEnabled() === true);
   if (wasEnabled) localStorage.setItem('labcharts-encryption-enabled', wasEnabled);
   else localStorage.removeItem('labcharts-encryption-enabled');
 }
@@ -285,13 +280,13 @@ console.log('11. Encryption section reflects state');
 {
   const wasEnabled = localStorage.getItem('labcharts-encryption-enabled');
   localStorage.removeItem('labcharts-encryption-enabled');
-  const offHtml = window.renderEncryptionSection();
+  const offHtml = cryptoModule.renderEncryptionSection();
   assert('OFF state shows Enable button', offHtml.includes('Enable Encryption'));
   assert('OFF state shows encryption-status-off', offHtml.includes('encryption-status-off'));
   assert('OFF state enable button is delegated', offHtml.includes('data-crypto-action="enable-encryption"'));
 
   localStorage.setItem('labcharts-encryption-enabled', 'true');
-  const onHtml = window.renderEncryptionSection();
+  const onHtml = cryptoModule.renderEncryptionSection();
   assert('ON state shows Change Passphrase', onHtml.includes('Change Passphrase'));
   assert('ON state shows Disable Encryption', onHtml.includes('Disable Encryption'));
   assert('ON state shows encryption-status-on', onHtml.includes('encryption-status-on'));
@@ -312,12 +307,12 @@ console.log('11b. Key cache sync access');
 {
   const testKey = 'labcharts-test-cache-key';
   localStorage.setItem(testKey, 'test-value');
-  assert('getCachedKey falls back to localStorage', window.getCachedKey(testKey) === 'test-value');
-  window.updateKeyCache(testKey, 'cached-value');
-  assert('getCachedKey returns cached value after updateKeyCache', window.getCachedKey(testKey) === 'cached-value');
-  window.updateKeyCache(testKey, null);
+  assert('getCachedKey falls back to localStorage', cryptoModule.getCachedKey(testKey) === 'test-value');
+  cryptoModule.updateKeyCache(testKey, 'cached-value');
+  assert('getCachedKey returns cached value after updateKeyCache', cryptoModule.getCachedKey(testKey) === 'cached-value');
+  cryptoModule.updateKeyCache(testKey, null);
   localStorage.removeItem(testKey);
-  assert('getCachedKey returns null after cleanup', window.getCachedKey(testKey) === null);
+  assert('getCachedKey returns null after cleanup', cryptoModule.getCachedKey(testKey) === null);
 }
 
 // ═══════════════════════════════════════════════
@@ -558,7 +553,6 @@ for (const name of ['scheduleAutoBackup', 'getAutoBackupSnapshots', 'restoreAuto
   assert(`backup.${name} exists`, typeof backupModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));
 }
-assert('window.loadBackupSnapshots exists', typeof window.loadBackupSnapshots === 'function');
 
 // ═══════════════════════════════════════════════
 // 21. IndexedDB labcharts-backups can be opened
@@ -615,7 +609,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('24. Backup section auto-backup UI');
 try {
-  const html = window.renderBackupSection();
+  const html = cryptoModule.renderBackupSection();
   assert('Backup section has auto-backup status', html.includes('backup-auto-status'));
   assert('Backup section has snapshot list container', html.includes('backup-snapshot-list'));
   assert('Backup section has delegated snapshot toggle and import',

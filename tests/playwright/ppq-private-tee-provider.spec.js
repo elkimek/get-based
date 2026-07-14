@@ -10,6 +10,7 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
     const controls = await import(controlsUrl);
     const panels = await import(panelsUrl);
     const renderers = await import(renderersUrl);
+    const cryptoStore = await import('/js/crypto.js');
 
     const storageKeys = [
       'labcharts-ppq-key',
@@ -25,11 +26,11 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldFetch = window.fetch;
-    const oldKey = window.getCachedKey?.('labcharts-ppq-key') || '';
+    const oldKey = cryptoStore.getCachedKey('labcharts-ppq-key') || '';
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.updateKeyCache?.('labcharts-ppq-key', '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       await api.savePpqKey('sk-ppq-cold-cache');
 
       let balanceCalls = 0;
@@ -87,7 +88,7 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
       };
     } finally {
       window.fetch = oldFetch;
-      window.updateKeyCache?.('labcharts-ppq-key', oldKey || null);
+      cryptoStore.updateKeyCache('labcharts-ppq-key', oldKey || null);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
@@ -120,6 +121,7 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
     const api = await import(apiUrl);
     const panels = await import(panelsUrl);
     const renderers = await import(renderersUrl);
+    const cryptoStore = await import('/js/crypto.js');
 
     const storageKeys = [
       'labcharts-ppq-key',
@@ -133,11 +135,11 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldFetch = window.fetch;
-    const oldKey = window.getCachedKey?.('labcharts-ppq-key') || '';
+    const oldKey = cryptoStore.getCachedKey('labcharts-ppq-key') || '';
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.updateKeyCache?.('labcharts-ppq-key', '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       await api.savePpqKey('***');
 
       let releaseModels;
@@ -176,7 +178,7 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
       };
     } finally {
       window.fetch = oldFetch;
-      window.updateKeyCache?.('labcharts-ppq-key', oldKey || null);
+      cryptoStore.updateKeyCache('labcharts-ppq-key', oldKey || null);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);

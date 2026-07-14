@@ -7,6 +7,7 @@ import { showNotification, showConfirmDialog, isDebugMode, isPIIReviewEnabled, h
 import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEOUT_MS, startOpenRouterOAuth } from './api.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
+import { maybeShowEncryptionNudge } from './crypto.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
@@ -65,7 +66,6 @@ import {
  * @typedef {{
  *   openSettingsModal?: (tab?: string) => void,
  *   loadDemoData?: (sex?: string) => void,
- *   maybeShowEncryptionNudge?: () => void,
  *   importDataJSON: (file: File) => void | Promise<void>,
  *   isDNAFile?: (file: File) => boolean,
  *   isDNAFileByContent?: (file: File) => Promise<boolean>,
@@ -78,11 +78,13 @@ import {
 const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
 
 const pdfImportDeps = {
+  maybeShowEncryptionNudge,
   startOpenRouterOAuth,
 };
 
 export function configurePdfImportDeps(deps = {}) {
   const previous = { ...pdfImportDeps };
+  if (typeof deps.maybeShowEncryptionNudge === 'function') pdfImportDeps.maybeShowEncryptionNudge = deps.maybeShowEncryptionNudge;
   if (typeof deps.startOpenRouterOAuth === 'function') pdfImportDeps.startOpenRouterOAuth = deps.startOpenRouterOAuth;
   return previous;
 }
@@ -849,7 +851,7 @@ export async function handleBatchPDFs(pdfFiles) {
   if (failed > 0) parts.push(`${failed} failed`);
   if (retryImported > 0) parts.push(`${retryImported} recovered on retry`);
   showNotification(`Batch import complete: ${parts.join(', ')}`, imported > 0 ? 'success' : 'info');
-  if (imported > 0 && typeof pdfImportWindow.maybeShowEncryptionNudge === 'function') pdfImportWindow.maybeShowEncryptionNudge();
+  if (imported > 0) pdfImportDeps.maybeShowEncryptionNudge();
 }
 
 // ═══════════════════════════════════════════════

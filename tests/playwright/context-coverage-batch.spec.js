@@ -684,7 +684,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
-      window.updateKeyCache?.('labcharts-openrouter-key', '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', '');
       document.getElementById('focus-card-body').innerHTML = '';
       await focus.loadFocusCard();
       outcomes.loadFocusCardShowsEnableAIWithoutConnectedProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
@@ -723,7 +723,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
       if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
-      window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', saved.openRouterKey || '');
       cryptoStore.updateKeyCache('labcharts-ollama', saved.ollamaConfigCache);
       window.fetch = saved.fetch;
       health.configureContextCardHealthDots(originalHealthDotDeps);

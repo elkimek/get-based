@@ -31,11 +31,12 @@ test('custom API connected state renders model controls', async ({ page }) => {
 
   await page.evaluate(async () => {
     const api = await import('/js/api.js');
+    const cryptoStore = await import('/js/crypto.js');
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
     if (typeof window.switchAIProvider !== 'function') throw new Error('window.switchAIProvider unavailable');
 
     api.setCustomApiUrl('https://api.test.com/v1');
-    window.updateKeyCache?.('labcharts-custom-key', 'sk-test');
+    cryptoStore.updateKeyCache('labcharts-custom-key', 'sk-test');
     api.setCustomApiModel('test-model');
     localStorage.setItem('labcharts-custom-models', JSON.stringify([
       { id: 'test-model', name: 'Test Model' },
@@ -67,7 +68,6 @@ test('custom API provider delegates save model changes and removal', async ({ pa
   await page.waitForFunction(() =>
     typeof window.openSettingsModal === 'function'
       && typeof window.switchAIProvider === 'function'
-      && typeof window.updateKeyCache === 'function'
   );
 
   const results = await page.evaluate(async () => {

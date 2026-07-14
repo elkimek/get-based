@@ -332,10 +332,10 @@ else localStorage.setItem('labcharts-profiles', _origProfiles);
 // not a test one.
 console.log('15. Encryption Patterns');
 const _encPid = 'mp567abc';
-assert('isSensitiveKey matches per-thread key', window.isSensitiveKey(`labcharts-${_encPid}-chat-t_abc123`));
-assert('isSensitiveKey matches legacy chat key', window.isSensitiveKey(`labcharts-${_encPid}-chat`));
+assert('isSensitiveKey matches per-thread key', cryptoModule.isSensitiveKey(`labcharts-${_encPid}-chat-t_abc123`));
+assert('isSensitiveKey matches legacy chat key', cryptoModule.isSensitiveKey(`labcharts-${_encPid}-chat`));
 assert('isSensitiveKey matches thread index (crypto.js SENSITIVE_PATTERNS)',
-  window.isSensitiveKey(`labcharts-${_encPid}-chat-threads`));
+  cryptoModule.isSensitiveKey(`labcharts-${_encPid}-chat-threads`));
 
 // ═══════════════════════════════════════════════
 // 16. Profile Delete Cleanup (source inspection)

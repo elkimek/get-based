@@ -119,7 +119,7 @@ const SENSITIVE_PATTERNS = [
   /^labcharts-meteo-config$/,
 ];
 
-function isSensitiveKey(key) {
+export function isSensitiveKey(key) {
   return SENSITIVE_PATTERNS.some(p => p.test(key));
 }
 
@@ -1104,32 +1104,4 @@ export function toggleBackupSnapshots() {
   const open = list.style.display !== 'none';
   list.style.display = open ? 'none' : 'flex';
   if (arrow) arrow.innerHTML = open ? '&#9654;' : '&#9660;';
-}
-
-// ═══════════════════════════════════════════════
-// WINDOW EXPORTS
-// ═══════════════════════════════════════════════
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    initEncryption,
-    initBroadcastChannel,
-    getEncryptionEnabled,
-    isUnlocked,
-    encryptedSetItem,
-    encryptedGetItem,
-    showEnableEncryptionModal,
-    maybeShowEncryptionNudge,
-    maybeShowBackupNudge,
-    disableEncryption,
-    changePassphrase,
-    broadcastDataChanged,
-    renderEncryptionSection,
-    renderBackupSection,
-    isSensitiveKey,
-    getCachedKey,
-    updateKeyCache,
-    decryptKeyCache,
-    loadBackupSnapshots,
-    toggleBackupSnapshots,
-  });
 }

@@ -2,6 +2,7 @@
 // pdf-import-commit.js - Import commit, snapshot deletion, and re-review actions.
 
 import { state } from './state.js';
+import { maybeShowEncryptionNudge } from './crypto.js';
 import { MARKER_SCHEMA, SPECIALTY_MARKER_DEFS } from './schema.js';
 import { showNotification } from './utils.js';
 import { saveImportedData } from './data.js';
@@ -25,13 +26,13 @@ import {
   showImportPreview,
 } from './pdf-import-review.js';
 
-/**
- * @typedef {{
- *   maybeShowEncryptionNudge?: () => void,
- * }} PdfImportCommitRuntime
- */
+const pdfImportCommitDeps = { maybeShowEncryptionNudge };
 
-const pdfImportCommitRuntime = /** @type {typeof globalThis & PdfImportCommitRuntime} */ (globalThis);
+export function configurePdfImportCommitDeps(deps = {}) {
+  const previous = { ...pdfImportCommitDeps };
+  if (typeof deps.maybeShowEncryptionNudge === 'function') pdfImportCommitDeps.maybeShowEncryptionNudge = deps.maybeShowEncryptionNudge;
+  return previous;
+}
 
 let _batchMode = false;
 
@@ -260,7 +261,7 @@ export async function confirmImport() {
     refreshImportedDataViews();
   }
   showNotification(`Imported ${importCount} markers from ${result.date}`, "success");
-  if (!_batchMode && typeof pdfImportCommitRuntime.maybeShowEncryptionNudge === 'function') pdfImportCommitRuntime.maybeShowEncryptionNudge();
+  if (!_batchMode) pdfImportCommitDeps.maybeShowEncryptionNudge();
 }
 
 function snapshotMarkerDotKey(marker) {

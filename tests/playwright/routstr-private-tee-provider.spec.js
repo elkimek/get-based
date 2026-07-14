@@ -10,6 +10,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
     const renderers = await import(renderersUrl);
     const settlement = await import(settlementUrl);
     const walletRenderers = await import(walletRenderersUrl);
+    const cryptoStore = await import('/js/crypto.js');
     const storageKeys = [
       'labcharts-routstr-key',
       'labcharts-routstr-node',
@@ -24,13 +25,13 @@ test('Routstr Private TEE support appears after discovery and toggles through th
     const oldStorage = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldFetch = window.fetch;
-    const oldKey = window.getCachedKey?.('labcharts-routstr-key') || '';
+    const oldKey = cryptoStore.getCachedKey('labcharts-routstr-key') || '';
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-private-test');
       localStorage.setItem('labcharts-routstr-node', 'https://routstr-private.example');
-      window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-private-test');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-private-test');
       window.fetch = async function(input) {
         const href = typeof input === 'string' ? input : input?.url || '';
         if (href === 'https://routstr-private.example/v1/models') {
@@ -95,7 +96,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       };
     } finally {
       window.fetch = oldFetch;
-      window.updateKeyCache?.('labcharts-routstr-key', oldKey || null);
+      cryptoStore.updateKeyCache('labcharts-routstr-key', oldKey || null);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
