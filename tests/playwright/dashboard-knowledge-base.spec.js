@@ -122,7 +122,9 @@ test('Context hub data source toggles control prompt and score context', async (
         },
       },
     };
-    window.buildSunContext = () => '[section:sun]\nLight context fixture\n[/section:sun]\n\n';
+    lab.configureLabContext({
+      buildSunContext: () => '[section:sun]\nLight context fixture\n[/section:sun]\n\n',
+    });
     lab.setInsightContextCardsEnabled(true);
     lab.setSupplementsMedsContextEnabled(true);
     lab.setLabMarkersContextEnabled(true);

@@ -35,7 +35,9 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       unitSystem: state.unitSystem,
       rangeMode: state.rangeMode,
     };
-    const originalBuildSunContext = window.buildSunContext;
+    const originalLabContextDeps = labContext.configureLabContext({
+      buildSunContext: () => '[section:sun]\nSun context\n[/section:sun]\n\n',
+    });
 
     try {
       localStorage.clear();
@@ -156,7 +158,6 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
           },
         },
       };
-      window.buildSunContext = () => '[section:sun]\nSun context\n[/section:sun]\n\n';
       dataModule.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
 
@@ -372,7 +373,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       state.profileDob = original.profileDob;
       state.unitSystem = original.unitSystem;
       state.rangeMode = original.rangeMode;
-      window.buildSunContext = originalBuildSunContext;
+      labContext.configureLabContext(originalLabContextDeps);
       dataModule.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
       await storeModule.deleteWearablesDB('lab-context-browser-coverage').catch(() => {});
