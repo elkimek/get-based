@@ -227,8 +227,8 @@ for (const asset of pwaAppShellAssets) {
 }
 assert('SW has offline navigation fallback for /app',
   swSrc.includes("event.request.mode === 'navigate'") &&
-  swSrc.includes("caches.match('/app')") &&
-  swSrc.includes("caches.match('/index.html')"),
+  swSrc.includes("matchCurrentCache('/app')") &&
+  swSrc.includes("matchCurrentCache('/index.html')"),
   'installed PWA start_url=/app needs a cached document while offline');
 assert('SW does not cache HTTP error responses',
   /if \(!response \|\| response\.status === 206 \|\| !response\.ok\) return Promise\.resolve\(\);/.test(swSrc),

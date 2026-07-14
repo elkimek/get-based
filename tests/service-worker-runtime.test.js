@@ -12,6 +12,12 @@ function jsonResponse(body, init = {}) {
   });
 }
 
+function cacheKey(request) {
+  if (typeof request === 'string') return request;
+  const url = new URL(request.url);
+  return `${url.pathname}${url.search}`;
+}
+
 function makeCaches() {
   const opened = new Map();
   const matches = new Map();
@@ -19,9 +25,11 @@ function makeCaches() {
     addAll: vi.fn(async (entries) => {
       for (const entry of entries) matches.set(entry, new Response(`cached:${entry}`));
     }),
+    match: vi.fn(async (request) => {
+      return matches.get(cacheKey(request));
+    }),
     put: vi.fn(async (request, response) => {
-      const key = typeof request === 'string' ? request : new URL(request.url).pathname;
-      matches.set(key, response);
+      matches.set(cacheKey(request), response);
     }),
   };
   const caches = {
@@ -30,8 +38,7 @@ function makeCaches() {
       return cache;
     }),
     match: vi.fn(async (request) => {
-      const key = typeof request === 'string' ? request : new URL(request.url).pathname;
-      return matches.get(key);
+      return matches.get(cacheKey(request));
     }),
     keys: vi.fn(async () => ['labcharts-vold', 'labcharts-v9.9.9-deadbeef']),
     delete: vi.fn(async () => true),
@@ -132,7 +139,7 @@ describe('service worker runtime cache behavior', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/commit', { cache: 'no-store' });
   });
 
-  it('uses network-first, navigation fallback, and stale-while-revalidate fetch routes', async () => {
+  it('uses network-first preview assets, navigation fallback, and network-only APIs', async () => {
     const { cache, listeners, matches } = await loadServiceWorker();
     await Promise.resolve();
 
@@ -147,6 +154,10 @@ describe('service worker runtime cache behavior', () => {
     const nonGet = makeFetchEvent('https://preview.getbased.health/api/share', { method: 'POST' });
     listeners.get('fetch')(nonGet);
     expect(nonGet.response()).toBeNull();
+
+    const apiGet = makeFetchEvent('https://preview.getbased.health/api/share?id=encrypted-profile');
+    listeners.get('fetch')(apiGet);
+    expect(apiGet.response()).toBeNull();
 
     const version = makeFetchEvent('https://preview.getbased.health/version.js');
     listeners.get('fetch')(version);
@@ -163,14 +174,38 @@ describe('service worker runtime cache behavior', () => {
     expect(await (await navigate.response()).text()).toBe('cached-app-shell');
 
     matches.set('/styles.css', new Response('cached-css'));
-    const staleWhileRevalidate = makeFetchEvent('https://preview.getbased.health/styles.css');
-    listeners.get('fetch')(staleWhileRevalidate);
-    expect(await (await staleWhileRevalidate.response()).text()).toBe('cached-css');
+    const offlineAsset = makeFetchEvent('https://preview.getbased.health/styles.css');
+    listeners.get('fetch')(offlineAsset);
+    expect(await (await offlineAsset.response()).text()).toBe('cached-css');
 
     globalThis.fetch = vi.fn(async () => new Response('fresh-module', { status: 200 }));
     const appModule = makeFetchEvent('https://preview.getbased.health/js/main.js');
     listeners.get('fetch')(appModule);
     expect(await (await appModule.response()).text()).toBe('fresh-module');
+  });
+
+  it('serves production static assets from the current version cache without revalidation', async () => {
+    const { cache, listeners, matches } = await loadServiceWorker({ hostname: 'app.getbased.health' });
+    await Promise.resolve();
+
+    matches.set('/styles.css', new Response('cached-production-css'));
+    matches.set('/version.js', new Response("self.APP_VERSION = '9.9.9';"));
+    globalThis.fetch = vi.fn(async () => new Response("self.APP_VERSION = '9.9.10';", { status: 200 }));
+    const cachedAsset = makeFetchEvent('https://app.getbased.health/styles.css');
+    listeners.get('fetch')(cachedAsset);
+
+    expect(await (await cachedAsset.response()).text()).toBe('cached-production-css');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    const activeVersion = makeFetchEvent('https://app.getbased.health/version.js');
+    listeners.get('fetch')(activeVersion);
+    expect(await (await activeVersion.response()).text()).toContain("'9.9.9'");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    const versionProbe = makeFetchEvent('https://app.getbased.health/version.js?update-check=1');
+    listeners.get('fetch')(versionProbe);
+    expect(await (await versionProbe.response()).text()).toContain("'9.9.10'");
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledWith(versionProbe.request, expect.any(Response)));
   });
 
   it('uses plain versioned cache names on production hosts', async () => {
