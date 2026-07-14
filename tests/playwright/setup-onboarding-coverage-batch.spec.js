@@ -475,12 +475,12 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       openChatPanel: window.openChatPanel,
       closeChatPanel: window.closeChatPanel,
       openSettingsModal: window.openSettingsModal,
-      loadDemoData: window.loadDemoData,
       mainHtml: document.getElementById('main-content')?.innerHTML || '',
     };
     const calls = [];
     const outcomes = {};
     let hadPdfInput = false;
+    let previousDashboardPageRuntimeDeps = null;
 
     try {
       state.currentProfile = 'dashboard-welcome-delegates';
@@ -496,7 +496,9 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       window.openChatPanel = () => calls.push(['open-chat']);
       window.closeChatPanel = () => calls.push(['close-chat']);
       window.openSettingsModal = tab => calls.push(['settings', tab]);
-      window.loadDemoData = sex => calls.push(['demo', sex]);
+      previousDashboardPageRuntimeDeps = dashboardPage.configureDashboardPageRuntimeDeps({
+        loadDemoData: sex => calls.push(['demo', sex]),
+      });
 
       let pdfInput = document.getElementById('pdf-input');
       hadPdfInput = !!pdfInput;
@@ -571,11 +573,13 @@ test('dashboard welcome hero uses delegated actions for chat import settings and
       data.invalidateActiveDataCache();
       if (saved.demoLoadingProfileId === undefined) delete window._demoLoadingProfileId;
       else window._demoLoadingProfileId = saved.demoLoadingProfileId;
+      if (previousDashboardPageRuntimeDeps) {
+        dashboardPage.configureDashboardPageRuntimeDeps(previousDashboardPageRuntimeDeps);
+      }
       Object.assign(window, {
         openChatPanel: saved.openChatPanel,
         closeChatPanel: saved.closeChatPanel,
         openSettingsModal: saved.openSettingsModal,
-        loadDemoData: saved.loadDemoData,
       });
       document.body.classList.remove('empty-dashboard-active', 'chat-autostart-reserved');
       localStorage.clear();

@@ -12,6 +12,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
     const calls = [];
     const confirmQueue = [];
     let previousProfileDeps = null;
+    let previousClientListRuntime = null;
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -70,10 +71,6 @@ test('client list live menu actions dispatch exports share demos and profile sta
       bodyOverflow: document.body.style.overflow,
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       renderProfileButton: window.renderProfileButton,
-      exportAllDataJSON: window.exportAllDataJSON,
-      exportClientJSON: window.exportClientJSON,
-      importDataJSON: window.importDataJSON,
-      loadDemoData: window.loadDemoData,
       showConfirmDialog: window.showConfirmDialog,
       inputClick: HTMLInputElement.prototype.click,
     };
@@ -121,16 +118,16 @@ test('client list live menu actions dispatch exports share demos and profile sta
       localStorage.setItem('labcharts-client-bob-chat-threads', JSON.stringify([{ id: 'thread-a' }]));
       localStorage.setItem('labcharts-client-bob-chat-t_thread-a', JSON.stringify([{ role: 'user', content: 'delete me' }]));
       window.renderProfileButton = () => calls.push(['render-profile-button']);
-      window.exportAllDataJSON = () => calls.push(['export-all']);
-      window.exportClientJSON = (...args) => calls.push(['export-client', ...args]);
-      window.importDataJSON = file => calls.push(['import-json', file?.name || '']);
-      window.loadDemoData = demo => calls.push(['load-demo', demo]);
+      const exportAllDataJSON = () => calls.push(['export-all']);
+      const exportClientJSON = (...args) => calls.push(['export-client', ...args]);
+      const importDataJSON = file => calls.push(['import-json', file?.name || '']);
+      const loadDemoData = demo => calls.push(['load-demo', demo]);
       const openProfileShareModal = id => calls.push(['share-profile', id]);
-      configureClientListRuntime({
-        exportAllDataJSON: window.exportAllDataJSON,
-        exportClientJSON: window.exportClientJSON,
-        importDataJSON: window.importDataJSON,
-        loadDemoData: window.loadDemoData,
+      previousClientListRuntime = configureClientListRuntime({
+        exportAllDataJSON,
+        exportClientJSON,
+        importDataJSON,
+        loadDemoData,
         openProfileShareModal,
       });
       window.showConfirmDialog = async message => {
@@ -249,10 +246,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
         else localStorage.setItem(key, value);
       }
       window.renderProfileButton = saved.renderProfileButton;
-      window.exportAllDataJSON = saved.exportAllDataJSON;
-      window.exportClientJSON = saved.exportClientJSON;
-      window.importDataJSON = saved.importDataJSON;
-      window.loadDemoData = saved.loadDemoData;
+      if (previousClientListRuntime) configureClientListRuntime(previousClientListRuntime);
       window.showConfirmDialog = saved.showConfirmDialog;
       if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
       HTMLInputElement.prototype.click = saved.inputClick;

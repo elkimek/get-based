@@ -21,9 +21,8 @@ function assert(name, condition, detail) {
 
 console.log('=== Demo Data Onboarding Tests ===\n');
 
-// export.js exposes window.loadDemoData via Object.assign(window, ...).
 const { state } = await import('../js/state.js');
-await import('../js/export.js');
+const exportModule = await import('../js/export.js');
 const { findOrCreateLabEntry } = await import('../js/lab-entry-mutations.js');
 const { setLabEntryMarker } = await import('../js/lab-entry.js');
 const { migrateProfileData } = await import('../js/profile.js');
@@ -109,9 +108,10 @@ const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprint
     console.log('  ⚠️  Empty dashboard not visible (data already loaded) — skipping DOM checks');
   }
 
-  // ── 5. Window exports ──
-  console.log('\n5. Window exports');
-  assert('loadDemoData on window', typeof window.loadDemoData === 'function');
+  // ── 5. Module exports ──
+  console.log('\n5. Module exports');
+  assert('loadDemoData is exported', typeof exportModule.loadDemoData === 'function');
+  assert('loadDemoData stays module-only', !('loadDemoData' in window));
 
   // ── 6. Service worker ──
   console.log('\n6. service-worker.js — Cache version');

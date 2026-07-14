@@ -25,7 +25,6 @@ const runtimeKeys = [
   'window',
   'document',
   'showNotification',
-  'importDataJSON',
   'detectDNAFile',
   'handleMtDNAFile',
   'handleDNAFile',
@@ -57,10 +56,10 @@ try {
   const picker = { click: () => calls.push(['picker']) };
 
   configureImportDropZoneRuntimeDeps({
+    importDataJSON: file => calls.push(['json', file.name]),
     isImportRunning: () => true,
     showNotification: (message, type) => calls.push(['notify', type, message]),
   });
-  setRuntimeValue('importDataJSON', file => calls.push(['json', file.name]));
   setRuntimeValue('detectDNAFile', header => header.includes('MT') ? 'mtdna' : 'autosomal');
   setRuntimeValue('handleMtDNAFile', file => calls.push(['mtdna', file.name]));
   setRuntimeValue('handleDNAFile', file => calls.push(['dna', file.name]));

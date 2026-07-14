@@ -181,7 +181,3 @@ export async function refreshImportRuntimeShell(options = {}) {
   if (profileButton) renderProfileButton?.();
   navigate?.(route);
 }
-
-export function publishExportGlobals(api) {
-  Object.assign(getRuntimeWindow(), api);
-}

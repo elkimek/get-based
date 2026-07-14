@@ -3,11 +3,13 @@
 
 import { isImportRunning } from './pdf-import-progress.js';
 import { showNotification } from './utils.js';
+import { importDataJSON } from './export.js';
 
-const importDropZoneRuntimeDeps = { isImportRunning, showNotification };
+const importDropZoneRuntimeDeps = { importDataJSON, isImportRunning, showNotification };
 
 export function configureImportDropZoneRuntimeDeps(deps = {}) {
   const previous = { ...importDropZoneRuntimeDeps };
+  if (typeof deps.importDataJSON === 'function') importDropZoneRuntimeDeps.importDataJSON = deps.importDataJSON;
   if (typeof deps.isImportRunning === 'function') importDropZoneRuntimeDeps.isImportRunning = deps.isImportRunning;
   if ('showNotification' in deps) {
     importDropZoneRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
@@ -68,7 +70,7 @@ export function showDropZoneImportNotification(message, type = 'info') {
 
 /** @param {File} file */
 export function importDropZoneJSONFile(file) {
-  return requireRuntimeFunction('importDataJSON')(file);
+  return importDropZoneRuntimeDeps.importDataJSON(file);
 }
 
 /** @param {string} header */

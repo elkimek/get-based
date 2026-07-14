@@ -146,11 +146,10 @@ assert('Profile share helpers stay module-only',
   !profileShareSrc.includes('Object.assign(window'));
 
 console.log('4. Export/import reuse and credential boundaries');
-const exportGlobalPublish = exportSrc.match(/publishExportGlobals\(\s*\{([^}]*)\}\)/);
 assert('buildClientExportObject stays module-only, not window-exposed',
   exportSrc.includes('export async function buildClientExportObject') &&
-  exportGlobalPublish &&
-  !exportGlobalPublish[1].includes('buildClientExportObject'));
+  !exportSrc.includes('publishExportGlobals') &&
+  !exportSrc.includes('Object.assign(window'));
 assert('exportClientJSON downloads the reusable export object',
   exportSrc.includes('exportObj = await buildClientExportObject(profileId, includeChat)') &&
   exportSrc.includes('new Blob([JSON.stringify(exportObj, null, 2)]'));

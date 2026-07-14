@@ -31,7 +31,6 @@ console.log('=== Nav Runtime Tests ===');
 const runtimeKeys = [
   'window',
   'navigate',
-  'openReportBuilder',
   'openContextModal',
   'openCreateMarkerModal',
   'openClientList',
@@ -60,7 +59,6 @@ try {
   const calls = [];
   const browserRuntime = {
     navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
-    openReportBuilder() { calls.push(['report', this === browserRuntime]); },
     openContextModal() { calls.push(['context', this === browserRuntime]); },
     openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
     openClientList() { calls.push(['client', this === browserRuntime]); },
@@ -68,6 +66,7 @@ try {
   setRuntimeValue('window', browserRuntime);
   const restoreNavRuntime = configureNavRuntime({
     openEMFAssessmentEditor: () => calls.push(['emf', true]),
+    openReportBuilder: () => calls.push(['report', true]),
   });
 
   navigateFromNavRuntime('labs');
@@ -86,10 +85,10 @@ try {
   assert('exposeNavRuntimeGlobals assigns exports to the browser runtime',
     browserRuntime.runtimeProbe === 42);
 
-  for (const key of ['navigate', 'openReportBuilder', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
+  for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
     delete browserRuntime[key];
   }
-  configureNavRuntime({ openEMFAssessmentEditor: () => {} });
+  configureNavRuntime({ openEMFAssessmentEditor: () => {}, openReportBuilder: () => {} });
   navigateFromNavRuntime('missing');
   openEMFAssessmentFromNavRuntime();
   openReportBuilderFromNavRuntime();

@@ -16,6 +16,7 @@ console.log('=== Biometrics Tests ===\n');
 await import('../js/state.js');
 const profile = await import('../js/profile.js');
 const labContext = await import('../js/lab-context.js');
+const exportModule = await import('../js/export.js');
 // Initialize profiles so getProfiles() / setProfileHeight() have something
 // to mutate. The Playwright environment runs main.js which seeds this.
 if (!window._labState.profiles) {
@@ -144,7 +145,7 @@ if (!window._labState.profiles) {
   // ═══════════════════════════════════════
   console.log('8. Export');
 
-  if (typeof window.exportClientJSON === 'function') {
+  if (typeof exportModule.exportClientJSON === 'function') {
     // Can't easily test the download, but verify the data is in importedData
     assert('biometrics in importedData', state.importedData.biometrics != null);
     assert('biometrics.weight has entries', state.importedData.biometrics.weight.length > 0);

@@ -10,6 +10,7 @@ return (async function() {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const S = window._labState;
   const backupModule = await import('/js/backup.js');
+  const exportModule = await import('/js/export.js');
   const profile = await import('/js/profile.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
@@ -44,12 +45,12 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 1. Export function availability ', 'font-weight:bold;color:#f59e0b');
 
-  assert('exportDataJSON is callable', typeof window.exportDataJSON === 'function');
-  assert('exportClientJSON is callable', typeof window.exportClientJSON === 'function');
-  assert('exportAllDataJSON is callable', typeof window.exportAllDataJSON === 'function');
-  assert('buildAllDataBundle is callable', typeof window.buildAllDataBundle === 'function');
-  assert('importDataJSON is callable', typeof window.importDataJSON === 'function');
-  assert('clearAllData is callable', typeof window.clearAllData === 'function');
+  assert('exportDataJSON is callable', typeof exportModule.exportDataJSON === 'function');
+  assert('exportClientJSON is callable', typeof exportModule.exportClientJSON === 'function');
+  assert('exportAllDataJSON is callable', typeof exportModule.exportAllDataJSON === 'function');
+  assert('buildAllDataBundle is callable', typeof exportModule.buildAllDataBundle === 'function');
+  assert('importDataJSON is callable', typeof exportModule.importDataJSON === 'function');
+  assert('clearAllData is callable', typeof exportModule.clearAllData === 'function');
 
   // ═══════════════════════════════════════
   // 2. exportClientJSON — source verification
@@ -214,7 +215,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 3. buildAllDataBundle live call ', 'font-weight:bold;color:#f59e0b');
 
-  const raw = await window.buildAllDataBundle();
+  const raw = await exportModule.buildAllDataBundle();
   assert('buildAllDataBundle returns non-null', raw != null);
 
   // buildAllDataBundle returns a JSON string
@@ -325,7 +326,7 @@ return (async function() {
   await wait(20);
 
   // Rebuild bundle after adding supplement
-  const raw2 = await window.buildAllDataBundle();
+  const raw2 = await exportModule.buildAllDataBundle();
   const bundle2 = JSON.parse(raw2);
   const myProfile2 = bundle2.profiles.find(p => p.id === currentId);
   const bundleSupps = myProfile2?.data?.supplements || [];
@@ -359,7 +360,7 @@ return (async function() {
   window.saveImportedData();
   await wait(20);
 
-  const raw3 = await window.buildAllDataBundle();
+  const raw3 = await exportModule.buildAllDataBundle();
   const bundle3 = JSON.parse(raw3);
   const myProfile3 = bundle3.profiles.find(p => p.id === currentId);
   const pData = myProfile3?.data || {};
@@ -401,7 +402,7 @@ return (async function() {
   window.saveImportedData();
   await wait(20);
 
-  const raw4 = await window.buildAllDataBundle();
+  const raw4 = await exportModule.buildAllDataBundle();
   const bundle4 = JSON.parse(raw4);
   const myProfile4 = bundle4.profiles.find(p => p.id === currentId);
   const pData4 = myProfile4?.data || {};
@@ -424,7 +425,7 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 9. clearAllData source inspection ', 'font-weight:bold;color:#f59e0b');
 
-  assert('clearAllData exists', typeof window.clearAllData === 'function');
+  assert('clearAllData exists', typeof exportModule.clearAllData === 'function');
 
   // Verify it clears the expected storage keys. The `-imported` blob lives in
   // IndexedDB now → encryptedRemoveItem hits both backends.
@@ -614,22 +615,22 @@ return (async function() {
   }
 
   // ═══════════════════════════════════════
-  // 14. Window exports
+  // 14. Module exports
   // ═══════════════════════════════════════
-  console.log('%c 14. Window exports ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 14. Module exports ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Window has exportPDFReport', typeof window.exportPDFReport === 'function');
-  assert('Window has openReportBuilder', typeof window.openReportBuilder === 'function');
-  assert('Window has closeReportBuilder', typeof window.closeReportBuilder === 'function');
-  assert('Window has exportDataJSON', typeof window.exportDataJSON === 'function');
-  assert('Window has exportClientJSON', typeof window.exportClientJSON === 'function');
-  assert('Window has exportAllDataJSON', typeof window.exportAllDataJSON === 'function');
-  assert('Window has buildAllDataBundle', typeof window.buildAllDataBundle === 'function');
-  assert('Window has importDataJSON', typeof window.importDataJSON === 'function');
-  assert('Window has clearAllData', typeof window.clearAllData === 'function');
-  assert('Window has loadDemoData', typeof window.loadDemoData === 'function');
+  assert('Module has exportPDFReport', typeof exportModule.exportPDFReport === 'function');
+  assert('Module has openReportBuilder', typeof exportModule.openReportBuilder === 'function');
+  assert('Module has closeReportBuilder', typeof exportModule.closeReportBuilder === 'function');
+  assert('Module has exportDataJSON', typeof exportModule.exportDataJSON === 'function');
+  assert('Module has exportClientJSON', typeof exportModule.exportClientJSON === 'function');
+  assert('Module has exportAllDataJSON', typeof exportModule.exportAllDataJSON === 'function');
+  assert('Module has buildAllDataBundle', typeof exportModule.buildAllDataBundle === 'function');
+  assert('Module has importDataJSON', typeof exportModule.importDataJSON === 'function');
+  assert('Module has clearAllData', typeof exportModule.clearAllData === 'function');
+  assert('Module has loadDemoData', typeof exportModule.loadDemoData === 'function');
 
-  window.openReportBuilder();
+  exportModule.openReportBuilder();
   await wait(20);
   const reportBuilder = document.getElementById('report-builder-overlay');
   assert('Report builder modal renders', !!reportBuilder);
@@ -647,7 +648,7 @@ return (async function() {
   assert('Report builder requires lab categories for lab-derived sections',
     !!document.getElementById('report-builder-overlay') &&
       (document.getElementById('notification-container')?.textContent || '').includes('Choose at least one lab category'));
-  window.closeReportBuilder();
+  exportModule.closeReportBuilder();
   assert('Report builder closes cleanly', !document.getElementById('report-builder-overlay'));
 
   {
@@ -703,7 +704,7 @@ return (async function() {
         { date: isoDate(inWindow), text: 'Between-draw report note retained' },
         { date: isoDate(outsideWindow), text: 'Old report note excluded' }
       ]);
-      window.exportPDFReport({ preset: 'personal', dateRange: '1y', sections: ['notes'], categoryKeys: null });
+      exportModule.exportPDFReport({ preset: 'personal', dateRange: '1y', sections: ['notes'], categoryKeys: null });
       assert('Report notes include in-window notes without matching lab draw',
         capturedReport.includes('Between-draw report note retained') &&
           !capturedReport.includes('Old report note excluded'));
@@ -722,7 +723,7 @@ return (async function() {
           capturedReport.includes('<dt>Resting pulse</dt><dd>61 bpm (May 15, 2026)</dd>'));
 
       capturedReport = '';
-      window.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
+      exportModule.exportPDFReport({ preset: 'personal', dateRange: '3m', sections: ['categories'], categoryKeys: null });
       assert('Report date window with no matching lab draws stays empty',
         capturedReport.includes('No lab dates in selected range') && !capturedReport.includes('<h2>Biochemistry</h2>'));
 
@@ -735,7 +736,7 @@ return (async function() {
           { relative: 'paternal_grandfather', condition: "Alzheimer's Disease", onsetAge: 70, note: 'died' }
         ]
       };
-      window.exportPDFReport({ preset: 'clinician', dateRange: 'all', sections: ['context'], categoryKeys: null });
+      exportModule.exportPDFReport({ preset: 'clinician', dateRange: 'all', sections: ['context'], categoryKeys: null });
       assert('Report medical history formats family history as readable text',
         capturedReport.includes('Father: Psoriasis (onset 18)') &&
           capturedReport.includes('Paternal Grandfather: Alzheimer') &&
@@ -750,7 +751,7 @@ return (async function() {
         snps: {}
       };
       window._snpTableCache = {};
-      window.exportPDFReport({ preset: 'personal', dateRange: 'all', sections: ['summary', 'genetics'], categoryKeys: null });
+      exportModule.exportPDFReport({ preset: 'personal', dateRange: 'all', sections: ['summary', 'genetics'], categoryKeys: null });
       assert('Report summary can include genetics without crashing',
         capturedReport.includes('<strong>APOE:</strong> E3/E4'));
 
@@ -878,7 +879,7 @@ return (async function() {
       // importDataJSON consumes a File object via FileReader. Synthesize one.
       const blob = new Blob([JSON.stringify(demo)], { type: 'application/json' });
       const file = new File([blob], 'demo-female.json', { type: 'application/json' });
-      await window.importDataJSON(file);
+      await exportModule.importDataJSON(file);
 
       // FileReader is async — poll the imported state up to 5s for the
       // first Light & Sun field to land.
@@ -1031,7 +1032,7 @@ return (async function() {
       const beforeRepeat = (S.importedData?.sunSessions || []).length;
       const file2 = new File([new Blob([JSON.stringify(demo)], { type: 'application/json' })],
         'demo-female.json', { type: 'application/json' });
-      await window.importDataJSON(file2);
+      await exportModule.importDataJSON(file2);
       assert('re-importing same demo does NOT duplicate sunSessions',
         (S.importedData?.sunSessions || []).length === beforeRepeat,
         `before=${beforeRepeat}, after=${(S.importedData?.sunSessions || []).length}`);
@@ -1058,7 +1059,7 @@ return (async function() {
   //    code paths
   //  • someone re-introducing the "navigate fires loadContextHealthDots
   //    before our cache lands" race
-  if (typeof window !== 'undefined' && typeof window.loadDemoData === 'function') {
+  if (typeof exportModule.loadDemoData === 'function') {
     console.log('%c 16. Demo prefill end-to-end (zero AI calls) ', 'font-weight:bold;color:#f59e0b');
     const snapshot2 = JSON.parse(JSON.stringify(S.importedData || {}));
     const origProfile = S.currentProfile;
@@ -1077,7 +1078,7 @@ return (async function() {
       return origFetch.apply(this, arguments);
     };
     try {
-      await window.loadDemoData('female');
+      await exportModule.loadDemoData('female');
       // Wait long enough for: import resolve → navigate('dashboard') →
       // loadFocusCard + loadContextHealthDots fire-and-forget paths.
       await wait(4000);
@@ -1154,7 +1155,7 @@ return (async function() {
       S.currentProfile = origProfile;
     }
   } else {
-    assert('Demo prefill end-to-end test skipped — window.loadDemoData unavailable', true);
+    assert('Demo prefill end-to-end test skipped — module loadDemoData unavailable', true);
   }
 
   // ═══════════════════════════════════════

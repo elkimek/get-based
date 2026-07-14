@@ -25,7 +25,6 @@ import {
   destroyWalletRuntimeDB,
   getWalletBundleSettings,
   markDemoLoadingProfile,
-  publishExportGlobals,
   refreshImportRuntimeShell,
 } from './export-runtime.js';
 
@@ -552,5 +551,3 @@ export async function loadDemoData(sex = 'male') {
     showNotification('Could not load demo data: ' + err.message, 'error');
   }
 }
-
-publishExportGlobals({ openReportBuilder, closeReportBuilder, generateReportAISummary, exportPDFReport, exportDataJSON, exportClientJSON, exportAllDataJSON, buildAllDataBundle, importDataJSON, clearAllData, loadDemoData });

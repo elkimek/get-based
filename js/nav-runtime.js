@@ -2,15 +2,20 @@
 // nav-runtime.js - Browser runtime hooks for sidebar navigation.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { openReportBuilder } from './export.js';
 
 const navRuntimeDeps = {
   openEMFAssessmentEditor,
+  openReportBuilder,
 };
 
 export function configureNavRuntime(deps = {}) {
   const previous = { ...navRuntimeDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     navRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  if (typeof deps.openReportBuilder === 'function') {
+    navRuntimeDeps.openReportBuilder = deps.openReportBuilder;
   }
   return previous;
 }
@@ -46,7 +51,7 @@ export function openEMFAssessmentFromNavRuntime() {
 }
 
 export function openReportBuilderFromNavRuntime() {
-  getNavRuntimeFunction('openReportBuilder')?.();
+  navRuntimeDeps.openReportBuilder();
 }
 
 export function openContextFromNavRuntime() {

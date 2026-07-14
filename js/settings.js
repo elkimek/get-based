@@ -49,6 +49,7 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
 
 /**
  * @typedef {{
+ *   clearAllData: () => Promise<void> | void,
  *   exportAllDataJSON: () => Promise<void> | void,
  *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
  *   getActiveProfileId: () => string | null,
@@ -58,8 +59,9 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
 
 /** @type {SettingsRuntime} */
 const settingsRuntime = {
-  exportAllDataJSON: () => settingsWindow.exportAllDataJSON?.(),
-  exportClientJSON: (profileId) => settingsWindow.exportClientJSON?.(profileId),
+  clearAllData: () => {},
+  exportAllDataJSON: () => {},
+  exportClientJSON: () => {},
   getActiveProfileId,
   openProfileShareModal: () => {},
 };
@@ -448,7 +450,7 @@ async function handleSettingsClick(event) {
     settingsRuntime.exportAllDataJSON();
   } else if (action === 'clear-all-data') {
     event.preventDefault();
-    settingsWindow.clearAllData?.();
+    settingsRuntime.clearAllData();
   } else if (action === 'reset-profile-usage') {
     event.preventDefault();
     resetCurrentProfileUsage();
