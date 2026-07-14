@@ -11,6 +11,12 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.183', date: '2026-07-14', title: 'Complete Apple Health imports',
+    items: [
+      '<b>Apple Health exports keep every supported health metric.</b> Files selected through the main import button now save heart rate, HRV, weight, body composition, and other wearable data before offering menstrual-cycle review.',
+    ]
+  },
+  {
     version: '1.10.182', date: '2026-07-14', title: 'Lighter, responsive app updates',
     items: [
       '<b>Returning visits reuse the complete installed app.</b> Versioned scripts, styles, fonts, and reference files no longer re-download in the background on every load, while live APIs and synced data always stay on the network.',
