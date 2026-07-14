@@ -12,9 +12,9 @@ import {
   getVeniceE2EE, setVeniceE2EE, isVeniceE2EEActive,
   getVeniceModelDisplay, getOpenRouterModelDisplay,
   getRoutstrModelDisplay, getPpqModelDisplay,
-  renderModelPricingHint, isRecommendedModel
+  renderModelPricingHint, isRecommendedModel,
+  getOllamaConfig
 } from './api.js';
-import { getOllamaConfig } from './pii.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panels.js';
 import {
   discoverRoutstrNodesFromRuntime,

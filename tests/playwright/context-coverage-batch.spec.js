@@ -465,7 +465,7 @@ test('context health dots and focus card cover cache fallback and empty states',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ healthUrl, focusUrl }) => {
-    const [{ state }, health, focus, summaries, profile, data, labContext] = await Promise.all([
+    const [{ state }, health, focus, summaries, profile, data, labContext, cryptoStore] = await Promise.all([
       import('/js/state.js'),
       import(healthUrl),
       import(focusUrl),
@@ -473,6 +473,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       import('/js/profile.js'),
       import('/js/data.js'),
       import('/js/lab-context.js'),
+      import('/js/crypto.js'),
     ]);
     const outcomes = {};
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -486,9 +487,10 @@ test('context health dots and focus card cover cache fallback and empty states',
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       openRouterKey: localStorage.getItem('labcharts-openrouter-key'),
+      ollamaConfig: localStorage.getItem('labcharts-ollama'),
+      ollamaConfigCache: cryptoStore.getCachedKey('labcharts-ollama'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
       buildLabContext: window.buildLabContext,
     };
     const cacheKeys = [];
@@ -568,7 +570,7 @@ test('context health dots and focus card cover cache fallback and empty states',
         exercise: { dot: 'purple', tip: 'invalid color' },
       });
       const aiCalls = [];
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' });
+      cryptoStore.updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' }));
       window.buildLabContext = () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n');
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
@@ -607,7 +609,6 @@ test('context health dots and focus card cover cache fallback and empty states',
         && localStorage.getItem(healthCacheKey) !== null;
 
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
       if (saved.buildLabContext === undefined) delete window.buildLabContext;
       else window.buildLabContext = saved.buildLabContext;
 
@@ -653,7 +654,6 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'context-test-model');
       const focusAiCalls = [];
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', model: 'context-test-model', mode: 'ollama', apiKey: '' });
       window.fetch = async (url, options = {}) => {
         const href = typeof url === 'string' ? url : url?.url || '';
         if (href === 'http://ollama.test/v1/chat/completions') {
@@ -681,7 +681,6 @@ test('context health dots and focus card cover cache fallback and empty states',
         && document.getElementById('focus-card-body')?.textContent.includes('Vitamin D is low. Recheck with ApoB') === true
         && streamedFocusCache.text === 'Vitamin D is low. Recheck with ApoB.';
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
 
       localStorage.removeItem(focusCacheKey);
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
@@ -720,13 +719,15 @@ test('context health dots and focus card cover cache fallback and empty states',
       else localStorage.setItem('labcharts-ai-paused', saved.paused);
       if (saved.openRouterKey == null) localStorage.removeItem('labcharts-openrouter-key');
       else localStorage.setItem('labcharts-openrouter-key', saved.openRouterKey);
+      if (saved.ollamaConfig == null) localStorage.removeItem('labcharts-ollama');
+      else localStorage.setItem('labcharts-ollama', saved.ollamaConfig);
       if (saved.ollamaModel == null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
       if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
       window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
+      cryptoStore.updateKeyCache('labcharts-ollama', saved.ollamaConfigCache);
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
       if (saved.buildLabContext === undefined) delete window.buildLabContext;
       else window.buildLabContext = saved.buildLabContext;
       for (const key of cacheKeys) localStorage.removeItem(key);

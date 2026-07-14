@@ -26,14 +26,6 @@ export function setApiLocationHrefRuntime(url) {
   return true;
 }
 
-export function getOllamaConfigRuntime() {
-  const runtime = getApiRuntime();
-  if (!runtime || typeof runtime.getOllamaConfig !== 'function') {
-    throw new Error('Ollama config runtime is unavailable.');
-  }
-  return runtime.getOllamaConfig();
-}
-
 export function showOpenRouterInsufficientBalanceDialogRuntime() {
   const runtime = getApiRuntime();
   if (!runtime?.showInsufficientBalanceDialog) return false;

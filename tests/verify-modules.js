@@ -185,8 +185,13 @@
   // 2. WINDOW EXPORTS — all 300+ functions registered
   // ═══════════════════════════════════════════════
 
-  // api.js is module-only; UI modules below still publish legacy window hooks.
-  const apiModule = await import('../js/api.js');
+  // Module-only surfaces are verified through their ESM exports. Remaining UI
+  // modules below still publish legacy window hooks while migration continues.
+  const [apiModule, chartsModule, piiModule] = await Promise.all([
+    import('../js/api.js'),
+    import('../js/charts.js'),
+    import('../js/pii.js'),
+  ]);
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
     'getVeniceModel','setVeniceModel','getVeniceModelDisplay',
@@ -196,6 +201,7 @@
     'getRoutstrModel','setRoutstrModel','getRoutstrModelDisplay',
     'getPpqKey','savePpqKey','hasPpqKey',
     'getPpqModel','setPpqModel','getPpqModelDisplay',
+    'getOllamaConfig','saveOllamaConfig',
     'getOllamaMainModel','setOllamaMainModel',
     'getOllamaPIIUrl','setOllamaPIIUrl','getOllamaPIIModel','setOllamaPIIModel',
     'fetchVeniceModels','fetchOpenRouterModels','fetchRoutstrModels','fetchPpqModels',
@@ -205,7 +211,7 @@
     'callOllamaChat','callVeniceAPI','callOpenRouterAPI','callRoutstrAPI','callPpqAPI','callClaudeAPI'
   ];
 
-  // charts.js (8)
+  // charts.js (8, module-only)
   const chartsExports = [
     'refBandPlugin','optimalBandPlugin','noteAnnotationPlugin','supplementBarPlugin',
     'getNotesForChart','getSupplementsForChart',
@@ -326,11 +332,11 @@
     'showBatchImportProgress','showImportPreviewAsync'
   ];
 
-  // pii.js (7)
+  // pii.js (7, module-only)
   const piiExports = [
     'obfuscatePDFText','sanitizeWithOllama','checkOllamaPII',
     'reviewPIIBeforeSend',
-    'getOllamaConfig','checkOllama'
+    'checkOllama'
   ];
 
   // profile.js (28)
@@ -435,8 +441,19 @@
   }
   console.log(`Checked ${apiExports.length} api.js module exports`);
 
+  for (const [moduleName, moduleApi, exports] of [
+    ['charts.js', chartsModule, chartsExports],
+    ['pii.js', piiModule, piiExports],
+  ]) {
+    for (const name of exports) {
+      const val = moduleApi[name];
+      const isFunc = typeof val === 'function';
+      assert(`${moduleName}.${name} module export`, val !== undefined, isFunc ? 'function' : typeof val);
+    }
+    console.log(`Checked ${exports.length} ${moduleName} module exports`);
+  }
+
   const allModules = {
-    'charts.js': chartsExports,
     'lab-context.js': labContextExports,
     'chat.js': chatExports,
     'client-list.js': clientListExports,
@@ -447,7 +464,6 @@
     'nav.js': navExports,
     'notes.js': notesExports,
     'pdf-import.js': pdfImportExports,
-    'pii.js': piiExports,
     'profile.js': profileExports,
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
@@ -697,7 +713,7 @@
   // ═══════════════════════════════════════════════
   // 17. PII FUNCTIONS — exist and callable
   // ═══════════════════════════════════════════════
-  const testPII = window.obfuscatePDFText('John Smith born 1990-01-01 SSN 123-45-6789');
+  const testPII = piiModule.obfuscatePDFText('John Smith born 1990-01-01 SSN 123-45-6789');
   assert('obfuscatePDFText returns object', testPII && typeof testPII === 'object');
   assert('obfuscatePDFText has obfuscated field', typeof testPII.obfuscated === 'string');
 

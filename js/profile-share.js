@@ -742,16 +742,5 @@ export function initProfileShareLinks() {
 }
 
 if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    openProfileShareModal,
-    closeProfileShareModal,
-    openSharedProfileImportModal,
-    createProfileShare,
-    deleteProfileShareEnvelope,
-    encryptProfileShareEnvelope,
-    decryptProfileShareEnvelope,
-    parseProfileShareIdFromLocation,
-    buildProfileShareUrl,
-  });
   initProfileShareLinks();
 }

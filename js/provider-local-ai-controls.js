@@ -3,14 +3,16 @@
 
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
+  getOllamaConfig,
   getOllamaMainModel,
   getOllamaPIIModel,
   getOllamaPIIUrl,
+  saveOllamaConfig,
   setOllamaMainModel,
   setOllamaPIIModel,
   setOllamaPIIUrl,
 } from './api.js';
-import { getOllamaConfig, checkOllama, checkOpenAICompatible, saveOllamaConfig, setOllamaPIIEnabled } from './pii.js';
+import { checkOllama, checkOpenAICompatible, setOllamaPIIEnabled } from './pii.js';
 import { detectHardware, assessModel, assessFitness, getBestModel, getUpgradeSuggestion, saveHardwareOverride, getHardwareOverride } from './hardware.js';
 import {
   cacheLocalAiModelDetails,

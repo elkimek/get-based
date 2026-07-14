@@ -2,6 +2,7 @@
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 
 import { state } from './state.js';
+import { refreshChartThemeColors } from './charts.js';
 import { escapeHTML, escapeAttr, isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { getTheme, setTheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, getTimeFormat, setTimeFormat, THEMES } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
@@ -16,7 +17,6 @@ import {
   addSettingsRuntimeEventListener,
   cancelSettingsFrame,
   publishSettingsGlobals,
-  refreshSettingsChartThemeColors,
   refreshSettingsRuntimeSurfaces,
   requestSettingsFrame,
   settingsMediaMatches,
@@ -60,7 +60,7 @@ const settingsRuntime = {
   exportAllDataJSON: () => settingsWindow.exportAllDataJSON?.(),
   exportClientJSON: (profileId) => settingsWindow.exportClientJSON?.(profileId),
   getActiveProfileId: () => settingsWindow.getActiveProfileId?.() || null,
-  openProfileShareModal: (profileId) => settingsWindow.openProfileShareModal?.(profileId),
+  openProfileShareModal: () => {},
 };
 
 /** @param {Partial<SettingsRuntime>} [runtime] */
@@ -174,7 +174,7 @@ let chartThemeRefreshTimer = 0;
 function scheduleChartThemeRefresh() {
   if (chartThemeRefreshFrame) cancelSettingsFrame(chartThemeRefreshFrame);
   if (chartThemeRefreshTimer) clearTimeout(chartThemeRefreshTimer);
-  const refresh = () => refreshSettingsChartThemeColors({ batchSize: 4 });
+  const refresh = () => refreshChartThemeColors({ batchSize: 4 });
   const frame = requestSettingsFrame(() => {
     chartThemeRefreshFrame = 0;
     chartThemeRefreshTimer = setTimeout(() => {

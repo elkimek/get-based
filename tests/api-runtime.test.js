@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import {
   getApiLocationOriginRuntime,
   getApiLocationPathnameRuntime,
-  getOllamaConfigRuntime,
   setApiLocationHrefRuntime,
   showOpenRouterInsufficientBalanceDialogRuntime,
 } from '../js/api-runtime.js';
@@ -41,12 +40,10 @@ describe('api runtime adapter', () => {
     expect(runtime.location.href).toBe('https://openrouter.ai/auth');
   });
 
-  it('delegates Ollama config and OpenRouter balance dialog access', () => {
-    const config = { url: 'http://localhost:11434', model: 'llama3.2', apiKey: '' };
+  it('delegates OpenRouter balance dialog access', () => {
     const showInsufficientBalanceDialog = vi.fn();
-    setRuntimeWindow({ getOllamaConfig: () => config, showInsufficientBalanceDialog });
+    setRuntimeWindow({ showInsufficientBalanceDialog });
 
-    expect(getOllamaConfigRuntime()).toBe(config);
     expect(showOpenRouterInsufficientBalanceDialogRuntime()).toBe(true);
     expect(showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
   });
@@ -58,7 +55,6 @@ describe('api runtime adapter', () => {
     expect(getApiLocationPathnameRuntime()).toBe('');
     expect(setApiLocationHrefRuntime('https://openrouter.ai/auth')).toBe(false);
     expect(showOpenRouterInsufficientBalanceDialogRuntime()).toBe(false);
-    expect(() => getOllamaConfigRuntime()).toThrow('Ollama config runtime is unavailable.');
   });
 
   it('keeps API provider browser globals behind runtime adapters', () => {
@@ -70,7 +66,8 @@ describe('api runtime adapter', () => {
 
     expect(openRouterSrc).toContain("from './api-runtime.js'");
     expect(openRouterOAuthSrc).toContain("from './api-runtime.js'");
-    expect(localSrc).toContain("from './api-runtime.js'");
+    expect(localSrc).toContain("from './api-provider-storage.js'");
+    expect(localSrc).not.toContain("from './api-runtime.js'");
     expect(apiSrc).not.toContain('Object.assign(window');
     expect(/\bwindow(?:\.|\s*\[)/.test(openRouterSrc)).toBe(false);
     expect(/\bwindow(?:\.|\s*\[)/.test(openRouterOAuthSrc)).toBe(false);

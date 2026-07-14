@@ -2,8 +2,7 @@
 // pii.js — PII obfuscation (Ollama + regex), diff viewer
 
 import { showNotification, escapeHTML } from './utils.js';
-import { getOllamaPIIModel, getOllamaPIIUrl, markAISettingsLocal } from './api.js';
-import { getCachedKey, updateKeyCache, encryptedSetItem } from './crypto.js';
+import { getOllamaConfig, getOllamaPIIModel, getOllamaPIIUrl } from './api.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
 import { state } from './state.js';
 
@@ -48,21 +47,6 @@ export function fakeDate() {
   return `${String(d).padStart(2,'0')}.${String(m).padStart(2,'0')}.${y}`;
 }
 export function fakePatientId() { return randomDigits(10); }
-
-// ═══════════════════════════════════════════════
-// OLLAMA INTEGRATION
-// ═══════════════════════════════════════════════
-export function getOllamaConfig() {
-  const defaults = { url: 'http://localhost:11434', model: 'llama3.2', mode: 'ollama', apiKey: '' };
-  try { return { ...defaults, ...JSON.parse(getCachedKey('labcharts-ollama')) }; }
-  catch { return defaults; }
-}
-export async function saveOllamaConfig(config) {
-  const json = JSON.stringify(config);
-  await encryptedSetItem('labcharts-ollama', json);
-  updateKeyCache('labcharts-ollama', json);
-  markAISettingsLocal();
-}
 
 export async function checkOllama(url) {
   const baseUrl = url || getOllamaConfig().url;
@@ -851,5 +835,3 @@ export function reviewPIIBeforeSend(originalText, { obfuscatedText = '', streamF
     }
   });
 }
-
-Object.assign(window, { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend, getOllamaConfig, checkOllama, checkOpenAICompatible, showPIIDiffViewer, isOllamaPIIEnabled, setOllamaPIIEnabled });
