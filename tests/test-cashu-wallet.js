@@ -47,7 +47,7 @@ await import('../js/crypto.js');
 (0, eval)(read('vendor/cashu-ts.js'));
 // bip39-minimal.js self-assigns to globalThis.bip39.
 await import('../vendor/bip39-minimal.js');
-await import('../js/cashu-wallet.js');
+const wallet = await import('../js/cashu-wallet.js');
 await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
@@ -104,9 +104,9 @@ for (const fn of walletExports) {
 }
 
 // ═══════════════════════════════════════
-// 2. CASHU WALLET — WINDOW EXPORTS
+// 2. CASHU WALLET — MODULE-ONLY EXPORTS
 // ═══════════════════════════════════════
-console.log('2. Cashu Wallet Window Exports');
+console.log('2. Cashu Wallet Module-Only Exports');
 
 const windowExports = [
   'cashuGetBalance', 'cashuCreateFundingInvoice', 'cashuCheckFundingStatus',
@@ -122,7 +122,10 @@ const windowExports = [
   'cashuGetFeePct'
 ];
 for (const fn of windowExports) {
-  assert(`window.${fn} exists`, typeof window[fn] === 'function');
+  assert(`window.${fn} stays module-only`, !(fn in window));
+}
+for (const fn of walletExports) {
+  assert(`cashuWallet.${fn} is callable`, typeof wallet[fn] === 'function');
 }
 
 // ═══════════════════════════════════════
@@ -184,7 +187,9 @@ assert('Saved node refund never overwrites existing withdraw recovery token', wa
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
 assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
-assert('Provider panel recovery uses receiveToken mint-switch path', ppSrc.includes("await callProviderPanelRuntime('cashuReceiveToken', token)") && !ppSrc.includes("await callProviderPanelRuntime('cashuImportWallet', token)"));
+assert('Provider panel recovery uses module-owned receiveToken mint-switch path',
+  ppSrc.includes('await walletRuntime.cashuReceiveToken(token)') &&
+  !ppSrc.includes("await callProviderPanelRuntime('cashuImportWallet', token)"));
 assert('Wallet runtime exposes pending deposit clear callback', walletRuntimeSrc.includes('clearPendingDeposit as cashuClearPendingDeposit') && walletRuntimeSrc.includes('cashuClearPendingDeposit'));
 
 // ═══════════════════════════════════════
@@ -296,7 +301,8 @@ assert('Bundle restores node URL through export runtime',
   exportRuntimeSrc.includes('nostrSetSelectedNode'));
 assert('clearAllData destroys wallet DB through export runtime',
   exportSrc.includes('destroyWalletRuntimeDB') &&
-  exportRuntimeSrc.includes('cashuDestroyWalletDB'));
+  exportRuntimeSrc.includes("import { destroyWalletDB } from './cashu-wallet.js'") &&
+  exportRuntimeSrc.includes('await destroyWalletDB()'));
 assert('clearAllData removes wallet localStorage keys', exportSrc.includes("'labcharts-cashu-wallet-mint'") && exportSrc.includes("'labcharts-cashu-wallet-mnemonic'") && exportSrc.includes("'labcharts-routstr-node'"));
 
 // ═══════════════════════════════════════
@@ -327,10 +333,10 @@ assert('Real-funds canary reset guard fails closed when wallet APIs are missing'
 assert('Real-funds canary final state asserts clean pending/key invariants', canarySrc.includes('Final canary state is not clean') && canarySrc.includes('finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw'));
 assert('Real-funds canary avoids same persistent profile double-open during roundtrip', canarySrc.indexOf('await context.close();') < canarySrc.indexOf('const tokenRoundtrip = await tokenRoundtripAndSeedRestore();'));
 assert('Real-funds canary clears main sender journal before accepting confirmed return token',
-  canaryRoundtripSrc.includes('await window.cashuClearPendingWithdraw();\n        const recv = await window.cashuReceiveToken(token);'));
+  canaryRoundtripSrc.includes('await window.__cashuCanaryWallet.clearPendingWithdraw();\n        const recv = await window.__cashuCanaryWallet.receiveToken(token);'));
 assert('Real-funds canary clears second sender journal only after main receipt',
   canaryRoundtripSrc.indexOf("if (!recovered.received) throw new Error('Return token receive failed')") <
-    canaryRoundtripSrc.indexOf('await second.page.evaluate(async () => window.cashuClearPendingWithdraw());'));
+    canaryRoundtripSrc.indexOf('await second.page.evaluate(async () => window.__cashuCanaryWallet.clearPendingWithdraw());'));
 assert('Real-funds canary passes the captured seed after closing the main profile',
   canaryRoundtripSrc.includes('const seedRestore = await seedRestoreSmoke(seed);') &&
     canarySeedRestoreSrc.includes('async function seedRestoreSmoke(seed)') &&
@@ -457,7 +463,6 @@ assert('Two generations differ', mnemonic !== mnemonic2);
 // sites actually invokes it.
 console.log('18. SSRF Validation Wiring');
 
-const wallet = await import('../js/cashu-wallet.js');
 const discovery = await import('../js/nostr-discovery.js');
 
 async function expectMintRejection(url, label) {

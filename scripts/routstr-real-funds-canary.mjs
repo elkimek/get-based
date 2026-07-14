@@ -65,7 +65,8 @@ async function openApp(dir = USER_DATA_DIR) {
   });
   await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    window.__cashuCanaryWallet = await import('/js/cashu-wallet.js');
     document.querySelector('.chat-close-btn')?.click();
     document.querySelectorAll('.tour-btn, .analytics-consent-btn').forEach(btn => {
       if (/^(Skip|Turn off|Got it)$/.test((btn.textContent || '').trim())) btn.click();
@@ -79,11 +80,11 @@ async function preflightCanaryProfileReset() {
   try {
     const state = await page.evaluate(async () => {
       const required = [
-        'cashuGetBalance',
-        'cashuRecoverPendingDeposit',
-        'cashuRecoverPendingWithdraw',
+        'getWalletBalance',
+        'recoverPendingDeposit',
+        'recoverPendingWithdraw',
       ];
-      const missing = required.filter(name => typeof window[name] !== 'function');
+      const missing = required.filter(name => typeof window.__cashuCanaryWallet?.[name] !== 'function');
       if (missing.length) return { inspectError: 'missing wallet APIs: ' + missing.join(', ') };
       const safe = async (fn) => { try { return await fn(); } catch (e) { return { error: e?.message || String(e) }; } };
       const hasPendingFundingQuote = () => new Promise((resolve, reject) => {
@@ -122,10 +123,10 @@ async function preflightCanaryProfileReset() {
         };
       });
       return {
-        walletBalance: await safe(async () => Number(await window.cashuGetBalance()) || 0),
+        walletBalance: await safe(async () => Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0),
         pendingFunding: await safe(hasPendingFundingQuote),
-        pendingDeposit: await safe(async () => !!(await window.cashuRecoverPendingDeposit())),
-        pendingWithdraw: await safe(async () => !!(await window.cashuRecoverPendingWithdraw())),
+        pendingDeposit: await safe(async () => !!(await window.__cashuCanaryWallet.recoverPendingDeposit())),
+        pendingWithdraw: await safe(async () => !!(await window.__cashuCanaryWallet.recoverPendingWithdraw())),
         hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key'),
       };
     });
@@ -141,10 +142,10 @@ async function preflightCanaryProfileReset() {
 }
 async function ensureAppWallet(page) {
   await page.evaluate(async (mint) => {
-    if (typeof window.cashuHasWalletSeed === 'function' && !(await window.cashuHasWalletSeed())) {
-      await window.cashuGenerateWalletSeed();
+    if (typeof window.__cashuCanaryWallet.hasWalletSeed === 'function' && !(await window.__cashuCanaryWallet.hasWalletSeed())) {
+      await window.__cashuCanaryWallet.generateWalletSeed();
     }
-    await window.cashuSetMintUrl(mint);
+    await window.__cashuCanaryWallet.setMintUrl(mint);
   }, MINT_URL);
   log('PASS app wallet seed exists and mint selected', { mintHost: new URL(MINT_URL).host });
 }
@@ -155,7 +156,7 @@ async function setup() {
   const { context, page, errors } = await openApp(USER_DATA_DIR);
   try {
     await ensureAppWallet(page);
-    const quote = await page.evaluate(async (sats) => window.cashuCreateFundingInvoice(sats), AMOUNT_SATS);
+    const quote = await page.evaluate(async (sats) => window.__cashuCanaryWallet.createFundingInvoice(sats), AMOUNT_SATS);
     const invoice = quote?.request || quote?.invoice || quote?.bolt11 || quote?.payment_request || '';
     if (!invoice) throw new Error('No Lightning invoice found after funding request');
     log('PASS app Lightning invoice created', { sats: AMOUNT_SATS, mintHost: new URL(MINT_URL).host });
@@ -172,8 +173,8 @@ async function resume() {
   let contextClosed = false;
   try {
     await ensureAppWallet(page);
-    await page.evaluate(async () => window.cashuRecoverPendingFunding());
-    const initialWallet = await page.evaluate(async () => Number(await window.cashuGetBalance()) || 0);
+    await page.evaluate(async () => window.__cashuCanaryWallet.recoverPendingFunding());
+    const initialWallet = await page.evaluate(async () => Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0);
     if (initialWallet <= 0) {
       log('WAIT pending funding not paid or not minted yet', { walletSats: initialWallet });
       return;
@@ -183,7 +184,7 @@ async function resume() {
     const firstDeposit = Math.min(500, Math.max(100, Math.floor(initialWallet / 2)));
     await page.evaluate(async (amount) => {
       const node = localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com/';
-      const result = await window.cashuDepositToNode(node, amount, null);
+      const result = await window.__cashuCanaryWallet.depositToNode(node, amount, null);
       if (!result?.api_key) throw new Error('Node deposit did not return a Routstr key');
       window.__routstrCanaryKey = result.api_key;
       localStorage.setItem('labcharts-routstr-node', node);
@@ -196,7 +197,7 @@ async function resume() {
       const node = localStorage.getItem('labcharts-routstr-node') || 'https://api.routstr.com/';
       const key = window.__routstrCanaryKey;
       if (!key) throw new Error('No Routstr key after first deposit');
-      await window.cashuDepositToNode(node, 100, key);
+      await window.__cashuCanaryWallet.depositToNode(node, 100, key);
     });
     const topupCalls = requests.filter(r => /\/v1\/balance\/topup/.test(r.url)).length;
     if (topupCalls !== 1) throw new Error(`Expected existing key topup call, saw ${topupCalls}`);
@@ -228,9 +229,9 @@ async function resume() {
       const refundJson = await refundRes.json().catch(() => null);
       const token = refundJson?.token || refundJson?.cashu_token || (typeof refundJson === 'string' && refundJson.startsWith('cashu') ? refundJson : null);
       if (!refundRes.ok || !token) return { before, afterModel, modelCall, refund: { ok: refundRes.ok, hasToken: !!token } };
-      const pendingSaved = await window.cashuSavePendingWithdrawToken(token, 'routstr-real-canary-refund');
-      const recv = await window.cashuReceiveToken(token);
-      await window.cashuClearPendingWithdraw();
+      const pendingSaved = await window.__cashuCanaryWallet.savePendingWithdrawToken(token, 'routstr-real-canary-refund');
+      const recv = await window.__cashuCanaryWallet.receiveToken(token);
+      await window.__cashuCanaryWallet.clearPendingWithdraw();
       delete window.__routstrCanaryKey;
       localStorage.removeItem('labcharts-routstr-key');
       return { before, afterModel, modelCall, refund: { ok: true, hasToken: true, pendingSaved, received: Number(recv?.received ?? recv) || 0 } };
@@ -250,11 +251,11 @@ async function resume() {
     const final = await openApp(USER_DATA_DIR);
     try {
       const finalState = await final.page.evaluate(async () => ({
-        mintHost: new URL(await window.cashuGetMintUrl()).host,
-        walletBalance: Number(await window.cashuGetBalance()) || 0,
+        mintHost: new URL(await window.__cashuCanaryWallet.getMintUrl()).host,
+        walletBalance: Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0,
         hasRoutstrKey: !!localStorage.getItem('labcharts-routstr-key') || !!window.__routstrCanaryKey,
-        pendingDeposit: !!(await window.cashuRecoverPendingDeposit()),
-        pendingWithdraw: !!(await window.cashuRecoverPendingWithdraw()),
+        pendingDeposit: !!(await window.__cashuCanaryWallet.recoverPendingDeposit()),
+        pendingWithdraw: !!(await window.__cashuCanaryWallet.recoverPendingWithdraw()),
       }));
       log('PASS final state', finalState);
       if (finalState.hasRoutstrKey || finalState.pendingDeposit || finalState.pendingWithdraw) {
@@ -274,10 +275,10 @@ async function tokenRoundtripAndSeedRestore() {
   let tokenToSecond;
   try {
     const sent = await main.page.evaluate(async () => {
-      const before = Number(await window.cashuGetBalance());
+      const before = Number(await window.__cashuCanaryWallet.getWalletBalance());
       const amount = Math.min(100, Math.max(10, before - 10));
-      const result = await window.cashuSendAsToken(amount);
-      return { before, after: Number(await window.cashuGetBalance()), amount: result.amount, token: result.token };
+      const result = await window.__cashuCanaryWallet.sendAsToken(amount);
+      return { before, after: Number(await window.__cashuCanaryWallet.getWalletBalance()), amount: result.amount, token: result.token };
     });
     tokenToSecond = sent.token;
   } finally { await main.context.close(); }
@@ -288,14 +289,14 @@ async function tokenRoundtripAndSeedRestore() {
   let seed;
   try {
     const received = await second.page.evaluate(async ({ token, mint }) => {
-      await window.cashuGenerateWalletSeed();
-      await window.cashuSetMintUrl(mint);
-      const recv = await window.cashuReceiveToken(token);
-      const backup = await window.cashuExportWallet();
-      const balance = Number(await window.cashuGetBalance());
+      await window.__cashuCanaryWallet.generateWalletSeed();
+      await window.__cashuCanaryWallet.setMintUrl(mint);
+      const recv = await window.__cashuCanaryWallet.receiveToken(token);
+      const backup = await window.__cashuCanaryWallet.exportWallet();
+      const balance = Number(await window.__cashuCanaryWallet.getWalletBalance());
       let sendBack = null;
       for (const amount of [Math.max(1, balance - 1), Math.max(1, balance - 2), Math.max(1, balance - 5), 1]) {
-        try { sendBack = await window.cashuSendAsToken(amount); break; } catch {}
+        try { sendBack = await window.__cashuCanaryWallet.sendAsToken(amount); break; } catch {}
       }
       return { received: Number(recv?.received ?? recv) || 0, backupCreated: !!backup, sendBack };
     }, { token: tokenToSecond, mint: MINT_URL });
@@ -306,12 +307,12 @@ async function tokenRoundtripAndSeedRestore() {
       recovered = await recover.page.evaluate(async (token) => {
         // The second profile received the original token, so its sender journal
         // is now safe to clear before accepting the confirmed return token.
-        await window.cashuClearPendingWithdraw();
-        const recv = await window.cashuReceiveToken(token);
+        await window.__cashuCanaryWallet.clearPendingWithdraw();
+        const recv = await window.__cashuCanaryWallet.receiveToken(token);
         return {
           received: Number(recv?.received ?? recv) || 0,
-          balance: Number(await window.cashuGetBalance()) || 0,
-          seed: await window.cashuGetWalletMnemonic(),
+          balance: Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0,
+          seed: await window.__cashuCanaryWallet.getWalletMnemonic(),
         };
       }, received.sendBack.token);
       if (!recovered.received) throw new Error('Return token receive failed');
@@ -320,7 +321,7 @@ async function tokenRoundtripAndSeedRestore() {
 
       // Only clear the second profile's return-token journal after the main
       // profile has durably accepted that token.
-      await second.page.evaluate(async () => window.cashuClearPendingWithdraw());
+      await second.page.evaluate(async () => window.__cashuCanaryWallet.clearPendingWithdraw());
     } finally {
       await recover.context.close();
     }
@@ -342,9 +343,9 @@ async function seedRestoreSmoke(seed) {
   const restored = await openApp(SEED_RESTORE_DIR);
   try {
     const result = await restored.page.evaluate(async ({ seed, mint }) => {
-      await window.cashuSetMintUrl(mint);
-      await window.cashuRestoreWalletFromSeed(seed);
-      const balance = Number(await window.cashuGetBalance()) || 0;
+      await window.__cashuCanaryWallet.setMintUrl(mint);
+      await window.__cashuCanaryWallet.restoreWalletFromSeed(seed);
+      const balance = Number(await window.__cashuCanaryWallet.getWalletBalance()) || 0;
       if (balance <= 0) throw new Error('Seed restore completed without recoverable balance');
       return { balance };
     }, { seed, mint: MINT_URL });

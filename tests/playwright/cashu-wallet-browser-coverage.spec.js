@@ -625,6 +625,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         cashuCreateWithdrawQuote: window.cashuCreateWithdrawQuote,
         cashuExecuteWithdraw: window.cashuExecuteWithdraw,
         cashuWithdrawToAddress: window.cashuWithdrawToAddress,
+        cashuGetMaxWithdrawable: getMaxWithdrawable,
         cashuGetFeePct: window.cashuGetFeePct,
         nostrDiscoverNodes: window.nostrDiscoverNodes,
         nostrGetSelectedNode: window.nostrGetSelectedNode,
@@ -858,13 +859,6 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   await page.goto('/cashu-wallet-delegates-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const oldGlobals = {
-      cashuImportWallet: window.cashuImportWallet,
-      cashuReceiveToken: window.cashuReceiveToken,
-      cashuClearPendingDeposit: window.cashuClearPendingDeposit,
-      cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
-      cashuGetMaxWithdrawable: window.cashuGetMaxWithdrawable,
-    };
     const calls = [];
     const clipboardWrites = [];
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
@@ -873,14 +867,16 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       configurable: true,
       value: { writeText: async text => clipboardWrites.push(text) },
     });
-    window.cashuReceiveToken = async token => {
+    const cashuReceiveToken = async token => {
       calls.push(['recoverAttempt', token]);
       if (token === 'cashuWithdrawRecover') return { received: 500 };
       throw new Error('recover blocked');
     };
-    window.cashuClearPendingDeposit = async () => calls.push(['clearPendingDeposit']);
-    window.cashuClearPendingWithdraw = async () => calls.push(['clearPendingWithdraw']);
-    window.cashuGetMaxWithdrawable = async () => 888;
+    const cashuClearPendingDeposit = async () => calls.push(['clearPendingDeposit']);
+    const cashuClearPendingWithdraw = async () => calls.push(['clearPendingWithdraw']);
+    const cashuGetMaxWithdrawable = async () => 888;
+    let walletRuntimeModule;
+    let previousWalletRuntime;
 
     const root = document.createElement('div');
     root.id = 'ai-provider-panel';
@@ -929,6 +925,13 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
     document.body.appendChild(root);
 
     try {
+      walletRuntimeModule = await import('/js/provider-wallet-runtime.js');
+      previousWalletRuntime = walletRuntimeModule.configureRoutstrWalletRuntime({
+        cashuReceiveToken,
+        cashuClearPendingDeposit,
+        cashuClearPendingWithdraw,
+        cashuGetMaxWithdrawable,
+      });
       const delegates = await import(`/js/provider-wallet-delegates.js?walletDelegateCoverage=${Date.now()}`);
       delegates.installRoutstrWalletDelegates({
         doRoutstrWalletFund: amount => calls.push(['fund', amount]),
@@ -1030,11 +1033,9 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       };
     } finally {
       root.remove();
-      window.cashuImportWallet = oldGlobals.cashuImportWallet;
-      window.cashuReceiveToken = oldGlobals.cashuReceiveToken;
-      window.cashuClearPendingDeposit = oldGlobals.cashuClearPendingDeposit;
-      window.cashuClearPendingWithdraw = oldGlobals.cashuClearPendingWithdraw;
-      window.cashuGetMaxWithdrawable = oldGlobals.cashuGetMaxWithdrawable;
+      if (walletRuntimeModule && previousWalletRuntime) {
+        walletRuntimeModule.configureRoutstrWalletRuntime(previousWalletRuntime);
+      }
       if (hadClipboard) {
         Object.defineProperty(window.navigator, 'clipboard', {
           configurable: true,

@@ -2,6 +2,7 @@
 // provider-wallet-delegates.js - Delegated Routstr/Cashu wallet UI actions
 
 import { showNotification } from './utils.js';
+import { walletRuntime } from './provider-wallet-runtime.js';
 
 const WALLET_ROOTS = '#ai-provider-panel, #routstr-wallet-fund-area, #routstr-node-picker, #routstr-node-actions, #routstr-wallet-actions, #routstr-mint-edit';
 
@@ -86,7 +87,7 @@ async function _handleRoutstrWalletClick(event) {
   if (action === 'wallet-restore') return _call('doRoutstrWalletRestore');
   if (action === 'withdraw-lightning') return _call('showRoutstrWithdrawLightning');
   if (action === 'withdraw-token') return _call('showRoutstrWithdrawToken');
-  if (action === 'withdraw-max') return _setWithdrawMax(await globalThis.cashuGetMaxWithdrawable?.());
+  if (action === 'withdraw-max') return _setWithdrawMax(await walletRuntime.cashuGetMaxWithdrawable?.());
   if (action === 'withdraw-quote') return _call('doRoutstrWithdrawQuote');
   if (action === 'send-token-input') return _call('doRoutstrSendToken', _inputInt('routstr-token-amount'));
   if (action === 'send-token-preset') return _sendTokenPreset(el);
@@ -128,8 +129,8 @@ function _depositNodePreset(el) {
 
 async function _recoverPendingDeposit(el) {
   try {
-    await globalThis.cashuReceiveToken?.(el.dataset.token || '');
-    await globalThis.cashuClearPendingDeposit?.();
+    await walletRuntime.cashuReceiveToken?.(el.dataset.token || '');
+    await walletRuntime.cashuClearPendingDeposit?.();
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
   } catch (e) {
@@ -139,8 +140,8 @@ async function _recoverPendingDeposit(el) {
 
 async function _recoverPendingWithdraw(el) {
   try {
-    await globalThis.cashuReceiveToken?.(el.dataset.token || '');
-    if (el.dataset.clearPendingWithdraw !== 'false') await globalThis.cashuClearPendingWithdraw?.();
+    await walletRuntime.cashuReceiveToken?.(el.dataset.token || '');
+    if (el.dataset.clearPendingWithdraw !== 'false') await walletRuntime.cashuClearPendingWithdraw?.();
     await _call('clearRoutstrNodeSession');
     showNotification('Recovered!', 'success');
     globalThis.location?.reload?.();
