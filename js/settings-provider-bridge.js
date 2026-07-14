@@ -19,7 +19,7 @@ function loadProviderPanels() {
 export function renderAIProviderPanelBridge(provider) {
   loadProviderPanels().then(providerPanels => {
     const panel = document.getElementById('ai-provider-panel');
-    if (panel) panel.innerHTML = providerPanels.renderAIProviderPanel(provider || getAIProvider());
+    if (panel) panel.innerHTML = providerPanels.renderAIProviderPanel(getAIProvider());
   }).catch(() => {});
   return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
 }
