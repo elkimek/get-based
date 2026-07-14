@@ -39,7 +39,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const hadImportedData = Object.prototype.hasOwnProperty.call(state, 'importedData');
     const savedGlobals = {
       showDirectoryPicker: originalShowDirectoryPicker,
-      showEnableEncryptionModal: window.showEnableEncryptionModal,
       openInterpretiveLensEditor: window.openInterpretiveLensEditor,
       handleDNAFile: window.handleDNAFile,
       setTimeout: window.setTimeout,
@@ -60,6 +59,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     dashboardAi.configureDashboardAISyncSetup(() => calls.push('sync'));
     const previousDataProtectionDeps = dashboardAi.configureDashboardAIDataProtectionDeps({
       pickFolderForBackup: () => calls.push('backup'),
+      showEnableEncryptionModal: () => calls.push('encryption'),
     });
 
     try {
@@ -68,7 +68,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         if (typeof fn === 'function') Promise.resolve().then(() => fn(...args));
         return timers.length;
       };
-      window.showEnableEncryptionModal = () => calls.push('encryption');
       window.openInterpretiveLensEditor = () => calls.push('lens');
       window.handleDNAFile = file => {
         handledDnaFile = { name: file.name, textType: file.type };

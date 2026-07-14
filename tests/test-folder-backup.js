@@ -22,7 +22,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), '
 
 await import('../js/state.js');
 const backupModule = await import('../js/backup.js');
-await import('../js/crypto.js');
+const cryptoModule = await import('../js/crypto.js');
 await import('../js/export.js'); // exposes window.buildAllDataBundle
 
   // ═══════════════════════════════════════════════
@@ -75,7 +75,7 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   // 4. renderBackupSection includes folder UI
   // ═══════════════════════════════════════════════
   try {
-    const html = window.renderBackupSection();
+    const html = cryptoModule.renderBackupSection();
     assert('renderBackupSection has folder section container', html.includes('backup-folder-section'));
     // On Chromium, should have folder UI content; on Firefox/Safari, the inner HTML is empty
     const st = backupModule.getFolderBackupState();
@@ -133,7 +133,8 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   // ═══════════════════════════════════════════════
   // 8. Backup nudge
   // ═══════════════════════════════════════════════
-  assert('window.maybeShowBackupNudge exists', typeof window.maybeShowBackupNudge === 'function');
+  assert('crypto.maybeShowBackupNudge module export exists', typeof cryptoModule.maybeShowBackupNudge === 'function');
+  assert('window.maybeShowBackupNudge stays module-only', !('maybeShowBackupNudge' in window));
   try {
     const backupSrc2 = read('/js/backup.js');
     const cryptoSrc = read('/js/crypto.js');

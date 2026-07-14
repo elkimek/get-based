@@ -145,6 +145,7 @@ test('external lens browser contract covers validation fetch cache save and remo
 
   const results = await page.evaluate(async ({ lensUrl }) => {
     const lens = await import(lensUrl);
+    const cryptoStore = await import('/js/crypto.js');
     const outcomes = {};
     const originalFetch = window.fetch;
     const saved = {
@@ -344,7 +345,7 @@ test('external lens browser contract covers validation fetch cache save and remo
       else localStorage.setItem('labcharts-ai-paused', saved.aiPaused);
       if (saved.ollamaModel === null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', saved.ollamaModel);
-      window.updateKeyCache?.('labcharts-lens-key', saved.key || '');
+      cryptoStore.updateKeyCache('labcharts-lens-key', saved.key || '');
     }
 
     return outcomes;
@@ -360,6 +361,7 @@ test('in-browser lens render covers local panel status and backend switching wit
 
   const results = await page.evaluate(async ({ lensUrl }) => {
     const lens = await import(lensUrl);
+    const cryptoStore = await import('/js/crypto.js');
     const outcomes = {};
     const originalRAF = window.requestAnimationFrame;
     const saved = {
@@ -386,7 +388,7 @@ test('in-browser lens render covers local panel status and backend switching wit
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.removeItem('labcharts-openrouter-key');
-      window.updateKeyCache?.('labcharts-openrouter-key', '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', '');
       localStorage.setItem('labcharts-lens-local-count', '12');
       localStorage.setItem('labcharts-lens-config', JSON.stringify({
         name: 'Local Papers',
@@ -395,7 +397,7 @@ test('in-browser lens render covers local panel status and backend switching wit
         backend: 'in-browser',
         multiQuery: true,
       }));
-      window.updateKeyCache?.('labcharts-lens-key', '');
+      cryptoStore.updateKeyCache('labcharts-lens-key', '');
 
       section.innerHTML = lens.renderCustomLensSection();
       document.body.appendChild(section);
@@ -463,8 +465,8 @@ test('in-browser lens render covers local panel status and backend switching wit
       else localStorage.setItem('labcharts-ai-paused', saved.aiPaused);
       if (saved.openRouterKey === null) localStorage.removeItem('labcharts-openrouter-key');
       else localStorage.setItem('labcharts-openrouter-key', saved.openRouterKey);
-      window.updateKeyCache?.('labcharts-lens-key', saved.key || '');
-      window.updateKeyCache?.('labcharts-openrouter-key', saved.openRouterKey || '');
+      cryptoStore.updateKeyCache('labcharts-lens-key', saved.key || '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', saved.openRouterKey || '');
     }
 
     return outcomes;

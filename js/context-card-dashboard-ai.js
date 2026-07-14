@@ -2,7 +2,7 @@
 // context-card-dashboard-ai.js - AI context and data protection CTAs
 
 import { getFolderBackupState, pickFolderForBackup } from './backup.js';
-import { getEncryptionEnabled } from './crypto.js';
+import { getEncryptionEnabled, showEnableEncryptionModal } from './crypto.js';
 import { getActiveData, saveImportedData } from './data.js';
 import {
   isGeneticsPriorityInAIContext,
@@ -39,13 +39,12 @@ import {
 
 const appWindow = /** @type {Window & typeof globalThis & {
   openInterpretiveLensEditor?: () => void,
-  showEnableEncryptionModal?: () => void,
   handleDNAFile?: (file: File) => void,
   updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
-const dashboardAIDataProtectionDeps = { pickFolderForBackup };
+const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
 export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
   dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
 }
@@ -53,6 +52,7 @@ export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
 export function configureDashboardAIDataProtectionDeps(deps = {}) {
   const previous = { ...dashboardAIDataProtectionDeps };
   if (typeof deps.pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = deps.pickFolderForBackup;
+  if (typeof deps.showEnableEncryptionModal === 'function') dashboardAIDataProtectionDeps.showEnableEncryptionModal = deps.showEnableEncryptionModal;
   return previous;
 }
 
@@ -60,7 +60,7 @@ configureDashboardAIActionDelegates({
   'open-interpretive-lens': () => appWindow.openInterpretiveLensEditor?.(),
   'open-knowledge-base': () => openKnowledgeBaseModal(),
   'open-personalize-ai-picker': () => openContextModal(),
-  'enable-encryption': () => appWindow.showEnableEncryptionModal?.(),
+  'enable-encryption': () => dashboardAIDataProtectionDeps.showEnableEncryptionModal(),
   'setup-sync': () => dashboardAISyncSetupHandler(),
   'setup-backup': () => dashboardAIDataProtectionDeps.pickFolderForBackup(),
   'open-data-protection-picker': () => openDataProtectionPicker(),
@@ -689,7 +689,7 @@ export function openDataProtectionPicker() {
       const isConfigured = button.getAttribute('data-configured') === 'true';
       if (isConfigured) { close(); return; }
       close();
-      if (pick === 'encryption' && typeof appWindow.showEnableEncryptionModal === 'function') appWindow.showEnableEncryptionModal();
+      if (pick === 'encryption') dashboardAIDataProtectionDeps.showEnableEncryptionModal();
       else if (pick === 'sync') dashboardAISyncSetupHandler();
       else if (pick === 'backup') dashboardAIDataProtectionDeps.pickFolderForBackup();
     };

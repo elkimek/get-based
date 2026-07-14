@@ -385,6 +385,7 @@ test('provider panels cover provider switching key saves balances custom API and
 
   const results = await page.evaluate(async ({ panelsUrl }) => {
     const panels = await import(panelsUrl);
+    const cryptoStore = await import('/js/crypto.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
       status,
@@ -445,11 +446,11 @@ test('provider panels cover provider switching key saves balances custom API and
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.updateKeyCache?.('labcharts-openrouter-key', '');
-      window.updateKeyCache?.('labcharts-venice-key', '');
-      window.updateKeyCache?.('labcharts-routstr-key', '');
-      window.updateKeyCache?.('labcharts-ppq-key', '');
-      window.updateKeyCache?.('labcharts-custom-key', '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', '');
+      cryptoStore.updateKeyCache('labcharts-venice-key', '');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', '');
+      cryptoStore.updateKeyCache('labcharts-custom-key', '');
       window.open = url => { openedUrl = String(url); return null; };
       window.openSettingsModal = () => {};
       window.closeSettingsModal = () => { settingsClosed += 1; };
@@ -672,11 +673,11 @@ test('provider panels cover provider switching key saves balances custom API and
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
-      window.updateKeyCache?.('labcharts-openrouter-key', oldStorage['labcharts-openrouter-key'] || '');
-      window.updateKeyCache?.('labcharts-venice-key', oldStorage['labcharts-venice-key'] || '');
-      window.updateKeyCache?.('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
-      window.updateKeyCache?.('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
-      window.updateKeyCache?.('labcharts-custom-key', oldStorage['labcharts-custom-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-openrouter-key', oldStorage['labcharts-openrouter-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-venice-key', oldStorage['labcharts-venice-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-custom-key', oldStorage['labcharts-custom-key'] || '');
       if (oldSessionPrevious == null) sessionStorage.removeItem('or_previous_ai_provider');
       else sessionStorage.setItem('or_previous_ai_provider', oldSessionPrevious);
       document.getElementById('settings-modal')?.remove();
@@ -697,6 +698,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
   const results = await page.evaluate(async ({ ppqUrl }) => {
     const ppq = await import(ppqUrl);
     const delegates = await import('/js/provider-panel-delegates.js');
+    const cryptoStore = await import('/js/crypto.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -729,7 +731,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
-      window.updateKeyCache?.('labcharts-ppq-key', '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       window.setInterval = (fn, ms) => {
         const id = nextIntervalId++;
         intervals.push({ id, fn, ms, cleared: false });
@@ -936,7 +938,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
-      window.updateKeyCache?.('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
       document.getElementById('ai-provider-panel')?.remove();
       document.getElementById('ppq-topup-toggle')?.remove();
       document.getElementById('ppq-topup-area')?.remove();

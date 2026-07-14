@@ -30,6 +30,7 @@ console.log('=== Data Protection Dashboard Tests ===\n');
 // context-cards.js exposes the dashboard APIs; backup stays module-only.
 const cards = await import('../js/context-cards.js');
 const backupModule = await import('../js/backup.js');
+const cryptoModule = await import('../js/crypto.js');
 const settingsSyncPanel = await import('../js/settings-sync-panel.js');
 
 const make = (overrides) => ({
@@ -99,8 +100,10 @@ const make = (overrides) => ({
     typeof settingsSyncPanel.showSyncSetupModal === 'function');
   assert('window.showSyncSetupModal stays module-only',
     !('showSyncSetupModal' in window));
-  assert('window.showEnableEncryptionModal exists',
-    typeof window.showEnableEncryptionModal === 'function');
+  assert('crypto.showEnableEncryptionModal module export exists',
+    typeof cryptoModule.showEnableEncryptionModal === 'function');
+  assert('window.showEnableEncryptionModal stays module-only',
+    !('showEnableEncryptionModal' in window));
   assert('backup.pickFolderForBackup module export exists',
     typeof backupModule.pickFolderForBackup === 'function');
   assert('window.pickFolderForBackup stays module-only',

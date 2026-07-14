@@ -26,6 +26,7 @@
     '/js/app-ui-shell-modules.js',
     '/js/app-shell-hooks.js',
     '/js/app-event-listeners.js',
+    '/js/crypto.js',
     '/js/startup-orchestrator.js',
     '/js/startup-foundation.js',
     '/js/startup-maintenance-runtime.js',
@@ -187,10 +188,11 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/charts.js'),
+    import('../js/crypto.js'),
     import('../js/cycle.js'),
     import('../js/emf.js'),
     import('../js/emf-runtime.js'),
@@ -509,6 +511,16 @@
     'removeFolderBackup','getFolderBackupState','renderFolderBackupSection',
   ];
 
+  // crypto.js (20 former browser globals, now module-only)
+  const cryptoExports = [
+    'initEncryption','initBroadcastChannel','getEncryptionEnabled','isUnlocked',
+    'encryptedSetItem','encryptedGetItem','showEnableEncryptionModal',
+    'maybeShowEncryptionNudge','maybeShowBackupNudge','disableEncryption',
+    'changePassphrase','broadcastDataChanged','renderEncryptionSection',
+    'renderBackupSection','isSensitiveKey','getCachedKey','updateKeyCache',
+    'decryptKeyCache','loadBackupSnapshots','toggleBackupSnapshots'
+  ];
+
   // supplements.js (23, module-only)
   const supplementsExports = [
     'renderSupplementsSection','openSupplementsEditor','toggleSuppAccordion','showAddSuppForm',
@@ -565,6 +577,7 @@
   for (const [moduleName, moduleApi, exports] of [
     ['backup.js', backupModule, backupExports],
     ['charts.js', chartsModule, chartsExports],
+    ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
     ['emf.js', emfModule, emfExports],
     ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
@@ -588,6 +601,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of backupExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of cryptoExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {

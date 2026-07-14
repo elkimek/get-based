@@ -698,9 +698,10 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pdfImportUrl, reviewUrl }) => {
-    const [pdfImport, review] = await Promise.all([
+    const [pdfImport, review, pdfImportCommit] = await Promise.all([
       import(pdfImportUrl),
       import(reviewUrl),
+      import('/js/pdf-import-commit.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -712,8 +713,10 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
-      maybeShowEncryptionNudge: window.maybeShowEncryptionNudge,
     };
+    const previousCommitDeps = pdfImportCommit.configurePdfImportCommitDeps({
+      maybeShowEncryptionNudge: () => {},
+    });
     const resetNotifications = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
 
     try {
@@ -729,8 +732,6 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         manualValues: {},
         refOverrides: {},
       };
-      window.maybeShowEncryptionNudge = () => {};
-
       review.showImportPreview({
         date: '2026-06-07',
         fileName: 'confirm-import.pdf',
@@ -766,8 +767,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
-      if (original.maybeShowEncryptionNudge) window.maybeShowEncryptionNudge = original.maybeShowEncryptionNudge;
-      else delete window.maybeShowEncryptionNudge;
+      pdfImportCommit.configurePdfImportCommitDeps(previousCommitDeps);
       review.closeImportModal();
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');

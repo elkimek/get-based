@@ -1576,10 +1576,9 @@ assert('Settings select offers Off / 7 / 30 / 90 options',
 
 // IDB encryption — round-trip a row through encrypt+decrypt assuming
 // encryption is OFF in tests (default), assert plaintext pass-through.
-// CRITICAL: do NOT cache-bust crypto.js — its bottom-of-file
-// Object.assign(window, …) rebinds window.updateKeyCache to a fresh
-// _keyCache, which the production module's getCachedKey can't see. That
-// leak surfaced as the test-custom-api / test-custom-lens flakes in CI.
+// CRITICAL: do NOT cache-bust crypto.js — a second module instance would own
+// a separate _keyCache from the production module. That leak surfaced as the
+// test-custom-api / test-custom-lens flakes in CI.
 const cryptoV29 = await import('../js/crypto.js');
 assert('crypto.js exports encryptObject / decryptObject / isEncryptedObject',
   typeof cryptoV29.encryptObject === 'function' &&

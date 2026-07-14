@@ -12,6 +12,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
+    const cryptoStore = await import('/js/crypto.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -209,7 +210,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       localStorage.setItem('labcharts-ai-provider', 'routstr');
       localStorage.setItem('labcharts-routstr-node', nodeUrl);
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
-      window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-dom');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
 
       window.openSettingsModal('ai');
       await wait(100);
@@ -250,7 +251,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const recoveryButtonCarriesToken = document.querySelector('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
-      window.updateKeyCache?.('labcharts-routstr-key', 'sk-routstr-dom');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
       await window.doRoutstrNodeWithdraw();
       await wait(50);
       const refundBlockedUntilSeedAck = !refundCalled
@@ -398,7 +399,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
-      window.updateKeyCache?.('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
+      cryptoStore.updateKeyCache('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
       window.closeModal?.();
       window.closeSettingsModal?.();
