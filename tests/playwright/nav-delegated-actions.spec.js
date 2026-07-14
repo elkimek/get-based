@@ -34,7 +34,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origImportedData = state.importedData;
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
-    const origOpenReportBuilder = window.openReportBuilder;
     const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
@@ -77,11 +76,11 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       };
       restoreNavRuntime = navRuntime.configureNavRuntime({
         openEMFAssessmentEditor: () => calls.push(['open-emf']),
+        openReportBuilder: () => calls.push(['open-report-builder']),
       });
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
       });
-      window.openReportBuilder = () => calls.push(['open-report-builder']);
       window.openContextModal = () => calls.push(['open-context']);
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       window.openClientList = () => calls.push(['open-client-list']);
@@ -147,7 +146,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.navigate = origNavigate;
       if (restoreNavRuntime) navRuntime.configureNavRuntime(restoreNavRuntime);
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
-      window.openReportBuilder = origOpenReportBuilder;
       window.openContextModal = origOpenContext;
       window.openCreateMarkerModal = origOpenCreateMarker;
       window.openClientList = origOpenClientList;

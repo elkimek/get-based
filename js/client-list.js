@@ -39,7 +39,9 @@ const clientListRuntime = {
 
 /** @param {Partial<ClientListRuntime>} [runtime] */
 export function configureClientListRuntime(runtime = {}) {
+  const previous = { ...clientListRuntime };
   Object.assign(clientListRuntime, runtime);
+  return previous;
 }
 
 let _search = '';

@@ -50,7 +50,7 @@ const profileModule = await import('../js/profile.js');
 cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
 await import('../js/nav.js');
 await import('../js/views.js');
-await import('../js/export.js');
+const exportModule = await import('../js/export.js');
 await import('../js/settings.js');
 await import('../js/chat.js');
 await import('../js/utils.js');
@@ -329,8 +329,6 @@ const expectedExports = [
   'buildSidebar', 'renderProfileDropdown',
   // views.js
   'navigate', 'showDashboard',
-  // export.js
-  'openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData',
   // settings.js
   'openSettingsModal', 'closeSettingsModal',
   // chat.js
@@ -338,6 +336,10 @@ const expectedExports = [
 ];
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
+}
+for (const name of ['openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData']) {
+  assert(`export.${name} exists`, typeof exportModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
 }
 for (const name of ['getProfiles', 'saveProfiles', 'loadProfile', 'switchProfile', 'createProfile', 'deleteProfile', 'getProfileSex', 'setProfileSex', 'getProfileDob']) {
   assert(`profile.${name} exists`, typeof profileModule[name] === 'function');
@@ -461,7 +463,8 @@ try {
     exportSrc.includes("from './export-runtime.js'") &&
     exportSrc.includes('getWalletBundleSettings') &&
     exportSrc.includes('refreshImportRuntimeShell') &&
-    exportSrc.includes('publishExportGlobals') &&
+    !exportSrc.includes('publishExportGlobals') &&
+    !exportRuntimeSrc.includes('publishExportGlobals') &&
     exportRuntimeSrc.includes('export async function refreshImportRuntimeShell'));
   assert('export-runtime falls back to published globals when shell module imports fail',
     exportRuntimeSrc.includes('function getRuntimeFunction(module, name)') &&

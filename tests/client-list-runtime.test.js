@@ -45,10 +45,6 @@ beforeEach(() => {
   window.renderProfileButton = vi.fn();
   window.showNotification = vi.fn();
   configureClientListRuntimeDeps({ showNotification: window.showNotification });
-  window.exportAllDataJSON = vi.fn();
-  window.exportClientJSON = vi.fn();
-  window.importDataJSON = vi.fn();
-  window.loadDemoData = vi.fn();
   window.navigate = vi.fn();
   window.showConfirmDialog = vi.fn(async () => false);
   state.currentProfile = 'alice';

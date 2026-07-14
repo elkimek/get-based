@@ -23,7 +23,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), '
 await import('../js/state.js');
 const backupModule = await import('../js/backup.js');
 const cryptoModule = await import('../js/crypto.js');
-await import('../js/export.js'); // exposes window.buildAllDataBundle
+const exportModule = await import('../js/export.js');
 
   // ═══════════════════════════════════════════════
   // 1. Module exports exist without legacy window globals
@@ -36,7 +36,8 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
     assert(`backup.${name} exists`, typeof backupModule[name] === 'function');
     assert(`window.${name} stays module-only`, !(name in window));
   }
-  assert('window.buildAllDataBundle exists', typeof window.buildAllDataBundle === 'function');
+  assert('export module exposes buildAllDataBundle', typeof exportModule.buildAllDataBundle === 'function');
+  assert('buildAllDataBundle stays module-only', !('buildAllDataBundle' in window));
 
   // ═══════════════════════════════════════════════
   // 2. getFolderBackupState() returns correct shape
@@ -56,7 +57,7 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
   // 3. buildAllDataBundle() returns valid JSON
   // ═══════════════════════════════════════════════
   try {
-    const json = await window.buildAllDataBundle();
+    const json = await exportModule.buildAllDataBundle();
     if (json) {
       assert('buildAllDataBundle returns string', typeof json === 'string');
       const parsed = JSON.parse(json);

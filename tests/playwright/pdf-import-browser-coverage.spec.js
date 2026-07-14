@@ -18,17 +18,16 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
     const saved = {
       profileSex: state.profileSex,
       openSettingsModal: window.openSettingsModal,
-      loadDemoData: window.loadDemoData,
       navigate: window.navigate,
     };
     const calls = [];
     const previousPdfImportDeps = pdfImport.configurePdfImportDeps({
+      loadDemoData: sex => calls.push(['demo', sex]),
       startOpenRouterOAuth: () => calls.push(['oauth']),
     });
 
     try {
       window.openSettingsModal = tab => calls.push(['settings', tab]);
-      window.loadDemoData = sex => calls.push(['demo', sex]);
       window.navigate = view => calls.push(['navigate', view]);
       state.profileSex = 'female';
 
@@ -130,7 +129,6 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       state.profileSex = saved.profileSex;
       pdfImport.configurePdfImportDeps(previousPdfImportDeps);
       window.openSettingsModal = saved.openSettingsModal;
-      window.loadDemoData = saved.loadDemoData;
       window.navigate = saved.navigate;
       progress.hideImportProgress('cancel');
       document.getElementById('import-modal-overlay')?.classList.remove('show');

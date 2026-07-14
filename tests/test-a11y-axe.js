@@ -32,6 +32,7 @@ return (async () => {
   console.log('%c A11y (axe-core) ', 'background:#7c3aed;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');
 
   const { state } = await import('/js/state.js');
+  const { loadDemoData } = await import('/js/export.js');
   // Capture full state shape so we can restore even if we mutate
   // currentProfile / importedData / markerRegistry / etc along the way.
   const snapshot = {
@@ -78,8 +79,8 @@ return (async () => {
     // async + side-effecty (creates a profile, switches to it); we wait
     // longer than feels necessary because subsequent renderViews assume
     // markerRegistry has been populated by buildSidebar.
-    if (!state.importedData?.entries?.length && typeof window.loadDemoData === 'function') {
-      try { await window.loadDemoData('male'); } catch (e) { note('loadDemoData failed: ' + e.message); }
+    if (!state.importedData?.entries?.length) {
+      try { await loadDemoData('male'); } catch (e) { note('loadDemoData failed: ' + e.message); }
       await new Promise(r => setTimeout(r, 3000));
     }
     if (!state.markerRegistry || Object.keys(state.markerRegistry).length === 0) {

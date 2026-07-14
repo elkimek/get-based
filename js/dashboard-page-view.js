@@ -16,8 +16,17 @@ import {
   getMobileDashboardCounts,
 } from './mobile-dashboard.js';
 import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js';
+import { loadDemoData } from './export.js';
 
 let _dashboardWelcomeActionsInstalled = false;
+
+const dashboardPageRuntimeDeps = { loadDemoData };
+
+export function configureDashboardPageRuntimeDeps(deps = {}) {
+  const previous = { ...dashboardPageRuntimeDeps };
+  if (typeof deps.loadDemoData === 'function') dashboardPageRuntimeDeps.loadDemoData = deps.loadDemoData;
+  return previous;
+}
 
 const DASHBOARD_WELCOME_ACTION_ATTR = 'data-dashboard-welcome-action';
 const DASHBOARD_WELCOME_ACTION_SELECTOR = `[${DASHBOARD_WELCOME_ACTION_ATTR}]`;
@@ -68,7 +77,7 @@ function handleDashboardWelcomeActionClick(event) {
   } else if (action === 'direct-import') {
     document.getElementById('pdf-input')?.click();
   } else if (action === 'load-demo') {
-    appWindow.loadDemoData?.(actionEl.dataset.dashboardWelcomeDemo || 'female');
+    void dashboardPageRuntimeDeps.loadDemoData(actionEl.dataset.dashboardWelcomeDemo || 'female');
   } else {
     return;
   }

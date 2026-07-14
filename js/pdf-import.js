@@ -8,6 +8,7 @@ import { hasAIProvider, getAIProvider, getActiveModelId, AI_IMPORT_REQUEST_TIMEO
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { getProfileLocation, getActiveProfileId } from './profile.js';
 import { maybeShowEncryptionNudge } from './crypto.js';
+import { importDataJSON, loadDemoData } from './export.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   callImportAIWithStreamFallback,
@@ -65,8 +66,6 @@ import {
 /**
  * @typedef {{
  *   openSettingsModal?: (tab?: string) => void,
- *   loadDemoData?: (sex?: string) => void,
- *   importDataJSON: (file: File) => void | Promise<void>,
  *   isDNAFile?: (file: File) => boolean,
  *   isDNAFileByContent?: (file: File) => Promise<boolean>,
  *   detectDNAFile?: (header: string) => string | null,
@@ -78,12 +77,16 @@ import {
 const pdfImportWindow = /** @type {Window & typeof globalThis & PdfImportWindowHooks} */ (window);
 
 const pdfImportDeps = {
+  importDataJSON,
+  loadDemoData,
   maybeShowEncryptionNudge,
   startOpenRouterOAuth,
 };
 
 export function configurePdfImportDeps(deps = {}) {
   const previous = { ...pdfImportDeps };
+  if (typeof deps.importDataJSON === 'function') pdfImportDeps.importDataJSON = deps.importDataJSON;
+  if (typeof deps.loadDemoData === 'function') pdfImportDeps.loadDemoData = deps.loadDemoData;
   if (typeof deps.maybeShowEncryptionNudge === 'function') pdfImportDeps.maybeShowEncryptionNudge = deps.maybeShowEncryptionNudge;
   if (typeof deps.startOpenRouterOAuth === 'function') pdfImportDeps.startOpenRouterOAuth = deps.startOpenRouterOAuth;
   return previous;
@@ -178,10 +181,8 @@ export function showAINeededDialog(action = 'import') {
   document.getElementById('ai-needed-key').onclick = () => { close(); if (pdfImportWindow.openSettingsModal) pdfImportWindow.openSettingsModal('ai'); };
   document.getElementById('ai-needed-demo').onclick = () => {
     close();
-    if (pdfImportWindow.loadDemoData) {
-      const sex = state.profileSex === 'female' ? 'female' : 'male';
-      pdfImportWindow.loadDemoData(sex);
-    }
+    const sex = state.profileSex === 'female' ? 'female' : 'male';
+    void pdfImportDeps.loadDemoData(sex);
   };
   document.getElementById('ai-needed-cancel').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
@@ -365,7 +366,7 @@ export function setupDropZone() {
       showNotification("Unsupported file type. Use PDF, Excel, text, image, JSON, DNA raw data, or an Apple Health, Drip, Natural Cycles, or Clue export.", "error");
       return;
     }
-    for (const f of jsonFiles) await pdfImportWindow.importDataJSON(f);
+    for (const f of jsonFiles) await pdfImportDeps.importDataJSON(f);
     if (cycleFiles.length > 0) { for (const f of cycleFiles) await handleCycleImportFile(f); }
     if (dnaFiles.length > 0) {
       for (const f of dnaFiles) {

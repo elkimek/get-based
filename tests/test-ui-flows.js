@@ -28,6 +28,7 @@ return (async function() {
   const supplements = await import('/js/supplements.js');
   const pdfImport = await import('/js/pdf-import.js');
   const profile = await import('/js/profile.js');
+  const exportModule = await import('/js/export.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -719,13 +720,13 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 12. Export sanity', 'font-weight:bold;color:#6366f1');
 
-  assert('exportDataJSON is callable', typeof window.exportDataJSON === 'function');
-  assert('exportAllDataJSON is callable', typeof window.exportAllDataJSON === 'function');
-  assert('exportPDFReport is callable', typeof window.exportPDFReport === 'function');
+  assert('exportDataJSON is callable', typeof exportModule.exportDataJSON === 'function');
+  assert('exportAllDataJSON is callable', typeof exportModule.exportAllDataJSON === 'function');
+  assert('exportPDFReport is callable', typeof exportModule.exportPDFReport === 'function');
 
-  if (typeof window.buildAllDataBundle === 'function') {
+  if (typeof exportModule.buildAllDataBundle === 'function') {
     try {
-      const raw = await window.buildAllDataBundle();
+      const raw = await exportModule.buildAllDataBundle();
       const bundle = typeof raw === 'string' ? JSON.parse(raw) : raw;
       assert('buildAllDataBundle returns data', bundle != null);
       assert('Bundle has profiles', Array.isArray(bundle?.profiles));

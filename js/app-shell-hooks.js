@@ -8,7 +8,7 @@ import { updateChatNudge } from './chat-nudge.js';
 import { closeSummaryModal } from './chat-summaries.js';
 import { closeClientList, configureClientListRuntime } from './client-list.js';
 import { closeEMFInterpretation } from './emf-interpretation.js';
-import { closeReportBuilder } from './export.js';
+import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
 import { closeFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
@@ -29,6 +29,7 @@ configureClientListRuntime({
 });
 
 configureSettingsRuntime({
+  clearAllData,
   exportAllDataJSON,
   exportClientJSON,
   getActiveProfileId,

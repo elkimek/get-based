@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/charts.js'),
@@ -196,6 +196,7 @@
     import('../js/cycle.js'),
     import('../js/emf.js'),
     import('../js/emf-runtime.js'),
+    import('../js/export.js'),
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
@@ -420,9 +421,11 @@
     'registerRefreshCallback','_runRegisteredRefreshCallback'
   ];
 
-  // export.js (8)
+  // export.js (11 former browser globals, now module-only)
   const exportExports = [
-    'openReportBuilder','closeReportBuilder','exportPDFReport','exportDataJSON','exportClientJSON','exportAllDataJSON','importDataJSON','clearAllData'
+    'openReportBuilder','closeReportBuilder','generateReportAISummary','exportPDFReport',
+    'exportDataJSON','exportClientJSON','exportAllDataJSON','buildAllDataBundle',
+    'importDataJSON','clearAllData','loadDemoData'
   ];
 
   // nav.js (5)
@@ -593,6 +596,7 @@
     ['cycle.js', cycleModule, cycleExports],
     ['emf.js', emfModule, emfExports],
     ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
+    ['export.js', exportModule, exportExports],
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
@@ -651,13 +655,15 @@
   for (const name of utilsExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of exportExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
     'client-list.js': clientListExports,
     'context-cards.js': contextCardsExports,
     'data.js': dataExports,
-    'export.js': exportExports,
     'nav.js': navExports,
     'notes.js': notesExports,
     'settings.js': settingsExports,
@@ -912,13 +918,13 @@
   // ═══════════════════════════════════════════════
   // 18. EXPORT FUNCTIONS — exist
   // ═══════════════════════════════════════════════
-  assert('exportPDFReport is function', typeof window.exportPDFReport === 'function');
-  assert('openReportBuilder is function', typeof window.openReportBuilder === 'function');
-  assert('closeReportBuilder is function', typeof window.closeReportBuilder === 'function');
-  assert('exportDataJSON is function', typeof window.exportDataJSON === 'function');
-  assert('exportClientJSON is function', typeof window.exportClientJSON === 'function');
-  assert('exportAllDataJSON is function', typeof window.exportAllDataJSON === 'function');
-  assert('clearAllData is function', typeof window.clearAllData === 'function');
+  assert('exportPDFReport is function', typeof exportModule.exportPDFReport === 'function');
+  assert('openReportBuilder is function', typeof exportModule.openReportBuilder === 'function');
+  assert('closeReportBuilder is function', typeof exportModule.closeReportBuilder === 'function');
+  assert('exportDataJSON is function', typeof exportModule.exportDataJSON === 'function');
+  assert('exportClientJSON is function', typeof exportModule.exportClientJSON === 'function');
+  assert('exportAllDataJSON is function', typeof exportModule.exportAllDataJSON === 'function');
+  assert('clearAllData is function', typeof exportModule.clearAllData === 'function');
 
   // ═══════════════════════════════════════════════
   // 19. CYCLE HELPERS — pure function checks
