@@ -187,9 +187,10 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, piiModule] = await Promise.all([
+  const [apiModule, chartsModule, lensModule, piiModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
+    import('../js/lens.js'),
     import('../js/pii.js'),
   ]);
   const apiExports = [
@@ -216,6 +217,19 @@
     'refBandPlugin','optimalBandPlugin','noteAnnotationPlugin','supplementBarPlugin',
     'getNotesForChart','getSupplementsForChart',
     'createLineChart','getMarkerDescription'
+  ];
+
+  // lens.js (28, module-only)
+  const lensExports = [
+    'getLensConfig','saveLensConfig','getLensKey','saveLensKey',
+    'hasLens','queryLens','queryLensMulti','buildLensSnippet','testLensConnection','clearLensCache',
+    'openKnowledgeBaseModal','closeKnowledgeBaseModal',
+    'subscribeLensStatus','getLensStatus','isValidLensUrl',
+    'renderCustomLensSection','handleSaveLensConfig','handleToggleLens',
+    'handleClearLensCache','handleRemoveLens','updateLensIndicator',
+    'handleLensBackendChange',
+    'handleLocalLensDeleteDoc','handleLocalLensClear',
+    'handleLibraryActivate','handleLibraryNew','handleLibraryRename','handleLibraryDelete',
   ];
 
   // lab-context.js
@@ -443,6 +457,7 @@
 
   for (const [moduleName, moduleApi, exports] of [
     ['charts.js', chartsModule, chartsExports],
+    ['lens.js', lensModule, lensExports],
     ['pii.js', piiModule, piiExports],
   ]) {
     for (const name of exports) {

@@ -33,7 +33,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origNavigate = window.navigate;
     const origOpenEMF = window.openEMFAssessmentEditor;
     const origOpenReportBuilder = window.openReportBuilder;
-    const origOpenKB = window.openKnowledgeBaseModal;
     const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
@@ -78,7 +77,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
       });
       window.openReportBuilder = () => calls.push(['open-report-builder']);
-      window.openKnowledgeBaseModal = () => calls.push(['open-kb']);
       window.openContextModal = () => calls.push(['open-context']);
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       window.openClientList = () => calls.push(['open-client-list']);
@@ -145,7 +143,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.openEMFAssessmentEditor = origOpenEMF;
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       window.openReportBuilder = origOpenReportBuilder;
-      window.openKnowledgeBaseModal = origOpenKB;
       window.openContextModal = origOpenContext;
       window.openCreateMarkerModal = origOpenCreateMarker;
       window.openClientList = origOpenClientList;

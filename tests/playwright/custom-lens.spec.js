@@ -6,12 +6,13 @@ test('chat lens indicator hides when no lens is configured', async ({ page }) =>
   await expect(page.locator('#chat-lens-indicator')).toHaveCount(1);
   await expect(page.locator('#chat-lens-dot')).toHaveCount(1);
 
-  const display = await page.evaluate(() => {
+  const display = await page.evaluate(async () => {
+    const { updateLensIndicator } = await import('/js/lens.js');
+    const { updateKeyCache } = await import('/js/crypto.js');
     const indicator = document.getElementById('chat-lens-indicator');
     localStorage.removeItem('labcharts-lens-config');
-    window.updateKeyCache?.('labcharts-lens-key', '');
-    if (typeof window.updateLensIndicator !== 'function') throw new Error('window.updateLensIndicator unavailable');
-    window.updateLensIndicator();
+    updateKeyCache('labcharts-lens-key', '');
+    updateLensIndicator();
     return indicator?.style.display || '';
   });
 
@@ -21,8 +22,8 @@ test('chat lens indicator hides when no lens is configured', async ({ page }) =>
 test('knowledge base modal renders lens controls and settings AI does not', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  await page.evaluate(() => {
-    if (typeof window.openKnowledgeBaseModal !== 'function') throw new Error('window.openKnowledgeBaseModal unavailable');
+  await page.evaluate(async () => {
+    const { openKnowledgeBaseModal } = await import('/js/lens.js');
     localStorage.setItem('labcharts-lens-config', JSON.stringify({
       backend: 'external-server',
       url: 'https://kb.example.test',
@@ -31,7 +32,7 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
       testProbe: 'vitamin D deficiency supplementation',
       multiQuery: true,
     }));
-    window.openKnowledgeBaseModal();
+    openKnowledgeBaseModal();
   });
 
   const lensSection = page.locator('#custom-lens-section');
@@ -43,8 +44,9 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
   await expect(lensSection.locator('[data-lens-action="save-config"]')).toHaveCount(1);
   expect(await lensSection.evaluate((section) => !section.querySelector('[onclick], [onchange], [oninput]'))).toBe(true);
 
-  await page.evaluate(() => {
-    window.closeKnowledgeBaseModal?.();
+  await page.evaluate(async () => {
+    const { closeKnowledgeBaseModal } = await import('/js/lens.js');
+    closeKnowledgeBaseModal();
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
     window.openSettingsModal('ai');
   });

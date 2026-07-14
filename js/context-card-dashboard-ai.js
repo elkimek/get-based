@@ -24,7 +24,7 @@ import {
   setSupplementsMedsContextEnabled,
   setWearableContextEnabled,
 } from './lab-context.js';
-import { getLensSummary } from './lens.js';
+import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
 import { isSyncEnabled } from './sync.js';
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -38,7 +38,6 @@ import {
 
 const appWindow = /** @type {Window & typeof globalThis & {
   openInterpretiveLensEditor?: () => void,
-  openKnowledgeBaseModal?: () => void,
   showEnableEncryptionModal?: () => void,
   showSyncSetupModal?: () => void,
   pickFolderForBackup?: () => void,
@@ -48,7 +47,7 @@ const appWindow = /** @type {Window & typeof globalThis & {
 
 configureDashboardAIActionDelegates({
   'open-interpretive-lens': () => appWindow.openInterpretiveLensEditor?.(),
-  'open-knowledge-base': () => appWindow.openKnowledgeBaseModal?.(),
+  'open-knowledge-base': () => openKnowledgeBaseModal(),
   'open-personalize-ai-picker': () => openContextModal(),
   'enable-encryption': () => appWindow.showEnableEncryptionModal?.(),
   'setup-sync': () => appWindow.showSyncSetupModal?.(),
@@ -775,8 +774,8 @@ export function openContextModal() {
       close();
       if (pick === 'lens' && typeof appWindow.openInterpretiveLensEditor === 'function') {
         appWindow.openInterpretiveLensEditor();
-      } else if (pick === 'kb' && typeof appWindow.openKnowledgeBaseModal === 'function') {
-        appWindow.openKnowledgeBaseModal();
+      } else if (pick === 'kb') {
+        openKnowledgeBaseModal();
       }
     };
   });

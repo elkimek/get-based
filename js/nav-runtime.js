@@ -31,10 +31,6 @@ export function openEMFAssessmentFromNavRuntime() {
   getNavRuntimeFunction('openEMFAssessmentEditor')?.();
 }
 
-export function openKnowledgeBaseFromNavRuntime() {
-  getNavRuntimeFunction('openKnowledgeBaseModal')?.();
-}
-
 export function openReportBuilderFromNavRuntime() {
   getNavRuntimeFunction('openReportBuilder')?.();
 }
