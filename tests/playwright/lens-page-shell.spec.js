@@ -55,7 +55,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const { state } = await import('/js/state.js');
+    const [{ state }, shell] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/lens-page-shell.js'),
+    ]);
     const originalView = state.currentView;
     const originalAddDashboard = window.addDashboardWidgetFromLens;
     const originalRemoveDashboard = window.removeDashboardWidgetFromLens;
@@ -65,12 +68,15 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     const originalOpenSettings = window.openSettingsModal;
     const originalOpenBiometricPicker = window.openDashboardBiometricPicker;
     const originalOpenChat = window.openChatPanel;
-    const originalOpenEMF = window.openEMFAssessmentEditor;
     const originalNavigate = window.navigate;
     const profileId = window.getActiveProfileId?.() || state.currentProfile || 'default';
     const labsOrderKey = `labcharts-${profileId}-lensPageOrder-labs-v1`;
     const savedLabsOrder = localStorage.getItem(labsOrderKey);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const calls = [];
+    const restoreShell = shell.configureLensPageShell({
+      openEMFAssessmentEditor: () => calls.push(['emf']),
+    });
 
     try {
       if (!window.getActiveData?.()?.dates?.length) {
@@ -92,7 +98,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       await delay(120);
       const afterFirst = document.querySelector('.lens-page-widgets[data-lens-route="labs"] .dashboard-widget[data-widget-id]')?.dataset.widgetId || '';
 
-      const calls = [];
       window.addDashboardWidgetFromLens = id => calls.push(['add', id]);
       window.removeDashboardWidgetFromLens = id => calls.push(['remove', id]);
       const dashboardToggle = document.querySelector('.lens-page-widgets[data-lens-route="labs"] .lens-widget-dashboard-toggle[data-lens-page-action]');
@@ -107,7 +112,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       window.openSettingsModal = pane => calls.push(['settings', pane]);
       window.openDashboardBiometricPicker = () => calls.push(['biometrics']);
       window.openChatPanel = () => calls.push(['chat']);
-      window.openEMFAssessmentEditor = () => calls.push(['emf']);
       window.navigate = route => calls.push(['navigate', route]);
       const actionFixture = document.createElement('div');
       actionFixture.className = 'lens-page-header';
@@ -154,7 +158,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       window.openSettingsModal = originalOpenSettings;
       window.openDashboardBiometricPicker = originalOpenBiometricPicker;
       window.openChatPanel = originalOpenChat;
-      window.openEMFAssessmentEditor = originalOpenEMF;
+      shell.configureLensPageShell(restoreShell);
       window.navigate = originalNavigate;
       if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
       else localStorage.setItem(labsOrderKey, savedLabsOrder);

@@ -9,9 +9,10 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
   await page.waitForSelector('#chat-messages');
 
   const results = await page.evaluate(async ({ chatRenderUrl }) => {
-    const [{ state }, chatRender] = await Promise.all([
+    const [{ state }, chatRender, chatActions] = await Promise.all([
       import('/js/state.js'),
       import(chatRenderUrl),
+      import('/js/chat-actions.js'),
     ]);
     const outcomes = {};
     const messages = document.getElementById('chat-messages');
@@ -25,9 +26,11 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       isProductRecsEnabled: window.isProductRecsEnabled,
       renderRecommendationSectionSync: window.renderRecommendationSectionSync,
       cachedCatalog: window._cachedCatalog,
-      openEMFAssessmentEditor: window.openEMFAssessmentEditor,
     };
     let emfOpens = 0;
+    const restoreChatActions = chatActions.configureChatMessageActionDeps({
+      openEMFAssessmentEditor: () => { emfOpens += 1; },
+    });
 
     try {
       const sourceHtml = chatRender._renderLensSources([
@@ -65,8 +68,6 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
           <p>${slot}</p>
         </section>
       `;
-      window.openEMFAssessmentEditor = () => { emfOpens += 1; };
-
       state.chatHistory = [
         { joined: true, joinIcon: '*', joinName: 'Dr <Ada>' },
         { role: 'user', hidden: true, content: 'Hidden setup should not render' },
@@ -163,8 +164,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       else window.renderRecommendationSectionSync = saved.renderRecommendationSectionSync;
       if (saved.cachedCatalog === undefined) delete window._cachedCatalog;
       else window._cachedCatalog = saved.cachedCatalog;
-      if (saved.openEMFAssessmentEditor === undefined) delete window.openEMFAssessmentEditor;
-      else window.openEMFAssessmentEditor = saved.openEMFAssessmentEditor;
+      chatActions.configureChatMessageActionDeps(restoreChatActions);
     }
 
     return outcomes;

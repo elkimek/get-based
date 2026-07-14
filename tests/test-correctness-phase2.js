@@ -142,7 +142,7 @@ const pwaAppShellAssets = [
   '/js/commit-hash.js',
   '/js/focus-card.js',
   '/js/onboarding-view.js',
-  '/js/emf-facade.js',
+  '/js/emf-runtime.js',
   '/js/light-conditions-now.js',
   '/js/light-page-view.js',
   '/js/light-channel-view.js',

@@ -224,7 +224,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       navigate: window.navigate,
       openChatPanel: window.openChatPanel,
       useChatPrompt: window.useChatPrompt,
-      openEMFAssessmentEditor: window.openEMFAssessmentEditor,
       sunHomeLightOptions: window._sunHomeLightOptions,
       sunEyewearOptions: window._sunEyewearOptions,
       ottScoreToLabel: window.ottScoreToLabel,
@@ -267,7 +266,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       window.navigate = route => calls.push(['navigate', route]);
       window.openChatPanel = () => calls.push(['chat']);
       window.useChatPrompt = prompt => calls.push(['prompt', prompt]);
-      window.openEMFAssessmentEditor = () => calls.push(['emf-editor']);
 
       lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
@@ -443,7 +441,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       window.navigate = saved.navigate;
       window.openChatPanel = saved.openChatPanel;
       window.useChatPrompt = saved.useChatPrompt;
-      window.openEMFAssessmentEditor = saved.openEMFAssessmentEditor;
       window._sunHomeLightOptions = saved.sunHomeLightOptions;
       window._sunEyewearOptions = saved.sunEyewearOptions;
       window.ottScoreToLabel = saved.ottScoreToLabel;

@@ -165,10 +165,9 @@ return (async () => {
 
     // EMF assessment editor
     await safeOp('open EMF editor', async () => {
-      if (typeof window.openEMFAssessmentEditor === 'function') {
-        window.openEMFAssessmentEditor();
-        await new Promise(r => setTimeout(r, 400));
-      }
+      const { openEMFAssessmentEditor } = await import('/js/emf-runtime.js');
+      await openEMFAssessmentEditor();
+      await new Promise(r => setTimeout(r, 400));
     });
     await scan('emf-editor');
     await safeOp('close EMF editor', () => window.closeModal?.());

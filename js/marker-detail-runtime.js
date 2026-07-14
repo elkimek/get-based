@@ -1,6 +1,20 @@
 // @ts-check
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
+import { closeEMFInterpretation } from './emf-runtime.js';
+
+const markerDetailRuntimeDeps = {
+  closeEMFInterpretation,
+};
+
+export function configureMarkerDetailRuntime(deps = {}) {
+  const previous = { ...markerDetailRuntimeDeps };
+  if (typeof deps.closeEMFInterpretation === 'function') {
+    markerDetailRuntimeDeps.closeEMFInterpretation = deps.closeEMFInterpretation;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -111,7 +125,7 @@ export async function renderRecommendationSectionRuntime(markerKey, options) {
 }
 
 export function closeEMFInterpretationRuntime() {
-  getRuntimeFunction('closeEMFInterpretation')?.();
+  void markerDetailRuntimeDeps.closeEMFInterpretation();
 }
 
 export function uninstallWearableModalFocusTrapRuntime() {

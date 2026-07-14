@@ -405,7 +405,7 @@
     "js/dna-actions.js",
     "js/dna-genotype.js",
     "js/dna-mtdna.js",
-    "js/emf-facade.js",
+    "js/emf-runtime.js",
     "js/emf-interpretation.js",
     "js/feedback.js",
     "js/focus-card.js",

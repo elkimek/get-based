@@ -4,6 +4,7 @@
 import './_node-shim.js';
 import {
   closeRecommendationsModal,
+  configureRecommendationsRuntime,
   getRecommendationsSnpTable,
   isRecommendationsProductRecsEnabled,
   loadRecommendationsCatalogRuntime,
@@ -53,7 +54,6 @@ try {
   const runtime = {
     _snpTableCache: snpTable,
     closeModal() { calls.push(['close', this === runtime]); },
-    openEMFAssessmentEditor() { calls.push(['emf', this === runtime]); },
     openProfileLocationEditor() { calls.push(['location', this === runtime]); },
     openSettingsTab(tab) { calls.push(['settings', tab, this === runtime]); },
     openChatPanel(prompt) { calls.push(['chat', prompt, this === runtime]); },
@@ -70,6 +70,9 @@ try {
     },
   };
   setRuntime(runtime);
+  const restoreRecommendationsRuntime = configureRecommendationsRuntime({
+    openEMFAssessmentEditor: () => calls.push(['emf', true]),
+  });
 
   const timerId = scheduleRecommendationsTask(() => calls.push(['task']), 125);
   const registered = registerRecommendationsRuntimeExports({ recommendationProbe: () => 'ok' });
@@ -108,7 +111,6 @@ try {
     registered && runtime.recommendationProbe?.() === 'ok');
 
   delete runtime.closeModal;
-  delete runtime.openEMFAssessmentEditor;
   delete runtime.openProfileLocationEditor;
   delete runtime.openSettingsTab;
   delete runtime.openChatPanel;
@@ -123,9 +125,10 @@ try {
       await renderRecommendationsDetailSection('missing.slot', {}) === '' &&
       closeRecommendationsModal() === false &&
       openRecommendationsChatPanel('No-op') === false &&
-      openRecommendationsEmfAssessment() === false &&
+      openRecommendationsEmfAssessment() === true &&
       openRecommendationsLocationEditor() === false &&
       openRecommendationsPrivacySettings() === false);
+  configureRecommendationsRuntime(restoreRecommendationsRuntime);
 
   delete globalThis.window;
   assert('recommendations runtime no-ops without browser window',

@@ -6,6 +6,7 @@ import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import { openEMFAssessmentEditor } from './emf-runtime.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -126,8 +127,18 @@ const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
 });
 const contextCardWindow = /** @type {Window & typeof globalThis & {
   closeModal?: () => void,
-  openEMFAssessmentEditor?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
+const contextCardRuntimeDeps = {
+  openEMFAssessmentEditor,
+};
+
+export function configureContextCardRuntimeDeps(deps = {}) {
+  const previous = { ...contextCardRuntimeDeps };
+  if (typeof deps.openEMFAssessmentEditor === 'function') {
+    contextCardRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  return previous;
+}
 
 function contextCardActionAttrs(action, attrs = {}) {
   let html = `${CONTEXT_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
@@ -159,7 +170,7 @@ function handleContextCardClick(event) {
     if (!runEditor) return;
     runEditor();
   } else if (action === 'open-emf-assessment') {
-    const openAssessment = () => contextCardWindow.openEMFAssessmentEditor?.();
+    const openAssessment = () => { void contextCardRuntimeDeps.openEMFAssessmentEditor(); };
     if (actionEl.dataset.contextCardCloseModal === 'true') {
       contextCardWindow.closeModal?.();
       setTimeout(openAssessment, 100);

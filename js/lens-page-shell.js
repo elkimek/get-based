@@ -4,12 +4,14 @@
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
+import { openEMFAssessmentEditor } from './emf-runtime.js';
 
 const LENS_PAGE_ORDER_VERSION = 1;
 
 let _shellDeps = {
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
+  openEMFAssessmentEditor,
 };
 let lensPageShellDelegatesInstalled = false;
 
@@ -23,8 +25,10 @@ function callLensPageRuntime(name, ...args) {
 }
 
 export function configureLensPageShell(deps = {}) {
+  const previous = { ..._shellDeps };
   _shellDeps = { ..._shellDeps, ...deps };
   installLensPageShellDelegates();
+  return previous;
 }
 
 export function lensPageActionAttrs(action, attrs = {}) {
@@ -73,7 +77,7 @@ function handleLensPageShellClick(event) {
   } else if (action === 'open-ai-chat') {
     callLensPageRuntime('openChatPanel');
   } else if (action === 'open-emf-assessment') {
-    callLensPageRuntime('openEMFAssessmentEditor');
+    void _shellDeps.openEMFAssessmentEditor();
   } else if (action === 'open-recommendations') {
     callLensPageRuntime('navigate', 'recommendations');
   } else if (action === 'open-privacy-settings') {

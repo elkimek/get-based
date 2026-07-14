@@ -1,6 +1,20 @@
 // @ts-check
 // recommendations-runtime.js - Browser runtime adapters for recommendation hooks.
 
+import { openEMFAssessmentEditor } from './emf-runtime.js';
+
+const recommendationsRuntimeDeps = {
+  openEMFAssessmentEditor,
+};
+
+export function configureRecommendationsRuntime(deps = {}) {
+  const previous = { ...recommendationsRuntimeDeps };
+  if (typeof deps.openEMFAssessmentEditor === 'function') {
+    recommendationsRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -56,9 +70,7 @@ export function openRecommendationsChatPanel(prompt) {
 }
 
 export function openRecommendationsEmfAssessment() {
-  const openEMFAssessmentEditor = getRuntimeFunction('openEMFAssessmentEditor');
-  if (!openEMFAssessmentEditor) return false;
-  openEMFAssessmentEditor();
+  void recommendationsRuntimeDeps.openEMFAssessmentEditor();
   return true;
 }
 

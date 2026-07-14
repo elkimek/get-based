@@ -4,8 +4,8 @@
 // Complements test-emf.js, which exercises the SBM-2015 threshold schema in
 // js/schema.js but never touches emf.js itself. Pre-this file, emf.js had 41
 // of 42 functions uncalled — the entire module was untested behaviorally.
-// This file drives the full CRUD + interpretation flow through the window
-// facade so V8 records every function as called, AND asserts the state
+// This file drives the full CRUD + interpretation flow through module exports
+// so V8 records every function as called, AND asserts the state
 // mutations a user would observe.
 //
 // Run: node tests/test-emf-flow.js  (or via npm test)
@@ -13,7 +13,7 @@
 // Full port — the CRUD/state assertions are pure object mutations; the
 // render / modal / photo / interpretation paths are coverage-only (wrapped
 // in try/catch or withTimeout, asserting only "X ran"), so they degrade
-// gracefully against the Node DOM stub. Every async window function is
+// gracefully against the Node DOM stub. Every async module function is
 // wrapped in a hard 1.5s timeout — the interpret/PDF flows open modals that
 // wait for user input and would block the runner indefinitely otherwise.
 
@@ -51,14 +51,14 @@ const withTimeout = (fn, ms = 1500) => Promise.race([
 
 console.log('=== EMF Flow Tests ===\n');
 
-// Bring in the actual modules — dynamic import forces parse + top-level
-// execution, which is what registers the window facade.
+// Bring in the actual modules — consumers call these exports directly.
 const { state } = await import('../js/state.js');
 const emfMod = await import('../js/emf.js');
 const emfInterpretationMod = await import('../js/emf-interpretation.js');
 await import('../js/data.js'); // saveImportedData lives here
 
-assert('emf.js window facade loaded', typeof window.addEMFAssessment === 'function');
+assert('emf.js module exports loaded', typeof emfMod.addEMFAssessment === 'function');
+assert('emf.js does not install its former window facade', typeof window.addEMFAssessment === 'undefined');
 
 // Snapshot the existing emfAssessment subtree so we can restore it at the
 // end and not pollute downstream tests (test-wearables-bp-merge has been
@@ -72,28 +72,28 @@ state.importedData.emfAssessment = { assessments: [], compareMode: false };
 
 // ── 1. Assessment CRUD ────────────────────────────────────────────────
 const beforeAdd = state.importedData.emfAssessment.assessments.length;
-window.addEMFAssessment();
+emfMod.addEMFAssessment();
 const afterAdd = state.importedData.emfAssessment.assessments.length;
 assert('addEMFAssessment appends one assessment', afterAdd === beforeAdd + 1);
 
 const asmId = state.importedData.emfAssessment.assessments[afterAdd - 1].id;
 assert('New assessment has a string id', typeof asmId === 'string' && asmId.length > 0);
 
-window.updateEMFField(asmId, 'name', 'Coverage Probe');
+emfMod.updateEMFField(asmId, 'name', 'Coverage Probe');
 const asm = state.importedData.emfAssessment.assessments.find(a => a.id === asmId);
 assert('updateEMFField writes name', asm.name === 'Coverage Probe');
 
-window.updateEMFField(asmId, 'notes', 'Multi-line\nnotes here');
+emfMod.updateEMFField(asmId, 'notes', 'Multi-line\nnotes here');
 assert('updateEMFField writes notes', asm.notes === 'Multi-line\nnotes here');
 
-window.updateEMFField(asmId, 'date', '2024-02-03');
+emfMod.updateEMFField(asmId, 'date', '2024-02-03');
 assert('updateEMFField writes date', asm.date === '2024-02-03');
 
 const modalStub = document.getElementById('detail-modal');
 modalStub._query = {
   '[data-emf-field="date"]': { value: '2023-12-24' },
 };
-window.saveEMFExplicit();
+emfMod.saveEMFExplicit();
 assert('saveEMFExplicit collects live date input before saving', asm.date === '2023-12-24');
 modalStub._query = {};
 
@@ -102,59 +102,59 @@ modalStub._query = {};
 const startingRooms = asm.rooms.length;
 assert('New assessment has a default room', startingRooms >= 1);
 
-window.addEMFRoom(asmId);
+emfMod.addEMFRoom(asmId);
 assert('addEMFRoom adds room', asm.rooms.length === startingRooms + 1);
 
-window.updateEMFRoom(asmId, 0, 'name', 'Bedroom');
+emfMod.updateEMFRoom(asmId, 0, 'name', 'Bedroom');
 assert('updateEMFRoom updates name', asm.rooms[0].name === 'Bedroom');
 
-window.updateEMFRoom(asmId, 0, 'location', 'east-facing wall');
+emfMod.updateEMFRoom(asmId, 0, 'location', 'east-facing wall');
 assert('updateEMFRoom updates location', asm.rooms[0].location === 'east-facing wall');
 
 // ── 3. Measurement + meter flow ──────────────────────────────────────
 // updateEMFMeasurement stores `{ value, unit, meter }` — not the raw number.
 // updateEMFMeter writes into the SAME nested object's `.meter` field, so
 // the measurement must exist first.
-window.updateEMFMeasurement(asmId, 0, 'acElectric', 12);
+emfMod.updateEMFMeasurement(asmId, 0, 'acElectric', 12);
 assert('updateEMFMeasurement stores nested value object',
   asm.rooms[0].measurements?.acElectric?.value === 12);
 assert('updateEMFMeasurement also tags the unit',
   typeof asm.rooms[0].measurements.acElectric.unit === 'string');
 
-window.updateEMFMeasurement(asmId, 0, 'rfMicrowave', 250);
-window.updateEMFMeasurement(asmId, 0, 'acMagnetic', 80);
-window.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', 40);
+emfMod.updateEMFMeasurement(asmId, 0, 'rfMicrowave', 250);
+emfMod.updateEMFMeasurement(asmId, 0, 'acMagnetic', 80);
+emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', 40);
 assert('Multiple measurement types coexist',
   Object.keys(asm.rooms[0].measurements).length >= 4);
 
-window.updateEMFMeter(asmId, 0, 'acElectric', 'Safe and Sound EM3');
+emfMod.updateEMFMeter(asmId, 0, 'acElectric', 'Safe and Sound EM3');
 assert('updateEMFMeter writes into measurement.meter',
   asm.rooms[0].measurements.acElectric.meter === 'Safe and Sound EM3');
 
 // Clear path: passing '' deletes the measurement.
-window.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', '');
+emfMod.updateEMFMeasurement(asmId, 0, 'dirtyElectricity', '');
 assert('updateEMFMeasurement with empty value clears',
   asm.rooms[0].measurements.dirtyElectricity === undefined);
 
 // ── 4. Selection + render (modal stub provided by the top-level getElementById patch) ───
-try { window.openEMFAssessmentEditor(); } catch (_) {}
+try { emfMod.openEMFAssessmentEditor(); } catch (_) {}
 assert('openEMFAssessmentEditor ran', true);
 
-try { window.toggleEMFAssessment(asmId); } catch (_) {}
+try { emfMod.toggleEMFAssessment(asmId); } catch (_) {}
 assert('toggleEMFAssessment ran', true);
 
-try { window.selectEMFRoom(asmId, 0); } catch (_) {}
+try { emfMod.selectEMFRoom(asmId, 0); } catch (_) {}
 assert('selectEMFRoom ran', true);
 
-await withTimeout(() => window.handleEMFRoomDropdown(asmId, 0, '0', { value: '0' }));
+await withTimeout(() => emfMod.handleEMFRoomDropdown(asmId, 0, '0', { value: '0' }));
 assert('handleEMFRoomDropdown ran', true);
 
 // Compare view: needs ≥ 2 assessments. Add a second.
-window.addEMFAssessment();
+emfMod.addEMFAssessment();
 const secondId = state.importedData.emfAssessment.assessments.at(-1).id;
-try { window.toggleEMFCompare(); } catch (_) {}
+try { emfMod.toggleEMFCompare(); } catch (_) {}
 assert('toggleEMFCompare ran (with 2 assessments)', true);
-try { window.toggleEMFCompare(); } catch (_) {} // toggle off
+try { emfMod.toggleEMFCompare(); } catch (_) {} // toggle off
 
 // ── 5. Photos (FileReader path) ──────────────────────────────────────
 // 1×1 PNG so the read actually succeeds (otherwise the photo never lands
@@ -167,13 +167,13 @@ const tinyPng = new Uint8Array([
   0x42,0x60,0x82,
 ]);
 const photoFile = new File([tinyPng], 'probe.png', { type: 'image/png' });
-await withTimeout(() => window.addEMFPhotos(asmId, 0, [photoFile]));
+await withTimeout(() => emfMod.addEMFPhotos(asmId, 0, [photoFile]));
 assert('addEMFPhotos ran', true);
 
-try { window.viewEMFPhoto(asmId, 0, 0); } catch (_) {}
+try { emfMod.viewEMFPhoto(asmId, 0, 0); } catch (_) {}
 assert('viewEMFPhoto ran', true);
 
-try { window.removeEMFPhoto(asmId, 0, 0); } catch (_) {}
+try { emfMod.removeEMFPhoto(asmId, 0, 0); } catch (_) {}
 assert('removeEMFPhoto ran', true);
 
 // ── 6. Interpretation flow (stub the AI; bound with a timeout) ───────
@@ -183,18 +183,18 @@ assert('removeEMFPhoto ran', true);
 const restoreInterpretationDeps = emfInterpretationMod.configureEMFInterpretationRuntimeDeps({
   callClaudeAPI: async () => ({ text: 'Stub interpretation', usage: { inputTokens: 1, outputTokens: 1 } }),
 });
-try { window.interpretEMFAssessment(asmId); } catch (_) {}
+try { emfMod.interpretEMFAssessment(asmId); } catch (_) {}
 assert('interpretEMFAssessment ran', true);
-try { window.interpretEMFComparison(); } catch (_) {}
+try { emfMod.interpretEMFComparison(); } catch (_) {}
 assert('interpretEMFComparison ran', true);
 // Drain microtasks so the stubbed AI promises resolve.
 await new Promise(r => setTimeout(r, 50));
 emfInterpretationMod.configureEMFInterpretationRuntimeDeps(restoreInterpretationDeps);
 
-try { window.closeEMFInterpretation(); } catch (_) {}
+try { emfMod.closeEMFInterpretation(); } catch (_) {}
 assert('closeEMFInterpretation ran', true);
 
-try { window.discussEMFInterpretation(); } catch (_) {}
+try { emfMod.discussEMFInterpretation(); } catch (_) {}
 assert('discussEMFInterpretation ran', true);
 
 // ── 7. PDF import path (stubbed) ─────────────────────────────────────
@@ -205,15 +205,15 @@ const restoreEMFAIDeps = emfMod.configureEMFAIDeps({
   callClaudeAPI: async () => ({ text: JSON.stringify({ assessments: [] }), usage: { inputTokens: 1, outputTokens: 1 } }),
 });
 const fakePdf = new File([new Uint8Array(10)], 'probe.pdf', { type: 'application/pdf' });
-await withTimeout(() => window.handleEMFPDF(fakePdf));
+await withTimeout(() => emfMod.handleEMFPDF(fakePdf));
 assert('handleEMFPDF ran', true);
 window.parsePDFFile = origParsePDF;
 emfMod.configureEMFAIDeps(restoreEMFAIDeps);
 
 // ── 8. removeEMFRoom + deleteEMFAssessment ───────────────────────────
-window.addEMFRoom(asmId);
+emfMod.addEMFRoom(asmId);
 const beforeRm = asm.rooms.length;
-try { window.removeEMFRoom(asmId, asm.rooms.length - 1); } catch (_) {}
+try { emfMod.removeEMFRoom(asmId, asm.rooms.length - 1); } catch (_) {}
 assert('removeEMFRoom decrements room count', asm.rooms.length === beforeRm - 1);
 
 // deleteEMFAssessment awaits showConfirmDialog (imported directly from
@@ -222,12 +222,12 @@ assert('removeEMFRoom decrements room count', asm.rooms.length === beforeRm - 1)
 // the await hangs until withTimeout cancels. The function IS entered
 // (V8 marks it called), which is the coverage goal. We just need an
 // assertion that doesn't depend on the actual delete happening.
-await withTimeout(() => window.deleteEMFAssessment(secondId));
-await withTimeout(() => window.deleteEMFAssessment(asmId));
+await withTimeout(() => emfMod.deleteEMFAssessment(secondId));
+await withTimeout(() => emfMod.deleteEMFAssessment(asmId));
 assert('deleteEMFAssessment called without throwing', true);
 
 // ── 9. saveEMFExplicit ───────────────────────────────────────────────
-try { window.saveEMFExplicit(); } catch (_) {}
+try { emfMod.saveEMFExplicit(); } catch (_) {}
 assert('saveEMFExplicit ran', true);
 
 // Restore the snapshot so downstream tests see the same emfAssessment
