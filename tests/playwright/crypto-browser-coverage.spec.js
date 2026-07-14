@@ -395,7 +395,6 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       buildSidebar: window.buildSidebar,
       migrateProfileData: window.migrateProfileData,
       navigate: window.navigate,
-      getFolderBackupState: window.getFolderBackupState,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
 
@@ -453,7 +452,6 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       localStorage.removeItem('labcharts-last-manual-backup');
       localStorage.removeItem('labcharts-folder-backup-last');
       document.getElementById('tour-overlay')?.remove();
-      window.getFolderBackupState = () => ({ folderName: null, permissionLost: false });
       cryptoStore.maybeShowBackupNudge();
       await waitFor(() => !!document.getElementById('backup-nudge-snooze'), 'backup nudge');
       document.getElementById('backup-nudge-snooze').click();
@@ -528,8 +526,6 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       else window.migrateProfileData = saved.migrateProfileData;
       if (saved.navigate === undefined) delete window.navigate;
       else window.navigate = saved.navigate;
-      if (saved.getFolderBackupState === undefined) delete window.getFolderBackupState;
-      else window.getFolderBackupState = saved.getFolderBackupState;
       if (originalBroadcastDescriptor) {
         Object.defineProperty(window, 'BroadcastChannel', originalBroadcastDescriptor);
       } else {

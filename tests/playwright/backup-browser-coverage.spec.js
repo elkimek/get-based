@@ -29,10 +29,11 @@ test('backup browser coverage exercises export import auto backup and folder sta
       revokeObjectURL: URL.revokeObjectURL,
       anchorClick: HTMLAnchorElement.prototype.click,
       setTimeout: window.setTimeout,
-      getEncryptionEnabled: window.getEncryptionEnabled,
-      encryptedGetItem: window.encryptedGetItem,
       showDirectoryPicker: Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker'),
     };
+    const previousBackupRuntimeDeps = backup.configureBackupRuntimeDeps({
+      getEncryptionEnabled: () => true,
+    });
     const delay = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
     const waitFor = async (predicate, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
@@ -98,7 +99,6 @@ test('backup browser coverage exercises export import auto backup and folder sta
       await blobStorage.deleteBlob(importedKey);
       await blobStorage.deleteBlob(restoredImportedKey);
 
-      window.getEncryptionEnabled = () => true;
       localStorage.setItem('labcharts-profiles', originalProfileList);
       localStorage.setItem(importedKey, JSON.stringify({ entries: [{ date: '2026-06-09', markers: { ferritin: 41 } }] }));
       localStorage.setItem(`labcharts-${profileId}-chat`, JSON.stringify([{ role: 'user', content: 'hello' }]));
@@ -270,10 +270,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       URL.createObjectURL = saved.createObjectURL;
       URL.revokeObjectURL = saved.revokeObjectURL;
       HTMLAnchorElement.prototype.click = saved.anchorClick;
-      if (saved.getEncryptionEnabled === undefined) delete window.getEncryptionEnabled;
-      else window.getEncryptionEnabled = saved.getEncryptionEnabled;
-      if (saved.encryptedGetItem === undefined) delete window.encryptedGetItem;
-      else window.encryptedGetItem = saved.encryptedGetItem;
+      backup.configureBackupRuntimeDeps(previousBackupRuntimeDeps);
       if (saved.showDirectoryPicker) Object.defineProperty(window, 'showDirectoryPicker', saved.showDirectoryPicker);
       else delete window.showDirectoryPicker;
       await blobStorage.deleteBlob(importedKey);

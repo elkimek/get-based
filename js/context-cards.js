@@ -34,6 +34,7 @@ import {
   refreshAllHealthDots as refreshAllHealthDotsImpl,
 } from './context-card-health-dots.js';
 import {
+  configureDashboardAIDataProtectionDeps,
   openDataProtectionPicker,
   openContextModal,
   openPersonalizeAIPicker,
@@ -246,6 +247,7 @@ export {
   clearDiagnoses,
 } from './context-card-medical-history-editor.js';
 export {
+  configureDashboardAIDataProtectionDeps,
   openDataProtectionPicker,
   openContextModal,
   openPersonalizeAIPicker,

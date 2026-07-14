@@ -187,8 +187,9 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, backupModule, chartsModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
+    import('../js/backup.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
     import('../js/emf.js'),
@@ -562,6 +563,7 @@
   console.log(`Checked ${apiExports.length} api.js module exports`);
 
   for (const [moduleName, moduleApi, exports] of [
+    ['backup.js', backupModule, backupExports],
     ['charts.js', chartsModule, chartsExports],
     ['cycle.js', cycleModule, cycleExports],
     ['emf.js', emfModule, emfExports],
@@ -583,6 +585,9 @@
     console.log(`Checked ${exports.length} ${moduleName} module exports`);
   }
   for (const name of supplementLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of backupExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {
@@ -619,7 +624,6 @@
     'profile.js': profileExports,
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
-    'backup.js': backupExports,
     'theme.js': themeExports,
     'utils.js': utilsExports,
     'views.js': viewsExports,

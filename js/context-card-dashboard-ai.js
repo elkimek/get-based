@@ -1,7 +1,7 @@
 // @ts-check
 // context-card-dashboard-ai.js - AI context and data protection CTAs
 
-import { getFolderBackupState } from './backup.js';
+import { getFolderBackupState, pickFolderForBackup } from './backup.js';
 import { getEncryptionEnabled } from './crypto.js';
 import { getActiveData, saveImportedData } from './data.js';
 import {
@@ -40,15 +40,20 @@ import {
 const appWindow = /** @type {Window & typeof globalThis & {
   openInterpretiveLensEditor?: () => void,
   showEnableEncryptionModal?: () => void,
-  pickFolderForBackup?: () => void,
   handleDNAFile?: (file: File) => void,
   updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
-
+const dashboardAIDataProtectionDeps = { pickFolderForBackup };
 export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
   dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
+}
+
+export function configureDashboardAIDataProtectionDeps(deps = {}) {
+  const previous = { ...dashboardAIDataProtectionDeps };
+  if (typeof deps.pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = deps.pickFolderForBackup;
+  return previous;
 }
 
 configureDashboardAIActionDelegates({
@@ -57,7 +62,7 @@ configureDashboardAIActionDelegates({
   'open-personalize-ai-picker': () => openContextModal(),
   'enable-encryption': () => appWindow.showEnableEncryptionModal?.(),
   'setup-sync': () => dashboardAISyncSetupHandler(),
-  'setup-backup': () => appWindow.pickFolderForBackup?.(),
+  'setup-backup': () => dashboardAIDataProtectionDeps.pickFolderForBackup(),
   'open-data-protection-picker': () => openDataProtectionPicker(),
 });
 
@@ -686,7 +691,7 @@ export function openDataProtectionPicker() {
       close();
       if (pick === 'encryption' && typeof appWindow.showEnableEncryptionModal === 'function') appWindow.showEnableEncryptionModal();
       else if (pick === 'sync') dashboardAISyncSetupHandler();
-      else if (pick === 'backup' && typeof appWindow.pickFolderForBackup === 'function') appWindow.pickFolderForBackup();
+      else if (pick === 'backup') dashboardAIDataProtectionDeps.pickFolderForBackup();
     };
   });
 }

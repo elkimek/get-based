@@ -9,6 +9,7 @@ return (async function() {
   }
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const S = window._labState;
+  const backupModule = await import('/js/backup.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -529,8 +530,9 @@ return (async function() {
   localStorage.setItem('labcharts-custom-url', 'https://api.example.com/v1');
   localStorage.setItem('labcharts-custom-model', 'gpt-test');
 
-  const snap = window.buildBackupSnapshot && window.buildBackupSnapshot();
-  assert('buildBackupSnapshot exposed', !!snap, 'window.buildBackupSnapshot missing');
+  const snap = backupModule.buildBackupSnapshot();
+  assert('buildBackupSnapshot module export works', !!snap);
+  assert('buildBackupSnapshot stays off window', !('buildBackupSnapshot' in window));
   if (snap) {
     assert('snapshot.settings carries custom-key', snap.settings['labcharts-custom-key'] === 'sk-roundtrip-test');
     assert('snapshot.settings carries custom-url', snap.settings['labcharts-custom-url'] === 'https://api.example.com/v1');
@@ -559,26 +561,24 @@ return (async function() {
   // the v1: envelope as `[]` and the localStorage fallback found nothing
   // because v1.6.x moved *-imported blobs to IndexedDB. Result: every backup
   // silently shipped profiles:[] (~1 KB file). buildFullBackupSnapshot now
-  // detects that case and re-enumerates via window.encryptedGetItem.
+  // detects that case and re-enumerates through its injected crypto dependency.
   console.log('%c 13b. Encrypted backup re-enumerates profiles ', 'font-weight:bold;color:#f59e0b');
 
   const backupSrcEnc = await fetch('/js/backup.js').then(r => r.text());
   assert('buildFullBackupSnapshot detects encrypted profile list',
     backupSrcEnc.includes('isEncryptedValue(snap.profileList)'));
-  assert('buildFullBackupSnapshot decrypts via window.encryptedGetItem',
-    backupSrcEnc.includes("encryptedGetItem?.('labcharts-profiles')"));
+  assert('buildFullBackupSnapshot decrypts via injected encryptedGetItem',
+    backupSrcEnc.includes("getBackupRuntimeDeps().encryptedGetItem('labcharts-profiles')"));
   assert('Re-enumeration only fires when profiles array is empty (no double-write)',
     /snap\.profiles\.length\s*===\s*0\s*&&\s*snap\.profileList\s*&&\s*isEncryptedValue/.test(backupSrcEnc));
   assert('Re-enumeration uses PER_PROFILE_PREF_SUFFIXES (parity with sync path)',
     /for\s*\(\s*const\s+suffix\s+of\s+PER_PROFILE_PREF_SUFFIXES\s*\)/.test(backupSrcEnc));
 
   // Functional roundtrip: spoof the encrypted-list state and verify the
-  // snapshot recovers a profile. Stub window.encryptedGetItem so this works
-  // without an actual passphrase setup. Stash the real values, swap in
-  // spoofs, run the async builder, restore originals.
+  // snapshot recovers a profile. Inject encryptedGetItem so this works
+  // without an actual passphrase setup, then restore the production deps.
   const _profileKey = 'labcharts-profiles';
   const _origProfilesRaw = localStorage.getItem(_profileKey);
-  const _origEncryptedGetItem = window.encryptedGetItem;
   let realProfiles = [];
   try { realProfiles = JSON.parse(_origProfilesRaw || '[]'); } catch {}
   if (Array.isArray(realProfiles) && realProfiles.length > 0) {
@@ -586,15 +586,14 @@ return (async function() {
     // Make the on-disk value look encrypted (v1: prefix → isEncryptedValue
     // returns true → buildBackupSnapshot parses it as []).
     localStorage.setItem(_profileKey, 'v1:fake-ciphertext-only-the-prefix-matters');
-    // Stub encryptedGetItem to return the decrypted JSON for the profiles
-    // key only; everything else falls through to the real impl.
-    window.encryptedGetItem = async (key) => {
-      if (key === _profileKey) return decryptedJson;
-      return _origEncryptedGetItem ? _origEncryptedGetItem(key) : null;
-    };
+    const previousBackupDeps = backupModule.configureBackupRuntimeDeps({
+      encryptedGetItem: async (key) => {
+        if (key === _profileKey) return decryptedJson;
+        return null;
+      },
+    });
     try {
-      const backupMod = await import('/js/backup.js');
-      const recoveredSnap = await backupMod.buildFullBackupSnapshot();
+      const recoveredSnap = await backupModule.buildFullBackupSnapshot();
       assert('buildFullBackupSnapshot recovers profile list when encrypted',
         recoveredSnap?.profiles?.length === realProfiles.length,
         `expected ${realProfiles.length} profiles, got ${recoveredSnap?.profiles?.length ?? 'null'}`);
@@ -606,7 +605,7 @@ return (async function() {
       // Restore originals so subsequent tests see a clean state.
       if (_origProfilesRaw !== null) localStorage.setItem(_profileKey, _origProfilesRaw);
       else localStorage.removeItem(_profileKey);
-      window.encryptedGetItem = _origEncryptedGetItem;
+      backupModule.configureBackupRuntimeDeps(previousBackupDeps);
     }
   } else {
     assert('Setup: at least one profile present for encrypted-recovery test', false,

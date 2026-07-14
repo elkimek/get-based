@@ -54,7 +54,7 @@ await import('../js/export.js');
 await import('../js/settings.js');
 await import('../js/chat.js');
 await import('../js/utils.js');
-await import('../js/backup.js');
+const backupModule = await import('../js/backup.js');
 
 // Seed a minimal profile registry — the app bootstraps one via
 // initProfilesCache() on page load; in Node we seed it so the section-15
@@ -77,8 +77,10 @@ assert('window.encryptedGetItem exists', typeof window.encryptedGetItem === 'fun
 assert('window.showEnableEncryptionModal exists', typeof window.showEnableEncryptionModal === 'function');
 assert('window.disableEncryption exists', typeof window.disableEncryption === 'function');
 assert('window.changePassphrase exists', typeof window.changePassphrase === 'function');
-assert('window.exportEncryptedBackup exists', typeof window.exportEncryptedBackup === 'function');
-assert('window.importEncryptedBackup exists', typeof window.importEncryptedBackup === 'function');
+assert('backup.exportEncryptedBackup module export exists', typeof backupModule.exportEncryptedBackup === 'function');
+assert('backup.importEncryptedBackup module export exists', typeof backupModule.importEncryptedBackup === 'function');
+assert('window.exportEncryptedBackup stays module-only', !('exportEncryptedBackup' in window));
+assert('window.importEncryptedBackup stays module-only', !('importEncryptedBackup' in window));
 assert('window.broadcastDataChanged exists', typeof window.broadcastDataChanged === 'function');
 assert('window.renderEncryptionSection exists', typeof window.renderEncryptionSection === 'function');
 assert('window.renderBackupSection exists', typeof window.renderBackupSection === 'function');
@@ -549,14 +551,13 @@ try {
 }
 
 // ═══════════════════════════════════════════════
-// 20. Auto-backup window exports
+// 20. Auto-backup module exports
 // ═══════════════════════════════════════════════
-console.log('20. Auto-backup window exports');
-assert('window.scheduleAutoBackup exists', typeof window.scheduleAutoBackup === 'function');
-assert('window.getAutoBackupSnapshots exists', typeof window.getAutoBackupSnapshots === 'function');
-assert('window.restoreAutoBackup exists', typeof window.restoreAutoBackup === 'function');
-assert('window.openBackupDB exists', typeof window.openBackupDB === 'function');
-assert('window.buildBackupSnapshot exists', typeof window.buildBackupSnapshot === 'function');
+console.log('20. Auto-backup module exports');
+for (const name of ['scheduleAutoBackup', 'getAutoBackupSnapshots', 'restoreAutoBackup', 'openBackupDB', 'buildBackupSnapshot']) {
+  assert(`backup.${name} exists`, typeof backupModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
 assert('window.loadBackupSnapshots exists', typeof window.loadBackupSnapshots === 'function');
 
 // ═══════════════════════════════════════════════
@@ -564,7 +565,7 @@ assert('window.loadBackupSnapshots exists', typeof window.loadBackupSnapshots ==
 // ═══════════════════════════════════════════════
 console.log('21. labcharts-backups IndexedDB');
 try {
-  const db = await window.openBackupDB();
+  const db = await backupModule.openBackupDB();
   assert('IndexedDB opens successfully', db instanceof IDBDatabase);
   assert('IndexedDB has snapshots store', db.objectStoreNames.contains('snapshots'));
 } catch (e) {
@@ -645,7 +646,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('26. getAutoBackupSnapshots');
 try {
-  const snapshots = await window.getAutoBackupSnapshots();
+  const snapshots = await backupModule.getAutoBackupSnapshots();
   assert('getAutoBackupSnapshots returns array', Array.isArray(snapshots));
 } catch (e) {
   assert('getAutoBackupSnapshots', false, e.message);
@@ -656,7 +657,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('27. buildBackupSnapshot');
 try {
-  const snapshot = window.buildBackupSnapshot();
+  const snapshot = backupModule.buildBackupSnapshot();
   // The profile registry is seeded at test startup, so a falsy return
   // means a runtime error, not an empty profile list — assert the object
   // type directly rather than letting a falsy value pass silently.

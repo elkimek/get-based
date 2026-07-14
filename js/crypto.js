@@ -10,7 +10,6 @@ import { ensureImportedArray } from './data-merge.js';
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
   buildSidebar: () => void,
-  getFolderBackupState?: () => { folderName?: string | null, permissionLost?: boolean },
   migrateProfileData: (data: any) => void,
   navigate: (view: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
@@ -700,7 +699,7 @@ export function maybeShowBackupNudge() {
   });
   if (!hasAnyData) return;
   // Skip if folder backup is active and healthy
-  const _fbState = appWindow.getFolderBackupState?.();
+  const _fbState = getFolderBackupState();
   if (_fbState?.folderName && !_fbState?.permissionLost) return;
   // Skip if snoozed
   const snoozedUntil = localStorage.getItem('labcharts-backup-nudge-snoozed-until');
@@ -978,8 +977,10 @@ export async function changePassphrase() {
 
 // ═══════════════════════════════════════════════
 // Backup/restore, auto-backup, folder backup extracted to js/backup.js
-import { buildBackupSnapshot, exportEncryptedBackup, importEncryptedBackup, scheduleAutoBackup, getAutoBackupSnapshots, restoreAutoBackup, openBackupDB, initFolderBackup, getFolderBackupState, renderFolderBackupSection, MAX_SNAPSHOTS } from './backup.js';
+import { buildBackupSnapshot, configureBackupRuntimeDeps, exportEncryptedBackup, importEncryptedBackup, scheduleAutoBackup, getAutoBackupSnapshots, restoreAutoBackup, openBackupDB, initFolderBackup, getFolderBackupState, renderFolderBackupSection, MAX_SNAPSHOTS } from './backup.js';
 export { buildBackupSnapshot, scheduleAutoBackup, openBackupDB, initFolderBackup };
+
+configureBackupRuntimeDeps({ encryptedGetItem, getEncryptionEnabled });
 
 // ═══════════════════════════════════════════════
 // CROSS-TAB SYNC (BroadcastChannel)
