@@ -808,7 +808,8 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     await delay(100);
   }
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    const supplements = await import('/js/supplements.js');
     const state = window._labState;
     window.__suppModalSnapshot = JSON.stringify(state?.importedData?.supplements || []);
     if (state?.importedData) {
@@ -825,10 +826,10 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         note: '',
       }];
     }
-    window.openSupplementsEditor?.();
-    window.showAddSuppForm?.();
-    window.addIngredientRow?.();
-    window.addPeriodRow?.();
+    supplements.openSupplementsEditor();
+    supplements.showAddSuppForm();
+    supplements.addIngredientRow();
+    supplements.addPeriodRow();
   });
   await delay(150);
   result = await page.evaluate(() => {

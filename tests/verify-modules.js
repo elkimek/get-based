@@ -187,11 +187,12 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, lensModule, piiModule] = await Promise.all([
+  const [apiModule, chartsModule, lensModule, piiModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/lens.js'),
     import('../js/pii.js'),
+    import('../js/supplements.js'),
   ]);
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
@@ -414,10 +415,22 @@
     'removeFolderBackup','getFolderBackupState','renderFolderBackupSection',
   ];
 
-  // supplements.js (4)
+  // supplements.js (23, module-only)
   const supplementsExports = [
-    'renderSupplementsSection','openSupplementsEditor',
-    'saveSupplement','deleteSupplement'
+    'renderSupplementsSection','openSupplementsEditor','toggleSuppAccordion','showAddSuppForm',
+    'saveSupplement','deleteSupplement','askAIMitoContext',
+    'computeAllImpacts','computeSupplementImpact','effectiveTimesPerDay',
+    'getSupplementPeriods','ingredientDailyTotal','parseAmount',
+    'refreshSupplementImpact','renderSupplementImpact',
+    'addIngredientRow','removeIngredientRow','addPeriodRow','removePeriodRow',
+    'scanSupplementLabel','fetchSupplementFromURL','updateIngTotal','updateAllIngTotals'
+  ];
+  const supplementLegacyGlobals = [
+    'renderSupplementsSection','openSupplementsEditor','toggleSuppAccordion','showAddSuppForm',
+    'saveSupplement','deleteSupplement','askAIMitoContext','computeAllImpacts',
+    'getSupplementPeriods','addIngredientRow','removeIngredientRow','addPeriodRow',
+    'removePeriodRow','scanSupplementLabel','fetchSupplementFromURL',
+    'refreshSupplementImpact','updateIngTotal','updateAllIngTotals','ingredientDailyTotal'
   ];
 
   // theme.js (8)
@@ -459,6 +472,7 @@
     ['charts.js', chartsModule, chartsExports],
     ['lens.js', lensModule, lensExports],
     ['pii.js', piiModule, piiExports],
+    ['supplements.js', supplementsModule, supplementsExports],
   ]) {
     for (const name of exports) {
       const val = moduleApi[name];
@@ -466,6 +480,9 @@
       assert(`${moduleName}.${name} module export`, val !== undefined, isFunc ? 'function' : typeof val);
     }
     console.log(`Checked ${exports.length} ${moduleName} module exports`);
+  }
+  for (const name of supplementLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
   }
 
   const allModules = {
@@ -483,7 +500,6 @@
     'settings.js': settingsExports,
     'provider-panels.js': providerPanelsExports,
     'backup.js': backupExports,
-    'supplements.js': supplementsExports,
     'theme.js': themeExports,
     'utils.js': utilsExports,
     'views.js': viewsExports,

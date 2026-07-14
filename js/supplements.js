@@ -242,7 +242,7 @@ function _getOuterTimesFromForm() {
 /**
  * @param {Element} inputEl
  */
-function updateIngTotal(inputEl) {
+export function updateIngTotal(inputEl) {
   const row = inputEl.closest('.supp-ingredient-row');
   if (!row) return;
   const amount = getElementValue(row.querySelector('.supp-ing-amount'));
@@ -254,7 +254,7 @@ function updateIngTotal(inputEl) {
   totalEl.textContent = total ? formatSupplementTotal(total) : '';
 }
 
-function updateAllIngTotals() {
+export function updateAllIngTotals() {
   const rows = document.querySelectorAll('#supp-ingredients .supp-ingredient-row');
   for (const row of rows) {
     const amountInput = row.querySelector('.supp-ing-amount');
@@ -262,7 +262,7 @@ function updateAllIngTotals() {
   }
 }
 
-function addIngredientRow() {
+export function addIngredientRow() {
   const container = document.getElementById('supp-ingredients');
   if (!container) return;
   const idx = container.children.length;
@@ -275,7 +275,7 @@ function addIngredientRow() {
 /**
  * @param {Element} btn
  */
-function removeIngredientRow(btn) {
+export function removeIngredientRow(btn) {
   btn.closest('.supp-ingredient-row')?.remove();
 }
 
@@ -288,7 +288,7 @@ function _periodRowHtml(idx, start = '', end = '', showRemove = true) {
   </div>`;
 }
 
-function addPeriodRow() {
+export function addPeriodRow() {
   const container = document.getElementById('supp-periods');
   if (!container) return;
   const idx = container.children.length;
@@ -302,7 +302,7 @@ function addPeriodRow() {
 /**
  * @param {Element} btn
  */
-function removePeriodRow(btn) {
+export function removePeriodRow(btn) {
   const container = document.getElementById('supp-periods');
   if (!container) return;
   btn.closest('.supp-period-row')?.remove();
@@ -340,7 +340,7 @@ function _collectIngredients() {
   return ingredients.length > 0 ? ingredients : undefined;
 }
 
-async function scanSupplementLabel(input) {
+export async function scanSupplementLabel(input) {
   const file = input.files?.[0];
   input.value = '';
   if (!file || !isValidImageType(file.type)) { showNotification('Please select an image (JPG, PNG, WebP)', 'error'); return; }
@@ -383,7 +383,7 @@ function _applyParsedSupplement(parsed) {
   if (dosageInput && !dosageInput.value.trim() && _valid(parsed.dosage)) dosageInput.value = parsed.dosage;
 }
 
-async function fetchSupplementFromURL() {
+export async function fetchSupplementFromURL() {
   const rawUrl = getFieldValue('supp-url').trim();
   if (!rawUrl) { showNotification('Paste a product URL first', 'error'); return; }
   const parsedUrl = _parseHttpUrl(rawUrl);
@@ -691,7 +691,7 @@ export function deleteSupplement(idx) {
   }
 }
 
-function askAIMitoContext() {
+export function askAIMitoContext() {
   const askButton = document.querySelector('[aria-label="Ask AI"]');
   if (askButton instanceof HTMLElement) askButton.click();
   setTimeout(() => {
@@ -723,5 +723,3 @@ initSupplementActionDelegates({
   updateIngredientTotal: updateIngTotal,
   updateAllIngredientTotals: updateAllIngTotals,
 });
-
-Object.assign(window, { renderSupplementsSection, openSupplementsEditor, toggleSuppAccordion, showAddSuppForm, saveSupplement, deleteSupplement, askAIMitoContext, computeAllImpacts, getSupplementPeriods, addIngredientRow, removeIngredientRow, addPeriodRow, removePeriodRow, scanSupplementLabel, fetchSupplementFromURL, refreshSupplementImpact, updateIngTotal, updateAllIngTotals, ingredientDailyTotal });

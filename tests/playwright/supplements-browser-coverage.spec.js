@@ -18,8 +18,6 @@ function expectAll(outcomes) {
 test('supplements browser coverage handles editor ingredients imports sync and AI handoff', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openSupplementsEditor === 'function'
-    && typeof window.fetchSupplementFromURL === 'function');
   await page.evaluate(() => {
     window.endTour?.();
     document.getElementById('tour-overlay')?.remove();
@@ -29,9 +27,10 @@ test('supplements browser coverage handles editor ingredients imports sync and A
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data] = await Promise.all([
+    const [{ state }, data, supplements] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/supplements.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -137,26 +136,26 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       };
       data.invalidateActiveDataCache();
 
-      window.openSupplementsEditor();
+      supplements.openSupplementsEditor();
       await waitUntil(() => document.getElementById('modal-overlay')?.classList.contains('show'), 'supplement editor open');
-      window.toggleSuppAccordion(0);
+      supplements.toggleSuppAccordion(0);
       await waitUntil(() => !!document.querySelector('.supp-list-expanded'), 'supplement row expanded');
       const expanded = document.querySelector('.supp-list-expanded');
       const activeRow = document.querySelector('.supp-list-item[data-idx="0"]');
       const activeBeforeClose = activeRow?.classList.contains('supp-list-item-active') === true;
-      window.toggleSuppAccordion(0);
+      supplements.toggleSuppAccordion(0);
       outcomes.toggleSuppAccordionOpensAndClosesExistingRows =
         expanded?.dataset.expandedIdx === '0'
         && activeBeforeClose
         && !document.querySelector('.supp-list-expanded');
 
-      window.showAddSuppForm();
+      supplements.showAddSuppForm();
       await waitUntil(() => !!document.getElementById('supp-form-panel'), 'add form open');
       const timesInput = document.getElementById('supp-times');
       timesInput.value = '2';
       timesInput.dispatchEvent(new Event('input', { bubbles: true }));
-      window.addIngredientRow();
-      window.addIngredientRow();
+      supplements.addIngredientRow();
+      supplements.addIngredientRow();
       await waitUntil(() => document.querySelectorAll('#supp-ingredients .supp-ingredient-row').length === 2, 'ingredient rows added');
       const addRowFocusedLastName = document.activeElement?.classList.contains('supp-ing-name') === true;
       const firstRow = document.querySelector('#supp-ingredients .supp-ingredient-row');
@@ -165,13 +164,13 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       amountInput.dispatchEvent(new Event('input', { bubbles: true }));
       const timesOverride = firstRow.querySelector('.supp-ing-times');
       timesOverride.value = '3';
-      window.updateIngTotal(timesOverride);
+      supplements.updateIngTotal(timesOverride);
       const overriddenTotal = firstRow.querySelector('.supp-ing-total')?.textContent || '';
       const secondRemove = document.querySelectorAll('#supp-ingredients .supp-ing-remove')[1];
-      window.removeIngredientRow(secondRemove);
+      supplements.removeIngredientRow(secondRemove);
       const remainingRows = document.querySelectorAll('#supp-ingredients .supp-ingredient-row').length;
       timesOverride.value = '';
-      window.updateAllIngTotals();
+      supplements.updateAllIngTotals();
       const outerTotal = firstRow.querySelector('.supp-ing-total')?.textContent || '';
       outcomes.ingredientTotalsUseRowOverrideOuterTimesAndRemoval =
         overriddenTotal === '375 mg/day'
@@ -180,7 +179,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
         && addRowFocusedLastName;
 
       document.getElementById('supp-url').value = ' https://example.test/products/magnesium ';
-      await window.fetchSupplementFromURL();
+      await supplements.fetchSupplementFromURL();
       await waitUntil(() => (document.getElementById('supp-name')?.value || '') === 'Magnesium Complex', 'URL import fields populated');
       const importedRows = Array.from(document.querySelectorAll('#supp-ingredients .supp-ingredient-row'))
         .map(row => ({
@@ -208,13 +207,13 @@ test('supplements browser coverage handles editor ingredients imports sync and A
         value: [new File(['not an image'], 'label.txt', { type: 'text/plain' })],
       });
       document.body.appendChild(badInput);
-      await window.scanSupplementLabel(badInput);
+      await supplements.scanSupplementLabel(badInput);
       outcomes.scanSupplementLabelRejectsInvalidFile =
         Array.from(document.querySelectorAll('.notification-toast'))
           .some(el => (el.textContent || '').includes('Please select an image'));
       badInput.remove();
 
-      window.openSupplementsEditor(0);
+      supplements.openSupplementsEditor(0);
       await waitUntil(() => !!document.querySelector('.supp-list-expanded'), 'edit form open');
       state.importedData.supplements[0].note = 'synced note from remote';
       window.dispatchEvent(new Event('labcharts-sync-applied'));
@@ -235,7 +234,7 @@ test('supplements browser coverage handles editor ingredients imports sync and A
       textarea.addEventListener('input', () => calls.push(['chat-input']));
       aiFixture.append(askButton, textarea);
       document.body.prepend(aiFixture);
-      window.askAIMitoContext();
+      supplements.askAIMitoContext();
       await waitUntil(() => textarea.value.includes('mitochondrial effects'), 'AI context prompt inserted');
       outcomes.askAIMitoContextClicksAIAndSeedsChatPrompt =
         calls.some(call => call[0] === 'ask-ai-click')

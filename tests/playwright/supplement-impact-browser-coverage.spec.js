@@ -46,6 +46,7 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       { state },
       data,
       { profileStorageKey },
+      supplements,
     ] = await Promise.all([
       import(impactUrl),
       import('/js/state.js'),
@@ -199,7 +200,8 @@ test('supplement impact browser coverage exercises render cache AI and refresh p
       outcomes.cachedRenderShowsRefresh = !!host.querySelector('.supp-impact-refresh');
 
       host.querySelector('.supp-impact-refresh')?.click();
-      outcomes.refreshUsesWindowRegisteredHandler = typeof window.refreshSupplementImpact === 'function';
+      outcomes.refreshUsesModuleHandler = typeof supplements.refreshSupplementImpact === 'function'
+        && !('refreshSupplementImpact' in window);
       outcomes.refreshClearsSummaryImmediately = document.getElementById('supp-impact-summary-0')?.textContent === '';
       outcomes.refreshShowsShimmerImmediately = document.getElementById('supp-impact-dot-0')?.classList.contains('ctx-health-dot-shimmer') === true;
       await waitUntil(() => document.getElementById('supp-impact-summary-0')?.textContent?.includes('needs review'), 'refreshed impact summary');

@@ -6,6 +6,7 @@ import { hasAIProvider, isAIPaused } from './api.js';
 import { getActiveData } from './data.js';
 import { getProfileLocation, getProfiles } from './profile.js';
 import { renderProfileContextCards } from './context-cards.js';
+import { openSupplementsEditor } from './supplements.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
 import {
@@ -80,7 +81,7 @@ function handleChatEmptyClick(event) {
     callChatEmptyRuntime('openMenstrualCycleEditor');
   } else if (action === 'open-supplements-editor') {
     closeChatPanel();
-    callChatEmptyRuntime('openSupplementsEditor');
+    openSupplementsEditor();
   } else if (action === 'import-dna') {
     closeChatPanel();
     callChatEmptyRuntime('triggerDNAFilePicker');
