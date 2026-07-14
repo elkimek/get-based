@@ -37,6 +37,7 @@ console.log('=== Light Devices Tests ===\n');
 await import('../js/state.js');
 const dev = await import('../js/light-devices.js');
 const sessionEngine = await import('../js/light-device-session-engine.js');
+const { synthesizeDeviceSpectrum } = await import('../js/sun-spectrum.js');
 const {
   getDevices, getDeviceSessions,
   addDeviceFromPreset, addCustomDevice, deleteDevice,
@@ -320,12 +321,12 @@ const {
   // (which gives 5% UVB / 35% red by default for hybrid panels), the
   // explicit shares match UVB but amplify the red peak ~2.7×.
   console.log('%c peakShares — explicit override of heuristic ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.synthesizeDeviceSpectrum === 'function') {
-    const heuristicDefault = window.synthesizeDeviceSpectrum({
+  {
+    const heuristicDefault = synthesizeDeviceSpectrum({
       peakWavelengths: [297, 660],
       mwPerCm2At15cm: 100,
     });
-    const heavyRed = window.synthesizeDeviceSpectrum({
+    const heavyRed = synthesizeDeviceSpectrum({
       peakWavelengths: [297, 660],
       mwPerCm2At15cm: 100,
       peakShares: [0.05, 0.95],

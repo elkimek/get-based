@@ -12,15 +12,6 @@ test('sun session UI covers list detail edit delete and past-session save paths'
     const state = window._labState;
     const outcomes = {};
     const originalView = state.currentView;
-    const savedWindow = {
-      solarZenithAngle: window.solarZenithAngle,
-      reconstructSpectrum: window.reconstructSpectrum,
-      vitaminDIU: window.vitaminDIU,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-      circadianMelanopicLux: window.circadianMelanopicLux,
-      geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
-    };
     let sessions = [
       {
         id: 'sun-ended',
@@ -71,16 +62,16 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
     try {
       state.currentView = 'light';
-      window.solarZenithAngle = () => 42.4;
-      window.reconstructSpectrum = () => ({
+      const solarZenithAngle = () => 42.4;
+      const reconstructSpectrum = () => ({
         wavelengths: [280, 300, 320, 340, 360, 380, 400, 420],
         irradiance: [0.2, 0.4, 1.2, 2.2, 2.1, 1.6, 0.8, 0.1],
       });
-      window.vitaminDIU = () => 1500;
-      window.vitaminDIUPerSession = () => 2400;
-      window.pbmJoulesPerCm2 = () => 8.6;
-      window.circadianMelanopicLux = () => 12500;
-      window.geneticVitaminDMultiplier = () => ({
+      const vitaminDIU = () => 1500;
+      const vitaminDIUPerSession = () => 2400;
+      const pbmJoulesPerCm2 = () => 8.6;
+      const circadianMelanopicLux = () => 12500;
+      const geneticVitaminDMultiplier = () => ({
         mult: 0.82,
         contributors: [{ gene: 'GC', genotype: 'TT', multiplier: 0.82 }],
       });
@@ -132,13 +123,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
         renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
         navigate: route => calls.push(['navigate', route]),
-        solarZenithAngle: window.solarZenithAngle,
-        reconstructSpectrum: window.reconstructSpectrum,
-        geneticVitaminDMultiplier: window.geneticVitaminDMultiplier,
-        vitaminDIU: window.vitaminDIU,
-        vitaminDIUPerSession: window.vitaminDIUPerSession,
-        pbmJoulesPerCm2: window.pbmJoulesPerCm2,
-        circadianMelanopicLux: window.circadianMelanopicLux,
+        solarZenithAngle,
+        reconstructSpectrum,
+        geneticVitaminDMultiplier,
+        vitaminDIU,
+        vitaminDIUPerSession,
+        pbmJoulesPerCm2,
+        circadianMelanopicLux,
       });
 
       const listHost = document.createElement('div');
@@ -210,7 +201,6 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         && calls.some(call => call[0] === 'delete' && call[1] === 'sun-ended')
         && calls.some(call => call[0] === 'refresh');
     } finally {
-      Object.assign(window, savedWindow);
       state.currentView = originalView;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
@@ -267,19 +257,6 @@ test('sun active session covers start dialog stop summary and live dose helpers'
     const state = window._labState;
     const outcomes = {};
     const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
-    const savedWindow = {
-      fetchAtmosphere: window.fetchAtmosphere,
-      reconstructSpectrum: window.reconstructSpectrum,
-      computeChannelDoses: window.computeChannelDoses,
-      erythemalSED: window.erythemalSED,
-      fractionOfMED: window.fractionOfMED,
-      solarZenithAngle: window.solarZenithAngle,
-      interpolateAtmosphere: window.interpolateAtmosphere,
-      vitaminDIU: window.vitaminDIU,
-      vitaminDIUPerSession: window.vitaminDIUPerSession,
-      renderLightChannelsLive: window.renderLightChannelsLive,
-      renderLightTodayStrip: window.renderLightTodayStrip,
-    };
     let sessions = [{
       id: 'last-ended',
       startedAt: Date.now() - 3600000,
@@ -351,29 +328,29 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         surfaceOptions: [{ key: 'grass', label: 'Grass' }, { key: 'sand', label: 'Sand' }],
       });
 
-      window.fetchAtmosphere = async () => ({ uvIndex: 11.2, cloudCover: 10, ozoneDU: 290, source: 'open_meteo', confidence: 0.9, temperatureC: 34 });
-      window.reconstructSpectrum = () => ({ wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] });
-      window.computeChannelDoses = ({ durationMin }) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
-      window.erythemalSED = ({ durationMin }) => 0.4 * durationMin;
-      window.fractionOfMED = ({ sed, medScale }) => sed / (10 * medScale);
-      window.solarZenithAngle = () => 35;
-      window.interpolateAtmosphere = atm => ({ ...atm, uvIndex: atm.uvIndex + 0.2 });
-      window.vitaminDIU = () => 1300;
-      window.vitaminDIUPerSession = () => 2600;
-      window.renderLightChannelsLive = () => calls.push(['render-live']);
-      window.renderLightTodayStrip = () => '<div id="today-light-strip-test">today</div>';
+      const fetchAtmosphere = async () => ({ uvIndex: 11.2, cloudCover: 10, ozoneDU: 290, source: 'open_meteo', confidence: 0.9, temperatureC: 34 });
+      const reconstructSpectrum = () => ({ wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] });
+      const computeChannelDoses = ({ durationMin }) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
+      const erythemalSED = ({ durationMin }) => 0.4 * durationMin;
+      const fractionOfMED = ({ sed, medScale }) => sed / (10 * medScale);
+      const solarZenithAngle = () => 35;
+      const interpolateAtmosphere = atm => ({ ...atm, uvIndex: atm.uvIndex + 0.2 });
+      const vitaminDIU = () => 1300;
+      const vitaminDIUPerSession = () => 2600;
+      const renderLightChannelsLive = () => calls.push(['render-live']);
+      const renderLightTodayStrip = () => '<div id="today-light-strip-test">today</div>';
       active.configureSunActiveSession({
-        fetchAtmosphere: window.fetchAtmosphere,
-        reconstructSpectrum: window.reconstructSpectrum,
-        computeChannelDoses: window.computeChannelDoses,
-        erythemalSED: window.erythemalSED,
-        fractionOfMED: window.fractionOfMED,
-        solarZenithAngle: window.solarZenithAngle,
-        interpolateAtmosphere: window.interpolateAtmosphere,
-        vitaminDIU: window.vitaminDIU,
-        vitaminDIUPerSession: window.vitaminDIUPerSession,
-        renderLightChannelsLive: window.renderLightChannelsLive,
-        renderLightTodayStrip: window.renderLightTodayStrip,
+        fetchAtmosphere,
+        reconstructSpectrum,
+        computeChannelDoses,
+        erythemalSED,
+        fractionOfMED,
+        solarZenithAngle,
+        interpolateAtmosphere,
+        vitaminDIU,
+        vitaminDIUPerSession,
+        renderLightChannelsLive,
+        renderLightTodayStrip,
       });
 
       await active.openStartSunSessionDialog();
@@ -414,7 +391,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         committedDoses: { pomc: 4 },
         committedSED: 0.5,
         committedRetinalUV: 2,
-        fractionOfMEDFn: window.fractionOfMED,
+        fractionOfMEDFn: fractionOfMED,
         pending: false,
       });
       const live = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
@@ -442,7 +419,6 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       outcomes.elapsedFormattingCoversHourAndMinute = active._formatElapsed(3723000) === '1:02:03'
         && active._formatElapsed(65000) === '1:05';
     } finally {
-      Object.assign(window, savedWindow);
       state.importedData = originalImported;
       active.resetSunActiveSessionState();
       active.configureSunActiveSession({

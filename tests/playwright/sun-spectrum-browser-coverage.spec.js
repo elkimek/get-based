@@ -15,34 +15,14 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
   await page.goto('/sun-spectrum-blank', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async () => {
-    const windowKeys = [
-      'reconstructSpectrum',
-      'synthesizeDeviceSpectrum',
-      'effectiveDeviceForMode',
-      'validateModeCoupling',
-      'heuristicPeakShares',
-      'computeChannelDoses',
-      'erythemalSED',
-      'fractionOfMED',
-      'vitaminDIU',
-      'vitaminDIURaw',
-      'vitaminDIUPerSession',
-      'VITD_DAILY_SATURATION_IU',
-      'VITD_PER_SESSION_BODYFRAC_CAP_IU',
-      'vitaminDIURange',
-      'geneticVitaminDMultiplier',
-      'pbmJoulesPerCm2',
-      'circadianMelanopicLux',
-      'retinalUVdose',
-      'glassTransmission',
-      'sunscreenTransmission',
-      'SUN_CHANNELS',
+    const legacyNames = [
+      'reconstructSpectrum','synthesizeDeviceSpectrum','effectiveDeviceForMode','validateModeCoupling',
+      'heuristicPeakShares','computeChannelDoses','erythemalSED','fractionOfMED',
+      'vitaminDIU','vitaminDIURaw','vitaminDIUPerSession','VITD_DAILY_SATURATION_IU',
+      'VITD_PER_SESSION_BODYFRAC_CAP_IU','vitaminDIURange','geneticVitaminDMultiplier',
+      'pbmJoulesPerCm2','circadianMelanopicLux','retinalUVdose','glassTransmission',
+      'sunscreenTransmission','SUN_CHANNELS',
     ];
-    const savedWindowExports = windowKeys.map(key => ({
-      key,
-      hadOwn: Object.prototype.hasOwnProperty.call(window, key),
-      value: window[key],
-    }));
     const mod = await import(`/js/sun-spectrum.js?browserCoverage=${Date.now()}`);
     const outcomes = {};
     const sum = values => values.reduce((total, value) => total + value, 0);
@@ -52,11 +32,11 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
       && spectrum.wavelengths.length === spectrum.irradiance.length
       && max(spectrum.irradiance) > 0;
 
-    try {
-      outcomes.windowExportsRegistered = window.reconstructSpectrum === mod.reconstructSpectrum
-        && window.vitaminDIUPerSession === mod.vitaminDIUPerSession
-        && Array.isArray(window.SUN_CHANNELS)
-        && window.SUN_CHANNELS.length === 8;
+    outcomes.moduleExportsAvailable = typeof mod.reconstructSpectrum === 'function'
+      && typeof mod.vitaminDIUPerSession === 'function'
+      && Array.isArray(mod.SUN_CHANNELS)
+      && mod.SUN_CHANNELS.length === 8;
+    outcomes.legacyWindowGlobalsStayAbsent = legacyNames.every(name => !(name in window));
 
       outcomes.channelMetadata = mod.SUN_CHANNELS.map(channel => channel.key).join('|')
         === 'vitamin_d|pomc|no_cv|violet_eye|circadian|nir_solar|pbm_red|pbm_nir';
@@ -236,7 +216,7 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && mod.vitaminDIU(100, 'II', 8, true) === 2 * mod.vitaminDIU(100, 'II', 8, false)
         && mod.vitaminDIU(10000, 'II', 8) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIURaw(100, 'II', 8, false, genetics) < mod.vitaminDIURaw(100, 'II', 8)
-        && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * window.VITD_PER_SESSION_BODYFRAC_CAP_IU)
+        && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, 0.37) === Math.round(0.37 * mod.VITD_PER_SESSION_BODYFRAC_CAP_IU)
         && mod.vitaminDIUPerSession(10000, 'II', 8, false, null, null) === mod.VITD_DAILY_SATURATION_IU
         && mod.vitaminDIUPerSession(10, 'II', 8, false, null, 0.37) === mod.vitaminDIURaw(10, 'II', 8);
 
@@ -302,13 +282,6 @@ test('sun spectrum browser coverage exercises reconstruction doses devices and s
         && mod.validateModeCoupling(modeDevice, 'red-only').ok === true
         && mod.validateModeCoupling(modeDevice, 'uv-only').ok === false
         && /UV requires/.test(mod.validateModeCoupling(modeDevice, 'uv-only').error);
-    } finally {
-      for (const { key, hadOwn, value } of savedWindowExports) {
-        if (hadOwn) window[key] = value;
-        else delete window[key];
-      }
-    }
-
     return outcomes;
   });
 
