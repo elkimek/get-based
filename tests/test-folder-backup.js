@@ -21,25 +21,28 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 await import('../js/state.js');
-await import('../js/backup.js');
+const backupModule = await import('../js/backup.js');
 await import('../js/crypto.js');
 await import('../js/export.js'); // exposes window.buildAllDataBundle
 
   // ═══════════════════════════════════════════════
-  // 1. Window exports exist
+  // 1. Module exports exist without legacy window globals
   // ═══════════════════════════════════════════════
-  assert('window.initFolderBackup exists', typeof window.initFolderBackup === 'function');
-  assert('window.pickFolderForBackup exists', typeof window.pickFolderForBackup === 'function');
-  assert('window.reauthorizeFolderBackup exists', typeof window.reauthorizeFolderBackup === 'function');
-  assert('window.removeFolderBackup exists', typeof window.removeFolderBackup === 'function');
-  assert('window.getFolderBackupState exists', typeof window.getFolderBackupState === 'function');
+  const folderBackupExports = [
+    'initFolderBackup', 'pickFolderForBackup', 'reauthorizeFolderBackup',
+    'removeFolderBackup', 'getFolderBackupState',
+  ];
+  for (const name of folderBackupExports) {
+    assert(`backup.${name} exists`, typeof backupModule[name] === 'function');
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   assert('window.buildAllDataBundle exists', typeof window.buildAllDataBundle === 'function');
 
   // ═══════════════════════════════════════════════
   // 2. getFolderBackupState() returns correct shape
   // ═══════════════════════════════════════════════
   try {
-    const st = window.getFolderBackupState();
+    const st = backupModule.getFolderBackupState();
     assert('getFolderBackupState returns object', typeof st === 'object' && st !== null);
     assert('state has supported boolean', typeof st.supported === 'boolean');
     assert('state has folderName (string or null)', st.folderName === null || typeof st.folderName === 'string');
@@ -75,7 +78,7 @@ await import('../js/export.js'); // exposes window.buildAllDataBundle
     const html = window.renderBackupSection();
     assert('renderBackupSection has folder section container', html.includes('backup-folder-section'));
     // On Chromium, should have folder UI content; on Firefox/Safari, the inner HTML is empty
-    const st = window.getFolderBackupState();
+    const st = backupModule.getFolderBackupState();
     if (st.supported) {
       assert('Folder section has description text', html.includes('backup-folder-desc'));
       assert('Folder section has delegated set/change button', html.includes('data-backup-action="pick-folder"'));

@@ -8,13 +8,37 @@ import { collectCycleBackup, restoreCycleBackup } from './backup-cycle.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
-// Use runtime-owned globals to avoid circular import (crypto.js imports from backup.js)
+// Crypto imports this module for backup UI helpers, so inject the two crypto
+// operations backup needs instead of coupling the modules through globals.
 const appWindow = /** @type {Window & typeof globalThis & {
-  encryptedGetItem?: (key: string) => Promise<string | null>,
-  getEncryptionEnabled?: () => boolean,
   showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<any>,
 }} */ (typeof window !== 'undefined' ? window : {});
-const getEncryptionEnabled = () => appWindow.getEncryptionEnabled?.() || false;
+
+/** @typedef {{ encryptedGetItem: (key: string) => Promise<string | null>, getEncryptionEnabled: () => boolean }} BackupRuntimeDeps */
+// `var` is intentional: the profile → crypto cycle can configure backup
+// while this module is still initializing, before lexical bindings are ready.
+/** @type {BackupRuntimeDeps | undefined} */
+var backupRuntimeDeps;
+
+function getBackupRuntimeDeps() {
+  if (!backupRuntimeDeps) {
+    backupRuntimeDeps = {
+      encryptedGetItem: async () => null,
+      getEncryptionEnabled: () => false,
+    };
+  }
+  return backupRuntimeDeps;
+}
+
+export function configureBackupRuntimeDeps(deps = {}) {
+  const runtimeDeps = getBackupRuntimeDeps();
+  const previous = { ...runtimeDeps };
+  if (typeof deps.encryptedGetItem === 'function') runtimeDeps.encryptedGetItem = deps.encryptedGetItem;
+  if (typeof deps.getEncryptionEnabled === 'function') runtimeDeps.getEncryptionEnabled = deps.getEncryptionEnabled;
+  return previous;
+}
+
+const getEncryptionEnabled = () => Boolean(getBackupRuntimeDeps().getEncryptionEnabled());
 const isEncryptedValue = (v) => typeof v === 'string' && v.startsWith('v1:');
 const backupActionDelegateRoots = new WeakSet();
 const BACKUP_ACTION_DELEGATE_KEY = Symbol.for('getbased.backupActionDelegatesInstalled');
@@ -257,7 +281,7 @@ export async function buildFullBackupSnapshot() {
   if (snap.profiles.length === 0 && snap.profileList && isEncryptedValue(snap.profileList)) {
     let profileList = null;
     try {
-      const decrypted = await appWindow.encryptedGetItem?.('labcharts-profiles');
+      const decrypted = await getBackupRuntimeDeps().encryptedGetItem('labcharts-profiles');
       if (decrypted) profileList = JSON.parse(decrypted);
     } catch {}
     if (Array.isArray(profileList)) {
@@ -734,22 +758,4 @@ export function renderFolderBackupSection() {
   }
   html += '</div>';
   return html;
-}
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    buildBackupSnapshot,
-    exportEncryptedBackup,
-    importEncryptedBackup,
-    scheduleAutoBackup,
-    getAutoBackupSnapshots,
-    restoreAutoBackup,
-    openBackupDB,
-    initFolderBackup,
-    pickFolderForBackup,
-    reauthorizeFolderBackup,
-    removeFolderBackup,
-    getFolderBackupState,
-    renderFolderBackupSection,
-  });
 }

@@ -27,9 +27,9 @@ function assert(name, condition, detail) {
 
 console.log('=== Data Protection Dashboard Tests ===\n');
 
-// context-cards.js exposes renderDataProtectionCta + openDataProtectionPicker +
-// showEnableEncryptionModal + pickFolderForBackup. Sync setup stays module-only.
+// context-cards.js exposes the dashboard APIs; backup stays module-only.
 const cards = await import('../js/context-cards.js');
+const backupModule = await import('../js/backup.js');
 const settingsSyncPanel = await import('../js/settings-sync-panel.js');
 
 const make = (overrides) => ({
@@ -101,8 +101,12 @@ const make = (overrides) => ({
     !('showSyncSetupModal' in window));
   assert('window.showEnableEncryptionModal exists',
     typeof window.showEnableEncryptionModal === 'function');
-  assert('window.pickFolderForBackup exists',
-    typeof window.pickFolderForBackup === 'function');
+  assert('backup.pickFolderForBackup module export exists',
+    typeof backupModule.pickFolderForBackup === 'function');
+  assert('window.pickFolderForBackup stays module-only',
+    !('pickFolderForBackup' in window));
+  assert('dashboard backup dependency is configurable for tests',
+    typeof cards.configureDashboardAIDataProtectionDeps === 'function');
 }
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

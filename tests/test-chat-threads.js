@@ -39,11 +39,11 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 console.log('=== Chat Threads Tests ===\n');
 
 // state.js → state + isSensitiveKey lives in crypto.js, buildBackupSnapshot
-// in backup.js, the thread handlers in chat-threads.js, saveChatHistory /
-// loadChatHistory in chat.js — all exposed via Object.assign(window, ...).
+// is module-only in backup.js, and the thread handlers remain on the legacy
+// browser facade while that migration continues.
 const stateModule = await import('../js/state.js');
 const cryptoModule = await import('../js/crypto.js');
-await import('../js/backup.js');
+const backupModule = await import('../js/backup.js');
 const chatThreadsModule = await import('../js/chat-threads.js');
 await import('../js/chat.js');
 
@@ -301,7 +301,7 @@ st.chatThreads = [
 window.saveChatThreadIndex();
 localStorage.setItem(window.getChatThreadKey('t_backup1'), JSON.stringify([{ role: 'user', content: 'backup test' }]));
 
-const snapshot = window.buildBackupSnapshot();
+const snapshot = backupModule.buildBackupSnapshot();
 assert('snapshot exists', !!snapshot);
 if (snapshot) {
   const profileBackup = snapshot.profiles.find(p => p.profileId === profileId);
