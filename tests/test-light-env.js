@@ -16,10 +16,7 @@ function assert(name, condition, detail) {
 console.log('=== Light Environment Tests ===\n');
 
 await import('../js/state.js');
-// sun-context.js exposes buildSunContext via window. Two test sections
-// below gate on `typeof window.buildSunContext === 'function'`; without
-// this import they'd silently skip in Node.
-await import('../js/sun-context.js');
+const { buildSunContext } = await import('../js/sun-context.js');
 const env = await import('../js/light-env.js');
 const model = await import('../js/light-env-model.js');
 const {
@@ -887,7 +884,7 @@ const {
 
   // ─── lightEnvironmentBlock surfaces in AI context ──────────────────
   console.log('%c AI context — light environment block ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.buildSunContext === 'function') {
+  {
     const beforeCtx = window._labState.importedData;
     window._labState.importedData = {
       sunSessions: [],
@@ -906,7 +903,7 @@ const {
     // Even with zero outdoor sessions and zero device sessions, an
     // active light environment should still produce AI context — the
     // earlier gate dropped device-only AND environment-only users.
-    const ctx = window.buildSunContext({ tier: 'always' });
+    const ctx = buildSunContext({ tier: 'always' });
     assert('AI context rendered for environment-only users (rooms/screens/audits with 0 sessions)',
       typeof ctx === 'string' && ctx.length > 0);
     assert('AI context mentions Indoor light environment section',
@@ -934,7 +931,7 @@ const {
     window._labState.importedData.lightEnvironment.rooms.find(r => r.id === newId)?.name === 'Office');
 
   // ─── AI context surfaces tool-measurement warnings ─────────────────
-  if (typeof window.buildSunContext === 'function') {
+  {
     console.log('%c AI context — tool warnings ', 'font-weight:bold;color:#f59e0b');
     const beforeCtx = window._labState.importedData;
     window._labState.importedData = {
@@ -951,7 +948,7 @@ const {
         { id: 'm-cct-day', tool: 'cct', value: 5500, takenAt: (() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d.getTime(); })(), roomId: 'r1' },
       ],
     };
-    const ctx = window.buildSunContext({ tier: 'always' });
+    const ctx = buildSunContext({ tier: 'always' });
     assert('AI sees flicker score ≥ 2 warning',
       /flicker score 3/.test(ctx));
     assert('AI sees bedroom-too-bright warning (>1 lux at the pillow)',

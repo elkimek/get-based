@@ -187,13 +187,15 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, lensModule, lightToolsModule, piiModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, sunContextModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
+    import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
     import('../js/pii.js'),
+    import('../js/sun-context.js'),
     import('../js/supplements.js'),
   ]);
   const apiExports = [
@@ -247,6 +249,16 @@
     'openLuxMeter','openFlickerDetector','openDarknessMeter','openCCTMeter',
     'openSpectrumClassifier','openGlassTransmission','openSunriseLogger','openEyeLevelAudit',
     'getMeasurements','getMeasurementsForRoom','saveMeasurement','deleteMeasurement','renderLightTools'
+  ];
+
+  // sun-context.js (6, module-only)
+  const sunContextExports = [
+    'configureSunContext','buildSunContext','getSunSessionsSlice','getSunSessionDetail',
+    'isBodyRegionsInAIContext','setBodyRegionsInAIContext'
+  ];
+  const sunContextLegacyGlobals = [
+    'buildSunContext','getSunSessionsSlice','getSunSessionDetail',
+    'isBodyRegionsInAIContext','setBodyRegionsInAIContext'
   ];
 
   // lab-context.js
@@ -498,6 +510,7 @@
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['pii.js', piiModule, piiExports],
+    ['sun-context.js', sunContextModule, sunContextExports],
     ['supplements.js', supplementsModule, supplementsExports],
   ]) {
     for (const name of exports) {
@@ -514,6 +527,11 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of lightToolsLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  assert('lab-context.js.configureLabContext module export',
+    typeof labContextModule.configureLabContext === 'function');
+  for (const name of sunContextLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
 

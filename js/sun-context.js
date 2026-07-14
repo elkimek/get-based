@@ -1116,13 +1116,3 @@ function formatRelative(ts) {
   const d = Math.round(hr / 24);
   return `${d}d ago`;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    buildSunContext,
-    getSunSessionsSlice,
-    getSunSessionDetail,
-    isBodyRegionsInAIContext,
-    setBodyRegionsInAIContext,
-  });
-}

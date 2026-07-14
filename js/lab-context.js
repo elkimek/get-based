@@ -38,11 +38,23 @@ import {
  *   _buildGeneticsContext?: (genetics: unknown, activeMarkerKeys: string[], options?: { includeGenomeSummary?: boolean, includePriorityFindings?: boolean, includeSnpInventory?: boolean }) => string,
  *   isGeneticsInventoryInAIContext?: () => boolean,
  *   isLightSunContextEnabled?: () => boolean,
- *   buildSunContext?: (options: { tier: string, ignoreContextToggles?: boolean }) => string,
  * }} LabContextWindowHooks
  */
 
 const labContextWindow = /** @type {Window & typeof globalThis & LabContextWindowHooks} */ (typeof window !== 'undefined' ? window : {});
+
+/** @type {{ buildSunContext: ((options: { tier: string, ignoreContextToggles?: boolean }) => string) | null }} */
+const labContextDeps = {
+  buildSunContext: null,
+};
+
+export function configureLabContext(deps = {}) {
+  const previous = { ...labContextDeps };
+  if (Object.prototype.hasOwnProperty.call(deps, 'buildSunContext')) {
+    labContextDeps.buildSunContext = deps.buildSunContext;
+  }
+  return previous;
+}
 
 // ═══════════════════════════════════════════════
 // LAB CONTEXT MEMOIZATION
@@ -974,9 +986,9 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
   // the 30-day session table + biomarker correlations on every turn,
   // matching the pattern the rest of this file uses for every other
   // section (include if-data-exists, no keyword gating).
-  if ((ignoreContextToggles || isLightSunContextEnabled()) && typeof window !== 'undefined' && typeof labContextWindow.buildSunContext === 'function') {
+  if ((ignoreContextToggles || isLightSunContextEnabled()) && typeof labContextDeps.buildSunContext === 'function') {
     try {
-      ctx += labContextWindow.buildSunContext({ tier: 'standard', ignoreContextToggles });
+      ctx += labContextDeps.buildSunContext({ tier: 'standard', ignoreContextToggles });
     } catch (e) { /* sun context is best-effort */ }
   }
 

@@ -18,8 +18,11 @@ import {
 import { getMeteoConfig } from './sun-uvdata.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
 import { computeDeficitAxes, computeIndoorBurden } from './light-env.js';
+import { configureLabContext } from './lab-context.js';
 import { isDebugMode } from './utils.js';
-import { configureSunContext } from './sun-context.js';
+import { buildSunContext, configureSunContext } from './sun-context.js';
+
+configureLabContext({ buildSunContext });
 
 configureSunContext({
   bodyRegions: BODY_REGIONS,

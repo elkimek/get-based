@@ -13,6 +13,7 @@ return (async function() {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const main = document.getElementById('main-content');
   const S = window._labState;
+  const { buildSunContext } = await import('/js/sun-context.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -213,17 +214,12 @@ return (async function() {
   // ─── 5. AI context picks up sessions ─────────────────────────────────
   console.log('%c 5. buildSunContext picks up the session ', 'font-weight:bold;color:#6366f1');
 
-  if (typeof window.buildSunContext === 'function') {
-    const ctx = window.buildSunContext({ tier: 'always' });
-    assert('buildSunContext non-empty after a session is logged', ctx.length > 0);
-    assert('Context section markers wrap the block',
-      /\[section:sun\][\s\S]*\[\/section:sun\]/.test(ctx));
-    assert('Context reports total session count of 1',
-      /Outdoor sessions: 1/.test(ctx));
-  } else {
-    assert('window.buildSunContext exists (AI wired)', false,
-      'skipped — function missing');
-  }
+  const ctx = buildSunContext({ tier: 'always' });
+  assert('buildSunContext non-empty after a session is logged', ctx.length > 0);
+  assert('Context section markers wrap the block',
+    /\[section:sun\][\s\S]*\[\/section:sun\]/.test(ctx));
+  assert('Context reports total session count of 1',
+    /Outdoor sessions: 1/.test(ctx));
 
   // ─── 6. lab-context.js integrates the sun section ────────────────────
   console.log('%c 6. lab-context integrates sun section ', 'font-weight:bold;color:#6366f1');
