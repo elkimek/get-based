@@ -497,15 +497,3 @@ export function handleLibraryDelete() { return lensKnowledgeBaseUi.handleLibrary
 export function handleToggleLens(checked) { return lensKnowledgeBaseUi.handleToggleLens(checked); }
 export function handleClearLensCache() { return lensKnowledgeBaseUi.handleClearLensCache(); }
 export async function handleRemoveLens() { return lensKnowledgeBaseUi.handleRemoveLens(); }
-
-Object.assign(window, {
-  getLensConfig, saveLensConfig, getLensKey, saveLensKey,
-  hasLens, queryLens, queryLensMulti, buildLensSnippet, testLensConnection, clearLensCache,
-  openKnowledgeBaseModal, closeKnowledgeBaseModal,
-  subscribeLensStatus, getLensStatus, isValidLensUrl,
-  renderCustomLensSection, handleSaveLensConfig, handleToggleLens,
-  handleClearLensCache, handleRemoveLens, updateLensIndicator,
-  handleLensBackendChange,
-  handleLocalLensDeleteDoc, handleLocalLensClear,
-  handleLibraryActivate, handleLibraryNew, handleLibraryRename, handleLibraryDelete,
-});

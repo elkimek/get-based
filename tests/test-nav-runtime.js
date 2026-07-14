@@ -9,7 +9,6 @@ import {
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
   openEMFAssessmentFromNavRuntime,
-  openKnowledgeBaseFromNavRuntime,
   openReportBuilderFromNavRuntime,
 } from '../js/nav-runtime.js';
 
@@ -32,7 +31,6 @@ const runtimeKeys = [
   'window',
   'navigate',
   'openEMFAssessmentEditor',
-  'openKnowledgeBaseModal',
   'openReportBuilder',
   'openContextModal',
   'openCreateMarkerModal',
@@ -63,7 +61,6 @@ try {
   const browserRuntime = {
     navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
     openEMFAssessmentEditor() { calls.push(['emf', this === browserRuntime]); },
-    openKnowledgeBaseModal() { calls.push(['kb', this === browserRuntime]); },
     openReportBuilder() { calls.push(['report', this === browserRuntime]); },
     openContextModal() { calls.push(['context', this === browserRuntime]); },
     openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
@@ -73,32 +70,30 @@ try {
 
   navigateFromNavRuntime('labs');
   openEMFAssessmentFromNavRuntime();
-  openKnowledgeBaseFromNavRuntime();
   openReportBuilderFromNavRuntime();
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
   openClientListFromNavRuntime();
 
   assert('nav runtime delegates all browser callbacks',
-    calls.length === 7
+    calls.length === 6
       && calls.some(call => call[0] === 'navigate' && call[1] === 'labs' && call[2] === true)
-      && ['emf', 'kb', 'report', 'context', 'marker', 'client'].every(name => calls.some(call => call[0] === name && call[1] === true)));
+      && ['emf', 'report', 'context', 'marker', 'client'].every(name => calls.some(call => call[0] === name && call[1] === true)));
 
   exposeNavRuntimeGlobals({ runtimeProbe: 42 });
   assert('exposeNavRuntimeGlobals assigns exports to the browser runtime',
     browserRuntime.runtimeProbe === 42);
 
-  for (const key of ['navigate', 'openEMFAssessmentEditor', 'openKnowledgeBaseModal', 'openReportBuilder', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
+  for (const key of ['navigate', 'openEMFAssessmentEditor', 'openReportBuilder', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
     delete browserRuntime[key];
   }
   navigateFromNavRuntime('missing');
   openEMFAssessmentFromNavRuntime();
-  openKnowledgeBaseFromNavRuntime();
   openReportBuilderFromNavRuntime();
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
   openClientListFromNavRuntime();
-  assert('nav runtime hooks no-op when browser callbacks are missing', calls.length === 7);
+  assert('nav runtime hooks no-op when browser callbacks are missing', calls.length === 6);
 
   delete globalThis.window;
   let globalRoute = '';

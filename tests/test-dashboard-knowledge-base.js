@@ -192,16 +192,16 @@ try {
   // Section 5b (picker open/dismiss — live DOM) lives in
   // tests/playwright/dashboard-knowledge-base.spec.js.
 
-  // ─── 6. Window exports ───
+  // ─── 6. Module and remaining shell exports ───
   {
     assert('window.openContextModal exists',
       typeof window.openContextModal === 'function');
     assert('window.openPersonalizeAIPicker exists',
       typeof window.openPersonalizeAIPicker === 'function');
-    assert('window.openKnowledgeBaseModal exists',
-      typeof window.openKnowledgeBaseModal === 'function');
-    assert('window.closeKnowledgeBaseModal exists',
-      typeof window.closeKnowledgeBaseModal === 'function');
+    assert('lens.openKnowledgeBaseModal exists',
+      typeof lens.openKnowledgeBaseModal === 'function');
+    assert('lens.closeKnowledgeBaseModal exists',
+      typeof lens.closeKnowledgeBaseModal === 'function');
     assert('window.renderKnowledgeBaseSection exists',
       typeof window.renderKnowledgeBaseSection === 'function');
     assert('window.triggerDNAFilePicker exists (used by genetics empty stub)',

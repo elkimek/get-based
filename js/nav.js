@@ -14,9 +14,9 @@ import {
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
   openEMFAssessmentFromNavRuntime,
-  openKnowledgeBaseFromNavRuntime,
   openReportBuilderFromNavRuntime,
 } from './nav-runtime.js';
+import { openKnowledgeBaseModal } from './lens.js';
 
 function _iconSvg(name) {
   const attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -95,7 +95,7 @@ function handleNavActionClick(event) {
   } else if (action === 'open-light-assessment') {
     navActionDeps.openLightEnvironmentAssessment();
   } else if (action === 'open-knowledge-base') {
-    openKnowledgeBaseFromNavRuntime();
+    openKnowledgeBaseModal();
   } else if (action === 'open-report-builder') {
     openReportBuilderFromNavRuntime();
   } else if (action === 'open-context') {

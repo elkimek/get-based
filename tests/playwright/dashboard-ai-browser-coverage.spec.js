@@ -20,6 +20,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const hadShowDirectoryPicker = Object.prototype.hasOwnProperty.call(window, 'showDirectoryPicker');
     window.showDirectoryPicker = async () => ({ name: 'Coverage Backups' });
     const dashboardAi = await import(dashboardUrl);
+    const lens = await import('/js/lens.js');
     const { state } = await import('/js/state.js');
     const outcomes = {};
 
@@ -42,7 +43,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       showSyncSetupModal: window.showSyncSetupModal,
       pickFolderForBackup: window.pickFolderForBackup,
       openInterpretiveLensEditor: window.openInterpretiveLensEditor,
-      openKnowledgeBaseModal: window.openKnowledgeBaseModal,
       handleDNAFile: window.handleDNAFile,
       setTimeout: window.setTimeout,
     };
@@ -69,7 +69,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       window.showSyncSetupModal = () => calls.push('sync');
       window.pickFolderForBackup = () => calls.push('backup');
       window.openInterpretiveLensEditor = () => calls.push('lens');
-      window.openKnowledgeBaseModal = () => calls.push('kb');
       window.handleDNAFile = file => {
         handledDnaFile = { name: file.name, textType: file.type };
       };
@@ -198,11 +197,14 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         && calls.includes('sync')
         && calls.includes('backup');
 
+      const lensPickerClosed = await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="lens"]');
+      const kbPickerClosed = await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="kb"]');
       outcomes.personalizePickerRoutesLensAndKnowledgeBase =
-        await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="lens"]')
-        && await clickPickerCard(dashboardAi.openPersonalizeAIPicker, '[data-pick="kb"]')
+        lensPickerClosed
+        && kbPickerClosed
         && calls.includes('lens')
-        && calls.includes('kb');
+        && document.querySelector('#kb-modal-overlay.show') !== null;
+      lens.closeKnowledgeBaseModal();
       outcomes.pickersScheduleFocusTimers = timers.some(delay => delay === 50);
 
       dashboardAi.triggerDNAFilePicker();
