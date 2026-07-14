@@ -2,7 +2,15 @@
 // light-ai-save-hooks.js - wire saved Light/onboarding records to AI analyzers.
 
 import { configureLightEnvAudits } from './light-env-audits.js';
-import { configureLightTools, getMeasurementsForRoom } from './light-tools.js';
+import {
+  configureLightTools,
+  getMeasurementsForRoom,
+  openCCTMeter,
+  openDarknessMeter,
+  openFlickerDetector,
+  openLuxMeter,
+  openSpectrumClassifier,
+} from './light-tools.js';
 import { configureSunDefaults } from './sun-defaults.js';
 import { hasAIProvider } from './api.js';
 import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';
@@ -16,7 +24,17 @@ import { getSessions, hydrateSession, logCompletedSession } from './sun-sessions
 import { maybeAnalyzeOnboardingAfterSave, renderOnboardingAIBlock } from './sun-onboarding-ai.js';
 import { solarZenithAngle } from './sun-uvdata.js';
 
-configureLightEnv({ getMeasurementsForRoom, renderMeasurementAIInline, renderRoomAIBlock, renderScreenAIBlock });
+configureLightEnv({
+  getMeasurementsForRoom,
+  renderMeasurementAIInline,
+  renderRoomAIBlock,
+  renderScreenAIBlock,
+  openSpectrumClassifier,
+  openLuxMeter,
+  openFlickerDetector,
+  openCCTMeter,
+  openDarknessMeter,
+});
 configureLightEnvAudits({ hasAIProvider, maybeAnalyzeAuditAfterSave, renderAuditAIBlock, renderAuditAIDot, openChatPanel });
 configureLightTools({
   maybeAnalyzeMeasurementAfterSave,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // test-light-tools-flow.js — Behavioral coverage for js/light-tools.js.
-// Drives every window-faceced entry point + saveMeasurement for each
+// Drives every module entry point + saveMeasurement for each
 // tool type so the internal helpers (luxZone, cctTone, classifyLight,
 // etc.) get exercised transitively.
 //
@@ -21,8 +21,8 @@ const withTimeout = (fn, ms = 1500) => Promise.race([
 console.log('=== Light Tools Flow ===\n');
 
 const { state } = await import('../js/state.js');
-await import('../js/light-tools.js');
-  assert('light-tools.js facade loaded', typeof window.openLuxMeter === 'function');
+const lightTools = await import('../js/light-tools.js');
+  assert('light-tools.js module loaded', typeof lightTools.openLuxMeter === 'function');
 
   // Snapshot lightMeasurements so we can restore after probing.
   state.importedData = state.importedData || {};
@@ -39,10 +39,10 @@ await import('../js/light-tools.js');
   const roomId = state.importedData.lightEnvironment.rooms[0].id;
 
   // ── 1. Pure data readers ─────────────────────────────────────────────
-  const all = window.getMeasurements();
+  const all = lightTools.getMeasurements();
   assert('getMeasurements returns an array', Array.isArray(all));
 
-  const roomScoped = window.getMeasurementsForRoom(roomId);
+  const roomScoped = lightTools.getMeasurementsForRoom(roomId);
   assert('getMeasurementsForRoom returns an array for an unknown room', Array.isArray(roomScoped));
 
   // ── 2. saveMeasurement for every tool type ───────────────────────────
@@ -60,7 +60,7 @@ await import('../js/light-tools.js');
     ['audit',       { rooms: [{ id: roomId, score: 6 }], note: 'probe' }],
   ];
   for (const [tool, value] of toolCases) {
-    await withTimeout(() => window.saveMeasurement(tool, value, { roomId }));
+    await withTimeout(() => lightTools.saveMeasurement(tool, value, { roomId }));
   }
   const lastCount = state.importedData.lightMeasurements.length;
   assert(`saveMeasurement persists across ${toolCases.length} tool types (got ${lastCount})`, lastCount >= 1);
@@ -68,7 +68,7 @@ await import('../js/light-tools.js');
   // ── 3. deleteMeasurement (any existing id) ───────────────────────────
   const someId = state.importedData.lightMeasurements[0]?.id;
   if (someId) {
-    await withTimeout(() => window.deleteMeasurement(someId));
+    await withTimeout(() => lightTools.deleteMeasurement(someId));
     assert('deleteMeasurement removed by id',
       !state.importedData.lightMeasurements.find(m => m.id === someId));
   } else {
@@ -76,7 +76,7 @@ await import('../js/light-tools.js');
   }
 
   // ── 4. renderLightTools (pure HTML builder, no DOM dependency) ───────
-  const html = window.renderLightTools();
+  const html = lightTools.renderLightTools();
   assert('renderLightTools returns a non-empty string',
     typeof html === 'string' && html.length > 100);
   const firstLux = html.indexOf('Lux meter');
@@ -106,8 +106,8 @@ await import('../js/light-tools.js');
     'openCCTMeter', 'openSpectrumClassifier', 'openGlassTransmission',
     'openSunriseLogger', 'openEyeLevelAudit',
   ]) {
-    await withTimeout(() => window[opener]?.());
-    assert(`${opener} entered execution`, typeof window[opener] === 'function');
+    await withTimeout(() => lightTools[opener]?.());
+    assert(`${opener} entered execution`, typeof lightTools[opener] === 'function');
   }
 
   // Restore the original state so downstream tests see what they expect.

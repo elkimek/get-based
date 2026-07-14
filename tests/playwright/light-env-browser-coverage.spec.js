@@ -231,14 +231,16 @@ test('light environment browser coverage handles screens tools and confirm delet
       currentProfile: state.currentProfile,
       currentView: state.currentView,
       navigate: window.navigate,
-      openSpectrumClassifier: window.openSpectrumClassifier,
-      openLuxMeter: window.openLuxMeter,
-      openFlickerDetector: window.openFlickerDetector,
-      openCCTMeter: window.openCCTMeter,
-      openDarknessMeter: window.openDarknessMeter,
     };
     const outcomes = {};
     const calls = [];
+    const savedLightEnvDeps = lightEnv.configureLightEnv({
+      openSpectrumClassifier: opts => calls.push(['spectrum', opts?.roomId || null]),
+      openLuxMeter: opts => calls.push(['lux', opts?.roomId || null]),
+      openFlickerDetector: opts => calls.push(['flicker', opts?.roomId || null]),
+      openCCTMeter: opts => calls.push(['cct', opts?.roomId || null]),
+      openDarknessMeter: opts => calls.push(['darkness', opts?.roomId || null]),
+    });
     const env = () => state.importedData.lightEnvironment;
     const latestScreen = () => env().screens[env().screens.length - 1];
     const actions = lightEnv.lightEnvActionHandlers;
@@ -263,11 +265,6 @@ test('light environment browser coverage handles screens tools and confirm delet
       };
       data.invalidateActiveDataCache();
       window.navigate = (route, meta) => calls.push(['navigate', route, meta || null]);
-      window.openSpectrumClassifier = opts => calls.push(['spectrum', opts?.roomId || null]);
-      window.openLuxMeter = opts => calls.push(['lux', opts?.roomId || null]);
-      window.openFlickerDetector = opts => calls.push(['flicker', opts?.roomId || null]);
-      window.openCCTMeter = opts => calls.push(['cct', opts?.roomId || null]);
-      window.openDarknessMeter = opts => calls.push(['darkness', opts?.roomId || null]);
 
       const officeId = await lightEnv.addRoom('Office');
       const livingId = await lightEnv.addRoom('Living room');
@@ -413,11 +410,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();
       window.navigate = saved.navigate;
-      window.openSpectrumClassifier = saved.openSpectrumClassifier;
-      window.openLuxMeter = saved.openLuxMeter;
-      window.openFlickerDetector = saved.openFlickerDetector;
-      window.openCCTMeter = saved.openCCTMeter;
-      window.openDarknessMeter = saved.openDarknessMeter;
+      lightEnv.configureLightEnv(savedLightEnvDeps);
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

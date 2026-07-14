@@ -240,7 +240,9 @@ const tools = await import('../js/light-tools.js');
       lightToolsSrc.includes('export function configureLightTools') &&
       lightToolsSrc.includes('maybeAnalyzeMeasurementAfterSave: () => {}') &&
       !lightToolsSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
-      lightAiSaveHooksSrc.includes("import { configureLightTools, getMeasurementsForRoom } from './light-tools.js';") &&
+      lightAiSaveHooksSrc.includes('configureLightTools,') &&
+      lightAiSaveHooksSrc.includes('getMeasurementsForRoom,') &&
+      lightAiSaveHooksSrc.includes("} from './light-tools.js';") &&
       lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
       lightAiSaveHooksSrc.includes('configureLightTools({') &&
       lightAiSaveHooksSrc.includes('maybeAnalyzeMeasurementAfterSave') &&

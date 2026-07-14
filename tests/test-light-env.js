@@ -695,11 +695,16 @@ const {
     screenUiSrc.includes('opts.renderScreenAIBlock') &&
     screenUiSrc.includes('renderScreenAIBlock(s)') &&
     aiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
-    aiSaveHooksSrc.includes("import { configureLightTools, getMeasurementsForRoom } from './light-tools.js';") &&
+    aiSaveHooksSrc.includes('configureLightTools,') &&
+    aiSaveHooksSrc.includes('getMeasurementsForRoom,') &&
+    aiSaveHooksSrc.includes("} from './light-tools.js';") &&
     aiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
     aiSaveHooksSrc.includes("import { renderRoomAIBlock } from './light-env-ai-analysis.js';") &&
     aiSaveHooksSrc.includes("import { renderScreenAIBlock } from './light-screen-ai-analysis.js';") &&
-    aiSaveHooksSrc.includes('configureLightEnv({ getMeasurementsForRoom, renderMeasurementAIInline, renderRoomAIBlock, renderScreenAIBlock })') &&
+    aiSaveHooksSrc.includes('configureLightEnv({') &&
+    aiSaveHooksSrc.includes('renderMeasurementAIInline,') &&
+    aiSaveHooksSrc.includes('renderRoomAIBlock,') &&
+    aiSaveHooksSrc.includes('renderScreenAIBlock,') &&
     !measurementAiSrc.includes('Object.assign(window, {') &&
     !measurementAiSrc.includes('window.refreshMeasurementAIAnalysis') &&
     !measurementAiSrc.includes('window.analyzeMeasurementAI') &&
