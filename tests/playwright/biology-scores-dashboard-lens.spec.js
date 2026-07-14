@@ -4,12 +4,12 @@ async function prepareDemoProfile(page) {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() =>
     typeof window.navigate === 'function'
-      && typeof window.getActiveProfileId === 'function'
       && typeof window.saveImportedData === 'function'
   );
 
   await page.evaluate(async () => {
-    const profileId = window.getActiveProfileId?.() || localStorage.getItem('labcharts-active-profile') || 'default';
+    const { getActiveProfileId } = await import('/js/profile.js');
+    const profileId = getActiveProfileId() || localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
 

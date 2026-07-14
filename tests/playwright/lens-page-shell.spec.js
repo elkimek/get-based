@@ -55,9 +55,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, shell] = await Promise.all([
+    const [{ state }, shell, profile] = await Promise.all([
       import('/js/state.js'),
       import('/js/lens-page-shell.js'),
+      import('/js/profile.js'),
     ]);
     const originalView = state.currentView;
     const originalAddDashboard = window.addDashboardWidgetFromLens;
@@ -69,7 +70,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     const originalOpenBiometricPicker = window.openDashboardBiometricPicker;
     const originalOpenChat = window.openChatPanel;
     const originalNavigate = window.navigate;
-    const profileId = window.getActiveProfileId?.() || state.currentProfile || 'default';
+    const profileId = profile.getActiveProfileId() || state.currentProfile || 'default';
     const labsOrderKey = `labcharts-${profileId}-lensPageOrder-labs-v1`;
     const savedLabsOrder = localStorage.getItem(labsOrderKey);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));

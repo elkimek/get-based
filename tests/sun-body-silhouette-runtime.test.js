@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   addSunOverlayReadyListenerRuntime,
+  configureSunBodySilhouetteRuntimeDeps,
   dispatchSunOverlayReadyRuntime,
   getActiveSilhouetteProfileIdRuntime,
   getSilhouetteProfilesRuntime,
@@ -11,6 +12,7 @@ import {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 const savedCustomEvent = Object.getOwnPropertyDescriptor(globalThis, 'CustomEvent');
+const defaultRuntimeDeps = configureSunBodySilhouetteRuntimeDeps();
 
 function setRuntimeWindow(runtime) {
   Object.defineProperty(globalThis, 'window', {
@@ -21,6 +23,7 @@ function setRuntimeWindow(runtime) {
 }
 
 afterEach(() => {
+  configureSunBodySilhouetteRuntimeDeps(defaultRuntimeDeps);
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
   else delete globalThis.window;
   if (savedCustomEvent) Object.defineProperty(globalThis, 'CustomEvent', savedCustomEvent);
@@ -37,9 +40,11 @@ describe('sun body silhouette runtime adapter', () => {
     const listener = () => {};
     const profiles = [{ id: 'profile-female', sex: 'female' }];
     const calls = [];
-    setRuntimeWindow({
+    configureSunBodySilhouetteRuntimeDeps({
       getActiveProfileId: () => 'profile-female',
       getProfiles: () => profiles,
+    });
+    setRuntimeWindow({
       CustomEvent: CustomEventStub,
       dispatchEvent: event => calls.push(['dispatch', event.type, event instanceof CustomEventStub]),
       addEventListener: (type, fn) => calls.push(['add', type, fn]),
@@ -59,9 +64,11 @@ describe('sun body silhouette runtime adapter', () => {
   });
 
   it('uses safe fallbacks when browser hooks are missing or fail', () => {
-    setRuntimeWindow({
+    configureSunBodySilhouetteRuntimeDeps({
       getActiveProfileId: () => { throw new Error('profile unavailable'); },
       getProfiles: () => { throw new Error('profiles unavailable'); },
+    });
+    setRuntimeWindow({
       dispatchEvent: () => { throw new Error('dispatch unavailable'); },
       addEventListener: null,
       removeEventListener: null,

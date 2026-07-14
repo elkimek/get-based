@@ -8,6 +8,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { migrateProfileData } from '../js/profile.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
@@ -132,14 +133,14 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   assert('Migration includes icon', profileSrc.includes('icon: def.icon'));
 
   // Behavioral test: migrateProfileData with specialty entry data
-  if (typeof window.migrateProfileData === 'function') {
+  if (typeof migrateProfileData === 'function') {
     const testData = {
       entries: [
         { date: '2025-01-01', markers: { 'oatMicrobial.citramalic': 1.5, 'biochemistry.glucose': 5.2 } },
         { date: '2025-02-01', markers: { 'toxicElements.lead': 0.8 } }
       ]
     };
-    const migrated = window.migrateProfileData(testData);
+    const migrated = migrateProfileData(testData);
     assert('Migration creates customMarkers for oatMicrobial.citramalic',
       migrated.customMarkers && migrated.customMarkers['oatMicrobial.citramalic'] != null);
     assert('Migration creates customMarkers for toxicElements.lead',
@@ -155,12 +156,12 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
     assert('Entry marker values untouched', testData.entries[0].markers['oatMicrobial.citramalic'] === 1.5);
 
     // Idempotency test
-    const migrated2 = window.migrateProfileData(migrated);
+    const migrated2 = migrateProfileData(migrated);
     assert('Migration is idempotent', JSON.stringify(migrated2.customMarkers) === JSON.stringify(migrated.customMarkers));
 
     // No-op for empty entries
     const emptyData = { entries: [] };
-    const migratedEmpty = window.migrateProfileData(emptyData);
+    const migratedEmpty = migrateProfileData(emptyData);
     assert('Migration no-op for empty entries', Object.keys(migratedEmpty.customMarkers || {}).length === 0);
   }
 

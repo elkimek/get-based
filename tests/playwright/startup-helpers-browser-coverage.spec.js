@@ -107,6 +107,7 @@ test('startup profile migrates legacy storage and applies saved display state', 
       }
     `,
     '**/js/crypto.js*': `
+      export function configureCryptoProfileDeps() {}
       export async function encryptedGetItem(key) {
         window.__encryptedReads.push(key);
         return localStorage.getItem(key);

@@ -50,7 +50,6 @@ const runtimeKeys = [
   '_saveAndRefresh',
   '_snpTableCache',
   'buildSidebar',
-  'getLatitudeFromLocation',
   'handleDNAFile',
   'isDebugMode',
   'navigate',
@@ -107,12 +106,10 @@ try {
   assert('updateDnaChatNudge delegates chat nudge refresh',
     calls.some(call => call[0] === 'updateChatNudge'));
 
-  globalThis.getLatitudeFromLocation = () => '40-50° (temperate)';
+  configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '40-50° (temperate)' });
   assert('getDnaProfileLatitudeBand delegates profile latitude lookup',
     getDnaProfileLatitudeBand() === '40-50° (temperate)');
-  globalThis.getLatitudeFromLocation = () => {
-    throw new Error('location failed');
-  };
+  configureDnaRuntimeDeps({ getLatitudeFromLocation: () => { throw new Error('location failed'); } });
   assert('getDnaProfileLatitudeBand reports null on runtime errors',
     getDnaProfileLatitudeBand() === null);
 

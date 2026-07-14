@@ -1,6 +1,17 @@
 // @ts-check
 // sun-body-silhouette-runtime.js - Browser runtime adapters for the sun body picker.
 
+import { getActiveProfileId, getProfiles } from './profile.js';
+
+const sunBodySilhouetteRuntimeDeps = { getActiveProfileId, getProfiles };
+
+export function configureSunBodySilhouetteRuntimeDeps(deps = {}) {
+  const previous = { ...sunBodySilhouetteRuntimeDeps };
+  if (typeof deps.getActiveProfileId === 'function') sunBodySilhouetteRuntimeDeps.getActiveProfileId = deps.getActiveProfileId;
+  if (typeof deps.getProfiles === 'function') sunBodySilhouetteRuntimeDeps.getProfiles = deps.getProfiles;
+  return previous;
+}
+
 function getSilhouetteRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -15,7 +26,7 @@ function getRuntimeFunction(name) {
 
 export function getActiveSilhouetteProfileIdRuntime() {
   try {
-    return getRuntimeFunction('getActiveProfileId')?.() || null;
+    return sunBodySilhouetteRuntimeDeps.getActiveProfileId() || null;
   } catch {
     return null;
   }
@@ -23,7 +34,7 @@ export function getActiveSilhouetteProfileIdRuntime() {
 
 export function getSilhouetteProfilesRuntime() {
   try {
-    const profiles = getRuntimeFunction('getProfiles')?.();
+    const profiles = sunBodySilhouetteRuntimeDeps.getProfiles();
     return Array.isArray(profiles) ? profiles : [];
   } catch {
     return [];

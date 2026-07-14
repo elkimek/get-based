@@ -46,7 +46,8 @@ await import('../js/state.js');
 const cryptoModule = await import('../js/crypto.js');
 await import('../js/pii.js');
 await import('../js/data.js');
-await import('../js/profile.js');
+const profileModule = await import('../js/profile.js');
+cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
 await import('../js/nav.js');
 await import('../js/views.js');
 await import('../js/export.js');
@@ -61,7 +62,7 @@ const backupModule = await import('../js/backup.js');
 if (!localStorage.getItem('labcharts-profiles')) {
   localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: 'default', name: 'Test Profile' }]));
 }
-if (typeof window.initProfilesCache === 'function') await window.initProfilesCache();
+await profileModule.initProfilesCache();
 
 // ═══════════════════════════════════════════════
 // 1. Module exports exist without legacy window globals
@@ -83,7 +84,8 @@ assert('backup.exportEncryptedBackup module export exists', typeof backupModule.
 assert('backup.importEncryptedBackup module export exists', typeof backupModule.importEncryptedBackup === 'function');
 assert('window.exportEncryptedBackup stays module-only', !('exportEncryptedBackup' in window));
 assert('window.importEncryptedBackup stays module-only', !('importEncryptedBackup' in window));
-assert('window.initProfilesCache exists', typeof window.initProfilesCache === 'function');
+assert('profile.initProfilesCache exists', typeof profileModule.initProfilesCache === 'function');
+assert('window.initProfilesCache stays module-only', !('initProfilesCache' in window));
 
 // ═══════════════════════════════════════════════
 // 2. Sensitive key detection
@@ -323,9 +325,6 @@ const expectedExports = [
   // data.js
   'saveImportedData', 'getActiveData', 'filterDatesByRange', 'destroyAllCharts',
   'detectTrendAlerts', 'switchUnitSystem', 'switchRangeMode', 'updateHeaderDates',
-  // profile.js
-  'getProfiles', 'saveProfiles', 'loadProfile', 'switchProfile', 'createProfile',
-  'deleteProfile', 'getProfileSex', 'setProfileSex', 'getProfileDob',
   // nav.js
   'buildSidebar', 'renderProfileDropdown',
   // views.js
@@ -341,6 +340,10 @@ const expectedExports = [
 ];
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
+}
+for (const name of ['getProfiles', 'saveProfiles', 'loadProfile', 'switchProfile', 'createProfile', 'deleteProfile', 'getProfileSex', 'setProfileSex', 'getProfileDob']) {
+  assert(`profile.${name} exists`, typeof profileModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
 }
 
 // ═══════════════════════════════════════════════
@@ -398,7 +401,7 @@ try {
 // ═══════════════════════════════════════════════
 console.log('15. Profiles cache');
 try {
-  const profiles = window.getProfiles();
+  const profiles = profileModule.getProfiles();
   assert('getProfiles returns array', Array.isArray(profiles));
   assert('getProfiles has at least one profile', profiles.length >= 1);
   assert('First profile has id', profiles[0] && typeof profiles[0].id === 'string');

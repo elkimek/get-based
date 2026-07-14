@@ -7,7 +7,7 @@ import { getStatus, hasCardContent, hashString, isDebugMode } from './utils.js';
 import { formatTime } from './theme.js';
 import { getActiveData } from './data.js';
 import { getAllFlaggedMarkers, getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis.js';
-import { getProfileLocation, getLatitudeFromLocation } from './profile.js';
+import { getProfileHeight, getProfileLocation, getLatitudeFromLocation } from './profile.js';
 import { getBloodDrawPhases, getNextBestDrawDate, detectPerimenopausePattern, detectCycleIronAlerts } from './cycle.js';
 import { isHormonalContraception, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
@@ -603,7 +603,7 @@ function _buildLabContextInner(/** @type {LabContextOptions} */ { skipGroupFilte
 
   // ── 7b. Biometrics ──
   const bio = state.importedData.biometrics;
-  const _profileHeight = labContextWindow.getProfileHeight ? labContextWindow.getProfileHeight(state.currentProfile) : { height: null, unit: 'cm' };
+  const _profileHeight = getProfileHeight(state.currentProfile);
   const profileHeightCm = Number(_profileHeight.height) || 0;
   if (includeInsightCards && (profileHeightCm || (bio && (bio.weight?.length || bio.bp?.length || bio.pulse?.length)))) {
     ctx += `[section:biometrics]\n## Biometrics\n`;

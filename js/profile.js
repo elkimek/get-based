@@ -998,36 +998,3 @@ export function getLatitudeFromLocation(optCountry, optZip) {
   }
   return null;
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, {
-    profileStorageKey,
-    getProfiles,
-    saveProfiles,
-    initProfilesCache,
-    createDefaultProfileData,
-    createProfile,
-    deleteProfile,
-    renameProfile,
-    switchProfile,
-    migrateProfileData,
-    getProfileSex,
-    setProfileSex,
-    getProfileDob,
-    setProfileDob,
-    getProfileLocation,
-    setProfileLocation,
-    getProfileHeight,
-    setProfileHeight,
-    getLocationCache,
-    latitudeToBand,
-    getLatitudeFromLocation,
-    updateProfileMeta,
-    getAllTags,
-    touchProfileTimestamp,
-    loadProfile,
-    getActiveProfileId,
-    setActiveProfileId,
-    detectLatitudeWithAI,
-  });
-}

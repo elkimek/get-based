@@ -15,11 +15,12 @@ return (async function() {
   const S = window._labState;
   const { buildSunContext } = await import('/js/sun-context.js');
   const { buildLabContext } = await import('/js/lab-context.js');
+  const profile = await import('/js/profile.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
-  const testProfileId = window.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
-  await window.switchProfile(testProfileId);
+  const testProfileId = profile.createProfile('__test_' + Date.now(), { tags: ['test'], skipInitialSync: true });
+  await profile.switchProfile(testProfileId);
 
   try {
 
@@ -479,9 +480,9 @@ return (async function() {
   } finally {
     // Restore original profile and delete the throwaway
     try {
-      const profiles = window.getProfiles();
-      await window.switchProfile(origProfileId);
-      window.saveProfiles(profiles.filter(p => p.id !== testProfileId));
+      const profiles = profile.getProfiles();
+      await profile.switchProfile(origProfileId);
+      profile.saveProfiles(profiles.filter(p => p.id !== testProfileId));
     } catch (e) {
       console.error('Test cleanup failed:', e);
     }

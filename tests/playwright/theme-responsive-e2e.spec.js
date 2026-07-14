@@ -55,9 +55,10 @@ async function waitForApp(page) {
 
 async function seedDemoData(page) {
   await page.evaluate(async () => {
+    const profileModule = await import('/js/profile.js');
     const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
     const profileId = window._labState.currentProfile || 'default';
-    const profiles = window.getProfiles?.() || [];
+    const profiles = profileModule.getProfiles() || [];
     let profile = profiles.find(p => p.id === profileId);
     if (!profile) {
       profile = { id: profileId, name: 'E2E Dashboard' };
@@ -68,8 +69,8 @@ async function seedDemoData(page) {
     profile.dob = '1987-11-22';
     profile.location = { country: 'united states', zip: '10001' };
     profile.tags = Array.from(new Set([...(Array.isArray(profile.tags) ? profile.tags : []), 'demo']));
-    await window.saveProfiles?.(profiles);
-    const profileKey = window.profileStorageKey || ((id, suffix) => `labcharts-${id}-${suffix}`);
+    await profileModule.saveProfiles(profiles);
+    const profileKey = profileModule.profileStorageKey;
     localStorage.setItem(profileKey(profileId, 'onboarded'), 'profile-set');
     localStorage.setItem(profileKey(profileId, 'emptyTour'), 'completed');
     localStorage.setItem(profileKey(profileId, 'tour'), 'completed');

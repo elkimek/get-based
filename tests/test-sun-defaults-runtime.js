@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  configureSunDefaultsRuntimeDeps,
   exposeSunDefaultsBindings,
   getSunSetupCoords,
   getSunSetupProfileLocation,
@@ -34,6 +35,7 @@ const runtimeKeys = [
   'sunDefaultsProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const originalSunDefaultsRuntimeDeps = configureSunDefaultsRuntimeDeps();
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -55,7 +57,7 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('getSunCoords', () => ({ lat: 50.08, lon: 14.42, source: 'profile-precise' }));
-  setRuntimeValue('getProfileLocation', () => ({ country: 'Czech Republic' }));
+  configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: 'Czech Republic', zip: '' }) });
   setRuntimeValue('openProfileLocationEditor', () => calls.push(['profile-location']));
   setRuntimeValue('openClientList', () => calls.push(['client-list']));
   setRuntimeValue('requestPreciseLocation', () => {
@@ -110,13 +112,13 @@ try {
     localCalls === 1);
 
   delete globalThis.getSunCoords;
-  delete globalThis.getProfileLocation;
+  configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: '', zip: '' }) });
   delete globalThis.openClientList;
   delete globalThis.requestPreciseLocation;
   delete globalThis.navigate;
   assert('missing runtime functions return safe fallbacks',
     getSunSetupCoords() === null &&
-    Object.keys(getSunSetupProfileLocation()).length === 0 &&
+    getSunSetupProfileLocation().country === '' &&
     openSunSetupProfileLocationRuntime() === false &&
     hasSunSetupPreciseLocationRequester() === false &&
     requestSunSetupPreciseLocationRuntime() === null);
@@ -128,13 +130,14 @@ try {
   assert('runtime adapter no-ops safely when window is missing',
     hasSunDefaultsBrowserRuntime() === false &&
     getSunSetupCoords() === null &&
-    Object.keys(getSunSetupProfileLocation()).length === 0 &&
+    getSunSetupProfileLocation().country === '' &&
     openSunSetupProfileLocationRuntime() === false &&
     hasSunSetupPreciseLocationRequester() === false &&
     requestSunSetupPreciseLocationRuntime() === null &&
     calls.length === beforeNoWindowCalls &&
     globalThis.sunDefaultsProbe === probe);
 } finally {
+  configureSunDefaultsRuntimeDeps(originalSunDefaultsRuntimeDeps);
   restoreRuntime();
 }
 

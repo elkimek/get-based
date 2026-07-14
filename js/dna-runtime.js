@@ -3,11 +3,13 @@
 
 import { installDNAWindowBindings } from './dna-window-bindings.js';
 import { isImportRunning } from './pdf-import-progress.js';
+import { getLatitudeFromLocation } from './profile.js';
 
-const dnaRuntimeDeps = { isImportRunning };
+const dnaRuntimeDeps = { getLatitudeFromLocation, isImportRunning };
 
 export function configureDnaRuntimeDeps(deps = {}) {
   const previous = { ...dnaRuntimeDeps };
+  if (typeof deps.getLatitudeFromLocation === 'function') dnaRuntimeDeps.getLatitudeFromLocation = deps.getLatitudeFromLocation;
   if (typeof deps.isImportRunning === 'function') dnaRuntimeDeps.isImportRunning = deps.isImportRunning;
   return previous;
 }
@@ -95,7 +97,7 @@ export function updateDnaChatNudge() {
 /** @returns {string | null} */
 export function getDnaProfileLatitudeBand() {
   try {
-    return getRuntimeFunction('getLatitudeFromLocation')?.() || null;
+    return dnaRuntimeDeps.getLatitudeFromLocation() || null;
   } catch {
     return null;
   }

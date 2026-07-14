@@ -1,8 +1,8 @@
 {
   "inlineEventAttributes": 0,
   "windowReferences": 0,
-  "windowGlobalAssignments": 10,
-  "legacyWindowGlobalAssignments": 8,
+  "windowGlobalAssignments": 9,
+  "legacyWindowGlobalAssignments": 7,
   "largeJsFilesOver800Lines": 23,
   "maxJsFileLines": 1168
 }

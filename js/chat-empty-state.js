@@ -4,7 +4,7 @@
 import { state } from './state.js';
 import { hasAIProvider, isAIPaused } from './api.js';
 import { getActiveData } from './data.js';
-import { getProfileLocation, getProfiles } from './profile.js';
+import { getProfileHeight, getProfileLocation, getProfiles } from './profile.js';
 import { renderProfileContextCards } from './context-cards.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
@@ -54,7 +54,7 @@ function closeChatPanel() {
 }
 
 function getChatProfileHeight(profileId) {
-  return callChatEmptyRuntime('getProfileHeight', profileId) || { height: null, unit: 'cm' };
+  return getProfileHeight(profileId);
 }
 
 function handleChatEmptyClick(event) {
