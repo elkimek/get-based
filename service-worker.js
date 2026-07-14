@@ -541,6 +541,12 @@ function cacheResponse(request, response) {
     .catch(() => {});
 }
 
+function matchCurrentCache(request) {
+  return resolveCacheName()
+    .then((name) => caches.open(name))
+    .then((cache) => cache.match(request));
+}
+
 function fetchAndCache(request) {
   return fetch(request).then((response) => {
     cacheResponse(request, response);
@@ -549,7 +555,7 @@ function fetchAndCache(request) {
 }
 
 function cachedAppShell() {
-  return caches.match('/app').then((cachedApp) => cachedApp || caches.match('/index.html'));
+  return matchCurrentCache('/app').then((cachedApp) => cachedApp || matchCurrentCache('/index.html'));
 }
 
 const NETWORK_ONLY_HOSTS = new Set([
@@ -626,10 +632,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first: version.js — must always fetch fresh so SW detects new versions
-  if (url.pathname === '/version.js') {
+  // Live same-origin endpoints must never be stored in the versioned app cache.
+  // This covers AI/wearable proxy calls, encrypted profile shares, and commit
+  // metadata while keeping the cache-first production path static-only.
+  if (sameOrigin && url.pathname.startsWith('/api/')) return;
+
+  // The lightweight update probe is always fresh. The normal production
+  // version.js stays atomic with the active versioned cache so the page never
+  // compares a new version global against older cached modules.
+  if (url.pathname === '/version.js' && url.searchParams.get('update-check') === '1') {
     event.respondWith(
-      fetchAndCache(event.request).catch(() => caches.match(event.request))
+      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
+    );
+    return;
+  }
+
+  // Preview/local builds still need a fresh version script on every load.
+  if (url.pathname === '/version.js' && !IS_PROD) {
+    event.respondWith(
+      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
     );
     return;
   }
@@ -644,7 +665,7 @@ self.addEventListener('fetch', (event) => {
   // cached app document for /app and any refreshed same-origin navigation.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
+      matchCurrentCache(event.request).then((cached) => {
         const fetched = fetchAndCache(event.request).catch(() => cached || cachedAppShell());
         return cached || fetched;
       })
@@ -657,16 +678,15 @@ self.addEventListener('fetch', (event) => {
   // JS/CSS from the previous commit-shaped cache.
   if (!IS_PROD) {
     event.respondWith(
-      fetchAndCache(event.request).catch(() => caches.match(event.request))
+      fetchAndCache(event.request).catch(() => matchCurrentCache(event.request))
     );
     return;
   }
 
-  // Stale-while-revalidate: production app shell files
+  // Cache-first: a completed install already contains the atomic, versioned
+  // production app shell. Avoid revalidating hundreds of unchanged modules on
+  // every load; a miss is fetched once and stored in the current version cache.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetched = fetchAndCache(event.request).catch(() => cached);
-      return cached || fetched;
-    })
+    matchCurrentCache(event.request).then((cached) => cached || fetchAndCache(event.request))
   );
 });

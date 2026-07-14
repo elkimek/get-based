@@ -196,10 +196,10 @@ return (async function() {
   assert('SW CACHE_NAME uses semver', swMobileSrc.includes('`labcharts-v${self.APP_VERSION}`'));
   assert('SW precaches installed app start_url',
     swMobileSrc.includes("'/app'") &&
-    swMobileSrc.includes("caches.match('/app')"));
+    swMobileSrc.includes("matchCurrentCache('/app')"));
   assert('SW falls back for offline navigations',
     swMobileSrc.includes("event.request.mode === 'navigate'") &&
-    swMobileSrc.includes("caches.match('/index.html')"));
+    swMobileSrc.includes("matchCurrentCache('/index.html')"));
   assert('SW precaches mobile runtime vendors',
     swMobileSrc.includes("'/vendor/qrcode-generator.js'") &&
     swMobileSrc.includes("'/vendor/venice-e2ee.js'") &&

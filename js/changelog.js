@@ -11,6 +11,13 @@ const changelogDelegateRoots = new WeakSet();
 
 const CHANGELOG = [
   {
+    version: '1.10.182', date: '2026-07-14', title: 'Lighter, responsive app updates',
+    items: [
+      '<b>Returning visits reuse the complete installed app.</b> Versioned scripts, styles, fonts, and reference files no longer re-download in the background on every load, while live APIs and synced data always stay on the network.',
+      '<b>Update notices stay timely without installing every deployment.</b> A lightweight foreground check finds new versions, and the full offline update downloads only after you choose Update. Reloading still forces an immediate update check.',
+    ]
+  },
+  {
     version: '1.10.181', date: '2026-07-13', title: 'Consistent PTH chart values',
     items: [
       '<b>PTH results now share one chart scale.</b> Older pg/mL imports are converted to pmol/L alongside newer PTH results, including values imported before PTH became a standard marker.',

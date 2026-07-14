@@ -4,11 +4,17 @@
 const UPDATE_BANNER_ID = 'version-update-banner';
 const UPDATE_ACTION_ATTR = 'data-version-update-action';
 const DEV_SW_QUERY_RE = /(?:^|[?&])dev-sw=1(?:&|$)/;
-const UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const VERSION_CHECK_URL = '/version.js?update-check=1';
+const LAST_VERSION_CHECK_KEY = 'labcharts-version-update-last-check';
+const APP_VERSION_RE = /\bAPP_VERSION\s*=\s*(['"])([^'"]+)\1/;
 
 let pendingRegistration = null;
 let dismissedWaitingWorker = null;
+let availableVersion = '';
+let dismissedAvailableVersion = '';
 let updateRequested = false;
+let updateInstallPending = false;
 let reloadAvailable = false;
 let lastUpdateCheckAt = 0;
 
@@ -33,6 +39,37 @@ function getDefaultServiceWorkerContainer() {
  */
 function getDefaultCacheStorage() {
   return getDefaultServiceWorkerWindow()?.caches || null;
+}
+
+export function parseAppVersionScript(source) {
+  return String(source || '').match(APP_VERSION_RE)?.[2] || '';
+}
+
+export function isReloadNavigation(win = getDefaultServiceWorkerWindow()) {
+  const navigation = /** @type {PerformanceNavigationTiming | undefined} */ (
+    win?.performance?.getEntriesByType?.('navigation')?.[0]
+  );
+  if (navigation?.type === 'reload') return true;
+  return win?.performance?.navigation?.type === 1;
+}
+
+function getCurrentAppVersion(win) {
+  return String(win?.APP_VERSION || '').trim();
+}
+
+function getStoredLastCheckAt(win) {
+  try {
+    return Number(win?.localStorage?.getItem(LAST_VERSION_CHECK_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function storeLastCheckAt(win, checkedAt) {
+  lastUpdateCheckAt = checkedAt;
+  try {
+    win?.localStorage?.setItem(LAST_VERSION_CHECK_KEY, String(checkedAt));
+  } catch {}
 }
 
 let reloadPage = () => {
@@ -76,7 +113,9 @@ export function hideVersionUpdateBanner() {
 
 export function showVersionUpdateBanner(registration) {
   const waitingWorker = getServiceWorker(registration);
-  if (!reloadAvailable && (!waitingWorker || waitingWorker === dismissedWaitingWorker)) return false;
+  const detectedUpdate = !!availableVersion && availableVersion !== dismissedAvailableVersion;
+  const waitingUpdate = !!waitingWorker && waitingWorker !== dismissedWaitingWorker;
+  if (!reloadAvailable && !detectedUpdate && !waitingUpdate && !updateInstallPending) return false;
 
   pendingRegistration = registration || pendingRegistration;
 
@@ -109,15 +148,29 @@ export function showVersionUpdateBanner(registration) {
 function renderVersionUpdateBanner(banner) {
   const copy = banner.querySelector('.version-update-copy');
   const primaryButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="apply"]`);
+  const dismissButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="dismiss"]`);
   if (reloadAvailable) {
     if (copy) copy.innerHTML = '<strong>New version installed.</strong> Reload when you are ready.';
     if (primaryButton) primaryButton.textContent = 'Reload';
+    if (primaryButton) primaryButton.disabled = false;
+    if (dismissButton) dismissButton.disabled = false;
     banner.setAttribute('aria-label', 'App update ready to reload');
+    return;
+  }
+
+  if (updateInstallPending) {
+    if (copy) copy.innerHTML = '<strong>Installing update…</strong> The app will reload when it is ready.';
+    if (primaryButton) primaryButton.textContent = 'Installing…';
+    if (primaryButton) primaryButton.disabled = true;
+    if (dismissButton) dismissButton.disabled = true;
+    banner.setAttribute('aria-label', 'App update installing');
     return;
   }
 
   if (copy) copy.innerHTML = '<strong>New version available.</strong> Update when you are ready.';
   if (primaryButton) primaryButton.textContent = 'Update';
+  if (primaryButton) primaryButton.disabled = false;
+  if (dismissButton) dismissButton.disabled = false;
   banner.setAttribute('aria-label', 'App update available');
 }
 
@@ -136,6 +189,7 @@ function handleVersionUpdateActionClick(event) {
 
   if (action === 'dismiss') {
     if (!reloadAvailable) dismissedWaitingWorker = getServiceWorker(pendingRegistration);
+    if (!reloadAvailable && availableVersion) dismissedAvailableVersion = availableVersion;
     hideVersionUpdateBanner();
   }
 }
@@ -148,11 +202,42 @@ export function applyPendingServiceWorkerUpdate(registration = pendingRegistrati
   }
 
   const waitingWorker = getServiceWorker(registration);
-  if (!waitingWorker) return false;
+  if (waitingWorker) {
+    updateRequested = true;
+    updateInstallPending = false;
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    hideVersionUpdateBanner();
+    return true;
+  }
+
+  if (!availableVersion || !registration?.update) return false;
 
   updateRequested = true;
-  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-  hideVersionUpdateBanner();
+  updateInstallPending = true;
+  dismissedAvailableVersion = '';
+  showVersionUpdateBanner(registration);
+
+  if (registration.installing) return true;
+
+  registration.update().then(() => {
+    if (!updateInstallPending) return;
+    const installedWorker = getServiceWorker(registration);
+    if (installedWorker) {
+      updateInstallPending = false;
+      installedWorker.postMessage({ type: 'SKIP_WAITING' });
+      hideVersionUpdateBanner();
+      return;
+    }
+    if (!registration.installing) {
+      updateRequested = false;
+      updateInstallPending = false;
+      showVersionUpdateBanner(registration);
+    }
+  }).catch(() => {
+    updateRequested = false;
+    updateInstallPending = false;
+    showVersionUpdateBanner(registration);
+  });
   return true;
 }
 
@@ -173,21 +258,70 @@ export function watchServiceWorkerRegistration(
     installingWorker.addEventListener('statechange', () => {
       if (installingWorker.state === 'installed'
           && canPromptForUpdate(registration, serviceWorkerContainer)) {
+        if (updateRequested && updateInstallPending) {
+          updateInstallPending = false;
+          installingWorker.postMessage({ type: 'SKIP_WAITING' });
+          hideVersionUpdateBanner();
+          return;
+        }
         dismissedWaitingWorker = null;
         reloadAvailable = false;
+        showVersionUpdateBanner(registration);
+      }
+      if (installingWorker.state === 'redundant' && updateInstallPending) {
+        updateRequested = false;
+        updateInstallPending = false;
         showVersionUpdateBanner(registration);
       }
     });
   });
 }
 
-function requestServiceWorkerUpdate(registration, serviceWorkerContainer, { force = false } = {}) {
-  if (!registration?.update) return;
-
+/**
+ * @param {any} registration
+ * @param {any} serviceWorkerContainer
+ * @param {any} win
+ * @param {{ force?: boolean, fetchImpl?: typeof fetch }} [options]
+ */
+export async function checkForAppVersionUpdate(
+  registration,
+  serviceWorkerContainer,
+  win = getDefaultServiceWorkerWindow(),
+  options = {}
+) {
+  const { force = false, fetchImpl } = options;
+  if (!win) return false;
+  const fetchVersion = fetchImpl || win.fetch?.bind?.(win);
+  if (!fetchVersion) return false;
   const now = Date.now();
-  if (!force && now - lastUpdateCheckAt < UPDATE_CHECK_INTERVAL_MS) return;
-  lastUpdateCheckAt = now;
+  const sharedLastCheckAt = Math.max(lastUpdateCheckAt, getStoredLastCheckAt(win));
+  if (!force && now - sharedLastCheckAt < UPDATE_CHECK_INTERVAL_MS) return false;
+  storeLastCheckAt(win, now);
 
+  try {
+    const response = await fetchVersion(VERSION_CHECK_URL, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!response?.ok) return false;
+    const remoteVersion = parseAppVersionScript(await response.text());
+    const currentVersion = getCurrentAppVersion(win);
+    if (!remoteVersion || !currentVersion || remoteVersion === currentVersion) return false;
+
+    if (availableVersion !== remoteVersion) {
+      availableVersion = remoteVersion;
+      dismissedAvailableVersion = '';
+    }
+    pendingRegistration = registration || pendingRegistration;
+    if (serviceWorkerContainer?.controller) showVersionUpdateBanner(registration);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function requestServiceWorkerUpdateForReload(registration, serviceWorkerContainer) {
+  if (!registration?.update) return;
   registration.update().then(() => {
     if (canPromptForUpdate(registration, serviceWorkerContainer)) {
       showVersionUpdateBanner(registration);
@@ -196,14 +330,21 @@ function requestServiceWorkerUpdate(registration, serviceWorkerContainer, { forc
 }
 
 function scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer, win) {
-  if (!registration?.update || !win) return;
+  if (!win) return;
 
   const check = (force = false) => {
     if (win.document?.visibilityState === 'hidden') return;
-    requestServiceWorkerUpdate(registration, serviceWorkerContainer, { force });
+    checkForAppVersionUpdate(registration, serviceWorkerContainer, win, { force }).catch(() => {});
   };
 
-  check(true);
+  if (isReloadNavigation(win)) {
+    // An explicit reload is user intent to get current code. Let the browser
+    // perform a full worker update immediately; routine foreground checks stay
+    // lightweight and never install before the user accepts the banner.
+    requestServiceWorkerUpdateForReload(registration, serviceWorkerContainer);
+  } else {
+    check();
+  }
   win.addEventListener?.('focus', () => check());
   win.document?.addEventListener?.('visibilitychange', () => {
     if (win.document?.visibilityState === 'visible') check();

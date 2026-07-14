@@ -39,30 +39,12 @@ function normalizeFractionStoredPercentValue(key, value, unit, context = null) {
 }
 
 export const GENERIC_IMPORT_UNITS = [
-  '',
-  '%',
-  'ratio',
-  'arb.j.',
-  'U/l',
-  'IU/l',
-  '\u00b5kat/l',
-  '/\u00b5l',
-  '10^9/l',
-  '10^12/l',
-  'g/l',
-  'mg/l',
-  '\u00b5g/l',
-  'ng/ml',
-  'ng/l',
-  'mol/l',
-  'mmol/l',
-  '\u00b5mol/l',
-  'nmol/l',
-  'pmol/l',
-  'g/mol',
-  'fL',
-  'pg',
-  'mm/h',
+  '', '%', 'ratio', 'arb.j.',
+  'U/l', 'IU/l', '\u00b5kat/l',
+  '/\u00b5l', '10^9/l', '10^12/l',
+  'g/l', 'mg/l', '\u00b5g/l', 'ng/ml', 'ng/l',
+  'mol/l', 'mmol/l', '\u00b5mol/l', 'nmol/l', 'pmol/l',
+  'g/mol', 'fL', 'pg', 'mm/h',
 ];
 
 function normalizeGenericImportUnit(unit) {
