@@ -237,7 +237,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       importedData: clone(state.importedData),
       snpTable: window._snpTableCache,
       openProfileLocationEditor: window.openProfileLocationEditor,
-      openEMFAssessmentEditor: window.openEMFAssessmentEditor,
       openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
@@ -295,7 +294,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         },
       };
       window.openProfileLocationEditor = () => {};
-      window.openEMFAssessmentEditor = () => {};
       window.openSettingsTab = () => {};
 
       localStorage.setItem('labcharts-show-product-recs', 'false');
@@ -482,7 +480,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       state.importedData = saved.importedData;
       restoreWindowProp('_snpTableCache', saved.snpTable);
       restoreWindowProp('openProfileLocationEditor', saved.openProfileLocationEditor);
-      restoreWindowProp('openEMFAssessmentEditor', saved.openEMFAssessmentEditor);
       restoreWindowProp('openSettingsTab', saved.openSettingsTab);
       for (const { key, hadOwn, value } of saved.recommendationWindowExports) {
         if (hadOwn) window[key] = value;

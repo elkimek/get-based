@@ -136,7 +136,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
   await openIsolatedEMFPage(page);
 
   const results = await page.evaluate(async ({ emfUrl }) => {
-    const [{ state }] = await Promise.all([
+    const [{ state }, emf] = await Promise.all([
       import('/js/state.js'),
       import(emfUrl),
     ]);
@@ -181,13 +181,13 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       window.closeModal = () => document.getElementById('modal-overlay')?.classList.remove('show');
       localStorage.setItem('labcharts-pii-review', 'false');
 
-      window.openEMFAssessmentEditor();
+      emf.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector('#detail-modal .emf-editor-actions'), 'EMF editor');
       document.querySelector('#detail-modal .modal-close')?.click();
       outcomes.closeEditorActionClosesEmptyEditor =
         !document.getElementById('modal-overlay')?.classList.contains('show');
 
-      window.openEMFAssessmentEditor();
+      emf.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector('.emf-editor-actions'), 'reopened EMF editor');
       document.querySelector('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'manual assessment created');
@@ -220,7 +220,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       document.querySelector('#detail-modal .modal-close')?.click();
       outcomes.closeEditorActionTearsDownAndCloses =
         !document.getElementById('modal-overlay')?.classList.contains('show');
-      window.openEMFAssessmentEditor();
+      emf.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`), 'reopened delegated EMF editor');
       document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`)?.click();
       await waitUntil(() => !!document.querySelector('[data-emf-action="add-room"]'), 'reopened expanded EMF editor');
@@ -230,7 +230,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
       outcomes.closeEditorCollectsTagOnlyChanges =
         assessments()[0].rooms[0].mitigations.length === 1
         && !document.getElementById('modal-overlay')?.classList.contains('show');
-      window.openEMFAssessmentEditor();
+      emf.openEMFAssessmentEditor();
       await waitUntil(() => !!document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`), 'reopened after tag close');
       document.querySelector(`[data-emf-action="toggle-assessment"][data-emf-assessment-id="${manualId}"]`)?.click();
       await waitUntil(() => !!document.querySelector('[data-emf-action="add-room"]'), 'reopened expanded after tag close');
@@ -241,7 +241,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         assessments()[0].rooms[1].name === 'Bedroom'
         && document.querySelector('.emf-room-tab.active')?.textContent.includes('Bedroom') === true;
 
-      await window.handleEMFPDF(new File(['fake pdf bytes'], 'edge-emf-report.pdf', { type: 'application/pdf' }));
+      await emf.handleEMFPDF(new File(['fake pdf bytes'], 'edge-emf-report.pdf', { type: 'application/pdf' }));
       await waitUntil(() => !!document.getElementById('emf-confirm-btn'), 'EMF import preview');
       outcomes.pdfPreviewRendersParsedRoomAndUsesPiiFallback =
         window.__emfExtractedPdfName === 'edge-emf-report.pdf'
@@ -268,7 +268,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         new File(['seven'], 'seven.jpg', { type: 'image/jpeg' }),
         new File(['skip'], 'skip.txt', { type: 'text/plain' }),
       ];
-      await window.addEMFPhotos(imported.id, 0, files);
+      await emf.addEMFPhotos(imported.id, 0, files);
       await waitUntil(() => imported.rooms[0].photos?.length === 6, 'EMF photos capped');
       outcomes.addEMFPhotosResizesValidImagesAndCapsAtSix =
         imported.rooms[0].photos.length === 6
@@ -276,7 +276,7 @@ test('EMF edge browser coverage imports PDFs photos rooms and streams interpreta
         && imported.rooms[0].photos[0].name === 'one.jpg'
         && document.querySelectorAll('.emf-photo-thumb').length === 6;
 
-      window.interpretEMFAssessment(imported.id);
+      emf.interpretEMFAssessment(imported.id);
       await waitUntil(() => !!document.querySelector('#emf-interp-overlay.show #emf-interp-generate'), 'EMF interpretation modal');
       document.getElementById('emf-interp-generate').click();
       await waitUntil(

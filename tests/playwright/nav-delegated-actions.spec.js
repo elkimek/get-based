@@ -24,20 +24,23 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const nav = await import('/js/nav.js');
-    const { state } = await import('/js/state.js');
+    const [nav, navRuntime, { state }] = await Promise.all([
+      import('/js/nav.js'),
+      import('/js/nav-runtime.js'),
+      import('/js/state.js'),
+    ]);
     const origDateRangeFilter = state.dateRangeFilter;
     const origCurrentView = state.currentView;
     const origImportedData = state.importedData;
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
-    const origOpenEMF = window.openEMFAssessmentEditor;
     const origOpenReportBuilder = window.openReportBuilder;
     const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
     let restoreNavActions = null;
+    let restoreNavRuntime = null;
 
     try {
       const fixtureData = {
@@ -72,7 +75,9 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         state.currentView = route;
         window.syncSidebarActive?.(route);
       };
-      window.openEMFAssessmentEditor = () => calls.push(['open-emf']);
+      restoreNavRuntime = navRuntime.configureNavRuntime({
+        openEMFAssessmentEditor: () => calls.push(['open-emf']),
+      });
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
       });
@@ -140,7 +145,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       state.importedData = origImportedData;
       state.profiles = origProfiles;
       window.navigate = origNavigate;
-      window.openEMFAssessmentEditor = origOpenEMF;
+      if (restoreNavRuntime) navRuntime.configureNavRuntime(restoreNavRuntime);
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       window.openReportBuilder = origOpenReportBuilder;
       window.openContextModal = origOpenContext;

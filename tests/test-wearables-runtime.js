@@ -3,6 +3,7 @@
 import './_node-shim.js';
 import {
   closeWearablesModal,
+  configureWearablesRuntime,
   exposeWearablesBindings,
   getWearablesViewportSize,
   navigateWearables,
@@ -23,7 +24,6 @@ const runtimeKeys = [
   'navigate',
   'closeModal',
   'openSettingsModal',
-  'openEMFAssessmentEditor',
   'setTimeout',
   'innerWidth',
   'innerHeight',
@@ -53,7 +53,9 @@ try {
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('closeModal', () => calls.push(['close-modal']));
   setRuntimeValue('openSettingsModal', section => calls.push(['settings', section]));
-  setRuntimeValue('openEMFAssessmentEditor', () => calls.push(['emf-editor']));
+  const restoreWearablesRuntime = configureWearablesRuntime({
+    openEMFAssessmentEditor: () => calls.push(['emf-editor']),
+  });
   setRuntimeValue('setTimeout', (fn, delay) => {
     calls.push(['timeout', delay]);
     fn();
@@ -90,10 +92,10 @@ try {
     zeroViewport.width === 0 && zeroViewport.height === 0);
 
   const lateCalls = [];
-  delete globalThis.openEMFAssessmentEditor;
+  configureWearablesRuntime(restoreWearablesRuntime);
   setRuntimeValue('setTimeout', (fn, delay) => {
     lateCalls.push(['timeout', delay]);
-    setRuntimeValue('openEMFAssessmentEditor', () => lateCalls.push(['emf-editor']));
+    configureWearablesRuntime({ openEMFAssessmentEditor: () => lateCalls.push(['emf-editor']) });
     fn();
     return 2;
   });
@@ -101,6 +103,7 @@ try {
   assert('EMF editor binding is resolved after the close delay',
     lateCalls.some(call => call[0] === 'timeout' && call[1] === 75)
       && lateCalls.some(call => call[0] === 'emf-editor'));
+  configureWearablesRuntime(restoreWearablesRuntime);
 
   const probe = () => 'ok';
   exposeWearablesBindings({ wearableProbe: probe });

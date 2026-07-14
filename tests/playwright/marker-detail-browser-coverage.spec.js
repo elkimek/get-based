@@ -668,8 +668,9 @@ test('marker detail modal covers default deps descriptions alt units and bio age
   await page.waitForSelector('#modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ modalUrl }) => {
-    const [modal, { state }, data] = await Promise.all([
+    const [modal, markerRuntime, { state }, data] = await Promise.all([
       import(modalUrl),
+      import('/js/marker-detail-runtime.js'),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
@@ -701,7 +702,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       'renderRecommendationSection',
       'isProductRecsEnabled',
       '_getRelevantSNPs',
-      'closeEMFInterpretation',
       '_uninstallWearableModalFocusTrap',
     ];
     const savedWindow = Object.fromEntries(windowKeys.map(key => [
@@ -711,6 +711,9 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     const date = '2026-06-01';
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
+    const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
+      closeEMFInterpretation: () => calls.push(['close-emf']),
+    });
 
     try {
       state.currentProfile = 'marker-detail-modal-coverage';
@@ -757,7 +760,6 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       window.isProductRecsEnabled = () => true;
       window._getRelevantSNPs = () => [];
       window.renderRecommendationSection = async id => `<div class="coverage-rec">rec ${id}</div>`;
-      window.closeEMFInterpretation = () => calls.push(['close-emf']);
       window._uninstallWearableModalFocusTrap = () => calls.push(['uninstall-focus']);
 
       localStorage.setItem('labcharts-marker-desc', JSON.stringify({
@@ -821,6 +823,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         if (info.had) window[key] = info.value;
         else delete window[key];
       }
+      markerRuntime.configureMarkerDetailRuntime(restoreMarkerRuntime);
       data.invalidateActiveDataCache();
       modal.configureMarkerDetailModal({
         navigate: (category, payload) => window.navigate?.(category, payload),

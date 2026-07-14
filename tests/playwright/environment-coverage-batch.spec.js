@@ -9,13 +9,13 @@ function seedCompletedTour() {
 test('EMF assessment editor covers room measurements tags compare delete and chat handoff', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openEMFAssessmentEditor === 'function');
 
   const results = await page.evaluate(async () => {
-    const [{ state }, data, editorUi] = await Promise.all([
+    const [{ state }, data, editorUi, emf] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/context-card-editor-ui.js'),
+      import('/js/emf.js'),
     ]);
     if (typeof window.toggleCtxTag !== 'function') window.toggleCtxTag = editorUi.toggleCtxTag;
 
@@ -81,7 +81,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
       document.querySelectorAll('.emf-lightbox,.notification-container').forEach(el => el.remove());
       document.getElementById('confirm-dialog-overlay')?.remove();
 
-      await window.openEMFAssessmentEditor();
+      await emf.openEMFAssessmentEditor();
       await waitFor('#detail-modal .emf-editor-actions', 'EMF editor actions');
       document.querySelector('.emf-editor-actions .import-btn-primary')?.click();
       await waitUntil(() => assessments().length === 1, 'new EMF assessment');
@@ -100,7 +100,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
 
       document.querySelector(`#emf-sources-${id}-0 .ctx-tag:not(.active)`)?.click();
       document.querySelector(`#emf-mits-${id}-0 .ctx-tag:not(.active)`)?.click();
-      window.saveEMFExplicit();
+      emf.saveEMFExplicit();
       await waitUntil(
         () => activeAssessment().rooms[0].sources.length > 0 && activeAssessment().rooms[0].mitigations.length > 0,
         'EMF tags saved'
@@ -136,7 +136,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         mediaType: 'image/svg+xml',
         base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
       }];
-      window.selectEMFRoom(id, 0);
+      emf.selectEMFRoom(id, 0);
       await waitFor('.emf-photo-thumb img', 'EMF photo thumbnail');
       document.querySelector('.emf-photo-thumb img')?.click();
       await waitFor('.emf-lightbox img', 'EMF photo lightbox');
@@ -179,7 +179,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         outputTokens: 18,
         date: '2026-06-16T00:00:00.000Z',
       };
-      await window.openEMFAssessmentEditor();
+      await emf.openEMFAssessmentEditor();
       await waitFor('.emf-editor-actions button[data-emf-action="toggle-compare"]', 'EMF compare button');
       document.querySelector('.emf-editor-actions button[data-emf-action="toggle-compare"]')?.click();
       await waitFor('.emf-compare-table', 'EMF compare table');
@@ -192,7 +192,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
 
       window.openChatPanel = prompt => calls.push(['chat', prompt]);
       window.closeModal = () => calls.push(['close-modal']);
-      window.interpretEMFComparison();
+      emf.interpretEMFComparison();
       await waitFor('#emf-interp-overlay.show .emf-interp-modal', 'EMF existing interpretation modal');
       document.querySelector('#emf-interp-overlay [data-emf-interp-action="discuss"]')?.click();
       await waitUntil(() => calls.some(call => call[0] === 'chat'), 'EMF discuss chat handoff');
@@ -200,7 +200,7 @@ test('EMF assessment editor covers room measurements tags compare delete and cha
         calls.some(call => call[0] === 'close-modal')
         && calls.some(call => call[0] === 'chat' && call[1].includes('RF improved'));
 
-      window.toggleEMFCompare();
+      emf.toggleEMFCompare();
       await waitFor(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`, 'old assessment header');
       document.querySelector(`.emf-assessment-header[data-emf-action="toggle-assessment"][data-emf-assessment-id="${id}"]`)?.click();
       await waitFor('.emf-assessment-card.expanded button[data-emf-action="delete-assessment"]', 'delete EMF assessment button');

@@ -13,6 +13,19 @@ import {
 } from './chat-message-action-attrs.js';
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
 import { registerUtilsRuntimeExports } from './utils-runtime.js';
+import { openEMFAssessmentEditor } from './emf-runtime.js';
+
+const chatMessageActionDeps = {
+  openEMFAssessmentEditor,
+};
+
+export function configureChatMessageActionDeps(deps = {}) {
+  const previous = { ...chatMessageActionDeps };
+  if (typeof deps.openEMFAssessmentEditor === 'function') {
+    chatMessageActionDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  return previous;
+}
 
 let chatMessageDelegatesInstalled = false;
 export { chatMessageActionAttrs } from './chat-message-action-attrs.js';
@@ -64,7 +77,7 @@ function runChatMessageAction(actionEl, event) {
     if (!src) return;
     appWindow.openImageLightbox?.(src);
   } else if (action === 'open-emf-assessment') {
-    appWindow.openEMFAssessmentEditor?.();
+    void chatMessageActionDeps.openEMFAssessmentEditor();
   } else if (action === 'jump-search-result') {
     const index = readMessageIndex(actionEl);
     const threadId = actionEl.dataset.chatMessageThreadId || '';

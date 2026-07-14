@@ -1100,36 +1100,8 @@ export function viewEMFPhoto(assessmentId, roomIdx, photoIdx) {
   try { trapModalFocus(overlay); } catch (_) {}
 }
 
-// ═══════════════════════════════════════════════
-// WINDOW EXPORTS
-// ═══════════════════════════════════════════════
 export function saveEMFExplicit() {
   collectActiveAssessmentState();
   saveImportedData();
   showNotification('EMF assessment saved', 'success');
 }
-
-Object.assign(window, {
-  openEMFAssessmentEditor,
-  addEMFAssessment,
-  toggleEMFAssessment,
-  selectEMFRoom,
-  handleEMFRoomDropdown,
-  addEMFRoom,
-  removeEMFRoom,
-  deleteEMFAssessment,
-  updateEMFField,
-  updateEMFRoom,
-  updateEMFMeasurement,
-  updateEMFMeter,
-  saveEMFExplicit,
-  toggleEMFCompare,
-  interpretEMFAssessment,
-  interpretEMFComparison,
-  closeEMFInterpretation,
-  discussEMFInterpretation,
-  addEMFPhotos,
-  removeEMFPhoto,
-  viewEMFPhoto,
-  handleEMFPDF,
-});

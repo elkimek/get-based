@@ -151,7 +151,7 @@ const APP_SHELL = [
   '/js/focus-card.js',
   '/js/onboarding-view-runtime.js',
   '/js/onboarding-view.js',
-  '/js/emf-facade.js',
+  '/js/emf-runtime.js',
   '/js/emf.js',
   '/js/emf-interpretation.js',
   '/js/image-utils.js',

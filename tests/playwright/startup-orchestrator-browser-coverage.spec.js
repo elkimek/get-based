@@ -43,14 +43,6 @@ async function openStartupOrchestratorPage(page) {
       }
     `,
   }));
-  await page.route('**/js/emf-facade.js*', route => route.fulfill({
-    contentType: 'application/javascript',
-    body: `
-      export function installEMFLazyFacade() {
-        window.__startupCalls.push('emf');
-      }
-    `,
-  }));
   await page.route('**/js/startup-maintenance.js*', route => route.fulfill({
     contentType: 'application/javascript',
     body: `
@@ -122,7 +114,7 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
       );
 
       outcomes.startAppInstallsOneSetOfShellHooks =
-        window.__startupCalls.filter(call => call === 'emf').length === 1
+        !window.__startupCalls.includes('emf')
         && window.__startupCalls.filter(call => call === 'events').length === 1
         && window.__startupCalls.filter(call => call === 'refresh').length === 1
         && window._getActiveProfileId() === 'startup-orchestrator-coverage-profile';

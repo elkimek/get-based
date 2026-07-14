@@ -124,21 +124,20 @@ assert('42. EMF_SOURCES is array', Array.isArray(EMF_SOURCES) && EMF_SOURCES.len
 assert('43. EMF_MITIGATIONS is array', Array.isArray(EMF_MITIGATIONS) && EMF_MITIGATIONS.length >= 10);
 assert('44. Bedroom in room presets', EMF_ROOM_PRESETS.includes('Bedroom'));
 
-// ── Lazy-load stub sync check ──
+// ── Module-only lazy runtime sync check ──
 const emfMod = await import('../js/emf.js');
-const emfFacadeMod = await import('../js/emf-facade.js');
+const emfRuntimeMod = await import('../js/emf-runtime.js');
 const emfWindowFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'];
 const missingExports = emfWindowFns.filter(fn => typeof emfMod[fn] !== 'function');
-assert('45. All lazy-stub fns exist in emf.js exports', missingExports.length === 0, missingExports.join(', '));
-assert('45a. EMF lazy facade exports installer', typeof emfFacadeMod.installEMFLazyFacade === 'function');
-assert('45b. EMF lazy facade list matches expected window functions',
-  Array.isArray(emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS) &&
-  emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.length === emfWindowFns.length &&
-  emfWindowFns.every(fn => emfFacadeMod.EMF_LAZY_WINDOW_FUNCTIONS.includes(fn)));
+assert('45. All former facade functions remain emf.js exports', missingExports.length === 0, missingExports.join(', '));
+assert('45a. EMF runtime exports a lazy module loader', typeof emfRuntimeMod.loadEMFModule === 'function');
+assert('45b. EMF runtime exposes only the lazy cross-module entry points',
+  typeof emfRuntimeMod.openEMFAssessmentEditor === 'function' &&
+  typeof emfRuntimeMod.closeEMFInterpretation === 'function');
 const mainSrc = read('js/main.js');
 const orchestratorSrc = read('js/startup-orchestrator.js');
-assert('45c. startup-orchestrator.js imports the EMF lazy facade', orchestratorSrc.includes("from './emf-facade.js'"));
-assert('45d. startup-orchestrator.js installs the EMF lazy facade', orchestratorSrc.includes('installEMFLazyFacade()'));
+assert('45c. startup-orchestrator.js does not import an EMF facade', !orchestratorSrc.includes('emf-facade'));
+assert('45d. former EMF globals are not installed', emfWindowFns.every(fn => typeof window[fn] === 'undefined'));
 assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 const navSrc = read('js/nav.js');

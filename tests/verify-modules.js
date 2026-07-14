@@ -33,7 +33,7 @@
     '/js/startup-oauth-callbacks.js',
     '/js/startup-maintenance.js',
     '/js/startup-ui.js',
-    '/js/emf-facade.js',
+    '/js/emf-runtime.js',
     '/js/schema-environment.js',
     '/js/views.js',
     '/js/import-file-input.js',
@@ -187,10 +187,12 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, chartsModule, cycleModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
+  const [apiModule, chartsModule, cycleModule, emfModule, emfRuntimeModule, labContextModule, lensModule, lightToolsModule, piiModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/charts.js'),
     import('../js/cycle.js'),
+    import('../js/emf.js'),
+    import('../js/emf-runtime.js'),
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
@@ -385,6 +387,17 @@
     'toggleCycleSymptomTag','_toggleCycleEditorFields'
   ];
 
+  // emf.js (23 exports, module-only; lazy runtime keeps feature startup deferred)
+  const emfExports = [
+    'configureEMFAIDeps','openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment',
+    'selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment',
+    'updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','handleEMFPDF',
+    'toggleEMFCompare','closeEMFInterpretation','discussEMFInterpretation','interpretEMFAssessment',
+    'interpretEMFComparison','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','saveEMFExplicit'
+  ];
+  const emfLegacyGlobals = emfExports.filter(name => name !== 'configureEMFAIDeps');
+  const emfRuntimeExports = ['loadEMFModule','openEMFAssessmentEditor','closeEMFInterpretation'];
+
   // data.js (26)
   const dataExports = [
     'saveImportedData','getFocusCardFingerprint',
@@ -551,6 +564,8 @@
   for (const [moduleName, moduleApi, exports] of [
     ['charts.js', chartsModule, chartsExports],
     ['cycle.js', cycleModule, cycleExports],
+    ['emf.js', emfModule, emfExports],
+    ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
@@ -571,6 +586,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of emfLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of lightToolsLegacyGlobals) {

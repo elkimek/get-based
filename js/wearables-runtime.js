@@ -1,6 +1,20 @@
 // @ts-check
 // wearables-runtime.js - Browser runtime adapters for wearable dashboard hooks.
 
+import { openEMFAssessmentEditor } from './emf-runtime.js';
+
+const wearablesRuntimeDeps = {
+  openEMFAssessmentEditor,
+};
+
+export function configureWearablesRuntime(deps = {}) {
+  const previous = { ...wearablesRuntimeDeps };
+  if (typeof deps.openEMFAssessmentEditor === 'function') {
+    wearablesRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -46,7 +60,7 @@ export function openEMFAssessmentAfterWearablesModalClose(delayMs = 100) {
   const schedule = runtime && typeof runtime.setTimeout === 'function'
     ? runtime.setTimeout.bind(runtime)
     : setTimeout;
-  schedule(() => getRuntimeFunction('openEMFAssessmentEditor')?.(), delayMs);
+  schedule(() => { void wearablesRuntimeDeps.openEMFAssessmentEditor(); }, delayMs);
 }
 
 export function getWearablesViewportSize() {

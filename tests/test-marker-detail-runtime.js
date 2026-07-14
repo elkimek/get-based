@@ -6,6 +6,7 @@ import {
   askAIAboutMarkerRuntime,
   buildMarkerDetailSidebarRuntime,
   closeEMFInterpretationRuntime,
+  configureMarkerDetailRuntime,
   getRelevantSNPsRuntime,
   hasRecommendationSectionRendererRuntime,
   isDashboardQuickMarkerPinnedRuntime,
@@ -40,7 +41,6 @@ const runtimeKeys = [
   '_getRelevantSNPs',
   'isProductRecsEnabled',
   'renderRecommendationSection',
-  'closeEMFInterpretation',
   '_uninstallWearableModalFocusTrap',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -87,7 +87,9 @@ try {
     calls.push(['recs', markerKey, options?.markerStatus || '']);
     return '<section>recs</section>';
   });
-  setRuntimeValue('closeEMFInterpretation', () => calls.push(['emf-close']));
+  const restoreMarkerDetailRuntime = configureMarkerDetailRuntime({
+    closeEMFInterpretation: () => calls.push(['emf-close']),
+  });
   setRuntimeValue('_uninstallWearableModalFocusTrap', () => calls.push(['focus-trap']));
 
   navigateMarkerDetailRuntime('dashboard', { from: 'marker' });
@@ -129,6 +131,8 @@ try {
       getRelevantSNPsRuntime('lipids.apob').length === 0 &&
       isProductRecsEnabledRuntime() === false);
 
+  configureMarkerDetailRuntime({ closeEMFInterpretation: () => {} });
+
   delete globalThis.window;
   const beforeMissingRuntimeCalls = calls.length;
   navigateMarkerDetailRuntime('dashboard');
@@ -148,6 +152,7 @@ try {
       getRelevantSNPsRuntime('lipids.apob').length === 0 &&
       isProductRecsEnabledRuntime() === false &&
       missingRuntimeRecs === '');
+  configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
 } finally {
   restoreRuntime();
 }

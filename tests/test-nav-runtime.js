@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  configureNavRuntime,
   exposeNavRuntimeGlobals,
   navigateFromNavRuntime,
   openClientListFromNavRuntime,
@@ -30,7 +31,6 @@ console.log('=== Nav Runtime Tests ===');
 const runtimeKeys = [
   'window',
   'navigate',
-  'openEMFAssessmentEditor',
   'openReportBuilder',
   'openContextModal',
   'openCreateMarkerModal',
@@ -60,13 +60,15 @@ try {
   const calls = [];
   const browserRuntime = {
     navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
-    openEMFAssessmentEditor() { calls.push(['emf', this === browserRuntime]); },
     openReportBuilder() { calls.push(['report', this === browserRuntime]); },
     openContextModal() { calls.push(['context', this === browserRuntime]); },
     openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
     openClientList() { calls.push(['client', this === browserRuntime]); },
   };
   setRuntimeValue('window', browserRuntime);
+  const restoreNavRuntime = configureNavRuntime({
+    openEMFAssessmentEditor: () => calls.push(['emf', true]),
+  });
 
   navigateFromNavRuntime('labs');
   openEMFAssessmentFromNavRuntime();
@@ -84,9 +86,10 @@ try {
   assert('exposeNavRuntimeGlobals assigns exports to the browser runtime',
     browserRuntime.runtimeProbe === 42);
 
-  for (const key of ['navigate', 'openEMFAssessmentEditor', 'openReportBuilder', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
+  for (const key of ['navigate', 'openReportBuilder', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
     delete browserRuntime[key];
   }
+  configureNavRuntime({ openEMFAssessmentEditor: () => {} });
   navigateFromNavRuntime('missing');
   openEMFAssessmentFromNavRuntime();
   openReportBuilderFromNavRuntime();
@@ -102,6 +105,7 @@ try {
   exposeNavRuntimeGlobals({ runtimeProbe: 'global' });
   assert('nav runtime falls back to globalThis without window',
     globalRoute === 'recommendations' && globalThis.runtimeProbe === 'global');
+  configureNavRuntime(restoreNavRuntime);
 } finally {
   restoreRuntime();
 }

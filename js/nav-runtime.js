@@ -1,6 +1,20 @@
 // @ts-check
 // nav-runtime.js - Browser runtime hooks for sidebar navigation.
 
+import { openEMFAssessmentEditor } from './emf-runtime.js';
+
+const navRuntimeDeps = {
+  openEMFAssessmentEditor,
+};
+
+export function configureNavRuntime(deps = {}) {
+  const previous = { ...navRuntimeDeps };
+  if (typeof deps.openEMFAssessmentEditor === 'function') {
+    navRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  return previous;
+}
+
 /**
  * @returns {Record<string, any>}
  */
@@ -28,7 +42,7 @@ export function navigateFromNavRuntime(route) {
 }
 
 export function openEMFAssessmentFromNavRuntime() {
-  getNavRuntimeFunction('openEMFAssessmentEditor')?.();
+  void navRuntimeDeps.openEMFAssessmentEditor();
 }
 
 export function openReportBuilderFromNavRuntime() {
