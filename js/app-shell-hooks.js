@@ -10,7 +10,7 @@ import { closeClientList, configureClientListRuntime } from './client-list.js';
 import { closeEMFInterpretation } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
-import { closeFeedbackModal } from './feedback.js';
+import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { closeModal } from './marker-detail-modal.js';
 import { closeMobileSidebar } from './nav.js';
@@ -40,6 +40,7 @@ configureSettingsRuntime({
   exportAllDataJSON,
   exportClientJSON,
   getActiveProfileId,
+  openFeedbackModal,
   openProfileShareModal,
   refreshMobileDashboardActiveTab,
   resetDashboardWidgets,

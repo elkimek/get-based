@@ -25,13 +25,15 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       isImportRunning: () => importRunning,
       handleImportStatusClick: () => calls.push(['handleImportStatusClick']),
     });
+    const previousShellFeedbackDeps = shellActions.configureShellFeedbackDeps({
+      openFeedbackModal: () => calls.push(['openFeedbackModal']),
+    });
     const originalFns = {
       toggleMobileSidebar: window.toggleMobileSidebar,
       closeMobileSidebar: window.closeMobileSidebar,
       openProfileShareModal: window.openProfileShareModal,
       openTweaksPanel: window.openTweaksPanel,
       openSettingsModal: window.openSettingsModal,
-      openFeedbackModal: window.openFeedbackModal,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
       toggleThreadRail: window.toggleThreadRail,
@@ -191,6 +193,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
         && personalityEscape.defaultPrevented === false;
     } finally {
       shellActions.configureShellImportDeps(previousShellImportDeps);
+      shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
       for (const [name, value] of Object.entries(originalFns)) {
         if (value === undefined) delete window[name];
         else window[name] = value;

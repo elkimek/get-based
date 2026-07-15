@@ -5,7 +5,7 @@ import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 import { getTheme } from './theme.js';
 import { getAIProvider } from './api.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { openUtilsRuntimeWindow, registerUtilsRuntimeExports } from './utils-runtime.js';
+import { openUtilsRuntimeWindow } from './utils-runtime.js';
 
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug Report', prefix: '[Bug]', ghLabel: 'bug', placeholder: 'Brief description of the bug' },
@@ -19,9 +19,6 @@ let _feedbackActionDelegatesInstalled = false;
 const FEEDBACK_ACTION_ATTR = 'data-feedback-action';
 const FEEDBACK_ACTION_SELECTOR = `[${FEEDBACK_ACTION_ATTR}]`;
 const appWindow = /** @type {Window & typeof globalThis & {
-  closeFeedbackModal?: () => void,
-  submitFeedback?: () => void,
-  _updateFeedbackPlaceholder?: () => void,
   __feedbackActionDelegatesBound?: boolean,
 }} */ (typeof window !== 'undefined' ? window : {});
 
@@ -40,7 +37,7 @@ function closestFeedbackAction(target) {
 function handleFeedbackActionClick(event) {
   const actionEl = closestFeedbackAction(event.target);
   if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'close') return;
-  appWindow.closeFeedbackModal?.();
+  closeFeedbackModal();
   event.preventDefault();
 }
 
@@ -48,13 +45,13 @@ function handleFeedbackActionSubmit(event) {
   const actionEl = closestFeedbackAction(event.target);
   if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'submit') return;
   event.preventDefault();
-  appWindow.submitFeedback?.();
+  submitFeedback();
 }
 
 function handleFeedbackActionChange(event) {
   const actionEl = closestFeedbackAction(event.target);
   if (!actionEl || actionEl.getAttribute(FEEDBACK_ACTION_ATTR) !== 'placeholder') return;
-  appWindow._updateFeedbackPlaceholder?.();
+  _updateFeedbackPlaceholder();
 }
 
 export function installFeedbackActionDelegates(root = typeof document !== 'undefined' ? document : null) {
@@ -163,5 +160,3 @@ function _updateFeedbackPlaceholder() {
   const titleInput = /** @type {HTMLInputElement | null} */ (document.getElementById('feedback-title'));
   if (titleInput) titleInput.placeholder = typeDef.placeholder;
 }
-
-registerUtilsRuntimeExports({ openFeedbackModal, closeFeedbackModal, submitFeedback, _updateFeedbackPlaceholder });

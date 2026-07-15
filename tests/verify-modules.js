@@ -189,7 +189,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -202,6 +202,7 @@
     import('../js/emf.js'),
     import('../js/emf-runtime.js'),
     import('../js/export.js'),
+    import('../js/feedback.js'),
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
@@ -470,6 +471,14 @@
     'openChangelog','closeChangelog','maybeShowChangelog'
   ];
 
+  // feedback.js (4 former browser globals, now module-only; 3 are public exports)
+  const feedbackExports = [
+    'openFeedbackModal','closeFeedbackModal','submitFeedback'
+  ];
+  const feedbackLegacyGlobals = [
+    ...feedbackExports,'_updateFeedbackPlaceholder'
+  ];
+
   // nav.js (5 retained runtime hooks; delegate helpers use ESM exports)
   const navGlobals = [
     'buildSidebar','renderProfileDropdown','renderProfileButton',
@@ -689,6 +698,7 @@
     ['emf.js', emfModule, emfExports],
     ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
     ['export.js', exportModule, exportExports],
+    ['feedback.js', feedbackModule, feedbackExports],
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
@@ -774,6 +784,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of changelogExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of feedbackLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of providerPanelsExports) {

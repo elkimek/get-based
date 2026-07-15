@@ -100,6 +100,10 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       await wait(0);
       results.handleTweaksChange = localStorage.getItem('labcharts-sunset-mode') === 'true'
         && document.documentElement.dataset.sunsetMode === 'on';
+      document.querySelector('[data-tweaks-action="send-feedback"]').click();
+      results.tweaksFeedbackUsesModuleRuntime = document.getElementById('feedback-modal-overlay')?.classList.contains('show') === true
+        && !document.getElementById('tweaks-panel-overlay');
+      (await import('/js/feedback.js')).closeFeedbackModal();
 
       localStorage.removeItem('labcharts-pii-review-disable-ack');
       localStorage.setItem('labcharts-pii-review', 'true');
