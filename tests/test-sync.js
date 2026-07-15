@@ -44,6 +44,7 @@ const syncChatApply = await import('../js/sync-chat-apply.js');
 const syncDelta = await import('../js/sync-delta.js');
 const dataMerge = await import('../js/data-merge.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
+const syncPayload = await import('../js/sync-payload.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
 const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
 await import('../js/sync.js');
@@ -2453,8 +2454,11 @@ await import('../js/settings.js');
   // that gunzips to (cap + 1) bytes and asserts it throws. Catches
   // off-by-one and "checks size only after full buffer" regressions
   // that source inspection alone can't detect.
-  if (typeof window !== 'undefined' && window._syncTestHooks?.gunzipCapped) {
-    const { gunzipCapped, perRowCapBytes } = window._syncTestHooks;
+  if (typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined') {
+    const {
+      _gunzipToStringCapped: gunzipCapped,
+      _PER_ROW_DECOMPRESSED_CAP_BYTES: perRowCapBytes,
+    } = syncPayload;
     // Test against a SMALL synthetic cap to keep this assertion fast —
     // a real 1MB test would burn 100ms+ of CPU on slow CI runners.
     const TEST_CAP = 1024; // 1 KB
@@ -2500,6 +2504,7 @@ await import('../js/settings.js');
       perRowCapBytes === 1024 * 1024,
       `cap=${perRowCapBytes}, expected ${1024 * 1024}`);
   }
+  assert('_syncTestHooks stays module-only', !('_syncTestHooks' in window));
 
   // Snapshot-poisoning fix
   assert('_applyArrayDelta returns boolean success',
