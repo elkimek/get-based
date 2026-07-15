@@ -344,6 +344,8 @@ for (const name of expectedExports) {
 }
 assert('views.showDashboard exists', typeof viewsModule.showDashboard === 'function');
 assert('window.showDashboard stays module-only', !('showDashboard' in window));
+assert('views.closeModal exists', typeof viewsModule.closeModal === 'function');
+assert('window.closeModal stays module-only', !('closeModal' in window));
 for (const name of ['openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData']) {
   assert(`export.${name} exists`, typeof exportModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));

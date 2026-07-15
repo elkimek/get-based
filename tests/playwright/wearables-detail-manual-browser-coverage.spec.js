@@ -4,12 +4,13 @@ test('wearables detail modal covers manual migration delegated add save and canc
   await page.goto('/app', { waitUntil: 'load' });
 
   const failures = await page.evaluate(async () => {
-    const [{ state }, manual, store, { profileStorageKey }, blobStorage] = await Promise.all([
+    const [{ state }, manual, store, { profileStorageKey }, blobStorage, views] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-manual.js'),
       import('/js/wearables-store.js'),
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
+      import('/js/views.js'),
     ]);
     // Ensure delegated detail-modal handlers are installed.
     await import('/js/wearables.js');
@@ -36,7 +37,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       return false;
     };
     const closeDetailModal = async () => {
-      try { window.closeModal?.(); } catch (_) {}
+      try { views.closeModal(); } catch (_) {}
       await waitFor(() => !document.getElementById('modal-overlay')?.classList.contains('show'), 100);
     };
     const debugManualButtons = () => Array.from(document.querySelectorAll('#detail-modal [data-wearable-action="open-detail-manual-add"]'))
@@ -213,7 +214,7 @@ test('wearables detail modal covers manual migration delegated add save and canc
       check('saved bp reading appears in detail manual entries list',
         !!document.querySelector('#detail-modal .wearable-manual-entry[data-entry-date="2026-06-04"] .wearable-manual-entry-note'));
     } finally {
-      try { window.closeModal?.(); } catch (_) {}
+      try { views.closeModal(); } catch (_) {}
       await store.deleteWearablesDB(profileId).catch(() => {});
       if (originalImportedBlobValue == null) await blobStorage.deleteBlob(importedStorageKey);
       else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);

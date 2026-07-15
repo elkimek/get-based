@@ -173,8 +173,8 @@ async function prepareScenario(page, theme, viewport) {
   });
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await waitForApp(page);
-  await page.evaluate((nextTheme) => {
-    window.closeModal?.();
+  await page.evaluate(async (nextTheme) => {
+    (await import('/js/views.js')).closeModal();
     window.closeSettingsModal?.();
     window.closeChatPanel?.();
     window.closeMobileSidebar?.();
@@ -708,7 +708,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     assert(testName(theme, viewportName, 'marker detail modal fits viewport'),
       result.contained,
       JSON.stringify(result));
-    await page.evaluate(() => window.closeModal?.());
+    await page.evaluate(async () => (await import('/js/views.js')).closeModal());
     await delay(100);
   }
 }
@@ -810,7 +810,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     assert(testName(theme, viewportName, 'mobile marker modal fits phone viewport'),
       result.contained && result.sideGutters,
       JSON.stringify(result));
-    await page.evaluate(() => window.closeModal?.());
+    await page.evaluate(async () => (await import('/js/views.js')).closeModal());
     await delay(100);
   }
 
@@ -838,7 +838,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     supplements.addPeriodRow();
   });
   await delay(150);
-  result = await page.evaluate(() => {
+  result = await page.evaluate(async () => {
     const form = document.getElementById('supp-form-panel');
     const item = document.querySelector('.supp-list-item');
     const overlay = document.getElementById('modal-overlay');
@@ -885,7 +885,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       : ['missing-form'];
     const horizontalOverflow = Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - document.documentElement.clientWidth;
     const open = overlay?.classList.contains('show');
-    window.closeModal?.();
+    (await import('/js/views.js')).closeModal();
     const state = window._labState;
     if (state?.importedData && window.__suppModalSnapshot) {
       state.importedData.supplements = JSON.parse(window.__suppModalSnapshot);

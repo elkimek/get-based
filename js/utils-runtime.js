@@ -1,6 +1,8 @@
 // @ts-check
 // utils-runtime.js - Browser runtime adapters for shared utilities.
 
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+
 function getUtilsRuntime() {
   return typeof window !== 'undefined'
     ? /** @type {Window & typeof globalThis} */ (window)
@@ -39,8 +41,9 @@ export function getUtilsRuntimeValue(name, fallback = null) {
  */
 export function getUtilsRuntimeFunction(name) {
   const runtime = getUtilsRuntime();
-  const fn = runtime?.[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  if (!runtime) return null;
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 /** @param {Record<string, any>} exportsByName */
@@ -57,7 +60,9 @@ export function registerUtilsRuntimeExports(exportsByName) {
  */
 export function callUtilsRuntimeFunction(name, ...args) {
   const runtime = getUtilsRuntime();
-  const fn = runtime?.[name];
+  if (!runtime) return undefined;
+  const runtimeFn = runtime[name];
+  const fn = typeof runtimeFn === 'function' ? runtimeFn : getViewRuntimeFunction(name);
   return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 

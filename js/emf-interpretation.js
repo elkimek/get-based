@@ -9,6 +9,7 @@ import { callClaudeAPI, getAIProvider, getActiveModelId, getActiveModelDisplay }
 import { renderMarkdown } from './markdown.js';
 import { loadEMFCatalog, renderEMFMitigationRecs, isProductRecsEnabled, detectMitigationsInText } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 /**
  * @typedef {{ text?: string, model?: string, provider?: string, modelId?: string, inputTokens?: number, outputTokens?: number, date?: string }} EMFInterpretation
@@ -44,7 +45,7 @@ function getEMFInterpretationRuntimeScope() {
 function getEMFInterpretationRuntimeFunction(name) {
   const runtime = getEMFInterpretationRuntimeScope();
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 function closeParentEMFModalRuntime() {

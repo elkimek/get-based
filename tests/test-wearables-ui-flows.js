@@ -92,7 +92,7 @@ return (async function() {
     remaining && remaining.weight == null && remaining.rhr === 62);
 
   // Close any leftover modal
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -119,7 +119,7 @@ return (async function() {
   } else {
     assert('Found delete button on rhr modal', false);
   }
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -159,7 +159,7 @@ return (async function() {
     !!ouraLine?.data?.some(p => p.x === '2026-05-20' && p.y === 61) &&
     !!manualOverlay?.data?.some(p => p.x === oldManualDate && p.y === 57),
     JSON.stringify(window._labState.chartInstances?.modal?.data?.datasets?.map(ds => ({ label: ds.label, n: ds.data?.length }))));
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -202,7 +202,7 @@ return (async function() {
     document.body.click();
     await new Promise(r => setTimeout(r, 100));
   }
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -225,7 +225,7 @@ return (async function() {
     assert('Clicking an overview metric opens the detail modal',
       document.getElementById('modal-overlay')?.classList?.contains('show'));
   }
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -349,7 +349,7 @@ return (async function() {
   assert('Opening another biometric card closes any active BP inline form',
     !document.getElementById('wl-bp-sys') &&
     document.getElementById('modal-overlay')?.classList?.contains('show'));
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   await new Promise(r => setTimeout(r, 200));
 
   // ─────────────────────────────────────────────────────────

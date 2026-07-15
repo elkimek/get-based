@@ -2,6 +2,7 @@
 // recommendations-runtime.js - Browser runtime adapters for recommendation hooks.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const recommendationsRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -27,7 +28,9 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (!runtime) return null;
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 export function getRecommendationsSnpTable() {

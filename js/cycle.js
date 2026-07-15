@@ -9,6 +9,7 @@ import { startCycleTour } from './tour.js';
 import { createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -22,10 +23,14 @@ const CYCLE_ICONS = {
   x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
 };
 const appWindow = /** @type {Window & typeof globalThis & {
-  closeModal: () => void,
+  closeModal?: () => void,
   navigate: (category: string) => void,
   __cycleDelegatesBound?: boolean
 }} */ (typeof window !== 'undefined' ? window : {});
+function closeCycleModal() {
+  const closeModal = appWindow.closeModal || (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
+  closeModal?.call(appWindow);
+}
 function cycleActionAttrs(action, extra = '') {
   return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
@@ -45,7 +50,7 @@ function handleCycleClick(event) {
   if (!actionEl) return;
   switch (actionEl.dataset.cycleAction || '') {
     case 'close':
-      appWindow.closeModal();
+      closeCycleModal();
       break;
     case 'delete-period':
       deletePeriodEntry(actionEl.dataset.cycleStartDate || '');
@@ -576,7 +581,7 @@ export function saveMenstrualCycle() {
   }
   recordContextCardChangeRuntime('menstrualCycle');
   saveImportedData();
-  appWindow.closeModal();
+  closeCycleModal();
   const activeNav = document.querySelector(".nav-item.active");
   appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   showNotification('Menstrual cycle profile saved', 'success');
@@ -587,7 +592,7 @@ export async function clearMenstrualCycle() {
   if (await showConfirmDialog('Clear all menstrual cycle data? This cannot be undone.')) {
     try { await clearCycleProfileData(); }
     catch (error) { showNotification(`Menstrual cycle data could not be cleared: ${error.message}`, 'error'); return; }
-    appWindow.closeModal();
+    closeCycleModal();
     const activeNav = document.querySelector(".nav-item.active");
     appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
     showNotification('Menstrual cycle data cleared', 'info');

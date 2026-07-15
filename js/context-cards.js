@@ -112,6 +112,7 @@ import {
   clearInterpretiveLens,
   showDietContaminantsModal,
 } from './context-card-lifestyle-editors.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const contextCardActionDelegateRoots = new WeakSet();
 const CONTEXT_CARD_ACTION_ATTR = 'data-context-card-action';
@@ -130,6 +131,12 @@ const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
 const contextCardWindow = /** @type {Window & typeof globalThis & {
   closeModal?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
+function closeContextCardModal() {
+  const closeModal = typeof contextCardWindow.closeModal === 'function'
+    ? contextCardWindow.closeModal.bind(contextCardWindow)
+    : (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
+  closeModal?.();
+}
 const contextCardRuntimeDeps = {
   openEMFAssessmentEditor,
 };
@@ -174,7 +181,7 @@ function handleContextCardClick(event) {
   } else if (action === 'open-emf-assessment') {
     const openAssessment = () => { void contextCardRuntimeDeps.openEMFAssessmentEditor(); };
     if (actionEl.dataset.contextCardCloseModal === 'true') {
-      contextCardWindow.closeModal?.();
+      closeContextCardModal();
       setTimeout(openAssessment, 100);
     } else {
       openAssessment();
@@ -417,7 +424,7 @@ export function saveAndRefresh(msg, field) {
   // Preserve details open state across the re-render below
   const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
   if (details?.open) sessionStorage.setItem('welcome-details-open', '1');
-  appWindow.closeModal();
+  closeContextCardModal();
   showNotification(msg, 'success');
   if (typeof appWindow.onContextCardSaved === 'function') appWindow.onContextCardSaved();
   // Re-render the current view so the saved values appear on the card
