@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-chat-actions.js — Chat action buttons + context summary. Window-export
+// test-chat-actions.js — Chat action buttons + context summary. Module-surface
 // checks, getContextSummary() shape, buildActionBar() HTML output (Regenerate
 // only on last AI msg, Copy always, context toggle, area counts), backward
 // compat, plus source-inspection of chat.js / chat-actions.js / lab-context.js / settings.js /
@@ -28,12 +28,14 @@ function assert(name, condition, detail) {
 
 console.log('=== Chat Actions Tests ===\n');
 
-// state.js exposes window._labState; chat.js + lab-context.js expose the
-// action-bar / context-summary handlers via Object.assign(window, ...).
+// state.js exposes window._labState; chat actions and context summaries stay
+// on their module surfaces.
 await import('../js/state.js');
 const labContext = await import('../js/lab-context.js');
 await import('../js/chat.js');
-const { buildActionBar } = await import('../js/chat-actions.js');
+const {
+  buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
+} = await import('../js/chat-actions.js');
 const { buildSummaryTranscript } = await import('../js/chat-summaries.js');
 const {
   attachLensSources, buildMultiPersonaInstruction, buildTaggedChatMessages, buildWebSearchHint,
@@ -52,13 +54,12 @@ const S = window._labState;
 const hasState = S && typeof S === 'object';
 assert('window._labState exists', hasState, hasState ? 'found' : 'not found');
 
-// ─── Section 1: Window exports ───
-console.log('Section 1: Window Exports');
-const requiredExports = [
-  'regenerateLastMessage', 'copyMessage', 'toggleContextDetails'
-];
-for (const fn of requiredExports) {
-  assert(`window.${fn} exists`, typeof window[fn] === 'function', typeof window[fn]);
+// ─── Section 1: Module exports ───
+console.log('Section 1: Module Exports');
+const moduleActions = { buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails };
+for (const [name, action] of Object.entries(moduleActions)) {
+  assert(`chat-actions.${name} exists`, typeof action === 'function', typeof action);
+  assert(`window.${name} stays module-only`, typeof window[name] === 'undefined', typeof window[name]);
 }
 assert('lab-context.getContextSummary exists', typeof labContext.getContextSummary === 'function');
 assert('window.getContextSummary stays module-only', !('getContextSummary' in window));
@@ -383,7 +384,13 @@ assert('lab-context.js has getContextSummary', labCtxSrc.includes('function getC
 assert('chat.js loads window bindings entry', chatSrc.includes("import './chat-window-bindings.js'"), 'found');
 assert('chat.js imports action helpers', chatSrc.includes("from './chat-actions.js'"), 'found');
 assert('chat-actions.js exports buildActionBar', chatActionsSrc.includes('export function buildActionBar'), 'found');
-assert('chat-actions.js keeps buildActionBar off window', !chatActionsSrc.includes('  buildActionBar,'), 'not a window handler');
+assert('chat actions stay off the runtime window registry',
+  !chatActionsSrc.includes('registerUtilsRuntimeExports')
+    && !chatWindowBindingsSrc.includes('  buildActionBar,')
+    && !chatWindowBindingsSrc.includes('  regenerateLastMessage,')
+    && !chatWindowBindingsSrc.includes('  copyMessage,')
+    && !chatWindowBindingsSrc.includes('  toggleContextDetails,'),
+  'not window handlers');
 assert('chat-actions.js installs delegated chat message actions',
   chatActionsSrc.includes("from './chat-message-action-attrs.js'")
     && chatActionsSrc.includes("export { chatMessageActionAttrs } from './chat-message-action-attrs.js'")

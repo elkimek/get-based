@@ -12,7 +12,6 @@ import {
   chatMessageActionAttrs,
 } from './chat-message-action-attrs.js';
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 
 const chatMessageActionDeps = {
@@ -219,9 +218,3 @@ export function toggleContextDetails(msgIndex) {
   details.style.display = open ? 'none' : 'flex';
   if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
 }
-
-registerUtilsRuntimeExports({
-  regenerateLastMessage,
-  copyMessage,
-  toggleContextDetails,
-});

@@ -4,13 +4,12 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() =>
     typeof window.renderChatMessages === 'function'
-      && typeof window.toggleContextDetails === 'function'
       && !!window._labState
   );
 
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
-    const { buildActionBar } = await import('/js/chat-actions.js');
+    const chatActions = await import('/js/chat-actions.js');
     const state = window._labState;
     const originalHistory = JSON.parse(JSON.stringify(state.chatHistory || []));
     const outcomes = {};
@@ -34,7 +33,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         outcomes.userMessagesHaveNoActionBars = userMsgs.length > 0 && userMsgs[0].querySelector('.chat-action-bar') === null;
       } else {
         const doc = new DOMParser().parseFromString(
-          `<div class="chat-msg chat-ai">${buildActionBar(1)}</div><div class="chat-msg chat-user">Hello</div>`,
+          `<div class="chat-msg chat-ai">${chatActions.buildActionBar(1)}</div><div class="chat-msg chat-user">Hello</div>`,
           'text/html'
         );
         const aiMsg = doc.querySelector('.chat-msg.chat-ai');
@@ -51,18 +50,25 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       testDiv.innerHTML = '<div id="chat-ctx-details-1" style="display:none">content</div><span id="chat-ctx-arrow-1">▸</span>';
       document.body.appendChild(testDiv);
       try {
-        window.toggleContextDetails(1);
+        chatActions.toggleContextDetails(1);
         const details = document.getElementById('chat-ctx-details-1');
         const arrow = document.getElementById('chat-ctx-arrow-1');
         outcomes.toggleContextDetailsOpens = details?.style.display === 'flex';
         outcomes.toggleContextArrowOpens = arrow?.textContent === '▾';
 
-        window.toggleContextDetails(1);
+        chatActions.toggleContextDetails(1);
         outcomes.toggleContextDetailsCloses = details?.style.display === 'none';
         outcomes.toggleContextArrowCloses = arrow?.textContent === '▸';
       } finally {
         testDiv.remove();
       }
+
+      outcomes.chatActionsStayModuleOnly = [
+        'buildActionBar',
+        'copyMessage',
+        'regenerateLastMessage',
+        'toggleContextDetails',
+      ].every(name => typeof window[name] === 'undefined');
 
       const keyDiv = document.createElement('div');
       keyDiv.innerHTML = '<div id="chat-ctx-details-42" style="display:none">content</div>' +

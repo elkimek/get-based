@@ -773,6 +773,12 @@
   }
   assert('window.scheduleChartThemeRefresh stays module-internal', !('scheduleChartThemeRefresh' in window));
   assert('window._getActiveProfileId stays module-only', !('_getActiveProfileId' in window));
+  assert('chat action handlers stay module-only', [
+    'buildActionBar',
+    'copyMessage',
+    'regenerateLastMessage',
+    'toggleContextDetails',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
