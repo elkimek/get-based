@@ -20,7 +20,7 @@ import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
 import { isDebugMode } from './utils.js';
-import { exposeAppleHealthDebugBindings, getAppleHealthJSZip } from './wearables-apple-health-runtime.js';
+import { getAppleHealthJSZip } from './wearables-apple-health-runtime.js';
 
 // ─────────────────────────────────────────────────────────
 // File ingestion entry point
@@ -442,5 +442,3 @@ function normaliseUnit(metricId, value, unit) {
       return (!unit || unit === canonUnit) ? value : null;
   }
 }
-
-if (isDebugMode?.()) exposeAppleHealthDebugBindings({ _appleHealth: { importAppleHealthFile, parseAppleHealthXml } });

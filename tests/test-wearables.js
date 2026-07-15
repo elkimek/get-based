@@ -814,7 +814,10 @@ assert('Apple Health delegates browser globals to runtime adapter',
   ahSrc.includes("from './wearables-apple-health-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(ahSrc) &&
     ahRuntimeSrc.includes('export function getAppleHealthJSZip') &&
-    ahRuntimeSrc.includes('export function exposeAppleHealthDebugBindings'));
+    !ahRuntimeSrc.includes('exposeAppleHealthDebugBindings'));
+assert('Apple Health debug bridge stays off window',
+  !ahSrc.includes('exposeAppleHealthDebugBindings') &&
+    typeof window._appleHealth === 'undefined');
 assert('loadJSZip memoizes via module-level _jszipLoad',
   /let\s+_jszipLoad\s*=\s*null/.test(ahSrc));
 assert('loadJSZip injects /vendor/jszip.min.js script tag',
