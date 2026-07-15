@@ -14,6 +14,7 @@ return (async function() {
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
   const profile = await import('/js/profile.js');
+  const views = await import('/js/views.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -36,7 +37,7 @@ return (async function() {
     S.profileDob = '1987-11-22';
     dataModule.saveImportedData();
     window.buildSidebar();
-    window.navigate('dashboard');
+    views.navigate('dashboard');
     await wait(50);
   }
   const data = dataModule.getActiveData();

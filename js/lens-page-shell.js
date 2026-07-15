@@ -6,6 +6,7 @@ import { escapeHTML, escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const LENS_PAGE_ORDER_VERSION = 1;
 
@@ -24,7 +25,7 @@ function lensPageRuntime() {
 }
 
 function callLensPageRuntime(name, ...args) {
-  const fn = lensPageRuntime()[name];
+  const fn = lensPageRuntime()[name] || (name === 'navigate' ? getViewRuntimeFunction(name) : null);
   if (typeof fn === 'function') fn(...args);
 }
 

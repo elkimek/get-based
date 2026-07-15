@@ -6,6 +6,7 @@ import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog } from './utils.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const dnaRuntimeDeps = { getLatitudeFromLocation, isDebugMode, isImportRunning, showConfirmDialog };
 
@@ -34,7 +35,9 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  const fn = runtime[name];
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 /** @returns {boolean} */

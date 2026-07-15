@@ -11,7 +11,7 @@ async function prepareApp(page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.navigate === 'function');
+  await page.waitForFunction(() => !!window._labState);
 }
 
 test('lens page shell default dashboard deps render fallback widgets', async ({ page }) => {
@@ -55,12 +55,13 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, shell, profile, contextCardsRuntime] = await Promise.all([
+    const [{ state }, dataModule, shell, profile, contextCardsRuntime, views] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/lens-page-shell.js'),
       import('/js/profile.js'),
       import('/js/context-cards-runtime.js'),
+      import('/js/views.js'),
     ]);
     const originalView = state.currentView;
     const originalReimportDNA = window.reimportDNA;
@@ -94,7 +95,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       }
 
       localStorage.removeItem(labsOrderKey);
-      window.navigate?.('labs');
+      views.navigate('labs');
       await delay(120);
 
       const widgets = document.querySelector('.lens-page-widgets[data-lens-route="labs"]');
@@ -157,10 +158,11 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       window.openSettingsModal = originalOpenSettings;
       window.openChatPanel = originalOpenChat;
       shell.configureLensPageShell(restoreShell);
-      window.navigate = originalNavigate;
+      if (originalNavigate) window.navigate = originalNavigate;
+      else delete window.navigate;
       if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
       else localStorage.setItem(labsOrderKey, savedLabsOrder);
-      if (originalView) originalNavigate?.(originalView);
+      if (originalView) views.navigate(originalView);
     }
   });
 

@@ -27,7 +27,7 @@ export async function runBrowserScript(page, testPath, options = {}) {
   try {
     if (options.viewport) await page.setViewportSize(options.viewport);
     await page.goto('/app', { waitUntil: 'load' });
-    await page.waitForFunction(() => window._labState && typeof window.navigate === 'function', null, {
+    await page.waitForFunction(() => window._labState && document.getElementById('main-content'), null, {
       timeout: options.readyTimeout ?? 15_000,
     });
 

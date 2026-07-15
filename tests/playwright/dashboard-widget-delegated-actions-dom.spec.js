@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 test('dashboard widget delegated actions cover organize, picker, biometrics, and body actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.navigate === 'function');
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
     const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, viewsModule] = await Promise.all([
@@ -46,7 +46,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
 
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
-      window.navigate?.('dashboard');
+      viewsModule.navigate('dashboard');
       await delay(100);
 
       const customizeBtn = document.querySelector('.dashboard-sticky-actions [data-dashboard-widget-action="toggle-organize"]');
@@ -127,7 +127,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       };
       localStorage.setItem(biometricSelectionKey, JSON.stringify(['bp_systolic', 'rhr']));
       viewsModule.addDashboardBiometricMetric?.('rhr');
-      window.navigate?.('dashboard');
+      viewsModule.navigate('dashboard');
       await delay(250);
 
       const biometricWidget = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
@@ -235,7 +235,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       else if (state.importedData) delete state.importedData.wearableConnections;
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
-      if (originalView) window.navigate?.(originalView);
+      if (originalView) viewsModule.navigate(originalView);
     }
   });
 
@@ -246,9 +246,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
 
 test('dashboard widget state transitions cover layout, recommendations, and picker branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.navigate === 'function'
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -396,7 +394,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const readJson = key => JSON.parse(localStorage.getItem(key) || '[]');
     const dashboardWidget = id => document.querySelector(`.dashboard-widget[data-widget-id="${id}"]`);
 
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     const recCardsHydrated = await waitFor(() =>
       document.querySelectorAll('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card').length > 0
     );
@@ -415,7 +413,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     await delay(100);
     const bookmarkStored = firstRecId && readJson(recSavedKey).includes(firstRecId);
 
-    window.navigate('recommendations');
+    viewsModule.navigate('recommendations');
     const recommendationsPageRenders = await waitFor(() =>
       document.querySelectorAll('#recommendations-page .rec-next-card').length > 0
     );
@@ -428,7 +426,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     viewsModule.saveRecommendation?.(firstRecId, false);
 
     viewsModule.resetDashboardWidgets();
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     await waitFor(() => dashboardWidget('focus'));
     viewsModule.moveDashboardWidget('focus', 1);
     await delay(100);
@@ -484,10 +482,11 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       removedFromLens = readPrefs().hidden.includes('alerts')
         && lensNavigateCalls.filter(route => route === 'labs').length >= 2;
     } finally {
-      window.navigate = realNavigate;
+      if (realNavigate) window.navigate = realNavigate;
+      else delete window.navigate;
     }
     state.currentView = 'dashboard';
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     await waitFor(() => dashboardWidget('focus') || document.querySelector('.dashboard-widget'));
 
     localStorage.setItem(biometricKey, JSON.stringify([]));
@@ -515,7 +514,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       && !document.getElementById('dashboard-widget-picker-overlay');
 
     viewsModule.resetDashboardWidgets();
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     await waitFor(() => dashboardWidget('focus') && dashboardWidget('spotlight'));
     viewsModule.toggleDashboardOrganizeMode(true);
     await waitFor(() => document.querySelector('.dashboard-widgets.is-organizing'));
@@ -562,6 +561,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     } finally {
       if (realNavigate && window.navigate !== realNavigate) window.navigate = realNavigate;
+      else if (!realNavigate) delete window.navigate;
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
       document.getElementById('dashboard-widget-picker-overlay')?.remove();

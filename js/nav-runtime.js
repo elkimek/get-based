@@ -38,7 +38,8 @@ function getNavRuntimeScope() {
 function getNavRuntimeFunction(name) {
   const runtime = getNavRuntimeScope();
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 /**

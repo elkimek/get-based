@@ -598,10 +598,10 @@
     'hasCardContent','escapeAttr','loadScriptOnce'
   ];
 
-  // views.js retains only the core navigate shell contract on window.
-  const viewsLegacyExports = ['navigate'];
+  // views.js is module-only; cycle-sensitive consumers use views-runtime-bridge.js.
+  const viewsLegacyExports = [];
   const viewsFacadeModuleExports = [
-    'getInitialView','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
+    'getInitialView','navigate','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
     'showBodyLens','showInsightLens','showRecommendations','openRecommendationDetail',
     'discussRecommendation','saveRecommendation','dismissRecommendation','showLight',
     '_expandLightToolsSection','_toggleChannelDetail','_openChannelOnLightPage',
@@ -949,7 +949,7 @@
   // 14. NAVIGATION — category switching
   // ═══════════════════════════════════════════════
   // Navigate to a known category — sidebar only shows categories with data
-  window.navigate('biochemistry');
+  viewsModule.navigate('biochemistry');
   const bioNavItem = document.querySelector('.nav-item[data-category="biochemistry"]');
   if (bioNavItem) {
     assert('Navigation activates biochemistry nav item', bioNavItem.classList.contains('active'));
@@ -960,11 +960,11 @@
   assert('Main content updated after navigate', main?.innerHTML.includes('biochemistry') || main?.innerHTML.includes('Biochemistry') || main?.innerHTML.includes('category'));
 
   // Navigate to compare
-  window.navigate('compare');
+  viewsModule.navigate('compare');
   assert('Compare view loads', main?.innerHTML.includes('compare') || main?.innerHTML.includes('Compare'));
 
   // Navigate back to dashboard
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   assert('Dashboard renders after navigate', main?.innerHTML.includes('dashboard') || main?.innerHTML.includes('Dashboard') || main?.innerHTML.includes('drop-zone') || main?.innerHTML.includes('context-card'));
 
   // ═══════════════════════════════════════════════

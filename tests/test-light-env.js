@@ -848,7 +848,8 @@ const {
     screenNavCall?.route === 'light' &&
     screenNavCall?.data?.scrollAnchor === '.light-env-screen-card[data-id="screen_single"]',
     JSON.stringify(screenNavCall));
-  window.navigate = beforeNavigate;
+  if (beforeNavigate) window.navigate = beforeNavigate;
+  else delete window.navigate;
   window._labState.currentView = beforeScreenToggleView;
   window._labState.importedData = beforeScreenToggleState;
 

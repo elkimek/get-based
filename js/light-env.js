@@ -52,6 +52,7 @@ import {
 import { installLightEnvActionDelegates, lightEnvActionAttrs } from './light-env-actions.js';
 import { SCREEN_HOURS_BUCKETS, renderScreenCard } from './light-env-screen-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 export { getLightAudits, saveLightAudit, updateLightAudit, deleteLightAudit } from './light-env-audits.js';
 export {
@@ -553,8 +554,11 @@ function refreshLightEnvironmentUI(options = {}) {
   refreshLightEnvironmentAssessment();
   if (options.scrollAnchor) scrollLightEnvironmentAssessmentTo(options.scrollAnchor, options.fallbackScrollAnchor);
   else if (priorScrollTop) setLightEnvironmentAssessmentScrollTop(priorScrollTop);
-  if (typeof globalThis.navigate === 'function' && state.currentView === 'light') {
-    globalThis.navigate('light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
+  const navigate = typeof globalThis.navigate === 'function'
+    ? globalThis.navigate
+    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  if (navigate && state.currentView === 'light') {
+    navigate.call(globalThis, 'light', options.scrollAnchor ? { scrollAnchor: options.scrollAnchor } : undefined);
   }
 }
 

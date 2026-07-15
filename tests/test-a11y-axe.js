@@ -91,7 +91,7 @@ return (async () => {
     // ── 3. Helpers ──────────────────────────────────────────────────────
     const allViolations = new Map();
     async function safeNav(view) {
-      try { window.navigate?.(view); } catch (e) { note(`navigate(${view}) threw: ${e.message}`); }
+      try { viewsModule.navigate(view); } catch (e) { note(`navigate(${view}) threw: ${e.message}`); }
       await new Promise(r => setTimeout(r, 700));
     }
     function clearTransientUi() {
@@ -289,7 +289,7 @@ return (async () => {
     // Close any overlay we may have left open so the next test starts clean.
     try { viewsModule.closeModal(); } catch (_) {}
     // Re-navigate to dashboard so the DOM matches state.currentView.
-    try { window.navigate?.('dashboard'); } catch (_) {}
+    try { viewsModule.navigate('dashboard'); } catch (_) {}
   }
 
   console.log(`\n%c Axe Result: ${pass} passed, ${fail} failed, ${info} info `,

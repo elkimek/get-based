@@ -1,9 +1,18 @@
 import { expect, test } from './coverage-fixture.js';
 
 test('OpenRouter provider controls render from Settings AI', async ({ page }) => {
+  await page.addInitScript(() => {
+    const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
+    localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
+    localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
+  });
   await page.goto('/app', { waitUntil: 'load' });
 
   await page.evaluate(() => {
+    window.endTour?.();
+    document.getElementById('tour-overlay')?.remove();
+    document.getElementById('tour-spotlight')?.remove();
+    document.getElementById('tour-tooltip')?.remove();
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
     window.openSettingsModal('ai');
   });

@@ -3,6 +3,7 @@
 
 import { hasAIProvider } from './api.js';
 import { showNotification } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const clientListRuntimeDeps = { showNotification };
 
@@ -28,7 +29,9 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  const fn = runtime[name];
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 /**

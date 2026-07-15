@@ -77,7 +77,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       state.profileSex = originalSex;
       state.profileDob = originalDob;
       window.renameCategory = originalRenameCategory;
-      if (originalView) window.navigate?.(originalView);
+      if (originalView) viewsModule.navigate(originalView);
     }
   });
 

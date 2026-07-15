@@ -130,12 +130,19 @@ const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
 });
 const contextCardWindow = /** @type {Window & typeof globalThis & {
   closeModal?: () => void,
+  navigate?: (category: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 function closeContextCardModal() {
   const closeModal = typeof contextCardWindow.closeModal === 'function'
     ? contextCardWindow.closeModal.bind(contextCardWindow)
     : (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
   closeModal?.();
+}
+function navigateContextCardView(category) {
+  const navigate = typeof contextCardWindow.navigate === 'function'
+    ? contextCardWindow.navigate.bind(contextCardWindow)
+    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  navigate?.(category);
 }
 const contextCardRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -433,7 +440,7 @@ export function saveAndRefresh(msg, field) {
   // update until a reload or navigation. Mirrors the BroadcastChannel
   // handler in crypto.js:initBroadcastChannel. See #123.
   const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
-  if (typeof appWindow.navigate === 'function') appWindow.navigate(activeNav?.dataset.category || 'dashboard');
+  navigateContextCardView(activeNav?.dataset.category || 'dashboard');
   // Refresh health dots for the saved card (fingerprint will have changed).
   // Must run after navigate() so the ctx-dot-* elements exist in the new DOM.
   loadContextHealthDots();

@@ -2,6 +2,7 @@
 // sun-defaults-runtime.js - Browser runtime adapters for Light setup defaults.
 
 import { getProfileLocation } from './profile.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const sunDefaultsRuntimeDeps = { getProfileLocation };
 
@@ -20,7 +21,10 @@ function getRuntimeWindow() {
 /** @param {string} name */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return typeof runtime?.[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (!runtime) return null;
+  const fn = runtime[name];
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
 }
 
 /**

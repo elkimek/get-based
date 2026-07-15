@@ -319,7 +319,7 @@ test('Body cycle action opens the contextual cycle picker', async ({ page }, tes
     localStorage.setItem(`labcharts-${id}-tour`, '1');
     localStorage.setItem(`labcharts-${id}-cycleTour`, '1');
     endTour({ openEmptyChat: false });
-    window.navigate('body');
+    (await import('/js/views.js')).navigate('body');
     await new Promise(resolve => setTimeout(resolve, 150));
     endTour({ openEmptyChat: false });
     window.closeMobileSidebar?.();

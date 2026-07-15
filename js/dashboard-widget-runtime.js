@@ -16,6 +16,7 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
+  if (!runtime) return null;
   if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
   return getViewRuntimeFunction(name);
 }
