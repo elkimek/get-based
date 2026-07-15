@@ -10,9 +10,3 @@ function getRuntimeWindow() {
 export function getAppleHealthJSZip() {
   return getRuntimeWindow()?.JSZip || null;
 }
-
-/** @param {Record<string, unknown>} bindings */
-export function exposeAppleHealthDebugBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
-}
