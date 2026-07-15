@@ -294,7 +294,6 @@ test('chat discussion request builder covers personality model assistant and usa
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];
     }));
-    const originalProfileGetter = window._getActiveProfileId;
     const original = {
       currentProfile: state.currentProfile,
       importedData: state.importedData,
@@ -330,7 +329,6 @@ test('chat discussion request builder covers personality model assistant and usa
         icon: 'P',
         promptText: 'Challenge weak claims.',
       }]));
-      window._getActiveProfileId = () => 'chat-discussion-coverage';
       data.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
 
@@ -403,7 +401,6 @@ test('chat discussion request builder covers personality model assistant and usa
       state.profileDob = original.profileDob;
       state.currentChatPersonality = original.currentChatPersonality;
       state.chatHistory = original.chatHistory;
-      window._getActiveProfileId = originalProfileGetter;
       data.invalidateActiveDataCache();
       labContext.invalidateLabContextCache();
       localStorage.clear();

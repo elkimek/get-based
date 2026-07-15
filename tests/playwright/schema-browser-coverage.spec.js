@@ -15,7 +15,10 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ schemaUrl }) => {
-    const schema = await import(schemaUrl);
+    const [schema, { state }] = await Promise.all([
+      import(schemaUrl),
+      import('/js/state.js'),
+    ]);
     const outcomes = {};
 
     const approxEqual = (actual, expected, epsilon = 0.000001) =>
@@ -34,7 +37,7 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
       }
     };
 
-    const originalProfileGetter = window._getActiveProfileId;
+    const originalProfile = state.currentProfile;
     try {
       resetStorage();
 
@@ -98,7 +101,7 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && schema.formatCost(0.0042) === '$0.0042'
         && schema.formatCost(0.12) === '$0.120';
 
-      window._getActiveProfileId = () => 'schema-profile';
+      state.currentProfile = 'schema-profile';
       schema.trackUsage('venice', 'deepseek-v3', 1000000, 500000);
       schema.trackUsage('venice', 'deepseek-v3', 0, 0);
       const profileUsage = schema.getProfileUsage('schema-profile');
@@ -136,8 +139,7 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && schema.getEMFSeverity('missing', 10) === null
         && schema.getEMFSeverity('rfMicrowave', null) === null;
     } finally {
-      if (originalProfileGetter) window._getActiveProfileId = originalProfileGetter;
-      else delete window._getActiveProfileId;
+      state.currentProfile = originalProfile;
       resetStorage();
     }
 
