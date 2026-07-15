@@ -7,11 +7,12 @@ test('all sessions modal renders scrollable session list', async ({ page }) => {
 
   const before = await page.locator('.modal-overlay').count();
 
-  await page.evaluate((sessionCount) => {
+  await page.evaluate(async (sessionCount) => {
+    const viewsModule = await import('/js/views.js');
     const state = window._labState;
     if (!state?.importedData) throw new Error('window._labState.importedData unavailable');
-    if (typeof window._openAllSessionsModal !== 'function') {
-      throw new Error('window._openAllSessionsModal unavailable');
+    if (typeof viewsModule._openAllSessionsModal !== 'function') {
+      throw new Error('views._openAllSessionsModal unavailable');
     }
 
     state.importedData.sunSessions = Array.from({ length: sessionCount }, (_, i) => ({
@@ -25,7 +26,7 @@ test('all sessions modal renders scrollable session list', async ({ page }) => {
     }));
     state.importedData.deviceSessions = [];
 
-    window._openAllSessionsModal();
+    viewsModule._openAllSessionsModal();
   }, SESSION_COUNT);
 
   await expect(page.locator('.modal-overlay')).toHaveCount(before + 1);

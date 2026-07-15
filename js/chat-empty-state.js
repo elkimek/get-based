@@ -11,6 +11,7 @@ import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   chatOnboardingActionAttrs,
   _countFilledCards, _renderOnboardCrumbs, _renderProviderQuiz,
@@ -47,7 +48,8 @@ function chatEmptyRuntime() {
 
 function callChatEmptyRuntime(name, ...args) {
   const fn = chatEmptyRuntime()[name];
-  return typeof fn === 'function' ? fn(...args) : undefined;
+  const runtimeFn = typeof fn === 'function' ? fn : getViewRuntimeFunction(name);
+  return runtimeFn ? runtimeFn(...args) : undefined;
 }
 
 function closeChatPanel() {

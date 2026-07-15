@@ -2,16 +2,13 @@ import { expect, test } from './coverage-fixture.js';
 
 test('audit runtime guards no-op on adversarial marker ids', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.showCategory === 'function'
-      && typeof window.renderChartCard === 'function'
-      && !!window._labState
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule] = await Promise.all([
+    const [{ state }, dataModule, viewsModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/views.js'),
     ]);
     const originalData = state.importedData;
     const originalSex = state.profileSex;
@@ -30,7 +27,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         window.buildSidebar?.();
       }
 
-      window.showCategory('biochemistry');
+      viewsModule.showCategory('biochemistry');
       await delay(50);
       const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
       const tableBtn = document.querySelector('[data-category-page-action="switch-view"][data-category-page-view="table"]');
@@ -50,21 +47,21 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       let quoteInjectionNoop = false;
       let protoNoop = false;
       if (beforeHeading) {
-        window.showCategory("hormones');alert(1);//");
+        viewsModule.showCategory("hormones');alert(1);//");
         await delay(30);
         quoteInjectionNoop = document.querySelector('.category-header h2')?.textContent === beforeHeading;
 
-        window.showCategory('__proto__');
+        viewsModule.showCategory('__proto__');
         await delay(30);
         protoNoop = document.querySelector('.category-header h2')?.textContent === beforeHeading;
       }
 
       const overlay = document.getElementById('modal-overlay');
       const openBefore = !!overlay?.classList.contains('show');
-      window.showDetailModal("biochemistry_glucose');alert(2);//");
+      viewsModule.showDetailModal("biochemistry_glucose');alert(2);//");
       await delay(30);
 
-      const safeRender = window.renderChartCard('biochemistry_glucose', { name: 'Glucose', values: [5] }, ['2025-01-01']) || '';
+      const safeRender = viewsModule.renderChartCard('biochemistry_glucose', { name: 'Glucose', values: [5] }, ['2025-01-01']) || '';
       return {
         controlCategoryRendered: !!beforeHeading,
         quoteInjectionNoop,
@@ -72,7 +69,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         categoryDelegatesSwitchViews,
         categoryDelegatesRename,
         detailModalInjectionNoop: !!overlay?.classList.contains('show') === openBefore,
-        unsafeChartCardEmpty: window.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '',
+        unsafeChartCardEmpty: viewsModule.renderChartCard("foo';evil('", { name: 'x', values: [1] }, ['2025-01-01']) === '',
         safeChartCardRenders: safeRender.includes('biochemistry_glucose') && safeRender.includes('chart-card'),
       };
     } finally {

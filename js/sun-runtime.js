@@ -2,6 +2,7 @@
 // sun-runtime.js - Browser runtime adapters for Sun session facade hooks.
 
 import { isDebugMode } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const sunRuntimeDeps = { isDebugMode };
 
@@ -26,7 +27,8 @@ function getRuntimeNavigator() {
 /** @param {string} name */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return typeof runtime?.[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (typeof runtime?.[name] === 'function') return runtime[name].bind(runtime);
+  return getViewRuntimeFunction(name);
 }
 
 export function hasSunBrowserRuntime() {

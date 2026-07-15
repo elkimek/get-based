@@ -33,6 +33,7 @@ return (async () => {
 
   const { state } = await import('/js/state.js');
   const { loadDemoData } = await import('/js/export.js');
+  const viewsModule = await import('/js/views.js');
   // Capture full state shape so we can restore even if we mutate
   // currentProfile / importedData / markerRegistry / etc along the way.
   const snapshot = {
@@ -138,8 +139,8 @@ return (async () => {
     // Detail modal
     await safeNav('dashboard');
     await safeOp('open detail modal', async () => {
-      if (typeof window.showDetailModal === 'function') {
-        window.showDetailModal('hormones_insulin');
+      if (typeof viewsModule.showDetailModal === 'function') {
+        viewsModule.showDetailModal('hormones_insulin');
         await new Promise(r => setTimeout(r, 600));
       }
     });

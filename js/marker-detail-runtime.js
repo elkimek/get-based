@@ -2,6 +2,7 @@
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
 import { closeEMFInterpretation } from './emf-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const markerDetailRuntimeDeps = {
   closeEMFInterpretation,
@@ -27,7 +28,8 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
+  return getViewRuntimeFunction(name);
 }
 
 /**

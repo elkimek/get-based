@@ -2,6 +2,7 @@
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -15,7 +16,8 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
+  return getViewRuntimeFunction(name);
 }
 
 export function getDashboardViewportHeight() {

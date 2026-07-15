@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { showPromptDialog } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const lightDevicesRuntimeDeps = { showPromptDialog };
 
@@ -28,7 +29,8 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (typeof runtime[name] === 'function') return runtime[name].bind(runtime);
+  return getViewRuntimeFunction(name);
 }
 
 /**

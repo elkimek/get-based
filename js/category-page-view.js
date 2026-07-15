@@ -23,6 +23,7 @@ import {
   renderFattyAcidsCharts,
 } from './category-view-renderers.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const categoryPageActionDelegateRoots = new WeakSet();
 
@@ -57,7 +58,8 @@ function handleCategoryPageActionClick(event) {
   const categoryKey = actionEl.dataset.categoryPageCategory || '';
   if (!safeMarkerId(categoryKey)) return;
   if (action === 'rename-category') {
-    appWindow.renameCategory?.(categoryKey);
+    const renameCategory = appWindow.renameCategory || getViewRuntimeFunction('renameCategory');
+    renameCategory?.(categoryKey);
   } else if (action === 'switch-view') {
     const view = actionEl.dataset.categoryPageView || '';
     if (view !== 'charts' && view !== 'table' && view !== 'heatmap') return;

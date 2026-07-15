@@ -115,7 +115,6 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForFunction(
       () => window._labState
-        && typeof window.showDetailModal === 'function'
         && typeof window.navigate === 'function'
         && typeof window.openSunSessionDetail === 'function'
         && typeof window.openDeviceSessionDetail === 'function',
@@ -218,8 +217,9 @@ async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNe
 }
 
 async function openMarkerModal(page) {
-  await page.evaluate(({ markerId }) => {
-    window.showDetailModal(markerId);
+  await page.evaluate(async ({ markerId }) => {
+    const viewsModule = await import('/js/views.js');
+    viewsModule.showDetailModal(markerId);
   }, { markerId: MARKER_ID });
   await page.waitForFunction(
     () => document.getElementById('modal-overlay')?.classList?.contains('show')
@@ -231,6 +231,7 @@ async function openMarkerModal(page) {
 
 async function editOpenMarkerValue(page, newValue) {
   await page.evaluate(async ({ markerId, date, markerKey, mirrorKey, next }) => {
+    const viewsModule = await import('/js/views.js');
     const waitFor = async (fn, timeoutMs = 2500) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -243,7 +244,7 @@ async function editOpenMarkerValue(page, newValue) {
       .find(el => /\d/.test(el.textContent || ''));
     if (!valueEl) throw new Error('No marker history value element found');
     const current = parseFloat(valueEl.textContent);
-    window.editMarkerValue(markerId, date, current, { target: valueEl });
+    viewsModule.editMarkerValue(markerId, date, current, { target: valueEl });
     const input = valueEl.querySelector('input.ref-edit-input');
     if (!input) throw new Error('Marker edit input did not render');
     input.value = String(next);

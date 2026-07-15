@@ -33,7 +33,7 @@ console.log('=== v1.6.7–v1.6.16 Regression Tests ===\n');
 await import('../js/state.js');
 await import('../js/sun.js');
 const lightTools = await import('../js/light-tools.js');
-await import('../js/views.js');
+const viewsModule = await import('../js/views.js');
 
 // Snapshot mutable state we touch.
 const _origImported = window._labState ? JSON.parse(JSON.stringify(window._labState.importedData)) : null;
@@ -401,18 +401,19 @@ const _origProfileSex = window._labState ? window._labState.profileSex : null;
       viewsSrc.includes("from './light-sessions-view.js'"));
     assert('light sessions view: _toggleAllSessions and _showAllSessions removed',
       !/_toggleAllSessions/.test(sessionsSrc) && !/_showAllSessions/.test(sessionsSrc));
-    // First: existence check — should pass in both node + browser
-    // (sun.js / views.js exposes the function via Object.assign(window,...)).
-    assert('window._openAllSessionsModal exposed on window',
-      typeof window._openAllSessionsModal === 'function');
+    // First: module API existence check — should pass in both Node + browser.
+    assert('views._openAllSessionsModal is exported',
+      typeof viewsModule._openAllSessionsModal === 'function');
+    assert('window._openAllSessionsModal stays module-only',
+      !('_openAllSessionsModal' in window));
     // Behaviour: only in a real browser — Node's document shim returns null
     // for getElementById, so showAllSessionsModal would write innerHTML to
     // null. Playwright covers the runtime path.
-    if (!_isNode && typeof window._openAllSessionsModal === 'function') {
+    if (!_isNode && typeof viewsModule._openAllSessionsModal === 'function') {
       const before = document.querySelectorAll('.modal-overlay').length;
-      try { window._openAllSessionsModal(); } catch (e) {}
+      try { viewsModule._openAllSessionsModal(); } catch (e) {}
       const after = document.querySelectorAll('.modal-overlay').length;
-      assert('window._openAllSessionsModal opens a modal-overlay', after > before);
+      assert('views._openAllSessionsModal opens a modal-overlay', after > before);
       const m = document.querySelectorAll('.modal-overlay');
       if (m.length > before) m[m.length - 1].remove();
     }

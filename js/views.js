@@ -5,6 +5,7 @@ import { getActiveData, destroyAllCharts } from './data.js';
 import { buildSidebar } from './nav.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
+import { configureViewRuntime } from './views-runtime-bridge.js';
 import { createNavigate, getInitialView as getRouterInitialView } from './views-router.js';
 import { createDashboardViewComposition } from './dashboard-view-composition.js';
 import { createLensPageHandlers } from './lens-pages.js';
@@ -109,10 +110,23 @@ export {
   renderFattyAcidsView,
   renderFattyAcidsCharts,
   showCategory,
+  renameCategory,
+  renameMarker,
+  revertMarkerName,
+  changeCategoryIcon,
   switchView,
   showLight,
+  _expandLightToolsSection,
+  _toggleChannelDetail,
+  _openChannelOnLightPage,
+  _openAllSessionsModal,
   renderLightTodayStrip,
   renderLightChannelsLive,
+  renderConditionsNow,
+  _refreshConditionsNow,
+  _inspectConditionsNow,
+  _setManualUvi,
+  _clearManualUvi,
   moveLensPageWidget,
   fetchCustomMarkerDescription,
   showDetailModal,
@@ -287,11 +301,10 @@ configureCompareCorrelationViews({
 
 
 // ═══════════════════════════════════════════════
-// WINDOW EXPORTS
+// CYCLE-SENSITIVE RUNTIME ACTIONS
 // ═══════════════════════════════════════════════
 
-Object.assign(window, {
-  navigate,
+configureViewRuntime({
   getInitialView,
   showDashboard,
   showLabs,
@@ -376,3 +389,6 @@ Object.assign(window, {
   renderCorrelationChips,
   renderCorrelationChart,
 });
+
+// Core shell contracts retained while their remaining integrations migrate.
+Object.assign(window, { navigate, closeModal });

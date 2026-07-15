@@ -685,7 +685,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   });
   assert(testName(theme, viewportName, 'demo marker available for modal test'), !!markerId);
   if (markerId) {
-    await page.evaluate(id => window.showDetailModal?.(id), markerId);
+    await page.evaluate(async id => {
+      const viewsModule = await import('/js/views.js');
+      viewsModule.showDetailModal?.(id);
+    }, markerId);
     await delay(250);
     result = await page.evaluate(() => {
       const overlay = document.getElementById('modal-overlay');
@@ -1045,18 +1048,20 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     }
   }
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
+    const viewsModule = await import('/js/views.js');
     window.scrollTo(0, 0);
-    window.showCategory?.('biochemistry');
+    viewsModule.showCategory?.('biochemistry');
   });
   await page.waitForSelector('.category-header', { timeout: 5000 });
   for (const view of ['table', 'heatmap']) {
     const shellKind = view === 'table' ? 'data' : 'heatmap';
     const wrapperClass = view === 'table' ? 'data-table-wrapper' : 'heatmap-wrapper';
-    await page.evaluate((view) => {
+    await page.evaluate(async (view) => {
+      const viewsModule = await import('/js/views.js');
       const btns = document.querySelectorAll('.view-toggle .view-btn');
       const btn = btns[view === 'table' ? 1 : 2];
-      window.switchView?.(view, 'biochemistry', btn);
+      viewsModule.switchView?.(view, 'biochemistry', btn);
       window.scrollTo(0, 0);
     }, view);
     await page.waitForSelector(`.gb-table-shell-${shellKind} .gb-table-sticky-head`, { state: 'attached', timeout: 5000 });

@@ -253,6 +253,7 @@
     "js/utils.js",
     "js/views-router-runtime.js",
     "js/views-router.js",
+    "js/views-runtime-bridge.js",
     "js/views.js",
     "js/wearable-adapters.js",
     "js/wearables-apple-health-runtime.js",

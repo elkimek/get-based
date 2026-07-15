@@ -49,7 +49,7 @@ const dataModule = await import('../js/data.js');
 const profileModule = await import('../js/profile.js');
 cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
 await import('../js/nav.js');
-await import('../js/views.js');
+const viewsModule = await import('../js/views.js');
 const exportModule = await import('../js/export.js');
 await import('../js/settings.js');
 await import('../js/chat.js');
@@ -332,8 +332,8 @@ for (const name of dataExports) {
 const expectedExports = [
   // nav.js
   'buildSidebar', 'renderProfileDropdown',
-  // views.js
-  'navigate', 'showDashboard',
+  // views.js shell contracts
+  'navigate',
   // settings.js
   'openSettingsModal', 'closeSettingsModal',
   // chat.js
@@ -342,6 +342,8 @@ const expectedExports = [
 for (const name of expectedExports) {
   assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
 }
+assert('views.showDashboard exists', typeof viewsModule.showDashboard === 'function');
+assert('window.showDashboard stays module-only', !('showDashboard' in window));
 for (const name of ['openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData']) {
   assert(`export.${name} exists`, typeof exportModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));

@@ -78,6 +78,7 @@
     '/js/client-list-runtime.js',
     '/js/nav-runtime.js',
     '/js/views-router-runtime.js',
+    '/js/views-runtime-bridge.js',
     '/js/focus-card.js',
     '/js/onboarding-view-runtime.js',
     '/js/onboarding-view.js',
@@ -597,20 +598,30 @@
     'hasCardContent','escapeAttr','loadScriptOnce'
   ];
 
-  // views.js (36 — closeImportModal removed, lives in pdf-import.js)
-  const viewsExports = [
-    'navigate','showDashboard',
-    'renderFocusCard','loadFocusCard','refreshFocusCard',
-    'renderOnboardingBanner','completeOnboardingSex','completeOnboardingProfile','dismissOnboarding',
-    'showCategory','switchView',
-    'renderChartCard','renderTableView','renderHeatmapView','renderFattyAcidsView','renderFattyAcidsCharts',
-    'fetchCustomMarkerDescription',
-    'showDetailModal','openManualEntryForm','saveManualEntry','deleteMarkerValue',
-    'closeModal',
-    'showCompare','setCompareDate1','setCompareDate2','updateCompare','swapCompareDates','renderCompareTable',
-    'showCorrelations','populateCorrelationOptions','showCorrelationDropdown',
-    'filterCorrelationOptions','toggleCorrelationMarker','applyCorrelationPreset',
-    'renderCorrelationChips','renderCorrelationChart'
+  // views.js retains only the two core shell contracts on window.
+  const viewsLegacyExports = ['navigate','closeModal'];
+  const viewsFacadeModuleExports = [
+    'getInitialView','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
+    'showBodyLens','showInsightLens','showRecommendations','openRecommendationDetail',
+    'discussRecommendation','saveRecommendation','dismissRecommendation','showLight',
+    '_expandLightToolsSection','_toggleChannelDetail','_openChannelOnLightPage',
+    '_openAllSessionsModal','renderLightTodayStrip','renderLightChannelsLive',
+    'renderConditionsNow','_refreshConditionsNow','_inspectConditionsNow','_setManualUvi',
+    '_clearManualUvi','renderFocusCard','buildFocusContext','loadFocusCard','refreshFocusCard',
+    'renderOnboardingBanner','renderAIConnectionReminder','dismissAIReminder',
+    'openChatProviderQuiz','setOnboardingFocus','completeOnboardingSex',
+    'completeOnboardingProfile','dismissOnboarding','showCategory','renameCategory',
+    'renameMarker','revertMarkerName','changeCategoryIcon','switchView','renderChartCard',
+    'renderTableView','renderHeatmapView','renderFattyAcidsView','renderFattyAcidsCharts',
+    'fetchCustomMarkerDescription','showDetailModal','editRefRange','saveRefRange',
+    'revertRefRange','openManualEntryForm','saveManualEntry','saveAndAddAnotherManualEntry',
+    'openCreateMarkerModal','pickNewCatIcon','saveCustomMarker','deleteMarkerValue',
+    'deleteCustomMarker','editMarkerValue','revertMarkerValue','editValueNote',
+    'deleteValueNote','toggleMarkerNoteEditor','saveMarkerNote','deleteMarkerNote',
+    'rememberModalTrigger','showCompare','setCompareDate1','setCompareDate2','updateCompare',
+    'swapCompareDates','renderCompareTable','showCorrelations','populateCorrelationOptions',
+    'showCorrelationDropdown','filterCorrelationOptions','toggleCorrelationMarker',
+    'applyCorrelationPreset','renderCorrelationChips','renderCorrelationChart'
   ];
   const viewsDashboardWidgetExports = [
     'toggleDashboardOrganizeMode','moveDashboardWidget','moveLensPageWidget',
@@ -653,6 +664,7 @@
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
     ['utils.js', utilsModule, utilsExports],
+    ['views.js facade', viewsModule, viewsFacadeModuleExports],
     ['views.js dashboard widgets', viewsModule, viewsDashboardWidgetExports],
   ]) {
     for (const name of exports) {
@@ -719,6 +731,9 @@
   for (const name of viewsDashboardWidgetExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of viewsFacadeModuleExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
@@ -727,7 +742,7 @@
     'notes.js': notesExports,
     'settings.js': settingsExports,
     'theme.js': themeExports,
-    'views.js': viewsExports,
+    'views.js': viewsLegacyExports,
   };
 
   let totalExports = 0;
