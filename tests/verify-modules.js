@@ -189,7 +189,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, navModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -204,6 +204,7 @@
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
+    import('../js/nav.js'),
     import('../js/pdf-import.js'),
     import('../js/pii.js'),
     import('../js/profile.js'),
@@ -461,10 +462,19 @@
     'cashuRestoreWalletFromSeed','cashuGetMintUrl','cashuSetMintUrl','cashuGetFeePct'
   ];
 
-  // nav.js (5)
-  const navExports = [
-    'buildSidebar','filterSidebar','toggleNavGroup',
-    'renderProfileDropdown','renderProfileButton','getAvatarColor'
+  // nav.js (5 retained runtime hooks; delegate helpers use ESM exports)
+  const navGlobals = [
+    'buildSidebar','renderProfileDropdown','renderProfileButton',
+    'toggleMobileSidebar','closeMobileSidebar'
+  ];
+  const navModuleOnlyExports = [
+    'filterSidebar','toggleNavGroup','getAvatarColor',
+    'syncSidebarActive','openRecommendationsFromSidebar','installNavActionDelegates'
+  ];
+  const navModuleExports = [
+    ...navGlobals,
+    ...navModuleOnlyExports,
+    'configureNavActions',
   ];
 
   // notes.js (3)
@@ -667,6 +677,7 @@
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
+    ['nav.js', navModule, navModuleExports],
     ['pdf-import.js', pdfImportModule, pdfImportExports],
     ['pii.js', piiModule, piiExports],
     ['profile.js', profileModule, profileExports],
@@ -703,6 +714,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of lightToolsLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of navModuleOnlyExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of pdfImportExports) {
@@ -755,7 +769,7 @@
   const allModules = {
     'chat.js': chatExports,
     'client-list.js': clientListExports,
-    'nav.js': navExports,
+    'nav.js': navGlobals,
     'notes.js': notesExports,
     'settings.js': settingsGlobals,
     'theme.js': themeExports,

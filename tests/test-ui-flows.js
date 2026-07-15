@@ -33,6 +33,7 @@ return (async function() {
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
   const settingsModule = await import('/js/settings.js');
+  const navModule = await import('/js/nav.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -805,7 +806,7 @@ return (async function() {
   if (totalBefore >= 2 && sidebarSearch && searchTerm) {
     // Filter with a term taken from an item that is eligible to hide.
     sidebarSearch.value = searchTerm;
-    window.filterSidebar();
+    navModule.filterSidebar();
     await wait(20);
     const hiddenNav = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search filters items', hiddenNav.length > 0);
@@ -813,7 +814,7 @@ return (async function() {
 
     // Clear filter
     sidebarSearch.value = '';
-    window.filterSidebar();
+    navModule.filterSidebar();
     await wait(20);
     const afterClear = getFilterableNavItems().filter(el => el.style.display === 'none');
     assert('Sidebar search clear restores all', afterClear.length === 0);
