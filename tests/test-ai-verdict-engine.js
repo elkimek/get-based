@@ -25,7 +25,7 @@ return (async function () {
 
   const eng = await import('/js/ai-verdict-engine.js?bust=' + Date.now());
   const api = await import('/js/api.js?bust=' + Date.now());
-  const { createAIVerdict, hashString, dotPrefix, VERDICT_DOT_VALUES } = eng;
+  const { createAIVerdict, getAIVerdictSlotsDebug, hashString, dotPrefix, VERDICT_DOT_VALUES } = eng;
 
   // ─── 1. hashString — deterministic + djb2 properties ──────────────
   console.log('%c 1. hashString ', 'font-weight:bold;color:#a855f7');
@@ -488,14 +488,14 @@ return (async function () {
       ]);
       // Sample mid-flight — should see at most 2 fetches active concurrently
       await new Promise(r => setTimeout(r, 100));
-      const slots = window._aiSlotsDebug?.();
+      const slots = getAIVerdictSlotsDebug();
       assert('Concurrency cap holds: at most 2 concurrent fetches',
         maxInFlight <= 2, `maxInFlight=${maxInFlight} slots=${JSON.stringify(slots)}`);
       assert('Third concurrent call waits in queue',
         slots?.waiting >= 1, `slots=${JSON.stringify(slots)}`);
       await p;
       assert('After all 3 finish: zero active, zero waiting',
-        window._aiSlotsDebug?.().active === 0 && window._aiSlotsDebug?.().waiting === 0);
+        getAIVerdictSlotsDebug().active === 0 && getAIVerdictSlotsDebug().waiting === 0);
     } finally {
       window.fetch = origFetch;
       if (prevCap === undefined) delete window._aiConcurrencyCap;

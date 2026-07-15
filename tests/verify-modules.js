@@ -819,6 +819,7 @@
     'toggleThreadRail',
   ].every(name => !(name in window)));
   assert('window._appleHealth stays module-only', !('_appleHealth' in window));
+  assert('window._aiSlotsDebug stays module-only', !('_aiSlotsDebug' in window));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
