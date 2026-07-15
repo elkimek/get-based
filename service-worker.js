@@ -76,6 +76,7 @@ const APP_SHELL = [
   '/js/app-ui-shell-modules.js',
   '/js/app-shell-hooks.js',
   '/js/app-event-listeners.js',
+  '/js/context-card-dashboard-ai-runtime.js',
   '/js/startup-orchestrator.js',
   '/js/schema.js',
   '/js/schema-environment.js',

@@ -37,10 +37,10 @@ import {
   installDashboardAIActionDelegates,
 } from './context-card-dashboard-ai-actions.js';
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
+import { notifyDashboardAIContextStatusChanged } from './context-card-dashboard-ai-runtime.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   handleDNAFile?: (file: File) => void,
-  updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 
 let dashboardAISyncSetupHandler = showSyncSetupModal;
@@ -727,7 +727,7 @@ function bindContextSourceToggles(overlay) {
         const next = /** @type {HTMLInputElement | null} */ (document.getElementById(focusId));
         next?.focus();
       }
-      appWindow.updateChatContextStatus?.();
+      notifyDashboardAIContextStatusChanged();
     };
   });
 }

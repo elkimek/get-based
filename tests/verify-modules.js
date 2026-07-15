@@ -26,6 +26,7 @@
     '/js/app-ui-shell-modules.js',
     '/js/app-shell-hooks.js',
     '/js/app-event-listeners.js',
+    '/js/context-card-dashboard-ai-runtime.js',
     '/js/crypto.js',
     '/js/startup-orchestrator.js',
     '/js/startup-foundation.js',
@@ -779,6 +780,7 @@
     'regenerateLastMessage',
     'toggleContextDetails',
   ].every(name => !(name in window)));
+  assert('window.updateChatContextStatus stays module-only', !('updateChatContextStatus' in window));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
