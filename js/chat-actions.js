@@ -16,12 +16,20 @@ import { openEMFAssessmentEditor } from './emf-runtime.js';
 
 const chatMessageActionDeps = {
   openEMFAssessmentEditor,
+  openImageLightbox: /** @type {(src: string) => void} */ (() => {}),
+  removeImageAttachment: /** @type {(index: number) => void} */ (() => {}),
 };
 
 export function configureChatMessageActionDeps(deps = {}) {
   const previous = { ...chatMessageActionDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     chatMessageActionDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  if (typeof deps.openImageLightbox === 'function') {
+    chatMessageActionDeps.openImageLightbox = deps.openImageLightbox;
+  }
+  if (typeof deps.removeImageAttachment === 'function') {
+    chatMessageActionDeps.removeImageAttachment = deps.removeImageAttachment;
   }
   return previous;
 }
@@ -70,11 +78,11 @@ function runChatMessageAction(actionEl, event) {
   } else if (action === 'remove-image-attachment') {
     const index = readMessageIndex(actionEl);
     if (index == null) return;
-    appWindow.removeImageAttachment?.(index);
+    chatMessageActionDeps.removeImageAttachment(index);
   } else if (action === 'open-image-lightbox') {
     const src = actionEl instanceof HTMLImageElement ? actionEl.src : actionEl.dataset.chatMessageSrc;
     if (!src) return;
-    appWindow.openImageLightbox?.(src);
+    chatMessageActionDeps.openImageLightbox(src);
   } else if (action === 'open-emf-assessment') {
     void chatMessageActionDeps.openEMFAssessmentEditor();
   } else if (action === 'jump-search-result') {

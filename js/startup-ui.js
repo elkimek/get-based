@@ -14,7 +14,11 @@ import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const startupUIDeps = { maybeShowAnalyticsConsent };
+const startupUIDeps = {
+  initChatImageHandlers: () => {},
+  maybeShowAnalyticsConsent,
+  updateAttachButtonVisibility: () => {},
+};
 
 export function configureStartupUIDeps(deps = {}) {
   const previous = { ...startupUIDeps };
@@ -22,6 +26,12 @@ export function configureStartupUIDeps(deps = {}) {
     startupUIDeps.maybeShowAnalyticsConsent = typeof deps.maybeShowAnalyticsConsent === 'function'
       ? /** @type {typeof maybeShowAnalyticsConsent} */ (deps.maybeShowAnalyticsConsent)
       : null;
+  }
+  if (typeof deps.initChatImageHandlers === 'function') {
+    startupUIDeps.initChatImageHandlers = deps.initChatImageHandlers;
+  }
+  if (typeof deps.updateAttachButtonVisibility === 'function') {
+    startupUIDeps.updateAttachButtonVisibility = deps.updateAttachButtonVisibility;
   }
   return previous;
 }
@@ -141,7 +151,7 @@ function refreshStartupChrome() {
 
 function initializeChatAttachments() {
   // Init chat image attachment handlers (paste, drag-drop, file input).
-  requireStartupRuntime('initChatImageHandlers');
-  requireStartupRuntime('updateAttachButtonVisibility');
+  startupUIDeps.initChatImageHandlers();
+  startupUIDeps.updateAttachButtonVisibility();
   requireStartupRuntime('updateChatNudge');
 }

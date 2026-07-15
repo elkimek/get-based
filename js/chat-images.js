@@ -14,7 +14,6 @@ import { resizeImage, isValidImageType } from './image-utils.js';
 import { hasAIProvider, supportsVision } from './api.js';
 import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 const MAX_ATTACHMENTS = 5;
 const THUMB_SIZE = 80;
@@ -225,16 +224,3 @@ export function initChatImageHandlers() {
     });
   }
 }
-
-// Keep legacy runtime exports; main.js / chat.js init also wires
-// initChatImageHandlers() on DOMContentLoaded.
-registerUtilsRuntimeExports({
-  toggleHDMode,
-  addImageAttachment,
-  removeImageAttachment,
-  renderAttachmentPreview,
-  openImageLightbox,
-  clearAttachments,
-  updateAttachButtonVisibility,
-  initChatImageHandlers,
-});

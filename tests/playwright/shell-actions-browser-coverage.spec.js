@@ -28,6 +28,9 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const previousShellFeedbackDeps = shellActions.configureShellFeedbackDeps({
       openFeedbackModal: () => calls.push(['openFeedbackModal']),
     });
+    const previousShellChatImageDeps = shellActions.configureShellChatImageDeps({
+      toggleHDMode: () => calls.push(['toggleHDMode']),
+    });
     const originalFns = {
       toggleMobileSidebar: window.toggleMobileSidebar,
       closeMobileSidebar: window.closeMobileSidebar,
@@ -43,7 +46,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       toggleChatFullscreen: window.toggleChatFullscreen,
       togglePersonalityBar: window.togglePersonalityBar,
       setChatPersonality: window.setChatPersonality,
-      toggleHDMode: window.toggleHDMode,
       startDiscussion: window.startDiscussion,
       sendChatMessage: window.sendChatMessage,
       filterThreadList: window.filterThreadList,
@@ -194,6 +196,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     } finally {
       shellActions.configureShellImportDeps(previousShellImportDeps);
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
+      shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
       for (const [name, value] of Object.entries(originalFns)) {
         if (value === undefined) delete window[name];
         else window[name] = value;

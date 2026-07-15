@@ -3,6 +3,14 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { closeChangelog } from './changelog.js';
+import { configureChatMessageActionDeps } from './chat-actions.js';
+import {
+  initChatImageHandlers,
+  openImageLightbox,
+  removeImageAttachment,
+  toggleHDMode,
+  updateAttachButtonVisibility,
+} from './chat-images.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { closeChatPanel, configureChatPanel, toggleChatPanel } from './chat-panel.js';
 import { updateChatNudge } from './chat-nudge.js';
@@ -27,6 +35,8 @@ import {
 } from './views.js';
 import { openProfileShareModal } from './profile-share.js';
 import { getActiveProfileId } from './profile.js';
+import { configureShellChatImageDeps } from './shell-actions.js';
+import { configureStartupUIDeps } from './startup-ui.js';
 
 configureClientListRuntime({
   exportAllDataJSON,
@@ -50,6 +60,9 @@ configureSettingsRuntime({
 });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
+configureChatMessageActionDeps({ openImageLightbox, removeImageAttachment });
+configureShellChatImageDeps({ toggleHDMode });
+configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });
 configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({

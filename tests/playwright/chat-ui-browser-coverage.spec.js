@@ -44,6 +44,17 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       chatImages.clearAttachments();
       chatImages.updateAttachButtonVisibility();
 
+      outcomes.chatImageHandlersStayModuleOnly = [
+        'toggleHDMode',
+        'addImageAttachment',
+        'removeImageAttachment',
+        'renderAttachmentPreview',
+        'openImageLightbox',
+        'clearAttachments',
+        'updateAttachButtonVisibility',
+        'initChatImageHandlers',
+      ].every(name => typeof window[name] === 'undefined');
+
       outcomes.attachButtonsVisibleForVisionProvider = attachBtn?.style.display === 'flex'
         && hdBtn?.style.display === 'flex'
         && hdBtn?.classList.contains('active') === false;
@@ -677,10 +688,10 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
 
       localStorage.setItem('labcharts-ai-paused', 'true');
       window._resumeAI();
-      outcomes.resumeBindingUnpausesAndExportsChatFns = localStorage.getItem('labcharts-ai-paused') === 'false'
+      outcomes.resumeBindingUnpausesAndKeepsChatImageHelpersModuleOnly = localStorage.getItem('labcharts-ai-paused') === 'false'
         && typeof window.summarizeThread === 'function'
         && typeof window.startDiscussion === 'function'
-        && typeof window.clearAttachments === 'function';
+        && typeof window.clearAttachments === 'undefined';
     } finally {
       state.currentProfile = original.currentProfile;
       state.chatHistory = original.chatHistory;
