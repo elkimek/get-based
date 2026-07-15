@@ -71,6 +71,11 @@ assert('chat-actions delegates dynamic chat controls',
     'continue-discussion',
     'end-discussion',
   ].every(action => actionsSrc.includes(`action === '${action}'`)));
+assert('chat image message actions use configured module dependencies',
+  actionsSrc.includes('chatMessageActionDeps.removeImageAttachment(index)')
+    && actionsSrc.includes('chatMessageActionDeps.openImageLightbox(src)')
+    && !actionsSrc.includes('appWindow.removeImageAttachment')
+    && !actionsSrc.includes('appWindow.openImageLightbox'));
 
 const renderSrc = read('js/chat-render.js');
 const sendSrc = read('js/chat-send.js');

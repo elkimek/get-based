@@ -60,6 +60,16 @@ assert('Feedback shell action uses its module dependency instead of a window loo
     && shellSrc.includes('shellFeedbackDeps.openFeedbackModal()')
     && !shellSrc.includes("callShellRuntime('openFeedbackModal')"));
 
+assert('Chat HD shell action uses its module dependency instead of a window lookup',
+  shellSrc.includes('shellChatImageDeps.toggleHDMode()')
+    && !shellSrc.includes("callShellRuntime('toggleHDMode')"));
+
+assert('App shell wires module-only chat image consumers',
+  appShellHooksSrc.includes("from './chat-images.js'")
+    && appShellHooksSrc.includes('configureChatMessageActionDeps({ openImageLightbox, removeImageAttachment });')
+    && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
+    && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });'));
+
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
     && appShellHooksSrc.includes("import { updateChatContextStatus } from './chat-personalities.js'")

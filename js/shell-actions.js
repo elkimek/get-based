@@ -7,6 +7,7 @@ import { openFeedbackModal } from './feedback.js';
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
+const shellChatImageDeps = { toggleHDMode: () => {} };
 
 export function configureShellImportDeps(deps = {}) {
   const previous = { ...shellImportDeps };
@@ -18,6 +19,12 @@ export function configureShellImportDeps(deps = {}) {
 export function configureShellFeedbackDeps(deps = {}) {
   const previous = { ...shellFeedbackDeps };
   if (typeof deps.openFeedbackModal === 'function') shellFeedbackDeps.openFeedbackModal = deps.openFeedbackModal;
+  return previous;
+}
+
+export function configureShellChatImageDeps(deps = {}) {
+  const previous = { ...shellChatImageDeps };
+  if (typeof deps.toggleHDMode === 'function') shellChatImageDeps.toggleHDMode = deps.toggleHDMode;
   return previous;
 }
 
@@ -109,7 +116,7 @@ function runChatAction(action, actionEl) {
     clickFileInput('chat-image-input');
     return true;
   } else if (action === 'toggle-hd') {
-    callShellRuntime('toggleHDMode');
+    shellChatImageDeps.toggleHDMode();
     return true;
   } else if (action === 'start-discussion') {
     callShellRuntime('startDiscussion');

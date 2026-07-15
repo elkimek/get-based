@@ -29,7 +29,7 @@ await import('../js/state.js');
 const api = await import('../js/api.js');
 const imageUtils = await import('../js/image-utils.js');
 const pdfImport = await import('../js/pdf-import.js');
-await import('../js/chat-images.js');
+const chatImages = await import('../js/chat-images.js');
 const { resizeImage, isValidImageType, formatImageBlock, buildVisionContent } = imageUtils;
 
 // ═══════════════════════════════════════
@@ -47,11 +47,20 @@ assert('image utility exports stay module-scoped',
   && typeof window.formatImageBlock === 'undefined'
   && typeof window.buildVisionContent === 'undefined');
 assert('supportsVision exported from api module', typeof api.supportsVision === 'function');
-assert('addImageAttachment exported', typeof window.addImageAttachment === 'function');
-assert('removeImageAttachment exported', typeof window.removeImageAttachment === 'function');
-assert('clearAttachments exported', typeof window.clearAttachments === 'function');
-assert('updateAttachButtonVisibility exported', typeof window.updateAttachButtonVisibility === 'function');
-assert('initChatImageHandlers exported', typeof window.initChatImageHandlers === 'function');
+const chatImageExports = [
+  'toggleHDMode',
+  'addImageAttachment',
+  'removeImageAttachment',
+  'renderAttachmentPreview',
+  'openImageLightbox',
+  'clearAttachments',
+  'updateAttachButtonVisibility',
+  'initChatImageHandlers',
+];
+for (const name of chatImageExports) {
+  assert(`chat-images.${name} exported`, typeof chatImages[name] === 'function');
+  assert(`window.${name} stays module-only`, typeof window[name] === 'undefined');
+}
 
 // ═══════════════════════════════════════
 // 2. isValidImageType

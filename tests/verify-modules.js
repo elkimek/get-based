@@ -781,6 +781,16 @@
     'toggleContextDetails',
   ].every(name => !(name in window)));
   assert('window.updateChatContextStatus stays module-only', !('updateChatContextStatus' in window));
+  assert('chat image handlers stay module-only', [
+    'toggleHDMode',
+    'addImageAttachment',
+    'removeImageAttachment',
+    'renderAttachmentPreview',
+    'openImageLightbox',
+    'clearAttachments',
+    'updateAttachButtonVisibility',
+    'initChatImageHandlers',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }

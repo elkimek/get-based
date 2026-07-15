@@ -408,12 +408,6 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     window.openChatPanel = () => {
       window.__startupUICalls.push('openChatPanel');
     };
-    window.initChatImageHandlers = () => {
-      window.__startupUICalls.push('initChatImageHandlers');
-    };
-    window.updateAttachButtonVisibility = () => {
-      window.__startupUICalls.push('updateAttachButtonVisibility');
-    };
     window.updateChatNudge = () => {
       window.__startupUICalls.push('updateChatNudge');
     };
@@ -441,8 +435,14 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     try {
       const startupUi = await import(startupUiUrl);
       startupUi.configureStartupUIDeps({
+        initChatImageHandlers: () => {
+          window.__startupUICalls.push('initChatImageHandlers');
+        },
         maybeShowAnalyticsConsent: () => {
           window.__startupUICalls.push('maybeShowAnalyticsConsent');
+        },
+        updateAttachButtonVisibility: () => {
+          window.__startupUICalls.push('updateAttachButtonVisibility');
         },
       });
       startupUi.renderStartupUI();
