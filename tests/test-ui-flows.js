@@ -34,6 +34,7 @@ return (async function() {
   const contextCards = await import('/js/context-cards.js');
   const settingsModule = await import('/js/settings.js');
   const navModule = await import('/js/nav.js');
+  const themeModule = await import('/js/theme.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -279,13 +280,13 @@ return (async function() {
   assert('Display panel visible', !!document.querySelector('.settings-tab-panel[data-tab-panel="display"].active'));
   assert('Display settings does not duplicate theme picker', !document.querySelector('.settings-theme-grid'));
 
-  const origThemeForTweaks = window.getTheme();
+  const origThemeForTweaks = themeModule.getTheme();
   const origAccentForTweaks = localStorage.getItem('labcharts-accent-override');
   const origSunsetForTweaks = localStorage.getItem('labcharts-sunset-mode');
   const origCrtForTweaks = localStorage.getItem('labcharts-crt-effects');
-  window.setTheme('dark');
-  window.setSunsetMode?.(false);
-  window.setCrtEffectsEnabled?.(false);
+  themeModule.setTheme('dark');
+  themeModule.setSunsetMode(false);
+  themeModule.setCrtEffectsEnabled(false);
   settingsModule.applyAccentOverride();
   settingsModule.openTweaksPanel();
   await wait(30);
@@ -319,11 +320,9 @@ return (async function() {
   settingsModule.closeTweaksPanel();
   if (origAccentForTweaks) localStorage.setItem('labcharts-accent-override', origAccentForTweaks);
   else localStorage.removeItem('labcharts-accent-override');
-  if (origSunsetForTweaks) window.setSunsetMode?.(true);
-  else window.setSunsetMode?.(false);
-  if (origCrtForTweaks) window.setCrtEffectsEnabled?.(true);
-  else window.setCrtEffectsEnabled?.(false);
-  window.setTheme(origThemeForTweaks);
+  themeModule.setSunsetMode(!!origSunsetForTweaks);
+  themeModule.setCrtEffectsEnabled(!!origCrtForTweaks);
+  themeModule.setTheme(origThemeForTweaks);
   settingsModule.applyAccentOverride(origAccentForTweaks || '');
 
   // Switch to data tab
@@ -689,10 +688,10 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 10. Theme toggle', 'font-weight:bold;color:#6366f1');
 
-  const origTheme = window.getTheme();
-  window.toggleTheme();
+  const origTheme = themeModule.getTheme();
+  themeModule.toggleTheme();
   await wait(20);
-  const newTheme = window.getTheme();
+  const newTheme = themeModule.getTheme();
   assert('Theme toggled', newTheme !== origTheme);
   const htmlEl = document.documentElement;
   if (newTheme === 'light') {
@@ -701,9 +700,9 @@ return (async function() {
     assert('Dark theme removes data-theme attr', htmlEl.getAttribute('data-theme') === null);
   }
   // Restore
-  window.toggleTheme();
+  themeModule.toggleTheme();
   await wait(20);
-  assert('Theme restored', window.getTheme() === origTheme);
+  assert('Theme restored', themeModule.getTheme() === origTheme);
 
   // ═══════════════════════════════════════════════
   // 11. CHAT PANEL — open, close

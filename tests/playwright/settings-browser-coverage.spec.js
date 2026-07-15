@@ -24,6 +24,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
 
   const results = await page.evaluate(async () => {
     const settingsModule = await import('/js/settings.js');
+    const themeModule = await import('/js/theme.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -91,7 +92,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       timeBtn.click();
       results.setTimeFormatFromDisplaySettings = localStorage.getItem('labcharts-time-format') === '12h'
         && timeBtn.classList.contains('active')
-        && window.formatTime('14:05') === '2:05 PM';
+        && themeModule.formatTime('14:05') === '2:05 PM';
 
       settingsModule.openTweaksPanel();
       const sunsetToggle = document.getElementById('tweaks-sunset-mode');
@@ -202,7 +203,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       document.getElementById('sun-source-fixture')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      if (saved.theme) window.setTheme?.(saved.theme);
+      if (saved.theme) themeModule.setTheme(saved.theme);
     }
   });
 

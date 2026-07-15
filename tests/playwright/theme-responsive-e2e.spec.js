@@ -173,6 +173,7 @@ async function prepareScenario(page, theme, viewport) {
   await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
   await waitForApp(page);
   await page.evaluate(async (nextTheme) => {
+    const themeModule = await import('/js/theme.js');
     (await import('/js/views.js')).closeModal();
     window.closeSettingsModal?.();
     window.closeChatPanel?.();
@@ -182,14 +183,12 @@ async function prepareScenario(page, theme, viewport) {
     localStorage.removeItem('labcharts-accent-override');
     localStorage.removeItem('labcharts-sunset-mode');
     localStorage.removeItem('labcharts-crt-effects');
-    if (typeof window.setSunsetMode === 'function') window.setSunsetMode(false);
-    else delete document.documentElement.dataset.sunsetMode;
-    if (typeof window.setCrtEffectsEnabled === 'function') window.setCrtEffectsEnabled(false);
-    else delete document.documentElement.dataset.crtEffects;
+    themeModule.setSunsetMode(false);
+    themeModule.setCrtEffectsEnabled(false);
     window.applyAccentOverride?.('');
     if (nextTheme === 'dark') localStorage.setItem('labcharts-theme', 'dark');
     else localStorage.setItem('labcharts-theme', nextTheme);
-    if (typeof window.setTheme === 'function') window.setTheme(nextTheme);
+    themeModule.setTheme(nextTheme);
   }, theme);
   await seedDemoData(page);
   await page.evaluate(() => {
@@ -505,14 +504,15 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
 
   await page.evaluate(() => window.openTweaksPanel?.());
   await delay(150);
-  result = await page.evaluate((theme) => {
+  result = await page.evaluate(async (theme) => {
+    const themeModule = await import('/js/theme.js');
     const panel = document.getElementById('tweaks-panel');
     const r = panel?.getBoundingClientRect();
     const defaultSwatch = panel?.querySelector('.tweaks-accent-btn[data-accent-id=""] .tweaks-accent-swatch');
     const defaultAccent = defaultSwatch?.style.getPropertyValue('--tweak-accent')?.trim()?.toLowerCase() || '';
     const crtRow = panel?.querySelector('#tweaks-crt-effects-row');
     const crtToggle = panel?.querySelector('#tweaks-crt-effects');
-    const crtSupported = !!window.supportsCrtEffects?.(theme);
+    const crtSupported = themeModule.supportsCrtEffects(theme);
     const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
     return {
       open: !!panel,
@@ -567,8 +567,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     settingsModule.updateTweaksUI();
   });
   await delay(80);
-  result = await page.evaluate((theme) => {
-    const supported = !!window.supportsCrtEffects?.(theme);
+  result = await page.evaluate(async (theme) => {
+    const supported = (await import('/js/theme.js')).supportsCrtEffects(theme);
     const crtRow = document.getElementById('tweaks-crt-effects-row');
     const crtToggle = document.getElementById('tweaks-crt-effects');
     const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
@@ -602,8 +602,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     settingsModule.updateTweaksUI();
   });
   await delay(80);
-  result = await page.evaluate((theme) => {
-    const supported = !!window.supportsCrtEffects?.(theme);
+  result = await page.evaluate(async (theme) => {
+    const supported = (await import('/js/theme.js')).supportsCrtEffects(theme);
     const crtRow = document.getElementById('tweaks-crt-effects-row');
     const crtToggle = document.getElementById('tweaks-crt-effects');
     const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
@@ -625,8 +625,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
       && result.crtToggleDisabled === !result.supported
       && result.bodyAfterContent === 'none',
     JSON.stringify(result));
-  await page.evaluate(() => {
-    window.setSunsetMode?.(true);
+  await page.evaluate(async () => {
+    (await import('/js/theme.js')).setSunsetMode(true);
     window.applyAccentOverride?.();
     window.updateTweaksUI?.();
   });
@@ -655,8 +655,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
       && result.sunsetToggle
       && result.themeColors.every(color => color === SUNSET_THEME_COLOR),
     JSON.stringify(result));
-  await page.evaluate(() => {
-    window.setSunsetMode?.(false);
+  await page.evaluate(async () => {
+    (await import('/js/theme.js')).setSunsetMode(false);
     window.applyAccentOverride?.();
     window.updateTweaksUI?.();
   });
