@@ -129,6 +129,7 @@ export function createDashboardPageView(deps) {
     renderDashboardWidget,
     isDashboardOrganizeMode,
     loadFocusCard,
+    loadContextCardTips,
     startEmptyTour = defaultStartEmptyTour,
     startTour = defaultStartTour,
   } = deps;
@@ -303,7 +304,7 @@ export function createDashboardPageView(deps) {
     // cached text with a fresh AI response during startup.
     if (hasData) loadFocusCard({ refreshStale: false });
     loadContextHealthDots();
-    callDashboardPageRuntime('loadContextCardTips');
+    loadContextCardTips();
     loadCommitHash();
     // Preload catalog so rec sections and sorting use it immediately
     const catalogPromise = callDashboardPageRuntime('loadCatalog');

@@ -8,6 +8,7 @@ import { getActiveProfileId, setProfileSex } from './profile.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { endTour } from './tour.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 import {
   buildCycleCoverage,
   normalizeCyclePeriods,
@@ -58,7 +59,6 @@ const SOURCE_LABELS = {
   manual: 'Manual',
 };
 const appWindow = /** @type {Window & typeof globalThis & {
-  recordChange?: (field: string) => void,
   navigate?: (category: string) => void,
   renderProfileButton?: () => void,
   closeModal?: () => void,
@@ -435,7 +435,7 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
     };
     const base = { ...(state.importedData.menstrualCycle || {}), periods: plan.mergedPeriods, coverage };
     state.importedData.menstrualCycle = await applyRawObservationCounts(base, profileId, parsed.source);
-    appWindow.recordChange?.('menstrualCycle');
+    recordContextCardChangeRuntime('menstrualCycle');
     await persistCycleState();
     return {
       observations: observations.length,
@@ -479,7 +479,7 @@ export async function deleteCycleImportFromProfile(importId) {
   };
   const remainingRows = rawRows.filter(row => row.importId !== importId);
   state.importedData.menstrualCycle = await applyRawObservationCounts(next, profileId, source, remainingRows);
-  appWindow.recordChange?.('menstrualCycle');
+  recordContextCardChangeRuntime('menstrualCycle');
   let persisted = false;
   try {
     await persistCycleState();
@@ -502,7 +502,7 @@ export async function deleteCycleSourceFromProfile(source) {
   const rawRows = await getAllCycleObservationsRaw(profileId).catch(() => []);
   const next = { ...mc, periods: (mc.periods || []).filter(period => period.source !== source) };
   state.importedData.menstrualCycle = await applyRawObservationCounts(next, profileId, source, rawRows.filter(row => row.source !== source));
-  appWindow.recordChange?.('menstrualCycle');
+  recordContextCardChangeRuntime('menstrualCycle');
   let persisted = false;
   try {
     await persistCycleState();
@@ -520,7 +520,7 @@ export async function clearCycleProfileData() {
   const profileId = getActiveProfileId();
   const snapshot = snapshotCycleState();
   state.importedData.menstrualCycle = null;
-  appWindow.recordChange?.('menstrualCycle');
+  recordContextCardChangeRuntime('menstrualCycle');
   let persisted = false;
   try {
     await persistCycleState();

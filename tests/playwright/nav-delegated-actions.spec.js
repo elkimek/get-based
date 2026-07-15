@@ -24,22 +24,23 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [nav, navRuntime, { state }] = await Promise.all([
+    const [nav, navRuntime, { state }, contextCardsRuntime] = await Promise.all([
       import('/js/nav.js'),
       import('/js/nav-runtime.js'),
       import('/js/state.js'),
+      import('/js/context-cards-runtime.js'),
     ]);
     const origDateRangeFilter = state.dateRangeFilter;
     const origCurrentView = state.currentView;
     const origImportedData = state.importedData;
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
-    const origOpenContext = window.openContextModal;
     const origOpenCreateMarker = window.openCreateMarkerModal;
     const origOpenClientList = window.openClientList;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
     let restoreNavActions = null;
     let restoreNavRuntime = null;
+    let restoreContextCardsRuntime = null;
 
     try {
       const fixtureData = {
@@ -81,7 +82,9 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
       });
-      window.openContextModal = () => calls.push(['open-context']);
+      restoreContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+        openContextModal: () => calls.push(['open-context']),
+      });
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
       window.openClientList = () => calls.push(['open-client-list']);
       window.buildSidebar(fixtureData);
@@ -146,7 +149,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.navigate = origNavigate;
       if (restoreNavRuntime) navRuntime.configureNavRuntime(restoreNavRuntime);
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
-      window.openContextModal = origOpenContext;
+      if (restoreContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(restoreContextCardsRuntime);
       window.openCreateMarkerModal = origOpenCreateMarker;
       window.openClientList = origOpenClientList;
       if (origGroupStorage == null) localStorage.removeItem('labcharts-navgroup-Hormones');

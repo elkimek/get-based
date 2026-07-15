@@ -1,6 +1,8 @@
 // @ts-check
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
+import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -87,7 +89,7 @@ export function navigateDashboardRoute(route) {
 }
 
 export function triggerDashboardDnaPicker() {
-  getRuntimeFunction('triggerDNAFilePicker')?.();
+  triggerContextCardDNAFilePickerRuntime();
 }
 
 /** @param {number | null} [index] */

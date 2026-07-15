@@ -11,6 +11,7 @@ return (async function() {
   const S = window._labState;
   const backupModule = await import('/js/backup.js');
   const exportModule = await import('/js/export.js');
+  const contextCards = await import('/js/context-cards.js');
   const profile = await import('/js/profile.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
@@ -1120,8 +1121,8 @@ return (async function() {
       // would compute against the live state. If migrateProfileData /
       // same-date merge drifts, fingerprints diverge and dots fall through
       // to AI fire on next render.
-      if (typeof window.getCardFingerprint === 'function') {
-        const liveFps = expectedKeys.map(k => ({k, live: window.getCardFingerprint(k), cached: ctxCached?.fingerprints?.[k]}));
+      if (typeof contextCards.getCardFingerprint === 'function') {
+        const liveFps = expectedKeys.map(k => ({k, live: contextCards.getCardFingerprint(k), cached: ctxCached?.fingerprints?.[k]}));
         const mismatched = liveFps.filter(x => x.live !== x.cached);
         assert('All 9 cached fingerprints match live fingerprints (proves migration + merge applied correctly)',
           mismatched.length === 0,

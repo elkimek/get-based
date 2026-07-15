@@ -202,6 +202,7 @@ export function createDashboardViewComposition({
     renderDashboardWidget,
     isDashboardOrganizeMode: () => dashboardWidgetControls.isOrganizeMode(),
     loadFocusCard,
+    loadContextCardTips,
   });
 
   configureLensPageShell({

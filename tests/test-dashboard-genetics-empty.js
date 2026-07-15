@@ -15,8 +15,7 @@ console.log('=== Genetics empty-state CTA tests ===\n');
 
 const dna = await import('../js/dna.js');
 const { state } = await import('../js/state.js');
-// context-cards.js exposes window.triggerDNAFilePicker.
-await import('../js/context-cards.js');
+const contextCards = await import('../js/context-cards.js');
   if (!state.importedData) state.importedData = {};
   const savedGenetics = state.importedData.genetics;
 
@@ -60,10 +59,12 @@ await import('../js/context-cards.js');
         !html.includes('genetics-empty-stub'));
     }
 
-    // ─── 4. window.triggerDNAFilePicker exists (used by stub delegate) ───
+    // ─── 4. DNA picker is a module API used by delegated actions ───
     {
-      assert('window.triggerDNAFilePicker is a function',
-        typeof window.triggerDNAFilePicker === 'function');
+      assert('contextCards.triggerDNAFilePicker is a function',
+        typeof contextCards.triggerDNAFilePicker === 'function');
+      assert('window.triggerDNAFilePicker stays module-only',
+        !('triggerDNAFilePicker' in window));
     }
   } finally {
     state.importedData.genetics = savedGenetics;

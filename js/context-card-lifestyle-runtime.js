@@ -1,6 +1,8 @@
 // @ts-check
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
+import { openContextModalRuntime } from './context-cards-runtime.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -63,6 +65,6 @@ export function discussDietContaminantsRuntime() {
 export function returnToLifestyleContextModalRuntime() {
   closeLifestyleContextModalRuntime();
   setTimeout(() => {
-    getRuntimeFunction('openContextModal')?.();
+    openContextModalRuntime();
   }, 0);
 }

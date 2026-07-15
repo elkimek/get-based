@@ -36,9 +36,9 @@ import {
   dashboardAIActionAttrs,
   installDashboardAIActionDelegates,
 } from './context-card-dashboard-ai-actions.js';
+import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
-  openInterpretiveLensEditor?: () => void,
   handleDNAFile?: (file: File) => void,
   updateChatContextStatus?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
@@ -57,7 +57,7 @@ export function configureDashboardAIDataProtectionDeps(deps = {}) {
 }
 
 configureDashboardAIActionDelegates({
-  'open-interpretive-lens': () => appWindow.openInterpretiveLensEditor?.(),
+  'open-interpretive-lens': () => openInterpretiveLensEditorRuntime(),
   'open-knowledge-base': () => openKnowledgeBaseModal(),
   'open-personalize-ai-picker': () => openContextModal(),
   'enable-encryption': () => dashboardAIDataProtectionDeps.showEnableEncryptionModal(),
@@ -783,8 +783,8 @@ export function openContextModal() {
     button.onclick = () => {
       const pick = button.getAttribute('data-pick');
       close();
-      if (pick === 'lens' && typeof appWindow.openInterpretiveLensEditor === 'function') {
-        appWindow.openInterpretiveLensEditor();
+      if (pick === 'lens') {
+        openInterpretiveLensEditorRuntime();
       } else if (pick === 'kb') {
         openKnowledgeBaseModal();
       }

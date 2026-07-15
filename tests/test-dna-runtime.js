@@ -25,6 +25,7 @@ import {
   triggerDnaFilePicker,
   updateDnaChatNudge,
 } from '../js/dna-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
 let passed = 0;
 let failed = 0;
@@ -61,6 +62,7 @@ const originals = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key
 const originalError = console.error;
 const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
+const originalContextCardsRuntime = configureContextCardsRuntimeCallbacks();
 
 try {
   for (const key of runtimeKeys) delete globalThis[key];
@@ -96,7 +98,10 @@ try {
   assert('callDnaFileHandler delegates file handling',
     calls.some(call => call[0] === 'handleDNAFile' && call[1] === 'dna.txt'));
 
-  globalThis.triggerDNAFilePicker = () => calls.push(['triggerDNAFilePicker']);
+  globalThis.triggerDNAFilePicker = () => calls.push(['legacyTriggerDNAFilePicker']);
+  configureContextCardsRuntimeCallbacks({
+    triggerDNAFilePicker: () => calls.push(['triggerDNAFilePicker']),
+  });
   triggerDnaFilePicker();
   assert('triggerDnaFilePicker delegates picker opening',
     calls.some(call => call[0] === 'triggerDNAFilePicker'));
@@ -195,6 +200,7 @@ try {
       typeof globalThis._saveAndRefresh === 'function');
 } finally {
   configureDnaRuntimeDeps(originalDnaRuntimeDeps);
+  configureContextCardsRuntimeCallbacks(originalContextCardsRuntime);
   console.error = originalError;
   console.warn = originalWarn;
   for (const key of runtimeKeys) {

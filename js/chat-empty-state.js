@@ -6,6 +6,7 @@ import { hasAIProvider, isAIPaused } from './api.js';
 import { getActiveData } from './data.js';
 import { getProfileHeight, getProfileLocation, getProfiles } from './profile.js';
 import { renderProfileContextCards } from './context-cards.js';
+import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
@@ -85,7 +86,7 @@ function handleChatEmptyClick(event) {
     openSupplementsEditor();
   } else if (action === 'import-dna') {
     closeChatPanel();
-    callChatEmptyRuntime('triggerDNAFilePicker');
+    triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'import-mtdna') {
     const input = /** @type {HTMLInputElement | null} */ (event.currentTarget?.querySelector('#mtdna-onboard-input') || null);
     closeChatPanel();

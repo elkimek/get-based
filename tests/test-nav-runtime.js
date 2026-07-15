@@ -12,6 +12,7 @@ import {
   openEMFAssessmentFromNavRuntime,
   openReportBuilderFromNavRuntime,
 } from '../js/nav-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
 let passed = 0;
 let failed = 0;
@@ -57,9 +58,12 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
+    openContextModal: () => calls.push(['context', true]),
+  });
   const browserRuntime = {
     navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
-    openContextModal() { calls.push(['context', this === browserRuntime]); },
+    openContextModal() { calls.push(['legacy-context']); },
     openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
     openClientList() { calls.push(['client', this === browserRuntime]); },
   };
@@ -88,6 +92,7 @@ try {
   for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
     delete browserRuntime[key];
   }
+  configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureNavRuntime({ openEMFAssessmentEditor: () => {}, openReportBuilder: () => {} });
   navigateFromNavRuntime('missing');
   openEMFAssessmentFromNavRuntime();
@@ -105,6 +110,7 @@ try {
   assert('nav runtime falls back to globalThis without window',
     globalRoute === 'recommendations' && globalThis.runtimeProbe === 'global');
   configureNavRuntime(restoreNavRuntime);
+  configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   restoreRuntime();
 }

@@ -3,6 +3,7 @@
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { openReportBuilder } from './export.js';
+import { openContextModalRuntime } from './context-cards-runtime.js';
 
 const navRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -55,7 +56,7 @@ export function openReportBuilderFromNavRuntime() {
 }
 
 export function openContextFromNavRuntime() {
-  getNavRuntimeFunction('openContextModal')?.();
+  openContextModalRuntime();
 }
 
 export function openCreateMarkerFromNavRuntime() {

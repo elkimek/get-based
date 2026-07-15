@@ -29,6 +29,7 @@ return (async function() {
   const pdfImport = await import('/js/pdf-import.js');
   const profile = await import('/js/profile.js');
   const exportModule = await import('/js/export.js');
+  const contextCards = await import('/js/context-cards.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -608,7 +609,7 @@ return (async function() {
   await wait(50);
 
   // Open diet editor
-  window.openDietEditor();
+  contextCards.openDietEditor();
   await wait(50);
   assert('Diet editor opens', modalOverlay.classList.contains('show'));
   const editorModal = document.getElementById('detail-modal');

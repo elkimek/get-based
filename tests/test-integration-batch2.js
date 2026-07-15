@@ -26,6 +26,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   console.log('1. Module imports');
 
   const { UNIT_CONVERSIONS, MARKER_SCHEMA, OPTIMAL_RANGES } = await import('../js/schema.js');
+  const contextCards = await import('../js/context-cards.js');
 
   assert('UNIT_CONVERSIONS loaded', UNIT_CONVERSIONS != null);
   assert('MARKER_SCHEMA loaded', MARKER_SCHEMA != null);
@@ -199,7 +200,8 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   const ctxSrc = read('/js/context-cards.js');
   assert('saveAndRefresh preserves details state', ctxSrc.includes("welcome-context-details") && ctxSrc.includes('sessionStorage'));
   assert('refreshAllHealthDots function exists', ctxSrc.includes('function refreshAllHealthDots'));
-  assert('refreshAllHealthDots exposed on window', ctxSrc.includes('refreshAllHealthDots'));
+  assert('refreshAllHealthDots is a module API', typeof contextCards.refreshAllHealthDots === 'function');
+  assert('context-card APIs stay off window', !('refreshAllHealthDots' in window));
   assert('Refresh button in renderProfileContextCards', ctxSrc.includes('ctx-refresh-all-btn'));
 
   // saveAndRefresh must trigger a re-render of the current view — BroadcastChannel
@@ -220,7 +222,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // truthy in Node) — clean cross-environment skip.
   const _rtState = window._labState;
   const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
-  if (!_isNode && typeof window.saveAndRefresh === 'function' && typeof window.navigate === 'function' && _rtState) {
+  if (!_isNode && typeof contextCards.saveAndRefresh === 'function' && typeof window.navigate === 'function' && _rtState) {
     const sv_stress = _rtState.importedData?.stress;
     try {
       window.navigate('dashboard');
@@ -230,7 +232,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
       if (stressCardBefore) {
         // Simulate a save: mutate state then call saveAndRefresh (same path as saveStress)
         _rtState.importedData.stress = { level: 'moderate', sources: ['work'], management: ['exercise'], note: '' };
-        window.saveAndRefresh('Stress profile saved', 'stress');
+        contextCards.saveAndRefresh('Stress profile saved', 'stress');
         await new Promise(r => setTimeout(r, 50));
         // After re-render, the stress card body should contain the summary text
         // produced by getStressSummary: "moderate stress — work — manages: exercise"

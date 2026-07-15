@@ -2,6 +2,7 @@
 // lens-actions.js - delegated actions for the Knowledge Base settings surface
 
 import { escapeAttr } from './utils.js';
+import { openContextModalRuntime } from './context-cards-runtime.js';
 
 let lensActionDelegatesInstalled = false;
 let lensActionHandlers = {};
@@ -56,8 +57,7 @@ function handleLensActionClick(event) {
   } else if (action === 'open-context') {
     event.preventDefault();
     lensActionHandlers.closeKnowledgeBaseModal?.();
-    const opener = /** @type {any} */ (typeof window !== 'undefined' ? window : {}).openContextModal;
-    if (typeof opener === 'function') setTimeout(() => opener(), 0);
+    setTimeout(() => openContextModalRuntime(), 0);
   } else if (action === 'delete-doc') {
     event.preventDefault();
     lensActionHandlers.handleLocalLensDeleteDoc?.(actionEl.dataset.lensSource || '');

@@ -22,6 +22,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const dashboardAi = await import(dashboardUrl);
     const lens = await import('/js/lens.js');
     const { state } = await import('/js/state.js');
+    const contextCardsRuntime = await import('/js/context-cards-runtime.js');
     const outcomes = {};
 
     const snapshotStorage = storage => new Map(Array.from({ length: storage.length }, (_, index) => storage.key(index))
@@ -39,7 +40,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const hadImportedData = Object.prototype.hasOwnProperty.call(state, 'importedData');
     const savedGlobals = {
       showDirectoryPicker: originalShowDirectoryPicker,
-      openInterpretiveLensEditor: window.openInterpretiveLensEditor,
       handleDNAFile: window.handleDNAFile,
       setTimeout: window.setTimeout,
     };
@@ -61,6 +61,9 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       pickFolderForBackup: () => calls.push('backup'),
       showEnableEncryptionModal: () => calls.push('encryption'),
     });
+    const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+      openInterpretiveLensEditor: () => calls.push('lens'),
+    });
 
     try {
       window.setTimeout = (fn, delay, ...args) => {
@@ -68,7 +71,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         if (typeof fn === 'function') Promise.resolve().then(() => fn(...args));
         return timers.length;
       };
-      window.openInterpretiveLensEditor = () => calls.push('lens');
       window.handleDNAFile = file => {
         handledDnaFile = { name: file.name, textType: file.type };
       };
@@ -240,6 +242,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         .forEach(el => el.remove());
       dashboardAi.configureDashboardAISyncSetup();
       dashboardAi.configureDashboardAIDataProtectionDeps(previousDataProtectionDeps);
+      contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       HTMLInputElement.prototype.click = originalInputClick;
       for (const [name, original] of Object.entries(savedGlobals)) {
         if (name === 'showDirectoryPicker' && !hadShowDirectoryPicker) delete window[name];

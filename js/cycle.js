@@ -8,6 +8,7 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { startCycleTour } from './tour.js';
 import { createCyclePeriod, recentCyclePeriods, upgradeMenstrualCycleProfile } from './cycle-summary.js';
 import { clearCycleProfileData, renderCycleImportPickerControls, renderCycleImportSummarySection } from './cycle-import.js';
+import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
 const CYCLE_ACTIVE_STATUSES = new Set(['regular', 'perimenopause']);
 const CYCLE_ICONS = {
   calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
@@ -23,7 +24,6 @@ const CYCLE_ICONS = {
 const appWindow = /** @type {Window & typeof globalThis & {
   closeModal: () => void,
   navigate: (category: string) => void,
-  recordChange: (field: string) => void,
   __cycleDelegatesBound?: boolean
 }} */ (typeof window !== 'undefined' ? window : {});
 function cycleActionAttrs(action, extra = '') {
@@ -574,7 +574,7 @@ export function saveMenstrualCycle() {
       state.importedData.menstrualCycle = upgradeMenstrualCycleProfile(state.importedData.menstrualCycle, { now: updatedAt });
     }
   }
-  appWindow.recordChange('menstrualCycle');
+  recordContextCardChangeRuntime('menstrualCycle');
   saveImportedData();
   appWindow.closeModal();
   const activeNav = document.querySelector(".nav-item.active");

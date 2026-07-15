@@ -94,8 +94,10 @@ const make = (overrides) => ({
 
 // ─── 7. Public APIs ──────────────────────────────────────
 {
-  assert('window.openDataProtectionPicker exists',
-    typeof window.openDataProtectionPicker === 'function');
+  assert('cards.openDataProtectionPicker exists',
+    typeof cards.openDataProtectionPicker === 'function');
+  assert('window.openDataProtectionPicker stays module-only',
+    !('openDataProtectionPicker' in window));
   assert('settings-sync-panel.showSyncSetupModal exists',
     typeof settingsSyncPanel.showSyncSetupModal === 'function');
   assert('window.showSyncSetupModal stays module-only',

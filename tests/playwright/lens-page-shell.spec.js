@@ -55,15 +55,15 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, shell, profile] = await Promise.all([
+    const [{ state }, shell, profile, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/lens-page-shell.js'),
       import('/js/profile.js'),
+      import('/js/context-cards-runtime.js'),
     ]);
     const originalView = state.currentView;
     const originalAddDashboard = window.addDashboardWidgetFromLens;
     const originalRemoveDashboard = window.removeDashboardWidgetFromLens;
-    const originalTriggerDNA = window.triggerDNAFilePicker;
     const originalReimportDNA = window.reimportDNA;
     const originalConfirmDeleteDNA = window.confirmDeleteDNA;
     const originalOpenSettings = window.openSettingsModal;
@@ -75,6 +75,9 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     const savedLabsOrder = localStorage.getItem(labsOrderKey);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const calls = [];
+    const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+      triggerDNAFilePicker: () => calls.push(['trigger-dna']),
+    });
     const restoreShell = shell.configureLensPageShell({
       openEMFAssessmentEditor: () => calls.push(['emf']),
     });
@@ -107,7 +110,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       dashboardToggle?.click();
       await delay(50);
 
-      window.triggerDNAFilePicker = () => calls.push(['trigger-dna']);
       window.reimportDNA = () => calls.push(['reimport-dna']);
       window.confirmDeleteDNA = () => calls.push(['delete-dna']);
       window.openSettingsModal = pane => calls.push(['settings', pane]);
@@ -153,7 +155,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     } finally {
       window.addDashboardWidgetFromLens = originalAddDashboard;
       window.removeDashboardWidgetFromLens = originalRemoveDashboard;
-      window.triggerDNAFilePicker = originalTriggerDNA;
+      contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       window.reimportDNA = originalReimportDNA;
       window.confirmDeleteDNA = originalConfirmDeleteDNA;
       window.openSettingsModal = originalOpenSettings;

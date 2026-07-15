@@ -14,11 +14,12 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cycleUrl }) => {
-    const [{ state }, cycle, tour, cycleStore] = await Promise.all([
+    const [{ state }, cycle, tour, cycleStore, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
       import(cycleUrl),
       import('/js/tour.js'),
       import('/js/cycle-store.js'),
+      import('/js/context-cards-runtime.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const outcomes = {};
@@ -30,8 +31,10 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       profileDob: state.profileDob,
       closeModal: window.closeModal,
       navigate: window.navigate,
-      recordChange: window.recordChange,
     };
+    const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+      recordChange: field => calls.push(['record', field]),
+    });
     const cycleTourKey = `labcharts-${state.currentProfile}-cycleTour`;
     const savedCycleTourState = localStorage.getItem(cycleTourKey);
     const waitFor = async (predicate, attempts = 25, delayMs = 0) => {
@@ -78,7 +81,6 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
           document.body.appendChild(injectedCycleSurface);
         }
       };
-      window.recordChange = field => calls.push(['record', field]);
       tour.endTour({ openEmptyChat: false });
       localStorage.removeItem(cycleTourKey);
 
@@ -242,8 +244,7 @@ test('cycle browser coverage exercises editor save clear and period guards', asy
       else delete window.closeModal;
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
-      if (saved.recordChange) window.recordChange = saved.recordChange;
-      else delete window.recordChange;
+      contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       tour.endTour();
       if (savedCycleTourState) localStorage.setItem(cycleTourKey, savedCycleTourState);
       else localStorage.removeItem(cycleTourKey);

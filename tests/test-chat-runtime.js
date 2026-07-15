@@ -12,6 +12,7 @@ import {
   renderChatMessagesRuntime,
   updateDiscussButtonRuntime,
 } from '../js/chat-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
 let passed = 0;
 let failed = 0;
@@ -62,13 +63,16 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
+    openContextModal: () => calls.push(['context']),
+  });
   const ppqAttestation = { provider: 'ppq', verified: true };
   const routstrAttestation = { provider: 'routstr', verified: true };
   const veniceAttestation = { provider: 'venice', verified: true };
   setRuntimeValue('window', globalThis);
   setRuntimeValue('renderChatMessages', () => calls.push(['render']));
   setRuntimeValue('updateDiscussButton', () => calls.push(['discuss']));
-  setRuntimeValue('openContextModal', () => calls.push(['context']));
+  setRuntimeValue('openContextModal', () => calls.push(['legacy-context']));
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('refreshMobileDashboardActiveTab', () => calls.push(['refresh-mobile']));
   setRuntimeValue('isChatStreaming', () => false);
@@ -113,11 +117,13 @@ try {
       getChatProviderAttestation('routstr') === routstrAttestation &&
       getChatProviderAttestation('venice') === veniceAttestation);
 
+  configureContextCardsRuntimeCallbacks({ openContextModal: null });
   delete globalThis.window;
   assert('chat runtime no-ops without a browser window',
     isChatRuntimeStreaming() === false &&
       getChatRegenerateCallbacks() === null &&
       getChatProviderAttestation('ppq') === undefined);
+  configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   restoreRuntime();
 }
