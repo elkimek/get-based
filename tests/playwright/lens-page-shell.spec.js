@@ -63,12 +63,9 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       import('/js/context-cards-runtime.js'),
     ]);
     const originalView = state.currentView;
-    const originalAddDashboard = window.addDashboardWidgetFromLens;
-    const originalRemoveDashboard = window.removeDashboardWidgetFromLens;
     const originalReimportDNA = window.reimportDNA;
     const originalConfirmDeleteDNA = window.confirmDeleteDNA;
     const originalOpenSettings = window.openSettingsModal;
-    const originalOpenBiometricPicker = window.openDashboardBiometricPicker;
     const originalOpenChat = window.openChatPanel;
     const originalNavigate = window.navigate;
     const profileId = profile.getActiveProfileId() || state.currentProfile || 'default';
@@ -80,7 +77,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       triggerDNAFilePicker: () => calls.push(['trigger-dna']),
     });
     const restoreShell = shell.configureLensPageShell({
+      addDashboardWidgetFromLens: id => calls.push(['add', id]),
       openEMFAssessmentEditor: () => calls.push(['emf']),
+      openDashboardBiometricPicker: () => calls.push(['biometrics']),
+      removeDashboardWidgetFromLens: id => calls.push(['remove', id]),
     });
 
     try {
@@ -103,8 +103,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       await delay(120);
       const afterFirst = document.querySelector('.lens-page-widgets[data-lens-route="labs"] .dashboard-widget[data-widget-id]')?.dataset.widgetId || '';
 
-      window.addDashboardWidgetFromLens = id => calls.push(['add', id]);
-      window.removeDashboardWidgetFromLens = id => calls.push(['remove', id]);
       const dashboardToggle = document.querySelector('.lens-page-widgets[data-lens-route="labs"] .lens-widget-dashboard-toggle[data-lens-page-action]');
       const toggleAction = dashboardToggle?.dataset.lensPageAction || '';
       const toggleId = dashboardToggle?.dataset.lensPageId || '';
@@ -114,7 +112,6 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
       window.reimportDNA = () => calls.push(['reimport-dna']);
       window.confirmDeleteDNA = () => calls.push(['delete-dna']);
       window.openSettingsModal = pane => calls.push(['settings', pane]);
-      window.openDashboardBiometricPicker = () => calls.push(['biometrics']);
       window.openChatPanel = () => calls.push(['chat']);
       window.navigate = route => calls.push(['navigate', route]);
       const actionFixture = document.createElement('div');
@@ -154,13 +151,10 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
         ].every(expected => calls.some(call => call[0] === expected[0] && (expected.length < 2 || call[1] === expected[1]))),
       };
     } finally {
-      window.addDashboardWidgetFromLens = originalAddDashboard;
-      window.removeDashboardWidgetFromLens = originalRemoveDashboard;
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       window.reimportDNA = originalReimportDNA;
       window.confirmDeleteDNA = originalConfirmDeleteDNA;
       window.openSettingsModal = originalOpenSettings;
-      window.openDashboardBiometricPicker = originalOpenBiometricPicker;
       window.openChatPanel = originalOpenChat;
       shell.configureLensPageShell(restoreShell);
       window.navigate = originalNavigate;

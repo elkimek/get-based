@@ -126,8 +126,9 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     outcomes.biometricPickerFilterKeepsEmptyHidden = document.getElementById('dashboard-biometric-widget-empty')?.hidden === true;
 
     state.currentView = 'labs';
-    const quickPinFacade = window.toggleDashboardQuickMarkerPin;
-    outcomes.quickPinWindowFacadeExists = typeof quickPinFacade === 'function';
+    const quickPinFacade = views.toggleDashboardQuickMarkerPin;
+    outcomes.quickPinModuleApiExists = typeof quickPinFacade === 'function';
+    outcomes.quickPinStaysOffWindow = !('toggleDashboardQuickMarkerPin' in window);
     if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
     const pinsAfterAdd = JSON.parse(localStorage.getItem(quickPinsKey) || '[]');
     if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');

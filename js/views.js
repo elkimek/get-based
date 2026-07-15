@@ -236,7 +236,7 @@ export const closeDashboardWidgetPicker = () => dashboardView.closeDashboardWidg
 export const startDashboardWidgetDrag = (...args) => dashboardView.startDashboardWidgetDrag(...args);
 export const allowDashboardWidgetDrop = (...args) => dashboardView.allowDashboardWidgetDrop(...args);
 export const dropDashboardWidget = (...args) => dashboardView.dropDashboardWidget(...args);
-const toggleDashboardQuickMarkerPin = (...args) => dashboardView.toggleDashboardQuickMarkerPin(...args);
+export const toggleDashboardQuickMarkerPin = (...args) => dashboardView.toggleDashboardQuickMarkerPin(...args);
 
 const lensPageHandlers = createLensPageHandlers({
   setupDropZone,
@@ -274,31 +274,6 @@ export function openRecommendationDetail(...args) { return recommendationActions
 export function discussRecommendation(...args) { return recommendationActions.discussRecommendation(...args); }
 export function saveRecommendation(...args) { return recommendationActions.saveRecommendation(...args); }
 export function dismissRecommendation(...args) { return recommendationActions.dismissRecommendation(...args); }
-
-Object.assign(window, {
-  toggleDashboardOrganizeMode,
-  moveDashboardWidget,
-  moveLensPageWidget,
-  hideDashboardWidget,
-  showDashboardWidget,
-  addDashboardWidgetFromLens,
-  removeDashboardWidgetFromLens,
-  addDashboardMarkerWidget,
-  addDashboardBiometricMetric,
-  addDashboardBiometricWidget,
-  removeDashboardBiometricMetric,
-  filterDashboardMarkerWidgetPicker,
-  filterDashboardBiometricWidgetPicker,
-  resetDashboardWidgets,
-  clearDashboardWidgets,
-  toggleDashboardQuickMarkerPin,
-  openDashboardWidgetPicker,
-  openDashboardBiometricPicker,
-  closeDashboardWidgetPicker,
-  startDashboardWidgetDrag,
-  allowDashboardWidgetDrop,
-  dropDashboardWidget,
-});
 
 configureCompareCorrelationViews({
   renderTableColgroup,

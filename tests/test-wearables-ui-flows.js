@@ -17,6 +17,7 @@ return (async function() {
   const manual    = await import('../js/wearables-manual.js' + bust);
   const store     = await import('../js/wearables-store.js' + bust);
   const summary   = await import('../js/wearables-summary.js' + bust);
+  const views     = await import('../js/views.js');
 
   // ─────────────────────────────────────────────────────────
   // Test profile + state isolation
@@ -231,7 +232,7 @@ return (async function() {
   // 7. Modular metric selection — add/remove inside the overview
   // ═══════════════════════════════════════
   console.log('%c 7. Modular Metric Selection ', 'font-weight:bold;color:#f59e0b');
-  await window.addDashboardBiometricMetric?.('weight');
+  await views.addDashboardBiometricMetric?.('weight');
   await new Promise(r => setTimeout(r, 300));
   const overviewAfterAdd = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
   assert('Adding weight keeps it inside Biometrics Overview',
@@ -277,14 +278,14 @@ return (async function() {
       selectedOverview && !/Cardio age/i.test(selectedOverview.textContent || '') && !/Resilience/i.test(selectedOverview.textContent || ''));
     assert('Fresh connected data does not show a dashboard sync button',
       !document.querySelector('.db-biometric-sync-btn'));
-    window.openDashboardWidgetPicker?.();
+    views.openDashboardWidgetPicker?.();
     await new Promise(r => setTimeout(r, 200));
     const pickerOptions = Array.from(document.querySelectorAll('.dashboard-biometric-widget-option'));
     assert('Picker offers additional biometrics for the overview',
       pickerOptions.some(btn => /Cardio age/i.test(btn.textContent || '')) &&
       pickerOptions.some(btn => /Resilience/i.test(btn.textContent || '')));
-    window.closeDashboardWidgetPicker?.();
-    window.openDashboardBiometricPicker?.();
+    views.closeDashboardWidgetPicker?.();
+    views.openDashboardBiometricPicker?.();
     await new Promise(r => setTimeout(r, 200));
     const biometricOnlyText = document.getElementById('dashboard-widget-picker-overlay')?.textContent || '';
     const biometricOnlyOptions = Array.from(document.querySelectorAll('.dashboard-biometric-widget-option'));
@@ -298,8 +299,8 @@ return (async function() {
     assert('Biometric-only picker still offers wearable/manual metrics',
       biometricOnlyOptions.some(btn => /Cardio age/i.test(btn.textContent || '')) &&
       biometricOnlyOptions.some(btn => /Resilience/i.test(btn.textContent || '')));
-    window.closeDashboardWidgetPicker?.();
-    await window.addDashboardBiometricMetric?.('cardio_age');
+    views.closeDashboardWidgetPicker?.();
+    await views.addDashboardBiometricMetric?.('cardio_age');
     await new Promise(r => setTimeout(r, 300));
     const overviewWithCardio = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
     assert('Picker add places the chosen biometric inside Biometrics Overview',

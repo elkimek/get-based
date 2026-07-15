@@ -14,6 +14,7 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
   const dataModule = await import('/js/data.js');
+  const viewsModule = await import('/js/views.js');
   const { buildSunContext } = await import('/js/sun-context.js');
   const { buildLabContext } = await import('/js/lab-context.js');
   const profile = await import('/js/profile.js');
@@ -49,7 +50,7 @@ return (async function() {
   window.navigate?.('dashboard');
   await wait(80);
   if (!main.querySelector('.dashboard-widget[data-widget-id="light-today"]')) {
-    window.showDashboardWidget?.('light-today');
+    viewsModule.showDashboardWidget?.('light-today');
     await wait(120);
   }
   const todayWidget = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');

@@ -60,6 +60,9 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
  *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
  *   getActiveProfileId: () => string | null,
  *   openProfileShareModal: (profileId?: string) => void,
+ *   clearDashboardWidgets: () => void,
+ *   resetDashboardWidgets: () => void,
+ *   toggleDashboardOrganizeMode: (force?: boolean) => void,
  * }} SettingsRuntime
  */
 
@@ -70,6 +73,9 @@ const settingsRuntime = {
   exportClientJSON: () => {},
   getActiveProfileId,
   openProfileShareModal: () => {},
+  clearDashboardWidgets: () => {},
+  resetDashboardWidgets: () => {},
+  toggleDashboardOrganizeMode: () => {},
 };
 
 /** @param {Partial<SettingsRuntime>} [runtime] */
@@ -520,15 +526,15 @@ function handleTweaksClick(event) {
     selectTweaksAccent(actionEl.dataset.accentId || '');
   } else if (action === 'reset-dashboard') {
     event.preventDefault();
-    settingsWindow.resetDashboardWidgets?.();
+    settingsRuntime.resetDashboardWidgets();
     closeTweaksPanel();
   } else if (action === 'clear-dashboard') {
     event.preventDefault();
-    settingsWindow.clearDashboardWidgets?.();
+    settingsRuntime.clearDashboardWidgets();
     closeTweaksPanel();
   } else if (action === 'organize-dashboard') {
     event.preventDefault();
-    settingsWindow.toggleDashboardOrganizeMode?.(true);
+    settingsRuntime.toggleDashboardOrganizeMode(true);
     closeTweaksPanel();
   } else if (action === 'send-feedback') {
     event.preventDefault();

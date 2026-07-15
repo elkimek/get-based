@@ -206,8 +206,11 @@ export function createDashboardViewComposition({
   });
 
   configureLensPageShell({
+    addDashboardWidgetFromLens: (...args) => dashboardWidgetControls.addDashboardWidgetFromLens(...args),
     getAvailableDashboardFixedWidgetIds,
     getDashboardWidgetPrefs,
+    openDashboardBiometricPicker: () => dashboardWidgetControls.openDashboardBiometricPicker(),
+    removeDashboardWidgetFromLens: (...args) => dashboardWidgetControls.removeDashboardWidgetFromLens(...args),
   });
 
   configureMobileDashboardView({
