@@ -189,7 +189,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -208,6 +208,7 @@
     import('../js/pii.js'),
     import('../js/profile.js'),
     import('../js/provider-panels.js'),
+    import('../js/settings.js'),
     import('../js/settings-sync-panel.js'),
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
@@ -507,13 +508,24 @@
     'detectLatitudeWithAI'
   ];
 
-  // settings.js (8)
-  const settingsExports = [
+  // settings.js (7 retained runtime hooks; internal flows use ESM exports)
+  const settingsGlobals = [
     'openSettingsModal','closeSettingsModal',
-    'renderPrivacySection',
-    'togglePrivacyConfigure','updatePrivacyStatusCard',
-    'updateSettingsUI',
-    'renderDataEntriesSection','refreshDataEntriesSection','configureSettingsRuntime'
+    'openTweaksPanel','closeTweaksPanel',
+    'updatePrivacyStatusCard','applyAccentOverride','updateTweaksUI'
+  ];
+  const settingsModuleOnlyExports = [
+    'switchSettingsTab','renderPrivacySection','renderSunDataSourceSettings',
+    'togglePrivacyConfigure','toggleOllamaPII','confirmDisablePIIReview',
+    'updateSettingsUI','renderDataEntriesSection','refreshDataEntriesSection',
+    'removeImportedEntryFromSettings','renameImportedEntryDateFromSettings',
+    'resetCurrentProfileUsage','selectTweaksTheme','selectTweaksAccent',
+    'toggleTweaksSunsetMode','toggleTweaksCrtEffects'
+  ];
+  const settingsModuleExports = [
+    ...settingsGlobals,
+    ...settingsModuleOnlyExports,
+    'configureSettingsRuntime',
   ];
 
   // provider-panels.js (74 former browser globals, now module-only)
@@ -659,6 +671,7 @@
     ['pii.js', piiModule, piiExports],
     ['profile.js', profileModule, profileExports],
     ['provider-panels.js', providerPanelsModule, providerPanelsExports],
+    ['settings.js', settingsModule, settingsModuleExports],
     ['settings-sync-panel.js', settingsSyncPanelModule, settingsSyncPanelExports],
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
@@ -698,6 +711,10 @@
   for (const name of profileExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of settingsModuleOnlyExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  assert('window.scheduleChartThemeRefresh stays module-internal', !('scheduleChartThemeRefresh' in window));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -740,7 +757,7 @@
     'client-list.js': clientListExports,
     'nav.js': navExports,
     'notes.js': notesExports,
-    'settings.js': settingsExports,
+    'settings.js': settingsGlobals,
     'theme.js': themeExports,
     'views.js': viewsLegacyExports,
   };

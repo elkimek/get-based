@@ -551,7 +551,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'theme default accent swatch follows theme'),
     result.defaultAccent === result.expectedDefaultAccent,
     JSON.stringify(result));
-  await page.evaluate(() => window.selectTweaksAccent?.('rose'));
+  await page.evaluate(async () => (await import('/js/settings.js')).selectTweaksAccent('rose'));
   await delay(80);
   result = await page.evaluate(() => ({
     storedAccent: localStorage.getItem('labcharts-accent-override') || '',
@@ -561,9 +561,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'custom accent applies through tweaks'),
     result.storedAccent === 'rose' && result.rootAccent === '#f43f5e' && result.activeAccent === 'rose',
     JSON.stringify(result));
-  await page.evaluate(() => {
-    window.toggleTweaksCrtEffects?.(true);
-    window.updateTweaksUI?.();
+  await page.evaluate(async () => {
+    const settingsModule = await import('/js/settings.js');
+    settingsModule.toggleTweaksCrtEffects(true);
+    settingsModule.updateTweaksUI();
   });
   await delay(80);
   result = await page.evaluate((theme) => {
@@ -595,9 +596,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
         ? result.bodyAfterContent !== 'none' && result.bodyAfterPosition === 'fixed' && result.bodyAfterAnimation.includes('crt-flicker') && result.bodyAfterAnimation.includes('crt-sweep') && result.bodyAfterBlend === 'overlay'
         : result.bodyAfterContent === 'none'),
     JSON.stringify(result));
-  await page.evaluate(() => {
-    window.toggleTweaksCrtEffects?.(false);
-    window.updateTweaksUI?.();
+  await page.evaluate(async () => {
+    const settingsModule = await import('/js/settings.js');
+    settingsModule.toggleTweaksCrtEffects(false);
+    settingsModule.updateTweaksUI();
   });
   await delay(80);
   result = await page.evaluate((theme) => {
@@ -666,9 +668,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'accent override restores after sunset mode'),
     result.sunsetAttr === '' && result.restoredAccent === '#f43f5e',
     JSON.stringify(result));
-  await page.evaluate(() => {
-    window.selectTweaksAccent?.('');
-    window.closeTweaksPanel?.();
+  await page.evaluate(async () => {
+    const settingsModule = await import('/js/settings.js');
+    settingsModule.selectTweaksAccent('');
+    settingsModule.closeTweaksPanel();
   });
   await delay(100);
 

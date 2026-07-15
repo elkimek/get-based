@@ -61,11 +61,17 @@ export function addSettingsRuntimeEventListener(type, listener) {
   if (addEventListener) addEventListener(type, listener);
 }
 
-/** @param {{ settingsVisible?: boolean }} [options] */
+/**
+ * @param {{
+ *   settingsVisible?: boolean,
+ *   updateSettingsUI?: () => void,
+ *   updateTweaksUI?: () => void,
+ * }} [options]
+ */
 export function refreshSettingsRuntimeSurfaces(options = {}) {
   const runtime = getRuntimeWindow();
-  runtime.updateSettingsUI?.();
-  runtime.updateTweaksUI?.();
+  (options.updateSettingsUI || runtime.updateSettingsUI)?.();
+  (options.updateTweaksUI || runtime.updateTweaksUI)?.();
   if (options.settingsVisible) runtime.refreshSettingsWearables?.();
 }
 
