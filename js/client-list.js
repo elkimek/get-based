@@ -8,11 +8,9 @@ import { LATITUDE_BANDS } from './constants.js';
 import { getAvatarColor } from './nav.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
-  closeClientListFromRuntime,
   getClientHaplogroupList,
   hasClientListAIProvider,
   navigateClientListRoute,
-  publishClientListWindowBindings,
   refreshClientProfileButton,
   setClientManualHaplogroup,
   showClientListNotification,
@@ -533,7 +531,7 @@ export function openClientForm(profileId) {
 
 function _clGoToHealthMetrics(event) {
   if (event) event.preventDefault();
-  closeClientListFromRuntime(closeClientList);
+  closeClientList();
   navigateClientListRoute('dashboard');
   requestAnimationFrame(() => {
     document.getElementById('wearable-strip')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1056,7 +1054,7 @@ function _clHeightUnitChanged() {
 // .show class); openClientForm(id) replaces the list view with the form.
 // Calling openClientForm alone leaves the overlay hidden — the form
 // renders in the DOM but isn't visible to the user.
-function openProfileLocationEditor() {
+export function openProfileLocationEditor() {
   // Close any other modal that might be on top first (marker modal, etc.)
   // so the client-list overlay isn't sitting behind it.
   const otherOverlay = document.getElementById('modal-overlay');
@@ -1072,12 +1070,3 @@ function openProfileLocationEditor() {
 }
 
 installClientListDelegates();
-
-publishClientListWindowBindings({
-  openClientList, closeClientList, openClientForm, openProfileLocationEditor,
-  _clSearch, _clSort, _clStatusFilter, _clTagFilter, _clSelect,
-  _clSaveForm, _clSetSex, _clUpdateLat, _clTagKeydown, _clRemoveTag, _clBackToList,
-  _clAvatarChanged, _clRemoveAvatar, _clHaplogroupChanged,
-  _clToggleToolsMenu, _clCloseMenus: _closeMenus, _clToggleMenu, _clEdit, _clPin, _clUnpin, _clFlag, _clUnflag, _clArchive, _clUnarchive, _clExport, _clExportChat, _clDelete,
-  _clUpdateBMI, _clHeightUnitChanged, _clGoToHealthMetrics,
-});

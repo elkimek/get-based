@@ -47,8 +47,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       profileDob: state.profileDob,
       navigate: window.navigate,
       getSunCoords: window.getSunCoords,
-      openProfileLocationEditor: window.openProfileLocationEditor,
-      openClientList: window.openClientList,
       requestPreciseLocation: window.requestPreciseLocation,
     };
     const calls = [];
@@ -56,6 +54,8 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
     let precise = false;
     const previousSunDefaultsRuntimeDeps = sunDefaultsRuntime.configureSunDefaultsRuntimeDeps({
       getProfileLocation: () => ({ country: 'Czechia', zip: '' }),
+      openProfileLocationEditor: () => calls.push(['profile-location']),
+      openClientList: () => calls.push(['client-list']),
     });
 
     try {
@@ -75,8 +75,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       window.getSunCoords = () => precise
         ? { source: 'profile-precise', lat: 50.087 }
         : { source: 'country-band', lat: 49.2 };
-      window.openProfileLocationEditor = () => calls.push(['profile-location']);
-      window.openClientList = () => calls.push(['client-list']);
       window.requestPreciseLocation = async () => {
         calls.push(['precise-location']);
         await wait(0);
@@ -209,8 +207,6 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       Object.assign(window, {
         navigate: saved.navigate,
         getSunCoords: saved.getSunCoords,
-        openProfileLocationEditor: saved.openProfileLocationEditor,
-        openClientList: saved.openClientList,
         requestPreciseLocation: saved.requestPreciseLocation,
       });
       sunDefaults.configureSunDefaults({

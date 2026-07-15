@@ -417,7 +417,6 @@ assert('94al. regionLabel(null/empty) → worldwide',
   recsMod.regionLabel(null) === 'worldwide' && recsMod.regionLabel('') === 'worldwide');
 
 // Region indicator + change-link wiring (smoke test for the disclosure footer)
-delete window.openProfileLocationEditor;
 localStorage.setItem('labcharts-show-product-recs', 'true');
 const discMeterHtml = recsMod.renderEMFMeterRecs(emfCat);
 assert('94am. Disclosure footer renders region indicator', /Showing for /.test(discMeterHtml));

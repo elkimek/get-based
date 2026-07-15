@@ -4,12 +4,10 @@
 import './_node-shim.js';
 import { getCachedKey, updateKeyCache } from '../js/crypto.js';
 import {
-  closeClientListFromRuntime,
   configureClientListRuntimeDeps,
   getClientHaplogroupList,
   hasClientListAIProvider,
   navigateClientListRoute,
-  publishClientListWindowBindings,
   refreshClientProfileButton,
   setClientManualHaplogroup,
   showClientListNotification,
@@ -27,12 +25,10 @@ console.log('=== Client List Runtime Tests ===\n');
 
 const runtimeKeys = [
   'HAPLOGROUP_LIST',
-  'closeClientList',
   'navigate',
   'renderProfileButton',
   'showNotification',
   'setManualHaplogroup',
-  '__clientListRuntimeProbe',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const savedAIStorage = {
@@ -65,14 +61,6 @@ try {
   globalThis.HAPLOGROUP_LIST = 'H1';
   assert('getClientHaplogroupList falls back to empty array for invalid runtime value',
     getClientHaplogroupList().length === 0);
-
-  globalThis.closeClientList = () => calls.push(['close']);
-  closeClientListFromRuntime(() => calls.push(['fallback-close']));
-  delete globalThis.closeClientList;
-  closeClientListFromRuntime(() => calls.push(['fallback-close']));
-  assert('closeClientListFromRuntime prefers runtime close and falls back when missing',
-    calls.filter(call => call[0] === 'close').length === 1 &&
-    calls.filter(call => call[0] === 'fallback-close').length === 1);
 
   globalThis.navigate = route => calls.push(['navigate', route]);
   navigateClientListRoute('dashboard');
@@ -116,9 +104,6 @@ try {
   assert('hasClientListAIProvider returns false when selected provider is unconfigured',
     hasClientListAIProvider() === false);
 
-  publishClientListWindowBindings({ __clientListRuntimeProbe: () => 'ok' });
-  assert('publishClientListWindowBindings installs legacy globals',
-    globalThis.__clientListRuntimeProbe?.() === 'ok');
 } finally {
   configureClientListRuntimeDeps(originalClientListRuntimeDeps);
   restoreRuntime();

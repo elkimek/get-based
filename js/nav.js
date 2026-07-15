@@ -10,7 +10,6 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   exposeNavRuntimeGlobals,
   navigateFromNavRuntime,
-  openClientListFromNavRuntime,
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
   openEMFAssessmentFromNavRuntime,
@@ -43,6 +42,7 @@ function _iconSvg(name) {
 let navDelegatesInstalled = false;
 const navActionDeps = {
   openLightEnvironmentAssessment: () => {},
+  openClientList: () => {},
 };
 
 export function configureNavActions(deps = {}) {
@@ -105,7 +105,7 @@ function handleNavActionClick(event) {
   } else if (action === 'toggle-group') {
     toggleNavGroup(actionEl.dataset.navGroup || '');
   } else if (action === 'open-client-list') {
-    openClientListFromNavRuntime();
+    navActionDeps.openClientList();
   } else {
     handled = false;
   }

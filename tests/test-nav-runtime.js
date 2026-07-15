@@ -6,7 +6,6 @@ import {
   configureNavRuntime,
   exposeNavRuntimeGlobals,
   navigateFromNavRuntime,
-  openClientListFromNavRuntime,
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
   openEMFAssessmentFromNavRuntime,
@@ -35,7 +34,6 @@ const runtimeKeys = [
   'navigate',
   'openContextModal',
   'openCreateMarkerModal',
-  'openClientList',
   'runtimeProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -66,7 +64,6 @@ try {
     navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
     openContextModal() { calls.push(['legacy-context']); },
     openCreateMarkerModal() { calls.push(['marker', this === browserRuntime]); },
-    openClientList() { calls.push(['client', this === browserRuntime]); },
   };
   setRuntimeValue('window', browserRuntime);
   const restoreNavRuntime = configureNavRuntime({
@@ -79,18 +76,17 @@ try {
   openReportBuilderFromNavRuntime();
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
-  openClientListFromNavRuntime();
 
   assert('nav runtime delegates all browser callbacks',
-    calls.length === 6
+    calls.length === 5
       && calls.some(call => call[0] === 'navigate' && call[1] === 'labs' && call[2] === true)
-      && ['emf', 'report', 'context', 'marker', 'client'].every(name => calls.some(call => call[0] === name && call[1] === true)));
+      && ['emf', 'report', 'context', 'marker'].every(name => calls.some(call => call[0] === name && call[1] === true)));
 
   exposeNavRuntimeGlobals({ runtimeProbe: 42 });
   assert('exposeNavRuntimeGlobals assigns exports to the browser runtime',
     browserRuntime.runtimeProbe === 42);
 
-  for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
+  for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal']) {
     delete browserRuntime[key];
   }
   const previousViewRuntime = configureViewRuntime({
@@ -103,9 +99,8 @@ try {
   openReportBuilderFromNavRuntime();
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
-  openClientListFromNavRuntime();
   assert('nav runtime falls back to module navigation when the browser callback is missing',
-    calls.length === 7 && calls.some(call => call[0] === 'module-navigate' && call[1] === 'missing'));
+    calls.length === 6 && calls.some(call => call[0] === 'module-navigate' && call[1] === 'missing'));
 
   delete globalThis.window;
   let globalRoute = '';

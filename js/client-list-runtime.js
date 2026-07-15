@@ -47,12 +47,6 @@ export function getClientHaplogroupList() {
   return Array.isArray(list) ? list : [];
 }
 
-/** @param {() => void} [fallback] */
-export function closeClientListFromRuntime(fallback) {
-  const close = getRuntimeFunction('closeClientList') || fallback;
-  close?.();
-}
-
 /** @param {string} route */
 export function navigateClientListRoute(route) {
   getRuntimeFunction('navigate')?.(route);
@@ -82,10 +76,4 @@ export function hasClientListAIProvider() {
   } catch {
     return false;
   }
-}
-
-/** @param {Record<string, any>} bindings */
-export function publishClientListWindowBindings(bindings) {
-  if (typeof window === 'undefined') return;
-  Object.assign(getRuntimeWindow(), bindings);
 }

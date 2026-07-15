@@ -24,14 +24,14 @@ import {
   renderThreadList,
   toggleThreadRail,
 } from './chat-threads.js';
-import { closeClientList, configureClientListRuntime } from './client-list.js';
+import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
 import { closeEMFInterpretation } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
 import { closeFeedbackModal, openFeedbackModal } from './feedback.js';
 import { closeImportModal } from './pdf-import-review.js';
 import { closeModal } from './marker-detail-modal.js';
-import { closeMobileSidebar } from './nav.js';
+import { closeMobileSidebar, configureNavActions } from './nav.js';
 import { configureOnboardingViewRuntimeDeps } from './onboarding-view-runtime.js';
 import { closeSettingsModal, closeTweaksPanel, configureSettingsRuntime } from './settings.js';
 import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-panel.js';
@@ -44,9 +44,11 @@ import {
 } from './views.js';
 import { openProfileShareModal } from './profile-share.js';
 import { getActiveProfileId } from './profile.js';
+import { configureRecommendationsRuntime } from './recommendations-runtime.js';
 import { configureShellChatImageDeps, configureShellChatThreadDeps } from './shell-actions.js';
 import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
+import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 
 configureClientListRuntime({
   exportAllDataJSON,
@@ -68,6 +70,10 @@ configureSettingsRuntime({
   resetDashboardWidgets,
   toggleDashboardOrganizeMode,
 });
+
+configureNavActions({ openClientList });
+configureRecommendationsRuntime({ openProfileLocationEditor });
+configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
 configureChatMessageActionDeps({ openImageLightbox, removeImageAttachment });

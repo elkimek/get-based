@@ -4,11 +4,20 @@
 import { getProfileLocation } from './profile.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
-const sunDefaultsRuntimeDeps = { getProfileLocation };
+const sunDefaultsRuntimeDeps = {
+  getProfileLocation,
+  openProfileLocationEditor: null,
+  openClientList: null,
+};
 
 export function configureSunDefaultsRuntimeDeps(deps = {}) {
   const previous = { ...sunDefaultsRuntimeDeps };
   if (typeof deps.getProfileLocation === 'function') sunDefaultsRuntimeDeps.getProfileLocation = deps.getProfileLocation;
+  for (const name of ['openProfileLocationEditor', 'openClientList']) {
+    if (name in deps) {
+      sunDefaultsRuntimeDeps[name] = typeof deps[name] === 'function' ? deps[name] : null;
+    }
+  }
   return previous;
 }
 
@@ -44,12 +53,12 @@ export function getSunSetupProfileLocation() {
 }
 
 export function openSunSetupProfileLocationRuntime() {
-  const openProfileLocationEditor = getRuntimeFunction('openProfileLocationEditor');
+  const openProfileLocationEditor = sunDefaultsRuntimeDeps.openProfileLocationEditor;
   if (openProfileLocationEditor) {
     openProfileLocationEditor();
     return true;
   }
-  const openClientList = getRuntimeFunction('openClientList');
+  const openClientList = sunDefaultsRuntimeDeps.openClientList;
   if (openClientList) {
     openClientList();
     return true;

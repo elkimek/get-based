@@ -40,7 +40,7 @@ assert('nav.js routes browser globals through runtime adapter',
   navSrc.includes("from './nav-runtime.js'") &&
     navSrc.includes('navigateFromNavRuntime(') &&
     navSrc.includes('openEMFAssessmentFromNavRuntime()') &&
-    navSrc.includes('openClientListFromNavRuntime()') &&
+    navSrc.includes('navActionDeps.openClientList()') &&
     navSrc.includes('exposeNavRuntimeGlobals({') &&
     !/\bwindow(?:\.|\s*\[)/.test(navSrc));
 
