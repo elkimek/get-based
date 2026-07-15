@@ -109,14 +109,6 @@ export async function _gunzipToStringCapped(bytes, maxBytes = _PER_ROW_DECOMPRES
   return out;
 }
 
-if (typeof window !== 'undefined') {
-  const syncWindow = /** @type {Window & typeof globalThis & { _syncTestHooks?: any }} */ (window);
-  syncWindow._syncTestHooks = Object.assign(syncWindow._syncTestHooks || {}, {
-    gunzipCapped: _gunzipToStringCapped,
-    perRowCapBytes: _PER_ROW_DECOMPRESSED_CAP_BYTES,
-  });
-}
-
 /** @param {Uint8Array} bytes */
 export function _bytesToBase64(bytes) {
   let s = '';
