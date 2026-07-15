@@ -30,12 +30,3 @@ export function refreshThemeDependentsFromRuntime(options = {}) {
   else runtime.refreshChartThemeColors?.({ batchSize: 4 });
   if (options.settingsModalOpen) runtime.refreshSettingsWearables?.();
 }
-
-/**
- * @param {Record<string, any>} exportsByName
- */
-export function registerThemeRuntimeExports(exportsByName) {
-  const runtime = getThemeRuntimeWindow();
-  if (!runtime) return;
-  Object.assign(runtime, exportsByName);
-}

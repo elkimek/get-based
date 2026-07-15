@@ -190,7 +190,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, themeModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -220,6 +220,7 @@
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
     import('../js/supplements.js'),
+    import('../js/theme.js'),
     import('../js/utils.js'),
     import('../js/views.js'),
   ]);
@@ -637,9 +638,11 @@
     'refreshSupplementImpact','updateIngTotal','updateAllIngTotals','ingredientDailyTotal'
   ];
 
-  // theme.js (8)
+  // theme.js (16 former browser globals, now module-only)
   const themeExports = [
-    'getTheme','setTheme','toggleTheme',
+    'THEMES','getTheme','getThemeColor','getThemeColorScheme',
+    'isSunsetMode','setSunsetMode','isCrtEffectsEnabled','setCrtEffectsEnabled',
+    'supportsCrtEffects','setTheme','toggleTheme',
     'getTimeFormat','setTimeFormat','formatTime','parseTimeInput',
     'getChartColors'
   ];
@@ -725,6 +728,7 @@
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
+    ['theme.js', themeModule, themeExports],
     ['utils.js', utilsModule, utilsExports],
     ['views.js facade', viewsModule, viewsFacadeModuleExports],
     ['views.js dashboard widgets', viewsModule, viewsDashboardWidgetExports],
@@ -770,6 +774,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of settingsModuleOnlyExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of themeExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   assert('window.scheduleChartThemeRefresh stays module-internal', !('scheduleChartThemeRefresh' in window));
@@ -863,7 +870,6 @@
     'client-list.js': clientListExports,
     'nav.js': navGlobals,
     'settings.js': settingsGlobals,
-    'theme.js': themeExports,
     'views.js': viewsLegacyExports,
   };
 
@@ -963,17 +969,17 @@
     `Got ${typeof ref}, keys: ${ref ? Object.keys(ref).length : 0}`);
 
   // getChartColors depends on theme.js — returns object with CSS var values (may be empty strings in headless)
-  const colors = window.getChartColors();
+  const colors = themeModule.getChartColors();
   assert('getChartColors returns object with expected keys', typeof colors === 'object' && 'tooltipBg' in colors && 'tickColor' in colors,
     colors ? Object.keys(colors).join(',') : 'null');
 
   // formatTime depends on theme.js
-  const formatted = window.formatTime('14:30');
+  const formatted = themeModule.formatTime('14:30');
   assert('formatTime works', typeof formatted === 'string' && formatted.length > 0);
 
   // parseTimeInput round-trip
-  assert('parseTimeInput("2:30 PM") → 14:30', window.parseTimeInput('2:30 PM') === '14:30');
-  assert('parseTimeInput("14:30") → 14:30', window.parseTimeInput('14:30') === '14:30');
+  assert('parseTimeInput("2:30 PM") → 14:30', themeModule.parseTimeInput('2:30 PM') === '14:30');
+  assert('parseTimeInput("14:30") → 14:30', themeModule.parseTimeInput('14:30') === '14:30');
 
   // ═══════════════════════════════════════════════
   // 8. PROFILE SYSTEM — basic operations
@@ -989,7 +995,7 @@
   // ═══════════════════════════════════════════════
   // 9. THEME SYSTEM — toggle works
   // ═══════════════════════════════════════════════
-  const currentTheme = window.getTheme();
+  const currentTheme = themeModule.getTheme();
   assert('getTheme returns string', currentTheme === 'dark' || currentTheme === 'light');
   const htmlEl = document.documentElement;
   // Dark theme removes data-theme attribute; light sets it to 'light'

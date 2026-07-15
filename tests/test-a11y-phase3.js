@@ -186,12 +186,13 @@ console.log('=== Phase 3 A11y Tests ===\n');
     themeSrc.includes('getThemeColorScheme') &&
     themeSrc.includes('document.documentElement.style.colorScheme'),
     'custom dark themes need dark system controls after switching themes');
-  assert('theme browser globals are isolated in runtime adapter',
+  assert('theme browser hooks stay isolated while theme APIs remain module-only',
     themeSrc.includes("import('./theme-runtime.js')")
       && themeSrc.includes('fallbackThemeRuntime')
       && !/\bwindow\b/.test(themeSrc)
       && themeRuntimeSrc.includes('dispatchThemeChange')
-      && themeRuntimeSrc.includes('registerThemeRuntimeExports'));
+      && !themeSrc.includes('registerThemeRuntimeExports')
+      && !themeRuntimeSrc.includes('registerThemeRuntimeExports'));
   assert('document root defaults to dark browser controls outside light theme',
     /html\s*\{[^}]*background:\s*var\(--bg-primary\)[^}]*color-scheme:\s*dark/.test(cssSrc) &&
     /\[data-theme="light"\]\s*\{[^}]*color-scheme:\s*light/.test(cssSrc));

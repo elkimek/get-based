@@ -6,7 +6,6 @@ import './_node-shim.js';
 import {
   dispatchThemeChange,
   refreshThemeDependentsFromRuntime,
-  registerThemeRuntimeExports,
 } from '../js/theme-runtime.js';
 
 let pass = 0, fail = 0;
@@ -24,7 +23,6 @@ const RUNTIME_FIELDS = [
   'scheduleChartThemeRefresh',
   'refreshChartThemeColors',
   'refreshSettingsWearables',
-  '__themeRuntimeProbe',
 ];
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -89,10 +87,6 @@ try {
   refreshThemeDependentsFromRuntime({ settingsModalOpen: false });
   assert('theme dependents fall back to chart color refresh', chartRefreshOptions?.batchSize === 4);
 
-  const probe = () => 'ok';
-  registerThemeRuntimeExports({ __themeRuntimeProbe: probe });
-  assert('theme runtime exports assign to window', globalThis.__themeRuntimeProbe === probe);
-
   delete globalThis.window;
   assert('no-window dispatch is safe', (() => {
     dispatchThemeChange({ theme: 'dark' });
@@ -102,8 +96,6 @@ try {
     refreshThemeDependentsFromRuntime({ settingsModalOpen: true });
     return true;
   })());
-  registerThemeRuntimeExports({ __themeRuntimeProbe: 'no-window' });
-  assert('no-window exports are no-ops', globalThis.__themeRuntimeProbe === probe);
 } finally {
   for (const field of RUNTIME_FIELDS) {
     restoreDescriptor(globalThis, field, originalFieldDescriptors.get(field));

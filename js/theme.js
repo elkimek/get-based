@@ -28,7 +28,6 @@ export const THEMES = [
  * @typedef {{
  *   dispatchThemeChange: (detail: Record<string, any>) => void,
  *   refreshThemeDependentsFromRuntime: (options?: { settingsModalOpen?: boolean }) => void,
- *   registerThemeRuntimeExports: (exportsByName: Record<string, any>) => void,
  * }} ThemeRuntimeHooks
  */
 
@@ -56,11 +55,6 @@ const fallbackThemeRuntime = {
     else runtime.refreshChartThemeColors?.({ batchSize: 4 });
     if (options.settingsModalOpen) runtime.refreshSettingsWearables?.();
   },
-  registerThemeRuntimeExports(exportsByName) {
-    const runtime = getFallbackThemeRuntimeGlobal();
-    if (!runtime) return;
-    Object.assign(runtime, exportsByName);
-  },
 };
 
 /** @type {ThemeRuntimeHooks} */
@@ -79,9 +73,6 @@ if (typeof globalThis !== 'undefined') {
         refreshThemeDependentsFromRuntime: typeof runtime.refreshThemeDependentsFromRuntime === 'function'
           ? runtime.refreshThemeDependentsFromRuntime
           : fallbackThemeRuntime.refreshThemeDependentsFromRuntime,
-        registerThemeRuntimeExports: typeof runtime.registerThemeRuntimeExports === 'function'
-          ? runtime.registerThemeRuntimeExports
-          : fallbackThemeRuntime.registerThemeRuntimeExports,
       };
     })
     .catch(() => {});
@@ -93,10 +84,6 @@ function dispatchThemeChange(detail) {
 
 function refreshThemeDependentsFromRuntime(options) {
   themeRuntimeHooks.refreshThemeDependentsFromRuntime(options);
-}
-
-function registerThemeRuntimeExports(exportsByName) {
-  themeRuntimeHooks.registerThemeRuntimeExports(exportsByName);
 }
 
 export function getTimeFormat() { return localStorage.getItem('labcharts-time-format') || '24h'; }
@@ -234,5 +221,3 @@ export function getChartColors() {
     green: g('--green'), red: g('--red'), yellow: g('--yellow'),
   };
 }
-
-registerThemeRuntimeExports({ getTheme, getThemeColor, getThemeColorScheme, isSunsetMode, setSunsetMode, isCrtEffectsEnabled, setCrtEffectsEnabled, supportsCrtEffects, setTheme, toggleTheme, getTimeFormat, setTimeFormat, formatTime, parseTimeInput, getChartColors, THEMES });

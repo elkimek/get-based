@@ -29,12 +29,12 @@ async function preparePage(page) {
 test('Settings display toggles persist through delegated slider actions', async ({ page }) => {
   await preparePage(page);
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
 
     localStorage.removeItem('labcharts-show-product-recs');
     localStorage.removeItem('labcharts-debug');
-    window.setTheme?.('cyberterm');
+    (await import('/js/theme.js')).setTheme('cyberterm');
     window.openSettingsModal('display');
   });
 
@@ -72,12 +72,12 @@ test('Settings data sync toggle opens and cancels setup modal', async ({ page })
 test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ page }) => {
   await preparePage(page);
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     if (typeof window.openTweaksPanel !== 'function') throw new Error('window.openTweaksPanel unavailable');
 
     localStorage.removeItem('labcharts-sunset-mode');
     localStorage.removeItem('labcharts-crt-effects');
-    window.setTheme?.('cyberterm');
+    (await import('/js/theme.js')).setTheme('cyberterm');
     window.openTweaksPanel();
   });
 
@@ -100,9 +100,10 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
     crtDataset: 'on',
   });
 
-  await page.evaluate(() => {
-    window.setTheme?.('dark');
-    window.setCrtEffectsEnabled?.(false);
+  await page.evaluate(async () => {
+    const themeModule = await import('/js/theme.js');
+    themeModule.setTheme('dark');
+    themeModule.setCrtEffectsEnabled(false);
     window.openTweaksPanel();
   });
 
