@@ -1095,8 +1095,6 @@ installWearableDelegates();
 
 exposeWearablesBindings({
   renderWearableStrip,
-  setWearableStripHidden,
-  isWearableStripHidden,
   dismissWearableStub,
   toggleWearableStrip,
   openWearableDetail: openWearableDetailFromDashboard,

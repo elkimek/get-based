@@ -16,7 +16,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
     ]);
-    await import('/js/wearables.js');
+    const wearables = await import('/js/wearables.js');
 
     const failures = [];
     const check = (name, condition, detail = '') => {
@@ -123,7 +123,7 @@ test('wearables strip actions cover stub collapse sync reorder move and manual s
         },
         metrics: {},
       };
-      window.setWearableStripHidden(true);
+      wearables.setWearableStripHidden(true);
       renderStrip();
 
       const grid = host.querySelector('.wearable-card-grid');
