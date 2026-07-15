@@ -194,7 +194,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
 
   await page.goto('/app', { waitUntil: 'load' });
 
-  const results = await page.evaluate(async ({ recUrl }) => {
+  const results = await page.evaluate(async ({ recUrl, runtimeUrl }) => {
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const { state } = await import('/js/state.js');
     const recommendationWindowKeys = [
@@ -227,6 +227,10 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       value: window[key],
     }));
     const rec = await import(recUrl);
+    const recommendationsRuntime = await import(runtimeUrl);
+    const savedRecommendationsRuntime = recommendationsRuntime.configureRecommendationsRuntime({
+      openProfileLocationEditor: () => {},
+    });
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
       return [key, localStorage.getItem(key)];
@@ -236,7 +240,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       profiles: clone(state.profiles),
       importedData: clone(state.importedData),
       snpTable: window._snpTableCache,
-      openProfileLocationEditor: window.openProfileLocationEditor,
       openSettingsTab: window.openSettingsTab,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
@@ -293,7 +296,6 @@ test('recommendations browser coverage exercises catalog renderers detectors and
           },
         },
       };
-      window.openProfileLocationEditor = () => {};
       window.openSettingsTab = () => {};
 
       localStorage.setItem('labcharts-show-product-recs', 'false');
@@ -479,7 +481,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       state.profiles = saved.profiles;
       state.importedData = saved.importedData;
       restoreWindowProp('_snpTableCache', saved.snpTable);
-      restoreWindowProp('openProfileLocationEditor', saved.openProfileLocationEditor);
+      recommendationsRuntime.configureRecommendationsRuntime(savedRecommendationsRuntime);
       restoreWindowProp('openSettingsTab', saved.openSettingsTab);
       for (const { key, hadOwn, value } of saved.recommendationWindowExports) {
         if (hadOwn) window[key] = value;
@@ -496,7 +498,10 @@ test('recommendations browser coverage exercises catalog renderers detectors and
     }
 
     return outcomes;
-  }, { recUrl: moduleUrl('/js/recommendations.js') });
+  }, {
+    recUrl: moduleUrl('/js/recommendations.js'),
+    runtimeUrl: '/js/recommendations-runtime.js',
+  });
 
   expectAll(results);
 });

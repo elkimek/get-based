@@ -2,11 +2,12 @@ import { expect, test } from './coverage-fixture.js';
 
 test('client list live menu actions dispatch exports share demos and profile state changes', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openClientList === 'function');
+  await page.evaluate(() => import('/js/client-list.js'));
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    const { configureClientListRuntime } = await import('/js/client-list.js');
+    const clientList = await import('/js/client-list.js');
+    const { configureClientListRuntime } = clientList;
     const profile = await import('/js/profile.js');
     const outcomes = {};
     const calls = [];
@@ -75,7 +76,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
       inputClick: HTMLInputElement.prototype.click,
     };
     const openList = async () => {
-      window.openClientList();
+      clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list overlay');
       await waitFor(() => document.activeElement?.id === 'cl-search', 'client list search focus');
     };
@@ -235,8 +236,12 @@ test('client list live menu actions dispatch exports share demos and profile sta
       outcomes.outsideClickClosesFloatingMenus = !document.getElementById('cl-active-menu')?.classList.contains('show')
         && !document.getElementById('cl-tools-menu')?.classList.contains('show');
     } finally {
-      window._clSort?.('lastUpdated');
-      window.closeClientList?.();
+      const sort = document.querySelector('.cl-sort');
+      if (sort) {
+        sort.value = 'lastUpdated';
+        sort.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      clientList.closeClientList();
       state.profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
@@ -263,10 +268,11 @@ test('client list live menu actions dispatch exports share demos and profile sta
 
 test('client list form live actions cover health link avatar haplogroup and location editor', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openClientList === 'function');
+  await page.evaluate(() => import('/js/client-list.js'));
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
+    const clientList = await import('/js/client-list.js');
     const clientListRuntime = await import('/js/client-list-runtime.js');
     const outcomes = {};
     const calls = [];
@@ -349,8 +355,8 @@ test('client list form live actions cover health link avatar haplogroup and loca
         document.body.appendChild(strip);
       }
 
-      window.openClientList();
-      window.openClientForm('client-active');
+      clientList.openClientList();
+      clientList.openClientForm('client-active');
       await waitFor(() => !!document.querySelector('.cl-form'), 'client edit form');
       document.querySelector('[data-cl-action="health-metrics"]')?.click();
       await waitFor(() => calls.some(call => call[0] === 'navigate'), 'health metrics navigation');
@@ -359,8 +365,8 @@ test('client list form live actions cover health link avatar haplogroup and loca
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard')
         && calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip');
 
-      window.openClientList();
-      window.openClientForm('client-active');
+      clientList.openClientList();
+      clientList.openClientForm('client-active');
       await waitFor(() => !!document.querySelector('.cl-form'), 'reopened client edit form');
       document.querySelector('.cl-avatar-picker')?.dispatchEvent(new KeyboardEvent('keydown', {
         key: 'Enter',
@@ -387,14 +393,14 @@ test('client list form live actions cover health link avatar haplogroup and loca
         && calls.some(call => call[0] === 'notification' && call[1] === '"Active Browser" updated' && call[2] === 'info');
 
       document.getElementById('modal-overlay')?.classList.add('show');
-      window.openProfileLocationEditor();
+      clientList.openProfileLocationEditor();
       await waitFor(() => document.activeElement?.id === 'cl-country', 'location editor focus');
       outcomes.locationEditorOpensVisibleFormAndHidesOtherModal = document.getElementById('client-list-overlay')?.classList.contains('show') === true
         && !document.getElementById('modal-overlay')?.classList.contains('show')
         && document.getElementById('cl-country')?.value === 'Czech Republic'
         && calls.some(call => call[0] === 'scroll' && call[1] === 'cl-country');
     } finally {
-      window.closeClientList?.();
+      clientList.closeClientList();
       state.profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;
@@ -426,10 +432,11 @@ test('client list form live actions cover health link avatar haplogroup and loca
 
 test('client list remaining browser helpers cover filters avatar upload tags and profile metadata actions', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openClientList === 'function');
+  await page.evaluate(() => import('/js/client-list.js'));
 
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
+    const clientList = await import('/js/client-list.js');
     const outcomes = {};
     const calls = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -512,32 +519,36 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       window.renderProfileButton = () => calls.push(['render-profile-button']);
       window.showNotification = (...args) => calls.push(['notification', ...args]);
 
-      window.openClientList();
+      clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list open');
-      window._clSearch('alpha');
+      const search = document.getElementById('cl-search');
+      search.value = 'alpha';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
       await waitFor(() => rowNames().join('|') === 'Alpha Helper', 'client search render');
       outcomes.searchHelperFiltersList = document.getElementById('cl-search')?.value === 'alpha'
         && rowNames().join('|') === 'Alpha Helper';
 
-      window._clSearch('');
+      document.getElementById('cl-search').value = '';
+      document.getElementById('cl-search').dispatchEvent(new Event('input', { bubbles: true }));
       await waitFor(() => rowNames().length === 2, 'cleared search render');
-      window._clSort('az');
+      document.querySelector('.cl-sort').value = 'az';
+      document.querySelector('.cl-sort').dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => rowNames().join('|') === 'Zeta Helper|Alpha Helper', 'pinned sort render');
-      window._clTagFilter('metabolic');
+      document.querySelector('[data-cl-action="tag-filter"][data-cl-tag="metabolic"]')?.click();
       await waitFor(() => rowNames().join('|') === 'Alpha Helper', 'tag filter render');
-      window._clTagFilter('metabolic');
+      document.querySelector('[data-cl-action="tag-filter"][data-cl-tag="metabolic"]')?.click();
       await waitFor(() => rowNames().length === 2, 'tag filter toggle clear');
       outcomes.sortAndTagFilterHelpersRerenderList = rowNames().includes('Zeta Helper')
         && rowNames().includes('Alpha Helper');
 
-      window.openClientForm('client-list-helper-main');
+      clientList.openClientForm('client-list-helper-main');
       await waitFor(() => !!document.querySelector('.cl-form'), 'helper edit form');
-      window._clSetSex('male');
+      document.querySelector('[data-cl-action="set-sex"][data-cl-sex="male"]')?.click();
       outcomes.setSexHelperTogglesActiveButton = document.querySelector('#cl-sex-toggle .sex-toggle-btn.active')?.dataset.sex === 'male';
 
       document.getElementById('cl-country').value = 'Slovakia';
       document.getElementById('cl-zip').value = '81101';
-      window._clUpdateLat();
+      document.getElementById('cl-zip').dispatchEvent(new Event('input', { bubbles: true }));
       outcomes.latitudeHelperUsesCacheAndZipSuffix = document.getElementById('cl-lat-display')?.textContent.includes('ZIP-refined') === true
         && document.getElementById('cl-lat-display')?.textContent.includes('48') === true;
 
@@ -552,7 +563,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       outcomes.tagKeyboardAndRemoveHelpersMutatePills = ![...document.querySelectorAll('.cl-tag-pill')]
         .some(el => el.textContent.includes('coach'));
 
-      window._clHeightUnitChanged();
+      document.getElementById('cl-height-unit-toggle')?.click();
       outcomes.heightUnitHelperConvertsAndUpdatesBmi = document.getElementById('cl-height-unit')?.value === 'in'
         && document.getElementById('cl-height-unit-toggle')?.textContent === 'in'
         && document.getElementById('cl-height')?.placeholder === 'inches'
@@ -571,32 +582,37 @@ test('client list remaining browser helpers cover filters avatar upload tags and
         configurable: true,
         value: [file],
       });
-      await window._clAvatarChanged(avatarInput);
+      avatarInput.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitFor(() => document.getElementById('cl-avatar-img') instanceof HTMLImageElement, 'avatar preview');
       outcomes.avatarChangeHelperResizesAndShowsPreview = document.getElementById('cl-avatar-img') instanceof HTMLImageElement
         && document.getElementById('cl-avatar-img')?.getAttribute('src')?.startsWith('data:image/jpeg')
         && !!document.querySelector('.cl-avatar-remove');
 
-      window._clBackToList();
+      document.querySelector('[data-cl-action="back-to-list"]')?.click();
       await waitFor(() => !!document.getElementById('cl-search'), 'back to client list');
       outcomes.backToListHelperRestoresSearchView = !!document.getElementById('cl-search')
         && !document.querySelector('.cl-form');
 
-      window._clUnpin('client-list-helper-main');
+      document.querySelector('[data-cl-action="toggle-menu"][data-cl-profile-id="client-list-helper-main"]')?.click();
+      await waitFor(() => !!document.querySelector('[data-cl-action="unpin-profile"][data-cl-profile-id="client-list-helper-main"]'), 'unpin menu action');
+      document.querySelector('[data-cl-action="unpin-profile"][data-cl-profile-id="client-list-helper-main"]')?.click();
       await waitFor(() => state.profiles.find(p => p.id === 'client-list-helper-main')?.pinned === false, 'profile unpinned');
-      window._clArchive('client-list-helper-secondary');
+      document.querySelector('[data-cl-action="toggle-menu"][data-cl-profile-id="client-list-helper-secondary"]')?.click();
+      await waitFor(() => !!document.querySelector('[data-cl-action="archive-profile"][data-cl-profile-id="client-list-helper-secondary"]'), 'archive menu action');
+      document.querySelector('[data-cl-action="archive-profile"][data-cl-profile-id="client-list-helper-secondary"]')?.click();
       await waitFor(() => state.profiles.find(p => p.id === 'client-list-helper-secondary')?.status === 'archived', 'profile archived');
-      window._clEdit('client-list-helper-main');
+      document.querySelector('[data-cl-action="edit-profile"][data-cl-profile-id="client-list-helper-main"]')?.click();
       await waitFor(() => !!document.querySelector('.cl-form'), 'edit helper opens form');
-      window._clBackToList();
+      document.querySelector('[data-cl-action="back-to-list"]')?.click();
       await waitFor(() => !!document.getElementById('cl-search'), 'back after edit');
-      window._clSelect('client-list-helper-main');
+      document.querySelector('[data-cl-action="select-profile"][data-cl-profile-id="client-list-helper-main"]')?.click();
       outcomes.profileMetadataHelpersUnpinArchiveEditAndSelect =
         state.profiles.find(p => p.id === 'client-list-helper-main')?.pinned === false
         && state.profiles.find(p => p.id === 'client-list-helper-secondary')?.status === 'archived'
         && calls.filter(call => call[0] === 'render-profile-button').length >= 2
         && !document.getElementById('client-list-overlay')?.classList.contains('show');
     } finally {
-      window.closeClientList?.();
+      clientList.closeClientList();
       state.profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
       state.importedData = saved.importedData;

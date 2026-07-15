@@ -190,12 +190,13 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, themeModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, clientListModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, themeModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
     import('../js/changelog.js'),
     import('../js/charts.js'),
+    import('../js/client-list.js'),
     import('../js/context-cards.js'),
     import('../js/crypto.js'),
     import('../js/cycle.js'),
@@ -390,9 +391,19 @@
     'recordChange','showDietContaminantsModal','openCardTipsModal','loadContextCardTips'
   ];
 
-  // client-list.js (3)
+  // client-list.js (5 exports, 34 former browser globals now module-only)
   const clientListExports = [
-    'openClientList','closeClientList','openClientForm','configureClientListRuntime'
+    'openClientList','closeClientList','openClientForm','openProfileLocationEditor',
+    'configureClientListRuntime'
+  ];
+  const clientListLegacyGlobals = [
+    'openClientList','closeClientList','openClientForm','openProfileLocationEditor',
+    '_clSearch','_clSort','_clStatusFilter','_clTagFilter','_clSelect','_clSaveForm',
+    '_clSetSex','_clUpdateLat','_clTagKeydown','_clRemoveTag','_clBackToList',
+    '_clAvatarChanged','_clRemoveAvatar','_clHaplogroupChanged','_clToggleToolsMenu',
+    '_clCloseMenus','_clToggleMenu','_clEdit','_clPin','_clUnpin','_clFlag','_clUnflag',
+    '_clArchive','_clUnarchive','_clExport','_clExportChat','_clDelete','_clUpdateBMI',
+    '_clHeightUnitChanged','_clGoToHealthMetrics'
   ];
 
   // cycle.js (15, module-only)
@@ -704,6 +715,7 @@
     ['cashu-wallet.js', cashuWalletModule, cashuWalletExports],
     ['changelog.js', changelogModule, changelogExports],
     ['charts.js', chartsModule, chartsExports],
+    ['client-list.js', clientListModule, clientListExports],
     ['context-cards.js', contextCardsModule, contextCardsExports],
     ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
@@ -747,6 +759,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cryptoExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of clientListLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cycleLegacyGlobals) {
@@ -942,7 +957,6 @@
 
   const allModules = {
     'chat.js': chatExports,
-    'client-list.js': clientListExports,
     'nav.js': navGlobals,
     'settings.js': settingsGlobals,
     'views.js': viewsLegacyExports,

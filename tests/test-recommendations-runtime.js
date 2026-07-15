@@ -77,6 +77,7 @@ try {
   setRuntime(runtime);
   const restoreRecommendationsRuntime = configureRecommendationsRuntime({
     openEMFAssessmentEditor: () => calls.push(['emf', true]),
+    openProfileLocationEditor: () => runtime.openProfileLocationEditor(),
   });
 
   const timerId = scheduleRecommendationsTask(() => calls.push(['task']), 125);
@@ -117,6 +118,7 @@ try {
 
   delete runtime.closeModal;
   delete runtime.openProfileLocationEditor;
+  configureRecommendationsRuntime({ openProfileLocationEditor: null });
   delete runtime.openSettingsTab;
   delete runtime.openChatPanel;
   delete runtime.isProductRecsEnabled;

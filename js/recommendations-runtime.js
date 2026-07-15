@@ -6,12 +6,18 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const recommendationsRuntimeDeps = {
   openEMFAssessmentEditor,
+  openProfileLocationEditor: null,
 };
 
 export function configureRecommendationsRuntime(deps = {}) {
   const previous = { ...recommendationsRuntimeDeps };
   if (typeof deps.openEMFAssessmentEditor === 'function') {
     recommendationsRuntimeDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
+  }
+  if ('openProfileLocationEditor' in deps) {
+    recommendationsRuntimeDeps.openProfileLocationEditor = typeof deps.openProfileLocationEditor === 'function'
+      ? deps.openProfileLocationEditor
+      : null;
   }
   return previous;
 }
@@ -78,7 +84,7 @@ export function openRecommendationsEmfAssessment() {
 }
 
 export function openRecommendationsLocationEditor() {
-  const openProfileLocationEditor = getRuntimeFunction('openProfileLocationEditor');
+  const openProfileLocationEditor = recommendationsRuntimeDeps.openProfileLocationEditor;
   if (!openProfileLocationEditor) return false;
   openProfileLocationEditor();
   return true;

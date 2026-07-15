@@ -56,9 +56,11 @@ assert('client-list routes app-shell actions through injectable runtime',
     clientListSrc.includes('clientListRuntime.exportClientJSON(id, true)') &&
     clientListSrc.includes('clientListRuntime.importDataJSON(file)') &&
     clientListSrc.includes('clientListRuntime.loadDemoData(actionEl.dataset.clDemo'));
-assert('client-list routes browser globals through client-list runtime adapter',
+assert('client-list keeps browser adapters explicit and publishes no window bindings',
   clientListSrc.includes("from './client-list-runtime.js'") &&
-    clientListSrc.includes('publishClientListWindowBindings') &&
+    clientListSrc.includes('navigateClientListRoute') &&
+    clientListSrc.includes('showClientListNotification') &&
+    !clientListSrc.includes('publishClientListWindowBindings') &&
     !/\bwindow(?:\.|\s*\[)/.test(clientListSrc));
 assert('client-list modal uses shared overlay lifecycle helpers',
   clientListSrc.includes("from './modal-lifecycle.js'") &&

@@ -24,8 +24,6 @@ const runtimeKeys = [
   'window',
   'getSunCoords',
   'getProfileLocation',
-  'openProfileLocationEditor',
-  'openClientList',
   'requestPreciseLocation',
   'navigate',
 ];
@@ -52,9 +50,11 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('getSunCoords', () => ({ lat: 50.08, lon: 14.42, source: 'profile-precise' }));
-  configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: 'Czech Republic', zip: '' }) });
-  setRuntimeValue('openProfileLocationEditor', () => calls.push(['profile-location']));
-  setRuntimeValue('openClientList', () => calls.push(['client-list']));
+  configureSunDefaultsRuntimeDeps({
+    getProfileLocation: () => ({ country: 'Czech Republic', zip: '' }),
+    openProfileLocationEditor: () => calls.push(['profile-location']),
+    openClientList: () => calls.push(['client-list']),
+  });
   setRuntimeValue('requestPreciseLocation', () => {
     calls.push(['precise']);
     return Promise.resolve({ lat: 50.1, lon: 14.4 });
@@ -69,7 +69,7 @@ try {
     openSunSetupProfileLocationRuntime() === true &&
     calls.some(call => call[0] === 'profile-location'));
 
-  delete globalThis.openProfileLocationEditor;
+  configureSunDefaultsRuntimeDeps({ openProfileLocationEditor: null });
   assert('openSunSetupProfileLocationRuntime falls back to client list',
     openSunSetupProfileLocationRuntime() === true &&
     calls.some(call => call[0] === 'client-list'));
@@ -85,8 +85,10 @@ try {
     calls.some(call => call[0] === 'navigate' && call[1] === 'light'));
 
   delete globalThis.getSunCoords;
-  configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: '', zip: '' }) });
-  delete globalThis.openClientList;
+  configureSunDefaultsRuntimeDeps({
+    getProfileLocation: () => ({ country: '', zip: '' }),
+    openClientList: null,
+  });
   delete globalThis.requestPreciseLocation;
   delete globalThis.navigate;
   assert('missing runtime functions return safe fallbacks',

@@ -36,7 +36,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
     const origProfiles = state.profiles;
     const origNavigate = window.navigate;
     const origOpenCreateMarker = window.openCreateMarkerModal;
-    const origOpenClientList = window.openClientList;
     const origGroupStorage = localStorage.getItem('labcharts-navgroup-Hormones');
     let restoreNavActions = null;
     let restoreNavRuntime = null;
@@ -81,12 +80,12 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       });
       restoreNavActions = nav.configureNavActions({
         openLightEnvironmentAssessment: () => calls.push(['open-light-env']),
+        openClientList: () => calls.push(['open-client-list']),
       });
       restoreContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         openContextModal: () => calls.push(['open-context']),
       });
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
-      window.openClientList = () => calls.push(['open-client-list']);
       window.buildSidebar(fixtureData);
       window.renderProfileButton();
       nav.openRecommendationsFromSidebar();
@@ -151,7 +150,6 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       if (restoreNavActions) nav.configureNavActions(restoreNavActions);
       if (restoreContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(restoreContextCardsRuntime);
       window.openCreateMarkerModal = origOpenCreateMarker;
-      window.openClientList = origOpenClientList;
       if (origGroupStorage == null) localStorage.removeItem('labcharts-navgroup-Hormones');
       else localStorage.setItem('labcharts-navgroup-Hormones', origGroupStorage);
       window.buildSidebar?.();

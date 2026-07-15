@@ -65,10 +65,6 @@ export function openCreateMarkerFromNavRuntime() {
   getNavRuntimeFunction('openCreateMarkerModal')?.();
 }
 
-export function openClientListFromNavRuntime() {
-  getNavRuntimeFunction('openClientList')?.();
-}
-
 /**
  * @param {Record<string, any>} globals
  */

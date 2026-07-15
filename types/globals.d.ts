@@ -170,15 +170,12 @@ interface Window {
   nostrDiscoverNodes?: AnyFunction;
   nostrSetSelectedNode?: (url: string) => void;
   openChatPanel: AnyFunction;
-  openClientList?: () => void;
-  closeClientList: () => void;
   openEMFAssessmentEditor?: () => void;
   openSettingsModal: (tab?: string) => void;
   openChatProviderQuiz?: AnyFunction;
   openImportReviewFromSnapshot?: (snapshotId: string) => void;
   pdfjsLib?: unknown;
   openProfileShareModal?: (profileId?: string) => void;
-  openProfileLocationEditor?: AnyFunction;
   quickLogSunSession?: () => Promise<void> | void;
   openDetailedSessionDialog?: AnyFunction;
   requestPreciseLocation?: AnyFunction;
