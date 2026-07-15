@@ -5,7 +5,6 @@ import {
   addMobileDashboardBreakpointListener,
   addMobileDashboardVisualViewportListener,
   addMobileDashboardWindowListener,
-  exposeMobileDashboardBindings,
   getMobileDashboardVisualBottomOffset,
   isMobileDashboardRuntimeViewport,
   scrollMobileDashboardToTop,
@@ -27,7 +26,6 @@ const runtimeKeys = [
   'visualViewport',
   'innerHeight',
   'scrollTo',
-  'mobileDashboardProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -104,11 +102,6 @@ try {
   scrollMobileDashboardToTop();
   assert('scrollMobileDashboardToTop delegates to scrollTo',
     calls.some(call => call[0] === 'scroll' && call[1] === 0 && call[2] === 0));
-  const probe = () => 'ok';
-  exposeMobileDashboardBindings({ mobileDashboardProbe: probe });
-  assert('exposeMobileDashboardBindings assigns runtime exports',
-    globalThis.mobileDashboardProbe === probe);
-
   setRuntimeValue('matchMedia', query => ({
     media: query,
     matches: true,
@@ -133,9 +126,8 @@ try {
   addMobileDashboardWindowListener('resize', resizeListener);
   addMobileDashboardVisualViewportListener('resize', resizeListener);
   scrollMobileDashboardToTop();
-  exposeMobileDashboardBindings({ mobileDashboardProbe: null });
   assert('optional browser actions no-op without window',
-    calls.length === beforeNoWindowCalls && globalThis.mobileDashboardProbe === probe);
+    calls.length === beforeNoWindowCalls);
 } finally {
   restoreRuntime();
 }

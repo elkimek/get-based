@@ -64,6 +64,7 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
  *   clearDashboardWidgets: () => void,
  *   resetDashboardWidgets: () => void,
  *   toggleDashboardOrganizeMode: (force?: boolean) => void,
+ *   refreshMobileDashboardActiveTab: () => void,
  * }} SettingsRuntime
  */
 
@@ -77,6 +78,7 @@ const settingsRuntime = {
   clearDashboardWidgets: () => {},
   resetDashboardWidgets: () => {},
   toggleDashboardOrganizeMode: () => {},
+  refreshMobileDashboardActiveTab: () => {},
 };
 
 /** @param {Partial<SettingsRuntime>} [runtime] */
@@ -1048,7 +1050,7 @@ export function updateSettingsUI() {
 export function closeSettingsModal() {
   closeModalOverlay('settings-modal-overlay');
   if (settingsWindow.updateChatNudge) settingsWindow.updateChatNudge();
-  settingsWindow.refreshMobileDashboardActiveTab?.();
+  settingsRuntime.refreshMobileDashboardActiveTab();
 }
 
 publishSettingsGlobals({

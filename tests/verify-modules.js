@@ -189,7 +189,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -204,6 +204,7 @@
     import('../js/lab-context.js'),
     import('../js/lens.js'),
     import('../js/light-tools.js'),
+    import('../js/mobile-dashboard.js'),
     import('../js/nav.js'),
     import('../js/notes.js'),
     import('../js/pdf-import.js'),
@@ -478,6 +479,12 @@
     'configureNavActions',
   ];
 
+  // mobile-dashboard.js (4 former browser globals, now module-only)
+  const mobileDashboardExports = [
+    'openMobileDashboardSearch','mobileDashboardJump',
+    'mobileDashboardSetTab','refreshMobileDashboardActiveTab'
+  ];
+
   // notes.js (3 former browser globals, now module-only)
   const notesExports = [
     'openNoteEditor','saveNote','deleteNote'
@@ -678,6 +685,7 @@
     ['lab-context.js', labContextModule, labContextExports],
     ['lens.js', lensModule, lensExports],
     ['light-tools.js', lightToolsModule, lightToolsExports],
+    ['mobile-dashboard.js', mobileDashboardModule, mobileDashboardExports],
     ['nav.js', navModule, navModuleExports],
     ['notes.js', notesModule, notesExports],
     ['pdf-import.js', pdfImportModule, pdfImportExports],
@@ -719,6 +727,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of navModuleOnlyExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of mobileDashboardExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of notesExports) {

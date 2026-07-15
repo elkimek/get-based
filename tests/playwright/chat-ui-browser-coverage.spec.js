@@ -338,15 +338,16 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       sendDisabled: sendBtn?.disabled,
       labelDisplay: label?.style.display,
       checkboxChecked: checkbox?.checked,
-      refreshMobileDashboardActiveTab: window.refreshMobileDashboardActiveTab,
     };
     let mobileRefreshes = 0;
+    const previousChatPanelCallbacks = chatPanel.configureChatPanel({
+      refreshMobileDashboardActiveTab: () => { mobileRefreshes++; },
+    });
 
     try {
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-chat-fullscreen', 'false');
-      window.refreshMobileDashboardActiveTab = () => { mobileRefreshes++; };
       panel?.classList.remove('open', 'chat-panel-fullscreen');
       backdrop?.classList.remove('open');
       document.body.classList.remove('chat-open', 'chat-fullscreen', 'chat-autostart-reserved');
@@ -397,8 +398,7 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
         && fab?.classList.contains('hidden') === false
         && mobileRefreshes === 1;
     } finally {
-      if (original.refreshMobileDashboardActiveTab === undefined) delete window.refreshMobileDashboardActiveTab;
-      else window.refreshMobileDashboardActiveTab = original.refreshMobileDashboardActiveTab;
+      chatPanel.configureChatPanel(previousChatPanelCallbacks);
       chatPanel.closeChatPanel();
       localStorage.clear();
       for (const [key, value] of storage) {

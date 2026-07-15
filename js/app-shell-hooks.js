@@ -3,7 +3,7 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { closeChangelog } from './changelog.js';
-import { closeChatPanel, toggleChatPanel } from './chat-panel.js';
+import { closeChatPanel, configureChatPanel, toggleChatPanel } from './chat-panel.js';
 import { updateChatNudge } from './chat-nudge.js';
 import { closeSummaryModal } from './chat-summaries.js';
 import { closeClientList, configureClientListRuntime } from './client-list.js';
@@ -19,6 +19,7 @@ import { closeRestoreMnemonicDialog, closeSyncSetup } from './settings-sync-pane
 import {
   clearDashboardWidgets,
   navigate,
+  refreshMobileDashboardActiveTab,
   resetDashboardWidgets,
   toggleDashboardOrganizeMode,
 } from './views.js';
@@ -40,9 +41,12 @@ configureSettingsRuntime({
   exportClientJSON,
   getActiveProfileId,
   openProfileShareModal,
+  refreshMobileDashboardActiveTab,
   resetDashboardWidgets,
   toggleDashboardOrganizeMode,
 });
+
+configureChatPanel({ refreshMobileDashboardActiveTab });
 
 configureAppEventListeners({
   closeChangelog,

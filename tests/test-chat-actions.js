@@ -430,7 +430,6 @@ const chatRuntimeDelegates = [
   ['chat-actions.js', chatActionsSrc],
   ['chat-history.js', chatHistorySrc],
   ['chat-marker-prompts.js', chatMarkerPromptsSrc],
-  ['chat-panel.js', chatPanelSrc],
   ['chat-personalities.js', chatPersonalitiesSrc],
   ['chat-discussion-round-runner.js', chatDiscussionRoundRunnerSrc],
 ];
@@ -439,6 +438,12 @@ assert('chat modules delegate direct window globals to chat runtime',
     chatRuntimeSrc.includes('export function renderChatMessagesRuntime') &&
     chatRuntimeSrc.includes('export function getChatProviderAttestation'),
   chatRuntimeDelegates.find(([name, src]) => !src.includes("from './chat-runtime.js'") || directWindowGlobalRe.test(src))?.[0] || 'missing runtime export');
+assert('chat panel refreshes the mobile dashboard through an explicit module callback',
+  chatPanelSrc.includes('refreshMobileDashboardActiveTab: null') &&
+    chatPanelSrc.includes('panelCallbacks.refreshMobileDashboardActiveTab?.()') &&
+    !chatPanelSrc.includes("from './chat-runtime.js'") &&
+    !directWindowGlobalRe.test(chatPanelSrc),
+  'found');
 assert('chat-send.js imports chat icon helpers', chatSendSrc.includes("from './chat-icons.js'"), 'found');
 assert('chat-icons.js exports button content helper', chatIconsSrc.includes('export function setIconButtonContent'), 'found');
 assert('chat window bindings import chat summary helpers',
