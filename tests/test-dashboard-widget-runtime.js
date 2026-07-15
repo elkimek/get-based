@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  configureDashboardNoteActions,
   deleteDashboardNote,
   getDashboardDeviceSessions,
   getDashboardLightSessions,
@@ -40,8 +41,6 @@ const runtimeKeys = [
   'showDetailModal',
   'navigate',
   'triggerDNAFilePicker',
-  'openNoteEditor',
-  'deleteNote',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -66,6 +65,10 @@ try {
   const calls = [];
   const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
     triggerDNAFilePicker: () => calls.push(['dna']),
+  });
+  const previousDashboardNoteActions = configureDashboardNoteActions({
+    openNoteEditor: (...args) => calls.push(['note-editor', ...args.map(arg => arg ?? 'null')]),
+    deleteNote: index => calls.push(['delete-note', index]),
   });
   setRuntimeValue('innerHeight', 720);
   assert('getDashboardViewportHeight reads runtime innerHeight',
@@ -103,8 +106,6 @@ try {
   setRuntimeValue('showDetailModal', id => calls.push(['marker-detail', id]));
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('triggerDNAFilePicker', () => calls.push(['legacy-dna']));
-  setRuntimeValue('openNoteEditor', (...args) => calls.push(['note-editor', ...args.map(arg => arg ?? 'null')]));
-  setRuntimeValue('deleteNote', index => calls.push(['delete-note', index]));
 
   openDashboardWearablesSettings();
   syncDashboardWearableNow(actionEl);
@@ -134,6 +135,7 @@ try {
     openDashboardWearableDetail('sleep') === false);
 
   configureContextCardsRuntimeCallbacks({ triggerDNAFilePicker: null });
+  configureDashboardNoteActions({ openNoteEditor: null, deleteNote: null });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
@@ -151,6 +153,7 @@ try {
       getDashboardSnpTableCache() === null &&
       openDashboardWearableDetail('sleep') === false &&
       calls.length === callCountBeforeMissingRuntime);
+  configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   restoreRuntime();

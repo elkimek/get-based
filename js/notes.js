@@ -10,9 +10,9 @@ import {
   replaceImportedArrayItem,
 } from './data-merge.js';
 import { openModalOverlay } from './modal-lifecycle.js';
+import { configureDashboardNoteActions } from './dashboard-widget-runtime.js';
 import {
   closeNoteModalRuntime,
-  exposeNoteEditorRuntime,
   isNoteActionDelegatesBoundRuntime,
   markNoteActionDelegatesBoundRuntime,
   navigateAfterNoteChangeRuntime,
@@ -169,4 +169,4 @@ export async function deleteNote(idx) {
   }
 }
 
-exposeNoteEditorRuntime({ openNoteEditor, saveNote, deleteNote });
+configureDashboardNoteActions({ openNoteEditor, deleteNote });
