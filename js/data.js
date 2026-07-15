@@ -1069,7 +1069,3 @@ export function updateHeaderRangeToggle() {
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
 }
-
-if (typeof window !== 'undefined') {
-  Object.assign(window, { saveImportedData, getFocusCardFingerprint, getActiveData, invalidateActiveDataCache, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, renderDateRangeFilter, setDateRange, renderChartLayersDropdown, toggleChartLayersDropdown, setSuppOverlay, setNoteOverlay, setPhaseOverlay, destroyAllCharts, countFlagged, getLatestValueIndex, getAllFlaggedMarkers, statusIcon, detectTrendAlerts, getKeyTrendMarkers, switchUnitSystem, toggleAltUnits, getEffectiveRange, getEffectiveRangeForDate, getPhaseRefEnvelope, switchRangeMode, updateHeaderDates, updateHeaderRangeToggle, registerRefreshCallback });
-}

@@ -1,6 +1,8 @@
 // @ts-check
 // pdf-import-review-runtime.js - Browser runtime adapters for import review state.
 
+import { updateHeaderDates } from './data.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -9,11 +11,17 @@ function getRuntimeWindow() {
 
 const pdfImportReviewRuntimeDeps = {
   confirmImport: () => import('./pdf-import-commit.js').then(module => module.confirmImport()),
+  updateHeaderDates,
 };
 
 export function configurePdfImportReviewRuntimeDeps(deps = {}) {
   const previous = { ...pdfImportReviewRuntimeDeps };
   if (typeof deps.confirmImport === 'function') pdfImportReviewRuntimeDeps.confirmImport = deps.confirmImport;
+  if ('updateHeaderDates' in deps) {
+    pdfImportReviewRuntimeDeps.updateHeaderDates = typeof deps.updateHeaderDates === 'function'
+      ? /** @type {typeof updateHeaderDates} */ (deps.updateHeaderDates)
+      : null;
+  }
   return previous;
 }
 
@@ -59,15 +67,15 @@ export function navigateImportReviewRuntime(route = 'dashboard') {
 
 /** @param {string} route */
 export function refreshImportedDataViewsRuntime(route = 'dashboard') {
+  if (!getRuntimeWindow()) return false;
   let refreshed = false;
   const buildSidebar = getRuntimeFunction('buildSidebar');
   if (buildSidebar) {
     buildSidebar();
     refreshed = true;
   }
-  const updateHeaderDates = getRuntimeFunction('updateHeaderDates');
-  if (updateHeaderDates) {
-    updateHeaderDates();
+  if (pdfImportReviewRuntimeDeps.updateHeaderDates) {
+    pdfImportReviewRuntimeDeps.updateHeaderDates();
     refreshed = true;
   }
   if (navigateImportReviewRuntime(route)) refreshed = true;

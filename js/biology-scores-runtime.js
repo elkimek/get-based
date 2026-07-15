@@ -2,12 +2,18 @@
 // biology-scores-runtime.js - Browser runtime adapters for Biology Scores UI hooks.
 
 import { hasAIProvider } from './api.js';
+import { getActiveData } from './data.js';
 import { showNotification } from './utils.js';
 
-const biologyScoresRuntimeDeps = { showNotification };
+const biologyScoresRuntimeDeps = { getActiveData, showNotification };
 
 export function configureBiologyScoresRuntimeDeps(deps = {}) {
   const previous = { ...biologyScoresRuntimeDeps };
+  if ('getActiveData' in deps) {
+    biologyScoresRuntimeDeps.getActiveData = typeof deps.getActiveData === 'function'
+      ? /** @type {typeof getActiveData} */ (deps.getActiveData)
+      : null;
+  }
   if ('showNotification' in deps) {
     biologyScoresRuntimeDeps.showNotification = typeof deps.showNotification === 'function'
       ? /** @type {typeof showNotification} */ (deps.showNotification)
@@ -71,7 +77,7 @@ export function hasBiologyScoresAIProvider() {
 }
 
 export function getBiologyScoresActiveData() {
-  return getRuntimeFunction('getActiveData')?.() || {};
+  return biologyScoresRuntimeDeps.getActiveData?.() || {};
 }
 
 /** @param {string} markerId */

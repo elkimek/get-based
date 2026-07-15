@@ -115,7 +115,6 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForFunction(
       () => window._labState
-        && typeof window.saveImportedData === 'function'
         && typeof window.showDetailModal === 'function'
         && typeof window.navigate === 'function'
         && typeof window.openSunSessionDetail === 'function'
@@ -154,6 +153,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       { timeout: 15000 }
     );
     await page.evaluate(async ({ profileId, imported }) => {
+      const { saveImportedData } = await import('/js/data.js');
       localStorage.clear();
       sessionStorage.clear();
       localStorage.setItem('labcharts-active-profile', profileId);
@@ -166,7 +166,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         if (el.id) el.classList.remove('show');
         else el.remove();
       });
-      await window.saveImportedData({ immediate: true });
+      await saveImportedData({ immediate: true });
       window.navigate('dashboard');
     }, { profileId: PROFILE_ID, imported: importedData });
     return { context, page, label };
@@ -390,6 +390,7 @@ async function closeFloatingModals(page) {
 
 async function enableAgentAccessForSync(page) {
   return page.evaluate(async () => {
+    const { saveImportedData } = await import('/js/data.js');
     const token = 'syncagent'.padEnd(64, 'a');
     const contextKey = `gbctx_v1_${'S'.repeat(43)}`;
     const now = Date.now();
@@ -405,7 +406,7 @@ async function enableAgentAccessForSync(page) {
     window._labState.importedData.agentAccessWearableSeriesDays = 30;
     localStorage.removeItem('labcharts-messenger-token');
     localStorage.removeItem('labcharts-agent-context-key');
-    await window.saveImportedData({ immediate: true });
+    await saveImportedData({ immediate: true });
     return JSON.parse(JSON.stringify(window._labState.importedData));
   });
 }
@@ -428,10 +429,11 @@ async function agentAccessSnapshot(page) {
 
 async function disableAgentAccessForSync(page) {
   return page.evaluate(async () => {
+    const { saveImportedData } = await import('/js/data.js');
     const messenger = window.__syncE2EMessenger;
     if (!messenger) throw new Error('sync-messenger helper module not loaded');
     const previousToken = messenger.disableMessengerTokenLocal();
-    await window.saveImportedData({ immediate: true });
+    await saveImportedData({ immediate: true });
     return {
       previousToken,
       imported: JSON.parse(JSON.stringify(window._labState.importedData)),

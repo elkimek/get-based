@@ -13,6 +13,7 @@ return (async function() {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const main = document.getElementById('main-content');
   const S = window._labState;
+  const dataModule = await import('/js/data.js');
   const { buildSunContext } = await import('/js/sun-context.js');
   const { buildLabContext } = await import('/js/lab-context.js');
   const profile = await import('/js/profile.js');
@@ -36,7 +37,7 @@ return (async function() {
     lightMeasurements: [],
     wearableSummary: { metrics: { steps: { latest: 4200, baseline: 3600 } }, sources: {} },
   });
-  await window.saveImportedData?.();
+  await dataModule.saveImportedData?.();
 
   // Dismiss any leftover dialogs from prior tests
   document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
@@ -473,7 +474,7 @@ return (async function() {
   // ─── 9. Cleanup: restore original state ──────────────────────────────
   document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
   S.importedData = orig;
-  await window.saveImportedData?.();
+  await dataModule.saveImportedData?.();
 
   console.log(`Light & Sun UI: ${pass} passed, ${fail} failed`);
 

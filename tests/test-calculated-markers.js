@@ -29,10 +29,9 @@ function assert(name, condition, detail) {
 
 console.log('=== Calculated Markers Tests ===\n');
 
-// Bring in state.js + data.js so window._labState exists and getActiveData
-// is wired up (data.js does Object.assign(window, { getActiveData, ... })).
+// Bring in state.js and the module-only data API.
 await import('../js/state.js');
-await import('../js/data.js');
+const dataModule = await import('../js/data.js');
 
 const state = window._labState;
 
@@ -71,7 +70,7 @@ const state = window._labState;
     }
   }];
 
-  let data = window.getActiveData();
+  let data = dataModule.getActiveData();
   let phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
 
   // Expected: xb = -19.907 - 0.0336*45 + 0.0095*80 + 0.1953*5.5 + 0.0954*ln(1.5)
@@ -99,7 +98,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when WBC missing', phenoVal === null || phenoVal === undefined, `got ${phenoVal}`);
 
@@ -114,7 +113,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when DOB missing', phenoVal == null, `got ${phenoVal}`);
 
@@ -129,7 +128,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when CRP is zero (ln undefined)', phenoVal == null, `got ${phenoVal}`);
 
@@ -146,7 +145,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   phenoVal = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   assert('PhenoAge is null when only standard CRP is provided (no fallback)', phenoVal == null, `got ${phenoVal}`);
 
@@ -196,7 +195,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   let bortzVal = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
 
   // BAA = sum((centered - mean) × coeff) for all 22 features, biological age = age + 10 × BAA
@@ -220,7 +219,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   bortzVal = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
   assert('Bortz Age is null when apoAI missing', bortzVal == null, `got ${bortzVal}`);
 
@@ -240,7 +239,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   bortzVal = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
   assert('Bortz Age is null when DOB missing', bortzVal == null, `got ${bortzVal}`);
 
@@ -276,7 +275,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bioAge = data.categories.calculatedRatios?.markers?.biologicalAge?.values?.[0];
   const phenoCheck = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   const bortzCheck = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
@@ -306,7 +305,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bioAgePheno = data.categories.calculatedRatios?.markers?.biologicalAge?.values?.[0];
   const phenoOnly = data.categories.calculatedRatios?.markers?.phenoAge?.values?.[0];
   const bortzNull = data.categories.calculatedRatios?.markers?.bortzAge?.values?.[0];
@@ -316,7 +315,7 @@ const state = window._labState;
 
   // ── Biological Age: both null → null ──
   state.profileDob = null;
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bioAgeNull = data.categories.calculatedRatios?.markers?.biologicalAge?.values?.[0];
   assert('Biological Age is null when both components null', bioAgeNull == null, `got ${bioAgeNull}`);
 
@@ -338,7 +337,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bunCreat = data.categories.calculatedRatios?.markers?.bunCreatRatio?.values?.[0];
   assert('BUN/Creat ratio computes correctly', bunCreat === 17.0, `expected 17.0, got ${bunCreat}`);
 
@@ -351,7 +350,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bunCreatZero = data.categories.calculatedRatios?.markers?.bunCreatRatio?.values?.[0];
   assert('BUN/Creat is null when creatinine is zero', bunCreatZero == null, `got ${bunCreatZero}`);
 
@@ -363,7 +362,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bunCreatNoUrea = data.categories.calculatedRatios?.markers?.bunCreatRatio?.values?.[0];
   assert('BUN/Creat is null when urea missing', bunCreatNoUrea == null, `got ${bunCreatNoUrea}`);
 
@@ -391,14 +390,14 @@ const state = window._labState;
     markers: { 'electrolytes.sodium': 145 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwd = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   assert('FWD computes for male with weight', fwd === 1.71, `expected 1.71, got ${fwd}`);
 
   // ── FWD: female → uses 0.5 TBW factor ──
   state.profileSex = 'female';
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwdF = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   // 80 × 0.5 × (145/140 - 1) = 40 × 0.0357... = 1.43
   assert('FWD uses 0.5 factor for female', fwdF === 1.43, `expected 1.43, got ${fwdF}`);
@@ -407,7 +406,7 @@ const state = window._labState;
   state.profileSex = 'male';
   state.importedData.biometrics = null;
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwdDef = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   // 70 × 0.6 × (145/140 - 1) = 42 × 0.0357... = 1.5
   assert('FWD falls back to 70kg default', fwdDef === 1.5, `expected 1.5, got ${fwdDef}`);
@@ -418,7 +417,7 @@ const state = window._labState;
     markers: { 'electrolytes.sodium': 0 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwdZero = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   assert('FWD is null when sodium is zero', fwdZero == null, `got ${fwdZero}`);
 
@@ -428,7 +427,7 @@ const state = window._labState;
     markers: { 'biochemistry.glucose': 5.5 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwdMissing = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   assert('FWD is null when sodium missing', fwdMissing == null, `got ${fwdMissing}`);
 
@@ -439,7 +438,7 @@ const state = window._labState;
   }];
   state.importedData.biometrics = null;
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const fwdNeg = data.categories.calculatedRatios?.markers?.freeWaterDeficit?.values?.[0];
   // 70 × 0.6 × (130/140 - 1) = 42 × (-0.07143) = -3.0
   assert('FWD is negative for low sodium (overhydration)', fwdNeg < 0, `got ${fwdNeg}`);
@@ -460,7 +459,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const crpHdl = data.categories.calculatedRatios?.markers?.crpHdlRatio?.values?.[0];
   // 1.5 / (1.5 × 38.67) = 1.5 / 58.005 = 0.0259
   assert('CRP/HDL ratio computes correctly', crpHdl === 0.0259, `expected 0.0259, got ${crpHdl}`);
@@ -484,7 +483,7 @@ const state = window._labState;
     markers: { 'proteins.hsCRP': 1.5, 'lipids.hdl': 0 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const crpHdlZeroHdl = data.categories.calculatedRatios?.markers?.crpHdlRatio?.values?.[0];
   assert('CRP/HDL is null when HDL is zero', crpHdlZeroHdl == null, `got ${crpHdlZeroHdl}`);
 
@@ -494,7 +493,7 @@ const state = window._labState;
     markers: { 'lipids.hdl': 1.5 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const crpHdlNoCrp = data.categories.calculatedRatios?.markers?.crpHdlRatio?.values?.[0];
   assert('CRP/HDL is null when hs-CRP missing', crpHdlNoCrp == null, `got ${crpHdlNoCrp}`);
 
@@ -507,7 +506,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const crpHdlStd = data.categories.calculatedRatios?.markers?.crpHdlRatio?.values?.[0];
   assert('CRP/HDL does NOT use standard CRP (requires hs-CRP)', crpHdlStd == null, `got ${crpHdlStd}`);
 
@@ -535,7 +534,7 @@ const state = window._labState;
     }
   ];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const bunArr = data.categories.calculatedRatios?.markers?.bunCreatRatio?.values;
   assert('Multi-date: 3 values in array', bunArr?.length === 3, `got ${bunArr?.length}`);
 
@@ -570,7 +569,7 @@ const state = window._labState;
     }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const cr = data.categories.calculatedRatios?.markers;
 
   // TG/HDL = 1.5/1.5 = 1.0
@@ -610,7 +609,7 @@ const state = window._labState;
     markers: { 'lipids.triglycerides': 1.5, 'lipids.hdl': 0 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const tgHdlZero = data.categories.calculatedRatios?.markers?.tgHdlRatio?.values?.[0];
   assert('TG/HDL is null when HDL is zero', tgHdlZero == null, `got ${tgHdlZero}`);
 
@@ -620,7 +619,7 @@ const state = window._labState;
     markers: { 'calculatedRatios.cholHdlRatio': 3.4 }
   }];
 
-  data = window.getActiveData();
+  data = dataModule.getActiveData();
   const directCholHdl = data.categories.calculatedRatios?.markers?.cholHdlRatio?.values?.[0];
   assert('Direct imported Chol/HDL ratio is retained when components are missing',
     directCholHdl === 3.4, `expected 3.4, got ${directCholHdl}`);

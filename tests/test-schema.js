@@ -8,6 +8,7 @@ import './_node-shim.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as dataModule from '../js/data.js';
 import { migrateProfileData } from '../js/profile.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -199,7 +200,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
   // ═══════════════════════════════════════
   console.log('%c 7. Data Pipeline Integration ', 'font-weight:bold;color:#f59e0b');
 
-  if (typeof window.getActiveData === 'function') {
+  if (typeof dataModule.getActiveData === 'function') {
     // Temporarily inject test custom markers to verify icon propagation
     const origCustom = window.importedData?.customMarkers;
     const origEntries = window.importedData?.entries;
@@ -208,7 +209,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
         'testCat.testMarker': { name: 'Test', unit: 'mg/l', refMin: 1, refMax: 10, categoryLabel: 'Test Category', icon: '\uD83E\uDDA0' }
       };
       window.importedData.entries = [];
-      const data = window.getActiveData();
+      const data = dataModule.getActiveData();
       assert('Custom category created with def.icon', data.categories.testCat && data.categories.testCat.icon === '\uD83E\uDDA0');
       assert('Custom category has correct label', data.categories.testCat && data.categories.testCat.label === 'Test Category');
 
@@ -216,7 +217,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
       window.importedData.customMarkers = {
         'noIconCat.marker1': { name: 'No Icon', unit: 'mg/l', refMin: 1, refMax: 10, categoryLabel: 'No Icon Cat' }
       };
-      const data2 = window.getActiveData();
+      const data2 = dataModule.getActiveData();
       assert('Custom category without icon gets bookmark default', data2.categories.noIconCat && data2.categories.noIconCat.icon === '\uD83D\uDD16');
 
       // Restore

@@ -1,7 +1,7 @@
 // @ts-check
 // biology-scores.js — Biology Scores orchestrator and public API.
 
-import { filterDatesByRange } from './data.js';
+import { filterDatesByRange, getActiveData } from './data.js';
 import { generateBiologyScoreAIAnswer } from './biology-score-ai.js';
 import { computeBiologicalCoherence } from './biology-score-coherence.js';
 import { getBiologyScoreCopy } from './biology-score-copy.js';
@@ -294,7 +294,7 @@ function reconcileBiologyScoreAIPanels() {
   if (typeof document === 'undefined') return;
   const panels = Array.from(document.querySelectorAll('[data-biology-score-ai-panel]'));
   if (!panels.length) return;
-  const rawData = (/** @type {any} */ (globalThis)).getActiveData?.() || {};
+  const rawData = getActiveData();
   const scoreData = filterDatesByRange(rawData, { fallbackToAll: false });
   const scoreMap = new Map(computeBiologyScores(scoreData).map(score => [score.id, score]));
   for (const panel of panels) {

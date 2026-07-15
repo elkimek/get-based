@@ -267,8 +267,8 @@ console.log('\n-- source-shape pins (UI wiring) --');
     /localStorage\.setItem\(profileStorageKey\(state\.currentProfile, 'showAltUnits'\)/.test(data));
   assert('data.js toggleAltUnits refreshes open detail modal via state._activeDetailMarkerId',
     /state\._activeDetailMarkerId[\s\S]{0,200}window\.showDetailModal/.test(data));
-  assert('data.js exports toggleAltUnits on window',
-    /Object\.assign\(window, \{[^}]*toggleAltUnits/.test(data));
+  assert('data.js keeps toggleAltUnits module-only',
+    /export function toggleAltUnits\(force\)/.test(data) && !data.includes('Object.assign(window'));
 
   // state.js: showAltUnits default off
   assert('state.js declares showAltUnits: false',

@@ -84,6 +84,7 @@ try {
   };
   setRuntimeValue('window', browserRuntime);
   configureBiologyScoresRuntimeDeps({
+    getActiveData: browserRuntime.getActiveData.bind(browserRuntime),
     showNotification: browserRuntime.showNotification.bind(browserRuntime),
   });
   localStorage.setItem('labcharts-ai-provider', 'openrouter');
@@ -122,6 +123,7 @@ try {
 
   delete browserRuntime.openChatPanel;
   delete browserRuntime.getActiveData;
+  configureBiologyScoresRuntimeDeps({ getActiveData: null });
   assert('biology runtime handles missing optional browser hooks',
     !canOpenBiologyScoresChatPanel() &&
       openBiologyScoresChatPanel('missing') === false &&

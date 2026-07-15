@@ -617,8 +617,8 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   assert('KEY_TRENDS_MAX = 8 in getKeyTrendMarkers',
     markerAnalysisSrc.includes('KEY_TRENDS_MAX = 8') &&
     markerAnalysisSrc.includes('MAX = KEY_TRENDS_MAX'));
-  assert('detectTrendAlerts on window', dataSrc.includes('detectTrendAlerts'));
-  assert('getKeyTrendMarkers on window', dataSrc.includes('getKeyTrendMarkers'));
+  assert('detectTrendAlerts re-exported by data.js', dataSrc.includes('detectTrendAlerts'));
+  assert('getKeyTrendMarkers re-exported by data.js', dataSrc.includes('getKeyTrendMarkers'));
 
   const utilsSrc = read('js/utils.js');
   assert('linearRegression exported', utilsSrc.includes('export function linearRegression'));

@@ -1,7 +1,7 @@
 // @ts-check
 // biology-score-context-ai.js — AI-assisted context flag review for deterministic Biology Scores.
 
-import { filterDatesByRange, saveImportedData } from './data.js';
+import { filterDatesByRange, getActiveData, invalidateActiveDataCache, saveImportedData } from './data.js';
 import {
   isGeneticsPriorityInAIContext,
   isGeneticsSummaryInAIContext,
@@ -298,17 +298,15 @@ export async function applyBiologyScoreContextFlag(flag) {
   if (Array.isArray(review?.suggestions)) {
     review.suggestions = review.suggestions.filter(s => s.flag !== flag);
     review.updatedAt = Date.now();
-    const activeData = (/** @type {any} */ (window)).getActiveData?.();
-    if (activeData) {
-      review.fingerprint = buildBiologyScoreContextFingerprint(dataForReviewRange(activeData, state.dateRangeFilter || 'all'), state.dateRangeFilter || 'all');
-      review.fingerprintsByRange = buildBiologyScoreContextFingerprintsByRange(activeData);
-      review.contextSignature = buildBiologyScoreContextMaterialSignature(dataForReviewRange(activeData, state.dateRangeFilter || 'all'), state.dateRangeFilter || 'all');
-      review.contextSignaturesByRange = buildBiologyScoreContextMaterialSignaturesByRange(activeData);
-      review.unlockedRanges = [...CONTEXT_REVIEW_RANGES];
-    }
+    const activeData = getActiveData();
+    review.fingerprint = buildBiologyScoreContextFingerprint(dataForReviewRange(activeData, state.dateRangeFilter || 'all'), state.dateRangeFilter || 'all');
+    review.fingerprintsByRange = buildBiologyScoreContextFingerprintsByRange(activeData);
+    review.contextSignature = buildBiologyScoreContextMaterialSignature(dataForReviewRange(activeData, state.dateRangeFilter || 'all'), state.dateRangeFilter || 'all');
+    review.contextSignaturesByRange = buildBiologyScoreContextMaterialSignaturesByRange(activeData);
+    review.unlockedRanges = [...CONTEXT_REVIEW_RANGES];
   }
   await saveImportedData({ reason: 'biology-score-context-flag' });
-  (/** @type {any} */ (window)).invalidateActiveDataCache?.();
+  invalidateActiveDataCache();
 }
 
 export async function dismissBiologyScoreContextFlag(flag) {
@@ -359,7 +357,7 @@ export function installBiologyScoreContextAIDelegates() {
       const w = /** @type {any} */ (window);
       if (action === 'analyze-context-ai') {
         el.setAttribute('disabled', 'true'); el.textContent = 'Analyzing…';
-        const review = await generateBiologyScoreContextReview(w.getActiveData?.() || {});
+        const review = await generateBiologyScoreContextReview(getActiveData());
         await saveBiologyScoreContextReview(review); w.navigate?.('biology-scores');
       } else if (action === 'apply-context-ai') {
         await applyBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context flag applied', 'success'); w.navigate?.('biology-scores');

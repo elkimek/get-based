@@ -23,9 +23,9 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Cycle Improvements Test Suite ===\n');
 
-// Load state + data.js + cycle.js so the data globals and cycle module exist.
+// Load state, the module-only data API, and cycle.js.
 await import('../js/state.js');
-await import('../js/data.js');
+const dataModule = await import('../js/data.js');
 const cycle = await import('../js/cycle.js');
 const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 1: PERIOD_SYMPTOMS constant ──
@@ -70,7 +70,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
       { date: '2025-02-01', markers: { 'biochemistry.glucose': 4.9 } }
     ];
 
-    const data = window.getActiveData();
+    const data = dataModule.getActiveData();
     assert('data.phaseLabels exists for female+cycle', Array.isArray(data.phaseLabels));
     assert('data.phaseLabels length matches dates', data.phaseLabels.length === data.dates.length, `${data.phaseLabels?.length} vs ${data.dates.length}`);
     assert('data.phaseLabels contains menstrual for Jan 3', data.phaseLabels[0] === 'menstrual', `got "${data.phaseLabels?.[0]}"`);
@@ -79,7 +79,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
 
     // Test without cycle → no phaseLabels
     state.profileSex = 'male';
-    const dataM = window.getActiveData();
+    const dataM = dataModule.getActiveData();
     assert('data.phaseLabels absent for male', !dataM.phaseLabels);
 
     state.profileSex = origSex;
@@ -97,7 +97,8 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 5: setPhaseOverlay function ──
   console.log('Section 5: setPhaseOverlay function');
   {
-    assert('setPhaseOverlay is a window function', typeof window.setPhaseOverlay === 'function');
+    assert('setPhaseOverlay is a module API', typeof dataModule.setPhaseOverlay === 'function');
+    assert('setPhaseOverlay stays off window', !('setPhaseOverlay' in window));
     const src = read('js/data.js');
     assert('setPhaseOverlay sets phaseOverlayMode', src.includes("state.phaseOverlayMode = mode === 'off' ? 'off' : 'on'"));
     assert('setPhaseOverlay persists to localStorage', src.includes("'phaseOverlay'") && src.includes('setPhaseOverlay'));
@@ -211,7 +212,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
         { startDate: '2025-02-01', endDate: '2025-02-05', flow: 'light' }
       ]
     };
-    const data1 = window.getActiveData();
+    const data1 = dataModule.getActiveData();
     const alerts1 = cycle.detectCycleIronAlerts(mc1, data1);
     assert('No alerts for no heavy flow', alerts1.length === 0);
 
@@ -232,7 +233,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const { state } = await import('../js/state.js');
     const origEntries = state.importedData.entries;
     state.importedData.entries = [{ date: '2025-01-10', markers: { 'biochemistry.glucose': 5.0 } }];
-    const data2 = window.getActiveData();
+    const data2 = dataModule.getActiveData();
     const alerts2 = cycle.detectCycleIronAlerts(mc2, data2);
     assert('Info alert when no iron panel + heavy flow', alerts2.some(a => a.severity === 'info'), `got ${JSON.stringify(alerts2.map(a=>a.severity))}`);
     state.importedData.entries = origEntries;

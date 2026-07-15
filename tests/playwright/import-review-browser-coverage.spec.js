@@ -663,16 +663,19 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
 
   const results = await page.evaluate(async ({ persistenceUrl }) => {
     const persistence = await import(persistenceUrl);
+    const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
     const state = window._labState;
     const outcomes = {};
     const originals = {
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentView: state.currentView,
       buildSidebar: window.buildSidebar,
-      updateHeaderDates: window.updateHeaderDates,
       navigate: window.navigate,
     };
     const viewCalls = [];
+    const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
+      updateHeaderDates: () => { viewCalls.push('updateHeaderDates'); },
+    });
     const waitForPrompt = async () => {
       for (let attempt = 0; attempt < 40; attempt++) {
         const input = document.getElementById('prompt-dialog-input');
@@ -690,7 +693,6 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
 
     try {
       window.buildSidebar = () => { viewCalls.push('buildSidebar'); };
-      window.updateHeaderDates = () => { viewCalls.push('updateHeaderDates'); };
       window.navigate = view => { viewCalls.push(`navigate:${view}`); };
       state.currentView = 'labs';
       state.importedData = {
@@ -758,8 +760,8 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
       state.importedData = originals.importedData;
       state.currentView = originals.currentView;
       window.buildSidebar = originals.buildSidebar;
-      window.updateHeaderDates = originals.updateHeaderDates;
       window.navigate = originals.navigate;
+      reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
       document.getElementById('prompt-dialog-overlay')?.classList.remove('show');
     }
 

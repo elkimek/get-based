@@ -4,25 +4,28 @@ async function prepareDemoProfile(page) {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() =>
     typeof window.navigate === 'function'
-      && typeof window.saveImportedData === 'function'
+      && !!window._labState
   );
 
   await page.evaluate(async () => {
-    const { getActiveProfileId } = await import('/js/profile.js');
+    const [{ getActiveProfileId }, dataModule] = await Promise.all([
+      import('/js/profile.js'),
+      import('/js/data.js'),
+    ]);
     const profileId = getActiveProfileId() || localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
 
-    if (!window.getActiveData?.()?.dates?.length) {
+    if (!dataModule.getActiveData()?.dates?.length) {
       const resp = await fetch('data/demo-male.json');
       const { state } = await import('/js/state.js');
       state.importedData = await resp.json();
       state.profileSex = 'male';
       state.profileDob = '1987-11-22';
       const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('/js/biology-score-context-ai.js');
-      const activeData = window.getActiveData?.() || {};
+      const activeData = dataModule.getActiveData();
       state.importedData.biologyScoreContextAI = { summary: 'Context checked for Playwright demo', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(activeData), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData), unlockedRanges: ['all', '1y', '6m', '3m'], range: 'all', updatedAt: Date.now() };
-      window.saveImportedData?.();
+      await dataModule.saveImportedData();
       window.buildSidebar?.();
     }
 
@@ -31,7 +34,7 @@ async function prepareDemoProfile(page) {
     state.importedData.profile.firstName = 'Alex';
     state.importedData.profile.age = 38;
     const { buildBiologyScoreContextFingerprint, buildBiologyScoreContextFingerprintsByRange } = await import('/js/biology-score-context-ai.js');
-    const activeData = window.getActiveData?.() || {};
+    const activeData = dataModule.getActiveData();
     state.importedData.biologyScoreContextAI = { summary: 'Context checked for Playwright demo', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(activeData), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData), unlockedRanges: ['all', '1y', '6m', '3m'], range: 'all', updatedAt: Date.now() };
   });
 }

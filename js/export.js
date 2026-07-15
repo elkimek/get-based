@@ -3,7 +3,7 @@
 
 import { state } from './state.js';
 import { showNotification, showConfirmDialog } from './utils.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, updateHeaderDates } from './data.js';
 import { getProfiles, profileStorageKey, saveProfiles, migrateProfileData } from './profile.js';
 import { encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './crypto.js';
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
@@ -542,7 +542,7 @@ export async function loadDemoData(sex = 'male') {
         await saveImportedData({ skipSync: true, reason: 'demo-biology-score-context' });
         const w = /** @type {any} */ (window);
         if (w.buildSidebar) w.buildSidebar();
-        if (w.updateHeaderDates) w.updateHeaderDates();
+        updateHeaderDates();
         if (w.navigate && state.currentView === 'biology-scores') w.navigate('biology-scores');
       }
     } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
