@@ -17,6 +17,7 @@ import {
   syncDashboardWearableNow,
   triggerDashboardDnaPicker,
 } from '../js/dashboard-widget-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -63,6 +64,9 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
+    triggerDNAFilePicker: () => calls.push(['dna']),
+  });
   setRuntimeValue('innerHeight', 720);
   assert('getDashboardViewportHeight reads runtime innerHeight',
     getDashboardViewportHeight() === 720);
@@ -98,7 +102,7 @@ try {
   setRuntimeValue('openManualLogForm', (id, ev) => calls.push(['manual-log', id, ev.type]));
   setRuntimeValue('showDetailModal', id => calls.push(['marker-detail', id]));
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
-  setRuntimeValue('triggerDNAFilePicker', () => calls.push(['dna']));
+  setRuntimeValue('triggerDNAFilePicker', () => calls.push(['legacy-dna']));
   setRuntimeValue('openNoteEditor', (...args) => calls.push(['note-editor', ...args.map(arg => arg ?? 'null')]));
   setRuntimeValue('deleteNote', index => calls.push(['delete-note', index]));
 
@@ -129,6 +133,7 @@ try {
   assert('openDashboardWearableDetail reports missing callback',
     openDashboardWearableDetail('sleep') === false);
 
+  configureContextCardsRuntimeCallbacks({ triggerDNAFilePicker: null });
   delete globalThis.window;
   const callCountBeforeMissingRuntime = calls.length;
   openDashboardWearablesSettings();
@@ -146,6 +151,7 @@ try {
       getDashboardSnpTableCache() === null &&
       openDashboardWearableDetail('sleep') === false &&
       calls.length === callCountBeforeMissingRuntime);
+  configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   restoreRuntime();
 }

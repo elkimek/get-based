@@ -15,7 +15,10 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
-    const controlsModule = await import(controlsUrl);
+    const [controlsModule, contextCardsRuntime] = await Promise.all([
+      import(controlsUrl),
+      import('/js/context-cards-runtime.js'),
+    ]);
     const outcomes = {};
     const fixture = document.getElementById('fixture');
     const saved = {
@@ -25,11 +28,13 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
       openWearableDetail: window.openWearableDetail,
       openManualLogForm: window.openManualLogForm,
       showDetailModal: window.showDetailModal,
-      triggerDNAFilePicker: window.triggerDNAFilePicker,
       openNoteEditor: window.openNoteEditor,
       deleteNote: window.deleteNote,
     };
     const calls = [];
+    const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+      triggerDNAFilePicker: () => calls.push(['dna']),
+    });
     const clone = value => JSON.parse(JSON.stringify(value));
     let prefs = {
       order: ['summary', 'wearables', 'notes', 'light'],
@@ -134,7 +139,6 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
       window.openWearableDetail = id => calls.push(['wearableDetail', id]);
       window.openManualLogForm = (id, event) => calls.push(['manualLog', id, event.type]);
       window.showDetailModal = id => calls.push(['markerDetail', id]);
-      window.triggerDNAFilePicker = () => calls.push(['dna']);
       window.openNoteEditor = (...args) => calls.push(['noteEditor', args.length, ...args.map(arg => arg ?? 'null')]);
       window.deleteNote = index => calls.push(['deleteNote', index]);
       Storage.prototype.removeItem = function removeItem(key) {
@@ -299,6 +303,7 @@ test('dashboard widget controls browser coverage exercises delegates picker filt
         && calls.some(call => call[0] === 'removeStorage')
         && controls.isOrganizeMode() === false;
     } finally {
+      contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       Storage.prototype.removeItem = originalRemoveItem;
       for (const [key, value] of Object.entries(saved)) {
         if (value === undefined) delete window[key];

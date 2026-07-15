@@ -1,5 +1,5 @@
 // @ts-check
-// context-cards.js - dashboard context card facade and shared lifecycle
+// context-cards.js - dashboard context card module surface and shared lifecycle
 
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
@@ -7,6 +7,7 @@ import { saveImportedData, getActiveData } from './data.js';
 import { hasAIProvider } from './api.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
 import {
   appendImportedArrayItem,
   ensureImportedArray,
@@ -455,7 +456,7 @@ export async function loadContextCardTips() {
 }
 
 // ── Card tips modal ──
-function openCardTipsModal(cardKey) {
+export function openCardTipsModal(cardKey) {
   const appWindow = /** @type {any} */ (window);
   if (!appWindow.renderCardTipsModal) return;
   const html = appWindow.renderCardTipsModal(cardKey);
@@ -468,91 +469,9 @@ function openCardTipsModal(cardKey) {
   openModalOverlay(overlay);
 }
 
-// ── Window exports for onclick handlers ──
-Object.assign(window, {
-  getConditionsSummary,
-  getDietSummary,
-  getExerciseSummary,
-  getSleepSummary,
-  getLightCircadianSummary,
-  getStressSummary,
-  getLoveLifeSummary,
-  getEnvironmentSummary,
-  getGoalsSummary,
-  isContextFilled,
-  renderProfileContextCards,
-  debounceContextNotes,
-  applyDotColor,
-  applyAISummary,
-  getCardFingerprint,
-  loadContextHealthDots,
-  refreshAllHealthDots,
-  renderSelectField,
-  selectCtxOption,
-  getSelectedOption,
-  renderTagsField,
-  toggleCtxTag,
-  getSelectedTags,
-  renderNoteField,
-  contextEditorActions,
-  saveAndRefresh,
-  openDiagnosesEditor,
-  renderDiagnosesModal,
-  filterConditionSuggestions,
-  selectConditionSuggestion,
-  closeSuggestionsOnClickOutside,
-  syncDiagnosesNote,
-  addCondition,
-  editCondition,
-  cancelConditionEdit,
-  deleteCondition,
-  addFamilyHistoryEntry,
-  editFamilyHistoryEntry,
-  cancelFamilyHistoryEdit,
-  deleteFamilyHistoryEntry,
-  filterFamilyConditionSuggestions,
-  selectFamilyConditionSuggestion,
-  saveDiagnoses,
-  closeDiagnoses,
-  clearDiagnoses,
-  openDietEditor,
-  saveDiet,
-  clearDiet,
-  openSleepRestEditor,
-  saveSleepRest,
-  clearSleepRest,
-  openLightCircadianEditor,
-  saveLightCircadian,
-  clearLightCircadian,
-  openExerciseEditor,
-  saveExercise,
-  clearExercise,
-  openStressEditor,
-  saveStress,
-  clearStress,
-  openLoveLifeEditor,
-  saveLoveLife,
-  clearLoveLife,
-  openEnvironmentEditor,
-  saveEnvironment,
-  clearEnvironment,
-  openHealthGoalsEditor,
-  renderHealthGoalsModal,
-  addHealthGoal,
-  deleteHealthGoal,
-  closeHealthGoals,
-  clearHealthGoals,
-  openInterpretiveLensEditor,
-  saveInterpretiveLens,
-  clearInterpretiveLens,
-  renderInterpretiveLensSection,
-  renderKnowledgeBaseSection,
+configureContextCardsRuntimeCallbacks({
   openContextModal,
-  openPersonalizeAIPicker,
-  openDataProtectionPicker,
-  triggerDNAFilePicker,
+  openInterpretiveLensEditor,
   recordChange,
-  showDietContaminantsModal,
-  openCardTipsModal,
-  loadContextCardTips,
+  triggerDNAFilePicker,
 });

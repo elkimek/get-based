@@ -133,13 +133,20 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       window.getCardSlotKeys = key => key === 'diet' ? ['protein'] : [];
       window.renderCardTipsModal = key => `<div class="tips-modal" data-card="${key}">Tips for ${key}</div>`;
       host.innerHTML = cards.renderProfileContextCards();
-      await window.loadContextCardTips();
+      await cards.loadContextCardTips();
       const dietBadge = document.querySelector('#ctx-tips-diet .ctx-tips-badge');
       dietBadge?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.cardTipsBadgeLoadsCatalogAndOpensModal = calls.some(call => call[0] === 'catalog')
         && !!dietBadge
         && document.getElementById('modal-overlay')?.classList.contains('show') === true
         && document.getElementById('detail-modal')?.textContent.includes('Tips for diet');
+      outcomes.contextCardApisStayModuleOnly = [
+        'openContextModal',
+        'openDietEditor',
+        'recordChange',
+        'triggerDNAFilePicker',
+        'loadContextCardTips',
+      ].every(name => typeof cards[name] === 'function' && !(name in window));
     } finally {
       state.importedData = saved.importedData;
       if (saved.closeModal) window.closeModal = saved.closeModal;

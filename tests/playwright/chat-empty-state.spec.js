@@ -10,10 +10,11 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ renderEmptyChatState }, { state }, { getProfileLocation }] = await Promise.all([
+    const [{ renderEmptyChatState }, { state }, { getProfileLocation }, contextCardsRuntime] = await Promise.all([
       import('/js/chat-empty-state.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
+      import('/js/context-cards-runtime.js'),
     ]);
 
     const saved = {
@@ -26,7 +27,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     };
     const savedFns = {
       closeChatPanel: window.closeChatPanel,
-      triggerDNAFilePicker: window.triggerDNAFilePicker,
       openSettingsModal: window.openSettingsModal,
     };
     const savedInputClick = HTMLInputElement.prototype.click;
@@ -34,6 +34,9 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const savedChatMessagesHTML = chatMessages?.innerHTML;
 
     const calls = [];
+    const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
+      triggerDNAFilePicker: () => calls.push('import-dna'),
+    });
     const inputClicks = [];
     const container = document.createElement('div');
     const panel = document.createElement('div');
@@ -44,7 +47,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       if (chatMessages) chatMessages.innerHTML = '';
 
       window.closeChatPanel = () => calls.push('close-chat');
-      window.triggerDNAFilePicker = () => calls.push('import-dna');
       window.openSettingsModal = tab => calls.push(`open-settings:${tab}`);
       HTMLInputElement.prototype.click = function() {
         inputClicks.push(this === strayMtDnaInput ? 'stray' : panel.contains(this) ? 'scoped' : 'other');
@@ -134,6 +136,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
         optionalActionsStopPropagation: bubbledClicks === bubbledBeforeOptionalActions,
       };
     } finally {
+      contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       state.profileSex = saved.profileSex;

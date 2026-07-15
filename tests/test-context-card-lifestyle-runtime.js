@@ -15,6 +15,7 @@ import {
   returnToLifestyleContextModalRuntime,
   updateLifestyleChatHeaderModelRuntime,
 } from '../js/context-card-lifestyle-runtime.js';
+import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -57,6 +58,9 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousContextCardsRuntime = configureContextCardsRuntimeCallbacks({
+    openContextModal: () => calls.push(['context-modal']),
+  });
   setRuntimeValue('window', globalThis);
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('navigate', category => calls.push(['navigate', category]));
@@ -64,7 +68,7 @@ try {
   setRuntimeValue('reopenSunSetup', () => calls.push(['sun-setup']));
   setRuntimeValue('openChatPanel', () => calls.push(['chat-panel']));
   setRuntimeValue('useChatPrompt', prompt => calls.push(['prompt', prompt]));
-  setRuntimeValue('openContextModal', () => calls.push(['context-modal']));
+  setRuntimeValue('openContextModal', () => calls.push(['legacy-context-modal']));
   delete globalThis.__lifestyleContextDelegatesBound;
   setRuntimeValue('setTimeout', (fn, delay) => {
     calls.push(['timer', String(delay)]);
@@ -99,6 +103,7 @@ try {
       calls.some(call => call.join('|') === 'timer|300') &&
       calls.some(call => call.join('|') === 'timer|0'));
 
+  configureContextCardsRuntimeCallbacks({ openContextModal: null });
   delete globalThis.window;
   const shellCallCount = calls.filter(call => call[0] !== 'timer').length;
   closeLifestyleContextModalRuntime();
@@ -118,6 +123,7 @@ try {
     editorSrc.includes("from './context-card-lifestyle-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(editorSrc) &&
       swSrc.includes("'/js/context-card-lifestyle-runtime.js'"));
+  configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
   restoreRuntime();
 }

@@ -95,6 +95,7 @@
     "js/context-card-medical-history-editor.js",
     "js/context-card-summaries.js",
     "js/context-source-registry.js",
+    "js/context-cards-runtime.js",
     "js/context-cards.js",
     "js/crypto.js",
     "js/dashboard-page-view.js",

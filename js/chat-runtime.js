@@ -1,6 +1,8 @@
 // @ts-check
 // chat-runtime.js - Browser runtime adapters for shared chat hooks.
 
+import { openContextModalRuntime } from './context-cards-runtime.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -34,7 +36,7 @@ export function updateDiscussButtonRuntime() {
 }
 
 export function openChatContextModalRuntime() {
-  getRuntimeFunction('openContextModal')?.();
+  openContextModalRuntime();
 }
 
 export function closeChatModalRuntime() {

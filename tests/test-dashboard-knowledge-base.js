@@ -192,20 +192,25 @@ try {
   // Section 5b (picker open/dismiss — live DOM) lives in
   // tests/playwright/dashboard-knowledge-base.spec.js.
 
-  // ─── 6. Module and remaining shell exports ───
+  // ─── 6. Module exports ───
   {
-    assert('window.openContextModal exists',
-      typeof window.openContextModal === 'function');
-    assert('window.openPersonalizeAIPicker exists',
-      typeof window.openPersonalizeAIPicker === 'function');
+    assert('cards.openContextModal exists',
+      typeof cards.openContextModal === 'function');
+    assert('cards.openPersonalizeAIPicker exists',
+      typeof cards.openPersonalizeAIPicker === 'function');
     assert('lens.openKnowledgeBaseModal exists',
       typeof lens.openKnowledgeBaseModal === 'function');
     assert('lens.closeKnowledgeBaseModal exists',
       typeof lens.closeKnowledgeBaseModal === 'function');
-    assert('window.renderKnowledgeBaseSection exists',
-      typeof window.renderKnowledgeBaseSection === 'function');
-    assert('window.triggerDNAFilePicker exists (used by genetics empty stub)',
-      typeof window.triggerDNAFilePicker === 'function');
+    assert('cards.renderKnowledgeBaseSection exists',
+      typeof cards.renderKnowledgeBaseSection === 'function');
+    assert('cards.triggerDNAFilePicker exists',
+      typeof cards.triggerDNAFilePicker === 'function');
+    assert('context-card APIs stay module-only',
+      !('openContextModal' in window)
+      && !('openPersonalizeAIPicker' in window)
+      && !('renderKnowledgeBaseSection' in window)
+      && !('triggerDNAFilePicker' in window));
   }
 
   // ─── 8. Current-head Greptile regressions ───

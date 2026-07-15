@@ -5,6 +5,7 @@ import { installDNAWindowBindings } from './dna-window-bindings.js';
 import { isImportRunning } from './pdf-import-progress.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { isDebugMode, showConfirmDialog } from './utils.js';
+import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 
 const dnaRuntimeDeps = { getLatitudeFromLocation, isDebugMode, isImportRunning, showConfirmDialog };
 
@@ -94,7 +95,7 @@ export function callDnaFileHandler(file) {
 }
 
 export function triggerDnaFilePicker() {
-  getRuntimeFunction('triggerDNAFilePicker')?.();
+  triggerContextCardDNAFilePickerRuntime();
 }
 
 export function updateDnaChatNudge() {

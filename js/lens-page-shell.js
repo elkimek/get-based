@@ -5,6 +5,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { profileStorageKey } from './profile.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 
 const LENS_PAGE_ORDER_VERSION = 1;
 
@@ -60,14 +61,14 @@ function handleLensPageShellClick(event) {
   } else if (action === 'remove-dashboard-widget') {
     callLensPageRuntime('removeDashboardWidgetFromLens', id);
   } else if (action === 'import-dna') {
-    callLensPageRuntime('triggerDNAFilePicker');
+    triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'import-snp-report') {
     callLensPageRuntime('importSnpReport');
   } else if (action === 'add-manual-snp') {
     callLensPageRuntime('openManualSnpModal');
   } else if (action === 'reimport-dna') {
     if (typeof lensPageRuntime().reimportDNA === 'function') callLensPageRuntime('reimportDNA');
-    else callLensPageRuntime('triggerDNAFilePicker');
+    else triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'delete-dna') {
     callLensPageRuntime('confirmDeleteDNA');
   } else if (action === 'open-wearables-settings') {

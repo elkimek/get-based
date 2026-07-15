@@ -188,11 +188,12 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
     import('../js/charts.js'),
+    import('../js/context-cards.js'),
     import('../js/crypto.js'),
     import('../js/cycle.js'),
     import('../js/emf.js'),
@@ -345,14 +346,14 @@
     'askAIAboutMarker','askAIAboutCorrelations'
   ];
 
-  // context-cards.js (57+)
+  // context-cards.js (85 former browser globals, now module-only)
   const contextCardsExports = [
     'getConditionsSummary','getDietSummary','getExerciseSummary',
     'getSleepSummary','getLightCircadianSummary','getStressSummary',
     'getLoveLifeSummary','getEnvironmentSummary','getGoalsSummary',
     'isContextFilled',
     'renderProfileContextCards','debounceContextNotes',
-    'applyDotColor','applyAISummary','getCardFingerprint','loadContextHealthDots',
+    'applyDotColor','applyAISummary','getCardFingerprint','loadContextHealthDots','refreshAllHealthDots',
     'renderSelectField','selectCtxOption','getSelectedOption',
     'renderTagsField','toggleCtxTag','getSelectedTags',
     'renderNoteField','contextEditorActions','saveAndRefresh',
@@ -360,7 +361,8 @@
     'filterConditionSuggestions','selectConditionSuggestion','closeSuggestionsOnClickOutside',
     'syncDiagnosesNote','addCondition','editCondition','cancelConditionEdit','deleteCondition',
     'addFamilyHistoryEntry','editFamilyHistoryEntry','cancelFamilyHistoryEdit','deleteFamilyHistoryEntry',
-    'saveDiagnoses','clearDiagnoses',
+    'filterFamilyConditionSuggestions','selectFamilyConditionSuggestion',
+    'saveDiagnoses','closeDiagnoses','clearDiagnoses',
     'openDietEditor','saveDiet','clearDiet',
     'openSleepRestEditor','saveSleepRest','clearSleepRest',
     'openLightCircadianEditor','saveLightCircadian','clearLightCircadian',
@@ -369,9 +371,11 @@
     'openLoveLifeEditor','saveLoveLife','clearLoveLife',
     'openEnvironmentEditor','saveEnvironment','clearEnvironment',
     'openHealthGoalsEditor','renderHealthGoalsModal',
-    'addHealthGoal','deleteHealthGoal','clearHealthGoals',
+    'addHealthGoal','deleteHealthGoal','closeHealthGoals','clearHealthGoals',
     'openInterpretiveLensEditor','saveInterpretiveLens','clearInterpretiveLens',
-    'renderInterpretiveLensSection','openContextModal'
+    'renderInterpretiveLensSection','renderKnowledgeBaseSection',
+    'openContextModal','openPersonalizeAIPicker','openDataProtectionPicker','triggerDNAFilePicker',
+    'recordChange','showDietContaminantsModal','openCardTipsModal','loadContextCardTips'
   ];
 
   // client-list.js (3)
@@ -618,6 +622,7 @@
     ['backup.js', backupModule, backupExports],
     ['cashu-wallet.js', cashuWalletModule, cashuWalletExports],
     ['charts.js', chartsModule, chartsExports],
+    ['context-cards.js', contextCardsModule, contextCardsExports],
     ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
     ['emf.js', emfModule, emfExports],
@@ -691,11 +696,13 @@
   for (const name of providerPanelsExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of contextCardsExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
     'client-list.js': clientListExports,
-    'context-cards.js': contextCardsExports,
     'data.js': dataExports,
     'nav.js': navExports,
     'notes.js': notesExports,
@@ -891,18 +898,18 @@
   }
 
   // Summary functions work without crashing
-  assert('getGoalsSummary works', typeof window.getGoalsSummary() === 'string' || window.getGoalsSummary() === '');
-  assert('getConditionsSummary works', typeof window.getConditionsSummary() === 'string' || window.getConditionsSummary() === '');
-  assert('getDietSummary works', typeof window.getDietSummary() === 'string' || window.getDietSummary() === '');
-  assert('getExerciseSummary works', typeof window.getExerciseSummary() === 'string' || window.getExerciseSummary() === '');
-  assert('getSleepSummary works', typeof window.getSleepSummary() === 'string' || window.getSleepSummary() === '');
-  assert('getLightCircadianSummary works', typeof window.getLightCircadianSummary() === 'string' || window.getLightCircadianSummary() === '');
-  assert('getStressSummary works', typeof window.getStressSummary() === 'string' || window.getStressSummary() === '');
-  assert('getLoveLifeSummary works', typeof window.getLoveLifeSummary() === 'string' || window.getLoveLifeSummary() === '');
-  assert('getEnvironmentSummary works', typeof window.getEnvironmentSummary() === 'string' || window.getEnvironmentSummary() === '');
+  assert('getGoalsSummary works', typeof contextCardsModule.getGoalsSummary() === 'string' || contextCardsModule.getGoalsSummary() === '');
+  assert('getConditionsSummary works', typeof contextCardsModule.getConditionsSummary() === 'string' || contextCardsModule.getConditionsSummary() === '');
+  assert('getDietSummary works', typeof contextCardsModule.getDietSummary() === 'string' || contextCardsModule.getDietSummary() === '');
+  assert('getExerciseSummary works', typeof contextCardsModule.getExerciseSummary() === 'string' || contextCardsModule.getExerciseSummary() === '');
+  assert('getSleepSummary works', typeof contextCardsModule.getSleepSummary() === 'string' || contextCardsModule.getSleepSummary() === '');
+  assert('getLightCircadianSummary works', typeof contextCardsModule.getLightCircadianSummary() === 'string' || contextCardsModule.getLightCircadianSummary() === '');
+  assert('getStressSummary works', typeof contextCardsModule.getStressSummary() === 'string' || contextCardsModule.getStressSummary() === '');
+  assert('getLoveLifeSummary works', typeof contextCardsModule.getLoveLifeSummary() === 'string' || contextCardsModule.getLoveLifeSummary() === '');
+  assert('getEnvironmentSummary works', typeof contextCardsModule.getEnvironmentSummary() === 'string' || contextCardsModule.getEnvironmentSummary() === '');
 
   // isContextFilled
-  assert('isContextFilled returns boolean', typeof window.isContextFilled('diet') === 'boolean');
+  assert('isContextFilled returns boolean', typeof contextCardsModule.isContextFilled('diet') === 'boolean');
 
   // ═══════════════════════════════════════════════
   // 14. NAVIGATION — category switching
