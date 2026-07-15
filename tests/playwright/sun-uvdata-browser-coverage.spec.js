@@ -11,7 +11,7 @@ function expectAll(outcomes) {
   expect(failed).toEqual([]);
 }
 
-test('sun uvdata browser coverage handles config cache globals and purging', async ({ page }) => {
+test('sun uvdata browser coverage handles config cache module API and purging', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl }) => {
@@ -48,15 +48,16 @@ test('sun uvdata browser coverage handles config cache globals and purging', asy
         && localStorage.getItem('meteo:v2:keep-a') === 'fresh-cache'
         && localStorage.getItem('meteo-cache-v2-purged') === '1';
 
-      outcomes.browserGlobalsExposeUvdataExports =
-        window.fetchAtmosphere === mod.fetchAtmosphere
-        && window.manualAtmosphere === mod.manualAtmosphere
-        && window.interpolateAtmosphere === mod.interpolateAtmosphere
-        && window.getMeteoConfig === mod.getMeteoConfig
-        && window.saveMeteoConfig === mod.saveMeteoConfig
-        && window.purgeMeteoCache === mod.purgeMeteoCache
-        && window.solarZenithAngle === mod.solarZenithAngle
-        && window.computeUVConfidence === mod.computeUVConfidence;
+      outcomes.uvdataExportsStayModuleOnly = [
+        'fetchAtmosphere',
+        'manualAtmosphere',
+        'interpolateAtmosphere',
+        'getMeteoConfig',
+        'saveMeteoConfig',
+        'purgeMeteoCache',
+        'solarZenithAngle',
+        'computeUVConfidence',
+      ].every(name => !(name in window));
 
       const manualMeter = mod.manualAtmosphere({
         uvIndex: 5.8,

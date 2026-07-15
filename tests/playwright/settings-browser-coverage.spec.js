@@ -24,6 +24,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
 
   const results = await page.evaluate(async () => {
     const settingsModule = await import('/js/settings.js');
+    const settingsRuntime = await import('/js/settings-runtime.js');
     const themeModule = await import('/js/theme.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
@@ -45,8 +46,6 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       currentProfile: state.currentProfile,
       profiles: state.profiles,
       fetch: window.fetch,
-      getMeteoConfig: window.getMeteoConfig,
-      saveMeteoConfig: window.saveMeteoConfig,
       theme: localStorage.getItem('labcharts-theme'),
       accent: localStorage.getItem('labcharts-accent'),
       timeFormat: localStorage.getItem('labcharts-time-format'),
@@ -66,6 +65,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       privacyRounding: 0.1,
     };
     const savedMeteoConfigs = [];
+    let originalSettingsRuntimeDeps = null;
 
     try {
       window.fetch = async url => {
@@ -152,11 +152,13 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       results.resetCurrentProfileUsage = localStorage.getItem(usageKey) === null
         && document.getElementById('ai-usage-section').textContent.includes('0 requests');
 
-      window.getMeteoConfig = () => ({ ...meteoConfig });
-      window.saveMeteoConfig = cfg => {
-        meteoConfig = { ...cfg };
-        savedMeteoConfigs.push({ ...cfg });
-      };
+      originalSettingsRuntimeDeps = settingsRuntime.configureSettingsRuntimeDeps({
+        getMeteoConfig: () => ({ ...meteoConfig }),
+        saveMeteoConfig: cfg => {
+          meteoConfig = { ...cfg };
+          savedMeteoConfigs.push({ ...cfg });
+        },
+      });
       document.body.insertAdjacentHTML('beforeend', `<section id="sun-source-fixture">${settingsModule.renderSunDataSourceSettings()}</section>`);
       const sunSection = document.getElementById('sun-data-source-section');
       const selfhostRadio = sunSection.querySelector('input[value="selfhost"]');
@@ -181,8 +183,9 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       return results;
     } finally {
       window.fetch = saved.fetch;
-      window.getMeteoConfig = saved.getMeteoConfig;
-      window.saveMeteoConfig = saved.saveMeteoConfig;
+      if (originalSettingsRuntimeDeps) {
+        settingsRuntime.configureSettingsRuntimeDeps(originalSettingsRuntimeDeps);
+      }
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       const restoreStorage = (key, value) => {

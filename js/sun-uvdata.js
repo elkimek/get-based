@@ -1,7 +1,7 @@
 // @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
 import { isValidExternalUrl } from './url-safety.js';
-import { exposeSunRuntimeBindings, hasSunBrowserRuntime, isSunDebugRuntime } from './sun-runtime.js';
+import { isSunDebugRuntime } from './sun-runtime.js';
 import { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
 export { initMeteoConfigCache, getMeteoConfig, saveMeteoConfig };
 
@@ -984,17 +984,3 @@ export {
   shapeNoaaResponse as _testShapeNoaaResponse,
   isUSCoords as _testIsUSCoords,
 };
-
-// Expose legacy browser globals for non-module call sites.
-if (hasSunBrowserRuntime()) {
-  exposeSunRuntimeBindings({
-    fetchAtmosphere,
-    manualAtmosphere,
-    interpolateAtmosphere,
-    getMeteoConfig,
-    saveMeteoConfig,
-    purgeMeteoCache,
-    solarZenithAngle,
-    computeUVConfidence,
-  });
-}

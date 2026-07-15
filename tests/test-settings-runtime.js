@@ -2,6 +2,7 @@
 // test-settings-runtime.js — Settings runtime adapter behavior.
 
 import {
+  configureSettingsRuntimeDeps,
   getSettingsMeteoConfig,
   saveSettingsMeteoConfig,
 } from '../js/settings-runtime.js';
@@ -21,54 +22,51 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Settings Runtime Adapters ===');
 
-const originalGetMeteoConfig = globalThis.getMeteoConfig;
-const originalSaveMeteoConfig = globalThis.saveMeteoConfig;
+const originalSettingsRuntimeDeps = configureSettingsRuntimeDeps({
+  getMeteoConfig: null,
+  saveMeteoConfig: null,
+});
 
 try {
-  delete globalThis.getMeteoConfig;
-  delete globalThis.saveMeteoConfig;
-
   assert('missing getMeteoConfig returns defaults',
     getSettingsMeteoConfig().mode === 'auto');
   assert('missing saveMeteoConfig reports unavailable',
     saveSettingsMeteoConfig({ mode: 'manual' }) === false);
 
-  globalThis.getMeteoConfig = () => ({ mode: 'manual', privacyRounding: 0 });
+  configureSettingsRuntimeDeps({
+    getMeteoConfig: () => ({ mode: 'manual', privacyRounding: 0 }),
+  });
   assert('runtime getMeteoConfig is delegated',
     getSettingsMeteoConfig().mode === 'manual' &&
       getSettingsMeteoConfig().privacyRounding === 0);
 
-  globalThis.getMeteoConfig = () => {
-    throw new Error('read failed');
-  };
+  configureSettingsRuntimeDeps({
+    getMeteoConfig: () => {
+      throw new Error('read failed');
+    },
+  });
   assert('thrown getMeteoConfig returns defaults',
     getSettingsMeteoConfig().mode === 'auto');
 
   let savedConfig = null;
-  globalThis.saveMeteoConfig = (config) => {
-    savedConfig = config;
-  };
+  configureSettingsRuntimeDeps({
+    saveMeteoConfig: config => {
+      savedConfig = config;
+    },
+  });
   assert('runtime saveMeteoConfig reports success',
     saveSettingsMeteoConfig({ mode: 'selfhost' }) === true &&
       savedConfig?.mode === 'selfhost');
 
-  globalThis.saveMeteoConfig = () => {
-    throw new Error('write failed');
-  };
+  configureSettingsRuntimeDeps({
+    saveMeteoConfig: () => {
+      throw new Error('write failed');
+    },
+  });
   assert('thrown saveMeteoConfig reports unavailable',
     saveSettingsMeteoConfig({ mode: 'open-meteo' }) === false);
 } finally {
-  if (originalGetMeteoConfig === undefined) {
-    delete globalThis.getMeteoConfig;
-  } else {
-    globalThis.getMeteoConfig = originalGetMeteoConfig;
-  }
-
-  if (originalSaveMeteoConfig === undefined) {
-    delete globalThis.saveMeteoConfig;
-  } else {
-    globalThis.saveMeteoConfig = originalSaveMeteoConfig;
-  }
+  configureSettingsRuntimeDeps(originalSettingsRuntimeDeps);
 }
 
 console.log(`\nResults: ${passed} passed, ${failed} failed, ${passed + failed} total`);

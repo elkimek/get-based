@@ -1,12 +1,40 @@
 // @ts-check
 // settings-runtime.js - Browser runtime adapters for Settings and Tweaks flows.
 
+import { getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
+
 const DEFAULT_METEO_CONFIG = Object.freeze({
   mode: 'auto',
   selfhostUrl: '',
   selfhostBearer: '',
   privacyRounding: 0.1,
 });
+
+const settingsRuntimeDeps = {
+  getMeteoConfig,
+  saveMeteoConfig,
+};
+
+/**
+ * @param {{
+ *   getMeteoConfig?: (() => Record<string, any>) | null,
+ *   saveMeteoConfig?: ((config: Record<string, any>) => void) | null,
+ * }} [deps]
+ */
+export function configureSettingsRuntimeDeps(deps = {}) {
+  const previous = { ...settingsRuntimeDeps };
+  if ('getMeteoConfig' in deps) {
+    settingsRuntimeDeps.getMeteoConfig = typeof deps.getMeteoConfig === 'function'
+      ? deps.getMeteoConfig
+      : null;
+  }
+  if ('saveMeteoConfig' in deps) {
+    settingsRuntimeDeps.saveMeteoConfig = typeof deps.saveMeteoConfig === 'function'
+      ? deps.saveMeteoConfig
+      : null;
+  }
+  return previous;
+}
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -76,10 +104,10 @@ export function refreshSettingsRuntimeSurfaces(options = {}) {
 }
 
 export function getSettingsMeteoConfig() {
-  const getMeteoConfig = getRuntimeFunction('getMeteoConfig');
-  if (!getMeteoConfig) return { ...DEFAULT_METEO_CONFIG };
+  const readMeteoConfig = settingsRuntimeDeps.getMeteoConfig;
+  if (!readMeteoConfig) return { ...DEFAULT_METEO_CONFIG };
   try {
-    return getMeteoConfig() || { ...DEFAULT_METEO_CONFIG };
+    return readMeteoConfig() || { ...DEFAULT_METEO_CONFIG };
   } catch {
     return { ...DEFAULT_METEO_CONFIG };
   }
@@ -90,10 +118,10 @@ export function getSettingsMeteoConfig() {
  * @returns {boolean}
  */
 export function saveSettingsMeteoConfig(config) {
-  const saveMeteoConfig = getRuntimeFunction('saveMeteoConfig');
-  if (!saveMeteoConfig) return false;
+  const writeMeteoConfig = settingsRuntimeDeps.saveMeteoConfig;
+  if (!writeMeteoConfig) return false;
   try {
-    saveMeteoConfig(config);
+    writeMeteoConfig(config);
     return true;
   } catch {
     return false;
