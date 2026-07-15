@@ -3,7 +3,7 @@
 // APP_VERSION comes from /version.js (loaded as classic script before modules)
 
 import { escapeHTML } from './utils.js';
-import { getAppVersionRuntime, registerUtilsRuntimeExports } from './utils-runtime.js';
+import { getAppVersionRuntime } from './utils-runtime.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 
 const CHANGELOG_ACTION_ATTR = 'data-changelog-action';
@@ -537,5 +537,3 @@ export function maybeShowChangelog() {
   );
   if (hasForceShowAheadOfSeen) openChangelog(false);
 }
-
-registerUtilsRuntimeExports({ openChangelog, closeChangelog, maybeShowChangelog });
