@@ -23,6 +23,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
   await preparePage(page);
 
   const results = await page.evaluate(async () => {
+    const settingsModule = await import('/js/settings.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -77,7 +78,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       localStorage.removeItem('labcharts-crt-effects');
       localStorage.setItem('labcharts-theme', 'dark');
       localStorage.setItem('labcharts-time-format', '24h');
-      window.openSettingsModal('display');
+      settingsModule.openSettingsModal('display');
       const modal = document.getElementById('settings-modal');
       modal.insertAdjacentHTML('beforeend', '<button type="button" class="settings-theme-btn" data-theme-id="glass" data-settings-action="select-theme">Glass</button>');
       const themeBtn = modal.querySelector('[data-settings-action="select-theme"]');
@@ -92,7 +93,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         && timeBtn.classList.contains('active')
         && window.formatTime('14:05') === '2:05 PM';
 
-      window.openTweaksPanel();
+      settingsModule.openTweaksPanel();
       const sunsetToggle = document.getElementById('tweaks-sunset-mode');
       sunsetToggle.checked = true;
       sunsetToggle.dispatchEvent(new Event('change', { bubbles: true }));
@@ -103,7 +104,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       localStorage.removeItem('labcharts-pii-review-disable-ack');
       localStorage.setItem('labcharts-pii-review', 'true');
       localStorage.setItem('labcharts-ollama-pii-enabled', 'false');
-      window.openSettingsModal('privacy');
+      settingsModule.openSettingsModal('privacy');
       document.querySelector('[data-settings-action="toggle-privacy-configure"]').click();
       const privacyBody = document.getElementById('privacy-configure-body');
       results.togglePrivacyConfigure = privacyBody.style.display === 'block';
@@ -140,7 +141,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         totalOutputTokens: 1200,
         requestCount: 4,
       }));
-      window.openSettingsModal('ai');
+      settingsModule.openSettingsModal('ai');
       document.querySelector('#ai-usage-section [data-settings-action="reset-profile-usage"]').click();
       await wait(0);
       results.resetCurrentProfileUsage = localStorage.getItem(usageKey) === null
@@ -151,7 +152,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         meteoConfig = { ...cfg };
         savedMeteoConfigs.push({ ...cfg });
       };
-      document.body.insertAdjacentHTML('beforeend', `<section id="sun-source-fixture">${window.renderSunDataSourceSettings()}</section>`);
+      document.body.insertAdjacentHTML('beforeend', `<section id="sun-source-fixture">${settingsModule.renderSunDataSourceSettings()}</section>`);
       const sunSection = document.getElementById('sun-data-source-section');
       const selfhostRadio = sunSection.querySelector('input[value="selfhost"]');
       selfhostRadio.checked = true;
@@ -193,7 +194,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       restoreStorage('labcharts-pii-review-disable-ack', saved.piiAck);
       restoreStorage(usageKey, saved.usage);
       restoreStorage('labcharts-global-usage', saved.globalUsage);
-      window.closeTweaksPanel?.();
+      settingsModule.closeTweaksPanel();
       document.getElementById('sun-source-fixture')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
@@ -214,6 +215,7 @@ test('settings browser coverage renames imported entry dates through the data se
   const results = await page.evaluate(async () => {
     const dataModule = await import('/js/data.js');
     const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
+    const settingsModule = await import('/js/settings.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -259,9 +261,9 @@ test('settings browser coverage renames imported entry dates through the data se
       window.navigate = view => calls.push(`navigate:${view}`);
 
       document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section"></section>');
-      window.refreshDataEntriesSection();
+      settingsModule.refreshDataEntriesSection();
 
-      const renamePromise = window.renameImportedEntryDateFromSettings('2026-02-01');
+      const renamePromise = settingsModule.renameImportedEntryDateFromSettings('2026-02-01');
       await waitFor(() => document.getElementById('prompt-dialog-input'), 'rename prompt');
       const input = document.getElementById('prompt-dialog-input');
       input.value = '2026-02-03';

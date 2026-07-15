@@ -32,6 +32,7 @@ return (async function() {
   const profile = await import('/js/profile.js');
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
+  const settingsModule = await import('/js/settings.js');
 
   // ── Profile safety guard: run tests in a throwaway profile ──
   const origProfileId = S.currentProfile;
@@ -81,8 +82,8 @@ return (async function() {
       }],
       manualValues: {}
     });
-    const entriesHtml = window.renderDataEntriesSection();
-    assert('Settings Data remove wrapper is callable', typeof window.removeImportedEntryFromSettings === 'function');
+    const entriesHtml = settingsModule.renderDataEntriesSection();
+    assert('Settings Data remove wrapper is callable', typeof settingsModule.removeImportedEntryFromSettings === 'function');
     assert('PDF import remove action is module-only', typeof pdfImport.removeImportedEntry === 'function'
       && !('removeImportedEntry' in window));
     assert('Settings Data remove button uses delegated action',
@@ -90,7 +91,7 @@ return (async function() {
     assert('Settings Data edit button uses delegated action',
       entriesHtml.includes('data-settings-action="rename-imported-entry"') && entriesHtml.includes('data-entry-date="2099-12-31"'));
     assert('Settings Data hides marker-tombstone-only sync rows', !entriesHtml.includes('0 markers'));
-    await window.removeImportedEntryFromSettings('2099-12-31');
+    await settingsModule.removeImportedEntryFromSettings('2099-12-31');
     await wait(50);
     assert('Settings Data remove wrapper deletes entry',
       !(S.importedData.entries || []).some(e => e.date === '2099-12-31'));
@@ -262,7 +263,7 @@ return (async function() {
   const settingsOverlay = document.getElementById('settings-modal-overlay');
 
   // Open to AI tab
-  window.openSettingsModal('ai');
+  settingsModule.openSettingsModal('ai');
   await wait(50);
   assert('Settings modal opens', settingsOverlay.classList.contains('show'));
   assert('AI tab is active', !!document.querySelector('.settings-tab-btn[data-tab="ai"].active'));
@@ -270,7 +271,7 @@ return (async function() {
   assert('Provider buttons rendered', document.querySelectorAll('.ai-provider-btn').length >= 5);
 
   // Switch to display tab
-  window.switchSettingsTab('display');
+  settingsModule.switchSettingsTab('display');
   await wait(20);
   assert('Display tab active after switch', !!document.querySelector('.settings-tab-btn[data-tab="display"].active'));
   assert('AI tab no longer active', !document.querySelector('.settings-tab-btn[data-tab="ai"].active'));
@@ -284,8 +285,8 @@ return (async function() {
   window.setTheme('dark');
   window.setSunsetMode?.(false);
   window.setCrtEffectsEnabled?.(false);
-  window.applyAccentOverride?.();
-  window.openTweaksPanel?.();
+  settingsModule.applyAccentOverride();
+  settingsModule.openTweaksPanel();
   await wait(30);
   assert('Tweaks owns theme controls', !!document.querySelector('#tweaks-panel .tweaks-theme-grid'));
   assert('Tweaks owns accent controls', !!document.querySelector('#tweaks-panel .tweaks-accent-row'));
@@ -293,7 +294,7 @@ return (async function() {
   const darkCrtRow = document.querySelector('#tweaks-crt-effects-row');
   assert('Tweaks hides CRT effects control on unsupported themes', !!darkCrtRow && darkCrtRow.hidden && !!document.querySelector('#tweaks-crt-effects')?.disabled);
   assert('Tweaks no longer shows Try it actions', !(document.getElementById('tweaks-panel')?.textContent || '').includes('Try it'));
-  window.selectTweaksTheme?.('cyberterm');
+  settingsModule.selectTweaksTheme('cyberterm');
   const cyberCrtReady = await waitFor(() => {
     const row = document.querySelector('#tweaks-crt-effects-row');
     const toggle = document.querySelector('#tweaks-crt-effects');
@@ -302,19 +303,19 @@ return (async function() {
   const cyberCrtRow = document.querySelector('#tweaks-crt-effects-row');
   assert('Tweaks shows CRT effects control on supported themes', cyberCrtReady,
     `theme=${document.documentElement.dataset.theme || 'dark'} hidden=${cyberCrtRow?.hidden}`);
-  window.toggleTweaksCrtEffects?.(true);
+  settingsModule.toggleTweaksCrtEffects(true);
   await wait(20);
   assert('CRT effects toggle persists visual mode', document.documentElement.dataset.crtEffects === 'on' && localStorage.getItem('labcharts-crt-effects') === 'true');
-  window.toggleTweaksCrtEffects?.(false);
-  window.selectTweaksTheme?.('dark');
+  settingsModule.toggleTweaksCrtEffects(false);
+  settingsModule.selectTweaksTheme('dark');
   await wait(80);
-  window.selectTweaksAccent?.('rose');
+  settingsModule.selectTweaksAccent('rose');
   await wait(30);
   const defaultSwatchAccent = document.querySelector('.tweaks-accent-btn[data-accent-id=""] .tweaks-accent-swatch')?.style.getPropertyValue('--tweak-accent')?.trim()?.toLowerCase();
   const rootAccent = document.documentElement.style.getPropertyValue('--accent').trim().toLowerCase();
   assert('Custom accent applies to the app', rootAccent === '#f43f5e', rootAccent);
   assert('Theme default swatch stays on the theme default color', defaultSwatchAccent === '#4f8cff', defaultSwatchAccent);
-  window.closeTweaksPanel?.();
+  settingsModule.closeTweaksPanel();
   if (origAccentForTweaks) localStorage.setItem('labcharts-accent-override', origAccentForTweaks);
   else localStorage.removeItem('labcharts-accent-override');
   if (origSunsetForTweaks) window.setSunsetMode?.(true);
@@ -322,17 +323,17 @@ return (async function() {
   if (origCrtForTweaks) window.setCrtEffectsEnabled?.(true);
   else window.setCrtEffectsEnabled?.(false);
   window.setTheme(origThemeForTweaks);
-  window.applyAccentOverride?.(origAccentForTweaks || '');
+  settingsModule.applyAccentOverride(origAccentForTweaks || '');
 
   // Switch to data tab
-  window.switchSettingsTab('data');
+  settingsModule.switchSettingsTab('data');
   await wait(20);
   assert('Data tab active', !!document.querySelector('.settings-tab-btn[data-tab="data"].active'));
   assert('Data panel has encryption section', !!document.getElementById('encryption-section'));
   assert('Data panel has backup section', !!document.getElementById('backup-section'));
 
   // Close
-  window.closeSettingsModal();
+  settingsModule.closeSettingsModal();
   await wait(20);
   assert('Settings modal closes', !settingsOverlay.classList.contains('show'));
 

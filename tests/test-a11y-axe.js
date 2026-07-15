@@ -34,6 +34,7 @@ return (async () => {
   const { state } = await import('/js/state.js');
   const { loadDemoData } = await import('/js/export.js');
   const viewsModule = await import('/js/views.js');
+  const settingsModule = await import('/js/settings.js');
   // Capture full state shape so we can restore even if we mutate
   // currentProfile / importedData / markerRegistry / etc along the way.
   const snapshot = {
@@ -156,10 +157,8 @@ return (async () => {
     });
     for (const tab of ['display', 'ai', 'privacy', 'data', 'wearables', 'agent']) {
       await safeOp(`switch to settings/${tab}`, async () => {
-        if (typeof window.switchSettingsTab === 'function') {
-          window.switchSettingsTab(tab);
-          await new Promise(r => setTimeout(r, 250));
-        }
+        settingsModule.switchSettingsTab(tab);
+        await new Promise(r => setTimeout(r, 250));
       });
       await scan(`settings-${tab}`);
     }

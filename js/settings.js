@@ -179,7 +179,11 @@ export function applyAccentOverride(id = getAccentOverride()) {
 
 function refreshVisualSurfaces() {
   const settingsVisible = document.getElementById('settings-modal')?.classList.contains('show') === true;
-  refreshSettingsRuntimeSurfaces({ settingsVisible });
+  refreshSettingsRuntimeSurfaces({
+    settingsVisible,
+    updateSettingsUI,
+    updateTweaksUI,
+  });
   scheduleChartThemeRefresh();
 }
 
@@ -1050,26 +1054,9 @@ export function closeSettingsModal() {
 publishSettingsGlobals({
   openSettingsModal,
   closeSettingsModal,
-  switchSettingsTab,
-  renderPrivacySection,
-  renderSunDataSourceSettings,
-  togglePrivacyConfigure,
-  toggleOllamaPII,
-  confirmDisablePIIReview,
   updatePrivacyStatusCard,
-  updateSettingsUI,
-  renderDataEntriesSection,
-  refreshDataEntriesSection,
-  removeImportedEntryFromSettings,
-  renameImportedEntryDateFromSettings,
-  resetCurrentProfileUsage,
   openTweaksPanel,
   closeTweaksPanel,
-  selectTweaksTheme,
-  selectTweaksAccent,
-  toggleTweaksSunsetMode,
-  toggleTweaksCrtEffects,
   applyAccentOverride,
-  scheduleChartThemeRefresh,
   updateTweaksUI,
 });
