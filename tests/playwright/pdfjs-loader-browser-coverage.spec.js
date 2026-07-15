@@ -38,10 +38,10 @@ test('pdfjs loader browser coverage caches module and pins safe document options
 
     const firstPdfjs = await loader.loadPdfJs();
     const secondPdfjs = await loader.loadPdfJs();
-    outcomes.loadPdfJsCachesModuleSetsWorkerAndLegacyGlobal =
+    outcomes.loadPdfJsCachesModuleSetsWorkerAndStaysModuleOnly =
       firstPdfjs === secondPdfjs
       && firstPdfjs.GlobalWorkerOptions.workerSrc === '/vendor/pdf.worker.min.mjs'
-      && window.pdfjsLib === firstPdfjs;
+      && !('pdfjsLib' in window);
 
     const bytes = new Uint8Array([37, 80, 68, 70]).buffer;
     const bytesDocument = await loader.getPdfDocument(bytes, {
@@ -104,7 +104,7 @@ test('pdfjs loader browser coverage preserves preconfigured worker', async ({ pa
     const pdfjs = await loader.loadPdfJs();
     outcomes.loadPdfJsKeepsExistingWorkerSrc =
       pdfjs.GlobalWorkerOptions.workerSrc === '/custom/pdf.worker.mjs'
-      && window.pdfjsLib === pdfjs;
+      && !('pdfjsLib' in window);
 
     outcomes.allOutcomesReached = true;
     return outcomes;

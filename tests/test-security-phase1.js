@@ -37,6 +37,8 @@ assert('isEvalSupported wins over extraOpts (via spread order)',
   loaderSrc.includes('...extraOpts, isEvalSupported: false }') &&
   !loaderSrc.includes('isEvalSupported: false, ...extraOpts'),
   'pin must apply after spread or a caller passing { isEvalSupported: true } reopens the CVE');
+assert('pdfjs-loader stays module-only',
+  !loaderSrc.includes('registerUtilsRuntimeExports') && !loaderSrc.includes('pdfjsLib:'));
 
 const importSrc = read('js/pdf-import.js');
 const importFileUtilsSrc = read('js/pdf-import-file-utils.js');

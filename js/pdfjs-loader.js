@@ -2,10 +2,7 @@
 // Cached dynamic loader for pdf.js (ESM-only since v4.x). Loads on first
 // PDF interaction rather than on every page load, and pins
 // `isEvalSupported: false` defense-in-depth at the entry point so call
-// sites can't forget it. Also exposes the module through the browser runtime
-// for any legacy reference that hasn't migrated to the loader yet.
-
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
+// sites can't forget it.
 
 /**
  * @typedef {{ items: Array<{ str?: string, transform?: number[] }> }} PdfTextContent
@@ -38,7 +35,6 @@ export function loadPdfJs() {
     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
       pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf.worker.min.mjs';
     }
-    registerUtilsRuntimeExports({ pdfjsLib: pdfjs });
     return pdfjs;
   });
   return _pdfjsPromise;
