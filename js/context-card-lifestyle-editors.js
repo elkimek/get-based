@@ -69,6 +69,12 @@ import {
 import { getLatitudeFromLocation } from './profile.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import {
+  EYEWEAR_OPTIONS,
+  HOME_LIGHT_OPTIONS,
+  ottScoreToLabel,
+  reopenSunSetup,
+} from './sun-defaults.js';
+import {
   getEMFAssessments,
   renderEMFAssessmentLauncher,
 } from './context-card-summaries.js';
@@ -154,7 +160,7 @@ function getLifestyleIndex(el) {
 }
 
 function openLightSetupFromContext() {
-  openLightSetupFromLifestyleRuntime();
+  openLightSetupFromLifestyleRuntime(reopenSunSetup);
 }
 
 function discussDietContaminants() {
@@ -371,21 +377,15 @@ export function openLightCircadianEditor() {
 // the AI already knows about light from those answers and links over for
 // edits. Matches the design pattern of Settings → linked external editors.
 function renderLightSetupMirror(current) {
-  const appWindow = typeof window !== 'undefined' ? /** @type {any} */ (window) : {};
   const sd = state.importedData?.sunDefaults || null;
   const skin = current.skinType || (sd?.fitzpatrick ? `${sd.fitzpatrick}` : null);
 
-  // Resolve the human-readable home-lighting + eyewear labels by reading
-  // window-exposed metadata so we don't pull in the sun-defaults import
-  // (would create a circular dep with this file's many other consumers).
-  const homeLightOptions = appWindow._sunHomeLightOptions || [];
-  const eyewearOptions = appWindow._sunEyewearOptions || [];
-  const homeMeta = homeLightOptions.find(o => o.key === sd?.homeLight);
-  const eyewearMeta = eyewearOptions.find(o => o.key === sd?.eyewear);
+  const homeMeta = HOME_LIGHT_OPTIONS.find(o => o.key === sd?.homeLight);
+  const eyewearMeta = EYEWEAR_OPTIONS.find(o => o.key === sd?.eyewear);
 
   let ottBadge = '';
-  if (sd && typeof sd.ottScore === 'number' && typeof appWindow.ottScoreToLabel === 'function') {
-    const { label, tier } = appWindow.ottScoreToLabel(sd.ottScore);
+  if (sd && typeof sd.ottScore === 'number') {
+    const { label, tier } = ottScoreToLabel(sd.ottScore);
     ottBadge = `<span class="light-ott-badge light-ott-tier-${tier}">${escapeHTML(label)}</span>`;
   } else if (sd?.skipped) {
     ottBadge = `<span class="light-ott-badge">skipped</span>`;

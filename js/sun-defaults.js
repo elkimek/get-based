@@ -14,12 +14,9 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { saveImportedData } from './data.js';
 import { SKIN_TYPE } from './constants.js';
 import {
-  exposeSunDefaultsBindings,
   getSunSetupCoords,
   getSunSetupProfileLocation,
-  hasSunDefaultsBrowserRuntime,
   hasSunSetupPreciseLocationRequester,
-  invokeSunDefaultsBinding,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
   requestSunSetupPreciseLocationRuntime,
@@ -117,15 +114,15 @@ function handleLightSetupClick(event) {
   switch (actionEl.dataset.lightSetupAction || '') {
     case 'reopen':
       event.preventDefault();
-      invokeSunDefaultsBinding('reopenSunSetup', reopenSunSetup);
+      reopenSunSetup();
       break;
     case 'dismiss':
       event.preventDefault();
-      invokeSunDefaultsBinding('dismissSunSetup', dismissSunSetup);
+      void dismissSunSetup();
       break;
     case 'cancel-reopen':
       event.preventDefault();
-      invokeSunDefaultsBinding('cancelReopenSunSetup', cancelReopenSunSetup);
+      cancelReopenSunSetup();
       break;
     case 'set-step':
       event.preventDefault();
@@ -133,7 +130,7 @@ function handleLightSetupClick(event) {
       break;
     case 'save':
       event.preventDefault();
-      invokeSunDefaultsBinding('saveSunSetup', saveSunSetup);
+      void saveSunSetup();
       break;
     case 'select-choice':
       event.preventDefault();
@@ -145,11 +142,11 @@ function handleLightSetupClick(event) {
       break;
     case 'open-profile-location':
       event.preventDefault();
-      invokeSunDefaultsBinding('openLightSetupProfileLocation', openLightSetupProfileLocation);
+      openLightSetupProfileLocation();
       break;
     case 'request-precise-location':
       event.preventDefault();
-      invokeSunDefaultsBinding('requestLightSetupPreciseLocation', requestLightSetupPreciseLocation);
+      void requestLightSetupPreciseLocation();
       break;
   }
 }
@@ -308,7 +305,7 @@ export function isOnboardingComplete() {
 let _setupForceOpen = false;
 const LIGHT_SETUP_OVERLAY_ID = 'light-setup-focus-overlay';
 
-function reopenSunSetup() {
+export function reopenSunSetup() {
   _setupForceOpen = true;
   openSunSetupOverlay();
 }
@@ -1011,32 +1008,7 @@ async function dismissSunSetup() {
   navigateSunDefaultsRoute('light');
 }
 
-if (hasSunDefaultsBrowserRuntime()) {
-  installLightSetupDelegates();
-  exposeSunDefaultsBindings({
-    getSunDefaults,
-    saveSunDefaults,
-    isLightOnboardingComplete: isOnboardingComplete,
-    renderSunSetupCard: renderSetupCard,
-    saveSunSetup,
-    dismissSunSetup,
-    reopenSunSetup,
-    cancelReopenSunSetup,
-    openSunSetupOverlay,
-    openLightSetupProfileLocation,
-    requestLightSetupPreciseLocation,
-    setLightSetupStep,
-    ottScoreToLabel,
-    _sunHomeLightOptions: HOME_LIGHT_OPTIONS,
-    _sunEyewearOptions: EYEWEAR_OPTIONS,
-    _updateSetupSkinSlider,
-    _refreshSetupProgress,
-    _selectSetupChoice,
-    _updateOttRunningScore,
-    _skinTypeToFitzpatrick: skinTypeToFitzpatrick,
-    _skinFaceKeydown,
-  });
-}
+installLightSetupDelegates();
 
 // Arrow-key navigation across the skin-type radiogroup. Implements the
 // roving tabindex pattern: Left/Right (and Up/Down) cycle the focused

@@ -228,9 +228,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       navigate: window.navigate,
       openChatPanel: window.openChatPanel,
       useChatPrompt: window.useChatPrompt,
-      sunHomeLightOptions: window._sunHomeLightOptions,
-      sunEyewearOptions: window._sunEyewearOptions,
-      ottScoreToLabel: window.ottScoreToLabel,
     };
     const calls = [];
     const controlOutcomeName = (kind, id, index) =>
@@ -338,15 +335,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.clearSleepRest();
       outcomes.clearSleepRestNullsSleep = state.importedData.sleepRest === null;
 
-      window._sunHomeLightOptions = [{ key: 'warm-leds', label: 'Warm LEDs' }];
-      window._sunEyewearOptions = [{ key: 'sunglasses', label: 'Sunglasses' }];
-      window.ottScoreToLabel = () => ({ label: 'Strong light hygiene', tier: 'green' });
-      state.importedData.sunDefaults = { fitzpatrick: 'III', homeLight: 'warm-leds', eyewear: 'sunglasses', ottScore: 4 };
+      state.importedData.sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
       state.importedData.lightCircadian = { skinType: 'III' };
       lifestyle.openLightCircadianEditor();
-      outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Warm LEDs')
-        && modal.textContent.includes('Sunglasses')
-        && modal.textContent.includes('Strong light hygiene');
+      outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Mostly LED — warm white')
+        && modal.textContent.includes('Sunglasses outdoors')
+        && modal.textContent.includes('moderate light burden');
       const amLight = setOption('light-am');
       const evening = setTag('light-evening');
       const tech = setTag('light-tech');
@@ -445,9 +439,6 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       window.navigate = saved.navigate;
       window.openChatPanel = saved.openChatPanel;
       window.useChatPrompt = saved.useChatPrompt;
-      window._sunHomeLightOptions = saved.sunHomeLightOptions;
-      window._sunEyewearOptions = saved.sunEyewearOptions;
-      window.ottScoreToLabel = saved.ottScoreToLabel;
       lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {} });
       overlay.classList.remove('show');
       modal.innerHTML = '';
