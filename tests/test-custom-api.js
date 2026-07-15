@@ -28,12 +28,11 @@ function assert(name, condition, detail) {
 
 console.log('=== Custom API Provider Tests ===\n');
 
-// api.js exposes Custom-provider helpers as ES module exports. provider-panels.js
-// still exposes UI handlers used by legacy HTML/event wiring.
+// Custom-provider helpers and provider-panel UI handlers are module-only APIs.
 await import('../js/state.js');
 const api = await import('../js/api.js');
 const cryptoModule = await import('../js/crypto.js');
-await import('../js/provider-panels.js');
+const providerPanels = await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
@@ -80,10 +79,11 @@ assert('api.getCustomApiModelDisplay is function', typeof api.getCustomApiModelD
 assert('api.fetchCustomApiModels is function', typeof api.fetchCustomApiModels === 'function');
 assert('api.validateCustomApiKey is function', typeof api.validateCustomApiKey === 'function');
 assert('api.callCustomAPI is function', typeof api.callCustomAPI === 'function');
-assert('window.handleSaveCustomApi is function', typeof window.handleSaveCustomApi === 'function');
-assert('window.handleRemoveCustomApi is function', typeof window.handleRemoveCustomApi === 'function');
-assert('window.renderCustomApiModelDropdown is function', typeof window.renderCustomApiModelDropdown === 'function');
-assert('window.applyCustomApiManualModel is function', typeof window.applyCustomApiManualModel === 'function');
+assert('providerPanels.handleSaveCustomApi is function', typeof providerPanels.handleSaveCustomApi === 'function');
+assert('providerPanels.handleRemoveCustomApi is function', typeof providerPanels.handleRemoveCustomApi === 'function');
+assert('providerPanels.renderCustomApiModelDropdown is function', typeof providerPanels.renderCustomApiModelDropdown === 'function');
+assert('providerPanels.applyCustomApiManualModel is function', typeof providerPanels.applyCustomApiManualModel === 'function');
+assert('custom provider handlers stay off window', !('handleSaveCustomApi' in window));
 
 // ─── 3. URL management ───
 console.log('\n3. URL management');

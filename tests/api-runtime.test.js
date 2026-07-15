@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 import {
+  configureApiRuntimeCallbacks,
   getApiLocationOriginRuntime,
   getApiLocationPathnameRuntime,
   setApiLocationHrefRuntime,
@@ -19,6 +20,7 @@ function setRuntimeWindow(runtime) {
 }
 
 afterEach(() => {
+  configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
   else delete globalThis.window;
 });
@@ -42,7 +44,7 @@ describe('api runtime adapter', () => {
 
   it('delegates OpenRouter balance dialog access', () => {
     const showInsufficientBalanceDialog = vi.fn();
-    setRuntimeWindow({ showInsufficientBalanceDialog });
+    configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
 
     expect(showOpenRouterInsufficientBalanceDialogRuntime()).toBe(true);
     expect(showInsufficientBalanceDialog).toHaveBeenCalledTimes(1);
@@ -50,6 +52,7 @@ describe('api runtime adapter', () => {
 
   it('no-ops safely when a browser runtime is missing', () => {
     delete globalThis.window;
+    configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
 
     expect(getApiLocationOriginRuntime()).toBe('');
     expect(getApiLocationPathnameRuntime()).toBe('');

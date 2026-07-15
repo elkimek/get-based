@@ -434,8 +434,6 @@ test('provider panels cover provider switching key saves balances custom API and
       openChatPanel: window.openChatPanel,
       loadFocusCard: window.loadFocusCard,
       clearE2EESession: window.clearE2EESession,
-      handleSaveCustomApi: window.handleSaveCustomApi,
-      handleRemoveCustomApi: window.handleRemoveCustomApi,
     };
 
     let openedUrl = '';
@@ -625,12 +623,12 @@ test('provider panels cover provider switching key saves balances custom API and
         <input id="custom-url-input" value="https://custom.example/v1/">
         <input id="custom-key-input" value="sk-custom">
       `;
-      await window.handleSaveCustomApi();
+      await panels.handleSaveCustomApi();
       await wait(0);
       const customSaveRendersConnected = localStorage.getItem('labcharts-custom-url') === 'https://custom.example/v1'
         && document.getElementById('custom-key-status')?.textContent.includes('Connected')
         && document.getElementById('custom-model-select')?.value === 'openai/gpt-5.5';
-      window.handleRemoveCustomApi();
+      panels.handleRemoveCustomApi();
       await wait(0);
       const customRemoveRendersDisconnected = !localStorage.getItem('labcharts-custom-url')
         && document.getElementById('custom-key-status')?.textContent.includes('Not connected');
@@ -667,8 +665,6 @@ test('provider panels cover provider switching key saves balances custom API and
       window.openChatPanel = oldGlobals.openChatPanel;
       window.loadFocusCard = oldGlobals.loadFocusCard;
       window.clearE2EESession = oldGlobals.clearE2EESession;
-      window.handleSaveCustomApi = oldGlobals.handleSaveCustomApi;
-      window.handleRemoveCustomApi = oldGlobals.handleRemoveCustomApi;
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);

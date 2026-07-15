@@ -1268,7 +1268,7 @@ await import('../js/settings.js');
     syncApplySrc.includes('remoteRoutstrIsNewer')
       && syncApplySrc.includes('localRoutstrIsNewer')
       && syncApplySrc.includes('refreshSyncedRoutstrBalanceRuntime()')
-      && syncRuntimeSrc.includes("getRuntimeFunction('refreshRoutstrBalance')")
+      && syncRuntimeSrc.includes('syncRuntimeCallbacks.refreshRoutstrBalance()')
       && apiProviderStorageSrc.includes('export function touchRoutstrSession()')
       && apiProviderStorageRuntimeSrc.includes('export function touchRoutstrSessionClock()')
       && apiProviderStorageRuntimeSrc.includes('Math.max(Date.now(), previous + 1)')

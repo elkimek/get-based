@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -204,6 +204,7 @@
     import('../js/pdf-import.js'),
     import('../js/pii.js'),
     import('../js/profile.js'),
+    import('../js/provider-panels.js'),
     import('../js/settings-sync-panel.js'),
     import('../js/sun-context.js'),
     import('../js/sun-spectrum.js'),
@@ -508,7 +509,7 @@
     'renderDataEntriesSection','refreshDataEntriesSection','configureSettingsRuntime'
   ];
 
-  // provider-panels.js (72)
+  // provider-panels.js (74 former browser globals, now module-only)
   const providerPanelsExports = [
     'renderAIProviderPanel','toggleAIPause','switchAIProvider',
     'initSettingsModelFetch','initSettingsOllamaCheck',
@@ -524,14 +525,14 @@
     'doRoutstrWalletReceiveCashu','showRoutstrMintEdit','doRoutstrMintChange',
     'showRoutstrWalletBackup','showRoutstrNodePicker','connectRoutstrNode',
     'doRoutstrNodeDeposit','doRoutstrNodeWithdraw','_setActiveNodeAction',
-    'walletSeedAcknowledged','showWalletSeedPhrase',
+    'walletSeedAcknowledged','setupRoutstrWalletSeed','showWalletSeedPhrase',
     'showRoutstrWithdraw','showRoutstrWithdrawLightning','showRoutstrWithdrawToken',
     'doRoutstrSendToken','doRoutstrWithdrawQuote','doRoutstrWithdrawExecute','doRoutstrWalletRestore',
     'handleCreatePpqAccount','dismissPpqKeyReveal',
     'handleSavePpqKey','handleRemovePpqKey','renderPpqModelDropdown',
     'updatePpqModelPricing','refreshPpqBalance',
     'showPpqTopup','selectPpqMethod','doPpqTopup','ppqShowCustomInput','doPpqTopupCustom','cancelPpqTopup',
-    'refreshOpenRouterBalance',
+    'refreshOpenRouterBalance','showInsufficientBalanceDialog',
     'handleSaveCustomApi','handleRemoveCustomApi','renderCustomApiModelDropdown',
     'applyCustomApiManualModel','updateCustomModelPricing',
     'copyOllamaPullCmd','refreshModelAdvisor',
@@ -628,6 +629,7 @@
     ['pdf-import.js', pdfImportModule, pdfImportExports],
     ['pii.js', piiModule, piiExports],
     ['profile.js', profileModule, profileExports],
+    ['provider-panels.js', providerPanelsModule, providerPanelsExports],
     ['settings-sync-panel.js', settingsSyncPanelModule, settingsSyncPanelExports],
     ['sun-context.js', sunContextModule, sunContextExports],
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
@@ -686,6 +688,9 @@
   for (const name of cashuWalletLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of providerPanelsExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
@@ -695,7 +700,6 @@
     'nav.js': navExports,
     'notes.js': notesExports,
     'settings.js': settingsExports,
-    'provider-panels.js': providerPanelsExports,
     'theme.js': themeExports,
     'views.js': viewsExports,
   };

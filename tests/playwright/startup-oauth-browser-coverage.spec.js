@@ -33,7 +33,6 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const savedLocal = snapshotStorage(localStorage);
     const savedSession = snapshotStorage(sessionStorage);
     const originalFetch = window.fetch;
-    const originalBalanceDialog = window.showInsufficientBalanceDialog;
     const originalSetTimeout = window.setTimeout;
     const originalReplaceState = history.replaceState;
     const originalPushState = history.pushState;
@@ -51,6 +50,9 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     const originalStartupOAuthDeps = startup.configureStartupOAuthCallbackDeps({
       showNotification: (message, type, duration) => {
         notifications.push({ message: String(message), type, duration });
+      },
+      showInsufficientBalanceDialog: () => {
+        balanceDialogs += 1;
       },
     });
 
@@ -70,9 +72,6 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     try {
       window.updateChatHeaderModel = () => {};
       window.refreshWebSearchToggle = () => {};
-      window.showInsufficientBalanceDialog = () => {
-        balanceDialogs += 1;
-      };
       history.replaceState = function replaceStateSpy(state, title, url) {
         replaceCalls.push({ title, url });
         return originalReplaceState.call(history, state, title, url);
@@ -265,7 +264,6 @@ test('startup OAuth browser coverage handles OpenRouter and wearable callback ro
     } finally {
       window.fetch = originalFetch;
       startup.configureStartupOAuthCallbackDeps(originalStartupOAuthDeps);
-      window.showInsufficientBalanceDialog = originalBalanceDialog;
       window.setTimeout = originalSetTimeout;
       history.replaceState = originalReplaceState;
       window.updateChatHeaderModel = originalUpdateChatHeaderModel;

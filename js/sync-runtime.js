@@ -10,6 +10,27 @@ let _appOwnerError = null;
 let _readyPromise = null;
 let _queryLoadedPromise = null;
 
+/** @type {{ refreshRoutstrBalance: Function }} */
+const syncRuntimeCallbacks = {
+  refreshRoutstrBalance: () => {
+    if (typeof document === 'undefined') return false;
+    import('./provider-wallet-panels.js')
+      .then(providerPanels => providerPanels.refreshRoutstrBalance())
+      .catch(() => {});
+    return true;
+  },
+};
+
+export function configureSyncRuntimeCallbacks(callbacks = {}) {
+  const previous = { ...syncRuntimeCallbacks };
+  if ('refreshRoutstrBalance' in callbacks) {
+    syncRuntimeCallbacks.refreshRoutstrBalance = typeof callbacks.refreshRoutstrBalance === 'function'
+      ? callbacks.refreshRoutstrBalance
+      : () => false;
+  }
+  return previous;
+}
+
 function getSyncRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -74,10 +95,11 @@ export function refreshSyncedAIProviderUiRuntime() {
 }
 
 export function refreshSyncedRoutstrBalanceRuntime() {
-  const refreshBalance = getRuntimeFunction('refreshRoutstrBalance');
-  if (!refreshBalance) return false;
-  refreshBalance();
-  return true;
+  try {
+    return syncRuntimeCallbacks.refreshRoutstrBalance() !== false;
+  } catch {
+    return false;
+  }
 }
 
 /** @param {string | null} ownerId */

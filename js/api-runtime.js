@@ -7,6 +7,27 @@ function getApiRuntime() {
     : null;
 }
 
+/** @type {{ showInsufficientBalanceDialog: Function }} */
+const apiRuntimeCallbacks = {
+  showInsufficientBalanceDialog: () => {
+    if (typeof document === 'undefined') return false;
+    import('./provider-panels.js')
+      .then(providerPanels => providerPanels.showInsufficientBalanceDialog())
+      .catch(() => {});
+    return true;
+  },
+};
+
+export function configureApiRuntimeCallbacks(callbacks = {}) {
+  const previous = { ...apiRuntimeCallbacks };
+  if ('showInsufficientBalanceDialog' in callbacks) {
+    apiRuntimeCallbacks.showInsufficientBalanceDialog = typeof callbacks.showInsufficientBalanceDialog === 'function'
+      ? callbacks.showInsufficientBalanceDialog
+      : () => false;
+  }
+  return previous;
+}
+
 export function getApiLocationOriginRuntime() {
   return getApiRuntime()?.location?.origin || '';
 }
@@ -27,8 +48,9 @@ export function setApiLocationHrefRuntime(url) {
 }
 
 export function showOpenRouterInsufficientBalanceDialogRuntime() {
-  const runtime = getApiRuntime();
-  if (!runtime?.showInsufficientBalanceDialog) return false;
-  try { runtime.showInsufficientBalanceDialog(); } catch {}
-  return true;
+  try {
+    return apiRuntimeCallbacks.showInsufficientBalanceDialog() !== false;
+  } catch {
+    return false;
+  }
 }

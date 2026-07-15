@@ -20,7 +20,7 @@ function assert(name, condition, detail) {
 
 console.log('=== PPQ Provider Panel Tests ===\n');
 
-await import('../js/provider-panels.js');
+const providerPanels = await import('../js/provider-panels.js');
 
 const panelsSrc = read('js/provider-panels.js');
 const ppqSrc = read('js/provider-ppq-panels.js');
@@ -81,13 +81,14 @@ assert('Tinfoil browser bundle exports SecureClient', typeof tinfoilModule.Secur
 assert('EHBP browser bundle exports request primitives', typeof ehbpModule.Identity === 'function' && typeof ehbpModule.decryptResponseWithToken === 'function');
 
 console.log('\n3. Runtime exports');
-assert('window.handleCreatePpqAccount exported', typeof window.handleCreatePpqAccount === 'function');
-assert('window.handleSavePpqKey exported', typeof window.handleSavePpqKey === 'function');
-assert('window.handleRemovePpqKey exported', typeof window.handleRemovePpqKey === 'function');
-assert('window.refreshPpqBalance exported', typeof window.refreshPpqBalance === 'function');
-assert('window.showPpqTopup exported', typeof window.showPpqTopup === 'function');
-assert('window.doPpqTopup exported', typeof window.doPpqTopup === 'function');
-assert('window.cancelPpqTopup exported', typeof window.cancelPpqTopup === 'function');
+assert('providerPanels.handleCreatePpqAccount exported', typeof providerPanels.handleCreatePpqAccount === 'function');
+assert('providerPanels.handleSavePpqKey exported', typeof providerPanels.handleSavePpqKey === 'function');
+assert('providerPanels.handleRemovePpqKey exported', typeof providerPanels.handleRemovePpqKey === 'function');
+assert('providerPanels.refreshPpqBalance exported', typeof providerPanels.refreshPpqBalance === 'function');
+assert('providerPanels.showPpqTopup exported', typeof providerPanels.showPpqTopup === 'function');
+assert('providerPanels.doPpqTopup exported', typeof providerPanels.doPpqTopup === 'function');
+assert('providerPanels.cancelPpqTopup exported', typeof providerPanels.cancelPpqTopup === 'function');
+assert('PPQ panel handlers stay off window', !('handleCreatePpqAccount' in window));
 
 console.log('\n4. App shell');
 assert('service worker caches PPQ module', swSrc.includes("'/js/provider-ppq-panels.js'"));

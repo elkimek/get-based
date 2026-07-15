@@ -626,7 +626,7 @@ export function handleRemoveRoutstrKey() {
 }
 
 // ─── Custom API handlers ───
-async function handleSaveCustomApi() {
+export async function handleSaveCustomApi() {
   const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-url-input'));
   const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-key-input'));
   if (!urlInput || !keyInput) return;
@@ -646,7 +646,7 @@ async function handleSaveCustomApi() {
   if (models.length) renderCustomApiModelDropdown(models);
 }
 
-function handleRemoveCustomApi() {
+export function handleRemoveCustomApi() {
   localStorage.removeItem('labcharts-custom-url');
   localStorage.removeItem('labcharts-custom-model');
   localStorage.removeItem('labcharts-custom-models');
@@ -715,84 +715,4 @@ installProviderPanelDelegates({
   setOllamaMainModel,
   refreshModelAdvisor,
   applyCustomOpenRouterModel
-});
-
-// ═══════════════════════════════════════════════
-// WINDOW EXPORTS (for HTML onclick handlers)
-// ═══════════════════════════════════════════════
-Object.assign(window, {
-  renderAIProviderPanel,
-  toggleAIPause,
-  switchAIProvider,
-  initSettingsModelFetch,
-  initSettingsOllamaCheck,
-  testOllamaConnection,
-  testPIIOllamaConnection,
-  refreshVeniceBalance,
-  updateVeniceModelPricing,
-  onVeniceModelDropdownChange,
-  toggleVeniceE2EE,
-  togglePpqPrivateMode,
-  updateOpenRouterModelPricing,
-  updateRoutstrModelPricing,
-  handleSaveVeniceKey,
-  handleRemoveVeniceKey,
-  renderVeniceModelDropdown,
-  handleSaveOpenRouterKey,
-  handleRemoveOpenRouterKey,
-  renderOpenRouterModelDropdown,
-  applyCustomOpenRouterModel,
-  onOpenRouterDropdownChange,
-  handleSaveRoutstrKey,
-  handleRemoveRoutstrKey,
-  renderRoutstrModelDropdown,
-  refreshCashuWalletBalance,
-  refreshRoutstrBalance,
-  showRoutstrWalletFund,
-  rsWalletFundCustomInput,
-  doRoutstrWalletFundCustom,
-  doRoutstrWalletFund,
-  doRoutstrWalletReceiveCashu,
-  showRoutstrMintEdit,
-  doRoutstrMintChange,
-  showRoutstrWalletBackup,
-  showRoutstrNodePicker,
-  connectRoutstrNode,
-  doRoutstrNodeDeposit,
-  doRoutstrNodeWithdraw,
-  _setActiveNodeAction,
-  walletSeedAcknowledged,
-  setupRoutstrWalletSeed,
-  showWalletSeedPhrase,
-  showRoutstrWithdraw,
-  showRoutstrWithdrawLightning,
-  showRoutstrWithdrawToken,
-  doRoutstrSendToken,
-  doRoutstrWithdrawQuote,
-  doRoutstrWithdrawExecute,
-  doRoutstrWalletRestore,
-  handleCreatePpqAccount,
-  dismissPpqKeyReveal,
-  handleSavePpqKey,
-  handleRemovePpqKey,
-  renderPpqModelDropdown,
-  updatePpqModelPricing,
-  refreshPpqBalance,
-  showPpqTopup,
-  selectPpqMethod,
-  doPpqTopup,
-  ppqShowCustomInput,
-  doPpqTopupCustom,
-  cancelPpqTopup,
-  refreshOpenRouterBalance,
-  showInsufficientBalanceDialog,
-  handleSaveCustomApi,
-  handleRemoveCustomApi,
-  renderCustomApiModelDropdown,
-  applyCustomApiManualModel,
-  updateCustomModelPricing,
-  copyOllamaPullCmd,
-  refreshModelAdvisor,
-  applyHardwareOverride,
-  clearHardwareOverride,
 });

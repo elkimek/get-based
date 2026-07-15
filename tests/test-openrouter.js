@@ -26,11 +26,10 @@ function assert(name, condition, detail) {
 
 console.log('=== OpenRouter Integration Tests ===\n');
 
-// api.js exposes provider helpers as ES module exports; provider-panels.js
-// still exposes UI handlers used by legacy HTML/event wiring.
+// Provider helpers and provider-panel UI handlers are module-only APIs.
 await import('../js/state.js');
 const api = await import('../js/api.js');
-await import('../js/provider-panels.js');
+const providerPanels = await import('../js/provider-panels.js');
 
 // ─── 1. api.js source inspection ───
 console.log('1. api.js source inspection');
@@ -125,9 +124,16 @@ const settingsSrc = read('js/settings.js');
 assert('provider button with data-provider="openrouter"', settingsSrc.includes('data-provider="openrouter"'));
 assert('OpenRouter provider button uses delegated settings action',
   /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
-assert('settings installs provider bridge module', settingsSrc.includes('installSettingsProviderBridge();'));
+assert('settings calls provider bridge APIs directly',
+  settingsSrc.includes('renderAIProviderPanelBridge(provider)') &&
+    settingsSrc.includes('initSettingsProviderPanels()'));
 assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
 assert('eager provider bridge persists selection synchronously', settingsBridgeSrc.includes('setAIProvider(provider);'));
+assert('settings provider bridge resolves module APIs without publishing globals',
+  settingsBridgeSrc.includes('providerPanels.switchAIProvider(provider)') &&
+    settingsBridgeSrc.includes('providerPanels.renderAIProviderPanel(getAIProvider())') &&
+    !settingsBridgeSrc.includes('settingsWindow') &&
+    !settingsBridgeSrc.includes('PROVIDER_PANEL_BRIDGE_NAMES'));
 assert('settings records existing provider before provider-key onboarding return',
   settingsSrc.includes('settingsWindow._settingsHadProvider = hasAIProvider();')
     && ppSrc.includes("if (getProviderPanelRuntimeValue('_settingsHadProvider')) return"));
@@ -144,10 +150,12 @@ assert('initSettingsModelFetch fetches OpenRouter', ppSrc.includes('fetchOpenRou
 const orPanelIdx = providerRenderSrc.indexOf("provider === 'openrouter'");
 const venicePanelIdx = providerRenderSrc.indexOf("provider === 'venice'");
 assert('renderAIProviderPanel: openrouter before venice', orPanelIdx < venicePanelIdx, `openrouter@${orPanelIdx}, venice@${venicePanelIdx}`);
-assert('window exports handleSaveOpenRouterKey', ppSrc.includes('handleSaveOpenRouterKey,'));
-assert('window exports handleRemoveOpenRouterKey', ppSrc.includes('handleRemoveOpenRouterKey,'));
-assert('window exports renderOpenRouterModelDropdown', ppSrc.includes('renderOpenRouterModelDropdown,'));
-assert('window exports updateOpenRouterModelPricing', ppSrc.includes('updateOpenRouterModelPricing,'));
+assert('provider panels export handleSaveOpenRouterKey as a module API', typeof providerPanels.handleSaveOpenRouterKey === 'function');
+assert('provider panels export handleRemoveOpenRouterKey as a module API', typeof providerPanels.handleRemoveOpenRouterKey === 'function');
+assert('provider panels export renderOpenRouterModelDropdown as a module API', typeof providerPanels.renderOpenRouterModelDropdown === 'function');
+assert('provider panels export updateOpenRouterModelPricing as a module API', typeof providerPanels.updateOpenRouterModelPricing === 'function');
+assert('provider panels do not publish the legacy window facade',
+  !ppSrc.includes('Object.assign(window') && !('handleSaveOpenRouterKey' in window));
 assert('OpenRouter OAuth remembers previous provider before empty-key switch',
   ppSrc.includes('rememberOpenRouterOAuthPreviousProvider(previousProvider)'));
 assert('manual OpenRouter key save clears pending OAuth restore state',
@@ -215,10 +223,10 @@ assert('api.getOpenRouterModelDisplay is function', typeof api.getOpenRouterMode
 assert('api.fetchOpenRouterModels is function', typeof api.fetchOpenRouterModels === 'function');
 assert('api.validateOpenRouterKey is function', typeof api.validateOpenRouterKey === 'function');
 assert('api.callOpenRouterAPI is function', typeof api.callOpenRouterAPI === 'function');
-assert('window.handleSaveOpenRouterKey is function', typeof window.handleSaveOpenRouterKey === 'function');
-assert('window.handleRemoveOpenRouterKey is function', typeof window.handleRemoveOpenRouterKey === 'function');
-assert('window.renderOpenRouterModelDropdown is function', typeof window.renderOpenRouterModelDropdown === 'function');
-assert('window.updateOpenRouterModelPricing is function', typeof window.updateOpenRouterModelPricing === 'function');
+assert('providerPanels.handleSaveOpenRouterKey is function', typeof providerPanels.handleSaveOpenRouterKey === 'function');
+assert('providerPanels.handleRemoveOpenRouterKey is function', typeof providerPanels.handleRemoveOpenRouterKey === 'function');
+assert('providerPanels.renderOpenRouterModelDropdown is function', typeof providerPanels.renderOpenRouterModelDropdown === 'function');
+assert('providerPanels.updateOpenRouterModelPricing is function', typeof providerPanels.updateOpenRouterModelPricing === 'function');
 
 // ─── 8. Key/model management (localStorage) ───
 console.log('\n8. Key/model management');

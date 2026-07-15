@@ -43,6 +43,7 @@ import { maybeScheduleRebroadcast } from '../js/sync-pull-rebroadcast.js';
 import { applyCommittedDeltas, planProfileDeltas } from '../js/sync-push-deltas.js';
 import { configureSyncPush, isSyncPushInFlight, pushProfile } from '../js/sync-push.js';
 import {
+  configureSyncRuntimeCallbacks,
   dispatchSyncOwnerChangedRuntime,
   getSyncReloadUrlRuntime,
   refreshSyncedAIProviderUiRuntime,
@@ -79,6 +80,8 @@ import { buildAgentAccessSetupCommand } from '../js/settings-agent-access-panel.
 const PROFILE_ID = 'profile-runtime';
 const PROFILE_QUERY = Symbol('profile-query');
 const ITEM_ROW_QUERY = Symbol('item-row-query');
+let previousSyncRuntimeCallbacks;
+let refreshRoutstrBalance;
 
 function deltaKey(profileId, arrayName) {
   return `labcharts-${profileId}-delta-${arrayName}`;
@@ -152,7 +155,8 @@ beforeEach(() => {
   updateKeyCache('labcharts-cashu-wallet-mnemonic', '');
   window.updateChatHeaderModel = vi.fn();
   window.refreshWebSearchToggle = vi.fn();
-  window.refreshRoutstrBalance = vi.fn();
+  refreshRoutstrBalance = vi.fn();
+  previousSyncRuntimeCallbacks = configureSyncRuntimeCallbacks({ refreshRoutstrBalance });
   state.currentProfile = PROFILE_ID;
   state.importedData = { entries: [], agentAccess: null };
   localStorage.setItem('labcharts-active-profile', PROFILE_ID);
@@ -162,6 +166,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  configureSyncRuntimeCallbacks(previousSyncRuntimeCallbacks);
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -245,7 +250,7 @@ describe('sync apply runtime behavior', () => {
     expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
     expect(localStorage.getItem('labcharts-routstr-node')).toBe('https://node.remote.test');
     expect(localStorage.getItem('labcharts-routstr-session-updated-at')).toBe('200');
-    expect(window.refreshRoutstrBalance).toHaveBeenCalledTimes(1);
+    expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
 
     await applyAISettings({
       'labcharts-routstr-key': 'sk-stale',
@@ -253,7 +258,7 @@ describe('sync apply runtime behavior', () => {
       'labcharts-routstr-session-updated-at': '150',
     });
     expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
-    expect(window.refreshRoutstrBalance).toHaveBeenCalledTimes(1);
+    expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
 
     await applyAISettings({
       'labcharts-routstr-key': 'sk-legacy-profile-row',
@@ -261,14 +266,14 @@ describe('sync apply runtime behavior', () => {
     });
     expect(getCachedKey('labcharts-routstr-key')).toBe('sk-remote-funded');
     expect(localStorage.getItem('labcharts-routstr-node')).toBe('https://node.remote.test');
-    expect(window.refreshRoutstrBalance).toHaveBeenCalledTimes(1);
+    expect(refreshRoutstrBalance).toHaveBeenCalledTimes(1);
 
     await applyAISettings({
       'labcharts-routstr-key': 'sk-remote-funded',
       'labcharts-routstr-node': 'https://node.remote.test',
       'labcharts-routstr-session-updated-at': '300',
     });
-    expect(window.refreshRoutstrBalance).toHaveBeenCalledTimes(2);
+    expect(refreshRoutstrBalance).toHaveBeenCalledTimes(2);
   });
 
   it('applies remote AI settings, respects local locks, and writes display prefs', async () => {

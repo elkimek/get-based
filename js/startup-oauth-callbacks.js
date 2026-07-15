@@ -15,13 +15,23 @@ import {
 import { handleOAuthCallbackOnLoad } from './wearables-connect.js';
 import { showNotification as showAppNotification } from './utils.js';
 
-const startupOAuthCallbackDeps = { showNotification: showAppNotification };
+/** @type {{ showNotification: Function | null, showInsufficientBalanceDialog: Function | null }} */
+const startupOAuthCallbackDeps = {
+  showNotification: showAppNotification,
+  showInsufficientBalanceDialog: () => import('./provider-panels.js')
+    .then(providerPanels => providerPanels.showInsufficientBalanceDialog()),
+};
 
 export function configureStartupOAuthCallbackDeps(deps = {}) {
   const previous = { ...startupOAuthCallbackDeps };
   if ('showNotification' in deps) {
     startupOAuthCallbackDeps.showNotification = typeof deps.showNotification === 'function'
       ? /** @type {typeof showAppNotification} */ (deps.showNotification)
+      : null;
+  }
+  if ('showInsufficientBalanceDialog' in deps) {
+    startupOAuthCallbackDeps.showInsufficientBalanceDialog = typeof deps.showInsufficientBalanceDialog === 'function'
+      ? deps.showInsufficientBalanceDialog
       : null;
   }
   return previous;
@@ -59,10 +69,6 @@ function openChatAfterInit() {
   startupRuntime()._openChatAfterInit = true;
 }
 
-function showInsufficientBalanceDialog() {
-  callStartupRuntime('showInsufficientBalanceDialog');
-}
-
 async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
   replaceCurrentUrl();
 
@@ -88,8 +94,8 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
     try {
       const balance = await getOpenRouterBalance();
       const remaining = balance?.remaining;
-      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof startupRuntime().showInsufficientBalanceDialog === 'function') {
-        setTimeout(() => showInsufficientBalanceDialog(), 1500);
+      if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof startupOAuthCallbackDeps.showInsufficientBalanceDialog === 'function') {
+        setTimeout(() => startupOAuthCallbackDeps.showInsufficientBalanceDialog(), 1500);
       }
     } catch {}
   } catch (e) {
