@@ -93,7 +93,6 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
     ]);
     const outcomes = {};
     const originalProfile = state.currentProfile;
-    const originalGetter = window._getActiveProfileId;
     const originalConsoleError = console.error;
 
     try {
@@ -113,11 +112,11 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
         'startup failure notification'
       );
 
-      outcomes.startAppInstallsOneSetOfShellHooks =
+      outcomes.startAppInstallsOneSetOfShellHooksWithoutUsageGlobal =
         !window.__startupCalls.includes('emf')
         && window.__startupCalls.filter(call => call === 'events').length === 1
         && window.__startupCalls.filter(call => call === 'refresh').length === 1
-        && window._getActiveProfileId() === 'startup-orchestrator-coverage-profile';
+        && !('_getActiveProfileId' in window);
       outcomes.startupFailureStopsLaterPhasesAndReportsError =
         window.__startupCalls.includes('foundation')
         && !window.__startupCalls.includes('services')
@@ -133,8 +132,6 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
         && window.__startupNotifications[0].duration === 6000;
     } finally {
       state.currentProfile = originalProfile;
-      if (originalGetter) window._getActiveProfileId = originalGetter;
-      else delete window._getActiveProfileId;
       console.error = originalConsoleError;
     }
 
