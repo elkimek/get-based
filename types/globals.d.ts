@@ -86,7 +86,6 @@ interface Window {
   getProfileLocation?: AnyFunction;
   getOllamaConfig?: AnyFunction;
   getProfiles?: () => Array<{ id?: string; name?: string | null; sex?: string | null }>;
-  hydrateDevicesFromPresets?: () => Promise<boolean>;
   HAPLOGROUP_LIST?: string[];
   hasAIProvider?: () => boolean;
   fetchAtmosphere?: AnyFunction;
@@ -117,14 +116,11 @@ interface Window {
   renderLightTodayStrip?: AnyFunction;
   renderSunSessionRow?: AnyFunction;
   rollingChannelTotals?: (days?: number) => Record<string, number>;
-  rollingDeviceTotals?: (days?: number) => Record<string, number>;
   rollingVitaminDIU?: (days?: number) => number;
   weeklyChannelTier?: (value: number, channel?: string) => number;
   tierLabel?: (tier: number) => string;
   getSessions?: () => any[];
   getActiveSession?: AnyFunction;
-  getDevices?: AnyFunction;
-  getDeviceSessions?: () => any[];
   cumulativeMEDToday?: AnyFunction;
   cumulativeMEDYesterday?: AnyFunction;
   vitaminDBudgetStatus?: AnyFunction;
@@ -184,8 +180,6 @@ interface Window {
   openProfileShareModal?: (profileId?: string) => void;
   openProfileLocationEditor?: AnyFunction;
   quickLogSunSession?: () => Promise<void> | void;
-  quickLogDeviceSession?: AnyFunction;
-  openAddDeviceDialog?: AnyFunction;
   openDetailedSessionDialog?: AnyFunction;
   requestPreciseLocation?: AnyFunction;
   pauseSunSession?: (id?: string) => Promise<void> | void;
@@ -251,16 +245,12 @@ interface Window {
   showDetailModal?: AnyFunction;
   syncWearableNow?: AnyFunction;
   triggerDNAFilePicker?: AnyFunction;
-  loadLightDevicePresets?: AnyFunction;
   renderLightDeviceAffiliateRow?: AnyFunction;
   renderRecommendationSection?: AnyFunction;
   renderLightTools?: AnyFunction;
-  renderActiveDeviceSessionCard?: AnyFunction;
   renderChannelDeficitDeviceRecs?: AnyFunction;
-  renderDevicesSection?: AnyFunction;
   renderSunDataSourceSettings?: AnyFunction;
   computeUVConfidence?: AnyFunction;
-  ensureActiveDeviceTicker?: AnyFunction;
   getMeteoConfig?: AnyFunction;
   ingredientDailyTotal?: AnyFunction;
   maybeShowAnalyticsConsent?: () => void;

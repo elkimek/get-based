@@ -98,24 +98,3 @@ export function renderLightDeviceAffiliateRowRuntime(catalog, slug) {
 export function openLightDeviceChannel(channel) {
   getRuntimeFunction('_openChannelOnLightPage')?.(channel);
 }
-
-/** @param {string} id */
-export function editLightDeviceSessionDurationFromRuntime(id) {
-  getRuntimeFunction('editDeviceSessionDuration')?.(id);
-}
-
-/** @param {string} id */
-export function editLightDeviceSessionModeFromRuntime(id) {
-  getRuntimeFunction('editDeviceSessionMode')?.(id);
-}
-
-/** @param {string} id */
-export function deleteLightDeviceSessionFromRuntime(id) {
-  getRuntimeFunction('deleteDeviceSession')?.(id);
-}
-
-/** @param {Record<string, any>} bindings */
-export function publishLightDevicesWindowBindings(bindings) {
-  if (typeof window === 'undefined') return;
-  Object.assign(getRuntimeWindow(), bindings);
-}

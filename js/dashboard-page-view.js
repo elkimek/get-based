@@ -130,6 +130,7 @@ export function createDashboardPageView(deps) {
     isDashboardOrganizeMode,
     loadFocusCard,
     loadContextCardTips,
+    ensureActiveDeviceTicker = () => {},
     startEmptyTour = defaultStartEmptyTour,
     startTour = defaultStartTour,
   } = deps;
@@ -182,7 +183,7 @@ export function createDashboardPageView(deps) {
     // page loaded — keeps the dashboard Light Today surface ticking after a
     // hard reload mid-session.
     if (getDashboardPageRuntimeValue('_resumeActiveTickerIfNeeded')) try { callDashboardPageRuntime('_resumeActiveTickerIfNeeded'); } catch (e) {}
-    if (getDashboardPageRuntimeValue('ensureActiveDeviceTicker')) try { callDashboardPageRuntime('ensureActiveDeviceTicker'); } catch (e) {}
+    try { ensureActiveDeviceTicker(); } catch (e) {}
     if (!data) data = getActiveData();
     const main = document.getElementById("main-content");
     const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');

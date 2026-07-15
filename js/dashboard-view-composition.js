@@ -18,6 +18,7 @@ import { createDashboardWidgetControls } from './dashboard-widget-controls.js';
 import { createDashboardWidgetRenderers } from './dashboard-widget-renderers.js';
 import { configureMarkerDetailModal } from './marker-detail-modal.js';
 import { renderLightConditionsWidgetBody } from './light-conditions-now.js';
+import { ensureActiveDeviceTicker } from './light-devices.js';
 import { renderDashboardLightChannelPills, renderLightSessionLogActions } from './light-page-view.js';
 import { renderLightTodayHero } from './light-today-ai.js';
 import { navigateViewportRuntime } from './views-router-runtime.js';
@@ -203,6 +204,7 @@ export function createDashboardViewComposition({
     isDashboardOrganizeMode: () => dashboardWidgetControls.isOrganizeMode(),
     loadFocusCard,
     loadContextCardTips,
+    ensureActiveDeviceTicker,
   });
 
   configureLensPageShell({

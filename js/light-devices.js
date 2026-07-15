@@ -40,18 +40,14 @@ import {
 } from './light-devices-store.js';
 import { openDeviceSessionDialog as openDeviceSessionDialogModal } from './light-device-session-modal.js';
 import { configureLightDeviceSetup, openAddDeviceDialog, openCustomDeviceDialog } from './light-device-setup-modal.js';
-import { installLightDevicesActionDelegates } from './light-devices-actions.js';
+import { configureLightDevicesActions, installLightDevicesActionDelegates } from './light-devices-actions.js';
 import {
-  deleteLightDeviceSessionFromRuntime,
-  editLightDeviceSessionDurationFromRuntime,
-  editLightDeviceSessionModeFromRuntime,
   getLightDeviceChannelDisplay,
   getLightDeviceChannelHelpers,
   loadLightDevicesCatalog,
   navigateLightDevicesRoute,
   openLightDeviceChannel,
   promptLightDeviceSessionDuration,
-  publishLightDevicesWindowBindings,
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
 } from './light-devices-runtime.js';
@@ -394,17 +390,17 @@ export function openDeviceSessionDetail(id) {
     }
     if (target.closest('#device-detail-edit-duration')) {
       closeDialog();
-      editLightDeviceSessionDurationFromRuntime(sess.id);
+      editDeviceSessionDuration(sess.id);
       return;
     }
     if (target.closest('#device-detail-edit-mode')) {
       closeDialog();
-      editLightDeviceSessionModeFromRuntime(sess.id);
+      editDeviceSessionMode(sess.id);
       return;
     }
     if (target.closest('#device-detail-delete')) {
       closeDialog();
-      deleteLightDeviceSessionFromRuntime(sess.id);
+      deleteDeviceSessionWithConfirm(sess.id);
     }
   });
   overlay.addEventListener('keydown', (event) => {
@@ -727,7 +723,7 @@ export async function deleteDeviceSessionWithConfirm(id) {
   refreshLightDevicesView();
 }
 
-// ─── Window export ─────────────────────────────────────────────────────
+// ─── UI wrappers ───────────────────────────────────────────────────────
 
 export async function deleteLightDeviceAndRefresh(id) {
   await deleteDevice(id);
@@ -744,30 +740,9 @@ export async function stopDeviceSessionAndNotify(id) {
   refreshLightDevicesView();
 }
 
-publishLightDevicesWindowBindings({
-  loadLightDevicePresets,
-  getDevices,
-  getDeviceSessions,
-  addDeviceFromPreset,
-  hydrateDevicesFromPresets,
-  deleteLightDevice: deleteLightDeviceAndRefresh,
-  logDeviceSession,
-  startDeviceSession,
-  stopDeviceSession,
-  updateDeviceSession,
-  editDeviceSessionDuration,
-  editDeviceSessionMode,
-  getActiveDeviceSession,
-  renderActiveDeviceSessionCard,
-  ensureActiveDeviceTicker,
+configureLightDevicesActions({
   stopDeviceSessionAndNotify,
-  deleteDeviceSession: deleteDeviceSessionWithConfirm,
-  rollingDeviceTotals,
-  renderDevicesSection,
-  openDeviceSessionDetail,
   openAddDeviceDialog,
-  openCustomDeviceDialog,
-  addCustomDevice,
+  deleteLightDevice: deleteLightDeviceAndRefresh,
   openDeviceSessionDialog,
-  quickLogDeviceSession,
 });

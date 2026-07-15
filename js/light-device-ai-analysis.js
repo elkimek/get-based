@@ -10,7 +10,7 @@ import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAIProvider } from './api.js';
 import { getSunDefaults } from './sun-defaults.js';
-import { getDevices, getDeviceSessions } from './light-devices.js';
+import { getDevices, getDeviceSessions } from './light-devices-store.js';
 import { CHANNEL_DISPLAY, channelTier, tierLabel, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';

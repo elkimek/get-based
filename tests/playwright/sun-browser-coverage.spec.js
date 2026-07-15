@@ -87,7 +87,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       profiles: localStorage.getItem('labcharts-profiles'),
       buildSidebar: window.buildSidebar,
       navigate: window.navigate,
-      getDeviceSessions: window.getDeviceSessions,
       geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
     };
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -160,13 +159,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
     try {
       window.buildSidebar = () => {};
       window.navigate = () => {};
-      window.getDeviceSessions = () => [{
-        id: 'device-vitd',
-        startedAt: todayStart + 11 * 3600000,
-        endedAt: todayStart + 11.2 * 3600000,
-        bodyArea: 'whole-body',
-        doses: { vitamin_d: 2200, no_cv: 300, circadian: 800 },
-      }];
 
       state.currentProfile = profileId;
       state.profiles = [{
@@ -186,10 +178,10 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         sunSessions: [todaySession, yesterdaySession, oldSession, activeSession],
         deviceSessions: [{
           id: 'stored-device-vitd',
-          startedAt: todayStart + 13 * 3600000,
-          endedAt: todayStart + 13.1 * 3600000,
-          bodyAreas: ['face', 'arms-front'],
-          doses: { vitamin_d: 1200 },
+          startedAt: todayStart + 11 * 3600000,
+          endedAt: todayStart + 11.2 * 3600000,
+          bodyArea: 'whole-body',
+          doses: { vitamin_d: 2200, no_cv: 300, circadian: 800 },
         }],
         supplements: [{
           name: 'D stack',
@@ -333,7 +325,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       else localStorage.setItem('labcharts-profiles', saved.profiles);
       window.buildSidebar = saved.buildSidebar;
       window.navigate = saved.navigate;
-      window.getDeviceSessions = saved.getDeviceSessions;
       if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
       else delete navigator.geolocation;
       document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());

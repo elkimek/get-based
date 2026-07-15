@@ -15,6 +15,7 @@ return (async function() {
   const S = window._labState;
   const dataModule = await import('/js/data.js');
   const viewsModule = await import('/js/views.js');
+  const lightDevices = await import('/js/light-devices.js');
   const { buildSunContext } = await import('/js/sun-context.js');
   const { buildLabContext } = await import('/js/lab-context.js');
   const profile = await import('/js/profile.js');
@@ -347,7 +348,7 @@ return (async function() {
   // for single-mode devices, and must filter out coupling-violating
   // modes (so e.g. Maxi UVB never offers a UV-only choice).
   console.log('%c 8b. Mode picker UI on session log dialog ', 'font-weight:bold;color:#6366f1');
-  if (typeof window.openDeviceSessionDialog === 'function') {
+  if (typeof lightDevices.openDeviceSessionDialog === 'function') {
     document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
 
     // Inject a fresh moded device + a non-moded device into state so we
@@ -377,7 +378,7 @@ return (async function() {
     S.importedData.lightDevices = [modedDevice, plainDevice];
 
     // Moded device → picker present
-    await window.openDeviceSessionDialog('D-test-moded');
+    await lightDevices.openDeviceSessionDialog('D-test-moded');
     await wait(40);
     const dlgModed = document.querySelector('.modal-overlay.show');
     const picker = dlgModed?.querySelector('.dev-mode-picker');
@@ -402,7 +403,7 @@ return (async function() {
     dlgModed?.remove();
 
     // Non-moded device → picker absent
-    await window.openDeviceSessionDialog('D-test-plain');
+    await lightDevices.openDeviceSessionDialog('D-test-plain');
     await wait(40);
     const dlgPlain = document.querySelector('.modal-overlay.show');
     const noPicker = dlgPlain?.querySelector('#dev-session-mode');
@@ -417,7 +418,7 @@ return (async function() {
   // chips get the accent variant so the user can skim history for
   // non-default sessions. Non-moded devices skip the chip entirely.
   console.log('%c 8c. Mode badge on session list rows ', 'font-weight:bold;color:#6366f1');
-  if (typeof window.logDeviceSession === 'function') {
+  if (typeof lightDevices.logDeviceSession === 'function') {
     document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
     // Reuse the moded device from 8b but log three sessions: default
     // mode, non-default mode, plus a session on the plain device.
@@ -446,9 +447,9 @@ return (async function() {
     // newest-first across BOTH kinds, so leftover sun sessions from earlier
     // tests would push device sessions out of the top slice.
     S.importedData.sunSessions = [];
-    await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'all-on' });
-    await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'red-nir-only' });
-    await window.logDeviceSession({ deviceId: 'D-badge-plain', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+    await lightDevices.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'all-on' });
+    await lightDevices.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'red-nir-only' });
+    await lightDevices.logDeviceSession({ deviceId: 'D-badge-plain', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
 
     viewsModule.navigate('light');
     await wait(80);

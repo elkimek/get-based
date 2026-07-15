@@ -143,8 +143,9 @@ async function seedMobileLightSessions(page) {
       safety: { medFraction: 0.42, fitzpatrick: 'III' },
       atmosphere: { uvIndex: 6 },
     });
-    if (typeof window.logDeviceSession === 'function') {
-      await window.logDeviceSession({
+    const { logDeviceSession } = await import('/js/light-devices-store.js');
+    if (typeof logDeviceSession === 'function') {
+      await logDeviceSession({
         deviceId: 'D-mobile-long',
         durationMin: 22,
         distanceCm: 15,
