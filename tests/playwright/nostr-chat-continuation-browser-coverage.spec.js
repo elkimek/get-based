@@ -143,10 +143,10 @@ test('nostr discovery browser coverage handles relay parsing cache health and se
       const onionUrlSkipped = nodes.find(node => node.id === 'provider-b');
       const noPublicUrl = nodes.find(node => node.id === 'provider-c');
 
-      outcomes.windowExportsAreInstalled = window.nostrDiscoverNodes === nostr.discoverNodes
-        && window.nostrGetSelectedNode === nostr.getSelectedNodeUrl
-        && window.nostrSetSelectedNode === nostr.setSelectedNodeUrl
-        && window.nostrClearNodeCache === nostr.clearNodeCache;
+      outcomes.discoveryApiStaysModuleOnly = !('nostrDiscoverNodes' in window)
+        && !('nostrGetSelectedNode' in window)
+        && !('nostrSetSelectedNode' in window)
+        && !('nostrClearNodeCache' in window);
 
       outcomes.relaysSendKindRequestAndResolveOnEose = wsInstances.length === 4
         && wsInstances.some(ws => {

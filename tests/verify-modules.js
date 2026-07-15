@@ -189,7 +189,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, feedbackModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, nostrModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -208,6 +208,7 @@
     import('../js/light-tools.js'),
     import('../js/mobile-dashboard.js'),
     import('../js/nav.js'),
+    import('../js/nostr-discovery.js'),
     import('../js/notes.js'),
     import('../js/pdf-import.js'),
     import('../js/pii.js'),
@@ -479,6 +480,14 @@
     ...feedbackExports,'_updateFeedbackPlaceholder'
   ];
 
+  // nostr-discovery.js (4 former browser globals, now module-only)
+  const nostrExports = [
+    'discoverNodes','getSelectedNodeUrl','setSelectedNodeUrl','clearNodeCache'
+  ];
+  const nostrLegacyGlobals = [
+    'nostrDiscoverNodes','nostrGetSelectedNode','nostrSetSelectedNode','nostrClearNodeCache'
+  ];
+
   // nav.js (5 retained runtime hooks; delegate helpers use ESM exports)
   const navGlobals = [
     'buildSidebar','renderProfileDropdown','renderProfileButton',
@@ -704,6 +713,7 @@
     ['light-tools.js', lightToolsModule, lightToolsExports],
     ['mobile-dashboard.js', mobileDashboardModule, mobileDashboardExports],
     ['nav.js', navModule, navModuleExports],
+    ['nostr-discovery.js', nostrModule, nostrExports],
     ['notes.js', notesModule, notesExports],
     ['pdf-import.js', pdfImportModule, pdfImportExports],
     ['pii.js', piiModule, piiExports],
@@ -787,6 +797,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of feedbackLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of nostrLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of providerPanelsExports) {

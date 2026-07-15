@@ -4,7 +4,6 @@
 
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
 import {
   dispatchAISettingsLocalChangedRuntime,
   touchRoutstrSessionClock,
@@ -228,13 +227,3 @@ export function clearNodeCache() {
   _cachedNodes = null;
   _cacheTime = 0;
 }
-
-// ═══════════════════════════════════════════════
-// RUNTIME EXPORTS
-// ═══════════════════════════════════════════════
-registerUtilsRuntimeExports({
-  nostrDiscoverNodes: discoverNodes,
-  nostrGetSelectedNode: getSelectedNodeUrl,
-  nostrSetSelectedNode: setSelectedNodeUrl,
-  nostrClearNodeCache: clearNodeCache,
-});

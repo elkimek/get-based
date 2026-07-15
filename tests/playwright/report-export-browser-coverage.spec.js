@@ -985,14 +985,14 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
+      routstrNode: localStorage.getItem('labcharts-routstr-node'),
+      routstrSessionUpdatedAt: localStorage.getItem('labcharts-routstr-session-updated-at'),
       fileReader: window.FileReader,
       createObjectURL: URL.createObjectURL,
       revokeObjectURL: URL.revokeObjectURL,
       anchorClick: HTMLAnchorElement.prototype.click,
       cashuGetMintUrl: window.cashuGetMintUrl,
-      nostrGetSelectedNode: window.nostrGetSelectedNode,
       cashuSetMintUrl: window.cashuSetMintUrl,
-      nostrSetSelectedNode: window.nostrSetSelectedNode,
     };
     const waitFor = async (predicate, label) => {
       for (let i = 0; i < 80; i += 1) {
@@ -1060,8 +1060,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{
         id: 'thread-one',
         title: 'Export thread',
-        createdAt: 1,
-        updatedAt: 2,
+        createdAt: '2026-06-03T08:00:00.000Z',
+        updatedAt: '2026-06-03T09:00:00.000Z',
       }]));
       localStorage.setItem(`labcharts-${profileId}-chat-t_thread-one`, JSON.stringify([
         { role: 'user', content: 'What changed?' },
@@ -1085,7 +1085,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         });
       };
       window.cashuGetMintUrl = async () => 'https://mint.example';
-      window.nostrGetSelectedNode = () => 'wss://relay.example';
+      localStorage.setItem('labcharts-routstr-node', 'https://node.export.test');
 
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'true');
@@ -1115,7 +1115,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && allDataBundle.type === 'database'
         && allDataBundle.profiles.length === 1
         && allDataBundle.profiles[0].chat.threads[0].id === 'thread-one'
-        && allDataBundle.wallet.nodeUrl === 'wss://relay.example'
+        && allDataBundle.wallet.nodeUrl === 'https://node.export.test'
         && !Object.prototype.hasOwnProperty.call(allDataBundle.wallet, 'mintUrl')
         && revokedUrls.length === 3;
 
@@ -1175,11 +1175,6 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         writable: true,
         value: async url => { restoredMintUrl = url; },
       });
-      Object.defineProperty(window, 'nostrSetSelectedNode', {
-        configurable: true,
-        writable: true,
-        value: () => {},
-      });
       const databaseBundle = {
         type: 'database',
         profiles: [
@@ -1229,7 +1224,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         ],
         wallet: {
           mintUrl: 'https://mint.restore',
-          nodeUrl: 'wss://relay.restore',
+          nodeUrl: 'https://node.restore.test',
         },
       };
       await exportFacade.importDataJSON(new File([JSON.stringify(databaseBundle)], 'database-bundle.json', { type: 'application/json' }));
@@ -1246,6 +1241,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         && mergedThreads.some(thread => thread.id === 'bundle-thread')
         && !!newBundleProfile
         && restoredMintUrl === null;
+      outcomes.databaseBundleRestoresNodeThroughModuleRuntime = localStorage.getItem('labcharts-routstr-node') === 'https://node.restore.test';
 
       const clearPromise = exportFacade.clearAllData();
       const cancelButton = await waitFor(() => document.getElementById('confirm-cancel'), 'clear data cancel button');
@@ -1262,12 +1258,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       HTMLAnchorElement.prototype.click = original.anchorClick;
       if (original.cashuGetMintUrl === undefined) delete window.cashuGetMintUrl;
       else window.cashuGetMintUrl = original.cashuGetMintUrl;
-      if (original.nostrGetSelectedNode === undefined) delete window.nostrGetSelectedNode;
-      else window.nostrGetSelectedNode = original.nostrGetSelectedNode;
       if (original.cashuSetMintUrl === undefined) delete window.cashuSetMintUrl;
       else window.cashuSetMintUrl = original.cashuSetMintUrl;
-      if (original.nostrSetSelectedNode === undefined) delete window.nostrSetSelectedNode;
-      else window.nostrSetSelectedNode = original.nostrSetSelectedNode;
 
       const originalIds = new Set(original.profiles.map(profile => profile.id));
       const touchedIds = new Set([profileId]);
@@ -1289,6 +1281,8 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       setOrRemove('labcharts-ai-provider', original.aiProvider);
       setOrRemove('labcharts-ai-paused', original.aiPaused);
       setOrRemove('labcharts-openrouter-key', original.openrouterKey);
+      setOrRemove('labcharts-routstr-node', original.routstrNode);
+      setOrRemove('labcharts-routstr-session-updated-at', original.routstrSessionUpdatedAt);
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
     }
 

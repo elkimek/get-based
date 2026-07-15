@@ -9,6 +9,7 @@ import { encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './c
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { importDataJSON } from './export-import.js';
+import { getSelectedNodeUrl } from './nostr-discovery.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   generateReportAISummary as generateReportAISummaryImpl,
@@ -24,7 +25,6 @@ import {
 import {
   clearDemoLoadingProfile,
   destroyWalletRuntimeDB,
-  getWalletBundleSettings,
   markDemoLoadingProfile,
   refreshImportRuntimeShell,
 } from './export-runtime.js';
@@ -273,7 +273,7 @@ export async function buildAllDataBundle() {
   }
   // Wallet identity and proofs are deliberately excluded: exporting only a
   // seed or mint would create an incomplete and unsafe wallet backup.
-  const { nodeUrl: walletNodeUrl } = await getWalletBundleSettings();
+  const walletNodeUrl = getSelectedNodeUrl();
   if (walletNodeUrl) {
     bundle.wallet = { nodeUrl: walletNodeUrl };
   }

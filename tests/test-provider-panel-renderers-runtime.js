@@ -3,6 +3,7 @@
 
 import './_node-shim.js';
 import {
+  configureProviderPanelRendererRuntime,
   discoverRoutstrNodesFromRuntime,
   getSelectedRoutstrNodeFromRuntime,
   setSelectedRoutstrNodeFromRuntime,
@@ -23,78 +24,50 @@ function assert(name, condition, detail = '') {
 
 console.log('=== Provider Panel Renderers Runtime Tests ===');
 
-const runtimeKeys = [
-  'window',
-  'nostrGetSelectedNode',
-  'nostrDiscoverNodes',
-  'nostrSetSelectedNode',
-];
-const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
-
-function restoreRuntime() {
-  for (const key of runtimeKeys) {
-    const descriptor = savedDescriptors.get(key);
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else delete globalThis[key];
-  }
-}
-
+let previousRuntime;
 try {
   const calls = [];
-  const browserRuntime = {
-    nostrGetSelectedNode() {
-      calls.push(['get', this === browserRuntime]);
+  previousRuntime = configureProviderPanelRendererRuntime({
+    getSelectedNodeUrl() {
+      calls.push(['get']);
       return 'https://node.selected.test';
     },
-    nostrDiscoverNodes() {
-      calls.push(['discover', this === browserRuntime]);
+    discoverNodes() {
+      calls.push(['discover']);
       return Promise.resolve([{ online: true, urls: ['https://node.discovered.test'] }]);
     },
-    nostrSetSelectedNode(nodeUrl) {
-      calls.push(['set', nodeUrl, this === browserRuntime]);
+    setSelectedNodeUrl(nodeUrl) {
+      calls.push(['set', nodeUrl]);
     },
-  };
-  setRuntimeValue('window', browserRuntime);
+  });
 
   assert('getSelectedRoutstrNodeFromRuntime delegates selected node lookup',
     getSelectedRoutstrNodeFromRuntime() === 'https://node.selected.test'
-      && calls.some(call => call[0] === 'get' && call[1] === true));
+      && calls.some(call => call[0] === 'get'));
 
   const discovered = await discoverRoutstrNodesFromRuntime();
   assert('discoverRoutstrNodesFromRuntime delegates node discovery',
     discovered?.[0]?.urls?.[0] === 'https://node.discovered.test'
-      && calls.some(call => call[0] === 'discover' && call[1] === true));
+      && calls.some(call => call[0] === 'discover'));
 
   setSelectedRoutstrNodeFromRuntime('https://node.saved.test');
   assert('setSelectedRoutstrNodeFromRuntime delegates selected node updates',
-    calls.some(call => call[0] === 'set' && call[1] === 'https://node.saved.test' && call[2] === true));
+    calls.some(call => call[0] === 'set' && call[1] === 'https://node.saved.test'));
 
-  delete browserRuntime.nostrGetSelectedNode;
-  delete browserRuntime.nostrDiscoverNodes;
-  delete browserRuntime.nostrSetSelectedNode;
+  configureProviderPanelRendererRuntime({
+    getSelectedNodeUrl: null,
+    discoverNodes: null,
+    setSelectedNodeUrl: null,
+  });
   setSelectedRoutstrNodeFromRuntime('missing');
   assert('provider renderer runtime hooks no-op when callbacks are missing',
     getSelectedRoutstrNodeFromRuntime() === null && discoverRoutstrNodesFromRuntime() === null);
 
-  browserRuntime.nostrDiscoverNodes = () => [];
+  configureProviderPanelRendererRuntime({ discoverNodes: () => [] });
   assert('discoverRoutstrNodesFromRuntime ignores non-promise discovery callbacks',
     discoverRoutstrNodesFromRuntime() === null);
-
-  delete globalThis.window;
-  setRuntimeValue('nostrGetSelectedNode', () => 'https://global.node.test');
-  assert('provider renderer runtime falls back to globalThis without window',
-    getSelectedRoutstrNodeFromRuntime() === 'https://global.node.test');
 } finally {
-  restoreRuntime();
+  configureProviderPanelRendererRuntime(previousRuntime);
 }
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');

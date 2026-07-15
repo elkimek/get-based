@@ -121,22 +121,6 @@ async function refreshChatThreadsRuntime(chatThreads) {
   else renderThreadListFallback();
 }
 
-export async function getWalletBundleSettings() {
-  const runtime = getRuntimeWindow();
-  const nodeUrl = typeof runtime.nostrGetSelectedNode === 'function'
-    ? runtime.nostrGetSelectedNode()
-    : null;
-  return { nodeUrl };
-}
-
-export async function restoreWalletBundleSettings(wallet) {
-  if (!wallet) return;
-  const runtime = getRuntimeWindow();
-  if (wallet.nodeUrl && typeof runtime.nostrSetSelectedNode === 'function') {
-    runtime.nostrSetSelectedNode(wallet.nodeUrl);
-  }
-}
-
 export async function destroyWalletRuntimeDB() {
   await destroyWalletDB();
 }

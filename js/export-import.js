@@ -20,8 +20,8 @@ import {
   clearDemoLoadingProfile,
   isDemoLoadingProfile,
   refreshImportRuntimeShell,
-  restoreWalletBundleSettings,
 } from './export-runtime.js';
+import { setSelectedNodeUrl } from './nostr-discovery.js';
 
 async function _importChatData(profileId, chat) {
   if (!chat || !Array.isArray(chat.threads)) return;
@@ -672,7 +672,7 @@ async function _importDatabaseBundle(json) {
   // state is not a safe wallet backup.
   if (json.wallet) {
     try {
-      await restoreWalletBundleSettings(json.wallet);
+      if (json.wallet.nodeUrl) setSelectedNodeUrl(json.wallet.nodeUrl);
     } catch (e) {
       if (isDebugMode()) console.log('[import] Wallet restore failed:', e.message);
     }
