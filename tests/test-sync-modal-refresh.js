@@ -361,7 +361,8 @@ try {
   document.getElementById = originalGetElementById;
   document.querySelector = originalQuerySelector;
   window.buildSidebar = originalBuildSidebar;
-  window.navigate = originalNavigate;
+  if (originalNavigate) window.navigate = originalNavigate;
+  else delete window.navigate;
   window.CustomEvent = originalCustomEvent;
   state.currentProfile = originalRefreshCurrentProfile;
   state.currentView = originalRefreshCurrentView;

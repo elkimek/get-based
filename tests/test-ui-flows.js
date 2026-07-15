@@ -57,7 +57,7 @@ return (async function() {
     S.profileDob = '1987-11-22';
     dataModule.saveImportedData();
     window.buildSidebar();
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     await wait(50);
   }
   const data = dataModule.getActiveData();
@@ -100,7 +100,7 @@ return (async function() {
     S.importedData = originalImportedData;
     dataModule.saveImportedData();
     window.buildSidebar();
-    window.navigate('dashboard');
+    viewsModule.navigate('dashboard');
     await wait(50);
   }
 
@@ -135,7 +135,7 @@ return (async function() {
   // 1. DASHBOARD — renders all key sections
   // ═══════════════════════════════════════════════
   console.log('%c 1. Dashboard rendering', 'font-weight:bold;color:#6366f1');
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
 
   assert('Dashboard has main content', main.innerHTML.length > 500);
@@ -199,7 +199,7 @@ return (async function() {
   console.log('%c 2. Navigation', 'font-weight:bold;color:#6366f1');
 
   // Navigate to biochemistry
-  window.navigate('biochemistry');
+  viewsModule.navigate('biochemistry');
   await wait(50);
   const bioNav = sidebar.querySelector('.nav-item[data-category="biochemistry"]');
   assert('Biochemistry nav item active', bioNav?.classList.contains('active'));
@@ -207,17 +207,17 @@ return (async function() {
   assert('Main content updated for biochemistry', main.innerHTML.includes('biochemistry') || main.innerHTML.includes('Biochemistry') || main.querySelector('canvas'));
 
   // Navigate to compare
-  window.navigate('compare');
+  viewsModule.navigate('compare');
   await wait(50);
   assert('Compare view rendered', !!main.querySelector('#compare-select-1') || main.innerHTML.includes('Compare'));
 
   // Navigate to correlations
-  window.navigate('correlations');
+  viewsModule.navigate('correlations');
   await wait(50);
   assert('Correlations view rendered', main.innerHTML.includes('orrelation'));
 
   // Back to dashboard
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
   assert('Back to dashboard', !!sidebar.querySelector('.nav-item.active[data-category="dashboard"]'));
 
@@ -227,7 +227,7 @@ return (async function() {
   const labsOrderKey = `labcharts-${lensOrderProfile}-lensPageOrder-labs-v1`;
   const savedLabsOrder = localStorage.getItem(labsOrderKey);
   localStorage.removeItem(labsOrderKey);
-  window.navigate('labs');
+  viewsModule.navigate('labs');
   await wait(80);
   const labsPageWidgets = main.querySelector('.lens-page-widgets[data-lens-route="labs"]');
   assert('Labs page uses compact Current Priority banner',
@@ -252,7 +252,7 @@ return (async function() {
   }
   if (savedLabsOrder == null) localStorage.removeItem(labsOrderKey);
   else localStorage.setItem(labsOrderKey, savedLabsOrder);
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
 
   // ═══════════════════════════════════════════════
@@ -421,7 +421,7 @@ return (async function() {
   // Verify the optional dashboard widget can be shown after save
   viewsModule.closeModal();
   await wait(20);
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
   viewsModule.showDashboardWidget?.('supplements');
   await wait(50);
@@ -438,7 +438,7 @@ return (async function() {
   assert('Supplement removed from state', (S.importedData.supplements || []).length === initialSuppCount);
 
   // Verify dashboard updated after delete
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
   const suppSectionAfter = main.querySelector('.supp-timeline-section');
   const stillShows = suppSectionAfter?.innerHTML.includes('__UI_TEST_SUPP__');
@@ -607,7 +607,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 7. Context cards', 'font-weight:bold;color:#6366f1');
 
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
 
   // Open diet editor
@@ -648,7 +648,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 8. Compare view', 'font-weight:bold;color:#6366f1');
 
-  window.navigate('compare');
+  viewsModule.navigate('compare');
   await wait(50);
 
   if (data.dates.length >= 2) {
@@ -776,7 +776,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   console.log('%c 14. Sidebar search', 'font-weight:bold;color:#6366f1');
 
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(50);
   const staticNavCategories = new Set([
     'dashboard', 'labs', 'biology-scores', 'correlations', 'compare', 'recommendations',
@@ -869,7 +869,7 @@ return (async function() {
   // ═══════════════════════════════════════════════
   // SUMMARY
   // ═══════════════════════════════════════════════
-  window.navigate('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(20);
 
   console.log(`\n%c UI Flows: ${pass} passed, ${fail} failed `,

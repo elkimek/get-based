@@ -42,7 +42,7 @@ export {
 
 const appWindow = /** @type {Window & typeof globalThis & {
   closeModal?: () => void,
-  navigate: (category: string) => void
+  navigate?: (category: string) => void
 }} */ (window);
 
 function closeSupplementModal() {
@@ -50,6 +50,13 @@ function closeSupplementModal() {
     ? appWindow.closeModal.bind(appWindow)
     : getViewRuntimeFunction('closeModal');
   closeModal?.();
+}
+
+function navigateSupplementView(category) {
+  const navigate = typeof appWindow.navigate === 'function'
+    ? appWindow.navigate.bind(appWindow)
+    : getViewRuntimeFunction('navigate');
+  navigate?.(category);
 }
 
 /**
@@ -695,7 +702,7 @@ export function deleteSupplement(idx) {
   } else {
     closeSupplementModal();
     const activeNav = document.querySelector(".nav-item.active");
-    appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
+    navigateSupplementView(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   }
 }
 

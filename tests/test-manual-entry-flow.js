@@ -216,14 +216,14 @@ console.log('=== Manual Entry Flow Tests ===\n');
 
   const dataSrc = read('js/data.js');
   assert('switchUnitSystem uses state.currentView (no .nav-item.active query)',
-    /switchUnitSystem[\s\S]{0,800}dataWindow\.navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
+    /switchUnitSystem[\s\S]{0,800}navigateDataView\(state\.currentView \|\| 'dashboard'/.test(dataSrc) &&
     !/switchUnitSystem[\s\S]{0,800}document\.querySelector\(".nav-item\.active"\)/.test(dataSrc));
   const switchRangeModeBody = dataSrc.match(/export function switchRangeMode\(mode\)[\s\S]*?\n}\n\nexport function updateHeaderDates/)?.[0] || '';
   assert('switchRangeMode uses state.currentView (no .nav-item.active query)',
-    /dataWindow\.navigate\(state\.currentView \|\| 'dashboard'/.test(switchRangeModeBody) &&
+    /navigateDataView\(state\.currentView \|\| 'dashboard'/.test(switchRangeModeBody) &&
     !/document\.querySelector\(["']\.nav-item\.active["']\)/.test(switchRangeModeBody));
   assert('setDateRange uses state.currentView',
-    /setDateRange[\s\S]{0,1500}navigate\(state\.currentView \|\| 'dashboard'/.test(dataSrc));
+    /setDateRange[\s\S]{0,1500}navigateDataView\(state\.currentView \|\| 'dashboard'/.test(dataSrc));
 
   const cryptoSrc = read('js/crypto.js');
   assert('BroadcastChannel cross-tab reload uses state.currentView',

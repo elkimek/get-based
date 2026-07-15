@@ -40,12 +40,17 @@ export {
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
  *   buildSidebar: (data?: unknown) => void,
- *   navigate: (route?: string, data?: unknown) => void,
+ *   navigate?: (route?: string, data?: unknown) => void,
  *   showDetailModal?: (id: string) => void,
  * }} DataWindowHooks
  */
 
 const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (typeof window !== 'undefined' ? window : {});
+
+function navigateDataView(route, data) {
+  const navigate = dataWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  navigate?.call(dataWindow, route, data);
+}
 
 /** @type {{ invalidateLabContextCache: (() => void) | null }} */
 const dataContextDeps = {
@@ -848,7 +853,7 @@ export function setDateRange(range) {
   // state.currentView (set by navigate) rather than the DOM, since the
   // DOM's active class has just been clobbered by buildSidebar.
   dataWindow.buildSidebar();
-  dataWindow.navigate(state.currentView || 'dashboard');
+  navigateDataView(state.currentView || 'dashboard');
 }
 
 export function renderChartLayersDropdown() {
@@ -920,21 +925,21 @@ export function setSuppOverlay(mode) {
   state.suppOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'suppOverlay'), state.suppOverlayMode);
   const activeCat = _getActiveNavCategory();
-  dataWindow.navigate(activeCat);
+  navigateDataView(activeCat);
 }
 
 export function setNoteOverlay(mode) {
   state.noteOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'noteOverlay'), state.noteOverlayMode);
   const activeCat = _getActiveNavCategory();
-  dataWindow.navigate(activeCat);
+  navigateDataView(activeCat);
 }
 
 export function setPhaseOverlay(mode) {
   state.phaseOverlayMode = mode === 'off' ? 'off' : 'on';
   localStorage.setItem(profileStorageKey(state.currentProfile, 'phaseOverlay'), state.phaseOverlayMode);
   const activeCat = _getActiveNavCategory();
-  dataWindow.navigate(activeCat);
+  navigateDataView(activeCat);
 }
 
 export function recalculateHOMAIR(entry) {
@@ -968,7 +973,7 @@ export function switchUnitSystem(system) {
   const data = getActiveData();
   dataWindow.buildSidebar(data);
   updateHeaderDates(data);
-  dataWindow.navigate(state.currentView || 'dashboard', data);
+  navigateDataView(state.currentView || 'dashboard', data);
   const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
   if (openId && showDetailModal) {
     showDetailModal(openId);
@@ -1032,7 +1037,7 @@ export function switchRangeMode(mode) {
     if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
     const data = getActiveData();
     dataWindow.buildSidebar(data);
-    dataWindow.navigate(state.currentView || 'dashboard', data);
+    navigateDataView(state.currentView || 'dashboard', data);
   const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
   if (openId && state._activeDetailMarkerId === openId && showDetailModal) {
     showDetailModal(openId);

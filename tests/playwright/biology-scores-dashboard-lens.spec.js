@@ -2,10 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 async function prepareDemoProfile(page) {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.navigate === 'function'
-      && !!window._labState
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   await page.evaluate(async () => {
     const [{ getActiveProfileId }, dataModule] = await Promise.all([
@@ -43,7 +40,7 @@ test('dashboard renders Biological Coherence hero and domain rows', async ({ pag
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    window.navigate?.('dashboard');
+    (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
   });
 
@@ -65,7 +62,7 @@ test('dashboard coherence domain row navigates to Biology Scores lens and scroll
   await prepareDemoProfile(page);
 
   const targetScoreId = await page.evaluate(async () => {
-    window.navigate?.('dashboard');
+    (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
     const row = document.querySelector('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain[data-biology-score-id]');
     if (!row) throw new Error('No coherence domain row found');
@@ -88,7 +85,7 @@ test('dashboard individual biology score widget is clickable and navigates to it
   await page.evaluate(async () => {
     const { showDashboardWidget } = await import('/js/dashboard-widgets.js');
     showDashboardWidget?.('biology-score-metabolicFlexibility', { force: true });
-    window.navigate?.('dashboard');
+    (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
     const widget = document.querySelector('[data-widget-id="biology-score-metabolicFlexibility"]');
     const clickTarget = widget?.querySelector('[data-biology-score-action="jump-to-domain"]');
@@ -106,7 +103,7 @@ test('Biology Scores lens renders coherence hero with dashboard toggle and score
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    window.navigate?.('biology-scores');
+    (await import('/js/views.js')).navigate('biology-scores');
     await new Promise(r => setTimeout(r, 500));
   });
 
@@ -124,7 +121,7 @@ test('dashboard domain rows without primaryScoreId get no-jump visual cue', asyn
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    window.navigate?.('dashboard');
+    (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
   });
 

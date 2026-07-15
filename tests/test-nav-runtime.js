@@ -13,6 +13,7 @@ import {
   openReportBuilderFromNavRuntime,
 } from '../js/nav-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -92,6 +93,9 @@ try {
   for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal', 'openClientList']) {
     delete browserRuntime[key];
   }
+  const previousViewRuntime = configureViewRuntime({
+    navigate: route => calls.push(['module-navigate', route]),
+  });
   configureContextCardsRuntimeCallbacks({ openContextModal: null });
   configureNavRuntime({ openEMFAssessmentEditor: () => {}, openReportBuilder: () => {} });
   navigateFromNavRuntime('missing');
@@ -100,7 +104,8 @@ try {
   openContextFromNavRuntime();
   openCreateMarkerFromNavRuntime();
   openClientListFromNavRuntime();
-  assert('nav runtime hooks no-op when browser callbacks are missing', calls.length === 6);
+  assert('nav runtime falls back to module navigation when the browser callback is missing',
+    calls.length === 7 && calls.some(call => call[0] === 'module-navigate' && call[1] === 'missing'));
 
   delete globalThis.window;
   let globalRoute = '';
@@ -109,6 +114,7 @@ try {
   exposeNavRuntimeGlobals({ runtimeProbe: 'global' });
   assert('nav runtime falls back to globalThis without window',
     globalRoute === 'recommendations' && globalThis.runtimeProbe === 'global');
+  configureViewRuntime(previousViewRuntime);
   configureNavRuntime(restoreNavRuntime);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {

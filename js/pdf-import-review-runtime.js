@@ -2,6 +2,7 @@
 // pdf-import-review-runtime.js - Browser runtime adapters for import review state.
 
 import { updateHeaderDates } from './data.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -32,7 +33,8 @@ export function configurePdfImportReviewRuntimeDeps(deps = {}) {
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
   const fn = runtime?.[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return name === 'navigate' && runtime ? getViewRuntimeFunction(name) : null;
 }
 
 export function clearPendingImportRuntime() {

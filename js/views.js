@@ -306,6 +306,7 @@ configureCompareCorrelationViews({
 
 configureViewRuntime({
   getInitialView,
+  navigate,
   showDashboard,
   showLabs,
   showBiologyScoresLens,
@@ -389,6 +390,3 @@ configureViewRuntime({
   renderCorrelationChips,
   renderCorrelationChart,
 });
-
-// Core shell contract retained while its remaining integrations migrate.
-Object.assign(window, { navigate });

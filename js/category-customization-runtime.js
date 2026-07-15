@@ -2,6 +2,7 @@
 // category-customization-runtime.js - Browser runtime hooks for category customization.
 
 import { showPromptDialog } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const categoryCustomizationRuntimeDeps = { showPromptDialog };
 
@@ -31,7 +32,8 @@ function getRuntimeScope() {
 function getRuntimeFunction(name) {
   const runtime = getRuntimeScope();
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  if (typeof fn === 'function') return fn.bind(runtime);
+  return name === 'navigate' && typeof window !== 'undefined' ? getViewRuntimeFunction(name) : null;
 }
 
 /**

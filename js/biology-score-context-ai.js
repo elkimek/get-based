@@ -14,6 +14,7 @@ import {
 import { callClaudeAPI, hasAIProvider, isAIPaused } from './api.js';
 import { state } from './state.js';
 import { escapeAttr, escapeHTML, hashString } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const biologyScoreContextAIDeps = {
   callClaudeAPI,
@@ -355,14 +356,15 @@ export function installBiologyScoreContextAIDelegates() {
     event.preventDefault();
     try {
       const w = /** @type {any} */ (window);
+      const navigate = w.navigate || getViewRuntimeFunction('navigate');
       if (action === 'analyze-context-ai') {
         el.setAttribute('disabled', 'true'); el.textContent = 'Analyzing…';
         const review = await generateBiologyScoreContextReview(getActiveData());
-        await saveBiologyScoreContextReview(review); w.navigate?.('biology-scores');
+        await saveBiologyScoreContextReview(review); navigate?.('biology-scores');
       } else if (action === 'apply-context-ai') {
-        await applyBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context flag applied', 'success'); w.navigate?.('biology-scores');
+        await applyBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context flag applied', 'success'); navigate?.('biology-scores');
       } else {
-        await dismissBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context suggestion dismissed', 'info'); w.navigate?.('biology-scores');
+        await dismissBiologyScoreContextFlag(el.dataset.contextFlag || ''); w.showNotification?.('Context suggestion dismissed', 'info'); navigate?.('biology-scores');
       }
     } catch (err) { (/** @type {any} */ (window)).showNotification?.(err?.message || 'Context AI failed', 'error'); }
     finally { el.removeAttribute('disabled'); }

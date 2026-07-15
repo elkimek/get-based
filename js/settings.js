@@ -39,6 +39,7 @@ import {
 import { loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   confirmDisablePIIReview,
   refreshDataEntriesSection,
@@ -297,7 +298,8 @@ function applySettingsToggle(actionEl) {
   const checked = actionEl instanceof HTMLInputElement && actionEl.checked;
   if (action === 'set-product-recs') {
     setProductRecsEnabled(checked);
-    settingsWindow.navigate?.('dashboard');
+    const navigate = settingsWindow.navigate || getViewRuntimeFunction('navigate');
+    navigate?.call(settingsWindow, 'dashboard');
     return true;
   }
   if (action === 'set-debug-mode') {

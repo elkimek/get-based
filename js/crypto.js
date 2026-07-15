@@ -6,15 +6,21 @@ import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './u
 import { profileStorageKey } from './profile.js';
 import { getBlob, setBlob, deleteBlob, shouldUseBlob } from './blob-storage.js';
 import { ensureImportedArray } from './data-merge.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
   buildSidebar: () => void,
-  navigate: (view: string) => void,
+  navigate?: (view: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 const cryptoProfileDeps = {
   migrateProfileData: /** @type {null | ((data: any) => void)} */ (null),
 };
+
+function navigateCryptoView(view) {
+  const navigate = appWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  navigate?.call(appWindow, view);
+}
 
 export function configureCryptoProfileDeps(deps = {}) {
   const previous = { ...cryptoProfileDeps };
@@ -1013,7 +1019,7 @@ export function initBroadcastChannel() {
           // buildSidebar resets the .active class to Dashboard, so source
           // the target view from state.currentView (kept in sync by
           // navigate) rather than re-reading the stale DOM.
-          appWindow.navigate(state.currentView || 'dashboard');
+          navigateCryptoView(state.currentView || 'dashboard');
         } catch { /* ignore parse errors */ }
       }
     }

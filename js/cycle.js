@@ -1,5 +1,4 @@
 // @ts-check
-// cycle.js — Menstrual cycle tracking, phase calculation, editor, alerts
 import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
 import { escapeHTML, showNotification, showConfirmDialog, linearRegression } from './utils.js';
@@ -24,13 +23,14 @@ const CYCLE_ICONS = {
 };
 const appWindow = /** @type {Window & typeof globalThis & {
   closeModal?: () => void,
-  navigate: (category: string) => void,
+  navigate?: (category: string) => void,
   __cycleDelegatesBound?: boolean
 }} */ (typeof window !== 'undefined' ? window : {});
 function closeCycleModal() {
   const closeModal = appWindow.closeModal || (typeof window !== 'undefined' ? getViewRuntimeFunction('closeModal') : null);
   closeModal?.call(appWindow);
 }
+function navigateCycleView(category) { (appWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null))?.call(appWindow, category); }
 function cycleActionAttrs(action, extra = '') {
   return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
@@ -583,7 +583,7 @@ export function saveMenstrualCycle() {
   saveImportedData();
   closeCycleModal();
   const activeNav = document.querySelector(".nav-item.active");
-  appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
+  navigateCycleView(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   showNotification('Menstrual cycle profile saved', 'success');
   // Auto-trigger cycle tour after dashboard re-renders
   setTimeout(() => { startCycleTour(true); }, 600);
@@ -594,7 +594,7 @@ export async function clearMenstrualCycle() {
     catch (error) { showNotification(`Menstrual cycle data could not be cleared: ${error.message}`, 'error'); return; }
     closeCycleModal();
     const activeNav = document.querySelector(".nav-item.active");
-    appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
+    navigateCycleView(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
     showNotification('Menstrual cycle data cleared', 'info');
   }
 }

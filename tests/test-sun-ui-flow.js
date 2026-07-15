@@ -47,7 +47,7 @@ return (async function() {
   // ─── 1. Dashboard Light Today uses the same hero surface as /light ──
   console.log('%c 1. Light Today hero on dashboard ', 'font-weight:bold;color:#6366f1');
 
-  window.navigate?.('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(80);
   if (!main.querySelector('.dashboard-widget[data-widget-id="light-today"]')) {
     viewsModule.showDashboardWidget?.('light-today');
@@ -85,7 +85,7 @@ return (async function() {
   });
   assert('logCompletedSession returns id', typeof id === 'string');
 
-  window.navigate?.('dashboard');
+  viewsModule.navigate('dashboard');
   await wait(80);
   const todayWidgetAfter = main.querySelector('.dashboard-widget[data-widget-id="light-today"]');
   assert('Dashboard Light Today still renders as hero after logging',
@@ -99,7 +99,7 @@ return (async function() {
   // ─── 3. /light page renders Light & Sun list ─────────────────────────
   console.log('%c 3. /light dedicated page ', 'font-weight:bold;color:#6366f1');
 
-  window.navigate?.('light');
+  viewsModule.navigate('light');
   await wait(120);
   assert('Light & Sun page header renders',
     /Light &amp; Sun|Light & Sun/.test(main.innerHTML));
@@ -450,7 +450,7 @@ return (async function() {
     await window.logDeviceSession({ deviceId: 'D-badge-moded', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true, mode: 'red-nir-only' });
     await window.logDeviceSession({ deviceId: 'D-badge-plain', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
 
-    window.navigate?.('light');
+    viewsModule.navigate('light');
     await wait(80);
     const rows = document.querySelectorAll('.light-session-device');
     assert('3 device-session rows render after logging', rows.length >= 3);

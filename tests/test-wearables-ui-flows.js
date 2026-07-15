@@ -47,7 +47,7 @@ return (async function() {
   await manual.refreshManualSummary(TEST_PROFILE_ID);
 
   // Wait for navigate to render the dashboard with the overview widget.
-  if (window.navigate) window.navigate('dashboard');
+  views.navigate('dashboard');
   await new Promise(r => setTimeout(r, 200));
 
   // ═══════════════════════════════════════
@@ -209,7 +209,7 @@ return (async function() {
   // 6. Biometrics Overview tile click opens detail modal
   // ═══════════════════════════════════════
   console.log('%c 6. Overview Tile → Modal ', 'font-weight:bold;color:#f59e0b');
-  if (window.navigate) window.navigate('dashboard');
+  views.navigate('dashboard');
   await new Promise(r => setTimeout(r, 200));
   const overview = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
   assert('Biometrics Overview renders on dashboard when wearableSummary populated',
@@ -271,7 +271,7 @@ return (async function() {
     sum.metrics.resilience_level = { primarySource: 'oura', latest: 3, latestDate: '2026-04-22',
       baseline: 3, baselineP25: 3, baselineP75: 3,
       rolling: { d7: 3, d30: 3, d90: 3 }, trend30d: 'flat', weekly: [3] };
-    if (window.navigate) window.navigate('dashboard');
+    views.navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
     const selectedOverview = document.querySelector('.dashboard-widget[data-widget-id="wearables"]');
     assert('Unselected biometrics stay out of the overview by default',
@@ -306,7 +306,7 @@ return (async function() {
     assert('Picker add places the chosen biometric inside Biometrics Overview',
       !!overviewWithCardio && /Cardio age/i.test(overviewWithCardio.textContent || ''));
     window._labState.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
-    if (window.navigate) window.navigate('dashboard');
+    views.navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
     assert('Stale connected data shows the dashboard sync button',
       !!document.querySelector('.db-biometric-sync-btn'));
@@ -322,7 +322,7 @@ return (async function() {
     delete resetSummary.metrics.bp_systolic;
     delete resetSummary.metrics.bp_diastolic;
   }
-  if (window.navigate) window.navigate('dashboard');
+  views.navigate('dashboard');
   await new Promise(r => setTimeout(r, 300));
   const bpEmptyCard = document.querySelector('.db-biometric-overview-grid .wearable-card-empty[data-empty-metric="bp_systolic"]');
   assert('Empty BP card renders inside Biometrics Overview',
@@ -369,7 +369,7 @@ return (async function() {
   window._labState.currentProfile = origCurrentProfile;
   window._labState.importedData = origState;
   try { const { deleteWearablesDB } = await import('/js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_ID); } catch {}
-  if (window.navigate) window.navigate('dashboard');
+  views.navigate('dashboard');
 
   console.log(`\n%c Tests complete: ${pass} passed, ${fail} failed `, fail ? 'background:#ef4444;color:#fff;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;padding:4px 12px;border-radius:4px');
   if (typeof window.__TEST_RESULTS !== 'undefined') window.__TEST_RESULTS = { pass, fail };

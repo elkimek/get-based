@@ -9,6 +9,7 @@ import { encryptedGetItem, getEncryptionEnabled, encryptedRemoveItem } from './c
 import { findOrCreateLabEntry } from './lab-entry-mutations.js';
 import { setLabEntryMarker } from './lab-entry.js';
 import { importDataJSON } from './export-import.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   generateReportAISummary as generateReportAISummaryImpl,
 } from './export-report.js';
@@ -543,7 +544,8 @@ export async function loadDemoData(sex = 'male') {
         const w = /** @type {any} */ (window);
         if (w.buildSidebar) w.buildSidebar();
         updateHeaderDates();
-        if (w.navigate && state.currentView === 'biology-scores') w.navigate('biology-scores');
+        const navigate = w.navigate || getViewRuntimeFunction('navigate');
+        if (navigate && state.currentView === 'biology-scores') navigate.call(w, 'biology-scores');
       }
     } catch (_) { /* demo Biology Scores post-import unlock is best-effort */ }
   } catch (err) {

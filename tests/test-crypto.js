@@ -332,8 +332,6 @@ for (const name of dataExports) {
 const expectedExports = [
   // nav.js
   'buildSidebar', 'renderProfileDropdown',
-  // views.js shell contracts
-  'navigate',
   // settings.js
   'openSettingsModal', 'closeSettingsModal',
   // chat.js
@@ -346,6 +344,8 @@ assert('views.showDashboard exists', typeof viewsModule.showDashboard === 'funct
 assert('window.showDashboard stays module-only', !('showDashboard' in window));
 assert('views.closeModal exists', typeof viewsModule.closeModal === 'function');
 assert('window.closeModal stays module-only', !('closeModal' in window));
+assert('views.navigate exists', typeof viewsModule.navigate === 'function');
+assert('window.navigate stays module-only', !('navigate' in window));
 for (const name of ['openReportBuilder', 'closeReportBuilder', 'exportPDFReport', 'exportDataJSON', 'importDataJSON', 'clearAllData']) {
   assert(`export.${name} exists`, typeof exportModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));

@@ -45,8 +45,7 @@ function delay(ms) {
 
 async function waitForApp(page) {
   await page.waitForFunction(
-    () => typeof window.navigate === 'function'
-      && window._labState
+    () => window._labState
       && typeof window.buildSidebar === 'function',
     null,
     { timeout: 15000 }
@@ -108,7 +107,7 @@ async function seedDemoData(page) {
     window._labState.profileDob = '1987-11-22';
     await dataModule.saveImportedData();
     window.buildSidebar?.();
-    window.navigate?.('dashboard');
+    (await import('/js/views.js')).navigate('dashboard');
     window.closeChatPanel?.();
   });
   await page.waitForSelector('#main-content', { timeout: 10000 });
@@ -907,7 +906,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   await delay(100);
 
   for (const tab of ['labs', 'body', 'light', 'insight']) {
-    await page.evaluate(() => window.navigate?.('dashboard'));
+    await page.evaluate(async () => (await import('/js/views.js')).navigate('dashboard'));
     await delay(180);
     if (tab === 'light') await seedMobileLightSessions(page);
     await page.click(`.m-tab[data-tab="${tab}"]`);

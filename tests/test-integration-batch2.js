@@ -212,7 +212,7 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   if (saveRefreshMatch) {
     const body = saveRefreshMatch[1];
     assert('saveAndRefresh calls navigate for in-tab re-render (#123)',
-      /window\.navigate\s*\(/.test(body) || /\bnavigate\s*\(/.test(body),
+      /navigateContextCardView\s*\(/.test(body),
       'without this, saved context card values stay hidden until reload');
   }
 
@@ -222,10 +222,11 @@ console.log('=== Integration Tests — Batch 2 Fixes ===\n');
   // truthy in Node) — clean cross-environment skip.
   const _rtState = window._labState;
   const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
-  if (!_isNode && typeof contextCards.saveAndRefresh === 'function' && typeof window.navigate === 'function' && _rtState) {
+  if (!_isNode && typeof contextCards.saveAndRefresh === 'function' && _rtState) {
     const sv_stress = _rtState.importedData?.stress;
     try {
-      window.navigate('dashboard');
+      const { navigate } = await import('../js/views.js');
+      navigate('dashboard');
       await new Promise(r => setTimeout(r, 50));
       // Stress card should exist (context cards always render on dashboard)
       const stressCardBefore = document.querySelector('.profile-context-cards');

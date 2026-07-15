@@ -115,7 +115,6 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
     await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 20000 });
     await page.waitForFunction(
       () => window._labState
-        && typeof window.navigate === 'function'
         && typeof window.openSunSessionDetail === 'function'
         && typeof window.openDeviceSessionDetail === 'function',
       null,
@@ -166,7 +165,7 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
         else el.remove();
       });
       await saveImportedData({ immediate: true });
-      window.navigate('dashboard');
+      (await import('/js/views.js')).navigate('dashboard');
     }, { profileId: PROFILE_ID, imported: importedData });
     return { context, page, label };
   } catch (error) {
@@ -325,7 +324,7 @@ async function markerModalSnapshot(page) {
 }
 
 async function navigateLight(page) {
-  await page.evaluate(() => window.navigate('light'));
+  await page.evaluate(async () => (await import('/js/views.js')).navigate('light'));
   await page.waitForFunction(() => window._labState.currentView === 'light', null, { timeout: 5000 });
 }
 

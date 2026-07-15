@@ -9,6 +9,7 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { endTour } from './tour.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { recordContextCardChangeRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   buildCycleCoverage,
   normalizeCyclePeriods,
@@ -66,6 +67,14 @@ const appWindow = /** @type {Window & typeof globalThis & {
 
 let pendingCycleImport = null;
 let cycleImportDelegatesInstalled = false;
+
+function navigateCycleImportView(category) {
+  const navigate = typeof appWindow.navigate === 'function'
+    ? appWindow.navigate.bind(appWindow)
+    : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
+  navigate?.(category);
+  return typeof navigate === 'function';
+}
 
 async function openCycleEditorFromImport() {
   const { openMenstrualCycleEditor } = await import('./cycle.js');
@@ -668,10 +677,10 @@ async function handleCycleImportAction(event) {
       });
       showNotification(`Cycle import complete - ${result.periods} periods, ${result.observations} local observations`, 'success', 1200);
       closeCycleImportPreview(result);
-      appWindow.navigate?.('body');
+      const didNavigate = navigateCycleImportView('body');
       setTimeout(() => {
         openCycleEditorFromImport().catch(error => showNotification(`Could not reopen cycle history: ${error.message}`, 'error'));
-      }, appWindow.navigate ? 1550 : 0);
+      }, didNavigate ? 1550 : 0);
     } catch (err) {
       target.removeAttribute('disabled');
       showNotification(`Cycle import failed: ${err.message}`, 'error');
@@ -713,7 +722,7 @@ export async function handleCycleImportFile(file) {
       const cycleSuffix = result.cycleImport ? ` + ${result.cycleImport.periods} cycle periods` : '';
       showNotification(`Apple Health imported - ${result.rows} days${cycleSuffix}`, 'success', 3000);
       if (result.cycleError) showNotification(`Cycle import skipped: ${result.cycleError}`, 'info', 5000);
-      appWindow.navigate?.('dashboard');
+      navigateCycleImportView('dashboard');
       return true;
     }
     parsed = await parseCycleImportContext(context);
