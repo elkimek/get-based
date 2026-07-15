@@ -2,7 +2,7 @@
 // chat-window-bindings.js — chat callback wiring and legacy window exports
 
 import { setAIPaused } from './api.js';
-import { configureChatThreadDeps, getChatThreadKey, getChatThreadsKey } from './chat-threads.js';
+import { configureChatThreadDeps } from './chat-threads.js';
 import { applyInlineMarkdown, renderMarkdown } from './markdown.js';
 import { renderChatMessages } from './chat-render.js';
 import { askAIAboutCorrelations, askAIAboutMarker } from './chat-marker-prompts.js';
@@ -88,8 +88,6 @@ Object.assign(window, {
   isChatStreaming,
   toggleChatFullscreen,
   getChatStorageKey,
-  getChatThreadsKey,
-  getChatThreadKey,
   getActivePersonality,
   getCustomPersonalities,
   saveCustomPersonalities,

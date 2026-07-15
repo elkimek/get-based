@@ -70,6 +70,20 @@ assert('App shell wires module-only chat image consumers',
     && appShellHooksSrc.includes('configureShellChatImageDeps({ toggleHDMode });')
     && appShellHooksSrc.includes('configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });'));
 
+assert('Chat thread shell actions use module dependencies instead of window lookups',
+  shellSrc.includes('shellChatThreadDeps.toggleThreadRail()')
+    && shellSrc.includes('shellChatThreadDeps.createNewThread()')
+    && shellSrc.includes('shellChatThreadDeps.filterThreadList(input.value)')
+    && !shellSrc.includes("callShellRuntime('toggleThreadRail')")
+    && !shellSrc.includes("callShellRuntime('createNewThread')")
+    && !shellSrc.includes("callShellRuntime('filterThreadList'"));
+
+assert('App shell wires module-only chat thread consumers',
+  appShellHooksSrc.includes("from './chat-threads.js'")
+    && appShellHooksSrc.includes('configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });')
+    && appShellHooksSrc.includes('configureOnboardingViewRuntimeDeps({ createNewThread });')
+    && appShellHooksSrc.includes('configureSyncPullActiveRefreshDeps({ ensureActiveThread, loadChatThreads, renderThreadList });'));
+
 assert('App shell wires Context hub status refresh without a window lookup',
   appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
     && appShellHooksSrc.includes("import { updateChatContextStatus } from './chat-personalities.js'")
@@ -98,7 +112,7 @@ assert('Thread search uses delegated input/search action',
   html.includes('data-chat-input-action="filter-thread-list"')
     && shellSrc.includes("document.addEventListener('input', handleShellInput)")
     && shellSrc.includes("document.addEventListener('search', handleShellInput)")
-    && shellSrc.includes("callShellRuntime('filterThreadList', input.value)"));
+    && shellSrc.includes('shellChatThreadDeps.filterThreadList(input.value)'));
 assert('Web search toggle uses delegated change action',
   html.includes('data-chat-change-action="set-websearch"')
     && shellSrc.includes("document.addEventListener('change', handleShellChange)")

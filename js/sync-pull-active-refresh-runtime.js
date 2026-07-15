@@ -3,6 +3,20 @@
 
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+const syncPullActiveRefreshDeps = {
+  ensureActiveThread: () => {},
+  loadChatThreads: () => undefined,
+  renderThreadList: () => {},
+};
+
+export function configureSyncPullActiveRefreshDeps(deps = {}) {
+  const previous = { ...syncPullActiveRefreshDeps };
+  if (typeof deps.ensureActiveThread === 'function') syncPullActiveRefreshDeps.ensureActiveThread = deps.ensureActiveThread;
+  if (typeof deps.loadChatThreads === 'function') syncPullActiveRefreshDeps.loadChatThreads = deps.loadChatThreads;
+  if (typeof deps.renderThreadList === 'function') syncPullActiveRefreshDeps.renderThreadList = deps.renderThreadList;
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -24,15 +38,15 @@ function getRuntimeFunction(name) {
 export function refreshPulledChatRuntime() {
   const finishRefresh = (threadsLoaded) => {
     if (threadsLoaded === false) {
-      getRuntimeFunction('renderThreadList')?.();
+      syncPullActiveRefreshDeps.renderThreadList();
       return false;
     }
-    getRuntimeFunction('ensureActiveThread')?.();
-    getRuntimeFunction('renderThreadList')?.();
+    syncPullActiveRefreshDeps.ensureActiveThread();
+    syncPullActiveRefreshDeps.renderThreadList();
     return getRuntimeFunction('loadChatHistory')?.();
   };
 
-  const loaded = getRuntimeFunction('loadChatThreads')?.();
+  const loaded = syncPullActiveRefreshDeps.loadChatThreads();
   if (loaded && typeof loaded.then === 'function') {
     return loaded.then(finishRefresh);
   }

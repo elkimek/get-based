@@ -31,6 +31,11 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
     const previousShellChatImageDeps = shellActions.configureShellChatImageDeps({
       toggleHDMode: () => calls.push(['toggleHDMode']),
     });
+    const previousShellChatThreadDeps = shellActions.configureShellChatThreadDeps({
+      createNewThread: () => calls.push(['createNewThread']),
+      filterThreadList: value => calls.push(['filterThreadList', value]),
+      toggleThreadRail: () => calls.push(['toggleThreadRail']),
+    });
     const originalFns = {
       toggleMobileSidebar: window.toggleMobileSidebar,
       closeMobileSidebar: window.closeMobileSidebar,
@@ -39,8 +44,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       openSettingsModal: window.openSettingsModal,
       toggleChatPanel: window.toggleChatPanel,
       closeChatPanel: window.closeChatPanel,
-      toggleThreadRail: window.toggleThreadRail,
-      createNewThread: window.createNewThread,
       summarizeThread: window.summarizeThread,
       clearChatHistory: window.clearChatHistory,
       toggleChatFullscreen: window.toggleChatFullscreen,
@@ -48,7 +51,6 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       setChatPersonality: window.setChatPersonality,
       startDiscussion: window.startDiscussion,
       sendChatMessage: window.sendChatMessage,
-      filterThreadList: window.filterThreadList,
       setChatWebSearchEnabled: window.setChatWebSearchEnabled,
       handleChatKeydown: window.handleChatKeydown,
     };
@@ -197,6 +199,7 @@ test('shell action delegates cover shell chat file input and keyboard actions', 
       shellActions.configureShellImportDeps(previousShellImportDeps);
       shellActions.configureShellFeedbackDeps(previousShellFeedbackDeps);
       shellActions.configureShellChatImageDeps(previousShellChatImageDeps);
+      shellActions.configureShellChatThreadDeps(previousShellChatThreadDeps);
       for (const [name, value] of Object.entries(originalFns)) {
         if (value === undefined) delete window[name];
         else window[name] = value;

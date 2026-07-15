@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// test-chat-threads.js — Chat thread feature. Window-export checks, state
+// test-chat-threads.js — Chat thread feature. Module-boundary checks, state
 // shape, thread CRUD (create / auto-name / rename / delete), legacy
 // migration, save/load round-trip, 50-thread pruning, backup snapshot,
 // encryption-pattern matching, ensureActiveThread, thread-personality
@@ -39,8 +39,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 console.log('=== Chat Threads Tests ===\n');
 
 // state.js → state + isSensitiveKey lives in crypto.js, buildBackupSnapshot
-// is module-only in backup.js, and the thread handlers remain on the legacy
-// browser facade while that migration continues.
+// is module-only in backup.js, and thread handlers are imported directly.
 const stateModule = await import('../js/state.js');
 const cryptoModule = await import('../js/crypto.js');
 const backupModule = await import('../js/backup.js');
@@ -52,7 +51,7 @@ const st = stateModule.state;
 // ═══════════════════════════════════════════════
 // 1. Source Inspection — Window Exports
 // ═══════════════════════════════════════════════
-console.log('1. Window Exports');
+console.log('1. Module Exports');
 const threadFns = [
   'getChatThreadsKey', 'getChatThreadKey',
   'loadChatThreads', 'saveChatThreadIndex',
@@ -62,10 +61,12 @@ const threadFns = [
   'autoNameThread', 'pruneOldThreads',
   'renderThreadList', 'filterThreadList',
   'installChatThreadDelegates',
+  'invalidateThreadContentCache', 'jumpToSearchResult',
   'toggleThreadRail'
 ];
 for (const fn of threadFns) {
-  assert(`window.${fn} exists`, typeof window[fn] === 'function');
+  assert(`chatThreadsModule.${fn} exists`, typeof chatThreadsModule[fn] === 'function');
+  assert(`window.${fn} stays module-only`, typeof window[fn] === 'undefined');
 }
 
 // ═══════════════════════════════════════════════
@@ -88,9 +89,9 @@ const profileId = st.currentProfile;
 
 st.chatThreads = [];
 st.currentThreadId = null;
-localStorage.removeItem(window.getChatThreadsKey());
+localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
 
-await sleep(2); window.createNewThread();
+await sleep(2); chatThreadsModule.createNewThread();
 assert('createNewThread creates 1 thread', st.chatThreads.length === 1);
 assert('thread has valid id', st.chatThreads[0].id.startsWith('t_'));
 assert('thread name is "New Conversation"', st.chatThreads[0].name === 'New Conversation');
@@ -106,43 +107,43 @@ const firstThreadId = st.chatThreads[0].id;
 // 5. Thread CRUD — Auto-name
 // ═══════════════════════════════════════════════
 console.log('5. Thread CRUD — Auto-name');
-window.autoNameThread(firstThreadId, 'What are my vitamin D levels looking like over the past year?');
+chatThreadsModule.autoNameThread(firstThreadId, 'What are my vitamin D levels looking like over the past year?');
 const namedThread = st.chatThreads.find(t => t.id === firstThreadId);
 assert('auto-name applied', namedThread.name !== 'New Conversation');
 assert('auto-name <= 41 chars (40 + ellipsis)', namedThread.name.length <= 41);
 assert('auto-name has ellipsis for long text', namedThread.name.endsWith('…'));
 
-await sleep(2); window.createNewThread();
+await sleep(2); chatThreadsModule.createNewThread();
 const shortThreadId = st.chatThreads[0].id;
-window.autoNameThread(shortThreadId, 'Thyroid panel');
+chatThreadsModule.autoNameThread(shortThreadId, 'Thyroid panel');
 const shortThread = st.chatThreads.find(t => t.id === shortThreadId);
 assert('short message name has no ellipsis', shortThread.name === 'Thyroid panel');
 
-window.autoNameThread(shortThreadId, 'Different message');
+chatThreadsModule.autoNameThread(shortThreadId, 'Different message');
 assert('auto-name does not overwrite existing name', shortThread.name === 'Thyroid panel');
 
 // ═══════════════════════════════════════════════
 // 6. Thread CRUD — Rename
 // ═══════════════════════════════════════════════
 console.log('6. Thread CRUD — Rename');
-window.renameThread(shortThreadId, 'My Custom Name');
+chatThreadsModule.renameThread(shortThreadId, 'My Custom Name');
 assert('rename applied', shortThread.name === 'My Custom Name');
-window.renameThread(shortThreadId, '');
+chatThreadsModule.renameThread(shortThreadId, '');
 assert('empty rename ignored', shortThread.name === 'My Custom Name');
 
 // ═══════════════════════════════════════════════
 // 7. Thread CRUD — Delete
 // ═══════════════════════════════════════════════
 console.log('7. Thread CRUD — Delete');
-await sleep(2); window.createNewThread();
+await sleep(2); chatThreadsModule.createNewThread();
 const deleteTargetId = st.currentThreadId;
-localStorage.setItem(window.getChatThreadKey(deleteTargetId), JSON.stringify([{ role: 'user', content: 'test' }]));
+localStorage.setItem(chatThreadsModule.getChatThreadKey(deleteTargetId), JSON.stringify([{ role: 'user', content: 'test' }]));
 const countBefore = st.chatThreads.length;
 st.chatThreads = st.chatThreads.filter(t => t.id !== deleteTargetId);
-window.saveChatThreadIndex();
-localStorage.removeItem(window.getChatThreadKey(deleteTargetId));
+chatThreadsModule.saveChatThreadIndex();
+localStorage.removeItem(chatThreadsModule.getChatThreadKey(deleteTargetId));
 assert('thread removed from index', st.chatThreads.length === countBefore - 1);
-assert('thread messages removed from localStorage', localStorage.getItem(window.getChatThreadKey(deleteTargetId)) === null);
+assert('thread messages removed from localStorage', localStorage.getItem(chatThreadsModule.getChatThreadKey(deleteTargetId)) === null);
 
 // ═══════════════════════════════════════════════
 // 8. Legacy Migration
@@ -150,7 +151,7 @@ assert('thread messages removed from localStorage', localStorage.getItem(window.
 console.log('8. Legacy Migration');
 st.chatThreads = [];
 st.currentThreadId = null;
-localStorage.removeItem(window.getChatThreadsKey());
+localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
 const legacyKey = `labcharts-${profileId}-chat`;
 const legacyMessages = [
   { role: 'user', content: 'Hello' },
@@ -162,11 +163,11 @@ assert('migration creates 1 thread', st.chatThreads.length === 1);
 assert('migrated thread id is t_migrated', st.chatThreads[0].id === 't_migrated');
 assert('migrated thread named "Previous Chat"', st.chatThreads[0].name === 'Previous Chat');
 assert('migrated thread messageCount matches', st.chatThreads[0].messageCount === 2);
-const migratedMessages = JSON.parse(localStorage.getItem(window.getChatThreadKey('t_migrated')));
+const migratedMessages = JSON.parse(localStorage.getItem(chatThreadsModule.getChatThreadKey('t_migrated')));
 assert('migrated messages written to per-thread key', migratedMessages && migratedMessages.length === 2);
 assert('legacy key preserved (rollback safety)', localStorage.getItem(legacyKey) !== null);
 localStorage.removeItem(legacyKey);
-localStorage.removeItem(window.getChatThreadKey('t_migrated'));
+localStorage.removeItem(chatThreadsModule.getChatThreadKey('t_migrated'));
 
 // ═══════════════════════════════════════════════
 // 9. Save/Load Round-trip
@@ -174,24 +175,24 @@ localStorage.removeItem(window.getChatThreadKey('t_migrated'));
 console.log('9. Save/Load Round-trip');
 st.chatThreads = [];
 st.currentThreadId = null;
-localStorage.removeItem(window.getChatThreadsKey());
-await sleep(2); window.createNewThread();
+localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
+await sleep(2); chatThreadsModule.createNewThread();
 const rtThreadId = st.currentThreadId;
 st.chatHistory = [
   { role: 'user', content: 'Test message' },
   { role: 'assistant', content: 'Test response' }
 ];
 await window.saveChatHistory();
-const savedIndex = JSON.parse(localStorage.getItem(window.getChatThreadsKey()));
+const savedIndex = JSON.parse(localStorage.getItem(chatThreadsModule.getChatThreadsKey()));
 assert('thread index saved to localStorage', savedIndex && savedIndex.length === 1);
 assert('thread index messageCount updated', savedIndex[0].messageCount === 2);
-const savedMessages = JSON.parse(localStorage.getItem(window.getChatThreadKey(rtThreadId)));
+const savedMessages = JSON.parse(localStorage.getItem(chatThreadsModule.getChatThreadKey(rtThreadId)));
 assert('messages saved to per-thread key', savedMessages && savedMessages.length === 2);
 st.chatHistory = [];
 await window.loadChatHistory();
 assert('messages loaded back', st.chatHistory.length === 2);
 assert('message content matches', st.chatHistory[0].content === 'Test message');
-localStorage.removeItem(window.getChatThreadKey(rtThreadId));
+localStorage.removeItem(chatThreadsModule.getChatThreadKey(rtThreadId));
 
 // ═══════════════════════════════════════════════
 // 10. Encrypted Thread Index Load Guard
@@ -276,12 +277,12 @@ for (let i = 0; i < 55; i++) {
     personality: 'default'
   });
 }
-window.pruneOldThreads();
+chatThreadsModule.pruneOldThreads();
 assert('pruned to 50 threads', st.chatThreads.length === 50, 'Got ' + st.chatThreads.length);
 assert('oldest threads removed', !st.chatThreads.find(t => t.id === 't_prune_0'));
 assert('newest threads kept', !!st.chatThreads.find(t => t.id === 't_prune_54'));
 for (let i = 0; i < 55; i++) {
-  localStorage.removeItem(window.getChatThreadKey(`t_prune_${i}`));
+  localStorage.removeItem(chatThreadsModule.getChatThreadKey(`t_prune_${i}`));
 }
 
 // ═══════════════════════════════════════════════
@@ -298,8 +299,8 @@ if (!_origProfiles) {
 st.chatThreads = [
   { id: 't_backup1', name: 'Backup Test', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 1, personality: 'default' }
 ];
-window.saveChatThreadIndex();
-localStorage.setItem(window.getChatThreadKey('t_backup1'), JSON.stringify([{ role: 'user', content: 'backup test' }]));
+chatThreadsModule.saveChatThreadIndex();
+localStorage.setItem(chatThreadsModule.getChatThreadKey('t_backup1'), JSON.stringify([{ role: 'user', content: 'backup test' }]));
 
 const snapshot = backupModule.buildBackupSnapshot();
 assert('snapshot exists', !!snapshot);
@@ -312,7 +313,7 @@ if (snapshot) {
     assert('chatRailOpen in backup prefs', profileBackup.keys.hasOwnProperty('chatRailOpen') || true, '(optional — only present if set)');
   }
 }
-localStorage.removeItem(window.getChatThreadKey('t_backup1'));
+localStorage.removeItem(chatThreadsModule.getChatThreadKey('t_backup1'));
 if (!_origProfiles) localStorage.removeItem('labcharts-profiles');
 else localStorage.setItem('labcharts-profiles', _origProfiles);
 
@@ -435,7 +436,7 @@ const previousChatLock = sessionStorage.getItem(chatLockKey);
 sessionStorage.removeItem(chatLockKey);
 st.chatThreads = [];
 st.currentThreadId = null;
-window.ensureActiveThread();
+chatThreadsModule.ensureActiveThread();
 assert('creates thread when none exist', st.chatThreads.length === 1);
 assert('sets currentThreadId', !!st.currentThreadId);
 assert('auto-created empty thread does not mark chat as locally edited',
@@ -450,7 +451,7 @@ st.chatThreads = [
   { id: 't_new', name: 'New', createdAt: newTs, updatedAt: newTs, messageCount: 2, personality: 'default' }
 ];
 st.currentThreadId = 'nonexistent';
-window.ensureActiveThread();
+chatThreadsModule.ensureActiveThread();
 assert('picks most recent thread', st.currentThreadId === 't_new');
 
 // ═══════════════════════════════════════════════
@@ -460,7 +461,7 @@ console.log('20. Thread Personality');
 st.chatThreads = [];
 st.currentThreadId = null;
 st.currentChatPersonality = 'house';
-await sleep(2); window.createNewThread();
+await sleep(2); chatThreadsModule.createNewThread();
 const pThread = st.chatThreads.find(t => t.id === st.currentThreadId);
 assert('new thread inherits current personality', pThread && pThread.personality === 'house');
 
@@ -471,9 +472,9 @@ st.chatThreads = origThreads;
 st.currentThreadId = origThreadId;
 st.chatHistory = origHistory;
 if (origThreads.length > 0) {
-  window.saveChatThreadIndex();
+  chatThreadsModule.saveChatThreadIndex();
 } else {
-  localStorage.removeItem(window.getChatThreadsKey());
+  localStorage.removeItem(chatThreadsModule.getChatThreadsKey());
 }
 for (const key of Object.keys(localStorage)) {
   if (key.includes('chat-t_t_') || key.includes('t_prune_') || key.includes('t_backup')) {

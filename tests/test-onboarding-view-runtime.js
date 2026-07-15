@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import './_node-shim.js';
 import {
+  configureOnboardingViewRuntimeDeps,
   createOnboardingChatThreadRuntime,
   navigateOnboardingRuntime,
   openOnboardingChatPanelRuntime,
@@ -28,7 +29,6 @@ const runtimeKeys = [
   'navigate',
   'openChatPanel',
   'toggleChatPanel',
-  'createNewThread',
   'renderChatMessages',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -52,6 +52,9 @@ function restoreRuntime() {
 
 try {
   const calls = [];
+  const previousDeps = configureOnboardingViewRuntimeDeps({
+    createNewThread: () => calls.push(['createNewThread']),
+  });
   setRuntimeValue('window', globalThis);
   setRuntimeValue('buildSidebar', data => calls.push(['buildSidebar', data?.id]));
   setRuntimeValue('navigate', (route, data) => calls.push(['navigate', route, data?.id]));
@@ -60,7 +63,6 @@ try {
     return 'opened';
   });
   setRuntimeValue('toggleChatPanel', () => calls.push(['toggleChatPanel']));
-  setRuntimeValue('createNewThread', () => calls.push(['createNewThread']));
   setRuntimeValue('renderChatMessages', () => calls.push(['renderChatMessages']));
 
   rebuildOnboardingSidebarRuntime({ id: 'sidebar-data' });
@@ -94,7 +96,7 @@ try {
   assert('onboarding provider chat reports unavailable shell hooks',
     openOnboardingProviderChatRuntime() === false);
 
-  delete globalThis.createNewThread;
+  configureOnboardingViewRuntimeDeps({ createNewThread: null });
   assert('onboarding runtime reports unavailable thread creation',
     createOnboardingChatThreadRuntime() === false);
 
@@ -108,6 +110,8 @@ try {
       createOnboardingChatThreadRuntime() === false &&
       renderOnboardingChatMessagesRuntime() === undefined &&
       calls.length === beforeNoWindowCalls);
+
+  configureOnboardingViewRuntimeDeps(previousDeps);
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const onboardingSrc = fs.readFileSync(path.join(root, 'js/onboarding-view.js'), 'utf8');

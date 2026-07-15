@@ -2,13 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 test('chat thread rail and delegated thread actions work in the live DOM', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() =>
-    typeof window.toggleThreadRail === 'function'
-      && typeof window.renderThreadList === 'function'
-      && typeof window.filterThreadList === 'function'
-      && typeof window.autoNameThread === 'function'
-      && !!window._labState
-  );
+  await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
     const chatThreads = await import('/js/chat-threads.js');
@@ -51,13 +45,33 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       outcomes.chatThreadNewButtonExists = !!document.querySelector('.chat-thread-new-btn');
       outcomes.chatHeaderLeftExists = !!document.querySelector('.chat-header-left');
       outcomes.chatPanelIsRow = getComputedStyle(chatPanel).flexDirection === 'row';
+      outcomes.chatThreadHelpersStayModuleOnly = [
+        'getChatThreadsKey',
+        'getChatThreadKey',
+        'loadChatThreads',
+        'saveChatThreadIndex',
+        'ensureActiveThread',
+        'createNewThread',
+        'switchToThread',
+        'deleteThread',
+        'renameThread',
+        'renameThreadPrompt',
+        'installChatThreadDelegates',
+        'autoNameThread',
+        'pruneOldThreads',
+        'renderThreadList',
+        'invalidateThreadContentCache',
+        'filterThreadList',
+        'jumpToSearchResult',
+        'toggleThreadRail',
+      ].every(name => typeof window[name] === 'undefined');
 
       rail?.classList.remove('open');
       localStorage.removeItem(railKey);
-      window.toggleThreadRail();
+      chatThreads.toggleThreadRail();
       outcomes.railOpensAndPersists = rail?.classList.contains('open') === true
         && localStorage.getItem(railKey) === 'true';
-      window.toggleThreadRail();
+      chatThreads.toggleThreadRail();
       outcomes.railClosesAndPersists = rail?.classList.contains('open') === false
         && localStorage.getItem(railKey) === 'false';
 
@@ -67,8 +81,8 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         { id: 't_c', name: 'Cholesterol Overview', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2, personality: 'default' },
       ];
       state.chatThreads = threadFixtures.map(thread => ({ ...thread }));
-      window.saveChatThreadIndex();
-      window.renderThreadList();
+      chatThreads.saveChatThreadIndex();
+      chatThreads.renderThreadList();
       outcomes.allThreadsRendered = document.querySelectorAll('.chat-thread-item').length === 3;
 
       const threadItem = document.querySelector('.chat-thread-item[data-thread-id="t_a"]');
@@ -103,7 +117,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       );
 
       state.chatThreads.find(thread => thread.id === 't_a').name = 'Thyroid Panel Discussion';
-      window.renderThreadList();
+      chatThreads.renderThreadList();
       document.querySelector('.chat-thread-item[data-thread-id="t_c"] .chat-thread-item-action.delete')?.click();
       const confirmOk = await waitFor(() => document.getElementById('confirm-ok'));
       document.getElementById('confirm-ok')?.click();
@@ -111,18 +125,18 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         && await waitFor(() => !state.chatThreads.some(thread => thread.id === 't_c'));
 
       state.chatThreads = threadFixtures.map(thread => ({ ...thread }));
-      window.renderThreadList();
-      window.filterThreadList('thyroid');
+      chatThreads.renderThreadList();
+      chatThreads.filterThreadList('thyroid');
       outcomes.searchFilterShowsOne = document.querySelectorAll('.chat-thread-item').length === 1;
-      window.filterThreadList('');
+      chatThreads.filterThreadList('');
       outcomes.emptyFilterShowsAll = document.querySelectorAll('.chat-thread-item').length === 3;
-      window.filterThreadList('nonexistent');
+      chatThreads.filterThreadList('nonexistent');
       outcomes.noMatchShowsEmptyState = document.querySelectorAll('.chat-thread-item').length === 0
         && document.querySelector('#chat-thread-list div')?.textContent.includes('No matching') === true;
-      window.filterThreadList('');
+      chatThreads.filterThreadList('');
 
       const existingThreadName = state.chatThreads.find(thread => thread.id === 't_b')?.name;
-      window.autoNameThread('t_b', 'This should not rename an existing thread');
+      chatThreads.autoNameThread('t_b', 'This should not rename an existing thread');
       state.chatThreads.unshift({
         id: 't_new',
         name: 'New Conversation',
@@ -131,7 +145,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         messageCount: 1,
         personality: 'default',
       });
-      window.autoNameThread('t_new', 'What are my vitamin D levels looking like over the past year?');
+      chatThreads.autoNameThread('t_new', 'What are my vitamin D levels looking like over the past year?');
       const expectedAutoName = 'What are my vitamin D levels looking\u2026';
       outcomes.autoNameThreadRenamesOnlyNewConversations =
         state.chatThreads.find(thread => thread.id === 't_b')?.name === existingThreadName
@@ -143,9 +157,9 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       chatThreads.configureChatThreadDeps(savedThreadDeps);
       if (originalRailState == null) localStorage.removeItem(railKey);
       else localStorage.setItem(railKey, originalRailState);
-      if (originalThreads.length > 0) window.saveChatThreadIndex();
-      else localStorage.removeItem(window.getChatThreadsKey());
-      window.renderThreadList?.();
+      if (originalThreads.length > 0) chatThreads.saveChatThreadIndex();
+      else localStorage.removeItem(chatThreads.getChatThreadsKey());
+      chatThreads.renderThreadList();
     }
 
     return outcomes;

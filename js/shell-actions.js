@@ -8,6 +8,11 @@ let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
 const shellFeedbackDeps = { openFeedbackModal };
 const shellChatImageDeps = { toggleHDMode: () => {} };
+const shellChatThreadDeps = {
+  createNewThread: () => {},
+  filterThreadList: (_value) => {},
+  toggleThreadRail: () => {},
+};
 
 export function configureShellImportDeps(deps = {}) {
   const previous = { ...shellImportDeps };
@@ -25,6 +30,14 @@ export function configureShellFeedbackDeps(deps = {}) {
 export function configureShellChatImageDeps(deps = {}) {
   const previous = { ...shellChatImageDeps };
   if (typeof deps.toggleHDMode === 'function') shellChatImageDeps.toggleHDMode = deps.toggleHDMode;
+  return previous;
+}
+
+export function configureShellChatThreadDeps(deps = {}) {
+  const previous = { ...shellChatThreadDeps };
+  if (typeof deps.createNewThread === 'function') shellChatThreadDeps.createNewThread = deps.createNewThread;
+  if (typeof deps.filterThreadList === 'function') shellChatThreadDeps.filterThreadList = deps.filterThreadList;
+  if (typeof deps.toggleThreadRail === 'function') shellChatThreadDeps.toggleThreadRail = deps.toggleThreadRail;
   return previous;
 }
 
@@ -92,10 +105,10 @@ function runChatAction(action, actionEl) {
     callShellRuntime('closeChatPanel');
     return true;
   } else if (action === 'toggle-thread-rail') {
-    callShellRuntime('toggleThreadRail');
+    shellChatThreadDeps.toggleThreadRail();
     return true;
   } else if (action === 'create-thread') {
-    callShellRuntime('createNewThread');
+    shellChatThreadDeps.createNewThread();
     return true;
   } else if (action === 'summarize-thread') {
     callShellRuntime('summarizeThread');
@@ -146,7 +159,7 @@ function handleShellInput(event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   if (input.dataset.chatInputAction === 'filter-thread-list') {
-    callShellRuntime('filterThreadList', input.value);
+    shellChatThreadDeps.filterThreadList(input.value);
   }
 }
 
