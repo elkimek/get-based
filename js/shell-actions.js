@@ -2,14 +2,22 @@
 // shell-actions.js - delegated actions for static index.html controls
 
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
+import { openFeedbackModal } from './feedback.js';
 
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
+const shellFeedbackDeps = { openFeedbackModal };
 
 export function configureShellImportDeps(deps = {}) {
   const previous = { ...shellImportDeps };
   if (typeof deps.handleImportStatusClick === 'function') shellImportDeps.handleImportStatusClick = deps.handleImportStatusClick;
   if (typeof deps.isImportRunning === 'function') shellImportDeps.isImportRunning = deps.isImportRunning;
+  return previous;
+}
+
+export function configureShellFeedbackDeps(deps = {}) {
+  const previous = { ...shellFeedbackDeps };
+  if (typeof deps.openFeedbackModal === 'function') shellFeedbackDeps.openFeedbackModal = deps.openFeedbackModal;
   return previous;
 }
 
@@ -60,7 +68,7 @@ function runShellAction(action) {
     callShellRuntime('openSettingsModal', 'ai');
     return true;
   } else if (action === 'open-feedback') {
-    callShellRuntime('openFeedbackModal');
+    shellFeedbackDeps.openFeedbackModal();
     return true;
   } else if (action === 'import-status') {
     shellImportDeps.handleImportStatusClick();

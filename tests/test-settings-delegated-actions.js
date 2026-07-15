@@ -132,6 +132,9 @@ assert('Delegated settings handler switches tabs',
   /closestWithin\(event, '\[data-settings-tab\]', modal\)[\s\S]*switchSettingsTab/.test(src));
 assert('Delegated tweaks handler closes on backdrop click',
   /event\.target === overlay[\s\S]*closeTweaksPanel\(\)/.test(src));
+assert('Tweaks feedback action uses configured module runtime',
+  src.includes('settingsRuntime.openFeedbackModal()')
+    && !src.includes('settingsWindow.openFeedbackModal'));
 assert('Delegated settings handler switches AI providers',
   /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
 assert('Delegated settings handler updates PII model selection',

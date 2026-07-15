@@ -61,6 +61,7 @@ const settingsWindow = /** @type {SettingsWindow} */ (window);
  *   exportAllDataJSON: () => Promise<void> | void,
  *   exportClientJSON: (profileId?: string | null) => Promise<void> | void,
  *   getActiveProfileId: () => string | null,
+ *   openFeedbackModal: () => void,
  *   openProfileShareModal: (profileId?: string) => void,
  *   clearDashboardWidgets: () => void,
  *   resetDashboardWidgets: () => void,
@@ -75,6 +76,7 @@ const settingsRuntime = {
   exportAllDataJSON: () => {},
   exportClientJSON: () => {},
   getActiveProfileId,
+  openFeedbackModal: () => {},
   openProfileShareModal: () => {},
   clearDashboardWidgets: () => {},
   resetDashboardWidgets: () => {},
@@ -548,7 +550,7 @@ function handleTweaksClick(event) {
   } else if (action === 'send-feedback') {
     event.preventDefault();
     closeTweaksPanel();
-    settingsWindow.openFeedbackModal?.();
+    settingsRuntime.openFeedbackModal();
   }
 }
 

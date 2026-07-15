@@ -55,6 +55,11 @@ assert('Shell action import-status is handled for compatibility but not rendered
   shellSrc.includes("action === 'import-status'")
     && !html.includes('data-shell-action="import-status"'));
 
+assert('Feedback shell action uses its module dependency instead of a window lookup',
+  shellSrc.includes("import { openFeedbackModal } from './feedback.js'")
+    && shellSrc.includes('shellFeedbackDeps.openFeedbackModal()')
+    && !shellSrc.includes("callShellRuntime('openFeedbackModal')"));
+
 [
   'toggle-panel',
   'close-panel',
