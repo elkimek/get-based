@@ -20,6 +20,7 @@ import { hasAIProvider } from './api.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { getDeviceSessions, rollingDeviceTotals } from './light-devices-store.js';
 
 function _getMix() {
   return state.importedData?.channelMixAI || null;
@@ -54,7 +55,7 @@ function _rollingChannelTotals(days) {
 }
 
 function _rollingDeviceTotals(days) {
-  return _callRuntime('rollingDeviceTotals', days) || {};
+  return rollingDeviceTotals(days) || {};
 }
 
 function _getSessions() {
@@ -62,7 +63,7 @@ function _getSessions() {
 }
 
 function _getDeviceSessions() {
-  return _callRuntime('getDeviceSessions') || [];
+  return getDeviceSessions();
 }
 
 function _weeklyChannelTier(value, channelKey) {

@@ -7,6 +7,24 @@ const LIGHT_DEVICE_SESSION_ID_ATTR = 'data-light-device-session-id';
 const LIGHT_DEVICES_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightDevicesActionDelegatesInstalled');
 const lightDevicesActionDelegateRoots = new WeakSet();
 
+const lightDevicesActions = {
+  stopDeviceSessionAndNotify: null,
+  openAddDeviceDialog: null,
+  deleteLightDevice: null,
+  openDeviceSessionDialog: null,
+};
+
+/** @param {Record<string, Function | null>} [actions] */
+export function configureLightDevicesActions(actions = {}) {
+  const previous = { ...lightDevicesActions };
+  for (const name of Object.keys(lightDevicesActions)) {
+    if (name in actions) {
+      lightDevicesActions[name] = typeof actions[name] === 'function' ? actions[name] : null;
+    }
+  }
+  return previous;
+}
+
 function closestLightDevicesAction(target) {
   return target?.closest?.(`[${LIGHT_DEVICES_ACTION_ATTR}]`) || null;
 }
@@ -15,7 +33,6 @@ function handleLightDevicesActionClick(event) {
   const actionEl = closestLightDevicesAction(event.target);
   if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_DEVICES_ACTION_ATTR);
-  const appWindow = /** @type {any} */ (window);
   if (action === 'suppress') {
     event.stopPropagation();
     return;
@@ -23,18 +40,18 @@ function handleLightDevicesActionClick(event) {
   if (action === 'stop-device-session') {
     event.stopPropagation();
     const sessionId = actionEl.getAttribute(LIGHT_DEVICE_SESSION_ID_ATTR) || '';
-    if (sessionId) appWindow.stopDeviceSessionAndNotify?.(sessionId);
+    if (sessionId) lightDevicesActions.stopDeviceSessionAndNotify?.(sessionId);
     return;
   }
-  if (action === 'add-device') { appWindow.openAddDeviceDialog?.(); return; }
+  if (action === 'add-device') { lightDevicesActions.openAddDeviceDialog?.(); return; }
   if (action === 'delete-device') {
     const deviceId = actionEl.getAttribute(LIGHT_DEVICE_ID_ATTR) || '';
-    if (deviceId) appWindow.deleteLightDevice?.(deviceId);
+    if (deviceId) lightDevicesActions.deleteLightDevice?.(deviceId);
     return;
   }
   if (action === 'log-device-session') {
     const deviceId = actionEl.getAttribute(LIGHT_DEVICE_ID_ATTR) || '';
-    if (deviceId) appWindow.openDeviceSessionDialog?.(deviceId);
+    if (deviceId) lightDevicesActions.openDeviceSessionDialog?.(deviceId);
   }
 }
 

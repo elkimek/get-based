@@ -643,12 +643,10 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       refreshSunSurfaces: window._refreshSunSurfaces,
       solarZenithAngle: window.solarZenithAngle,
       rollingChannelTotals: window.rollingChannelTotals,
-      rollingDeviceTotals: window.rollingDeviceTotals,
       rollingVitaminDIU: window.rollingVitaminDIU,
       weeklyChannelTier: window.weeklyChannelTier,
       tierLabel: window.tierLabel,
       getSessions: window.getSessions,
-      getDeviceSessions: window.getDeviceSessions,
       disableAIVerdicts: window.DISABLE_AI_VERDICTS,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
@@ -783,14 +781,14 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       window.rollingChannelTotals = days => days === 7
         ? { vitamin_d: 260, circadian: 180, nir_solar: 130, no_cv: 60, pomc: 55, violet_eye: 30 }
         : { vitamin_d: 540, circadian: 360, nir_solar: 320, no_cv: 140, pomc: 120, violet_eye: 45 };
-      window.rollingDeviceTotals = days => days === 7
+      const rollingDeviceTotals = days => days === 7
         ? { circadian: 90, nir_solar: 50 }
         : { circadian: 180, nir_solar: 90 };
       window.rollingVitaminDIU = () => 900;
       todayAI.configureLightTodayAI({
         solarZenithAngle: window.solarZenithAngle,
         rollingChannelTotals: window.rollingChannelTotals,
-        rollingDeviceTotals: window.rollingDeviceTotals,
+        rollingDeviceTotals,
         rollingVitaminDIU: window.rollingVitaminDIU,
       });
       window.weeklyChannelTier = (value, key) => {
@@ -803,7 +801,6 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       };
       window.tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
       window.getSessions = () => state.importedData.sunSessions;
-      window.getDeviceSessions = () => state.importedData.deviceSessions;
       const queuedAIResponses = [];
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
@@ -976,18 +973,15 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       window._refreshSunSurfaces = saved.refreshSunSurfaces;
       window.solarZenithAngle = saved.solarZenithAngle;
       window.rollingChannelTotals = saved.rollingChannelTotals;
-      window.rollingDeviceTotals = saved.rollingDeviceTotals;
       window.rollingVitaminDIU = saved.rollingVitaminDIU;
       todayAI.configureLightTodayAI({
         solarZenithAngle: saved.solarZenithAngle,
         rollingChannelTotals: saved.rollingChannelTotals,
-        rollingDeviceTotals: saved.rollingDeviceTotals,
         rollingVitaminDIU: saved.rollingVitaminDIU,
       });
       window.weeklyChannelTier = saved.weeklyChannelTier;
       window.tierLabel = saved.tierLabel;
       window.getSessions = saved.getSessions;
-      window.getDeviceSessions = saved.getDeviceSessions;
       if (saved.disableAIVerdicts === undefined) delete window.DISABLE_AI_VERDICTS;
       else window.DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');

@@ -146,8 +146,6 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       mainHTML: main?.innerHTML,
       Date: window.Date,
       getSessions: window.getSessions,
-      getDeviceSessions: window.getDeviceSessions,
-      getDevices: window.getDevices,
       getActiveSession: window.getActiveSession,
       cumulativeMEDToday: window.cumulativeMEDToday,
       cumulativeMEDYesterday: window.cumulativeMEDYesterday,
@@ -159,9 +157,11 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       channelTier: window.channelTier,
       dailyChannelBreakdown: window.dailyChannelBreakdown,
       rollingChannelTotals: window.rollingChannelTotals,
-      rollingDeviceTotals: window.rollingDeviceTotals,
-      renderDevicesSection: window.renderDevicesSection,
     };
+    let getDevices = () => [];
+    let getDeviceSessions = () => [];
+    let rollingDeviceTotals = () => ({});
+    let renderDevicesSection = () => '';
     let renderLightTodayDashboardChip = () => '';
     let renderLightTodayHero = () => '';
     let renderSunSetupCard = sunDefaults.renderSetupCard;
@@ -170,11 +170,11 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       weeklyChannelTier: typeof window.weeklyChannelTier === 'function' ? window.weeklyChannelTier : () => 0,
       channelTier: typeof window.channelTier === 'function' ? window.channelTier : () => 0,
       getSessions: typeof window.getSessions === 'function' ? window.getSessions : () => [],
-      getDevices: typeof window.getDevices === 'function' ? window.getDevices : () => [],
-      getDeviceSessions: typeof window.getDeviceSessions === 'function' ? window.getDeviceSessions : () => [],
+      getDevices,
+      getDeviceSessions,
       getActiveSession: typeof window.getActiveSession === 'function' ? window.getActiveSession : () => null,
       rollingChannelTotals: typeof window.rollingChannelTotals === 'function' ? window.rollingChannelTotals : () => ({}),
-      rollingDeviceTotals: typeof window.rollingDeviceTotals === 'function' ? window.rollingDeviceTotals : () => ({}),
+      rollingDeviceTotals,
       cumulativeMEDToday: typeof window.cumulativeMEDToday === 'function' ? window.cumulativeMEDToday : () => 0,
       cumulativeMEDYesterday: typeof window.cumulativeMEDYesterday === 'function' ? window.cumulativeMEDYesterday : () => 0,
       rollingVitaminDIU: typeof window.rollingVitaminDIU === 'function' ? window.rollingVitaminDIU : () => 0,
@@ -183,7 +183,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderLightTodayDashboardChip,
       renderLightTodayHero,
       renderSunSetupCard,
-      renderDevicesSection: typeof window.renderDevicesSection === 'function' ? window.renderDevicesSection : () => '',
+      renderDevicesSection,
       renderEnvironmentAssessmentSummary,
       renderLightTools,
     });
@@ -224,10 +224,10 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         device: index === 1 ? 80 : 0,
       }));
       window.rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
-      window.rollingDeviceTotals = () => ({ nir_solar: 120 });
+      rollingDeviceTotals = () => ({ nir_solar: 120 });
       window.getSessions = () => [];
-      window.getDeviceSessions = () => [];
-      window.getDevices = () => [];
+      getDeviceSessions = () => [];
+      getDevices = () => [];
       window.getActiveSession = () => null;
       window.cumulativeMEDToday = () => 0.72;
       window.cumulativeMEDYesterday = () => 0.4;
@@ -264,13 +264,13 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         lightEnvironment: { rooms: [] },
       };
       setHour(22);
-      window.getDevices = () => [{ brand: 'Joovv', model: 'Solo' }];
+      getDevices = () => [{ brand: 'Joovv', model: 'Solo' }];
       syncLightPageDeps();
       const oneDevice = lightPage.renderLightTodayStrip();
-      window.getDevices = () => [{ brand: 'Joovv', model: 'Solo' }, { brand: 'SAD', model: 'Desk' }];
+      getDevices = () => [{ brand: 'Joovv', model: 'Solo' }, { brand: 'SAD', model: 'Desk' }];
       syncLightPageDeps();
       const manyDevices = lightPage.renderLightTodayStrip();
-      window.getDevices = () => [];
+      getDevices = () => [];
       syncLightPageDeps();
       const noDevices = lightPage.renderLightTodayStrip();
       outcomes.nonSolarCtasAdaptToDeviceAndRoomState =
@@ -289,13 +289,13 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
 
       renderLightTodayHero = () => '';
       renderSunSetupCard = () => '<div class="setup-card-test">setup</div>';
-      window.renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
+      renderDevicesSection = () => '<div class="devices-section-test">devices</div>';
       renderEnvironmentAssessmentSummary = () => '';
       renderLightTools = () => '';
       window.getActiveSession = () => null;
-      window.getDevices = () => [];
+      getDevices = () => [];
       window.getSessions = () => [];
-      window.getDeviceSessions = () => [];
+      getDeviceSessions = () => [];
       window.getSunCoords = () => null;
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
@@ -317,7 +317,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         endedAt: Date.now() - (index + 1) * 86_400_000 + 600_000,
       }));
       window.rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
-      window.rollingDeviceTotals = () => ({ pbm_red: 0, pbm_nir: 0 });
+      rollingDeviceTotals = () => ({ pbm_red: 0, pbm_nir: 0 });
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
       const guidance = main?.querySelector('[data-widget-id="light-guidance"], #light-guidance');
@@ -334,8 +334,6 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       if (main && saved.mainHTML != null) main.innerHTML = saved.mainHTML;
       window.Date = saved.Date || RealDate;
       window.getSessions = saved.getSessions;
-      window.getDeviceSessions = saved.getDeviceSessions;
-      window.getDevices = saved.getDevices;
       window.getActiveSession = saved.getActiveSession;
       window.cumulativeMEDToday = saved.cumulativeMEDToday;
       window.cumulativeMEDYesterday = saved.cumulativeMEDYesterday;
@@ -347,8 +345,10 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       window.channelTier = saved.channelTier;
       window.dailyChannelBreakdown = saved.dailyChannelBreakdown;
       window.rollingChannelTotals = saved.rollingChannelTotals;
-      window.rollingDeviceTotals = saved.rollingDeviceTotals;
-      window.renderDevicesSection = saved.renderDevicesSection;
+      getDevices = () => [];
+      getDeviceSessions = () => [];
+      rollingDeviceTotals = () => ({});
+      renderDevicesSection = () => '';
       renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
       renderLightTools = lightTools.renderLightTools;
       renderLightTodayDashboardChip = () => '';

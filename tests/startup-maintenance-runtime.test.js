@@ -3,9 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   getStartupSunEngineVersionRuntime,
-  hasLightDevicePresetHydrationRuntime,
   hasSunSessionRehydrateRuntime,
-  hydrateLightDevicesFromPresetsRuntime,
   logStartupMaintenanceRuntime,
   rehydrateStaleSunSessionsRuntime,
 } from '../js/startup-maintenance-runtime.js';
@@ -34,10 +32,6 @@ describe('startup maintenance runtime adapter', () => {
         calls.push('rehydrate');
         return Promise.resolve({ rehydrated: 2 });
       },
-      hydrateDevicesFromPresets: () => {
-        calls.push('hydrate-devices');
-        return Promise.resolve(true);
-      },
       console: {
         log: (...args) => calls.push(['log', ...args]),
       },
@@ -46,12 +40,9 @@ describe('startup maintenance runtime adapter', () => {
     expect(hasSunSessionRehydrateRuntime()).toBe(true);
     expect(await rehydrateStaleSunSessionsRuntime()).toEqual({ rehydrated: 2 });
     expect(getStartupSunEngineVersionRuntime()).toBe('runtime-test');
-    expect(hasLightDevicePresetHydrationRuntime()).toBe(true);
-    expect(await hydrateLightDevicesFromPresetsRuntime()).toBe(true);
     expect(logStartupMaintenanceRuntime('[startup]', 'ok')).toBe(true);
     expect(calls).toEqual([
       'rehydrate',
-      'hydrate-devices',
       ['log', '[startup]', 'ok'],
     ]);
   });
@@ -59,7 +50,6 @@ describe('startup maintenance runtime adapter', () => {
   it('uses safe fallbacks when browser hooks are missing or fail', async () => {
     setRuntimeWindow({
       rehydrateStaleSessions: () => { throw new Error('rehydrate unavailable'); },
-      hydrateDevicesFromPresets: () => { throw new Error('hydrate unavailable'); },
       console: {
         log: () => { throw new Error('log unavailable'); },
       },
@@ -68,16 +58,12 @@ describe('startup maintenance runtime adapter', () => {
     expect(hasSunSessionRehydrateRuntime()).toBe(true);
     expect(await rehydrateStaleSunSessionsRuntime()).toBeNull();
     expect(getStartupSunEngineVersionRuntime()).toBe('?');
-    expect(hasLightDevicePresetHydrationRuntime()).toBe(true);
-    expect(await hydrateLightDevicesFromPresetsRuntime()).toBe(false);
     expect(logStartupMaintenanceRuntime('[startup]', 'ignored')).toBe(false);
 
     delete globalThis.window;
     expect(hasSunSessionRehydrateRuntime()).toBe(false);
     expect(await rehydrateStaleSunSessionsRuntime()).toBeNull();
     expect(getStartupSunEngineVersionRuntime()).toBe('?');
-    expect(hasLightDevicePresetHydrationRuntime()).toBe(false);
-    expect(await hydrateLightDevicesFromPresetsRuntime()).toBe(false);
     expect(logStartupMaintenanceRuntime('[startup]', 'ignored')).toBe(false);
   });
 
@@ -86,6 +72,7 @@ describe('startup maintenance runtime adapter', () => {
     const swSrc = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 
     expect(startupSrc).toContain("from './startup-maintenance-runtime.js'");
+    expect(startupSrc).toContain("import { hydrateDevicesFromPresets } from './light-devices.js';");
     expect(/\bwindow(?:\.|\s*\[)/.test(startupSrc)).toBe(false);
     expect(swSrc).toContain("'/js/startup-maintenance-runtime.js'");
   });

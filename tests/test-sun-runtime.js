@@ -2,6 +2,7 @@
 // test-sun-runtime.js - Sun session browser adapter behavior.
 
 import './_node-shim.js';
+import { state } from '../js/state.js';
 import {
   addSunProfileSwitchListener,
   configureSunRuntimeDeps,
@@ -31,7 +32,6 @@ console.log('=== Sun Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'navigator',
-  'getDeviceSessions',
   'buildSidebar',
   'navigate',
   'renderLightChannelsLive',
@@ -42,6 +42,7 @@ const runtimeKeys = [
   'sunRuntimeProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const savedImportedData = state.importedData;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -63,7 +64,7 @@ function restoreRuntime() {
 try {
   const calls = [];
   const deviceSessions = [{ id: 'device-1', doses: { vitamin_d: 12 } }];
-  setRuntimeValue('getDeviceSessions', () => deviceSessions);
+  state.importedData = { deviceSessions };
   setRuntimeValue('buildSidebar', () => calls.push(['sidebar']));
   setRuntimeValue('navigate', (view, options) => calls.push(['navigate', view, options?.scrollAnchor]));
   setRuntimeValue('renderLightChannelsLive', () => calls.push(['channels-live']));
@@ -77,7 +78,7 @@ try {
     hasSunBrowserRuntime() === true);
   assert('isSunDebugRuntime delegates debug mode safely',
     isSunDebugRuntime() === true);
-  assert('getSunDeviceSessionsRuntime delegates to runtime provider',
+  assert('getSunDeviceSessionsRuntime reads the device session store',
     getSunDeviceSessionsRuntime() === deviceSessions);
   rebuildSunSidebarRuntime();
   navigateSunRuntime('light', { scrollAnchor: 'light-session-log' });
@@ -114,7 +115,7 @@ try {
   assert('exposeSunRuntimeBindings publishes runtime bindings',
     globalThis.sunRuntimeProbe === probe);
 
-  setRuntimeValue('getDeviceSessions', () => { throw new Error('boom'); });
+  state.importedData = { deviceSessions: [] };
   setRuntimeValue('renderLightTodayStrip', () => { throw new Error('boom'); });
   setRuntimeValue('buildSidebar', () => { throw new Error('boom'); });
   setRuntimeValue('navigate', () => { throw new Error('boom'); });
@@ -156,6 +157,7 @@ try {
     calls.length === beforeNoWindowCalls &&
     globalThis.sunRuntimeProbe === probe);
 } finally {
+  state.importedData = savedImportedData;
   configureSunRuntimeDeps(originalSunRuntimeDeps);
   restoreRuntime();
 }

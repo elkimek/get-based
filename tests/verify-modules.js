@@ -867,6 +867,33 @@
     '_skinTypeToFitzpatrick',
     '_skinFaceKeydown',
   ].every(name => !(name in window)));
+  assert('light device helpers stay module-only', [
+    'loadLightDevicePresets',
+    'getDevices',
+    'getDeviceSessions',
+    'addDeviceFromPreset',
+    'hydrateDevicesFromPresets',
+    'deleteLightDevice',
+    'logDeviceSession',
+    'startDeviceSession',
+    'stopDeviceSession',
+    'updateDeviceSession',
+    'editDeviceSessionDuration',
+    'editDeviceSessionMode',
+    'getActiveDeviceSession',
+    'renderActiveDeviceSessionCard',
+    'ensureActiveDeviceTicker',
+    'stopDeviceSessionAndNotify',
+    'deleteDeviceSession',
+    'rollingDeviceTotals',
+    'renderDevicesSection',
+    'openDeviceSessionDetail',
+    'openAddDeviceDialog',
+    'openCustomDeviceDialog',
+    'addCustomDevice',
+    'openDeviceSessionDialog',
+    'quickLogDeviceSession',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }

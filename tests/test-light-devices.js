@@ -40,9 +40,9 @@ const sessionEngine = await import('../js/light-device-session-engine.js');
 const { synthesizeDeviceSpectrum } = await import('../js/sun-spectrum.js');
 const {
   getDevices, getDeviceSessions,
-  addDeviceFromPreset, addCustomDevice, deleteDevice,
+  addDeviceFromPreset, addCustomDevice, deleteDevice, hydrateDevicesFromPresets,
   logDeviceSession, deleteDeviceSession,
-  rollingDeviceTotals,
+  rollingDeviceTotals, updateDeviceSession,
 } = dev;
 const {
   DEVICE_TYPE_CHANNELS,
@@ -370,16 +370,16 @@ const {
   // needs profile state — covered by Playwright.
   const SKIP_DISTANCE_SCALING = true;
   console.log('  SKIP: distance scaling e2e — needs profile state; covered by Playwright.');
-  if (!SKIP_DISTANCE_SCALING && typeof window.logDeviceSession === 'function') {
+  if (!SKIP_DISTANCE_SCALING) {
     const distDevice = {
       id: 'D-dist', brand: 'Test', model: 'PBM',
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 30, peakShares: [1.0],
     };
     window._labState.importedData = { lightDevices: [distDevice], deviceSessions: [] };
-    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true });
-    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
-    await window.logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 5, bodyArea: 'torso', eyesProtected: true });
+    await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 30, bodyArea: 'torso', eyesProtected: true });
+    await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+    await logDeviceSession({ deviceId: 'D-dist', durationMin: 10, distanceCm: 5, bodyArea: 'torso', eyesProtected: true });
     const sess = window._labState.importedData.deviceSessions;
     const at30 = sess[0]?.doses?.pbm_red || 0;
     const at15 = sess[1]?.doses?.pbm_red || 0;
@@ -402,19 +402,19 @@ const {
   // (the user's history shouldn't vanish), surfacing a "Removed device"
   // label rather than a stale brand reference. Pin the contract.
   console.log('%c deleteDevice + orphan session contract ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.logDeviceSession === 'function' && typeof window.deleteDevice === 'function') {
+  {
     const ephemeral = {
       id: 'D-ephemeral', brand: 'Test', model: 'Ephemeral',
       peakWavelengths: [660], mwPerCm2At15cm: 50,
       recommendedDistanceCm: 15, peakShares: [1.0],
     };
     window._labState.importedData = { lightDevices: [ephemeral], deviceSessions: [] };
-    await window.logDeviceSession({ deviceId: 'D-ephemeral', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
+    await logDeviceSession({ deviceId: 'D-ephemeral', durationMin: 10, distanceCm: 15, bodyArea: 'torso', eyesProtected: true });
     const sessId = window._labState.importedData.deviceSessions[0]?.id;
     assert('logDeviceSession persists session with deviceId reference',
       sessId && window._labState.importedData.deviceSessions[0].deviceId === 'D-ephemeral');
     // Now delete the device.
-    await window.deleteDevice('D-ephemeral');
+    await deleteDevice('D-ephemeral');
     const stillThere = window._labState.importedData.deviceSessions[0];
     assert('Sessions persist after parent device is deleted (no auto-purge)',
       stillThere && stillThere.id === sessId);
@@ -447,7 +447,7 @@ const {
   // assertions on the device-library logic flowing.
   const SKIP_RECOMPUTE_PATH = true;
   console.log('  SKIP: device-session recompute path — needs profile state; covered by Playwright.');
-  if (!SKIP_RECOMPUTE_PATH && typeof window.logDeviceSession === 'function' && typeof window.updateDeviceSession === 'function') {
+  if (!SKIP_RECOMPUTE_PATH) {
     // Maxi UVB shape with full mode schema
     const maxiDevice = {
       id: 'D-maxi-test', brand: 'Test', model: 'Maxi UVB',
@@ -468,7 +468,7 @@ const {
     window._labState.importedData = { lightDevices: [maxiDevice], deviceSessions: [] };
 
     // 1. Log session without explicit mode → resolves to default 'all-on'
-    await window.logDeviceSession({
+    await logDeviceSession({
       deviceId: 'D-maxi-test', durationMin: 6, distanceCm: 60, bodyArea: 'torso', eyesProtected: true,
     });
     const sess0 = window._labState.importedData.deviceSessions[0];
@@ -482,7 +482,7 @@ const {
     // 2. Strip mode to simulate legacy session, then recompute
     const legacyId = sess0.id;
     delete sess0.mode;
-    await window.updateDeviceSession(legacyId, { durationMin: 12 });
+    await updateDeviceSession(legacyId, { durationMin: 12 });
     const recomputed = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Legacy recompute: mode auto-fills to default after edit',
       recomputed?.mode === 'all-on', `mode=${recomputed?.mode}`);
@@ -498,7 +498,7 @@ const {
       `ratio=${ratioPbm.toFixed(3)}`);
 
     // 3. Switch mode mid-edit → vitamin_d crashes, pbm_red preserved
-    await window.updateDeviceSession(legacyId, { mode: 'red-nir-only' });
+    await updateDeviceSession(legacyId, { mode: 'red-nir-only' });
     const switched = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Mode switch (all-on → red-nir-only): mode persists',
       switched?.mode === 'red-nir-only');
@@ -513,7 +513,7 @@ const {
       `before=${recomputed.doses.pbm_red.toFixed(2)} after=${pbmAfterSwitch.toFixed(2)}`);
 
     // 4. Coupling enforcement: invalid mode silently falls back to default
-    await window.updateDeviceSession(legacyId, { mode: 'completely-fake-mode' });
+    await updateDeviceSession(legacyId, { mode: 'completely-fake-mode' });
     const validated = window._labState.importedData.deviceSessions.find(s => s.id === legacyId);
     assert('Mode validation: unknown mode-id falls back to default',
       validated?.mode === 'all-on');
@@ -525,14 +525,14 @@ const {
       recommendedDistanceCm: 15, peakShares: [0.5, 0.5],
     };
     window._labState.importedData = { lightDevices: [pbmDevice], deviceSessions: [] };
-    await window.logDeviceSession({
+    await logDeviceSession({
       deviceId: 'D-pbm-test', durationMin: 5, distanceCm: 15, bodyArea: 'torso', eyesProtected: true,
     });
     const pbmSess = window._labState.importedData.deviceSessions[0];
     assert('Non-moded device: session.mode stays null',
       pbmSess?.mode === null, `mode=${pbmSess?.mode}`);
     const basePbmDose = pbmSess.doses.pbm_red;
-    await window.updateDeviceSession(pbmSess.id, { durationMin: 10 });
+    await updateDeviceSession(pbmSess.id, { durationMin: 10 });
     const pbmRecomputed = window._labState.importedData.deviceSessions.find(s => s.id === pbmSess.id);
     assert('Non-moded device: recompute scales linearly (no mode drift)',
       Math.abs(pbmRecomputed.doses.pbm_red / basePbmDose - 2.0) < 0.05,
@@ -550,18 +550,18 @@ const {
   // library onto matching user devices. Idempotent — second run is a
   // no-op since fields are now present.
   console.log('%c hydrateDevicesFromPresets backfill ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.hydrateDevicesFromPresets === 'function' && typeof window.addDeviceFromPreset === 'function') {
+  {
     window._labState.importedData = { lightDevices: [], deviceSessions: [] };
     // Add a Maxi UVB then strip the Round-7 fields, simulating a device
     // record persisted to localStorage before the schema additions.
-    await window.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    await addDeviceFromPreset('mitochondriak-maxi-uvb');
     const dev = window._labState.importedData.lightDevices[0];
     delete dev.channelGroups;
     delete dev.modes;
     delete dev.coupling;
     assert('Pre-hydration: legacy device record has no `modes`',
       !Array.isArray(dev.modes));
-    const dirty = await window.hydrateDevicesFromPresets();
+    const dirty = await hydrateDevicesFromPresets();
     const hydrated = window._labState.importedData.lightDevices[0];
     assert('hydrateDevicesFromPresets reports dirty when fields were missing',
       dirty === true);
@@ -572,7 +572,7 @@ const {
     assert('Hydration backfills `coupling`',
       Array.isArray(hydrated.coupling) && hydrated.coupling.length >= 1);
     // Second run is a no-op — fields already present.
-    const dirty2 = await window.hydrateDevicesFromPresets();
+    const dirty2 = await hydrateDevicesFromPresets();
     assert('hydrateDevicesFromPresets is idempotent (second run = no-op)',
       dirty2 === false);
     // Custom devices (no presetId) skip hydration even if they're missing fields.
@@ -580,7 +580,7 @@ const {
       id: 'D-custom-no-preset', brand: 'Custom', model: 'Test',
       peakWavelengths: [660], mwPerCm2At15cm: 50,
     });
-    await window.hydrateDevicesFromPresets();
+    await hydrateDevicesFromPresets();
     const customDev = window._labState.importedData.lightDevices.find(d => d.id === 'D-custom-no-preset');
     assert('Hydration skips custom (no-presetId) devices',
       !customDev.modes && !customDev.channelGroups);
@@ -592,9 +592,9 @@ const {
   // mode schema already populated, so the user doesn't need to wait for
   // the boot-time hydration migration to fire.
   console.log('%c addDeviceFromPreset copies Round-7 schema ', 'font-weight:bold;color:#f59e0b');
-  if (typeof window.addDeviceFromPreset === 'function') {
+  {
     window._labState.importedData = { lightDevices: [], deviceSessions: [] };
-    await window.addDeviceFromPreset('mitochondriak-maxi-uvb');
+    await addDeviceFromPreset('mitochondriak-maxi-uvb');
     const fresh = window._labState.importedData.lightDevices[0];
     assert('Fresh-add: device carries `modes` immediately',
       Array.isArray(fresh.modes) && fresh.modes.length >= 2);
@@ -603,7 +603,7 @@ const {
     assert('Fresh-add: device carries `coupling` immediately',
       Array.isArray(fresh.coupling));
     // Non-moded preset (Pulse) → fields stay null
-    await window.addDeviceFromPreset('mitochondriak-pulse');
+    await addDeviceFromPreset('mitochondriak-pulse');
     const pulse = window._labState.importedData.lightDevices.find(d => d.presetId === 'mitochondriak-pulse');
     assert('Fresh-add: non-moded preset (Pulse) has null modes',
       pulse.modes === null);
@@ -621,7 +621,7 @@ const {
     lightDevicesRuntimeSrc.includes("getRuntimeFunction('navigate')") &&
     lightDevicesRuntimeSrc.includes('lightDevicesRuntimeDeps.showPromptDialog') &&
     lightDevicesRuntimeSrc.includes("getRuntimeFunction('loadCatalog')") &&
-    lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
+    !lightDevicesRuntimeSrc.includes('publishLightDevicesWindowBindings'));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

@@ -2,6 +2,7 @@
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
+import { getDeviceSessions } from './light-devices-store.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 /** @type {Record<string, Function | null>} */
@@ -69,8 +70,6 @@ export function getDashboardLightSessions() {
 }
 
 export function getDashboardDeviceSessions() {
-  const getDeviceSessions = getRuntimeFunction('getDeviceSessions');
-  if (!getDeviceSessions) return [];
   try {
     const sessions = getDeviceSessions();
     return Array.isArray(sessions) ? sessions : [];

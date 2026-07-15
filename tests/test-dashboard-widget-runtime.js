@@ -2,6 +2,7 @@
 // test-dashboard-widget-runtime.js - Dashboard widget runtime adapter behavior.
 
 import './_node-shim.js';
+import { state } from '../js/state.js';
 import {
   configureDashboardNoteActions,
   deleteDashboardNote,
@@ -32,7 +33,6 @@ const runtimeKeys = [
   'window',
   'innerHeight',
   'getSessions',
-  'getDeviceSessions',
   '_snpTableCache',
   'openSettingsModal',
   'syncWearableNow',
@@ -43,6 +43,7 @@ const runtimeKeys = [
   'triggerDNAFilePicker',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+const savedImportedData = state.importedData;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -80,7 +81,7 @@ try {
 
   const snpTable = { rs123: { rsid: 'rs123' } };
   setRuntimeValue('getSessions', () => [{ id: 'sun-1' }]);
-  setRuntimeValue('getDeviceSessions', () => [{ id: 'device-1' }]);
+  state.importedData = { deviceSessions: [{ id: 'device-1' }] };
   setRuntimeValue('_snpTableCache', snpTable);
   assert('runtime adapter reads dashboard renderer data hooks',
     getDashboardLightSessions().length === 1 &&
@@ -90,7 +91,7 @@ try {
       getDashboardSnpTableCache() === snpTable);
 
   setRuntimeValue('getSessions', () => { throw new Error('boom'); });
-  setRuntimeValue('getDeviceSessions', () => ({ id: 'not-array' }));
+  state.importedData = { deviceSessions: [] };
   setRuntimeValue('_snpTableCache', null);
   assert('runtime adapter falls back for missing renderer data hooks',
     getDashboardLightSessions().length === 0 &&
@@ -156,6 +157,7 @@ try {
   configureDashboardNoteActions(previousDashboardNoteActions);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
 } finally {
+  state.importedData = savedImportedData;
   restoreRuntime();
 }
 

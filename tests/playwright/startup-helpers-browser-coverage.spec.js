@@ -227,6 +227,12 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         return true;
       }
     `,
+    '**/js/light-devices.js*': `
+      export async function hydrateDevicesFromPresets() {
+        window.__startupMaintenanceCalls.push('hydrateDevicesFromPresets');
+        return true;
+      }
+    `,
     '**/js/wearables-summary.js*': `
       export async function syncWearableSummary(profileId, sources) {
         window.__startupMaintenanceCalls.push(['syncWearableSummary', profileId, sources]);
@@ -238,7 +244,6 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     const originalSetTimeout = window.setTimeout;
     const originalConsoleLog = console.log;
     const originalRehydrate = window.rehydrateStaleSessions;
-    const originalHydrate = window.hydrateDevicesFromPresets;
     const originalEngineVersion = window.SUN_ENGINE_VERSION;
     const logs = [];
 
@@ -259,10 +264,6 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     window.rehydrateStaleSessions = async () => {
       window.__startupMaintenanceCalls.push('rehydrateStaleSessions');
       return { rehydrated: 2 };
-    };
-    window.hydrateDevicesFromPresets = async () => {
-      window.__startupMaintenanceCalls.push('hydrateDevicesFromPresets');
-      return true;
     };
 
     const waitUntil = async predicate => {
@@ -309,8 +310,6 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
       console.log = originalConsoleLog;
       if (originalRehydrate) window.rehydrateStaleSessions = originalRehydrate;
       else delete window.rehydrateStaleSessions;
-      if (originalHydrate) window.hydrateDevicesFromPresets = originalHydrate;
-      else delete window.hydrateDevicesFromPresets;
       if (originalEngineVersion === undefined) delete window.SUN_ENGINE_VERSION;
       else window.SUN_ENGINE_VERSION = originalEngineVersion;
     }

@@ -21,8 +21,7 @@ function expectAll(outcomes) {
 test('light devices browser coverage handles store mutations UI wrappers and picker flows', async ({ page }) => {
   await page.addInitScript(seedCompletedTour);
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.quickLogDeviceSession === 'function'
-    && typeof window.openAddDeviceDialog === 'function');
+  await page.evaluate(() => import('/js/light-devices.js'));
   await page.evaluate(() => {
     window.endTour?.();
     document.getElementById('tour-overlay')?.remove();
@@ -32,11 +31,12 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   });
 
   const outcomes = await page.evaluate(async () => {
-    const [{ state }, data, store, ai] = await Promise.all([
+    const [{ state }, data, store, ai, lightDevices] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/light-devices-store.js'),
       import('/js/light-device-ai-analysis.js'),
+      import('/js/light-devices.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -187,9 +187,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       const activeSession = store.getActiveDeviceSession();
       activeSession.startedAt = Date.now() - 125000;
       const activeHost = document.createElement('div');
-      activeHost.innerHTML = window.renderActiveDeviceSessionCard();
+      activeHost.innerHTML = lightDevices.renderActiveDeviceSessionCard();
       document.body.appendChild(activeHost);
-      window.ensureActiveDeviceTicker();
+      lightDevices.ensureActiveDeviceTicker();
       const elapsedText = activeHost.querySelector('[data-live-elapsed-for]')?.textContent || '';
       outcomes.startDeviceSessionRejectsSecondAndTickerUpdatesCard =
         !!activeId
@@ -197,7 +197,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         && elapsedText.startsWith('2:')
         && activeHost.textContent.includes('CoverageLight Panel Pro');
 
-      await window.stopDeviceSessionAndNotify(activeId);
+      await lightDevices.stopDeviceSessionAndNotify(activeId);
       const stoppedSession = store.getDeviceSessions().find(s => s.id === activeId);
       outcomes.stopDeviceSessionWrapperSavesDosesNotifiesAndNavigates =
         !!stoppedSession?.endedAt
@@ -218,7 +218,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         notes: 'desk work',
         mode: 'therapy',
       });
-      const deleteSessionPromise = window.deleteDeviceSession(logged.id);
+      const deleteSessionPromise = lightDevices.deleteDeviceSessionWithConfirm(logged.id);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'delete session confirm open');
       document.getElementById('confirm-ok')?.click();
       await deleteSessionPromise;
@@ -226,7 +226,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         !store.getDeviceSessions().some(s => s.id === logged.id)
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 2;
 
-      await window.deleteLightDevice(customDevice.id);
+      await lightDevices.deleteLightDeviceAndRefresh(customDevice.id);
       outcomes.deleteLightDeviceWrapperRemovesDeviceAndRefreshes =
         !store.getDevices().some(d => d.id === customDevice.id)
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 3;
@@ -234,7 +234,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       state.importedData.lightDevices = [];
       state.importedData.deviceSessions = [];
       const navBeforePresetAdd = calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length;
-      await window.openAddDeviceDialog();
+      const devicesHost = document.createElement('div');
+      devicesHost.innerHTML = await lightDevices.renderDevicesSection();
+      document.body.appendChild(devicesHost);
+      devicesHost.querySelector('[data-light-devices-action="add-device"]')?.click();
+      await waitUntil(() => !!document.querySelector('[aria-label="Add light device"]'), 'delegated add device action');
       const addOverlay = document.querySelector('[aria-label="Add light device"]')?.closest('.modal-overlay');
       const firstPreset = addOverlay?.querySelector('.light-device-preset-row');
       const addButton = addOverlay?.querySelector('#add-device-confirm');
@@ -244,6 +248,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       outcomes.productionPresetDialogUsesLoadedPresetsAddWrapperAndRefresh =
         !!store.getDevices()[0]?.presetId
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length > navBeforePresetAdd;
+      devicesHost.remove();
 
       await store.addCustomDevice({
         brand: 'SecondLight',
@@ -253,7 +258,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         mwPerCm2At15cm: 45,
         recommendedDistanceCm: 15,
       });
-      window.quickLogDeviceSession();
+      lightDevices.quickLogDeviceSession();
       await waitUntil(() => !!document.querySelector('[aria-label="Pick a device to log a session"]'), 'device picker open');
       const pickerOverlay = document.querySelector('[aria-label="Pick a device to log a session"]')?.closest('.modal-overlay');
       const pickerRows = Array.from(pickerOverlay?.querySelectorAll('.light-device-picker-row') || []);
@@ -267,7 +272,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         && sessionOverlay.textContent.includes('Log session');
       sessionOverlay?.remove();
 
-      await window.openCustomDeviceDialog();
+      await lightDevices.openCustomDeviceDialog();
       const customOverlay = document.querySelector('[aria-label="Add custom light device"]')?.closest('.modal-overlay');
       const badInput = customOverlay?.querySelector('#custom-dev-image');
       Object.defineProperty(badInput, 'files', {

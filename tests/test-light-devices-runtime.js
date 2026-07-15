@@ -5,16 +5,12 @@ import './_node-shim.js';
 import { state } from '../js/state.js';
 import {
   configureLightDevicesRuntimeDeps,
-  deleteLightDeviceSessionFromRuntime,
-  editLightDeviceSessionDurationFromRuntime,
-  editLightDeviceSessionModeFromRuntime,
   getLightDeviceChannelDisplay,
   getLightDeviceChannelHelpers,
   loadLightDevicesCatalog,
   navigateLightDevicesRoute,
   openLightDeviceChannel,
   promptLightDeviceSessionDuration,
-  publishLightDevicesWindowBindings,
   refreshLightDevicesView,
   renderLightDeviceAffiliateRowRuntime,
 } from '../js/light-devices-runtime.js';
@@ -39,10 +35,6 @@ const runtimeKeys = [
   'loadCatalog',
   'renderLightDeviceAffiliateRow',
   '_openChannelOnLightPage',
-  'editDeviceSessionDuration',
-  'editDeviceSessionMode',
-  'deleteDeviceSession',
-  '__lightRuntimeProbe',
 ];
 const saved = Object.fromEntries(runtimeKeys.map(key => [key, globalThis[key]]));
 const savedView = state.currentView;
@@ -126,22 +118,9 @@ try {
     renderLightDeviceAffiliateRowRuntime({}, 'panel-x') === '');
 
   globalThis._openChannelOnLightPage = channel => calls.push(['open-channel', channel]);
-  globalThis.editDeviceSessionDuration = id => calls.push(['edit-duration', id]);
-  globalThis.editDeviceSessionMode = id => calls.push(['edit-mode', id]);
-  globalThis.deleteDeviceSession = id => calls.push(['delete-session', id]);
   openLightDeviceChannel('vitamin_d');
-  editLightDeviceSessionDurationFromRuntime('sess-1');
-  editLightDeviceSessionModeFromRuntime('sess-1');
-  deleteLightDeviceSessionFromRuntime('sess-1');
-  assert('detail runtime callbacks delegate to current window bindings',
-    calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d') &&
-    calls.some(call => call[0] === 'edit-duration' && call[1] === 'sess-1') &&
-    calls.some(call => call[0] === 'edit-mode' && call[1] === 'sess-1') &&
-    calls.some(call => call[0] === 'delete-session' && call[1] === 'sess-1'));
-
-  publishLightDevicesWindowBindings({ __lightRuntimeProbe: () => 'ok' });
-  assert('publishLightDevicesWindowBindings installs legacy globals',
-    globalThis.__lightRuntimeProbe?.() === 'ok');
+  assert('openLightDeviceChannel delegates to the current view binding',
+    calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d'));
 } finally {
   configureLightDevicesRuntimeDeps(originalLightDevicesRuntimeDeps);
   restoreRuntime();

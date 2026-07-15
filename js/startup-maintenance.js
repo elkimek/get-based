@@ -4,11 +4,10 @@
 import { state } from './state.js';
 import { initWearableScheduler, loadWearableRuntimeConfig, syncStaleWearablesNow } from './wearables-connect.js';
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
+import { hydrateDevicesFromPresets } from './light-devices.js';
 import {
   getStartupSunEngineVersionRuntime,
-  hasLightDevicePresetHydrationRuntime,
   hasSunSessionRehydrateRuntime,
-  hydrateLightDevicesFromPresetsRuntime,
   logStartupMaintenanceRuntime,
   rehydrateStaleSunSessionsRuntime,
 } from './startup-maintenance-runtime.js';
@@ -56,11 +55,9 @@ function hydrateUserLightDevicesFromPresets() {
   // / Trinity device records have no `modes` array, so the session-log
   // dialog can't render the mode picker for them. Idempotent - re-runs
   // are no-ops once devices carry the fields.
-  if (hasLightDevicePresetHydrationRuntime()) {
-    hydrateLightDevicesFromPresetsRuntime().then(dirty => {
-      if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
-    }).catch(() => {});
-  }
+  hydrateDevicesFromPresets().then(dirty => {
+    if (dirty) logStartupMaintenanceRuntime('[light] hydrated user devices from preset library');
+  }).catch(() => {});
 }
 
 function migrateLegacyBiometrics() {

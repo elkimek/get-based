@@ -29,18 +29,6 @@ export function getStartupSunEngineVersionRuntime() {
   return getStartupMaintenanceRuntime()?.SUN_ENGINE_VERSION || '?';
 }
 
-export function hasLightDevicePresetHydrationRuntime() {
-  return getRuntimeFunction('hydrateDevicesFromPresets') !== null;
-}
-
-export function hydrateLightDevicesFromPresetsRuntime() {
-  try {
-    return getRuntimeFunction('hydrateDevicesFromPresets')?.() || Promise.resolve(false);
-  } catch {
-    return Promise.resolve(false);
-  }
-}
-
 /** @param {any[]} args */
 export function logStartupMaintenanceRuntime(...args) {
   const runtime = getStartupMaintenanceRuntime();
