@@ -47,9 +47,3 @@ export async function confirmWearableSettingsAction(message) {
   const confirm = wearableSettingsRuntimeDeps.showConfirmDialog;
   return confirm ? !!await confirm(message) : false;
 }
-
-/** @param {Record<string, unknown>} bindings */
-export function exposeWearableSettingsBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
-}

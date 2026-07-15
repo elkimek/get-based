@@ -6,7 +6,6 @@ import {
   closeWearableSettingsModal,
   configureWearableSettingsRuntimeDeps,
   confirmWearableSettingsAction,
-  exposeWearableSettingsBindings,
   navigateWearablesDashboard,
 } from '../js/wearables-settings-runtime.js';
 
@@ -20,7 +19,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Settings Runtime Tests ===\n');
 
-const runtimeKeys = ['window', 'navigate', 'closeSettingsModal', 'showConfirmDialog', 'wearableProbe'];
+const runtimeKeys = ['window', 'navigate', 'closeSettingsModal', 'showConfirmDialog'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -59,19 +58,13 @@ try {
   assert('confirmWearableSettingsAction delegates to runtime confirm dialog',
     confirmed && calls.some(call => call[0] === 'confirm' && call[1] === 'confirm me'));
 
-  const probe = () => 'ok';
-  exposeWearableSettingsBindings({ wearableProbe: probe });
-  assert('exposeWearableSettingsBindings assigns bindings to runtime window',
-    globalThis.wearableProbe === probe);
-
   delete globalThis.window;
   configureWearableSettingsRuntimeDeps({ showConfirmDialog: null });
   navigateWearablesDashboard();
   closeWearableSettingsModal();
   const missingConfirm = await confirmWearableSettingsAction('confirm me');
-  exposeWearableSettingsBindings({ wearableProbe: null });
   assert('runtime adapter no-ops safely when window is missing',
-    !missingConfirm && globalThis.wearableProbe === probe);
+    !missingConfirm);
 } finally {
   configureWearableSettingsRuntimeDeps(originalWearableSettingsRuntimeDeps);
   restoreRuntime();

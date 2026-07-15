@@ -9,14 +9,15 @@ test('wearables settings browser coverage exercises import and connection action
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const failures = await page.evaluate(async ({ panelUrl, stateUrl, profileUrl, storeUrl, blobUrl }) => {
-    const [{ state }, { profileStorageKey }, store, blobStorage, settingsRuntime] = await Promise.all([
+    const [{ state }, { profileStorageKey }, store, blobStorage, settingsRuntime, panel] = await Promise.all([
       import(stateUrl),
       import(profileUrl),
       import(storeUrl),
       import(blobUrl),
       import('/js/wearables-settings-runtime.js'),
+      import(panelUrl),
     ]);
-    await import(panelUrl);
+    const actions = panel.wearableSettingsActionHandlers;
 
     const failures = [];
     const check = (name, condition, detail = '') => {
@@ -52,7 +53,7 @@ test('wearables settings browser coverage exercises import and connection action
         section.id = 'wearables-section';
         document.body.append(section);
       }
-      section.innerHTML = window.renderWearablesSettingsSection();
+      section.innerHTML = panel.renderWearablesSettingsSection();
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       return section;
     };
@@ -79,16 +80,16 @@ test('wearables settings browser coverage exercises import and connection action
         && !!section.querySelector('#apple-health-file-input')
         && !!section.querySelector('.apple-health-dropzone'));
 
-      window.setWearableStripHidden(true);
-      const hiddenSet = window.isWearableStripHidden() === true
+      panel.setWearableStripHidden(true);
+      const hiddenSet = panel.isWearableStripHidden() === true
         && localStorage.getItem(`wearables-strip-hidden-${profileId}`) === '1';
-      window.setWearableStripHidden(false);
+      panel.setWearableStripHidden(false);
       check('wearable strip hidden toggle persists per profile',
         hiddenSet
-        && window.isWearableStripHidden() === false
+        && panel.isWearableStripHidden() === false
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
 
-      window.handleWearableConnect('apple_health');
+      actions.handleWearableConnect('apple_health');
       await delay(20);
       check('connect handler reports non-oauth adapter error',
         document.body.textContent.includes('Connect failed: Adapter apple_health is not OAuth2'));
@@ -98,7 +99,7 @@ test('wearables settings browser coverage exercises import and connection action
   <Record type="HKQuantityTypeIdentifierBodyMass" sourceName="Coverage Scale" unit="kg" value="72.4" startDate="2026-06-01 08:00:00 +0000" endDate="2026-06-01 08:00:00 +0000"/>
       </HealthData>`;
       const file = new File([xml], 'export.xml', { type: 'application/xml' });
-      window.handleAppleHealthDrop({ dataTransfer: { files: [file] } });
+      actions.handleAppleHealthDrop({ dataTransfer: { files: [file] } });
       let row = null;
       const imported = await waitFor(async () => {
         row = await store.getDaily(profileId, 'apple_health', '2026-06-01');
@@ -116,7 +117,7 @@ test('wearables settings browser coverage exercises import and connection action
         files: [new File(['not health xml'], 'notes.txt', { type: 'text/plain' })],
         value: 'notes.txt',
       };
-      window.handleAppleHealthFilePick(badInput);
+      actions.handleAppleHealthFilePick(badInput);
       const failedImportShown = await waitFor(() =>
         (document.querySelector('.apple-health-progress-text')?.textContent || '').includes('Unrecognised file type'));
       check('Apple Health file picker resets same-file value and surfaces import failure',
@@ -126,19 +127,19 @@ test('wearables settings browser coverage exercises import and connection action
       state.importedData.wearableConnections.apple_health.accessToken = 'coverage-token';
       const syncButton = document.createElement('button');
       const dashboardNavigationsBeforeSync = calls.filter(call => call[0] === 'navigate' && call[1] === 'dashboard').length;
-      await window.handleWearableSyncNow('apple_health', syncButton);
+      await actions.handleWearableSyncNow('apple_health', syncButton);
       check('sync-now handler restores trigger state and navigates',
         !syncButton.disabled
         && !syncButton.classList.contains('is-syncing')
         && calls.filter(call => call[0] === 'navigate' && call[1] === 'dashboard').length === dashboardNavigationsBeforeSync + 1);
 
       const beforeBackfill = state.importedData.wearableConnections.apple_health.lastSyncAt || 0;
-      await window.handleWearableBackfill('apple_health');
+      await actions.handleWearableBackfill('apple_health');
       check('backfill handler updates connection and refreshes settings',
         (state.importedData.wearableConnections.apple_health.lastSyncAt || 0) >= beforeBackfill
         && document.getElementById('wearables-section')?.textContent.includes('Imported from export.xml'));
 
-      const disconnectPromise = window.handleWearableDisconnect('apple_health');
+      const disconnectPromise = actions.handleWearableDisconnect('apple_health');
       const confirmReady = await waitFor(() => !!document.getElementById('confirm-ok'));
       document.getElementById('confirm-ok')?.click();
       await disconnectPromise;
@@ -153,7 +154,7 @@ test('wearables settings browser coverage exercises import and connection action
       document.body.append(strip);
       window.closeSettingsModal = () => calls.push(['closeSettingsModal']);
       window.requestAnimationFrame = callback => setTimeout(() => callback(Date.now()), 0);
-      window.handleManualOpenDashboard();
+      actions.handleManualOpenDashboard();
       await waitFor(() => calls.some(call => call[0] === 'scroll' && call[1] === 'wearable-strip'));
       check('manual dashboard handler closes settings navigates and scrolls strip',
         calls.some(call => call[0] === 'closeSettingsModal')
@@ -167,7 +168,7 @@ test('wearables settings browser coverage exercises import and connection action
         weight: 80.2,
       });
       settingsRuntime.configureWearableSettingsRuntimeDeps({ showConfirmDialog: async () => true });
-      await window.handleManualDisconnect();
+      await actions.handleManualDisconnect();
       const manualRows = await store.countSource(profileId, 'manual');
       check('manual disconnect handler clears manual rows and connection',
         manualRows === 0

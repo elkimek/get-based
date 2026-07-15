@@ -20,7 +20,6 @@ import { getActiveProfileId } from './profile.js';
 import {
   closeWearableSettingsModal,
   confirmWearableSettingsAction,
-  exposeWearableSettingsBindings,
   navigateWearablesDashboard,
 } from './wearables-settings-runtime.js';
 
@@ -581,12 +580,7 @@ function refreshSettingsWearables() {
   if (section) section.innerHTML = renderWearablesSettingsSection();
 }
 
-installWearableSettingsDelegates();
-
-exposeWearableSettingsBindings({
-  setWearableStripHidden,
-  isWearableStripHidden,
-  renderWearablesSettingsSection,
+export const wearableSettingsActionHandlers = Object.freeze({
   handleManualOpenDashboard,
   handleManualDisconnect,
   handleWearableConnect,
@@ -596,3 +590,5 @@ exposeWearableSettingsBindings({
   handleAppleHealthDrop,
   handleAppleHealthFilePick,
 });
+
+installWearableSettingsDelegates();

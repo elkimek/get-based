@@ -50,6 +50,7 @@ const store = await import('../js/wearables-store.js');
 const summary = await import('../js/wearables-summary.js');
 const labCtx = await import('../js/lab-context.js');
 const oauth = await import('../js/wearables-oura-auth.js');
+const wearableSettings = await import('../js/wearables-settings-panel.js');
 
 // ═══════════════════════════════════════
 // 1. Registry shape
@@ -626,11 +627,28 @@ delete window._labState.importedData.wearableSummary;
 // ═══════════════════════════════════════
 // 10. Window exports for render handlers
 // ═══════════════════════════════════════
-console.log('10. Window Exports');
+console.log('10. Browser and module exports');
 assert('window.renderWearableStrip exists', typeof window.renderWearableStrip === 'function');
-assert('window.renderWearablesSettingsSection exists', typeof window.renderWearablesSettingsSection === 'function');
-assert('window.handleWearableConnect exists', typeof window.handleWearableConnect === 'function');
-assert('window.handleWearableDisconnect exists', typeof window.handleWearableDisconnect === 'function');
+assert('wearable settings renderer is a module export',
+  typeof wearableSettings.renderWearablesSettingsSection === 'function');
+assert('wearable settings actions are module exports',
+  typeof wearableSettings.wearableSettingsActionHandlers.handleWearableConnect === 'function'
+  && typeof wearableSettings.wearableSettingsActionHandlers.handleWearableDisconnect === 'function');
+const wearableSettingsLegacyGlobals = [
+  'setWearableStripHidden',
+  'isWearableStripHidden',
+  'renderWearablesSettingsSection',
+  'handleManualOpenDashboard',
+  'handleManualDisconnect',
+  'handleWearableConnect',
+  'handleWearableSyncNow',
+  'handleWearableBackfill',
+  'handleWearableDisconnect',
+  'handleAppleHealthDrop',
+  'handleAppleHealthFilePick',
+];
+assert('wearable settings handlers stay module-only',
+  wearableSettingsLegacyGlobals.every(name => !(name in window)));
 assert('window.syncWearableNow exists', typeof window.syncWearableNow === 'function');
 assert('window.openWearableDetail exists', typeof window.openWearableDetail === 'function');
 assert('window.setWearableDetailRange exists', typeof window.setWearableDetailRange === 'function');
@@ -2262,17 +2280,15 @@ try {
 }
 
 // Settings → Wearables row markup must omit hidden adapters.
-if (typeof window.renderWearablesSettingsSection === 'function') {
-  localStorage.removeItem(escapeKey);
-  const html = window.renderWearablesSettingsSection();
-  assert('Settings render omits WHOOP row when hidden + not connected',
-    !/data-adapter-id="whoop"/.test(html) && !/connectAdapter\('whoop'\)/.test(html));
-  assert('Settings render omits Ultrahuman row when hidden + not connected',
-    !/data-adapter-id="ultrahuman"/.test(html) && !/connectAdapter\('ultrahuman'\)/.test(html));
-  assert('Settings render still shows Oura row',
-    /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(html) ||
-    /Oura/.test(html));
-}
+localStorage.removeItem(escapeKey);
+const settingsHtml = wearableSettings.renderWearablesSettingsSection();
+assert('Settings render omits WHOOP row when hidden + not connected',
+  !/data-adapter-id="whoop"/.test(settingsHtml) && !/connectAdapter\('whoop'\)/.test(settingsHtml));
+assert('Settings render omits Ultrahuman row when hidden + not connected',
+  !/data-adapter-id="ultrahuman"/.test(settingsHtml) && !/connectAdapter\('ultrahuman'\)/.test(settingsHtml));
+assert('Settings render still shows Oura row',
+  /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(settingsHtml) ||
+  /Oura/.test(settingsHtml));
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

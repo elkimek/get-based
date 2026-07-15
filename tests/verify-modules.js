@@ -821,6 +821,19 @@
   assert('window._appleHealth stays module-only', !('_appleHealth' in window));
   assert('window._aiSlotsDebug stays module-only', !('_aiSlotsDebug' in window));
   assert('window._syncTestHooks stays module-only', !('_syncTestHooks' in window));
+  assert('wearable settings handlers stay module-only', [
+    'setWearableStripHidden',
+    'isWearableStripHidden',
+    'renderWearablesSettingsSection',
+    'handleManualOpenDashboard',
+    'handleManualDisconnect',
+    'handleWearableConnect',
+    'handleWearableSyncNow',
+    'handleWearableBackfill',
+    'handleWearableDisconnect',
+    'handleAppleHealthDrop',
+    'handleAppleHealthFilePick',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
