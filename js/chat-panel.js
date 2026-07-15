@@ -12,18 +12,20 @@ import {
 import { renderSavedSummaries } from './chat-summaries.js';
 import { updateLensIndicator } from './lens.js';
 import { dismissCurrentChatNudge } from './chat-nudge.js';
-import { refreshMobileDashboardActiveTabRuntime } from './chat-runtime.js';
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
 const panelCallbacks = {
   restoreDiscussionContinuePrompt: null,
+  refreshMobileDashboardActiveTab: null,
 };
 let chatThreadInputBlocked = false;
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null }} [callbacks] */
+/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, refreshMobileDashboardActiveTab?: (() => void) | null }} [callbacks] */
 export function configureChatPanel(callbacks = {}) {
+  const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
+  return previous;
 }
 
 // ═══════════════════════════════════════════════
@@ -152,5 +154,5 @@ export function closeChatPanel() {
   document.body.classList.remove('chat-open', 'chat-fullscreen', 'cards-focus', 'import-focus', 'chat-autostart-reserved');
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
-  refreshMobileDashboardActiveTabRuntime();
+  panelCallbacks.refreshMobileDashboardActiveTab?.();
 }

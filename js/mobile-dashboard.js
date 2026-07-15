@@ -12,7 +12,6 @@ import {
   addMobileDashboardBreakpointListener,
   addMobileDashboardVisualViewportListener,
   addMobileDashboardWindowListener,
-  exposeMobileDashboardBindings,
   getMobileDashboardVisualBottomOffset,
   isMobileDashboardRuntimeViewport,
   scrollMobileDashboardToTop,
@@ -209,14 +208,6 @@ const refreshDashboardForBreakpoint = () => {
 };
 addMobileDashboardBreakpointListener(MOBILE_DASHBOARD_QUERY, refreshDashboardForBreakpoint);
 initMobileChromeStateSync();
-
-// Keep legacy mobile dashboard globals available as soon as the module loads.
-exposeMobileDashboardBindings({
-  openMobileDashboardSearch,
-  mobileDashboardJump,
-  mobileDashboardSetTab,
-  refreshMobileDashboardActiveTab,
-});
 
 export function getMobileDashboardProfile() {
   const profiles = getProfiles() || [];

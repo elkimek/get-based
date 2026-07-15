@@ -80,9 +80,3 @@ export function scrollMobileDashboardToTop() {
   const runtime = getRuntimeWindow();
   if (runtime && typeof runtime.scrollTo === 'function') runtime.scrollTo(0, 0);
 }
-
-/** @param {Record<string, any>} bindings */
-export function exposeMobileDashboardBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
-}
