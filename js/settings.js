@@ -39,6 +39,7 @@ import {
 import { loadPdfImport } from './import-loader.js';
 import { startGuidedTour } from './tour.js';
 import { getActiveProfileId } from './profile.js';
+import { openChangelog } from './changelog.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   confirmDisablePIIReview,
@@ -418,7 +419,7 @@ async function handleSettingsClick(event) {
   } else if (action === 'open-changelog') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => settingsWindow.openChangelog?.(true), 300);
+    setTimeout(() => openChangelog(true), 300);
   } else if (action === 'switch-ai-provider') {
     event.preventDefault();
     switchAIProviderBridge(actionEl.dataset.provider || 'openrouter');

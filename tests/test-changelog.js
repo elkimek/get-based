@@ -24,10 +24,10 @@ function assert(name, condition, detail) {
 
 console.log("=== What's New + Auto-Gating Tests ===\n");
 
-// changelog.js exposes openChangelog / closeChangelog / maybeShowChangelog.
+// Changelog actions are module-only.
 await import('../js/state.js');
 const { hasCardContent } = await import('../js/utils.js');
-await import('../js/changelog.js');
+const changelogModule = await import('../js/changelog.js');
 
 const changelogSrc = await fetchWithRetry('js/changelog.js');
 const utilsSrc = await fetchWithRetry('js/utils.js');
@@ -62,9 +62,12 @@ assert('changelog.js delegates modal close button without inline handlers',
   changelogSrc.includes('data-changelog-action') &&
     changelogSrc.includes('installChangelogDelegates(modal)') &&
     !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(changelogSrc));
-assert('changelog.js registers legacy globals through utils runtime',
-  changelogSrc.includes('registerUtilsRuntimeExports({ openChangelog, closeChangelog, maybeShowChangelog })')
-    && !/Object\.assign\(window/.test(changelogSrc));
+assert('changelog.js keeps its actions module-only',
+  !changelogSrc.includes('registerUtilsRuntimeExports')
+    && !/Object\.assign\(window/.test(changelogSrc)
+    && typeof changelogModule.openChangelog === 'function'
+    && typeof changelogModule.closeChangelog === 'function'
+    && typeof changelogModule.maybeShowChangelog === 'function');
 assert('changelog.js has getMajorMinor helper', changelogSrc.includes('function getMajorMinor'));
 assert('maybeShowChangelog compares major.minor only', changelogSrc.includes('getMajorMinor(seen) !== getMajorMinor('));
 // forceShow patch-bump escape hatch — when a maintainer flags an entry as
@@ -288,13 +291,13 @@ assert('APP_VERSION is at least the Biology Scores main release',
   versionMatch && semverGte(appVersion, '1.9.0'), appVersion);
 
 // ═══════════════════════════════════════
-// 11. Window exports
+// 11. Module boundary
 // ═══════════════════════════════════════
-console.log('11. Window Exports');
+console.log('11. Module Boundary');
 
-assert('closeChangelog on window', typeof window.closeChangelog === 'function');
-assert('openChangelog on window', typeof window.openChangelog === 'function');
-assert('maybeShowChangelog on window', typeof window.maybeShowChangelog === 'function');
+assert('closeChangelog stays off window', !('closeChangelog' in window));
+assert('openChangelog stays off window', !('openChangelog' in window));
+assert('maybeShowChangelog stays off window', !('maybeShowChangelog' in window));
 
 // ═══════════════════════════════════════
 // 12. Source-code regex defenses (inline-tag whitelist + href safety)

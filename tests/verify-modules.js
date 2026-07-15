@@ -189,10 +189,11 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, changelogModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, mobileDashboardModule, navModule, notesModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
+    import('../js/changelog.js'),
     import('../js/charts.js'),
     import('../js/context-cards.js'),
     import('../js/crypto.js'),
@@ -464,6 +465,11 @@
     'cashuRestoreWalletFromSeed','cashuGetMintUrl','cashuSetMintUrl','cashuGetFeePct'
   ];
 
+  // changelog.js (3 former browser globals, now module-only)
+  const changelogExports = [
+    'openChangelog','closeChangelog','maybeShowChangelog'
+  ];
+
   // nav.js (5 retained runtime hooks; delegate helpers use ESM exports)
   const navGlobals = [
     'buildSidebar','renderProfileDropdown','renderProfileButton',
@@ -674,6 +680,7 @@
   for (const [moduleName, moduleApi, exports] of [
     ['backup.js', backupModule, backupExports],
     ['cashu-wallet.js', cashuWalletModule, cashuWalletExports],
+    ['changelog.js', changelogModule, changelogExports],
     ['charts.js', chartsModule, chartsExports],
     ['context-cards.js', contextCardsModule, contextCardsExports],
     ['crypto.js', cryptoModule, cryptoExports],
@@ -764,6 +771,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of cashuWalletLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of changelogExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of providerPanelsExports) {
