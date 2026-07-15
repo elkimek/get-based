@@ -4,6 +4,7 @@
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { openReportBuilder } from './export.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const navRuntimeDeps = {
   openEMFAssessmentEditor,
@@ -37,7 +38,7 @@ function getNavRuntimeScope() {
 function getNavRuntimeFunction(name) {
   const runtime = getNavRuntimeScope();
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 /**

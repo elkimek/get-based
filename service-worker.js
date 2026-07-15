@@ -223,6 +223,7 @@ const APP_SHELL = [
   '/js/nav-runtime.js',
   '/js/nav.js',
   '/js/views-router-runtime.js',
+  '/js/views-runtime-bridge.js',
   '/js/views-router.js',
   '/js/dashboard-view-composition.js',
   '/js/dashboard-page-view.js',

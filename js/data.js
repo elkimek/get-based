@@ -2,6 +2,7 @@
 // data.js — Data pipeline, unit conversion, date range, trend detection
 
 import { state } from './state.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { MARKER_SCHEMA, UNIT_CONVERSIONS, OPTIMAL_RANGES, PHASE_RANGES } from './schema.js';
 import { escapeAttr, hashString, showNotification } from './utils.js';
@@ -968,8 +969,9 @@ export function switchUnitSystem(system) {
   dataWindow.buildSidebar(data);
   updateHeaderDates(data);
   dataWindow.navigate(state.currentView || 'dashboard', data);
-  if (openId && typeof dataWindow.showDetailModal === 'function') {
-    dataWindow.showDetailModal(openId);
+  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
+  if (openId && showDetailModal) {
+    showDetailModal(openId);
   }
 }
 
@@ -988,8 +990,9 @@ export function toggleAltUnits(force) {
   // Refresh the currently-visible detail modal so the alt-unit lines update
   // without a full navigate (the modal lives outside the page rebuild).
   const openId = state._activeDetailMarkerId;
-  if (openId && typeof dataWindow.showDetailModal === 'function') {
-    dataWindow.showDetailModal(openId);
+  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
+  if (openId && showDetailModal) {
+    showDetailModal(openId);
   }
 }
 
@@ -1030,8 +1033,9 @@ export function switchRangeMode(mode) {
     const data = getActiveData();
     dataWindow.buildSidebar(data);
     dataWindow.navigate(state.currentView || 'dashboard', data);
-    if (openId && state._activeDetailMarkerId === openId && typeof dataWindow.showDetailModal === 'function') {
-      dataWindow.showDetailModal(openId);
+  const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
+  if (openId && state._activeDetailMarkerId === openId && showDetailModal) {
+    showDetailModal(openId);
     }
   });
 }

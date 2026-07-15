@@ -248,7 +248,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForFunction(() =>
     typeof window.navigate === 'function'
-      && typeof window.openRecommendationDetail === 'function'
   );
 
   const results = await page.evaluate(async () => {
@@ -425,8 +424,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     dismissButton?.click();
     await delay(100);
     const dismissStored = firstRecId && readJson(recDismissedKey).length > 0;
-    window.dismissRecommendation?.(firstRecId, false);
-    window.saveRecommendation?.(firstRecId, false);
+    viewsModule.dismissRecommendation?.(firstRecId, false);
+    viewsModule.saveRecommendation?.(firstRecId, false);
 
     viewsModule.resetDashboardWidgets();
     window.navigate('dashboard');

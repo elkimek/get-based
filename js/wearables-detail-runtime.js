@@ -2,6 +2,7 @@
 // wearables-detail-runtime.js - Browser runtime adapters for wearable detail modal hooks.
 
 import { showConfirmDialog } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const wearableDetailRuntimeDeps = { showConfirmDialog };
 
@@ -27,7 +28,9 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (!runtime) return null;
+  if (runtime && typeof runtime[name] === 'function') return runtime[name].bind(runtime);
+  return getViewRuntimeFunction(name);
 }
 
 export function rememberWearableDetailModalTriggerRuntime() {

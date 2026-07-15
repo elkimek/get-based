@@ -7,6 +7,7 @@ import { getEffectiveRangeForDate, getLatestValueIndex } from './marker-analysis
 import { computeBiologyScores } from './biology-scores.js';
 import { profileStorageKey } from './profile.js';
 import { escapeAttr, escapeHTML, formatValue, getStatus } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let dashboardRecommendationDelegatesInstalled = false;
 
@@ -20,7 +21,7 @@ function getDashboardRecommendationRuntimeValue(name) {
 
 function callDashboardRecommendationRuntime(name, ...args) {
   const runtime = dashboardRecommendationRuntime();
-  const fn = getDashboardRecommendationRuntimeValue(name);
+  const fn = getDashboardRecommendationRuntimeValue(name) || getViewRuntimeFunction(name);
   return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 

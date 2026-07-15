@@ -112,7 +112,6 @@ return (async function() {
   // is: rememberModalTrigger() captures activeElement on open,
   // closeModal() restores it. Wearables detail opens route through a
   // runtime adapter so the modal module stays browser-global free.
-  const viewsSrc = await fetch('js/views.js').then(r => r.text());
   const markerDetailSrc = await fetch('js/marker-detail-modal.js').then(r => r.text());
   const dashboardWidgetsSrc = await fetch('js/dashboard-widgets.js').then(r => r.text());
   const wearablesDetailSrc = await fetch('js/wearables-detail-modal.js').then(r => r.text());
@@ -125,7 +124,8 @@ return (async function() {
     markerDetailSrc.includes("from './modal-lifecycle.js'") &&
       /function closeModal\(\)[\s\S]{0,180}closeModalOverlay\('modal-overlay'\)/.test(markerDetailSrc));
   assert('rememberModalTrigger exported', markerDetailSrc.includes('export function rememberModalTrigger'));
-  assert('rememberModalTrigger on window', /window\s*,\s*\{[\s\S]*?rememberModalTrigger/.test(viewsSrc));
+  assert('rememberModalTrigger is a views module API', typeof viewsModule.rememberModalTrigger === 'function');
+  assert('rememberModalTrigger stays off window', !('rememberModalTrigger' in window));
   assert('wearable detail modal captures trigger',
     wearablesDetailSrc.includes('rememberWearableDetailModalTriggerRuntime();') &&
       /getRuntimeFunction\('rememberModalTrigger'\)\?\.\(\)/.test(wearablesDetailRuntimeSrc));
@@ -531,7 +531,7 @@ return (async function() {
   }
 
   if (testMarkerId) {
-    window.showDetailModal(testMarkerId);
+    viewsModule.showDetailModal(testMarkerId);
     await wait(50);
     assert('Detail modal opens', modalOverlay.classList.contains('show'));
 
@@ -563,7 +563,7 @@ return (async function() {
   try {
     S.profileDob = originalProfileDob || '1987-11-22';
     dataModule.invalidateActiveDataCache?.();
-    window.showDetailModal('calculatedRatios_biologicalAge');
+    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => document.querySelector('#detail-modal .bio-age-breakdown'));
     const bioModal = document.getElementById('detail-modal');
     let bioText = bioModal?.textContent || '';
@@ -576,7 +576,7 @@ return (async function() {
 
     S.profileDob = '';
     dataModule.invalidateActiveDataCache?.();
-    window.showDetailModal('calculatedRatios_biologicalAge');
+    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     const missingDobModal = document.getElementById('detail-modal');
     bioText = missingDobModal?.textContent || '';
@@ -590,7 +590,7 @@ return (async function() {
 
     S.profileDob = '2999-01-01';
     dataModule.invalidateActiveDataCache?.();
-    window.showDetailModal('calculatedRatios_biologicalAge');
+    viewsModule.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Valid date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     bioText = document.getElementById('detail-modal')?.textContent || '';
     assert('Biological Age detail surfaces invalid DOB instead of zero missing inputs',
@@ -661,11 +661,11 @@ return (async function() {
     const val1Before = sel1?.value;
     const val2Before = sel2?.value;
     if (val1Before && val2Before && val1Before !== val2Before) {
-      window.swapCompareDates();
+      viewsModule.swapCompareDates();
       await wait(50);
       assert('Swap dates reverses selectors', sel1.value === val2Before && sel2.value === val1Before);
       // Swap back
-      window.swapCompareDates();
+      viewsModule.swapCompareDates();
       await wait(20);
     }
 
@@ -850,11 +850,11 @@ return (async function() {
 
   if (testMarkerId) {
     // showDetailModal populates markerRegistry, then openManualEntryForm reads it
-    window.showDetailModal(testMarkerId);
+    viewsModule.showDetailModal(testMarkerId);
     await wait(50);
     window.closeModal();
     await wait(20);
-    window.openManualEntryForm(testMarkerId);
+    viewsModule.openManualEntryForm(testMarkerId);
     await wait(50);
     assert('Manual entry modal opens', modalOverlay.classList.contains('show'));
     const manualModal = document.getElementById('detail-modal');
