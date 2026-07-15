@@ -38,6 +38,7 @@ const RUNTIME_FIELDS = [
 ];
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const originalReviewRuntimeDeps = configurePdfImportReviewRuntimeDeps();
 const originalFieldDescriptors = new Map(
   RUNTIME_FIELDS.map(field => [field, Object.getOwnPropertyDescriptor(globalThis, field)])
 );
@@ -73,8 +74,11 @@ try {
 
   const viewCalls = [];
   globalThis.buildSidebar = function() { viewCalls.push(['sidebar', this === globalThis]); };
-  globalThis.updateHeaderDates = function() { viewCalls.push(['dates', this === globalThis]); };
+  globalThis.updateHeaderDates = function() { viewCalls.push(['legacy-dates']); };
   globalThis.navigate = function(route) { viewCalls.push(['navigate', route, this === globalThis]); };
+  configurePdfImportReviewRuntimeDeps({
+    updateHeaderDates: () => viewCalls.push(['dates', true]),
+  });
   assert('import persistence view refresh delegates through runtime hooks',
     refreshImportedDataViewsRuntime('labs') === true &&
       JSON.stringify(viewCalls) === JSON.stringify([
@@ -107,12 +111,11 @@ try {
   assert('delegate binding flag stored in runtime', globalThis.__importReviewDelegatesBound === true);
 
   let confirmCalls = 0;
-  const previousReviewRuntimeDeps = configurePdfImportReviewRuntimeDeps({
+  configurePdfImportReviewRuntimeDeps({
     confirmImport: () => { confirmCalls++; },
   });
   confirmImportFromRuntime();
   assert('confirm callback uses configured module dependency', confirmCalls === 1);
-  configurePdfImportReviewRuntimeDeps(previousReviewRuntimeDeps);
 
   let diffArgs = null;
   let diffThis = null;
@@ -140,6 +143,7 @@ try {
   showPIIDiffViewerFromRuntime('raw', 'safe');
   assert('no-window writes are no-ops', noWindowResolveCalled === false);
 } finally {
+  configurePdfImportReviewRuntimeDeps(originalReviewRuntimeDeps);
   for (const field of RUNTIME_FIELDS) {
     restoreDescriptor(globalThis, field, originalFieldDescriptors.get(field));
   }

@@ -213,6 +213,7 @@ test('settings browser coverage renames imported entry dates through the data se
 
   const results = await page.evaluate(async () => {
     const dataModule = await import('/js/data.js');
+    const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -229,13 +230,15 @@ test('settings browser coverage renames imported entry dates through the data se
       currentProfile: state.currentProfile,
       currentView: state.currentView,
       buildSidebar: window.buildSidebar,
-      updateHeaderDates: window.updateHeaderDates,
       navigate: window.navigate,
       storage: localStorage.getItem(`labcharts-${profileId}-imported`),
     };
     const calls = [];
     const originalDataContextDeps = dataModule.configureDataContextDependencies({
       invalidateLabContextCache: () => calls.push('invalidateLabContextCache'),
+    });
+    const originalReviewRuntimeDeps = reviewRuntime.configurePdfImportReviewRuntimeDeps({
+      updateHeaderDates: () => calls.push('updateHeaderDates'),
     });
 
     try {
@@ -253,7 +256,6 @@ test('settings browser coverage renames imported entry dates through the data se
         changeHistory: [],
       };
       window.buildSidebar = () => calls.push('buildSidebar');
-      window.updateHeaderDates = () => calls.push('updateHeaderDates');
       window.navigate = view => calls.push(`navigate:${view}`);
 
       document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section"></section>');
@@ -281,9 +283,9 @@ test('settings browser coverage renames imported entry dates through the data se
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       window.buildSidebar = saved.buildSidebar;
-      window.updateHeaderDates = saved.updateHeaderDates;
       window.navigate = saved.navigate;
       dataModule.configureDataContextDependencies(originalDataContextDeps);
+      reviewRuntime.configurePdfImportReviewRuntimeDeps(originalReviewRuntimeDeps);
       if (saved.storage == null) localStorage.removeItem(`labcharts-${profileId}-imported`);
       else localStorage.setItem(`labcharts-${profileId}-imported`, saved.storage);
       document.getElementById('data-entries-section')?.remove();

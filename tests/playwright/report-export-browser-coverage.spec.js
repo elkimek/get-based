@@ -10,6 +10,7 @@ test('report builder modal delegates presets categories AI state and preview exp
 
   const results = await page.evaluate(async ({ builderUrl }) => {
     const builder = await import(builderUrl);
+    const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
     const state = window._labState;
     const outcomes = {};
@@ -84,7 +85,7 @@ test('report builder modal delegates presets categories AI state and preview exp
         },
         customMarkers: {},
       };
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles([{
         id: 'report-export-coverage',
         name: 'Report Coverage',
@@ -220,7 +221,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       state.dateRangeFilter = original.dateRangeFilter;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles(original.profiles);
       window.open = original.open;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
@@ -246,10 +247,11 @@ test('report payload and HTML cover filtered context genetics and supplement bra
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reportUrl, htmlUrl }) => {
-    const [report, html, profile] = await Promise.all([
+    const [report, html, profile, dataModule] = await Promise.all([
       import(reportUrl),
       import(htmlUrl),
       import('/js/profile.js'),
+      import('/js/data.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -373,7 +375,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
           },
         },
       };
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles([{
         id: 'report-payload-coverage',
         name: 'Payload Coverage',
@@ -461,7 +463,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       state.rangeMode = original.rangeMode;
       state.unitSystem = original.unitSystem;
       window._snpTableCache = original.snpTable;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles(original.profiles);
     }
 
@@ -482,6 +484,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
 
   const results = await page.evaluate(async ({ htmlUrl }) => {
     const html = await import(htmlUrl);
+    const dataModule = await import('/js/data.js');
     const state = window._labState;
     const outcomes = {};
     const original = {
@@ -561,7 +564,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         customMarkers: {},
       };
       window._snpTableCache = null;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
 
       const emptyReport = html.buildReportHTML(
         'Sparse <Profile>',
@@ -724,7 +727,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
       state.unitSystem = original.unitSystem;
       window.open = original.open;
       window._snpTableCache = original.snpTable;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
     }
 
     return outcomes;
@@ -743,6 +746,7 @@ test('report AI summary generation covers unavailable success and empty-response
 
   const results = await page.evaluate(async ({ reportUrl }) => {
     const report = await import(reportUrl);
+    const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
     const state = window._labState;
     const outcomes = {};
@@ -786,7 +790,7 @@ Discussion focus:
         contextNotes: 'Prefers concise practitioner reports.',
         customMarkers: {},
       };
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles([{
         id: 'report-ai-coverage',
         name: 'Report AI Coverage',
@@ -857,7 +861,7 @@ Discussion focus:
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       await profile.saveProfiles(original.profiles);
       window.fetch = original.fetch;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
@@ -885,6 +889,7 @@ test('report export helpers cover option normalization AI markup and popup block
   const results = await page.evaluate(async ({ reportUrl, htmlUrl }) => {
     const report = await import(reportUrl);
     const html = await import(htmlUrl);
+    const dataModule = await import('/js/data.js');
     const state = window._labState;
     const outcomes = {};
     const original = {
@@ -906,7 +911,7 @@ test('report export helpers cover option normalization AI markup and popup block
         supplements: [],
         customMarkers: {},
       };
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
 
       const normalized = report.normalizeReportOptions({
         preset: 'missing',
@@ -941,7 +946,7 @@ test('report export helpers cover option normalization AI markup and popup block
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       window.open = original.open;
     }
 
@@ -961,10 +966,11 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ exportUrl, profileUrl, cryptoUrl }) => {
-    const [exportFacade, profileStore, cryptoStore] = await Promise.all([
+    const [exportFacade, profileStore, cryptoStore, dataModule] = await Promise.all([
       import(exportUrl),
       import(profileUrl),
       import(cryptoUrl),
+      import('/js/data.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
@@ -1277,7 +1283,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       state.importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       await profileStore.saveProfiles(original.profiles);
-      window.invalidateActiveDataCache?.();
+      dataModule.invalidateActiveDataCache?.();
       setOrRemove('labcharts-active-profile', original.activeProfile);
       setOrRemove('labcharts-encryption-enabled', original.encryptionEnabled);
       setOrRemove('labcharts-ai-provider', original.aiProvider);

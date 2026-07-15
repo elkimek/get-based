@@ -10,6 +10,7 @@ return (async function() {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const S = window._labState;
   const backupModule = await import('/js/backup.js');
+  const dataModule = await import('/js/data.js');
   const exportModule = await import('/js/export.js');
   const contextCards = await import('/js/context-cards.js');
   const profile = await import('/js/profile.js');
@@ -33,12 +34,12 @@ return (async function() {
     S.importedData = demo;
     S.profileSex = 'male';
     S.profileDob = '1987-11-22';
-    window.saveImportedData();
+    dataModule.saveImportedData();
     window.buildSidebar();
     window.navigate('dashboard');
     await wait(50);
   }
-  const data = window.getActiveData();
+  const data = dataModule.getActiveData();
   assert('Setup: demo data loaded', data.dates.length > 0, `${data.dates.length} dates`);
 
   // ═══════════════════════════════════════
@@ -323,7 +324,7 @@ return (async function() {
   if (!S.importedData.supplements) S.importedData.supplements = [];
   const origSuppCount = S.importedData.supplements.length;
   S.importedData.supplements.push({ name: '__EXPORT_TEST_SUPP__', dosage: '100mg', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] });
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   // Rebuild bundle after adding supplement
@@ -340,7 +341,7 @@ return (async function() {
 
   // Clean up test supplement
   S.importedData.supplements = S.importedData.supplements.filter(s => s.name !== '__EXPORT_TEST_SUPP__');
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   // ═══════════════════════════════════════
@@ -358,7 +359,7 @@ return (async function() {
   S.importedData.diet = { type: 'paleo', restrictions: ['dairy'], note: 'test diet' };
   S.importedData.exercise = { frequency: 'daily', types: ['running'], intensity: 'moderate', note: '' };
   S.importedData.interpretiveLens = '__TEST_LENS__';
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   const raw3 = await exportModule.buildAllDataBundle();
@@ -379,7 +380,7 @@ return (async function() {
   S.importedData.diet = origDiet;
   S.importedData.exercise = origExercise;
   S.importedData.interpretiveLens = origLens;
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   // ═══════════════════════════════════════
@@ -400,7 +401,7 @@ return (async function() {
   S.importedData.refOverrides['biochemistry.glucose'] = {
     ref: { low: 3.5, high: 6.0 }, optimal: { low: 4.0, high: 5.5 }
   };
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   const raw4 = await exportModule.buildAllDataBundle();
@@ -418,7 +419,7 @@ return (async function() {
   // Restore originals
   S.importedData.customMarkers = origCustom;
   S.importedData.refOverrides = origOverrides;
-  window.saveImportedData();
+  dataModule.saveImportedData();
   await wait(20);
 
   // ═══════════════════════════════════════
@@ -1138,7 +1139,7 @@ return (async function() {
         `got ${JSON.stringify(bioReview || {}).slice(0, 160)}`);
       try {
         const { hasCurrentBiologyScoreContextReview } = await import('../js/biology-score-context-ai.js');
-        const scoreData = window.filterDatesByRange?.(window.getActiveData?.() || {}, { fallbackToAll: false }) || window.getActiveData?.() || {};
+        const scoreData = dataModule.filterDatesByRange?.(dataModule.getActiveData?.() || {}, { fallbackToAll: false }) || dataModule.getActiveData?.() || {};
         assert('Biology Scores demo context review matches live fingerprints',
           hasCurrentBiologyScoreContextReview(scoreData),
           'demo Biology Scores would still show the unlock gate');

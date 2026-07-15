@@ -55,6 +55,7 @@ async function waitForApp(page) {
 
 async function seedDemoData(page) {
   await page.evaluate(async () => {
+    const dataModule = await import('/js/data.js');
     const profileModule = await import('/js/profile.js');
     const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
     const profileId = window._labState.currentProfile || 'default';
@@ -105,7 +106,7 @@ async function seedDemoData(page) {
     window._labState.importedData = demo;
     window._labState.profileSex = 'male';
     window._labState.profileDob = '1987-11-22';
-    window.saveImportedData?.();
+    await dataModule.saveImportedData();
     window.buildSidebar?.();
     window.navigate?.('dashboard');
     window.closeChatPanel?.();
@@ -672,8 +673,9 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   });
   await delay(100);
 
-  const markerId = await page.evaluate(() => {
-    const data = window.getActiveData?.();
+  const markerId = await page.evaluate(async () => {
+    const { getActiveData } = await import('/js/data.js');
+    const data = getActiveData();
     for (const [catKey, cat] of Object.entries(data?.categories || {})) {
       for (const [markerKey, marker] of Object.entries(cat.markers || {})) {
         if ((marker.values || []).some(v => v != null && Number.isFinite(Number(v)))) return `${catKey}_${markerKey}`;

@@ -32,9 +32,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 console.log('=== Data Pipeline Tests ===\n');
 
-// Bring in state.js + data.js — getActiveData lives on window after data.js loads.
+// Bring in state.js + the module-only data API.
 await import('../js/state.js');
-await import('../js/data.js');
+const dataModule = await import('../js/data.js');
 
 const S = window._labState;
 
@@ -63,7 +63,7 @@ const S = window._labState;
   // ═══════════════════════════════════════════════
   console.log('%c 1. Basic Structure ', 'font-weight:bold;color:#f59e0b');
 
-  const data = window.getActiveData();
+  const data = dataModule.getActiveData();
   assert('getActiveData returns object', typeof data === 'object' && data !== null);
   assert('data has dates array', Array.isArray(data.dates));
   assert('data has dateLabels array', Array.isArray(data.dateLabels));
@@ -157,7 +157,7 @@ const S = window._labState;
 
   // Switch to US units and get data
   S.unitSystem = 'US';
-  const usData = window.getActiveData();
+  const usData = dataModule.getActiveData();
 
   // Glucose: 4.8 mmol/L * 18.018 = 86.4864 -> toPrecision(4) = 86.49
   // Index dynamically against the anchor date — earlier backfilled
@@ -192,10 +192,10 @@ const S = window._labState;
   // Range mode changes which band/status is displayed, but marker values and
   // units are unit-system concerns. Keep range toggles out of the data cache
   // key so the header Optimal/Reference switch cannot rebuild converted data.
-  const usDataBeforeRangeToggle = window.getActiveData();
+  const usDataBeforeRangeToggle = dataModule.getActiveData();
   const gBeforeRangeToggle = usDataBeforeRangeToggle.categories.biochemistry.markers.glucose;
   S.rangeMode = 'reference';
-  const usDataAfterRangeToggle = window.getActiveData();
+  const usDataAfterRangeToggle = dataModule.getActiveData();
   const gAfterRangeToggle = usDataAfterRangeToggle.categories.biochemistry.markers.glucose;
   assert('range mode changes do not rebuild active marker data',
     usDataAfterRangeToggle === usDataBeforeRangeToggle);
@@ -208,9 +208,10 @@ const S = window._labState;
   // Switch back to EU
   S.unitSystem = 'EU';
 
-  // Test convertDisplayToSI (window export)
-  if (typeof window.applyUnitConversion === 'function') {
-    assert('applyUnitConversion is exposed on window', true);
+  // Test the module export used by display conversion callers.
+  if (typeof dataModule.applyUnitConversion === 'function') {
+    assert('applyUnitConversion is exposed by the data module', true);
+    assert('applyUnitConversion stays off window', !('applyUnitConversion' in window));
   }
 
   // ═══════════════════════════════════════════════
@@ -220,13 +221,13 @@ const S = window._labState;
 
   // Test filterDatesByRange with 'all'
   S.dateRangeFilter = 'all';
-  const allData = window.getActiveData();
-  const filteredAll = window.filterDatesByRange(allData);
+  const allData = dataModule.getActiveData();
+  const filteredAll = dataModule.filterDatesByRange(allData);
   assert('filterDatesByRange "all" keeps all dates', filteredAll.dates.length === allData.dates.length);
 
   // Test with '3m' — only dates within last 3 months
   S.dateRangeFilter = '3m';
-  const filtered3m = window.filterDatesByRange(allData);
+  const filtered3m = dataModule.filterDatesByRange(allData);
   assert('filterDatesByRange "3m" returns object with dates', Array.isArray(filtered3m.dates));
   assert('filterDatesByRange "3m" returns object with categories', typeof filtered3m.categories === 'object');
   // The 3m filter should have fewer or equal dates
@@ -242,7 +243,7 @@ const S = window._labState;
 
   // Test with '1y' — dates within last year
   S.dateRangeFilter = '1y';
-  const filtered1y = window.filterDatesByRange(allData);
+  const filtered1y = dataModule.filterDatesByRange(allData);
   assert('filterDatesByRange "1y" has dates', Array.isArray(filtered1y.dates));
   assert('filterDatesByRange "1y" has <= all dates', filtered1y.dates.length <= allData.dates.length);
 
@@ -255,7 +256,7 @@ const S = window._labState;
       glucose: { values: [5.0], unit: 'mmol/l', refMin: 4.11, refMax: 5.6 }
     }}}
   };
-  const oldFiltered = window.filterDatesByRange(oldData);
+  const oldFiltered = dataModule.filterDatesByRange(oldData);
   assert('filterDatesByRange falls back to all when no dates in range', oldFiltered.dates.length === 1,
     `got ${oldFiltered.dates.length}`);
 
@@ -266,13 +267,12 @@ const S = window._labState;
   // ═══════════════════════════════════════════════
   console.log('%c 6. getStatus ', 'font-weight:bold;color:#f59e0b');
 
-  // getStatus is on utils.js, exposed indirectly. We can test via window or source check
-  // It's imported by data.js but not on window directly. Let's test via the source + data behavior
+  // getStatus is on utils.js and used indirectly by the data module.
   const dataSrc = (await (await fetch('js/utils.js')).text());
   assert('getStatus exported from utils.js', dataSrc.includes('export function getStatus'));
 
   // Test through getAllFlaggedMarkers which uses getStatus internally
-  const flagged = window.getAllFlaggedMarkers(allData);
+  const flagged = dataModule.getAllFlaggedMarkers(allData);
   assert('getAllFlaggedMarkers returns array', Array.isArray(flagged));
   // Each flagged marker should have status 'high' or 'low'
   const allFlagStatuses = flagged.every(f => f.status === 'high' || f.status === 'low');
@@ -287,14 +287,14 @@ const S = window._labState;
 
   // Test getEffectiveRange — uses optimal when in optimal mode
   S.rangeMode = 'optimal';
-  const effRange = window.getEffectiveRange(tsh);
+  const effRange = dataModule.getEffectiveRange(tsh);
   assert('getEffectiveRange in optimal mode uses optimal if available',
     (tsh.optimalMin != null && effRange.min === tsh.optimalMin) ||
     (tsh.optimalMin == null && effRange.min === tsh.refMin),
     `min=${effRange.min}, optMin=${tsh.optimalMin}, refMin=${tsh.refMin}`);
 
   S.rangeMode = 'reference';
-  const refRange = window.getEffectiveRange(tsh);
+  const refRange = dataModule.getEffectiveRange(tsh);
   assert('getEffectiveRange in reference mode uses ref range',
     refRange.min === tsh.refMin && refRange.max === tsh.refMax,
     `min=${refRange.min} vs refMin=${tsh.refMin}, max=${refRange.max} vs refMax=${tsh.refMax}`);
@@ -306,7 +306,7 @@ const S = window._labState;
   // ═══════════════════════════════════════════════
   console.log('%c 7. Trend Detection ', 'font-weight:bold;color:#f59e0b');
 
-  const alerts = window.detectTrendAlerts(allData);
+  const alerts = dataModule.detectTrendAlerts(allData);
   assert('detectTrendAlerts returns array', Array.isArray(alerts));
 
   // Each alert should have required fields
@@ -352,7 +352,7 @@ const S = window._labState;
       }
     }
   };
-  const synAlerts = window.detectTrendAlerts(syntheticData);
+  const synAlerts = dataModule.detectTrendAlerts(syntheticData);
   assert('synthetic sudden_high detected', synAlerts.some(a => a.concern === 'sudden_high'),
     `alerts: ${JSON.stringify(synAlerts.map(a => a.concern))}`);
 
@@ -361,7 +361,7 @@ const S = window._labState;
   // ═══════════════════════════════════════════════
   console.log('%c 8. Key Trend Markers ', 'font-weight:bold;color:#f59e0b');
 
-  const keyTrends = window.getKeyTrendMarkers(allData);
+  const keyTrends = dataModule.getKeyTrendMarkers(allData);
   assert('getKeyTrendMarkers returns array', Array.isArray(keyTrends));
   assert('getKeyTrendMarkers has entries with demo data', keyTrends.length > 0, `got ${keyTrends.length}`);
   assert('getKeyTrendMarkers max 8 entries', keyTrends.length <= 8, `got ${keyTrends.length}`);
@@ -473,7 +473,7 @@ const S = window._labState;
   S.importedData.customMarkers = {
     'testCat.testMarker': { name: 'Test Custom', unit: 'mg/L', refMin: 1, refMax: 10, categoryLabel: 'Test Category' }
   };
-  const customData = window.getActiveData();
+  const customData = dataModule.getActiveData();
   assert('custom marker category created in data', 'testCat' in customData.categories,
     'expected "testCat" in categories');
   if (customData.categories.testCat) {
@@ -502,7 +502,7 @@ const S = window._labState;
 
   // Switch to female and verify
   S.profileSex = 'female';
-  const femData = window.getActiveData();
+  const femData = dataModule.getActiveData();
   const creatFem = femData.categories.biochemistry.markers.creatinine;
   assert('female creatinine refMin = 44', creatFem.refMin === 44, `got ${creatFem.refMin}`);
   assert('female creatinine refMax = 80', creatFem.refMax === 80, `got ${creatFem.refMax}`);
@@ -510,20 +510,24 @@ const S = window._labState;
   S.profileSex = 'male';
 
   // ═══════════════════════════════════════════════
-  // 12. Window exports exist (regression)
+  // 12. Data APIs stay module-only
   // ═══════════════════════════════════════════════
-  console.log('%c 12. Window Exports ', 'font-weight:bold;color:#f59e0b');
+  console.log('%c 12. Module-only APIs ', 'font-weight:bold;color:#f59e0b');
 
   const dataExports = [
-    'saveImportedData', 'getFocusCardFingerprint', 'getActiveData',
+    'saveImportedData', 'getFocusCardFingerprint', 'getActiveData', 'invalidateActiveDataCache',
     'applyUnitConversion', 'filterDatesByRange', 'recalculateHOMAIR',
-    'detectTrendAlerts', 'getKeyTrendMarkers', 'switchUnitSystem',
+    'renderDateRangeFilter', 'setDateRange', 'renderChartLayersDropdown',
+    'toggleChartLayersDropdown', 'setSuppOverlay', 'setNoteOverlay', 'setPhaseOverlay',
+    'destroyAllCharts', 'detectTrendAlerts', 'getKeyTrendMarkers', 'switchUnitSystem', 'toggleAltUnits',
     'getEffectiveRange', 'getEffectiveRangeForDate', 'getPhaseRefEnvelope',
     'switchRangeMode', 'countFlagged', 'getLatestValueIndex',
-    'getAllFlaggedMarkers', 'statusIcon',
+    'getAllFlaggedMarkers', 'statusIcon', 'updateHeaderDates', 'updateHeaderRangeToggle',
+    'registerRefreshCallback',
   ];
   for (const name of dataExports) {
-    assert(`window.${name} exists`, typeof window[name] === 'function', `typeof: ${typeof window[name]}`);
+    assert(`data.${name} exists`, typeof dataModule[name] === 'function', `typeof: ${typeof dataModule[name]}`);
+    assert(`window.${name} stays absent`, !(name in window), `typeof: ${typeof window[name]}`);
   }
 
   // ═══════════════════════════════════════════════
@@ -532,20 +536,20 @@ const S = window._labState;
   console.log('%c 13. Helper Functions ', 'font-weight:bold;color:#f59e0b');
 
   // getLatestValueIndex
-  assert('getLatestValueIndex finds last non-null', window.getLatestValueIndex([null, 5, 3, null]) === 2);
-  assert('getLatestValueIndex returns -1 for all-null', window.getLatestValueIndex([null, null]) === -1);
-  assert('getLatestValueIndex handles single value', window.getLatestValueIndex([7]) === 0);
-  assert('getLatestValueIndex handles empty array', window.getLatestValueIndex([]) === -1);
+  assert('getLatestValueIndex finds last non-null', dataModule.getLatestValueIndex([null, 5, 3, null]) === 2);
+  assert('getLatestValueIndex returns -1 for all-null', dataModule.getLatestValueIndex([null, null]) === -1);
+  assert('getLatestValueIndex handles single value', dataModule.getLatestValueIndex([7]) === 0);
+  assert('getLatestValueIndex handles empty array', dataModule.getLatestValueIndex([]) === -1);
 
   // statusIcon
-  assert('statusIcon normal is checkmark', window.statusIcon('normal') === '\u2713');
-  assert('statusIcon high is up triangle', window.statusIcon('high') === '\u25B2');
-  assert('statusIcon low is down triangle', window.statusIcon('low') === '\u25BC');
-  assert('statusIcon missing is empty', window.statusIcon('missing') === '');
+  assert('statusIcon normal is checkmark', dataModule.statusIcon('normal') === '\u2713');
+  assert('statusIcon high is up triangle', dataModule.statusIcon('high') === '\u25B2');
+  assert('statusIcon low is down triangle', dataModule.statusIcon('low') === '\u25BC');
+  assert('statusIcon missing is empty', dataModule.statusIcon('missing') === '');
 
   // getPhaseRefEnvelope — returns null when no phase ranges
   const noPhaseMarker = { values: [5], refMin: 4, refMax: 6 };
-  assert('getPhaseRefEnvelope null for no phases', window.getPhaseRefEnvelope(noPhaseMarker) === null);
+  assert('getPhaseRefEnvelope null for no phases', dataModule.getPhaseRefEnvelope(noPhaseMarker) === null);
 
   // countFlagged
   const mockMarkers = [
@@ -554,8 +558,8 @@ const S = window._labState;
     { values: [2], refMin: 4, refMax: 8 },    // low
   ];
   // countFlagged uses getEffectiveRangeForDate, which needs refMin/refMax on marker
-  assert('countFlagged counts out-of-range markers', window.countFlagged(mockMarkers) === 2,
-    `got ${window.countFlagged(mockMarkers)}`);
+  assert('countFlagged counts out-of-range markers', dataModule.countFlagged(mockMarkers) === 2,
+    `got ${dataModule.countFlagged(mockMarkers)}`);
 
   // ═══════════════════════════════════════════════
   // 14. Data source inspection

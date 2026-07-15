@@ -21,14 +21,13 @@ function assert(name, condition, detail) {
 
 console.log('=== Phase-Aware Reference Ranges Test ===\n');
 
-// Section 1 reads schema source; later sections need window.* handlers
-// exposed by data.js (Object.assign(window, …) at module load).
+// Section 1 reads schema source; later sections use the data module API.
 const schemaSource = read('js/schema.js');
 const schemaEnvironmentSource = read('js/schema-environment.js');
 const schema = await import('../js/schema.js');
 const dataSource = read('js/data.js');
 const markerAnalysisSource = read('js/marker-analysis.js');
-await import('../js/data.js'); // populates window.getEffectiveRangeForDate etc
+const dataModule = await import('../js/data.js');
 const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css');
   assert('PHASE_RANGES re-exported from schema.js', schemaSource.includes('PHASE_RANGES') && schemaSource.includes('./schema-environment.js'));
   assert('PHASE_RANGES defined in schema-environment.js', schemaEnvironmentSource.includes('export const PHASE_RANGES'));
@@ -81,14 +80,16 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
   assert('marker-analysis exports getEffectiveRangeForDate', markerAnalysisSource.includes('export function getEffectiveRangeForDate'));
   assert('marker-analysis exports getPhaseRefEnvelope', markerAnalysisSource.includes('export function getPhaseRefEnvelope'));
   assert('data.js re-exports marker-analysis helpers', dataSource.includes("} from './marker-analysis.js'"));
-  assert('data.js window exports getEffectiveRangeForDate', dataSource.includes('getEffectiveRangeForDate') && dataSource.includes('Object.assign(window'));
-  assert('data.js window exports getPhaseRefEnvelope', dataSource.includes('getPhaseRefEnvelope'));
+  assert('data.js exports getEffectiveRangeForDate', dataSource.includes('getEffectiveRangeForDate'));
+  assert('data.js exports getPhaseRefEnvelope', dataSource.includes('getPhaseRefEnvelope'));
+  assert('data.js does not install a window facade', !dataSource.includes('Object.assign(window'));
 
   // ═══════════════════════════════════════
   // 4. getEffectiveRangeForDate function
   // ═══════════════════════════════════════
   console.log('Section 4: getEffectiveRangeForDate');
-  assert('getEffectiveRangeForDate on window', typeof window.getEffectiveRangeForDate === 'function');
+  assert('getEffectiveRangeForDate is a module API', typeof dataModule.getEffectiveRangeForDate === 'function');
+  assert('getEffectiveRangeForDate stays off window', !('getEffectiveRangeForDate' in window));
 
   // Test with phase ranges present
   const mockMarkerWithPhase = {
@@ -101,35 +102,36 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
       { min: 180, max: 780 }   // luteal
     ]
   };
-  const r0 = window.getEffectiveRangeForDate(mockMarkerWithPhase, 0);
+  const r0 = dataModule.getEffectiveRangeForDate(mockMarkerWithPhase, 0);
   assert('Phase range returned for index 0', r0.min === 45 && r0.max === 400, `got ${r0.min}-${r0.max}`);
-  const r1 = window.getEffectiveRangeForDate(mockMarkerWithPhase, 1);
+  const r1 = dataModule.getEffectiveRangeForDate(mockMarkerWithPhase, 1);
   assert('Phase range returned for index 1', r1.min === 400 && r1.max === 1470, `got ${r1.min}-${r1.max}`);
-  const r2 = window.getEffectiveRangeForDate(mockMarkerWithPhase, 2);
+  const r2 = dataModule.getEffectiveRangeForDate(mockMarkerWithPhase, 2);
   assert('Fallback for null phase range', r2.min === 45.4 && r2.max === 854.0, `got ${r2.min}-${r2.max}`);
-  const r3 = window.getEffectiveRangeForDate(mockMarkerWithPhase, 3);
+  const r3 = dataModule.getEffectiveRangeForDate(mockMarkerWithPhase, 3);
   assert('Phase range returned for index 3', r3.min === 180 && r3.max === 780, `got ${r3.min}-${r3.max}`);
 
   // Test without phase ranges (fallback)
   const mockMarkerNoPhase = { refMin: 10, refMax: 50, optimalMin: null, optimalMax: null };
-  const rf = window.getEffectiveRangeForDate(mockMarkerNoPhase, 0);
+  const rf = dataModule.getEffectiveRangeForDate(mockMarkerNoPhase, 0);
   assert('Fallback when no phaseRefRanges', rf.min === 10 && rf.max === 50, `got ${rf.min}-${rf.max}`);
 
   // ═══════════════════════════════════════
   // 5. getPhaseRefEnvelope function
   // ═══════════════════════════════════════
   console.log('Section 5: getPhaseRefEnvelope');
-  assert('getPhaseRefEnvelope on window', typeof window.getPhaseRefEnvelope === 'function');
+  assert('getPhaseRefEnvelope is a module API', typeof dataModule.getPhaseRefEnvelope === 'function');
+  assert('getPhaseRefEnvelope stays off window', !('getPhaseRefEnvelope' in window));
 
-  const env = window.getPhaseRefEnvelope(mockMarkerWithPhase);
+  const env = dataModule.getPhaseRefEnvelope(mockMarkerWithPhase);
   assert('Envelope min is smallest across phases', env.min === 45, `got ${env.min}`);
   assert('Envelope max is largest across phases', env.max === 1470, `got ${env.max}`);
 
-  const envNull = window.getPhaseRefEnvelope(mockMarkerNoPhase);
+  const envNull = dataModule.getPhaseRefEnvelope(mockMarkerNoPhase);
   assert('Envelope null when no phaseRefRanges', envNull === null);
 
   const allNulls = { phaseRefRanges: [null, null, null] };
-  const envAllNull = window.getPhaseRefEnvelope(allNulls);
+  const envAllNull = dataModule.getPhaseRefEnvelope(allNulls);
   assert('Envelope null when all entries null', envAllNull === null);
 
   // ═══════════════════════════════════════
@@ -166,7 +168,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
       contextNotes: '', supplements: []
     };
 
-    const data = window.getActiveData();
+    const data = dataModule.getActiveData();
     const estradiol = data.categories.hormones?.markers?.estradiol;
     const progesterone = data.categories.hormones?.markers?.progesterone;
 
@@ -198,7 +200,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     // ═══════════════════════════════════════
     console.log('Section 7: Male profile (no phase ranges)');
     window.state.profileSex = 'male';
-    const maleData = window.getActiveData();
+    const maleData = dataModule.getActiveData();
     const maleEstradiol = maleData.categories.hormones?.markers?.estradiol;
     assert('Male estradiol has no phaseRefRanges', !maleEstradiol?.phaseRefRanges);
     assert('Male estradiol has no phaseLabels', !maleEstradiol?.phaseLabels);
@@ -209,7 +211,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     console.log('Section 8: Female without cycle data');
     window.state.profileSex = 'female';
     window.state.importedData.menstrualCycle = null;
-    const noCycleData = window.getActiveData();
+    const noCycleData = dataModule.getActiveData();
     const noCycleEstradiol = noCycleData.categories.hormones?.markers?.estradiol;
     assert('No cycle → no phaseRefRanges', !noCycleEstradiol?.phaseRefRanges);
 
@@ -218,7 +220,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
     // ═══════════════════════════════════════
     console.log('Section 9: Female with cycle profile but no periods');
     window.state.importedData.menstrualCycle = { cycleLength: 28, periodLength: 5, regularity: 'regular', flow: 'moderate', periods: [] };
-    const noPeriodsData = window.getActiveData();
+    const noPeriodsData = dataModule.getActiveData();
     const noPeriodsEstradiol = noPeriodsData.categories.hormones?.markers?.estradiol;
     assert('No periods → no phaseRefRanges', !noPeriodsEstradiol?.phaseRefRanges);
 
@@ -231,7 +233,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
       periods: [{ startDate: '2025-12-01', endDate: '2025-12-05', flow: 'moderate', notes: '' }]
     };
     // 2025-12-05 is in menstrual range, 2026-01-15 is >35 days from last period (28+7=35) → null
-    const partialData = window.getActiveData();
+    const partialData = dataModule.getActiveData();
     const partialE = partialData.categories.hormones?.markers?.estradiol;
     assert('First date has phase range', partialE?.phaseRefRanges?.[0] !== null);
     assert('Second date has null phase range (too far)', partialE?.phaseRefRanges?.[1] === null,
@@ -250,7 +252,7 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
       ]
     };
     window.state.unitSystem = 'US';
-    const usData = window.getActiveData();
+    const usData = dataModule.getActiveData();
     const usEstradiol = usData.categories.hormones?.markers?.estradiol;
     // Estradiol conversion: pmol/l → pg/ml, factor = 0.2724 (from UNIT_CONVERSIONS)
     if (usEstradiol?.phaseRefRanges?.[0]) {
@@ -277,10 +279,10 @@ const cssSource = read('styles.css') + '\n' + read('css/marker-detail-modal.css'
         { startDate: '2025-12-29', endDate: '2026-01-02', flow: 'moderate', notes: '' },
       ]
     };
-    const fullData = window.getActiveData();
+    const fullData = dataModule.getActiveData();
     // Manually test filterDatesByRange
     window.state.dateRangeFilter = 'all';
-    const filteredAll = window.filterDatesByRange(fullData);
+    const filteredAll = dataModule.filterDatesByRange(fullData);
     const fEst = filteredAll.categories.hormones?.markers?.estradiol;
     assert('filterDatesByRange all — phaseRefRanges preserved', !!fEst?.phaseRefRanges);
     assert('filterDatesByRange all — phaseLabels preserved', !!fEst?.phaseLabels);

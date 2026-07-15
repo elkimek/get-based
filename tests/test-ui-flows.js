@@ -25,6 +25,7 @@ return (async function() {
   }
   const main = document.getElementById('main-content');
   const S = window._labState;
+  const dataModule = await import('/js/data.js');
   const supplements = await import('/js/supplements.js');
   const pdfImport = await import('/js/pdf-import.js');
   const profile = await import('/js/profile.js');
@@ -53,12 +54,12 @@ return (async function() {
     S.importedData = demo;
     S.profileSex = 'male';
     S.profileDob = '1987-11-22';
-    window.saveImportedData();
+    dataModule.saveImportedData();
     window.buildSidebar();
     window.navigate('dashboard');
     await wait(50);
   }
-  const data = window.getActiveData();
+  const data = dataModule.getActiveData();
   assert('Setup: demo data loaded', data.dates.length > 0, `${data.dates.length} dates`);
 
   // ═══════════════════════════════════════════════
@@ -96,7 +97,7 @@ return (async function() {
       S.importedData._deleted?.entries?.includes('2099-12-31'));
   } finally {
     S.importedData = originalImportedData;
-    window.saveImportedData();
+    dataModule.saveImportedData();
     window.buildSidebar();
     window.navigate('dashboard');
     await wait(50);
@@ -560,7 +561,7 @@ return (async function() {
   const originalProfileDob = S.profileDob;
   try {
     S.profileDob = originalProfileDob || '1987-11-22';
-    window.invalidateActiveDataCache?.();
+    dataModule.invalidateActiveDataCache?.();
     window.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => document.querySelector('#detail-modal .bio-age-breakdown'));
     const bioModal = document.getElementById('detail-modal');
@@ -573,7 +574,7 @@ return (async function() {
       !/Not calculated\s+—\s+.*PhenoAge/.test(bioText));
 
     S.profileDob = '';
-    window.invalidateActiveDataCache?.();
+    dataModule.invalidateActiveDataCache?.();
     window.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     const missingDobModal = document.getElementById('detail-modal');
@@ -587,7 +588,7 @@ return (async function() {
         .some(el => /Date of birth/.test(el.textContent || '')));
 
     S.profileDob = '2999-01-01';
-    window.invalidateActiveDataCache?.();
+    dataModule.invalidateActiveDataCache?.();
     window.showDetailModal('calculatedRatios_biologicalAge');
     await waitFor(() => /Valid date of birth/.test(document.getElementById('detail-modal')?.textContent || ''));
     bioText = document.getElementById('detail-modal')?.textContent || '';
@@ -595,7 +596,7 @@ return (async function() {
       /Valid date of birth/.test(bioText) && !/missing 0 of/.test(bioText));
   } finally {
     S.profileDob = originalProfileDob;
-    window.invalidateActiveDataCache?.();
+    dataModule.invalidateActiveDataCache?.();
     window.closeModal();
     await wait(20);
   }
@@ -827,18 +828,18 @@ return (async function() {
 
   // Note overlay toggle
   const noteModeBefore = S.noteOverlayMode || 'off';
-  window.setNoteOverlay(noteModeBefore === 'on' ? 'off' : 'on');
+  dataModule.setNoteOverlay(noteModeBefore === 'on' ? 'off' : 'on');
   await wait(50);
   assert('Note overlay toggled', S.noteOverlayMode !== noteModeBefore);
-  window.setNoteOverlay(noteModeBefore); // restore
+  dataModule.setNoteOverlay(noteModeBefore); // restore
   await wait(50);
 
   // Supplement overlay toggle
   const suppModeBefore = S.suppOverlayMode || 'off';
-  window.setSuppOverlay(suppModeBefore === 'on' ? 'off' : 'on');
+  dataModule.setSuppOverlay(suppModeBefore === 'on' ? 'off' : 'on');
   await wait(50);
   assert('Supplement overlay toggled', S.suppOverlayMode !== suppModeBefore);
-  window.setSuppOverlay(suppModeBefore); // restore
+  dataModule.setSuppOverlay(suppModeBefore); // restore
   await wait(50);
 
   // ═══════════════════════════════════════════════

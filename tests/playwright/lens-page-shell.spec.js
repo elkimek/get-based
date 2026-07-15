@@ -55,8 +55,9 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, shell, profile, contextCardsRuntime] = await Promise.all([
+    const [{ state }, dataModule, shell, profile, contextCardsRuntime] = await Promise.all([
       import('/js/state.js'),
+      import('/js/data.js'),
       import('/js/lens-page-shell.js'),
       import('/js/profile.js'),
       import('/js/context-cards-runtime.js'),
@@ -83,12 +84,12 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
     });
 
     try {
-      if (!window.getActiveData?.()?.dates?.length) {
+      if (!dataModule.getActiveData()?.dates?.length) {
         const resp = await fetch('data/demo-male.json');
         state.importedData = await resp.json();
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
-        window.saveImportedData?.();
+        await dataModule.saveImportedData();
         window.buildSidebar?.();
       }
 

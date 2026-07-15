@@ -27,6 +27,17 @@ test('data browser coverage exercises display toggles range refresh and helpers'
     const state = window._labState;
     const calls = [];
     const outcomes = {};
+    const formerGlobalNames = [
+      'saveImportedData', 'getFocusCardFingerprint', 'getActiveData', 'invalidateActiveDataCache',
+      'applyUnitConversion', 'filterDatesByRange', 'recalculateHOMAIR', 'renderDateRangeFilter',
+      'setDateRange', 'renderChartLayersDropdown', 'toggleChartLayersDropdown', 'setSuppOverlay',
+      'setNoteOverlay', 'setPhaseOverlay', 'destroyAllCharts', 'countFlagged', 'getLatestValueIndex',
+      'getAllFlaggedMarkers', 'statusIcon', 'detectTrendAlerts', 'getKeyTrendMarkers', 'switchUnitSystem',
+      'toggleAltUnits', 'getEffectiveRange', 'getEffectiveRangeForDate', 'getPhaseRefEnvelope',
+      'switchRangeMode', 'updateHeaderDates', 'updateHeaderRangeToggle', 'registerRefreshCallback',
+    ];
+    outcomes.dataApisStayModuleOnly = formerGlobalNames.every(name =>
+      typeof dataMod[name] === 'function' && !(name in window));
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const profileId = 'data-browser-coverage-profile';
     const saved = {

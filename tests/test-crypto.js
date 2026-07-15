@@ -45,7 +45,7 @@ console.log('=== Crypto / Encryption / Backup Tests ===\n');
 await import('../js/state.js');
 const cryptoModule = await import('../js/crypto.js');
 await import('../js/pii.js');
-await import('../js/data.js');
+const dataModule = await import('../js/data.js');
 const profileModule = await import('../js/profile.js');
 cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
 await import('../js/nav.js');
@@ -318,13 +318,18 @@ console.log('11b. Key cache sync access');
 }
 
 // ═══════════════════════════════════════════════
-// 12. All existing window exports still present (regression)
+// 12. Legacy globals and module-only data APIs
 // ═══════════════════════════════════════════════
 console.log('12. Window exports regression');
-const expectedExports = [
-  // data.js
+const dataExports = [
   'saveImportedData', 'getActiveData', 'filterDatesByRange', 'destroyAllCharts',
   'detectTrendAlerts', 'switchUnitSystem', 'switchRangeMode', 'updateHeaderDates',
+];
+for (const name of dataExports) {
+  assert(`data.${name} exists`, typeof dataModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
+const expectedExports = [
   // nav.js
   'buildSidebar', 'renderProfileDropdown',
   // views.js

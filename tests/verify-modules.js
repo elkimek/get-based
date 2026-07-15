@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -196,6 +196,7 @@
     import('../js/context-cards.js'),
     import('../js/crypto.js'),
     import('../js/cycle.js'),
+    import('../js/data.js'),
     import('../js/emf.js'),
     import('../js/emf-runtime.js'),
     import('../js/export.js'),
@@ -411,18 +412,18 @@
   const emfLegacyGlobals = emfExports.filter(name => name !== 'configureEMFAIDeps');
   const emfRuntimeExports = ['loadEMFModule','openEMFAssessmentEditor','closeEMFInterpretation'];
 
-  // data.js (26)
+  // data.js (30 former browser globals plus one test hook, now module-only)
   const dataExports = [
     'saveImportedData','getFocusCardFingerprint',
-    'getActiveData','applyUnitConversion',
+    'getActiveData','invalidateActiveDataCache','applyUnitConversion',
     'filterDatesByRange','recalculateHOMAIR',
     'renderDateRangeFilter','setDateRange',
     'renderChartLayersDropdown','toggleChartLayersDropdown','setSuppOverlay','setNoteOverlay',
-    'destroyAllCharts',
+    'setPhaseOverlay','destroyAllCharts',
     'countFlagged','getLatestValueIndex','getAllFlaggedMarkers',
     'statusIcon',
     'detectTrendAlerts','getKeyTrendMarkers',
-    'switchUnitSystem','getEffectiveRange','switchRangeMode',
+    'switchUnitSystem','toggleAltUnits','getEffectiveRange','getEffectiveRangeForDate','getPhaseRefEnvelope','switchRangeMode',
     'updateHeaderDates','updateHeaderRangeToggle',
     'registerRefreshCallback','_runRegisteredRefreshCallback'
   ];
@@ -625,6 +626,7 @@
     ['context-cards.js', contextCardsModule, contextCardsExports],
     ['crypto.js', cryptoModule, cryptoExports],
     ['cycle.js', cycleModule, cycleExports],
+    ['data.js', dataModule, dataExports],
     ['emf.js', emfModule, emfExports],
     ['emf-runtime.js', emfRuntimeModule, emfRuntimeExports],
     ['export.js', exportModule, exportExports],
@@ -699,11 +701,13 @@
   for (const name of contextCardsExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of dataExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
 
   const allModules = {
     'chat.js': chatExports,
     'client-list.js': clientListExports,
-    'data.js': dataExports,
     'nav.js': navExports,
     'notes.js': notesExports,
     'settings.js': settingsExports,
@@ -782,7 +786,7 @@
   // ═══════════════════════════════════════════════
   // 6. DATA PIPELINE — getActiveData works
   // ═══════════════════════════════════════════════
-  const data = window.getActiveData();
+  const data = dataModule.getActiveData();
   assert('getActiveData returns object', typeof data === 'object' && data !== null);
   assert('getActiveData has categories', data.categories && typeof data.categories === 'object');
   assert('getActiveData has dates array', Array.isArray(data.dates));
@@ -944,7 +948,7 @@
   // ═══════════════════════════════════════════════
   // 16. UNIT/RANGE SYSTEM — works
   // ═══════════════════════════════════════════════
-  const effectiveRange = window.getEffectiveRange({ refMin: 3.5, refMax: 5.0, optMin: 3.8, optMax: 4.5 });
+  const effectiveRange = dataModule.getEffectiveRange({ refMin: 3.5, refMax: 5.0, optMin: 3.8, optMax: 4.5 });
   assert('getEffectiveRange returns object', effectiveRange && typeof effectiveRange.min === 'number');
 
   // ═══════════════════════════════════════════════

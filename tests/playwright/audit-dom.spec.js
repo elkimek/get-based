@@ -9,7 +9,10 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
   );
 
   const results = await page.evaluate(async () => {
-    const { state } = await import('/js/state.js');
+    const [{ state }, dataModule] = await Promise.all([
+      import('/js/state.js'),
+      import('/js/data.js'),
+    ]);
     const originalData = state.importedData;
     const originalSex = state.profileSex;
     const originalDob = state.profileDob;
@@ -23,7 +26,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         state.importedData = await resp.json();
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
-        window.saveImportedData?.();
+        await dataModule.saveImportedData();
         window.buildSidebar?.();
       }
 
