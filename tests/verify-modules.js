@@ -791,6 +791,26 @@
     'updateAttachButtonVisibility',
     'initChatImageHandlers',
   ].every(name => !(name in window)));
+  assert('chat thread helpers stay module-only', [
+    'getChatThreadsKey',
+    'getChatThreadKey',
+    'loadChatThreads',
+    'saveChatThreadIndex',
+    'ensureActiveThread',
+    'createNewThread',
+    'switchToThread',
+    'deleteThread',
+    'renameThread',
+    'renameThreadPrompt',
+    'installChatThreadDelegates',
+    'autoNameThread',
+    'pruneOldThreads',
+    'renderThreadList',
+    'invalidateThreadContentCache',
+    'filterThreadList',
+    'jumpToSearchResult',
+    'toggleThreadRail',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }

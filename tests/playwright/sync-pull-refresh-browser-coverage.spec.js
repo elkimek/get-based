@@ -16,9 +16,10 @@ async function openBlankPage(page) {
 test('sync pull refresh browser coverage exercises active refresh and stale hash cleanup paths', async ({ page }) => {
   await openBlankPage(page);
 
-  const results = await page.evaluate(async ({ refreshUrl, maintenanceUrl, stateUrl }) => {
-    const [refreshModule, maintenance, { state }] = await Promise.all([
+  const results = await page.evaluate(async ({ refreshUrl, refreshRuntimeUrl, maintenanceUrl, stateUrl }) => {
+    const [refreshModule, refreshRuntime, maintenance, { state }] = await Promise.all([
       import(refreshUrl),
+      import(refreshRuntimeUrl),
       import(maintenanceUrl),
       import(stateUrl),
     ]);
@@ -33,9 +34,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       },
       buildSidebar: window.buildSidebar,
       navigate: window.navigate,
-      loadChatThreads: window.loadChatThreads,
-      ensureActiveThread: window.ensureActiveThread,
-      renderThreadList: window.renderThreadList,
       loadChatHistory: window.loadChatHistory,
     };
     const restoreWindowFn = (name, value) => {
@@ -43,6 +41,11 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       else window[name] = value;
     };
     const calls = [];
+    const previousThreadDeps = refreshRuntime.configureSyncPullActiveRefreshDeps({
+      loadChatThreads: () => { calls.push('loadChatThreads'); },
+      ensureActiveThread: () => { calls.push('ensureActiveThread'); },
+      renderThreadList: () => { calls.push('renderThreadList'); },
+    });
     const debugCalls = [];
     let syncAppliedEvents = 0;
     const onSyncApplied = () => { syncAppliedEvents += 1; };
@@ -51,9 +54,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       window.addEventListener('labcharts-sync-applied', onSyncApplied);
       window.buildSidebar = () => { calls.push('buildSidebar'); };
       window.navigate = (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); };
-      window.loadChatThreads = () => { calls.push('loadChatThreads'); };
-      window.ensureActiveThread = () => { calls.push('ensureActiveThread'); };
-      window.renderThreadList = () => { calls.push('renderThreadList'); };
       window.loadChatHistory = () => { calls.push('loadChatHistory'); };
 
       state.currentProfile = activeProfileId;
@@ -153,10 +153,8 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       state.importedData = original.state.importedData;
       restoreWindowFn('buildSidebar', original.buildSidebar);
       restoreWindowFn('navigate', original.navigate);
-      restoreWindowFn('loadChatThreads', original.loadChatThreads);
-      restoreWindowFn('ensureActiveThread', original.ensureActiveThread);
-      restoreWindowFn('renderThreadList', original.renderThreadList);
       restoreWindowFn('loadChatHistory', original.loadChatHistory);
+      refreshRuntime.configureSyncPullActiveRefreshDeps(previousThreadDeps);
       document.querySelector('.modal-overlay.show')?.remove();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
       localStorage.removeItem('labcharts-sync-hash-v2-migrated');
@@ -170,6 +168,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
     return outcomes;
   }, {
     refreshUrl: moduleUrl('/js/sync-pull-active-refresh.js'),
+    refreshRuntimeUrl: '/js/sync-pull-active-refresh-runtime.js',
     maintenanceUrl: moduleUrl('/js/sync-pull-maintenance.js'),
     stateUrl: '/js/state.js',
   });

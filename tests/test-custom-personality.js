@@ -34,6 +34,7 @@ console.log('=== Multiple Custom Personalities Tests ===\n');
 await import('../js/state.js');
 await import('../js/chat.js');
 const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
+const { createNewThread } = await import('../js/chat-threads.js');
 
 const profileId = localStorage.getItem('labcharts-current-profile') || 'default';
 const key = `labcharts-${profileId}-chatPersonalityCustom`;
@@ -176,7 +177,7 @@ assert('prompt context uses Persona: prefix', buildPersonalityPrompt({ id: 'cust
 
 // ── 14. Thread metadata ──
 console.log('14. Thread metadata');
-const createSrc = window.createNewThread.toString();
+const createSrc = createNewThread.toString();
 assert('createNewThread has personalityName', createSrc.includes('personalityName'));
 assert('createNewThread has personalityIcon', createSrc.includes('personalityIcon'));
 const saveSrc = window.saveChatHistory.toString();

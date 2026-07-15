@@ -265,7 +265,7 @@ test('discussion round state persists active and inactive thread histories', asy
       state.chatHistory = saved.chatHistory;
       if (saved.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
       else localStorage.setItem('labcharts-encryption-enabled', saved.encryptionEnabled);
-      window.renderThreadList?.();
+      chatThreads.renderThreadList();
     }
 
     return outcomes;

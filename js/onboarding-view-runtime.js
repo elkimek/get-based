@@ -3,6 +3,20 @@
 
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+const onboardingViewRuntimeDeps = {
+  createNewThread: /** @type {null | (() => void)} */ (null),
+};
+
+export function configureOnboardingViewRuntimeDeps(deps = {}) {
+  const previous = { ...onboardingViewRuntimeDeps };
+  if (Object.prototype.hasOwnProperty.call(deps, 'createNewThread')) {
+    onboardingViewRuntimeDeps.createNewThread = typeof deps.createNewThread === 'function'
+      ? deps.createNewThread
+      : null;
+  }
+  return previous;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -58,7 +72,7 @@ export function openOnboardingProviderChatRuntime() {
 }
 
 export function createOnboardingChatThreadRuntime() {
-  const createNewThread = getRuntimeFunction('createNewThread');
+  const createNewThread = onboardingViewRuntimeDeps.createNewThread;
   if (!createNewThread) return false;
   createNewThread();
   return true;

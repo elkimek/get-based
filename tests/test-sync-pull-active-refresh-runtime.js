@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import './_node-shim.js';
 import {
+  configureSyncPullActiveRefreshDeps,
   dispatchSyncAppliedRuntime,
   navigatePulledActiveViewRuntime,
   rebuildPulledSidebarRuntime,
@@ -22,9 +23,6 @@ console.log('=== Sync Pull Active Refresh Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'loadChatThreads',
-  'ensureActiveThread',
-  'renderThreadList',
   'loadChatHistory',
   'buildSidebar',
   'navigate',
@@ -50,12 +48,15 @@ function restoreRuntime() {
   }
 }
 
+const calls = [];
+const previousDeps = configureSyncPullActiveRefreshDeps({
+  loadChatThreads: () => calls.push(['loadChatThreads']),
+  ensureActiveThread: () => calls.push(['ensureActiveThread']),
+  renderThreadList: () => calls.push(['renderThreadList']),
+});
+
 try {
-  const calls = [];
   setRuntimeValue('window', globalThis);
-  setRuntimeValue('loadChatThreads', () => calls.push(['loadChatThreads']));
-  setRuntimeValue('ensureActiveThread', () => calls.push(['ensureActiveThread']));
-  setRuntimeValue('renderThreadList', () => calls.push(['renderThreadList']));
   setRuntimeValue('loadChatHistory', () => calls.push(['loadChatHistory']));
   setRuntimeValue('buildSidebar', () => calls.push(['buildSidebar']));
   setRuntimeValue('navigate', (route, options) => calls.push(['navigate', route, options?.preserveScroll]));
@@ -87,6 +88,11 @@ try {
   assert('sync pull active refresh runtime guards sidebar rebuild failures',
     rebuildPulledSidebarRuntime() === undefined);
 
+  configureSyncPullActiveRefreshDeps({
+    loadChatThreads: () => undefined,
+    ensureActiveThread: () => {},
+    renderThreadList: () => {},
+  });
   delete globalThis.window;
   const beforeNoWindowCalls = calls.length;
   refreshPulledChatRuntime();
@@ -111,6 +117,7 @@ try {
       !/\bwindow(?:\.|\s*\[)/.test(refreshSrc) &&
       swSrc.includes("'/js/sync-pull-active-refresh-runtime.js'"));
 } finally {
+  configureSyncPullActiveRefreshDeps(previousDeps);
   restoreRuntime();
 }
 
