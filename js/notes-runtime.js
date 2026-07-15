@@ -46,10 +46,3 @@ export function markNoteActionDelegatesBoundRuntime() {
   runtime.__noteActionDelegatesBound = true;
   return true;
 }
-
-export function exposeNoteEditorRuntime(actions) {
-  const runtime = getNotesRuntimeWindow();
-  if (!runtime) return false;
-  Object.assign(runtime, actions);
-  return true;
-}

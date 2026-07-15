@@ -4,6 +4,31 @@
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
+/** @type {Record<string, Function | null>} */
+const dashboardNoteActions = {
+  openNoteEditor: null,
+  deleteNote: null,
+};
+
+/** @param {Record<string, any>} [actions] */
+export function configureDashboardNoteActions(actions = {}) {
+  const previous = { ...dashboardNoteActions };
+  for (const name of Object.keys(dashboardNoteActions)) {
+    if (name in actions) {
+      dashboardNoteActions[name] = typeof actions[name] === 'function' ? actions[name] : null;
+    }
+  }
+  return previous;
+}
+
+/** @param {string} name */
+function callDashboardNoteAction(name, ...args) {
+  const action = dashboardNoteActions[name];
+  if (typeof action !== 'function') return false;
+  action(...args);
+  return true;
+}
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -97,13 +122,11 @@ export function triggerDashboardDnaPicker() {
 
 /** @param {number | null} [index] */
 export function openDashboardNoteEditor(index = null) {
-  const openEditor = getRuntimeFunction('openNoteEditor');
-  if (!openEditor) return;
-  if (Number.isInteger(index) && index >= 0) openEditor(null, index);
-  else openEditor();
+  if (Number.isInteger(index) && index >= 0) callDashboardNoteAction('openNoteEditor', null, index);
+  else callDashboardNoteAction('openNoteEditor');
 }
 
 /** @param {number} index */
 export function deleteDashboardNote(index) {
-  getRuntimeFunction('deleteNote')?.(index);
+  callDashboardNoteAction('deleteNote', index);
 }

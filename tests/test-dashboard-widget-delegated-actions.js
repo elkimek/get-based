@@ -38,10 +38,11 @@ assert('dashboard widget controls render no inline event attributes',
   !/\bon(?:click|input|dragstart|dragover|drop)=/.test(controlsSrc));
 assert('dashboard widget controls import runtime adapter',
   controlsSrc.includes("from './dashboard-widget-runtime.js'"));
-assert('dashboard widget runtime owns shell callbacks',
+assert('dashboard widget runtime owns shell callbacks and explicit note actions',
   runtimeSrc.includes('openSettingsModal') &&
     runtimeSrc.includes('syncWearableNow') &&
-    runtimeSrc.includes('openNoteEditor'));
+    runtimeSrc.includes('configureDashboardNoteActions') &&
+    runtimeSrc.includes('dashboardNoteActions'));
 assert('dashboard widget controls has no direct window refs',
   !/\bwindow(\.|\s*\[)/.test(controlsSrc));
 assert('dashboard widget renderers import runtime adapter',

@@ -5,11 +5,12 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, viewsModule] = await Promise.all([
+    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, viewsModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/dashboard-widgets.js'),
       import('/js/context-cards-runtime.js'),
+      import('/js/dashboard-widget-runtime.js'),
       import('/js/views.js'),
     ]);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -18,8 +19,6 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     const savedFns = {
       showDetailModal: window.showDetailModal,
       navigate: window.navigate,
-      openNoteEditor: window.openNoteEditor,
-      deleteNote: window.deleteNote,
       syncWearableNow: window.syncWearableNow,
     };
     const hadFns = {};
@@ -33,6 +32,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
     let hadWearableConnections = false;
     let bodyActionHost;
     let previousContextCardsRuntime = null;
+    let previousDashboardNoteActions = null;
 
     try {
       if (!dataModule.getActiveData()?.dates?.length) {
@@ -166,10 +166,12 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         triggerDNAFilePicker: () => bodyActionCalls.push(['dna']),
       });
+      previousDashboardNoteActions = dashboardWidgetRuntime.configureDashboardNoteActions({
+        openNoteEditor: (scope, index) => bodyActionCalls.push(['note', index]),
+        deleteNote: index => bodyActionCalls.push(['delete-note', index]),
+      });
       window.showDetailModal = id => bodyActionCalls.push(['detail', id]);
       window.navigate = route => bodyActionCalls.push(['navigate', route]);
-      window.openNoteEditor = (scope, index) => bodyActionCalls.push(['note', index]);
-      window.deleteNote = index => bodyActionCalls.push(['delete-note', index]);
       bodyActionHost = document.createElement('div');
       bodyActionHost.innerHTML = `
         <button type="button" data-dashboard-widget-action="open-marker-detail" data-dashboard-widget-id="lipids_apoB">Marker</button>
@@ -222,6 +224,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       };
     } finally {
       if (previousContextCardsRuntime) contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+      if (previousDashboardNoteActions) dashboardWidgetRuntime.configureDashboardNoteActions(previousDashboardNoteActions);
       bodyActionHost?.remove();
       for (const [name, original] of Object.entries(savedFns)) {
         if (hadFns[name]) window[name] = original;
