@@ -179,7 +179,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
       await waitUntil(() => !document.getElementById('light-setup-focus-overlay'), 'cancel edit overlay close');
       host.remove();
 
-      window.reopenSunSetup();
+      sunDefaults.reopenSunSetup();
       await waitFor('#light-setup-focus-overlay');
       document.querySelector('.light-setup-location-actions button:first-child')?.click();
       await wait(0);
@@ -188,7 +188,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
         && calls.some(call => call[0] === 'profile-location');
 
       state.importedData.sunDefaults = {};
-      window.reopenSunSetup();
+      sunDefaults.reopenSunSetup();
       await waitFor('#light-setup-focus-overlay');
       document.querySelector('.light-setup-skip-btn')?.click();
       await waitUntil(() => !document.getElementById('light-setup-focus-overlay'), 'skip overlay close');
@@ -229,7 +229,7 @@ test('Light setup overlay covers location refresh, score, save, edit, and skip p
     }
 
     return outcomes;
-  }, { sunDefaultsUrl: moduleUrl('/js/sun-defaults.js') });
+  }, { sunDefaultsUrl: '/js/sun-defaults.js' });
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);

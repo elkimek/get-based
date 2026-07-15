@@ -844,6 +844,29 @@
     'solarZenithAngle',
     'computeUVConfidence',
   ].every(name => !(name in window)));
+  assert('sun defaults helpers stay module-only', [
+    'getSunDefaults',
+    'saveSunDefaults',
+    'isLightOnboardingComplete',
+    'renderSunSetupCard',
+    'saveSunSetup',
+    'dismissSunSetup',
+    'reopenSunSetup',
+    'cancelReopenSunSetup',
+    'openSunSetupOverlay',
+    'openLightSetupProfileLocation',
+    'requestLightSetupPreciseLocation',
+    'setLightSetupStep',
+    'ottScoreToLabel',
+    '_sunHomeLightOptions',
+    '_sunEyewearOptions',
+    '_updateSetupSkinSlider',
+    '_refreshSetupProgress',
+    '_selectSetupChoice',
+    '_updateOttRunningScore',
+    '_skinTypeToFitzpatrick',
+    '_skinFaceKeydown',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }

@@ -49,11 +49,13 @@ export function updateLifestyleChatHeaderModelRuntime() {
   getRuntimeFunction('updateChatHeaderModel')?.();
 }
 
-export function openLightSetupFromLifestyleRuntime() {
+/** @param {(() => void) | null} reopenSunSetup */
+export function openLightSetupFromLifestyleRuntime(reopenSunSetup) {
   closeLifestyleContextModalRuntime();
   navigateLifestyleContextRuntime('light');
+  if (typeof reopenSunSetup !== 'function') return;
   setTimeout(() => {
-    getRuntimeFunction('reopenSunSetup')?.();
+    reopenSunSetup();
   }, 200);
 }
 

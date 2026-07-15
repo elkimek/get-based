@@ -27,28 +27,6 @@ function getRuntimeFunction(name) {
   return name === 'navigate' ? getViewRuntimeFunction(name) : null;
 }
 
-/**
- * Invoke the currently exposed runtime binding when it differs from the local
- * module function. This keeps delegated document handlers stable when a
- * cache-busted module instance replaces public bindings during browser tests.
- *
- * @param {string} name
- * @param {Function} localFn
- * @param {any[]} [args]
- */
-export function invokeSunDefaultsBinding(name, localFn, args = []) {
-  const runtime = getRuntimeWindow();
-  const runtimeFn = runtime?.[name];
-  if (typeof runtimeFn === 'function' && runtimeFn !== localFn) {
-    return runtimeFn.apply(runtime, args);
-  }
-  return localFn(...args);
-}
-
-export function hasSunDefaultsBrowserRuntime() {
-  return getRuntimeWindow() !== null;
-}
-
 export function getSunSetupCoords() {
   try {
     return getRuntimeFunction('getSunCoords')?.() || null;
@@ -94,10 +72,4 @@ export function requestSunSetupPreciseLocationRuntime() {
 /** @param {string} route */
 export function navigateSunDefaultsRoute(route) {
   getRuntimeFunction('navigate')?.(route);
-}
-
-/** @param {Record<string, any>} bindings */
-export function exposeSunDefaultsBindings(bindings) {
-  const runtime = getRuntimeWindow();
-  if (runtime) Object.assign(runtime, bindings);
 }

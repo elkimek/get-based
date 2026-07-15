@@ -30,7 +30,6 @@ const runtimeKeys = [
   'closeModal',
   'navigate',
   'updateChatHeaderModel',
-  'reopenSunSetup',
   'openChatPanel',
   'useChatPrompt',
   'openContextModal',
@@ -65,7 +64,6 @@ try {
   setRuntimeValue('closeModal', () => calls.push(['close']));
   setRuntimeValue('navigate', category => calls.push(['navigate', category]));
   setRuntimeValue('updateChatHeaderModel', () => calls.push(['chat-header']));
-  setRuntimeValue('reopenSunSetup', () => calls.push(['sun-setup']));
   setRuntimeValue('openChatPanel', () => calls.push(['chat-panel']));
   setRuntimeValue('useChatPrompt', prompt => calls.push(['prompt', prompt]));
   setRuntimeValue('openContextModal', () => calls.push(['legacy-context-modal']));
@@ -82,7 +80,7 @@ try {
   navigateLifestyleContextRuntime('dashboard');
   closeLifestyleContextModalAndNavigateRuntime('labs');
   updateLifestyleChatHeaderModelRuntime();
-  openLightSetupFromLifestyleRuntime();
+  openLightSetupFromLifestyleRuntime(() => calls.push(['sun-setup']));
   discussDietContaminantsRuntime();
   returnToLifestyleContextModalRuntime();
 

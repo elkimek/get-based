@@ -85,14 +85,14 @@ const {
     !/\bon(?:click|keydown|submit|change|input)=/.test(sunDefaultsSrc));
   assert('sun-defaults installs shared Light setup delegates',
     sunDefaultsSrc.includes('installLightSetupDelegates();') &&
-    sunDefaultsSrc.includes("invokeSunDefaultsBinding('saveSunSetup', saveSunSetup)") &&
+    !sunDefaultsSrc.includes('invokeSunDefaultsBinding') &&
     sunDefaultsSrc.includes("data-light-setup-action=") &&
     sunDefaultsSrc.includes("data-light-setup-input="));
   assert('sun-defaults browser hooks are isolated in runtime adapter',
     sunDefaultsSrc.includes("from './sun-defaults-runtime.js'") &&
     !/\bwindow(\.|\s*\[)/.test(sunDefaultsSrc) &&
     sunDefaultsRuntimeSrc.includes('getSunSetupCoords') &&
-    sunDefaultsRuntimeSrc.includes('exposeSunDefaultsBindings') &&
+    !sunDefaultsRuntimeSrc.includes('exposeSunDefaultsBindings') &&
     swSrc.includes("'/js/sun-defaults-runtime.js'"));
   assert('sun-defaults AI hooks route through startup wiring',
     typeof configureSunDefaults === 'function' &&

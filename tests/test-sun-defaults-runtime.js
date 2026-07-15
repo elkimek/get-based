@@ -4,12 +4,9 @@
 import './_node-shim.js';
 import {
   configureSunDefaultsRuntimeDeps,
-  exposeSunDefaultsBindings,
   getSunSetupCoords,
   getSunSetupProfileLocation,
-  hasSunDefaultsBrowserRuntime,
   hasSunSetupPreciseLocationRequester,
-  invokeSunDefaultsBinding,
   navigateSunDefaultsRoute,
   openSunSetupProfileLocationRuntime,
   requestSunSetupPreciseLocationRuntime,
@@ -31,8 +28,6 @@ const runtimeKeys = [
   'openClientList',
   'requestPreciseLocation',
   'navigate',
-  'saveSunSetup',
-  'sunDefaultsProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const originalSunDefaultsRuntimeDeps = configureSunDefaultsRuntimeDeps();
@@ -66,8 +61,6 @@ try {
   });
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
 
-  assert('hasSunDefaultsBrowserRuntime detects browser runtime',
-    hasSunDefaultsBrowserRuntime() === true);
   assert('getSunSetupCoords delegates to runtime coords provider',
     getSunSetupCoords()?.source === 'profile-precise');
   assert('getSunSetupProfileLocation delegates to profile location provider',
@@ -91,26 +84,6 @@ try {
   assert('navigateSunDefaultsRoute delegates route navigation',
     calls.some(call => call[0] === 'navigate' && call[1] === 'light'));
 
-  const probe = () => 'ok';
-  exposeSunDefaultsBindings({ sunDefaultsProbe: probe });
-  assert('exposeSunDefaultsBindings publishes runtime bindings',
-    globalThis.sunDefaultsProbe === probe);
-
-  let localCalls = 0;
-  let runtimeCalls = 0;
-  const localSave = () => { localCalls++; return 'local'; };
-  const runtimeSave = () => { runtimeCalls++; return 'runtime'; };
-  setRuntimeValue('saveSunSetup', runtimeSave);
-  assert('invokeSunDefaultsBinding prefers current runtime binding when replaced',
-    invokeSunDefaultsBinding('saveSunSetup', localSave) === 'runtime' &&
-    runtimeCalls === 1 &&
-    localCalls === 0);
-  setRuntimeValue('saveSunSetup', localSave);
-  assert('invokeSunDefaultsBinding uses local function when it is current',
-    invokeSunDefaultsBinding('saveSunSetup', localSave) === 'local' &&
-    runtimeCalls === 1 &&
-    localCalls === 1);
-
   delete globalThis.getSunCoords;
   configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: '', zip: '' }) });
   delete globalThis.openClientList;
@@ -126,16 +99,13 @@ try {
   delete globalThis.window;
   const beforeNoWindowCalls = calls.length;
   navigateSunDefaultsRoute('light');
-  exposeSunDefaultsBindings({ sunDefaultsProbe: null });
   assert('runtime adapter no-ops safely when window is missing',
-    hasSunDefaultsBrowserRuntime() === false &&
     getSunSetupCoords() === null &&
     getSunSetupProfileLocation().country === '' &&
     openSunSetupProfileLocationRuntime() === false &&
     hasSunSetupPreciseLocationRequester() === false &&
     requestSunSetupPreciseLocationRuntime() === null &&
-    calls.length === beforeNoWindowCalls &&
-    globalThis.sunDefaultsProbe === probe);
+    calls.length === beforeNoWindowCalls);
 } finally {
   configureSunDefaultsRuntimeDeps(originalSunDefaultsRuntimeDeps);
   restoreRuntime();
