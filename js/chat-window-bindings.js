@@ -28,9 +28,6 @@ import {
   clearChatHistory, getChatStorageKey, loadChatHistory, saveChatHistory,
 } from './chat-history.js';
 import {
-  buildActionBar, copyMessage, regenerateLastMessage, toggleContextDetails,
-} from './chat-actions.js';
-import {
   closeChatPanel, configureChatPanel, getChatWebSearchEnabled,
   refreshWebSearchToggle, setChatWebSearchEnabled,
   toggleChatFullscreen, toggleChatPanel, openChatPanel, updateChatInputState,
@@ -149,10 +146,6 @@ Object.assign(window, {
   getThreadPersonaCount,
   askAIAboutMarker,
   askAIAboutCorrelations,
-  buildActionBar,
-  regenerateLastMessage,
-  copyMessage,
-  toggleContextDetails,
   getChatWebSearchEnabled,
   setChatWebSearchEnabled,
   setChatNudge,
