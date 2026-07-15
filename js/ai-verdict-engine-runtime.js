@@ -24,16 +24,6 @@ export function getAIVerdictConcurrencyCapRuntime(fallback = 2) {
 }
 
 /**
- * @param {() => { active: number, waiting: number, cap: number }} getDebugState
- */
-export function exposeAIVerdictSlotsDebugRuntime(getDebugState) {
-  const runtime = getAIVerdictRuntime();
-  if (!runtime || typeof getDebugState !== 'function') return false;
-  runtime._aiSlotsDebug = getDebugState;
-  return true;
-}
-
-/**
  * @param {string | null} anchor
  */
 export function refreshSunSurfacesRuntime(anchor) {

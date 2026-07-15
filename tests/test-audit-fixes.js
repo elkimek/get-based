@@ -259,38 +259,37 @@ return (async function () {
   // ─── 4. ai-verdict-engine concurrency cap clamp ────────────────────
   console.log('%c 4. _aiCap clamp [1,8] ', 'font-weight:bold;color:#0891b2');
   {
-    // Force-reload so the module's `cfg = …` reads our new window var.
-    // _aiCap is a closure-internal function but the diagnostic hook
-    // `window._aiSlotsDebug` exposes the resolved cap, which is computed
-    // on every call (not cached) — so we just toggle window._aiConcurrencyCap.
-    await import('/js/ai-verdict-engine.js?bust=' + Date.now());
-    assert('window._aiSlotsDebug is exposed', typeof window._aiSlotsDebug === 'function');
+    // The module diagnostic exposes the resolved cap, which is computed on
+    // every call (not cached), so toggle window._aiConcurrencyCap between reads.
+    const { getAIVerdictSlotsDebug } = await import('/js/ai-verdict-engine.js?bust=' + Date.now());
+    assert('AI slot diagnostics stay module-only',
+      typeof getAIVerdictSlotsDebug === 'function' && !('_aiSlotsDebug' in window));
 
     delete window._aiConcurrencyCap;
-    assert('default cap is 2', window._aiSlotsDebug().cap === 2);
+    assert('default cap is 2', getAIVerdictSlotsDebug().cap === 2);
 
     window._aiConcurrencyCap = 5;
-    assert('cap = 5 respected', window._aiSlotsDebug().cap === 5);
+    assert('cap = 5 respected', getAIVerdictSlotsDebug().cap === 5);
 
     window._aiConcurrencyCap = 999;
-    assert('cap = 999 clamped to 8', window._aiSlotsDebug().cap === 8);
+    assert('cap = 999 clamped to 8', getAIVerdictSlotsDebug().cap === 8);
 
     window._aiConcurrencyCap = 0;
-    assert('cap = 0 clamped to 1', window._aiSlotsDebug().cap === 1);
+    assert('cap = 0 clamped to 1', getAIVerdictSlotsDebug().cap === 1);
 
     window._aiConcurrencyCap = -3;
-    assert('cap = -3 clamped to 1', window._aiSlotsDebug().cap === 1);
+    assert('cap = -3 clamped to 1', getAIVerdictSlotsDebug().cap === 1);
 
     window._aiConcurrencyCap = 3.7;
-    assert('cap = 3.7 floored to 3', window._aiSlotsDebug().cap === 3);
+    assert('cap = 3.7 floored to 3', getAIVerdictSlotsDebug().cap === 3);
 
     window._aiConcurrencyCap = Infinity;
     assert('cap = Infinity rejected — falls back to default 2',
-      window._aiSlotsDebug().cap === 2);
+      getAIVerdictSlotsDebug().cap === 2);
 
     window._aiConcurrencyCap = NaN;
     assert('cap = NaN rejected — falls back to default 2',
-      window._aiSlotsDebug().cap === 2);
+      getAIVerdictSlotsDebug().cap === 2);
 
     window._aiConcurrencyCap = _origAICap;
   }

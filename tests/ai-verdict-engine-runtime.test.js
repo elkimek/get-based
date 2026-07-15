@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   dispatchAIVerdictUpdatedRuntime,
-  exposeAIVerdictSlotsDebugRuntime,
   getAIVerdictConcurrencyCapRuntime,
   hasAIVerdictRuntime,
   isAIVerdictEngineDisabledRuntime,
@@ -37,7 +36,7 @@ describe('ai verdict engine runtime adapter', () => {
     expect(getAIVerdictConcurrencyCapRuntime(2)).toBe(5);
   });
 
-  it('publishes debug hook and delegates refresh plus update events', () => {
+  it('delegates refresh plus update events', () => {
     const refreshSunSurfaces = vi.fn();
     const dispatchEvent = vi.fn();
     class TestCustomEvent {
@@ -52,8 +51,6 @@ describe('ai verdict engine runtime adapter', () => {
     };
     setRuntimeWindow(runtime);
 
-    expect(exposeAIVerdictSlotsDebugRuntime(() => ({ active: 1, waiting: 2, cap: 3 }))).toBe(true);
-    expect(runtime._aiSlotsDebug()).toEqual({ active: 1, waiting: 2, cap: 3 });
     expect(refreshSunSurfacesRuntime('[data-id="session-1"]')).toBe(true);
     expect(dispatchAIVerdictUpdatedRuntime()).toBe(true);
     expect(refreshSunSurfaces).toHaveBeenCalledWith('[data-id="session-1"]');
@@ -66,7 +63,6 @@ describe('ai verdict engine runtime adapter', () => {
     expect(hasAIVerdictRuntime()).toBe(false);
     expect(isAIVerdictEngineDisabledRuntime()).toBe(false);
     expect(getAIVerdictConcurrencyCapRuntime(2)).toBe(2);
-    expect(exposeAIVerdictSlotsDebugRuntime(() => ({ active: 0, waiting: 0, cap: 2 }))).toBe(false);
     expect(refreshSunSurfacesRuntime(null)).toBe(false);
     expect(dispatchAIVerdictUpdatedRuntime()).toBe(false);
   });

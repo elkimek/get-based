@@ -21,7 +21,6 @@
 import { hasAIProvider, callClaudeAPI } from './api.js';
 import {
   dispatchAIVerdictUpdatedRuntime,
-  exposeAIVerdictSlotsDebugRuntime,
   getAIVerdictConcurrencyCapRuntime,
   hasAIVerdictRuntime,
   isAIVerdictEngineDisabledRuntime,
@@ -137,9 +136,10 @@ function _releaseAISlot() {
     try { next(); } catch (_) {}
   }
 }
-// Diagnostic hook — useful for tests + manual debugging without
-// breaking encapsulation. Not a public API.
-exposeAIVerdictSlotsDebugRuntime(() => ({ active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() }));
+// Diagnostic snapshot for tests + manual debugging through the module API.
+export function getAIVerdictSlotsDebug() {
+  return { active: _activeAICalls, waiting: _aiCallWaiters.length, cap: _aiCap() };
+}
 
 /**
  * Create an AI verdict engine bound to a particular feature's data shape.
