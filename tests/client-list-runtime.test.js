@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
 import { configureClientListRuntimeDeps } from '../js/client-list-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let importId = 0;
 
@@ -42,7 +43,7 @@ beforeEach(() => {
   `;
   window.requestAnimationFrame = (fn) => fn();
   globalThis.requestAnimationFrame = window.requestAnimationFrame;
-  window.renderProfileButton = vi.fn();
+  configureViewRuntime({ renderProfileButton: vi.fn() });
   window.showNotification = vi.fn();
   configureClientListRuntimeDeps({ showNotification: window.showNotification });
   window.navigate = vi.fn();
@@ -61,7 +62,7 @@ describe('client list runtime behavior', () => {
     const clientList = await loadClientList();
     const renderProfileButtonSpy = vi.fn();
     const showNotificationSpy = vi.fn();
-    window.renderProfileButton = renderProfileButtonSpy;
+    configureViewRuntime({ renderProfileButton: renderProfileButtonSpy });
     window.showNotification = showNotificationSpy;
     configureClientListRuntimeDeps({ showNotification: showNotificationSpy });
     const topLevelNames = () => [...document.querySelectorAll('.cl-list > .cl-row .cl-row-name')].map(el => el.textContent);

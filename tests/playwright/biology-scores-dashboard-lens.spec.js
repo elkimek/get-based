@@ -5,9 +5,10 @@ async function prepareDemoProfile(page) {
   await page.waitForFunction(() => !!window._labState);
 
   await page.evaluate(async () => {
-    const [{ getActiveProfileId }, dataModule] = await Promise.all([
+    const [{ getActiveProfileId }, dataModule, navModule] = await Promise.all([
       import('/js/profile.js'),
       import('/js/data.js'),
+      import('/js/nav.js'),
     ]);
     const profileId = getActiveProfileId() || localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -23,7 +24,7 @@ async function prepareDemoProfile(page) {
       const activeData = dataModule.getActiveData();
       state.importedData.biologyScoreContextAI = { summary: 'Context checked for Playwright demo', suggestions: [], fingerprint: buildBiologyScoreContextFingerprint(activeData), fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(activeData), unlockedRanges: ['all', '1y', '6m', '3m'], range: 'all', updatedAt: Date.now() };
       await dataModule.saveImportedData();
-      window.buildSidebar?.();
+      navModule.buildSidebar();
     }
 
     const { state } = await import('/js/state.js');

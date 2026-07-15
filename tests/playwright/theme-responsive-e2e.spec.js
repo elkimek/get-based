@@ -45,8 +45,7 @@ function delay(ms) {
 
 async function waitForApp(page) {
   await page.waitForFunction(
-    () => window._labState
-      && typeof window.buildSidebar === 'function',
+    () => !!window._labState,
     null,
     { timeout: 15000 }
   );
@@ -106,7 +105,7 @@ async function seedDemoData(page) {
     window._labState.profileSex = 'male';
     window._labState.profileDob = '1987-11-22';
     await dataModule.saveImportedData();
-    window.buildSidebar?.();
+    (await import('/js/nav.js')).buildSidebar();
     (await import('/js/views.js')).navigate('dashboard');
     window.closeChatPanel?.();
   });
@@ -178,7 +177,7 @@ async function prepareScenario(page, theme, viewport) {
     (await import('/js/views.js')).closeModal();
     window.closeSettingsModal?.();
     window.closeChatPanel?.();
-    window.closeMobileSidebar?.();
+    (await import('/js/nav.js')).closeMobileSidebar();
     document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
     localStorage.removeItem('labcharts-accent-override');
@@ -724,7 +723,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     focused: document.activeElement?.id === 'sidebar-search',
   }));
   assert(testName(theme, viewportName, 'menu opens mobile sidebar'), result.open, JSON.stringify(result));
-  await page.evaluate(() => window.closeMobileSidebar?.());
+  await page.evaluate(async () => (await import('/js/nav.js')).closeMobileSidebar());
   await delay(100);
 
   result = await page.evaluate(() => {

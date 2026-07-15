@@ -55,13 +55,14 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
   await prepareApp(page);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, shell, profile, contextCardsRuntime, views] = await Promise.all([
+    const [{ state }, dataModule, shell, profile, contextCardsRuntime, views, nav] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/lens-page-shell.js'),
       import('/js/profile.js'),
       import('/js/context-cards-runtime.js'),
       import('/js/views.js'),
+      import('/js/nav.js'),
     ]);
     const originalView = state.currentView;
     const originalReimportDNA = window.reimportDNA;
@@ -91,7 +92,7 @@ test('lens page shell delegates move and dashboard toggle actions', async ({ pag
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
         await dataModule.saveImportedData();
-        window.buildSidebar?.();
+        nav.buildSidebar();
       }
 
       localStorage.removeItem(labsOrderKey);

@@ -64,10 +64,3 @@ export function openContextFromNavRuntime() {
 export function openCreateMarkerFromNavRuntime() {
   getNavRuntimeFunction('openCreateMarkerModal')?.();
 }
-
-/**
- * @param {Record<string, any>} globals
- */
-export function exposeNavRuntimeGlobals(globals) {
-  Object.assign(getNavRuntimeScope(), globals);
-}

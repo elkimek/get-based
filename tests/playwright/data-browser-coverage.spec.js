@@ -24,6 +24,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
 
   const results = await page.evaluate(async ({ dataUrl }) => {
     const dataMod = await import(dataUrl);
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const state = window._labState;
     const calls = [];
     const outcomes = {};
@@ -52,7 +53,6 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       rangeMode: state.rangeMode,
       activeDetailMarkerId: state._activeDetailMarkerId,
       preserveCategoryCardOrder: clone(state._preserveCategoryCardOrder),
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       showDetailModal: window.showDetailModal,
       requestAnimationFrame: window.requestAnimationFrame,
@@ -61,10 +61,12 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       phaseOverlay: localStorage.getItem(`labcharts-${profileId}-phaseOverlay`),
       rangeModeStorage: localStorage.getItem(`labcharts-${profileId}-rangeMode`),
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: data => calls.push(['buildSidebar', data?.dates?.length || 0]),
+    });
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     try {
-      window.buildSidebar = data => calls.push(['buildSidebar', data?.dates?.length || 0]);
       window.navigate = (route, data) => calls.push(['navigate', route, data?.dates?.length || 0]);
       window.showDetailModal = id => calls.push(['showDetailModal', id]);
       window.requestAnimationFrame = callback => {
@@ -219,8 +221,7 @@ test('data browser coverage exercises display toggles range refresh and helpers'
       else state._activeDetailMarkerId = saved.activeDetailMarkerId;
       if (saved.preserveCategoryCardOrder === undefined) delete state._preserveCategoryCardOrder;
       else state._preserveCategoryCardOrder = saved.preserveCategoryCardOrder;
-      if (saved.buildSidebar) window.buildSidebar = saved.buildSidebar;
-      else delete window.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
       if (saved.showDetailModal) window.showDetailModal = saved.showDetailModal;

@@ -9,6 +9,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
     const clientList = await import('/js/client-list.js');
     const { configureClientListRuntime } = clientList;
     const profile = await import('/js/profile.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     const confirmQueue = [];
@@ -71,10 +72,12 @@ test('client list live menu actions dispatch exports share demos and profile sta
       importedData: clone(state.importedData),
       bodyOverflow: document.body.style.overflow,
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
-      renderProfileButton: window.renderProfileButton,
       showConfirmDialog: window.showConfirmDialog,
       inputClick: HTMLInputElement.prototype.click,
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      renderProfileButton: () => calls.push(['render-profile-button']),
+    });
     const openList = async () => {
       clientList.openClientList();
       await waitFor(() => document.getElementById('client-list-overlay')?.classList.contains('show'), 'client list overlay');
@@ -118,7 +121,6 @@ test('client list live menu actions dispatch exports share demos and profile sta
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       localStorage.setItem('labcharts-client-bob-chat-threads', JSON.stringify([{ id: 'thread-a' }]));
       localStorage.setItem('labcharts-client-bob-chat-t_thread-a', JSON.stringify([{ role: 'user', content: 'delete me' }]));
-      window.renderProfileButton = () => calls.push(['render-profile-button']);
       const exportAllDataJSON = () => calls.push(['export-all']);
       const exportClientJSON = (...args) => calls.push(['export-client', ...args]);
       const importDataJSON = file => calls.push(['import-json', file?.name || '']);
@@ -250,7 +252,7 @@ test('client list live menu actions dispatch exports share demos and profile sta
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      window.renderProfileButton = saved.renderProfileButton;
+      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
       if (previousClientListRuntime) configureClientListRuntime(previousClientListRuntime);
       window.showConfirmDialog = saved.showConfirmDialog;
       if (previousProfileDeps) profile.configureProfileDeps(previousProfileDeps);
@@ -274,6 +276,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
     const { state } = await import('/js/state.js');
     const clientList = await import('/js/client-list.js');
     const clientListRuntime = await import('/js/client-list-runtime.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     const previousClientListRuntimeDeps = clientListRuntime.configureClientListRuntimeDeps({
@@ -296,7 +299,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       importedData: clone(state.importedData),
       storage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       bodyOverflow: document.body.style.overflow,
-      renderProfileButton: window.renderProfileButton,
       navigate: window.navigate,
       HAPLOGROUP_LIST: window.HAPLOGROUP_LIST,
       setManualHaplogroup: window.setManualHaplogroup,
@@ -305,6 +307,9 @@ test('client list form live actions cover health link avatar haplogroup and loca
       modalOverlayClass: document.getElementById('modal-overlay')?.className,
       hadWearableStrip: !!document.getElementById('wearable-strip'),
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      renderProfileButton: () => calls.push(['render-profile-button']),
+    });
 
     try {
       state.currentProfile = 'client-active';
@@ -333,7 +338,6 @@ test('client list form live actions cover health link avatar haplogroup and loca
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
-      window.renderProfileButton = () => calls.push(['render-profile-button']);
       window.navigate = route => calls.push(['navigate', route]);
       window.HAPLOGROUP_LIST = ['H', 'J', 'K'];
       window.setManualHaplogroup = async haplogroup => {
@@ -409,7 +413,7 @@ test('client list form live actions cover health link avatar haplogroup and loca
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      window.renderProfileButton = saved.renderProfileButton;
+      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
       clientListRuntime.configureClientListRuntimeDeps(previousClientListRuntimeDeps);
       window.navigate = saved.navigate;
       window.HAPLOGROUP_LIST = saved.HAPLOGROUP_LIST;
@@ -437,6 +441,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
   const results = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const clientList = await import('/js/client-list.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const calls = [];
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -461,9 +466,11 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       bodyOverflow: document.body.style.overflow,
-      renderProfileButton: window.renderProfileButton,
       showNotification: window.showNotification,
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      renderProfileButton: () => calls.push(['render-profile-button']),
+    });
 
     try {
       localStorage.clear();
@@ -516,7 +523,6 @@ test('client list remaining browser helpers cover filters avatar upload tags and
         },
       ];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
-      window.renderProfileButton = () => calls.push(['render-profile-button']);
       window.showNotification = (...args) => calls.push(['notification', ...args]);
 
       clientList.openClientList();
@@ -619,7 +625,7 @@ test('client list remaining browser helpers cover filters avatar upload tags and
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       document.body.style.overflow = saved.bodyOverflow;
-      window.renderProfileButton = saved.renderProfileButton;
+      viewRuntime.configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
       window.showNotification = saved.showNotification;
       localStorage.clear();
       for (const [key, value] of storage) {

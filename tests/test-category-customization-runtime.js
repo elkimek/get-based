@@ -65,6 +65,9 @@ try {
     },
   };
   setRuntimeValue('window', browserRuntime);
+  previousViewRuntime = configureViewRuntime({
+    buildSidebar: browserRuntime.buildSidebar.bind(browserRuntime),
+  });
   configureCategoryCustomizationRuntimeDeps({
     showPromptDialog: browserRuntime.showPromptDialog.bind(browserRuntime),
   });
@@ -91,7 +94,8 @@ try {
 
   delete browserRuntime.navigate;
   delete browserRuntime.buildSidebar;
-  previousViewRuntime = configureViewRuntime({
+  configureViewRuntime({
+    buildSidebar: null,
     navigate: route => calls.push(['module-navigate', route]),
   });
   configureCategoryCustomizationRuntimeDeps({ showPromptDialog: null });
@@ -111,7 +115,7 @@ try {
   setRuntimeValue('navigate', route => { globalNavigateCalled = route === 'dashboard'; });
   navigateCategoryCustomizationRuntime('dashboard');
   assert('runtime hooks fall back to globalThis when window is missing', globalNavigateCalled);
-  configureViewRuntime(previousViewRuntime);
+  configureViewRuntime({ buildSidebar: null, navigate: null, ...previousViewRuntime });
 } finally {
   configureCategoryCustomizationRuntimeDeps(originalCategoryCustomizationRuntimeDeps);
   restoreRuntime();

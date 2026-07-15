@@ -13,6 +13,7 @@ import {
   scrollViewportBy,
   syncImportStatusFabFromRuntime,
 } from '../js/views-router-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -34,11 +35,11 @@ const runtimeKeys = [
   'scrollBy',
   'addEventListener',
   'removeEventListener',
-  'closeMobileSidebar',
   'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 const originalViewsRouterRuntimeDeps = configureViewsRouterRuntimeDeps();
+let previousViewRuntime = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -72,7 +73,9 @@ try {
   assert('getViewportScrollPosition falls back to page offsets',
     JSON.stringify(getViewportScrollPosition()) === JSON.stringify({ x: 56, y: 78 }));
 
-  setRuntimeValue('closeMobileSidebar', () => calls.push(['close-sidebar']));
+  previousViewRuntime = configureViewRuntime({
+    closeMobileSidebar: () => calls.push(['close-sidebar']),
+  });
   configureViewsRouterRuntimeDeps({ syncImportStatusFab: () => calls.push(['sync-fab']) });
   setRuntimeValue('navigate', view => calls.push(['navigate', view]));
   closeMobileSidebarFromRuntime();
@@ -147,6 +150,7 @@ try {
     getViewportHeight() === 0 &&
     typeof addViewportInputCancelListeners(() => {}) === 'function');
 } finally {
+  configureViewRuntime({ closeMobileSidebar: null, ...previousViewRuntime });
   configureViewsRouterRuntimeDeps(originalViewsRouterRuntimeDeps);
   restoreRuntime();
 }

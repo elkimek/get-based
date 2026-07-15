@@ -10,6 +10,8 @@ export function configureViewRuntime(api = {}) {
   for (const [name, value] of Object.entries(api)) {
     if (typeof value === 'function') {
       viewRuntime[name] = /** @type {(...args: any[]) => any} */ (value);
+    } else if (value === null) {
+      delete viewRuntime[name];
     }
   }
   return previous;

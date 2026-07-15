@@ -224,6 +224,7 @@ test('settings browser coverage renames imported entry dates through the data se
     const dataModule = await import('/js/data.js');
     const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
     const settingsModule = await import('/js/settings.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, label) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -239,7 +240,6 @@ test('settings browser coverage renames imported entry dates through the data se
       importedData: JSON.parse(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       storage: localStorage.getItem(`labcharts-${profileId}-imported`),
     };
@@ -249,6 +249,9 @@ test('settings browser coverage renames imported entry dates through the data se
     });
     const originalReviewRuntimeDeps = reviewRuntime.configurePdfImportReviewRuntimeDeps({
       updateHeaderDates: () => calls.push('updateHeaderDates'),
+    });
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push('buildSidebar'),
     });
 
     try {
@@ -265,7 +268,6 @@ test('settings browser coverage renames imported entry dates through the data se
         },
         changeHistory: [],
       };
-      window.buildSidebar = () => calls.push('buildSidebar');
       window.navigate = view => calls.push(`navigate:${view}`);
 
       document.body.insertAdjacentHTML('beforeend', '<section id="data-entries-section"></section>');
@@ -292,7 +294,7 @@ test('settings browser coverage renames imported entry dates through the data se
       state.importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
-      window.buildSidebar = saved.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       window.navigate = saved.navigate;
       dataModule.configureDataContextDependencies(originalDataContextDeps);
       reviewRuntime.configurePdfImportReviewRuntimeDeps(originalReviewRuntimeDeps);

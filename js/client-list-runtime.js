@@ -53,7 +53,7 @@ export function navigateClientListRoute(route) {
 }
 
 export function refreshClientProfileButton() {
-  getRuntimeFunction('renderProfileButton')?.();
+  getViewRuntimeFunction('renderProfileButton')?.();
 }
 
 /**

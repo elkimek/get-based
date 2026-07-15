@@ -9,10 +9,11 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ editingUrl }) => {
-    const [editing, { state }, data] = await Promise.all([
+    const [editing, { state }, data, viewRuntime] = await Promise.all([
       import(editingUrl),
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -40,11 +41,13 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       unitSystem: state.unitSystem,
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
     };
     const id = 'proteins_albumin';
     const dotKey = 'proteins.albumin';
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push(['sidebar']),
+    });
 
     try {
       state.currentProfile = 'marker-detail-default-deps-coverage';
@@ -67,7 +70,6 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       state.markerRegistry = {
         [id]: active.categories.proteins.markers.albumin,
       };
-      window.buildSidebar = () => calls.push(['sidebar']);
       window.navigate = (category, payload) => calls.push(['navigate', category, payload || null]);
 
       fillManualForm({ date: '2026-06-04', value: '44' });
@@ -92,8 +94,7 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.unitSystem = saved.unitSystem;
-      if (saved.buildSidebar) window.buildSidebar = saved.buildSidebar;
-      else delete window.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
       data.invalidateActiveDataCache();
@@ -114,10 +115,11 @@ test('marker detail editing covers manual values notes delete and revert workflo
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ editingUrl }) => {
-    const [editing, { state }, data] = await Promise.all([
+    const [editing, { state }, data, viewRuntime] = await Promise.all([
       import(editingUrl),
       import('/js/state.js'),
       import('/js/data.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -173,11 +175,13 @@ test('marker detail editing covers manual values notes delete and revert workflo
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       unitSystem: state.unitSystem,
-      buildSidebar: window.buildSidebar,
     };
     const id = 'proteins_albumin';
     const dotKey = 'proteins.albumin';
     const note500 = 'manual note '.repeat(80);
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push(['sidebar']),
+    });
 
     try {
       state.currentProfile = 'marker-detail-coverage';
@@ -204,7 +208,6 @@ test('marker detail editing covers manual values notes delete and revert workflo
       state.markerRegistry = {
         [id]: active.categories.proteins.markers.albumin,
       };
-      window.buildSidebar = () => calls.push(['sidebar']);
       editing.configureMarkerDetailEditing({
         navigate: route => calls.push(['navigate', route]),
         showDetailModal: (modalId, opts) => calls.push(['detail', modalId, opts || null]),
@@ -300,8 +303,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.unitSystem = saved.unitSystem;
-      if (saved.buildSidebar) window.buildSidebar = saved.buildSidebar;
-      else delete window.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       data.invalidateActiveDataCache();
       editing.configureMarkerDetailEditing({
         navigate: (...args) => window.navigate?.(...args),

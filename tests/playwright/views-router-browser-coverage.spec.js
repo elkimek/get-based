@@ -22,6 +22,7 @@ test('views router browser coverage exercises route state and scroll restoration
       import(stateUrl),
     ]);
     const routerRuntime = await import('/js/views-router-runtime.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     const outcomes = {};
     const { state } = stateModule;
     const fixture = document.getElementById('fixture');
@@ -29,8 +30,6 @@ test('views router browser coverage exercises route state and scroll restoration
     const originalCurrentView = state.currentView;
     const originalScrollTo = window.scrollTo;
     const originalScrollBy = window.scrollBy;
-    const originalCloseMobileSidebar = window.closeMobileSidebar;
-    const hadCloseMobileSidebar = Object.prototype.hasOwnProperty.call(window, 'closeMobileSidebar');
     const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
     const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
     const originalPageXOffset = Object.getOwnPropertyDescriptor(window, 'pageXOffset');
@@ -41,6 +40,9 @@ test('views router browser coverage exercises route state and scroll restoration
     const coverageLastViewKey = profileModule.profileStorageKey(coverageProfile, 'lastViewV1');
     const extraLastViewKey = profileModule.profileStorageKey(extraProfile, 'lastViewV1');
     const calls = [];
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      closeMobileSidebar: () => calls.push(['closeSidebar']),
+    });
     const previousRouterRuntimeDeps = routerRuntime.configureViewsRouterRuntimeDeps({
       syncImportStatusFab: () => calls.push(['syncFab']),
     });
@@ -93,7 +95,6 @@ test('views router browser coverage exercises route state and scroll restoration
       state.currentView = 'dashboard';
       localStorage.removeItem(coverageLastViewKey);
       localStorage.removeItem(extraLastViewKey);
-      window.closeMobileSidebar = () => calls.push(['closeSidebar']);
       window.scrollTo = arg => {
         scrollToCalls.push(typeof arg === 'object' ? { left: arg.left, top: arg.top, behavior: arg.behavior } : arg);
       };
@@ -274,8 +275,7 @@ test('views router browser coverage exercises route state and scroll restoration
       state.currentView = originalCurrentView;
       window.scrollTo = originalScrollTo;
       window.scrollBy = originalScrollBy;
-      if (hadCloseMobileSidebar) window.closeMobileSidebar = originalCloseMobileSidebar;
-      else delete window.closeMobileSidebar;
+      viewRuntime.configureViewRuntime({ closeMobileSidebar: null, ...previousViewRuntime });
       routerRuntime.configureViewsRouterRuntimeDeps(previousRouterRuntimeDeps);
       restoreDescriptor('scrollX', originalScrollX);
       restoreDescriptor('scrollY', originalScrollY);

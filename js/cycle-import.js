@@ -61,7 +61,6 @@ const SOURCE_LABELS = {
 };
 const appWindow = /** @type {Window & typeof globalThis & {
   navigate?: (category: string) => void,
-  renderProfileButton?: () => void,
   closeModal?: () => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 
@@ -74,6 +73,10 @@ function navigateCycleImportView(category) {
     : (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
   navigate?.(category);
   return typeof navigate === 'function';
+}
+
+function renderCycleProfileButton() {
+  getViewRuntimeFunction('renderProfileButton')?.();
 }
 
 async function openCycleEditorFromImport() {
@@ -112,7 +115,7 @@ function restoreCycleState(snapshot, profileId, { restoreSex = false } = {}) {
   if (restoreSex && state.profileSex !== snapshot.profileSex) {
     state.profileSex = snapshot.profileSex;
     setProfileSex(profileId, snapshot.profileSex || null);
-    appWindow.renderProfileButton?.();
+    renderCycleProfileButton();
   }
 }
 async function persistCycleState() {
@@ -432,7 +435,7 @@ export async function commitCycleImport(parsed, { conflictMode = 'keep-existing'
     if (state.profileSex !== 'female') {
       state.profileSex = 'female';
       setProfileSex(profileId, 'female');
-      appWindow.renderProfileButton?.();
+      renderCycleProfileButton();
     }
     const plan = buildCycleImportPlan(parsed, state.importedData.menstrualCycle, conflictMode);
     const coverage = buildCycleCoverage(plan.mergedPeriods, state.importedData.menstrualCycle?.coverage || null);

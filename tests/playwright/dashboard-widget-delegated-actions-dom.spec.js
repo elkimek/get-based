@@ -5,13 +5,14 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, viewsModule] = await Promise.all([
+    const [{ state }, dataModule, dashboardWidgetsModule, contextCardsRuntime, dashboardWidgetRuntime, viewsModule, navModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/dashboard-widgets.js'),
       import('/js/context-cards-runtime.js'),
       import('/js/dashboard-widget-runtime.js'),
       import('/js/views.js'),
+      import('/js/nav.js'),
     ]);
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const originalView = state.currentView;
@@ -41,7 +42,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
         await dataModule.saveImportedData();
-        window.buildSidebar?.();
+        navModule.buildSidebar();
       }
 
       viewsModule.closeDashboardWidgetPicker?.();

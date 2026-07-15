@@ -39,7 +39,6 @@ export {
  * @typedef {() => Array<number | null | undefined> | undefined} MarkerValueGetter
  * @typedef {[MarkerValueGetter | 'age' | 'crp', number, number, boolean, number | null, 'ceil' | 'floor' | null, (number | undefined)?]} BortzFeature
  * @typedef {{
- *   buildSidebar: (data?: unknown) => void,
  *   navigate?: (route?: string, data?: unknown) => void,
  *   showDetailModal?: (id: string) => void,
  * }} DataWindowHooks
@@ -50,6 +49,10 @@ const dataWindow = /** @type {Window & typeof globalThis & DataWindowHooks} */ (
 function navigateDataView(route, data) {
   const navigate = dataWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
   navigate?.call(dataWindow, route, data);
+}
+
+function buildDataSidebar(data) {
+  getViewRuntimeFunction('buildSidebar')?.(data);
 }
 
 /** @type {{ invalidateLabContextCache: (() => void) | null }} */
@@ -852,7 +855,7 @@ export function setDateRange(range) {
   // re-applies the correct active class. Source the target view from
   // state.currentView (set by navigate) rather than the DOM, since the
   // DOM's active class has just been clobbered by buildSidebar.
-  dataWindow.buildSidebar();
+  buildDataSidebar();
   navigateDataView(state.currentView || 'dashboard');
 }
 
@@ -971,7 +974,7 @@ export function switchUnitSystem(system) {
   // Matches the pattern in toggleAltUnits().
   const openId = state._activeDetailMarkerId;
   const data = getActiveData();
-  dataWindow.buildSidebar(data);
+  buildDataSidebar(data);
   updateHeaderDates(data);
   navigateDataView(state.currentView || 'dashboard', data);
   const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
@@ -1036,7 +1039,7 @@ export function switchRangeMode(mode) {
   _afterNextPaint(() => {
     if (token !== _rangeModeRefreshToken || state.rangeMode !== nextMode) return;
     const data = getActiveData();
-    dataWindow.buildSidebar(data);
+    buildDataSidebar(data);
     navigateDataView(state.currentView || 'dashboard', data);
   const showDetailModal = dataWindow.showDetailModal || getViewRuntimeFunction('showDetailModal');
   if (openId && state._activeDetailMarkerId === openId && showDetailModal) {

@@ -7,7 +7,7 @@ async function prepareApp(page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.buildSidebar === 'function');
+  await page.evaluate(() => import('/js/nav.js'));
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const profileId = state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default';
@@ -86,8 +86,8 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
         openContextModal: () => calls.push(['open-context']),
       });
       window.openCreateMarkerModal = () => calls.push(['open-custom-marker']);
-      window.buildSidebar(fixtureData);
-      window.renderProfileButton();
+      nav.buildSidebar(fixtureData);
+      nav.renderProfileButton();
       nav.openRecommendationsFromSidebar();
 
       const inlineHandler = document.querySelector('#sidebar-nav [onclick], #sidebar-nav [oninput], #sidebar-nav [onkeydown], #profile-selector [onclick]');
@@ -152,8 +152,8 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.openCreateMarkerModal = origOpenCreateMarker;
       if (origGroupStorage == null) localStorage.removeItem('labcharts-navgroup-Hormones');
       else localStorage.setItem('labcharts-navgroup-Hormones', origGroupStorage);
-      window.buildSidebar?.();
-      window.renderProfileButton?.();
+      nav.buildSidebar();
+      nav.renderProfileButton();
     }
   });
 
@@ -166,18 +166,19 @@ test('mobile sidebar uses shared lifecycle scroll lock', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await prepareApp(page);
 
-  const results = await page.evaluate(() => {
+  const results = await page.evaluate(async () => {
+    const nav = await import('/js/nav.js');
     const sidebar = document.getElementById('sidebar-nav');
     const backdrop = document.getElementById('sidebar-backdrop');
     if (!sidebar || !backdrop) throw new Error('mobile sidebar fixture missing');
 
     document.body.style.overflow = 'auto';
-    window.toggleMobileSidebar?.();
+    nav.toggleMobileSidebar();
     const opened = sidebar.classList.contains('mobile-open')
       && backdrop.classList.contains('show')
       && document.body.style.overflow === 'hidden';
 
-    window.closeMobileSidebar?.();
+    nav.closeMobileSidebar();
     const closed = !sidebar.classList.contains('mobile-open')
       && !backdrop.classList.contains('show')
       && document.body.style.overflow === 'auto';

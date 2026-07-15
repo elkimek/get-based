@@ -26,6 +26,7 @@ import {
   updateDnaChatNudge,
 } from '../js/dna-runtime.js';
 import { configureContextCardsRuntimeCallbacks } from '../js/context-cards-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -50,7 +51,6 @@ const runtimeKeys = [
   '_pendingMtDNA',
   '_saveAndRefresh',
   '_snpTableCache',
-  'buildSidebar',
   'handleDNAFile',
   'isDebugMode',
   'navigate',
@@ -63,13 +63,16 @@ const originalError = console.error;
 const originalWarn = console.warn;
 const originalDnaRuntimeDeps = configureDnaRuntimeDeps();
 const originalContextCardsRuntime = configureContextCardsRuntimeCallbacks();
+let previousViewRuntime = null;
 
 try {
   for (const key of runtimeKeys) delete globalThis[key];
 
   const calls = [];
   globalThis.navigate = route => calls.push(['navigate', route]);
-  globalThis.buildSidebar = () => calls.push(['sidebar']);
+  previousViewRuntime = configureViewRuntime({
+    buildSidebar: () => calls.push(['sidebar']),
+  });
   refreshDnaShell('dashboard');
   assert('refreshDnaShell refreshes sidebar then navigates',
     JSON.stringify(calls.slice(0, 2)) === JSON.stringify([['sidebar'], ['navigate', 'dashboard']]));
@@ -79,9 +82,9 @@ try {
   assert('navigateDnaRoute delegates route changes',
     calls.length === 1 && calls[0][0] === 'navigate' && calls[0][1] === 'genome');
 
-  globalThis.buildSidebar = () => {
+  configureViewRuntime({ buildSidebar: () => {
     throw new Error('sidebar failed');
-  };
+  } });
   let sidebarThrew = false;
   try { refreshDnaSidebar(); } catch (_) { sidebarThrew = true; }
   assert('refreshDnaSidebar swallows sidebar refresh errors', !sidebarThrew);
@@ -199,6 +202,7 @@ try {
       globalThis._getState() === state &&
       typeof globalThis._saveAndRefresh === 'function');
 } finally {
+  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configureDnaRuntimeDeps(originalDnaRuntimeDeps);
   configureContextCardsRuntimeCallbacks(originalContextCardsRuntime);
   console.error = originalError;

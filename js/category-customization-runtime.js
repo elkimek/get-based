@@ -48,7 +48,7 @@ export function navigateCategoryCustomizationRuntime(route, data) {
  * @returns {((data?: any) => void) | null}
  */
 export function getCategoryCustomizationBuildSidebar() {
-  return /** @type {((data?: any) => void) | null} */ (getRuntimeFunction('buildSidebar'));
+  return /** @type {((data?: any) => void) | null} */ (getViewRuntimeFunction('buildSidebar'));
 }
 
 /**

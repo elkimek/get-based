@@ -71,7 +71,7 @@ export function navigateImportReviewRuntime(route = 'dashboard') {
 export function refreshImportedDataViewsRuntime(route = 'dashboard') {
   if (!getRuntimeWindow()) return false;
   let refreshed = false;
-  const buildSidebar = getRuntimeFunction('buildSidebar');
+  const buildSidebar = getViewRuntimeFunction('buildSidebar');
   if (buildSidebar) {
     buildSidebar();
     refreshed = true;

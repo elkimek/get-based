@@ -373,9 +373,10 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
     });
 
     const cryptoStore = await import(cryptoUrl);
-    const [{ state }, profileModule] = await Promise.all([
+    const [{ state }, profileModule, viewRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/profile.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const profileId = `crypto-broadcast-${Date.now()}`;
     const importedKey = profileModule.profileStorageKey(profileId, 'imported');
@@ -393,10 +394,10 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       profile: state.currentProfile,
       view: state.currentView,
       importedData: state.importedData,
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
+    let previousViewRuntime = null;
 
     try {
       for (const key of keys) localStorage.removeItem(key);
@@ -407,7 +408,9 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
         calls.migrated += 1;
         data.migratedByTest = true;
       } });
-      window.buildSidebar = () => { calls.sidebar += 1; };
+      previousViewRuntime = viewRuntime.configureViewRuntime({
+        buildSidebar: () => { calls.sidebar += 1; },
+      });
       window.navigate = view => { calls.navigated.push(view); };
       await cryptoStore.encryptedSetItem(importedKey, JSON.stringify({
         entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 5.2 } } }],
@@ -520,8 +523,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       state.currentProfile = saved.profile;
       state.currentView = saved.view;
       state.importedData = saved.importedData;
-      if (saved.buildSidebar === undefined) delete window.buildSidebar;
-      else window.buildSidebar = saved.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       if (previousCryptoProfileDeps) cryptoStore.configureCryptoProfileDeps(previousCryptoProfileDeps);
       if (saved.navigate === undefined) delete window.navigate;
       else window.navigate = saved.navigate;

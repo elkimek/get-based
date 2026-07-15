@@ -4,7 +4,6 @@
 import './_node-shim.js';
 import {
   configureNavRuntime,
-  exposeNavRuntimeGlobals,
   navigateFromNavRuntime,
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
@@ -34,7 +33,6 @@ const runtimeKeys = [
   'navigate',
   'openContextModal',
   'openCreateMarkerModal',
-  'runtimeProbe',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
@@ -82,10 +80,6 @@ try {
       && calls.some(call => call[0] === 'navigate' && call[1] === 'labs' && call[2] === true)
       && ['emf', 'report', 'context', 'marker'].every(name => calls.some(call => call[0] === name && call[1] === true)));
 
-  exposeNavRuntimeGlobals({ runtimeProbe: 42 });
-  assert('exposeNavRuntimeGlobals assigns exports to the browser runtime',
-    browserRuntime.runtimeProbe === 42);
-
   for (const key of ['navigate', 'openContextModal', 'openCreateMarkerModal']) {
     delete browserRuntime[key];
   }
@@ -106,9 +100,8 @@ try {
   let globalRoute = '';
   setRuntimeValue('navigate', route => { globalRoute = route; });
   navigateFromNavRuntime('recommendations');
-  exposeNavRuntimeGlobals({ runtimeProbe: 'global' });
   assert('nav runtime falls back to globalThis without window',
-    globalRoute === 'recommendations' && globalThis.runtimeProbe === 'global');
+    globalRoute === 'recommendations');
   configureViewRuntime(previousViewRuntime);
   configureNavRuntime(restoreNavRuntime);
   configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);

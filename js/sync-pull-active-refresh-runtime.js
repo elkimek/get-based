@@ -54,7 +54,7 @@ export function refreshPulledChatRuntime() {
 }
 
 export function rebuildPulledSidebarRuntime() {
-  try { getRuntimeFunction('buildSidebar')?.(); } catch {}
+  try { getViewRuntimeFunction('buildSidebar')?.(); } catch {}
 }
 
 /**

@@ -11,6 +11,7 @@ const { configureSyncDelta } = await import('../js/sync-delta.js');
 const { mergePulledImportedData } = await import('../js/sync-pull-merge.js');
 const { refreshActiveProfileAfterPull } = await import('../js/sync-pull-active-refresh.js');
 const { createNavigate } = await import('../js/views-router.js');
+const { configureViewRuntime } = await import('../js/views-runtime-bridge.js');
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -289,12 +290,12 @@ try {
 }
 
 const originalQuerySelector = document.querySelector;
-const originalBuildSidebar = window.buildSidebar;
 const originalNavigate = window.navigate;
 const originalCustomEvent = window.CustomEvent;
 const originalRefreshCurrentProfile = state.currentProfile;
 const originalRefreshCurrentView = state.currentView;
 const originalRefreshImportedData = state.importedData;
+const previousViewRuntime = configureViewRuntime({ buildSidebar: () => {} });
 
 try {
   let toastCount = 0;
@@ -306,7 +307,6 @@ try {
   };
   document.getElementById = id => id === 'notification-container' ? container : null;
   document.querySelector = () => null;
-  window.buildSidebar = () => {};
   window.navigate = () => { navigateCount++; };
   window.CustomEvent = class CustomEvent {
     constructor(type) { this.type = type; }
@@ -360,7 +360,7 @@ try {
 } finally {
   document.getElementById = originalGetElementById;
   document.querySelector = originalQuerySelector;
-  window.buildSidebar = originalBuildSidebar;
+  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   if (originalNavigate) window.navigate = originalNavigate;
   else delete window.navigate;
   window.CustomEvent = originalCustomEvent;

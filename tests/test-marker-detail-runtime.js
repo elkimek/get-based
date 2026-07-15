@@ -19,6 +19,7 @@ import {
   toggleDashboardQuickMarkerPinRuntime,
   uninstallWearableModalFocusTrapRuntime,
 } from '../js/marker-detail-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -31,7 +32,6 @@ console.log('=== Marker Detail Runtime Tests ===\n');
 const runtimeKeys = [
   'window',
   'navigate',
-  'buildSidebar',
   'isDashboardQuickMarkerPinned',
   'toggleDashboardQuickMarkerPin',
   'renameMarker',
@@ -44,6 +44,7 @@ const runtimeKeys = [
   '_uninstallWearableModalFocusTrap',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+let previousViewRuntime = null;
 
 function setRuntimeValue(key, value) {
   Object.defineProperty(globalThis, key, {
@@ -68,7 +69,9 @@ try {
   const snps = [{ rsid: 'rs1801133' }];
 
   setRuntimeValue('navigate', (category, data) => calls.push(['navigate', category, data?.from || '']));
-  setRuntimeValue('buildSidebar', () => calls.push(['sidebar']));
+  previousViewRuntime = configureViewRuntime({
+    buildSidebar: () => calls.push(['sidebar']),
+  });
   setRuntimeValue('isDashboardQuickMarkerPinned', id => id === 'lipids_apob');
   setRuntimeValue('toggleDashboardQuickMarkerPin', id => calls.push(['pin', id]));
   setRuntimeValue('renameMarker', id => calls.push(['rename', id]));
@@ -121,7 +124,7 @@ try {
       renderedRecs === '<section>recs</section>' &&
       anchor.textContent === ':test:');
 
-  setRuntimeValue('buildSidebar', () => { throw new Error('boom'); });
+  configureViewRuntime({ buildSidebar: () => { throw new Error('boom'); } });
   setRuntimeValue('isDashboardQuickMarkerPinned', () => { throw new Error('boom'); });
   setRuntimeValue('_getRelevantSNPs', () => { throw new Error('boom'); });
   setRuntimeValue('isProductRecsEnabled', () => { throw new Error('boom'); });
@@ -134,6 +137,7 @@ try {
   configureMarkerDetailRuntime({ closeEMFInterpretation: () => {} });
 
   delete globalThis.window;
+  configureViewRuntime({ buildSidebar: null });
   const beforeMissingRuntimeCalls = calls.length;
   navigateMarkerDetailRuntime('dashboard');
   buildMarkerDetailSidebarRuntime();
@@ -154,6 +158,7 @@ try {
       missingRuntimeRecs === '');
   configureMarkerDetailRuntime(restoreMarkerDetailRuntime);
 } finally {
+  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   restoreRuntime();
 }
 

@@ -672,7 +672,7 @@ await import('../js/settings.js');
     syncPullActiveRefreshSrc.includes("from './sync-pull-active-refresh-runtime.js'")
       && !/\bwindow(?:\.|\s*\[)/.test(syncPullActiveRefreshSrc)
       && syncPullActiveRefreshRuntimeSrc.includes('const loaded = syncPullActiveRefreshDeps.loadChatThreads()')
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()")
+      && syncPullActiveRefreshRuntimeSrc.includes("getViewRuntimeFunction('buildSidebar')?.()")
       && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('navigate')?.(route, options)")
       && syncPullActiveRefreshRuntimeSrc.includes("runtime.dispatchEvent(new runtime.CustomEvent('labcharts-sync-applied'))"));
   assert('service worker precaches sync-pull-active-refresh-runtime.js',
@@ -2951,7 +2951,7 @@ await import('../js/settings.js');
   // import. Lives in sync-pull-active-refresh.js's active-profile post-merge block.
   assert('onSyncReceived rebuilds sidebar after every pull (catches nav items gated on per-row data)',
     /profileId\s*!==\s*state\.currentProfile[\s\S]{0,2400}rebuildPulledSidebarRuntime\(\)[\s\S]{0,1200}shouldRefreshVisibleData/.test(deltaSearchSrc)
-      && syncPullActiveRefreshRuntimeSrc.includes("getRuntimeFunction('buildSidebar')?.()"));
+      && syncPullActiveRefreshRuntimeSrc.includes("getViewRuntimeFunction('buildSidebar')?.()"));
 
   const localWithSnps = {
     genetics: {

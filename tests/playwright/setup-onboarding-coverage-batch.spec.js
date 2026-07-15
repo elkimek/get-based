@@ -237,12 +237,13 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, profile, data, crypto] = await Promise.all([
+    const [onboarding, { state }, profile, data, crypto, viewRuntime] = await Promise.all([
       import(onboardingUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
       import('/js/crypto.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
@@ -267,7 +268,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       navigate: window.navigate,
-      buildSidebar: window.buildSidebar,
       openChatPanel: window.openChatPanel,
       toggleChatPanel: window.toggleChatPanel,
       renderChatMessages: window.renderChatMessages,
@@ -275,6 +275,9 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
     };
     const outcomes = {};
     const calls = [];
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: payload => calls.push(['sidebar', !!payload]),
+    });
     const host = document.createElement('div');
     host.id = 'onboarding-coverage-host';
     let cards = null;
@@ -290,7 +293,6 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       onboarding.configureOnboardingView({
         navigate: (route, payload) => calls.push(['navigate', route, !!payload]),
       });
-      window.buildSidebar = payload => calls.push(['sidebar', !!payload]);
 
       const onboardedKey = profile.profileStorageKey(state.currentProfile, 'onboarded');
       localStorage.removeItem(onboardedKey);
@@ -422,8 +424,8 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
       onboarding.configureOnboardingView({ navigate: saved.navigate });
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       Object.assign(window, {
-        buildSidebar: saved.buildSidebar,
         openChatPanel: saved.openChatPanel,
         toggleChatPanel: saved.toggleChatPanel,
         renderChatMessages: saved.renderChatMessages,
