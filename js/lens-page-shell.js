@@ -10,9 +10,12 @@ import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.
 const LENS_PAGE_ORDER_VERSION = 1;
 
 let _shellDeps = {
+  addDashboardWidgetFromLens: (_id) => {},
   getAvailableDashboardFixedWidgetIds: () => [],
   getDashboardWidgetPrefs: () => ({ hidden: [] }),
   openEMFAssessmentEditor,
+  openDashboardBiometricPicker: () => {},
+  removeDashboardWidgetFromLens: (_id) => {},
 };
 let lensPageShellDelegatesInstalled = false;
 
@@ -57,9 +60,9 @@ function handleLensPageShellClick(event) {
   if (action === 'move-widget') {
     moveLensPageWidget(actionEl.dataset.lensPageRoute || '', id, actionEl.dataset.lensPageDirection || 0);
   } else if (action === 'add-dashboard-widget') {
-    callLensPageRuntime('addDashboardWidgetFromLens', id);
+    _shellDeps.addDashboardWidgetFromLens(id);
   } else if (action === 'remove-dashboard-widget') {
-    callLensPageRuntime('removeDashboardWidgetFromLens', id);
+    _shellDeps.removeDashboardWidgetFromLens(id);
   } else if (action === 'import-dna') {
     triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'import-snp-report') {
@@ -74,7 +77,7 @@ function handleLensPageShellClick(event) {
   } else if (action === 'open-wearables-settings') {
     callLensPageRuntime('openSettingsModal', 'wearables');
   } else if (action === 'open-biometric-picker') {
-    callLensPageRuntime('openDashboardBiometricPicker');
+    _shellDeps.openDashboardBiometricPicker();
   } else if (action === 'open-ai-chat') {
     callLensPageRuntime('openChatPanel');
   } else if (action === 'open-emf-assessment') {

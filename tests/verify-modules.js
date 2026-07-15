@@ -188,7 +188,7 @@
 
   // Module-only surfaces are verified through their ESM exports. Remaining UI
   // modules below still publish legacy window hooks while migration continues.
-  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule] = await Promise.all([
+  const [apiModule, backupModule, cashuWalletModule, chartsModule, contextCardsModule, cryptoModule, cycleModule, dataModule, emfModule, emfRuntimeModule, exportModule, labContextModule, lensModule, lightToolsModule, pdfImportModule, piiModule, profileModule, providerPanelsModule, settingsSyncPanelModule, sunContextModule, sunSpectrumModule, supplementsModule, utilsModule, viewsModule] = await Promise.all([
     import('../js/api.js'),
     import('../js/backup.js'),
     import('../js/cashu-wallet.js'),
@@ -212,6 +212,7 @@
     import('../js/sun-spectrum.js'),
     import('../js/supplements.js'),
     import('../js/utils.js'),
+    import('../js/views.js'),
   ]);
   const apiExports = [
     'getVeniceKey','saveVeniceKey','hasVeniceKey',
@@ -611,6 +612,16 @@
     'filterCorrelationOptions','toggleCorrelationMarker','applyCorrelationPreset',
     'renderCorrelationChips','renderCorrelationChart'
   ];
+  const viewsDashboardWidgetExports = [
+    'toggleDashboardOrganizeMode','moveDashboardWidget','moveLensPageWidget',
+    'hideDashboardWidget','showDashboardWidget','addDashboardWidgetFromLens',
+    'removeDashboardWidgetFromLens','addDashboardMarkerWidget','addDashboardBiometricMetric',
+    'addDashboardBiometricWidget','removeDashboardBiometricMetric',
+    'filterDashboardMarkerWidgetPicker','filterDashboardBiometricWidgetPicker',
+    'resetDashboardWidgets','clearDashboardWidgets','toggleDashboardQuickMarkerPin',
+    'openDashboardWidgetPicker','openDashboardBiometricPicker','closeDashboardWidgetPicker',
+    'startDashboardWidgetDrag','allowDashboardWidgetDrop','dropDashboardWidget'
+  ];
 
   for (const name of apiExports) {
     const val = apiModule[name];
@@ -642,6 +653,7 @@
     ['sun-spectrum.js', sunSpectrumModule, sunSpectrumExports],
     ['supplements.js', supplementsModule, supplementsExports],
     ['utils.js', utilsModule, utilsExports],
+    ['views.js dashboard widgets', viewsModule, viewsDashboardWidgetExports],
   ]) {
     for (const name of exports) {
       const val = moduleApi[name];
@@ -702,6 +714,9 @@
     assert(`window.${name} stays module-only`, !(name in window));
   }
   for (const name of dataExports) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
+  for (const name of viewsDashboardWidgetExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
 

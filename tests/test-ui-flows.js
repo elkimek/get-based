@@ -26,6 +26,7 @@ return (async function() {
   const main = document.getElementById('main-content');
   const S = window._labState;
   const dataModule = await import('/js/data.js');
+  const viewsModule = await import('/js/views.js');
   const supplements = await import('/js/supplements.js');
   const pdfImport = await import('/js/pdf-import.js');
   const profile = await import('/js/profile.js');
@@ -422,7 +423,7 @@ return (async function() {
   await wait(20);
   window.navigate('dashboard');
   await wait(50);
-  window.showDashboardWidget?.('supplements');
+  viewsModule.showDashboardWidget?.('supplements');
   await wait(50);
   const suppSection = main.querySelector('.supp-timeline-section');
   assert('Optional Supplements widget renders on dashboard after save', !!suppSection);
@@ -632,7 +633,7 @@ return (async function() {
   assert('Diet editor closes', !modalOverlay.classList.contains('show'));
 
   // Verify optional Profile Context widget can render on dashboard
-  window.showDashboardWidget?.('profile-context');
+  viewsModule.showDashboardWidget?.('profile-context');
   await wait(80);
   const ctxCards = main.querySelectorAll('.context-card');
   assert('Profile Context widget renders on dashboard', ctxCards.length >= 5);
