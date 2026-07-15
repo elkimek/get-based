@@ -834,6 +834,16 @@
     'handleAppleHealthDrop',
     'handleAppleHealthFilePick',
   ].every(name => !(name in window)));
+  assert('sun UV data helpers stay module-only', [
+    'fetchAtmosphere',
+    'manualAtmosphere',
+    'interpolateAtmosphere',
+    'getMeteoConfig',
+    'saveMeteoConfig',
+    'purgeMeteoCache',
+    'solarZenithAngle',
+    'computeUVConfidence',
+  ].every(name => !(name in window)));
   for (const name of settingsSyncPanelLegacyGlobals) {
     assert(`window.${name} stays module-only`, !(name in window));
   }

@@ -555,12 +555,15 @@ try {
   assert('settings.js delegates browser runtime hooks to settings-runtime',
     src.includes("from './settings-runtime.js'") &&
     !/\bwindow(?:\.|\s*\[)/.test(src));
-  assert('settings-runtime.js owns Settings browser-global publication',
+  assert('settings-runtime.js owns Settings browser adapters and injects meteo config modules',
     runtimeSrc.includes('export function publishSettingsGlobals') &&
     runtimeSrc.includes('Object.assign(getRuntimeWindow(), api)') &&
     runtimeSrc.includes("getRuntimeFunction('requestAnimationFrame')") &&
     runtimeSrc.includes("getRuntimeFunction('matchMedia')") &&
-    runtimeSrc.includes("getRuntimeFunction('getMeteoConfig')"));
+    runtimeSrc.includes("from './sun-uvdata-config.js'") &&
+    runtimeSrc.includes('settingsRuntimeDeps.getMeteoConfig') &&
+    !runtimeSrc.includes("getRuntimeFunction('getMeteoConfig')") &&
+    !runtimeSrc.includes("getRuntimeFunction('saveMeteoConfig')"));
 } catch (e) {
   assert('settings.js security check', false, e.message);
 }
