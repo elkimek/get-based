@@ -36,7 +36,8 @@ return (async function() {
   const store = await import('../js/wearables-store.js');
   const ah = await import('../js/wearables-apple-health.js');
   const reg = await import('../js/wearable-adapters.js');
-  await import('../js/wearables.js'); // registers window.openWearableDetail / closeModal / renderWearableStrip
+  await import('../js/wearables.js'); // registers window.openWearableDetail / renderWearableStrip
+  const views = await import('../js/views.js');
 
   window._labState.importedData = window._labState.importedData || {};
   const TEST_PROFILE = window._labState.currentProfile || ('__test-wearables-dom-' + Math.random().toString(36).slice(2, 8));
@@ -112,14 +113,14 @@ return (async function() {
   assert('Range toggle persists and re-renders active 6m pill',
     localStorage.getItem('wearable-detail-range') === '6m' &&
     /of last 6 months/.test(document.getElementById('detail-modal')?.textContent || ''));
-  window.closeModal();
+  views.closeModal();
   assert('closeModal clears modal chart instance', !window._labState.chartInstances?.modal);
 
   await window.openWearableDetail('activity_score');
   await new Promise(r => setTimeout(r, 60));
   assert('Rest-mode hint shown on all-zero activity score',
     /Rest Mode/.test(document.getElementById('detail-modal').innerHTML));
-  window.closeModal();
+  views.closeModal();
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
@@ -156,7 +157,7 @@ return (async function() {
     bpChart?.data?.datasets?.find(d => /^Diastolic/.test(d.label))?.data?.length === 3);
   assert('BP manual entries preserve paired sys/dia row value',
     !!document.querySelector('#detail-modal .wearable-manual-entry-val')?.textContent?.includes('120/80'));
-  window.closeModal();
+  views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
@@ -194,7 +195,7 @@ return (async function() {
     .map(btn => btn.getAttribute('data-wearable-metric'));
   assert('BP modal exposes separate systolic and diastolic source swap targets',
     bpSwapTargets.includes('bp_systolic') && bpSwapTargets.includes('bp_diastolic'), bpSwapTargets.join('|'));
-  window.closeModal();
+  views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
@@ -221,14 +222,14 @@ return (async function() {
     /Latest\s+121\/79 mmHg/.test(mixedManualPrimaryText)
       && !/Latest\s+124\/80 mmHg/.test(mixedManualPrimaryText)
       && !/Latest\s+125\/79 mmHg/.test(mixedManualPrimaryText), mixedManualPrimaryText);
-  window.closeModal();
+  views.closeModal();
 
   await window.openWearableDetail('bp_diastolic');
   await waitFor(() => window._labState?.chartInstances?.modal?.data?.datasets?.some(d => /systolic/i.test(d?.label || '')));
   assert('Opening bp_diastolic normalizes to the paired BP detail view',
     (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /systolic/i.test(l)) &&
     /121\/79/.test(document.getElementById('detail-modal')?.textContent || ''));
-  window.closeModal();
+  views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
@@ -251,7 +252,7 @@ return (async function() {
   const splitDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a split-date summary pair when no same-date candidate exists',
     /Latest\s+—\s+No same-date pair/.test(splitDateText) && !/Latest\s+130\/78 mmHg/.test(splitDateText), splitDateText);
-  window.closeModal();
+  views.closeModal();
 
   window._labState.importedData.wearableSummary.metrics.bp_diastolic.latestDate = undefined;
   await window.openWearableDetail('bp_systolic');
@@ -259,7 +260,7 @@ return (async function() {
   const missingDateText = document.getElementById('detail-modal')?.textContent || '';
   assert('BP latest row does not synthesize a summary pair when one latest date is missing',
     /Latest\s+—\s+No same-date pair/.test(missingDateText) && !/Latest\s+130\/78 mmHg/.test(missingDateText), missingDateText);
-  window.closeModal();
+  views.closeModal();
 
   await store.clearSource(TEST_PROFILE, 'manual');
   await store.clearSource(TEST_PROFILE, 'withings');
@@ -286,7 +287,7 @@ return (async function() {
     /Latest\s+121\/79 mmHg/.test(manualOnlyText) && !/Latest\s+125\/79 mmHg/.test(manualOnlyText), manualOnlyText);
   assert('BP manual-only fallback chart renders manual sys/dia points',
     (window._labState.chartInstances?.modal?.data?.datasets?.map(d => d.label) || []).some(l => /^Manual diastolic$/.test(l)));
-  window.closeModal();
+  views.closeModal();
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
@@ -332,7 +333,7 @@ return (async function() {
   await new Promise(r => setTimeout(r, 60));
   const modalSpo2Html = document.getElementById('detail-modal').innerHTML;
   assert('Modal renders SpO2 97 as integer (no .0)', !/97\.0/.test(modalSpo2Html));
-  window.closeModal();
+  views.closeModal();
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
@@ -384,7 +385,7 @@ return (async function() {
     /partial day · in progress/.test(String(tooltipLabel || '')));
   assert('Detail chart tooltip snaps by x-index, not invisible point intersection',
     stepsChart?.options?.interaction?.mode === 'index' && stepsChart.options.interaction.intersect === false);
-  window.closeModal();
+  views.closeModal();
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
@@ -437,7 +438,7 @@ return (async function() {
   assert('Manual overlay tooltip title uses the manual point date, not vendor index 0',
     manualTitle === new Date(todayISO + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }),
     `title=${manualTitle}`);
-  window.closeModal();
+  views.closeModal();
   delete window._labState.importedData.wearableSummary;
 
   // ═══════════════════════════════════════
@@ -479,7 +480,7 @@ return (async function() {
   const tooltipCarrier = document.querySelector('#detail-modal .wearable-detail-stat[title*="overnight HRV only"]');
   assert('v1.26 P1-2: empty-state row carries the long explanation in title attr',
     !!tooltipCarrier);
-  if (window.closeModal) window.closeModal();
+  views.closeModal();
   window._labState.importedData = _origImported;
 
   console.log(`\n%c Wearables DOM: ${pass} passed, ${fail} failed `, fail > 0 ? 'background:#ef4444;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px' : 'background:#22c55e;color:#fff;font-size:14px;padding:4px 12px;border-radius:4px');

@@ -397,7 +397,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       }
       cryptoStore.updateKeyCache('labcharts-routstr-key', oldStorage['labcharts-routstr-key'] || '');
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      window.closeModal?.();
+      (await import('/js/views.js')).closeModal();
       window.closeSettingsModal?.();
     }
   });

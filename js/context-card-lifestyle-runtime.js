@@ -2,6 +2,7 @@
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
 import { openContextModalRuntime } from './context-cards-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
@@ -15,7 +16,9 @@ function getRuntimeWindow() {
  */
 function getRuntimeFunction(name) {
   const runtime = getRuntimeWindow();
-  return runtime && typeof runtime[name] === 'function' ? runtime[name].bind(runtime) : null;
+  if (!runtime) return null;
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 const LIFESTYLE_DELEGATES_BOUND_KEY = '__lifestyleContextDelegatesBound';

@@ -419,7 +419,7 @@ return (async function() {
   assert('Supplement source link href is saved URL', savedSuppLink?.getAttribute('href') === 'https://www.example.com/products/a?x=1');
 
   // Verify the optional dashboard widget can be shown after save
-  window.closeModal();
+  viewsModule.closeModal();
   await wait(20);
   window.navigate('dashboard');
   await wait(50);
@@ -459,7 +459,7 @@ return (async function() {
   await wait(50);
   assert('Invalid supplement URL is rejected', (S.importedData.supplements || []).length === beforeInvalidSuppCount);
   assert('Invalid URL supplement not saved', !S.importedData.supplements?.some(s => s.name === '__UI_TEST_BAD_URL__'));
-  window.closeModal();
+  viewsModule.closeModal();
   await wait(20);
 
   const beforeUnsafeSupps = (S.importedData.supplements || []).slice();
@@ -477,7 +477,7 @@ return (async function() {
   const unsafeSuppRow = Array.from(document.querySelectorAll('.supp-list-item')).find(row => row.textContent.includes('__UI_TEST_UNSAFE_SOURCE__'));
   assert('Unsafe imported source URL does not render as link', unsafeSuppRow && !unsafeSuppRow.querySelector('.supp-list-source'));
   S.importedData.supplements = beforeUnsafeSupps;
-  window.closeModal();
+  viewsModule.closeModal();
   await wait(20);
 
   // ═══════════════════════════════════════════════
@@ -510,7 +510,7 @@ return (async function() {
   await wait(50);
   assert('Remove period back to 1 row', document.querySelectorAll('.supp-period-row').length === 1);
 
-  window.closeModal();
+  viewsModule.closeModal();
   await wait(20);
 
   // ═══════════════════════════════════════════════
@@ -548,7 +548,7 @@ return (async function() {
     assert('Value cards have status classes', hasStatus);
 
     // Close
-    window.closeModal();
+    viewsModule.closeModal();
     await wait(20);
     assert('Detail modal closes', !modalOverlay.classList.contains('show'));
   } else {
@@ -598,7 +598,7 @@ return (async function() {
   } finally {
     S.profileDob = originalProfileDob;
     dataModule.invalidateActiveDataCache?.();
-    window.closeModal();
+    viewsModule.closeModal();
     await wait(20);
   }
 
@@ -628,7 +628,7 @@ return (async function() {
   assert('Editor has save button', !!saveBtn);
 
   // Close without saving
-  window.closeModal();
+  viewsModule.closeModal();
   await wait(20);
   assert('Diet editor closes', !modalOverlay.classList.contains('show'));
 
@@ -852,7 +852,7 @@ return (async function() {
     // showDetailModal populates markerRegistry, then openManualEntryForm reads it
     viewsModule.showDetailModal(testMarkerId);
     await wait(50);
-    window.closeModal();
+    viewsModule.closeModal();
     await wait(20);
     viewsModule.openManualEntryForm(testMarkerId);
     await wait(50);
@@ -862,7 +862,7 @@ return (async function() {
     const hasValueInput = !!manualModal?.querySelector('input[type="number"], input[id*="manual"], input[id*="entry"]');
     assert('Manual entry has date input', hasDateInput);
     assert('Manual entry has value input', hasValueInput);
-    window.closeModal();
+    viewsModule.closeModal();
     await wait(20);
   }
 

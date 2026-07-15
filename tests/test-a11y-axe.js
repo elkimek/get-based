@@ -145,7 +145,7 @@ return (async () => {
       }
     });
     await scan('detail-modal');
-    await safeOp('close detail modal', () => window.closeModal?.());
+    await safeOp('close detail modal', () => viewsModule.closeModal());
 
     // Settings — scan each tab. Skip if openSettings isn't exposed.
     await safeOp('open settings', async () => {
@@ -163,7 +163,7 @@ return (async () => {
       });
       await scan(`settings-${tab}`);
     }
-    await safeOp('close settings', () => window.closeModal?.());
+    await safeOp('close settings', () => viewsModule.closeModal());
 
     // EMF assessment editor
     await safeOp('open EMF editor', async () => {
@@ -172,7 +172,7 @@ return (async () => {
       await new Promise(r => setTimeout(r, 400));
     });
     await scan('emf-editor');
-    await safeOp('close EMF editor', () => window.closeModal?.());
+    await safeOp('close EMF editor', () => viewsModule.closeModal());
 
     // ── 5. Report aggregated violations ────────────────────────────────
     const byImpact = { critical: [], serious: [], moderate: [], minor: [], unknown: [] };
@@ -287,7 +287,7 @@ return (async () => {
     if (snapshot.currentView) state.currentView = snapshot.currentView;
     if (snapshot.markerRegistry) state.markerRegistry = snapshot.markerRegistry;
     // Close any overlay we may have left open so the next test starts clean.
-    try { window.closeModal?.(); } catch (_) {}
+    try { viewsModule.closeModal(); } catch (_) {}
     // Re-navigate to dashboard so the DOM matches state.currentView.
     try { window.navigate?.('dashboard'); } catch (_) {}
   }

@@ -35,7 +35,7 @@ test('views facade browser coverage exercises genome lens picker filters and qui
       'saveRecommendation', 'dismissRecommendation', 'openChatProviderQuiz', 'setOnboardingFocus',
       'renameCategory', 'renameMarker', 'revertMarkerName', 'openCreateMarkerModal',
       'loadFocusCard', 'renderLightTodayStrip', 'renderLightChannelsLive',
-      '_openChannelOnLightPage', 'rememberModalTrigger',
+      '_openChannelOnLightPage', 'rememberModalTrigger', 'closeModal',
     ];
     outcomes.viewRuntimeBridgeResolvesModuleActions = bridgedViewActions.every(name =>
       runtimeBridge.getViewRuntimeFunction(name) === views[name]);

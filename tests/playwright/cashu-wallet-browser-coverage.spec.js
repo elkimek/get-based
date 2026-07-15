@@ -841,7 +841,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       localStorage.removeItem('labcharts-routstr-models');
       localStorage.removeItem('labcharts-routstr-pricing');
       localStorage.removeItem('labcharts-routstr-vision-models');
-      window.closeModal?.();
+      (await import('/js/views.js')).closeModal();
       window.closeSettingsModal?.();
     }
   });

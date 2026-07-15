@@ -16,6 +16,7 @@ import {
   renderRecommendationsDetailSection,
   scheduleRecommendationsTask,
 } from '../js/recommendations-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -33,6 +34,7 @@ function assert(name, condition, detail = '') {
 console.log('=== Recommendations Runtime Tests ===');
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+let previousViewRuntime = null;
 
 function setRuntime(value) {
   Object.defineProperty(globalThis, 'window', {
@@ -51,6 +53,9 @@ function restoreWindow() {
 try {
   const snpTable = { rs123: { snpHints: {} } };
   const calls = [];
+  previousViewRuntime = configureViewRuntime({
+    closeModal: () => calls.push(['bridge-close']),
+  });
   const runtime = {
     _snpTableCache: snpTable,
     closeModal() { calls.push(['close', this === runtime]); },
@@ -123,7 +128,8 @@ try {
       isRecommendationsProductRecsEnabled() === false &&
       await loadRecommendationsCatalogRuntime() === null &&
       await renderRecommendationsDetailSection('missing.slot', {}) === '' &&
-      closeRecommendationsModal() === false &&
+      closeRecommendationsModal() === true &&
+      calls.some(call => call[0] === 'bridge-close') &&
       openRecommendationsChatPanel('No-op') === false &&
       openRecommendationsEmfAssessment() === true &&
       openRecommendationsLocationEditor() === false &&
@@ -139,6 +145,7 @@ try {
       openRecommendationsChatPanel('No-op') === false &&
       registerRecommendationsRuntimeExports({ missingWindowProbe: true }) === false);
 } finally {
+  if (previousViewRuntime?.closeModal) configureViewRuntime(previousViewRuntime);
   restoreWindow();
 }
 

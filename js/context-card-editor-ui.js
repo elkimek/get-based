@@ -2,6 +2,7 @@
 // context-card-editor-ui.js - Shared context-card editor modal and field controls
 
 import { escapeHTML } from './utils.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 /**
  * @param {string} action
@@ -28,7 +29,8 @@ function closestContextEditorElement(target, selector) {
  */
 function invokeContextEditorWindowFn(fnName) {
   if (!fnName || typeof window === 'undefined') return;
-  const fn = /** @type {any} */ (window)[fnName];
+  const windowFn = /** @type {any} */ (window)[fnName];
+  const fn = typeof windowFn === 'function' ? windowFn : getViewRuntimeFunction(fnName);
   if (typeof fn === 'function') fn();
 }
 

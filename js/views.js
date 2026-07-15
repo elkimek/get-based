@@ -390,5 +390,5 @@ configureViewRuntime({
   renderCorrelationChart,
 });
 
-// Core shell contracts retained while their remaining integrations migrate.
-Object.assign(window, { navigate, closeModal });
+// Core shell contract retained while its remaining integrations migrate.
+Object.assign(window, { navigate });

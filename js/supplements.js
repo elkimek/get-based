@@ -16,6 +16,7 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { initSupplementActionDelegates, suppActionAttrs } from './supplement-action-delegates.js';
 import { scanSupplementsForWarnings, humanizeEffect } from './supplement-warnings.js';
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   computeAllImpacts,
   computeSupplementImpact,
@@ -40,9 +41,16 @@ export {
 } from './supplement-impact.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
-  closeModal: () => void,
+  closeModal?: () => void,
   navigate: (category: string) => void
 }} */ (window);
+
+function closeSupplementModal() {
+  const closeModal = typeof appWindow.closeModal === 'function'
+    ? appWindow.closeModal.bind(appWindow)
+    : getViewRuntimeFunction('closeModal');
+  closeModal?.();
+}
 
 /**
  * @param {string} id
@@ -685,7 +693,7 @@ export function deleteSupplement(idx) {
   if (state.importedData.supplements.length > 0) {
     openSupplementsEditor();
   } else {
-    appWindow.closeModal();
+    closeSupplementModal();
     const activeNav = document.querySelector(".nav-item.active");
     appWindow.navigate(activeNav instanceof HTMLElement ? activeNav.dataset.category || "dashboard" : "dashboard");
   }
@@ -708,7 +716,7 @@ initSupplementActionDelegates({
   openEditor: openSupplementsEditor,
   toggleAccordion: toggleSuppAccordion,
   toggleAddForm: showAddSuppForm,
-  closeModal: () => appWindow.closeModal(),
+  closeModal: closeSupplementModal,
   askMito: askAIMitoContext,
   addIngredient: addIngredientRow,
   removeIngredient: removeIngredientRow,

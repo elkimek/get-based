@@ -1,5 +1,7 @@
 // @ts-check
 
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
+
 /**
  * @typedef {Window & typeof globalThis & {
  *   closeModal?: () => void,
@@ -13,19 +15,24 @@ function getNotesRuntimeWindow() {
   return /** @type {NotesRuntimeWindow | null} */ (typeof window !== 'undefined' ? window : null);
 }
 
-export function closeNoteModalRuntime() {
+/** @param {string} name */
+function getNotesRuntimeFunction(name) {
   const runtime = getNotesRuntimeWindow();
-  runtime?.closeModal?.();
+  if (!runtime) return null;
+  const fn = runtime[name];
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
+}
+
+export function closeNoteModalRuntime() {
+  getNotesRuntimeFunction('closeModal')?.();
 }
 
 export function rememberNoteModalTriggerRuntime() {
-  const runtime = getNotesRuntimeWindow();
-  runtime?.rememberModalTrigger?.();
+  getNotesRuntimeFunction('rememberModalTrigger')?.();
 }
 
 export function navigateAfterNoteChangeRuntime(route = 'dashboard') {
-  const runtime = getNotesRuntimeWindow();
-  runtime?.navigate?.(route || 'dashboard');
+  getNotesRuntimeFunction('navigate')?.(route || 'dashboard');
 }
 
 export function isNoteActionDelegatesBoundRuntime() {

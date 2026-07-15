@@ -17,6 +17,7 @@ import { extractPDFText } from './pdf-import.js';
 import { obfuscatePDFText, sanitizeWithOllama, sanitizeWithOllamaStreaming, checkOllamaPII, reviewPIIBeforeSend } from './pii.js';
 import { loadEMFCatalog, renderEMFMeterRecs, isProductRecsEnabled } from './recommendations.js';
 import { openModalOverlay, removeModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import {
   closeEMFInterpretation,
   discussEMFInterpretation,
@@ -151,7 +152,7 @@ function getEMFRuntimeScope() {
 function getEMFRuntimeFunction(name) {
   const runtime = getEMFRuntimeScope();
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  return typeof fn === 'function' ? fn.bind(runtime) : getViewRuntimeFunction(name);
 }
 
 function closeEMFModalRuntime() {

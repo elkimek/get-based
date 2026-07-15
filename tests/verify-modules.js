@@ -598,8 +598,8 @@
     'hasCardContent','escapeAttr','loadScriptOnce'
   ];
 
-  // views.js retains only the two core shell contracts on window.
-  const viewsLegacyExports = ['navigate','closeModal'];
+  // views.js retains only the core navigate shell contract on window.
+  const viewsLegacyExports = ['navigate'];
   const viewsFacadeModuleExports = [
     'getInitialView','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
     'showBodyLens','showInsightLens','showRecommendations','openRecommendationDetail',
@@ -617,7 +617,7 @@
     'revertRefRange','openManualEntryForm','saveManualEntry','saveAndAddAnotherManualEntry',
     'openCreateMarkerModal','pickNewCatIcon','saveCustomMarker','deleteMarkerValue',
     'deleteCustomMarker','editMarkerValue','revertMarkerValue','editValueNote',
-    'deleteValueNote','toggleMarkerNoteEditor','saveMarkerNote','deleteMarkerNote',
+    'deleteValueNote','toggleMarkerNoteEditor','saveMarkerNote','deleteMarkerNote','closeModal',
     'rememberModalTrigger','showCompare','setCompareDate1','setCompareDate2','updateCompare',
     'swapCompareDates','renderCompareTable','showCorrelations','populateCorrelationOptions',
     'showCorrelationDropdown','filterCorrelationOptions','toggleCorrelationMarker',
