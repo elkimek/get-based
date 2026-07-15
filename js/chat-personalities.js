@@ -15,7 +15,6 @@ import {
   openChatContextModalRuntime,
   renderChatMessagesRuntime,
 } from './chat-runtime.js';
-import { registerUtilsRuntimeExports } from './utils-runtime.js';
 
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 
@@ -582,5 +581,3 @@ IMPORTANT: On the very first line, output ONLY a single emoji that best captures
   }
   if (genBtn) { genBtn.disabled = false; genBtn.textContent = 'Generate'; }
 }
-
-registerUtilsRuntimeExports({ updateChatContextStatus });

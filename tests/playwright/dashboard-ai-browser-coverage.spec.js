@@ -20,6 +20,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const hadShowDirectoryPicker = Object.prototype.hasOwnProperty.call(window, 'showDirectoryPicker');
     window.showDirectoryPicker = async () => ({ name: 'Coverage Backups' });
     const dashboardAi = await import(dashboardUrl);
+    const dashboardAiRuntime = await import('/js/context-card-dashboard-ai-runtime.js');
     const lens = await import('/js/lens.js');
     const { state } = await import('/js/state.js');
     const contextCardsRuntime = await import('/js/context-cards-runtime.js');
@@ -57,6 +58,9 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     let handledDnaFile = null;
 
     dashboardAi.configureDashboardAISyncSetup(() => calls.push('sync'));
+    const previousContextStatusHandler = dashboardAiRuntime.configureDashboardAIContextStatus(
+      () => calls.push('context-status')
+    );
     const previousDataProtectionDeps = dashboardAi.configureDashboardAIDataProtectionDeps({
       pickFolderForBackup: () => calls.push('backup'),
       showEnableEncryptionModal: () => calls.push('encryption'),
@@ -209,6 +213,18 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       lens.closeKnowledgeBaseModal();
       outcomes.pickersScheduleFocusTimers = timers.some(delay => delay === 50);
 
+      dashboardAi.openContextModal();
+      const contextToggle = /** @type {HTMLInputElement | null} */ (
+        document.querySelector('#context-hub-overlay [data-context-toggle]')
+      );
+      if (contextToggle) {
+        contextToggle.checked = !contextToggle.checked;
+        contextToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      outcomes.contextToggleUsesConfiguredModuleCallback = calls.includes('context-status')
+        && !('updateChatContextStatus' in window);
+      document.querySelector('#context-hub-overlay')?.remove();
+
       dashboardAi.triggerDNAFilePicker();
       const input = document.getElementById('dna-dashboard-input');
       const transfer = new DataTransfer();
@@ -241,6 +257,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       document.querySelectorAll('#data-protection-picker-overlay,#ai-personalize-picker-overlay,#dna-dashboard-input')
         .forEach(el => el.remove());
       dashboardAi.configureDashboardAISyncSetup();
+      dashboardAiRuntime.configureDashboardAIContextStatus(previousContextStatusHandler);
       dashboardAi.configureDashboardAIDataProtectionDeps(previousDataProtectionDeps);
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
       HTMLInputElement.prototype.click = originalInputClick;

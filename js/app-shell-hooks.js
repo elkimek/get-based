@@ -3,8 +3,10 @@
 
 import { configureAppEventListeners } from './app-event-listeners.js';
 import { closeChangelog } from './changelog.js';
+import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { closeChatPanel, configureChatPanel, toggleChatPanel } from './chat-panel.js';
 import { updateChatNudge } from './chat-nudge.js';
+import { updateChatContextStatus } from './chat-personalities.js';
 import { closeSummaryModal } from './chat-summaries.js';
 import { closeClientList, configureClientListRuntime } from './client-list.js';
 import { closeEMFInterpretation } from './emf-interpretation.js';
@@ -48,6 +50,7 @@ configureSettingsRuntime({
 });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
+configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({
   closeChangelog,

@@ -60,6 +60,11 @@ assert('Feedback shell action uses its module dependency instead of a window loo
     && shellSrc.includes('shellFeedbackDeps.openFeedbackModal()')
     && !shellSrc.includes("callShellRuntime('openFeedbackModal')"));
 
+assert('App shell wires Context hub status refresh without a window lookup',
+  appShellHooksSrc.includes("import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js'")
+    && appShellHooksSrc.includes("import { updateChatContextStatus } from './chat-personalities.js'")
+    && appShellHooksSrc.includes('configureDashboardAIContextStatus(updateChatContextStatus);'));
+
 [
   'toggle-panel',
   'close-panel',
