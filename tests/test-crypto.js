@@ -470,7 +470,6 @@ try {
     swSrc.includes("'/js/profile-runtime.js'"));
   assert('export.js delegates browser runtime wiring to export-runtime',
     exportSrc.includes("from './export-runtime.js'") &&
-    exportSrc.includes('getWalletBundleSettings') &&
     exportSrc.includes('refreshImportRuntimeShell') &&
     !exportSrc.includes('publishExportGlobals') &&
     !exportRuntimeSrc.includes('publishExportGlobals') &&
@@ -499,6 +498,11 @@ try {
     exportRuntimeSrc.includes('if (chat) await refreshChatThreadsRuntime(chatThreads)'));
   assert('export.js no longer calls import UI globals through window',
     !/window\.(loadChatThreads|buildSidebar|updateHeaderDates|renderProfileButton|navigate|cashuGetMintUrl|nostrGetSelectedNode|cashuRestoreWalletFromSeed|cashuSetMintUrl|nostrSetSelectedNode|cashuDestroyWalletDB)/.test(exportSrc));
+  assert('export.js uses the Nostr module for wallet metadata',
+    exportSrc.includes("from './nostr-discovery.js'") &&
+    exportSrc.includes('getSelectedNodeUrl()') &&
+    !exportRuntimeSrc.includes('nostrGetSelectedNode') &&
+    !exportRuntimeSrc.includes('nostrSetSelectedNode'));
   assert('Service worker precaches export runtime module',
     swSrc.includes("'/js/export-runtime.js'"));
 } catch (e) {

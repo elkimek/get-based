@@ -1,32 +1,30 @@
 // @ts-check
-// provider-panel-renderers-runtime.js - Browser runtime hooks for provider panel renderers.
+// provider-panel-renderers-runtime.js - Nostr dependencies for provider panel renderers.
 
-/**
- * @returns {Record<string, any>}
- */
-function getProviderPanelRendererRuntimeScope() {
-  return typeof window !== 'undefined'
-    ? /** @type {Record<string, any>} */ (window)
-    : /** @type {Record<string, any>} */ (globalThis);
-}
+import { discoverNodes, getSelectedNodeUrl, setSelectedNodeUrl } from './nostr-discovery.js';
 
-/**
- * @param {string} name
- * @returns {((...args: any[]) => any) | null}
- */
-function getProviderPanelRendererRuntimeFunction(name) {
-  const runtime = getProviderPanelRendererRuntimeScope();
-  const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+const providerPanelRendererDefaults = {
+  discoverNodes,
+  getSelectedNodeUrl,
+  setSelectedNodeUrl,
+};
+const providerPanelRendererRuntime = { ...providerPanelRendererDefaults };
+
+export function configureProviderPanelRendererRuntime(overrides = {}) {
+  const previous = { ...providerPanelRendererRuntime };
+  Object.assign(providerPanelRendererRuntime, providerPanelRendererDefaults, overrides);
+  return previous;
 }
 
 export function getSelectedRoutstrNodeFromRuntime() {
-  return getProviderPanelRendererRuntimeFunction('nostrGetSelectedNode')?.() || null;
+  return typeof providerPanelRendererRuntime.getSelectedNodeUrl === 'function'
+    ? providerPanelRendererRuntime.getSelectedNodeUrl() || null
+    : null;
 }
 
 export function discoverRoutstrNodesFromRuntime() {
-  const discover = getProviderPanelRendererRuntimeFunction('nostrDiscoverNodes');
-  if (!discover) return null;
+  const discover = providerPanelRendererRuntime.discoverNodes;
+  if (typeof discover !== 'function') return null;
   const result = discover();
   return result && typeof result.then === 'function' ? result : null;
 }
@@ -35,5 +33,7 @@ export function discoverRoutstrNodesFromRuntime() {
  * @param {string} nodeUrl
  */
 export function setSelectedRoutstrNodeFromRuntime(nodeUrl) {
-  getProviderPanelRendererRuntimeFunction('nostrSetSelectedNode')?.(nodeUrl);
+  if (typeof providerPanelRendererRuntime.setSelectedNodeUrl === 'function') {
+    providerPanelRendererRuntime.setSelectedNodeUrl(nodeUrl);
+  }
 }

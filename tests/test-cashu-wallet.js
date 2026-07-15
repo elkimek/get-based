@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // test-cashu-wallet.js — Cashu wallet module, Nostr discovery, integration
-// points. Module + window exports, wallet security/proof-management/recovery/
+// points. Module exports, wallet security/proof-management/recovery/
 // fee-mechanism source inspection, Nostr protocol + node parsing, API node-URL
 // guard, sync + export/import + service-worker wiring, BIP-39 seed generation,
 // and SSRF-validation wiring on setMintUrl / setSelectedNodeUrl.
@@ -48,7 +48,7 @@ await import('../js/crypto.js');
 // bip39-minimal.js self-assigns to globalThis.bip39.
 await import('../vendor/bip39-minimal.js');
 const wallet = await import('../js/cashu-wallet.js');
-await import('../js/nostr-discovery.js');
+const discoveryModule = await import('../js/nostr-discovery.js');
 
 const walletSrc = await fetchWithRetry('js/cashu-wallet.js');
 const walletStoreSrc = await fetchWithRetry('js/cashu-wallet-store.js');
@@ -217,8 +217,10 @@ for (const fn of discoveryExports) {
 
 const discoveryWindowExports = ['nostrDiscoverNodes', 'nostrGetSelectedNode', 'nostrSetSelectedNode', 'nostrClearNodeCache'];
 for (const fn of discoveryWindowExports) {
-  assert(`window.${fn} exists`, typeof window[fn] === 'function');
+  assert(`window.${fn} stays module-only`, !(fn in window));
 }
+assert('Nostr discovery no longer registers runtime exports',
+  !discoverySrc.includes('registerUtilsRuntimeExports'));
 
 // ═══════════════════════════════════════
 // 8. NOSTR DISCOVERY — PROTOCOL
@@ -292,13 +294,12 @@ console.log('12. Export/Import Integration');
 assert('Bundle includes wallet settings', exportSrc.includes('bundle.wallet'));
 const exportImportSrc = await fetchWithRetry('js/export-import.js');
 assert('Bundle never restores incomplete wallet identity',
-  exportImportSrc.includes('restoreWalletBundleSettings') &&
+  exportImportSrc.includes('setSelectedNodeUrl') &&
   !exportRuntimeSrc.includes('wallet.mintUrl') &&
   !exportRuntimeSrc.includes('wallet.mnemonic'));
-assert('Bundle restores node URL through export runtime',
-  exportImportSrc.includes('restoreWalletBundleSettings') &&
-  exportRuntimeSrc.includes('wallet.nodeUrl') &&
-  exportRuntimeSrc.includes('nostrSetSelectedNode'));
+assert('Bundle restores node URL through the Nostr module',
+  exportImportSrc.includes("from './nostr-discovery.js'") &&
+  exportImportSrc.includes('setSelectedNodeUrl(json.wallet.nodeUrl)'));
 assert('clearAllData destroys wallet DB through export runtime',
   exportSrc.includes('destroyWalletRuntimeDB') &&
   exportRuntimeSrc.includes("import { destroyWalletDB } from './cashu-wallet.js'") &&
@@ -463,7 +464,7 @@ assert('Two generations differ', mnemonic !== mnemonic2);
 // sites actually invokes it.
 console.log('18. SSRF Validation Wiring');
 
-const discovery = await import('../js/nostr-discovery.js');
+const discovery = discoveryModule;
 
 async function expectMintRejection(url, label) {
   let threw = false;

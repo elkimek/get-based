@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const renderSrc = fs.readFileSync(path.join(root, 'js/provider-panel-renderers.js'), 'utf8');
+const renderRuntimeSrc = fs.readFileSync(path.join(root, 'js/provider-panel-renderers-runtime.js'), 'utf8');
 const modelControlsSrc = fs.readFileSync(path.join(root, 'js/provider-model-controls.js'), 'utf8');
 const delegatesSrc = fs.readFileSync(path.join(root, 'js/provider-panel-delegates.js'), 'utf8');
 const panelsSrc = fs.readFileSync(path.join(root, 'js/provider-panels.js'), 'utf8');
@@ -42,12 +43,15 @@ assert('provider panel renderers emit delegated action attributes',
   renderSrc.includes('data-provider-panel-action') &&
     renderSrc.includes('data-provider-panel-change') &&
     renderSrc.includes('data-provider-panel-key'));
-assert('provider panel renderers route Nostr browser globals through runtime adapter',
+assert('provider panel renderers route Nostr module dependencies through runtime adapter',
   renderSrc.includes("from './provider-panel-renderers-runtime.js'") &&
     renderSrc.includes('getSelectedRoutstrNodeFromRuntime()') &&
     renderSrc.includes('discoverRoutstrNodesFromRuntime()') &&
     renderSrc.includes('setSelectedRoutstrNodeFromRuntime(bestUrl)') &&
-    !/\bwindow(?:\.|\s*\[)/.test(renderSrc));
+    !/\bwindow(?:\.|\s*\[)/.test(renderSrc) &&
+    renderRuntimeSrc.includes("from './nostr-discovery.js'") &&
+    renderRuntimeSrc.includes('configureProviderPanelRendererRuntime') &&
+    !/\bwindow(?:\.|\s*\[)/.test(renderRuntimeSrc));
 assert('provider model controls emit delegated model attributes',
   modelControlsSrc.includes('data-provider-panel-change') &&
     modelControlsSrc.includes('data-provider-panel-key'));

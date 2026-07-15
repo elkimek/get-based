@@ -490,12 +490,13 @@ return (async function() {
 
   assert('Bundle wallet export includes only node URL in source', exportSrc.includes('bundle.wallet = { nodeUrl:'));
   assert('Bundle wallet export excludes Cashu mint and seed settings',
-    exportSrc.includes('getWalletBundleSettings') &&
+    exportSrc.includes('getSelectedNodeUrl') &&
     !exportRuntimeSrc.includes('cashuGetMintUrl') &&
     !exportRuntimeSrc.includes('cashuGetWalletMnemonic'));
-  assert('Bundle wallet checks nostrGetSelectedNode through export runtime',
-    exportSrc.includes('getWalletBundleSettings') &&
-    exportRuntimeSrc.includes('nostrGetSelectedNode'));
+  assert('Bundle wallet reads the selected node through the Nostr module',
+    exportSrc.includes("from './nostr-discovery.js'") &&
+    exportSrc.includes('getSelectedNodeUrl()') &&
+    exportImportSrc.includes('setSelectedNodeUrl(json.wallet.nodeUrl)'));
 
   // ═══════════════════════════════════════
   // 12. exportDataJSON is alias for exportClientJSON
