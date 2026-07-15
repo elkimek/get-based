@@ -10,7 +10,6 @@ import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const appWindow = /** @type {Window & typeof globalThis & {
   __WEARABLES_TEST?: boolean,
-  buildSidebar: () => void,
   navigate?: (view: string) => void,
 }} */ (typeof window !== 'undefined' ? window : {});
 const cryptoProfileDeps = {
@@ -20,6 +19,10 @@ const cryptoProfileDeps = {
 function navigateCryptoView(view) {
   const navigate = appWindow.navigate || (typeof window !== 'undefined' ? getViewRuntimeFunction('navigate') : null);
   navigate?.call(appWindow, view);
+}
+
+function buildCryptoSidebar() {
+  getViewRuntimeFunction('buildSidebar')?.();
 }
 
 export function configureCryptoProfileDeps(deps = {}) {
@@ -1015,7 +1018,7 @@ export function initBroadcastChannel() {
           ensureImportedArray(state.importedData, 'notes');
           ensureImportedArray(state.importedData, 'supplements');
           cryptoProfileDeps.migrateProfileData?.(state.importedData);
-          appWindow.buildSidebar();
+          buildCryptoSidebar();
           // buildSidebar resets the .active class to Dashboard, so source
           // the target view from state.currentView (kept in sync by
           // navigate) rather than re-reading the stale DOM.

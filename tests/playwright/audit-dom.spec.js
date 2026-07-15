@@ -5,10 +5,11 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
   await page.waitForFunction(() => !!window._labState);
 
   const results = await page.evaluate(async () => {
-    const [{ state }, dataModule, viewsModule] = await Promise.all([
+    const [{ state }, dataModule, viewsModule, navModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/views.js'),
+      import('/js/nav.js'),
     ]);
     const originalData = state.importedData;
     const originalSex = state.profileSex;
@@ -24,7 +25,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
         await dataModule.saveImportedData();
-        window.buildSidebar?.();
+        navModule.buildSidebar();
       }
 
       viewsModule.showCategory('biochemistry');

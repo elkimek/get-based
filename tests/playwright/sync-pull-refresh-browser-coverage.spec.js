@@ -17,11 +17,12 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ refreshUrl, refreshRuntimeUrl, maintenanceUrl, stateUrl }) => {
-    const [refreshModule, refreshRuntime, maintenance, { state }] = await Promise.all([
+    const [refreshModule, refreshRuntime, maintenance, { state }, viewRuntime] = await Promise.all([
       import(refreshUrl),
       import(refreshRuntimeUrl),
       import(maintenanceUrl),
       import(stateUrl),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
@@ -32,7 +33,6 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         currentView: state.currentView,
         importedData: clone(state.importedData),
       },
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       loadChatHistory: window.loadChatHistory,
     };
@@ -46,13 +46,15 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       ensureActiveThread: () => { calls.push('ensureActiveThread'); },
       renderThreadList: () => { calls.push('renderThreadList'); },
     });
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => { calls.push('buildSidebar'); },
+    });
     const debugCalls = [];
     let syncAppliedEvents = 0;
     const onSyncApplied = () => { syncAppliedEvents += 1; };
 
     try {
       window.addEventListener('labcharts-sync-applied', onSyncApplied);
-      window.buildSidebar = () => { calls.push('buildSidebar'); };
       window.navigate = (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); };
       window.loadChatHistory = () => { calls.push('loadChatHistory'); };
 
@@ -151,7 +153,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       state.currentProfile = original.state.currentProfile;
       state.currentView = original.state.currentView;
       state.importedData = original.state.importedData;
-      restoreWindowFn('buildSidebar', original.buildSidebar);
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       restoreWindowFn('navigate', original.navigate);
       restoreWindowFn('loadChatHistory', original.loadChatHistory);
       refreshRuntime.configureSyncPullActiveRefreshDeps(previousThreadDeps);

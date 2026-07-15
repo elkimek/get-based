@@ -37,7 +37,7 @@ function getRuntimeFunction(name) {
 
 /** @param {unknown} data */
 export function rebuildOnboardingSidebarRuntime(data) {
-  getRuntimeFunction('buildSidebar')?.(data);
+  getViewRuntimeFunction('buildSidebar')?.(data);
 }
 
 /**

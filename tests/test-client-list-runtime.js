@@ -12,6 +12,7 @@ import {
   setClientManualHaplogroup,
   showClientListNotification,
 } from '../js/client-list-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 const originalClientListRuntimeDeps = configureClientListRuntimeDeps();
 
@@ -26,7 +27,6 @@ console.log('=== Client List Runtime Tests ===\n');
 const runtimeKeys = [
   'HAPLOGROUP_LIST',
   'navigate',
-  'renderProfileButton',
   'showNotification',
   'setManualHaplogroup',
 ];
@@ -37,6 +37,7 @@ const savedAIStorage = {
   openrouterKey: localStorage.getItem('labcharts-openrouter-key'),
   openrouterCachedKey: getCachedKey('labcharts-openrouter-key'),
 };
+let previousViewRuntime = null;
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
@@ -67,7 +68,9 @@ try {
   assert('navigateClientListRoute delegates to runtime navigate',
     calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard'));
 
-  globalThis.renderProfileButton = () => calls.push(['render-profile-button']);
+  previousViewRuntime = configureViewRuntime({
+    renderProfileButton: () => calls.push(['render-profile-button']),
+  });
   refreshClientProfileButton();
   assert('refreshClientProfileButton delegates to runtime profile refresh',
     calls.some(call => call[0] === 'render-profile-button'));
@@ -105,6 +108,7 @@ try {
     hasClientListAIProvider() === false);
 
 } finally {
+  configureViewRuntime({ renderProfileButton: null, ...previousViewRuntime });
   configureClientListRuntimeDeps(originalClientListRuntimeDeps);
   restoreRuntime();
 }

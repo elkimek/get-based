@@ -8,7 +8,6 @@ import { countFlagged } from './marker-analysis.js';
 import { getProfiles } from './profile.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
-  exposeNavRuntimeGlobals,
   navigateFromNavRuntime,
   openContextFromNavRuntime,
   openCreateMarkerFromNavRuntime,
@@ -448,11 +447,3 @@ export function closeMobileSidebar() {
   document.getElementById('sidebar-nav')?.classList.remove('mobile-open');
   closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
-
-exposeNavRuntimeGlobals({
-  buildSidebar,
-  renderProfileDropdown,
-  renderProfileButton,
-  toggleMobileSidebar,
-  closeMobileSidebar,
-});

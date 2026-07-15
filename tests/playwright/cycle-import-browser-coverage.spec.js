@@ -322,7 +322,7 @@ test('Body cycle action opens the contextual cycle picker', async ({ page }, tes
     (await import('/js/views.js')).navigate('body');
     await new Promise(resolve => setTimeout(resolve, 150));
     endTour({ openEmptyChat: false });
-    window.closeMobileSidebar?.();
+    (await import('/js/nav.js')).closeMobileSidebar();
     return id;
   });
 

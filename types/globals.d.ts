@@ -23,7 +23,6 @@ interface Window {
   _snpTableCache?: unknown;
   APP_VERSION?: string;
   applyAccentOverride?: () => void;
-  buildSidebar?: AnyFunction;
   callClaudeAPI?: (request: {
     system?: string;
     messages: Array<{ role: string; content: string }>;
@@ -61,7 +60,6 @@ interface Window {
   closeChatPanel: () => void;
   closeFeedbackModal: () => void;
   closeImportModal: () => void;
-  closeMobileSidebar: () => void;
   closeReportBuilder?: () => void;
   closeRestoreMnemonicDialog?: () => void;
   closeSettings?: () => void;
@@ -194,7 +192,6 @@ interface Window {
   refreshMobileDashboardActiveTab?: AnyFunction;
   refreshSettingsWearables?: () => void;
   rememberModalTrigger?: () => void;
-  renderProfileButton?: () => void;
   renderChatMessages?: AnyFunction;
   renderMenstrualCycleSection?: AnyFunction;
   renderRecommendationSectionSync?: AnyFunction;

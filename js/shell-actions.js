@@ -3,6 +3,7 @@
 
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
 import { openFeedbackModal } from './feedback.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let shellDelegatesInstalled = false;
 const shellImportDeps = { handleImportStatusClick, isImportRunning };
@@ -63,10 +64,10 @@ function clickFileInput(id) {
 
 function runShellAction(action) {
   if (action === 'toggle-mobile-sidebar') {
-    callShellRuntime('toggleMobileSidebar');
+    getViewRuntimeFunction('toggleMobileSidebar')?.();
     return true;
   } else if (action === 'close-mobile-sidebar') {
-    callShellRuntime('closeMobileSidebar');
+    getViewRuntimeFunction('closeMobileSidebar')?.();
     return true;
   } else if (action === 'trigger-import') {
     if (shellImportDeps.isImportRunning()) {

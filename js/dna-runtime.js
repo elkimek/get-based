@@ -70,7 +70,7 @@ export function navigateDnaRoute(route) {
 }
 
 export function refreshDnaSidebar() {
-  const buildSidebar = getRuntimeFunction('buildSidebar');
+  const buildSidebar = getViewRuntimeFunction('buildSidebar');
   if (!buildSidebar) return;
   try {
     buildSidebar();

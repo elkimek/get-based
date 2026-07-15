@@ -13,7 +13,8 @@ export function installDNAWindowBindings(win, deps) {
     _getState: () => state,
     _saveAndRefresh: async () => {
       if (!await saveImportedData()) return false;
-      if (win.buildSidebar) try { win.buildSidebar(); } catch (e) {}
+      const buildSidebar = getViewRuntimeFunction('buildSidebar');
+      if (buildSidebar) try { buildSidebar(); } catch (e) {}
       const navigate = win.navigate || (typeof window !== 'undefined' && win === window
         ? getViewRuntimeFunction('navigate')
         : null);

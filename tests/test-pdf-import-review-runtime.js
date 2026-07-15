@@ -18,6 +18,7 @@ import {
   startBatchImport,
   takeBatchImportResolve,
 } from '../js/pdf-import-review-runtime.js';
+import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -31,7 +32,6 @@ const RUNTIME_FIELDS = [
   '_batchImportResolve',
   '_batchImportContext',
   '__importReviewDelegatesBound',
-  'buildSidebar',
   'navigate',
   'showPIIDiffViewer',
   'updateHeaderDates',
@@ -39,6 +39,7 @@ const RUNTIME_FIELDS = [
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
 const originalReviewRuntimeDeps = configurePdfImportReviewRuntimeDeps();
+let previousViewRuntime = null;
 const originalFieldDescriptors = new Map(
   RUNTIME_FIELDS.map(field => [field, Object.getOwnPropertyDescriptor(globalThis, field)])
 );
@@ -73,7 +74,9 @@ try {
   assert('pending import ref lookup stored in runtime', getPendingImportRefLookup() === refLookup);
 
   const viewCalls = [];
-  globalThis.buildSidebar = function() { viewCalls.push(['sidebar', this === globalThis]); };
+  previousViewRuntime = configureViewRuntime({
+    buildSidebar: () => viewCalls.push(['sidebar']),
+  });
   globalThis.updateHeaderDates = function() { viewCalls.push(['legacy-dates']); };
   globalThis.navigate = function(route) { viewCalls.push(['navigate', route, this === globalThis]); };
   configurePdfImportReviewRuntimeDeps({
@@ -82,7 +85,7 @@ try {
   assert('import persistence view refresh delegates through runtime hooks',
     refreshImportedDataViewsRuntime('labs') === true &&
       JSON.stringify(viewCalls) === JSON.stringify([
-        ['sidebar', true],
+        ['sidebar'],
         ['dates', true],
         ['navigate', 'labs', true],
       ]));
@@ -143,6 +146,7 @@ try {
   showPIIDiffViewerFromRuntime('raw', 'safe');
   assert('no-window writes are no-ops', noWindowResolveCalled === false);
 } finally {
+  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configurePdfImportReviewRuntimeDeps(originalReviewRuntimeDeps);
   for (const field of RUNTIME_FIELDS) {
     restoreDescriptor(globalThis, field, originalFieldDescriptors.get(field));

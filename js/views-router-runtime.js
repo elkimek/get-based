@@ -40,7 +40,7 @@ export function getViewportScrollPosition() {
 }
 
 export function closeMobileSidebarFromRuntime() {
-  getRuntimeFunction('closeMobileSidebar')?.();
+  getViewRuntimeFunction('closeMobileSidebar')?.();
 }
 
 export function syncImportStatusFabFromRuntime() {

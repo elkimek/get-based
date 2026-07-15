@@ -501,8 +501,8 @@
     'nostrDiscoverNodes','nostrGetSelectedNode','nostrSetSelectedNode','nostrClearNodeCache'
   ];
 
-  // nav.js (5 retained runtime hooks; delegate helpers use ESM exports)
-  const navGlobals = [
+  // nav.js (5 former browser globals and delegate helpers, now module-only)
+  const navLegacyGlobals = [
     'buildSidebar','renderProfileDropdown','renderProfileButton',
     'toggleMobileSidebar','closeMobileSidebar'
   ];
@@ -511,7 +511,7 @@
     'syncSidebarActive','openRecommendationsFromSidebar','installNavActionDelegates'
   ];
   const navModuleExports = [
-    ...navGlobals,
+    ...navLegacyGlobals,
     ...navModuleOnlyExports,
     'configureNavActions',
   ];
@@ -776,6 +776,9 @@
   for (const name of navModuleOnlyExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of navLegacyGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   for (const name of mobileDashboardExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -957,7 +960,6 @@
 
   const allModules = {
     'chat.js': chatExports,
-    'nav.js': navGlobals,
     'settings.js': settingsGlobals,
     'views.js': viewsLegacyExports,
   };

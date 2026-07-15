@@ -542,7 +542,7 @@ export async function loadDemoData(sex = 'male') {
         };
         await saveImportedData({ skipSync: true, reason: 'demo-biology-score-context' });
         const w = /** @type {any} */ (window);
-        if (w.buildSidebar) w.buildSidebar();
+        getViewRuntimeFunction('buildSidebar')?.();
         updateHeaderDates();
         const navigate = w.navigate || getViewRuntimeFunction('navigate');
         if (navigate && state.currentView === 'biology-scores') navigate.call(w, 'biology-scores');

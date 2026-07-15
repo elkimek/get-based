@@ -8,10 +8,11 @@ test('marker detail modal covers custom marker create delete and focus restore p
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ markerUrl }) => {
-    const [{ state }, data, markerModal] = await Promise.all([
+    const [{ state }, data, markerModal, viewRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
       import(markerUrl),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const calls = [];
@@ -21,9 +22,11 @@ test('marker detail modal covers custom marker create delete and focus restore p
       importedData: clone(state.importedData),
       currentView: state.currentView,
       activeDetailMarkerId: state._activeDetailMarkerId,
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push(['sidebar']),
+    });
 
     const ensureShell = () => {
       if (!document.getElementById('modal-overlay')) {
@@ -49,7 +52,6 @@ test('marker detail modal covers custom marker create delete and focus restore p
         refOverrides: {},
       };
       data.invalidateActiveDataCache();
-      window.buildSidebar = () => calls.push(['sidebar']);
       window.navigate = route => calls.push(['navigate', route]);
       markerModal.configureMarkerDetailModal({
         navigate: route => calls.push(['dep-navigate', route]),
@@ -151,8 +153,7 @@ test('marker detail modal covers custom marker create delete and focus restore p
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
       state._activeDetailMarkerId = saved.activeDetailMarkerId;
-      if (saved.buildSidebar) window.buildSidebar = saved.buildSidebar;
-      else delete window.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       if (saved.navigate) window.navigate = saved.navigate;
       else delete window.navigate;
       data.invalidateActiveDataCache();

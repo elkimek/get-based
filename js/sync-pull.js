@@ -18,6 +18,7 @@ import { clearRestoreJoinPending, isRestoreJoinPending } from './sync-identity.j
 import {
   logSyncEvent, updateSyncStatus,
 } from './sync-state.js';
+import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 // These use var + self-preserving defaults because sync.js can be re-entered
 // through app module cycles while sync-pull.js is still evaluating. An early
@@ -290,7 +291,7 @@ export async function onSyncReceived() {
 
     // Rebuild profile dropdown if profiles changed
     if (profilesChanged) {
-      (/** @type {any} */ (window)).renderProfileDropdown?.();
+      getViewRuntimeFunction('renderProfileDropdown')?.();
     }
   } finally {
     _pulling = false;

@@ -55,7 +55,7 @@ export function getSunDeviceSessionsRuntime() {
 
 export function rebuildSunSidebarRuntime() {
   try {
-    getRuntimeFunction('buildSidebar')?.();
+    getViewRuntimeFunction('buildSidebar')?.();
   } catch {
     // Best-effort compatibility hook.
   }

@@ -57,10 +57,11 @@ test('category customization covers rename icon and emoji picker browser paths',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ categoryUrl }) => {
-    const [{ state }, category, categoryRuntime] = await Promise.all([
+    const [{ state }, category, categoryRuntime, viewRuntime] = await Promise.all([
       import('/js/state.js'),
       import(categoryUrl),
       import('/js/category-customization-runtime.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const categorySrc = await fetch(categoryUrl).then(response => response.text());
     const outcomes = {};
@@ -69,13 +70,15 @@ test('category customization covers rename icon and emoji picker browser paths',
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
     };
     const calls = [];
     let promptValue = null;
     const previousCategoryRuntimeDeps = categoryRuntime.configureCategoryCustomizationRuntimeDeps({
       showPromptDialog: async () => promptValue,
+    });
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]),
     });
 
     try {
@@ -96,7 +99,6 @@ test('category customization covers rename icon and emoji picker browser paths',
       };
       state.currentView = 'dashboard';
       window.navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
-      window.buildSidebar = data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]);
 
       promptValue = '  Fallback Lipids  ';
       await category.renameCategory('lipids');
@@ -189,10 +191,10 @@ test('category customization covers rename icon and emoji picker browser paths',
       state.importedData = saved.importedData;
       state.currentView = saved.currentView;
       categoryRuntime.configureCategoryCustomizationRuntimeDeps(previousCategoryRuntimeDeps);
-      window.buildSidebar = saved.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       window.navigate = saved.navigate;
       category.configureCategoryCustomization({
-        buildSidebar: saved.buildSidebar || (() => {}),
+        buildSidebar: previousViewRuntime.buildSidebar || (() => {}),
         navigate: saved.navigate || (() => {}),
       });
       document.querySelector('.emoji-picker')?.remove();

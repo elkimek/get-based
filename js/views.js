@@ -2,7 +2,13 @@
 // views.js — route facade and compatibility exports
 
 import { getActiveData, destroyAllCharts } from './data.js';
-import { buildSidebar } from './nav.js';
+import {
+  buildSidebar,
+  closeMobileSidebar,
+  renderProfileButton,
+  renderProfileDropdown,
+  toggleMobileSidebar,
+} from './nav.js';
 import { setupDropZone } from './import-drop-zone.js';
 import { createRecommendationActions } from './recommendation-actions.js';
 import { configureViewRuntime } from './views-runtime-bridge.js';
@@ -305,8 +311,12 @@ configureCompareCorrelationViews({
 // ═══════════════════════════════════════════════
 
 configureViewRuntime({
+  buildSidebar,
+  closeMobileSidebar,
   getInitialView,
   navigate,
+  renderProfileButton,
+  renderProfileDropdown,
   showDashboard,
   showLabs,
   showBiologyScoresLens,
@@ -343,6 +353,7 @@ configureViewRuntime({
   completeOnboardingProfile,
   dismissOnboarding,
   showCategory,
+  toggleMobileSidebar,
   renameCategory,
   renameMarker,
   revertMarkerName,

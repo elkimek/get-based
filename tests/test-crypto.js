@@ -48,7 +48,7 @@ await import('../js/pii.js');
 const dataModule = await import('../js/data.js');
 const profileModule = await import('../js/profile.js');
 cryptoModule.configureCryptoProfileDeps({ migrateProfileData: profileModule.migrateProfileData });
-await import('../js/nav.js');
+const navModule = await import('../js/nav.js');
 const viewsModule = await import('../js/views.js');
 const exportModule = await import('../js/export.js');
 await import('../js/settings.js');
@@ -329,9 +329,11 @@ for (const name of dataExports) {
   assert(`data.${name} exists`, typeof dataModule[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));
 }
+for (const name of ['buildSidebar', 'renderProfileDropdown']) {
+  assert(`nav.${name} exists`, typeof navModule[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
 const expectedExports = [
-  // nav.js
-  'buildSidebar', 'renderProfileDropdown',
   // settings.js
   'openSettingsModal', 'closeSettingsModal',
   // chat.js

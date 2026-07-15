@@ -187,6 +187,7 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     const { state } = await import('/js/state.js');
     const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
     const dnaRuntime = await import('/js/dna-runtime.js');
+    const viewRuntime = await import('/js/views-runtime-bridge.js');
     let importRunning = false;
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
       isImportRunning: () => importRunning,
@@ -199,7 +200,9 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
 
     document.body.innerHTML = '<div id="notification-container"></div><div class="chat-onboard-dna"></div><main id="fixture"></main>';
     const calls = [];
-    window.buildSidebar = () => calls.push('sidebar');
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push('sidebar'),
+    });
     window.navigate = route => calls.push(`navigate:${route}`);
     window.updateChatNudge = () => calls.push('nudge');
 
@@ -284,6 +287,7 @@ rs999999\t1\t100\tAG
     check('notifications rendered during flow', /DNA import|Imported|health-relevant/.test(toastText));
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
+    viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
     return { failures };
   });
 
@@ -309,9 +313,10 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     };
 
     const { state } = await import('/js/state.js');
-    const [dna, dnaRuntime] = await Promise.all([
+    const [dna, dnaRuntime, viewRuntime] = await Promise.all([
       import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`),
       import('/js/dna-runtime.js'),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps();
 
@@ -322,7 +327,9 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
 
     document.body.innerHTML = '<div id="notification-container"></div><main id="fixture"></main>';
     const calls = [];
-    window.buildSidebar = () => calls.push('sidebar');
+    const previousViewRuntime = viewRuntime.configureViewRuntime({
+      buildSidebar: () => calls.push('sidebar'),
+    });
     window.navigate = route => calls.push(`navigate:${route}`);
 
     const hapTable = await dna.loadHaplogroupTable();
@@ -393,6 +400,7 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     check('haplogroup list exported', Array.isArray(window.HAPLOGROUP_LIST) && window.HAPLOGROUP_LIST.includes('J'));
 
     dnaRuntime.configureDnaRuntimeDeps(previousDnaRuntimeDeps);
+    viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
     return { failures };
   });
 

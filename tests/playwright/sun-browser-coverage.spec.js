@@ -68,10 +68,11 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl }) => {
-    const [{ state }, sun, utils] = await Promise.all([
+    const [{ state }, sun, utils, viewRuntime] = await Promise.all([
       import('/js/state.js'),
       import(sunUrl),
       import(utilsUrl),
+      import('/js/views-runtime-bridge.js'),
     ]);
     const outcomes = {};
     const profileId = `sun-browser-${Date.now()}`;
@@ -85,10 +86,10 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) : state.profiles,
       currentProfile: state.currentProfile,
       profiles: localStorage.getItem('labcharts-profiles'),
-      buildSidebar: window.buildSidebar,
       navigate: window.navigate,
       geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
     };
+    const previousViewRuntime = viewRuntime.configureViewRuntime({ buildSidebar: () => {} });
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
@@ -157,7 +158,6 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
     };
 
     try {
-      window.buildSidebar = () => {};
       window.navigate = () => {};
 
       state.currentProfile = profileId;
@@ -323,7 +323,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       state.currentProfile = saved.currentProfile;
       if (saved.profiles == null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profiles);
-      window.buildSidebar = saved.buildSidebar;
+      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
       window.navigate = saved.navigate;
       if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
       else delete navigator.geolocation;

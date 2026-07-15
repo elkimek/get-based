@@ -59,7 +59,7 @@ return (async function() {
     S.profileSex = 'male';
     S.profileDob = '1987-11-22';
     dataModule.saveImportedData();
-    window.buildSidebar();
+    navModule.buildSidebar();
     viewsModule.navigate('dashboard');
     await wait(50);
   }
@@ -102,7 +102,7 @@ return (async function() {
   } finally {
     S.importedData = originalImportedData;
     dataModule.saveImportedData();
-    window.buildSidebar();
+    navModule.buildSidebar();
     viewsModule.navigate('dashboard');
     await wait(50);
   }

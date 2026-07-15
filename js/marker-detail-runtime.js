@@ -43,7 +43,7 @@ export function navigateMarkerDetailRuntime(category, data) {
 
 export function buildMarkerDetailSidebarRuntime() {
   try {
-    getRuntimeFunction('buildSidebar')?.();
+    getViewRuntimeFunction('buildSidebar')?.();
   } catch {
     // Best-effort shell refresh.
   }
