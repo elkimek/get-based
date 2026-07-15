@@ -73,7 +73,7 @@ test('sidebar nav delegated actions route, filter, and open utilities', async ({
       window.navigate = route => {
         calls.push(['navigate', route]);
         state.currentView = route;
-        window.syncSidebarActive?.(route);
+        nav.syncSidebarActive(route);
       };
       restoreNavRuntime = navRuntime.configureNavRuntime({
         openEMFAssessmentEditor: () => calls.push(['open-emf']),

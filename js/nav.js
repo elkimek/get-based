@@ -449,4 +449,10 @@ export function closeMobileSidebar() {
   closeModalOverlay('sidebar-backdrop', { restoreFocus: false });
 }
 
-exposeNavRuntimeGlobals({ buildSidebar, filterSidebar, toggleNavGroup, renderProfileDropdown, renderProfileButton, getAvatarColor, syncSidebarActive, toggleMobileSidebar, closeMobileSidebar, openRecommendationsFromSidebar, installNavActionDelegates });
+exposeNavRuntimeGlobals({
+  buildSidebar,
+  renderProfileDropdown,
+  renderProfileButton,
+  toggleMobileSidebar,
+  closeMobileSidebar,
+});
