@@ -9,7 +9,6 @@ async function preparePage(page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
   await page.evaluate(() => {
     window.endTour?.();
     document.getElementById('tour-overlay')?.remove();

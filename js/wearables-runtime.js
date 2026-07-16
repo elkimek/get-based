@@ -2,6 +2,7 @@
 // wearables-runtime.js - Browser runtime adapters for wearable dashboard hooks.
 
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const wearablesRuntimeDeps = {
@@ -79,7 +80,7 @@ export function closeWearablesModal() {
 }
 
 export function openWearablesSettings() {
-  getRuntimeFunction('openSettingsModal')?.('wearables');
+  getSettingsModuleFunction('openSettingsModal')?.('wearables');
 }
 
 /** @param {number} delayMs */

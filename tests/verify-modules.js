@@ -64,6 +64,7 @@
     '/js/wearables-auth-runtime.js',
     '/js/wearables-settings-runtime.js',
     '/js/wearables-connect-runtime.js',
+    '/js/settings-runtime-bridge.js',
     '/js/dashboard-view-composition.js',
     '/js/dashboard-page-view.js',
     '/js/mobile-dashboard-runtime.js',
@@ -563,7 +564,7 @@
     'detectLatitudeWithAI'
   ];
 
-  // settings.js (7 retained runtime hooks; internal flows use ESM exports)
+  // settings.js (all Settings actions stay module-only)
   const settingsGlobals = [
     'openSettingsModal','closeSettingsModal',
     'openTweaksPanel','closeTweaksPanel',
@@ -794,6 +795,9 @@
   for (const name of settingsModuleOnlyExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
+  for (const name of settingsGlobals) {
+    assert(`window.${name} stays module-only`, !(name in window));
+  }
   for (const name of themeExports) {
     assert(`window.${name} stays module-only`, !(name in window));
   }
@@ -960,7 +964,6 @@
 
   const allModules = {
     'chat.js': chatExports,
-    'settings.js': settingsGlobals,
     'views.js': viewsLegacyExports,
   };
 
@@ -1097,7 +1100,7 @@
   // ═══════════════════════════════════════════════
   // 10. SETTINGS MODAL — opens and closes
   // ═══════════════════════════════════════════════
-  window.openSettingsModal();
+  settingsModule.openSettingsModal();
   const settingsOverlay = document.getElementById('settings-modal-overlay');
   assert('Settings modal opens', settingsOverlay?.classList.contains('show'));
   const settingsContent = document.getElementById('settings-modal');
@@ -1105,7 +1108,7 @@
   // Check sections exist
   assert('Settings has Profile section', settingsContent?.innerHTML.includes('Profile') || settingsContent?.innerHTML.includes('profile'));
   assert('Settings has AI Provider section', settingsContent?.innerHTML.includes('AI Provider') || settingsContent?.innerHTML.includes('provider'));
-  window.closeSettingsModal();
+  settingsModule.closeSettingsModal();
   assert('Settings modal closes', !settingsOverlay?.classList.contains('show'));
 
   // 11. GLOSSARY removed in v1.3.25 — feature retired. Section

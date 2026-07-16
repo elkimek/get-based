@@ -12,6 +12,7 @@ import { maybeShowBackupNudge } from './crypto.js';
 import { maybeShowLegalConsentGate } from './legal-consent.js';
 import { initSync, primeSyncState, renderSyncIndicator } from './sync.js';
 import { maybeShowAnalyticsConsent } from './utils.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 const startupUIDeps = {
@@ -46,14 +47,14 @@ function getStartupRuntimeValue(name) {
 
 function callStartupRuntime(name, ...args) {
   const runtime = startupRuntime();
-  const fn = runtime[name] || getViewRuntimeFunction(name);
+  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
   if (typeof fn !== 'function') return undefined;
   return fn.apply(runtime, args);
 }
 
 function requireStartupRuntime(name, ...args) {
   const runtime = startupRuntime();
-  const fn = runtime[name] || getViewRuntimeFunction(name);
+  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
   if (typeof fn !== 'function') {
     throw new TypeError(`Startup runtime function ${name} is not available`);
   }

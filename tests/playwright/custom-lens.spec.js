@@ -46,9 +46,9 @@ test('knowledge base modal renders lens controls and settings AI does not', asyn
 
   await page.evaluate(async () => {
     const { closeKnowledgeBaseModal } = await import('/js/lens.js');
+    const settings = await import('/js/settings.js');
     closeKnowledgeBaseModal();
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-    window.openSettingsModal('ai');
+    settings.openSettingsModal('ai');
   });
 
   await expect(page.locator('.settings-tab-panel[data-tab-panel="ai"] #custom-lens-section')).toHaveCount(0);

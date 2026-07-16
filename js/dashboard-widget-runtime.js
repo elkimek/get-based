@@ -3,6 +3,7 @@
 
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { getDeviceSessions } from './light-devices-store.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 import { getWearablesModuleFunction } from './wearables-runtime.js';
 
@@ -56,7 +57,7 @@ export function getDashboardViewportHeight() {
 }
 
 export function openDashboardWearablesSettings() {
-  getRuntimeFunction('openSettingsModal')?.('wearables');
+  getSettingsModuleFunction('openSettingsModal')?.('wearables');
 }
 
 export function getDashboardLightSessions() {

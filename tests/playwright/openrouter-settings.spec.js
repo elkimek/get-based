@@ -8,13 +8,12 @@ test('OpenRouter provider controls render from Settings AI', async ({ page }) =>
   });
   await page.goto('/app', { waitUntil: 'load' });
 
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     window.endTour?.();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-    window.openSettingsModal('ai');
+    (await import('/js/settings.js')).openSettingsModal('ai');
   });
 
   const providerButtons = page.locator('.ai-provider-btn');

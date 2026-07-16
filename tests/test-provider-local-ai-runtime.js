@@ -7,6 +7,7 @@ import {
   getCachedLocalAiModelDetails,
   updatePrivacyStatusCardFromRuntime,
 } from '../js/provider-local-ai-runtime.js';
+import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -18,7 +19,6 @@ console.log('=== Provider Local AI Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'updatePrivacyStatusCard',
   '_lastOllamaModelDetails',
   '_lastIsOllamaServer',
 ];
@@ -43,7 +43,9 @@ function restoreRuntime() {
 
 try {
   const privacyCalls = [];
-  setRuntimeValue('updatePrivacyStatusCard', (...args) => privacyCalls.push(args));
+  const previousSettingsBridge = configureSettingsModuleBridge({
+    updatePrivacyStatusCard: (...args) => privacyCalls.push(args),
+  });
 
   updatePrivacyStatusCardFromRuntime(true);
   updatePrivacyStatusCardFromRuntime();
@@ -68,6 +70,7 @@ try {
       invalidCached.isOllamaServer === true);
 
   delete globalThis.window;
+  configureSettingsModuleBridge({ updatePrivacyStatusCard: null });
   updatePrivacyStatusCardFromRuntime(false);
   cacheLocalAiModelDetails([{ name: 'qwen2.5:14b' }], false);
   const missingRuntimeCached = getCachedLocalAiModelDetails();
@@ -75,6 +78,7 @@ try {
     privacyCalls.length === 2 &&
       missingRuntimeCached.modelDetails.length === 0 &&
       missingRuntimeCached.isOllamaServer === false);
+  configureSettingsModuleBridge(previousSettingsBridge);
 } finally {
   restoreRuntime();
 }

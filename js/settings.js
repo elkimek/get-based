@@ -22,11 +22,11 @@ import {
 import {
   addSettingsRuntimeEventListener,
   cancelSettingsFrame,
-  publishSettingsGlobals,
   refreshSettingsRuntimeSurfaces,
   requestSettingsFrame,
   settingsMediaMatches,
 } from './settings-runtime.js';
+import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import {
   installSunDataSourceDelegates,
   renderPrivacyAnalyticsSection,
@@ -1056,12 +1056,13 @@ export function closeSettingsModal() {
   settingsRuntime.refreshMobileDashboardActiveTab();
 }
 
-publishSettingsGlobals({
+configureSettingsModuleBridge({
   openSettingsModal,
   closeSettingsModal,
   updatePrivacyStatusCard,
   openTweaksPanel,
   closeTweaksPanel,
   applyAccentOverride,
+  updateSettingsUI,
   updateTweaksUI,
 });

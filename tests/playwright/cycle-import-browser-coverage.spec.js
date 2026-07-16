@@ -210,7 +210,7 @@ test('cycle import confirms before changing an explicitly male profile', async (
 test('Apple Health Settings import closes Settings before showing cycle review', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   const profileId = await initializeCycleProfile(page, 'apple_health_settings_cycle');
-  await page.evaluate(() => window.openSettingsModal('wearables'));
+  await page.evaluate(async () => (await import('/js/settings.js')).openSettingsModal('wearables'));
   const settings = page.locator('#settings-modal-overlay');
   await expect(settings).toHaveClass(/show/);
   await page.locator('#apple-health-file-input').setInputFiles({

@@ -3,6 +3,7 @@
 
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
 import { openFeedbackModal } from './feedback.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 let shellDelegatesInstalled = false;
@@ -47,7 +48,7 @@ function shellRuntime() {
 }
 
 function callShellRuntime(name, ...args) {
-  const fn = shellRuntime()[name];
+  const fn = getSettingsModuleFunction(name) || shellRuntime()[name];
   if (typeof fn === 'function') fn(...args);
 }
 

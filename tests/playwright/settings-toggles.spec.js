@@ -9,7 +9,6 @@ async function preparePage(page) {
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForFunction(() => typeof window.openSettingsModal === 'function');
   await page.evaluate(() => {
     return import('/js/state.js').then(({ state }) => {
       const profileId = state.currentProfile || localStorage.getItem('labcharts-active-profile') || 'default';
@@ -30,12 +29,11 @@ test('Settings display toggles persist through delegated slider actions', async 
   await preparePage(page);
 
   await page.evaluate(async () => {
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-
+    const settings = await import('/js/settings.js');
     localStorage.removeItem('labcharts-show-product-recs');
     localStorage.removeItem('labcharts-debug');
     (await import('/js/theme.js')).setTheme('cyberterm');
-    window.openSettingsModal('display');
+    settings.openSettingsModal('display');
   });
 
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(SHOW_CLASS_TOKEN);
@@ -52,11 +50,10 @@ test('Settings data sync toggle opens and cancels setup modal', async ({ page })
   await preparePage(page);
 
   await page.evaluate(async () => {
-    if (typeof window.openSettingsModal !== 'function') throw new Error('window.openSettingsModal unavailable');
-
+    const settings = await import('/js/settings.js');
     const syncState = await import('/js/sync-settings-state.js');
     syncState.setSyncEnabled(false);
-    window.openSettingsModal('data');
+    settings.openSettingsModal('data');
   });
 
   await page.locator('#sync-section [data-sync-action="toggle-sync"] + .chat-toggle-slider').click();
@@ -73,12 +70,11 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
   await preparePage(page);
 
   await page.evaluate(async () => {
-    if (typeof window.openTweaksPanel !== 'function') throw new Error('window.openTweaksPanel unavailable');
-
+    const settings = await import('/js/settings.js');
     localStorage.removeItem('labcharts-sunset-mode');
     localStorage.removeItem('labcharts-crt-effects');
     (await import('/js/theme.js')).setTheme('cyberterm');
-    window.openTweaksPanel();
+    settings.openTweaksPanel();
   });
 
   const tweaksOverlay = page.locator('#tweaks-panel-overlay');
@@ -102,9 +98,10 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
 
   await page.evaluate(async () => {
     const themeModule = await import('/js/theme.js');
+    const settings = await import('/js/settings.js');
     themeModule.setTheme('dark');
     themeModule.setCrtEffectsEnabled(false);
-    window.openTweaksPanel();
+    settings.openTweaksPanel();
   });
 
   const crtInput = page.locator('#tweaks-crt-effects');
@@ -127,17 +124,17 @@ test('Tweaks panel uses lifecycle scroll lock on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await preparePage(page);
 
-  await page.evaluate(() => {
-    if (typeof window.openTweaksPanel !== 'function') throw new Error('window.openTweaksPanel unavailable');
+  await page.evaluate(async () => {
+    const settings = await import('/js/settings.js');
     document.body.style.overflow = 'auto';
-    window.openTweaksPanel();
+    settings.openTweaksPanel();
   });
 
   const tweaksOverlay = page.locator('#tweaks-panel-overlay');
   await expect(tweaksOverlay).toHaveClass(SHOW_CLASS_TOKEN);
   await expect.poll(async () => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
 
-  await page.evaluate(() => window.closeTweaksPanel?.());
+  await page.evaluate(async () => (await import('/js/settings.js')).closeTweaksPanel());
   await expect(tweaksOverlay).toHaveCount(0);
   await expect.poll(async () => page.evaluate(() => document.body.style.overflow)).toBe('auto');
 });

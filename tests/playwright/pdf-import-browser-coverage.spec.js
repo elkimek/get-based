@@ -9,15 +9,15 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
   await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ progressUrl, pdfImportUrl }) => {
-    const [progress, pdfImport] = await Promise.all([
+    const [progress, pdfImport, settingsBridge] = await Promise.all([
       import(progressUrl),
       import(pdfImportUrl),
+      import('/js/settings-runtime-bridge.js'),
     ]);
     const state = window._labState;
     const outcomes = {};
     const saved = {
       profileSex: state.profileSex,
-      openSettingsModal: window.openSettingsModal,
       navigate: window.navigate,
     };
     const calls = [];
@@ -25,9 +25,11 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       loadDemoData: sex => calls.push(['demo', sex]),
       startOpenRouterOAuth: () => calls.push(['oauth']),
     });
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: tab => calls.push(['settings', tab]),
+    });
 
     try {
-      window.openSettingsModal = tab => calls.push(['settings', tab]);
       window.navigate = view => calls.push(['navigate', view]);
       state.profileSex = 'female';
 
@@ -128,7 +130,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
     } finally {
       state.profileSex = saved.profileSex;
       pdfImport.configurePdfImportDeps(previousPdfImportDeps);
-      window.openSettingsModal = saved.openSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       window.navigate = saved.navigate;
       progress.hideImportProgress('cancel');
       document.getElementById('import-modal-overlay')?.classList.remove('show');

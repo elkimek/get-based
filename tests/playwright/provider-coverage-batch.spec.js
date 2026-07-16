@@ -386,6 +386,7 @@ test('provider panels cover provider switching key saves balances custom API and
   const results = await page.evaluate(async ({ panelsUrl }) => {
     const panels = await import(panelsUrl);
     const cryptoStore = await import('/js/crypto.js');
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
       status,
@@ -429,8 +430,6 @@ test('provider panels cover provider switching key saves balances custom API and
     const oldGlobals = {
       fetch: window.fetch,
       open: window.open,
-      openSettingsModal: window.openSettingsModal,
-      closeSettingsModal: window.closeSettingsModal,
       openChatPanel: window.openChatPanel,
       loadFocusCard: window.loadFocusCard,
       clearE2EESession: window.clearE2EESession,
@@ -441,6 +440,10 @@ test('provider panels cover provider switching key saves balances custom API and
     let chatOpened = 0;
     let focusLoads = 0;
     let e2eeClears = 0;
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: () => {},
+      closeSettingsModal: () => { settingsClosed += 1; },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -450,8 +453,6 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
       cryptoStore.updateKeyCache('labcharts-custom-key', '');
       window.open = url => { openedUrl = String(url); return null; };
-      window.openSettingsModal = () => {};
-      window.closeSettingsModal = () => { settingsClosed += 1; };
       window.openChatPanel = () => { chatOpened += 1; };
       window.loadFocusCard = () => { focusLoads += 1; };
       window.clearE2EESession = () => { e2eeClears += 1; };
@@ -660,8 +661,7 @@ test('provider panels cover provider switching key saves balances custom API and
     } finally {
       window.fetch = oldGlobals.fetch;
       window.open = oldGlobals.open;
-      window.openSettingsModal = oldGlobals.openSettingsModal;
-      window.closeSettingsModal = oldGlobals.closeSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       window.openChatPanel = oldGlobals.openChatPanel;
       window.loadFocusCard = oldGlobals.loadFocusCard;
       window.clearE2EESession = oldGlobals.clearE2EESession;
@@ -695,6 +695,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
     const ppq = await import(ppqUrl);
     const delegates = await import('/js/provider-panel-delegates.js');
     const cryptoStore = await import('/js/crypto.js');
+    const settingsBridge = await import('/js/settings-runtime-bridge.js');
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
       status,
@@ -715,7 +716,6 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       fetch: window.fetch,
       setInterval: window.setInterval,
       clearInterval: window.clearInterval,
-      openSettingsModal: window.openSettingsModal,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
     const intervals = [];
@@ -724,6 +724,9 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
     let returnToChatCount = 0;
     let settingsOpened = 0;
     let createMode = 'paid';
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: () => { settingsOpened += 1; },
+    });
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -786,8 +789,6 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         </div>
       `);
       const panel = document.getElementById('ai-provider-panel');
-      window.openSettingsModal = () => { settingsOpened += 1; };
-
       panel.innerHTML = `
         <input id="ppq-key-input" value="sk-ppq-default">
         <button id="save-ppq-key-btn">Save</button>
@@ -926,7 +927,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       window.fetch = oldGlobals.fetch;
       window.setInterval = oldGlobals.setInterval;
       window.clearInterval = oldGlobals.clearInterval;
-      window.openSettingsModal = oldGlobals.openSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       if (oldGlobals.clipboard) Object.defineProperty(navigator, 'clipboard', oldGlobals.clipboard);
       else delete navigator.clipboard;
       ppq.configurePpqPanels({ returnToChatIfOnboarding: () => {} });

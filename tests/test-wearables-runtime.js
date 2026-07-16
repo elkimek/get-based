@@ -11,6 +11,7 @@ import {
   openEMFAssessmentAfterWearablesModalClose,
   openWearablesSettings,
 } from '../js/wearables-runtime.js';
+import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -24,7 +25,6 @@ const runtimeKeys = [
   'window',
   'navigate',
   'closeModal',
-  'openSettingsModal',
   'setTimeout',
   'innerWidth',
   'innerHeight',
@@ -52,7 +52,9 @@ try {
   const calls = [];
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
   setRuntimeValue('closeModal', () => calls.push(['close-modal']));
-  setRuntimeValue('openSettingsModal', section => calls.push(['settings', section]));
+  const restoreSettingsBridge = configureSettingsModuleBridge({
+    openSettingsModal: section => calls.push(['settings', section]),
+  });
   const restoreWearablesRuntime = configureWearablesRuntime({
     openEMFAssessmentEditor: () => calls.push(['emf-editor']),
   });
@@ -113,6 +115,7 @@ try {
   assert('wearables module bridge snapshots remove newly added callbacks on restore',
     getWearablesModuleFunction('wearableProbe') === null);
 
+  configureSettingsModuleBridge({ openSettingsModal: null });
   const beforeNoWindowCalls = calls.length;
   delete globalThis.window;
   navigateWearables('dashboard');
@@ -124,6 +127,7 @@ try {
     calls.length === beforeNoWindowCalls);
   assert('viewport helper returns fallback size without window',
     fallbackViewport.width === 1024 && fallbackViewport.height === 768);
+  configureSettingsModuleBridge(restoreSettingsBridge);
 } finally {
   restoreRuntime();
 }

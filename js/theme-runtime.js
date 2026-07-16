@@ -1,6 +1,8 @@
 // @ts-check
 // theme-runtime.js - Browser runtime adapters for theme module globals.
 
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+
 function getThemeRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -23,9 +25,9 @@ export function dispatchThemeChange(detail) {
 export function refreshThemeDependentsFromRuntime(options = {}) {
   const runtime = getThemeRuntimeWindow();
   if (!runtime) return;
-  runtime.applyAccentOverride?.();
-  runtime.updateSettingsUI?.();
-  runtime.updateTweaksUI?.();
+  getSettingsModuleFunction('applyAccentOverride')?.();
+  getSettingsModuleFunction('updateSettingsUI')?.();
+  getSettingsModuleFunction('updateTweaksUI')?.();
   if (typeof runtime.scheduleChartThemeRefresh === 'function') runtime.scheduleChartThemeRefresh();
   else runtime.refreshChartThemeColors?.({ batchSize: 4 });
   if (options.settingsModalOpen) runtime.refreshSettingsWearables?.();

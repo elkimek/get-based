@@ -8,6 +8,7 @@ import {
   confirmWearableSettingsAction,
   navigateWearablesDashboard,
 } from '../js/wearables-settings-runtime.js';
+import { configureSettingsModuleBridge } from '../js/settings-runtime-bridge.js';
 
 const originalWearableSettingsRuntimeDeps = configureWearableSettingsRuntimeDeps();
 
@@ -19,7 +20,7 @@ function assert(name, condition, detail) {
 
 console.log('=== Wearables Settings Runtime Tests ===\n');
 
-const runtimeKeys = ['window', 'navigate', 'closeSettingsModal', 'showConfirmDialog'];
+const runtimeKeys = ['window', 'navigate', 'showConfirmDialog'];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
 function setRuntimeValue(key, value) {
@@ -42,7 +43,9 @@ function restoreRuntime() {
 try {
   const calls = [];
   setRuntimeValue('navigate', route => calls.push(['navigate', route]));
-  setRuntimeValue('closeSettingsModal', () => calls.push(['close-settings']));
+  const previousSettingsBridge = configureSettingsModuleBridge({
+    closeSettingsModal: () => calls.push(['close-settings']),
+  });
   configureWearableSettingsRuntimeDeps({ showConfirmDialog: async message => {
     calls.push(['confirm', message]);
     return message === 'confirm me';
@@ -59,12 +62,14 @@ try {
     confirmed && calls.some(call => call[0] === 'confirm' && call[1] === 'confirm me'));
 
   delete globalThis.window;
+  configureSettingsModuleBridge({ closeSettingsModal: null });
   configureWearableSettingsRuntimeDeps({ showConfirmDialog: null });
   navigateWearablesDashboard();
   closeWearableSettingsModal();
   const missingConfirm = await confirmWearableSettingsAction('confirm me');
   assert('runtime adapter no-ops safely when window is missing',
     !missingConfirm);
+  configureSettingsModuleBridge(previousSettingsBridge);
 } finally {
   configureWearableSettingsRuntimeDeps(originalWearableSettingsRuntimeDeps);
   restoreRuntime();

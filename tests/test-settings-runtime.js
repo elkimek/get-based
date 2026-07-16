@@ -6,6 +6,10 @@ import {
   getSettingsMeteoConfig,
   saveSettingsMeteoConfig,
 } from '../js/settings-runtime.js';
+import {
+  configureSettingsModuleBridge,
+  getSettingsModuleFunction,
+} from '../js/settings-runtime-bridge.js';
 
 let passed = 0;
 let failed = 0;
@@ -28,6 +32,14 @@ const originalSettingsRuntimeDeps = configureSettingsRuntimeDeps({
 });
 
 try {
+  const previousSettingsBridge = configureSettingsModuleBridge({ settingsProbe: () => 'ok' });
+  assert('settings module bridge registers callbacks without browser globals',
+    getSettingsModuleFunction('settingsProbe')?.() === 'ok'
+      && !('settingsProbe' in globalThis));
+  configureSettingsModuleBridge(previousSettingsBridge);
+  assert('settings module bridge snapshots remove newly added callbacks on restore',
+    getSettingsModuleFunction('settingsProbe') === null);
+
   assert('missing getMeteoConfig returns defaults',
     getSettingsMeteoConfig().mode === 'auto');
   assert('missing saveMeteoConfig reports unavailable',

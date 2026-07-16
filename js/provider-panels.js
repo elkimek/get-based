@@ -100,6 +100,7 @@ import {
   doRoutstrWalletRestore,
   walletRuntime
 } from './provider-wallet-panels.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { getViewRuntimeFunction } from './views-runtime-bridge.js';
 
 function providerPanelRuntime() {
@@ -112,7 +113,7 @@ function getProviderPanelRuntimeValue(name) {
 
 function callProviderPanelRuntime(name, ...args) {
   const runtime = providerPanelRuntime();
-  const fn = runtime[name] || getViewRuntimeFunction(name);
+  const fn = getSettingsModuleFunction(name) || runtime[name] || getViewRuntimeFunction(name);
   return typeof fn === 'function' ? fn.apply(runtime, args) : undefined;
 }
 

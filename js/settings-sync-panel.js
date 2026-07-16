@@ -17,6 +17,7 @@ import {
   setAgentAccessWearableSeriesDays,
 } from './sync.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { saveImportedData } from './data.js';
 import { state } from './state.js';
 import {
@@ -57,7 +58,6 @@ function restoreImportedDataSnapshot(snapshot) {
 const appWindow = /** @type {Window & typeof globalThis & {
   applyPendingTombstone?: (id: string) => Promise<void>,
   listPendingTombstones?: () => Array<{ id: string, name: string, at?: string | number | Date }>,
-  openSettingsModal?: (tab?: string) => void,
   pushContextToGateway?: () => void,
   rejectPendingTombstone?: (id: string) => Promise<void>,
   updateSyncIndicator?: () => void,
@@ -110,10 +110,10 @@ async function handleSettingsSyncClick(event) {
 
   if (action === 'apply-tombstone') {
     await appWindow.applyPendingTombstone?.(actionEl.dataset.tombId || '');
-    appWindow.openSettingsModal?.('data');
+    getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'reject-tombstone') {
     await appWindow.rejectPendingTombstone?.(actionEl.dataset.tombId || '');
-    appWindow.openSettingsModal?.('data');
+    getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'toggle-mnemonic') {
     toggleMnemonicVisibility();
   } else if (action === 'copy-mnemonic') {

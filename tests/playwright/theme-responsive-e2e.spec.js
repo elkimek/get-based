@@ -174,8 +174,9 @@ async function prepareScenario(page, theme, viewport) {
   await waitForApp(page);
   await page.evaluate(async (nextTheme) => {
     const themeModule = await import('/js/theme.js');
+    const settings = await import('/js/settings.js');
     (await import('/js/views.js')).closeModal();
-    window.closeSettingsModal?.();
+    settings.closeSettingsModal();
     window.closeChatPanel?.();
     (await import('/js/nav.js')).closeMobileSidebar();
     document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
@@ -185,7 +186,7 @@ async function prepareScenario(page, theme, viewport) {
     localStorage.removeItem('labcharts-crt-effects');
     themeModule.setSunsetMode(false);
     themeModule.setCrtEffectsEnabled(false);
-    window.applyAccentOverride?.('');
+    settings.applyAccentOverride('');
     if (nextTheme === 'dark') localStorage.setItem('labcharts-theme', 'dark');
     else localStorage.setItem('labcharts-theme', nextTheme);
     themeModule.setTheme(nextTheme);
@@ -482,7 +483,7 @@ async function evaluateBaseChecks(page, theme, viewport) {
 }
 
 async function checkDesktopModals(page, theme, viewportName, assert) {
-  await page.evaluate(() => window.openSettingsModal?.('display'));
+  await page.evaluate(async () => (await import('/js/settings.js')).openSettingsModal('display'));
   await delay(200);
   let result = await page.evaluate(() => {
     const overlay = document.getElementById('settings-modal-overlay');
@@ -499,10 +500,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'settings modal opens visibly'), result.open && result.visible);
   assert(testName(theme, viewportName, 'settings modal fits viewport'), result.contained, JSON.stringify(result));
   assert(testName(theme, viewportName, 'settings display does not duplicate theme picker'), !result.hasDuplicateThemeGrid, JSON.stringify(result));
-  await page.evaluate(() => window.closeSettingsModal?.());
+  await page.evaluate(async () => (await import('/js/settings.js')).closeSettingsModal());
   await delay(100);
 
-  await page.evaluate(() => window.openTweaksPanel?.());
+  await page.evaluate(async () => (await import('/js/settings.js')).openTweaksPanel());
   await delay(150);
   result = await page.evaluate(async (theme) => {
     const themeModule = await import('/js/theme.js');
@@ -627,8 +628,9 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     JSON.stringify(result));
   await page.evaluate(async () => {
     (await import('/js/theme.js')).setSunsetMode(true);
-    window.applyAccentOverride?.();
-    window.updateTweaksUI?.();
+    const settings = await import('/js/settings.js');
+    settings.applyAccentOverride();
+    settings.updateTweaksUI();
   });
   await delay(80);
   result = await page.evaluate((sunsetThemeColor) => {
@@ -657,8 +659,9 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     JSON.stringify(result));
   await page.evaluate(async () => {
     (await import('/js/theme.js')).setSunsetMode(false);
-    window.applyAccentOverride?.();
-    window.updateTweaksUI?.();
+    const settings = await import('/js/settings.js');
+    settings.applyAccentOverride();
+    settings.updateTweaksUI();
   });
   await delay(80);
   result = await page.evaluate(() => ({
@@ -743,7 +746,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     result.rootDashboardActive && result.tabbarOutsideShell && result.movedUp,
     JSON.stringify(result));
 
-  await page.evaluate(() => window.openTweaksPanel?.());
+  await page.evaluate(async () => (await import('/js/settings.js')).openTweaksPanel());
   await delay(150);
   result = await page.evaluate((theme) => {
     const panel = document.getElementById('tweaks-panel');
@@ -790,7 +793,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       result.bodyContained && result.bodyScrollLocked && result.horizontalOverflow <= 1 &&
       result.overflowingChildren === 0 && result.terminalShadowContained,
     JSON.stringify(result));
-  await page.evaluate(() => window.closeTweaksPanel?.());
+  await page.evaluate(async () => (await import('/js/settings.js')).closeTweaksPanel());
   await delay(100);
 
   const quickMarker = await page.$('.m-dashboard-widgets .dashboard-widget[data-widget-id="quick-markers"] .db-quick-marker-tile');

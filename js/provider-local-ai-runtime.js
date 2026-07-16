@@ -1,6 +1,8 @@
 // @ts-check
 // provider-local-ai-runtime.js - Browser runtime adapters for Local AI settings hooks.
 
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
@@ -18,7 +20,7 @@ function getRuntimeFunction(name) {
 
 /** @param {boolean} [isAvailable] */
 export function updatePrivacyStatusCardFromRuntime(isAvailable) {
-  const update = getRuntimeFunction('updatePrivacyStatusCard');
+  const update = getSettingsModuleFunction('updatePrivacyStatusCard');
   if (!update) return;
   if (typeof isAvailable === 'boolean') update(isAvailable);
   else update();

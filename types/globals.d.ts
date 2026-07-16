@@ -22,7 +22,6 @@ interface Window {
   _demoLoadingProfileId?: string;
   _snpTableCache?: unknown;
   APP_VERSION?: string;
-  applyAccentOverride?: () => void;
   callClaudeAPI?: (request: {
     system?: string;
     messages: Array<{ role: string; content: string }>;
@@ -63,10 +62,8 @@ interface Window {
   closeReportBuilder?: () => void;
   closeRestoreMnemonicDialog?: () => void;
   closeSettings?: () => void;
-  closeSettingsModal: () => void;
   closeSummaryModal?: () => void;
   closeSyncSetup?: () => Promise<void> | void;
-  closeTweaksPanel: () => void;
   clearE2EESession?: AnyFunction;
   cleanupDiscussionState?: AnyFunction;
   destroyAllCharts?: () => void;
@@ -167,7 +164,6 @@ interface Window {
   nostrSetSelectedNode?: (url: string) => void;
   openChatPanel: AnyFunction;
   openEMFAssessmentEditor?: () => void;
-  openSettingsModal: (tab?: string) => void;
   openChatProviderQuiz?: AnyFunction;
   openImportReviewFromSnapshot?: (snapshotId: string) => void;
   pdfjsLib?: unknown;
@@ -218,7 +214,6 @@ interface Window {
   updateChatHeaderModel?: AnyFunction;
   updateAttachButtonVisibility: () => void;
   updateChatNudge: () => void;
-  updatePrivacyStatusCard?: AnyFunction;
   refreshWebSearchToggle?: AnyFunction;
   saveImportedData?: AnyFunction;
   _getRelevantSNPs?: AnyFunction;
@@ -263,8 +258,6 @@ interface Window {
   updateHeaderDates?: () => void;
   updateHeaderRangeToggle?: () => void;
   updatePersonalityBar?: () => void;
-  updateSettingsUI?: () => void;
-  updateTweaksUI?: () => void;
 }
 
 declare var getMeasurementsForRoom: AnyFunction | undefined;

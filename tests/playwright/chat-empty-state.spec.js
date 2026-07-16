@@ -10,11 +10,12 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const [{ renderEmptyChatState }, { state }, { getProfileLocation }, contextCardsRuntime] = await Promise.all([
+    const [{ renderEmptyChatState }, { state }, { getProfileLocation }, contextCardsRuntime, settingsBridge] = await Promise.all([
       import('/js/chat-empty-state.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
       import('/js/context-cards-runtime.js'),
+      import('/js/settings-runtime-bridge.js'),
     ]);
 
     const saved = {
@@ -27,7 +28,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     };
     const savedFns = {
       closeChatPanel: window.closeChatPanel,
-      openSettingsModal: window.openSettingsModal,
     };
     const savedInputClick = HTMLInputElement.prototype.click;
     const chatMessages = document.getElementById('chat-messages');
@@ -36,6 +36,9 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const calls = [];
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       triggerDNAFilePicker: () => calls.push('import-dna'),
+    });
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      openSettingsModal: tab => calls.push(`open-settings:${tab}`),
     });
     const inputClicks = [];
     const container = document.createElement('div');
@@ -47,7 +50,6 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       if (chatMessages) chatMessages.innerHTML = '';
 
       window.closeChatPanel = () => calls.push('close-chat');
-      window.openSettingsModal = tab => calls.push(`open-settings:${tab}`);
       HTMLInputElement.prototype.click = function() {
         inputClicks.push(this === strayMtDnaInput ? 'stray' : panel.contains(this) ? 'scoped' : 'other');
       };
@@ -137,6 +139,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       };
     } finally {
       contextCardsRuntime.configureContextCardsRuntimeCallbacks(previousContextCardsRuntime);
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       state.currentProfile = saved.currentProfile;
       state.profiles = saved.profiles;
       state.profileSex = saved.profileSex;

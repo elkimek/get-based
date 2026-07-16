@@ -19,10 +19,11 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       return false;
     };
 
-    const [{ state }, settings, store] = await Promise.all([
+    const [{ state }, settings, store, settingsBridge] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-settings-panel.js'),
       import('/js/wearables-store.js'),
+      import('/js/settings-runtime-bridge.js'),
     ]);
 
     const profileId = `wearables-settings-render-${Date.now()}`;
@@ -35,12 +36,14 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldNavigate = window.navigate;
-    const oldCloseSettingsModal = window.closeSettingsModal;
     const oldScrollIntoView = Element.prototype.scrollIntoView;
     const navigations = [];
     const docsClicks = [];
     let closedSettings = 0;
     let scrolledToStrip = 0;
+    const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
+      closeSettingsModal: () => { closedSettings += 1; },
+    });
 
     try {
       localStorage.setItem('labcharts-active-profile', profileId);
@@ -100,7 +103,6 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       ]);
 
       window.navigate = route => { navigations.push(route); };
-      window.closeSettingsModal = () => { closedSettings += 1; };
       Element.prototype.scrollIntoView = function scrollIntoView() {
         if (this.id === 'wearable-strip') scrolledToStrip += 1;
       };
@@ -191,7 +193,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
       window.navigate = oldNavigate;
-      window.closeSettingsModal = oldCloseSettingsModal;
+      settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       Element.prototype.scrollIntoView = oldScrollIntoView;
     }
     return failures;

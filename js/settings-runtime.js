@@ -2,6 +2,7 @@
 // settings-runtime.js - Browser runtime adapters for Settings and Tweaks flows.
 
 import { getMeteoConfig, saveMeteoConfig } from './sun-uvdata-config.js';
+import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
 const DEFAULT_METEO_CONFIG = Object.freeze({
   mode: 'auto',
@@ -98,8 +99,8 @@ export function addSettingsRuntimeEventListener(type, listener) {
  */
 export function refreshSettingsRuntimeSurfaces(options = {}) {
   const runtime = getRuntimeWindow();
-  (options.updateSettingsUI || runtime.updateSettingsUI)?.();
-  (options.updateTweaksUI || runtime.updateTweaksUI)?.();
+  (options.updateSettingsUI || getSettingsModuleFunction('updateSettingsUI'))?.();
+  (options.updateTweaksUI || getSettingsModuleFunction('updateTweaksUI'))?.();
   if (options.settingsVisible) runtime.refreshSettingsWearables?.();
 }
 
@@ -126,9 +127,4 @@ export function saveSettingsMeteoConfig(config) {
   } catch {
     return false;
   }
-}
-
-/** @param {Record<string, any>} api */
-export function publishSettingsGlobals(api) {
-  Object.assign(getRuntimeWindow(), api);
 }

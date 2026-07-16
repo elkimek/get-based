@@ -262,6 +262,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const { dashboardBiometricSelectionKey, dashboardWidgetStorageKey } = await import('/js/dashboard-widgets.js');
     const viewsModule = await import('/js/views.js');
     const recommendationRuntime = await import('/js/recommendations-runtime.js');
+    const settingsRuntimeBridge = await import('/js/settings-runtime-bridge.js');
     const wearablesRuntime = await import('/js/wearables-runtime.js');
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     const waitFor = async (predicate, timeout = 1500) => {
@@ -296,7 +297,6 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       rollingChannelTotals: window.rollingChannelTotals,
       getSessions: window.getSessions,
       openChatPanel: window.openChatPanel,
-      openSettingsModal: window.openSettingsModal,
       showDetailModal: window.showDetailModal,
     };
     const hadFns = {};
@@ -312,6 +312,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     };
     const originalCachedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
     let previousRecommendationBridge = null;
+    let previousSettingsBridge = null;
     let previousWearablesBridge = null;
     let realNavigate;
 
@@ -391,8 +392,10 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     window.rollingChannelTotals = () => ({ circadian: 0 });
     window.getSessions = () => [];
     window.openChatPanel = prompt => calls.push(['chat', prompt]);
-    window.openSettingsModal = panel => calls.push(['settings', panel]);
     window.showDetailModal = id => calls.push(['detail', id]);
+    previousSettingsBridge = settingsRuntimeBridge.configureSettingsModuleBridge({
+      openSettingsModal: panel => calls.push(['settings', panel]),
+    });
     previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
       openWearableDetail: id => calls.push(['wearable-detail', id]),
       openManualLogForm: (id, event) => calls.push(['manual-log', id, event?.type || '']),
@@ -581,6 +584,9 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       state.currentView = originalState.currentView;
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
+      }
+      if (previousSettingsBridge) {
+        settingsRuntimeBridge.configureSettingsModuleBridge(previousSettingsBridge);
       }
       if (previousWearablesBridge) {
         wearablesRuntime.configureWearablesModuleBridge(previousWearablesBridge);
