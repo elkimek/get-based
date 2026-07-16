@@ -183,7 +183,7 @@ configureShellChatActionDeps({
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButtonVisibility });
-configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });
+configureOnboardingViewRuntimeDeps({ buildSidebar, createNewThread, navigate, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
 configureWearablesConnectRuntimeDeps({ navigate });

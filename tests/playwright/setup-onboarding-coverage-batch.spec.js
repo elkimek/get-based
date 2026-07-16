@@ -233,16 +233,16 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
-    const [onboarding, { state }, profile, data, crypto, viewRuntime, chatRuntime, onboardingRuntime] = await Promise.all([
+    const [onboarding, { state }, profile, data, crypto, chatRuntime, onboardingRuntime] = await Promise.all([
       import(onboardingUrl),
       import('/js/state.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
       import('/js/crypto.js'),
-      import('/js/views-runtime-bridge.js'),
       import('/js/chat-runtime.js'),
       import('/js/onboarding-view-runtime.js'),
     ]);
+    const onboardingRuntimeSrc = await fetch('/js/onboarding-view-runtime.js').then(response => response.text());
     const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
     const waitUntil = async (predicate, label) => {
@@ -265,18 +265,16 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
-      navigate: window.navigate,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
     const outcomes = {};
     const calls = [];
-    const previousViewRuntime = viewRuntime.configureViewRuntime({
-      buildSidebar: payload => calls.push(['sidebar', !!payload]),
-    });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       renderChatMessages: () => calls.push(['render-chat']),
     });
     const previousOnboardingRuntime = onboardingRuntime.configureOnboardingViewRuntimeDeps({
+      buildSidebar: payload => calls.push(['sidebar', !!payload]),
+      navigate: (route, payload) => calls.push(['navigate', route, !!payload]),
       openChatPanel: () => calls.push(['open-chat']),
     });
     const host = document.createElement('div');
@@ -291,9 +289,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       state.profileDob = null;
       state.importedData = profile.createDefaultProfileData();
       data.invalidateActiveDataCache();
-      onboarding.configureOnboardingView({
-        navigate: (route, payload) => calls.push(['navigate', route, !!payload]),
-      });
+      onboarding.configureOnboardingView({ navigate: null });
 
       const onboardedKey = profile.profileStorageKey(state.currentProfile, 'onboarded');
       localStorage.removeItem(onboardedKey);
@@ -320,6 +316,10 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard' && call[2])
         && Array.from(document.querySelectorAll('.notification-toast'))
           .some(toast => toast.textContent.includes('Profile set up'));
+      outcomes.onboardingRuntimeUsesInjectedViewCallbacks =
+        onboardingRuntimeSrc.includes('onboardingViewRuntimeDeps.buildSidebar?.(data)')
+        && onboardingRuntimeSrc.includes('onboardingViewRuntimeDeps.navigate')
+        && !onboardingRuntimeSrc.includes('getViewRuntimeFunction');
       outcomes.bannerSuppressesAfterProfileSet = onboarding.renderOnboardingBanner() === '';
 
       localStorage.removeItem(onboardedKey);
@@ -421,8 +421,7 @@ test('dashboard onboarding covers profile save, dismissal, focus modes, and AI r
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       data.invalidateActiveDataCache();
-      onboarding.configureOnboardingView({ navigate: saved.navigate });
-      viewRuntime.configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
+      onboarding.configureOnboardingView({ navigate: null });
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       onboardingRuntime.configureOnboardingViewRuntimeDeps(previousOnboardingRuntime);
       Element.prototype.scrollIntoView = saved.scrollIntoView;

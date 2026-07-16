@@ -14,7 +14,6 @@ import {
   rebuildOnboardingSidebarRuntime,
   renderOnboardingChatMessagesRuntime,
 } from '../js/onboarding-view-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 import { configureChatRuntimeCallbacks } from '../js/chat-runtime.js';
 
 let pass = 0, fail = 0;
@@ -27,18 +26,8 @@ console.log('=== Onboarding View Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'navigate',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-
-function setRuntimeValue(key, value) {
-  Object.defineProperty(globalThis, key, {
-    configurable: true,
-    writable: true,
-    enumerable: true,
-    value,
-  });
-}
 
 function restoreRuntime() {
   for (const key of runtimeKeys) {
@@ -50,9 +39,10 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  let previousViewRuntime = null;
   const previousDeps = configureOnboardingViewRuntimeDeps({
+    buildSidebar: data => calls.push(['buildSidebar', data?.id]),
     createNewThread: () => calls.push(['createNewThread']),
+    navigate: (route, data) => calls.push(['navigate', route, data?.id]),
     openChatPanel: () => {
       calls.push(['openChatPanel']);
       return 'opened';
@@ -62,11 +52,6 @@ try {
   const previousChatRuntime = configureChatRuntimeCallbacks({
     renderChatMessages: () => calls.push(['renderChatMessages']),
   });
-  setRuntimeValue('window', globalThis);
-  previousViewRuntime = configureViewRuntime({
-    buildSidebar: data => calls.push(['buildSidebar', data?.id]),
-  });
-  setRuntimeValue('navigate', (route, data) => calls.push(['navigate', route, data?.id]));
   rebuildOnboardingSidebarRuntime({ id: 'sidebar-data' });
   navigateOnboardingRuntime('labs', { id: 'fallback-data' });
   navigateOnboardingRuntime('dashboard', { id: 'preferred-data' }, (route, data) => calls.push(['preferredNavigate', route, data.id]));
@@ -103,7 +88,7 @@ try {
     createOnboardingChatThreadRuntime() === false);
 
   delete globalThis.window;
-  configureViewRuntime({ buildSidebar: null });
+  configureOnboardingViewRuntimeDeps({ buildSidebar: null, navigate: null });
   configureChatRuntimeCallbacks({ renderChatMessages: null });
   const beforeNoWindowCalls = calls.length;
   rebuildOnboardingSidebarRuntime({ id: 'ignored' });
@@ -117,15 +102,19 @@ try {
 
   configureOnboardingViewRuntimeDeps(previousDeps);
   configureChatRuntimeCallbacks(previousChatRuntime);
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const onboardingSrc = fs.readFileSync(path.join(root, 'js/onboarding-view.js'), 'utf8');
+  const onboardingRuntimeSrc = fs.readFileSync(path.join(root, 'js/onboarding-view-runtime.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
   assert('onboarding view delegates browser globals through runtime adapter',
     onboardingSrc.includes("from './onboarding-view-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(onboardingSrc) &&
       swSrc.includes("'/js/onboarding-view-runtime.js'"));
+  assert('onboarding runtime uses injected view callbacks without bridge lookups',
+    onboardingRuntimeSrc.includes('onboardingViewRuntimeDeps.buildSidebar?.(data)') &&
+      onboardingRuntimeSrc.includes('onboardingViewRuntimeDeps.navigate') &&
+      !onboardingRuntimeSrc.includes('getViewRuntimeFunction'));
 } finally {
   restoreRuntime();
 }
