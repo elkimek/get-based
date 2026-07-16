@@ -44,7 +44,9 @@ const chatThreadDeps = {
 };
 
 export function configureChatThreadDeps(deps = {}) {
+  const previous = { ...chatThreadDeps };
   Object.assign(chatThreadDeps, deps);
+  return previous;
 }
 
 export function getChatThreadsKey() {

@@ -30,9 +30,11 @@ function assert(name, condition, detail) {
 
 console.log('=== Multiple Custom Personalities Tests ===\n');
 
-// chat.js exposes the personality + discussion handlers via Object.assign(window).
 await import('../js/state.js');
 await import('../js/chat.js');
+const personalities = await import('../js/chat-personalities.js');
+const chatHistory = await import('../js/chat-history.js');
+const chatDiscussion = await import('../js/chat-discussion.js');
 const { buildPersonalityPrompt } = await import('../js/chat-prompt-context.js');
 const { createNewThread } = await import('../js/chat-threads.js');
 
@@ -41,31 +43,29 @@ const key = `labcharts-${profileId}-chatPersonalityCustom`;
 const origVal = localStorage.getItem(key);
 const origPersonality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
 
-// ── 1. Window exports ──
-console.log('1. Window exports');
-assert('getCustomPersonalities exported', typeof window.getCustomPersonalities === 'function');
-assert('saveCustomPersonalities exported', typeof window.saveCustomPersonalities === 'function');
-assert('getCustomPersonality exported', typeof window.getCustomPersonality === 'function');
-assert('getCustomPersonalityText exported', typeof window.getCustomPersonalityText === 'function');
-assert('pickPersonaIcon exported', typeof window.pickPersonaIcon === 'function');
-assert('generateCustomPersonality exported', typeof window.generateCustomPersonality === 'function');
-assert('saveCustomPersonality exported', typeof window.saveCustomPersonality === 'function');
-assert('startNewCustomPersonality exported', typeof window.startNewCustomPersonality === 'function');
-assert('deleteCustomPersonality exported', typeof window.deleteCustomPersonality === 'function');
-assert('getActivePersonality exported', typeof window.getActivePersonality === 'function');
-assert('autoResizePersonaTextarea exported', typeof window.autoResizePersonaTextarea === 'function');
-assert('markPersonalityDirty exported', typeof window.markPersonalityDirty === 'function');
-assert('snapshotPersonalityClean exported', typeof window.snapshotPersonalityClean === 'function');
+// ── 1. Module exports ──
+console.log('1. Module exports');
+const personalityExports = [
+  'getCustomPersonalities', 'saveCustomPersonalities', 'getCustomPersonality',
+  'getCustomPersonalityText', 'pickPersonaIcon', 'generateCustomPersonality',
+  'saveCustomPersonality', 'startNewCustomPersonality', 'deleteCustomPersonality',
+  'getActivePersonality', 'autoResizePersonaTextarea', 'markPersonalityDirty',
+  'snapshotPersonalityClean',
+];
+for (const name of personalityExports) {
+  assert(`${name} exported`, typeof personalities[name] === 'function');
+  assert(`window.${name} stays module-only`, !(name in window));
+}
 
 // ── 2. pickPersonaIcon determinism ──
 console.log('2. pickPersonaIcon determinism');
-const icon1 = window.pickPersonaIcon('Longevity Expert');
-const icon2 = window.pickPersonaIcon('Longevity Expert');
+const icon1 = personalities.pickPersonaIcon('Longevity Expert');
+const icon2 = personalities.pickPersonaIcon('Longevity Expert');
 assert('pickPersonaIcon returns same icon for same name', icon1 === icon2, `${icon1} vs ${icon2}`);
 assert('pickPersonaIcon returns emoji', icon1.length > 0);
-const iconEmpty = window.pickPersonaIcon('');
+const iconEmpty = personalities.pickPersonaIcon('');
 assert('pickPersonaIcon empty name returns pencil', iconEmpty === '✏️', `got: ${iconEmpty}`);
-const iconNull = window.pickPersonaIcon(null);
+const iconNull = personalities.pickPersonaIcon(null);
 assert('pickPersonaIcon null returns pencil', iconNull === '✏️');
 const PERSONA_ICONS = ['🧠', '🎭', '🔮', '🌿', '⚡', '🦊', '🧬', '🌊', '🔥', '🏛️'];
 assert('pickPersonaIcon result is from palette', PERSONA_ICONS.includes(icon1), `got: ${icon1}`);
@@ -73,13 +73,13 @@ assert('pickPersonaIcon result is from palette', PERSONA_ICONS.includes(icon1), 
 // ── 3. getCustomPersonalities — array storage ──
 console.log('3. getCustomPersonalities array storage');
 localStorage.removeItem(key);
-assert('Empty storage returns []', JSON.stringify(window.getCustomPersonalities()) === '[]');
+assert('Empty storage returns []', JSON.stringify(personalities.getCustomPersonalities()) === '[]');
 const arr = [
   { id: 'custom_abc', name: 'Longevity Expert', icon: '🧠', promptText: 'Expert prompt', evidenceBased: true },
   { id: 'custom_def', name: 'Functional Doc', icon: '🔮', promptText: 'Functional prompt', evidenceBased: false }
 ];
 localStorage.setItem(key, JSON.stringify(arr));
-const loaded = window.getCustomPersonalities();
+const loaded = personalities.getCustomPersonalities();
 assert('Array: returns 2 items', loaded.length === 2);
 assert('Array: first item name', loaded[0].name === 'Longevity Expert');
 assert('Array: second item name', loaded[1].name === 'Functional Doc');
@@ -89,7 +89,7 @@ assert('Array: IDs preserved', loaded[0].id === 'custom_abc' && loaded[1].id ===
 console.log('4. Migration from single object');
 const singleObj = { name: 'Longevity Expert', icon: '🧠', promptText: 'You are a longevity researcher...', evidenceBased: true };
 localStorage.setItem(key, JSON.stringify(singleObj));
-const migrated = window.getCustomPersonalities();
+const migrated = personalities.getCustomPersonalities();
 assert('Single obj: returns array of 1', migrated.length === 1);
 assert('Single obj: id is custom_migrated', migrated[0].id === 'custom_migrated');
 assert('Single obj: name preserved', migrated[0].name === 'Longevity Expert');
@@ -99,7 +99,7 @@ assert('Single obj: evidenceBased preserved', migrated[0].evidenceBased === true
 // ── 5. Migration from legacy string ──
 console.log('5. Migration from legacy string');
 localStorage.setItem(key, 'Speak like a pirate doctor');
-const legacyArr = window.getCustomPersonalities();
+const legacyArr = personalities.getCustomPersonalities();
 assert('Legacy string: returns array of 1', legacyArr.length === 1);
 assert('Legacy string: id is custom_migrated', legacyArr[0].id === 'custom_migrated');
 assert('Legacy string: name is Custom Personality', legacyArr[0].name === 'Custom Personality');
@@ -110,23 +110,23 @@ assert('Legacy string: evidenceBased false', legacyArr[0].evidenceBased === fals
 console.log('6. getCustomPersonality compat shim');
 localStorage.setItem(key, JSON.stringify(arr));
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_def');
-window.loadChatPersonality();
-const compat = window.getCustomPersonality();
+personalities.loadChatPersonality();
+const compat = personalities.getCustomPersonality();
 assert('Compat shim: returns matching custom', compat.id === 'custom_def');
 assert('Compat shim: name is Functional Doc', compat.name === 'Functional Doc');
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'default');
-window.loadChatPersonality();
-const compatFallback = window.getCustomPersonality();
+personalities.loadChatPersonality();
+const compatFallback = personalities.getCustomPersonality();
 assert('Compat shim: fallback returns first', compatFallback.id === 'custom_abc');
-assert('getCustomPersonalityText returns promptText', window.getCustomPersonalityText() === 'Expert prompt');
+assert('getCustomPersonalityText returns promptText', personalities.getCustomPersonalityText() === 'Expert prompt');
 localStorage.removeItem(key);
-const compatEmpty = window.getCustomPersonality();
+const compatEmpty = personalities.getCustomPersonality();
 assert('Compat shim: empty returns blank', compatEmpty.promptText === '' && compatEmpty.name === 'Custom Personality');
 
 // ── 7. saveCustomPersonalities ──
 console.log('7. saveCustomPersonalities');
 const testArr = [{ id: 'custom_test1', name: 'Test1', icon: '⚡', promptText: 'p1', evidenceBased: false }];
-window.saveCustomPersonalities(testArr);
+personalities.saveCustomPersonalities(testArr);
 const saved = JSON.parse(localStorage.getItem(key));
 assert('saveCustomPersonalities writes array', Array.isArray(saved));
 assert('saveCustomPersonalities data correct', saved[0].name === 'Test1');
@@ -135,28 +135,28 @@ assert('saveCustomPersonalities data correct', saved[0].name === 'Test1');
 console.log('8. getActivePersonality for custom IDs');
 localStorage.setItem(key, JSON.stringify(arr));
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_abc');
-window.loadChatPersonality();
-const active = window.getActivePersonality();
+personalities.loadChatPersonality();
+const active = personalities.getActivePersonality();
 assert('Active custom: id is custom_abc', active.id === 'custom_abc');
 assert('Active custom: name is Longevity Expert', active.name === 'Longevity Expert');
 assert('Active custom: has greeting', typeof active.greeting === 'string' && active.greeting.length > 0);
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_nonexistent');
-window.loadChatPersonality();
-const fallback = window.getActivePersonality();
+personalities.loadChatPersonality();
+const fallback = personalities.getActivePersonality();
 assert('Deleted custom: falls back to default', fallback.id === 'default');
 
 // ── 9. loadChatPersonality accepts custom IDs ──
 console.log('9. loadChatPersonality validation');
 localStorage.setItem(key, JSON.stringify(arr));
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_abc');
-window.loadChatPersonality();
-assert('loadChatPersonality accepts custom_abc', window.getActivePersonality().id === 'custom_abc');
+personalities.loadChatPersonality();
+assert('loadChatPersonality accepts custom_abc', personalities.getActivePersonality().id === 'custom_abc');
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_bogus');
-window.loadChatPersonality();
-assert('loadChatPersonality rejects unknown custom', window.getActivePersonality().id === 'default');
+personalities.loadChatPersonality();
+assert('loadChatPersonality rejects unknown custom', personalities.getActivePersonality().id === 'default');
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom');
-window.loadChatPersonality();
-assert('loadChatPersonality migrates legacy custom', window.getActivePersonality().id === 'custom_abc');
+personalities.loadChatPersonality();
+assert('loadChatPersonality migrates legacy custom', personalities.getActivePersonality().id === 'custom_abc');
 
 // ── 10. CHAT_PERSONALITIES no longer has custom entry ──
 console.log('10. CHAT_PERSONALITIES static entries');
@@ -180,7 +180,7 @@ console.log('14. Thread metadata');
 const createSrc = createNewThread.toString();
 assert('createNewThread has personalityName', createSrc.includes('personalityName'));
 assert('createNewThread has personalityIcon', createSrc.includes('personalityIcon'));
-const saveSrc = window.saveChatHistory.toString();
+const saveSrc = chatHistory.saveChatHistory.toString();
 assert('saveChatHistory has personalityName', saveSrc.includes('personalityName'));
 assert('saveChatHistory has personalityIcon', saveSrc.includes('personalityIcon'));
 
@@ -218,10 +218,10 @@ assert('CSS has .chat-stopped-note', css.includes('.chat-stopped-note'));
 // ── 20. Discuss button exports ──
 console.log('20. Discuss button exports');
 assert('startDiscussion exported', typeof window.startDiscussion === 'function');
-assert('continueDiscussion exported', typeof window.continueDiscussion === 'function');
-assert('endDiscussion exported', typeof window.endDiscussion === 'function');
+assert('continueDiscussion exported', typeof chatDiscussion.continueDiscussion === 'function');
+assert('endDiscussion exported', typeof chatDiscussion.endDiscussion === 'function');
 assert('updateDiscussButton exported', typeof window.updateDiscussButton === 'function');
-assert('getThreadPersonaCount exported', typeof window.getThreadPersonaCount === 'function');
+assert('getThreadPersonaCount exported', typeof chatDiscussion.getThreadPersonaCount === 'function');
 
 // ── 22. Discuss button CSS ──
 console.log('22. Discuss button CSS');
@@ -233,7 +233,7 @@ assert('CSS has .chat-discuss-done-btn', css.includes('.chat-discuss-done-btn'))
 
 // ── 23. getThreadPersonaCount source ──
 console.log('23. getThreadPersonaCount');
-const countSrc = window.getThreadPersonaCount.toString();
+const countSrc = chatDiscussion.getThreadPersonaCount.toString();
 assert('getThreadPersonaCount checks personalityName', countSrc.includes('personalityName'));
 assert('getThreadPersonaCount uses Set', countSrc.includes('new Set'));
 
@@ -258,13 +258,13 @@ assert('renderChatMessages checks msg.stopped', renderSrc2.includes('msg.stopped
 console.log('26. startDiscussion source');
 const discSrc = window.startDiscussion.toString();
 assert('startDiscussion shows persona picker', discSrc.includes('showDiscussPersonaPicker'));
-const pickerSrc = window.startDiscussionFromPicker.toString();
+const pickerSrc = chatDiscussion.startDiscussionFromPicker.toString();
 assert('startDiscussionFromPicker delegates to runDiscussion', pickerSrc.includes('runDiscussion'));
-const contSrc = window.continueDiscussion.toString();
+const contSrc = chatDiscussion.continueDiscussion.toString();
 assert('continueDiscussion removes prompt', contSrc.includes('removeDiscussContinuePrompt'));
 assert('continueDiscussion runs another round', contSrc.includes('runDiscussionContinuation'));
 assert('continueDiscussion reads steer input', contSrc.includes('chat-discuss-steer'));
-const endSrc = window.endDiscussion.toString();
+const endSrc = chatDiscussion.endDiscussion.toString();
 assert('endDiscussion cleans up state', endSrc.includes('cleanupDiscussionState'));
 assert('endDiscussion marks discussion ended', endSrc.includes('markEnded: true'));
 assert('chat restores discussion prompt without thread metadata',
@@ -286,7 +286,7 @@ if (origVal !== null) localStorage.setItem(key, origVal);
 else localStorage.removeItem(key);
 if (origPersonality !== null) localStorage.setItem(`labcharts-${profileId}-chatPersonality`, origPersonality);
 else localStorage.removeItem(`labcharts-${profileId}-chatPersonality`);
-if (window.loadChatPersonality) window.loadChatPersonality();
+personalities.loadChatPersonality();
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);
 process.exit(fail > 0 ? 1 : 0);

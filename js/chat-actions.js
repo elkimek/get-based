@@ -15,21 +15,28 @@ import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runti
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 
 const chatMessageActionDeps = {
+  closeSummaryModal: /** @type {() => void} */ (() => {}),
+  continueDiscussion: /** @type {() => void | Promise<void>} */ (() => {}),
+  copySummary: /** @type {() => void} */ (() => {}),
+  deleteSavedSummary: /** @type {(id: string) => void | Promise<void>} */ (() => {}),
+  downloadSummary: /** @type {() => void} */ (() => {}),
+  endDiscussion: /** @type {() => void} */ (() => {}),
+  jumpToSearchResult: /** @type {(threadId: string, index: number, prefix: string) => void | Promise<void>} */ (() => {}),
   openEMFAssessmentEditor,
   openImageLightbox: /** @type {(src: string) => void} */ (() => {}),
+  printSummary: /** @type {() => void} */ (() => {}),
   removeImageAttachment: /** @type {(index: number) => void} */ (() => {}),
+  startDiscussionFromPicker: /** @type {() => void | Promise<void>} */ (() => {}),
+  viewSavedSummary: /** @type {(id: string) => void} */ (() => {}),
 };
 
 export function configureChatMessageActionDeps(deps = {}) {
   const previous = { ...chatMessageActionDeps };
-  if (typeof deps.openEMFAssessmentEditor === 'function') {
-    chatMessageActionDeps.openEMFAssessmentEditor = deps.openEMFAssessmentEditor;
-  }
-  if (typeof deps.openImageLightbox === 'function') {
-    chatMessageActionDeps.openImageLightbox = deps.openImageLightbox;
-  }
-  if (typeof deps.removeImageAttachment === 'function') {
-    chatMessageActionDeps.removeImageAttachment = deps.removeImageAttachment;
+  for (const name of Object.keys(chatMessageActionDeps)) {
+    const candidate = /** @type {any} */ (deps)[name];
+    if (typeof candidate === 'function') {
+      /** @type {any} */ (chatMessageActionDeps)[name] = candidate;
+    }
   }
   return previous;
 }
@@ -58,7 +65,6 @@ function containChatMessageEvent(event) {
 
 function runChatMessageAction(actionEl, event) {
   const action = actionEl.getAttribute(CHAT_MESSAGE_ACTION_ATTR);
-  const appWindow = /** @type {any} */ (window);
 
   if (action === 'contain-click') {
     containChatMessageEvent(event);
@@ -89,29 +95,29 @@ function runChatMessageAction(actionEl, event) {
     const index = readMessageIndex(actionEl);
     const threadId = actionEl.dataset.chatMessageThreadId || '';
     if (!threadId || index == null) return;
-    void appWindow.jumpToSearchResult?.(threadId, index, actionEl.dataset.chatMessagePrefix || '');
+    void chatMessageActionDeps.jumpToSearchResult(threadId, index, actionEl.dataset.chatMessagePrefix || '');
   } else if (action === 'view-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
     if (!id) return;
-    appWindow.viewSavedSummary?.(id);
+    chatMessageActionDeps.viewSavedSummary(id);
   } else if (action === 'close-summary') {
-    appWindow.closeSummaryModal?.();
+    chatMessageActionDeps.closeSummaryModal();
   } else if (action === 'copy-summary') {
-    appWindow.copySummary?.();
+    chatMessageActionDeps.copySummary();
   } else if (action === 'download-summary') {
-    appWindow.downloadSummary?.();
+    chatMessageActionDeps.downloadSummary();
   } else if (action === 'print-summary') {
-    appWindow.printSummary?.();
+    chatMessageActionDeps.printSummary();
   } else if (action === 'delete-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
     if (!id) return;
-    void appWindow.deleteSavedSummary?.(id);
+    void chatMessageActionDeps.deleteSavedSummary(id);
   } else if (action === 'start-discussion-from-picker') {
-    void appWindow.startDiscussionFromPicker?.();
+    void chatMessageActionDeps.startDiscussionFromPicker();
   } else if (action === 'continue-discussion') {
-    void appWindow.continueDiscussion?.();
+    void chatMessageActionDeps.continueDiscussion();
   } else if (action === 'end-discussion') {
-    appWindow.endDiscussion?.();
+    chatMessageActionDeps.endDiscussion();
   } else {
     return false;
   }
@@ -131,7 +137,7 @@ function handleChatMessageKeydown(event) {
   if (!(target instanceof HTMLElement)) return;
   if (event.key === 'Enter' && target.dataset.chatMessageKeyAction === 'continue-discussion') {
     event.preventDefault();
-    void /** @type {any} */ (window).continueDiscussion?.();
+    void chatMessageActionDeps.continueDiscussion();
     return;
   }
 

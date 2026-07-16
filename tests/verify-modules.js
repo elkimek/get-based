@@ -228,6 +228,27 @@
     import('../js/views.js'),
   ]);
   const sunModule = await import('../js/sun.js');
+  const chatPersonalitiesModule = await import('../js/chat-personalities.js');
+  const markdownModule = await import('../js/markdown.js');
+  const formerUnusedChatGlobals = [
+    'getChatStorageKey', 'getActivePersonality', 'getCustomPersonalities', 'saveCustomPersonalities',
+    'getCustomPersonality', 'getCustomPersonalityText', 'pickPersonaIcon', 'generateCustomPersonality',
+    'autoResizePersonaTextarea', 'markPersonalityDirty', 'snapshotPersonalityClean', 'loadChatPersonality',
+    'updateChatHeaderTitle', 'updatePersonalityBar', 'saveCustomPersonality', 'startNewCustomPersonality',
+    'deleteCustomPersonality', 'saveChatHistory', 'closeSummaryModal', 'updateSummaryButton',
+    'viewSavedSummary', 'deleteSavedSummary', 'renderSavedSummaries', 'copySummary', 'downloadSummary',
+    'printSummary', 'applyInlineMarkdown', 'renderMarkdown', 'startOnboardingLabImport',
+    'requestOnboardingLabImportProvider', 'startDiscussionFromPicker', 'continueDiscussion', 'endDiscussion',
+    'editCustomPersonality', 'showDiscussContinuePrompt', 'restoreDiscussionContinuePrompt',
+    'cleanupDiscussionState', 'removeDiscussContinuePrompt', 'getThreadPersonaCount',
+    'askAIAboutCorrelations', 'getChatWebSearchEnabled', 'setChatNudge', 'setChatProfileSex',
+    'saveChatProfile', 'saveChatLocation', 'onboardHeightUnitChanged', 'saveChatPeriod', 'addChatSupplement',
+    'removeChatSupplement', 'setProviderQuizBranch', 'backToProviderQuiz', 'skipProviderSetup',
+    'skipOnboardingExtras', 'showCycleNoMensesOptions', 'showCyclePeriodEntry', 'saveCycleStatus',
+    '_updatePeriodBtn', 'onContextCardSaved',
+  ];
+  assert('Unused Chat APIs do not publish legacy window globals',
+    formerUnusedChatGlobals.every(name => !(name in window)));
   const formerSunGlobals = [
     'SUN_ENGINE_VERSION', '_refreshSunSurfaces', 'quickLogSunSession', 'startSession', 'stopSession',
     'pauseSession', 'resumeSession', 'pauseSunSession', 'resumeSunSession', 'applySunscreenMidSession',
@@ -1197,13 +1218,15 @@
   }
 
   // Chat personality system — returns personality object, not string
-  const personality = window.getActivePersonality();
+  const personality = chatPersonalitiesModule.getActivePersonality();
   assert('getActivePersonality returns object with id', typeof personality === 'object' && typeof personality.id === 'string',
     personality ? `id=${personality.id}` : 'null');
+  assert('getActivePersonality stays module-only', !('getActivePersonality' in window));
 
   // Markdown rendering
-  const md = window.renderMarkdown('**bold** and *italic*');
+  const md = markdownModule.renderMarkdown('**bold** and *italic*');
   assert('renderMarkdown handles bold', md.includes('<strong>') || md.includes('<b>'));
+  assert('renderMarkdown stays module-only', !('renderMarkdown' in window));
 
   // ═══════════════════════════════════════════════
   // 13. CONTEXT CARDS — rendering

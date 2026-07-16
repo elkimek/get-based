@@ -93,23 +93,24 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
         keyDiv.remove();
       }
 
-      const savedViewSavedSummary = window.viewSavedSummary;
       const summaryButton = document.createElement('div');
       let viewedSummaryId = null;
+      const savedChatActionDeps = chatActions.configureChatMessageActionDeps({
+        viewSavedSummary: id => { viewedSummaryId = id; },
+      });
       summaryButton.setAttribute('role', 'button');
       summaryButton.setAttribute('tabindex', '0');
       summaryButton.setAttribute('data-chat-message-action', 'view-summary');
       summaryButton.setAttribute('data-chat-message-summary-id', 'summary-keyboard');
       document.body.appendChild(summaryButton);
       try {
-        window.viewSavedSummary = id => { viewedSummaryId = id; };
         const summaryPrevented = !summaryButton.dispatchEvent(
           new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
         );
         outcomes.roleButtonSummaryKeyboardDelegates = summaryPrevented
           && viewedSummaryId === 'summary-keyboard';
       } finally {
-        window.viewSavedSummary = savedViewSavedSummary;
+        chatActions.configureChatMessageActionDeps(savedChatActionDeps);
         summaryButton.remove();
       }
 

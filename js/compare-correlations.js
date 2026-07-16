@@ -10,8 +10,9 @@ import { getEffectiveRange, getEffectiveRangeForDate } from './marker-analysis.j
 import { ensureChartJs, getNotesForChart, getSupplementsForChart, refBandPlugin, noteAnnotationPlugin, supplementBarPlugin } from './charts.js';
 import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 
-/** @type {{ renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
+/** @type {{ askAIAboutCorrelations: () => void, renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
 const compareCorrelationDeps = {
+  askAIAboutCorrelations: () => {},
   renderTableColgroup: () => '',
   renderScrollableTableShell: (_kind, _wrapperClass, _tableClass, _colgroup, headHtml, bodyHtml) => '<table>' + headHtml + bodyHtml + '</table>',
   renderCategoryGlyph: (_categoryKey, label = '') => escapeHTML(label || ''),
@@ -19,7 +20,9 @@ const compareCorrelationDeps = {
 
 /** @param {Partial<typeof compareCorrelationDeps>} deps */
 export function configureCompareCorrelationViews(deps = {}) {
+  const previous = { ...compareCorrelationDeps };
   Object.assign(compareCorrelationDeps, deps);
+  return previous;
 }
 
 function renderTableColgroup(cols) {
@@ -85,10 +88,7 @@ function handleCompareClick(event) {
     if (actionEl.dataset.compareKey) toggleCorrelationMarker(actionEl.dataset.compareKey);
   } else if (action === 'ask-ai-correlations') {
     event.preventDefault();
-    const askAIAboutCorrelations = typeof window !== 'undefined'
-      ? /** @type {any} */ (window).askAIAboutCorrelations
-      : null;
-    if (typeof askAIAboutCorrelations === 'function') askAIAboutCorrelations();
+    compareCorrelationDeps.askAIAboutCorrelations();
   }
 }
 

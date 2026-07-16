@@ -5,6 +5,11 @@ import { configureAppEventListeners } from './app-event-listeners.js';
 import { closeChangelog } from './changelog.js';
 import { configureChatMessageActionDeps } from './chat-actions.js';
 import {
+  continueDiscussion,
+  endDiscussion,
+  startDiscussionFromPicker,
+} from './chat-discussion.js';
+import {
   initChatImageHandlers,
   openImageLightbox,
   removeImageAttachment,
@@ -13,9 +18,19 @@ import {
 } from './chat-images.js';
 import { configureDashboardAIContextStatus } from './context-card-dashboard-ai-runtime.js';
 import { closeChatPanel, configureChatPanel, toggleChatPanel } from './chat-panel.js';
+import { askAIAboutCorrelations } from './chat-marker-prompts.js';
+import { onContextCardSaved } from './chat-onboarding.js';
 import { updateChatNudge } from './chat-nudge.js';
 import { updateChatContextStatus } from './chat-personalities.js';
-import { closeSummaryModal } from './chat-summaries.js';
+import {
+  closeSummaryModal,
+  copySummary,
+  deleteSavedSummary,
+  downloadSummary,
+  printSummary,
+  viewSavedSummary,
+} from './chat-summaries.js';
+import { jumpToSearchResult } from './chat-thread-search.js';
 import {
   createNewThread,
   ensureActiveThread,
@@ -25,6 +40,8 @@ import {
   toggleThreadRail,
 } from './chat-threads.js';
 import { closeClientList, configureClientListRuntime, openClientList, openProfileLocationEditor } from './client-list.js';
+import { configureCompareCorrelationViews } from './compare-correlations.js';
+import { configureContextCardsRuntimeCallbacks } from './context-cards-runtime.js';
 import { closeEMFInterpretation } from './emf-interpretation.js';
 import { clearAllData, closeReportBuilder } from './export.js';
 import { exportAllDataJSON, exportClientJSON, importDataJSON, loadDemoData } from './export.js';
@@ -76,7 +93,22 @@ configureRecommendationsRuntime({ openProfileLocationEditor });
 configureSunDefaultsRuntimeDeps({ openClientList, openProfileLocationEditor });
 
 configureChatPanel({ refreshMobileDashboardActiveTab });
-configureChatMessageActionDeps({ openImageLightbox, removeImageAttachment });
+configureChatMessageActionDeps({
+  closeSummaryModal,
+  continueDiscussion,
+  copySummary,
+  deleteSavedSummary,
+  downloadSummary,
+  endDiscussion,
+  jumpToSearchResult,
+  openImageLightbox,
+  printSummary,
+  removeImageAttachment,
+  startDiscussionFromPicker,
+  viewSavedSummary,
+});
+configureCompareCorrelationViews({ askAIAboutCorrelations });
+configureContextCardsRuntimeCallbacks({ onContextCardSaved });
 configureShellChatImageDeps({ toggleHDMode });
 configureShellChatThreadDeps({ createNewThread, filterThreadList, toggleThreadRail });
 configureStartupUIDeps({ initChatImageHandlers, updateAttachButtonVisibility });
