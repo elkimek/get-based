@@ -1,20 +1,22 @@
 // @ts-check
 // sync-pull-active-refresh-runtime.js - Browser runtime adapters for active sync pull refresh hooks.
 
-import { getViewRuntimeFunction } from './views-runtime-bridge.js';
-
 const syncPullActiveRefreshDeps = {
+  buildSidebar: null,
   ensureActiveThread: () => {},
   loadChatHistory: () => undefined,
   loadChatThreads: () => undefined,
+  navigate: null,
   renderThreadList: () => {},
 };
 
 export function configureSyncPullActiveRefreshDeps(deps = {}) {
   const previous = { ...syncPullActiveRefreshDeps };
+  if ('buildSidebar' in deps) syncPullActiveRefreshDeps.buildSidebar = typeof deps.buildSidebar === 'function' ? deps.buildSidebar : null;
   if (typeof deps.ensureActiveThread === 'function') syncPullActiveRefreshDeps.ensureActiveThread = deps.ensureActiveThread;
   if (typeof deps.loadChatHistory === 'function') syncPullActiveRefreshDeps.loadChatHistory = deps.loadChatHistory;
   if (typeof deps.loadChatThreads === 'function') syncPullActiveRefreshDeps.loadChatThreads = deps.loadChatThreads;
+  if ('navigate' in deps) syncPullActiveRefreshDeps.navigate = typeof deps.navigate === 'function' ? deps.navigate : null;
   if (typeof deps.renderThreadList === 'function') syncPullActiveRefreshDeps.renderThreadList = deps.renderThreadList;
   return previous;
 }
@@ -23,18 +25,6 @@ function getRuntimeWindow() {
   return typeof window !== 'undefined'
     ? /** @type {any} */ (window)
     : null;
-}
-
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
-  const runtime = getRuntimeWindow();
-  if (!runtime) return null;
-  const fn = runtime[name];
-  if (typeof fn === 'function') return fn.bind(runtime);
-  return name === 'navigate' ? getViewRuntimeFunction(name) : null;
 }
 
 export function refreshPulledChatRuntime() {
@@ -56,7 +46,7 @@ export function refreshPulledChatRuntime() {
 }
 
 export function rebuildPulledSidebarRuntime() {
-  try { getViewRuntimeFunction('buildSidebar')?.(); } catch {}
+  try { syncPullActiveRefreshDeps.buildSidebar?.(); } catch {}
 }
 
 /**
@@ -64,7 +54,7 @@ export function rebuildPulledSidebarRuntime() {
  * @param {Record<string, unknown> | undefined} [options]
  */
 export function navigatePulledActiveViewRuntime(route, options) {
-  getRuntimeFunction('navigate')?.(route, options);
+  syncPullActiveRefreshDeps.navigate?.(route, options);
 }
 
 export function dispatchSyncAppliedRuntime() {

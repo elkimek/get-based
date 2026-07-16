@@ -12,7 +12,6 @@ import {
   rebuildPulledSidebarRuntime,
   refreshPulledChatRuntime,
 } from '../js/sync-pull-active-refresh-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -24,7 +23,6 @@ console.log('=== Sync Pull Active Refresh Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'navigate',
   'CustomEvent',
   'dispatchEvent',
 ];
@@ -48,20 +46,17 @@ function restoreRuntime() {
 }
 
 const calls = [];
-let previousViewRuntime = null;
 const previousDeps = configureSyncPullActiveRefreshDeps({
+  buildSidebar: () => calls.push(['buildSidebar']),
   loadChatHistory: () => calls.push(['loadChatHistory']),
   loadChatThreads: () => calls.push(['loadChatThreads']),
   ensureActiveThread: () => calls.push(['ensureActiveThread']),
+  navigate: (route, options) => calls.push(['navigate', route, options?.preserveScroll]),
   renderThreadList: () => calls.push(['renderThreadList']),
 });
 
 try {
   setRuntimeValue('window', globalThis);
-  previousViewRuntime = configureViewRuntime({
-    buildSidebar: () => calls.push(['buildSidebar']),
-  });
-  setRuntimeValue('navigate', (route, options) => calls.push(['navigate', route, options?.preserveScroll]));
   setRuntimeValue('CustomEvent', class CustomEvent {
     constructor(type) { this.type = type; }
   });
@@ -86,18 +81,19 @@ try {
       'dispatchEvent|labcharts-sync-applied',
     ].join(','));
 
-  configureViewRuntime({ buildSidebar: () => { throw new Error('sidebar boom'); } });
+  configureSyncPullActiveRefreshDeps({ buildSidebar: () => { throw new Error('sidebar boom'); } });
   assert('sync pull active refresh runtime guards sidebar rebuild failures',
     rebuildPulledSidebarRuntime() === undefined);
 
   configureSyncPullActiveRefreshDeps({
+    buildSidebar: null,
     loadChatHistory: () => undefined,
     loadChatThreads: () => undefined,
     ensureActiveThread: () => {},
+    navigate: null,
     renderThreadList: () => {},
   });
   delete globalThis.window;
-  configureViewRuntime({ buildSidebar: null });
   const beforeNoWindowCalls = calls.length;
   refreshPulledChatRuntime();
   rebuildPulledSidebarRuntime();
@@ -121,7 +117,6 @@ try {
       !/\bwindow(?:\.|\s*\[)/.test(refreshSrc) &&
       swSrc.includes("'/js/sync-pull-active-refresh-runtime.js'"));
 } finally {
-  configureViewRuntime({ buildSidebar: null, ...previousViewRuntime });
   configureSyncPullActiveRefreshDeps(previousDeps);
   restoreRuntime();
 }
