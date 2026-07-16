@@ -8,7 +8,6 @@ import {
   navigateCategoryCustomizationRuntime,
   showCategoryCustomizationPrompt,
 } from '../js/category-customization-runtime.js';
-import { configureViewRuntime } from '../js/views-runtime-bridge.js';
 
 const originalCategoryCustomizationRuntimeDeps = configureCategoryCustomizationRuntimeDeps();
 
@@ -22,9 +21,6 @@ console.log('=== Category Customization Runtime Tests ===\n');
 
 const runtimeKeys = [
   'window',
-  'navigate',
-  'buildSidebar',
-  'showPromptDialog',
   'innerWidth',
   'innerHeight',
 ];
@@ -49,7 +45,6 @@ function restoreRuntime() {
 
 try {
   const calls = [];
-  let previousViewRuntime = null;
   const browserRuntime = {
     innerWidth: 812,
     innerHeight: 640,
@@ -65,10 +60,9 @@ try {
     },
   };
   setRuntimeValue('window', browserRuntime);
-  previousViewRuntime = configureViewRuntime({
-    buildSidebar: browserRuntime.buildSidebar.bind(browserRuntime),
-  });
   configureCategoryCustomizationRuntimeDeps({
+    buildSidebar: browserRuntime.buildSidebar.bind(browserRuntime),
+    navigate: browserRuntime.navigate.bind(browserRuntime),
     showPromptDialog: browserRuntime.showPromptDialog.bind(browserRuntime),
   });
 
@@ -94,28 +88,27 @@ try {
 
   delete browserRuntime.navigate;
   delete browserRuntime.buildSidebar;
-  configureViewRuntime({
+  configureCategoryCustomizationRuntimeDeps({
     buildSidebar: null,
-    navigate: route => calls.push(['module-navigate', route]),
+    navigate: null,
+    showPromptDialog: null,
   });
-  configureCategoryCustomizationRuntimeDeps({ showPromptDialog: null });
   delete browserRuntime.innerWidth;
   delete browserRuntime.innerHeight;
+  const beforeMissingCalls = calls.length;
   navigateCategoryCustomizationRuntime('missing');
   assert('runtime hooks no-op when browser callbacks are missing',
     getCategoryCustomizationBuildSidebar() === null
       && await showCategoryCustomizationPrompt('Missing callback') === undefined
-      && calls.some(call => call[0] === 'module-navigate' && call[1] === 'missing'));
+      && calls.length === beforeMissingCalls);
   const fallbackViewport = getCategoryCustomizationViewportSize();
   assert('viewport helper falls back when dimensions are missing',
     fallbackViewport.width === 1024 && fallbackViewport.height === 768);
 
   delete globalThis.window;
-  let globalNavigateCalled = false;
-  setRuntimeValue('navigate', route => { globalNavigateCalled = route === 'dashboard'; });
+  const beforeNoWindowCalls = calls.length;
   navigateCategoryCustomizationRuntime('dashboard');
-  assert('runtime hooks fall back to globalThis when window is missing', globalNavigateCalled);
-  configureViewRuntime({ buildSidebar: null, navigate: null, ...previousViewRuntime });
+  assert('runtime callbacks stay no-op when window is missing', calls.length === beforeNoWindowCalls);
 } finally {
   configureCategoryCustomizationRuntimeDeps(originalCategoryCustomizationRuntimeDeps);
   restoreRuntime();
