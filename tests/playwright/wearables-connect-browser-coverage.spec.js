@@ -33,6 +33,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
 
     const { state } = await import('/js/state.js');
     const connect = await import(connectUrl);
+    const connectRuntime = await import('/js/wearables-connect-runtime.js');
     const store = await import(storeUrl);
     await import('/js/wearable-adapters.js');
 
@@ -42,6 +43,9 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
     const navigations = [];
     const requests = [];
     let refreshCount = 0;
+    const originalConnectRuntimeDeps = connectRuntime.configureWearablesConnectRuntimeDeps({
+      navigate: route => navigations.push(route),
+    });
 
     localStorage.setItem('labcharts-active-profile', profileId);
     state.currentProfile = profileId;
@@ -49,8 +53,6 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
     state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, wearableConnections: {}, wearableSummary: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
 
     document.body.innerHTML = '<div id="notification-container"></div>';
-    window.navigate = route => navigations.push(route);
-
     await store.clearSource(profileId, 'oura').catch(() => {});
     await store.clearSource(profileId, 'polar').catch(() => {});
 
@@ -211,6 +213,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
       const skippedSync = await connect.syncNow('oura');
       check('syncNow skips disconnected source', skippedSync.skipped === true && skippedSync.reason === 'not-connected');
     } finally {
+      connectRuntime.configureWearablesConnectRuntimeDeps(originalConnectRuntimeDeps);
       window.fetch = originalFetch;
       history.replaceState(null, '', `${location.pathname}${originalLocationSearch || ''}`);
       await store.clearSource(profileId, 'oura').catch(() => {});

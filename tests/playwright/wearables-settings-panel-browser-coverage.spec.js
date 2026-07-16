@@ -19,11 +19,12 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       return false;
     };
 
-    const [{ state }, settings, store, settingsBridge] = await Promise.all([
+    const [{ state }, settings, store, settingsBridge, settingsRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/wearables-settings-panel.js'),
       import('/js/wearables-store.js'),
       import('/js/settings-runtime-bridge.js'),
+      import('/js/wearables-settings-runtime.js'),
     ]);
 
     const profileId = `wearables-settings-render-${Date.now()}`;
@@ -35,7 +36,6 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     const oldCurrentProfile = state.currentProfile;
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
-    const oldNavigate = window.navigate;
     const oldScrollIntoView = Element.prototype.scrollIntoView;
     const navigations = [];
     const docsClicks = [];
@@ -43,6 +43,9 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     let scrolledToStrip = 0;
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       closeSettingsModal: () => { closedSettings += 1; },
+    });
+    const previousSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps({
+      navigate: route => { navigations.push(route); },
     });
 
     try {
@@ -102,7 +105,6 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         { source: 'manual', date: '2026-06-03', rhr: 54 },
       ]);
 
-      window.navigate = route => { navigations.push(route); };
       Element.prototype.scrollIntoView = function scrollIntoView() {
         if (this.id === 'wearable-strip') scrolledToStrip += 1;
       };
@@ -192,8 +194,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       state.currentProfile = oldCurrentProfile;
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
-      window.navigate = oldNavigate;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
+      settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntimeDeps);
       Element.prototype.scrollIntoView = oldScrollIntoView;
     }
     return failures;
@@ -233,7 +235,6 @@ test('wearables settings panel browser coverage deletes manual data after confir
     const oldCurrentProfile = state.currentProfile;
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
-    const oldNavigate = window.navigate;
     const oldSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
     const navigations = [];
     const confirmMessages = [];
@@ -280,11 +281,13 @@ test('wearables settings panel browser coverage deletes manual data after confir
         { source: 'manual', date: '2026-06-05', rhr: 58 },
       ]);
 
-      window.navigate = route => { navigations.push(route); };
-      settingsRuntime.configureWearableSettingsRuntimeDeps({ showConfirmDialog: async message => {
-        confirmMessages.push(message);
-        return true;
-      } });
+      settingsRuntime.configureWearableSettingsRuntimeDeps({
+        navigate: route => { navigations.push(route); },
+        showConfirmDialog: async message => {
+          confirmMessages.push(message);
+          return true;
+        },
+      });
       document.body.insertAdjacentHTML('beforeend', `
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
@@ -320,7 +323,6 @@ test('wearables settings panel browser coverage deletes manual data after confir
       state.currentProfile = oldCurrentProfile;
       state.profiles = oldProfiles;
       state.importedData = oldImportedData;
-      window.navigate = oldNavigate;
       settingsRuntime.configureWearableSettingsRuntimeDeps(oldSettingsRuntimeDeps);
     }
     return failures;

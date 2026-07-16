@@ -122,6 +122,10 @@ assert('App shell wires remaining Chat open consumers without window globals',
     && appShellHooksSrc.includes('configureRecommendationsRuntime({ openChatPanel, openProfileLocationEditor });')
     && appShellHooksSrc.includes('configureTourRuntimeDeps({ openChatPanel });'));
 
+assert('App shell injects wearable navigation without view bridge lookups',
+  appShellHooksSrc.includes('configureWearablesConnectRuntimeDeps({ navigate });')
+    && appShellHooksSrc.includes('configureWearableSettingsRuntimeDeps({ navigate });'));
+
 assert('Chat shell controls use module dependencies instead of window lookups',
   ['closeChatPanel', 'clearChatHistory', 'handleChatKeydown', 'sendChatMessage', 'setChatPersonality',
     'setChatWebSearchEnabled', 'startDiscussion', 'summarizeThread', 'toggleChatFullscreen',

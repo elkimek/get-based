@@ -8,9 +8,12 @@ import './_node-shim.js';
 import {
   addWearablesBeforeUnloadRuntime,
   clearWearableOAuthCallbackRuntime,
+  configureWearablesConnectRuntimeDeps,
   getWearableOAuthSearchParamsRuntime,
   navigateWearablesDashboardAfterConnectRuntime,
 } from '../js/wearables-connect-runtime.js';
+
+const originalWearablesConnectRuntimeDeps = configureWearablesConnectRuntimeDeps();
 
 let pass = 0, fail = 0;
 function assert(name, condition, detail) {
@@ -24,7 +27,6 @@ const runtimeKeys = [
   'window',
   'location',
   'history',
-  'navigate',
   'addEventListener',
 ];
 const savedDescriptors = new Map(runtimeKeys.map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -53,7 +55,7 @@ try {
   setRuntimeValue('history', {
     replaceState: (state, title, pathValue) => calls.push(['replaceState', String(state), title, pathValue]),
   });
-  setRuntimeValue('navigate', route => calls.push(['navigate', route]));
+  configureWearablesConnectRuntimeDeps({ navigate: route => calls.push(['navigate', route]) });
   setRuntimeValue('addEventListener', (eventName, handler) => {
     calls.push(['addEventListener', eventName]);
     if (eventName === 'beforeunload') handler();
@@ -75,6 +77,7 @@ try {
     ].join(',') && addedUnload === true && unloaded === true);
 
   delete globalThis.window;
+  configureWearablesConnectRuntimeDeps({ navigate: null });
   const beforeNoWindowCalls = calls.length;
   const emptyParams = getWearableOAuthSearchParamsRuntime();
   clearWearableOAuthCallbackRuntime();
@@ -87,12 +90,21 @@ try {
 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const connectSrc = fs.readFileSync(path.join(root, 'js/wearables-connect.js'), 'utf8');
+  const connectRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-connect-runtime.js'), 'utf8');
+  const settingsRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-settings-runtime.js'), 'utf8');
+  const appShellHooksSrc = fs.readFileSync(path.join(root, 'js/app-shell-hooks.js'), 'utf8');
   const swSrc = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
   assert('wearables connect delegates browser globals through runtime adapter',
     connectSrc.includes("from './wearables-connect-runtime.js'") &&
       !/\bwindow(?:\.|\s*\[)/.test(connectSrc) &&
       swSrc.includes("'/js/wearables-connect-runtime.js'"));
+  assert('wearable navigation stays dependency-injected from the app shell',
+    !connectRuntimeSrc.includes('getViewRuntimeFunction') &&
+      !settingsRuntimeSrc.includes('getViewRuntimeFunction') &&
+      appShellHooksSrc.includes('configureWearablesConnectRuntimeDeps({ navigate });') &&
+      appShellHooksSrc.includes('configureWearableSettingsRuntimeDeps({ navigate });'));
 } finally {
+  configureWearablesConnectRuntimeDeps(originalWearablesConnectRuntimeDeps);
   restoreRuntime();
 }
 

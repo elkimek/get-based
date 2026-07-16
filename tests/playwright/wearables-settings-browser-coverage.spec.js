@@ -38,7 +38,6 @@ test('wearables settings browser coverage exercises import and connection action
     const originalActiveProfile = localStorage.getItem('labcharts-active-profile');
     const originalCurrentProfile = state.currentProfile;
     const originalImported = state.importedData;
-    const originalNavigate = window.navigate;
     const originalSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
     const originalRequestAnimationFrame = window.requestAnimationFrame;
     const originalImportedLocalValue = localStorage.getItem(importedKey);
@@ -75,7 +74,9 @@ test('wearables settings browser coverage exercises import and connection action
         wearableSummary: null,
         changeHistory: [],
       };
-      window.navigate = route => calls.push(['navigate', route]);
+      settingsRuntime.configureWearableSettingsRuntimeDeps({
+        navigate: route => calls.push(['navigate', route]),
+      });
 
       const section = renderSettings();
       check('settings section renders Apple Health import controls',
@@ -187,8 +188,6 @@ test('wearables settings browser coverage exercises import and connection action
       else localStorage.removeItem('labcharts-active-profile');
       state.currentProfile = originalCurrentProfile;
       state.importedData = originalImported;
-      if (originalNavigate) window.navigate = originalNavigate;
-      else delete window.navigate;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       settingsRuntime.configureWearableSettingsRuntimeDeps(originalSettingsRuntimeDeps);
       window.requestAnimationFrame = originalRequestAnimationFrame;

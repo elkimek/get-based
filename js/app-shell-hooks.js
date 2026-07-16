@@ -98,6 +98,8 @@ import { configureStartupUIDeps } from './startup-ui.js';
 import { configureSyncPullActiveRefreshDeps } from './sync-pull-active-refresh-runtime.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { configureTourRuntimeDeps } from './tour-runtime.js';
+import { configureWearablesConnectRuntimeDeps } from './wearables-connect-runtime.js';
+import { configureWearableSettingsRuntimeDeps } from './wearables-settings-runtime.js';
 
 configureClientListRuntime({
   exportAllDataJSON,
@@ -182,6 +184,8 @@ configureStartupUIDeps({ initChatImageHandlers, openChatPanel, updateAttachButto
 configureOnboardingViewRuntimeDeps({ createNewThread, openChatPanel, toggleChatPanel });
 configureTourRuntimeDeps({ openChatPanel });
 configureSyncPullActiveRefreshDeps({ buildSidebar, ensureActiveThread, loadChatHistory, loadChatThreads, navigate, renderThreadList });
+configureWearablesConnectRuntimeDeps({ navigate });
+configureWearableSettingsRuntimeDeps({ navigate });
 configureDashboardAIContextStatus(updateChatContextStatus);
 
 configureAppEventListeners({
